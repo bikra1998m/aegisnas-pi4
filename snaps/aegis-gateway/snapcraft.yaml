@@ -1,0 +1,39 @@
+name: aegis-gateway
+version: '1.0'
+summary: AegisNAS Gateway Service – firewall and routing
+description: |
+  Manages nftables firewall, NAT, VLAN trunking, and captive portal redirect hooks.
+  Part of AegisNAS Pi4 appliance.
+
+base: core24
+confinement: strict
+grade: stable
+
+apps:
+  aegis-gateway:
+    command: bin/aegis-gateway
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+      - network-control   # for nftables
+      - system-files      # to read config and write database
+    environment:
+      CONFIG_PATH: /var/snap/aegis-gateway/common/config.yaml
+      DATABASE_PATH: /var/lib/aegisnas/data.db
+
+parts:
+  aegis-gateway:
+    plugin: go
+    source: ../../
+    source-type: local
+    build-snaps:
+      - go/1.22/stable
+    build-packages:
+      - build-essential
+    override-build: |
+      craftctl default
+      cd ../../
+      go build -o $CRAFT_PART_INSTALL/bin/aegis-gateway ./cmd/aegis-gateway
+    stage:
+      - bin/aegis-gateway

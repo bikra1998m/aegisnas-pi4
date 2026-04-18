@@ -1,0 +1,35 @@
+name: aegis-policy
+version: '1.0'
+summary: AegisNAS Policy Engine
+description: |
+  Evaluates access policies and returns decisions (allow/deny, VLAN, bandwidth).
+
+base: core24
+confinement: strict
+grade: stable
+
+apps:
+  aegis-policy:
+    command: bin/aegis-policy
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+      - system-files
+    environment:
+      CONFIG_PATH: /var/snap/aegis-policy/common/config.yaml
+      DATABASE_PATH: /var/lib/aegisnas/data.db
+
+parts:
+  aegis-policy:
+    plugin: go
+    source: ../../
+    source-type: local
+    build-snaps:
+      - go/1.22/stable
+    override-build: |
+      craftctl default
+      cd ../../
+      go build -o $CRAFT_PART_INSTALL/bin/aegis-policy ./cmd/aegis-policy
+    stage:
+      - bin/aegis-policy

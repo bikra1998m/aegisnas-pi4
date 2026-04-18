@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Branding}} - Sign In</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>{{.Branding}}</h1>
+            <p class="subtitle">Please sign in to access the network</p>
+            {{if .Error}}
+            <div class="error">{{.Error}}</div>
+            {{end}}
+            <form method="POST" action="/login">
+                <input type="hidden" name="client_mac" value="{{.ClientMAC}}">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn primary">Sign In</button>
+            </form>
+            <div class="links">
+                <a href="{{.VoucherURL}}">Use a voucher code</a>
+            </div>
+            <div class="footer">
+                IP: {{.ClientIP}}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,40 @@
+name: aegis-portal
+version: '1.0'
+summary: AegisNAS Captive Portal
+description: |
+  Web-based captive portal for guest authentication.
+
+base: core24
+confinement: strict
+grade: stable
+
+apps:
+  aegis-portal:
+    command: bin/aegis-portal
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+      - system-files
+    environment:
+      CONFIG_PATH: /var/snap/aegis-portal/common/config.yaml
+      DATABASE_PATH: /var/lib/aegisnas/data.db
+
+parts:
+  aegis-portal:
+    plugin: go
+    source: ../../
+    source-type: local
+    build-snaps:
+      - go/1.22/stable
+    override-build: |
+      craftctl default
+      cd ../../
+      go build -o $CRAFT_PART_INSTALL/bin/aegis-portal ./cmd/aegis-portal
+      # Also include static assets
+      mkdir -p $CRAFT_PART_INSTALL/share/aegisnas/portal/static
+      cp -r internal/portal/server/static/* $CRAFT_PART_INSTALL/share/aegisnas/portal/static/
+      cp -r internal/portal/server/templates $CRAFT_PART_INSTALL/share/aegisnas/portal/
+    stage:
+      - bin/aegis-portal
+      - share/aegisnas/portal

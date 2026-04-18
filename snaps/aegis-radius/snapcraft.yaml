@@ -1,0 +1,32 @@
+name: aegis-radius
+version: '1.0'
+summary: AegisNAS RADIUS configurator
+description: |
+  Generates and applies FreeRADIUS configuration. Requires FreeRADIUS installed on host.
+
+base: core24
+confinement: classic
+grade: stable
+
+apps:
+  aegis-radius:
+    command: bin/aegis-radius
+    # Not a daemon; it's a CLI tool to apply config, but also can run as daemon for health.
+    daemon: simple
+    environment:
+      CONFIG_PATH: /var/snap/aegis-radius/common/config.yaml
+      DATABASE_PATH: /var/lib/aegisnas/data.db
+
+parts:
+  aegis-radius:
+    plugin: go
+    source: ../../
+    source-type: local
+    build-snaps:
+      - go/1.22/stable
+    override-build: |
+      craftctl default
+      cd ../../
+      go build -o $CRAFT_PART_INSTALL/bin/aegis-radius ./cmd/aegis-radius
+    stage:
+      - bin/aegis-radius

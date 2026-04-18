@@ -1,0 +1,35 @@
+name: aegis-telemetry
+version: '1.0'
+summary: AegisNAS Telemetry Service
+description: |
+  Collects and exposes Prometheus metrics.
+
+base: core24
+confinement: strict
+grade: stable
+
+apps:
+  aegis-telemetry:
+    command: bin/aegis-telemetry
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+      - system-files
+    environment:
+      CONFIG_PATH: /var/snap/aegis-telemetry/common/config.yaml
+      DATABASE_PATH: /var/lib/aegisnas/data.db
+
+parts:
+  aegis-telemetry:
+    plugin: go
+    source: ../../
+    source-type: local
+    build-snaps:
+      - go/1.22/stable
+    override-build: |
+      craftctl default
+      cd ../../
+      go build -o $CRAFT_PART_INSTALL/bin/aegis-telemetry ./cmd/aegis-telemetry
+    stage:
+      - bin/aegis-telemetry

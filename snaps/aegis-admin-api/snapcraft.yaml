@@ -1,0 +1,35 @@
+name: aegis-admin-api
+version: '1.0'
+summary: AegisNAS Admin REST API
+description: |
+  REST API for managing all configuration objects, with staged apply workflow.
+
+base: core24
+confinement: strict
+grade: stable
+
+apps:
+  aegis-admin-api:
+    command: bin/aegis-admin-api
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+      - system-files
+    environment:
+      CONFIG_PATH: /var/snap/aegis-admin-api/common/config.yaml
+      DATABASE_PATH: /var/lib/aegisnas/data.db
+
+parts:
+  aegis-admin-api:
+    plugin: go
+    source: ../../
+    source-type: local
+    build-snaps:
+      - go/1.22/stable
+    override-build: |
+      craftctl default
+      cd ../../
+      go build -o $CRAFT_PART_INSTALL/bin/aegis-admin-api ./cmd/aegis-admin-api
+    stage:
+      - bin/aegis-admin-api

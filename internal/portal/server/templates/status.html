@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Branding}} - Status</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Connection Status</h1>
+            {{if .Authenticated}}
+            <div class="status online">You are connected as <strong>{{.Username}}</strong></div>
+            <p>IP Address: {{.IP}}<br>MAC: {{.MAC}}</p>
+            <a href="/logout?client_mac={{.MAC}}" class="btn warn">Logout</a>
+            {{else}}
+            <div class="status offline">Not authenticated</div>
+            <p>Please <a href="/?client_mac={{.MAC}}">sign in</a> to access the network.</p>
+            {{end}}
+            <div class="footer">
+                <a href="{{.SuccessURL}}">Continue to Internet</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

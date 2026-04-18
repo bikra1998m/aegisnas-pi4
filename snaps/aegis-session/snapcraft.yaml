@@ -1,0 +1,35 @@
+name: aegis-session
+version: '1.0'
+summary: AegisNAS Session Manager
+description: |
+  Tracks active sessions, enforces timeouts, and provides session query API.
+
+base: core24
+confinement: strict
+grade: stable
+
+apps:
+  aegis-session:
+    command: bin/aegis-session
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+      - system-files
+    environment:
+      CONFIG_PATH: /var/snap/aegis-session/common/config.yaml
+      DATABASE_PATH: /var/lib/aegisnas/data.db
+
+parts:
+  aegis-session:
+    plugin: go
+    source: ../../
+    source-type: local
+    build-snaps:
+      - go/1.22/stable
+    override-build: |
+      craftctl default
+      cd ../../
+      go build -o $CRAFT_PART_INSTALL/bin/aegis-session ./cmd/aegis-session
+    stage:
+      - bin/aegis-session

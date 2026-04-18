@@ -1,0 +1,35 @@
+name: aegis-ai-lite
+version: '1.0'
+summary: AegisNAS AI Lite – advisory recommendations
+description: |
+  Provides anomaly detection, config linting, and recommendations.
+
+base: core24
+confinement: strict
+grade: stable
+
+apps:
+  aegis-ai-lite:
+    command: bin/aegis-ai-lite
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+      - system-files
+    environment:
+      CONFIG_PATH: /var/snap/aegis-ai-lite/common/config.yaml
+      DATABASE_PATH: /var/lib/aegisnas/data.db
+
+parts:
+  aegis-ai-lite:
+    plugin: go
+    source: ../../
+    source-type: local
+    build-snaps:
+      - go/1.22/stable
+    override-build: |
+      craftctl default
+      cd ../../
+      go build -o $CRAFT_PART_INSTALL/bin/aegis-ai-lite ./cmd/aegis-ai-lite
+    stage:
+      - bin/aegis-ai-lite

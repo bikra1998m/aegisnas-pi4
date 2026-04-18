@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Branding}} - Connected</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <meta http-equiv="refresh" content="5;url={{.SuccessURL}}">
+</head>
+<body>
+    <div class="container">
+        <div class="card success">
+            <h1>Connected!</h1>
+            <p>Welcome, {{.Username}}.</p>
+            <p>You are now online. You will be redirected shortly.</p>
+            <a href="{{.SuccessURL}}" class="btn">Continue</a>
+            <div class="footer">
+                <a href="/status?client_mac={{.ClientMAC}}">Connection Status</a> |
+                <a href="/logout?client_mac={{.ClientMAC}}">Logout</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

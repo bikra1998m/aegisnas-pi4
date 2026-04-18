@@ -1,0 +1,79 @@
+{
+  "type": "model",
+  "authority-id": "YOUR_DEVELOPER_ID",
+  "brand-id": "YOUR_DEVELOPER_ID",
+  "series": "16",
+  "model": "aegisnas-pi4",
+  "architecture": "arm64",
+  "base": "core24",
+  "grade": "signed",
+  "snaps": [
+    {
+      "name": "pi",
+      "type": "gadget",
+      "default-channel": "24/stable",
+      "id": "YOUR_GADGET_SNAP_ID"
+    },
+    {
+      "name": "pi-kernel",
+      "type": "kernel",
+      "default-channel": "24/stable",
+      "id": "YOUR_KERNEL_SNAP_ID"
+    },
+    {
+      "name": "core24",
+      "type": "base",
+      "default-channel": "latest/stable",
+      "id": "YOUR_CORE24_SNAP_ID"
+    },
+    {
+      "name": "aegis-gateway",
+      "type": "app",
+      "default-channel": "edge",
+      "id": ""
+    },
+    {
+      "name": "aegis-radius",
+      "type": "app",
+      "default-channel": "edge",
+      "id": "",
+      "classic": true
+    },
+    {
+      "name": "aegis-portal",
+      "type": "app",
+      "default-channel": "edge",
+      "id": ""
+    },
+    {
+      "name": "aegis-session",
+      "type": "app",
+      "default-channel": "edge",
+      "id": ""
+    },
+    {
+      "name": "aegis-policy",
+      "type": "app",
+      "default-channel": "edge",
+      "id": ""
+    },
+    {
+      "name": "aegis-admin-api",
+      "type": "app",
+      "default-channel": "edge",
+      "id": ""
+    },
+    {
+      "name": "aegis-telemetry",
+      "type": "app",
+      "default-channel": "edge",
+      "id": ""
+    },
+    {
+      "name": "aegis-ai-lite",
+      "type": "app",
+      "default-channel": "edge",
+      "id": ""
+    }
+  ]
+}
