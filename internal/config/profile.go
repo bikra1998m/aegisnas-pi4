@@ -217,10 +217,10 @@ func deploymentDisabledServices(cfg *Config) []string {
 
 func deploymentWarnings(cfg *Config, preset deploymentPreset) []string {
 	if cfg == nil {
-		return nil
+		return []string{}
 	}
 
-	var warnings []string
+	warnings := make([]string, 0)
 	if memory := cfg.Deployment.Hardware.MemoryMB; memory > 0 && memory < preset.RecommendedMinMemoryMB {
 		warnings = append(warnings, "Configured memory is below the recommended minimum for this deployment profile.")
 	}

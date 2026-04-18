@@ -163,8 +163,13 @@ export default function Dashboard() {
     return <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error || 'Appliance status is unavailable.'}</div>;
   }
 
-  const serviceProblems = systemStatus.services.filter((service) => !['ok', 'disabled'].includes(service.status));
-  const sessionMethods = Object.entries(systemStatus.summary.session_methods || {});
+  const services = systemStatus.services ?? [];
+  const deploymentWarnings = systemStatus.deployment?.warnings ?? [];
+  const configuredServers = systemStatus.radius?.configured_servers ?? [];
+  const radiusServerStatuses = systemStatus.radius?.server_statuses ?? [];
+  const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
+  const serviceProblems = services.filter((service) => !['ok', 'disabled'].includes(service.status));
+  const sessionMethods = Object.entries(systemStatus.summary?.session_methods || {});
 
   return (
     <div className="space-y-6">
@@ -205,7 +210,7 @@ export default function Dashboard() {
             <div className="text-sm text-gray-500">{systemStatus.generated_at}</div>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            {systemStatus.services.map((service) => (
+            {services.map((service) => (
               <div key={service.key} className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -229,7 +234,7 @@ export default function Dashboard() {
                   <div className="font-medium text-gray-900">{systemStatus.deployment.label}</div>
                   <div className="mt-1 text-sm text-gray-600">{systemStatus.deployment.summary}</div>
                 </div>
-                <StatusBadge status={systemStatus.deployment.warnings.length === 0 ? 'ok' : 'degraded'} />
+                <StatusBadge status={deploymentWarnings.length === 0 ? 'ok' : 'degraded'} />
               </div>
               <div className="mt-3 text-sm text-gray-600">
                 {systemStatus.deployment.form} form, {systemStatus.deployment.hardware.cpu_cores || 'unknown'} cores,{' '}
@@ -240,12 +245,12 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-4 space-y-2">
-              {systemStatus.deployment.warnings.length === 0 ? (
+              {deploymentWarnings.length === 0 ? (
                 <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600">
                   Hardware and feature choices look aligned with the selected profile.
                 </div>
               ) : (
-                systemStatus.deployment.warnings.map((warning, index) => (
+                deploymentWarnings.map((warning, index) => (
                   <div key={`deployment-warning-${index}`} className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                     {warning}
                   </div>
@@ -293,12 +298,12 @@ export default function Dashboard() {
               </div>
             ) : null}
             <div className="mt-4 space-y-3">
-              {systemStatus.radius.server_statuses.length === 0 ? (
+              {radiusServerStatuses.length === 0 ? (
                 <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600">
                   No upstream AAA servers configured.
                 </div>
               ) : (
-                systemStatus.radius.server_statuses.map((server) => (
+                radiusServerStatuses.map((server) => (
                   <div key={`${server.name}-${server.address}-${server.auth_port}`} className="rounded-md border border-gray-200 px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -320,9 +325,9 @@ export default function Dashboard() {
               )}
             </div>
             <div className="mt-4 rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600">
-              {systemStatus.radius.configured_servers.length === 0
+              {configuredServers.length === 0
                 ? `No upstream AAA servers configured. ${systemStatus.radius.enabled_radius_clients} RADIUS clients are still allowed on the appliance.`
-                : `${systemStatus.radius.configured_servers.length} upstream AAA servers configured and ${systemStatus.radius.enabled_radius_clients} RADIUS clients allowed on the appliance.`}
+                : `${configuredServers.length} upstream AAA servers configured and ${systemStatus.radius.enabled_radius_clients} RADIUS clients allowed on the appliance.`}
             </div>
           </section>
 
@@ -345,10 +350,10 @@ export default function Dashboard() {
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="font-medium text-gray-900">SSID Auth Modes</div>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {systemStatus.wireless.auth_modes.length === 0 ? (
+                  {wirelessAuthModes.length === 0 ? (
                     <span className="text-sm text-gray-500">No SSIDs configured yet.</span>
                   ) : (
-                    systemStatus.wireless.auth_modes.map((mode) => (
+                    wirelessAuthModes.map((mode) => (
                       <span key={mode} className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
                         {mode}
                       </span>

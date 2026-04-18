@@ -19,42 +19,34 @@ import ConfigRevisions from './pages/ConfigRevisions';
 import Backups from './pages/Backups';
 import AIRecommendations from './pages/AIRecommendations';
 
-const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const PrivateRoute: React.FC = () => {
   const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+  return isAuthenticated ? <Layout /> : <Navigate to="/login" replace />;
 };
 
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route
-        path="/*"
-        element={
-          <PrivateRoute>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/access-settings" element={<AccessSettings />} />
-                <Route path="/vlans" element={<VLANs />} />
-                <Route path="/portal-profiles" element={<PortalProfiles />} />
-                <Route path="/users" element={<Users />} />
-                <Route path="/vouchers" element={<Vouchers />} />
-                <Route path="/roles" element={<Roles />} />
-                <Route path="/bandwidth-profiles" element={<BandwidthProfiles />} />
-                <Route path="/policies" element={<Policies />} />
-                <Route path="/identity-sources" element={<IdentitySources />} />
-                <Route path="/radius-clients" element={<RadiusClients />} />
-                <Route path="/sessions" element={<Sessions />} />
-                <Route path="/alerts" element={<Alerts />} />
-                <Route path="/config-revisions" element={<ConfigRevisions />} />
-                <Route path="/backups" element={<Backups />} />
-                <Route path="/ai-recommendations" element={<AIRecommendations />} />
-              </Routes>
-            </Layout>
-          </PrivateRoute>
-        }
-      />
+      <Route element={<PrivateRoute />}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/access-settings" element={<AccessSettings />} />
+        <Route path="/vlans" element={<VLANs />} />
+        <Route path="/portal-profiles" element={<PortalProfiles />} />
+        <Route path="/users" element={<Users />} />
+        <Route path="/vouchers" element={<Vouchers />} />
+        <Route path="/roles" element={<Roles />} />
+        <Route path="/bandwidth-profiles" element={<BandwidthProfiles />} />
+        <Route path="/policies" element={<Policies />} />
+        <Route path="/identity-sources" element={<IdentitySources />} />
+        <Route path="/radius-clients" element={<RadiusClients />} />
+        <Route path="/sessions" element={<Sessions />} />
+        <Route path="/alerts" element={<Alerts />} />
+        <Route path="/config-revisions" element={<ConfigRevisions />} />
+        <Route path="/backups" element={<Backups />} />
+        <Route path="/ai-recommendations" element={<AIRecommendations />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
