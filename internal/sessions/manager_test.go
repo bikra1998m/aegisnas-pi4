@@ -2,7 +2,7 @@ package session
 
 import (
 	"database/sql"
-	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,22 +14,23 @@ import (
 )
 
 func setupTestDB(t *testing.T) {
-	tmpfile, err := os.CreateTemp("", "test-*.db")
-	require.NoError(t, err)
-	defer os.Remove(tmpfile.Name())
-	tmpfile.Close()
+	t.Helper()
 
-	err = db.Init(tmpfile.Name())
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	err := db.Init(dbPath)
 	require.NoError(t, err)
 	err = db.Migrate()
 	require.NoError(t, err)
 	err = db.Seed()
 	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		db.Close()
+	})
 }
 
 func TestManager_EnforceConcurrentLimit(t *testing.T) {
 	setupTestDB(t)
-	defer db.Close()
 
 	cfg := &config.Config{}
 	logger := zap.NewNop()
@@ -48,7 +49,6 @@ func TestManager_EnforceConcurrentLimit(t *testing.T) {
 
 func TestManager_TerminateSession(t *testing.T) {
 	setupTestDB(t)
-	defer db.Close()
 
 	cfg := &config.Config{}
 	logger := zap.NewNop()
@@ -71,7 +71,6 @@ func TestManager_TerminateSession(t *testing.T) {
 
 func TestManager_ReclassifyByCriteriaImmediateSessionTimeout(t *testing.T) {
 	setupTestDB(t)
-	defer db.Close()
 
 	cfg := &config.Config{}
 	logger := zap.NewNop()
@@ -96,7 +95,6 @@ func TestManager_ReclassifyByCriteriaImmediateSessionTimeout(t *testing.T) {
 
 func TestManager_ReclassifyByCriteriaImmediateIdleTimeout(t *testing.T) {
 	setupTestDB(t)
-	defer db.Close()
 
 	cfg := &config.Config{}
 	logger := zap.NewNop()
@@ -122,7 +120,6 @@ func TestManager_ReclassifyByCriteriaImmediateIdleTimeout(t *testing.T) {
 
 func TestManager_ReclassifyByCriteriaVLANChangeRequiresReauth(t *testing.T) {
 	setupTestDB(t)
-	defer db.Close()
 
 	cfg := &config.Config{}
 	logger := zap.NewNop()
