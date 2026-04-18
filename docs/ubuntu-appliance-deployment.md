@@ -9,6 +9,15 @@ The same software layout is used in both cases. The only real difference is how 
 
 For profile-based tuning across low-power hardware, higher-capacity appliances, and VM builds, also see [Deployment Profiles](deployment-profiles.md). For a single end-to-end VM bring-up and acceptance test path, use [Ubuntu VM Deployment And Full Flow Test Runbook](ubuntu-vm-runbook.md).
 
+If you clone the repo directly inside an Ubuntu VM, you can also use the one-command bootstrap path:
+
+```bash
+chmod +x scripts/ubuntu-vm-bootstrap.sh
+./scripts/ubuntu-vm-bootstrap.sh
+```
+
+That path builds from the current Git checkout, installs the payload, writes a VM-ready config, and starts the services.
+
 ## Scope
 
 AegisNAS is currently a network-control appliance: gateway, captive portal, RADIUS, policy, session tracking, telemetry, and admin UI.

@@ -34,6 +34,40 @@ Important platform reality:
 - A VM does not magically become a real Wi-Fi radio.
 - For real SSID broadcasting and EAP client join tests, use an external AP pointed at the VM, or use PCI or USB Wi-Fi passthrough.
 
+## Fast Path From GitHub
+
+If you cloned the repo directly inside the Ubuntu VM, you can bootstrap the full product stack with one command:
+
+```bash
+chmod +x scripts/ubuntu-vm-bootstrap.sh
+./scripts/ubuntu-vm-bootstrap.sh
+```
+
+What the bootstrap script does:
+
+- installs the Ubuntu runtime packages
+- installs Go 1.25 and Node.js 20 if needed
+- auto-detects `WAN` and `LAN` interfaces
+- writes a VM-friendly netplan file unless you skip that step
+- runs `go test`
+- builds all Go services and the admin UI
+- installs the payload under `/opt/aegisnas`
+- writes `/etc/aegisnas/config.yaml`
+- writes `/etc/default/aegisnas`
+- installs the `systemd` units
+- validates config, migrates, seeds, enables, and restarts services
+
+Useful variants:
+
+```bash
+./scripts/ubuntu-vm-bootstrap.sh --wan ens160 --lan ens192
+./scripts/ubuntu-vm-bootstrap.sh --profile lite
+./scripts/ubuntu-vm-bootstrap.sh --skip-netplan
+./scripts/ubuntu-vm-bootstrap.sh --force-config
+```
+
+After the bootstrap completes, continue at `Step 11` in this runbook for health checks, login, and full-flow validation.
+
 ## Target Outcome
 
 At the end of this runbook you should have:

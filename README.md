@@ -24,6 +24,13 @@ The codebase is ready for pilot production packaging after site-specific secrets
 
 See [Production Readiness Update](docs/production-readiness-update.md), [Ubuntu Appliance Deployment](docs/ubuntu-appliance-deployment.md), [Ubuntu VM Deployment And Full Flow Test Runbook](docs/ubuntu-vm-runbook.md), [Hardware Sizing And Deployment Matrix](docs/hardware-sizing-and-deployment-matrix.md), [Deployment Profiles](docs/deployment-profiles.md), [Wireless Access And UI Guide](docs/wireless-access-ui-guide.md), [External AAA Product Mode](docs/external-aaa-product-mode.md), [AAA Product Implementation Notes](docs/aaa-product-implementation-notes.md), [Operations](docs/operations.md), [Security](docs/security.md), and [Backup/Restore](docs/backup-restore.md).
 
+For a GitHub-clone-inside-VM fast path, run:
+
+```bash
+chmod +x scripts/ubuntu-vm-bootstrap.sh
+./scripts/ubuntu-vm-bootstrap.sh
+```
+
 ## Quick Start
 
 ```powershell
