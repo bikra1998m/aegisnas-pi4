@@ -1,5 +1,7 @@
 # AegisNAS Pi4
 
+[![CI](https://github.com/bikra1998m/aegisnas-pi4/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bikra1998m/aegisnas-pi4/actions/workflows/ci.yml)
+
 AI-assisted NAS / AAA gateway for Raspberry Pi 4 class hardware and Ubuntu Core 24.
 
 The repository builds as a production-minded MVP: Go services, SQLite local state, deterministic policy/session handling, advisory-only AI recommendations, snap/image assets, and a browser admin console for manual operation.
