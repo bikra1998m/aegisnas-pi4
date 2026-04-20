@@ -565,6 +565,22 @@ install_payload() {
   sudo chmod 0755 "${BIN_DIR}/"*
 }
 
+stop_managed_services() {
+  local units=(
+    aegis-gateway
+    aegis-radius
+    aegis-portal
+    aegis-session
+    aegis-policy
+    aegis-admin-api
+    aegis-ai-lite
+    aegis-telemetry
+  )
+
+  log "Stopping running AegisNAS services before payload install."
+  sudo systemctl stop "${units[@]}" >/dev/null 2>&1 || true
+}
+
 write_unit() {
   local name="$1"
   local description="$2"
@@ -671,6 +687,7 @@ main() {
   verify_dns
   run_tests
   build_release
+  stop_managed_services
   install_payload
   write_env_file
   write_config
