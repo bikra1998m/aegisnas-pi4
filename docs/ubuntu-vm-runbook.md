@@ -13,6 +13,7 @@ Use this guide together with:
 
 - [Ubuntu Appliance Deployment](ubuntu-appliance-deployment.md)
 - [Deployment Profiles](deployment-profiles.md)
+- [Login And Captive Portal Test Runbook](login-test-runbook.md)
 - [Wireless Access And UI Guide](wireless-access-ui-guide.md)
 - [External AAA Product Mode](external-aaa-product-mode.md)
 

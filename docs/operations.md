@@ -64,6 +64,14 @@ snap logs aegis-admin-api -f
 
 For file logging, paths are set by `logging.output` in the config. File logs rotate at 10 MB, keep five backups, and compress old files.
 
+For appliance login, portal, and AAA investigations in Ubuntu VM or package-based deployments, capture a separate-file debug bundle with:
+
+```bash
+sudo bash scripts/capture-login-debug-logs.sh --scenario portal-local-failure
+```
+
+See [Login And Captive Portal Test Runbook](login-test-runbook.md) for the recommended pre-login, post-login, failure, and logout capture points.
+
 ## Backup and Restore
 
 Use the CLI for full appliance backup and the admin UI for config-only JSON backup. See [Backup and Restore Procedures](backup-restore.md).
