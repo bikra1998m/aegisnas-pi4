@@ -24,6 +24,7 @@ SKIP_NETPLAN=0
 FORCE_CONFIG=0
 GO_VERSION="1.25.0"
 NODE_MAJOR="20"
+NETPLAN_RENDERER=""
 
 INSTALL_PREFIX="/opt/aegisnas"
 BIN_DIR="${INSTALL_PREFIX}/bin"
@@ -139,6 +140,18 @@ done
 
 require_sudo() {
   sudo -v
+}
+
+detect_netplan_renderer() {
+  if [[ -n "${NETPLAN_RENDERER}" ]]; then
+    return
+  fi
+
+  if systemctl is-active --quiet NetworkManager 2>/dev/null || systemctl is-enabled --quiet NetworkManager 2>/dev/null; then
+    NETPLAN_RENDERER="NetworkManager"
+  else
+    NETPLAN_RENDERER="networkd"
+  fi
 }
 
 current_go_version() {
@@ -261,11 +274,12 @@ write_netplan() {
     return
   fi
 
+  detect_netplan_renderer
   log "Writing netplan config to ${NETPLAN_FILE}."
   sudo tee "${NETPLAN_FILE}" >/dev/null <<EOF
 network:
   version: 2
-  renderer: networkd
+  renderer: ${NETPLAN_RENDERER}
   ethernets:
     ${WAN_IFACE}:
       dhcp4: true
@@ -275,9 +289,32 @@ network:
         - ${LAN_ADDRESS}
 EOF
 
-  sudo chmod 0644 "${NETPLAN_FILE}"
+  sudo find /etc/netplan -maxdepth 1 -type f -name '*.yaml' -exec chmod 0600 {} +
   sudo netplan generate
   sudo netplan apply
+}
+
+verify_dns() {
+  log "Verifying DNS resolution for Go module downloads."
+  if getent ahosts proxy.golang.org >/dev/null 2>&1; then
+    return
+  fi
+
+  cat >&2 <<EOF
+ERROR: DNS resolution failed after network configuration.
+
+The VM cannot resolve proxy.golang.org, so Go cannot download modules.
+This usually means netplan switched the guest onto the wrong renderer or broke DNS on the WAN interface.
+
+Try:
+  1. Remove ${NETPLAN_FILE} if you do not want the script to manage VM networking.
+  2. Re-apply your VM's normal network config or reboot the guest.
+  3. Re-run the script with one command, for example:
+     ./scripts/ubuntu-vm-bootstrap.sh --wan ${WAN_IFACE} --lan ${LAN_IFACE} --skip-netplan
+
+If you do want netplan managed here, confirm the guest uses the '${NETPLAN_RENDERER}' renderer and that ${WAN_IFACE} has working DNS after netplan apply.
+EOF
+  exit 1
 }
 
 existing_env_value() {
@@ -562,6 +599,11 @@ validate_and_seed() {
   sudo --preserve-env=AEGIS_ADMIN_BOOTSTRAP_TOKEN "${BIN_DIR}/aegis-admin" seed --config "${CONFIG_FILE}"
 }
 
+apply_runtime_configs() {
+  log "Applying generated dnsmasq configuration."
+  sudo "${BIN_DIR}/aegis-gateway" apply-dnsmasq --config "${CONFIG_FILE}"
+}
+
 start_services() {
   local units=(
     aegis-gateway
@@ -615,6 +657,7 @@ main() {
 
   install_packages
   write_netplan
+  verify_dns
   run_tests
   build_release
   install_payload
@@ -622,6 +665,7 @@ main() {
   write_config
   write_systemd_units
   validate_and_seed
+  apply_runtime_configs
   start_services
   show_summary
 }

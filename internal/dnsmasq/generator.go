@@ -31,6 +31,8 @@ func (g *Generator) Generate() (*Config, error) {
 # Generated automatically – do not edit manually
 
 # Global options
+bind-dynamic
+except-interface=lo
 domain-needed
 bogus-priv
 no-resolv
@@ -49,6 +51,7 @@ dhcp-lease-max=1000
 {{- if eq .Mode "two-nic"}}
 # LAN interface (two‑NIC mode)
 interface={{ .LAN.Name }}
+listen-address={{ .LAN.Gateway }}
 dhcp-range={{ .LAN.DHCPRange }}
 dhcp-option={{ .LAN.Name }},3,{{ .LAN.Gateway }}
 {{- else}}

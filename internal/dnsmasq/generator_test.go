@@ -28,6 +28,9 @@ func TestGenerateTwoNIC(t *testing.T) {
 	content := dnsCfg.Content
 
 	assert.Contains(t, content, "interface=eth1")
+	assert.Contains(t, content, "bind-dynamic")
+	assert.Contains(t, content, "except-interface=lo")
+	assert.Contains(t, content, "listen-address=192.168.1.1")
 	assert.Contains(t, content, "dhcp-range=192.168.1.100,192.168.1.200,12h")
 	assert.Contains(t, content, "address=/#/192.168.1.1")
 }
@@ -49,6 +52,8 @@ func TestGenerateTrunkMode(t *testing.T) {
 	require.NoError(t, err)
 	content := dnsCfg.Content
 
+	assert.Contains(t, content, "bind-dynamic")
+	assert.Contains(t, content, "except-interface=lo")
 	assert.Contains(t, content, "interface=eth0.20")
 	assert.Contains(t, content, "dhcp-range=set:guest,10.20.0.100,10.20.0.200,12h")
 	assert.Contains(t, content, "interface=eth0.30")
