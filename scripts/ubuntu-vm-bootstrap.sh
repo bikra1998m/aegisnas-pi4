@@ -294,6 +294,16 @@ EOF
   sudo netplan apply
 }
 
+ensure_runtime_lan_address() {
+  if [[ "${SKIP_NETPLAN}" -ne 1 ]]; then
+    return
+  fi
+
+  log "Applying runtime LAN address ${LAN_ADDRESS} to ${LAN_IFACE}."
+  sudo ip link set "${LAN_IFACE}" up
+  sudo ip addr replace "${LAN_ADDRESS}" dev "${LAN_IFACE}"
+}
+
 verify_dns() {
   log "Verifying DNS resolution for Go module downloads."
   if getent ahosts proxy.golang.org >/dev/null 2>&1; then
@@ -657,6 +667,7 @@ main() {
 
   install_packages
   write_netplan
+  ensure_runtime_lan_address
   verify_dns
   run_tests
   build_release
