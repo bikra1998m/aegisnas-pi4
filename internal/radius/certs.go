@@ -10,7 +10,10 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"os/user"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,7 +35,7 @@ func EnsureBootstrapCertificates(certDir, commonName string) error {
 	caCertPath := filepath.Join(certDir, "ca.crt")
 
 	if certFileExists(serverKeyPath) && certFileExists(serverCertPath) && certFileExists(caCertPath) {
-		return nil
+		return ensureCertificatePermissions(certDir, serverKeyPath, serverCertPath, caKeyPath, caCertPath)
 	}
 
 	if strings.TrimSpace(commonName) == "" {
@@ -99,6 +102,9 @@ func EnsureBootstrapCertificates(certDir, commonName string) error {
 	if err := writePEMFile(serverCertPath, "CERTIFICATE", serverDER, 0644); err != nil {
 		return fmt.Errorf("write server cert: %w", err)
 	}
+	if err := ensureCertificatePermissions(certDir, serverKeyPath, serverCertPath, caKeyPath, caCertPath); err != nil {
+		return err
+	}
 
 	logging.L().Info("generated bootstrap FreeRADIUS certificates",
 		zap.String("cert_dir", certDir),
@@ -119,4 +125,42 @@ func writePEMFile(path, blockType string, der []byte, mode os.FileMode) error {
 	}
 	defer f.Close()
 	return pem.Encode(f, &pem.Block{Type: blockType, Bytes: der})
+}
+
+func ensureCertificatePermissions(certDir string, paths ...string) error {
+	if err := os.Chmod(certDir, 0750); err != nil && !os.IsPermission(err) {
+		return fmt.Errorf("chmod cert dir: %w", err)
+	}
+
+	for _, path := range paths {
+		if !certFileExists(path) {
+			continue
+		}
+		mode := os.FileMode(0644)
+		if strings.HasSuffix(path, ".key") {
+			mode = 0640
+		}
+		if err := os.Chmod(path, mode); err != nil && !os.IsPermission(err) {
+			return fmt.Errorf("chmod %s: %w", path, err)
+		}
+	}
+
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+
+	group, err := user.LookupGroup("freerad")
+	if err != nil {
+		return nil
+	}
+	gid, err := strconv.Atoi(group.Gid)
+	if err != nil {
+		return nil
+	}
+	for _, path := range append([]string{certDir}, paths...) {
+		if err := os.Chown(path, -1, gid); err != nil && !os.IsPermission(err) && !os.IsNotExist(err) {
+			return fmt.Errorf("chown %s: %w", path, err)
+		}
+	}
+	return nil
 }
