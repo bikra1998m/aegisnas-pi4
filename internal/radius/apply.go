@@ -13,6 +13,10 @@ import (
 // ApplyConfig writes the generated FreeRADIUS configuration, validates it,
 // and restarts the FreeRADIUS service on appliance builds.
 func ApplyConfig(cfg *config.Config) error {
+	if err := EnsureBootstrapCertificates(cfg.Radius.CertDir, cfg.Radius.NASIdentifier); err != nil {
+		return fmt.Errorf("ensure EAP certificate material: %w", err)
+	}
+
 	gen := NewGenerator(cfg)
 	fullCfg, err := gen.Generate()
 	if err != nil {
