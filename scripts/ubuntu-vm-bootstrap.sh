@@ -628,6 +628,8 @@ validate_and_seed() {
 apply_runtime_configs() {
   log "Applying generated dnsmasq configuration."
   sudo "${BIN_DIR}/aegis-gateway" apply-dnsmasq --config "${CONFIG_FILE}"
+  log "Applying generated FreeRADIUS configuration."
+  sudo "${BIN_DIR}/aegis-radius" apply-config --config "${CONFIG_FILE}"
 }
 
 start_services() {
@@ -646,7 +648,7 @@ start_services() {
   sudo systemctl daemon-reload
   sudo systemctl enable dnsmasq freeradius nftables >/dev/null
   sudo systemctl enable "${units[@]}" >/dev/null
-  sudo systemctl restart dnsmasq freeradius nftables
+  sudo systemctl restart dnsmasq nftables
   sudo systemctl restart "${units[@]}"
 }
 
