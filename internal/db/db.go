@@ -25,6 +25,9 @@ func Init(dataSourceName string) error {
 	if err = DB.Ping(); err != nil {
 		return fmt.Errorf("ping db: %w", err)
 	}
+	if _, err = DB.Exec("PRAGMA busy_timeout = 5000"); err != nil {
+		return fmt.Errorf("set busy timeout: %w", err)
+	}
 	return nil
 }
 

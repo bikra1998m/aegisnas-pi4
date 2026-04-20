@@ -29,6 +29,23 @@ func setupTestDB(t *testing.T) {
 	})
 }
 
+func requireSessionStopped(t *testing.T, sessionID, expectedReason string) {
+	t.Helper()
+
+	var (
+		endTime sql.NullString
+		reason  string
+	)
+
+	require.Eventually(t, func() bool {
+		err := db.DB.QueryRow("SELECT end_time, COALESCE(stop_reason, '') FROM sessions WHERE id = ?", sessionID).Scan(&endTime, &reason)
+		return err == nil && endTime.Valid && reason == expectedReason
+	}, time.Second, 10*time.Millisecond)
+
+	assert.NotEmpty(t, endTime.String)
+	assert.Equal(t, expectedReason, reason)
+}
+
 func TestManager_EnforceConcurrentLimit(t *testing.T) {
 	setupTestDB(t)
 
@@ -60,13 +77,7 @@ func TestManager_TerminateSession(t *testing.T) {
 
 	mgr.terminateSession("test", "test reason")
 
-	var endTime sql.NullString
-	var reason string
-	err = db.DB.QueryRow("SELECT end_time, stop_reason FROM sessions WHERE id = 'test'").Scan(&endTime, &reason)
-	assert.NoError(t, err)
-	assert.True(t, endTime.Valid)
-	assert.NotEmpty(t, endTime.String)
-	assert.Equal(t, "test reason", reason)
+	requireSessionStopped(t, "test", "test reason")
 }
 
 func TestManager_ReclassifyByCriteriaImmediateSessionTimeout(t *testing.T) {
@@ -85,12 +96,7 @@ func TestManager_ReclassifyByCriteriaImmediateSessionTimeout(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 
-	var endTime sql.NullString
-	var reason string
-	err = db.DB.QueryRow("SELECT end_time, stop_reason FROM sessions WHERE id = 'coa-session-timeout'").Scan(&endTime, &reason)
-	require.NoError(t, err)
-	assert.True(t, endTime.Valid)
-	assert.Equal(t, "Session timeout reached", reason)
+	requireSessionStopped(t, "coa-session-timeout", "Session timeout reached")
 }
 
 func TestManager_ReclassifyByCriteriaImmediateIdleTimeout(t *testing.T) {
@@ -110,12 +116,7 @@ func TestManager_ReclassifyByCriteriaImmediateIdleTimeout(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 
-	var endTime sql.NullString
-	var reason string
-	err = db.DB.QueryRow("SELECT end_time, stop_reason FROM sessions WHERE id = 'coa-idle-timeout'").Scan(&endTime, &reason)
-	require.NoError(t, err)
-	assert.True(t, endTime.Valid)
-	assert.Equal(t, "Idle timeout reached", reason)
+	requireSessionStopped(t, "coa-idle-timeout", "Idle timeout reached")
 }
 
 func TestManager_ReclassifyByCriteriaVLANChangeRequiresReauth(t *testing.T) {
@@ -134,10 +135,5 @@ func TestManager_ReclassifyByCriteriaVLANChangeRequiresReauth(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 
-	var endTime sql.NullString
-	var reason string
-	err = db.DB.QueryRow("SELECT end_time, COALESCE(stop_reason, '') FROM sessions WHERE id = 'coa-vlan'").Scan(&endTime, &reason)
-	require.NoError(t, err)
-	assert.True(t, endTime.Valid)
-	assert.Equal(t, "VLAN reassignment requested", reason)
+	requireSessionStopped(t, "coa-vlan", "VLAN reassignment requested")
 }
