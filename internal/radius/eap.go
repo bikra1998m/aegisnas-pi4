@@ -36,6 +36,7 @@ eap {
 
 	peap {
 		default_eap_type = {{ .PEAPInner }}
+		tls = tls-common
 		copy_request_to_tunnel = no
 		use_tunneled_reply = no
 		proxy_tunneled_request_as_eap = yes
@@ -44,6 +45,7 @@ eap {
 
 	ttls {
 		default_eap_type = {{ .TTLSInner }}
+		tls = tls-common
 		copy_request_to_tunnel = no
 		use_tunneled_reply = no
 		virtual_server = "inner-tunnel"
