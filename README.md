@@ -53,3 +53,9 @@ npm run build
 The admin API listens on `admin_port` from the config. The seed command creates a hashed bootstrap API token from `AEGIS_ADMIN_BOOTSTRAP_TOKEN`; if the variable is not set, it prints a generated one-time value.
 
 For physical Wi-Fi appliance builds, install `hostapd`, then use the `Access Settings` page in the admin UI to save appliance settings, preview the generated hostapd config, and write it to the configured path. For live bandwidth enforcement on the gateway, make sure the appliance has Linux `tc` support and the `ifb` kernel module available.
+
+## License
+
+Copyright (c) 2026 Bikram Maity.
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
