@@ -58,4 +58,6 @@ For physical Wi-Fi appliance builds, install `hostapd`, then use the `Access Set
 
 Copyright (c) 2026 Bikram Maity.
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE).
+This project is licensed for non-commercial use only under the PolyForm Noncommercial License 1.0.0. See [LICENSE](LICENSE).
+
+Commercial use is not permitted without a separate commercial license from the copyright holder.
