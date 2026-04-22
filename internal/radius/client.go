@@ -28,19 +28,34 @@ type BrokerAuthRequest struct {
 }
 
 type BrokerAuthResult struct {
-	Accepted              bool
-	ReplyMessage          string
-	FilterID              string
-	Class                 string
-	VLAN                  int
-	HasVLAN               bool
-	SessionTimeout        int
-	HasSessionTimeout     bool
-	IdleTimeout           int
-	HasIdleTimeout        bool
-	MikrotikRateLimit     string
-	WISPrBandwidthMaxDown int
-	WISPrBandwidthMaxUp   int
+	Accepted                bool
+	ReplyMessage            string
+	FilterID                string
+	Class                   string
+	VLAN                    int
+	HasVLAN                 bool
+	SessionTimeout          int
+	HasSessionTimeout       bool
+	IdleTimeout             int
+	HasIdleTimeout          bool
+	MikrotikRateLimit       string
+	WISPrBandwidthMaxDown   int
+	WISPrBandwidthMaxUp     int
+	VendorRole              string
+	VendorBandwidthProfile  string
+	VendorPolicyTag         string
+	VendorSessionAction     string
+	VendorPortalProfile     string
+	VendorDeviceGroup       string
+	VendorTenant            string
+	VendorVLAN              int
+	HasVendorVLAN           bool
+	VendorQuarantine        bool
+	HasVendorQuarantine     bool
+	VendorSessionTimeout    int
+	HasVendorSessionTimeout bool
+	VendorIdleTimeout       int
+	HasVendorIdleTimeout    bool
 }
 
 func AuthenticatePAP(ctx context.Context, cfg *config.Config, req BrokerAuthRequest) (*BrokerAuthResult, error) {
@@ -113,7 +128,7 @@ func AuthenticatePAP(ctx context.Context, cfg *config.Config, req BrokerAuthRequ
 		return nil, err
 	}
 
-	result := ParseBrokerPacket(response)
+	result := ParseBrokerPacketWithConfig(response, cfg)
 	result.Accepted = response.Code == layehradius.CodeAccessAccept
 	if msg, err := rfc2865.ReplyMessage_LookupString(response); err == nil {
 		result.ReplyMessage = msg
@@ -197,6 +212,9 @@ func SendAccounting(ctx context.Context, cfg *config.Config, rec *AccountingReco
 		if err := rfc2866.AcctTerminateCause_Set(packet, termCause); err != nil {
 			return err
 		}
+	}
+	if err := AddVendorAccountingAttributes(packet, cfg.Radius.Vendor, rec); err != nil {
+		return err
 	}
 
 	timeout := time.Duration(cfg.Radius.RequestTimeoutSeconds) * time.Second

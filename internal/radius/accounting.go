@@ -23,6 +23,13 @@ type AccountingRecord struct {
 	CallingStationID string
 	FramedIPAddress  string
 	StopReason       string
+	Role             string
+	BandwidthProfile string
+	FilterID         string
+	RadiusClass      string
+	VLAN             int
+	SessionTimeout   int
+	IdleTimeout      int
 	Timestamp        time.Time
 }
 

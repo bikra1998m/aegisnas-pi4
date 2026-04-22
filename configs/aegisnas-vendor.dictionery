@@ -1,0 +1,19 @@
+# AegisNAS product vendor dictionary.
+# This .dictionery file is the portable product dictionary for upstream AAA labs.
+# Replace vendor ID 55555 with your IANA-assigned Private Enterprise Number before production use.
+
+VENDOR AegisNAS 55555
+
+BEGIN-VENDOR AegisNAS
+ATTRIBUTE AegisNAS-Role 1 string
+ATTRIBUTE AegisNAS-Bandwidth-Profile 2 string
+ATTRIBUTE AegisNAS-VLAN 3 integer
+ATTRIBUTE AegisNAS-Quarantine 4 integer
+ATTRIBUTE AegisNAS-Policy-Tag 5 string
+ATTRIBUTE AegisNAS-Session-Timeout 6 integer
+ATTRIBUTE AegisNAS-Idle-Timeout 7 integer
+ATTRIBUTE AegisNAS-Session-Action 8 string
+ATTRIBUTE AegisNAS-Portal-Profile 9 string
+ATTRIBUTE AegisNAS-Device-Group 10 string
+ATTRIBUTE AegisNAS-Tenant 11 string
+END-VENDOR AegisNAS

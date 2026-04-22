@@ -44,18 +44,27 @@ func ResolveSessionPolicy(defaultRole string, auth *BrokerAuthResult) (*SessionP
 	}
 
 	policy := &SessionPolicy{
-		Role:           strings.TrimSpace(defaultRole),
+		Role:           strings.TrimSpace(auth.VendorRole),
 		IdentitySource: "radius",
 		FilterID:       strings.TrimSpace(auth.FilterID),
 		RadiusClass:    strings.TrimSpace(auth.Class),
 	}
+	if policy.FilterID == "" {
+		policy.FilterID = strings.TrimSpace(auth.VendorPolicyTag)
+	}
+	if auth.HasVendorQuarantine && auth.VendorQuarantine && policy.FilterID == "" {
+		policy.FilterID = "quarantine"
+	}
+	policy.BandwidthProfile = strings.TrimSpace(auth.VendorBandwidthProfile)
 
+	var identityDefaultRole string
+	var identityDefaultBandwidthProfile string
 	for _, cfg := range configs {
-		if policy.Role == "" && cfg.DefaultRole != "" {
-			policy.Role = strings.TrimSpace(cfg.DefaultRole)
+		if identityDefaultRole == "" {
+			identityDefaultRole = strings.TrimSpace(cfg.DefaultRole)
 		}
-		if policy.BandwidthProfile == "" && cfg.DefaultBandwidthProfile != "" {
-			policy.BandwidthProfile = strings.TrimSpace(cfg.DefaultBandwidthProfile)
+		if identityDefaultBandwidthProfile == "" {
+			identityDefaultBandwidthProfile = strings.TrimSpace(cfg.DefaultBandwidthProfile)
 		}
 		if policy.Role == "" && policy.FilterID != "" {
 			if mapped := strings.TrimSpace(cfg.FilterIDRoles[policy.FilterID]); mapped != "" {
@@ -77,6 +86,13 @@ func ResolveSessionPolicy(defaultRole string, auth *BrokerAuthResult) (*SessionP
 				policy.Role = mapped
 			}
 		}
+	}
+
+	if policy.Role == "" {
+		policy.Role = identityDefaultRole
+	}
+	if policy.BandwidthProfile == "" {
+		policy.BandwidthProfile = identityDefaultBandwidthProfile
 	}
 
 	if policy.Role == "" && policy.FilterID != "" && roleExists(policy.FilterID) {
@@ -105,11 +121,20 @@ func ResolveSessionPolicy(defaultRole string, auth *BrokerAuthResult) (*SessionP
 	if auth.HasVLAN {
 		policy.VLAN = auth.VLAN
 	}
+	if auth.HasVendorVLAN {
+		policy.VLAN = auth.VendorVLAN
+	}
 	if auth.HasSessionTimeout {
 		policy.SessionTimeout = auth.SessionTimeout
 	}
+	if auth.HasVendorSessionTimeout {
+		policy.SessionTimeout = auth.VendorSessionTimeout
+	}
 	if auth.HasIdleTimeout {
 		policy.IdleTimeout = auth.IdleTimeout
+	}
+	if auth.HasVendorIdleTimeout {
+		policy.IdleTimeout = auth.VendorIdleTimeout
 	}
 
 	if policy.BandwidthProfile == "" && auth.WISPrBandwidthMaxDown > 0 && auth.WISPrBandwidthMaxUp > 0 {

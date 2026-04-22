@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/viper"
+	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 )
 
 type Config struct {
@@ -91,6 +92,7 @@ type RadiusConfig struct {
 	DynamicAuth           DynamicAuthConfig    `mapstructure:"dynamic_auth"`
 	EAP                   RadiusEAPConfig      `mapstructure:"eap"`
 	Upstream              RadiusUpstreamConfig `mapstructure:"upstream"`
+	Vendor                RadiusVendorConfig   `mapstructure:"vendor"`
 }
 
 type RadiusClient struct {
@@ -119,6 +121,19 @@ type RadiusHomeServer struct {
 	AuthPort int    `mapstructure:"auth_port"`
 	AcctPort int    `mapstructure:"acct_port"`
 	Secret   string `mapstructure:"secret"`
+}
+
+type RadiusVendorConfig struct {
+	Enabled    bool                    `mapstructure:"enabled"`
+	Name       string                  `mapstructure:"name"`
+	ID         int                     `mapstructure:"id"`
+	Attributes []RadiusVendorAttribute `mapstructure:"attributes"`
+}
+
+type RadiusVendorAttribute struct {
+	Name   string `mapstructure:"name"`
+	Number int    `mapstructure:"number"`
+	Type   string `mapstructure:"type"`
 }
 
 type DynamicAuthConfig struct {
@@ -261,6 +276,10 @@ func Load(configPath string) (*Config, error) {
 	v.SetDefault("radius.upstream.check_interval", 30)
 	v.SetDefault("radius.upstream.num_answers_to_alive", 3)
 	v.SetDefault("radius.upstream.strip_realm", false)
+	productVendor := productconfigs.AegisNASVendorDictionary()
+	v.SetDefault("radius.vendor.enabled", false)
+	v.SetDefault("radius.vendor.name", productVendor.Name)
+	v.SetDefault("radius.vendor.id", productVendor.ID)
 	v.SetDefault("portal.radius_auth", false)
 	v.SetDefault("portal.local_fallback", true)
 	v.SetDefault("policy.runtime_shaping_enabled", true)
@@ -385,6 +404,39 @@ func (c *Config) Validate() error {
 	}
 	if c.Radius.DynamicAuth.Enabled && (c.Radius.DynamicAuth.Port < 1 || c.Radius.DynamicAuth.Port > 65535) {
 		return fmt.Errorf("radius.dynamic_auth.port %d out of range", c.Radius.DynamicAuth.Port)
+	}
+	if c.Radius.Vendor.Enabled {
+		if strings.TrimSpace(c.Radius.Vendor.Name) == "" {
+			return errors.New("radius.vendor.name cannot be empty when vendor attributes are enabled")
+		}
+		if !validRadiusDictionaryName(c.Radius.Vendor.Name) {
+			return fmt.Errorf("radius.vendor.name %q is not a valid RADIUS dictionary name", c.Radius.Vendor.Name)
+		}
+		if c.Radius.Vendor.ID < 1 {
+			return fmt.Errorf("radius.vendor.id %d must be a positive Private Enterprise Number", c.Radius.Vendor.ID)
+		}
+		seenVendorAttrs := make(map[int]string, len(c.Radius.Vendor.Attributes))
+		for i, attr := range c.Radius.Vendor.Attributes {
+			name := strings.TrimSpace(attr.Name)
+			if name == "" {
+				return fmt.Errorf("radius.vendor.attributes[%d].name cannot be empty", i)
+			}
+			if !validRadiusDictionaryName(name) {
+				return fmt.Errorf("radius.vendor.attributes[%d].name %q is not a valid RADIUS dictionary name", i, name)
+			}
+			if attr.Number < 1 || attr.Number > 255 {
+				return fmt.Errorf("radius.vendor.attributes[%d].number %d out of range", i, attr.Number)
+			}
+			if existing, exists := seenVendorAttrs[attr.Number]; exists {
+				return fmt.Errorf("radius.vendor.attributes[%d].number %d duplicates %q", i, attr.Number, existing)
+			}
+			seenVendorAttrs[attr.Number] = name
+			switch strings.ToLower(strings.TrimSpace(attr.Type)) {
+			case "string", "integer", "ipaddr", "octets", "date":
+			default:
+				return fmt.Errorf("radius.vendor.attributes[%d].type %q is invalid", i, attr.Type)
+			}
+		}
 	}
 	switch c.Radius.EAP.DefaultType {
 	case "", "peap", "ttls", "tls":
@@ -547,4 +599,22 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+func validRadiusDictionaryName(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	for i, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case i > 0 && r >= '0' && r <= '9':
+		case i > 0 && (r == '-' || r == '_'):
+		default:
+			return false
+		}
+	}
+	return true
 }

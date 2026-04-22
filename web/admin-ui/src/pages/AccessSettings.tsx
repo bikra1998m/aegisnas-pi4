@@ -52,6 +52,12 @@ const defaultSettings: JsonMap = {
     request_timeout_seconds: 5,
     interim_update_seconds: 300,
     dynamic_auth: { enabled: true, port: 3799 },
+    vendor: {
+      enabled: false,
+      name: 'AegisNAS',
+      id: 55555,
+      attributes: [],
+    },
     eap: {
       default_type: 'peap',
       peap_inner: 'mschapv2',
@@ -417,6 +423,7 @@ export default function AccessSettings() {
   };
 
   const upstreamServers = settings.radius?.upstream?.servers || [];
+  const vendorAttributes = settings.radius?.vendor?.attributes || [];
   const ssids = settings.wireless?.ssids || [];
 
   if (loading) {
@@ -690,6 +697,53 @@ export default function AccessSettings() {
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <ToggleField label="Dynamic Authorization" checked={Boolean(settings.radius?.dynamic_auth?.enabled)} onChange={(value) => updateField(['radius', 'dynamic_auth', 'enabled'], value)} />
           <TextField label="Dynamic Authorization Port" type="number" value={settings.radius?.dynamic_auth?.port || 3799} onChange={(value) => updateField(['radius', 'dynamic_auth', 'port'], Number(value))} />
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h4 className="font-semibold text-gray-900">AegisNAS Vendor Dictionary</h4>
+              <p className="mt-1 text-sm text-gray-600">Built-in attributes come from configs/aegisnas-vendor.dictionery. Add rows here only for local overrides or extensions.</p>
+            </div>
+            <button
+              onClick={() => updateField(['radius', 'vendor', 'attributes'], [...vendorAttributes, { name: '', number: vendorAttributes.length + 20, type: 'string' }])}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+            >
+              Add Attribute
+            </button>
+          </div>
+          <div className="mb-4 grid gap-4 md:grid-cols-4">
+            <ToggleField label="Vendor Attributes Enabled" checked={Boolean(settings.radius?.vendor?.enabled)} onChange={(value) => updateField(['radius', 'vendor', 'enabled'], value)} />
+            <TextField label="Vendor Name" value={settings.radius?.vendor?.name || 'AegisNAS'} onChange={(value) => updateField(['radius', 'vendor', 'name'], value)} />
+            <TextField label="Vendor ID" type="number" value={settings.radius?.vendor?.id || 0} onChange={(value) => updateField(['radius', 'vendor', 'id'], Number(value))} />
+          </div>
+          <div className="space-y-3">
+            {vendorAttributes.map((attribute: JsonMap, index: number) => (
+              <div key={`vendor-attr-${index}`} className="grid gap-3 rounded-lg border border-gray-200 p-3 md:grid-cols-4">
+                <TextField label="Name" value={attribute.name || ''} onChange={(value) => updateField(['radius', 'vendor', 'attributes', String(index), 'name'], value)} />
+                <TextField label="Number" type="number" value={attribute.number || 0} onChange={(value) => updateField(['radius', 'vendor', 'attributes', String(index), 'number'], Number(value))} />
+                <SelectField
+                  label="Type"
+                  value={attribute.type || 'string'}
+                  onChange={(value) => updateField(['radius', 'vendor', 'attributes', String(index), 'type'], value)}
+                  options={[
+                    { value: 'string', label: 'String' },
+                    { value: 'integer', label: 'Integer' },
+                    { value: 'ipaddr', label: 'IPv4 Address' },
+                    { value: 'octets', label: 'Octets' },
+                    { value: 'date', label: 'Date' },
+                  ]}
+                />
+                <div className="flex items-end">
+                  <button
+                    onClick={() => updateField(['radius', 'vendor', 'attributes'], vendorAttributes.filter((_: unknown, itemIndex: number) => itemIndex !== index))}
+                    className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

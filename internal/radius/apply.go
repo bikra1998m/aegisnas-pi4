@@ -26,6 +26,8 @@ func ApplyConfig(cfg *config.Config) error {
 	raddb := ConfigDir()
 	files := map[string]string{
 		filepath.Join(raddb, "clients.conf"):                  fullCfg.ClientsConf,
+		filepath.Join(raddb, "dictionary"):                    fullCfg.Dictionary,
+		filepath.Join(raddb, VendorDictionaryFilename):        fullCfg.VendorDictionary,
 		filepath.Join(raddb, "mods-enabled", "eap"):           fullCfg.EAPConf,
 		filepath.Join(raddb, "users"):                         fullCfg.Users,
 		filepath.Join(raddb, "mods-enabled", "ldap"):          fullCfg.ModsLDAP,

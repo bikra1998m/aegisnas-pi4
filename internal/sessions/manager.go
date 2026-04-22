@@ -242,10 +242,14 @@ func (m *Manager) terminateSession(sessionID, reason string) {
 		}
 		m.logger.Info("session terminated", zap.String("session_id", sessionID), zap.String("reason", reason))
 		go func() {
-			var username, mac, ip, calledStationID string
+			var username, mac, ip, calledStationID, role, bandwidthProfile, filterID, radiusClass string
+			var vlan int
+			var sessionTO, idleTO sql.NullInt32
 			var startTimeRaw any
-			row := m.db.QueryRow("SELECT username, mac, ip, COALESCE(called_station_id, ''), start_time FROM sessions WHERE id = ?", sessionID)
-			_ = row.Scan(&username, &mac, &ip, &calledStationID, &startTimeRaw)
+			row := m.db.QueryRow(`SELECT username, mac, ip, COALESCE(called_station_id, ''), COALESCE(role, ''),
+				COALESCE(bandwidth_profile, ''), COALESCE(filter_id, ''), COALESCE(radius_class, ''), COALESCE(vlan, 0),
+				session_timeout, idle_timeout, start_time FROM sessions WHERE id = ?`, sessionID)
+			_ = row.Scan(&username, &mac, &ip, &calledStationID, &role, &bandwidthProfile, &filterID, &radiusClass, &vlan, &sessionTO, &idleTO, &startTimeRaw)
 			rec := &radius.AccountingRecord{
 				SessionID:        sessionID,
 				Username:         username,
@@ -255,6 +259,13 @@ func (m *Manager) terminateSession(sessionID, reason string) {
 				AcctStatusType:   "Stop",
 				AcctSessionTime:  int(time.Since(parseDBTime(dbTimeString(startTimeRaw))).Seconds()),
 				StopReason:       reason,
+				Role:             role,
+				BandwidthProfile: bandwidthProfile,
+				FilterID:         filterID,
+				RadiusClass:      radiusClass,
+				VLAN:             vlan,
+				SessionTimeout:   int(sessionTO.Int32),
+				IdleTimeout:      int(idleTO.Int32),
 				Timestamp:        time.Now(),
 			}
 			if err := radius.SendAccounting(context.Background(), m.cfg, rec); err != nil {
@@ -560,7 +571,9 @@ func dbTimeString(value any) string {
 }
 
 func (m *Manager) sendInterimAccounting() {
-	rows, err := m.db.Query(`SELECT id, COALESCE(username, ''), COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(called_station_id, ''), start_time, COALESCE(bytes_in, 0), COALESCE(bytes_out, 0)
+	rows, err := m.db.Query(`SELECT id, COALESCE(username, ''), COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(called_station_id, ''),
+			COALESCE(role, ''), COALESCE(bandwidth_profile, ''), COALESCE(filter_id, ''), COALESCE(radius_class, ''), COALESCE(vlan, 0),
+			session_timeout, idle_timeout, start_time, COALESCE(bytes_in, 0), COALESCE(bytes_out, 0)
 		FROM sessions WHERE end_time IS NULL`)
 	if err != nil {
 		m.logger.Warn("failed to query sessions for interim accounting", zap.Error(err))
@@ -575,11 +588,18 @@ func (m *Manager) sendInterimAccounting() {
 			mac             string
 			ip              string
 			calledStationID string
+			role            string
+			bandwidth       string
+			filterID        string
+			radiusClass     string
+			vlan            int
+			sessionTO       sql.NullInt32
+			idleTO          sql.NullInt32
 			startTimeRaw    any
 			bytesIn         uint64
 			bytesOut        uint64
 		)
-		if err := rows.Scan(&sessionID, &username, &mac, &ip, &calledStationID, &startTimeRaw, &bytesIn, &bytesOut); err != nil {
+		if err := rows.Scan(&sessionID, &username, &mac, &ip, &calledStationID, &role, &bandwidth, &filterID, &radiusClass, &vlan, &sessionTO, &idleTO, &startTimeRaw, &bytesIn, &bytesOut); err != nil {
 			m.logger.Warn("scan interim accounting row", zap.Error(err))
 			continue
 		}
@@ -594,6 +614,13 @@ func (m *Manager) sendInterimAccounting() {
 			AcctInputOctets:  bytesIn,
 			AcctOutputOctets: bytesOut,
 			AcctSessionTime:  int(time.Since(start).Seconds()),
+			Role:             role,
+			BandwidthProfile: bandwidth,
+			FilterID:         filterID,
+			RadiusClass:      radiusClass,
+			VLAN:             vlan,
+			SessionTimeout:   int(sessionTO.Int32),
+			IdleTimeout:      int(idleTO.Int32),
 			Timestamp:        time.Now(),
 		}
 		if err := radius.SendAccounting(context.Background(), m.cfg, rec); err != nil {

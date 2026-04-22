@@ -30,6 +30,8 @@ Files involved:
 - [statemachine.go](F:/random_project/Pookie/aegisnas-pi4/internal/portal/statemachine.go)
 - [generator.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/generator.go)
 - [client.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/client.go)
+- [vendor.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/vendor.go)
+- [accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting.go)
 - [mapping.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/mapping.go)
 - [manager.go](F:/random_project/Pookie/aegisnas-pi4/internal/sessions/manager.go)
 - [dynamic_auth.go](F:/random_project/Pookie/aegisnas-pi4/internal/sessions/dynamic_auth.go)
@@ -41,7 +43,7 @@ The implementation now does these things end to end:
 2. generates FreeRADIUS `proxy.conf` automatically and always registers localhost as a broker client with the configured shared secret
 3. lets captive portal username/password logins authenticate through local FreeRADIUS when `portal.radius_auth: true`
 4. preserves break-glass local admin auth and local voucher flows
-5. maps upstream reply attributes into local role, VLAN, bandwidth, `Filter-Id`, timeout, and session state
+5. maps upstream reply attributes into local role, VLAN, bandwidth, `Filter-Id`, timeout, AegisNAS vendor attributes, and session state
 6. sends `Accounting-Start`, `Accounting-Interim-Update`, and `Accounting-Stop`
 7. listens for `CoA-Request` and `Disconnect-Request`
 8. exposes appliance, broker, and per-upstream AAA health through the admin API dashboard
@@ -69,6 +71,7 @@ When `radius.upstream.enabled: true`:
   - `Filter-Id` preservation
   - session timeout
   - idle timeout
+  - AegisNAS vendor-specific attributes when `radius.vendor.enabled: true`
 - break-glass local admin auth remains available even when portal RADIUS auth is enabled
 - voucher logins remain local so guest access still has an offline path
 
@@ -147,6 +150,11 @@ radius:
   dynamic_auth:
     enabled: true
     port: 3799
+  vendor:
+    enabled: true
+    name: "AegisNAS"
+    id: 55555 # Lab placeholder from configs/aegisnas-vendor.dictionery. Replace before production use.
+    attributes: [] # Optional local overrides or extensions. Built-ins come from the product dictionary.
   auth_port: 1812
   acct_port: 1813
   clients:
@@ -187,8 +195,57 @@ Notes:
 - use `status_check: status-server` only when the upstream platform supports it
 - use `status_check: none` when the upstream vendor does not answer `Status-Server`
 - `strip_realm: false` preserves the original username format sent by the access device
+- `radius.vendor.id` must be your own IANA Private Enterprise Number for production; keep `55555` only for lab testing
+- `aegis-radius apply-config` writes `/etc/freeradius/3.0/aegisnas-vendor.dictionery` and includes it from the local FreeRADIUS `dictionary`
 
-### 4. Enable Reply-Attribute Mapping
+### 4. Configure AegisNAS Vendor Attributes
+
+AegisNAS can behave like a vendor NAS by publishing its own FreeRADIUS product dictionary and parsing its own Vendor-Specific Attributes. The product dictionary is the source of truth for built-in attribute names, numbers, and types.
+
+The portable product dictionary template is:
+
+- [aegisnas-vendor.dictionery](F:/random_project/Pookie/aegisnas-pi4/configs/aegisnas-vendor.dictionery)
+
+On an appliance, `aegis-radius apply-config` writes:
+
+- `/etc/freeradius/3.0/dictionary`
+- `/etc/freeradius/3.0/aegisnas-vendor.dictionery`
+
+The generated `dictionary` file contains:
+
+```text
+$INCLUDE aegisnas-vendor.dictionery
+```
+
+To see the current built-in attributes, read the dictionary instead of copying the list into YAML:
+
+```bash
+sed -n '1,220p' configs/aegisnas-vendor.dictionery
+```
+
+The `radius.vendor.attributes` list is only for local overrides or extra site-specific VSAs.
+
+Example upstream Access-Accept reply:
+
+```text
+AegisNAS-Role := "guest-premium"
+AegisNAS-Bandwidth-Profile := "50m-down-20m-up"
+AegisNAS-VLAN := 20
+AegisNAS-Session-Timeout := 3600
+AegisNAS-Idle-Timeout := 600
+```
+
+Example CoA policy update:
+
+```text
+Acct-Session-Id = "existing-session-id"
+AegisNAS-Bandwidth-Profile = "10m-down-5m-up"
+AegisNAS-Quarantine = 1
+```
+
+AegisNAS also adds its vendor role, bandwidth profile, VLAN, policy tag, and timeout context to locally generated `Accounting-Start`, `Accounting-Interim-Update`, and `Accounting-Stop` packets when those values are present on the session.
+
+### 5. Enable Reply-Attribute Mapping
 
 The seeded `identity_sources` table now includes a disabled `radius-upstream` mapping source with example JSON.
 
@@ -212,7 +269,7 @@ Example:
 }
 ```
 
-### 5. Keep RADIUS Clients Registered On The Appliance
+### 6. Keep RADIUS Clients Registered On The Appliance
 
 The upstream AAA section defines where AegisNAS proxies requests.
 
@@ -233,7 +290,7 @@ radius:
       shortname: "ap-lobby-02"
 ```
 
-### 6. Validate The Appliance Config
+### 7. Validate The Appliance Config
 
 Run:
 
@@ -250,6 +307,8 @@ Then inspect the generated RADIUS config:
 You should now see:
 
 - `clients.conf`
+- `dictionary`
+- `aegisnas-vendor.dictionery`
 - `eap.conf`
 - `mods-enabled/ldap`
 - `mods-enabled/sql`
@@ -257,7 +316,7 @@ You should now see:
 - `sites-enabled/default`
 - `sites-enabled/inner-tunnel`
 
-### 7. Apply The RADIUS Config
+### 8. Apply The RADIUS Config
 
 Run:
 
@@ -267,7 +326,7 @@ sudo /opt/aegisnas/bin/aegis-radius apply-config --config /etc/aegisnas/config.y
 
 This writes the generated files into the FreeRADIUS config directory, runs `freeradius -XC`, and restarts the service.
 
-### 8. Verify Upstream AAA Reachability
+### 9. Verify Upstream AAA Reachability
 
 Check the appliance logs:
 
@@ -281,9 +340,11 @@ Verify the rendered proxy file exists:
 ```bash
 sudo ls -l /etc/freeradius/3.0/proxy.conf
 sudo sed -n '1,220p' /etc/freeradius/3.0/proxy.conf
+sudo sed -n '1,220p' /etc/freeradius/3.0/dictionary
+sudo sed -n '1,220p' /etc/freeradius/3.0/aegisnas-vendor.dictionery
 ```
 
-### 9. Test Authentication
+### 10. Test Authentication
 
 From a test AP, switch, or supplicant flow:
 
@@ -298,7 +359,7 @@ If using the captive portal:
 2. perform a portal login with a user that exists only on the upstream AAA system
 3. confirm the session is created locally with the expected role, VLAN, and timeouts
 
-### 10. Test Accounting
+### 11. Test Accounting
 
 Confirm the upstream AAA platform receives:
 
@@ -308,7 +369,7 @@ Confirm the upstream AAA platform receives:
 
 Also check local appliance visibility in sessions and logs.
 
-### 11. Test Dynamic Authorization
+### 12. Test Dynamic Authorization
 
 From the upstream AAA platform or a RADIUS test tool:
 
@@ -320,7 +381,7 @@ From the upstream AAA platform or a RADIUS test tool:
 
 The default dynamic authorization listener port is `3799/udp`.
 
-### 12. Test Failover
+### 13. Test Failover
 
 If you configured multiple upstream servers:
 

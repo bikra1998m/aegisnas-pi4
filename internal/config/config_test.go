@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 )
 
 func TestConfigLoad(t *testing.T) {
@@ -260,6 +261,48 @@ func TestConfigValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConfigValidationRadiusVendor(t *testing.T) {
+	productRole := productconfigs.AegisNASVendorDictionary().Attributes[0]
+	base := func() *Config {
+		return &Config{
+			Mode:      "two-nic",
+			WAN:       InterfaceConfig{Name: "eth0"},
+			LAN:       InterfaceConfig{Name: "eth1"},
+			Database:  DatabaseConfig{Path: "/tmp/aegis.db"},
+			Health:    HealthConfig{Port: 8080},
+			Telemetry: TelemetryConfig{Enabled: true, PrometheusPort: 9090},
+			Radius: RadiusConfig{
+				AuthPort:              1812,
+				AcctPort:              1813,
+				RequestTimeoutSeconds: 5,
+				Vendor: RadiusVendorConfig{
+					Enabled: true,
+					Name:    "AegisNAS",
+					ID:      55555,
+					Attributes: []RadiusVendorAttribute{
+						{Name: productRole.Name, Number: productRole.Number, Type: productRole.Type},
+					},
+				},
+			},
+		}
+	}
+
+	valid := base()
+	assert.NoError(t, valid.Validate())
+
+	invalidID := base()
+	invalidID.Radius.Vendor.ID = 0
+	assert.ErrorContains(t, invalidID.Validate(), "radius.vendor.id")
+
+	duplicateAttr := base()
+	duplicateAttr.Radius.Vendor.Attributes = append(duplicateAttr.Radius.Vendor.Attributes, RadiusVendorAttribute{Name: "AegisNAS-Role-Alt", Number: productRole.Number, Type: "string"})
+	assert.ErrorContains(t, duplicateAttr.Validate(), "duplicates")
+
+	invalidType := base()
+	invalidType.Radius.Vendor.Attributes[0].Type = "blob"
+	assert.ErrorContains(t, invalidType.Validate(), "type")
 }
 
 func TestSaveSettingsMap(t *testing.T) {

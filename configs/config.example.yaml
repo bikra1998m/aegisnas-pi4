@@ -72,6 +72,11 @@ radius:
   dynamic_auth:
     enabled: true
     port: 3799
+  vendor:
+    enabled: false
+    name: "AegisNAS"
+    id: 55555 # Lab placeholder from configs/aegisnas-vendor.dictionery. Replace with your IANA Private Enterprise Number before production use.
+    attributes: [] # Optional local overrides or extensions. Built-ins come from configs/aegisnas-vendor.dictionery.
   clients:
     - ip: 127.0.0.1
       secret: "replace-this-radius-secret"

@@ -34,6 +34,11 @@ func TestGenerator(t *testing.T) {
 					{Name: "secondary", Address: "10.0.0.11", Secret: "upstream-secret-2", AuthPort: 1912, AcctPort: 1913},
 				},
 			},
+			Vendor: config.RadiusVendorConfig{
+				Enabled: true,
+				Name:    "AegisNAS",
+				ID:      55555,
+			},
 		},
 		LDAP: config.LDAPConfig{
 			Enabled: false,
@@ -55,6 +60,10 @@ func TestGenerator(t *testing.T) {
 	assert.Contains(t, fullCfg.ProxyConf, "realm aegis-upstream")
 	assert.Contains(t, fullCfg.SitesDefault, `Proxy-To-Realm := "aegis-upstream"`)
 	assert.Contains(t, fullCfg.SitesInnerTunnel, `Proxy-To-Realm := "aegis-upstream"`)
+	assert.Contains(t, fullCfg.Dictionary, "$INCLUDE aegisnas-vendor.dictionery")
+	assert.Contains(t, fullCfg.VendorDictionary, "VENDOR AegisNAS 55555")
+	assert.Contains(t, fullCfg.VendorDictionary, "ATTRIBUTE AegisNAS-Role 1 string")
+	assert.Contains(t, fullCfg.VendorDictionary, "ATTRIBUTE AegisNAS-Bandwidth-Profile 2 string")
 }
 
 func TestGeneratorFallsBackToConfigClientsWhenDBNotMigrated(t *testing.T) {

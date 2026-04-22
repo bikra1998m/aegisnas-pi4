@@ -138,6 +138,13 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		CalledStationID:  client.CalledStationID,
 		FramedIPAddress:  clientIP,
 		AcctStatusType:   "Start",
+		Role:             client.Role,
+		BandwidthProfile: client.BandwidthProfile,
+		FilterID:         client.FilterID,
+		RadiusClass:      client.RadiusClass,
+		VLAN:             client.VLAN,
+		SessionTimeout:   client.SessionTimeout,
+		IdleTimeout:      client.IdleTimeout,
 		Timestamp:        time.Now(),
 	})
 
@@ -201,6 +208,13 @@ func (s *Server) HandleVoucherLogin(w http.ResponseWriter, r *http.Request) {
 		CalledStationID:  client.CalledStationID,
 		FramedIPAddress:  clientIP,
 		AcctStatusType:   "Start",
+		Role:             client.Role,
+		BandwidthProfile: client.BandwidthProfile,
+		FilterID:         client.FilterID,
+		RadiusClass:      client.RadiusClass,
+		VLAN:             client.VLAN,
+		SessionTimeout:   client.SessionTimeout,
+		IdleTimeout:      client.IdleTimeout,
 		Timestamp:        time.Now(),
 	})
 
@@ -262,6 +276,13 @@ func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 				AcctStatusType:   "Stop",
 				AcctSessionTime:  sessionAgeSeconds(client.StartTime),
 				StopReason:       "user logout",
+				Role:             client.Role,
+				BandwidthProfile: client.BandwidthProfile,
+				FilterID:         client.FilterID,
+				RadiusClass:      client.RadiusClass,
+				VLAN:             client.VLAN,
+				SessionTimeout:   client.SessionTimeout,
+				IdleTimeout:      client.IdleTimeout,
 				Timestamp:        time.Now(),
 			})
 			if err := s.stateMachine.EndSession(mac, "user logout"); err != nil {

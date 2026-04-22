@@ -118,7 +118,7 @@ func (s *DynamicAuthServer) writeNAK(w layehradius.ResponseWriter, r *layehradiu
 }
 
 func (s *DynamicAuthServer) policyUpdateFromPacket(packet *layehradius.Packet) (PolicyUpdate, error) {
-	brokerResult := aegisradius.ParseBrokerPacket(packet)
+	brokerResult := aegisradius.ParseBrokerPacketWithConfig(packet, s.cfg)
 	policy, err := aegisradius.ResolveSessionPolicy(s.cfg.Policy.DefaultRole, brokerResult)
 	if err != nil {
 		return PolicyUpdate{}, err
