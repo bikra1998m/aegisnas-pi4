@@ -12,6 +12,7 @@ Use this guide when you want:
 Use this guide together with:
 
 - [Ubuntu Appliance Deployment](ubuntu-appliance-deployment.md)
+- [VMware Workstation 17 Player Full Product Runbook](vmware-workstation-17-player-full-test.md)
 - [Deployment Profiles](deployment-profiles.md)
 - [Login And Captive Portal Test Runbook](login-test-runbook.md)
 - [Wireless Access And UI Guide](wireless-access-ui-guide.md)
