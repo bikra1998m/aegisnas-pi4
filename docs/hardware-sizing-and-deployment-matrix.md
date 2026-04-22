@@ -34,6 +34,7 @@ The main things that change hardware needs are:
 4. whether live per-session bandwidth shaping is enabled
 5. whether the appliance also runs the Wi-Fi radio locally through `hostapd`
 6. how much logging, backup retention, and telemetry history you keep
+7. whether full AI analysis runs against a local or nearby OpenAI-compatible model endpoint
 
 ## Quick Recommendation Table
 
@@ -166,6 +167,7 @@ Recommended mode:
 - external APs or switches feed the appliance
 - upstream AAA is active
 - accounting and policy enforcement remain local
+- full AI mode can be enabled for richer operator recommendations
 - operator teams use the admin UI and config revision flow regularly
 
 Good fit:

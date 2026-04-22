@@ -46,7 +46,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		httpServiceStatus("gateway", "Gateway", cfg.Health.Port),
 		httpServiceStatus("portal", "Portal", cfg.Portal.Port),
 		httpServiceStatus("policy", "Policy", cfg.Health.Port+2),
-		httpServiceStatus("ai_lite", "AI Lite", cfg.Health.Port+4),
+		httpServiceStatus("ai_lite", "AI Engine", cfg.Health.Port+4),
 		httpServiceStatus("radius", "RADIUS Broker", cfg.Health.Port+5),
 		httpServiceStatus("telemetry", "Telemetry", cfg.Health.Port+6),
 		httpServiceStatus("session", "Session Service", cfg.Health.Port+7),
@@ -59,10 +59,10 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	if !cfg.AILite.Enabled {
 		services = replaceServiceStatus(services, "ai_lite", serviceStatus{
 			Key:     "ai_lite",
-			Label:   "AI Lite",
+			Label:   "AI Engine",
 			Kind:    "http",
 			Status:  "disabled",
-			Message: "AI Lite is disabled in config",
+			Message: "AI engine is disabled in config",
 		})
 	}
 	if !cfg.Telemetry.Enabled {

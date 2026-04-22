@@ -133,6 +133,13 @@ telemetry:
 
 ailite:
   enabled: true
+  mode: "lite" # lite for local rule-based advice, full for an OpenAI-compatible AI provider.
+  provider: "local" # local or openai-compatible.
+  endpoint: "" # Example: https://api.example.ai or http://127.0.0.1:11434.
+  model: "" # Required when endpoint is set.
+  api_key_env: "AEGIS_AI_API_KEY"
+  request_timeout_seconds: 20
+  max_input_events: 200
   recommendation_limit: 100
   remote_webhook: ""
 

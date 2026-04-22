@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -181,9 +182,16 @@ type TelemetryConfig struct {
 }
 
 type AILiteConfig struct {
-	Enabled             bool   `mapstructure:"enabled"`
-	RecommendationLimit int    `mapstructure:"recommendation_limit"`
-	RemoteWebhook       string `mapstructure:"remote_webhook"`
+	Enabled               bool   `mapstructure:"enabled"`
+	Mode                  string `mapstructure:"mode"`
+	Provider              string `mapstructure:"provider"`
+	Endpoint              string `mapstructure:"endpoint"`
+	Model                 string `mapstructure:"model"`
+	APIKeyEnv             string `mapstructure:"api_key_env"`
+	RequestTimeoutSeconds int    `mapstructure:"request_timeout_seconds"`
+	MaxInputEvents        int    `mapstructure:"max_input_events"`
+	RecommendationLimit   int    `mapstructure:"recommendation_limit"`
+	RemoteWebhook         string `mapstructure:"remote_webhook"`
 }
 
 type WirelessConfig struct {
@@ -249,6 +257,11 @@ func Load(configPath string) (*Config, error) {
 	v.SetDefault("telemetry.prometheus_port", 9090)
 	v.SetDefault("admin_port", 8083)
 	v.SetDefault("ailite.enabled", true)
+	v.SetDefault("ailite.mode", "lite")
+	v.SetDefault("ailite.provider", "local")
+	v.SetDefault("ailite.api_key_env", "AEGIS_AI_API_KEY")
+	v.SetDefault("ailite.request_timeout_seconds", 20)
+	v.SetDefault("ailite.max_input_events", 200)
 	v.SetDefault("ailite.recommendation_limit", 100)
 	v.SetDefault("dhcp.enabled", true)
 	v.SetDefault("dhcp.lease_time", "12h")
@@ -388,6 +401,38 @@ func (c *Config) Validate() error {
 	}
 	if c.Telemetry.PrometheusPort < 1 || c.Telemetry.PrometheusPort > 65535 {
 		return fmt.Errorf("telemetry.prometheus_port %d out of range", c.Telemetry.PrometheusPort)
+	}
+	aiMode := EffectiveAIMode(c)
+	switch aiMode {
+	case "lite", "full":
+	default:
+		return fmt.Errorf("ailite.mode %q is invalid", c.AILite.Mode)
+	}
+	aiProvider := EffectiveAIProvider(c)
+	switch aiProvider {
+	case "local", "openai-compatible":
+	default:
+		return fmt.Errorf("ailite.provider %q is invalid", c.AILite.Provider)
+	}
+	if c.AILite.RequestTimeoutSeconds < 0 {
+		return fmt.Errorf("ailite.request_timeout_seconds %d cannot be negative", c.AILite.RequestTimeoutSeconds)
+	}
+	if c.AILite.MaxInputEvents < 0 {
+		return fmt.Errorf("ailite.max_input_events %d cannot be negative", c.AILite.MaxInputEvents)
+	}
+	if strings.TrimSpace(c.AILite.Endpoint) != "" {
+		parsed, err := url.Parse(c.AILite.Endpoint)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+			return fmt.Errorf("ailite.endpoint %q is invalid", c.AILite.Endpoint)
+		}
+		switch parsed.Scheme {
+		case "http", "https":
+		default:
+			return fmt.Errorf("ailite.endpoint %q must use http or https", c.AILite.Endpoint)
+		}
+		if strings.TrimSpace(c.AILite.Model) == "" {
+			return errors.New("ailite.model cannot be empty when ailite.endpoint is set")
+		}
 	}
 
 	if c.Radius.AuthPort < 1 || c.Radius.AuthPort > 65535 {

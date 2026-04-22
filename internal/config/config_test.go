@@ -50,6 +50,8 @@ radius:
 	assert.Equal(t, "eth1", cfg.LAN.Name)
 	assert.Equal(t, "info", cfg.Logging.Level)
 	assert.True(t, cfg.Telemetry.Enabled)
+	assert.Equal(t, "lite", EffectiveAIMode(cfg))
+	assert.Equal(t, "local", EffectiveAIProvider(cfg))
 
 	err = cfg.Validate()
 	assert.NoError(t, err)
@@ -305,6 +307,52 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	assert.ErrorContains(t, invalidType.Validate(), "type")
 }
 
+func TestConfigValidationAIEngine(t *testing.T) {
+	base := func() *Config {
+		return &Config{
+			Mode:      "two-nic",
+			WAN:       InterfaceConfig{Name: "eth0"},
+			LAN:       InterfaceConfig{Name: "eth1"},
+			Database:  DatabaseConfig{Path: "/tmp/aegis.db"},
+			Health:    HealthConfig{Port: 8080},
+			Telemetry: TelemetryConfig{Enabled: true, PrometheusPort: 9090},
+			Radius: RadiusConfig{
+				AuthPort:              1812,
+				AcctPort:              1813,
+				RequestTimeoutSeconds: 5,
+			},
+			AILite: AILiteConfig{
+				Enabled:               true,
+				Mode:                  "full",
+				Provider:              "openai-compatible",
+				Endpoint:              "http://127.0.0.1:11434",
+				Model:                 "ops-model",
+				RequestTimeoutSeconds: 20,
+				MaxInputEvents:        200,
+			},
+		}
+	}
+
+	valid := base()
+	assert.NoError(t, valid.Validate())
+
+	invalidMode := base()
+	invalidMode.AILite.Mode = "magic"
+	assert.ErrorContains(t, invalidMode.Validate(), "ailite.mode")
+
+	invalidProvider := base()
+	invalidProvider.AILite.Provider = "cloud-magic"
+	assert.ErrorContains(t, invalidProvider.Validate(), "ailite.provider")
+
+	missingModel := base()
+	missingModel.AILite.Model = ""
+	assert.ErrorContains(t, missingModel.Validate(), "ailite.model")
+
+	badEndpoint := base()
+	badEndpoint.AILite.Endpoint = "ftp://example.com"
+	assert.ErrorContains(t, badEndpoint.Validate(), "ailite.endpoint")
+}
+
 func TestSaveSettingsMap(t *testing.T) {
 	tmpfile, err := os.CreateTemp("", "settings-*.yaml")
 	require.NoError(t, err)
@@ -422,6 +470,8 @@ func TestDeploymentSummary(t *testing.T) {
 		},
 		AILite: AILiteConfig{
 			Enabled:             false,
+			Mode:                "lite",
+			Provider:            "local",
 			RecommendationLimit: 25,
 		},
 		Radius: RadiusConfig{

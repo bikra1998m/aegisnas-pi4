@@ -16,13 +16,13 @@ The repository builds as a production-minded MVP: Go services, SQLite local stat
 - Admin UI: operational pages for every admin API object plus a guided `Access Settings` console for portal, LDAP, EAP, upstream AAA, radio, and SSID management, and a live dashboard for appliance, broker, and per-upstream AAA health.
 - Runtime enforcement: immediate gateway quarantine for sessions reclassified into quarantine role, Filter-Id, or VLAN 99, live per-session bandwidth shaping from active bandwidth profiles, and immediate session termination when CoA tightens timeouts or requests VLAN reassignment.
 - State: pure-Go SQLite driver for CGO-free builds and reproducible tests.
-- AI-lite: advisory recommendations only; authentication and traffic admission do not depend on AI.
+- AI engine: local AI Lite checks for small hardware and full OpenAI-compatible analysis for high-capacity appliances; authentication and traffic admission do not depend on AI.
 
 ## Production Readiness
 
 The codebase is ready for pilot production packaging after site-specific secrets, TLS certificates, AP/RADIUS client secrets, and deployment-specific network values are installed.
 
-See [Production Readiness Update](docs/production-readiness-update.md), [Ubuntu Appliance Deployment](docs/ubuntu-appliance-deployment.md), [Ubuntu VM Deployment And Full Flow Test Runbook](docs/ubuntu-vm-runbook.md), [Hardware Sizing And Deployment Matrix](docs/hardware-sizing-and-deployment-matrix.md), [Deployment Profiles](docs/deployment-profiles.md), [Wireless Access And UI Guide](docs/wireless-access-ui-guide.md), [External AAA Product Mode](docs/external-aaa-product-mode.md), [AAA Product Implementation Notes](docs/aaa-product-implementation-notes.md), [Operations](docs/operations.md), [Security](docs/security.md), and [Backup/Restore](docs/backup-restore.md).
+See [Production Readiness Update](docs/production-readiness-update.md), [Ubuntu Appliance Deployment](docs/ubuntu-appliance-deployment.md), [Ubuntu VM Deployment And Full Flow Test Runbook](docs/ubuntu-vm-runbook.md), [Hardware Sizing And Deployment Matrix](docs/hardware-sizing-and-deployment-matrix.md), [Deployment Profiles](docs/deployment-profiles.md), [Full AI Engine](docs/full-ai-engine.md), [Wireless Access And UI Guide](docs/wireless-access-ui-guide.md), [External AAA Product Mode](docs/external-aaa-product-mode.md), [AAA Product Implementation Notes](docs/aaa-product-implementation-notes.md), [Operations](docs/operations.md), [Security](docs/security.md), and [Backup/Restore](docs/backup-restore.md).
 
 For a GitHub-clone-inside-VM fast path, run:
 

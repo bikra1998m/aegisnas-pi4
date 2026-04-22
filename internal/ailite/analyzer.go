@@ -37,10 +37,14 @@ type Analyzer struct {
 }
 
 func NewAnalyzer(cfg *config.Config, logger *zap.Logger) (*Analyzer, error) {
+	timeout := 5 * time.Second
+	if cfg != nil && cfg.AILite.RequestTimeoutSeconds > 0 {
+		timeout = time.Duration(cfg.AILite.RequestTimeoutSeconds) * time.Second
+	}
 	return &Analyzer{
 		cfg:          cfg,
 		logger:       logger,
-		remoteClient: &http.Client{Timeout: 5 * time.Second},
+		remoteClient: &http.Client{Timeout: timeout},
 		circuitState: CircuitClosed,
 	}, nil
 }
@@ -397,6 +401,7 @@ func (a *Analyzer) HandleRunAnalysisNow(w http.ResponseWriter, r *http.Request) 
 		a.analyzeAuthFailures()
 		a.detectSessionAnomalies()
 		a.lintConfig()
+		a.runFullAIAnalysis()
 	}()
 	w.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(w).Encode(map[string]string{"status": "analysis started"})

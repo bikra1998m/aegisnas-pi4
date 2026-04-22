@@ -36,6 +36,13 @@ NETPLAN_FILE="/etc/netplan/90-aegisnas.yaml"
 
 TELEMETRY_ENABLED="true"
 AILITE_ENABLED="true"
+AILITE_MODE=""
+AILITE_PROVIDER="openai-compatible"
+AILITE_ENDPOINT="${AEGIS_AI_ENDPOINT:-}"
+AILITE_MODEL="${AEGIS_AI_MODEL:-}"
+AILITE_API_KEY_ENV="${AEGIS_AI_API_KEY_ENV:-AEGIS_AI_API_KEY}"
+AILITE_TIMEOUT_SECONDS="20"
+AILITE_MAX_INPUT_EVENTS="200"
 RUNTIME_SHAPING_ENABLED="true"
 
 log() {
@@ -61,6 +68,10 @@ Options:
   --lan-dhcp-range <range>   dnsmasq DHCP range. Default: 192.168.50.100,192.168.50.200,12h
   --profile <name>           Deployment profile: lite, branch, enterprise, custom. Default: branch
   --portal-branding <text>   Portal branding text. Default: AegisNAS VM Lab
+  --ai-mode <name>           AI mode: lite or full. Default follows deployment profile.
+  --ai-endpoint <url>        Full AI OpenAI-compatible endpoint.
+  --ai-model <name>          Full AI model name.
+  --ai-api-key-env <name>    Environment variable containing the AI API key. Default: AEGIS_AI_API_KEY
   --skip-packages            Skip apt and toolchain installation.
   --skip-tests               Skip go test verification before build.
   --skip-build               Skip local rebuild and reuse existing release artifacts.
@@ -104,6 +115,22 @@ while [[ $# -gt 0 ]]; do
       ;;
     --portal-branding)
       PORTAL_BRANDING="${2:-}"
+      shift 2
+      ;;
+    --ai-mode)
+      AILITE_MODE="${2:-}"
+      shift 2
+      ;;
+    --ai-endpoint)
+      AILITE_ENDPOINT="${2:-}"
+      shift 2
+      ;;
+    --ai-model)
+      AILITE_MODEL="${2:-}"
+      shift 2
+      ;;
+    --ai-api-key-env)
+      AILITE_API_KEY_ENV="${2:-}"
       shift 2
       ;;
     --skip-packages)
@@ -236,14 +263,49 @@ apply_profile_defaults() {
     lite)
       TELEMETRY_ENABLED="false"
       AILITE_ENABLED="false"
+      if [[ -z "${AILITE_MODE}" ]]; then
+        AILITE_MODE="lite"
+      fi
+      if [[ "${AILITE_MODE}" == "lite" ]]; then
+        AILITE_PROVIDER="local"
+      else
+        AILITE_PROVIDER="openai-compatible"
+      fi
       RUNTIME_SHAPING_ENABLED="false"
       ;;
-    branch|enterprise)
+    branch)
       TELEMETRY_ENABLED="true"
       AILITE_ENABLED="true"
+      if [[ -z "${AILITE_MODE}" ]]; then
+        AILITE_MODE="lite"
+      fi
+      if [[ "${AILITE_MODE}" == "lite" ]]; then
+        AILITE_PROVIDER="local"
+      fi
+      RUNTIME_SHAPING_ENABLED="true"
+      ;;
+    enterprise)
+      TELEMETRY_ENABLED="true"
+      AILITE_ENABLED="true"
+      if [[ -z "${AILITE_MODE}" ]]; then
+        AILITE_MODE="full"
+      fi
+      if [[ "${AILITE_MODE}" == "lite" ]]; then
+        AILITE_PROVIDER="local"
+      else
+        AILITE_PROVIDER="openai-compatible"
+      fi
       RUNTIME_SHAPING_ENABLED="true"
       ;;
     custom)
+      if [[ -z "${AILITE_MODE}" ]]; then
+        AILITE_MODE="lite"
+      fi
+      if [[ "${AILITE_MODE}" == "lite" ]]; then
+        AILITE_PROVIDER="local"
+      else
+        AILITE_PROVIDER="openai-compatible"
+      fi
       ;;
     *)
       die "Unsupported profile: ${PROFILE}"
@@ -335,11 +397,12 @@ existing_env_value() {
 }
 
 write_env_file() {
-  local bootstrap_token revision_key allowed_origins
+  local bootstrap_token revision_key allowed_origins ai_api_key
 
   bootstrap_token="${AEGIS_ADMIN_BOOTSTRAP_TOKEN:-$(existing_env_value "AEGIS_ADMIN_BOOTSTRAP_TOKEN")}"
   revision_key="${AEGIS_REVISION_SIGNING_KEY:-$(existing_env_value "AEGIS_REVISION_SIGNING_KEY")}"
   allowed_origins="${AEGIS_ADMIN_ALLOWED_ORIGINS:-$(existing_env_value "AEGIS_ADMIN_ALLOWED_ORIGINS")}"
+  ai_api_key="${AEGIS_AI_API_KEY:-$(existing_env_value "AEGIS_AI_API_KEY")}"
 
   if [[ -z "${bootstrap_token}" ]]; then
     bootstrap_token="$(openssl rand -hex 32)"
@@ -354,6 +417,7 @@ write_env_file() {
   export AEGIS_ADMIN_BOOTSTRAP_TOKEN="${bootstrap_token}"
   export AEGIS_REVISION_SIGNING_KEY="${revision_key}"
   export AEGIS_ADMIN_ALLOWED_ORIGINS="${allowed_origins}"
+  export AEGIS_AI_API_KEY="${ai_api_key}"
 
   if sudo test -f "${ENV_FILE}" && [[ "${FORCE_CONFIG}" -ne 1 ]]; then
     log "Preserving existing ${ENV_FILE}."
@@ -366,6 +430,7 @@ AEGIS_ADMIN_UI_DIR=${UI_DIR}
 AEGIS_ADMIN_ALLOWED_ORIGINS=${AEGIS_ADMIN_ALLOWED_ORIGINS}
 AEGIS_ADMIN_BOOTSTRAP_TOKEN=${AEGIS_ADMIN_BOOTSTRAP_TOKEN}
 AEGIS_REVISION_SIGNING_KEY=${AEGIS_REVISION_SIGNING_KEY}
+AEGIS_AI_API_KEY=${AEGIS_AI_API_KEY}
 EOF
   sudo chmod 0640 "${ENV_FILE}"
 }
@@ -485,6 +550,13 @@ telemetry:
 
 ailite:
   enabled: ${AILITE_ENABLED}
+  mode: "${AILITE_MODE}"
+  provider: "${AILITE_PROVIDER}"
+  endpoint: "${AILITE_ENDPOINT}"
+  model: "${AILITE_MODEL}"
+  api_key_env: "${AILITE_API_KEY_ENV}"
+  request_timeout_seconds: ${AILITE_TIMEOUT_SECONDS}
+  max_input_events: ${AILITE_MAX_INPUT_EVENTS}
   recommendation_limit: 100
   remote_webhook: ""
 

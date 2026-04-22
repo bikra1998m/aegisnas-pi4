@@ -57,4 +57,6 @@ Backups are not encrypted by the application. Store archives in encrypted storag
 
 ## AI Plane
 
-AI-lite is advisory only. If the AI process or remote webhook fails, authentication, session enforcement, and traffic admission continue.
+The AI engine is advisory only. If AI Lite, full AI, the provider endpoint, or a remote webhook fails, authentication, session enforcement, and traffic admission continue.
+
+Full AI mode sends a bounded operational snapshot to the configured provider. Keep provider keys in `/etc/default/aegisnas` through `AEGIS_AI_API_KEY`, restrict that file to root-readable permissions, and use a private endpoint when customer policy forbids cloud analysis.

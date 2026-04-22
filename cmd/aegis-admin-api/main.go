@@ -165,6 +165,7 @@ var runCmd = &cobra.Command{
 
 			// AI recommendations
 			r.Get("/ai-recommendations", adminapi.HandleListAIRecommendations)
+			r.Post("/ai-recommendations/run", adminapi.HandleRunAIAnalysis)
 			r.Post("/ai-recommendations/{id}/acknowledge", adminapi.HandleAcknowledgeAIRecommendation)
 
 			// Staging and Apply

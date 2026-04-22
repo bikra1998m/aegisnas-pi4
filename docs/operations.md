@@ -52,7 +52,7 @@ Manual pages available in the UI:
 - Health endpoints are registered by each daemon.
 - Telemetry generates alerts into the `alerts` table.
 - Alerts can be acknowledged from the admin UI.
-- AI-lite stores recommendations in `ai_recommendations`; these are advisory and never gate authentication.
+- The AI engine stores recommendations in `ai_recommendations`; these are advisory and never gate authentication.
 
 ## Logs
 

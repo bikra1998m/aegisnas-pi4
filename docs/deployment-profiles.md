@@ -9,6 +9,7 @@ The current implementation adds a profile-aware control plane through:
 - `deployment.hardware.*`
 - `telemetry.enabled`
 - `ailite.enabled`
+- `ailite.mode`
 - `policy.runtime_shaping_enabled`
 
 Use this guide together with:
@@ -26,6 +27,7 @@ Use this for constrained hardware and very small sites.
 Recommended direction:
 
 - disable AI Lite
+- keep `ailite.mode: lite` when AI is off
 - disable telemetry
 - disable runtime shaping
 - reduce `radius.max_sessions`
@@ -39,6 +41,7 @@ This is the balanced default profile.
 Recommended direction:
 
 - AI Lite on
+- `ailite.mode: lite`
 - telemetry on
 - runtime shaping on when needed
 - normal upstream AAA probing
@@ -50,7 +53,7 @@ Use this when you have more hardware headroom and heavier auth or policy load.
 
 Recommended direction:
 
-- AI Lite on
+- full AI mode on when a provider endpoint and model are configured
 - telemetry on
 - runtime shaping on
 - larger `radius.max_sessions`
@@ -96,6 +99,7 @@ The virtual form assumes external APs are usually the safer model. If local wire
 The profile action updates real config fields such as:
 
 - `ailite.enabled`
+- `ailite.mode`
 - `telemetry.enabled`
 - `policy.runtime_shaping_enabled`
 - `radius.max_sessions`
@@ -120,6 +124,7 @@ telemetry:
 
 ailite:
   enabled: false
+  mode: lite
   recommendation_limit: 25
 
 policy:
@@ -152,3 +157,5 @@ The current profile-aware implementation changes behavior in these concrete ways
 - the admin UI can apply profile defaults directly into the live config editor
 
 The profile system does not try to magically make every hardware target run every feature. Instead, it gives the operator a safe way to scale the product down or up while keeping one codebase and one admin workflow.
+
+For high-configuration appliances, use `deployment.profile: enterprise` with `ailite.mode: full` and an OpenAI-compatible endpoint. See [Full AI Engine](full-ai-engine.md).

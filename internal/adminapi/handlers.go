@@ -1105,6 +1105,42 @@ func HandleAcknowledgeAIRecommendation(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func HandleRunAIAnalysis(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Get()
+	if cfg == nil {
+		http.Error(w, "configuration not loaded", http.StatusInternalServerError)
+		return
+	}
+	if !cfg.AILite.Enabled {
+		http.Error(w, "AI engine is disabled in config", http.StatusBadRequest)
+		return
+	}
+
+	target := fmt.Sprintf("http://127.0.0.1:%d/api/v1/ai/run-analysis", cfg.Health.Port+4)
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, target, nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	client := http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("AI engine request failed: %v", err), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		http.Error(w, strings.TrimSpace(string(body)), resp.StatusCode)
+		return
+	}
+	audit(r, "run_ai_analysis", target, "accepted")
+	writeJSON(w, http.StatusAccepted, map[string]any{
+		"status": "analysis started",
+		"mode":   config.EffectiveAIMode(cfg),
+	})
+}
+
 // ---------- Staging and Apply Workflow ----------
 
 func HandleListStagedChanges(w http.ResponseWriter, r *http.Request) {

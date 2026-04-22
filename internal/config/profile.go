@@ -10,6 +10,8 @@ type deploymentPreset struct {
 	RecommendedMinMemoryMB         int
 	RecommendedMinCPUCores         int
 	RecommendedAILite              bool
+	RecommendedAIMode              string
+	RecommendedAIProvider          string
 	RecommendedTelemetry           bool
 	RecommendedRuntimeShaping      bool
 	RecommendedWireless            bool
@@ -41,6 +43,31 @@ func EffectiveDeploymentForm(input string) string {
 	}
 }
 
+func EffectiveAIMode(cfg *Config) string {
+	if cfg == nil {
+		return "lite"
+	}
+	mode := strings.ToLower(strings.TrimSpace(cfg.AILite.Mode))
+	if mode == "" {
+		return "lite"
+	}
+	return mode
+}
+
+func EffectiveAIProvider(cfg *Config) string {
+	if cfg == nil {
+		return "local"
+	}
+	provider := strings.ToLower(strings.TrimSpace(cfg.AILite.Provider))
+	if provider == "" {
+		if EffectiveAIMode(cfg) == "full" {
+			return "openai-compatible"
+		}
+		return "local"
+	}
+	return provider
+}
+
 func DeploymentSummary(cfg *Config) map[string]any {
 	if cfg == nil {
 		return map[string]any{}
@@ -64,6 +91,8 @@ func DeploymentSummary(cfg *Config) map[string]any {
 		},
 		"recommended": map[string]any{
 			"ai_lite_enabled":       preset.RecommendedAILite,
+			"ai_mode":               preset.RecommendedAIMode,
+			"ai_provider":           preset.RecommendedAIProvider,
 			"telemetry_enabled":     preset.RecommendedTelemetry,
 			"runtime_shaping":       preset.RecommendedRuntimeShaping,
 			"wireless_enabled":      preset.RecommendedWireless,
@@ -74,6 +103,9 @@ func DeploymentSummary(cfg *Config) map[string]any {
 		},
 		"effective": map[string]any{
 			"ai_lite_enabled":       cfg.AILite.Enabled,
+			"ai_mode":               EffectiveAIMode(cfg),
+			"ai_provider":           EffectiveAIProvider(cfg),
+			"ai_model":              cfg.AILite.Model,
 			"telemetry_enabled":     cfg.Telemetry.Enabled,
 			"runtime_shaping":       cfg.Policy.RuntimeShapingEnabled,
 			"wireless_enabled":      cfg.Wireless.Enabled,
@@ -102,6 +134,8 @@ func deploymentPresetFor(profile, form string) deploymentPreset {
 			RecommendedMinMemoryMB:         1024,
 			RecommendedMinCPUCores:         2,
 			RecommendedAILite:              false,
+			RecommendedAIMode:              "lite",
+			RecommendedAIProvider:          "local",
 			RecommendedTelemetry:           false,
 			RecommendedRuntimeShaping:      false,
 			RecommendedWireless:            form == "physical",
@@ -119,6 +153,8 @@ func deploymentPresetFor(profile, form string) deploymentPreset {
 			RecommendedMinMemoryMB:         8192,
 			RecommendedMinCPUCores:         4,
 			RecommendedAILite:              true,
+			RecommendedAIMode:              "full",
+			RecommendedAIProvider:          "openai-compatible",
 			RecommendedTelemetry:           true,
 			RecommendedRuntimeShaping:      true,
 			RecommendedWireless:            form == "physical",
@@ -136,6 +172,8 @@ func deploymentPresetFor(profile, form string) deploymentPreset {
 			RecommendedMinMemoryMB:         4096,
 			RecommendedMinCPUCores:         2,
 			RecommendedAILite:              true,
+			RecommendedAIMode:              "lite",
+			RecommendedAIProvider:          "local",
 			RecommendedTelemetry:           true,
 			RecommendedRuntimeShaping:      true,
 			RecommendedWireless:            form == "physical",
@@ -153,6 +191,8 @@ func deploymentPresetFor(profile, form string) deploymentPreset {
 			RecommendedMinMemoryMB:         4096,
 			RecommendedMinCPUCores:         2,
 			RecommendedAILite:              true,
+			RecommendedAIMode:              "lite",
+			RecommendedAIProvider:          "local",
 			RecommendedTelemetry:           true,
 			RecommendedRuntimeShaping:      true,
 			RecommendedWireless:            form == "physical",
@@ -243,6 +283,12 @@ func deploymentWarnings(cfg *Config, preset deploymentPreset) []string {
 	}
 	if EffectiveDeploymentProfile(cfg.Deployment.Profile) == "lite" && cfg.Radius.Upstream.StatusCheck == "status-server" {
 		warnings = append(warnings, "Lite profile is still using active upstream Status-Server probes. Consider switching to status_check: none on constrained hardware.")
+	}
+	if cfg.AILite.Enabled && EffectiveAIMode(cfg) == "full" && strings.TrimSpace(cfg.AILite.Endpoint) == "" {
+		warnings = append(warnings, "Full AI mode is selected but no AI provider endpoint is configured.")
+	}
+	if cfg.AILite.Enabled && EffectiveAIMode(cfg) == "lite" && cfg.Deployment.Hardware.MemoryMB >= 8192 && cfg.Deployment.Hardware.CPUCores >= 4 {
+		warnings = append(warnings, "High-capacity hardware is using AI Lite. Switch ailite.mode to full to use the full AI provider.")
 	}
 	if cfg.Deployment.Hardware.PreferExternalAP && cfg.Wireless.Enabled {
 		warnings = append(warnings, "External AP preference is enabled while local wireless is also enabled. Pick one radio model for predictable operations.")

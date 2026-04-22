@@ -4,6 +4,8 @@ import api from '../api/client';
 export default function AIRecommendations() {
   const [items, setItems] = useState<any[]>([]);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [running, setRunning] = useState(false);
 
   const fetchItems = async () => {
     try {
@@ -23,9 +25,30 @@ export default function AIRecommendations() {
     await fetchItems();
   };
 
+  const runAnalysis = async () => {
+    setRunning(true);
+    setError('');
+    setMessage('');
+    try {
+      await api.post('/ai-recommendations/run');
+      setMessage('Analysis started.');
+      window.setTimeout(fetchItems, 1500);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not start analysis.');
+    } finally {
+      setRunning(false);
+    }
+  };
+
   return (
     <div>
-      <h2 className="mb-6 text-2xl font-bold text-gray-900">AI Recommendations</h2>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-2xl font-bold text-gray-900">AI Recommendations</h2>
+        <button onClick={runAnalysis} disabled={running} className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
+          {running ? 'Starting...' : 'Run Analysis'}
+        </button>
+      </div>
+      {message && <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>}
       {error && <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{String(error)}</div>}
       <div className="space-y-3">
         {items.length === 0 ? (

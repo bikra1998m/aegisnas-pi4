@@ -24,7 +24,7 @@ var (
 	cfgFile string
 	rootCmd = &cobra.Command{
 		Use:   "aegis-ai-lite",
-		Short: "AegisNAS AI Lite – Advisory recommendations",
+		Short: "AegisNAS AI engine - advisory recommendations",
 	}
 )
 
@@ -41,7 +41,7 @@ func main() {
 
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: "Run the AI lite analysis daemon",
+	Short: "Run the AI analysis daemon",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load(cfgFile)
 		if err != nil {
@@ -57,7 +57,7 @@ var runCmd = &cobra.Command{
 		logger := logging.L()
 
 		if !cfg.AILite.Enabled {
-			logger.Info("AI Lite is disabled in config; exiting")
+			logger.Info("AI engine is disabled in config; exiting")
 			return nil
 		}
 
@@ -71,20 +71,20 @@ var runCmd = &cobra.Command{
 			return fmt.Errorf("create analyzer: %w", err)
 		}
 
-		// Background tasks
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
 		go analyzer.RunAuthFailureAnalyzer(ctx, 2*time.Minute)
 		go analyzer.RunSessionAnomalyDetector(ctx, 5*time.Minute)
 		go analyzer.RunConfigLinter(ctx, 10*time.Minute)
+		if config.EffectiveAIMode(cfg) == "full" {
+			go analyzer.RunFullAIAnalyzer(ctx, 15*time.Minute)
+		}
 
-		// Remote webhook sender (optional)
 		if cfg.AILite.RemoteWebhook != "" {
 			go analyzer.RunRemoteWebhookSender(ctx, 30*time.Second)
 		}
 
-		// API server
 		r := chi.NewRouter()
 		r.Use(middleware.Logger)
 		r.Use(middleware.Recoverer)
@@ -102,7 +102,7 @@ var runCmd = &cobra.Command{
 		}
 
 		go func() {
-			logger.Info("AI lite API listening", zap.Int("port", cfg.Health.Port+4))
+			logger.Info("AI API listening", zap.Int("port", cfg.Health.Port+4), zap.String("mode", config.EffectiveAIMode(cfg)))
 			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				logger.Fatal("server failed", zap.Error(err))
 			}
@@ -112,7 +112,7 @@ var runCmd = &cobra.Command{
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 		<-sig
 
-		logger.Info("shutting down AI lite")
+		logger.Info("shutting down AI engine")
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer shutdownCancel()
 		return httpServer.Shutdown(shutdownCtx)

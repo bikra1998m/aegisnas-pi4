@@ -29,6 +29,13 @@ const defaultSettings: JsonMap = {
   },
   ailite: {
     enabled: true,
+    mode: 'lite',
+    provider: 'local',
+    endpoint: '',
+    model: '',
+    api_key_env: 'AEGIS_AI_API_KEY',
+    request_timeout_seconds: 20,
+    max_input_events: 200,
     recommendation_limit: 100,
     remote_webhook: '',
   },
@@ -119,16 +126,26 @@ const deploymentFormOptions: Option[] = [
   { value: 'virtual', label: 'Virtual Appliance' },
 ];
 
+const aiModeOptions: Option[] = [
+  { value: 'lite', label: 'AI Lite' },
+  { value: 'full', label: 'Full AI' },
+];
+
+const aiProviderOptions: Option[] = [
+  { value: 'local', label: 'Local Rules' },
+  { value: 'openai-compatible', label: 'OpenAI Compatible' },
+];
+
 function deploymentProfileSummary(profile: string, form: string) {
   if (profile === 'lite') {
     return form === 'virtual'
-      ? 'Constrained VM profile. Prefer an external AP, keep AI Lite and telemetry off, and trim shaping on smaller virtual footprints.'
-      : 'Constrained appliance profile for very small edge hardware. Keep AI Lite, telemetry, and runtime shaping off unless the box has headroom.';
+      ? 'Constrained VM profile. Prefer an external AP, keep AI and telemetry off, and trim shaping on smaller virtual footprints.'
+      : 'Constrained appliance profile for very small edge hardware. Keep AI, telemetry, and runtime shaping off unless the box has headroom.';
   }
   if (profile === 'enterprise') {
     return form === 'virtual'
-      ? 'Higher-capacity VM profile for central AAA or larger virtual edge deployments with external APs.'
-      : 'Higher-capacity appliance profile for heavier EAP, more users, and richer live enforcement.';
+      ? 'Higher-capacity VM profile for central AAA, full AI analysis, and larger virtual edge deployments with external APs.'
+      : 'Higher-capacity appliance profile for heavier EAP, full AI analysis, more users, and richer live enforcement.';
   }
   if (profile === 'custom') {
     return 'Operator-managed profile. Use this when you want to keep manual control over every feature knob.';
@@ -154,6 +171,8 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
 
   if (profile === 'lite') {
     next.ailite.enabled = false;
+    next.ailite.mode = 'lite';
+    next.ailite.provider = 'local';
     next.ailite.recommendation_limit = 25;
     next.telemetry.enabled = false;
     next.policy.runtime_shaping_enabled = false;
@@ -162,6 +181,11 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.upstream.status_check = 'none';
   } else if (profile === 'enterprise') {
     next.ailite.enabled = true;
+    next.ailite.mode = 'full';
+    next.ailite.provider = 'openai-compatible';
+    next.ailite.api_key_env = next.ailite.api_key_env || 'AEGIS_AI_API_KEY';
+    next.ailite.request_timeout_seconds = next.ailite.request_timeout_seconds || 20;
+    next.ailite.max_input_events = next.ailite.max_input_events || 200;
     next.ailite.recommendation_limit = 250;
     next.telemetry.enabled = true;
     next.policy.runtime_shaping_enabled = true;
@@ -170,9 +194,13 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.upstream.status_check = 'status-server';
   } else if (profile === 'custom') {
     next.radius.max_sessions = next.radius.max_sessions || 1024;
+    next.ailite.mode = next.ailite.mode || 'lite';
+    next.ailite.provider = next.ailite.provider || 'local';
     next.ailite.recommendation_limit = next.ailite.recommendation_limit || 100;
   } else {
     next.ailite.enabled = true;
+    next.ailite.mode = 'lite';
+    next.ailite.provider = 'local';
     next.ailite.recommendation_limit = 100;
     next.telemetry.enabled = true;
     next.policy.runtime_shaping_enabled = true;
@@ -524,7 +552,7 @@ export default function AccessSettings() {
           />
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <ToggleField label="AI Lite Enabled" checked={Boolean(settings.ailite?.enabled)} onChange={(value) => updateField(['ailite', 'enabled'], value)} />
+          <ToggleField label="AI Engine Enabled" checked={Boolean(settings.ailite?.enabled)} onChange={(value) => updateField(['ailite', 'enabled'], value)} />
           <ToggleField label="Telemetry Enabled" checked={Boolean(settings.telemetry?.enabled)} onChange={(value) => updateField(['telemetry', 'enabled'], value)} />
           <ToggleField
             label="Runtime Shaping Enabled"
@@ -606,9 +634,50 @@ export default function AccessSettings() {
 
       <section className="rounded-lg bg-white p-6 shadow">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Telemetry And Runtime Load</h3>
+          <h3 className="text-lg font-semibold text-gray-900">AI Engine And Runtime Load</h3>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <SelectField
+            label="AI Mode"
+            value={settings.ailite?.mode || 'lite'}
+            onChange={(value) => updateField(['ailite', 'mode'], value)}
+            options={aiModeOptions}
+          />
+          <SelectField
+            label="AI Provider"
+            value={settings.ailite?.provider || 'local'}
+            onChange={(value) => updateField(['ailite', 'provider'], value)}
+            options={aiProviderOptions}
+          />
+          <TextField
+            label="Full AI Endpoint"
+            value={settings.ailite?.endpoint || ''}
+            onChange={(value) => updateField(['ailite', 'endpoint'], value)}
+            placeholder="http://127.0.0.1:11434"
+          />
+          <TextField
+            label="Full AI Model"
+            value={settings.ailite?.model || ''}
+            onChange={(value) => updateField(['ailite', 'model'], value)}
+            placeholder="ops-model"
+          />
+          <TextField
+            label="AI API Key Env"
+            value={settings.ailite?.api_key_env || 'AEGIS_AI_API_KEY'}
+            onChange={(value) => updateField(['ailite', 'api_key_env'], value)}
+          />
+          <TextField
+            label="AI Timeout Seconds"
+            type="number"
+            value={settings.ailite?.request_timeout_seconds || 20}
+            onChange={(value) => updateField(['ailite', 'request_timeout_seconds'], Number(value))}
+          />
+          <TextField
+            label="AI Input Events"
+            type="number"
+            value={settings.ailite?.max_input_events || 200}
+            onChange={(value) => updateField(['ailite', 'max_input_events'], Number(value))}
+          />
           <TextField
             label="Prometheus Port"
             type="number"
@@ -622,7 +691,7 @@ export default function AccessSettings() {
             onChange={(value) => updateField(['ailite', 'recommendation_limit'], Number(value))}
           />
           <TextField
-            label="AI Lite Webhook"
+            label="AI Webhook"
             value={settings.ailite?.remote_webhook || ''}
             onChange={(value) => updateField(['ailite', 'remote_webhook'], value)}
             placeholder="https://ops.example.com/webhook"
