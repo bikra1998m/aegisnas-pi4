@@ -127,8 +127,6 @@ func (m *Manager) cleanupExpiredSessions() {
 }
 
 func (m *Manager) enforceTimeouts() {
-	m.terminateExpiredBySQL(time.Now())
-
 	// Fetch all active sessions
 	rows, err := m.db.Query(`SELECT id, start_time, last_activity, role, session_timeout, idle_timeout
 		FROM sessions WHERE end_time IS NULL`)
@@ -195,39 +193,6 @@ func (m *Manager) enforceTimeouts() {
 	}
 	if err := enforcement.SyncRuntimeEnforcement(m.cfg); err != nil {
 		m.logger.Warn("failed to sync runtime enforcement after timeout sweep", zap.Error(err))
-	}
-}
-
-func (m *Manager) terminateExpiredBySQL(now time.Time) {
-	_, err := m.db.Exec(`
-		UPDATE sessions
-		SET end_time = ?, stop_reason = 'Idle timeout reached'
-		WHERE id IN (
-			SELECT s.id
-			FROM sessions s
-			LEFT JOIN roles r ON s.role = r.name
-			WHERE s.end_time IS NULL
-				AND COALESCE(s.idle_timeout, r.idle_timeout, 0) > 0
-				AND s.last_activity IS NOT NULL
-				AND s.last_activity < datetime('now', '-' || COALESCE(s.idle_timeout, r.idle_timeout) || ' seconds')
-		)`, now)
-	if err != nil {
-		m.logger.Warn("sql idle timeout sweep failed", zap.Error(err))
-	}
-
-	_, err = m.db.Exec(`
-		UPDATE sessions
-		SET end_time = ?, stop_reason = 'Session timeout reached'
-		WHERE id IN (
-			SELECT s.id
-			FROM sessions s
-			LEFT JOIN roles r ON s.role = r.name
-			WHERE s.end_time IS NULL
-				AND COALESCE(s.session_timeout, r.session_timeout, 0) > 0
-				AND s.start_time < datetime('now', '-' || COALESCE(s.session_timeout, r.session_timeout) || ' seconds')
-		)`, now)
-	if err != nil {
-		m.logger.Warn("sql session timeout sweep failed", zap.Error(err))
 	}
 }
 

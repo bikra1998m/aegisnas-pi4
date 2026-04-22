@@ -80,6 +80,31 @@ func TestManager_TerminateSession(t *testing.T) {
 	requireSessionStopped(t, "test", "test reason")
 }
 
+func TestManager_EnforceTimeoutsKeepsFreshSessionWithOffsetTimestamp(t *testing.T) {
+	setupTestDB(t)
+
+	cfg := &config.Config{}
+	logger := zap.NewNop()
+	mgr, err := NewManager(cfg, logger)
+	require.NoError(t, err)
+
+	behindUTC := time.FixedZone("EDT", -4*60*60)
+	fresh := time.Now().Add(-1 * time.Minute).In(behindUTC)
+	_, err = db.DB.Exec(`INSERT INTO sessions (
+			id, username, role, start_time, last_activity, session_timeout, idle_timeout
+		) VALUES ('fresh-offset', 'guest1', 'guest-basic', ?, ?, 3600, 600)`,
+		fresh.Format("2006-01-02 15:04:05.999999999 -0700 MST"),
+		fresh.Format("2006-01-02 15:04:05.999999999 -0700 MST"))
+	require.NoError(t, err)
+
+	mgr.enforceTimeouts()
+
+	var ended sql.NullString
+	err = db.DB.QueryRow(`SELECT end_time FROM sessions WHERE id = 'fresh-offset'`).Scan(&ended)
+	require.NoError(t, err)
+	require.False(t, ended.Valid, "fresh offset timestamp session should remain active")
+}
+
 func TestManager_ReclassifyByCriteriaImmediateSessionTimeout(t *testing.T) {
 	setupTestDB(t)
 
