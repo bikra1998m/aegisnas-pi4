@@ -368,6 +368,139 @@ Pattern:
 3. point the external AP to AegisNAS for RADIUS
 4. use AegisNAS for portal, session, policy, accounting, and AAA brokering
 
+## Exact Deployment Checklists
+
+### Guest Captive Portal Deployment
+
+Use this checklist when you want a guest SSID that lands users on the AegisNAS captive portal and opens internet only after login.
+
+Decide the radio model first:
+
+- physical appliance with local Wi-Fi radio:
+  - `Wireless Enabled = on`
+  - SSID is created in AegisNAS and published through `hostapd`
+- VM or non-radio appliance with external AP:
+  - `Wireless Enabled = off`
+  - create an open guest SSID on the AP
+  - make the guest SSID network use AegisNAS as DHCP, DNS, and default gateway
+
+Checklist:
+
+- [ ] Ubuntu appliance deployment is complete and the core services are healthy
+- [ ] The guest-side network reaches AegisNAS on the LAN side
+- [ ] `Portal Enabled` is on in `Access Settings`
+- [ ] `Local Fallback` is on unless you intentionally require LDAP or brokered RADIUS for portal logins
+- [ ] At least one guest login path exists:
+  - local user
+  - voucher
+  - LDAP-backed portal auth
+  - brokered portal auth through the local RADIUS broker
+- [ ] A reusable guest `Role` exists, such as `guest-basic`
+- [ ] A guest `Bandwidth Profile` exists if you want shaped access
+- [ ] A guest `Portal Profile` exists with the intended branding and success or logout URLs
+- [ ] The LAN DHCP scope hands clients an IP, gateway, and DNS that all point to AegisNAS
+- [ ] The firewall rules allow LAN access to DNS, DHCP, admin, health, and portal `8081`
+- [ ] For a physical appliance, the Wi-Fi radio is supported by Ubuntu and `hostapd`
+- [ ] For a physical appliance, `Wireless Enabled` is on and the radio settings are correct:
+  - interface such as `wlan0`
+  - driver `nl80211`
+  - country code
+  - channel
+  - `hostapd Path`
+- [ ] For a physical appliance, a guest SSID exists with:
+  - `Auth Mode = Captive Portal`
+  - guest `Portal Profile`
+  - guest `Bandwidth Profile`
+  - optional `Bridge`
+  - optional guest VLAN
+  - optional `Client Isolation`
+- [ ] For a physical appliance, `hostapd Preview` looks correct
+- [ ] For a physical appliance, `Write hostapd Config` or `Write And Restart Wi-Fi` has been run
+- [ ] For an external AP, the AP guest SSID is open and does not use the AP vendor's own captive portal
+- [ ] For an external AP, guest clients are routed through AegisNAS after association
+- [ ] A test client joins the guest SSID and receives DHCP from AegisNAS
+- [ ] Before login, opening `http://neverssl.com` or another plain HTTP site reaches the AegisNAS portal
+- [ ] The portal page also opens directly at `http://<appliance-lan-ip>:8081`
+- [ ] `guest1 / guest123` or a valid voucher or LDAP credential logs in successfully
+- [ ] After login, the client can browse the internet through AegisNAS
+- [ ] A live session appears in `Sessions`
+- [ ] Logging out from the portal or terminating the session removes access and the client must authenticate again
+- [ ] A debug bundle is captured for future R&D:
+
+```bash
+sudo bash scripts/capture-login-debug-logs.sh --scenario guest-captive-portal
+```
+
+### Enterprise WPA2/WPA3 With External AAA
+
+Use this checklist when APs or controllers should enforce WPA2-Enterprise or WPA3-Enterprise while AegisNAS brokers RADIUS to upstream AAA systems and keeps local policy, accounting, and session control.
+
+This is usually the right model for:
+
+- external APs and controllers
+- VM-based AegisNAS deployments
+- enterprise WLANs with Microsoft NPS, Cisco ISE, Aruba ClearPass, FreeRADIUS, or similar upstream AAA
+
+Checklist:
+
+- [ ] The upstream AAA platform is reachable from AegisNAS
+- [ ] The upstream AAA platform has a RADIUS client entry for the AegisNAS appliance IP
+- [ ] The upstream AAA shared secret matches the AegisNAS upstream server definition
+- [ ] The upstream AAA server allows auth on UDP `1812`
+- [ ] The upstream AAA server allows accounting on UDP `1813`
+- [ ] The upstream AAA server allows dynamic authorization on UDP `3799` if CoA or disconnect is required
+- [ ] The expected username format is known:
+  - plain username
+  - `user@realm`
+  - `DOMAIN\user`
+- [ ] The expected upstream reply attributes are known:
+  - VLAN
+  - `Filter-Id`
+  - bandwidth mapping hints
+  - session timeout
+  - idle timeout
+  - AegisNAS vendor-specific attributes if product-mode mapping is used
+- [ ] The `RADIUS Clients` list in AegisNAS includes every AP, controller, or switch that will send RADIUS traffic to AegisNAS
+- [ ] `Access Settings -> FreeRADIUS And EAP` is configured with:
+  - `NAS Identifier`
+  - local shared secret
+  - auth port
+  - accounting port
+  - request timeout
+  - interim update interval
+  - EAP defaults
+  - dynamic authorization settings if needed
+- [ ] `Access Settings -> Upstream AAA Servers` has:
+  - `Upstream AAA Enabled = on`
+  - realm
+  - pool strategy
+  - status-check mode
+  - one or more upstream servers with address, ports, and secret
+- [ ] Identity-source mapping is configured if upstream `Filter-Id`, VLAN, or vendor attributes should become local role, VLAN, or bandwidth policy
+- [ ] The intended enterprise `Role`, `Bandwidth Profile`, and optional VLAN mappings exist in AegisNAS
+- [ ] `Apply RADIUS Config` has been run successfully from `Access Settings`
+- [ ] `freeradius` and `aegis-radius` are healthy after apply
+- [ ] For a physical appliance using a local radio, a secure SSID exists with:
+  - `Auth Mode = WPA2 Enterprise` or `WPA3 Enterprise`
+  - `Identity Source = radius-upstream` or the intended enterprise identity source
+  - `Dynamic VLAN = on` when upstream VLAN assignment is expected
+- [ ] For a physical appliance using a local radio, `hostapd Preview` reflects the intended enterprise SSID
+- [ ] For a physical appliance using a local radio, `Write hostapd Config` or `Write And Restart Wi-Fi` has been run
+- [ ] For an external AP or controller, the SSID is configured on the AP side as WPA2-Enterprise or WPA3-Enterprise
+- [ ] For an external AP or controller, the AP points RADIUS auth and accounting to AegisNAS, not directly to the upstream AAA server
+- [ ] For an external AP or controller, the AP shared secret matches the `RADIUS Clients` entry on AegisNAS
+- [ ] A test supplicant joins the enterprise SSID and completes EAP successfully
+- [ ] A session appears in `Sessions` after successful auth
+- [ ] Accounting `Start` reaches AegisNAS and the upstream AAA path
+- [ ] Interim accounting reaches the upstream AAA server when the session stays up
+- [ ] `Stop` or disconnect accounting is visible when the session ends
+- [ ] CoA or disconnect works when the upstream AAA platform sends a policy change or termination request
+- [ ] A debug bundle is captured for future R&D:
+
+```bash
+sudo bash scripts/capture-login-debug-logs.sh --scenario enterprise-external-aaa
+```
+
 ## Manual Validation Checklist
 
 After configuration, check these paths:
