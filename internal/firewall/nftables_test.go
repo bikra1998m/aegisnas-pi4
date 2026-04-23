@@ -20,6 +20,7 @@ func TestGenerateTwoNIC(t *testing.T) {
 			Address: "192.168.1.1/24",
 		},
 		Health: config.HealthConfig{Port: 8080},
+		Portal: config.PortalConfig{Port: 8081},
 	}
 
 	gen := NewGenerator(cfg)
@@ -29,6 +30,7 @@ func TestGenerateTwoNIC(t *testing.T) {
 
 	assert.Contains(t, content, "define WAN_IF = eth0")
 	assert.Contains(t, content, "define LAN_IF = eth1")
+	assert.Contains(t, content, "iif $LAN_IF tcp dport 8081 accept")
 	assert.Contains(t, content, "iif $LAN_IF oif $WAN_IF accept")
 	assert.Contains(t, content, "masquerade")
 }
@@ -45,6 +47,7 @@ func TestGenerateTrunkMode(t *testing.T) {
 			{ID: 40, Name: "mgmt", Subnet: "10.40.0.0/24", Purpose: "management"},
 		},
 		Health: config.HealthConfig{Port: 8080},
+		Portal: config.PortalConfig{Port: 8081},
 	}
 
 	gen := NewGenerator(cfg)
@@ -55,6 +58,8 @@ func TestGenerateTrunkMode(t *testing.T) {
 	assert.Contains(t, content, "define TRUNK_IF = eth0")
 	assert.Contains(t, content, "VLAN_20_IF")
 	assert.Contains(t, content, "VLAN_30_IF")
+	assert.Contains(t, content, "iif $VLAN_20_IF tcp dport 8081 accept")
+	assert.Contains(t, content, "iif $VLAN_40_IF tcp dport 8081 accept")
 	assert.Contains(t, content, "iif $VLAN_20_IF oif eth0 accept")
 	assert.Contains(t, content, "masquerade")
 }

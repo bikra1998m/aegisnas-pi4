@@ -1066,6 +1066,34 @@ Check:
 - firewall rules
 - whether the client is actually on the LAN-side network
 
+For VMware host-only tests, also check that the LAN NIC has carrier and the portal port is allowed:
+
+```bash
+ip -br link show ens37
+ip -br addr show ens37
+ss -ltnp | grep 8081
+nft list chain inet aegis input | grep 8081
+```
+
+Expected:
+
+```text
+ens37 UP ... LOWER_UP
+ens37 UP 192.168.50.1/24
+aegis-portal listening on *:8081
+LAN input rule allows tcp dport 8081
+```
+
+From a Windows host, `VMware Network Adapter VMnet1` must be on the same subnet, for example `192.168.50.2/24`, and `Test-NetConnection 192.168.50.1 -Port 8081` should succeed.
+
+For an older lab build missing the portal input rule, this temporary command opens the current runtime firewall:
+
+```bash
+sudo nft insert rule inet aegis input iif "ens37" tcp dport 8081 accept
+```
+
+Pull the current code and rerun bootstrap to make that rule permanent.
+
 ### Admin UI unreachable
 
 Check:

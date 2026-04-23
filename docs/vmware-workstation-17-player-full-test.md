@@ -497,6 +497,23 @@ From the client VM, open:
 http://192.168.50.1:8081
 ```
 
+From a Windows host browser, `192.168.50.1` only works when `VMware Network Adapter VMnet1` is on the AegisNAS LAN subnet. A typical host-only test adapter should look like:
+
+```text
+VMware Network Adapter VMnet1
+IP address: 192.168.50.2
+Subnet mask: 255.255.255.0
+Gateway: blank
+DNS: blank
+```
+
+Windows PowerShell pre-check:
+
+```powershell
+ping 192.168.50.1
+Test-NetConnection 192.168.50.1 -Port 8081
+```
+
 Log in:
 
 ```text
@@ -1162,6 +1179,65 @@ http://<wan-ip>:8083
 ```
 
 If using host-only LAN IP from Windows, make sure the Windows VMware host-only adapter can route to `192.168.50.0/24`.
+
+### Portal cannot be reached from Windows host on 192.168.50.1
+
+First confirm the AegisNAS LAN NIC has carrier and the portal is listening:
+
+```bash
+ip -br link show ens37
+ip -br addr show ens37
+ss -ltnp | grep 8081
+curl -i "http://192.168.50.1:8081/?client_mac=manual-browser-01"
+```
+
+Expected:
+
+```text
+ens37 UP ... LOWER_UP
+ens37 UP 192.168.50.1/24
+aegis-portal listening on *:8081
+```
+
+If `ens37` shows `NO-CARRIER`, connect VMware `Network Adapter 2`:
+
+```text
+VMware Player -> VM Settings -> Network Adapter 2
+Connected: checked while VM is running
+Connect at power on: checked
+Network connection: Host-only
+```
+
+Then verify Windows is on the same VMware host-only network:
+
+```powershell
+ipconfig
+ping 192.168.50.1
+arp -a | findstr 192.168.50.1
+Test-NetConnection 192.168.50.1 -Port 8081
+```
+
+Expected Windows adapter:
+
+```text
+VMware Network Adapter VMnet1
+IPv4 Address: 192.168.50.2
+Subnet Mask: 255.255.255.0
+```
+
+If ARP resolves but TCP 8081 fails, check that nftables allows the portal port:
+
+```bash
+nft list chain inet aegis input | grep 8081
+```
+
+Current builds should include a LAN input rule for portal traffic. For a temporary live lab fix on an older build:
+
+```bash
+nft insert rule inet aegis input iif "ens37" tcp dport 8081 accept
+```
+
+Then make it durable by pulling the latest code and rerunning bootstrap or restarting `aegis-gateway` after the updated ruleset is installed.
 
 ### Client does not get 192.168.50.x
 

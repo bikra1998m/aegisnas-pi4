@@ -49,6 +49,7 @@ table inet aegis {
         iif $LAN_IF tcp dport 22 accept
         iif $LAN_IF tcp dport {{ .Health.Port }} accept
         iif $LAN_IF tcp dport {{ .AdminPort }} accept
+        iif $LAN_IF tcp dport {{ .Portal.Port }} accept
         iif $LAN_IF udp dport 53 accept
         iif $LAN_IF tcp dport 53 accept
         iif $LAN_IF udp dport 67 accept
@@ -83,11 +84,13 @@ table inet aegis {
         iif $VLAN_{{ .ID }}_IF tcp dport 22 accept
         iif $VLAN_{{ .ID }}_IF tcp dport {{ $.Health.Port }} accept
         iif $VLAN_{{ .ID }}_IF tcp dport {{ $.AdminPort }} accept
+        iif $VLAN_{{ .ID }}_IF tcp dport {{ $.Portal.Port }} accept
         {{- end}}
         {{- end}}
         # Allow DNS and DHCP from guest/corp VLANs (but not SSH/admin)
         {{- range .VLANs}}
         {{- if ne .Purpose "management"}}
+        iif $VLAN_{{ .ID }}_IF tcp dport {{ $.Portal.Port }} accept
         iif $VLAN_{{ .ID }}_IF udp dport 53 accept
         iif $VLAN_{{ .ID }}_IF tcp dport 53 accept
         iif $VLAN_{{ .ID }}_IF udp dport 67 accept
@@ -133,6 +136,7 @@ table inet aegis {
 		LANSubnet string
 		VLANs     []config.VLANConfig
 		Health    config.HealthConfig
+		Portal    config.PortalConfig
 		AdminPort int
 	}{
 		Mode:      g.cfg.Mode,
@@ -140,6 +144,7 @@ table inet aegis {
 		LAN:       g.cfg.LAN,
 		VLANs:     g.cfg.VLANs,
 		Health:    g.cfg.Health,
+		Portal:    g.cfg.Portal,
 		AdminPort: g.cfg.AdminPort,
 	}
 
