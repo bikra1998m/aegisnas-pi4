@@ -55,6 +55,9 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 		evaluateAIModeCapability(cfg),
 		evaluateTelemetryCapability(cfg),
 		evaluateUpstreamStatusProbeCapability(cfg),
+		evaluateGuestSelfRegistrationCapability(cfg),
+		evaluateSponsorApprovalCapability(cfg),
+		evaluateGuestDeliveryCapability(cfg),
 	}
 }
 
@@ -241,6 +244,153 @@ func evaluateUpstreamStatusProbeCapability(cfg *Config) FeatureCapability {
 	default:
 		capability.State = CapabilityEnabled
 		capability.Summary = "Upstream AAA Status-Server probes are active."
+	}
+
+	return capability
+}
+
+func evaluateGuestSelfRegistrationCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	active := cfg.Portal.GuestWorkflows.SelfRegistrationEnabled
+	capability := FeatureCapability{
+		Key:    "guest_self_registration",
+		Label:  "Guest Self-Registration",
+		Active: active,
+	}
+
+	switch {
+	case profile == "lite":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Guest self-registration is blocked on the lite profile."
+		capability.Recommendation = "Move to the branch or enterprise profile before enabling self-registration in production."
+	case active && !cfg.Portal.Enabled:
+		capability.State = CapabilityBlocked
+		capability.Summary = "Guest self-registration needs the captive portal to be enabled."
+		capability.Dependencies = []string{"portal.enabled"}
+	case active && !cfg.Portal.LocalFallback:
+		capability.State = CapabilityBlocked
+		capability.Summary = "Guest self-registration needs local fallback so the portal can mint local guest access."
+		capability.Recommendation = "Turn on portal.local_fallback before enabling self-registration."
+		capability.Dependencies = []string{"portal.local_fallback"}
+	case active && strings.TrimSpace(cfg.Portal.Branding) == "":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Guest self-registration needs portal branding before it is production-ready."
+		capability.Dependencies = []string{"portal.branding"}
+	case active && profile == "branch":
+		capability.State = CapabilityWarned
+		capability.Summary = "Guest self-registration is active on the branch profile."
+		capability.Recommendation = "This is fine for pilot production. Move to enterprise if the workflow will carry heavier guest volume."
+	case active:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Guest self-registration is active."
+	case profile == "enterprise":
+		capability.State = CapabilityAvailable
+		capability.Summary = "Guest self-registration is supported and ready to be enabled."
+		capability.Recommendation = "Turn it on after branding and transport choices are final."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Guest self-registration is supported but currently off."
+	}
+
+	return capability
+}
+
+func evaluateSponsorApprovalCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	active := cfg.Portal.GuestWorkflows.SponsorApprovalEnabled
+	capability := FeatureCapability{
+		Key:    "sponsor_approval",
+		Label:  "Sponsor Approval",
+		Active: active,
+	}
+
+	switch {
+	case profile == "lite":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Sponsor approval is blocked on the lite profile."
+		capability.Recommendation = "Use the branch or enterprise profile for guest approval workflows."
+	case active && !cfg.Portal.GuestWorkflows.SelfRegistrationEnabled:
+		capability.State = CapabilityBlocked
+		capability.Summary = "Sponsor approval depends on guest self-registration."
+		capability.Dependencies = []string{"portal.guest_workflows.self_registration_enabled"}
+	case active && strings.EqualFold(strings.TrimSpace(cfg.Portal.GuestWorkflows.ApprovalDelivery), "email") && !emailTransportConfigured(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "Sponsor approval is set to email, but email delivery is not configured."
+		capability.Dependencies = []string{"portal.guest_workflows.email_from", "portal.guest_workflows.smtp_server", "portal.guest_workflows.smtp_port"}
+	case active && strings.EqualFold(strings.TrimSpace(cfg.Portal.GuestWorkflows.ApprovalDelivery), "sms") && !smsTransportConfigured(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "Sponsor approval is set to SMS, but SMS delivery is not configured."
+		capability.Dependencies = []string{"portal.guest_workflows.sms_provider", "portal.guest_workflows.sms_endpoint"}
+	case active && strings.TrimSpace(cfg.Portal.GuestWorkflows.ApprovalDelivery) == "":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Sponsor approval needs an approval delivery method."
+		capability.Dependencies = []string{"portal.guest_workflows.approval_delivery"}
+	case active && profile == "branch":
+		capability.State = CapabilityWarned
+		capability.Summary = "Sponsor approval is active on the branch profile."
+		capability.Recommendation = "Good for pilot deployments. Use enterprise when the guest workflow becomes a core service."
+	case active:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Sponsor approval is active."
+	case !cfg.Portal.GuestWorkflows.SelfRegistrationEnabled:
+		capability.State = CapabilityBlocked
+		capability.Summary = "Sponsor approval stays blocked until guest self-registration is enabled."
+		capability.Dependencies = []string{"portal.guest_workflows.self_registration_enabled"}
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Sponsor approval is supported but currently off."
+	}
+
+	return capability
+}
+
+func evaluateGuestDeliveryCapability(cfg *Config) FeatureCapability {
+	invite := strings.ToLower(strings.TrimSpace(cfg.Portal.GuestWorkflows.InviteDelivery))
+	approval := strings.ToLower(strings.TrimSpace(cfg.Portal.GuestWorkflows.ApprovalDelivery))
+	active := invite != "" && invite != "none"
+	capability := FeatureCapability{
+		Key:    "guest_delivery",
+		Label:  "Guest Email/SMS Delivery",
+		Active: active || cfg.Portal.GuestWorkflows.SponsorApprovalEnabled,
+	}
+
+	emailReady := emailTransportConfigured(cfg)
+	smsReady := smsTransportConfigured(cfg)
+
+	switch {
+	case active && invite == "email" && !emailReady:
+		capability.State = CapabilityBlocked
+		capability.Summary = "Guest invite delivery is set to email, but email transport is not configured."
+		capability.Dependencies = []string{"portal.guest_workflows.email_from", "portal.guest_workflows.smtp_server", "portal.guest_workflows.smtp_port"}
+	case active && invite == "sms" && !smsReady:
+		capability.State = CapabilityBlocked
+		capability.Summary = "Guest invite delivery is set to SMS, but SMS transport is not configured."
+		capability.Dependencies = []string{"portal.guest_workflows.sms_provider", "portal.guest_workflows.sms_endpoint"}
+	case cfg.Portal.GuestWorkflows.SponsorApprovalEnabled && approval == "email" && emailReady:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Email delivery is ready for sponsor approval and guest invite flows."
+	case cfg.Portal.GuestWorkflows.SponsorApprovalEnabled && approval == "sms" && smsReady:
+		capability.State = CapabilityEnabled
+		capability.Summary = "SMS delivery is ready for sponsor approval and guest invite flows."
+	case active && ((invite == "email" && emailReady) || (invite == "sms" && smsReady)):
+		capability.State = CapabilityEnabled
+		capability.Summary = fmt.Sprintf("Guest %s delivery is configured.", invite)
+	case !emailReady && !smsReady:
+		capability.State = CapabilityAvailable
+		capability.Summary = "No guest delivery transport is configured yet."
+		capability.Recommendation = "Configure SMTP or SMS before turning on invites or sponsor approval."
+	case emailReady || smsReady:
+		capability.State = CapabilityAvailable
+		if emailReady && smsReady {
+			capability.Summary = "Email and SMS delivery transports are configured."
+		} else if emailReady {
+			capability.Summary = "Email delivery transport is configured."
+		} else {
+			capability.Summary = "SMS delivery transport is configured."
+		}
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Guest delivery transport can be configured for email or SMS."
 	}
 
 	return capability

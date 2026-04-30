@@ -410,6 +410,23 @@ Add stronger guest workflow gating:
 - sponsor approval
 - portal transport dependencies
 
+Phase 2 adds production-grade guest workflow controls under `portal.guest_workflows`:
+
+- `self_registration_enabled`
+- `sponsor_approval_enabled`
+- `invite_delivery`
+- `approval_delivery`
+- SMTP transport settings for email delivery
+- SMS provider and endpoint settings for text delivery
+
+Phase 2 validation rules:
+
+- lite profile blocks self-registration, sponsor approval, and invite delivery
+- self-registration requires `portal.enabled`, `portal.local_fallback`, and `portal.branding`
+- sponsor approval requires self-registration plus a valid delivery transport
+- email invite or approval delivery requires SMTP host, port, and sender
+- SMS invite or approval delivery requires provider and HTTP or HTTPS endpoint
+
 ### Phase 3
 
 Add enterprise feature gating:

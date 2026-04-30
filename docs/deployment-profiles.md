@@ -35,6 +35,8 @@ Recommended direction:
 - prefer external APs on VM builds
 - only turn on local wireless in VMs when `deployment.hardware.wireless_passthrough: true`
 - consider `radius.upstream.status_check: none`
+- keep `portal.guest_workflows.self_registration_enabled: false`
+- keep `portal.guest_workflows.sponsor_approval_enabled: false`
 
 ### `branch`
 
@@ -48,11 +50,19 @@ Recommended direction:
 - runtime shaping on when needed
 - keep full AI blocked until `ailite.endpoint` and `ailite.model` are configured
 - normal upstream AAA probing
+- guest self-registration is acceptable for pilot production once `portal.local_fallback`, branding, and delivery settings are in place
+- sponsor approval is acceptable when email or SMS transport is configured and tested
 - suitable for most pilot and branch appliance builds
 
 ### `enterprise`
 
 Use this when you have more hardware headroom and heavier auth or policy load.
+
+Recommended direction:
+
+- keep guest self-registration and sponsor approval on this tier when guest access is a customer-facing workflow
+- configure SMTP or SMS delivery before enabling invites or sponsor approval
+- treat this as the preferred tier for branded guest onboarding and approval-heavy guest programs
 
 Recommended direction:
 

@@ -75,6 +75,17 @@ const defaultSettings: JsonMap = {
     logout_url: '',
     radius_auth: false,
     local_fallback: true,
+    guest_workflows: {
+      self_registration_enabled: false,
+      sponsor_approval_enabled: false,
+      invite_delivery: 'none',
+      approval_delivery: '',
+      email_from: '',
+      smtp_server: '',
+      smtp_port: 587,
+      sms_provider: '',
+      sms_endpoint: '',
+    },
   },
   radius: {
     secret: '',
@@ -163,6 +174,18 @@ const aiProviderOptions: Option[] = [
   { value: 'openai-compatible', label: 'OpenAI Compatible' },
 ];
 
+const guestDeliveryOptions: Option[] = [
+  { value: 'none', label: 'None' },
+  { value: 'email', label: 'Email' },
+  { value: 'sms', label: 'SMS' },
+];
+
+const approvalDeliveryOptions: Option[] = [
+  { value: '', label: 'Select delivery' },
+  { value: 'email', label: 'Email' },
+  { value: 'sms', label: 'SMS' },
+];
+
 const capabilityTone: Record<DeploymentCapability['state'], string> = {
   enabled: 'border-emerald-200 bg-emerald-50 text-emerald-800',
   available: 'border-sky-200 bg-sky-50 text-sky-800',
@@ -200,6 +223,8 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.policy = next.policy || {};
   next.telemetry = next.telemetry || {};
   next.ailite = next.ailite || {};
+  next.portal = next.portal || {};
+  next.portal.guest_workflows = next.portal.guest_workflows || {};
   next.radius = next.radius || {};
   next.radius.upstream = next.radius.upstream || {};
   next.wireless = next.wireless || {};
@@ -214,6 +239,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.max_sessions = 256;
     next.radius.interim_update_seconds = 600;
     next.radius.upstream.status_check = 'none';
+    next.portal.guest_workflows.self_registration_enabled = false;
+    next.portal.guest_workflows.sponsor_approval_enabled = false;
+    next.portal.guest_workflows.invite_delivery = 'none';
+    next.portal.guest_workflows.approval_delivery = '';
   } else if (profile === 'enterprise') {
     next.ailite.enabled = true;
     next.ailite.mode = 'full';
@@ -757,6 +786,68 @@ export default function AccessSettings() {
         </div>
         <div className="mt-4">
           <ToggleField label="LDAP Enabled" checked={Boolean(settings.ldap?.enabled)} onChange={(value) => updateField(['ldap', 'enabled'], value)} />
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-4">
+            <h4 className="font-semibold text-gray-900">Guest Workflow And Delivery</h4>
+            <p className="mt-1 text-sm text-gray-600">Phase 2 turns guest self-registration and sponsor approval into production-checked settings instead of free-form toggles.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <ToggleField
+              label="Self Registration Enabled"
+              checked={Boolean(settings.portal?.guest_workflows?.self_registration_enabled)}
+              onChange={(value) => updateField(['portal', 'guest_workflows', 'self_registration_enabled'], value)}
+            />
+            <ToggleField
+              label="Sponsor Approval Enabled"
+              checked={Boolean(settings.portal?.guest_workflows?.sponsor_approval_enabled)}
+              onChange={(value) => updateField(['portal', 'guest_workflows', 'sponsor_approval_enabled'], value)}
+            />
+            <SelectField
+              label="Invite Delivery"
+              value={settings.portal?.guest_workflows?.invite_delivery || 'none'}
+              onChange={(value) => updateField(['portal', 'guest_workflows', 'invite_delivery'], value)}
+              options={guestDeliveryOptions}
+            />
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <SelectField
+              label="Approval Delivery"
+              value={settings.portal?.guest_workflows?.approval_delivery || ''}
+              onChange={(value) => updateField(['portal', 'guest_workflows', 'approval_delivery'], value)}
+              options={approvalDeliveryOptions}
+            />
+            <TextField
+              label="Email From"
+              value={settings.portal?.guest_workflows?.email_from || ''}
+              onChange={(value) => updateField(['portal', 'guest_workflows', 'email_from'], value)}
+              placeholder="guests@example.com"
+            />
+            <TextField
+              label="SMTP Server"
+              value={settings.portal?.guest_workflows?.smtp_server || ''}
+              onChange={(value) => updateField(['portal', 'guest_workflows', 'smtp_server'], value)}
+              placeholder="smtp.example.com"
+            />
+            <TextField
+              label="SMTP Port"
+              type="number"
+              value={settings.portal?.guest_workflows?.smtp_port || 587}
+              onChange={(value) => updateField(['portal', 'guest_workflows', 'smtp_port'], Number(value))}
+            />
+            <TextField
+              label="SMS Provider"
+              value={settings.portal?.guest_workflows?.sms_provider || ''}
+              onChange={(value) => updateField(['portal', 'guest_workflows', 'sms_provider'], value)}
+              placeholder="twilio-like"
+            />
+            <TextField
+              label="SMS Endpoint"
+              value={settings.portal?.guest_workflows?.sms_endpoint || ''}
+              onChange={(value) => updateField(['portal', 'guest_workflows', 'sms_endpoint'], value)}
+              placeholder="https://sms.example.com/send"
+            />
+          </div>
         </div>
       </section>
 

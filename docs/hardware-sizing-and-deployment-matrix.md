@@ -77,6 +77,7 @@ Good fit:
 - captive portal validation
 - upstream RADIUS integration tests
 - admin UI operation and manual workflow testing
+- guest workflow rehearsals with self-registration and sponsor approval left off
 
 Less ideal for:
 
@@ -123,6 +124,8 @@ Important notes:
 ### Tier 2: Standard Branch Appliance
 
 This is the recommended default production tier.
+
+This is also the first tier where guest self-registration and sponsor approval should be treated as normal production features, provided SMTP or SMS delivery is configured and tested.
 
 Recommended baseline:
 

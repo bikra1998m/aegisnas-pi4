@@ -104,17 +104,20 @@ func DeploymentSummary(cfg *Config) map[string]any {
 			"recommendation_limit":  preset.RecommendedRecommendationLimit,
 		},
 		"effective": map[string]any{
-			"ai_lite_enabled":       cfg.AILite.Enabled,
-			"ai_mode":               EffectiveAIMode(cfg),
-			"ai_provider":           EffectiveAIProvider(cfg),
-			"ai_model":              cfg.AILite.Model,
-			"telemetry_enabled":     cfg.Telemetry.Enabled,
-			"runtime_shaping":       cfg.Policy.RuntimeShapingEnabled,
-			"wireless_enabled":      cfg.Wireless.Enabled,
-			"prefer_external_ap":    cfg.Deployment.Hardware.PreferExternalAP,
-			"upstream_status_check": cfg.Radius.Upstream.StatusCheck,
-			"radius_max_sessions":   cfg.Radius.MaxSessions,
-			"recommendation_limit":  cfg.AILite.RecommendationLimit,
+			"ai_lite_enabled":         cfg.AILite.Enabled,
+			"ai_mode":                 EffectiveAIMode(cfg),
+			"ai_provider":             EffectiveAIProvider(cfg),
+			"ai_model":                cfg.AILite.Model,
+			"telemetry_enabled":       cfg.Telemetry.Enabled,
+			"runtime_shaping":         cfg.Policy.RuntimeShapingEnabled,
+			"wireless_enabled":        cfg.Wireless.Enabled,
+			"prefer_external_ap":      cfg.Deployment.Hardware.PreferExternalAP,
+			"guest_self_registration": cfg.Portal.GuestWorkflows.SelfRegistrationEnabled,
+			"sponsor_approval":        cfg.Portal.GuestWorkflows.SponsorApprovalEnabled,
+			"guest_invite_delivery":   cfg.Portal.GuestWorkflows.InviteDelivery,
+			"upstream_status_check":   cfg.Radius.Upstream.StatusCheck,
+			"radius_max_sessions":     cfg.Radius.MaxSessions,
+			"recommendation_limit":    cfg.AILite.RecommendationLimit,
 		},
 		"service_plan": map[string]any{
 			"always_on":           deploymentAlwaysOnServices(),
@@ -274,7 +277,7 @@ func deploymentWarnings(cfg *Config, preset deploymentPreset, capabilities []Fea
 	for _, capability := range capabilities {
 		capabilityIndex[capability.Key] = capability
 	}
-	for _, key := range []string{"local_wireless", "runtime_shaping", "ai_mode", "telemetry", "upstream_status_probes"} {
+	for _, key := range []string{"local_wireless", "runtime_shaping", "ai_mode", "telemetry", "upstream_status_probes", "guest_self_registration", "sponsor_approval", "guest_delivery"} {
 		capability, ok := capabilityIndex[key]
 		if !ok || !capability.Active {
 			continue

@@ -557,6 +557,20 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 		Policy: PolicyConfig{
 			RuntimeShapingEnabled: true,
 		},
+		Portal: PortalConfig{
+			Enabled:       true,
+			LocalFallback: true,
+			Branding:      "AegisNAS Guest",
+			GuestWorkflows: PortalGuestWorkflowConfig{
+				SelfRegistrationEnabled: true,
+				SponsorApprovalEnabled:  true,
+				InviteDelivery:          "email",
+				ApprovalDelivery:        "email",
+				EmailFrom:               "guests@example.com",
+				SMTPServer:              "smtp.example.com",
+				SMTPPort:                587,
+			},
+		},
 		AILite: AILiteConfig{
 			Enabled: true,
 			Mode:    "full",
@@ -579,7 +593,7 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	}
 
 	capabilities := EvaluateFeatureCapabilities(cfg)
-	require.Len(t, capabilities, 5)
+	require.Len(t, capabilities, 8)
 
 	byKey := make(map[string]FeatureCapability, len(capabilities))
 	for _, capability := range capabilities {
@@ -591,4 +605,74 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	assert.Equal(t, CapabilityBlocked, byKey["ai_mode"].State)
 	assert.Equal(t, CapabilityEnabled, byKey["telemetry"].State)
 	assert.Equal(t, CapabilityWarned, byKey["upstream_status_probes"].State)
+	assert.Equal(t, CapabilityWarned, byKey["guest_self_registration"].State)
+	assert.Equal(t, CapabilityWarned, byKey["sponsor_approval"].State)
+	assert.Equal(t, CapabilityEnabled, byKey["guest_delivery"].State)
+}
+
+func TestConfigValidationGuestWorkflows(t *testing.T) {
+	base := func() *Config {
+		return &Config{
+			Mode:      "two-nic",
+			WAN:       InterfaceConfig{Name: "eth0"},
+			LAN:       InterfaceConfig{Name: "eth1"},
+			Database:  DatabaseConfig{Path: "/tmp/aegis.db"},
+			Health:    HealthConfig{Port: 8080},
+			Telemetry: TelemetryConfig{Enabled: true, PrometheusPort: 9090},
+			Radius: RadiusConfig{
+				AuthPort:              1812,
+				AcctPort:              1813,
+				RequestTimeoutSeconds: 5,
+			},
+			Portal: PortalConfig{
+				Enabled:       true,
+				LocalFallback: true,
+				Branding:      "AegisNAS Guests",
+				GuestWorkflows: PortalGuestWorkflowConfig{
+					SelfRegistrationEnabled: true,
+					SponsorApprovalEnabled:  true,
+					InviteDelivery:          "email",
+					ApprovalDelivery:        "email",
+					EmailFrom:               "guests@example.com",
+					SMTPServer:              "smtp.example.com",
+					SMTPPort:                587,
+				},
+			},
+		}
+	}
+
+	valid := base()
+	assert.NoError(t, valid.Validate())
+
+	noFallback := base()
+	noFallback.Portal.LocalFallback = false
+	assert.ErrorContains(t, noFallback.Validate(), "self_registration_enabled requires portal.local_fallback")
+
+	noApprovalDelivery := base()
+	noApprovalDelivery.Portal.GuestWorkflows.ApprovalDelivery = ""
+	assert.ErrorContains(t, noApprovalDelivery.Validate(), "requires approval_delivery")
+
+	noEmailTransport := base()
+	noEmailTransport.Portal.GuestWorkflows.SMTPServer = ""
+	assert.ErrorContains(t, noEmailTransport.Validate(), "requires email transport configuration")
+
+	smsInviteNoTransport := base()
+	smsInviteNoTransport.Portal.GuestWorkflows.SponsorApprovalEnabled = false
+	smsInviteNoTransport.Portal.GuestWorkflows.ApprovalDelivery = ""
+	smsInviteNoTransport.Portal.GuestWorkflows.InviteDelivery = "sms"
+	assert.ErrorContains(t, smsInviteNoTransport.Validate(), "invite_delivery=sms requires sms transport configuration")
+
+	smsReady := base()
+	smsReady.Portal.GuestWorkflows.ApprovalDelivery = "sms"
+	smsReady.Portal.GuestWorkflows.InviteDelivery = "sms"
+	smsReady.Portal.GuestWorkflows.SMSProvider = "twilio-like"
+	smsReady.Portal.GuestWorkflows.SMSEndpoint = "https://sms.example.com/send"
+	smsReady.Portal.GuestWorkflows.EmailFrom = ""
+	smsReady.Portal.GuestWorkflows.SMTPServer = ""
+	smsReady.Portal.GuestWorkflows.SMTPPort = 0
+	assert.NoError(t, smsReady.Validate())
+
+	liteBlocked := base()
+	liteBlocked.Deployment.Profile = "lite"
+	assert.ErrorContains(t, liteBlocked.Validate(), "self_registration_enabled is not supported on the lite deployment profile")
 }

@@ -152,14 +152,27 @@ type RadiusEAPConfig struct {
 }
 
 type PortalConfig struct {
-	Enabled       bool   `mapstructure:"enabled"`
-	Port          int    `mapstructure:"port"`
-	ListenIP      string `mapstructure:"listen_ip"`
-	Branding      string `mapstructure:"branding"`
-	SuccessURL    string `mapstructure:"success_url"`
-	LogoutURL     string `mapstructure:"logout_url"`
-	RadiusAuth    bool   `mapstructure:"radius_auth"`
-	LocalFallback bool   `mapstructure:"local_fallback"`
+	Enabled        bool                      `mapstructure:"enabled"`
+	Port           int                       `mapstructure:"port"`
+	ListenIP       string                    `mapstructure:"listen_ip"`
+	Branding       string                    `mapstructure:"branding"`
+	SuccessURL     string                    `mapstructure:"success_url"`
+	LogoutURL      string                    `mapstructure:"logout_url"`
+	RadiusAuth     bool                      `mapstructure:"radius_auth"`
+	LocalFallback  bool                      `mapstructure:"local_fallback"`
+	GuestWorkflows PortalGuestWorkflowConfig `mapstructure:"guest_workflows"`
+}
+
+type PortalGuestWorkflowConfig struct {
+	SelfRegistrationEnabled bool   `mapstructure:"self_registration_enabled"`
+	SponsorApprovalEnabled  bool   `mapstructure:"sponsor_approval_enabled"`
+	InviteDelivery          string `mapstructure:"invite_delivery"`
+	ApprovalDelivery        string `mapstructure:"approval_delivery"`
+	EmailFrom               string `mapstructure:"email_from"`
+	SMTPServer              string `mapstructure:"smtp_server"`
+	SMTPPort                int    `mapstructure:"smtp_port"`
+	SMSProvider             string `mapstructure:"sms_provider"`
+	SMSEndpoint             string `mapstructure:"sms_endpoint"`
 }
 
 type LDAPConfig struct {
@@ -269,6 +282,8 @@ func Load(configPath string) (*Config, error) {
 	v.SetDefault("dhcp.lease_time", "12h")
 	v.SetDefault("dhcp.authoritative", true)
 	v.SetDefault("portal.listen_ip", "10.20.0.1")
+	v.SetDefault("portal.guest_workflows.invite_delivery", "none")
+	v.SetDefault("portal.guest_workflows.smtp_port", 587)
 	v.SetDefault("radius.max_sessions", 1024)
 	v.SetDefault("radius.cert_dir", "/etc/freeradius/3.0/certs")
 	v.SetDefault("radius.nas_identifier", "aegisnas")
@@ -406,6 +421,81 @@ func (c *Config) Validate() error {
 	}
 	if c.Telemetry.PrometheusPort < 1 || c.Telemetry.PrometheusPort > 65535 {
 		return fmt.Errorf("telemetry.prometheus_port %d out of range", c.Telemetry.PrometheusPort)
+	}
+	profile := EffectiveDeploymentProfile(c.Deployment.Profile)
+	switch strings.ToLower(strings.TrimSpace(c.Portal.GuestWorkflows.InviteDelivery)) {
+	case "", "none", "email", "sms":
+	default:
+		return fmt.Errorf("portal.guest_workflows.invite_delivery %q is invalid", c.Portal.GuestWorkflows.InviteDelivery)
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Portal.GuestWorkflows.ApprovalDelivery)) {
+	case "", "email", "sms":
+	default:
+		return fmt.Errorf("portal.guest_workflows.approval_delivery %q is invalid", c.Portal.GuestWorkflows.ApprovalDelivery)
+	}
+	if c.Portal.GuestWorkflows.SMTPPort < 0 || c.Portal.GuestWorkflows.SMTPPort > 65535 {
+		return fmt.Errorf("portal.guest_workflows.smtp_port %d out of range", c.Portal.GuestWorkflows.SMTPPort)
+	}
+	if c.Portal.GuestWorkflows.SMSProvider != "" && strings.TrimSpace(c.Portal.GuestWorkflows.SMSEndpoint) != "" {
+		parsed, err := url.Parse(c.Portal.GuestWorkflows.SMSEndpoint)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+			return fmt.Errorf("portal.guest_workflows.sms_endpoint %q is invalid", c.Portal.GuestWorkflows.SMSEndpoint)
+		}
+		switch parsed.Scheme {
+		case "http", "https":
+		default:
+			return fmt.Errorf("portal.guest_workflows.sms_endpoint %q must use http or https", c.Portal.GuestWorkflows.SMSEndpoint)
+		}
+	}
+	if c.Portal.GuestWorkflows.SelfRegistrationEnabled {
+		if profile == "lite" {
+			return errors.New("portal.guest_workflows.self_registration_enabled is not supported on the lite deployment profile")
+		}
+		if !c.Portal.Enabled {
+			return errors.New("portal.guest_workflows.self_registration_enabled requires portal.enabled")
+		}
+		if !c.Portal.LocalFallback {
+			return errors.New("portal.guest_workflows.self_registration_enabled requires portal.local_fallback")
+		}
+		if strings.TrimSpace(c.Portal.Branding) == "" {
+			return errors.New("portal.guest_workflows.self_registration_enabled requires portal.branding")
+		}
+	}
+	if c.Portal.GuestWorkflows.SponsorApprovalEnabled {
+		if profile == "lite" {
+			return errors.New("portal.guest_workflows.sponsor_approval_enabled is not supported on the lite deployment profile")
+		}
+		if !c.Portal.GuestWorkflows.SelfRegistrationEnabled {
+			return errors.New("portal.guest_workflows.sponsor_approval_enabled requires self_registration_enabled")
+		}
+		switch strings.ToLower(strings.TrimSpace(c.Portal.GuestWorkflows.ApprovalDelivery)) {
+		case "email":
+			if !emailTransportConfigured(c) {
+				return errors.New("portal.guest_workflows.sponsor_approval_enabled requires email transport configuration")
+			}
+		case "sms":
+			if !smsTransportConfigured(c) {
+				return errors.New("portal.guest_workflows.sponsor_approval_enabled requires sms transport configuration")
+			}
+		default:
+			return errors.New("portal.guest_workflows.sponsor_approval_enabled requires approval_delivery to be email or sms")
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Portal.GuestWorkflows.InviteDelivery)) {
+	case "email":
+		if profile == "lite" {
+			return errors.New("portal.guest_workflows.invite_delivery is not supported on the lite deployment profile")
+		}
+		if !emailTransportConfigured(c) {
+			return errors.New("portal.guest_workflows.invite_delivery=email requires email transport configuration")
+		}
+	case "sms":
+		if profile == "lite" {
+			return errors.New("portal.guest_workflows.invite_delivery is not supported on the lite deployment profile")
+		}
+		if !smsTransportConfigured(c) {
+			return errors.New("portal.guest_workflows.invite_delivery=sms requires sms transport configuration")
+		}
 	}
 	aiMode := EffectiveAIMode(c)
 	switch aiMode {
@@ -660,6 +750,23 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+func emailTransportConfigured(c *Config) bool {
+	if c == nil {
+		return false
+	}
+	return strings.TrimSpace(c.Portal.GuestWorkflows.EmailFrom) != "" &&
+		strings.TrimSpace(c.Portal.GuestWorkflows.SMTPServer) != "" &&
+		c.Portal.GuestWorkflows.SMTPPort > 0
+}
+
+func smsTransportConfigured(c *Config) bool {
+	if c == nil {
+		return false
+	}
+	return strings.TrimSpace(c.Portal.GuestWorkflows.SMSProvider) != "" &&
+		strings.TrimSpace(c.Portal.GuestWorkflows.SMSEndpoint) != ""
 }
 
 func validRadiusDictionaryName(value string) bool {
