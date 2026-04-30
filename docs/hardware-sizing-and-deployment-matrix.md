@@ -78,6 +78,7 @@ Good fit:
 - upstream RADIUS integration tests
 - admin UI operation and manual workflow testing
 - guest workflow rehearsals with self-registration and sponsor approval left off
+- Phase 3 preview validation for onboarding and profiling with the features still disabled
 
 Less ideal for:
 
@@ -114,6 +115,7 @@ Good fit:
 - guest Wi-Fi with captive portal
 - a few APs or a small downstream switch
 - branch deployments with light to moderate enterprise auth
+- device inventory pilot work without certificate enrollment or posture
 
 Important notes:
 
@@ -126,6 +128,8 @@ Important notes:
 This is the recommended default production tier.
 
 This is also the first tier where guest self-registration and sponsor approval should be treated as normal production features, provided SMTP or SMS delivery is configured and tested.
+
+This is also the first tier where device inventory, onboarding portal pilots, and passive profiling should be considered normal production-adjacent features, as long as certificate enrollment and posture remain off unless the site is intentionally moving into enterprise-grade onboarding.
 
 Recommended baseline:
 
@@ -147,6 +151,7 @@ Good fit:
 - school or campus edge zone
 - hotel, retail, or hospitality deployments
 - multi-SSID environments with guest and staff separation
+- pilot BYOD registration and light passive profiling
 
 This is the safest place to start if you are packaging the product for pilot production and do not yet know the final customer profile.
 
@@ -159,6 +164,7 @@ Use this tier when you expect:
 - more frequent CoA and policy changes
 - heavier EAP usage
 - more extensive live bandwidth shaping
+- enterprise onboarding, certificate handling, and posture-driven access decisions
 
 Recommended baseline:
 
@@ -173,6 +179,8 @@ Recommended mode:
 - upstream AAA is active
 - accounting and policy enforcement remain local
 - full AI mode can be enabled for richer operator recommendations
+- certificate enrollment and EAP-TLS onboarding can be enabled once CA material is ready
+- passive profiling and posture checks can be treated as real production features
 - operator teams use the admin UI and config revision flow regularly
 
 Good fit:
@@ -180,6 +188,7 @@ Good fit:
 - high-density branch edge
 - larger educational or enterprise floor deployments
 - environments with more demanding AAA behavior and longer retention expectations
+- sites that need BYOD inventory, certificate onboarding, and compliance-aware policy
 
 ### Tier 4: Central VM Appliance
 
@@ -202,6 +211,7 @@ Recommended mode:
 - external APs and switches send RADIUS and client traffic to the VM appliance
 - AegisNAS handles portal, brokered AAA, accounting, policy, and admin workflows
 - local Wi-Fi broadcasting stays off unless PCI or USB radio passthrough is provided
+- certificate enrollment and posture should be reserved for enterprise-sized VMs with real integration dependencies in place
 
 Good fit:
 
@@ -231,6 +241,8 @@ Good fit:
 | Portal through brokered RADIUS | Moderate | Tier 1 or Tier 2 | good fit for external AAA integration |
 | WPA2/WPA3 Enterprise with PEAP or TTLS | Moderate to high | Tier 2 | common production baseline |
 | EAP-TLS heavy environments | High | Tier 2 or Tier 3 | certificate-heavy auth deserves more CPU headroom |
+| BYOD onboarding with certificate enrollment | High | Tier 3 or Tier 4 | needs CA material, stronger EAP settings, and more operator care |
+| Passive profiling with posture inputs | Moderate to high | Tier 3 or Tier 4 | integration-heavy and best treated as enterprise scope |
 
 ## Radio And Wi-Fi Notes
 
@@ -253,6 +265,7 @@ Choose the next higher tier when any of these are true:
 - you expect rapid customer growth and do not want to replatform soon
 - you are enabling live bandwidth shaping for most sessions
 - you are relying heavily on EAP enterprise auth
+- you want to enable certificate enrollment, EAP-TLS onboarding, or posture checks
 - the appliance will service multiple APs and many simultaneous clients
 - you want longer backup, telemetry, and audit retention on-box
 - the same unit may later host storage NAS features alongside AegisNAS

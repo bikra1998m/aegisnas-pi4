@@ -66,6 +66,27 @@ const defaultSettings: JsonMap = {
     recommendation_limit: 100,
     remote_webhook: '',
   },
+  onboarding: {
+    device_inventory_enabled: false,
+    portal_enabled: false,
+    certificate_enrollment_enabled: false,
+    eap_tls_enabled: false,
+    ca_mode: 'none',
+    ca_cert_path: '',
+    ca_key_path: '',
+    ca_enrollment_url: '',
+  },
+  profiling: {
+    mac_inventory_enabled: false,
+    passive_enabled: false,
+    poll_interval_seconds: 300,
+    retention_hours: 24,
+    posture_enabled: false,
+    mdm_provider: '',
+    mdm_endpoint: '',
+    compliance_webhook: '',
+    remediation_enabled: false,
+  },
   portal: {
     enabled: true,
     port: 8081,
@@ -186,6 +207,12 @@ const approvalDeliveryOptions: Option[] = [
   { value: 'sms', label: 'SMS' },
 ];
 
+const caModeOptions: Option[] = [
+  { value: 'none', label: 'No CA Yet' },
+  { value: 'internal', label: 'Internal CA Material' },
+  { value: 'external', label: 'External Enrollment API' },
+];
+
 const capabilityTone: Record<DeploymentCapability['state'], string> = {
   enabled: 'border-emerald-200 bg-emerald-50 text-emerald-800',
   available: 'border-sky-200 bg-sky-50 text-sky-800',
@@ -223,6 +250,8 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.policy = next.policy || {};
   next.telemetry = next.telemetry || {};
   next.ailite = next.ailite || {};
+  next.onboarding = next.onboarding || {};
+  next.profiling = next.profiling || {};
   next.portal = next.portal || {};
   next.portal.guest_workflows = next.portal.guest_workflows || {};
   next.radius = next.radius || {};
@@ -243,6 +272,13 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.portal.guest_workflows.sponsor_approval_enabled = false;
     next.portal.guest_workflows.invite_delivery = 'none';
     next.portal.guest_workflows.approval_delivery = '';
+    next.onboarding.device_inventory_enabled = false;
+    next.onboarding.portal_enabled = false;
+    next.onboarding.certificate_enrollment_enabled = false;
+    next.onboarding.eap_tls_enabled = false;
+    next.onboarding.ca_mode = 'none';
+    next.profiling.passive_enabled = false;
+    next.profiling.posture_enabled = false;
   } else if (profile === 'enterprise') {
     next.ailite.enabled = true;
     next.ailite.mode = 'full';
@@ -256,6 +292,9 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.max_sessions = 4096;
     next.radius.interim_update_seconds = 300;
     next.radius.upstream.status_check = 'status-server';
+    next.onboarding.ca_mode = next.onboarding.ca_mode || 'none';
+    next.profiling.poll_interval_seconds = next.profiling.poll_interval_seconds || 300;
+    next.profiling.retention_hours = next.profiling.retention_hours || 24;
   } else if (profile === 'custom') {
     next.radius.max_sessions = next.radius.max_sessions || 1024;
     next.ailite.mode = next.ailite.mode || 'lite';
@@ -915,6 +954,121 @@ export default function AccessSettings() {
             onChange={(value) => updateField(['ailite', 'remote_webhook'], value)}
             placeholder="https://ops.example.com/webhook"
           />
+        </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Onboarding, Inventory, And Profiling</h3>
+          <p className="mt-1 text-sm text-gray-600">Phase 3 prepares BYOD-style onboarding, certificate enrollment, and device visibility with production-safe dependency checks.</p>
+        </div>
+        <div className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <ToggleField
+            label="Device Inventory Enabled"
+            checked={Boolean(settings.onboarding?.device_inventory_enabled)}
+            onChange={(value) => updateField(['onboarding', 'device_inventory_enabled'], value)}
+          />
+          <ToggleField
+            label="Onboarding Portal Enabled"
+            checked={Boolean(settings.onboarding?.portal_enabled)}
+            onChange={(value) => updateField(['onboarding', 'portal_enabled'], value)}
+          />
+          <ToggleField
+            label="Certificate Enrollment Enabled"
+            checked={Boolean(settings.onboarding?.certificate_enrollment_enabled)}
+            onChange={(value) => updateField(['onboarding', 'certificate_enrollment_enabled'], value)}
+          />
+          <ToggleField
+            label="EAP-TLS Onboarding Enabled"
+            checked={Boolean(settings.onboarding?.eap_tls_enabled)}
+            onChange={(value) => updateField(['onboarding', 'eap_tls_enabled'], value)}
+          />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <SelectField
+            label="CA Mode"
+            value={settings.onboarding?.ca_mode || 'none'}
+            onChange={(value) => updateField(['onboarding', 'ca_mode'], value)}
+            options={caModeOptions}
+          />
+          <TextField
+            label="CA Certificate Path"
+            value={settings.onboarding?.ca_cert_path || ''}
+            onChange={(value) => updateField(['onboarding', 'ca_cert_path'], value)}
+            placeholder="/etc/aegisnas/pki/ca.crt"
+          />
+          <TextField
+            label="CA Private Key Path"
+            value={settings.onboarding?.ca_key_path || ''}
+            onChange={(value) => updateField(['onboarding', 'ca_key_path'], value)}
+            placeholder="/etc/aegisnas/pki/ca.key"
+          />
+          <TextField
+            label="CA Enrollment URL"
+            value={settings.onboarding?.ca_enrollment_url || ''}
+            onChange={(value) => updateField(['onboarding', 'ca_enrollment_url'], value)}
+            placeholder="https://ca.example.com/enroll"
+          />
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-4">
+            <h4 className="font-semibold text-gray-900">Passive Profiling And Posture</h4>
+            <p className="mt-1 text-sm text-gray-600">Use these only when you are ready to support inventory retention, compliance inputs, and remediation decisions.</p>
+          </div>
+          <div className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="MAC Inventory Enabled"
+              checked={Boolean(settings.profiling?.mac_inventory_enabled)}
+              onChange={(value) => updateField(['profiling', 'mac_inventory_enabled'], value)}
+            />
+            <ToggleField
+              label="Passive Profiling Enabled"
+              checked={Boolean(settings.profiling?.passive_enabled)}
+              onChange={(value) => updateField(['profiling', 'passive_enabled'], value)}
+            />
+            <ToggleField
+              label="Posture Enabled"
+              checked={Boolean(settings.profiling?.posture_enabled)}
+              onChange={(value) => updateField(['profiling', 'posture_enabled'], value)}
+            />
+            <ToggleField
+              label="Remediation Enabled"
+              checked={Boolean(settings.profiling?.remediation_enabled)}
+              onChange={(value) => updateField(['profiling', 'remediation_enabled'], value)}
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <TextField
+              label="Profiling Poll Interval (s)"
+              type="number"
+              value={settings.profiling?.poll_interval_seconds || 300}
+              onChange={(value) => updateField(['profiling', 'poll_interval_seconds'], Number(value))}
+            />
+            <TextField
+              label="Retention Hours"
+              type="number"
+              value={settings.profiling?.retention_hours || 24}
+              onChange={(value) => updateField(['profiling', 'retention_hours'], Number(value))}
+            />
+            <TextField
+              label="MDM Provider"
+              value={settings.profiling?.mdm_provider || ''}
+              onChange={(value) => updateField(['profiling', 'mdm_provider'], value)}
+              placeholder="workspace-one-like"
+            />
+            <TextField
+              label="MDM Endpoint"
+              value={settings.profiling?.mdm_endpoint || ''}
+              onChange={(value) => updateField(['profiling', 'mdm_endpoint'], value)}
+              placeholder="https://mdm.example.com/api"
+            />
+            <TextField
+              label="Compliance Webhook"
+              value={settings.profiling?.compliance_webhook || ''}
+              onChange={(value) => updateField(['profiling', 'compliance_webhook'], value)}
+              placeholder="https://ops.example.com/compliance"
+            />
+          </div>
         </div>
       </section>
 

@@ -58,6 +58,12 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 		evaluateGuestSelfRegistrationCapability(cfg),
 		evaluateSponsorApprovalCapability(cfg),
 		evaluateGuestDeliveryCapability(cfg),
+		evaluateDeviceInventoryCapability(cfg),
+		evaluateOnboardingPortalCapability(cfg),
+		evaluateCertificateEnrollmentCapability(cfg),
+		evaluateEAPTLSOnboardingCapability(cfg),
+		evaluatePassiveProfilingCapability(cfg),
+		evaluatePostureCapability(cfg),
 	}
 }
 
@@ -396,8 +402,238 @@ func evaluateGuestDeliveryCapability(cfg *Config) FeatureCapability {
 	return capability
 }
 
+func evaluateDeviceInventoryCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	capability := FeatureCapability{
+		Key:    "device_registration_inventory",
+		Label:  "Device Registration Inventory",
+		Active: cfg.Onboarding.DeviceInventoryEnabled,
+	}
+
+	switch {
+	case profile == "lite":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Device registration inventory is blocked on the lite profile."
+		capability.Recommendation = "Use the branch or enterprise profile for managed onboarding inventory."
+	case cfg.Onboarding.DeviceInventoryEnabled && profile == "branch":
+		capability.State = CapabilityWarned
+		capability.Summary = "Device registration inventory is active on the branch profile."
+		capability.Recommendation = "This is a good production baseline for smaller sites. Move to enterprise for heavier BYOD programs."
+	case cfg.Onboarding.DeviceInventoryEnabled:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Device registration inventory is active."
+	case profile == "enterprise":
+		capability.State = CapabilityAvailable
+		capability.Summary = "Device registration inventory is supported and ready to be enabled."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Device registration inventory is supported but currently off."
+	}
+
+	return capability
+}
+
+func evaluateOnboardingPortalCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	capability := FeatureCapability{
+		Key:    "onboarding_portal",
+		Label:  "Onboarding Portal",
+		Active: cfg.Onboarding.PortalEnabled,
+	}
+
+	switch {
+	case profile == "lite":
+		capability.State = CapabilityBlocked
+		capability.Summary = "The onboarding portal is blocked on the lite profile."
+	case cfg.Onboarding.PortalEnabled && !cfg.Portal.Enabled:
+		capability.State = CapabilityBlocked
+		capability.Summary = "The onboarding portal needs the captive portal to be enabled."
+		capability.Dependencies = []string{"portal.enabled"}
+	case cfg.Onboarding.PortalEnabled && !identityWorkflowReady(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "The onboarding portal needs an identity path such as local fallback, LDAP, or portal RADIUS auth."
+		capability.Dependencies = []string{"portal.local_fallback", "ldap.enabled", "portal.radius_auth"}
+	case cfg.Onboarding.PortalEnabled && !cfg.Onboarding.DeviceInventoryEnabled:
+		capability.State = CapabilityBlocked
+		capability.Summary = "The onboarding portal needs device registration inventory."
+		capability.Dependencies = []string{"onboarding.device_inventory_enabled"}
+	case cfg.Onboarding.PortalEnabled && !certificateAuthorityDeclared(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "The onboarding portal needs a declared certificate authority mode."
+		capability.Dependencies = []string{"onboarding.ca_mode"}
+	case cfg.Onboarding.PortalEnabled && profile == "branch":
+		capability.State = CapabilityWarned
+		capability.Summary = "The onboarding portal is active on the branch profile."
+		capability.Recommendation = "Good for pilot production. Move to enterprise when onboarding becomes a primary workflow."
+	case cfg.Onboarding.PortalEnabled:
+		capability.State = CapabilityEnabled
+		capability.Summary = "The onboarding portal is active."
+	case profile == "enterprise":
+		capability.State = CapabilityAvailable
+		capability.Summary = "The onboarding portal is supported and ready to be enabled."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "The onboarding portal is supported but currently off."
+	}
+
+	return capability
+}
+
+func evaluateCertificateEnrollmentCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	capability := FeatureCapability{
+		Key:    "certificate_enrollment",
+		Label:  "Certificate Enrollment",
+		Active: cfg.Onboarding.CertificateEnrollmentEnabled,
+	}
+
+	switch {
+	case profile != "enterprise":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Certificate enrollment is reserved for the enterprise profile."
+		capability.Recommendation = "Use enterprise for production certificate onboarding."
+	case cfg.Onboarding.CertificateEnrollmentEnabled && !cfg.Onboarding.PortalEnabled:
+		capability.State = CapabilityBlocked
+		capability.Summary = "Certificate enrollment requires the onboarding portal."
+		capability.Dependencies = []string{"onboarding.portal_enabled"}
+	case cfg.Onboarding.CertificateEnrollmentEnabled && !certificateAuthorityReady(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "Certificate enrollment requires complete CA configuration."
+		capability.Dependencies = []string{"onboarding.ca_mode", "onboarding.ca_cert_path", "onboarding.ca_key_path", "onboarding.ca_enrollment_url"}
+	case cfg.Onboarding.CertificateEnrollmentEnabled:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Certificate enrollment is active."
+	case certificateAuthorityDeclared(cfg):
+		capability.State = CapabilityAvailable
+		capability.Summary = "Certificate enrollment is supported and awaiting activation."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Certificate enrollment is supported but needs CA setup first."
+	}
+
+	return capability
+}
+
+func evaluateEAPTLSOnboardingCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	capability := FeatureCapability{
+		Key:    "eap_tls_onboarding",
+		Label:  "EAP-TLS Onboarding",
+		Active: cfg.Onboarding.EAPTLSEnabled,
+	}
+
+	switch {
+	case profile != "enterprise":
+		capability.State = CapabilityBlocked
+		capability.Summary = "EAP-TLS onboarding is reserved for the enterprise profile."
+	case cfg.Onboarding.EAPTLSEnabled && !cfg.Onboarding.CertificateEnrollmentEnabled:
+		capability.State = CapabilityBlocked
+		capability.Summary = "EAP-TLS onboarding requires certificate enrollment."
+		capability.Dependencies = []string{"onboarding.certificate_enrollment_enabled"}
+	case cfg.Onboarding.EAPTLSEnabled && !certificateAuthorityReady(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "EAP-TLS onboarding requires complete CA configuration."
+		capability.Dependencies = []string{"onboarding.ca_mode", "onboarding.ca_cert_path", "onboarding.ca_key_path", "onboarding.ca_enrollment_url"}
+	case cfg.Onboarding.EAPTLSEnabled && strings.ToLower(strings.TrimSpace(cfg.Radius.EAP.DefaultType)) != "tls":
+		capability.State = CapabilityBlocked
+		capability.Summary = "EAP-TLS onboarding requires radius.eap.default_type to be tls."
+		capability.Dependencies = []string{"radius.eap.default_type"}
+	case cfg.Onboarding.EAPTLSEnabled && (veryLowMemory(cfg) || lowCPU(cfg)):
+		capability.State = CapabilityBlocked
+		capability.Summary = "EAP-TLS onboarding is active on hardware too constrained for certificate-heavy production auth."
+	case cfg.Onboarding.EAPTLSEnabled:
+		capability.State = CapabilityEnabled
+		capability.Summary = "EAP-TLS onboarding is active."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "EAP-TLS onboarding is supported and ready to be enabled."
+	}
+
+	return capability
+}
+
+func evaluatePassiveProfilingCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	capability := FeatureCapability{
+		Key:    "passive_profiling",
+		Label:  "Passive Profiling",
+		Active: cfg.Profiling.PassiveEnabled,
+	}
+
+	switch {
+	case profile == "lite":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Passive profiling is blocked on the lite profile."
+	case cfg.Profiling.PassiveEnabled && !cfg.Profiling.MACInventoryEnabled:
+		capability.State = CapabilityBlocked
+		capability.Summary = "Passive profiling requires MAC inventory."
+		capability.Dependencies = []string{"profiling.mac_inventory_enabled"}
+	case cfg.Profiling.PassiveEnabled && (veryLowMemory(cfg) || lowCPU(cfg)):
+		capability.State = CapabilityDegraded
+		capability.Summary = "Passive profiling is active, but the platform is constrained enough that collection should stay shallow."
+		capability.Recommendation = "Increase hardware or keep poll intervals conservative before relying on this for production profiling."
+	case cfg.Profiling.PassiveEnabled && profile == "branch":
+		capability.State = CapabilityWarned
+		capability.Summary = "Passive profiling is active on the branch profile."
+		capability.Recommendation = "Good for lighter production visibility. Enterprise is the preferred tier for richer profiling."
+	case cfg.Profiling.PassiveEnabled:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Passive profiling is active."
+	case profile == "enterprise":
+		capability.State = CapabilityAvailable
+		capability.Summary = "Passive profiling is supported and ready to be enabled."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Passive profiling is supported but currently off."
+	}
+
+	return capability
+}
+
+func evaluatePostureCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	capability := FeatureCapability{
+		Key:    "posture_checks",
+		Label:  "Posture Checks",
+		Active: cfg.Profiling.PostureEnabled,
+	}
+
+	switch {
+	case profile != "enterprise":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Posture checks are reserved for the enterprise profile."
+	case cfg.Profiling.PostureEnabled && !cfg.Profiling.MACInventoryEnabled:
+		capability.State = CapabilityBlocked
+		capability.Summary = "Posture checks require MAC inventory."
+		capability.Dependencies = []string{"profiling.mac_inventory_enabled"}
+	case cfg.Profiling.PostureEnabled && !profilingIntegrationReady(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "Posture checks require an MDM endpoint or compliance webhook."
+		capability.Dependencies = []string{"profiling.mdm_provider", "profiling.mdm_endpoint", "profiling.compliance_webhook"}
+	case cfg.Profiling.PostureEnabled:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Posture checks are active."
+	case profilingIntegrationReady(cfg):
+		capability.State = CapabilityAvailable
+		capability.Summary = "Posture checks are supported and transport dependencies are ready."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Posture checks are supported but need compliance sources before activation."
+	}
+
+	return capability
+}
+
 func fullAIConfigured(cfg *Config) bool {
 	return strings.TrimSpace(cfg.AILite.Endpoint) != "" && strings.TrimSpace(cfg.AILite.Model) != ""
+}
+
+func certificateAuthorityDeclared(cfg *Config) bool {
+	if cfg == nil {
+		return false
+	}
+	return strings.ToLower(strings.TrimSpace(cfg.Onboarding.CAMode)) != "" &&
+		strings.ToLower(strings.TrimSpace(cfg.Onboarding.CAMode)) != "none"
 }
 
 func constrainedPlatform(cfg *Config, preset deploymentPreset) bool {

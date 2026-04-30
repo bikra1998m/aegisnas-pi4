@@ -571,6 +571,21 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 				SMTPPort:                587,
 			},
 		},
+		Onboarding: OnboardingConfig{
+			DeviceInventoryEnabled:       true,
+			PortalEnabled:                true,
+			CertificateEnrollmentEnabled: false,
+			EAPTLSEnabled:                false,
+			CAMode:                       "external",
+			CAEnrollmentURL:              "https://ca.example.com/enroll",
+		},
+		Profiling: ProfilingConfig{
+			MACInventoryEnabled: true,
+			PassiveEnabled:      true,
+			PollIntervalSeconds: 300,
+			RetentionHours:      24,
+			PostureEnabled:      false,
+		},
 		AILite: AILiteConfig{
 			Enabled: true,
 			Mode:    "full",
@@ -593,7 +608,7 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	}
 
 	capabilities := EvaluateFeatureCapabilities(cfg)
-	require.Len(t, capabilities, 8)
+	require.Len(t, capabilities, 14)
 
 	byKey := make(map[string]FeatureCapability, len(capabilities))
 	for _, capability := range capabilities {
@@ -608,6 +623,12 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	assert.Equal(t, CapabilityWarned, byKey["guest_self_registration"].State)
 	assert.Equal(t, CapabilityWarned, byKey["sponsor_approval"].State)
 	assert.Equal(t, CapabilityEnabled, byKey["guest_delivery"].State)
+	assert.Equal(t, CapabilityWarned, byKey["device_registration_inventory"].State)
+	assert.Equal(t, CapabilityWarned, byKey["onboarding_portal"].State)
+	assert.Equal(t, CapabilityBlocked, byKey["certificate_enrollment"].State)
+	assert.Equal(t, CapabilityBlocked, byKey["eap_tls_onboarding"].State)
+	assert.Equal(t, CapabilityWarned, byKey["passive_profiling"].State)
+	assert.Equal(t, CapabilityBlocked, byKey["posture_checks"].State)
 }
 
 func TestConfigValidationGuestWorkflows(t *testing.T) {
@@ -675,4 +696,79 @@ func TestConfigValidationGuestWorkflows(t *testing.T) {
 	liteBlocked := base()
 	liteBlocked.Deployment.Profile = "lite"
 	assert.ErrorContains(t, liteBlocked.Validate(), "self_registration_enabled is not supported on the lite deployment profile")
+}
+
+func TestConfigValidationOnboardingAndProfiling(t *testing.T) {
+	base := func() *Config {
+		return &Config{
+			Mode:      "two-nic",
+			WAN:       InterfaceConfig{Name: "eth0"},
+			LAN:       InterfaceConfig{Name: "eth1"},
+			Database:  DatabaseConfig{Path: "/tmp/aegis.db"},
+			Health:    HealthConfig{Port: 8080},
+			Telemetry: TelemetryConfig{Enabled: true, PrometheusPort: 9090},
+			Portal: PortalConfig{
+				Enabled:       true,
+				LocalFallback: true,
+				Branding:      "AegisNAS Onboarding",
+			},
+			Radius: RadiusConfig{
+				AuthPort:              1812,
+				AcctPort:              1813,
+				RequestTimeoutSeconds: 5,
+				EAP: RadiusEAPConfig{
+					DefaultType: "tls",
+				},
+			},
+			Deployment: DeploymentConfig{
+				Profile: "enterprise",
+			},
+			Onboarding: OnboardingConfig{
+				DeviceInventoryEnabled:       true,
+				PortalEnabled:                true,
+				CertificateEnrollmentEnabled: true,
+				EAPTLSEnabled:                true,
+				CAMode:                       "internal",
+				CACertPath:                   "/etc/aegisnas/pki/ca.crt",
+				CAKeyPath:                    "/etc/aegisnas/pki/ca.key",
+			},
+			Profiling: ProfilingConfig{
+				MACInventoryEnabled: true,
+				PassiveEnabled:      true,
+				PollIntervalSeconds: 300,
+				RetentionHours:      24,
+				PostureEnabled:      true,
+				MDMProvider:         "workspace-one-like",
+				MDMEndpoint:         "https://mdm.example.com/api",
+			},
+		}
+	}
+
+	valid := base()
+	assert.NoError(t, valid.Validate())
+
+	noCA := base()
+	noCA.Onboarding.CACertPath = ""
+	assert.ErrorContains(t, noCA.Validate(), "requires complete CA configuration")
+
+	noIdentity := base()
+	noIdentity.Portal.LocalFallback = false
+	assert.ErrorContains(t, noIdentity.Validate(), "requires an identity path")
+
+	branchCert := base()
+	branchCert.Deployment.Profile = "branch"
+	assert.ErrorContains(t, branchCert.Validate(), "certificate_enrollment_enabled is only supported on the enterprise deployment profile")
+
+	badTLS := base()
+	badTLS.Radius.EAP.DefaultType = "peap"
+	assert.ErrorContains(t, badTLS.Validate(), "requires radius.eap.default_type to be tls")
+
+	badPolling := base()
+	badPolling.Profiling.PollIntervalSeconds = 10
+	assert.ErrorContains(t, badPolling.Validate(), "profiling.passive_enabled requires profiling.poll_interval_seconds to be at least 30")
+
+	noComplianceSource := base()
+	noComplianceSource.Profiling.MDMProvider = ""
+	noComplianceSource.Profiling.MDMEndpoint = ""
+	assert.ErrorContains(t, noComplianceSource.Validate(), "profiling.posture_enabled requires an MDM endpoint or compliance webhook")
 }

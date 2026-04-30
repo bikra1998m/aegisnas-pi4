@@ -172,13 +172,13 @@ These features separate a serious NAC suite from a basic portal appliance.
 | Device registration inventory | blocked | available | enabled | useful base layer |
 | Onboarding portal | blocked | warned | enabled | needs UX, cert, and role flow |
 | Certificate enrollment | blocked | blocked | enabled | requires CA model |
-| EAP-TLS onboarding | blocked | warned | enabled | needs strong certificate handling |
+| EAP-TLS onboarding | blocked | blocked | enabled | needs strong certificate handling |
 | Known device reissue and revocation | blocked | blocked | enabled | enterprise-only first pass |
 
 Rules:
 
 - onboarding should be `blocked` unless certificate and identity dependencies exist
-- EAP-TLS onboarding should be `warned` or `blocked` on low-memory targets
+- EAP-TLS onboarding should stay blocked outside the enterprise tier and should also block on underpowered enterprise hardware
 
 ### 5. Profiling And Posture
 
@@ -436,6 +436,46 @@ Add enterprise feature gating:
 - profiling
 - posture
 - richer reporting
+
+Phase 3 adds production-safe config controls under:
+
+- `onboarding.device_inventory_enabled`
+- `onboarding.portal_enabled`
+- `onboarding.certificate_enrollment_enabled`
+- `onboarding.eap_tls_enabled`
+- `onboarding.ca_mode`
+- `onboarding.ca_cert_path`
+- `onboarding.ca_key_path`
+- `onboarding.ca_enrollment_url`
+- `profiling.mac_inventory_enabled`
+- `profiling.passive_enabled`
+- `profiling.poll_interval_seconds`
+- `profiling.retention_hours`
+- `profiling.posture_enabled`
+- `profiling.mdm_provider`
+- `profiling.mdm_endpoint`
+- `profiling.compliance_webhook`
+- `profiling.remediation_enabled`
+
+Phase 3 capability preview now evaluates:
+
+- `device_registration_inventory`
+- `onboarding_portal`
+- `certificate_enrollment`
+- `eap_tls_onboarding`
+- `passive_profiling`
+- `posture_checks`
+
+Phase 3 validation rules:
+
+- lite blocks device inventory, onboarding portal, passive profiling, and EAP-TLS onboarding
+- onboarding portal requires `portal.enabled`, an identity path, device inventory, and a declared CA mode
+- certificate enrollment is enterprise-only and requires full CA configuration
+- EAP-TLS onboarding requires certificate enrollment plus `radius.eap.default_type: tls`
+- passive profiling requires MAC inventory and a poll interval of at least 30 seconds
+- posture checks are enterprise-only and require MAC inventory plus an MDM endpoint or compliance webhook
+
+This phase is the production foundation for BYOD and profiling. It does not claim that full certificate issuance, live onboarding transactions, or posture collectors already exist end to end. What it does give us is a safe config model, previewable feature state, and hard validation that prevents deployers from turning on workflows the appliance cannot support yet.
 
 ### Phase 4
 

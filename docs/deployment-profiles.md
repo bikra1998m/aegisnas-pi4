@@ -37,6 +37,12 @@ Recommended direction:
 - consider `radius.upstream.status_check: none`
 - keep `portal.guest_workflows.self_registration_enabled: false`
 - keep `portal.guest_workflows.sponsor_approval_enabled: false`
+- keep `onboarding.device_inventory_enabled: false`
+- keep `onboarding.portal_enabled: false`
+- keep `onboarding.certificate_enrollment_enabled: false`
+- keep `onboarding.eap_tls_enabled: false`
+- keep `profiling.passive_enabled: false`
+- keep `profiling.posture_enabled: false`
 
 ### `branch`
 
@@ -52,6 +58,10 @@ Recommended direction:
 - normal upstream AAA probing
 - guest self-registration is acceptable for pilot production once `portal.local_fallback`, branding, and delivery settings are in place
 - sponsor approval is acceptable when email or SMS transport is configured and tested
+- device inventory is acceptable for pilot production
+- onboarding portal is acceptable once portal, identity, and CA mode dependencies are in place
+- passive profiling is acceptable when MAC inventory is enabled and poll intervals stay conservative
+- keep certificate enrollment and posture decisions behind enterprise gating unless the deployment is truly ready
 - suitable for most pilot and branch appliance builds
 
 ### `enterprise`
@@ -63,14 +73,14 @@ Recommended direction:
 - keep guest self-registration and sponsor approval on this tier when guest access is a customer-facing workflow
 - configure SMTP or SMS delivery before enabling invites or sponsor approval
 - treat this as the preferred tier for branded guest onboarding and approval-heavy guest programs
-
-Recommended direction:
-
 - full AI mode on when a provider endpoint and model are configured
 - telemetry on
 - runtime shaping on
 - larger `radius.max_sessions`
 - active upstream AAA probing
+- make this the default target for certificate enrollment and EAP-TLS onboarding
+- use posture checks only after MDM or compliance sources are configured and tested
+- treat passive profiling and remediation as normal production features on this tier
 
 ### `custom`
 
@@ -118,6 +128,9 @@ The profile action updates real config fields such as:
 - `radius.max_sessions`
 - `radius.interim_update_seconds`
 - `radius.upstream.status_check`
+- `portal.guest_workflows.*`
+- `onboarding.*`
+- `profiling.*`
 
 ## How To Use It In YAML
 
@@ -159,6 +172,41 @@ wireless:
   enabled: false
 ```
 
+Example enterprise onboarding target:
+
+```yaml
+deployment:
+  profile: enterprise
+  form: physical
+  hardware:
+    memory_mb: 16384
+    cpu_cores: 8
+
+portal:
+  enabled: true
+  local_fallback: true
+
+radius:
+  eap:
+    default_type: tls
+
+onboarding:
+  device_inventory_enabled: true
+  portal_enabled: true
+  certificate_enrollment_enabled: true
+  eap_tls_enabled: true
+  ca_mode: internal
+  ca_cert_path: /etc/aegisnas/pki/ca.crt
+  ca_key_path: /etc/aegisnas/pki/ca.key
+
+profiling:
+  mac_inventory_enabled: true
+  passive_enabled: true
+  posture_enabled: true
+  mdm_provider: workspace-one-like
+  mdm_endpoint: https://mdm.example.com/api
+```
+
 ## Runtime Behavior
 
 The current profile-aware implementation changes behavior in these concrete ways:
@@ -166,6 +214,8 @@ The current profile-aware implementation changes behavior in these concrete ways
 - telemetry can be disabled cleanly
 - AI Lite can be disabled cleanly
 - runtime shaping can be disabled cleanly
+- guest workflow, onboarding, and profiling capability states are previewed before save
+- impossible onboarding and profiling combinations are rejected during validation
 - the dashboard shows profile, hardware hints, and mismatch warnings
 - the admin UI can apply profile defaults directly into the live config editor
 

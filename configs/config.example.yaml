@@ -7,6 +7,7 @@ deployment:
     memory_mb: 4096
     cpu_cores: 2
     prefer_external_ap: false
+    wireless_passthrough: false
 
 wan:
   name: eth0
@@ -113,6 +114,16 @@ portal:
   logout_url: "https://example.com/logout"
   radius_auth: true
   local_fallback: true
+  guest_workflows:
+    self_registration_enabled: false
+    sponsor_approval_enabled: false
+    invite_delivery: "none"
+    approval_delivery: ""
+    email_from: ""
+    smtp_server: ""
+    smtp_port: 587
+    sms_provider: ""
+    sms_endpoint: ""
 
 ldap:
   enabled: false
@@ -142,6 +153,27 @@ ailite:
   max_input_events: 200
   recommendation_limit: 100
   remote_webhook: ""
+
+onboarding:
+  device_inventory_enabled: false
+  portal_enabled: false
+  certificate_enrollment_enabled: false
+  eap_tls_enabled: false
+  ca_mode: "none" # none, internal, or external.
+  ca_cert_path: "" # Required with ca_mode=internal and certificate enrollment.
+  ca_key_path: "" # Required with ca_mode=internal and certificate enrollment.
+  ca_enrollment_url: "" # Required with ca_mode=external and certificate enrollment.
+
+profiling:
+  mac_inventory_enabled: false
+  passive_enabled: false
+  poll_interval_seconds: 300
+  retention_hours: 24
+  posture_enabled: false
+  mdm_provider: ""
+  mdm_endpoint: ""
+  compliance_webhook: ""
+  remediation_enabled: false
 
 dhcp:
   enabled: true

@@ -26,6 +26,8 @@ type Config struct {
 	Policy     PolicyConfig     `mapstructure:"policy"`
 	Telemetry  TelemetryConfig  `mapstructure:"telemetry"`
 	AILite     AILiteConfig     `mapstructure:"ailite"`
+	Onboarding OnboardingConfig `mapstructure:"onboarding"`
+	Profiling  ProfilingConfig  `mapstructure:"profiling"`
 	DHCP       DHCPConfig       `mapstructure:"dhcp"`
 	Wireless   WirelessConfig   `mapstructure:"wireless"`
 	AdminPort  int              `mapstructure:"admin_port"`
@@ -208,6 +210,29 @@ type AILiteConfig struct {
 	RemoteWebhook         string `mapstructure:"remote_webhook"`
 }
 
+type OnboardingConfig struct {
+	DeviceInventoryEnabled       bool   `mapstructure:"device_inventory_enabled"`
+	PortalEnabled                bool   `mapstructure:"portal_enabled"`
+	CertificateEnrollmentEnabled bool   `mapstructure:"certificate_enrollment_enabled"`
+	EAPTLSEnabled                bool   `mapstructure:"eap_tls_enabled"`
+	CAMode                       string `mapstructure:"ca_mode"`
+	CACertPath                   string `mapstructure:"ca_cert_path"`
+	CAKeyPath                    string `mapstructure:"ca_key_path"`
+	CAEnrollmentURL              string `mapstructure:"ca_enrollment_url"`
+}
+
+type ProfilingConfig struct {
+	MACInventoryEnabled bool   `mapstructure:"mac_inventory_enabled"`
+	PassiveEnabled      bool   `mapstructure:"passive_enabled"`
+	PollIntervalSeconds int    `mapstructure:"poll_interval_seconds"`
+	RetentionHours      int    `mapstructure:"retention_hours"`
+	PostureEnabled      bool   `mapstructure:"posture_enabled"`
+	MDMProvider         string `mapstructure:"mdm_provider"`
+	MDMEndpoint         string `mapstructure:"mdm_endpoint"`
+	ComplianceWebhook   string `mapstructure:"compliance_webhook"`
+	RemediationEnabled  bool   `mapstructure:"remediation_enabled"`
+}
+
 type WirelessConfig struct {
 	Enabled           bool         `mapstructure:"enabled"`
 	CountryCode       string       `mapstructure:"country_code"`
@@ -278,6 +303,9 @@ func Load(configPath string) (*Config, error) {
 	v.SetDefault("ailite.request_timeout_seconds", 20)
 	v.SetDefault("ailite.max_input_events", 200)
 	v.SetDefault("ailite.recommendation_limit", 100)
+	v.SetDefault("onboarding.ca_mode", "none")
+	v.SetDefault("profiling.poll_interval_seconds", 300)
+	v.SetDefault("profiling.retention_hours", 24)
 	v.SetDefault("dhcp.enabled", true)
 	v.SetDefault("dhcp.lease_time", "12h")
 	v.SetDefault("dhcp.authoritative", true)
@@ -437,14 +465,8 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("portal.guest_workflows.smtp_port %d out of range", c.Portal.GuestWorkflows.SMTPPort)
 	}
 	if c.Portal.GuestWorkflows.SMSProvider != "" && strings.TrimSpace(c.Portal.GuestWorkflows.SMSEndpoint) != "" {
-		parsed, err := url.Parse(c.Portal.GuestWorkflows.SMSEndpoint)
-		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-			return fmt.Errorf("portal.guest_workflows.sms_endpoint %q is invalid", c.Portal.GuestWorkflows.SMSEndpoint)
-		}
-		switch parsed.Scheme {
-		case "http", "https":
-		default:
-			return fmt.Errorf("portal.guest_workflows.sms_endpoint %q must use http or https", c.Portal.GuestWorkflows.SMSEndpoint)
+		if err := requireHTTPURL("portal.guest_workflows.sms_endpoint", c.Portal.GuestWorkflows.SMSEndpoint); err != nil {
+			return err
 		}
 	}
 	if c.Portal.GuestWorkflows.SelfRegistrationEnabled {
@@ -495,6 +517,102 @@ func (c *Config) Validate() error {
 		}
 		if !smsTransportConfigured(c) {
 			return errors.New("portal.guest_workflows.invite_delivery=sms requires sms transport configuration")
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Onboarding.CAMode)) {
+	case "", "none", "internal", "external":
+	default:
+		return fmt.Errorf("onboarding.ca_mode %q is invalid", c.Onboarding.CAMode)
+	}
+	if c.Onboarding.CAEnrollmentURL != "" {
+		if err := requireHTTPURL("onboarding.ca_enrollment_url", c.Onboarding.CAEnrollmentURL); err != nil {
+			return err
+		}
+	}
+	if c.Profiling.PollIntervalSeconds < 0 {
+		return fmt.Errorf("profiling.poll_interval_seconds %d cannot be negative", c.Profiling.PollIntervalSeconds)
+	}
+	if c.Profiling.RetentionHours < 0 {
+		return fmt.Errorf("profiling.retention_hours %d cannot be negative", c.Profiling.RetentionHours)
+	}
+	if c.Profiling.MDMEndpoint != "" {
+		if err := requireHTTPURL("profiling.mdm_endpoint", c.Profiling.MDMEndpoint); err != nil {
+			return err
+		}
+	}
+	if c.Profiling.ComplianceWebhook != "" {
+		if err := requireHTTPURL("profiling.compliance_webhook", c.Profiling.ComplianceWebhook); err != nil {
+			return err
+		}
+	}
+	if c.Onboarding.DeviceInventoryEnabled && profile == "lite" {
+		return errors.New("onboarding.device_inventory_enabled is not supported on the lite deployment profile")
+	}
+	if c.Onboarding.PortalEnabled {
+		if profile == "lite" {
+			return errors.New("onboarding.portal_enabled is not supported on the lite deployment profile")
+		}
+		if !c.Portal.Enabled {
+			return errors.New("onboarding.portal_enabled requires portal.enabled")
+		}
+		if !identityWorkflowReady(c) {
+			return errors.New("onboarding.portal_enabled requires an identity path such as portal.local_fallback, ldap.enabled, or portal.radius_auth")
+		}
+		if !c.Onboarding.DeviceInventoryEnabled {
+			return errors.New("onboarding.portal_enabled requires onboarding.device_inventory_enabled")
+		}
+		if strings.EqualFold(strings.TrimSpace(c.Onboarding.CAMode), "none") {
+			return errors.New("onboarding.portal_enabled requires onboarding.ca_mode to be internal or external")
+		}
+	}
+	if c.Onboarding.CertificateEnrollmentEnabled {
+		if profile != "enterprise" {
+			return errors.New("onboarding.certificate_enrollment_enabled is only supported on the enterprise deployment profile")
+		}
+		if !c.Onboarding.PortalEnabled {
+			return errors.New("onboarding.certificate_enrollment_enabled requires onboarding.portal_enabled")
+		}
+		if !certificateAuthorityReady(c) {
+			return errors.New("onboarding.certificate_enrollment_enabled requires complete CA configuration")
+		}
+	}
+	if c.Onboarding.EAPTLSEnabled {
+		if profile == "lite" {
+			return errors.New("onboarding.eap_tls_enabled is not supported on the lite deployment profile")
+		}
+		if !c.Onboarding.CertificateEnrollmentEnabled {
+			return errors.New("onboarding.eap_tls_enabled requires onboarding.certificate_enrollment_enabled")
+		}
+		if !certificateAuthorityReady(c) {
+			return errors.New("onboarding.eap_tls_enabled requires complete CA configuration")
+		}
+		if strings.ToLower(strings.TrimSpace(c.Radius.EAP.DefaultType)) != "tls" {
+			return errors.New("onboarding.eap_tls_enabled requires radius.eap.default_type to be tls")
+		}
+	}
+	if c.Profiling.MACInventoryEnabled && c.Profiling.RetentionHours == 0 {
+		return errors.New("profiling.mac_inventory_enabled requires profiling.retention_hours to be greater than zero")
+	}
+	if c.Profiling.PassiveEnabled {
+		if profile == "lite" {
+			return errors.New("profiling.passive_enabled is not supported on the lite deployment profile")
+		}
+		if !c.Profiling.MACInventoryEnabled {
+			return errors.New("profiling.passive_enabled requires profiling.mac_inventory_enabled")
+		}
+		if c.Profiling.PollIntervalSeconds < 30 {
+			return errors.New("profiling.passive_enabled requires profiling.poll_interval_seconds to be at least 30")
+		}
+	}
+	if c.Profiling.PostureEnabled {
+		if profile != "enterprise" {
+			return errors.New("profiling.posture_enabled is only supported on the enterprise deployment profile")
+		}
+		if !c.Profiling.MACInventoryEnabled {
+			return errors.New("profiling.posture_enabled requires profiling.mac_inventory_enabled")
+		}
+		if !profilingIntegrationReady(c) {
+			return errors.New("profiling.posture_enabled requires an MDM endpoint or compliance webhook")
 		}
 	}
 	aiMode := EffectiveAIMode(c)
@@ -767,6 +885,48 @@ func smsTransportConfigured(c *Config) bool {
 	}
 	return strings.TrimSpace(c.Portal.GuestWorkflows.SMSProvider) != "" &&
 		strings.TrimSpace(c.Portal.GuestWorkflows.SMSEndpoint) != ""
+}
+
+func identityWorkflowReady(c *Config) bool {
+	if c == nil {
+		return false
+	}
+	return c.Portal.LocalFallback || c.LDAP.Enabled || c.Portal.RadiusAuth
+}
+
+func certificateAuthorityReady(c *Config) bool {
+	if c == nil {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Onboarding.CAMode)) {
+	case "internal":
+		return strings.TrimSpace(c.Onboarding.CACertPath) != "" && strings.TrimSpace(c.Onboarding.CAKeyPath) != ""
+	case "external":
+		return strings.TrimSpace(c.Onboarding.CAEnrollmentURL) != ""
+	default:
+		return false
+	}
+}
+
+func profilingIntegrationReady(c *Config) bool {
+	if c == nil {
+		return false
+	}
+	return (strings.TrimSpace(c.Profiling.MDMProvider) != "" && strings.TrimSpace(c.Profiling.MDMEndpoint) != "") ||
+		strings.TrimSpace(c.Profiling.ComplianceWebhook) != ""
+}
+
+func requireHTTPURL(fieldName, raw string) error {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return fmt.Errorf("%s %q is invalid", fieldName, raw)
+	}
+	switch parsed.Scheme {
+	case "http", "https":
+		return nil
+	default:
+		return fmt.Errorf("%s %q must use http or https", fieldName, raw)
+	}
 }
 
 func validRadiusDictionaryName(value string) bool {
