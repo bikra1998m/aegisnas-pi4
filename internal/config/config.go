@@ -38,9 +38,10 @@ type DeploymentConfig struct {
 }
 
 type DeploymentHardwareConfig struct {
-	MemoryMB         int  `mapstructure:"memory_mb"`
-	CPUCores         int  `mapstructure:"cpu_cores"`
-	PreferExternalAP bool `mapstructure:"prefer_external_ap"`
+	MemoryMB            int  `mapstructure:"memory_mb"`
+	CPUCores            int  `mapstructure:"cpu_cores"`
+	PreferExternalAP    bool `mapstructure:"prefer_external_ap"`
+	WirelessPassthrough bool `mapstructure:"wireless_passthrough"`
 }
 
 type DHCPConfig struct {
@@ -246,6 +247,7 @@ func Load(configPath string) (*Config, error) {
 	v.SetDefault("deployment.profile", "branch")
 	v.SetDefault("deployment.form", "physical")
 	v.SetDefault("deployment.hardware.prefer_external_ap", false)
+	v.SetDefault("deployment.hardware.wireless_passthrough", false)
 	v.SetDefault("database.path", "/var/lib/aegisnas/data.db")
 	v.SetDefault("logging.level", "info")
 	v.SetDefault("logging.output", "stdout")
@@ -363,6 +365,9 @@ func (c *Config) Validate() error {
 	if c.Deployment.Hardware.CPUCores < 0 {
 		return fmt.Errorf("deployment.hardware.cpu_cores %d cannot be negative", c.Deployment.Hardware.CPUCores)
 	}
+	if c.Deployment.Hardware.WirelessPassthrough && EffectiveDeploymentForm(c.Deployment.Form) != "virtual" {
+		return errors.New("deployment.hardware.wireless_passthrough is only valid for virtual deployments")
+	}
 
 	if c.Mode == "two-nic" {
 		if c.WAN.Name == "" || c.LAN.Name == "" {
@@ -432,6 +437,14 @@ func (c *Config) Validate() error {
 		}
 		if strings.TrimSpace(c.AILite.Model) == "" {
 			return errors.New("ailite.model cannot be empty when ailite.endpoint is set")
+		}
+	}
+	if c.AILite.Enabled && aiMode == "full" {
+		if strings.TrimSpace(c.AILite.Endpoint) == "" {
+			return errors.New("ailite.endpoint cannot be empty when ailite.mode is full")
+		}
+		if strings.TrimSpace(c.AILite.Model) == "" {
+			return errors.New("ailite.model cannot be empty when ailite.mode is full")
 		}
 	}
 
@@ -580,6 +593,9 @@ func (c *Config) Validate() error {
 	}
 
 	if c.Wireless.Enabled {
+		if EffectiveDeploymentForm(c.Deployment.Form) == "virtual" && !c.Deployment.Hardware.WirelessPassthrough {
+			return errors.New("wireless.enabled requires deployment.hardware.wireless_passthrough on virtual appliances")
+		}
 		if strings.TrimSpace(c.Wireless.Interface) == "" {
 			return errors.New("wireless.interface cannot be empty when wireless is enabled")
 		}

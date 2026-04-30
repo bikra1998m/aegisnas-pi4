@@ -6,6 +6,7 @@ Use it together with:
 
 - [Ubuntu Appliance Deployment](ubuntu-appliance-deployment.md)
 - [Deployment Profiles](deployment-profiles.md)
+- [Feature Capability Framework](feature-capability-framework.md)
 - [Wireless Access And UI Guide](wireless-access-ui-guide.md)
 - [External AAA Product Mode](external-aaa-product-mode.md)
 
@@ -69,6 +70,7 @@ Recommended mode:
 - use AegisNAS as gateway, portal, RADIUS, and AAA broker
 - use external APs or switches for actual client attachment
 - keep `wireless.enabled: false` if the VM does not have real Wi-Fi passthrough
+- set `deployment.hardware.wireless_passthrough: true` only when a real USB or PCI radio is attached to the VM
 
 Good fit:
 

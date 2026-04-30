@@ -397,9 +397,10 @@ portal:
 			"profile": "lite",
 			"form":    "virtual",
 			"hardware": map[string]any{
-				"memory_mb":          1024,
-				"cpu_cores":          4,
-				"prefer_external_ap": true,
+				"memory_mb":            1024,
+				"cpu_cores":            4,
+				"prefer_external_ap":   true,
+				"wireless_passthrough": true,
 			},
 		},
 		"policy": map[string]any{
@@ -438,6 +439,7 @@ portal:
 	assert.Equal(t, "virtual", next.Deployment.Form)
 	assert.False(t, next.Telemetry.Enabled)
 	assert.False(t, next.Policy.RuntimeShapingEnabled)
+	assert.True(t, next.Deployment.Hardware.WirelessPassthrough)
 
 	reloaded, err := Load(tmpfile.Name())
 	require.NoError(t, err)
@@ -448,6 +450,7 @@ portal:
 	assert.Equal(t, "virtual", reloaded.Deployment.Form)
 	assert.False(t, reloaded.Telemetry.Enabled)
 	assert.False(t, reloaded.Policy.RuntimeShapingEnabled)
+	assert.True(t, reloaded.Deployment.Hardware.WirelessPassthrough)
 }
 
 func TestDeploymentSummary(t *testing.T) {
@@ -456,9 +459,10 @@ func TestDeploymentSummary(t *testing.T) {
 			Profile: "lite",
 			Form:    "virtual",
 			Hardware: DeploymentHardwareConfig{
-				MemoryMB:         1024,
-				CPUCores:         2,
-				PreferExternalAP: true,
+				MemoryMB:            1024,
+				CPUCores:            2,
+				PreferExternalAP:    true,
+				WirelessPassthrough: false,
 			},
 		},
 		Policy: PolicyConfig{
@@ -486,4 +490,105 @@ func TestDeploymentSummary(t *testing.T) {
 	assert.Equal(t, "lite", summary["profile"])
 	assert.Equal(t, "virtual", summary["form"])
 	assert.NotEmpty(t, summary["service_plan"])
+	assert.NotEmpty(t, summary["capabilities"])
+}
+
+func TestConfigValidationVirtualWirelessRequiresPassthrough(t *testing.T) {
+	cfg := &Config{
+		Mode: "two-nic",
+		Deployment: DeploymentConfig{
+			Form: "virtual",
+		},
+		WAN:      InterfaceConfig{Name: "eth0"},
+		LAN:      InterfaceConfig{Name: "eth1"},
+		Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+		Health:   HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{
+			Enabled:        true,
+			PrometheusPort: 9090,
+		},
+		Radius: RadiusConfig{
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+		},
+		Portal: PortalConfig{
+			Enabled: true,
+		},
+		Wireless: WirelessConfig{
+			Enabled:        true,
+			Interface:      "wlan0",
+			CountryCode:    "US",
+			HWMode:         "g",
+			Channel:        6,
+			BeaconInterval: 100,
+			SSIDs: []SSIDConfig{
+				{Name: "Guest", AuthMode: "captive-portal"},
+			},
+		},
+	}
+
+	assert.ErrorContains(t, cfg.Validate(), "wireless.enabled requires deployment.hardware.wireless_passthrough")
+	cfg.Deployment.Hardware.WirelessPassthrough = true
+	assert.NoError(t, cfg.Validate())
+}
+
+func TestEvaluateFeatureCapabilities(t *testing.T) {
+	cfg := &Config{
+		Mode: "two-nic",
+		Deployment: DeploymentConfig{
+			Profile: "branch",
+			Form:    "virtual",
+			Hardware: DeploymentHardwareConfig{
+				MemoryMB:            8192,
+				CPUCores:            4,
+				PreferExternalAP:    false,
+				WirelessPassthrough: false,
+			},
+		},
+		WAN:      InterfaceConfig{Name: "eth0"},
+		LAN:      InterfaceConfig{Name: "eth1"},
+		Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+		Health:   HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{
+			Enabled:        true,
+			PrometheusPort: 9090,
+		},
+		Policy: PolicyConfig{
+			RuntimeShapingEnabled: true,
+		},
+		AILite: AILiteConfig{
+			Enabled: true,
+			Mode:    "full",
+		},
+		Radius: RadiusConfig{
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+			Upstream: RadiusUpstreamConfig{
+				Enabled:     true,
+				StatusCheck: "none",
+				Servers: []RadiusHomeServer{
+					{Name: "primary", Address: "10.0.0.10", Secret: "secret"},
+				},
+			},
+		},
+		Wireless: WirelessConfig{
+			Enabled: true,
+		},
+	}
+
+	capabilities := EvaluateFeatureCapabilities(cfg)
+	require.Len(t, capabilities, 5)
+
+	byKey := make(map[string]FeatureCapability, len(capabilities))
+	for _, capability := range capabilities {
+		byKey[capability.Key] = capability
+	}
+
+	assert.Equal(t, CapabilityBlocked, byKey["local_wireless"].State)
+	assert.Equal(t, CapabilityEnabled, byKey["runtime_shaping"].State)
+	assert.Equal(t, CapabilityBlocked, byKey["ai_mode"].State)
+	assert.Equal(t, CapabilityEnabled, byKey["telemetry"].State)
+	assert.Equal(t, CapabilityWarned, byKey["upstream_status_probes"].State)
 }

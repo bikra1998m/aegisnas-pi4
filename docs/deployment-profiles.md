@@ -15,6 +15,7 @@ The current implementation adds a profile-aware control plane through:
 Use this guide together with:
 
 - [Hardware Sizing And Deployment Matrix](hardware-sizing-and-deployment-matrix.md)
+- [Feature Capability Framework](feature-capability-framework.md)
 - [Ubuntu Appliance Deployment](ubuntu-appliance-deployment.md)
 - [Wireless Access And UI Guide](wireless-access-ui-guide.md)
 
@@ -32,6 +33,7 @@ Recommended direction:
 - disable runtime shaping
 - reduce `radius.max_sessions`
 - prefer external APs on VM builds
+- only turn on local wireless in VMs when `deployment.hardware.wireless_passthrough: true`
 - consider `radius.upstream.status_check: none`
 
 ### `branch`
@@ -44,6 +46,7 @@ Recommended direction:
 - `ailite.mode: lite`
 - telemetry on
 - runtime shaping on when needed
+- keep full AI blocked until `ailite.endpoint` and `ailite.model` are configured
 - normal upstream AAA probing
 - suitable for most pilot and branch appliance builds
 

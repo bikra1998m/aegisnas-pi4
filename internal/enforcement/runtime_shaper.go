@@ -189,23 +189,11 @@ func loadShapedSessions() ([]shapedSession, error) {
 }
 
 func ShapingInterface(cfg *config.Config) string {
-	if !RuntimeShapingEnabled(cfg) {
-		return ""
-	}
-	if cfg == nil {
-		return ""
-	}
-	if name := strings.TrimSpace(cfg.LAN.Name); name != "" {
-		return name
-	}
-	if cfg.Mode == "trunk" {
-		return strings.TrimSpace(cfg.WAN.Name)
-	}
-	return ""
+	return config.ShapingInterface(cfg)
 }
 
 func RuntimeShapingEnabled(cfg *config.Config) bool {
-	return cfg != nil && cfg.Policy.RuntimeShapingEnabled
+	return config.RuntimeShapingEnabled(cfg)
 }
 
 func CountShapedSessions() (int, error) {

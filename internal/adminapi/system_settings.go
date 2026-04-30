@@ -36,6 +36,28 @@ func HandleUpdateSystemSettings(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func HandleEvaluateSystemSettings(w http.ResponseWriter, r *http.Request) {
+	var payload map[string]any
+	if err := decodeBody(r, &payload); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	next, err := config.EvaluateSettingsMap(payload)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	validationErr := next.Validate()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":           "evaluated",
+		"valid":            validationErr == nil,
+		"validation_error": errorString(validationErr),
+		"deployment":       config.DeploymentSummary(next),
+	})
+}
+
 func HandlePreviewHostapdConfig(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	if cfg == nil {
@@ -138,4 +160,11 @@ func HandleImportSystemSettings(w http.ResponseWriter, r *http.Request) {
 		"restart_required": true,
 		"config_path":      config.Path(),
 	})
+}
+
+func errorString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }

@@ -27,29 +27,25 @@ func SaveSettingsMap(input map[string]any) (*Config, error) {
 		return nil, fmt.Errorf("settings payload cannot be empty")
 	}
 
-	base := SettingsSnapshot()
-	mergeMaps(base, input)
-
-	var next Config
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		TagName:          "mapstructure",
-		WeaklyTypedInput: true,
-		Result:           &next,
-	})
+	next, err := decodeSettingsMap(input)
 	if err != nil {
 		return nil, err
-	}
-	if err := decoder.Decode(base); err != nil {
-		return nil, fmt.Errorf("decode settings: %w", err)
 	}
 	if err := next.Validate(); err != nil {
 		return nil, err
 	}
-	if err := saveToDisk(&next); err != nil {
+	if err := saveToDisk(next); err != nil {
 		return nil, err
 	}
-	globalConfig = &next
+	globalConfig = next
 	return globalConfig, nil
+}
+
+func EvaluateSettingsMap(input map[string]any) (*Config, error) {
+	if input == nil {
+		return nil, fmt.Errorf("settings payload cannot be empty")
+	}
+	return decodeSettingsMap(input)
 }
 
 func saveToDisk(cfg *Config) error {
@@ -84,6 +80,25 @@ func mergeMaps(dst, src map[string]any) {
 		}
 		dst[key] = value
 	}
+}
+
+func decodeSettingsMap(input map[string]any) (*Config, error) {
+	base := SettingsSnapshot()
+	mergeMaps(base, input)
+
+	var next Config
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName:          "mapstructure",
+		WeaklyTypedInput: true,
+		Result:           &next,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := decoder.Decode(base); err != nil {
+		return nil, fmt.Errorf("decode settings: %w", err)
+	}
+	return &next, nil
 }
 
 func taggedValue(value reflect.Value) any {

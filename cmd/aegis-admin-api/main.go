@@ -86,6 +86,7 @@ var runCmd = &cobra.Command{
 			r.Get("/system/settings", adminapi.HandleGetSystemSettings)
 			r.Get("/system/status", adminapi.HandleGetSystemStatus)
 			r.Put("/system/settings", adminapi.HandleUpdateSystemSettings)
+			r.Post("/system/settings/evaluate", adminapi.HandleEvaluateSystemSettings)
 			r.Get("/system/settings/export", adminapi.HandleExportSystemSettings)
 			r.Post("/system/settings/import", adminapi.HandleImportSystemSettings)
 			r.Get("/system/hostapd-preview", adminapi.HandlePreviewHostapdConfig)

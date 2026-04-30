@@ -30,6 +30,15 @@ type UpstreamServerStatus = {
   supports_status_server: boolean;
 };
 
+type DeploymentCapability = {
+  key: string;
+  label: string;
+  state: 'enabled' | 'available' | 'warned' | 'degraded' | 'blocked';
+  active: boolean;
+  summary: string;
+  recommendation?: string;
+};
+
 type SystemStatus = {
   generated_at: string;
   summary: {
@@ -55,8 +64,10 @@ type SystemStatus = {
       memory_mb: number;
       cpu_cores: number;
       prefer_external_ap: boolean;
+      wireless_passthrough: boolean;
     };
     warnings: string[];
+    capabilities: DeploymentCapability[];
   };
   radius: {
     upstream_enabled: boolean;
@@ -101,6 +112,14 @@ const cardTone: Record<string, string> = {
   rose: 'bg-rose-100 text-rose-700',
   violet: 'bg-violet-100 text-violet-700',
   indigo: 'bg-indigo-100 text-indigo-700',
+};
+
+const capabilityTone: Record<DeploymentCapability['state'], string> = {
+  enabled: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  available: 'border-sky-200 bg-sky-50 text-sky-800',
+  warned: 'border-amber-200 bg-amber-50 text-amber-800',
+  degraded: 'border-orange-200 bg-orange-50 text-orange-800',
+  blocked: 'border-red-200 bg-red-50 text-red-800',
 };
 
 function MetricCard({
@@ -165,6 +184,7 @@ export default function Dashboard() {
 
   const services = systemStatus.services ?? [];
   const deploymentWarnings = systemStatus.deployment?.warnings ?? [];
+  const deploymentCapabilities = systemStatus.deployment?.capabilities ?? [];
   const configuredServers = systemStatus.radius?.configured_servers ?? [];
   const radiusServerStatuses = systemStatus.radius?.server_statuses ?? [];
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
@@ -243,6 +263,20 @@ export default function Dashboard() {
               <div className="mt-1 text-xs text-gray-500">
                 Recommended floor: {systemStatus.deployment.recommended_min_cores} cores and {systemStatus.deployment.recommended_min_memory} MB RAM.
               </div>
+            </div>
+            <div className="mt-4 grid gap-3">
+              {deploymentCapabilities.map((capability) => (
+                <div key={capability.key} className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-medium text-gray-900">{capability.label}</div>
+                      <div className="mt-1 text-sm text-gray-600">{capability.summary}</div>
+                    </div>
+                    <span className={`rounded-md border px-2 py-1 text-xs font-semibold uppercase ${capabilityTone[capability.state]}`}>{capability.state}</span>
+                  </div>
+                  {capability.recommendation ? <div className="mt-2 text-xs text-gray-500">{capability.recommendation}</div> : null}
+                </div>
+              ))}
             </div>
             <div className="mt-4 space-y-2">
               {deploymentWarnings.length === 0 ? (

@@ -3,6 +3,32 @@ import api from '../api/client';
 
 type JsonMap = Record<string, any>;
 type Option = { value: string; label: string };
+type DeploymentCapability = {
+  key: string;
+  label: string;
+  state: 'enabled' | 'available' | 'warned' | 'degraded' | 'blocked';
+  active: boolean;
+  summary: string;
+  recommendation?: string;
+  dependencies?: string[];
+};
+
+type DeploymentPreview = {
+  profile: string;
+  form: string;
+  label: string;
+  summary: string;
+  recommended_min_memory: number;
+  recommended_min_cores: number;
+  hardware: {
+    memory_mb: number;
+    cpu_cores: number;
+    prefer_external_ap: boolean;
+    wireless_passthrough: boolean;
+  };
+  warnings: string[];
+  capabilities: DeploymentCapability[];
+};
 
 const defaultSettings: JsonMap = {
   mode: 'two-nic',
@@ -14,6 +40,7 @@ const defaultSettings: JsonMap = {
       memory_mb: 4096,
       cpu_cores: 2,
       prefer_external_ap: false,
+      wireless_passthrough: false,
     },
   },
   wan: { name: '', dhcp: true, address: '', gateway: '', dhcp_range: '' },
@@ -135,6 +162,14 @@ const aiProviderOptions: Option[] = [
   { value: 'local', label: 'Local Rules' },
   { value: 'openai-compatible', label: 'OpenAI Compatible' },
 ];
+
+const capabilityTone: Record<DeploymentCapability['state'], string> = {
+  enabled: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  available: 'border-sky-200 bg-sky-50 text-sky-800',
+  warned: 'border-amber-200 bg-amber-50 text-amber-800',
+  degraded: 'border-orange-200 bg-orange-50 text-orange-800',
+  blocked: 'border-red-200 bg-red-50 text-red-800',
+};
 
 function deploymentProfileSummary(profile: string, form: string) {
   if (profile === 'lite') {
@@ -289,6 +324,7 @@ function ToggleField({ label, checked, onChange }: { label: string; checked: boo
 
 export default function AccessSettings() {
   const [settings, setSettings] = useState<JsonMap>(clone(defaultSettings));
+  const [deploymentPreview, setDeploymentPreview] = useState<DeploymentPreview | null>(null);
   const [roles, setRoles] = useState<Option[]>([]);
   const [portalProfiles, setPortalProfiles] = useState<Option[]>([]);
   const [identitySources, setIdentitySources] = useState<Option[]>([]);
@@ -300,9 +336,11 @@ export default function AccessSettings() {
   const [applyingRadius, setApplyingRadius] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [previewError, setPreviewError] = useState('');
   const [hostapdPreview, setHostapdPreview] = useState('');
   const [hostapdPath, setHostapdPath] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const evaluateTimerRef = useRef<number | null>(null);
 
   const updateField = (path: string[], value: any) => {
     setSettings((current) => {
@@ -353,6 +391,35 @@ export default function AccessSettings() {
   useEffect(() => {
     loadSettings();
   }, []);
+
+  const evaluateSettings = async (candidate: JsonMap) => {
+    try {
+      const { data } = await api.post('/system/settings/evaluate', candidate);
+      setDeploymentPreview(data.deployment || null);
+      setPreviewError(data.valid ? '' : data.validation_error || 'This draft needs more deployment input before it is production-safe.');
+    } catch (err: any) {
+      setPreviewError(err.response?.data || err.message || 'Could not evaluate deployment capabilities.');
+    }
+  };
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    if (evaluateTimerRef.current) {
+      window.clearTimeout(evaluateTimerRef.current);
+    }
+    evaluateTimerRef.current = window.setTimeout(() => {
+      evaluateSettings(settings);
+    }, 250);
+
+    return () => {
+      if (evaluateTimerRef.current) {
+        window.clearTimeout(evaluateTimerRef.current);
+      }
+    };
+  }, [settings, loading]);
 
   const saveSettings = async () => {
     setSaving(true);
@@ -453,6 +520,8 @@ export default function AccessSettings() {
   const upstreamServers = settings.radius?.upstream?.servers || [];
   const vendorAttributes = settings.radius?.vendor?.attributes || [];
   const ssids = settings.wireless?.ssids || [];
+  const deploymentCapabilities = deploymentPreview?.capabilities || [];
+  const deploymentWarnings = deploymentPreview?.warnings || [];
 
   if (loading) {
     return <div className="text-gray-600">Loading access settings...</div>;
@@ -518,9 +587,14 @@ export default function AccessSettings() {
           </button>
         </div>
         <div className="mb-4 rounded-md border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-          {deploymentProfileSummary(settings.deployment?.profile || 'branch', settings.deployment?.form || 'physical')}
+          {deploymentPreview?.summary || deploymentProfileSummary(settings.deployment?.profile || 'branch', settings.deployment?.form || 'physical')}
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        {previewError ? (
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {previewError}
+          </div>
+        ) : null}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
           <SelectField
             label="Profile"
             value={settings.deployment?.profile || 'branch'}
@@ -550,6 +624,11 @@ export default function AccessSettings() {
             checked={Boolean(settings.deployment?.hardware?.prefer_external_ap)}
             onChange={(value) => updateField(['deployment', 'hardware', 'prefer_external_ap'], value)}
           />
+          <ToggleField
+            label="Wi-Fi Passthrough Radio"
+            checked={Boolean(settings.deployment?.hardware?.wireless_passthrough)}
+            onChange={(value) => updateField(['deployment', 'hardware', 'wireless_passthrough'], value)}
+          />
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <ToggleField label="AI Engine Enabled" checked={Boolean(settings.ailite?.enabled)} onChange={(value) => updateField(['ailite', 'enabled'], value)} />
@@ -559,6 +638,55 @@ export default function AccessSettings() {
             checked={Boolean(settings.policy?.runtime_shaping_enabled)}
             onChange={(value) => updateField(['policy', 'runtime_shaping_enabled'], value)}
           />
+        </div>
+        <div className="mt-4 rounded-md border border-gray-200 px-4 py-3 text-sm text-gray-600">
+          Production preview: {deploymentPreview?.form || settings.deployment?.form || 'physical'} form,{' '}
+          {deploymentPreview?.hardware?.cpu_cores ?? settings.deployment?.hardware?.cpu_cores ?? 'unknown'} cores,{' '}
+          {deploymentPreview?.hardware?.memory_mb ?? settings.deployment?.hardware?.memory_mb ?? 'unknown'} MB RAM.
+          {deploymentPreview ? (
+            <span className="block mt-1 text-xs text-gray-500">
+              Recommended floor: {deploymentPreview.recommended_min_cores} cores and {deploymentPreview.recommended_min_memory} MB RAM.
+            </span>
+          ) : null}
+        </div>
+        <div className="mt-6">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h4 className="font-semibold text-gray-900">Phase 1 Capability Preview</h4>
+              <p className="mt-1 text-sm text-gray-600">These states are evaluated from the draft in the editor, not just the last saved config.</p>
+            </div>
+            <div className="text-xs text-gray-500">Production deploy standard</div>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+            {deploymentCapabilities.map((capability) => (
+              <div key={capability.key} className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">{capability.label}</div>
+                    <div className="mt-1 text-sm text-gray-600">{capability.summary}</div>
+                  </div>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-semibold uppercase ${capabilityTone[capability.state]}`}>{capability.state}</span>
+                </div>
+                {capability.recommendation ? <div className="mt-3 text-xs text-gray-500">{capability.recommendation}</div> : null}
+                {capability.dependencies?.length ? (
+                  <div className="mt-2 text-xs text-gray-500">Depends on: {capability.dependencies.join(', ')}</div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 space-y-2">
+            {deploymentWarnings.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600">
+                This draft lines up cleanly with the selected deployment profile.
+              </div>
+            ) : (
+              deploymentWarnings.map((warning, index) => (
+                <div key={`deployment-preview-warning-${index}`} className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  {warning}
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </section>
 

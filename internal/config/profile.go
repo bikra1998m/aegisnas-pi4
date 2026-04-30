@@ -76,6 +76,7 @@ func DeploymentSummary(cfg *Config) map[string]any {
 	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
 	form := EffectiveDeploymentForm(cfg.Deployment.Form)
 	preset := deploymentPresetFor(profile, form)
+	capabilities := EvaluateFeatureCapabilities(cfg)
 
 	return map[string]any{
 		"profile":                profile,
@@ -85,9 +86,10 @@ func DeploymentSummary(cfg *Config) map[string]any {
 		"recommended_min_memory": preset.RecommendedMinMemoryMB,
 		"recommended_min_cores":  preset.RecommendedMinCPUCores,
 		"hardware": map[string]any{
-			"memory_mb":          cfg.Deployment.Hardware.MemoryMB,
-			"cpu_cores":          cfg.Deployment.Hardware.CPUCores,
-			"prefer_external_ap": cfg.Deployment.Hardware.PreferExternalAP,
+			"memory_mb":            cfg.Deployment.Hardware.MemoryMB,
+			"cpu_cores":            cfg.Deployment.Hardware.CPUCores,
+			"prefer_external_ap":   cfg.Deployment.Hardware.PreferExternalAP,
+			"wireless_passthrough": cfg.Deployment.Hardware.WirelessPassthrough,
 		},
 		"recommended": map[string]any{
 			"ai_lite_enabled":       preset.RecommendedAILite,
@@ -119,7 +121,8 @@ func DeploymentSummary(cfg *Config) map[string]any {
 			"optional":            deploymentOptionalServices(cfg),
 			"disabled_by_profile": deploymentDisabledServices(cfg),
 		},
-		"warnings": deploymentWarnings(cfg, preset),
+		"capabilities": capabilities,
+		"warnings":     deploymentWarnings(cfg, preset, capabilities),
 	}
 }
 
@@ -255,7 +258,7 @@ func deploymentDisabledServices(cfg *Config) []string {
 	return services
 }
 
-func deploymentWarnings(cfg *Config, preset deploymentPreset) []string {
+func deploymentWarnings(cfg *Config, preset deploymentPreset, capabilities []FeatureCapability) []string {
 	if cfg == nil {
 		return []string{}
 	}
@@ -267,31 +270,36 @@ func deploymentWarnings(cfg *Config, preset deploymentPreset) []string {
 	if cores := cfg.Deployment.Hardware.CPUCores; cores > 0 && cores < preset.RecommendedMinCPUCores {
 		warnings = append(warnings, "Configured CPU cores are below the recommended minimum for this deployment profile.")
 	}
-	if EffectiveDeploymentForm(cfg.Deployment.Form) == "virtual" && cfg.Wireless.Enabled {
-		warnings = append(warnings, "Virtual form is using local wireless. Use an external AP unless PCI or USB Wi-Fi passthrough is available.")
+	capabilityIndex := make(map[string]FeatureCapability, len(capabilities))
+	for _, capability := range capabilities {
+		capabilityIndex[capability.Key] = capability
 	}
-	if cfg.Deployment.Hardware.MemoryMB > 0 && cfg.Deployment.Hardware.MemoryMB < 2048 {
-		if cfg.AILite.Enabled {
-			warnings = append(warnings, "AI Lite is enabled on a very low-memory target. Consider disabling it for constrained hardware.")
+	for _, key := range []string{"local_wireless", "runtime_shaping", "ai_mode", "telemetry", "upstream_status_probes"} {
+		capability, ok := capabilityIndex[key]
+		if !ok || !capability.Active {
+			continue
 		}
-		if cfg.Telemetry.Enabled {
-			warnings = append(warnings, "Telemetry is enabled on a very low-memory target. Consider disabling it or reducing retention expectations.")
-		}
-		if cfg.Policy.RuntimeShapingEnabled {
-			warnings = append(warnings, "Runtime shaping is enabled on a very low-memory target. Consider disabling it unless bandwidth policy is essential.")
+		switch capability.State {
+		case CapabilityWarned, CapabilityDegraded, CapabilityBlocked:
+			warnings = append(warnings, capability.Summary)
 		}
 	}
-	if EffectiveDeploymentProfile(cfg.Deployment.Profile) == "lite" && cfg.Radius.Upstream.StatusCheck == "status-server" {
-		warnings = append(warnings, "Lite profile is still using active upstream Status-Server probes. Consider switching to status_check: none on constrained hardware.")
+
+	return dedupeWarnings(warnings)
+}
+
+func dedupeWarnings(warnings []string) []string {
+	if len(warnings) == 0 {
+		return warnings
 	}
-	if cfg.AILite.Enabled && EffectiveAIMode(cfg) == "full" && strings.TrimSpace(cfg.AILite.Endpoint) == "" {
-		warnings = append(warnings, "Full AI mode is selected but no AI provider endpoint is configured.")
+	seen := make(map[string]struct{}, len(warnings))
+	out := make([]string, 0, len(warnings))
+	for _, warning := range warnings {
+		if _, exists := seen[warning]; exists {
+			continue
+		}
+		seen[warning] = struct{}{}
+		out = append(out, warning)
 	}
-	if cfg.AILite.Enabled && EffectiveAIMode(cfg) == "lite" && cfg.Deployment.Hardware.MemoryMB >= 8192 && cfg.Deployment.Hardware.CPUCores >= 4 {
-		warnings = append(warnings, "High-capacity hardware is using AI Lite. Switch ailite.mode to full to use the full AI provider.")
-	}
-	if cfg.Deployment.Hardware.PreferExternalAP && cfg.Wireless.Enabled {
-		warnings = append(warnings, "External AP preference is enabled while local wireless is also enabled. Pick one radio model for predictable operations.")
-	}
-	return warnings
+	return out
 }
