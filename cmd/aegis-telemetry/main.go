@@ -70,6 +70,7 @@ var runCmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		go telemetry.StartAlertMonitor(ctx, time.Minute, logger)
+		go telemetry.StartSIEMExporter(ctx, 30*time.Second, cfg, logger)
 
 		r := chi.NewRouter()
 		r.Use(middleware.Logger)

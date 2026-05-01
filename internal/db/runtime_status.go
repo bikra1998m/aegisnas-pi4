@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -68,4 +69,32 @@ func GetRuntimeStatuses() ([]RuntimeStatus, error) {
 		statuses = append(statuses, status)
 	}
 	return statuses, rows.Err()
+}
+
+func GetRuntimeStatus(component string) (*RuntimeStatus, error) {
+	if DB == nil {
+		return nil, nil
+	}
+	component = strings.TrimSpace(component)
+	if component == "" {
+		return nil, fmt.Errorf("component is required")
+	}
+
+	var (
+		status  RuntimeStatus
+		details string
+	)
+	err := DB.QueryRow(`SELECT component, status, COALESCE(message, ''), COALESCE(details, '{}'), updated_at
+		FROM runtime_status WHERE component = ?`, component).
+		Scan(&status.Component, &status.Status, &status.Message, &details, &status.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if strings.TrimSpace(details) != "" && details != "{}" {
+		_ = json.Unmarshal([]byte(details), &status.Details)
+	}
+	return &status, nil
 }

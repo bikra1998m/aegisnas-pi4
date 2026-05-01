@@ -147,6 +147,33 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		enforcementStatus["shaper"] = map[string]any{"status": "disabled", "message": "No downstream interface is configured for runtime shaping"}
 	}
 
+	integrationsStatus := map[string]any{
+		"siem": map[string]any{
+			"enabled":    cfg.Integrations.SIEM.Enabled,
+			"provider":   cfg.Integrations.SIEM.Provider,
+			"endpoint":   cfg.Integrations.SIEM.Endpoint,
+			"batch_size": cfg.Integrations.SIEM.BatchSize,
+			"export":     runtimeMap["siem_export"],
+		},
+	}
+	if !cfg.Integrations.SIEM.Enabled {
+		integrationsStatus["siem"] = map[string]any{
+			"enabled":    false,
+			"provider":   cfg.Integrations.SIEM.Provider,
+			"endpoint":   cfg.Integrations.SIEM.Endpoint,
+			"batch_size": cfg.Integrations.SIEM.BatchSize,
+			"export":     map[string]any{"status": "disabled", "message": "SIEM export is disabled in config"},
+		}
+	} else if !cfg.Telemetry.Enabled {
+		integrationsStatus["siem"] = map[string]any{
+			"enabled":    true,
+			"provider":   cfg.Integrations.SIEM.Provider,
+			"endpoint":   cfg.Integrations.SIEM.Endpoint,
+			"batch_size": cfg.Integrations.SIEM.BatchSize,
+			"export":     map[string]any{"status": "degraded", "message": "Telemetry service is disabled, so SIEM export is not running."},
+		}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"generated_at": time.Now().UTC().Format(time.RFC3339),
 		"summary": map[string]any{
@@ -160,11 +187,12 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"total_services":        len(services),
 			"session_methods":       authMethods,
 		},
-		"services":    services,
-		"deployment":  config.DeploymentSummary(cfg),
-		"radius":      radiusStatus,
-		"wireless":    wirelessStatus,
-		"enforcement": enforcementStatus,
+		"services":     services,
+		"deployment":   config.DeploymentSummary(cfg),
+		"radius":       radiusStatus,
+		"wireless":     wirelessStatus,
+		"enforcement":  enforcementStatus,
+		"integrations": integrationsStatus,
 	})
 }
 

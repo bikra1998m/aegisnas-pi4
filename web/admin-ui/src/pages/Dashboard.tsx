@@ -14,6 +14,7 @@ type ServiceStatus = {
 type RuntimeStatus = {
   status?: string;
   message?: string;
+  details?: Record<string, any>;
   updated_at?: string;
 };
 
@@ -94,6 +95,15 @@ type SystemStatus = {
     shaping_interface: string;
     shaped_sessions: number;
     shaper: RuntimeStatus;
+  };
+  integrations: {
+    siem: {
+      enabled: boolean;
+      provider: string;
+      endpoint: string;
+      batch_size: number;
+      export: RuntimeStatus;
+    };
   };
 };
 
@@ -422,6 +432,32 @@ export default function Dashboard() {
                     <div className="mt-1 text-xs text-gray-500">{systemStatus.enforcement.shaper?.message || 'No shaping status recorded yet.'}</div>
                   </div>
                   <StatusBadge status={systemStatus.enforcement.shaper?.status || (systemStatus.enforcement.shaping_enabled ? 'unknown' : 'disabled')} />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-lg bg-white p-6 shadow">
+            <h3 className="text-lg font-semibold text-gray-900">External Integrations</h3>
+            <div className="mt-4 space-y-3">
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">SIEM Export</div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.integrations.siem.enabled
+                        ? `${systemStatus.integrations.siem.provider || 'Provider unset'} batch size ${systemStatus.integrations.siem.batch_size || 0}.`
+                        : 'Configure webhook, Splunk HEC, or Elastic export when you need external event delivery.'}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">{systemStatus.integrations.siem.export?.message || 'No SIEM runtime status recorded yet.'}</div>
+                    {systemStatus.integrations.siem.endpoint ? (
+                      <div className="mt-1 text-xs text-gray-500 break-all">{systemStatus.integrations.siem.endpoint}</div>
+                    ) : null}
+                    {systemStatus.integrations.siem.export?.updated_at ? (
+                      <div className="mt-1 text-xs text-gray-500">Updated {systemStatus.integrations.siem.export.updated_at}</div>
+                    ) : null}
+                  </div>
+                  <StatusBadge status={systemStatus.integrations.siem.export?.status || (systemStatus.integrations.siem.enabled ? 'unknown' : 'disabled')} />
                 </div>
               </div>
             </div>
