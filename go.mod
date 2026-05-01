@@ -3,6 +3,7 @@ module github.com/yourorg/aegisnas-pi4
 go 1.25.0
 
 require (
+	github.com/coreos/go-oidc/v3 v3.18.0
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-chi/cors v1.2.2
 	github.com/go-ldap/ldap/v3 v3.4.13
@@ -13,11 +14,14 @@ require (
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.48.0
+	golang.org/x/oauth2 v0.36.0
 	golang.org/x/time v0.5.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	layeh.com/radius v0.0.0-20231213012653-1006025d24f8
 	modernc.org/sqlite v1.48.2
 )
+
+require github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 
 require (
 	github.com/Azure/go-ntlmssp v0.1.0 // indirect
@@ -31,7 +35,7 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mitchellh/mapstructure v1.5.0 
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect

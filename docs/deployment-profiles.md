@@ -227,6 +227,7 @@ integrations:
     provider: oidc
     issuer_url: https://idp.example.com/.well-known/openid-configuration
     client_id: aegisnas-admin
+    client_secret_env: AEGIS_ADMIN_SSO_CLIENT_SECRET
     redirect_url: https://admin.example.com/auth/callback
     groups_claim: groups
   siem:

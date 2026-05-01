@@ -512,7 +512,7 @@ Phase 4 validation rules:
 
 - authoritative MDM or UEM sync is enterprise-only and requires provider, endpoint, and cache window
 - posture can rely on MDM only when MDM sync is explicitly enabled, otherwise it must use a compliance webhook
-- admin SSO requires provider, issuer or metadata URL, client ID, and redirect URL
+- admin SSO requires provider, issuer or metadata URL, client ID, and redirect URL; an optional client secret env can be supplied for confidential-client OIDC deployments
 - SIEM export requires provider, endpoint, API key env, and positive batch size
 - controller automation requires platform, endpoint, API token env, sync mode, and the external AP model
 - delegated admin requires admin SSO or LDAP, and external-group RBAC requires a groups claim or LDAP group mapping
@@ -520,10 +520,11 @@ Phase 4 validation rules:
 
 Current runtime implementation after Phase 4:
 
+- the admin API supports OIDC admin SSO with state, nonce, PKCE, and short-lived internal admin sessions while leaving break-glass token login available
 - the telemetry service exports audit logs and alerts to `webhook`, `splunk-hec`, or `elastic`
 - export cursors are stored in `runtime_status` instead of requiring a new migration
 - failed deliveries degrade only the integration path and do not block authentication, session handling, or portal traffic
-- the dashboard surfaces live SIEM export state, provider, endpoint, and last runtime message for operators
+- the dashboard surfaces live admin SSO and SIEM export state, provider, endpoint or redirect target, and last runtime message for operators
 
 This phase makes the integration story deployable without pretending that every downstream connector is fully implemented. It gives operators a truthful model for what can be turned on safely, what still belongs to enterprise hardware, and what dependencies must exist before a production rollout should trust those integrations.
 

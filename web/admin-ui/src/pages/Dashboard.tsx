@@ -97,6 +97,14 @@ type SystemStatus = {
     shaper: RuntimeStatus;
   };
   integrations: {
+    admin_sso: {
+      enabled: boolean;
+      provider: string;
+      issuer_url: string;
+      redirect_url: string;
+      groups_claim: string;
+      session: RuntimeStatus;
+    };
     siem: {
       enabled: boolean;
       provider: string;
@@ -440,6 +448,26 @@ export default function Dashboard() {
           <section className="rounded-lg bg-white p-6 shadow">
             <h3 className="text-lg font-semibold text-gray-900">External Integrations</h3>
             <div className="mt-4 space-y-3">
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">Admin SSO</div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.integrations.admin_sso.enabled
+                        ? `${systemStatus.integrations.admin_sso.provider || 'Provider unset'} admin sign-in is configured.`
+                        : 'Token login remains available until you enable admin SSO.'}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">{systemStatus.integrations.admin_sso.session?.message || 'No admin SSO runtime status recorded yet.'}</div>
+                    {systemStatus.integrations.admin_sso.redirect_url ? (
+                      <div className="mt-1 text-xs text-gray-500 break-all">{systemStatus.integrations.admin_sso.redirect_url}</div>
+                    ) : null}
+                    {systemStatus.integrations.admin_sso.session?.updated_at ? (
+                      <div className="mt-1 text-xs text-gray-500">Updated {systemStatus.integrations.admin_sso.session.updated_at}</div>
+                    ) : null}
+                  </div>
+                  <StatusBadge status={systemStatus.integrations.admin_sso.session?.status || (systemStatus.integrations.admin_sso.enabled ? 'unknown' : 'disabled')} />
+                </div>
+              </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>

@@ -13,6 +13,8 @@ import (
 type contextKey string
 
 const userContextKey contextKey = "user"
+const tokenHashContextKey contextKey = "token_hash"
+const tokenDescriptionContextKey contextKey = "token_description"
 
 // AuthMiddleware validates the Bearer token.
 func AuthMiddleware(next http.Handler) http.Handler {
@@ -51,6 +53,8 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			user = "api-token"
 		}
 		ctx := context.WithValue(r.Context(), userContextKey, user)
+		ctx = context.WithValue(ctx, tokenHashContextKey, tokenHash)
+		ctx = context.WithValue(ctx, tokenDescriptionContextKey, description)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -58,4 +62,18 @@ func AuthMiddleware(next http.Handler) http.Handler {
 func hashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+func tokenHashFromRequest(r *http.Request) string {
+	if value, ok := r.Context().Value(tokenHashContextKey).(string); ok {
+		return value
+	}
+	return ""
+}
+
+func tokenDescriptionFromRequest(r *http.Request) string {
+	if value, ok := r.Context().Value(tokenDescriptionContextKey).(string); ok {
+		return value
+	}
+	return ""
 }

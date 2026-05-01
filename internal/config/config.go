@@ -244,12 +244,13 @@ type IntegrationsConfig struct {
 }
 
 type AdminSSOConfig struct {
-	Enabled     bool   `mapstructure:"enabled"`
-	Provider    string `mapstructure:"provider"`
-	IssuerURL   string `mapstructure:"issuer_url"`
-	ClientID    string `mapstructure:"client_id"`
-	RedirectURL string `mapstructure:"redirect_url"`
-	GroupsClaim string `mapstructure:"groups_claim"`
+	Enabled         bool   `mapstructure:"enabled"`
+	Provider        string `mapstructure:"provider"`
+	IssuerURL       string `mapstructure:"issuer_url"`
+	ClientID        string `mapstructure:"client_id"`
+	ClientSecretEnv string `mapstructure:"client_secret_env"`
+	RedirectURL     string `mapstructure:"redirect_url"`
+	GroupsClaim     string `mapstructure:"groups_claim"`
 }
 
 type SIEMConfig struct {

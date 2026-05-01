@@ -183,6 +183,7 @@ integrations:
     provider: "" # oidc or saml.
     issuer_url: ""
     client_id: ""
+    client_secret_env: ""
     redirect_url: ""
     groups_claim: ""
   siem:

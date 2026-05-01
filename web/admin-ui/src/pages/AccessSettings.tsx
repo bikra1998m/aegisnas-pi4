@@ -95,6 +95,7 @@ const defaultSettings: JsonMap = {
       provider: '',
       issuer_url: '',
       client_id: '',
+      client_secret_env: '',
       redirect_url: '',
       groups_claim: '',
     },
@@ -1217,6 +1218,12 @@ export default function AccessSettings() {
             value={settings.integrations?.admin_sso?.client_id || ''}
             onChange={(value) => updateField(['integrations', 'admin_sso', 'client_id'], value)}
             placeholder="aegisnas-admin"
+          />
+          <TextField
+            label="Client Secret Env"
+            value={settings.integrations?.admin_sso?.client_secret_env || ''}
+            onChange={(value) => updateField(['integrations', 'admin_sso', 'client_secret_env'], value)}
+            placeholder="AEGIS_ADMIN_SSO_CLIENT_SECRET"
           />
           <TextField
             label="Redirect URL"

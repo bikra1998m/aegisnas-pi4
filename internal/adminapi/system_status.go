@@ -148,6 +148,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	integrationsStatus := map[string]any{
+		"admin_sso": map[string]any{
+			"enabled":      cfg.Integrations.AdminSSO.Enabled,
+			"provider":     cfg.Integrations.AdminSSO.Provider,
+			"issuer_url":   cfg.Integrations.AdminSSO.IssuerURL,
+			"redirect_url": cfg.Integrations.AdminSSO.RedirectURL,
+			"groups_claim": cfg.Integrations.AdminSSO.GroupsClaim,
+			"session":      runtimeMap["admin_sso"],
+		},
 		"siem": map[string]any{
 			"enabled":    cfg.Integrations.SIEM.Enabled,
 			"provider":   cfg.Integrations.SIEM.Provider,
@@ -155,6 +163,25 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"batch_size": cfg.Integrations.SIEM.BatchSize,
 			"export":     runtimeMap["siem_export"],
 		},
+	}
+	if !cfg.Integrations.AdminSSO.Enabled {
+		integrationsStatus["admin_sso"] = map[string]any{
+			"enabled":      false,
+			"provider":     cfg.Integrations.AdminSSO.Provider,
+			"issuer_url":   cfg.Integrations.AdminSSO.IssuerURL,
+			"redirect_url": cfg.Integrations.AdminSSO.RedirectURL,
+			"groups_claim": cfg.Integrations.AdminSSO.GroupsClaim,
+			"session":      map[string]any{"status": "disabled", "message": "Admin SSO is disabled in config"},
+		}
+	} else if !strings.EqualFold(strings.TrimSpace(cfg.Integrations.AdminSSO.Provider), "oidc") {
+		integrationsStatus["admin_sso"] = map[string]any{
+			"enabled":      true,
+			"provider":     cfg.Integrations.AdminSSO.Provider,
+			"issuer_url":   cfg.Integrations.AdminSSO.IssuerURL,
+			"redirect_url": cfg.Integrations.AdminSSO.RedirectURL,
+			"groups_claim": cfg.Integrations.AdminSSO.GroupsClaim,
+			"session":      map[string]any{"status": "degraded", "message": "Only OIDC admin SSO is available in this release."},
+		}
 	}
 	if !cfg.Integrations.SIEM.Enabled {
 		integrationsStatus["siem"] = map[string]any{

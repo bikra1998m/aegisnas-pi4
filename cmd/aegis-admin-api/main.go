@@ -79,10 +79,20 @@ var runCmd = &cobra.Command{
 		// Public health endpoint
 		health.RegisterRoutes(r)
 
+		r.Route("/api/v1", func(r chi.Router) {
+			r.Get("/auth/options", adminapi.HandleAdminAuthOptions)
+			r.Get("/auth/sso/start", adminapi.HandleAdminSSOStart)
+		})
+
+		if callbackPath := adminapi.AdminSSOCallbackPath(cfg); callbackPath != "" {
+			r.Get(callbackPath, adminapi.HandleAdminSSOCallback)
+		}
+
 		// API routes (protected)
 		r.Route("/api/v1", func(r chi.Router) {
 			r.Use(adminapi.AuthMiddleware)
 			r.Get("/auth/validate", adminapi.HandleValidateToken)
+			r.Post("/auth/logout", adminapi.HandleLogout)
 			r.Get("/system/settings", adminapi.HandleGetSystemSettings)
 			r.Get("/system/status", adminapi.HandleGetSystemStatus)
 			r.Put("/system/settings", adminapi.HandleUpdateSystemSettings)
