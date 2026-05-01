@@ -12,25 +12,27 @@ import (
 )
 
 type Config struct {
-	Mode       string           `mapstructure:"mode"`
-	Deployment DeploymentConfig `mapstructure:"deployment"`
-	WAN        InterfaceConfig  `mapstructure:"wan"`
-	LAN        InterfaceConfig  `mapstructure:"lan"`
-	VLANs      []VLANConfig     `mapstructure:"vlans"`
-	Database   DatabaseConfig   `mapstructure:"database"`
-	Logging    LoggingConfig    `mapstructure:"logging"`
-	Health     HealthConfig     `mapstructure:"health"`
-	Radius     RadiusConfig     `mapstructure:"radius"`
-	Portal     PortalConfig     `mapstructure:"portal"`
-	LDAP       LDAPConfig       `mapstructure:"ldap"`
-	Policy     PolicyConfig     `mapstructure:"policy"`
-	Telemetry  TelemetryConfig  `mapstructure:"telemetry"`
-	AILite     AILiteConfig     `mapstructure:"ailite"`
-	Onboarding OnboardingConfig `mapstructure:"onboarding"`
-	Profiling  ProfilingConfig  `mapstructure:"profiling"`
-	DHCP       DHCPConfig       `mapstructure:"dhcp"`
-	Wireless   WirelessConfig   `mapstructure:"wireless"`
-	AdminPort  int              `mapstructure:"admin_port"`
+	Mode         string             `mapstructure:"mode"`
+	Deployment   DeploymentConfig   `mapstructure:"deployment"`
+	WAN          InterfaceConfig    `mapstructure:"wan"`
+	LAN          InterfaceConfig    `mapstructure:"lan"`
+	VLANs        []VLANConfig       `mapstructure:"vlans"`
+	Database     DatabaseConfig     `mapstructure:"database"`
+	Logging      LoggingConfig      `mapstructure:"logging"`
+	Health       HealthConfig       `mapstructure:"health"`
+	Radius       RadiusConfig       `mapstructure:"radius"`
+	Portal       PortalConfig       `mapstructure:"portal"`
+	LDAP         LDAPConfig         `mapstructure:"ldap"`
+	Policy       PolicyConfig       `mapstructure:"policy"`
+	Telemetry    TelemetryConfig    `mapstructure:"telemetry"`
+	AILite       AILiteConfig       `mapstructure:"ailite"`
+	Onboarding   OnboardingConfig   `mapstructure:"onboarding"`
+	Profiling    ProfilingConfig    `mapstructure:"profiling"`
+	Integrations IntegrationsConfig `mapstructure:"integrations"`
+	Governance   GovernanceConfig   `mapstructure:"governance"`
+	DHCP         DHCPConfig         `mapstructure:"dhcp"`
+	Wireless     WirelessConfig     `mapstructure:"wireless"`
+	AdminPort    int                `mapstructure:"admin_port"`
 }
 
 type DeploymentConfig struct {
@@ -227,10 +229,52 @@ type ProfilingConfig struct {
 	PollIntervalSeconds int    `mapstructure:"poll_interval_seconds"`
 	RetentionHours      int    `mapstructure:"retention_hours"`
 	PostureEnabled      bool   `mapstructure:"posture_enabled"`
+	MDMSyncEnabled      bool   `mapstructure:"mdm_sync_enabled"`
 	MDMProvider         string `mapstructure:"mdm_provider"`
 	MDMEndpoint         string `mapstructure:"mdm_endpoint"`
+	MDMCacheHours       int    `mapstructure:"mdm_cache_hours"`
 	ComplianceWebhook   string `mapstructure:"compliance_webhook"`
 	RemediationEnabled  bool   `mapstructure:"remediation_enabled"`
+}
+
+type IntegrationsConfig struct {
+	AdminSSO   AdminSSOConfig   `mapstructure:"admin_sso"`
+	SIEM       SIEMConfig       `mapstructure:"siem"`
+	Controller ControllerConfig `mapstructure:"controller"`
+}
+
+type AdminSSOConfig struct {
+	Enabled     bool   `mapstructure:"enabled"`
+	Provider    string `mapstructure:"provider"`
+	IssuerURL   string `mapstructure:"issuer_url"`
+	ClientID    string `mapstructure:"client_id"`
+	RedirectURL string `mapstructure:"redirect_url"`
+	GroupsClaim string `mapstructure:"groups_claim"`
+}
+
+type SIEMConfig struct {
+	Enabled   bool   `mapstructure:"enabled"`
+	Provider  string `mapstructure:"provider"`
+	Endpoint  string `mapstructure:"endpoint"`
+	APIKeyEnv string `mapstructure:"api_key_env"`
+	BatchSize int    `mapstructure:"batch_size"`
+}
+
+type ControllerConfig struct {
+	Enabled     bool   `mapstructure:"enabled"`
+	Platform    string `mapstructure:"platform"`
+	Endpoint    string `mapstructure:"endpoint"`
+	APITokenEnv string `mapstructure:"api_token_env"`
+	SyncMode    string `mapstructure:"sync_mode"`
+	Site        string `mapstructure:"site"`
+}
+
+type GovernanceConfig struct {
+	DelegatedAdminEnabled bool   `mapstructure:"delegated_admin_enabled"`
+	RBACMode              string `mapstructure:"rbac_mode"`
+	ExternalGroupsEnabled bool   `mapstructure:"external_groups_enabled"`
+	MultiTenantEnabled    bool   `mapstructure:"multi_tenant_enabled"`
+	TenantClaim           string `mapstructure:"tenant_claim"`
 }
 
 type WirelessConfig struct {
@@ -306,6 +350,11 @@ func Load(configPath string) (*Config, error) {
 	v.SetDefault("onboarding.ca_mode", "none")
 	v.SetDefault("profiling.poll_interval_seconds", 300)
 	v.SetDefault("profiling.retention_hours", 24)
+	v.SetDefault("profiling.mdm_sync_enabled", false)
+	v.SetDefault("profiling.mdm_cache_hours", 12)
+	v.SetDefault("integrations.siem.batch_size", 100)
+	v.SetDefault("integrations.controller.sync_mode", "monitor")
+	v.SetDefault("governance.rbac_mode", "local")
 	v.SetDefault("dhcp.enabled", true)
 	v.SetDefault("dhcp.lease_time", "12h")
 	v.SetDefault("dhcp.authoritative", true)
@@ -535,6 +584,9 @@ func (c *Config) Validate() error {
 	if c.Profiling.RetentionHours < 0 {
 		return fmt.Errorf("profiling.retention_hours %d cannot be negative", c.Profiling.RetentionHours)
 	}
+	if c.Profiling.MDMCacheHours < 0 {
+		return fmt.Errorf("profiling.mdm_cache_hours %d cannot be negative", c.Profiling.MDMCacheHours)
+	}
 	if c.Profiling.MDMEndpoint != "" {
 		if err := requireHTTPURL("profiling.mdm_endpoint", c.Profiling.MDMEndpoint); err != nil {
 			return err
@@ -604,6 +656,20 @@ func (c *Config) Validate() error {
 			return errors.New("profiling.passive_enabled requires profiling.poll_interval_seconds to be at least 30")
 		}
 	}
+	if c.Profiling.MDMSyncEnabled {
+		if profile != "enterprise" {
+			return errors.New("profiling.mdm_sync_enabled is only supported on the enterprise deployment profile")
+		}
+		if strings.TrimSpace(c.Profiling.MDMProvider) == "" {
+			return errors.New("profiling.mdm_sync_enabled requires profiling.mdm_provider")
+		}
+		if strings.TrimSpace(c.Profiling.MDMEndpoint) == "" {
+			return errors.New("profiling.mdm_sync_enabled requires profiling.mdm_endpoint")
+		}
+		if c.Profiling.MDMCacheHours == 0 {
+			return errors.New("profiling.mdm_sync_enabled requires profiling.mdm_cache_hours to be greater than zero")
+		}
+	}
 	if c.Profiling.PostureEnabled {
 		if profile != "enterprise" {
 			return errors.New("profiling.posture_enabled is only supported on the enterprise deployment profile")
@@ -613,6 +679,100 @@ func (c *Config) Validate() error {
 		}
 		if !profilingIntegrationReady(c) {
 			return errors.New("profiling.posture_enabled requires an MDM endpoint or compliance webhook")
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Integrations.AdminSSO.Provider)) {
+	case "", "oidc", "saml":
+	default:
+		return fmt.Errorf("integrations.admin_sso.provider %q is invalid", c.Integrations.AdminSSO.Provider)
+	}
+	if c.Integrations.AdminSSO.IssuerURL != "" {
+		if err := requireHTTPURL("integrations.admin_sso.issuer_url", c.Integrations.AdminSSO.IssuerURL); err != nil {
+			return err
+		}
+	}
+	if c.Integrations.AdminSSO.RedirectURL != "" {
+		if err := requireHTTPURL("integrations.admin_sso.redirect_url", c.Integrations.AdminSSO.RedirectURL); err != nil {
+			return err
+		}
+	}
+	if c.Integrations.AdminSSO.Enabled {
+		if profile == "lite" {
+			return errors.New("integrations.admin_sso.enabled is not supported on the lite deployment profile")
+		}
+		if !adminSSOConfigured(c) {
+			return errors.New("integrations.admin_sso.enabled requires provider, issuer_url, client_id, and redirect_url")
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Integrations.SIEM.Provider)) {
+	case "", "webhook", "splunk-hec", "elastic":
+	default:
+		return fmt.Errorf("integrations.siem.provider %q is invalid", c.Integrations.SIEM.Provider)
+	}
+	if c.Integrations.SIEM.Endpoint != "" {
+		if err := requireHTTPURL("integrations.siem.endpoint", c.Integrations.SIEM.Endpoint); err != nil {
+			return err
+		}
+	}
+	if c.Integrations.SIEM.BatchSize < 0 {
+		return fmt.Errorf("integrations.siem.batch_size %d cannot be negative", c.Integrations.SIEM.BatchSize)
+	}
+	if c.Integrations.SIEM.Enabled {
+		if !siemConfigured(c) {
+			return errors.New("integrations.siem.enabled requires provider, endpoint, api_key_env, and positive batch_size")
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Integrations.Controller.Platform)) {
+	case "", "generic", "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik":
+	default:
+		return fmt.Errorf("integrations.controller.platform %q is invalid", c.Integrations.Controller.Platform)
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Integrations.Controller.SyncMode)) {
+	case "", "monitor", "push-config", "coa-only":
+	default:
+		return fmt.Errorf("integrations.controller.sync_mode %q is invalid", c.Integrations.Controller.SyncMode)
+	}
+	if c.Integrations.Controller.Endpoint != "" {
+		if err := requireHTTPURL("integrations.controller.endpoint", c.Integrations.Controller.Endpoint); err != nil {
+			return err
+		}
+	}
+	if c.Integrations.Controller.Enabled {
+		if profile == "lite" {
+			return errors.New("integrations.controller.enabled is not supported on the lite deployment profile")
+		}
+		if !controllerConfigured(c) {
+			return errors.New("integrations.controller.enabled requires platform, endpoint, api_token_env, and sync_mode")
+		}
+		if c.Wireless.Enabled {
+			return errors.New("integrations.controller.enabled requires the external AP model; disable wireless.enabled before turning on controller automation")
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Governance.RBACMode)) {
+	case "", "local", "external-groups", "hybrid":
+	default:
+		return fmt.Errorf("governance.rbac_mode %q is invalid", c.Governance.RBACMode)
+	}
+	if c.Governance.DelegatedAdminEnabled {
+		if profile == "lite" {
+			return errors.New("governance.delegated_admin_enabled is not supported on the lite deployment profile")
+		}
+		if !delegatedAdminIdentityReady(c) {
+			return errors.New("governance.delegated_admin_enabled requires integrations.admin_sso.enabled or ldap.enabled")
+		}
+		if strings.EqualFold(strings.TrimSpace(c.Governance.RBACMode), "external-groups") && !adminGroupSourceReady(c) {
+			return errors.New("governance.rbac_mode=external-groups requires admin SSO groups_claim or LDAP group configuration")
+		}
+	}
+	if c.Governance.MultiTenantEnabled {
+		if profile != "enterprise" {
+			return errors.New("governance.multi_tenant_enabled is only supported on the enterprise deployment profile")
+		}
+		if !c.Governance.DelegatedAdminEnabled {
+			return errors.New("governance.multi_tenant_enabled requires governance.delegated_admin_enabled")
+		}
+		if c.Integrations.AdminSSO.Enabled && strings.TrimSpace(c.Governance.TenantClaim) == "" {
+			return errors.New("governance.multi_tenant_enabled requires governance.tenant_claim when admin SSO is enabled")
 		}
 	}
 	aiMode := EffectiveAIMode(c)
@@ -912,8 +1072,53 @@ func profilingIntegrationReady(c *Config) bool {
 	if c == nil {
 		return false
 	}
-	return (strings.TrimSpace(c.Profiling.MDMProvider) != "" && strings.TrimSpace(c.Profiling.MDMEndpoint) != "") ||
+	return (c.Profiling.MDMSyncEnabled && strings.TrimSpace(c.Profiling.MDMProvider) != "" && strings.TrimSpace(c.Profiling.MDMEndpoint) != "") ||
 		strings.TrimSpace(c.Profiling.ComplianceWebhook) != ""
+}
+
+func adminSSOConfigured(c *Config) bool {
+	if c == nil {
+		return false
+	}
+	return strings.TrimSpace(c.Integrations.AdminSSO.Provider) != "" &&
+		strings.TrimSpace(c.Integrations.AdminSSO.IssuerURL) != "" &&
+		strings.TrimSpace(c.Integrations.AdminSSO.ClientID) != "" &&
+		strings.TrimSpace(c.Integrations.AdminSSO.RedirectURL) != ""
+}
+
+func siemConfigured(c *Config) bool {
+	if c == nil {
+		return false
+	}
+	return strings.TrimSpace(c.Integrations.SIEM.Provider) != "" &&
+		strings.TrimSpace(c.Integrations.SIEM.Endpoint) != "" &&
+		strings.TrimSpace(c.Integrations.SIEM.APIKeyEnv) != "" &&
+		c.Integrations.SIEM.BatchSize > 0
+}
+
+func controllerConfigured(c *Config) bool {
+	if c == nil {
+		return false
+	}
+	return strings.TrimSpace(c.Integrations.Controller.Platform) != "" &&
+		strings.TrimSpace(c.Integrations.Controller.Endpoint) != "" &&
+		strings.TrimSpace(c.Integrations.Controller.APITokenEnv) != "" &&
+		strings.TrimSpace(c.Integrations.Controller.SyncMode) != ""
+}
+
+func delegatedAdminIdentityReady(c *Config) bool {
+	if c == nil {
+		return false
+	}
+	return c.Integrations.AdminSSO.Enabled || c.LDAP.Enabled
+}
+
+func adminGroupSourceReady(c *Config) bool {
+	if c == nil {
+		return false
+	}
+	return (c.Integrations.AdminSSO.Enabled && strings.TrimSpace(c.Integrations.AdminSSO.GroupsClaim) != "") ||
+		(c.LDAP.Enabled && strings.TrimSpace(c.LDAP.GroupFilter) != "")
 }
 
 func requireHTTPURL(fieldName, raw string) error {

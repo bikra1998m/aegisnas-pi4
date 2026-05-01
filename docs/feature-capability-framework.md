@@ -486,6 +486,40 @@ Add integration-aware gating:
 - external controller-aware workflows
 - delegated admin and RBAC
 
+Phase 4 adds production-safe config controls under:
+
+- `profiling.mdm_sync_enabled`
+- `profiling.mdm_cache_hours`
+- `integrations.admin_sso.*`
+- `integrations.siem.*`
+- `integrations.controller.*`
+- `governance.delegated_admin_enabled`
+- `governance.rbac_mode`
+- `governance.external_groups_enabled`
+- `governance.multi_tenant_enabled`
+- `governance.tenant_claim`
+
+Phase 4 capability preview now evaluates:
+
+- `mdm_uem_integration`
+- `siem_webhook_export`
+- `controller_automation`
+- `admin_sso`
+- `delegated_admin_rbac`
+- `multi_tenant_governance`
+
+Phase 4 validation rules:
+
+- authoritative MDM or UEM sync is enterprise-only and requires provider, endpoint, and cache window
+- posture can rely on MDM only when MDM sync is explicitly enabled, otherwise it must use a compliance webhook
+- admin SSO requires provider, issuer or metadata URL, client ID, and redirect URL
+- SIEM export requires provider, endpoint, API key env, and positive batch size
+- controller automation requires platform, endpoint, API token env, sync mode, and the external AP model
+- delegated admin requires admin SSO or LDAP, and external-group RBAC requires a groups claim or LDAP group mapping
+- multi-tenant governance is enterprise-only and requires delegated admin; when admin SSO is active it also needs a tenant claim
+
+This phase makes the integration story deployable without pretending that every downstream connector is fully implemented. It gives operators a truthful model for what can be turned on safely, what still belongs to enterprise hardware, and what dependencies must exist before a production rollout should trust those integrations.
+
 ## Product Positioning Outcome
 
 If this framework is implemented cleanly, AegisNAS can become:

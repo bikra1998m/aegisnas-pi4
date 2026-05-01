@@ -170,10 +170,41 @@ profiling:
   poll_interval_seconds: 300
   retention_hours: 24
   posture_enabled: false
+  mdm_sync_enabled: false
   mdm_provider: ""
   mdm_endpoint: ""
+  mdm_cache_hours: 12
   compliance_webhook: ""
   remediation_enabled: false
+
+integrations:
+  admin_sso:
+    enabled: false
+    provider: "" # oidc or saml.
+    issuer_url: ""
+    client_id: ""
+    redirect_url: ""
+    groups_claim: ""
+  siem:
+    enabled: false
+    provider: "" # webhook, splunk-hec, or elastic.
+    endpoint: ""
+    api_key_env: "AEGIS_SIEM_API_KEY"
+    batch_size: 100
+  controller:
+    enabled: false
+    platform: "" # generic, cisco, aruba, juniper-mist, ruckus, fortinet, or mikrotik.
+    endpoint: ""
+    api_token_env: "AEGIS_CONTROLLER_API_TOKEN"
+    sync_mode: "monitor" # monitor, push-config, or coa-only.
+    site: ""
+
+governance:
+  delegated_admin_enabled: false
+  rbac_mode: "local" # local, external-groups, or hybrid.
+  external_groups_enabled: false
+  multi_tenant_enabled: false
+  tenant_claim: ""
 
 dhcp:
   enabled: true

@@ -82,10 +82,44 @@ const defaultSettings: JsonMap = {
     poll_interval_seconds: 300,
     retention_hours: 24,
     posture_enabled: false,
+    mdm_sync_enabled: false,
     mdm_provider: '',
     mdm_endpoint: '',
+    mdm_cache_hours: 12,
     compliance_webhook: '',
     remediation_enabled: false,
+  },
+  integrations: {
+    admin_sso: {
+      enabled: false,
+      provider: '',
+      issuer_url: '',
+      client_id: '',
+      redirect_url: '',
+      groups_claim: '',
+    },
+    siem: {
+      enabled: false,
+      provider: '',
+      endpoint: '',
+      api_key_env: 'AEGIS_SIEM_API_KEY',
+      batch_size: 100,
+    },
+    controller: {
+      enabled: false,
+      platform: '',
+      endpoint: '',
+      api_token_env: 'AEGIS_CONTROLLER_API_TOKEN',
+      sync_mode: 'monitor',
+      site: '',
+    },
+  },
+  governance: {
+    delegated_admin_enabled: false,
+    rbac_mode: 'local',
+    external_groups_enabled: false,
+    multi_tenant_enabled: false,
+    tenant_claim: '',
   },
   portal: {
     enabled: true,
@@ -213,6 +247,42 @@ const caModeOptions: Option[] = [
   { value: 'external', label: 'External Enrollment API' },
 ];
 
+const adminSSOProviderOptions: Option[] = [
+  { value: '', label: 'Select provider' },
+  { value: 'oidc', label: 'OIDC' },
+  { value: 'saml', label: 'SAML' },
+];
+
+const siemProviderOptions: Option[] = [
+  { value: '', label: 'Select export type' },
+  { value: 'webhook', label: 'Generic Webhook' },
+  { value: 'splunk-hec', label: 'Splunk HEC' },
+  { value: 'elastic', label: 'Elastic HTTP' },
+];
+
+const controllerPlatformOptions: Option[] = [
+  { value: '', label: 'Select controller' },
+  { value: 'generic', label: 'Generic REST' },
+  { value: 'cisco', label: 'Cisco' },
+  { value: 'aruba', label: 'Aruba' },
+  { value: 'juniper-mist', label: 'Juniper Mist' },
+  { value: 'ruckus', label: 'Ruckus' },
+  { value: 'fortinet', label: 'Fortinet' },
+  { value: 'mikrotik', label: 'MikroTik' },
+];
+
+const controllerSyncOptions: Option[] = [
+  { value: 'monitor', label: 'Monitor Only' },
+  { value: 'push-config', label: 'Push Config' },
+  { value: 'coa-only', label: 'CoA Only' },
+];
+
+const rbacModeOptions: Option[] = [
+  { value: 'local', label: 'Local Roles' },
+  { value: 'external-groups', label: 'External Groups' },
+  { value: 'hybrid', label: 'Hybrid' },
+];
+
 const capabilityTone: Record<DeploymentCapability['state'], string> = {
   enabled: 'border-emerald-200 bg-emerald-50 text-emerald-800',
   available: 'border-sky-200 bg-sky-50 text-sky-800',
@@ -252,6 +322,11 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.ailite = next.ailite || {};
   next.onboarding = next.onboarding || {};
   next.profiling = next.profiling || {};
+  next.integrations = next.integrations || {};
+  next.integrations.admin_sso = next.integrations.admin_sso || {};
+  next.integrations.siem = next.integrations.siem || {};
+  next.integrations.controller = next.integrations.controller || {};
+  next.governance = next.governance || {};
   next.portal = next.portal || {};
   next.portal.guest_workflows = next.portal.guest_workflows || {};
   next.radius = next.radius || {};
@@ -279,6 +354,12 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.onboarding.ca_mode = 'none';
     next.profiling.passive_enabled = false;
     next.profiling.posture_enabled = false;
+    next.profiling.mdm_sync_enabled = false;
+    next.integrations.admin_sso.enabled = false;
+    next.integrations.siem.enabled = false;
+    next.integrations.controller.enabled = false;
+    next.governance.delegated_admin_enabled = false;
+    next.governance.multi_tenant_enabled = false;
   } else if (profile === 'enterprise') {
     next.ailite.enabled = true;
     next.ailite.mode = 'full';
@@ -295,6 +376,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.onboarding.ca_mode = next.onboarding.ca_mode || 'none';
     next.profiling.poll_interval_seconds = next.profiling.poll_interval_seconds || 300;
     next.profiling.retention_hours = next.profiling.retention_hours || 24;
+    next.profiling.mdm_cache_hours = next.profiling.mdm_cache_hours || 12;
+    next.integrations.siem.batch_size = next.integrations.siem.batch_size || 100;
+    next.integrations.controller.sync_mode = next.integrations.controller.sync_mode || 'monitor';
+    next.governance.rbac_mode = next.governance.rbac_mode || 'local';
   } else if (profile === 'custom') {
     next.radius.max_sessions = next.radius.max_sessions || 1024;
     next.ailite.mode = next.ailite.mode || 'lite';
@@ -1032,6 +1117,11 @@ export default function AccessSettings() {
               onChange={(value) => updateField(['profiling', 'posture_enabled'], value)}
             />
             <ToggleField
+              label="MDM/UEM Sync Enabled"
+              checked={Boolean(settings.profiling?.mdm_sync_enabled)}
+              onChange={(value) => updateField(['profiling', 'mdm_sync_enabled'], value)}
+            />
+            <ToggleField
               label="Remediation Enabled"
               checked={Boolean(settings.profiling?.remediation_enabled)}
               onChange={(value) => updateField(['profiling', 'remediation_enabled'], value)}
@@ -1051,6 +1141,12 @@ export default function AccessSettings() {
               onChange={(value) => updateField(['profiling', 'retention_hours'], Number(value))}
             />
             <TextField
+              label="MDM Cache Hours"
+              type="number"
+              value={settings.profiling?.mdm_cache_hours || 12}
+              onChange={(value) => updateField(['profiling', 'mdm_cache_hours'], Number(value))}
+            />
+            <TextField
               label="MDM Provider"
               value={settings.profiling?.mdm_provider || ''}
               onChange={(value) => updateField(['profiling', 'mdm_provider'], value)}
@@ -1067,6 +1163,157 @@ export default function AccessSettings() {
               value={settings.profiling?.compliance_webhook || ''}
               onChange={(value) => updateField(['profiling', 'compliance_webhook'], value)}
               placeholder="https://ops.example.com/compliance"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Integrations, Controller Workflows, And Governance</h3>
+          <p className="mt-1 text-sm text-gray-600">Phase 4 turns integration-heavy features into explicit production choices so MDM sync, SIEM export, controller automation, and admin delegation only light up when their dependencies are real.</p>
+        </div>
+        <div className="mb-4">
+          <h4 className="font-semibold text-gray-900">Admin Identity And Governance</h4>
+          <p className="mt-1 text-sm text-gray-600">Use this area for SSO-backed admin access, delegated operations, and enterprise tenant boundaries.</p>
+        </div>
+        <div className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <ToggleField
+            label="Admin SSO Enabled"
+            checked={Boolean(settings.integrations?.admin_sso?.enabled)}
+            onChange={(value) => updateField(['integrations', 'admin_sso', 'enabled'], value)}
+          />
+          <ToggleField
+            label="Delegated Admin Enabled"
+            checked={Boolean(settings.governance?.delegated_admin_enabled)}
+            onChange={(value) => updateField(['governance', 'delegated_admin_enabled'], value)}
+          />
+          <ToggleField
+            label="External Group Mapping"
+            checked={Boolean(settings.governance?.external_groups_enabled)}
+            onChange={(value) => updateField(['governance', 'external_groups_enabled'], value)}
+          />
+          <ToggleField
+            label="Multi-Tenant Enabled"
+            checked={Boolean(settings.governance?.multi_tenant_enabled)}
+            onChange={(value) => updateField(['governance', 'multi_tenant_enabled'], value)}
+          />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <SelectField
+            label="Admin SSO Provider"
+            value={settings.integrations?.admin_sso?.provider || ''}
+            onChange={(value) => updateField(['integrations', 'admin_sso', 'provider'], value)}
+            options={adminSSOProviderOptions}
+          />
+          <TextField
+            label="Issuer / Metadata URL"
+            value={settings.integrations?.admin_sso?.issuer_url || ''}
+            onChange={(value) => updateField(['integrations', 'admin_sso', 'issuer_url'], value)}
+            placeholder="https://idp.example.com/.well-known/openid-configuration"
+          />
+          <TextField
+            label="Client ID"
+            value={settings.integrations?.admin_sso?.client_id || ''}
+            onChange={(value) => updateField(['integrations', 'admin_sso', 'client_id'], value)}
+            placeholder="aegisnas-admin"
+          />
+          <TextField
+            label="Redirect URL"
+            value={settings.integrations?.admin_sso?.redirect_url || ''}
+            onChange={(value) => updateField(['integrations', 'admin_sso', 'redirect_url'], value)}
+            placeholder="https://admin.example.com/auth/callback"
+          />
+          <TextField
+            label="Groups Claim"
+            value={settings.integrations?.admin_sso?.groups_claim || ''}
+            onChange={(value) => updateField(['integrations', 'admin_sso', 'groups_claim'], value)}
+            placeholder="groups"
+          />
+          <SelectField
+            label="RBAC Mode"
+            value={settings.governance?.rbac_mode || 'local'}
+            onChange={(value) => updateField(['governance', 'rbac_mode'], value)}
+            options={rbacModeOptions}
+          />
+          <TextField
+            label="Tenant Claim"
+            value={settings.governance?.tenant_claim || ''}
+            onChange={(value) => updateField(['governance', 'tenant_claim'], value)}
+            placeholder="tenant"
+          />
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-4">
+            <h4 className="font-semibold text-gray-900">SIEM And Controller Integrations</h4>
+            <p className="mt-1 text-sm text-gray-600">Use these for webhook-grade observability exports and controller-aware Wi-Fi operations in external AP deployments.</p>
+          </div>
+          <div className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="SIEM Export Enabled"
+              checked={Boolean(settings.integrations?.siem?.enabled)}
+              onChange={(value) => updateField(['integrations', 'siem', 'enabled'], value)}
+            />
+            <ToggleField
+              label="Controller Automation Enabled"
+              checked={Boolean(settings.integrations?.controller?.enabled)}
+              onChange={(value) => updateField(['integrations', 'controller', 'enabled'], value)}
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <SelectField
+              label="SIEM Provider"
+              value={settings.integrations?.siem?.provider || ''}
+              onChange={(value) => updateField(['integrations', 'siem', 'provider'], value)}
+              options={siemProviderOptions}
+            />
+            <TextField
+              label="SIEM Endpoint"
+              value={settings.integrations?.siem?.endpoint || ''}
+              onChange={(value) => updateField(['integrations', 'siem', 'endpoint'], value)}
+              placeholder="https://siem.example.com/collect"
+            />
+            <TextField
+              label="SIEM API Key Env"
+              value={settings.integrations?.siem?.api_key_env || ''}
+              onChange={(value) => updateField(['integrations', 'siem', 'api_key_env'], value)}
+              placeholder="AEGIS_SIEM_API_KEY"
+            />
+            <TextField
+              label="SIEM Batch Size"
+              type="number"
+              value={settings.integrations?.siem?.batch_size || 100}
+              onChange={(value) => updateField(['integrations', 'siem', 'batch_size'], Number(value))}
+            />
+            <SelectField
+              label="Controller Platform"
+              value={settings.integrations?.controller?.platform || ''}
+              onChange={(value) => updateField(['integrations', 'controller', 'platform'], value)}
+              options={controllerPlatformOptions}
+            />
+            <TextField
+              label="Controller Endpoint"
+              value={settings.integrations?.controller?.endpoint || ''}
+              onChange={(value) => updateField(['integrations', 'controller', 'endpoint'], value)}
+              placeholder="https://controller.example.com/api"
+            />
+            <TextField
+              label="Controller API Token Env"
+              value={settings.integrations?.controller?.api_token_env || ''}
+              onChange={(value) => updateField(['integrations', 'controller', 'api_token_env'], value)}
+              placeholder="AEGIS_CONTROLLER_API_TOKEN"
+            />
+            <SelectField
+              label="Controller Sync Mode"
+              value={settings.integrations?.controller?.sync_mode || 'monitor'}
+              onChange={(value) => updateField(['integrations', 'controller', 'sync_mode'], value)}
+              options={controllerSyncOptions}
+            />
+            <TextField
+              label="Controller Site"
+              value={settings.integrations?.controller?.site || ''}
+              onChange={(value) => updateField(['integrations', 'controller', 'site'], value)}
+              placeholder="branch-west-01"
             />
           </div>
         </div>

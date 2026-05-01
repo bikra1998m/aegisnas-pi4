@@ -585,6 +585,40 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 			PollIntervalSeconds: 300,
 			RetentionHours:      24,
 			PostureEnabled:      false,
+			MDMSyncEnabled:      true,
+			MDMProvider:         "workspace-one-like",
+			MDMEndpoint:         "https://mdm.example.com/api",
+			MDMCacheHours:       12,
+		},
+		Integrations: IntegrationsConfig{
+			AdminSSO: AdminSSOConfig{
+				Enabled:     true,
+				Provider:    "oidc",
+				IssuerURL:   "https://idp.example.com/.well-known/openid-configuration",
+				ClientID:    "aegisnas-admin",
+				RedirectURL: "https://admin.example.com/auth/callback",
+				GroupsClaim: "groups",
+			},
+			SIEM: SIEMConfig{
+				Enabled:   true,
+				Provider:  "webhook",
+				Endpoint:  "https://siem.example.com/collect",
+				APIKeyEnv: "AEGIS_SIEM_API_KEY",
+				BatchSize: 100,
+			},
+			Controller: ControllerConfig{
+				Enabled:     true,
+				Platform:    "aruba",
+				Endpoint:    "https://controller.example.com/api",
+				APITokenEnv: "AEGIS_CONTROLLER_API_TOKEN",
+				SyncMode:    "monitor",
+			},
+		},
+		Governance: GovernanceConfig{
+			DelegatedAdminEnabled: true,
+			RBACMode:              "hybrid",
+			ExternalGroupsEnabled: true,
+			MultiTenantEnabled:    false,
 		},
 		AILite: AILiteConfig{
 			Enabled: true,
@@ -608,7 +642,7 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	}
 
 	capabilities := EvaluateFeatureCapabilities(cfg)
-	require.Len(t, capabilities, 14)
+	require.Len(t, capabilities, 20)
 
 	byKey := make(map[string]FeatureCapability, len(capabilities))
 	for _, capability := range capabilities {
@@ -629,6 +663,12 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	assert.Equal(t, CapabilityBlocked, byKey["eap_tls_onboarding"].State)
 	assert.Equal(t, CapabilityWarned, byKey["passive_profiling"].State)
 	assert.Equal(t, CapabilityBlocked, byKey["posture_checks"].State)
+	assert.Equal(t, CapabilityBlocked, byKey["mdm_uem_integration"].State)
+	assert.Equal(t, CapabilityEnabled, byKey["siem_webhook_export"].State)
+	assert.Equal(t, CapabilityBlocked, byKey["controller_automation"].State)
+	assert.Equal(t, CapabilityWarned, byKey["admin_sso"].State)
+	assert.Equal(t, CapabilityWarned, byKey["delegated_admin_rbac"].State)
+	assert.Equal(t, CapabilityBlocked, byKey["multi_tenant_governance"].State)
 }
 
 func TestConfigValidationGuestWorkflows(t *testing.T) {
@@ -738,8 +778,41 @@ func TestConfigValidationOnboardingAndProfiling(t *testing.T) {
 				PollIntervalSeconds: 300,
 				RetentionHours:      24,
 				PostureEnabled:      true,
+				MDMSyncEnabled:      true,
 				MDMProvider:         "workspace-one-like",
 				MDMEndpoint:         "https://mdm.example.com/api",
+				MDMCacheHours:       12,
+			},
+			Integrations: IntegrationsConfig{
+				AdminSSO: AdminSSOConfig{
+					Enabled:     true,
+					Provider:    "oidc",
+					IssuerURL:   "https://idp.example.com/.well-known/openid-configuration",
+					ClientID:    "aegisnas-admin",
+					RedirectURL: "https://admin.example.com/auth/callback",
+					GroupsClaim: "groups",
+				},
+				SIEM: SIEMConfig{
+					Enabled:   true,
+					Provider:  "webhook",
+					Endpoint:  "https://siem.example.com/collect",
+					APIKeyEnv: "AEGIS_SIEM_API_KEY",
+					BatchSize: 100,
+				},
+				Controller: ControllerConfig{
+					Enabled:     true,
+					Platform:    "aruba",
+					Endpoint:    "https://controller.example.com/api",
+					APITokenEnv: "AEGIS_CONTROLLER_API_TOKEN",
+					SyncMode:    "monitor",
+				},
+			},
+			Governance: GovernanceConfig{
+				DelegatedAdminEnabled: true,
+				RBACMode:              "hybrid",
+				ExternalGroupsEnabled: true,
+				MultiTenantEnabled:    true,
+				TenantClaim:           "tenant",
 			},
 		}
 	}
@@ -768,7 +841,108 @@ func TestConfigValidationOnboardingAndProfiling(t *testing.T) {
 	assert.ErrorContains(t, badPolling.Validate(), "profiling.passive_enabled requires profiling.poll_interval_seconds to be at least 30")
 
 	noComplianceSource := base()
+	noComplianceSource.Profiling.MDMSyncEnabled = false
 	noComplianceSource.Profiling.MDMProvider = ""
 	noComplianceSource.Profiling.MDMEndpoint = ""
 	assert.ErrorContains(t, noComplianceSource.Validate(), "profiling.posture_enabled requires an MDM endpoint or compliance webhook")
+}
+
+func TestConfigValidationPhase4Integrations(t *testing.T) {
+	base := func() *Config {
+		return &Config{
+			Mode:      "two-nic",
+			WAN:       InterfaceConfig{Name: "eth0"},
+			LAN:       InterfaceConfig{Name: "eth1"},
+			Database:  DatabaseConfig{Path: "/tmp/aegis.db"},
+			Health:    HealthConfig{Port: 8080},
+			Telemetry: TelemetryConfig{Enabled: true, PrometheusPort: 9090},
+			Portal: PortalConfig{
+				Enabled: true,
+			},
+			Radius: RadiusConfig{
+				AuthPort:              1812,
+				AcctPort:              1813,
+				RequestTimeoutSeconds: 5,
+			},
+			Deployment: DeploymentConfig{
+				Profile: "enterprise",
+				Hardware: DeploymentHardwareConfig{
+					MemoryMB:         16384,
+					CPUCores:         8,
+					PreferExternalAP: true,
+				},
+			},
+			Profiling: ProfilingConfig{
+				MDMSyncEnabled: true,
+				MDMProvider:    "workspace-one-like",
+				MDMEndpoint:    "https://mdm.example.com/api",
+				MDMCacheHours:  12,
+			},
+			Integrations: IntegrationsConfig{
+				AdminSSO: AdminSSOConfig{
+					Enabled:     true,
+					Provider:    "oidc",
+					IssuerURL:   "https://idp.example.com/.well-known/openid-configuration",
+					ClientID:    "aegisnas-admin",
+					RedirectURL: "https://admin.example.com/auth/callback",
+					GroupsClaim: "groups",
+				},
+				SIEM: SIEMConfig{
+					Enabled:   true,
+					Provider:  "webhook",
+					Endpoint:  "https://siem.example.com/collect",
+					APIKeyEnv: "AEGIS_SIEM_API_KEY",
+					BatchSize: 100,
+				},
+				Controller: ControllerConfig{
+					Enabled:     true,
+					Platform:    "aruba",
+					Endpoint:    "https://controller.example.com/api",
+					APITokenEnv: "AEGIS_CONTROLLER_API_TOKEN",
+					SyncMode:    "monitor",
+				},
+			},
+			Governance: GovernanceConfig{
+				DelegatedAdminEnabled: true,
+				RBACMode:              "hybrid",
+				ExternalGroupsEnabled: true,
+				MultiTenantEnabled:    true,
+				TenantClaim:           "tenant",
+			},
+		}
+	}
+
+	valid := base()
+	assert.NoError(t, valid.Validate())
+
+	liteSSO := base()
+	liteSSO.Deployment.Profile = "lite"
+	liteSSO.Profiling.MDMSyncEnabled = false
+	assert.ErrorContains(t, liteSSO.Validate(), "integrations.admin_sso.enabled is not supported on the lite deployment profile")
+
+	branchMDM := base()
+	branchMDM.Deployment.Profile = "branch"
+	assert.ErrorContains(t, branchMDM.Validate(), "profiling.mdm_sync_enabled is only supported on the enterprise deployment profile")
+
+	badController := base()
+	badController.Wireless.Enabled = true
+	badController.Wireless.Interface = "wlan0"
+	badController.Wireless.CountryCode = "US"
+	badController.Wireless.HWMode = "g"
+	badController.Wireless.Channel = 6
+	badController.Wireless.BeaconInterval = 100
+	badController.Wireless.SSIDs = []SSIDConfig{{Name: "Guest", AuthMode: "captive-portal"}}
+	assert.ErrorContains(t, badController.Validate(), "requires the external AP model")
+
+	badDelegation := base()
+	badDelegation.Integrations.AdminSSO.Enabled = false
+	assert.ErrorContains(t, badDelegation.Validate(), "governance.delegated_admin_enabled requires integrations.admin_sso.enabled or ldap.enabled")
+
+	badSIEM := base()
+	badSIEM.Integrations.SIEM.APIKeyEnv = ""
+	assert.ErrorContains(t, badSIEM.Validate(), "integrations.siem.enabled requires provider, endpoint, api_key_env, and positive batch_size")
+
+	badTenant := base()
+	badTenant.Governance.TenantClaim = ""
+	assert.ErrorContains(t, badTenant.Validate(), "governance.multi_tenant_enabled requires governance.tenant_claim when admin SSO is enabled")
 }

@@ -79,6 +79,7 @@ Good fit:
 - admin UI operation and manual workflow testing
 - guest workflow rehearsals with self-registration and sponsor approval left off
 - Phase 3 preview validation for onboarding and profiling with the features still disabled
+- Phase 4 preview validation for SIEM export, controller automation, and admin SSO with the integrations still disabled
 
 Less ideal for:
 
@@ -116,6 +117,7 @@ Good fit:
 - a few APs or a small downstream switch
 - branch deployments with light to moderate enterprise auth
 - device inventory pilot work without certificate enrollment or posture
+- no authoritative MDM sync, controller automation, or delegated admin
 
 Important notes:
 
@@ -130,6 +132,8 @@ This is the recommended default production tier.
 This is also the first tier where guest self-registration and sponsor approval should be treated as normal production features, provided SMTP or SMS delivery is configured and tested.
 
 This is also the first tier where device inventory, onboarding portal pilots, and passive profiling should be considered normal production-adjacent features, as long as certificate enrollment and posture remain off unless the site is intentionally moving into enterprise-grade onboarding.
+
+This is also the first tier where SIEM export, controller automation, and lighter admin SSO or delegated-admin workflows are reasonable production goals.
 
 Recommended baseline:
 
@@ -152,6 +156,7 @@ Good fit:
 - hotel, retail, or hospitality deployments
 - multi-SSID environments with guest and staff separation
 - pilot BYOD registration and light passive profiling
+- SIEM export and controller-linked branch automation
 
 This is the safest place to start if you are packaging the product for pilot production and do not yet know the final customer profile.
 
@@ -165,6 +170,7 @@ Use this tier when you expect:
 - heavier EAP usage
 - more extensive live bandwidth shaping
 - enterprise onboarding, certificate handling, and posture-driven access decisions
+- authoritative MDM or UEM sync and delegated multi-admin operations
 
 Recommended baseline:
 
@@ -181,6 +187,8 @@ Recommended mode:
 - full AI mode can be enabled for richer operator recommendations
 - certificate enrollment and EAP-TLS onboarding can be enabled once CA material is ready
 - passive profiling and posture checks can be treated as real production features
+- admin SSO, delegated admin, and multi-tenant governance can be treated as real production features
+- controller automation can be used for larger external AP estates
 - operator teams use the admin UI and config revision flow regularly
 
 Good fit:
@@ -212,6 +220,7 @@ Recommended mode:
 - AegisNAS handles portal, brokered AAA, accounting, policy, and admin workflows
 - local Wi-Fi broadcasting stays off unless PCI or USB radio passthrough is provided
 - certificate enrollment and posture should be reserved for enterprise-sized VMs with real integration dependencies in place
+- admin SSO, SIEM export, and controller automation work well here when the VM has enough headroom and the downstream estate is controller-managed
 
 Good fit:
 
@@ -243,6 +252,8 @@ Good fit:
 | EAP-TLS heavy environments | High | Tier 2 or Tier 3 | certificate-heavy auth deserves more CPU headroom |
 | BYOD onboarding with certificate enrollment | High | Tier 3 or Tier 4 | needs CA material, stronger EAP settings, and more operator care |
 | Passive profiling with posture inputs | Moderate to high | Tier 3 or Tier 4 | integration-heavy and best treated as enterprise scope |
+| Controller-managed Wi-Fi automation | Moderate to high | Tier 2 or Tier 4 | best when the appliance follows the external AP model |
+| Admin SSO, delegated admin, and SIEM export | Moderate | Tier 2 or Tier 4 | integration-heavy, but reasonable on production branch and central VM tiers |
 
 ## Radio And Wi-Fi Notes
 
@@ -266,6 +277,7 @@ Choose the next higher tier when any of these are true:
 - you are enabling live bandwidth shaping for most sessions
 - you are relying heavily on EAP enterprise auth
 - you want to enable certificate enrollment, EAP-TLS onboarding, or posture checks
+- you want authoritative MDM sync, delegated admin, or multi-tenant governance
 - the appliance will service multiple APs and many simultaneous clients
 - you want longer backup, telemetry, and audit retention on-box
 - the same unit may later host storage NAS features alongside AegisNAS

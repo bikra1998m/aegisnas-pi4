@@ -43,6 +43,11 @@ Recommended direction:
 - keep `onboarding.eap_tls_enabled: false`
 - keep `profiling.passive_enabled: false`
 - keep `profiling.posture_enabled: false`
+- keep `profiling.mdm_sync_enabled: false`
+- keep `integrations.admin_sso.enabled: false`
+- keep `integrations.controller.enabled: false`
+- keep `governance.delegated_admin_enabled: false`
+- keep `governance.multi_tenant_enabled: false`
 
 ### `branch`
 
@@ -62,6 +67,10 @@ Recommended direction:
 - onboarding portal is acceptable once portal, identity, and CA mode dependencies are in place
 - passive profiling is acceptable when MAC inventory is enabled and poll intervals stay conservative
 - keep certificate enrollment and posture decisions behind enterprise gating unless the deployment is truly ready
+- SIEM export is a normal branch feature once batching and secrets are tested
+- controller automation is acceptable for external AP estates, but it should follow the external AP deployment model
+- admin SSO and delegated admin are acceptable for smaller teams when identity dependencies are in place
+- keep MDM sync and multi-tenant governance behind enterprise gating
 - suitable for most pilot and branch appliance builds
 
 ### `enterprise`
@@ -81,6 +90,9 @@ Recommended direction:
 - make this the default target for certificate enrollment and EAP-TLS onboarding
 - use posture checks only after MDM or compliance sources are configured and tested
 - treat passive profiling and remediation as normal production features on this tier
+- make this the default target for authoritative MDM/UEM sync, admin SSO, delegated admin, and multi-tenant governance
+- use controller automation here when the appliance is part of a larger controller-managed Wi-Fi estate
+- treat SIEM export as part of the normal production baseline
 
 ### `custom`
 
@@ -131,6 +143,8 @@ The profile action updates real config fields such as:
 - `portal.guest_workflows.*`
 - `onboarding.*`
 - `profiling.*`
+- `integrations.*`
+- `governance.*`
 
 ## How To Use It In YAML
 
@@ -203,8 +217,36 @@ profiling:
   mac_inventory_enabled: true
   passive_enabled: true
   posture_enabled: true
+  mdm_sync_enabled: true
   mdm_provider: workspace-one-like
   mdm_endpoint: https://mdm.example.com/api
+
+integrations:
+  admin_sso:
+    enabled: true
+    provider: oidc
+    issuer_url: https://idp.example.com/.well-known/openid-configuration
+    client_id: aegisnas-admin
+    redirect_url: https://admin.example.com/auth/callback
+    groups_claim: groups
+  siem:
+    enabled: true
+    provider: webhook
+    endpoint: https://siem.example.com/collect
+    api_key_env: AEGIS_SIEM_API_KEY
+  controller:
+    enabled: true
+    platform: aruba
+    endpoint: https://controller.example.com/api
+    api_token_env: AEGIS_CONTROLLER_API_TOKEN
+    sync_mode: monitor
+
+governance:
+  delegated_admin_enabled: true
+  rbac_mode: hybrid
+  external_groups_enabled: true
+  multi_tenant_enabled: true
+  tenant_claim: tenant
 ```
 
 ## Runtime Behavior
@@ -216,6 +258,8 @@ The current profile-aware implementation changes behavior in these concrete ways
 - runtime shaping can be disabled cleanly
 - guest workflow, onboarding, and profiling capability states are previewed before save
 - impossible onboarding and profiling combinations are rejected during validation
+- integration and governance capability states are previewed before save
+- impossible controller, SSO, SIEM, delegated-admin, and multi-tenant combinations are rejected during validation
 - the dashboard shows profile, hardware hints, and mismatch warnings
 - the admin UI can apply profile defaults directly into the live config editor
 

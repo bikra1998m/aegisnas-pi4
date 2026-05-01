@@ -121,6 +121,12 @@ func DeploymentSummary(cfg *Config) map[string]any {
 			"eap_tls_onboarding":      cfg.Onboarding.EAPTLSEnabled,
 			"passive_profiling":       cfg.Profiling.PassiveEnabled,
 			"posture_checks":          cfg.Profiling.PostureEnabled,
+			"mdm_uem_integration":     cfg.Profiling.MDMSyncEnabled,
+			"siem_webhook_export":     cfg.Integrations.SIEM.Enabled,
+			"controller_automation":   cfg.Integrations.Controller.Enabled,
+			"admin_sso":               cfg.Integrations.AdminSSO.Enabled,
+			"delegated_admin_rbac":    cfg.Governance.DelegatedAdminEnabled,
+			"multi_tenant_governance": cfg.Governance.MultiTenantEnabled,
 			"upstream_status_check":   cfg.Radius.Upstream.StatusCheck,
 			"radius_max_sessions":     cfg.Radius.MaxSessions,
 			"recommendation_limit":    cfg.AILite.RecommendationLimit,
@@ -283,7 +289,7 @@ func deploymentWarnings(cfg *Config, preset deploymentPreset, capabilities []Fea
 	for _, capability := range capabilities {
 		capabilityIndex[capability.Key] = capability
 	}
-	for _, key := range []string{"local_wireless", "runtime_shaping", "ai_mode", "telemetry", "upstream_status_probes", "guest_self_registration", "sponsor_approval", "guest_delivery", "device_registration_inventory", "onboarding_portal", "certificate_enrollment", "eap_tls_onboarding", "passive_profiling", "posture_checks"} {
+	for _, key := range []string{"local_wireless", "runtime_shaping", "ai_mode", "telemetry", "upstream_status_probes", "guest_self_registration", "sponsor_approval", "guest_delivery", "device_registration_inventory", "onboarding_portal", "certificate_enrollment", "eap_tls_onboarding", "passive_profiling", "posture_checks", "mdm_uem_integration", "siem_webhook_export", "controller_automation", "admin_sso", "delegated_admin_rbac", "multi_tenant_governance"} {
 		capability, ok := capabilityIndex[key]
 		if !ok || !capability.Active {
 			continue

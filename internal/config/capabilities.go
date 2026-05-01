@@ -64,6 +64,12 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 		evaluateEAPTLSOnboardingCapability(cfg),
 		evaluatePassiveProfilingCapability(cfg),
 		evaluatePostureCapability(cfg),
+		evaluateMDMUEMCapability(cfg),
+		evaluateSIEMExportCapability(cfg),
+		evaluateControllerAutomationCapability(cfg),
+		evaluateAdminSSOCapability(cfg),
+		evaluateDelegatedAdminCapability(cfg),
+		evaluateMultiTenantCapability(cfg),
 	}
 }
 
@@ -619,6 +625,215 @@ func evaluatePostureCapability(cfg *Config) FeatureCapability {
 	default:
 		capability.State = CapabilityAvailable
 		capability.Summary = "Posture checks are supported but need compliance sources before activation."
+	}
+
+	return capability
+}
+
+func evaluateMDMUEMCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	capability := FeatureCapability{
+		Key:    "mdm_uem_integration",
+		Label:  "MDM/UEM Integration",
+		Active: cfg.Profiling.MDMSyncEnabled,
+	}
+
+	switch {
+	case profile != "enterprise":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Authoritative MDM/UEM sync is reserved for the enterprise profile."
+	case cfg.Profiling.MDMSyncEnabled && strings.TrimSpace(cfg.Profiling.MDMProvider) == "":
+		capability.State = CapabilityBlocked
+		capability.Summary = "MDM/UEM sync requires an MDM provider."
+		capability.Dependencies = []string{"profiling.mdm_provider"}
+	case cfg.Profiling.MDMSyncEnabled && strings.TrimSpace(cfg.Profiling.MDMEndpoint) == "":
+		capability.State = CapabilityBlocked
+		capability.Summary = "MDM/UEM sync requires an MDM endpoint."
+		capability.Dependencies = []string{"profiling.mdm_endpoint"}
+	case cfg.Profiling.MDMSyncEnabled && cfg.Profiling.MDMCacheHours == 0:
+		capability.State = CapabilityBlocked
+		capability.Summary = "MDM/UEM sync requires a positive cache window."
+		capability.Dependencies = []string{"profiling.mdm_cache_hours"}
+	case cfg.Profiling.MDMSyncEnabled && !hasEnterpriseHeadroom(cfg):
+		capability.State = CapabilityWarned
+		capability.Summary = "MDM/UEM sync is active, but the hardware is below the recommended enterprise floor."
+		capability.Recommendation = "Use at least 4 cores and 8 GB RAM before treating MDM sync as a stable production source of truth."
+	case cfg.Profiling.MDMSyncEnabled:
+		capability.State = CapabilityEnabled
+		capability.Summary = "MDM/UEM sync is active."
+	case strings.TrimSpace(cfg.Profiling.MDMProvider) != "" || strings.TrimSpace(cfg.Profiling.MDMEndpoint) != "":
+		capability.State = CapabilityAvailable
+		capability.Summary = "MDM/UEM connection details are present and ready for activation."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "MDM/UEM sync is supported but currently off."
+	}
+
+	return capability
+}
+
+func evaluateSIEMExportCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	capability := FeatureCapability{
+		Key:    "siem_webhook_export",
+		Label:  "SIEM/Webhook Export",
+		Active: cfg.Integrations.SIEM.Enabled,
+	}
+
+	switch {
+	case cfg.Integrations.SIEM.Enabled && !siemConfigured(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "SIEM export needs provider, endpoint, API key env, and positive batch size."
+		capability.Dependencies = []string{"integrations.siem.provider", "integrations.siem.endpoint", "integrations.siem.api_key_env", "integrations.siem.batch_size"}
+	case cfg.Integrations.SIEM.Enabled && profile == "lite":
+		capability.State = CapabilityWarned
+		capability.Summary = "SIEM export is active on the lite profile."
+		capability.Recommendation = "Keep export batching conservative on constrained targets or move to the branch profile."
+	case cfg.Integrations.SIEM.Enabled:
+		capability.State = CapabilityEnabled
+		capability.Summary = "SIEM/webhook export is active."
+	case strings.TrimSpace(cfg.Integrations.SIEM.Provider) != "" || strings.TrimSpace(cfg.Integrations.SIEM.Endpoint) != "":
+		capability.State = CapabilityAvailable
+		capability.Summary = "SIEM export details are configured and ready to be enabled."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "SIEM/webhook export is supported but currently off."
+	}
+
+	return capability
+}
+
+func evaluateControllerAutomationCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	capability := FeatureCapability{
+		Key:    "controller_automation",
+		Label:  "Controller Automation",
+		Active: cfg.Integrations.Controller.Enabled,
+	}
+
+	switch {
+	case profile == "lite":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Controller automation is blocked on the lite profile."
+	case cfg.Integrations.Controller.Enabled && !controllerConfigured(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "Controller automation requires platform, endpoint, API token env, and sync mode."
+		capability.Dependencies = []string{"integrations.controller.platform", "integrations.controller.endpoint", "integrations.controller.api_token_env", "integrations.controller.sync_mode"}
+	case cfg.Integrations.Controller.Enabled && cfg.Wireless.Enabled:
+		capability.State = CapabilityBlocked
+		capability.Summary = "Controller automation requires the external AP model, not local wireless ownership."
+		capability.Dependencies = []string{"wireless.enabled", "deployment.hardware.prefer_external_ap"}
+	case cfg.Integrations.Controller.Enabled && !cfg.Deployment.Hardware.PreferExternalAP:
+		capability.State = CapabilityWarned
+		capability.Summary = "Controller automation is active without the external AP preference hint."
+		capability.Recommendation = "Set deployment.hardware.prefer_external_ap=true so operations and automation follow the same deployment model."
+	case cfg.Integrations.Controller.Enabled && profile == "branch":
+		capability.State = CapabilityWarned
+		capability.Summary = "Controller automation is active on the branch profile."
+		capability.Recommendation = "Good for branch pilots. Enterprise is the preferred tier for larger controller-driven estates."
+	case cfg.Integrations.Controller.Enabled:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Controller automation is active."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Controller automation is supported but currently off."
+	}
+
+	return capability
+}
+
+func evaluateAdminSSOCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	capability := FeatureCapability{
+		Key:    "admin_sso",
+		Label:  "Admin SSO",
+		Active: cfg.Integrations.AdminSSO.Enabled,
+	}
+
+	switch {
+	case profile == "lite":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Admin SSO is blocked on the lite profile."
+	case cfg.Integrations.AdminSSO.Enabled && !adminSSOConfigured(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "Admin SSO needs provider, issuer URL, client ID, and redirect URL."
+		capability.Dependencies = []string{"integrations.admin_sso.provider", "integrations.admin_sso.issuer_url", "integrations.admin_sso.client_id", "integrations.admin_sso.redirect_url"}
+	case cfg.Integrations.AdminSSO.Enabled && profile == "branch":
+		capability.State = CapabilityWarned
+		capability.Summary = "Admin SSO is active on the branch profile."
+		capability.Recommendation = "This is fine for smaller admin teams. Enterprise is the preferred tier for central admin identity."
+	case cfg.Integrations.AdminSSO.Enabled:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Admin SSO is active."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Admin SSO is supported but currently off."
+	}
+
+	return capability
+}
+
+func evaluateDelegatedAdminCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	capability := FeatureCapability{
+		Key:    "delegated_admin_rbac",
+		Label:  "Delegated Admin / RBAC",
+		Active: cfg.Governance.DelegatedAdminEnabled,
+	}
+
+	switch {
+	case profile == "lite":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Delegated admin and RBAC are blocked on the lite profile."
+	case cfg.Governance.DelegatedAdminEnabled && !delegatedAdminIdentityReady(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "Delegated admin needs admin SSO or LDAP."
+		capability.Dependencies = []string{"integrations.admin_sso.enabled", "ldap.enabled"}
+	case cfg.Governance.DelegatedAdminEnabled && strings.EqualFold(strings.TrimSpace(cfg.Governance.RBACMode), "external-groups") && !adminGroupSourceReady(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "External group RBAC needs an admin SSO groups claim or LDAP group filter."
+		capability.Dependencies = []string{"integrations.admin_sso.groups_claim", "ldap.group_filter"}
+	case cfg.Governance.DelegatedAdminEnabled && profile == "branch":
+		capability.State = CapabilityWarned
+		capability.Summary = "Delegated admin is active on the branch profile."
+		capability.Recommendation = "Good for smaller teams. Enterprise is the preferred tier for broader admin separation."
+	case cfg.Governance.DelegatedAdminEnabled:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Delegated admin and RBAC are active."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Delegated admin and RBAC are supported but currently off."
+	}
+
+	return capability
+}
+
+func evaluateMultiTenantCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	capability := FeatureCapability{
+		Key:    "multi_tenant_governance",
+		Label:  "Multi-Tenant Governance",
+		Active: cfg.Governance.MultiTenantEnabled,
+	}
+
+	switch {
+	case profile != "enterprise":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Multi-tenant governance is reserved for the enterprise profile."
+	case cfg.Governance.MultiTenantEnabled && !cfg.Governance.DelegatedAdminEnabled:
+		capability.State = CapabilityBlocked
+		capability.Summary = "Multi-tenant governance requires delegated admin to be enabled first."
+		capability.Dependencies = []string{"governance.delegated_admin_enabled"}
+	case cfg.Governance.MultiTenantEnabled && cfg.Integrations.AdminSSO.Enabled && strings.TrimSpace(cfg.Governance.TenantClaim) == "":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Multi-tenant governance needs a tenant claim when admin SSO is active."
+		capability.Dependencies = []string{"governance.tenant_claim"}
+	case cfg.Governance.MultiTenantEnabled:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Multi-tenant governance is active."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Multi-tenant governance is supported but currently off."
 	}
 
 	return capability
