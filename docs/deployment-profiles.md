@@ -146,6 +146,16 @@ The profile action updates real config fields such as:
 - `integrations.*`
 - `governance.*`
 
+Notable production-facing runtime that now sits behind those fields includes:
+
+- guest self-registration and sponsor approval
+- onboarding portal and device inventory
+- internal or external CA certificate enrollment
+- token-backed MDM sync and compliance webhook posture checks
+- admin SSO through OIDC or SAML
+- SIEM export and controller automation
+- delegated admin and tenant-aware governance
+
 ## How To Use It In YAML
 
 Example low-power edge appliance:
@@ -250,6 +260,58 @@ governance:
   tenant_claim: tenant
 ```
 
+Example enterprise onboarding target with external CA and SAML admin access:
+
+```yaml
+deployment:
+  profile: enterprise
+  form: virtual
+  hardware:
+    memory_mb: 16384
+    cpu_cores: 8
+    prefer_external_ap: true
+
+portal:
+  enabled: true
+  local_fallback: true
+  guest_workflows:
+    self_registration_enabled: true
+    sponsor_approval_enabled: true
+    approval_delivery: email
+    email_from: access@example.com
+    smtp_server: smtp.example.com
+    smtp_port: 587
+
+onboarding:
+  device_inventory_enabled: true
+  portal_enabled: true
+  certificate_enrollment_enabled: true
+  eap_tls_enabled: true
+  ca_mode: external
+  ca_enrollment_url: https://ca.example.com/api/enroll
+  ca_enrollment_token_env: AEGIS_CA_ENROLLMENT_TOKEN
+
+profiling:
+  mac_inventory_enabled: true
+  passive_enabled: true
+  posture_enabled: true
+  mdm_sync_enabled: true
+  mdm_provider: workspace-one-like
+  mdm_endpoint: https://mdm.example.com/api
+  mdm_api_token_env: AEGIS_MDM_API_TOKEN
+  compliance_webhook: https://policy.example.com/compliance
+  compliance_token_env: AEGIS_COMPLIANCE_WEBHOOK_TOKEN
+
+integrations:
+  admin_sso:
+    enabled: true
+    provider: saml
+    issuer_url: https://idp.example.com/metadata
+    client_id: aegisnas-admin
+    redirect_url: https://admin.example.com/auth/callback
+    groups_claim: groups
+```
+
 ## Runtime Behavior
 
 The current profile-aware implementation changes behavior in these concrete ways:
@@ -259,9 +321,13 @@ The current profile-aware implementation changes behavior in these concrete ways
 - runtime shaping can be disabled cleanly
 - guest workflow, onboarding, and profiling capability states are previewed before save
 - guest self-registration and sponsor approval also run end to end through the captive portal and Guest Requests admin view once the workflow is enabled
+- onboarding now supports internal and external CA enrollment paths
+- MDM and compliance posture inputs can use environment-backed bearer tokens
 - impossible onboarding and profiling combinations are rejected during validation
 - integration and governance capability states are previewed before save
 - impossible controller, SSO, SIEM, delegated-admin, and multi-tenant combinations are rejected during validation
+- admin SSO runs end to end with OIDC or SAML plus break-glass token fallback
+- SIEM export, controller automation, delegated admin, and tenant-aware scoping all have live runtime support
 - the dashboard shows profile, hardware hints, and mismatch warnings
 - the admin UI can apply profile defaults directly into the live config editor
 

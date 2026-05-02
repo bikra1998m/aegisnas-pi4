@@ -1,95 +1,148 @@
 # Production Readiness Update
 
-Date: 2026-04-17
+Date: 2026-05-02
 
-## Documentation Reviewed
+## Scope Of This Update
 
-- `C:\Users\BIKRAM MAITY\Downloads\ai_nas_system_architecture.svg`
-- `C:\Users\BIKRAM MAITY\Downloads\ai_nas_blueprint.html`
-- `C:\Users\BIKRAM MAITY\Downloads\aegisnas_pi4_development_handbook.docx`
+This document rolls up the production-readiness work completed across the project from the initial stabilization pass through the phase-based capability, onboarding, and integration work.
 
-The common requirements from those documents are:
+It reflects the current repository state after:
 
-- Raspberry Pi 4 class target with strict memory and I/O budget.
-- Go services, SQLite local state, generated configs, snap packaging, and Ubuntu Core image workflow.
-- Deterministic authentication, policy, and session decisions.
-- Advisory AI only; AI must never block authentication or networking.
-- Admin UI for manual operation of every major object.
-- Safe validate, apply, rollback, backup, restore, and audit flows.
+- core build and CRUD stabilization
+- deployment capability gating across phases 1 to 4
+- guest self-registration and sponsor approval runtime
+- onboarding, device inventory, certificate enrollment, profiling, and posture runtime
+- SIEM export, admin SSO, delegated admin, multi-tenant scoping, and controller automation runtime
 
-## Readiness Before This Update
+## Readiness Journey
 
-The project was not production-ready at the start of this pass.
+### 1. Core Platform Stabilization
 
-Main blockers found:
+The earliest production blockers were build, packaging, and day-two operations issues. Those are now resolved in the mainline product:
 
-- Go test/build was broken by missing imports, wrong package paths, duplicate RADIUS helpers, missing modules, and a CGO-only SQLite driver on a no-C-compiler Windows workspace.
-- The admin UI imported pages that did not exist.
-- Several admin API objects supported create only, not edit/delete.
-- Token auth did not set the user context required by staging, which could panic on writes.
-- Config rollback returned a placeholder response instead of restoring data.
-- Backups lacked a manifest verification path.
-- CORS allowed wildcard origins with credentials.
-- UI dependencies had a moderate audit finding through the old Vite/esbuild chain.
-- Backup and operations docs were incomplete.
+- pure-Go SQLite support for CGO-free builds
+- stable Go and UI builds on the current workspace
+- CRUD coverage for the main admin objects
+- real staged apply, rollback, backup, and restore paths
+- safer token auth, CORS defaults, and revision handling
+- structured logging and audit coverage
 
-## Backend Updates
+### 2. Deployment Capability Gating
 
-1. Replaced `mattn/go-sqlite3` with `modernc.org/sqlite` so the project builds with `CGO_ENABLED=0`.
-2. Added missing Go module declarations and tidied `go.mod` / `go.sum`.
-3. Fixed broken package imports for the session service.
-4. Fixed compile errors in logging, telemetry, AI-lite, portal auth, policy, dnsmasq, firewall, and backup code.
-5. Added hashed API token lookup using `sha256:<hex>` values while keeping legacy plaintext lookup for old databases.
-6. Updated seed behavior so the bootstrap token comes from `AEGIS_ADMIN_BOOTSTRAP_TOKEN` or a generated printed value.
-7. Added `/api/v1/auth/validate`.
-8. Added update/delete handlers and routes for vouchers, roles, policies, identity sources, portal profiles, and bandwidth profiles.
-9. Added admin API endpoints for config JSON export/import.
-10. Added admin API endpoints for AI recommendation list/acknowledge.
-11. Implemented real config snapshots for staged apply.
-12. Implemented checksum-verified rollback that restores captured config tables.
-13. Added audit rows for staging, apply, rollback, session termination, alert acknowledgement, AI acknowledgement, and backup import.
-14. Hardened admin CORS defaults and added `AEGIS_ADMIN_ALLOWED_ORIGINS`.
-15. Made backup archives include `manifest.json` with SHA-256 checksums.
-16. Added restore manifest verification and safe archive path handling.
-17. Switched logging initialization to an explicit zap core so file/stdout output is actually used.
-18. Made session timeout enforcement work with the pure-Go SQLite driver's time storage behavior.
+The product now uses a profile-aware capability model instead of treating every lab VM and every enterprise appliance as if they should run the same feature set.
 
-## Admin UI Updates
+That means the product can now:
 
-1. Removed the undeclared `lucide-react` dependency from UI code.
-2. Added a reusable CRUD page component with list table, add/edit/delete modals, validation, JSON editor support, checkboxes, and password handling.
-3. Added the missing pages:
-   - Portal profiles
-   - Users
-   - Vouchers
-   - Roles
-   - Bandwidth profiles
-   - Policies
-   - Identity sources
-   - Alerts
-   - Config revisions
-   - Backups
-   - AI recommendations
-4. Reworked VLANs to use the same table and modal pattern.
-5. Reworked sessions with a terminate button.
-6. Added a global pending changes bar with validate and apply actions.
-7. Added backup JSON download/upload from the UI.
-8. Added rollback from the UI.
-9. Upgraded Vite and `@vitejs/plugin-react`; `npm audit --audit-level=moderate` now reports zero vulnerabilities.
+- allow, warn, degrade, or block features based on hardware and deployment form
+- reject impossible combinations during config validation
+- preview capability state directly in `Access Settings`
+- surface deployment mismatch and runtime state on the dashboard
 
-## Documentation Updates
+This covers:
 
-1. Rewrote `README.md` with the current build, UI, and production readiness status.
-2. Rewrote `docs/operations.md` with service, UI, monitoring, update, and backup workflows.
-3. Rewrote `docs/security.md` with token, CORS, revision, LDAP, firewall, backup, and AI-plane guidance.
-4. Rewrote `docs/backup-restore.md` with CLI and UI restore procedures.
-5. Rewrote `docs/development.md` with the current Go/Node requirements, test commands, and page-extension workflow.
-6. Added this update log.
+- wireless passthrough expectations for VMs
+- runtime shaping
+- AI mode selection
+- telemetry
+- guest workflows
+- onboarding and profiling
+- integrations and governance
 
-## Verification Performed
+### 3. Guest Workflow Runtime
+
+Guest access is now more than a simple token-or-voucher login page.
+
+The repo now includes end-to-end guest workflow runtime for:
+
+- captive portal self-registration
+- sponsor approval by email or SMS
+- guest request review in the admin UI
+- local guest credential minting after approval
+- audit and alert generation for failed delivery paths
+
+Operational UI pages now include:
+
+- `Guest Requests`
+- `Users`
+- `Vouchers`
+- `Portal Profiles`
+
+### 4. Onboarding And Profiling Runtime
+
+The onboarding path is now a real runtime, not only a gated future feature.
+
+Current runtime coverage includes:
+
+- device inventory
+- onboarding portal flow
+- certificate download from the admin UI
+- internal CA enrollment
+- external CA enrollment through a JSON API
+- EAP-TLS onboarding gating
+- passive device inventory and profiling hooks
+- posture synchronization from MDM or compliance webhook inputs
+- quarantine action when posture marks a device non-compliant
+
+The current implementation supports both:
+
+- `onboarding.ca_mode: internal`
+- `onboarding.ca_mode: external`
+
+External CA mode now supports an optional bearer token sourced from:
+
+- `onboarding.ca_enrollment_token_env`
+
+The admin UI now includes:
+
+- `Devices`
+
+### 5. Integration And Governance Runtime
+
+Phase 4 moved from capability preview into real runtime for the declared production paths.
+
+Current runtime coverage includes:
+
+- OIDC admin SSO
+- SAML admin SSO
+- break-glass token fallback for admin access
+- delegated admin roles
+- tenant-aware admin scoping
+- SIEM export to `webhook`, `splunk-hec`, or `elastic`
+- controller automation as a live background sync loop
+- runtime status surfacing for SSO, SIEM, and controller automation
+
+The admin UI now includes:
+
+- `Admin Access`
+
+The dashboard now reports live status for:
+
+- admin SSO
+- SIEM export
+- controller automation
+
+## Security And Secret Handling Improvements
+
+The current product guidance now assumes secret-bearing integrations use environment variables or protected files instead of being embedded casually in docs or workflows.
+
+Important runtime secret paths now include:
+
+- `AEGIS_ADMIN_BOOTSTRAP_TOKEN`
+- `AEGIS_ADMIN_ALLOWED_ORIGINS`
+- `AEGIS_REVISION_SIGNING_KEY`
+- `AEGIS_AI_API_KEY`
+- `AEGIS_CA_ENROLLMENT_TOKEN`
+- `AEGIS_MDM_API_TOKEN`
+- `AEGIS_COMPLIANCE_WEBHOOK_TOKEN`
+- `AEGIS_SIEM_API_KEY`
+- `AEGIS_CONTROLLER_API_TOKEN`
+- `AEGIS_ADMIN_SSO_CLIENT_SECRET`
+
+## Verification Completed
+
+Repository verification completed against the current code:
 
 ```powershell
-$env:CGO_ENABLED='0'
 go test ./...
 ```
 
@@ -98,23 +151,55 @@ Result: pass.
 ```powershell
 cd web/admin-ui
 npm run build
-npm audit --audit-level=moderate --json
 ```
 
-Result: production build pass; audit reports zero vulnerabilities.
+Result: pass.
 
-## Production Deployment Prerequisites
+## Production Deployment Standard
 
-Before installing at a real site, complete these site-specific items:
+The repository is now in a good state for:
 
-- Set `AEGIS_ADMIN_BOOTSTRAP_TOKEN` and rotate any legacy/plaintext API tokens.
-- Set `AEGIS_ADMIN_ALLOWED_ORIGINS` to the final admin UI origin.
-- Install TLS certificates for the admin UI/API and LDAPS.
-- Replace test RADIUS client secrets.
-- Confirm VLAN IDs, interface names, DHCP pools, and management VLAN access.
-- Build/sign snaps and Ubuntu Core image assets for the target fleet.
-- Run a lab acceptance test with the real AP model, managed switch, USB NIC mode, and at least one restore drill.
+- lab deployment
+- pilot deployment
+- staged customer deployment on supported hardware
+
+The current product standard assumes:
+
+- the deployment profile matches the hardware class
+- real site secrets and certificates are supplied
+- integration endpoints are reachable and tested
+- at least one backup and restore drill is performed before production sign-off
+- at least one login-path acceptance run is captured with the debug bundle workflow
+
+## Remaining Product Boundaries
+
+This document is intentionally honest about what "ready" means.
+
+The current repo is strong for the implemented product paths, but a few boundaries still matter:
+
+- controller automation is a vendor-neutral sync contract, not one-to-one native parity with every controller API
+- rich long-horizon reporting is still lighter than large NAC suites
+- external MDM, compliance, SAML, and CA paths still need real customer-environment validation during deployment
+
+Those are deployment and ecosystem realities, not missing code blockers for the current declared feature set.
 
 ## Current Status
 
-The repository is no longer blocked by build failures or missing manual UI operations. It is ready for production packaging and pilot deployment once the site-specific secrets, certificates, network values, and Ubuntu Core signing workflow are supplied.
+The repository is no longer in a phase-preview state.
+
+Current status:
+
+- core platform: production-capable
+- guest workflows: end to end
+- onboarding and certificate workflows: end to end
+- profiling and posture inputs: end to end
+- admin SSO: OIDC and SAML end to end
+- delegated admin and tenant scoping: end to end
+- SIEM export: end to end
+- controller automation: end to end within the declared vendor-neutral contract
+
+The next step after this repo state is always environment validation:
+
+- pull the latest code to the target VM or appliance
+- run migration and redeploy
+- execute the runbooks in `docs/ubuntu-vm-runbook.md`, `docs/vmware-workstation-17-player-full-test.md`, and `docs/login-test-runbook.md`

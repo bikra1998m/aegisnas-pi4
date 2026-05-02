@@ -30,6 +30,17 @@ type DeploymentPreview = {
   capabilities: DeploymentCapability[];
 };
 
+type DHCPLease = {
+  expires_at: string;
+  remaining_seconds: number;
+  mac: string;
+  ip: string;
+  hostname: string;
+  client_id: string;
+  reservation: boolean;
+  expired: boolean;
+};
+
 const defaultSettings: JsonMap = {
   mode: 'two-nic',
   admin_port: 8083,
@@ -45,7 +56,29 @@ const defaultSettings: JsonMap = {
   },
   wan: { name: '', dhcp: true, address: '', gateway: '', dhcp_range: '' },
   lan: { name: '', dhcp: false, address: '', gateway: '', dhcp_range: '' },
-  dhcp: { enabled: true, lease_time: '12h', authoritative: true },
+  network: {
+    interfaces: [],
+    gateways: [],
+    dns: {
+      upstream_servers: ['8.8.8.8', '8.8.4.4'],
+      search_domains: [],
+      local_domain: 'aegis.local',
+    },
+    static_routes: [],
+    firewall: {
+      rules: [],
+      free_sites: [],
+      dos_protection: {
+        enabled: false,
+        syn_rate: '50/second',
+        icmp_rate: '25/second',
+        conn_rate: '200/second',
+        burst: 100,
+        log_drops: true,
+      },
+    },
+  },
+  dhcp: { enabled: true, lease_time: '12h', authoritative: true, static_leases: [] },
   policy: {
     default_role: '',
     runtime_shaping_enabled: true,
@@ -287,6 +320,29 @@ const rbacModeOptions: Option[] = [
   { value: 'hybrid', label: 'Hybrid' },
 ];
 
+const firewallChainOptions: Option[] = [
+  { value: 'input', label: 'Input' },
+  { value: 'forward', label: 'Forward' },
+];
+
+const firewallActionOptions: Option[] = [
+  { value: 'accept', label: 'Accept' },
+  { value: 'drop', label: 'Drop' },
+  { value: 'reject', label: 'Reject' },
+];
+
+const firewallProtocolOptions: Option[] = [
+  { value: 'any', label: 'Any' },
+  { value: 'tcp', label: 'TCP' },
+  { value: 'udp', label: 'UDP' },
+  { value: 'icmp', label: 'ICMP' },
+];
+
+const freeSiteTypeOptions: Option[] = [
+  { value: 'domain', label: 'Domain' },
+  { value: 'cidr', label: 'CIDR' },
+];
+
 const capabilityTone: Record<DeploymentCapability['state'], string> = {
   enabled: 'border-emerald-200 bg-emerald-50 text-emerald-800',
   available: 'border-sky-200 bg-sky-50 text-sky-800',
@@ -321,6 +377,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
 
   next.deployment = next.deployment || {};
   next.deployment.hardware = next.deployment.hardware || {};
+  next.network = next.network || {};
+  next.network.dns = next.network.dns || {};
+  next.network.firewall = next.network.firewall || {};
+  next.network.firewall.dos_protection = next.network.firewall.dos_protection || {};
   next.policy = next.policy || {};
   next.telemetry = next.telemetry || {};
   next.ailite = next.ailite || {};
@@ -491,6 +551,9 @@ export default function AccessSettings() {
   const [writingHostapd, setWritingHostapd] = useState(false);
   const [publishingHostapd, setPublishingHostapd] = useState(false);
   const [applyingRadius, setApplyingRadius] = useState(false);
+  const [applyingNetwork, setApplyingNetwork] = useState(false);
+  const [leasesLoading, setLeasesLoading] = useState(false);
+  const [dhcpLeases, setDhcpLeases] = useState<DHCPLease[]>([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [previewError, setPreviewError] = useState('');
@@ -526,6 +589,18 @@ export default function AccessSettings() {
     setBandwidthProfiles((bandwidthRes.data || []).map((item: JsonMap) => ({ value: item.name || '', label: item.name || 'Unnamed profile' })));
   };
 
+  const loadLeaseReport = async () => {
+    setLeasesLoading(true);
+    try {
+      const { data } = await api.get('/system/dhcp-leases');
+      setDhcpLeases(data.leases || []);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load the DHCP lease report.');
+    } finally {
+      setLeasesLoading(false);
+    }
+  };
+
   const loadSettings = async () => {
     setLoading(true);
     setError('');
@@ -538,6 +613,7 @@ export default function AccessSettings() {
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
       setHostapdPreview(previewRes.data.config || '');
       setHostapdPath(previewRes.data.path || '');
+      await loadLeaseReport();
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not load access settings.');
     } finally {
@@ -585,14 +661,30 @@ export default function AccessSettings() {
     try {
       const { data } = await api.put('/system/settings', settings);
       setSettings(data.settings || settings);
-      setMessage('Settings saved. Restart the appliance services and hostapd to pick up the new access policy.');
+      setMessage('Settings saved. Use Apply Edge Network for routing, DHCP, DNS, and firewall changes, then restart hostapd or RADIUS only when you change those services.');
       const previewRes = await api.get('/system/hostapd-preview');
       setHostapdPreview(previewRes.data.config || '');
       setHostapdPath(previewRes.data.path || '');
+      await loadLeaseReport();
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not save settings.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const applyNetworkServices = async () => {
+    setApplyingNetwork(true);
+    setError('');
+    setMessage('');
+    try {
+      await api.post('/system/network-apply');
+      setMessage('Interfaces, routes, dnsmasq, and firewall rules were applied on the appliance.');
+      await loadLeaseReport();
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not apply edge network services.');
+    } finally {
+      setApplyingNetwork(false);
     }
   };
 
@@ -677,6 +769,14 @@ export default function AccessSettings() {
   const upstreamServers = settings.radius?.upstream?.servers || [];
   const vendorAttributes = settings.radius?.vendor?.attributes || [];
   const ssids = settings.wireless?.ssids || [];
+  const managedInterfaces = settings.network?.interfaces || [];
+  const managedGateways = settings.network?.gateways || [];
+  const dnsServers = settings.network?.dns?.upstream_servers || [];
+  const searchDomains = settings.network?.dns?.search_domains || [];
+  const staticRoutes = settings.network?.static_routes || [];
+  const firewallRules = settings.network?.firewall?.rules || [];
+  const freeSites = settings.network?.firewall?.free_sites || [];
+  const staticLeases = settings.dhcp?.static_leases || [];
   const deploymentCapabilities = deploymentPreview?.capabilities || [];
   const deploymentWarnings = deploymentPreview?.warnings || [];
 
@@ -697,6 +797,20 @@ export default function AccessSettings() {
           </button>
           <button onClick={() => fileInputRef.current?.click()} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700">
             Import Settings
+          </button>
+          <button
+            onClick={loadLeaseReport}
+            disabled={leasesLoading}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-60"
+          >
+            {leasesLoading ? 'Refreshing Leases...' : 'Refresh Lease Report'}
+          </button>
+          <button
+            onClick={applyNetworkServices}
+            disabled={applyingNetwork}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-800 disabled:opacity-60"
+          >
+            {applyingNetwork ? 'Applying Network...' : 'Apply Edge Network'}
           </button>
           <button
             onClick={writeHostapdConfig}
@@ -886,6 +1000,454 @@ export default function AccessSettings() {
             <TextField label="Address" value={settings.lan?.address || ''} onChange={(value) => updateField(['lan', 'address'], value)} placeholder="192.168.50.1/24" />
             <TextField label="Gateway" value={settings.lan?.gateway || ''} onChange={(value) => updateField(['lan', 'gateway'], value)} placeholder="192.168.50.1" />
             <TextField label="DHCP Range" value={settings.lan?.dhcp_range || ''} onChange={(value) => updateField(['lan', 'dhcp_range'], value)} placeholder="192.168.50.100,192.168.50.200,12h" />
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">DNS, DHCP, And Lease Report</h3>
+            <p className="mt-1 text-sm text-gray-600">Manage resolver behavior, static reservations, and current client leases from the same admin screen.</p>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <ToggleField label="DHCP Enabled" checked={Boolean(settings.dhcp?.enabled)} onChange={(value) => updateField(['dhcp', 'enabled'], value)} />
+          <ToggleField label="Authoritative" checked={Boolean(settings.dhcp?.authoritative)} onChange={(value) => updateField(['dhcp', 'authoritative'], value)} />
+          <TextField label="Lease Time" value={settings.dhcp?.lease_time || '12h'} onChange={(value) => updateField(['dhcp', 'lease_time'], value)} placeholder="12h" />
+          <TextField label="Local DNS Domain" value={settings.network?.dns?.local_domain || 'aegis.local'} onChange={(value) => updateField(['network', 'dns', 'local_domain'], value)} placeholder="aegis.local" />
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="font-semibold text-gray-900">Upstream DNS Servers</h4>
+              <button
+                onClick={() => updateField(['network', 'dns', 'upstream_servers'], [...dnsServers, ''])}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+              >
+                Add DNS Server
+              </button>
+            </div>
+            <div className="space-y-3">
+              {dnsServers.length === 0 ? (
+                <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">Public resolvers or upstream recursive servers go here.</div>
+              ) : (
+                dnsServers.map((server: string, index: number) => (
+                  <div key={`dns-server-${index}`} className="grid gap-3 rounded-lg border border-gray-200 p-3 md:grid-cols-[1fr_auto]">
+                    <TextField label={`Server ${index + 1}`} value={server || ''} onChange={(value) => updateField(['network', 'dns', 'upstream_servers', String(index)], value)} placeholder="8.8.8.8" />
+                    <div className="flex items-end">
+                      <button
+                        onClick={() => updateField(['network', 'dns', 'upstream_servers'], dnsServers.filter((_: unknown, itemIndex: number) => itemIndex !== index))}
+                        className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="font-semibold text-gray-900">Search Domains</h4>
+              <button
+                onClick={() => updateField(['network', 'dns', 'search_domains'], [...searchDomains, ''])}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+              >
+                Add Search Domain
+              </button>
+            </div>
+            <div className="space-y-3">
+              {searchDomains.length === 0 ? (
+                <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">Optional suffixes to hand out with DHCP.</div>
+              ) : (
+                searchDomains.map((domain: string, index: number) => (
+                  <div key={`search-domain-${index}`} className="grid gap-3 rounded-lg border border-gray-200 p-3 md:grid-cols-[1fr_auto]">
+                    <TextField label={`Domain ${index + 1}`} value={domain || ''} onChange={(value) => updateField(['network', 'dns', 'search_domains', String(index)], value)} placeholder="corp.example.com" />
+                    <div className="flex items-end">
+                      <button
+                        onClick={() => updateField(['network', 'dns', 'search_domains'], searchDomains.filter((_: unknown, itemIndex: number) => itemIndex !== index))}
+                        className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold text-gray-900">Static DHCP Reservations</h4>
+              <p className="mt-1 text-sm text-gray-600">Pin known clients to fixed addresses with optional hostnames and notes.</p>
+            </div>
+            <button
+              onClick={() =>
+                updateField(['dhcp', 'static_leases'], [
+                  ...staticLeases,
+                  { mac: '', ip: '', hostname: '', enabled: true, description: '' },
+                ])
+              }
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+            >
+              Add Reservation
+            </button>
+          </div>
+          <div className="space-y-4">
+            {staticLeases.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">Create reservations for printers, APs, cameras, or lab clients here.</div>
+            ) : (
+              staticLeases.map((lease: JsonMap, index: number) => (
+                <div key={`static-lease-${index}`} className="rounded-lg border border-gray-200 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h5 className="font-semibold text-gray-900">{lease.hostname || lease.mac || `Reservation ${index + 1}`}</h5>
+                    <button
+                      onClick={() => updateField(['dhcp', 'static_leases'], staticLeases.filter((_: unknown, itemIndex: number) => itemIndex !== index))}
+                      className="text-sm font-medium text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                    <TextField label="MAC" value={lease.mac || ''} onChange={(value) => updateField(['dhcp', 'static_leases', String(index), 'mac'], value)} placeholder="aa:bb:cc:dd:ee:ff" />
+                    <TextField label="IP" value={lease.ip || ''} onChange={(value) => updateField(['dhcp', 'static_leases', String(index), 'ip'], value)} placeholder="192.168.50.10" />
+                    <TextField label="Hostname" value={lease.hostname || ''} onChange={(value) => updateField(['dhcp', 'static_leases', String(index), 'hostname'], value)} placeholder="printer-lobby" />
+                    <TextField label="Description" value={lease.description || ''} onChange={(value) => updateField(['dhcp', 'static_leases', String(index), 'description'], value)} placeholder="Lobby printer" />
+                    <div className="flex items-end">
+                      <ToggleField label="Enabled" checked={Boolean(lease.enabled)} onChange={(value) => updateField(['dhcp', 'static_leases', String(index), 'enabled'], value)} />
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold text-gray-900">IP Leasing Report</h4>
+              <p className="mt-1 text-sm text-gray-600">Live dnsmasq lease data, including reservations and expired clients.</p>
+            </div>
+            <span className="text-sm text-gray-500">{leasesLoading ? 'Refreshing...' : `${dhcpLeases.length} leases`}</span>
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">IP</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">MAC</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Hostname</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Lease Ends</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Reservation</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {dhcpLeases.length === 0 ? (
+                  <tr>
+                    <td className="px-3 py-6 text-gray-500" colSpan={6}>
+                      No leases are currently present in dnsmasq.
+                    </td>
+                  </tr>
+                ) : (
+                  dhcpLeases.map((lease) => (
+                    <tr key={`${lease.ip}-${lease.mac}`}>
+                      <td className="px-3 py-2 text-gray-900">{lease.ip || '-'}</td>
+                      <td className="px-3 py-2 font-mono text-gray-700">{lease.mac || '-'}</td>
+                      <td className="px-3 py-2 text-gray-700">{lease.hostname || '-'}</td>
+                      <td className="px-3 py-2 text-gray-700">{lease.expires_at || '-'}</td>
+                      <td className="px-3 py-2 text-gray-700">{lease.reservation ? 'Yes' : 'No'}</td>
+                      <td className="px-3 py-2 text-gray-700">{lease.expired ? 'Expired' : 'Active'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Interfaces, Gateways, And Static Routes</h3>
+            <p className="mt-1 text-sm text-gray-600">Use these objects for extra addresses, default route failover, and downstream network reachability.</p>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="font-semibold text-gray-900">Managed Interfaces</h4>
+            <button
+              onClick={() =>
+                updateField(['network', 'interfaces'], [
+                  ...managedInterfaces,
+                  { name: '', address: '', mtu: 1500, enabled: true, description: '' },
+                ])
+              }
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+            >
+              Add Interface
+            </button>
+          </div>
+          <div className="space-y-4">
+            {managedInterfaces.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">Use this for extra VLAN handoffs, transit links, or loopback-style addresses beyond the primary WAN and LAN.</div>
+            ) : (
+              managedInterfaces.map((iface: JsonMap, index: number) => (
+                <div key={`managed-iface-${index}`} className="rounded-lg border border-gray-200 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h5 className="font-semibold text-gray-900">{iface.name || `Interface ${index + 1}`}</h5>
+                    <button
+                      onClick={() => updateField(['network', 'interfaces'], managedInterfaces.filter((_: unknown, itemIndex: number) => itemIndex !== index))}
+                      className="text-sm font-medium text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <TextField label="Name" value={iface.name || ''} onChange={(value) => updateField(['network', 'interfaces', String(index), 'name'], value)} placeholder="eth2.50" />
+                    <TextField label="Address" value={iface.address || ''} onChange={(value) => updateField(['network', 'interfaces', String(index), 'address'], value)} placeholder="10.10.50.1/24" />
+                    <TextField label="MTU" type="number" value={iface.mtu || 1500} onChange={(value) => updateField(['network', 'interfaces', String(index), 'mtu'], Number(value))} />
+                    <TextField label="Description" value={iface.description || ''} onChange={(value) => updateField(['network', 'interfaces', String(index), 'description'], value)} placeholder="Transit handoff" />
+                  </div>
+                  <div className="mt-4">
+                    <ToggleField label="Enabled" checked={Boolean(iface.enabled)} onChange={(value) => updateField(['network', 'interfaces', String(index), 'enabled'], value)} />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="mb-6 border-t border-gray-200 pt-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="font-semibold text-gray-900">Gateways</h4>
+            <button
+              onClick={() =>
+                updateField(['network', 'gateways'], [
+                  ...managedGateways,
+                  { name: '', address: '', interface: settings.wan?.name || '', metric: 0, default: true, enabled: true, description: '' },
+                ])
+              }
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+            >
+              Add Gateway
+            </button>
+          </div>
+          <div className="space-y-4">
+            {managedGateways.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">Define alternate default routes and gateway priorities here.</div>
+            ) : (
+              managedGateways.map((gateway: JsonMap, index: number) => (
+                <div key={`gateway-${index}`} className="rounded-lg border border-gray-200 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h5 className="font-semibold text-gray-900">{gateway.name || `Gateway ${index + 1}`}</h5>
+                    <button
+                      onClick={() => updateField(['network', 'gateways'], managedGateways.filter((_: unknown, itemIndex: number) => itemIndex !== index))}
+                      className="text-sm font-medium text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                    <TextField label="Name" value={gateway.name || ''} onChange={(value) => updateField(['network', 'gateways', String(index), 'name'], value)} />
+                    <TextField label="Address" value={gateway.address || ''} onChange={(value) => updateField(['network', 'gateways', String(index), 'address'], value)} placeholder="192.168.10.1" />
+                    <TextField label="Interface" value={gateway.interface || ''} onChange={(value) => updateField(['network', 'gateways', String(index), 'interface'], value)} placeholder={settings.wan?.name || 'eth0'} />
+                    <TextField label="Metric" type="number" value={gateway.metric || 0} onChange={(value) => updateField(['network', 'gateways', String(index), 'metric'], Number(value))} />
+                    <TextField label="Description" value={gateway.description || ''} onChange={(value) => updateField(['network', 'gateways', String(index), 'description'], value)} placeholder="Primary ISP" />
+                  </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <ToggleField label="Default Route" checked={Boolean(gateway.default)} onChange={(value) => updateField(['network', 'gateways', String(index), 'default'], value)} />
+                    <ToggleField label="Enabled" checked={Boolean(gateway.enabled)} onChange={(value) => updateField(['network', 'gateways', String(index), 'enabled'], value)} />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 pt-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="font-semibold text-gray-900">Static Routes</h4>
+            <button
+              onClick={() =>
+                updateField(['network', 'static_routes'], [
+                  ...staticRoutes,
+                  { name: '', destination: '', gateway: '', interface: settings.wan?.name || '', metric: 0, enabled: true, description: '' },
+                ])
+              }
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+            >
+              Add Route
+            </button>
+          </div>
+          <div className="space-y-4">
+            {staticRoutes.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">Add static routes for upstream services, site links, or downstream lab networks.</div>
+            ) : (
+              staticRoutes.map((route: JsonMap, index: number) => (
+                <div key={`route-${index}`} className="rounded-lg border border-gray-200 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h5 className="font-semibold text-gray-900">{route.name || `Route ${index + 1}`}</h5>
+                    <button
+                      onClick={() => updateField(['network', 'static_routes'], staticRoutes.filter((_: unknown, itemIndex: number) => itemIndex !== index))}
+                      className="text-sm font-medium text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+                    <TextField label="Name" value={route.name || ''} onChange={(value) => updateField(['network', 'static_routes', String(index), 'name'], value)} />
+                    <TextField label="Destination" value={route.destination || ''} onChange={(value) => updateField(['network', 'static_routes', String(index), 'destination'], value)} placeholder="172.16.20.0/24" />
+                    <TextField label="Gateway" value={route.gateway || ''} onChange={(value) => updateField(['network', 'static_routes', String(index), 'gateway'], value)} placeholder="192.168.10.254" />
+                    <TextField label="Interface" value={route.interface || ''} onChange={(value) => updateField(['network', 'static_routes', String(index), 'interface'], value)} placeholder={settings.wan?.name || 'eth0'} />
+                    <TextField label="Metric" type="number" value={route.metric || 0} onChange={(value) => updateField(['network', 'static_routes', String(index), 'metric'], Number(value))} />
+                    <TextField label="Description" value={route.description || ''} onChange={(value) => updateField(['network', 'static_routes', String(index), 'description'], value)} placeholder="Branch backhaul" />
+                  </div>
+                  <div className="mt-4">
+                    <ToggleField label="Enabled" checked={Boolean(route.enabled)} onChange={(value) => updateField(['network', 'static_routes', String(index), 'enabled'], value)} />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Firewall, DoS, And Free Sites</h3>
+          <p className="mt-1 text-sm text-gray-600">Blend platform-safe defaults with explicit admin rules, domain/CIDR wall-garden entries, and lightweight DoS controls.</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <ToggleField
+            label="DoS Protection Enabled"
+            checked={Boolean(settings.network?.firewall?.dos_protection?.enabled)}
+            onChange={(value) => updateField(['network', 'firewall', 'dos_protection', 'enabled'], value)}
+          />
+          <TextField label="SYN Rate" value={settings.network?.firewall?.dos_protection?.syn_rate || '50/second'} onChange={(value) => updateField(['network', 'firewall', 'dos_protection', 'syn_rate'], value)} />
+          <TextField label="ICMP Rate" value={settings.network?.firewall?.dos_protection?.icmp_rate || '25/second'} onChange={(value) => updateField(['network', 'firewall', 'dos_protection', 'icmp_rate'], value)} />
+          <TextField label="Conn Rate" value={settings.network?.firewall?.dos_protection?.conn_rate || '200/second'} onChange={(value) => updateField(['network', 'firewall', 'dos_protection', 'conn_rate'], value)} />
+          <TextField label="Burst" type="number" value={settings.network?.firewall?.dos_protection?.burst || 100} onChange={(value) => updateField(['network', 'firewall', 'dos_protection', 'burst'], Number(value))} />
+        </div>
+        <div className="mt-3">
+          <ToggleField
+            label="Log DoS Drops"
+            checked={Boolean(settings.network?.firewall?.dos_protection?.log_drops)}
+            onChange={(value) => updateField(['network', 'firewall', 'dos_protection', 'log_drops'], value)}
+          />
+        </div>
+
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="font-semibold text-gray-900">Free Sites</h4>
+            <button
+              onClick={() =>
+                updateField(['network', 'firewall', 'free_sites'], [
+                  ...freeSites,
+                  { type: 'domain', value: '', enabled: true, description: '' },
+                ])
+              }
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+            >
+              Add Free Site
+            </button>
+          </div>
+          <div className="space-y-4">
+            {freeSites.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">Allow captive clients to reach health checks, payment portals, or approved public destinations here.</div>
+            ) : (
+              freeSites.map((site: JsonMap, index: number) => (
+                <div key={`free-site-${index}`} className="rounded-lg border border-gray-200 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h5 className="font-semibold text-gray-900">{site.value || `Free Site ${index + 1}`}</h5>
+                    <button
+                      onClick={() => updateField(['network', 'firewall', 'free_sites'], freeSites.filter((_: unknown, itemIndex: number) => itemIndex !== index))}
+                      className="text-sm font-medium text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <SelectField
+                      label="Type"
+                      value={site.type || 'domain'}
+                      onChange={(value) => updateField(['network', 'firewall', 'free_sites', String(index), 'type'], value)}
+                      options={freeSiteTypeOptions}
+                    />
+                    <TextField
+                      label="Value"
+                      value={site.value || ''}
+                      onChange={(value) => updateField(['network', 'firewall', 'free_sites', String(index), 'value'], value)}
+                      placeholder={site.type === 'cidr' ? '203.0.113.0/24' : 'example.com'}
+                    />
+                    <TextField label="Description" value={site.description || ''} onChange={(value) => updateField(['network', 'firewall', 'free_sites', String(index), 'description'], value)} placeholder="Payment provider" />
+                    <div className="flex items-end">
+                      <ToggleField label="Enabled" checked={Boolean(site.enabled)} onChange={(value) => updateField(['network', 'firewall', 'free_sites', String(index), 'enabled'], value)} />
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="font-semibold text-gray-900">Custom Firewall Rules</h4>
+            <button
+              onClick={() =>
+                updateField(['network', 'firewall', 'rules'], [
+                  ...firewallRules,
+                  { name: '', chain: 'forward', action: 'accept', interface: '', source: '', destination: '', protocol: 'any', ports: '', enabled: true, description: '' },
+                ])
+              }
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+            >
+              Add Firewall Rule
+            </button>
+          </div>
+          <div className="space-y-4">
+            {firewallRules.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">Add explicit input or forward rules when the built-in edge policy needs a careful exception.</div>
+            ) : (
+              firewallRules.map((rule: JsonMap, index: number) => (
+                <div key={`firewall-rule-${index}`} className="rounded-lg border border-gray-200 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h5 className="font-semibold text-gray-900">{rule.name || `Rule ${index + 1}`}</h5>
+                    <button
+                      onClick={() => updateField(['network', 'firewall', 'rules'], firewallRules.filter((_: unknown, itemIndex: number) => itemIndex !== index))}
+                      className="text-sm font-medium text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                    <TextField label="Name" value={rule.name || ''} onChange={(value) => updateField(['network', 'firewall', 'rules', String(index), 'name'], value)} />
+                    <SelectField label="Chain" value={rule.chain || 'forward'} onChange={(value) => updateField(['network', 'firewall', 'rules', String(index), 'chain'], value)} options={firewallChainOptions} />
+                    <SelectField label="Action" value={rule.action || 'accept'} onChange={(value) => updateField(['network', 'firewall', 'rules', String(index), 'action'], value)} options={firewallActionOptions} />
+                    <SelectField label="Protocol" value={rule.protocol || 'any'} onChange={(value) => updateField(['network', 'firewall', 'rules', String(index), 'protocol'], value)} options={firewallProtocolOptions} />
+                    <TextField label="Interface" value={rule.interface || ''} onChange={(value) => updateField(['network', 'firewall', 'rules', String(index), 'interface'], value)} placeholder="ens37" />
+                    <TextField label="Source CIDR" value={rule.source || ''} onChange={(value) => updateField(['network', 'firewall', 'rules', String(index), 'source'], value)} placeholder="192.168.50.0/24" />
+                    <TextField label="Destination CIDR" value={rule.destination || ''} onChange={(value) => updateField(['network', 'firewall', 'rules', String(index), 'destination'], value)} placeholder="203.0.113.0/24" />
+                    <TextField label="Ports" value={rule.ports || ''} onChange={(value) => updateField(['network', 'firewall', 'rules', String(index), 'ports'], value)} placeholder="80,443" />
+                    <TextField label="Description" value={rule.description || ''} onChange={(value) => updateField(['network', 'firewall', 'rules', String(index), 'description'], value)} placeholder="Allow support tunnel" />
+                  </div>
+                  <div className="mt-4">
+                    <ToggleField label="Enabled" checked={Boolean(rule.enabled)} onChange={(value) => updateField(['network', 'firewall', 'rules', String(index), 'enabled'], value)} />
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>

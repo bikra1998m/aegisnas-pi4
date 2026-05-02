@@ -32,16 +32,24 @@ With the current implementation, the appliance can act as the control point for:
 
 The admin UI now exposes the main manual control surfaces:
 
+- `Dashboard`
 - `Access Settings`
+- `Admin Access`
 - `RADIUS Clients`
 - `Portal Profiles`
 - `Identity Sources`
 - `Roles`
 - `Bandwidth Profiles`
 - `VLANs`
+- `Devices`
+- `Guest Requests`
 - `Sessions`
 - `Alerts`
+- `Revisions`
 - `Backups`
+- `AI Insights`
+
+When guest workflows, onboarding, or delegated-admin features are enabled, those pages become part of the normal wireless day-two workflow rather than optional extras.
 
 ## Important Platform Notes
 

@@ -16,6 +16,7 @@ type Config struct {
 	Deployment   DeploymentConfig   `mapstructure:"deployment"`
 	WAN          InterfaceConfig    `mapstructure:"wan"`
 	LAN          InterfaceConfig    `mapstructure:"lan"`
+	Network      NetworkConfig      `mapstructure:"network"`
 	VLANs        []VLANConfig       `mapstructure:"vlans"`
 	Database     DatabaseConfig     `mapstructure:"database"`
 	Logging      LoggingConfig      `mapstructure:"logging"`
@@ -49,9 +50,10 @@ type DeploymentHardwareConfig struct {
 }
 
 type DHCPConfig struct {
-	Enabled       bool   `mapstructure:"enabled"`
-	LeaseTime     string `mapstructure:"lease_time"`
-	Authoritative bool   `mapstructure:"authoritative"`
+	Enabled       bool                    `mapstructure:"enabled"`
+	LeaseTime     string                  `mapstructure:"lease_time"`
+	Authoritative bool                    `mapstructure:"authoritative"`
+	StaticLeases  []DHCPStaticLeaseConfig `mapstructure:"static_leases"`
 }
 
 type InterfaceConfig struct {
@@ -60,6 +62,91 @@ type InterfaceConfig struct {
 	Address   string `mapstructure:"address"`
 	Gateway   string `mapstructure:"gateway"`
 	DHCPRange string `mapstructure:"dhcp_range"`
+}
+
+type DHCPStaticLeaseConfig struct {
+	MAC         string `mapstructure:"mac"`
+	IP          string `mapstructure:"ip"`
+	Hostname    string `mapstructure:"hostname"`
+	Enabled     bool   `mapstructure:"enabled"`
+	Description string `mapstructure:"description"`
+}
+
+type NetworkConfig struct {
+	Interfaces   []ManagedInterfaceConfig `mapstructure:"interfaces"`
+	Gateways     []GatewayConfig          `mapstructure:"gateways"`
+	DNS          DNSConfig                `mapstructure:"dns"`
+	StaticRoutes []StaticRouteConfig      `mapstructure:"static_routes"`
+	Firewall     FirewallConfig           `mapstructure:"firewall"`
+}
+
+type ManagedInterfaceConfig struct {
+	Name        string `mapstructure:"name"`
+	Address     string `mapstructure:"address"`
+	MTU         int    `mapstructure:"mtu"`
+	Enabled     bool   `mapstructure:"enabled"`
+	Description string `mapstructure:"description"`
+}
+
+type GatewayConfig struct {
+	Name        string `mapstructure:"name"`
+	Address     string `mapstructure:"address"`
+	Interface   string `mapstructure:"interface"`
+	Metric      int    `mapstructure:"metric"`
+	Default     bool   `mapstructure:"default"`
+	Enabled     bool   `mapstructure:"enabled"`
+	Description string `mapstructure:"description"`
+}
+
+type DNSConfig struct {
+	UpstreamServers []string `mapstructure:"upstream_servers"`
+	SearchDomains   []string `mapstructure:"search_domains"`
+	LocalDomain     string   `mapstructure:"local_domain"`
+}
+
+type StaticRouteConfig struct {
+	Name        string `mapstructure:"name"`
+	Destination string `mapstructure:"destination"`
+	Gateway     string `mapstructure:"gateway"`
+	Interface   string `mapstructure:"interface"`
+	Metric      int    `mapstructure:"metric"`
+	Enabled     bool   `mapstructure:"enabled"`
+	Description string `mapstructure:"description"`
+}
+
+type FirewallConfig struct {
+	Rules         []FirewallRuleConfig `mapstructure:"rules"`
+	FreeSites     []FreeSiteConfig     `mapstructure:"free_sites"`
+	DOSProtection DOSProtectionConfig  `mapstructure:"dos_protection"`
+}
+
+type FirewallRuleConfig struct {
+	Name        string `mapstructure:"name"`
+	Chain       string `mapstructure:"chain"`
+	Action      string `mapstructure:"action"`
+	Interface   string `mapstructure:"interface"`
+	Source      string `mapstructure:"source"`
+	Destination string `mapstructure:"destination"`
+	Protocol    string `mapstructure:"protocol"`
+	Ports       string `mapstructure:"ports"`
+	Enabled     bool   `mapstructure:"enabled"`
+	Description string `mapstructure:"description"`
+}
+
+type FreeSiteConfig struct {
+	Type        string `mapstructure:"type"`
+	Value       string `mapstructure:"value"`
+	Enabled     bool   `mapstructure:"enabled"`
+	Description string `mapstructure:"description"`
+}
+
+type DOSProtectionConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
+	SYNRate  string `mapstructure:"syn_rate"`
+	ICMPRate string `mapstructure:"icmp_rate"`
+	ConnRate string `mapstructure:"conn_rate"`
+	Burst    int    `mapstructure:"burst"`
+	LogDrops bool   `mapstructure:"log_drops"`
 }
 
 type VLANConfig struct {
@@ -362,6 +449,13 @@ func Load(configPath string) (*Config, error) {
 	v.SetDefault("dhcp.enabled", true)
 	v.SetDefault("dhcp.lease_time", "12h")
 	v.SetDefault("dhcp.authoritative", true)
+	v.SetDefault("network.dns.upstream_servers", []string{"8.8.8.8", "8.8.4.4"})
+	v.SetDefault("network.dns.local_domain", "aegis.local")
+	v.SetDefault("network.firewall.dos_protection.syn_rate", "50/second")
+	v.SetDefault("network.firewall.dos_protection.icmp_rate", "25/second")
+	v.SetDefault("network.firewall.dos_protection.conn_rate", "200/second")
+	v.SetDefault("network.firewall.dos_protection.burst", 100)
+	v.SetDefault("network.firewall.dos_protection.log_drops", true)
 	v.SetDefault("portal.listen_ip", "10.20.0.1")
 	v.SetDefault("portal.guest_workflows.invite_delivery", "none")
 	v.SetDefault("portal.guest_workflows.smtp_port", 587)
@@ -491,6 +585,191 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("VLAN %d subnet invalid: %w", v.ID, err)
 			}
 		}
+	}
+
+	interfaceNames := map[string]struct{}{}
+	for _, name := range []string{strings.TrimSpace(c.WAN.Name), strings.TrimSpace(c.LAN.Name)} {
+		if name != "" {
+			interfaceNames[name] = struct{}{}
+		}
+	}
+
+	managedInterfaceNames := make(map[string]struct{}, len(c.Network.Interfaces))
+	for i, iface := range c.Network.Interfaces {
+		if strings.TrimSpace(iface.Name) == "" {
+			return fmt.Errorf("network.interfaces[%d].name cannot be empty", i)
+		}
+		if _, exists := managedInterfaceNames[strings.TrimSpace(iface.Name)]; exists {
+			return fmt.Errorf("network.interfaces[%d].name %q is duplicated", i, iface.Name)
+		}
+		managedInterfaceNames[strings.TrimSpace(iface.Name)] = struct{}{}
+		interfaceNames[strings.TrimSpace(iface.Name)] = struct{}{}
+		if iface.MTU < 0 {
+			return fmt.Errorf("network.interfaces[%d].mtu %d cannot be negative", i, iface.MTU)
+		}
+		if iface.Enabled {
+			if strings.TrimSpace(iface.Address) == "" {
+				return fmt.Errorf("network.interfaces[%d].address cannot be empty when the interface is enabled", i)
+			}
+			if _, _, err := net.ParseCIDR(strings.TrimSpace(iface.Address)); err != nil {
+				return fmt.Errorf("network.interfaces[%d].address %q is invalid: %w", i, iface.Address, err)
+			}
+		}
+	}
+
+	gatewayNames := make(map[string]struct{}, len(c.Network.Gateways))
+	for i, gateway := range c.Network.Gateways {
+		name := strings.TrimSpace(gateway.Name)
+		if name == "" {
+			return fmt.Errorf("network.gateways[%d].name cannot be empty", i)
+		}
+		if _, exists := gatewayNames[name]; exists {
+			return fmt.Errorf("network.gateways[%d].name %q is duplicated", i, gateway.Name)
+		}
+		gatewayNames[name] = struct{}{}
+		if gateway.Metric < 0 {
+			return fmt.Errorf("network.gateways[%d].metric %d cannot be negative", i, gateway.Metric)
+		}
+		if gateway.Enabled {
+			if net.ParseIP(strings.TrimSpace(gateway.Address)) == nil {
+				return fmt.Errorf("network.gateways[%d].address %q is invalid", i, gateway.Address)
+			}
+			if strings.TrimSpace(gateway.Interface) == "" {
+				return fmt.Errorf("network.gateways[%d].interface cannot be empty when the gateway is enabled", i)
+			}
+			if _, exists := interfaceNames[strings.TrimSpace(gateway.Interface)]; !exists {
+				return fmt.Errorf("network.gateways[%d].interface %q does not match wan.name, lan.name, or a managed interface", i, gateway.Interface)
+			}
+		}
+	}
+
+	if strings.TrimSpace(c.Network.DNS.LocalDomain) != "" && !validDomainLabelList(strings.TrimSpace(c.Network.DNS.LocalDomain)) {
+		return fmt.Errorf("network.dns.local_domain %q is invalid", c.Network.DNS.LocalDomain)
+	}
+	for i, server := range c.Network.DNS.UpstreamServers {
+		if net.ParseIP(strings.TrimSpace(server)) == nil {
+			return fmt.Errorf("network.dns.upstream_servers[%d] %q is invalid", i, server)
+		}
+	}
+	for i, domain := range c.Network.DNS.SearchDomains {
+		if !validDomainLabelList(strings.TrimSpace(domain)) {
+			return fmt.Errorf("network.dns.search_domains[%d] %q is invalid", i, domain)
+		}
+	}
+
+	routeNames := make(map[string]struct{}, len(c.Network.StaticRoutes))
+	for i, route := range c.Network.StaticRoutes {
+		name := strings.TrimSpace(route.Name)
+		if name == "" {
+			return fmt.Errorf("network.static_routes[%d].name cannot be empty", i)
+		}
+		if _, exists := routeNames[name]; exists {
+			return fmt.Errorf("network.static_routes[%d].name %q is duplicated", i, route.Name)
+		}
+		routeNames[name] = struct{}{}
+		if route.Metric < 0 {
+			return fmt.Errorf("network.static_routes[%d].metric %d cannot be negative", i, route.Metric)
+		}
+		if route.Enabled {
+			if _, _, err := net.ParseCIDR(strings.TrimSpace(route.Destination)); err != nil {
+				return fmt.Errorf("network.static_routes[%d].destination %q is invalid: %w", i, route.Destination, err)
+			}
+			if net.ParseIP(strings.TrimSpace(route.Gateway)) == nil {
+				return fmt.Errorf("network.static_routes[%d].gateway %q is invalid", i, route.Gateway)
+			}
+			if strings.TrimSpace(route.Interface) == "" {
+				return fmt.Errorf("network.static_routes[%d].interface cannot be empty when the route is enabled", i)
+			}
+			if _, exists := interfaceNames[strings.TrimSpace(route.Interface)]; !exists {
+				return fmt.Errorf("network.static_routes[%d].interface %q does not match wan.name, lan.name, or a managed interface", i, route.Interface)
+			}
+		}
+	}
+
+	for i, rule := range c.Network.Firewall.Rules {
+		if strings.TrimSpace(rule.Name) == "" {
+			return fmt.Errorf("network.firewall.rules[%d].name cannot be empty", i)
+		}
+		switch strings.ToLower(strings.TrimSpace(rule.Chain)) {
+		case "", "input", "forward":
+		default:
+			return fmt.Errorf("network.firewall.rules[%d].chain %q is invalid", i, rule.Chain)
+		}
+		switch strings.ToLower(strings.TrimSpace(rule.Action)) {
+		case "", "accept", "drop", "reject":
+		default:
+			return fmt.Errorf("network.firewall.rules[%d].action %q is invalid", i, rule.Action)
+		}
+		switch strings.ToLower(strings.TrimSpace(rule.Protocol)) {
+		case "", "any", "tcp", "udp", "icmp":
+		default:
+			return fmt.Errorf("network.firewall.rules[%d].protocol %q is invalid", i, rule.Protocol)
+		}
+		if source := strings.TrimSpace(rule.Source); source != "" {
+			if _, _, err := net.ParseCIDR(source); err != nil {
+				return fmt.Errorf("network.firewall.rules[%d].source %q is invalid: %w", i, rule.Source, err)
+			}
+		}
+		if destination := strings.TrimSpace(rule.Destination); destination != "" {
+			if _, _, err := net.ParseCIDR(destination); err != nil {
+				return fmt.Errorf("network.firewall.rules[%d].destination %q is invalid: %w", i, rule.Destination, err)
+			}
+		}
+		if iface := strings.TrimSpace(rule.Interface); iface != "" {
+			if _, exists := interfaceNames[iface]; !exists {
+				return fmt.Errorf("network.firewall.rules[%d].interface %q does not match wan.name, lan.name, or a managed interface", i, rule.Interface)
+			}
+		}
+	}
+
+	for i, site := range c.Network.Firewall.FreeSites {
+		switch strings.ToLower(strings.TrimSpace(site.Type)) {
+		case "domain":
+			if !validDomainLabelList(strings.TrimSpace(site.Value)) {
+				return fmt.Errorf("network.firewall.free_sites[%d].value %q is not a valid domain", i, site.Value)
+			}
+		case "cidr":
+			if _, _, err := net.ParseCIDR(strings.TrimSpace(site.Value)); err != nil {
+				return fmt.Errorf("network.firewall.free_sites[%d].value %q is not a valid CIDR: %w", i, site.Value, err)
+			}
+		default:
+			return fmt.Errorf("network.firewall.free_sites[%d].type %q is invalid", i, site.Type)
+		}
+	}
+
+	if c.Network.Firewall.DOSProtection.Burst < 0 {
+		return fmt.Errorf("network.firewall.dos_protection.burst %d cannot be negative", c.Network.Firewall.DOSProtection.Burst)
+	}
+	if c.Network.Firewall.DOSProtection.Enabled {
+		if strings.TrimSpace(c.Network.Firewall.DOSProtection.SYNRate) == "" {
+			return errors.New("network.firewall.dos_protection.syn_rate cannot be empty when DoS protection is enabled")
+		}
+		if strings.TrimSpace(c.Network.Firewall.DOSProtection.ICMPRate) == "" {
+			return errors.New("network.firewall.dos_protection.icmp_rate cannot be empty when DoS protection is enabled")
+		}
+		if strings.TrimSpace(c.Network.Firewall.DOSProtection.ConnRate) == "" {
+			return errors.New("network.firewall.dos_protection.conn_rate cannot be empty when DoS protection is enabled")
+		}
+	}
+
+	staticLeaseMACs := make(map[string]struct{}, len(c.DHCP.StaticLeases))
+	staticLeaseIPs := make(map[string]struct{}, len(c.DHCP.StaticLeases))
+	for i, lease := range c.DHCP.StaticLeases {
+		mac := normalizeMAC(lease.MAC)
+		if mac == "" || !validMACAddress(mac) {
+			return fmt.Errorf("dhcp.static_leases[%d].mac %q is invalid", i, lease.MAC)
+		}
+		if _, exists := staticLeaseMACs[mac]; exists {
+			return fmt.Errorf("dhcp.static_leases[%d].mac %q is duplicated", i, lease.MAC)
+		}
+		staticLeaseMACs[mac] = struct{}{}
+		if net.ParseIP(strings.TrimSpace(lease.IP)) == nil {
+			return fmt.Errorf("dhcp.static_leases[%d].ip %q is invalid", i, lease.IP)
+		}
+		if _, exists := staticLeaseIPs[strings.TrimSpace(lease.IP)]; exists {
+			return fmt.Errorf("dhcp.static_leases[%d].ip %q is duplicated", i, lease.IP)
+		}
+		staticLeaseIPs[strings.TrimSpace(lease.IP)] = struct{}{}
 	}
 
 	if c.Database.Path == "" {
@@ -1056,6 +1335,39 @@ func identityWorkflowReady(c *Config) bool {
 		return false
 	}
 	return c.Portal.LocalFallback || c.LDAP.Enabled || c.Portal.RadiusAuth
+}
+
+func validDomainLabelList(value string) bool {
+	value = strings.TrimSpace(strings.TrimSuffix(value, "."))
+	if value == "" || strings.Contains(value, "://") || strings.ContainsAny(value, " /") {
+		return false
+	}
+	labels := strings.Split(value, ".")
+	for _, label := range labels {
+		if label == "" || len(label) > 63 {
+			return false
+		}
+		for i, r := range label {
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+				continue
+			}
+			if r == '-' && i != 0 && i != len(label)-1 {
+				continue
+			}
+			return false
+		}
+	}
+	return true
+}
+
+func normalizeMAC(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	return strings.ReplaceAll(value, "-", ":")
+}
+
+func validMACAddress(value string) bool {
+	hw, err := net.ParseMAC(value)
+	return err == nil && len(hw) >= 6
 }
 
 func certificateAuthorityReady(c *Config) bool {

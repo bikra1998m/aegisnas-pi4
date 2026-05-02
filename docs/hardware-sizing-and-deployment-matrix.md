@@ -77,9 +77,9 @@ Good fit:
 - captive portal validation
 - upstream RADIUS integration tests
 - admin UI operation and manual workflow testing
-- guest workflow rehearsals with self-registration and sponsor approval left off
-- Phase 3 preview validation for onboarding and profiling with the features still disabled
-- Phase 4 preview validation for SIEM export, controller automation, and admin SSO with the integrations still disabled
+- guest workflow rehearsals, including self-registration and sponsor approval when transport is configured
+- onboarding and profiling smoke tests with device inventory enabled and runtime scope kept small
+- SIEM export, controller automation, and admin SSO smoke tests when integrations are enabled one at a time
 
 Less ideal for:
 
@@ -116,8 +116,9 @@ Good fit:
 - guest Wi-Fi with captive portal
 - a few APs or a small downstream switch
 - branch deployments with light to moderate enterprise auth
-- device inventory pilot work without certificate enrollment or posture
-- no authoritative MDM sync, controller automation, or delegated admin
+- device inventory and internal-onboarding pilot work without heavy posture pressure
+- lighter SIEM export and guest approval workflows
+- keep authoritative MDM sync, controller automation at scale, and multi-tenant governance off unless the deployment is intentionally stepped up
 
 Important notes:
 

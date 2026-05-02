@@ -20,6 +20,64 @@ lan:
   gateway: 192.168.50.1
   dhcp_range: "192.168.50.100,192.168.50.200,12h"
 
+network:
+  interfaces:
+    - name: eth2.50
+      address: 10.50.0.1/24
+      mtu: 1500
+      enabled: false
+      description: "Optional transit or services VLAN"
+  gateways:
+    - name: primary-upstream
+      address: 192.168.10.1
+      interface: eth0
+      metric: 0
+      default: true
+      enabled: false
+      description: "Optional default route override"
+  dns:
+    upstream_servers:
+      - 8.8.8.8
+      - 8.8.4.4
+    search_domains: []
+    local_domain: aegis.local
+  static_routes:
+    - name: branch-link
+      destination: 172.16.20.0/24
+      gateway: 192.168.10.254
+      interface: eth0
+      metric: 10
+      enabled: false
+      description: "Optional route to a downstream branch"
+  firewall:
+    rules:
+      - name: allow-support-web
+        chain: forward
+        action: accept
+        interface: eth1
+        source: 192.168.50.0/24
+        destination: 203.0.113.0/24
+        protocol: tcp
+        ports: "443"
+        enabled: false
+        description: "Example custom exception rule"
+    free_sites:
+      - type: domain
+        value: neverssl.com
+        enabled: true
+        description: "Useful captive portal test destination"
+      - type: cidr
+        value: 203.0.113.0/24
+        enabled: false
+        description: "Example wall-garden network"
+    dos_protection:
+      enabled: false
+      syn_rate: "50/second"
+      icmp_rate: "25/second"
+      conn_rate: "200/second"
+      burst: 100
+      log_drops: true
+
 vlans:
   - id: 20
     name: guest
@@ -214,6 +272,12 @@ dhcp:
   enabled: true
   lease_time: 12h
   authoritative: true
+  static_leases:
+    - mac: "aa:bb:cc:dd:ee:ff"
+      ip: "192.168.50.10"
+      hostname: "printer-lobby"
+      enabled: false
+      description: "Example reservation"
 
 wireless:
   enabled: false

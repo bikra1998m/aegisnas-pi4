@@ -20,12 +20,14 @@ This guide covers:
 
 1. admin UI bootstrap token login
 2. captive portal login with a local user
-3. captive portal login with a voucher
-4. captive portal login backed by LDAP
-5. captive portal login through the local FreeRADIUS broker and upstream AAA
-6. 802.1X or EAP login through an external AP
-7. logout, re-login, and negative-path checks
-8. separate log bundle capture for future debugging and R&D
+3. captive portal self-registration and sponsor approval
+4. device onboarding and certificate retrieval
+5. captive portal login with a voucher
+6. captive portal login backed by LDAP
+7. captive portal login through the local FreeRADIUS broker and upstream AAA
+8. 802.1X or EAP login through an external AP
+9. logout, re-login, and negative-path checks
+10. separate log bundle capture for future debugging and R&D
 
 ## Recommended Lab Topology
 
@@ -108,6 +110,8 @@ Recommended capture points:
 | --- | --- | --- | --- | --- |
 | Admin UI bootstrap login | management browser | bootstrap token | not applicable | dashboard loads |
 | Portal local user | LAN-side client | `local_users` | yes | session shows portal-local auth |
+| Portal self-registration and sponsor approval | LAN-side client plus sponsor path | guest workflow | yes | `Guest Requests` shows approval path and session starts after approval |
+| Onboarding and certificate retrieval | LAN-side client plus admin UI | onboarding runtime | usually yes after registration | `Devices` shows the device and certificate bundle |
 | Portal voucher | LAN-side client | `vouchers` | yes | voucher usage increments |
 | Portal LDAP | LAN-side client | LDAP | yes | session shows LDAP-backed auth |
 | Portal brokered AAA | LAN-side client | FreeRADIUS broker and upstream AAA | yes | `aegis-radius` and `freeradius` logs show auth path |
@@ -206,6 +210,75 @@ If you want a truer redirect test:
 
 - browse to any plain HTTP site before login
 - confirm the client lands on the portal page
+
+## 2A. Guest Self-Registration And Sponsor Approval
+
+Purpose:
+
+- validate the end-to-end guest-request path
+- prove approval can happen through the portal workflow or sponsor link
+
+Setup:
+
+1. in `Access Settings`, enable:
+   - `portal.guest_workflows.self_registration_enabled`
+2. if sponsor approval is in scope, also enable:
+   - `portal.guest_workflows.sponsor_approval_enabled`
+3. configure email or SMS delivery if approval links should be delivered externally
+
+Steps:
+
+1. capture a baseline bundle
+2. from the LAN-side client, open the portal
+3. choose `Request guest access`
+4. submit the request
+5. approve it from `Guest Requests` or from the sponsor approval link
+6. confirm the original client completes the portal flow
+7. test internet from the client after approval
+8. capture a success bundle
+
+Pass condition:
+
+- request submission succeeds
+- approval or rejection state is visible in `Guest Requests`
+- approval creates a usable guest credential path
+- internet works after approval
+
+## 2B. Onboarding And Certificate Retrieval
+
+Purpose:
+
+- validate the device inventory and certificate workflow
+- confirm internal or external CA enrollment behaves as configured
+
+Setup:
+
+1. in `Access Settings`, enable the onboarding features in scope:
+   - `device_inventory_enabled`
+   - `portal_enabled`
+   - `certificate_enrollment_enabled`
+2. choose:
+   - `ca_mode: internal`, or
+   - `ca_mode: external`
+3. if using external CA mode, configure:
+   - `ca_enrollment_url`
+   - `ca_enrollment_token_env` as needed
+
+Steps:
+
+1. capture a baseline bundle
+2. from the LAN-side client, run the onboarding flow
+3. open `Devices` in the admin UI
+4. confirm the device appears
+5. retrieve the certificate bundle
+6. if external CA is enabled, confirm the enrollment completed successfully
+7. capture a success bundle
+
+Pass condition:
+
+- the device is inventoried
+- certificate retrieval works
+- external CA mode works when configured
 
 ## 3. Captive Portal Voucher Login
 

@@ -63,3 +63,53 @@ func TestGenerateTrunkMode(t *testing.T) {
 	assert.Contains(t, content, "iif $VLAN_20_IF oif eth0 accept")
 	assert.Contains(t, content, "masquerade")
 }
+
+func TestGenerateCustomRulesAndDOS(t *testing.T) {
+	cfg := &config.Config{
+		Mode: "two-nic",
+		WAN:  config.InterfaceConfig{Name: "eth0", DHCP: true},
+		LAN:  config.InterfaceConfig{Name: "eth1", Address: "192.168.50.1/24"},
+		Health: config.HealthConfig{
+			Port: 8080,
+		},
+		Portal: config.PortalConfig{
+			Port: 8081,
+		},
+		Network: config.NetworkConfig{
+			Firewall: config.FirewallConfig{
+				Rules: []config.FirewallRuleConfig{
+					{
+						Name:      "allow-web",
+						Chain:     "forward",
+						Action:    "accept",
+						Interface: "eth1",
+						Source:    "192.168.50.0/24",
+						Protocol:  "tcp",
+						Ports:     "80,443",
+						Enabled:   true,
+					},
+				},
+				FreeSites: []config.FreeSiteConfig{
+					{Type: "cidr", Value: "203.0.113.0/24", Enabled: true},
+				},
+				DOSProtection: config.DOSProtectionConfig{
+					Enabled:  true,
+					SYNRate:  "25/second",
+					ICMPRate: "10/second",
+					ConnRate: "100/second",
+					Burst:    50,
+					LogDrops: true,
+				},
+			},
+		},
+	}
+
+	gen := NewGenerator(cfg)
+	ruleset, err := gen.Generate()
+	require.NoError(t, err)
+	content := ruleset.Content
+
+	assert.Contains(t, content, `tcp flags syn limit rate over 25/second burst 50 packets log prefix "aegis-dos: " level warn drop`)
+	assert.Contains(t, content, `iif $LAN_IF ip daddr 203.0.113.0/24 accept`)
+	assert.Contains(t, content, `iifname "eth1" ip saddr 192.168.50.0/24 meta l4proto tcp tcp dport { 80, 443 } accept`)
+}

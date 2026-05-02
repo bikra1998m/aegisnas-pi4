@@ -16,6 +16,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/firewall"
 	"github.com/yourorg/aegisnas-pi4/internal/health"
 	"github.com/yourorg/aegisnas-pi4/internal/logging"
+	"github.com/yourorg/aegisnas-pi4/internal/network"
 	"github.com/yourorg/aegisnas-pi4/internal/portal"
 	"go.uber.org/zap"
 )
@@ -69,6 +70,9 @@ var runCmd = &cobra.Command{
 		if err := enforcement.SyncRuntimeEnforcement(cfg); err != nil {
 			logger.Warn("failed to restore runtime enforcement state", zap.Error(err))
 		}
+		if err := network.Apply(cfg); err != nil {
+			return fmt.Errorf("apply managed network config: %w", err)
+		}
 
 		// Apply firewall
 		if err := applyFirewall(cfg, "system-startup"); err != nil {
@@ -76,14 +80,8 @@ var runCmd = &cobra.Command{
 		}
 
 		// Apply dnsmasq config
-		if cfg.DHCP.Enabled {
-			gen := dnsmasq.NewGenerator(cfg)
-			dnsCfg, err := gen.Generate()
-			if err == nil {
-				if err := os.WriteFile("/etc/dnsmasq.conf", []byte(dnsCfg.Content), 0644); err == nil {
-					exec.Command("systemctl", "restart", "dnsmasq").Run()
-				}
-			}
+		if err := applyDNSMasq(cfg, false); err != nil {
+			logger.Warn("failed to apply dnsmasq config", zap.Error(err))
 		}
 
 		go health.StartServer(cfg.Health.Port, logger)
@@ -134,9 +132,41 @@ var applyCmd = &cobra.Command{
 				_, _ = db.SaveConfigRevision(current, "auto-before-apply")
 			}
 		}
+		if !dryRun {
+			if err := network.Apply(cfg); err != nil {
+				return fmt.Errorf("apply managed network config: %w", err)
+			}
+		}
 
 		return applyFirewall(cfg, "manual-apply")
 	},
+}
+
+func applyDNSMasq(cfg *config.Config, printOnly bool) error {
+	if !cfg.DHCP.Enabled {
+		if printOnly {
+			fmt.Println("# dnsmasq disabled in config")
+			return nil
+		}
+		return exec.Command("systemctl", "stop", "dnsmasq").Run()
+	}
+
+	gen := dnsmasq.NewGenerator(cfg)
+	dnsCfg, err := gen.Generate()
+	if err != nil {
+		return err
+	}
+	if printOnly {
+		fmt.Println(dnsCfg.Content)
+		return nil
+	}
+	if err := os.WriteFile("/etc/dnsmasq.conf", []byte(dnsCfg.Content), 0644); err != nil {
+		return fmt.Errorf("write dnsmasq.conf: %w", err)
+	}
+	if err := exec.Command("systemctl", "restart", "dnsmasq").Run(); err != nil {
+		return fmt.Errorf("restart dnsmasq: %w", err)
+	}
+	return nil
 }
 
 var dryRunCmd = &cobra.Command{
@@ -220,13 +250,7 @@ var generateDnsmasqCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		gen := dnsmasq.NewGenerator(cfg)
-		dnsCfg, err := gen.Generate()
-		if err != nil {
-			return err
-		}
-		fmt.Println(dnsCfg.Content)
-		return nil
+		return applyDNSMasq(cfg, true)
 	},
 }
 
@@ -243,25 +267,8 @@ var applyDnsmasqCmd = &cobra.Command{
 		}
 		defer logging.Sync()
 
-		gen := dnsmasq.NewGenerator(cfg)
-		dnsCfg, err := gen.Generate()
-		if err != nil {
+		if err := applyDNSMasq(cfg, dryRun); err != nil {
 			return err
-		}
-
-		if dryRun {
-			fmt.Println(dnsCfg.Content)
-			return nil
-		}
-
-		// Write to file
-		if err := os.WriteFile("/etc/dnsmasq.conf", []byte(dnsCfg.Content), 0644); err != nil {
-			return fmt.Errorf("write dnsmasq.conf: %w", err)
-		}
-
-		// Restart dnsmasq
-		if err := exec.Command("systemctl", "restart", "dnsmasq").Run(); err != nil {
-			return fmt.Errorf("restart dnsmasq: %w", err)
 		}
 		logging.L().Info("dnsmasq configuration applied")
 		return nil

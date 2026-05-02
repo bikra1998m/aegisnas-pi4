@@ -341,6 +341,12 @@ For `lite` profile, these are expected:
 - `Telemetry`: disabled
 - `hostapd`: disabled unless wireless is enabled
 
+If integrations are enabled, also check the dashboard runtime cards for:
+
+- admin SSO
+- SIEM export
+- controller automation
+
 ## 10. Create The Local Captive Portal Test User
 
 In the admin UI:
@@ -367,6 +373,14 @@ Confirm the seeded objects exist:
 Roles -> guest-basic
 Bandwidth Profiles -> 10m-down-5m-up
 Portal Profiles -> default-guest
+```
+
+If you plan to test the newer runtime paths, also note these operator pages:
+
+```text
+Guest Requests
+Devices
+Admin Access
 ```
 
 ## 11. Manual Portal Page Test On The Same VM

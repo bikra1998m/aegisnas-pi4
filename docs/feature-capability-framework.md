@@ -1,6 +1,6 @@
 # Feature Capability Framework
 
-This document defines how AegisNAS should enable, warn on, degrade, or block features based on hardware, deployment form, and integration readiness.
+This document defines how AegisNAS enables, warns on, degrades, or blocks features based on hardware, deployment form, and integration readiness.
 
 Use it together with:
 
@@ -91,13 +91,15 @@ The feature evaluator should use the following inputs.
 
 ## Current Foundation In Repo
 
-The current codebase already has an early form of this model through:
+The current codebase now has a working form of this model through:
 
 - deployment profiles
 - deployment form
 - hardware hints
 - dashboard mismatch warnings
 - profile-driven defaults for AI, telemetry, shaping, and RADIUS scale
+- Access Settings capability preview for phases 1 through 4
+- runtime status surfacing for SSO, SIEM export, and controller automation
 
 That work lives primarily in:
 
@@ -106,7 +108,7 @@ That work lives primarily in:
 - `web/admin-ui/src/pages/AccessSettings.tsx`
 - `web/admin-ui/src/pages/Dashboard.tsx`
 
-This framework extends that idea to the rest of the product.
+This framework explains the product behavior that now exists in the repo and the boundaries that still matter for deployment.
 
 ## Feature Groups
 
@@ -153,9 +155,9 @@ These are the first major expansion area for a stronger NAC product.
 | Voucher guest flow | enabled | enabled | enabled | already present |
 | Portal branding | enabled | enabled | enabled | already present |
 | Terms and logout URL control | enabled | enabled | enabled | already present |
-| Guest self-registration | blocked | available | enabled | needs workflow UI and notification plumbing |
-| Sponsor approval | blocked | available | enabled | needs approval flow and audit model |
-| Email or SMS invite | blocked | warned | enabled | depends on provider setup |
+| Guest self-registration | blocked | available | enabled | runtime-supported through the captive portal and `Guest Requests` |
+| Sponsor approval | blocked | available | enabled | runtime-supported by email or SMS approval links |
+| Email or SMS invite | blocked | warned | enabled | runtime exists; depends on provider setup |
 | Guest lifecycle reporting | available | enabled | enabled | stronger value on branch and enterprise |
 
 Rules:
@@ -169,10 +171,10 @@ These features separate a serious NAC suite from a basic portal appliance.
 
 | Feature | Lite | Branch | Enterprise | Notes |
 | --- | --- | --- | --- | --- |
-| Device registration inventory | blocked | available | enabled | useful base layer |
-| Onboarding portal | blocked | warned | enabled | needs UX, cert, and role flow |
-| Certificate enrollment | blocked | blocked | enabled | requires CA model |
-| EAP-TLS onboarding | blocked | blocked | enabled | needs strong certificate handling |
+| Device registration inventory | blocked | available | enabled | runtime-supported through the `Devices` page |
+| Onboarding portal | blocked | warned | enabled | runtime-supported; still policy and CA dependent |
+| Certificate enrollment | blocked | blocked | enabled | runtime-supported with internal or external CA mode |
+| EAP-TLS onboarding | blocked | blocked | enabled | requires strong certificate handling and TLS EAP defaults |
 | Known device reissue and revocation | blocked | blocked | enabled | enterprise-only first pass |
 
 Rules:
@@ -188,9 +190,9 @@ This is the biggest gap against larger NAC platforms today.
 | --- | --- | --- | --- | --- |
 | Simple device grouping | available | enabled | enabled | can be role or tag based |
 | MAC-based device inventory | available | enabled | enabled | useful base layer |
-| Passive device profiling | blocked | warned | enabled | needs collector and rule set |
-| Endpoint posture checks | blocked | blocked | enabled | requires integrations and agent model |
-| MDM or UEM compliance ingest | blocked | blocked | enabled | integration-heavy |
+| Passive device profiling | blocked | warned | enabled | runtime-supported with collector and retention limits |
+| Endpoint posture checks | blocked | blocked | enabled | runtime-supported when MDM or compliance inputs exist |
+| MDM or UEM compliance ingest | blocked | blocked | enabled | runtime-supported; integration-heavy |
 | Remediation and quarantine workflows | available | enabled | enabled | stronger when posture exists |
 
 Rules:
@@ -226,9 +228,9 @@ Rules:
 | Upstream RADIUS / AAA | available | enabled | enabled | already present |
 | Local fallback | enabled | enabled | enabled | already present |
 | SAML or OIDC admin auth | blocked | available | enabled | runtime-supported with break-glass fallback |
-| MDM or UEM integration | blocked | blocked | enabled | future work |
+| MDM or UEM integration | blocked | blocked | enabled | runtime-supported with token-backed sync |
 | SIEM / webhook export | available | enabled | enabled | can scale by retention depth |
-| Multi-tenant separation | blocked | blocked | available | future work |
+| Multi-tenant separation | blocked | blocked | available | runtime-supported for tenant-scoped admin operations |
 
 ### 8. Operations And Governance
 
@@ -240,8 +242,8 @@ Rules:
 | Backup and restore | enabled | enabled | enabled | already present |
 | AI recommendations | blocked | enabled | enabled | existing profile system already trends this way |
 | Full AI mode | blocked | warned | enabled | requires configured provider |
-| Delegated admin / RBAC | blocked | available | enabled | future work |
-| Rich reporting and analytics | warned | available | enabled | future work |
+| Delegated admin / RBAC | blocked | available | enabled | runtime-supported with local and external-group mapping |
+| Rich reporting and analytics | warned | available | enabled | dashboard, alerts, exports, and audit visibility are present; long-horizon analytics remain lighter than large NAC suites |
 
 ## Profile Behavior Summary
 

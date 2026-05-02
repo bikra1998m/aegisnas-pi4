@@ -11,16 +11,18 @@ The repository builds as a production-minded MVP: Go services, SQLite local stat
 - Gateway: nftables firewall, NAT, VLAN trunking, captive redirect hooks, and rollback snapshots.
 - AAA: FreeRADIUS config generation for PAP, accounting, PEAP, TTLS, EAP templates, upstream RADIUS proxy mode, per-upstream `Status-Server` health insight, reply-attribute mapping, interim accounting, and CoA/disconnect handling for external AAA systems.
 - Wireless appliance mode: hostapd config generation and publish flow for open, captive portal, WPA2-Personal, WPA2-Enterprise, WPA3-Personal, and WPA3-Enterprise SSIDs on supported Ubuntu hardware.
-- Captive portal: username/password and voucher flows with rate limiting, optional brokered RADIUS auth, and local break-glass fallback.
-- Admin API: CRUD for VLANs, portal profiles, users, vouchers, roles, bandwidth profiles, policies, identity sources, RADIUS clients, sessions, alerts, revisions, backups, and AI recommendations.
-- Admin UI: operational pages for every admin API object plus a guided `Access Settings` console for portal, LDAP, EAP, upstream AAA, radio, and SSID management, and a live dashboard for appliance, broker, and per-upstream AAA health.
+- Captive portal: username/password and voucher flows with rate limiting, optional brokered RADIUS auth, local break-glass fallback, guest self-registration, and sponsor approval runtime.
+- Onboarding and profiling: device inventory, onboarding portal flow, internal or external CA enrollment, certificate retrieval, passive profiling, and posture sync through MDM or compliance webhook inputs.
+- Admin API: CRUD for VLANs, portal profiles, users, vouchers, roles, bandwidth profiles, policies, identity sources, RADIUS clients, sessions, alerts, revisions, backups, AI recommendations, guest requests, devices, and admin principals.
+- Admin UI: operational pages for every admin API object plus a guided `Access Settings` console for portal, LDAP, EAP, upstream AAA, onboarding, integrations, radio, and SSID management, and a live dashboard for appliance, broker, integration, and per-upstream AAA health.
 - Runtime enforcement: immediate gateway quarantine for sessions reclassified into quarantine role, Filter-Id, or VLAN 99, live per-session bandwidth shaping from active bandwidth profiles, and immediate session termination when CoA tightens timeouts or requests VLAN reassignment.
 - State: pure-Go SQLite driver for CGO-free builds and reproducible tests.
+- Integrations and governance: OIDC and SAML admin SSO, delegated admin and tenant-aware scoping, SIEM export, and controller automation.
 - AI engine: local AI Lite checks for small hardware and full OpenAI-compatible analysis for high-capacity appliances; authentication and traffic admission do not depend on AI.
 
 ## Production Readiness
 
-The codebase is ready for pilot production packaging after site-specific secrets, TLS certificates, AP/RADIUS client secrets, and deployment-specific network values are installed.
+The codebase is ready for lab, pilot, and staged production deployment after site-specific secrets, TLS certificates, AP/RADIUS client secrets, and deployment-specific network values are installed.
 
 See [Production Readiness Update](docs/production-readiness-update.md), [Ubuntu Appliance Deployment](docs/ubuntu-appliance-deployment.md), [Ubuntu VM Deployment And Full Flow Test Runbook](docs/ubuntu-vm-runbook.md), [VMware Workstation 17 Player Full Product Runbook](docs/vmware-workstation-17-player-full-test.md), [Hardware Sizing And Deployment Matrix](docs/hardware-sizing-and-deployment-matrix.md), [Deployment Profiles](docs/deployment-profiles.md), [Full AI Engine](docs/full-ai-engine.md), [Wireless Access And UI Guide](docs/wireless-access-ui-guide.md), [External AAA Product Mode](docs/external-aaa-product-mode.md), [AAA Product Implementation Notes](docs/aaa-product-implementation-notes.md), [Operations](docs/operations.md), [Security](docs/security.md), and [Backup/Restore](docs/backup-restore.md).
 

@@ -742,6 +742,44 @@ Pass condition:
 2. confirm the page loads
 3. acknowledge a recommendation if present
 
+### 14.14 Guest Requests
+
+1. open `Guest Requests`
+2. confirm the table loads even before requests exist
+3. if self-registration is enabled, submit a request from the portal and approve or reject it here
+
+Pass condition:
+
+- the page loads
+- request state updates cleanly
+- approval or rejection writes audit history without crashing the portal path
+
+### 14.15 Devices And Onboarding
+
+1. open `Devices`
+2. confirm the table loads
+3. if onboarding is enabled, register a device and download its certificate bundle
+4. if `onboarding.ca_mode: external` is enabled, confirm the external CA enrollment request succeeds
+
+Pass condition:
+
+- device inventory rows appear
+- certificate download works when enrollment is enabled
+- external CA mode works when configured
+
+### 14.16 Admin Access
+
+1. open `Admin Access`
+2. confirm the page loads
+3. if delegated admin is enabled, review the current principals and role mappings
+4. if admin SSO is enabled, confirm the mapped role matches the expected claims or directory data
+
+Pass condition:
+
+- the page loads
+- principal updates save cleanly
+- delegated-admin role mapping behaves as expected
+
 ## Step 15: Test Captive Portal Local User Flow
 
 This is the simplest client-facing acceptance test.
@@ -1025,15 +1063,24 @@ Mark the VM ready when all of these are true:
 - `Policies` CRUD works
 - `Identity Sources` CRUD works
 - `Portal Profiles` CRUD works
+- `Guest Requests` loads and approval flow works if guest self-registration is enabled
+- `Devices` loads and certificate retrieval works if onboarding is enabled
+- `Admin Access` loads and delegated-admin mappings work if governance is enabled
 - backup export and import work
 - config revisions and rollback work
 - local portal login works
+- self-registration and sponsor approval work if enabled
 - voucher login works
 - LDAP login works if LDAP is enabled
 - upstream AAA status is visible if upstream AAA is enabled
 - brokered portal auth works if `portal.radius_auth` is enabled
 - RADIUS device flow works from AP or switch
 - EAP works through an external AP if enterprise Wi-Fi is in scope
+- internal or external CA enrollment works if onboarding is enabled
+- admin SSO works if OIDC or SAML is enabled
+- SIEM export status is healthy if SIEM export is enabled
+- controller automation status is healthy if controller sync is enabled
+- posture synchronization works if MDM or compliance integration is enabled
 - CoA and disconnect work if dynamic authorization is in scope
 - session termination from the UI works
 - runtime shaping works if enabled

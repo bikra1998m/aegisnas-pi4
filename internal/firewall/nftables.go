@@ -45,7 +45,9 @@ table inet aegis {
         type filter hook input priority 0; policy drop;
         iif lo accept
         ct state established,related accept
-        # Allow SSH and admin only from LAN (management implied)
+        {{- range .DOSRules }}
+        {{ . }}
+        {{- end }}
         iif $LAN_IF tcp dport 22 accept
         iif $LAN_IF tcp dport {{ .Health.Port }} accept
         iif $LAN_IF tcp dport {{ .AdminPort }} accept
@@ -53,6 +55,9 @@ table inet aegis {
         iif $LAN_IF udp dport 53 accept
         iif $LAN_IF tcp dport 53 accept
         iif $LAN_IF udp dport 67 accept
+        {{- range .CustomInputRules }}
+        {{ . }}
+        {{- end }}
         log prefix "nft-input-drop: " level warn flags all limit rate 5/minute
         counter drop
     }
@@ -60,6 +65,12 @@ table inet aegis {
     chain forward {
         type filter hook forward priority 0; policy drop;
         ct state established,related accept
+        {{- range .FreeSiteForwardRules }}
+        {{ . }}
+        {{- end }}
+        {{- range .CustomForwardRules }}
+        {{ . }}
+        {{- end }}
         iif $LAN_IF oif $WAN_IF accept
         log prefix "nft-forward-drop: " level warn flags all limit rate 5/minute
         counter drop
@@ -78,7 +89,9 @@ table inet aegis {
         type filter hook input priority 0; policy drop;
         iif lo accept
         ct state established,related accept
-        # Management VLAN has full administrative access
+        {{- range .DOSRules }}
+        {{ . }}
+        {{- end }}
         {{- range .VLANs}}
         {{- if eq .Purpose "management"}}
         iif $VLAN_{{ .ID }}_IF tcp dport 22 accept
@@ -87,7 +100,6 @@ table inet aegis {
         iif $VLAN_{{ .ID }}_IF tcp dport {{ $.Portal.Port }} accept
         {{- end}}
         {{- end}}
-        # Allow DNS and DHCP from guest/corp VLANs (but not SSH/admin)
         {{- range .VLANs}}
         {{- if ne .Purpose "management"}}
         iif $VLAN_{{ .ID }}_IF tcp dport {{ $.Portal.Port }} accept
@@ -96,6 +108,9 @@ table inet aegis {
         iif $VLAN_{{ .ID }}_IF udp dport 67 accept
         {{- end}}
         {{- end}}
+        {{- range .CustomInputRules }}
+        {{ . }}
+        {{- end }}
         log prefix "nft-input-drop: " level warn flags all limit rate 5/minute
         counter drop
     }
@@ -103,13 +118,17 @@ table inet aegis {
     chain forward {
         type filter hook forward priority 0; policy drop;
         ct state established,related accept
-        # Guest VLAN -> WAN only (no corp access)
+        {{- range .FreeSiteForwardRules }}
+        {{ . }}
+        {{- end }}
+        {{- range .CustomForwardRules }}
+        {{ . }}
+        {{- end }}
         {{- range .VLANs}}
         {{- if eq .Purpose "guest"}}
         iif $VLAN_{{ .ID }}_IF oif {{ $.WAN.Name }} accept
         {{- else if eq .Purpose "corp"}}
         iif $VLAN_{{ .ID }}_IF oif {{ $.WAN.Name }} accept
-        # Allow corp to guest? Deny by default; add explicit rule if needed.
         {{- else if eq .Purpose "management"}}
         iif $VLAN_{{ .ID }}_IF oif {{ $.WAN.Name }} accept
         {{- end}}
@@ -128,33 +147,39 @@ table inet aegis {
 }
 `
 
-	// Prepare template data
 	data := struct {
-		Mode      string
-		WAN       config.InterfaceConfig
-		LAN       config.InterfaceConfig
-		LANSubnet string
-		VLANs     []config.VLANConfig
-		Health    config.HealthConfig
-		Portal    config.PortalConfig
-		AdminPort int
+		Mode                 string
+		WAN                  config.InterfaceConfig
+		LAN                  config.InterfaceConfig
+		LANSubnet            string
+		VLANs                []config.VLANConfig
+		Health               config.HealthConfig
+		Portal               config.PortalConfig
+		AdminPort            int
+		CustomInputRules     []string
+		CustomForwardRules   []string
+		FreeSiteForwardRules []string
+		DOSRules             []string
 	}{
-		Mode:      g.cfg.Mode,
-		WAN:       g.cfg.WAN,
-		LAN:       g.cfg.LAN,
-		VLANs:     g.cfg.VLANs,
-		Health:    g.cfg.Health,
-		Portal:    g.cfg.Portal,
-		AdminPort: g.cfg.AdminPort,
+		Mode:                 g.cfg.Mode,
+		WAN:                  g.cfg.WAN,
+		LAN:                  g.cfg.LAN,
+		VLANs:                g.cfg.VLANs,
+		Health:               g.cfg.Health,
+		Portal:               g.cfg.Portal,
+		AdminPort:            g.cfg.AdminPort,
+		CustomInputRules:     buildCustomFirewallRules(g.cfg, "input"),
+		CustomForwardRules:   buildCustomFirewallRules(g.cfg, "forward"),
+		FreeSiteForwardRules: buildFreeSiteRules(g.cfg),
+		DOSRules:             buildDOSRules(g.cfg),
 	}
 
-	// Extract LAN subnet from LAN address (if present)
 	if g.cfg.Mode == "two-nic" && g.cfg.LAN.Address != "" {
 		parts := strings.Split(g.cfg.LAN.Address, "/")
 		if len(parts) == 2 {
 			data.LANSubnet = parts[0] + "/" + parts[1]
 		} else {
-			data.LANSubnet = g.cfg.LAN.Address // fallback
+			data.LANSubnet = g.cfg.LAN.Address
 		}
 	}
 
@@ -167,6 +192,106 @@ table inet aegis {
 	}
 
 	return &Ruleset{Content: buf.String()}, nil
+}
+
+func buildCustomFirewallRules(cfg *config.Config, chain string) []string {
+	if cfg == nil {
+		return nil
+	}
+	out := []string{}
+	for _, rule := range cfg.Network.Firewall.Rules {
+		if !rule.Enabled || !strings.EqualFold(strings.TrimSpace(rule.Chain), chain) {
+			continue
+		}
+		parts := []string{}
+		if iface := strings.TrimSpace(rule.Interface); iface != "" {
+			parts = append(parts, fmt.Sprintf(`iifname "%s"`, iface))
+		}
+		if source := strings.TrimSpace(rule.Source); source != "" {
+			parts = append(parts, "ip saddr "+source)
+		}
+		if destination := strings.TrimSpace(rule.Destination); destination != "" {
+			parts = append(parts, "ip daddr "+destination)
+		}
+		switch strings.ToLower(strings.TrimSpace(rule.Protocol)) {
+		case "tcp", "udp":
+			parts = append(parts, fmt.Sprintf("meta l4proto %s", strings.ToLower(strings.TrimSpace(rule.Protocol))))
+			if ports := formatPortMatcher(strings.TrimSpace(rule.Protocol), strings.TrimSpace(rule.Ports)); ports != "" {
+				parts = append(parts, ports)
+			}
+		case "icmp":
+			parts = append(parts, "ip protocol icmp")
+		}
+		action := strings.ToLower(strings.TrimSpace(rule.Action))
+		if action == "" {
+			action = "accept"
+		}
+		parts = append(parts, action)
+		out = append(out, strings.Join(parts, " "))
+	}
+	return out
+}
+
+func formatPortMatcher(protocol, raw string) string {
+	if raw == "" {
+		return ""
+	}
+	items := []string{}
+	for _, part := range strings.Split(raw, ",") {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			items = append(items, trimmed)
+		}
+	}
+	if len(items) == 0 {
+		return ""
+	}
+	if len(items) == 1 {
+		return fmt.Sprintf("%s dport %s", strings.ToLower(protocol), items[0])
+	}
+	return fmt.Sprintf("%s dport { %s }", strings.ToLower(protocol), strings.Join(items, ", "))
+}
+
+func buildFreeSiteRules(cfg *config.Config) []string {
+	if cfg == nil {
+		return nil
+	}
+	out := []string{}
+	if cfg.Mode == "two-nic" {
+		for _, site := range cfg.Network.Firewall.FreeSites {
+			if site.Enabled && strings.EqualFold(strings.TrimSpace(site.Type), "cidr") {
+				out = append(out, fmt.Sprintf("iif $LAN_IF ip daddr %s accept", strings.TrimSpace(site.Value)))
+			}
+		}
+		return out
+	}
+	for _, vlan := range cfg.VLANs {
+		for _, site := range cfg.Network.Firewall.FreeSites {
+			if site.Enabled && strings.EqualFold(strings.TrimSpace(site.Type), "cidr") {
+				out = append(out, fmt.Sprintf("iif $VLAN_%d_IF ip daddr %s accept", vlan.ID, strings.TrimSpace(site.Value)))
+			}
+		}
+	}
+	return out
+}
+
+func buildDOSRules(cfg *config.Config) []string {
+	if cfg == nil || !cfg.Network.Firewall.DOSProtection.Enabled {
+		return nil
+	}
+	dos := cfg.Network.Firewall.DOSProtection
+	logPrefix := ""
+	if dos.LogDrops {
+		logPrefix = ` log prefix "aegis-dos: " level warn`
+	}
+	burst := dos.Burst
+	if burst <= 0 {
+		burst = 100
+	}
+	return []string{
+		fmt.Sprintf("tcp flags syn limit rate over %s burst %d packets%s drop", dos.SYNRate, burst, logPrefix),
+		fmt.Sprintf("ip protocol icmp limit rate over %s burst %d packets%s drop", dos.ICMPRate, burst, logPrefix),
+		fmt.Sprintf("ct state new limit rate over %s burst %d packets%s drop", dos.ConnRate, burst, logPrefix),
+	}
 }
 
 // ApplyRuleset writes the ruleset to a temporary file and loads it with nft.

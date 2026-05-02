@@ -127,6 +127,8 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return false
 	case strings.HasPrefix(path, "/api/v1/system/status"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/dhcp-leases"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/guest-registrations"):
 		return readonly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin
 	case strings.HasPrefix(path, "/api/v1/devices"):

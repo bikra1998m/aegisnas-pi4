@@ -18,7 +18,26 @@ func TestGenerateTwoNIC(t *testing.T) {
 			DHCPRange: "192.168.1.100,192.168.1.200,12h",
 			Gateway:   "192.168.1.1",
 		},
-		DHCP:   config.DHCPConfig{Enabled: true, LeaseTime: "12h"},
+		Network: config.NetworkConfig{
+			DNS: config.DNSConfig{
+				UpstreamServers: []string{"1.1.1.1", "9.9.9.9"},
+				SearchDomains:   []string{"corp.example.com"},
+				LocalDomain:     "lab.example",
+			},
+			Firewall: config.FirewallConfig{
+				FreeSites: []config.FreeSiteConfig{
+					{Type: "domain", Value: "example.com", Enabled: true},
+				},
+			},
+		},
+		DHCP: config.DHCPConfig{
+			Enabled:       true,
+			LeaseTime:     "12h",
+			Authoritative: true,
+			StaticLeases: []config.DHCPStaticLeaseConfig{
+				{MAC: "AA-BB-CC-DD-EE-FF", IP: "192.168.1.10", Hostname: "printer", Enabled: true},
+			},
+		},
 		Portal: config.PortalConfig{ListenIP: "192.168.1.1"},
 	}
 
@@ -30,6 +49,12 @@ func TestGenerateTwoNIC(t *testing.T) {
 	assert.Contains(t, content, "interface=eth1")
 	assert.Contains(t, content, "bind-dynamic")
 	assert.Contains(t, content, "except-interface=lo")
+	assert.Contains(t, content, "server=1.1.1.1")
+	assert.Contains(t, content, "domain=lab.example")
+	assert.Contains(t, content, "dhcp-authoritative")
+	assert.Contains(t, content, "dhcp-option=option:domain-search,corp.example.com")
+	assert.Contains(t, content, "server=/example.com/1.1.1.1")
+	assert.Contains(t, content, "dhcp-host=aa:bb:cc:dd:ee:ff,192.168.1.10,printer")
 	assert.Contains(t, content, "listen-address=192.168.1.1")
 	assert.Contains(t, content, "dhcp-range=192.168.1.100,192.168.1.200,12h")
 	assert.Contains(t, content, "address=/#/192.168.1.1")
