@@ -404,13 +404,13 @@ Phase 1 also introduces the first production-grade validation gates:
 
 ### Phase 2
 
-Add stronger guest workflow gating:
+Add stronger guest workflow controls and runtime:
 
 - self-registration
 - sponsor approval
 - portal transport dependencies
 
-Phase 2 adds production-grade guest workflow controls under `portal.guest_workflows`:
+Phase 2 now includes production-grade guest workflow runtime under `portal.guest_workflows`:
 
 - `self_registration_enabled`
 - `sponsor_approval_enabled`
@@ -418,6 +418,15 @@ Phase 2 adds production-grade guest workflow controls under `portal.guest_workfl
 - `approval_delivery`
 - SMTP transport settings for email delivery
 - SMS provider and endpoint settings for text delivery
+
+Phase 2 runtime now covers:
+
+- self-registration from the captive portal
+- sponsor approval links delivered by email or SMS
+- local guest credential minting after approval
+- portal completion on the original client once approval lands
+- operator visibility and manual approve or reject actions in the admin UI
+- audit log and alert generation when delivery fails
 
 Phase 2 validation rules:
 
@@ -475,7 +484,16 @@ Phase 3 validation rules:
 - passive profiling requires MAC inventory and a poll interval of at least 30 seconds
 - posture checks are enterprise-only and require MAC inventory plus an MDM endpoint or compliance webhook
 
-This phase is the production foundation for BYOD and profiling. It does not claim that full certificate issuance, live onboarding transactions, or posture collectors already exist end to end. What it does give us is a safe config model, previewable feature state, and hard validation that prevents deployers from turning on workflows the appliance cannot support yet.
+Current runtime implementation after Phase 3:
+
+- the portal now exposes a live onboarding flow with device registration and certificate download
+- device inventory is populated from portal observation and explicit onboarding registration
+- internal CA mode issues client certificates and stores bundle metadata in the appliance database
+- the admin UI now exposes a `Devices` page for inventory and certificate retrieval
+- telemetry runs live MDM or compliance-webhook posture synchronization when those integrations are enabled
+- posture enforcement updates active sessions by mapping non-compliant devices into quarantine policy
+
+This phase now delivers real BYOD and profiling runtime on top of the earlier gating work. It still assumes vendor-neutral onboarding and posture inputs rather than claiming feature parity with every commercial onboarding suite.
 
 ### Phase 4
 
@@ -520,13 +538,17 @@ Phase 4 validation rules:
 
 Current runtime implementation after Phase 4:
 
-- the admin API supports OIDC admin SSO with state, nonce, PKCE, and short-lived internal admin sessions while leaving break-glass token login available
+- the admin API supports OIDC admin SSO with state, nonce, PKCE, short-lived internal admin sessions, and break-glass token fallback
+- delegated admin now resolves live runtime roles (`super_admin`, `ops_admin`, `guest_admin`, `read_only`) from cached admin principals and SSO group claims
+- admin principals can be reviewed and updated from the `Admin Access` page in the UI
+- multi-tenant governance now scopes guest workflow, device inventory, certificate download, and session operations by tenant-aware admin sessions
 - the telemetry service exports audit logs and alerts to `webhook`, `splunk-hec`, or `elastic`
-- export cursors are stored in `runtime_status` instead of requiring a new migration
-- failed deliveries degrade only the integration path and do not block authentication, session handling, or portal traffic
-- the dashboard surfaces live admin SSO and SIEM export state, provider, endpoint or redirect target, and last runtime message for operators
+- controller automation now runs as a live background sync loop that pushes appliance state to the configured external controller endpoint
+- export and controller runtime state are stored in `runtime_status`
+- failed deliveries or controller sync errors degrade only the affected integration path and do not block authentication, session handling, or portal traffic
+- the dashboard surfaces live admin SSO, SIEM export, and controller automation state, provider, endpoint or redirect target, and last runtime message for operators
 
-This phase makes the integration story deployable without pretending that every downstream connector is fully implemented. It gives operators a truthful model for what can be turned on safely, what still belongs to enterprise hardware, and what dependencies must exist before a production rollout should trust those integrations.
+This phase now delivers real runtime integrations for the declared production paths while still being honest about product boundaries. The controller runtime is a vendor-neutral sync contract rather than a promise of one-to-one feature parity with every vendor controller API.
 
 ## Product Positioning Outcome
 

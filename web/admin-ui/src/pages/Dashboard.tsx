@@ -112,6 +112,14 @@ type SystemStatus = {
       batch_size: number;
       export: RuntimeStatus;
     };
+    controller: {
+      enabled: boolean;
+      platform: string;
+      endpoint: string;
+      sync_mode: string;
+      site: string;
+      sync: RuntimeStatus;
+    };
   };
 };
 
@@ -486,6 +494,26 @@ export default function Dashboard() {
                     ) : null}
                   </div>
                   <StatusBadge status={systemStatus.integrations.siem.export?.status || (systemStatus.integrations.siem.enabled ? 'unknown' : 'disabled')} />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">Controller Automation</div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.integrations.controller.enabled
+                        ? `${systemStatus.integrations.controller.platform || 'Platform unset'} sync mode ${systemStatus.integrations.controller.sync_mode || 'unset'}${systemStatus.integrations.controller.site ? ` for ${systemStatus.integrations.controller.site}` : ''}.`
+                        : 'Enable this only when AegisNAS is feeding an external AP or controller estate.'}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">{systemStatus.integrations.controller.sync?.message || 'No controller runtime status recorded yet.'}</div>
+                    {systemStatus.integrations.controller.endpoint ? (
+                      <div className="mt-1 text-xs text-gray-500 break-all">{systemStatus.integrations.controller.endpoint}</div>
+                    ) : null}
+                    {systemStatus.integrations.controller.sync?.updated_at ? (
+                      <div className="mt-1 text-xs text-gray-500">Updated {systemStatus.integrations.controller.sync.updated_at}</div>
+                    ) : null}
+                  </div>
+                  <StatusBadge status={systemStatus.integrations.controller.sync?.status || (systemStatus.integrations.controller.enabled ? 'unknown' : 'disabled')} />
                 </div>
               </div>
             </div>

@@ -65,6 +65,21 @@ input:focus {
     border-color: #667eea;
 }
 
+textarea {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+textarea:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
 .btn {
     display: inline-block;
     padding: 0.8rem 1.5rem;
@@ -102,6 +117,9 @@ input:focus {
 
 .links {
     margin-top: 1.5rem;
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
 }
 
 .links a {
@@ -136,6 +154,45 @@ input:focus {
     color: #742a2a;
 }
 
+.status.pending {
+    background: #feebc8;
+    color: #7b341e;
+}
+
 .success .btn {
     margin-top: 1rem;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.8rem;
+}
+
+.section-title {
+    margin: 1rem 0 0.7rem;
+    text-align: left;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.helper {
+    margin-top: 1rem;
+    color: #4a5568;
+    font-size: 0.9rem;
+}
+
+.detail-list {
+    text-align: left;
+    display: grid;
+    gap: 0.7rem;
+    margin: 1rem 0 1.5rem;
+    color: #374151;
+}
+
+.button-row {
+    display: grid;
+    gap: 1rem;
+    text-align: left;
 }

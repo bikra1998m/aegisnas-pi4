@@ -226,9 +226,22 @@ func HandleAdminSSOCallback(w http.ResponseWriter, r *http.Request) {
 	if username == "" {
 		username = "oidc-admin"
 	}
-	groupCount := len(extractGroups(claims, cfg.Integrations.AdminSSO.GroupsClaim))
+	groups := extractGroups(claims, cfg.Integrations.AdminSSO.GroupsClaim)
+	groupCount := len(groups)
+	identity, err := syncAdminPrincipalFromClaims(cfg, cfg.Integrations.AdminSSO.Provider, adminSSOSubject(cfg.Integrations.AdminSSO.Provider, username), claims, groups)
+	if err != nil {
+		_ = db.UpsertRuntimeStatus(adminSSOComponent, "degraded", err.Error(), map[string]any{
+			"provider": cfg.Integrations.AdminSSO.Provider,
+			"issuer":   metadata.Issuer,
+			"username": username,
+		})
+		auditSSOEvent(username, "admin_sso_login", err.Error(), "failed", r.RemoteAddr)
+		clearAdminSSOCookies(w, cfg)
+		redirectLoginError(w, r, "Single sign-on is not authorized for this admin account.")
+		return
+	}
 
-	sessionToken, expiresAt, err := mintAdminSSOSession(username, cfg.Integrations.AdminSSO.Provider, idToken.Expiry)
+	sessionToken, expiresAt, err := mintAdminSSOSession(username, *identity, cfg.Integrations.AdminSSO.Provider, groups, idToken.Expiry)
 	if err != nil {
 		clearAdminSSOCookies(w, cfg)
 		redirectLoginError(w, r, "Could not create an admin session.")
@@ -239,17 +252,20 @@ func HandleAdminSSOCallback(w http.ResponseWriter, r *http.Request) {
 		"provider":    cfg.Integrations.AdminSSO.Provider,
 		"issuer":      metadata.Issuer,
 		"username":    username,
+		"role":        identity.Role,
+		"tenants":     identity.Tenants,
 		"groups":      groupCount,
 		"expires_at":  expiresAt.UTC().Format(time.RFC3339),
 		"redirect_to": cfg.Integrations.AdminSSO.RedirectURL,
 	})
-	auditSSOEvent(username, "admin_sso_login", fmt.Sprintf("provider=%s groups=%d", cfg.Integrations.AdminSSO.Provider, groupCount), "success", r.RemoteAddr)
+	auditSSOEvent(username, "admin_sso_login", fmt.Sprintf("provider=%s role=%s groups=%d", cfg.Integrations.AdminSSO.Provider, identity.Role, groupCount), "success", r.RemoteAddr)
 	clearAdminSSOCookies(w, cfg)
 	http.Redirect(w, r, loginSuccessURL(sessionToken), http.StatusFound)
 }
 
 func HandleLogout(w http.ResponseWriter, r *http.Request) {
 	if tokenHash := tokenHashFromRequest(r); tokenHash != "" && strings.HasPrefix(tokenDescriptionFromRequest(r), adminSSOSessionDescription) {
+		removeAdminSession(tokenHash)
 		_, _ = db.DB.Exec(`DELETE FROM api_tokens WHERE token = ?`, tokenHash)
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "logged out"})
@@ -412,7 +428,7 @@ func redirectLoginError(w http.ResponseWriter, r *http.Request, message string) 
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
-func mintAdminSSOSession(user, provider string, idTokenExpiry time.Time) (string, time.Time, error) {
+func mintAdminSSOSession(user string, identity AdminIdentity, provider string, groups []string, idTokenExpiry time.Time) (string, time.Time, error) {
 	token, err := randomToken(32)
 	if err != nil {
 		return "", time.Time{}, err
@@ -430,7 +446,20 @@ func mintAdminSSOSession(user, provider string, idTokenExpiry time.Time) (string
 	if err != nil {
 		return "", time.Time{}, err
 	}
+	if err := storeAdminSession(hashToken(token), identity, provider, groups, expiresAt); err != nil {
+		_, _ = db.DB.Exec(`DELETE FROM api_tokens WHERE token = ?`, hashToken(token))
+		return "", time.Time{}, err
+	}
 	return token, expiresAt, nil
+}
+
+func adminSSOSubject(provider, username string) string {
+	provider = strings.TrimSpace(strings.ToLower(provider))
+	username = strings.TrimSpace(username)
+	if provider == "" {
+		return username
+	}
+	return provider + ":" + username
 }
 
 func adminSSOUsername(claims map[string]any) string {

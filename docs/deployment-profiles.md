@@ -258,6 +258,7 @@ The current profile-aware implementation changes behavior in these concrete ways
 - AI Lite can be disabled cleanly
 - runtime shaping can be disabled cleanly
 - guest workflow, onboarding, and profiling capability states are previewed before save
+- guest self-registration and sponsor approval also run end to end through the captive portal and Guest Requests admin view once the workflow is enabled
 - impossible onboarding and profiling combinations are rejected during validation
 - integration and governance capability states are previewed before save
 - impossible controller, SSO, SIEM, delegated-admin, and multi-tenant combinations are rejected during validation

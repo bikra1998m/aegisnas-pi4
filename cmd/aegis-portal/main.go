@@ -91,6 +91,15 @@ var runCmd = &cobra.Command{
 		r.Post("/logout", srv.HandleLogout)
 		r.Get("/voucher", srv.HandleVoucherPage)
 		r.Post("/voucher", srv.HandleVoucherLogin)
+		r.Get("/register", srv.HandleRegistrationPage)
+		r.Post("/register", srv.HandleRegistrationSubmit)
+		r.Get("/register/pending", srv.HandleRegistrationPending)
+		r.Get("/register/approve", srv.HandleRegistrationApprovalPage)
+		r.Post("/register/approve", srv.HandleRegistrationApprovalDecision)
+		r.Get("/register/complete", srv.HandleRegistrationComplete)
+		r.Get("/onboarding", srv.HandleOnboardingPage)
+		r.Post("/onboarding", srv.HandleOnboardingRegister)
+		r.Get("/onboarding/download/*", srv.HandleOnboardingDownload)
 
 		// Health endpoint
 		health.RegisterRoutes(r)

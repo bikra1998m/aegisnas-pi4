@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Branding}} - Guest Access Request</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>{{.Branding}}</h1>
+            <p class="subtitle">Request guest access to the network</p>
+            {{if .Error}}
+            <div class="error">{{.Error}}</div>
+            {{end}}
+            <form method="POST" action="/register">
+                <input type="hidden" name="client_mac" value="{{.ClientMAC}}">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="full_name">Full Name</label>
+                        <input type="text" id="full_name" name="full_name" required autofocus>
+                    </div>
+                    <div class="form-group">
+                        <label for="company">Company</label>
+                        <input type="text" id="company" name="company">
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone</label>
+                        <input type="text" id="phone" name="phone">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="purpose">Purpose Of Access</label>
+                    <textarea id="purpose" name="purpose" rows="3"></textarea>
+                </div>
+                {{if .SponsorApprovalRequired}}
+                <div class="section-title">Sponsor Approval</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="sponsor_name">Sponsor Name</label>
+                        <input type="text" id="sponsor_name" name="sponsor_name">
+                    </div>
+                    {{if eq .ApprovalDelivery "email"}}
+                    <div class="form-group">
+                        <label for="sponsor_email">Sponsor Email</label>
+                        <input type="email" id="sponsor_email" name="sponsor_email" required>
+                    </div>
+                    {{end}}
+                    {{if eq .ApprovalDelivery "sms"}}
+                    <div class="form-group">
+                        <label for="sponsor_phone">Sponsor Phone</label>
+                        <input type="text" id="sponsor_phone" name="sponsor_phone" required>
+                    </div>
+                    {{end}}
+                </div>
+                {{end}}
+                <button type="submit" class="btn primary">Submit Request</button>
+            </form>
+            <div class="helper">
+                {{if eq .InviteDelivery "email"}}If approved, your guest credentials will also be sent to your email.{{end}}
+                {{if eq .InviteDelivery "sms"}}If approved, your guest credentials will also be sent by SMS.{{end}}
+            </div>
+            <div class="links">
+                <a href="/?client_mac={{.ClientMAC}}">Back to login</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

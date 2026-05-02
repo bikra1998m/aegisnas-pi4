@@ -774,6 +774,7 @@ If you want a truer captive redirect test:
 
 - place the client behind the downstream side the same way a guest network would be attached
 - browse to any HTTP site and confirm you land on the portal
+- when guest self-registration is enabled, use `Request guest access` on the portal, submit the request, and confirm approval from the new `Guest Requests` page in the admin UI or through the sponsor approval link
 
 ## Step 16: Test Voucher Flow
 

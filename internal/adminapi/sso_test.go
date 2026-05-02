@@ -87,7 +87,13 @@ func TestHandleAdminSSOStartAndCallbackOIDC(t *testing.T) {
 func TestHandleLogoutRevokesAdminSSOSession(t *testing.T) {
 	loadAdminSSOTestConfig(t, "https://issuer.example.test")
 
-	token, _, err := mintAdminSSOSession("alice@example.com", "oidc", time.Now().Add(time.Hour))
+	token, _, err := mintAdminSSOSession("alice@example.com", AdminIdentity{
+		Subject:     "oidc:alice@example.com",
+		DisplayName: "alice@example.com",
+		Role:        adminRoleSuperAdmin,
+		Source:      "oidc",
+		Permissions: permissionsForAdminRole(adminRoleSuperAdmin),
+	}, "oidc", []string{"aegisnas-admin"}, time.Now().Add(time.Hour))
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
@@ -99,6 +105,9 @@ func TestHandleLogoutRevokesAdminSSOSession(t *testing.T) {
 	require.Equal(t, http.StatusOK, res.Code)
 	var count int
 	err = db.DB.QueryRow(`SELECT COUNT(*) FROM api_tokens WHERE token = ?`, hashToken(token)).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count)
+	err = db.DB.QueryRow(`SELECT COUNT(*) FROM admin_sessions WHERE token_hash = ?`, hashToken(token)).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 }

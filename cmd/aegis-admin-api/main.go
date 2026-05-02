@@ -91,6 +91,7 @@ var runCmd = &cobra.Command{
 		// API routes (protected)
 		r.Route("/api/v1", func(r chi.Router) {
 			r.Use(adminapi.AuthMiddleware)
+			r.Use(adminapi.AuthorizationMiddleware)
 			r.Get("/auth/validate", adminapi.HandleValidateToken)
 			r.Post("/auth/logout", adminapi.HandleLogout)
 			r.Get("/system/settings", adminapi.HandleGetSystemSettings)
@@ -115,6 +116,19 @@ var runCmd = &cobra.Command{
 			r.Post("/users", adminapi.HandleCreateUser)
 			r.Put("/users/{id}", adminapi.HandleUpdateUser)
 			r.Delete("/users/{id}", adminapi.HandleDeleteUser)
+
+			// Devices
+			r.Get("/devices", adminapi.HandleListDevices)
+			r.Get("/devices/{id}/certificate", adminapi.HandleDownloadDeviceCertificate)
+
+			// Admin principals
+			r.Get("/admin-principals", adminapi.HandleListAdminPrincipals)
+			r.Put("/admin-principals/{id}", adminapi.HandleUpdateAdminPrincipal)
+
+			// Guest registrations
+			r.Get("/guest-registrations", adminapi.HandleListGuestRegistrations)
+			r.Post("/guest-registrations/{id}/approve", adminapi.HandleApproveGuestRegistration)
+			r.Post("/guest-registrations/{id}/reject", adminapi.HandleRejectGuestRegistration)
 
 			// Vouchers
 			r.Get("/vouchers", adminapi.HandleListVouchers)

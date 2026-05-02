@@ -28,6 +28,9 @@ func Migrate() error {
 		{1, schemaV1},
 		{2, schemaV2},
 		{3, schemaV3},
+		{4, schemaV4},
+		{5, schemaV5},
+		{6, schemaV6},
 	}
 
 	for _, m := range migrations {
@@ -275,4 +278,130 @@ CREATE TABLE IF NOT EXISTS runtime_status (
 );
 
 CREATE INDEX IF NOT EXISTS idx_runtime_status_updated_at ON runtime_status(updated_at);
+`
+
+const schemaV4 = `
+CREATE TABLE IF NOT EXISTS guest_registrations (
+	id TEXT PRIMARY KEY,
+	status TEXT NOT NULL,
+	full_name TEXT,
+	email TEXT,
+	phone TEXT,
+	company TEXT,
+	purpose TEXT,
+	sponsor_name TEXT,
+	sponsor_email TEXT,
+	sponsor_phone TEXT,
+	client_mac TEXT,
+	client_ip TEXT,
+	portal_base_url TEXT,
+	username TEXT,
+	role TEXT NOT NULL,
+	approval_token_hash TEXT,
+	guest_token_hash TEXT NOT NULL,
+	approved_by TEXT,
+	rejection_reason TEXT,
+	approval_delivery_status TEXT,
+	approval_delivery_error TEXT,
+	invite_delivery_status TEXT,
+	invite_delivery_error TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	approved_at DATETIME,
+	rejected_at DATETIME,
+	completed_at DATETIME,
+	expires_at DATETIME
+);
+
+CREATE INDEX IF NOT EXISTS idx_guest_registrations_status ON guest_registrations(status);
+CREATE INDEX IF NOT EXISTS idx_guest_registrations_created_at ON guest_registrations(created_at);
+CREATE INDEX IF NOT EXISTS idx_guest_registrations_approval_token ON guest_registrations(approval_token_hash);
+`
+
+const schemaV5 = `
+CREATE TABLE IF NOT EXISTS device_inventory (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	mac TEXT UNIQUE NOT NULL,
+	tenant TEXT,
+	username TEXT,
+	friendly_name TEXT,
+	ownership TEXT,
+	platform TEXT,
+	device_type TEXT,
+	user_agent TEXT,
+	source TEXT,
+	managed BOOLEAN DEFAULT 0,
+	compliant BOOLEAN,
+	compliance_status TEXT,
+	remediation_state TEXT,
+	mdm_provider TEXT,
+	mdm_device_id TEXT,
+	certificate_serial TEXT,
+	certificate_subject TEXT,
+	certificate_valid_until DATETIME,
+	last_ip TEXT,
+	last_session_id TEXT,
+	first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+	last_seen DATETIME,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS device_certificates (
+	id TEXT PRIMARY KEY,
+	device_mac TEXT NOT NULL,
+	username TEXT,
+	common_name TEXT NOT NULL,
+	serial_number TEXT NOT NULL,
+	cert_path TEXT NOT NULL,
+	key_path TEXT NOT NULL,
+	ca_path TEXT NOT NULL,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	expires_at DATETIME,
+	revoked_at DATETIME,
+	revoke_reason TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_device_inventory_username ON device_inventory(username);
+CREATE INDEX IF NOT EXISTS idx_device_inventory_last_seen ON device_inventory(last_seen);
+CREATE INDEX IF NOT EXISTS idx_device_inventory_compliance ON device_inventory(compliance_status);
+CREATE INDEX IF NOT EXISTS idx_device_certificates_device_mac ON device_certificates(device_mac);
+`
+
+const schemaV6 = `
+ALTER TABLE local_users ADD COLUMN tenant TEXT;
+ALTER TABLE guest_registrations ADD COLUMN tenant TEXT;
+
+CREATE TABLE IF NOT EXISTS admin_principals (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	subject TEXT UNIQUE NOT NULL,
+	provider TEXT,
+	display_name TEXT,
+	email TEXT,
+	role TEXT NOT NULL DEFAULT 'read_only',
+	tenants TEXT,
+	groups_json TEXT,
+	disabled BOOLEAN DEFAULT 0,
+	last_login DATETIME,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS admin_sessions (
+	token_hash TEXT PRIMARY KEY,
+	subject TEXT NOT NULL,
+	role TEXT NOT NULL,
+	source TEXT NOT NULL,
+	provider TEXT,
+	tenants TEXT,
+	groups_json TEXT,
+	expires_at DATETIME,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_local_users_tenant ON local_users(tenant);
+CREATE INDEX IF NOT EXISTS idx_guest_registrations_tenant ON guest_registrations(tenant);
+CREATE INDEX IF NOT EXISTS idx_device_inventory_tenant ON device_inventory(tenant);
+CREATE INDEX IF NOT EXISTS idx_admin_principals_role ON admin_principals(role);
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_subject ON admin_sessions(subject);
 `

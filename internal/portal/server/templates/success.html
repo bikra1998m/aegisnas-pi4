@@ -14,6 +14,11 @@
             <p>Welcome, {{.Username}}.</p>
             <p>You are now online. You will be redirected shortly.</p>
             <a href="{{.SuccessURL}}" class="btn">Continue</a>
+            {{if .OnboardingURL}}
+            <div class="links">
+                <a href="{{.OnboardingURL}}">Register this device</a>
+            </div>
+            {{end}}
             <div class="footer">
                 <a href="/status?client_mac={{.ClientMAC}}">Connection Status</a> |
                 <a href="/logout?client_mac={{.ClientMAC}}">Logout</a>

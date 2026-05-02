@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Branding}} - Device Onboarding</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>{{.Branding}}</h1>
+            <p class="subtitle">Register this device for managed access</p>
+            {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+            {{if .Success}}<div class="status online">Device registration saved.</div>{{end}}
+            <form method="POST" action="/onboarding">
+                <input type="hidden" name="client_mac" value="{{.ClientMAC}}">
+                <div class="form-group">
+                    <label for="friendly_name">Device Name</label>
+                    <input type="text" id="friendly_name" name="friendly_name" placeholder="Bikram Laptop" required autofocus>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="ownership">Ownership</label>
+                        <input type="text" id="ownership" name="ownership" placeholder="personal or corporate">
+                    </div>
+                    <div class="form-group">
+                        <label for="platform">Platform</label>
+                        <input type="text" id="platform" name="platform" placeholder="windows, macos, ios, android">
+                    </div>
+                </div>
+                <button type="submit" class="btn primary">Register Device</button>
+            </form>
+            <div class="helper">
+                {{if .CertificateEnrollment}}
+                Certificate enrollment is enabled. Registering this device will prepare a client certificate bundle{{if .EAPTLSEnabled}} for EAP-TLS onboarding{{end}}.
+                {{else}}
+                Device inventory is enabled. Registering this device records it for profiling and posture checks.
+                {{end}}
+            </div>
+            <div class="links">
+                <a href="/success?client_mac={{.ClientMAC}}">Back to connection status</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

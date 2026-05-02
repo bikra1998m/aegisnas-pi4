@@ -8,15 +8,18 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
+	"github.com/yourorg/aegisnas-pi4/internal/onboarding"
 	"github.com/yourorg/aegisnas-pi4/internal/policy"
 	"github.com/yourorg/aegisnas-pi4/internal/portal"
 	"github.com/yourorg/aegisnas-pi4/internal/portal/auth"
+	"github.com/yourorg/aegisnas-pi4/internal/portal/guestworkflow"
 	"github.com/yourorg/aegisnas-pi4/internal/radius"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
@@ -34,6 +37,8 @@ type Server struct {
 	templates    *template.Template
 	stateMachine *portal.StateMachine
 	rateLimiter  *auth.RateLimiter
+	guestFlows   *guestworkflow.Service
+	onboarding   *onboarding.Service
 }
 
 func New(cfg *config.Config, logger *zap.Logger) (*Server, error) {
@@ -55,6 +60,8 @@ func New(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 		templates:    tmpl,
 		stateMachine: sm,
 		rateLimiter:  limiter,
+		guestFlows:   guestworkflow.New(cfg, logger, nil),
+		onboarding:   onboarding.New(cfg, logger),
 	}, nil
 }
 
@@ -73,6 +80,7 @@ func (s *Server) HandleLoginPage(w http.ResponseWriter, r *http.Request) {
 	if mac == "" {
 		mac = "unknown"
 	}
+	s.observeClient(r, mac, clientIP, "", "")
 	if s.stateMachine.IsAuthenticated(mac) {
 		http.Redirect(w, r, "/success", http.StatusFound)
 		return
@@ -84,6 +92,12 @@ func (s *Server) HandleLoginPage(w http.ResponseWriter, r *http.Request) {
 		"ClientIP":   clientIP,
 		"Error":      r.URL.Query().Get("error"),
 		"VoucherURL": "/voucher?client_mac=" + mac,
+		"RegisterURL": func() string {
+			if !s.cfg.Portal.GuestWorkflows.SelfRegistrationEnabled {
+				return ""
+			}
+			return "/register?client_mac=" + mac
+		}(),
 	}
 	s.render(w, "login.html", data)
 }
@@ -94,6 +108,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	mac := r.FormValue("client_mac")
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
+	s.observeClient(r, mac, clientIP, username, "")
 
 	if !s.rateLimiter.Allow(clientIP) {
 		http.Redirect(w, r, "/?error=rate_limited&client_mac="+mac, http.StatusFound)
@@ -118,42 +133,18 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID := uuid.NewString()
-	client := s.stateMachine.GetOrCreate(mac, clientIP)
-	if err := s.populateAuthenticatedClient(client, authResult, sessionID); err != nil {
+	if err := s.establishAuthenticatedSession(clientIP, mac, authResult); err != nil {
 		s.logger.Error("failed to apply session policy", zap.String("username", username), zap.Error(err))
 		http.Redirect(w, r, "/?error=policy_denied&client_mac="+mac, http.StatusFound)
 		return
 	}
-	if err := s.stateMachine.Transition(mac, portal.StateAuthenticated, authResult.Username, sessionID); err != nil {
-		s.logger.Error("state transition failed", zap.Error(err))
-		http.Redirect(w, r, "/?error=session_error&client_mac="+mac, http.StatusFound)
-		return
-	}
-
-	s.sendAccounting(&radius.AccountingRecord{
-		SessionID:        sessionID,
-		Username:         authResult.Username,
-		CallingStationID: mac,
-		CalledStationID:  client.CalledStationID,
-		FramedIPAddress:  clientIP,
-		AcctStatusType:   "Start",
-		Role:             client.Role,
-		BandwidthProfile: client.BandwidthProfile,
-		FilterID:         client.FilterID,
-		RadiusClass:      client.RadiusClass,
-		VLAN:             client.VLAN,
-		SessionTimeout:   client.SessionTimeout,
-		IdleTimeout:      client.IdleTimeout,
-		Timestamp:        time.Now(),
-	})
-
 	http.Redirect(w, r, "/success?client_mac="+mac, http.StatusFound)
 }
 
 // HandleVoucherPage serves the voucher login form.
 func (s *Server) HandleVoucherPage(w http.ResponseWriter, r *http.Request) {
 	mac := r.URL.Query().Get("client_mac")
+	s.observeClient(r, mac, clientIPOnly(r.RemoteAddr), "", "")
 	data := map[string]any{
 		"Branding":  s.cfg.Portal.Branding,
 		"ClientMAC": mac,
@@ -167,6 +158,7 @@ func (s *Server) HandleVoucherLogin(w http.ResponseWriter, r *http.Request) {
 	clientIP := clientIPOnly(r.RemoteAddr)
 	mac := r.FormValue("client_mac")
 	code := strings.TrimSpace(r.FormValue("voucher_code"))
+	s.observeClient(r, mac, clientIP, "", "")
 
 	if !s.rateLimiter.Allow(clientIP) {
 		http.Redirect(w, r, "/voucher?error=rate_limited&client_mac="+mac, http.StatusFound)
@@ -234,7 +226,14 @@ func (s *Server) HandleSuccess(w http.ResponseWriter, r *http.Request) {
 		"Username":   client.Username,
 		"SuccessURL": s.cfg.Portal.SuccessURL,
 		"ClientMAC":  mac,
+		"OnboardingURL": func() string {
+			if !s.cfg.Onboarding.PortalEnabled {
+				return ""
+			}
+			return "/onboarding?client_mac=" + url.QueryEscape(mac)
+		}(),
 	}
+	s.observeClient(r, mac, client.IP, client.Username, client.SessionID)
 	s.render(w, "success.html", data)
 }
 
@@ -253,6 +252,11 @@ func (s *Server) HandleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	if authenticated {
 		data["Username"] = client.Username
+		data["SuccessURL"] = s.cfg.Portal.SuccessURL
+		if s.cfg.Onboarding.PortalEnabled {
+			data["OnboardingURL"] = "/onboarding?client_mac=" + url.QueryEscape(mac)
+		}
+		s.observeClient(r, mac, client.IP, client.Username, client.SessionID)
 	}
 	s.render(w, "status.html", data)
 }
@@ -375,6 +379,34 @@ func (s *Server) populateAuthenticatedClient(client *portal.Client, authResult *
 		}
 	}
 
+	return nil
+}
+
+func (s *Server) establishAuthenticatedSession(clientIP, mac string, authResult *auth.Result) error {
+	sessionID := uuid.NewString()
+	client := s.stateMachine.GetOrCreate(mac, clientIP)
+	if err := s.populateAuthenticatedClient(client, authResult, sessionID); err != nil {
+		return err
+	}
+	if err := s.stateMachine.Transition(mac, portal.StateAuthenticated, authResult.Username, sessionID); err != nil {
+		return err
+	}
+	s.sendAccounting(&radius.AccountingRecord{
+		SessionID:        sessionID,
+		Username:         authResult.Username,
+		CallingStationID: mac,
+		CalledStationID:  client.CalledStationID,
+		FramedIPAddress:  clientIP,
+		AcctStatusType:   "Start",
+		Role:             client.Role,
+		BandwidthProfile: client.BandwidthProfile,
+		FilterID:         client.FilterID,
+		RadiusClass:      client.RadiusClass,
+		VLAN:             client.VLAN,
+		SessionTimeout:   client.SessionTimeout,
+		IdleTimeout:      client.IdleTimeout,
+		Timestamp:        time.Now(),
+	})
 	return nil
 }
 
@@ -523,4 +555,11 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func (s *Server) observeClient(r *http.Request, mac, ip, username, sessionID string) {
+	if s.onboarding == nil {
+		return
+	}
+	_ = s.onboarding.ObserveDevice(mac, ip, username, sessionID, r.UserAgent(), "portal")
 }

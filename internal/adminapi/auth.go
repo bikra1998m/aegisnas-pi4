@@ -52,9 +52,15 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		if user == "" {
 			user = "api-token"
 		}
+		identity, err := resolveAdminIdentity(tokenHash, createdBy, description)
+		if err != nil {
+			http.Error(w, "admin identity lookup failed", http.StatusForbidden)
+			return
+		}
 		ctx := context.WithValue(r.Context(), userContextKey, user)
 		ctx = context.WithValue(ctx, tokenHashContextKey, tokenHash)
 		ctx = context.WithValue(ctx, tokenDescriptionContextKey, description)
+		ctx = withAdminIdentity(ctx, identity)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

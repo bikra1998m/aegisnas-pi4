@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Branding}} - Sponsor Approval</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>{{.Branding}}</h1>
+            <p class="subtitle">Guest access approval</p>
+            {{if .Error}}
+            <div class="error">{{.Error}}</div>
+            {{end}}
+            {{if eq .Outcome "approved"}}
+            <div class="status online">The guest request has been approved.</div>
+            {{else if eq .Outcome "rejected"}}
+            <div class="status offline">The guest request has been rejected.</div>
+            {{else}}
+            <div class="detail-list">
+                <div><strong>Guest:</strong> {{.Record.FullName}}</div>
+                {{if .Record.Company}}<div><strong>Company:</strong> {{.Record.Company}}</div>{{end}}
+                {{if .Record.Email}}<div><strong>Email:</strong> {{.Record.Email}}</div>{{end}}
+                {{if .Record.Phone}}<div><strong>Phone:</strong> {{.Record.Phone}}</div>{{end}}
+                {{if .Record.Purpose}}<div><strong>Purpose:</strong> {{.Record.Purpose}}</div>{{end}}
+            </div>
+            <div class="button-row">
+                <form method="POST" action="/register/approve">
+                    <input type="hidden" name="token" value="{{.ApprovalToken}}">
+                    <input type="hidden" name="decision" value="approve">
+                    <button type="submit" class="btn primary">Approve</button>
+                </form>
+                <form method="POST" action="/register/approve">
+                    <input type="hidden" name="token" value="{{.ApprovalToken}}">
+                    <input type="hidden" name="decision" value="reject">
+                    <div class="form-group">
+                        <label for="reason">Reject Reason</label>
+                        <input type="text" id="reason" name="reason" placeholder="Optional">
+                    </div>
+                    <button type="submit" class="btn warn">Reject</button>
+                </form>
+            </div>
+            {{end}}
+        </div>
+    </div>
+</body>
+</html>

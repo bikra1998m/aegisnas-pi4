@@ -28,6 +28,9 @@
             </form>
             <div class="links">
                 <a href="{{.VoucherURL}}">Use a voucher code</a>
+                {{if .RegisterURL}}
+                <a href="{{.RegisterURL}}">Request guest access</a>
+                {{end}}
             </div>
             <div class="footer">
                 IP: {{.ClientIP}}

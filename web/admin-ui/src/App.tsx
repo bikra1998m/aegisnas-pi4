@@ -18,6 +18,9 @@ import Alerts from './pages/Alerts';
 import ConfigRevisions from './pages/ConfigRevisions';
 import Backups from './pages/Backups';
 import AIRecommendations from './pages/AIRecommendations';
+import GuestRegistrations from './pages/GuestRegistrations';
+import Devices from './pages/Devices';
+import AdminPrincipals from './pages/AdminPrincipals';
 
 const PrivateRoute: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -34,6 +37,9 @@ function AppRoutes() {
         <Route path="/vlans" element={<VLANs />} />
         <Route path="/portal-profiles" element={<PortalProfiles />} />
         <Route path="/users" element={<Users />} />
+        <Route path="/admin-principals" element={<AdminPrincipals />} />
+        <Route path="/devices" element={<Devices />} />
+        <Route path="/guest-registrations" element={<GuestRegistrations />} />
         <Route path="/vouchers" element={<Vouchers />} />
         <Route path="/roles" element={<Roles />} />
         <Route path="/bandwidth-profiles" element={<BandwidthProfiles />} />

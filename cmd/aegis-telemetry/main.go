@@ -15,6 +15,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/health"
+	"github.com/yourorg/aegisnas-pi4/internal/integrations"
 	"github.com/yourorg/aegisnas-pi4/internal/logging"
 	"github.com/yourorg/aegisnas-pi4/internal/telemetry"
 	"go.uber.org/zap"
@@ -71,6 +72,8 @@ var runCmd = &cobra.Command{
 		defer cancel()
 		go telemetry.StartAlertMonitor(ctx, time.Minute, logger)
 		go telemetry.StartSIEMExporter(ctx, 30*time.Second, cfg, logger)
+		go telemetry.StartProfilingRuntime(ctx, cfg, logger)
+		go integrations.StartControllerAutomation(ctx, cfg, logger)
 
 		r := chi.NewRouter()
 		r.Use(middleware.Logger)

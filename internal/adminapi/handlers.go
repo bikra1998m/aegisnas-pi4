@@ -512,7 +512,11 @@ func rawJSON(value string) any {
 }
 
 func HandleValidateToken(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "valid", "user": userFromRequest(r)})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":   "valid",
+		"user":     userFromRequest(r),
+		"identity": adminIdentityFromRequest(r),
+	})
 }
 
 // ---------- VLAN Handlers ----------
@@ -862,12 +866,29 @@ func HandleDeleteRadiusClient(w http.ResponseWriter, r *http.Request) {
 
 func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 	query := `SELECT id, username, COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(auth_method, ''), COALESCE(vlan, 0),
-		start_time, COALESCE(last_activity, ''), COALESCE(end_time, ''), bytes_in, bytes_out FROM sessions`
+		start_time, COALESCE(last_activity, ''), COALESCE(end_time, ''), bytes_in, bytes_out
+		FROM sessions`
+	args := []any{}
+	clauses := []string{}
 	if r.URL.Query().Get("active") == "true" {
-		query += ` WHERE end_time IS NULL`
+		clauses = append(clauses, "end_time IS NULL")
+	}
+	if scopes := adminTenantScopesFromRequest(r); len(scopes) > 0 {
+		placeholders := strings.TrimRight(strings.Repeat("?,", len(scopes)), ",")
+		clauses = append(clauses, fmt.Sprintf(`COALESCE(
+			(SELECT tenant FROM local_users WHERE username = sessions.username LIMIT 1),
+			(SELECT tenant FROM device_inventory WHERE mac = sessions.mac LIMIT 1),
+			''
+		) IN (%s)`, placeholders))
+		for _, scope := range scopes {
+			args = append(args, scope)
+		}
+	}
+	if len(clauses) > 0 {
+		query += ` WHERE ` + strings.Join(clauses, " AND ")
 	}
 	query += ` ORDER BY start_time DESC LIMIT 100`
-	rows, err := db.DB.Query(query)
+	rows, err := db.DB.Query(query, args...)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -893,6 +914,22 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 
 func HandleTerminateSession(w http.ResponseWriter, r *http.Request) {
 	sessionID := chi.URLParam(r, "id")
+	if scopes := adminTenantScopesFromRequest(r); len(scopes) > 0 {
+		var tenant string
+		err := db.DB.QueryRow(`SELECT COALESCE(
+			(SELECT tenant FROM local_users WHERE username = sessions.username LIMIT 1),
+			(SELECT tenant FROM device_inventory WHERE mac = sessions.mac LIMIT 1),
+			''
+		) FROM sessions WHERE id = ?`, sessionID).Scan(&tenant)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		if !tenantAllowed(r, tenant) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+	}
 	res, err := db.DB.Exec(`UPDATE sessions SET end_time = ?, stop_reason = 'admin' WHERE id = ? AND end_time IS NULL`, time.Now(), sessionID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

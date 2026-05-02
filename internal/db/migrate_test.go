@@ -24,9 +24,9 @@ func TestMigrate(t *testing.T) {
 	var version int
 	err = DB.QueryRow("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1").Scan(&version)
 	assert.NoError(t, err)
-	assert.Equal(t, 3, version)
+	assert.Equal(t, 6, version)
 
-	tables := []string{"local_users", "roles", "bandwidth_profiles", "sessions", "runtime_status"}
+	tables := []string{"local_users", "roles", "bandwidth_profiles", "sessions", "runtime_status", "guest_registrations", "device_inventory", "device_certificates", "admin_principals", "admin_sessions"}
 	for _, tbl := range tables {
 		var count int
 		err = DB.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", tbl).Scan(&count)

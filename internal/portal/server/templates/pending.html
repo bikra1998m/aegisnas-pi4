@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Branding}} - Guest Request Status</title>
+    <link rel="stylesheet" href="/static/style.css">
+    {{if or (eq .Record.Status "pending") (eq .Record.Status "approved")}}
+    <meta http-equiv="refresh" content="8">
+    {{end}}
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>{{.Branding}}</h1>
+            {{if eq .Record.Status "pending"}}
+            <p class="subtitle">Your guest request is waiting for approval.</p>
+            <div class="status pending">Request {{.Record.ID}} is pending.</div>
+            {{if .Record.ApprovalDeliveryError}}
+            <div class="error">{{.Record.ApprovalDeliveryError}}</div>
+            {{end}}
+            <p class="helper">Keep this page open. We will refresh and complete access as soon as the request is approved.</p>
+            {{end}}
+
+            {{if eq .Record.Status "approved"}}
+            <p class="subtitle">Your request was approved.</p>
+            <div class="status online">Approved as {{.Record.Username}}. Finishing your session now.</div>
+            <div class="links">
+                <a href="/register/complete?id={{.Record.ID}}&token={{.GuestToken}}&client_mac={{.ClientMAC}}">Connect now</a>
+            </div>
+            {{end}}
+
+            {{if eq .Record.Status "completed"}}
+            <p class="subtitle">Your request was approved and completed.</p>
+            <div class="status online">You can reconnect now.</div>
+            <div class="links">
+                <a href="/register/complete?id={{.Record.ID}}&token={{.GuestToken}}&client_mac={{.ClientMAC}}">Reconnect</a>
+            </div>
+            {{end}}
+
+            {{if eq .Record.Status "rejected"}}
+            <p class="subtitle">Your request was rejected.</p>
+            <div class="status offline">{{if .Record.RejectionReason}}{{.Record.RejectionReason}}{{else}}A sponsor or administrator rejected this request.{{end}}</div>
+            {{end}}
+
+            <div class="footer">
+                <a href="/?client_mac={{.ClientMAC}}">Back to login</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -30,12 +30,11 @@ export default function Login() {
       const authMode = hash.get('auth_mode');
       if (ssoToken) {
         try {
-          await api.get('/auth/validate', { headers: { Authorization: `Bearer ${ssoToken}` } });
           if (!active) {
             return;
           }
           window.history.replaceState({}, document.title, '/login');
-          login(ssoToken, authMode === 'sso' ? 'sso' : 'token');
+          await login(ssoToken, authMode === 'sso' ? 'sso' : 'token');
           navigate('/');
           return;
         } catch {
@@ -90,8 +89,7 @@ export default function Login() {
     e.preventDefault();
     setError('');
     try {
-      await api.get('/auth/validate', { headers: { Authorization: `Bearer ${token}` } });
-      login(token, 'token');
+      await login(token, 'token');
       navigate('/');
     } catch (err) {
       setError('Invalid token');

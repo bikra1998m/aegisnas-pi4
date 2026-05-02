@@ -163,6 +163,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"batch_size": cfg.Integrations.SIEM.BatchSize,
 			"export":     runtimeMap["siem_export"],
 		},
+		"controller": map[string]any{
+			"enabled":   cfg.Integrations.Controller.Enabled,
+			"platform":  cfg.Integrations.Controller.Platform,
+			"endpoint":  cfg.Integrations.Controller.Endpoint,
+			"sync_mode": cfg.Integrations.Controller.SyncMode,
+			"site":      cfg.Integrations.Controller.Site,
+			"sync":      runtimeMap["controller_automation"],
+		},
 	}
 	if !cfg.Integrations.AdminSSO.Enabled {
 		integrationsStatus["admin_sso"] = map[string]any{
@@ -198,6 +206,25 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"endpoint":   cfg.Integrations.SIEM.Endpoint,
 			"batch_size": cfg.Integrations.SIEM.BatchSize,
 			"export":     map[string]any{"status": "degraded", "message": "Telemetry service is disabled, so SIEM export is not running."},
+		}
+	}
+	if !cfg.Integrations.Controller.Enabled {
+		integrationsStatus["controller"] = map[string]any{
+			"enabled":   false,
+			"platform":  cfg.Integrations.Controller.Platform,
+			"endpoint":  cfg.Integrations.Controller.Endpoint,
+			"sync_mode": cfg.Integrations.Controller.SyncMode,
+			"site":      cfg.Integrations.Controller.Site,
+			"sync":      map[string]any{"status": "disabled", "message": "Controller automation is disabled in config"},
+		}
+	} else if !cfg.Telemetry.Enabled {
+		integrationsStatus["controller"] = map[string]any{
+			"enabled":   true,
+			"platform":  cfg.Integrations.Controller.Platform,
+			"endpoint":  cfg.Integrations.Controller.Endpoint,
+			"sync_mode": cfg.Integrations.Controller.SyncMode,
+			"site":      cfg.Integrations.Controller.Site,
+			"sync":      map[string]any{"status": "degraded", "message": "Telemetry service is disabled, so controller automation is not running."},
 		}
 	}
 
