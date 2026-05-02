@@ -199,8 +199,19 @@ func (s *Service) RegisterDevice(ctx context.Context, req RegisterRequest) (*Reg
 		return nil, err
 	}
 	result := &RegisterResult{Device: device}
-	if s.cfg.Onboarding.CertificateEnrollmentEnabled && strings.EqualFold(strings.TrimSpace(s.cfg.Onboarding.CAMode), "internal") {
-		cert, certPEM, keyPEM, caPEM, err := s.issueClientCertificate(device, req.Username)
+	if s.cfg.Onboarding.CertificateEnrollmentEnabled {
+		var (
+			cert    *DeviceCertificate
+			certPEM string
+			keyPEM  string
+			caPEM   string
+		)
+		switch strings.ToLower(strings.TrimSpace(s.cfg.Onboarding.CAMode)) {
+		case "internal":
+			cert, certPEM, keyPEM, caPEM, err = s.issueClientCertificate(device, req.Username)
+		case "external":
+			cert, certPEM, keyPEM, caPEM, err = s.enrollExternalClientCertificate(ctx, device, req)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -303,9 +314,12 @@ func (s *Service) LoadCertificateBundle(certificateID string) (*DeviceCertificat
 	if err != nil {
 		return nil, "", "", "", err
 	}
-	caPEM, err := os.ReadFile(item.CAPath)
-	if err != nil {
-		return nil, "", "", "", err
+	caPEM := []byte{}
+	if strings.TrimSpace(item.CAPath) != "" {
+		caPEM, err = os.ReadFile(item.CAPath)
+		if err != nil {
+			return nil, "", "", "", err
+		}
 	}
 	return &item, string(certPEM), string(keyPEM), string(caPEM), nil
 }
@@ -375,6 +389,7 @@ func (s *Service) SyncFromMDM(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	setBearerToken(req, s.cfg.Profiling.MDMAPITokenEnv)
 	resp, err := s.client.Do(req)
 	if err != nil {
 		return err
@@ -407,6 +422,7 @@ func (s *Service) SyncFromComplianceWebhook(ctx context.Context) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	setBearerToken(req, s.cfg.Profiling.ComplianceTokenEnv)
 	resp, err := s.client.Do(req)
 	if err != nil {
 		return err
@@ -450,26 +466,35 @@ func (s *Service) applyPostureToSessions() error {
 		return err
 	}
 	defer activeRows.Close()
+	type activeSession struct {
+		ID       string
+		MAC      string
+		FilterID string
+	}
+	var activeSessions []activeSession
 	for activeRows.Next() {
-		var id, mac, filterID string
-		if err := activeRows.Scan(&id, &mac, &filterID); err != nil {
+		var item activeSession
+		if err := activeRows.Scan(&item.ID, &item.MAC, &item.FilterID); err != nil {
 			return err
 		}
-		mac = normalizeMAC(mac)
-		if nonCompliant[mac] {
-			if filterID != "quarantine-posture" {
-				if _, err := db.DB.Exec(`UPDATE sessions SET filter_id = ?, last_activity = ? WHERE id = ?`, "quarantine-posture", time.Now(), id); err != nil {
-					return err
-				}
-			}
-		} else if filterID == "quarantine-posture" {
-			if _, err := db.DB.Exec(`UPDATE sessions SET filter_id = NULL, last_activity = ? WHERE id = ?`, time.Now(), id); err != nil {
-				return err
-			}
-		}
+		activeSessions = append(activeSessions, item)
 	}
 	if err := activeRows.Err(); err != nil {
 		return err
+	}
+	for _, session := range activeSessions {
+		mac := normalizeMAC(session.MAC)
+		if nonCompliant[mac] {
+			if session.FilterID != "quarantine-posture" {
+				if _, err := db.DB.Exec(`UPDATE sessions SET filter_id = ?, last_activity = ? WHERE id = ?`, "quarantine-posture", time.Now(), session.ID); err != nil {
+					return err
+				}
+			}
+		} else if session.FilterID == "quarantine-posture" {
+			if _, err := db.DB.Exec(`UPDATE sessions SET filter_id = NULL, last_activity = ? WHERE id = ?`, time.Now(), session.ID); err != nil {
+				return err
+			}
+		}
 	}
 	return syncRuntimeEnforcement(s.cfg)
 }
@@ -566,6 +591,153 @@ func (s *Service) issueClientCertificate(device *Device, username string) (*Devi
 	}, certPEM, keyPEM, string(caCertPEM), nil
 }
 
+type externalEnrollmentRequest struct {
+	Username     string `json:"username"`
+	DeviceMAC    string `json:"device_mac"`
+	Tenant       string `json:"tenant,omitempty"`
+	SessionID    string `json:"session_id,omitempty"`
+	LastIP       string `json:"last_ip,omitempty"`
+	FriendlyName string `json:"friendly_name,omitempty"`
+	Ownership    string `json:"ownership,omitempty"`
+	Platform     string `json:"platform,omitempty"`
+	DeviceType   string `json:"device_type,omitempty"`
+	CommonName   string `json:"common_name"`
+	CSRPEM       string `json:"csr_pem"`
+}
+
+type externalEnrollmentResponse struct {
+	CertificatePEM   string `json:"certificate_pem"`
+	CertificateCAPEM string `json:"ca_pem"`
+	SerialNumber     string `json:"serial_number"`
+	CommonName       string `json:"common_name"`
+	ExpiresAt        string `json:"expires_at"`
+}
+
+func (s *Service) enrollExternalClientCertificate(ctx context.Context, device *Device, req RegisterRequest) (*DeviceCertificate, string, string, string, error) {
+	if strings.TrimSpace(s.cfg.Onboarding.CAEnrollmentURL) == "" {
+		return nil, "", "", "", errors.New("external CA enrollment URL is required for certificate enrollment")
+	}
+	clientKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+	commonName := fmt.Sprintf("%s-%s", sanitizeCN(req.Username), strings.ReplaceAll(device.MAC, ":", ""))
+	csrTemplate := &x509.CertificateRequest{
+		Subject: pkix.Name{
+			CommonName:   commonName,
+			Organization: []string{"AegisNAS Devices"},
+		},
+	}
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, clientKey)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+	csrPEM := encodePEM("CERTIFICATE REQUEST", csrDER)
+	keyPEM := encodePEM("RSA PRIVATE KEY", x509.MarshalPKCS1PrivateKey(clientKey))
+
+	deviceType := strings.TrimSpace(device.DeviceType)
+	if deviceType == "" {
+		_, deviceType = fingerprintUserAgent(req.UserAgent)
+	}
+	payload, err := jsonMarshal(externalEnrollmentRequest{
+		Username:     req.Username,
+		DeviceMAC:    device.MAC,
+		Tenant:       device.Tenant,
+		SessionID:    req.SessionID,
+		LastIP:       req.LastIP,
+		FriendlyName: req.FriendlyName,
+		Ownership:    req.Ownership,
+		Platform:     firstNonEmptyString(req.Platform, device.Platform),
+		DeviceType:   deviceType,
+		CommonName:   commonName,
+		CSRPEM:       csrPEM,
+	})
+	if err != nil {
+		return nil, "", "", "", err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.cfg.Onboarding.CAEnrollmentURL, strings.NewReader(string(payload)))
+	if err != nil {
+		return nil, "", "", "", err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	setBearerToken(httpReq, s.cfg.Onboarding.CAEnrollmentTokenEnv)
+
+	resp, err := s.client.Do(httpReq)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, "", "", "", fmt.Errorf("external CA enrollment returned %s", resp.Status)
+	}
+	var enrollment externalEnrollmentResponse
+	if err := jsonNewDecoder(resp.Body).Decode(&enrollment); err != nil {
+		return nil, "", "", "", err
+	}
+	if strings.TrimSpace(enrollment.CertificatePEM) == "" {
+		return nil, "", "", "", errors.New("external CA enrollment response did not include certificate_pem")
+	}
+	issuedCert, err := parseCertificatePEM([]byte(enrollment.CertificatePEM))
+	if err != nil {
+		return nil, "", "", "", err
+	}
+
+	baseDir := filepath.Join(filepath.Dir(s.cfg.Database.Path), "device-certs")
+	if err := os.MkdirAll(baseDir, 0700); err != nil {
+		return nil, "", "", "", err
+	}
+	id := uuid.NewString()
+	certPath := filepath.Join(baseDir, id+".crt")
+	keyPath := filepath.Join(baseDir, id+".key")
+	caPath := filepath.Join(baseDir, id+"-ca.crt")
+	if err := os.WriteFile(certPath, []byte(enrollment.CertificatePEM), 0600); err != nil {
+		return nil, "", "", "", err
+	}
+	if err := os.WriteFile(keyPath, []byte(keyPEM), 0600); err != nil {
+		return nil, "", "", "", err
+	}
+	if strings.TrimSpace(enrollment.CertificateCAPEM) != "" {
+		if err := os.WriteFile(caPath, []byte(enrollment.CertificateCAPEM), 0600); err != nil {
+			return nil, "", "", "", err
+		}
+	} else {
+		caPath = ""
+	}
+
+	serial := strings.TrimSpace(enrollment.SerialNumber)
+	if serial == "" {
+		serial = issuedCert.SerialNumber.Text(16)
+	}
+	commonName = firstNonEmptyString(strings.TrimSpace(enrollment.CommonName), issuedCert.Subject.CommonName, commonName)
+	expiresAt := firstNonEmptyString(strings.TrimSpace(enrollment.ExpiresAt), issuedCert.NotAfter.UTC().Format(time.RFC3339))
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := db.DB.Exec(`INSERT INTO device_certificates (id, device_mac, username, common_name, serial_number, cert_path, key_path, ca_path, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, device.MAC, req.Username, commonName, serial, certPath, keyPath, nullIfEmpty(caPath), now, expiresAt); err != nil {
+		return nil, "", "", "", err
+	}
+	if _, err := db.DB.Exec(`UPDATE device_inventory
+		SET certificate_serial = ?, certificate_subject = ?, certificate_valid_until = ?, updated_at = ?
+		WHERE mac = ?`, serial, commonName, expiresAt, now, device.MAC); err != nil {
+		return nil, "", "", "", err
+	}
+	device.CertificateSerial = serial
+	device.CertificateSubject = commonName
+	device.CertificateValidUntil = expiresAt
+	return &DeviceCertificate{
+		ID:         id,
+		DeviceMAC:  device.MAC,
+		Username:   req.Username,
+		CommonName: commonName,
+		Serial:     serial,
+		CertPath:   certPath,
+		KeyPath:    keyPath,
+		CAPath:     caPath,
+		CreatedAt:  now,
+		ExpiresAt:  expiresAt,
+	}, enrollment.CertificatePEM, keyPEM, enrollment.CertificateCAPEM, nil
+}
+
 type scanner interface {
 	Scan(dest ...any) error
 }
@@ -594,6 +766,22 @@ func normalizeMAC(value string) string {
 }
 
 func nullable(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return strings.TrimSpace(value)
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func nullIfEmpty(value string) any {
 	if strings.TrimSpace(value) == "" {
 		return nil
 	}
@@ -715,3 +903,13 @@ var (
 	jsonNewDecoder         = func(r io.Reader) *json.Decoder { return json.NewDecoder(r) }
 	syncRuntimeEnforcement = func(cfg *config.Config) error { return enforcement.SyncRuntimeEnforcement(cfg) }
 )
+
+func setBearerToken(req *http.Request, tokenEnv string) {
+	tokenEnv = strings.TrimSpace(tokenEnv)
+	if req == nil || tokenEnv == "" {
+		return
+	}
+	if token := strings.TrimSpace(os.Getenv(tokenEnv)); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+}

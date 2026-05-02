@@ -75,6 +75,7 @@ const defaultSettings: JsonMap = {
     ca_cert_path: '',
     ca_key_path: '',
     ca_enrollment_url: '',
+    ca_enrollment_token_env: '',
   },
   profiling: {
     mac_inventory_enabled: false,
@@ -85,8 +86,10 @@ const defaultSettings: JsonMap = {
     mdm_sync_enabled: false,
     mdm_provider: '',
     mdm_endpoint: '',
+    mdm_api_token_env: '',
     mdm_cache_hours: 12,
     compliance_webhook: '',
+    compliance_token_env: '',
     remediation_enabled: false,
   },
   integrations: {
@@ -1089,13 +1092,19 @@ export default function AccessSettings() {
             onChange={(value) => updateField(['onboarding', 'ca_key_path'], value)}
             placeholder="/etc/aegisnas/pki/ca.key"
           />
-          <TextField
-            label="CA Enrollment URL"
-            value={settings.onboarding?.ca_enrollment_url || ''}
-            onChange={(value) => updateField(['onboarding', 'ca_enrollment_url'], value)}
-            placeholder="https://ca.example.com/enroll"
-          />
-        </div>
+            <TextField
+              label="CA Enrollment URL"
+              value={settings.onboarding?.ca_enrollment_url || ''}
+              onChange={(value) => updateField(['onboarding', 'ca_enrollment_url'], value)}
+              placeholder="https://ca.example.com/enroll"
+            />
+            <TextField
+              label="CA Enrollment Token Env"
+              value={settings.onboarding?.ca_enrollment_token_env || ''}
+              onChange={(value) => updateField(['onboarding', 'ca_enrollment_token_env'], value)}
+              placeholder="AEGIS_CA_ENROLLMENT_TOKEN"
+            />
+          </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
           <div className="mb-4">
             <h4 className="font-semibold text-gray-900">Passive Profiling And Posture</h4>
@@ -1153,19 +1162,31 @@ export default function AccessSettings() {
               onChange={(value) => updateField(['profiling', 'mdm_provider'], value)}
               placeholder="workspace-one-like"
             />
-            <TextField
-              label="MDM Endpoint"
-              value={settings.profiling?.mdm_endpoint || ''}
-              onChange={(value) => updateField(['profiling', 'mdm_endpoint'], value)}
-              placeholder="https://mdm.example.com/api"
-            />
-            <TextField
-              label="Compliance Webhook"
-              value={settings.profiling?.compliance_webhook || ''}
-              onChange={(value) => updateField(['profiling', 'compliance_webhook'], value)}
-              placeholder="https://ops.example.com/compliance"
-            />
-          </div>
+              <TextField
+                label="MDM Endpoint"
+                value={settings.profiling?.mdm_endpoint || ''}
+                onChange={(value) => updateField(['profiling', 'mdm_endpoint'], value)}
+                placeholder="https://mdm.example.com/api"
+              />
+              <TextField
+                label="MDM Token Env"
+                value={settings.profiling?.mdm_api_token_env || ''}
+                onChange={(value) => updateField(['profiling', 'mdm_api_token_env'], value)}
+                placeholder="AEGIS_MDM_API_TOKEN"
+              />
+              <TextField
+                label="Compliance Webhook"
+                value={settings.profiling?.compliance_webhook || ''}
+                onChange={(value) => updateField(['profiling', 'compliance_webhook'], value)}
+                placeholder="https://ops.example.com/compliance"
+              />
+              <TextField
+                label="Compliance Token Env"
+                value={settings.profiling?.compliance_token_env || ''}
+                onChange={(value) => updateField(['profiling', 'compliance_token_env'], value)}
+                placeholder="AEGIS_COMPLIANCE_WEBHOOK_TOKEN"
+              />
+            </div>
         </div>
       </section>
 

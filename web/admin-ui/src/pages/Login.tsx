@@ -113,7 +113,7 @@ export default function Login() {
             <div className="mt-1 text-sm text-gray-600">
               {ssoSupported
                 ? `Sign in with your ${authOptions?.sso?.provider?.toUpperCase() || 'SSO'} identity and keep API tokens for break-glass access.`
-                : 'Admin SSO is configured, but only OIDC is available in this release.'}
+                : 'Admin SSO is configured, but this provider is not supported by the current runtime.'}
             </div>
             <button
               type="button"

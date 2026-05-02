@@ -46,8 +46,8 @@ func HandleAdminAuthOptions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	provider := strings.TrimSpace(strings.ToLower(cfg.Integrations.AdminSSO.Provider))
-	supported := cfg.Integrations.AdminSSO.Enabled && provider == "oidc"
-	writeJSON(w, http.StatusOK, map[string]any{
+	supported := cfg.Integrations.AdminSSO.Enabled && adminSSOProviderSupported(provider)
+	response := map[string]any{
 		"token_login": true,
 		"sso": map[string]any{
 			"enabled":      cfg.Integrations.AdminSSO.Enabled,
@@ -56,7 +56,11 @@ func HandleAdminAuthOptions(w http.ResponseWriter, r *http.Request) {
 			"redirect_url": cfg.Integrations.AdminSSO.RedirectURL,
 			"issuer_url":   cfg.Integrations.AdminSSO.IssuerURL,
 		},
-	})
+	}
+	if provider == "saml" {
+		response["sso"].(map[string]any)["metadata_url"] = adminSSOMetadataURL(cfg)
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 func HandleAdminSSOStart(w http.ResponseWriter, r *http.Request) {
@@ -69,14 +73,42 @@ func HandleAdminSSOStart(w http.ResponseWriter, r *http.Request) {
 		redirectLoginError(w, r, "Admin SSO is disabled.")
 		return
 	}
-	if !strings.EqualFold(strings.TrimSpace(cfg.Integrations.AdminSSO.Provider), "oidc") {
+	provider := strings.ToLower(strings.TrimSpace(cfg.Integrations.AdminSSO.Provider))
+	switch provider {
+	case "oidc":
+		handleAdminSSOStartOIDC(w, r, cfg)
+	case "saml":
+		handleAdminSSOStartSAML(w, r, cfg)
+	default:
 		_ = db.UpsertRuntimeStatus(adminSSOComponent, "degraded", "Admin SSO is enabled with an unsupported runtime provider.", map[string]any{
 			"provider": cfg.Integrations.AdminSSO.Provider,
 		})
-		redirectLoginError(w, r, "Only OIDC admin SSO is available in this release.")
+		redirectLoginError(w, r, "This admin SSO provider is not supported.")
+	}
+}
+
+func HandleAdminSSOCallback(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Get()
+	if cfg == nil {
+		http.Error(w, "configuration not loaded", http.StatusInternalServerError)
 		return
 	}
+	if !cfg.Integrations.AdminSSO.Enabled {
+		redirectLoginError(w, r, "Admin SSO is not available.")
+		return
+	}
+	provider := strings.ToLower(strings.TrimSpace(cfg.Integrations.AdminSSO.Provider))
+	switch provider {
+	case "oidc":
+		handleAdminSSOCallbackOIDC(w, r, cfg)
+	case "saml":
+		handleAdminSSOCallbackSAML(w, r, cfg)
+	default:
+		redirectLoginError(w, r, "This admin SSO provider is not supported.")
+	}
+}
 
+func handleAdminSSOStartOIDC(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 	ctx := oidc.ClientContext(r.Context(), &http.Client{Timeout: adminSSOHTTPTimeout})
 	metadata, oauthCfg, err := adminSSOConfig(ctx, cfg)
 	if err != nil {
@@ -122,17 +154,7 @@ func HandleAdminSSOStart(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
-func HandleAdminSSOCallback(w http.ResponseWriter, r *http.Request) {
-	cfg := config.Get()
-	if cfg == nil {
-		http.Error(w, "configuration not loaded", http.StatusInternalServerError)
-		return
-	}
-	if !cfg.Integrations.AdminSSO.Enabled || !strings.EqualFold(strings.TrimSpace(cfg.Integrations.AdminSSO.Provider), "oidc") {
-		redirectLoginError(w, r, "Admin SSO is not available.")
-		return
-	}
-
+func handleAdminSSOCallbackOIDC(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 	if callbackErr := strings.TrimSpace(r.URL.Query().Get("error")); callbackErr != "" {
 		description := strings.TrimSpace(r.URL.Query().Get("error_description"))
 		message := callbackErr
@@ -261,6 +283,15 @@ func HandleAdminSSOCallback(w http.ResponseWriter, r *http.Request) {
 	auditSSOEvent(username, "admin_sso_login", fmt.Sprintf("provider=%s role=%s groups=%d", cfg.Integrations.AdminSSO.Provider, identity.Role, groupCount), "success", r.RemoteAddr)
 	clearAdminSSOCookies(w, cfg)
 	http.Redirect(w, r, loginSuccessURL(sessionToken), http.StatusFound)
+}
+
+func adminSSOProviderSupported(provider string) bool {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "oidc", "saml":
+		return true
+	default:
+		return false
+	}
 }
 
 func HandleLogout(w http.ResponseWriter, r *http.Request) {
@@ -428,14 +459,14 @@ func redirectLoginError(w http.ResponseWriter, r *http.Request, message string) 
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
-func mintAdminSSOSession(user string, identity AdminIdentity, provider string, groups []string, idTokenExpiry time.Time) (string, time.Time, error) {
+func mintAdminSSOSession(user string, identity AdminIdentity, provider string, groups []string, upstreamSessionExpiry time.Time) (string, time.Time, error) {
 	token, err := randomToken(32)
 	if err != nil {
 		return "", time.Time{}, err
 	}
 	expiresAt := time.Now().Add(adminSSOMaxSessionLifetime)
-	if !idTokenExpiry.IsZero() && idTokenExpiry.Before(expiresAt) {
-		expiresAt = idTokenExpiry
+	if !upstreamSessionExpiry.IsZero() && upstreamSessionExpiry.Before(expiresAt) {
+		expiresAt = upstreamSessionExpiry
 	}
 	description := adminSSOSessionDescription
 	if provider != "" {

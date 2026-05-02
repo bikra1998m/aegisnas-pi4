@@ -221,6 +221,7 @@ type OnboardingConfig struct {
 	CACertPath                   string `mapstructure:"ca_cert_path"`
 	CAKeyPath                    string `mapstructure:"ca_key_path"`
 	CAEnrollmentURL              string `mapstructure:"ca_enrollment_url"`
+	CAEnrollmentTokenEnv         string `mapstructure:"ca_enrollment_token_env"`
 }
 
 type ProfilingConfig struct {
@@ -232,8 +233,10 @@ type ProfilingConfig struct {
 	MDMSyncEnabled      bool   `mapstructure:"mdm_sync_enabled"`
 	MDMProvider         string `mapstructure:"mdm_provider"`
 	MDMEndpoint         string `mapstructure:"mdm_endpoint"`
+	MDMAPITokenEnv      string `mapstructure:"mdm_api_token_env"`
 	MDMCacheHours       int    `mapstructure:"mdm_cache_hours"`
 	ComplianceWebhook   string `mapstructure:"compliance_webhook"`
+	ComplianceTokenEnv  string `mapstructure:"compliance_token_env"`
 	RemediationEnabled  bool   `mapstructure:"remediation_enabled"`
 }
 

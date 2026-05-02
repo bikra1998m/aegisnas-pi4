@@ -82,10 +82,12 @@ var runCmd = &cobra.Command{
 		r.Route("/api/v1", func(r chi.Router) {
 			r.Get("/auth/options", adminapi.HandleAdminAuthOptions)
 			r.Get("/auth/sso/start", adminapi.HandleAdminSSOStart)
+			r.Get("/auth/sso/metadata", adminapi.HandleAdminSSOMetadata)
 		})
 
 		if callbackPath := adminapi.AdminSSOCallbackPath(cfg); callbackPath != "" {
 			r.Get(callbackPath, adminapi.HandleAdminSSOCallback)
+			r.Post(callbackPath, adminapi.HandleAdminSSOCallback)
 		}
 
 		// API routes (protected)

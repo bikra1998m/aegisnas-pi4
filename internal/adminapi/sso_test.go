@@ -6,9 +6,12 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -112,6 +115,60 @@ func TestHandleLogoutRevokesAdminSSOSession(t *testing.T) {
 	assert.Equal(t, 0, count)
 }
 
+func TestHandleAdminSSOStartAndMetadataSAML(t *testing.T) {
+	metadataServer := newFakeSAMLMetadataProvider(t)
+	defer metadataServer.Close()
+
+	cfg := loadAdminSSOTestConfigWithProvider(t, "saml", metadataServer.URL+"/metadata", "https://aegisnas.example.test/admin-sso", "http://127.0.0.1/auth/callback")
+
+	optionsReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/options", nil)
+	optionsRes := httptest.NewRecorder()
+	HandleAdminAuthOptions(optionsRes, optionsReq)
+	require.Equal(t, http.StatusOK, optionsRes.Code)
+
+	var options map[string]any
+	require.NoError(t, json.Unmarshal(optionsRes.Body.Bytes(), &options))
+	sso, ok := options["sso"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "saml", sso["provider"])
+	assert.Equal(t, true, sso["supported"])
+	assert.Equal(t, adminSSOMetadataURL(cfg), sso["metadata_url"])
+
+	startReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/sso/start", nil)
+	startRes := httptest.NewRecorder()
+	HandleAdminSSOStart(startRes, startReq)
+
+	require.Equal(t, http.StatusFound, startRes.Code)
+	location := startRes.Header().Get("Location")
+	require.Contains(t, location, metadataServer.URL+"/idp/sso")
+	redirectURL, err := url.Parse(location)
+	require.NoError(t, err)
+	assert.NotEmpty(t, redirectURL.Query().Get("SAMLRequest"))
+	assert.NotEmpty(t, redirectURL.Query().Get("RelayState"))
+
+	metadataReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/sso/metadata", nil)
+	metadataRes := httptest.NewRecorder()
+	HandleAdminSSOMetadata(metadataRes, metadataReq)
+
+	require.Equal(t, http.StatusOK, metadataRes.Code)
+	assert.Equal(t, "application/samlmetadata+xml", metadataRes.Header().Get("Content-type"))
+	assert.Contains(t, metadataRes.Body.String(), cfg.Integrations.AdminSSO.ClientID)
+	assert.Contains(t, metadataRes.Body.String(), cfg.Integrations.AdminSSO.RedirectURL)
+
+	certPath, keyPath, err := adminSAMLMaterialPaths(cfg)
+	require.NoError(t, err)
+	_, err = os.Stat(certPath)
+	require.NoError(t, err)
+	_, err = os.Stat(keyPath)
+	require.NoError(t, err)
+
+	status, err := db.GetRuntimeStatus(adminSSOComponent)
+	require.NoError(t, err)
+	require.NotNil(t, status)
+	assert.Equal(t, "ok", status.Status)
+	assert.Contains(t, status.Message, "redirect prepared")
+}
+
 func newFakeOIDCProvider(t *testing.T, key *rsa.PrivateKey, nonce func() string, fallback http.HandlerFunc) *httptest.Server {
 	t.Helper()
 
@@ -167,7 +224,58 @@ func newFakeOIDCProvider(t *testing.T, key *rsa.PrivateKey, nonce func() string,
 	return server
 }
 
+func newFakeSAMLMetadataProvider(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	certTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(20260502),
+		Subject: pkix.Name{
+			CommonName:   "fake-idp.example.test",
+			Organization: []string{"AegisNAS Tests"},
+		},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
+	require.NoError(t, err)
+	certB64 := base64.StdEncoding.EncodeToString(certDER)
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/metadata":
+			w.Header().Set("Content-Type", "application/samlmetadata+xml")
+			_, _ = fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>
+<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" entityID="%[1]s/metadata">
+  <IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol" WantAuthnRequestsSigned="true">
+    <KeyDescriptor use="signing">
+      <KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
+        <X509Data>
+          <X509Certificate>%[2]s</X509Certificate>
+        </X509Data>
+      </KeyInfo>
+    </KeyDescriptor>
+    <NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</NameIDFormat>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="%[1]s/idp/sso"/>
+  </IDPSSODescriptor>
+</EntityDescriptor>`, server.URL, certB64)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	return server
+}
+
 func loadAdminSSOTestConfig(t *testing.T, issuerURL string) *config.Config {
+	return loadAdminSSOTestConfigWithProvider(t, "oidc", issuerURL, "aegisnas-admin", "http://127.0.0.1/auth/callback")
+}
+
+func loadAdminSSOTestConfigWithProvider(t *testing.T, provider, issuerURL, clientID, redirectURL string) *config.Config {
 	t.Helper()
 
 	dbPath := filepath.Join(t.TempDir(), "admin-sso.db")
@@ -211,12 +319,12 @@ radius:
 integrations:
   admin_sso:
     enabled: true
-    provider: oidc
+    provider: %q
     issuer_url: %q
-    client_id: aegisnas-admin
-    redirect_url: http://127.0.0.1/auth/callback
+    client_id: %q
+    redirect_url: %q
     groups_claim: groups
-`, filepath.ToSlash(dbPath), issuerURL)
+`, filepath.ToSlash(dbPath), provider, issuerURL, clientID, redirectURL)
 	_, err = tmpfile.WriteString(content)
 	require.NoError(t, err)
 	require.NoError(t, tmpfile.Close())

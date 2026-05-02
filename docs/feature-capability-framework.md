@@ -225,7 +225,7 @@ Rules:
 | LDAP auth | available | enabled | enabled | already present |
 | Upstream RADIUS / AAA | available | enabled | enabled | already present |
 | Local fallback | enabled | enabled | enabled | already present |
-| SAML or OIDC admin auth | blocked | available | enabled | future work |
+| SAML or OIDC admin auth | blocked | available | enabled | runtime-supported with break-glass fallback |
 | MDM or UEM integration | blocked | blocked | enabled | future work |
 | SIEM / webhook export | available | enabled | enabled | can scale by retention depth |
 | Multi-tenant separation | blocked | blocked | available | future work |
@@ -538,7 +538,9 @@ Phase 4 validation rules:
 
 Current runtime implementation after Phase 4:
 
-- the admin API supports OIDC admin SSO with state, nonce, PKCE, short-lived internal admin sessions, and break-glass token fallback
+- the admin API supports OIDC and SAML admin SSO with short-lived internal admin sessions and break-glass token fallback
+- OIDC uses state, nonce, PKCE, and ID token validation against discovery metadata
+- SAML publishes service-provider metadata, generates signing material on first run, validates assertions against IdP metadata, and maps assertion attributes into delegated-admin roles
 - delegated admin now resolves live runtime roles (`super_admin`, `ops_admin`, `guest_admin`, `read_only`) from cached admin principals and SSO group claims
 - admin principals can be reviewed and updated from the `Admin Access` page in the UI
 - multi-tenant governance now scopes guest workflow, device inventory, certificate download, and session operations by tenant-aware admin sessions

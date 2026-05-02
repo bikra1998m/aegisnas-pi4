@@ -163,6 +163,7 @@ onboarding:
   ca_cert_path: "" # Required with ca_mode=internal and certificate enrollment.
   ca_key_path: "" # Required with ca_mode=internal and certificate enrollment.
   ca_enrollment_url: "" # Required with ca_mode=external and certificate enrollment.
+  ca_enrollment_token_env: "AEGIS_CA_ENROLLMENT_TOKEN" # Optional bearer token env for external CA APIs.
 
 profiling:
   mac_inventory_enabled: false
@@ -173,8 +174,10 @@ profiling:
   mdm_sync_enabled: false
   mdm_provider: ""
   mdm_endpoint: ""
+  mdm_api_token_env: "AEGIS_MDM_API_TOKEN" # Optional bearer token env for MDM or UEM APIs.
   mdm_cache_hours: 12
   compliance_webhook: ""
+  compliance_token_env: "AEGIS_COMPLIANCE_WEBHOOK_TOKEN" # Optional bearer token env for compliance webhooks.
   remediation_enabled: false
 
 integrations:

@@ -11,7 +11,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.48.0
 	golang.org/x/oauth2 v0.36.0
@@ -21,7 +21,15 @@ require (
 	modernc.org/sqlite v1.48.2
 )
 
-require github.com/go-jose/go-jose/v4 v4.1.4 // indirect
+require (
+	github.com/beevik/etree v1.5.0 // indirect
+	github.com/crewjam/saml v0.5.1 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
+	github.com/jonboulle/clockwork v0.2.2 // indirect
+	github.com/mattermost/xml-roundtrip-validator v0.1.0 // indirect
+	github.com/russellhaering/goxmldsig v1.4.0 // indirect
+)
 
 require (
 	github.com/Azure/go-ntlmssp v0.1.0 // indirect
