@@ -79,19 +79,44 @@ var runCmd = &cobra.Command{
 		// Public health endpoint
 		health.RegisterRoutes(r)
 
-		r.Route("/api/v1", func(r chi.Router) {
-			r.Get("/auth/options", adminapi.HandleAdminAuthOptions)
-			r.Get("/auth/sso/start", adminapi.HandleAdminSSOStart)
-			r.Get("/auth/sso/metadata", adminapi.HandleAdminSSOMetadata)
-		})
+		registerAdminRoutes(r, cfg)
 
-		if callbackPath := adminapi.AdminSSOCallbackPath(cfg); callbackPath != "" {
-			r.Get(callbackPath, adminapi.HandleAdminSSOCallback)
-			r.Post(callbackPath, adminapi.HandleAdminSSOCallback)
+		mountAdminUI(r, logger)
+
+		httpServer := &http.Server{
+			Addr:    fmt.Sprintf(":%d", cfg.AdminPort),
+			Handler: r,
 		}
 
-		// API routes (protected)
-		r.Route("/api/v1", func(r chi.Router) {
+		go func() {
+			logger.Info("admin API listening", zap.Int("port", cfg.AdminPort))
+			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				logger.Fatal("server failed", zap.Error(err))
+			}
+		}()
+
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+		<-sig
+
+		logger.Info("shutting down admin API")
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		return httpServer.Shutdown(ctx)
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(runCmd)
+}
+
+func registerAdminRoutes(r chi.Router, cfg *config.Config) {
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Get("/auth/options", adminapi.HandleAdminAuthOptions)
+		r.Get("/auth/sso/start", adminapi.HandleAdminSSOStart)
+		r.Get("/auth/sso/metadata", adminapi.HandleAdminSSOMetadata)
+
+		r.Group(func(r chi.Router) {
 			r.Use(adminapi.AuthMiddleware)
 			r.Use(adminapi.AuthorizationMiddleware)
 			r.Get("/auth/validate", adminapi.HandleValidateToken)
@@ -205,34 +230,12 @@ var runCmd = &cobra.Command{
 			r.Post("/apply", adminapi.HandleApplyChanges)
 			r.Post("/validate", adminapi.HandleValidateStagedChanges)
 		})
+	})
 
-		mountAdminUI(r, logger)
-
-		httpServer := &http.Server{
-			Addr:    fmt.Sprintf(":%d", cfg.AdminPort),
-			Handler: r,
-		}
-
-		go func() {
-			logger.Info("admin API listening", zap.Int("port", cfg.AdminPort))
-			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				logger.Fatal("server failed", zap.Error(err))
-			}
-		}()
-
-		sig := make(chan os.Signal, 1)
-		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-		<-sig
-
-		logger.Info("shutting down admin API")
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		return httpServer.Shutdown(ctx)
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(runCmd)
+	if callbackPath := adminapi.AdminSSOCallbackPath(cfg); callbackPath != "" {
+		r.Get(callbackPath, adminapi.HandleAdminSSOCallback)
+		r.Post(callbackPath, adminapi.HandleAdminSSOCallback)
+	}
 }
 
 func adminAllowedOrigins() []string {
