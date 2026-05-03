@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/yourorg/aegisnas-pi4/internal/config"
+	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/dnsmasq"
 	"github.com/yourorg/aegisnas-pi4/internal/firewall"
 	"github.com/yourorg/aegisnas-pi4/internal/network"
@@ -24,16 +25,16 @@ type networkApplyResult struct {
 }
 
 var (
-	saveNetworkSnapshotFn          = network.SaveSnapshot
-	applyManagedNetworkFn          = network.Apply
-	applyFirewallRulesetFn         = firewall.ApplyRuleset
-	restoreNetworkSnapshotFn       = restoreNetworkSnapshot
-	validateAppliedNetworkFn       = validateAppliedNetworkServices
-	checkLocalHealthEndpointFn     = checkLocalHealthEndpoint
-	checkSystemdServiceActiveFn    = checkSystemdServiceActive
-	buildDNSMasqConfigFn           = buildDNSMasqConfig
-	applyDNSMasqContentFn          = applyDNSMasqContent
-	buildFirewallRulesFn           = buildFirewallRules
+	saveNetworkSnapshotFn       = network.SaveSnapshot
+	applyManagedNetworkFn       = network.Apply
+	applyFirewallRulesetFn      = firewall.ApplyRuleset
+	restoreNetworkSnapshotFn    = restoreNetworkSnapshot
+	validateAppliedNetworkFn    = validateAppliedNetworkServices
+	checkLocalHealthEndpointFn  = checkLocalHealthEndpoint
+	checkSystemdServiceActiveFn = checkSystemdServiceActive
+	buildDNSMasqConfigFn        = buildDNSMasqConfig
+	applyDNSMasqContentFn       = applyDNSMasqContent
+	buildFirewallRulesFn        = buildFirewallRules
 )
 
 func HandleApplyNetworkServices(w http.ResponseWriter, r *http.Request) {
@@ -117,16 +118,34 @@ func HandleListDHCPLeases(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	observedAt := time.Now().UTC()
+	if err := db.StoreDHCPLeaseObservations(observedAt, leaseObservationsFromCurrent(leases)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"leases":         leases,
 		"count":          len(leases),
 		"dhcp_enabled":   cfg.DHCP.Enabled,
 		"lease_file":     dnsmasqLeasePath,
-		"generated_at":   time.Now().UTC().Format(time.RFC3339),
+		"generated_at":   observedAt.Format(time.RFC3339),
 		"static_leases":  len(cfg.DHCP.StaticLeases),
 		"authoritative":  cfg.DHCP.Authoritative,
 		"lease_duration": cfg.DHCP.LeaseTime,
+	})
+}
+
+func HandleListDHCPLeaseHistory(w http.ResponseWriter, r *http.Request) {
+	history, err := db.ListDHCPLeaseHistory(150)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"history":      history,
+		"count":        len(history),
+		"generated_at": time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
@@ -144,6 +163,19 @@ func HandleListNetworkSnapshots(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"snapshots": snapshots,
 		"count":     len(snapshots),
+	})
+}
+
+func HandleListNetworkApplyHistory(w http.ResponseWriter, r *http.Request) {
+	history, err := db.ListNetworkApplyHistory(100)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"history":      history,
+		"count":        len(history),
+		"generated_at": time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
@@ -174,6 +206,9 @@ func HandleRollbackNetworkServices(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	_ = db.RecordNetworkApplyHistory("rollback", "success", fmt.Sprintf("Restored rollback snapshot %s.", snapshot.ID), "", snapshot.ID, userFromRequest(r), map[string]any{
+		"rollback_id": snapshot.ID,
+	})
 
 	audit(r, "rollback_network_services", snapshot.ID, "restored")
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -206,8 +241,19 @@ func applyNetworkServices(cfg *config.Config, createdBy string) (networkApplyRes
 
 	rollbackOnFailure := func(cause error) error {
 		if rollbackErr := restoreNetworkSnapshotFn(cfg, backup); rollbackErr != nil {
+			_ = db.RecordNetworkApplyHistory("apply", "failed", cause.Error(), backup.ID, "", createdBy, map[string]any{
+				"backup_id":       backup.ID,
+				"validation":      result.Validation,
+				"rollback_status": "failed",
+				"rollback_error":  rollbackErr.Error(),
+			})
 			return fmt.Errorf("%w; automatic rollback to snapshot %s also failed: %v", cause, backup.ID, rollbackErr)
 		}
+		_ = db.RecordNetworkApplyHistory("apply", "rolled_back", cause.Error(), backup.ID, backup.ID, createdBy, map[string]any{
+			"backup_id":       backup.ID,
+			"validation":      result.Validation,
+			"rollback_status": "success",
+		})
 		return fmt.Errorf("%w; automatic rollback restored snapshot %s", cause, backup.ID)
 	}
 
@@ -229,6 +275,10 @@ func applyNetworkServices(cfg *config.Config, createdBy string) (networkApplyRes
 	if !validation.Healthy {
 		return result, rollbackOnFailure(fmt.Errorf("post-apply validation failed: %s", validation.Summary()))
 	}
+	_ = db.RecordNetworkApplyHistory("apply", "success", validation.Summary(), backup.ID, "", createdBy, map[string]any{
+		"backup_id":  backup.ID,
+		"validation": validation,
+	})
 
 	return result, nil
 }
@@ -354,6 +404,23 @@ func leaseReservations(cfg *config.Config) map[string]struct{} {
 		values[ip] = struct{}{}
 	}
 	return values
+}
+
+func leaseObservationsFromCurrent(leases []dnsmasq.Lease) []db.DHCPLeaseObservation {
+	out := make([]db.DHCPLeaseObservation, 0, len(leases))
+	for _, lease := range leases {
+		out = append(out, db.DHCPLeaseObservation{
+			MAC:              lease.MAC,
+			IP:               lease.IP,
+			Hostname:         lease.Hostname,
+			ClientID:         lease.ClientID,
+			Reservation:      lease.Reservation,
+			Expired:          lease.Expired,
+			ExpiresAt:        lease.ExpiresAt,
+			RemainingSeconds: lease.RemainingSeconds,
+		})
+	}
+	return out
 }
 
 func normalizeReservationMAC(value string) string {

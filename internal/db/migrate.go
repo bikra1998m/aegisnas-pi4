@@ -31,6 +31,7 @@ func Migrate() error {
 		{4, schemaV4},
 		{5, schemaV5},
 		{6, schemaV6},
+		{7, schemaV7},
 	}
 
 	for _, m := range migrations {
@@ -404,4 +405,36 @@ CREATE INDEX IF NOT EXISTS idx_guest_registrations_tenant ON guest_registrations
 CREATE INDEX IF NOT EXISTS idx_device_inventory_tenant ON device_inventory(tenant);
 CREATE INDEX IF NOT EXISTS idx_admin_principals_role ON admin_principals(role);
 CREATE INDEX IF NOT EXISTS idx_admin_sessions_subject ON admin_sessions(subject);
+`
+
+const schemaV7 = `
+CREATE TABLE IF NOT EXISTS network_apply_history (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	action TEXT NOT NULL,
+	status TEXT NOT NULL,
+	summary TEXT,
+	backup_id TEXT,
+	rollback_id TEXT,
+	actor TEXT,
+	details_json TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dhcp_lease_history (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	mac TEXT NOT NULL,
+	ip TEXT NOT NULL,
+	hostname TEXT,
+	client_id TEXT,
+	reservation BOOLEAN DEFAULT 0,
+	expired BOOLEAN DEFAULT 0,
+	expires_at TEXT,
+	remaining_seconds INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_network_apply_history_created_at ON network_apply_history(created_at);
+CREATE INDEX IF NOT EXISTS idx_dhcp_lease_history_observed_at ON dhcp_lease_history(observed_at);
+CREATE INDEX IF NOT EXISTS idx_dhcp_lease_history_mac ON dhcp_lease_history(mac);
+CREATE INDEX IF NOT EXISTS idx_dhcp_lease_history_ip ON dhcp_lease_history(ip);
 `

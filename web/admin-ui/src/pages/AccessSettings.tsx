@@ -41,6 +41,19 @@ type DHCPLease = {
   expired: boolean;
 };
 
+type DHCPLeaseHistoryRecord = {
+  id: number;
+  observed_at: string;
+  mac: string;
+  ip: string;
+  hostname: string;
+  client_id: string;
+  reservation: boolean;
+  expired: boolean;
+  expires_at: string;
+  remaining_seconds: number;
+};
+
 type NetworkSnapshotSummary = {
   id: string;
   created_at: string;
@@ -60,6 +73,17 @@ type NetworkDiffSummary = {
   gateways_removed: string[];
   routes_added: string[];
   routes_removed: string[];
+};
+
+type NetworkApplyHistoryRecord = {
+  id: number;
+  action: string;
+  status: string;
+  summary: string;
+  backup_id?: string;
+  rollback_id?: string;
+  actor?: string;
+  created_at: string;
 };
 
 type NetworkPreview = {
@@ -600,9 +624,11 @@ export default function AccessSettings() {
   const [rollingBackNetwork, setRollingBackNetwork] = useState(false);
   const [leasesLoading, setLeasesLoading] = useState(false);
   const [dhcpLeases, setDhcpLeases] = useState<DHCPLease[]>([]);
+  const [dhcpLeaseHistory, setDhcpLeaseHistory] = useState<DHCPLeaseHistoryRecord[]>([]);
   const [networkPreviewLoading, setNetworkPreviewLoading] = useState(false);
   const [networkPreview, setNetworkPreview] = useState<NetworkPreview | null>(null);
   const [networkBackups, setNetworkBackups] = useState<NetworkSnapshotSummary[]>([]);
+  const [networkApplyHistory, setNetworkApplyHistory] = useState<NetworkApplyHistoryRecord[]>([]);
   const [lastNetworkValidation, setLastNetworkValidation] = useState<NetworkValidationReport | null>(null);
   const [selectedRollbackId, setSelectedRollbackId] = useState('');
   const [message, setMessage] = useState('');
@@ -643,8 +669,12 @@ export default function AccessSettings() {
   const loadLeaseReport = async () => {
     setLeasesLoading(true);
     try {
-      const { data } = await api.get('/system/dhcp-leases');
-      setDhcpLeases(data.leases || []);
+      const [currentRes, historyRes] = await Promise.all([
+        api.get('/system/dhcp-leases'),
+        api.get('/system/dhcp-lease-history'),
+      ]);
+      setDhcpLeases(currentRes.data.leases || []);
+      setDhcpLeaseHistory(historyRes.data.history || []);
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not load the DHCP lease report.');
     } finally {
@@ -655,13 +685,15 @@ export default function AccessSettings() {
   const loadNetworkPreview = async () => {
     setNetworkPreviewLoading(true);
     try {
-      const [previewRes, backupsRes] = await Promise.all([
+      const [previewRes, backupsRes, historyRes] = await Promise.all([
         api.get('/system/network-preview'),
         api.get('/system/network-backups'),
+        api.get('/system/network-apply-history'),
       ]);
       setNetworkPreview(previewRes.data || null);
       const snapshots = backupsRes.data?.snapshots || previewRes.data?.available_rollback_ids || [];
       setNetworkBackups(snapshots);
+      setNetworkApplyHistory(historyRes.data?.history || []);
       if (snapshots.length === 0) {
         setSelectedRollbackId('');
       } else if (!snapshots.some((snapshot: NetworkSnapshotSummary) => snapshot.id === selectedRollbackId)) {
@@ -1295,6 +1327,49 @@ export default function AccessSettings() {
               </tbody>
             </table>
           </div>
+          <div className="mt-6">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h5 className="font-semibold text-gray-900">Recent Lease History</h5>
+                <p className="mt-1 text-sm text-gray-600">Recent lease observations captured whenever the report is refreshed.</p>
+              </div>
+              <span className="text-sm text-gray-500">{leasesLoading ? 'Refreshing history...' : `${dhcpLeaseHistory.length} observations`}</span>
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Observed</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-700">IP</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-700">MAC</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Hostname</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Reservation</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {dhcpLeaseHistory.length === 0 ? (
+                    <tr>
+                      <td className="px-3 py-6 text-gray-500" colSpan={6}>
+                        No lease history has been captured yet. Refresh the live report to store observations.
+                      </td>
+                    </tr>
+                  ) : (
+                    dhcpLeaseHistory.slice(0, 12).map((lease) => (
+                      <tr key={`${lease.id}-${lease.observed_at}`}>
+                        <td className="px-3 py-2 text-gray-700">{lease.observed_at}</td>
+                        <td className="px-3 py-2 text-gray-900">{lease.ip || '-'}</td>
+                        <td className="px-3 py-2 font-mono text-gray-700">{lease.mac || '-'}</td>
+                        <td className="px-3 py-2 text-gray-700">{lease.hostname || '-'}</td>
+                        <td className="px-3 py-2 text-gray-700">{lease.reservation ? 'Yes' : 'No'}</td>
+                        <td className="px-3 py-2 text-gray-700">{lease.expired ? 'Expired' : 'Active'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1416,6 +1491,42 @@ export default function AccessSettings() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <h4 className="font-semibold text-gray-900">Recent Apply History</h4>
+          <div className="mt-3 overflow-x-auto rounded-lg border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">When</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Action</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Status</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Actor</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Summary</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {networkApplyHistory.length === 0 ? (
+                  <tr>
+                    <td className="px-3 py-6 text-gray-500" colSpan={5}>
+                      No network apply history has been captured yet.
+                    </td>
+                  </tr>
+                ) : (
+                  networkApplyHistory.slice(0, 12).map((item) => (
+                    <tr key={item.id}>
+                      <td className="px-3 py-2 text-gray-700">{item.created_at}</td>
+                      <td className="px-3 py-2 text-gray-700">{item.action}</td>
+                      <td className="px-3 py-2 text-gray-700">{item.status}</td>
+                      <td className="px-3 py-2 text-gray-700">{item.actor || '-'}</td>
+                      <td className="px-3 py-2 text-gray-700">{item.summary || '-'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
