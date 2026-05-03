@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/yourorg/aegisnas-pi4/internal/config"
@@ -37,6 +38,17 @@ type StaticRouteState struct {
 	Gateway     string `json:"gateway"`
 	Interface   string `json:"interface"`
 	Metric      int    `json:"metric"`
+}
+
+type ValidationCheck struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Detail string `json:"detail"`
+}
+
+type ValidationReport struct {
+	Healthy bool              `json:"healthy"`
+	Checks  []ValidationCheck `json:"checks"`
 }
 
 // Apply reconciles managed interfaces, default gateways, and static routes.
@@ -284,13 +296,147 @@ func SaveState(path string, state AppliedState) error {
 	return nil
 }
 
+var ipCommandRunner = defaultIPCommandRunner
+
 func runIP(args ...string) error {
+	_, err := ipCommandRunner(args...)
+	return err
+}
+
+func queryIP(args ...string) (string, error) {
+	return ipCommandRunner(args...)
+}
+
+func defaultIPCommandRunner(args ...string) (string, error) {
 	cmd := exec.Command("ip", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%w\nOutput: %s", err, strings.TrimSpace(string(output)))
+		trimmed := strings.TrimSpace(string(output))
+		if trimmed == "" {
+			return "", err
+		}
+		return trimmed, fmt.Errorf("%w\nOutput: %s", err, trimmed)
 	}
-	return nil
+	return strings.TrimSpace(string(output)), nil
+}
+
+func NewValidationReport() ValidationReport {
+	return ValidationReport{
+		Healthy: true,
+		Checks:  []ValidationCheck{},
+	}
+}
+
+func (report *ValidationReport) AddCheck(name, status, detail string) {
+	report.Checks = append(report.Checks, ValidationCheck{
+		Name:   strings.TrimSpace(name),
+		Status: strings.TrimSpace(status),
+		Detail: strings.TrimSpace(detail),
+	})
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "failed", "error":
+		report.Healthy = false
+	}
+}
+
+func (report ValidationReport) Summary() string {
+	if len(report.Checks) == 0 {
+		return "no validation checks were recorded"
+	}
+	failures := make([]string, 0, len(report.Checks))
+	for _, check := range report.Checks {
+		switch strings.ToLower(strings.TrimSpace(check.Status)) {
+		case "failed", "error":
+			failures = append(failures, strings.TrimSpace(check.Detail))
+		}
+	}
+	if len(failures) == 0 {
+		return "all validation checks passed"
+	}
+	sort.Strings(failures)
+	return strings.Join(failures, "; ")
+}
+
+func ValidateState(state AppliedState) ValidationReport {
+	report := NewValidationReport()
+
+	for _, iface := range state.Interfaces {
+		validateInterface(iface, &report)
+	}
+	for _, gateway := range state.Gateways {
+		validateGateway(gateway, &report)
+	}
+	for _, route := range state.Routes {
+		validateStaticRoute(route, &report)
+	}
+
+	if len(report.Checks) == 0 {
+		report.AddCheck("managed_network", "ok", "No managed interfaces, gateways, or static routes are defined.")
+	}
+	return report
+}
+
+func validateInterface(iface ManagedInterfaceState, report *ValidationReport) {
+	output, err := queryIP("addr", "show", "dev", iface.Name)
+	if err != nil {
+		report.AddCheck("interface:"+iface.Name, "failed", fmt.Sprintf("Could not inspect interface %s: %v", iface.Name, err))
+		return
+	}
+	if iface.Address != "" && !strings.Contains(output, "inet "+iface.Address) {
+		report.AddCheck("interface:"+iface.Name, "failed", fmt.Sprintf("Interface %s is missing address %s.", iface.Name, iface.Address))
+		return
+	}
+	detail := fmt.Sprintf("Interface %s is present", iface.Name)
+	if iface.Address != "" {
+		detail += fmt.Sprintf(" with address %s", iface.Address)
+	}
+	report.AddCheck("interface:"+iface.Name, "ok", detail+".")
+}
+
+func validateGateway(gateway GatewayState, report *ValidationReport) {
+	output, err := queryIP("route", "show", "default")
+	if err != nil {
+		report.AddCheck("gateway:"+gateway.Name, "failed", fmt.Sprintf("Could not inspect default routes for gateway %s: %v", gateway.Name, err))
+		return
+	}
+	if !routeOutputContains(output, "default", gateway.Address, gateway.Interface, gateway.Metric) {
+		report.AddCheck("gateway:"+gateway.Name, "failed", fmt.Sprintf("Default gateway %s via %s dev %s is not active.", gateway.Name, gateway.Address, gateway.Interface))
+		return
+	}
+	report.AddCheck("gateway:"+gateway.Name, "ok", fmt.Sprintf("Default gateway %s via %s dev %s is active.", gateway.Name, gateway.Address, gateway.Interface))
+}
+
+func validateStaticRoute(route StaticRouteState, report *ValidationReport) {
+	output, err := queryIP("route", "show", route.Destination)
+	if err != nil {
+		report.AddCheck("route:"+route.Name, "failed", fmt.Sprintf("Could not inspect route %s: %v", route.Name, err))
+		return
+	}
+	if !routeOutputContains(output, route.Destination, route.Gateway, route.Interface, route.Metric) {
+		report.AddCheck("route:"+route.Name, "failed", fmt.Sprintf("Static route %s for %s via %s dev %s is not active.", route.Name, route.Destination, route.Gateway, route.Interface))
+		return
+	}
+	report.AddCheck("route:"+route.Name, "ok", fmt.Sprintf("Static route %s for %s via %s dev %s is active.", route.Name, route.Destination, route.Gateway, route.Interface))
+}
+
+func routeOutputContains(output, destination, gateway, iface string, metric int) bool {
+	for _, rawLine := range strings.Split(output, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" || !strings.HasPrefix(line, destination) {
+			continue
+		}
+		if gateway != "" && !strings.Contains(line, " via "+gateway) {
+			continue
+		}
+		if iface != "" && !strings.Contains(line, " dev "+iface) {
+			continue
+		}
+		if metric > 0 && !strings.Contains(line, " metric "+fmt.Sprint(metric)) {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 func (iface ManagedInterfaceState) key() string {

@@ -75,6 +75,17 @@ type NetworkPreview = {
   available_rollback_ids: NetworkSnapshotSummary[];
 };
 
+type NetworkValidationCheck = {
+  name: string;
+  status: string;
+  detail: string;
+};
+
+type NetworkValidationReport = {
+  healthy: boolean;
+  checks: NetworkValidationCheck[];
+};
+
 const defaultSettings: JsonMap = {
   mode: 'two-nic',
   admin_port: 8083,
@@ -592,6 +603,7 @@ export default function AccessSettings() {
   const [networkPreviewLoading, setNetworkPreviewLoading] = useState(false);
   const [networkPreview, setNetworkPreview] = useState<NetworkPreview | null>(null);
   const [networkBackups, setNetworkBackups] = useState<NetworkSnapshotSummary[]>([]);
+  const [lastNetworkValidation, setLastNetworkValidation] = useState<NetworkValidationReport | null>(null);
   const [selectedRollbackId, setSelectedRollbackId] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -742,11 +754,18 @@ export default function AccessSettings() {
     setMessage('');
     try {
       const { data } = await api.post('/system/network-apply');
+      setLastNetworkValidation(data.validation || null);
       const backupSuffix = data.backup_id ? ` Backup snapshot ${data.backup_id} was saved first.` : '';
-      setMessage(`Interfaces, routes, dnsmasq, and firewall rules were applied on the appliance.${backupSuffix}`);
+      const validationCount = Array.isArray(data.validation?.checks) ? data.validation.checks.length : 0;
+      const validationSuffix =
+        data.validation?.healthy && validationCount > 0
+          ? ` Post-apply validation passed across ${validationCount} checks.`
+          : '';
+      setMessage(`Interfaces, routes, dnsmasq, and firewall rules were applied on the appliance.${backupSuffix}${validationSuffix}`);
       await loadLeaseReport();
       await loadNetworkPreview();
     } catch (err: any) {
+      setLastNetworkValidation(null);
       setError(err.response?.data || err.message || 'Could not apply edge network services.');
     } finally {
       setApplyingNetwork(false);
@@ -760,6 +779,7 @@ export default function AccessSettings() {
     try {
       const payload = selectedRollbackId ? { id: selectedRollbackId } : {};
       const { data } = await api.post('/system/network-rollback', payload);
+      setLastNetworkValidation(null);
       setMessage(`Edge network state rolled back to snapshot ${data.rollback_id}.`);
       await loadLeaseReport();
       await loadNetworkPreview();
@@ -1288,6 +1308,20 @@ export default function AccessSettings() {
             <SelectField label="Rollback Snapshot" value={selectedRollbackId} onChange={setSelectedRollbackId} options={rollbackOptions} />
           </div>
         </div>
+        {lastNetworkValidation && (
+          <div className={`rounded-lg border p-4 text-sm ${lastNetworkValidation.healthy ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-red-200 bg-red-50 text-red-900'}`}>
+            <div className="font-semibold">{lastNetworkValidation.healthy ? 'Last Apply Validation Passed' : 'Last Apply Validation Failed'}</div>
+            <div className="mt-2 space-y-1">
+              {lastNetworkValidation.checks.map((check) => (
+                <div key={`${check.name}-${check.detail}`} className="flex flex-wrap gap-2">
+                  <span className="font-medium">{check.name}</span>
+                  <span className="uppercase tracking-wide">{check.status}</span>
+                  <span>{check.detail}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-lg border border-gray-200 p-4">
             <div className="text-sm font-semibold text-gray-900">Saved Config Delta</div>

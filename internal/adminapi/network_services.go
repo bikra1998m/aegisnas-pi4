@@ -3,6 +3,7 @@ package adminapi
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -17,6 +18,24 @@ import (
 
 const dnsmasqLeasePath = "/var/lib/misc/dnsmasq.leases"
 
+type networkApplyResult struct {
+	BackupID   string                   `json:"backup_id"`
+	Validation network.ValidationReport `json:"validation"`
+}
+
+var (
+	saveNetworkSnapshotFn          = network.SaveSnapshot
+	applyManagedNetworkFn          = network.Apply
+	applyFirewallRulesetFn         = firewall.ApplyRuleset
+	restoreNetworkSnapshotFn       = restoreNetworkSnapshot
+	validateAppliedNetworkFn       = validateAppliedNetworkServices
+	checkLocalHealthEndpointFn     = checkLocalHealthEndpoint
+	checkSystemdServiceActiveFn    = checkSystemdServiceActive
+	buildDNSMasqConfigFn           = buildDNSMasqConfig
+	applyDNSMasqContentFn          = applyDNSMasqContent
+	buildFirewallRulesFn           = buildFirewallRules
+)
+
 func HandleApplyNetworkServices(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	if cfg == nil {
@@ -24,33 +43,8 @@ func HandleApplyNetworkServices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	backup, err := captureNetworkSnapshot(cfg, userFromRequest(r), "pre-apply")
+	result, err := applyNetworkServices(cfg, userFromRequest(r))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := network.SaveSnapshot(cfg, backup); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if err := network.Apply(cfg); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if err := applyDNSMasqConfig(cfg); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	gen := firewall.NewGenerator(cfg)
-	ruleset, err := gen.Generate()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if err := firewall.ApplyRuleset(ruleset.Content); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -60,7 +54,8 @@ func HandleApplyNetworkServices(w http.ResponseWriter, r *http.Request) {
 		"status":           "applied",
 		"restart_required": false,
 		"leases_path":      dnsmasqLeasePath,
-		"backup_id":        backup.ID,
+		"backup_id":        result.BackupID,
+		"validation":       result.Validation,
 	})
 }
 
@@ -175,21 +170,7 @@ func HandleRollbackNetworkServices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := network.ApplyState(cfg, snapshot.ManagedState); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := applyDNSMasqContent(snapshot.DNSMasqEnabled, snapshot.DNSMasqConfig); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if strings.TrimSpace(snapshot.FirewallRules) != "" {
-		if err := firewall.RestoreRuleset(snapshot.FirewallRules); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-	if err := network.SaveState(network.StatePath(cfg), snapshot.ManagedState); err != nil {
+	if err := restoreNetworkSnapshotFn(cfg, snapshot); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -202,12 +183,62 @@ func HandleRollbackNetworkServices(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func applyNetworkServices(cfg *config.Config, createdBy string) (networkApplyResult, error) {
+	result := networkApplyResult{}
+
+	backup, err := captureNetworkSnapshot(cfg, createdBy, "pre-apply")
+	if err != nil {
+		return result, err
+	}
+	if err := saveNetworkSnapshotFn(cfg, backup); err != nil {
+		return result, err
+	}
+	result.BackupID = backup.ID
+
+	dnsmasqContent, err := buildDNSMasqConfigFn(cfg)
+	if err != nil {
+		return result, err
+	}
+	firewallRules, err := buildFirewallRulesFn(cfg)
+	if err != nil {
+		return result, err
+	}
+
+	rollbackOnFailure := func(cause error) error {
+		if rollbackErr := restoreNetworkSnapshotFn(cfg, backup); rollbackErr != nil {
+			return fmt.Errorf("%w; automatic rollback to snapshot %s also failed: %v", cause, backup.ID, rollbackErr)
+		}
+		return fmt.Errorf("%w; automatic rollback restored snapshot %s", cause, backup.ID)
+	}
+
+	if err := applyManagedNetworkFn(cfg); err != nil {
+		return result, rollbackOnFailure(fmt.Errorf("apply managed interfaces, gateways, and routes: %w", err))
+	}
+	if err := applyDNSMasqContentFn(cfg.DHCP.Enabled, dnsmasqContent); err != nil {
+		return result, rollbackOnFailure(fmt.Errorf("apply dnsmasq configuration: %w", err))
+	}
+	if err := applyFirewallRulesetFn(firewallRules); err != nil {
+		return result, rollbackOnFailure(fmt.Errorf("apply firewall rules: %w", err))
+	}
+
+	validation, err := validateAppliedNetworkFn(cfg)
+	if err != nil {
+		return result, rollbackOnFailure(fmt.Errorf("run post-apply validation: %w", err))
+	}
+	result.Validation = validation
+	if !validation.Healthy {
+		return result, rollbackOnFailure(fmt.Errorf("post-apply validation failed: %s", validation.Summary()))
+	}
+
+	return result, nil
+}
+
 func applyDNSMasqConfig(cfg *config.Config) error {
-	content, err := buildDNSMasqConfig(cfg)
+	content, err := buildDNSMasqConfigFn(cfg)
 	if err != nil {
 		return err
 	}
-	return applyDNSMasqContent(cfg.DHCP.Enabled, content)
+	return applyDNSMasqContentFn(cfg.DHCP.Enabled, content)
 }
 
 func buildDNSMasqConfig(cfg *config.Config) (string, error) {
@@ -246,6 +277,71 @@ func buildFirewallRules(cfg *config.Config) (string, error) {
 	return ruleset.Content, nil
 }
 
+func validateAppliedNetworkServices(cfg *config.Config) (network.ValidationReport, error) {
+	report := network.ValidateState(network.DesiredState(cfg))
+
+	if cfg.DHCP.Enabled {
+		active, detail, err := checkSystemdServiceActiveFn("dnsmasq")
+		if err != nil {
+			report.AddCheck("service:dnsmasq", "failed", fmt.Sprintf("Could not verify dnsmasq service state: %v", err))
+		} else if !active {
+			report.AddCheck("service:dnsmasq", "failed", fmt.Sprintf("dnsmasq is not active after apply (%s).", detail))
+		} else {
+			report.AddCheck("service:dnsmasq", "ok", "dnsmasq is active after apply.")
+		}
+	} else {
+		report.AddCheck("service:dnsmasq", "disabled", "dnsmasq is disabled in the saved config.")
+	}
+
+	healthChecks := []struct {
+		name string
+		port int
+	}{
+		{name: "admin_api", port: cfg.AdminPort},
+		{name: "gateway", port: cfg.Health.Port},
+		{name: "portal", port: cfg.Portal.Port},
+		{name: "policy", port: cfg.Health.Port + 2},
+		{name: "radius", port: cfg.Health.Port + 5},
+		{name: "session", port: cfg.Health.Port + 7},
+	}
+	for _, item := range healthChecks {
+		if err := checkLocalHealthEndpointFn(item.name, item.port); err != nil {
+			report.AddCheck("health:"+item.name, "failed", err.Error())
+			continue
+		}
+		report.AddCheck("health:"+item.name, "ok", fmt.Sprintf("%s health endpoint responded on port %d.", item.name, item.port))
+	}
+
+	return report, nil
+}
+
+func checkSystemdServiceActive(name string) (bool, string, error) {
+	cmd := exec.Command("systemctl", "is-active", name)
+	output, err := cmd.CombinedOutput()
+	status := strings.TrimSpace(string(output))
+	if err != nil {
+		if status == "" {
+			status = err.Error()
+		}
+		return false, status, nil
+	}
+	return status == "active", status, nil
+}
+
+func checkLocalHealthEndpoint(name string, port int) error {
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/health", port))
+	if err != nil {
+		return fmt.Errorf("%s health endpoint on port %d did not respond: %w", name, port, err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 256))
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%s health endpoint on port %d returned %s: %s", name, port, resp.Status, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
 func leaseReservations(cfg *config.Config) map[string]struct{} {
 	values := make(map[string]struct{}, len(cfg.DHCP.StaticLeases)*2)
 	for _, lease := range cfg.DHCP.StaticLeases {
@@ -279,6 +375,21 @@ func captureNetworkSnapshot(cfg *config.Config, createdBy, reason string) (netwo
 	}
 	dnsmasqEnabled := strings.TrimSpace(dnsmasqContent) != ""
 	return network.NewSnapshot(cfg, state, dnsmasqEnabled, dnsmasqContent, firewallRules, createdBy, reason), nil
+}
+
+func restoreNetworkSnapshot(cfg *config.Config, snapshot network.Snapshot) error {
+	if err := network.ApplyState(cfg, snapshot.ManagedState); err != nil {
+		return err
+	}
+	if err := applyDNSMasqContentFn(snapshot.DNSMasqEnabled, snapshot.DNSMasqConfig); err != nil {
+		return err
+	}
+	if strings.TrimSpace(snapshot.FirewallRules) != "" {
+		if err := firewall.RestoreRuleset(snapshot.FirewallRules); err != nil {
+			return err
+		}
+	}
+	return network.SaveState(network.StatePath(cfg), snapshot.ManagedState)
 }
 
 func readFileIfExists(path string) (string, error) {
