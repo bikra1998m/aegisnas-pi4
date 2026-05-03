@@ -12,26 +12,26 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 )
 
-type appliedState struct {
-	Interfaces []managedInterfaceState `json:"interfaces"`
-	Gateways   []gatewayState          `json:"gateways"`
-	Routes     []staticRouteState      `json:"routes"`
+type AppliedState struct {
+	Interfaces []ManagedInterfaceState `json:"interfaces"`
+	Gateways   []GatewayState          `json:"gateways"`
+	Routes     []StaticRouteState      `json:"routes"`
 }
 
-type managedInterfaceState struct {
+type ManagedInterfaceState struct {
 	Name    string `json:"name"`
 	Address string `json:"address"`
 	MTU     int    `json:"mtu"`
 }
 
-type gatewayState struct {
+type GatewayState struct {
 	Name      string `json:"name"`
 	Address   string `json:"address"`
 	Interface string `json:"interface"`
 	Metric    int    `json:"metric"`
 }
 
-type staticRouteState struct {
+type StaticRouteState struct {
 	Name        string `json:"name"`
 	Destination string `json:"destination"`
 	Gateway     string `json:"gateway"`
@@ -45,8 +45,16 @@ func Apply(cfg *config.Config) error {
 		return errors.New("network apply requires a config")
 	}
 
-	desired := desiredState(cfg)
-	current, err := loadState(statePath(cfg))
+	return ApplyState(cfg, DesiredState(cfg))
+}
+
+// ApplyState reconciles to an explicit desired state and stores it as the managed network state.
+func ApplyState(cfg *config.Config, desired AppliedState) error {
+	if cfg == nil {
+		return errors.New("network apply requires a config")
+	}
+
+	current, err := LoadState(StatePath(cfg))
 	if err != nil {
 		return err
 	}
@@ -77,20 +85,20 @@ func Apply(cfg *config.Config) error {
 		}
 	}
 
-	return saveState(statePath(cfg), desired)
+	return SaveState(StatePath(cfg), desired)
 }
 
-func desiredState(cfg *config.Config) appliedState {
-	state := appliedState{}
+func DesiredState(cfg *config.Config) AppliedState {
+	state := AppliedState{}
 
 	if strings.TrimSpace(cfg.WAN.Name) != "" && !cfg.WAN.DHCP && strings.TrimSpace(cfg.WAN.Address) != "" {
-		state.Interfaces = append(state.Interfaces, managedInterfaceState{
+		state.Interfaces = append(state.Interfaces, ManagedInterfaceState{
 			Name:    strings.TrimSpace(cfg.WAN.Name),
 			Address: strings.TrimSpace(cfg.WAN.Address),
 		})
 	}
 	if strings.TrimSpace(cfg.LAN.Name) != "" && !cfg.LAN.DHCP && strings.TrimSpace(cfg.LAN.Address) != "" {
-		state.Interfaces = append(state.Interfaces, managedInterfaceState{
+		state.Interfaces = append(state.Interfaces, ManagedInterfaceState{
 			Name:    strings.TrimSpace(cfg.LAN.Name),
 			Address: strings.TrimSpace(cfg.LAN.Address),
 		})
@@ -100,7 +108,7 @@ func desiredState(cfg *config.Config) appliedState {
 		if !iface.Enabled {
 			continue
 		}
-		state.Interfaces = append(state.Interfaces, managedInterfaceState{
+		state.Interfaces = append(state.Interfaces, ManagedInterfaceState{
 			Name:    strings.TrimSpace(iface.Name),
 			Address: strings.TrimSpace(iface.Address),
 			MTU:     iface.MTU,
@@ -108,7 +116,7 @@ func desiredState(cfg *config.Config) appliedState {
 	}
 
 	if strings.TrimSpace(cfg.WAN.Gateway) != "" && !cfg.WAN.DHCP && strings.TrimSpace(cfg.WAN.Name) != "" {
-		state.Gateways = append(state.Gateways, gatewayState{
+		state.Gateways = append(state.Gateways, GatewayState{
 			Name:      "wan-default",
 			Address:   strings.TrimSpace(cfg.WAN.Gateway),
 			Interface: strings.TrimSpace(cfg.WAN.Name),
@@ -120,7 +128,7 @@ func desiredState(cfg *config.Config) appliedState {
 		if !gateway.Enabled || !gateway.Default {
 			continue
 		}
-		state.Gateways = append(state.Gateways, gatewayState{
+		state.Gateways = append(state.Gateways, GatewayState{
 			Name:      strings.TrimSpace(gateway.Name),
 			Address:   strings.TrimSpace(gateway.Address),
 			Interface: strings.TrimSpace(gateway.Interface),
@@ -132,7 +140,7 @@ func desiredState(cfg *config.Config) appliedState {
 		if !route.Enabled {
 			continue
 		}
-		state.Routes = append(state.Routes, staticRouteState{
+		state.Routes = append(state.Routes, StaticRouteState{
 			Name:        strings.TrimSpace(route.Name),
 			Destination: strings.TrimSpace(route.Destination),
 			Gateway:     strings.TrimSpace(route.Gateway),
@@ -144,7 +152,7 @@ func desiredState(cfg *config.Config) appliedState {
 	return state
 }
 
-func applyManagedInterface(iface managedInterfaceState) error {
+func applyManagedInterface(iface ManagedInterfaceState) error {
 	if err := runIP("link", "set", "dev", iface.Name, "up"); err != nil {
 		return fmt.Errorf("bring interface %s up: %w", iface.Name, err)
 	}
@@ -161,7 +169,7 @@ func applyManagedInterface(iface managedInterfaceState) error {
 	return nil
 }
 
-func applyGateway(gateway gatewayState) error {
+func applyGateway(gateway GatewayState) error {
 	args := []string{"route", "replace", "default", "via", gateway.Address, "dev", gateway.Interface}
 	if gateway.Metric > 0 {
 		args = append(args, "metric", fmt.Sprint(gateway.Metric))
@@ -172,7 +180,7 @@ func applyGateway(gateway gatewayState) error {
 	return nil
 }
 
-func applyStaticRoute(route staticRouteState) error {
+func applyStaticRoute(route StaticRouteState) error {
 	args := []string{"route", "replace", route.Destination, "via", route.Gateway, "dev", route.Interface}
 	if route.Metric > 0 {
 		args = append(args, "metric", fmt.Sprint(route.Metric))
@@ -183,7 +191,7 @@ func applyStaticRoute(route staticRouteState) error {
 	return nil
 }
 
-func removeStaleInterfaces(current, desired []managedInterfaceState) error {
+func removeStaleInterfaces(current, desired []ManagedInterfaceState) error {
 	desiredKeys := make(map[string]struct{}, len(desired))
 	for _, iface := range desired {
 		desiredKeys[iface.key()] = struct{}{}
@@ -200,7 +208,7 @@ func removeStaleInterfaces(current, desired []managedInterfaceState) error {
 	return nil
 }
 
-func removeStaleGateways(current, desired []gatewayState) error {
+func removeStaleGateways(current, desired []GatewayState) error {
 	desiredKeys := make(map[string]struct{}, len(desired))
 	for _, gateway := range desired {
 		desiredKeys[gateway.key()] = struct{}{}
@@ -218,7 +226,7 @@ func removeStaleGateways(current, desired []gatewayState) error {
 	return nil
 }
 
-func removeStaleRoutes(current, desired []staticRouteState) error {
+func removeStaleRoutes(current, desired []StaticRouteState) error {
 	desiredKeys := make(map[string]struct{}, len(desired))
 	for _, route := range desired {
 		desiredKeys[route.key()] = struct{}{}
@@ -236,7 +244,7 @@ func removeStaleRoutes(current, desired []staticRouteState) error {
 	return nil
 }
 
-func statePath(cfg *config.Config) string {
+func StatePath(cfg *config.Config) string {
 	dir := "/var/lib/aegisnas"
 	if cfg != nil && strings.TrimSpace(cfg.Database.Path) != "" {
 		dir = filepath.Dir(strings.TrimSpace(cfg.Database.Path))
@@ -244,8 +252,8 @@ func statePath(cfg *config.Config) string {
 	return filepath.Join(dir, "network-state.json")
 }
 
-func loadState(path string) (appliedState, error) {
-	var state appliedState
+func LoadState(path string) (AppliedState, error) {
+	var state AppliedState
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -262,7 +270,7 @@ func loadState(path string) (appliedState, error) {
 	return state, nil
 }
 
-func saveState(path string, state appliedState) error {
+func SaveState(path string, state AppliedState) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return fmt.Errorf("create network state directory: %w", err)
 	}
@@ -285,14 +293,14 @@ func runIP(args ...string) error {
 	return nil
 }
 
-func (iface managedInterfaceState) key() string {
+func (iface ManagedInterfaceState) key() string {
 	return strings.Join([]string{iface.Name, iface.Address, fmt.Sprint(iface.MTU)}, "|")
 }
 
-func (gateway gatewayState) key() string {
+func (gateway GatewayState) key() string {
 	return strings.Join([]string{gateway.Name, gateway.Address, gateway.Interface, fmt.Sprint(gateway.Metric)}, "|")
 }
 
-func (route staticRouteState) key() string {
+func (route StaticRouteState) key() string {
 	return strings.Join([]string{route.Name, route.Destination, route.Gateway, route.Interface, fmt.Sprint(route.Metric)}, "|")
 }

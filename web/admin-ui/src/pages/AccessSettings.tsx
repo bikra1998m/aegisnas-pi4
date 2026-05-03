@@ -41,6 +41,40 @@ type DHCPLease = {
   expired: boolean;
 };
 
+type NetworkSnapshotSummary = {
+  id: string;
+  created_at: string;
+  interfaces: number;
+  gateways: number;
+  routes: number;
+  dnsmasq_enabled: boolean;
+  has_firewall: boolean;
+  created_by?: string;
+  reason?: string;
+};
+
+type NetworkDiffSummary = {
+  interfaces_added: string[];
+  interfaces_removed: string[];
+  gateways_added: string[];
+  gateways_removed: string[];
+  routes_added: string[];
+  routes_removed: string[];
+};
+
+type NetworkPreview = {
+  desired_state: JsonMap;
+  current_state: JsonMap;
+  diff: NetworkDiffSummary;
+  dnsmasq_enabled: boolean;
+  dnsmasq_config: string;
+  firewall_rules: string;
+  free_site_count: number;
+  custom_firewall_rules: number;
+  static_reservations: number;
+  available_rollback_ids: NetworkSnapshotSummary[];
+};
+
 const defaultSettings: JsonMap = {
   mode: 'two-nic',
   admin_port: 8083,
@@ -552,8 +586,13 @@ export default function AccessSettings() {
   const [publishingHostapd, setPublishingHostapd] = useState(false);
   const [applyingRadius, setApplyingRadius] = useState(false);
   const [applyingNetwork, setApplyingNetwork] = useState(false);
+  const [rollingBackNetwork, setRollingBackNetwork] = useState(false);
   const [leasesLoading, setLeasesLoading] = useState(false);
   const [dhcpLeases, setDhcpLeases] = useState<DHCPLease[]>([]);
+  const [networkPreviewLoading, setNetworkPreviewLoading] = useState(false);
+  const [networkPreview, setNetworkPreview] = useState<NetworkPreview | null>(null);
+  const [networkBackups, setNetworkBackups] = useState<NetworkSnapshotSummary[]>([]);
+  const [selectedRollbackId, setSelectedRollbackId] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [previewError, setPreviewError] = useState('');
@@ -601,6 +640,28 @@ export default function AccessSettings() {
     }
   };
 
+  const loadNetworkPreview = async () => {
+    setNetworkPreviewLoading(true);
+    try {
+      const [previewRes, backupsRes] = await Promise.all([
+        api.get('/system/network-preview'),
+        api.get('/system/network-backups'),
+      ]);
+      setNetworkPreview(previewRes.data || null);
+      const snapshots = backupsRes.data?.snapshots || previewRes.data?.available_rollback_ids || [];
+      setNetworkBackups(snapshots);
+      if (snapshots.length === 0) {
+        setSelectedRollbackId('');
+      } else if (!snapshots.some((snapshot: NetworkSnapshotSummary) => snapshot.id === selectedRollbackId)) {
+        setSelectedRollbackId(snapshots[0].id || '');
+      }
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load the edge network preview.');
+    } finally {
+      setNetworkPreviewLoading(false);
+    }
+  };
+
   const loadSettings = async () => {
     setLoading(true);
     setError('');
@@ -614,6 +675,7 @@ export default function AccessSettings() {
       setHostapdPreview(previewRes.data.config || '');
       setHostapdPath(previewRes.data.path || '');
       await loadLeaseReport();
+      await loadNetworkPreview();
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not load access settings.');
     } finally {
@@ -666,6 +728,7 @@ export default function AccessSettings() {
       setHostapdPreview(previewRes.data.config || '');
       setHostapdPath(previewRes.data.path || '');
       await loadLeaseReport();
+      await loadNetworkPreview();
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not save settings.');
     } finally {
@@ -678,13 +741,32 @@ export default function AccessSettings() {
     setError('');
     setMessage('');
     try {
-      await api.post('/system/network-apply');
-      setMessage('Interfaces, routes, dnsmasq, and firewall rules were applied on the appliance.');
+      const { data } = await api.post('/system/network-apply');
+      const backupSuffix = data.backup_id ? ` Backup snapshot ${data.backup_id} was saved first.` : '';
+      setMessage(`Interfaces, routes, dnsmasq, and firewall rules were applied on the appliance.${backupSuffix}`);
       await loadLeaseReport();
+      await loadNetworkPreview();
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not apply edge network services.');
     } finally {
       setApplyingNetwork(false);
+    }
+  };
+
+  const rollbackNetworkServices = async () => {
+    setRollingBackNetwork(true);
+    setError('');
+    setMessage('');
+    try {
+      const payload = selectedRollbackId ? { id: selectedRollbackId } : {};
+      const { data } = await api.post('/system/network-rollback', payload);
+      setMessage(`Edge network state rolled back to snapshot ${data.rollback_id}.`);
+      await loadLeaseReport();
+      await loadNetworkPreview();
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not roll back edge network services.');
+    } finally {
+      setRollingBackNetwork(false);
     }
   };
 
@@ -779,6 +861,13 @@ export default function AccessSettings() {
   const staticLeases = settings.dhcp?.static_leases || [];
   const deploymentCapabilities = deploymentPreview?.capabilities || [];
   const deploymentWarnings = deploymentPreview?.warnings || [];
+  const rollbackOptions: Option[] =
+    networkBackups.length === 0
+      ? [{ value: '', label: 'No rollback snapshots yet' }]
+      : networkBackups.map((snapshot) => ({
+          value: snapshot.id,
+          label: `${snapshot.created_at} · ${snapshot.id}`,
+        }));
 
   if (loading) {
     return <div className="text-gray-600">Loading access settings...</div>;
@@ -811,6 +900,20 @@ export default function AccessSettings() {
             className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-800 disabled:opacity-60"
           >
             {applyingNetwork ? 'Applying Network...' : 'Apply Edge Network'}
+          </button>
+          <button
+            onClick={loadNetworkPreview}
+            disabled={networkPreviewLoading}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-60"
+          >
+            {networkPreviewLoading ? 'Building Preview...' : 'Preview Edge Network'}
+          </button>
+          <button
+            onClick={rollbackNetworkServices}
+            disabled={rollingBackNetwork || networkBackups.length === 0}
+            className="rounded-md border border-amber-300 px-4 py-2 text-sm font-medium text-amber-800 disabled:opacity-60"
+          >
+            {rollingBackNetwork ? 'Rolling Back...' : 'Rollback Edge Network'}
           </button>
           <button
             onClick={writeHostapdConfig}
@@ -1172,6 +1275,133 @@ export default function AccessSettings() {
               </tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Edge Network Preview And Rollback</h3>
+            <p className="mt-1 text-sm text-gray-600">Save first, then preview or apply. The preview reflects the last saved config on the appliance, not unsaved edits still sitting in the browser.</p>
+          </div>
+          <div className="min-w-[280px]">
+            <SelectField label="Rollback Snapshot" value={selectedRollbackId} onChange={setSelectedRollbackId} options={rollbackOptions} />
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="text-sm font-semibold text-gray-900">Saved Config Delta</div>
+            <div className="mt-2 text-sm text-gray-600">
+              {(networkPreview?.diff?.interfaces_added?.length || 0) +
+                (networkPreview?.diff?.interfaces_removed?.length || 0) +
+                (networkPreview?.diff?.gateways_added?.length || 0) +
+                (networkPreview?.diff?.gateways_removed?.length || 0) +
+                (networkPreview?.diff?.routes_added?.length || 0) +
+                (networkPreview?.diff?.routes_removed?.length || 0)}{' '}
+              managed network changes pending between the current live state and the last saved config.
+            </div>
+          </div>
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="text-sm font-semibold text-gray-900">DNS And DHCP Preview</div>
+            <div className="mt-2 text-sm text-gray-600">
+              {networkPreview?.dnsmasq_enabled ? 'dnsmasq will run with the generated config below.' : 'dnsmasq is disabled in the saved config and will be stopped on apply.'}
+            </div>
+          </div>
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="text-sm font-semibold text-gray-900">Rollback Safety Net</div>
+            <div className="mt-2 text-sm text-gray-600">
+              {networkBackups.length === 0
+                ? 'No edge network backups have been captured yet. The first apply will create one automatically.'
+                : `${networkBackups.length} rollback snapshot${networkBackups.length === 1 ? '' : 's'} available.`}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <div>
+            <h4 className="font-semibold text-gray-900">Change Summary</h4>
+            <div className="mt-3 space-y-3 text-sm">
+              <div className="rounded-lg border border-gray-200 p-3">
+                <div className="font-medium text-gray-900">Interfaces Added</div>
+                <div className="mt-1 text-gray-600">
+                  {networkPreview?.diff?.interfaces_added?.length ? networkPreview.diff.interfaces_added.join(', ') : 'None'}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 p-3">
+                <div className="font-medium text-gray-900">Interfaces Removed</div>
+                <div className="mt-1 text-gray-600">
+                  {networkPreview?.diff?.interfaces_removed?.length ? networkPreview.diff.interfaces_removed.join(', ') : 'None'}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 p-3">
+                <div className="font-medium text-gray-900">Gateways Added Or Changed</div>
+                <div className="mt-1 text-gray-600">
+                  {networkPreview?.diff?.gateways_added?.length ? networkPreview.diff.gateways_added.join(', ') : 'None'}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 p-3">
+                <div className="font-medium text-gray-900">Routes Added Or Changed</div>
+                <div className="mt-1 text-gray-600">
+                  {networkPreview?.diff?.routes_added?.length ? networkPreview.diff.routes_added.join(', ') : 'None'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-gray-900">Rollback Snapshots</h4>
+            <div className="mt-3 overflow-x-auto rounded-lg border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Created</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-700">By</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Reason</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Counts</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {networkBackups.length === 0 ? (
+                    <tr>
+                      <td className="px-3 py-5 text-gray-500" colSpan={4}>
+                        No rollback snapshots captured yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    networkBackups.slice(0, 6).map((snapshot) => (
+                      <tr key={snapshot.id}>
+                        <td className="px-3 py-2 text-gray-700">{snapshot.created_at}</td>
+                        <td className="px-3 py-2 text-gray-700">{snapshot.created_by || '-'}</td>
+                        <td className="px-3 py-2 text-gray-700">{snapshot.reason || '-'}</td>
+                        <td className="px-3 py-2 text-gray-700">
+                          {snapshot.interfaces} if / {snapshot.gateways} gw / {snapshot.routes} rt
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <label className="block text-sm font-medium text-gray-700">
+            <span>Generated dnsmasq Preview</span>
+            <textarea
+              value={networkPreview?.dnsmasq_config || (networkPreview?.dnsmasq_enabled ? 'Loading preview...' : '# dnsmasq disabled in saved config')}
+              readOnly
+              className="mt-1 min-h-[240px] w-full rounded-md border border-gray-300 bg-gray-950 px-4 py-3 font-mono text-sm text-gray-100"
+            />
+          </label>
+          <label className="block text-sm font-medium text-gray-700">
+            <span>Generated Firewall Preview</span>
+            <textarea
+              value={networkPreview?.firewall_rules || 'Loading preview...'}
+              readOnly
+              className="mt-1 min-h-[240px] w-full rounded-md border border-gray-300 bg-gray-950 px-4 py-3 font-mono text-sm text-gray-100"
+            />
+          </label>
         </div>
       </section>
 
