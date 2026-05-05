@@ -20,8 +20,9 @@ import (
 const dnsmasqLeasePath = "/var/lib/misc/dnsmasq.leases"
 
 type networkApplyResult struct {
-	BackupID   string                   `json:"backup_id"`
-	Validation network.ValidationReport `json:"validation"`
+	BackupID   string                      `json:"backup_id"`
+	Validation network.ValidationReport    `json:"validation"`
+	Risk       network.ApplyRiskAssessment `json:"risk"`
 }
 
 var (
@@ -35,6 +36,7 @@ var (
 	buildDNSMasqConfigFn        = buildDNSMasqConfig
 	applyDNSMasqContentFn       = applyDNSMasqContent
 	buildFirewallRulesFn        = buildFirewallRules
+	assessApplyRiskFn           = network.AssessApplyRisk
 )
 
 func HandleApplyNetworkServices(w http.ResponseWriter, r *http.Request) {
@@ -44,9 +46,23 @@ func HandleApplyNetworkServices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := applyNetworkServices(cfg, userFromRequest(r))
+	var payload struct {
+		ConfirmationText string `json:"confirmation_text"`
+	}
+	if r.ContentLength > 0 {
+		if err := decodeBody(r, &payload); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+	}
+
+	result, err := applyNetworkServices(cfg, userFromRequest(r), payload.ConfirmationText)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		statusCode := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "confirmation phrase") {
+			statusCode = http.StatusBadRequest
+		}
+		http.Error(w, err.Error(), statusCode)
 		return
 	}
 
@@ -74,6 +90,7 @@ func HandlePreviewNetworkServices(w http.ResponseWriter, r *http.Request) {
 	}
 	desiredState := network.DesiredState(cfg)
 	diff := network.DiffState(currentState, desiredState)
+	risk := assessApplyRiskFn(cfg, currentState, desiredState)
 
 	dnsmasqPreview, err := buildDNSMasqConfig(cfg)
 	if err != nil {
@@ -96,6 +113,7 @@ func HandlePreviewNetworkServices(w http.ResponseWriter, r *http.Request) {
 		"desired_state":          desiredState,
 		"current_state":          currentState,
 		"diff":                   diff,
+		"risk":                   risk,
 		"dnsmasq_enabled":        cfg.DHCP.Enabled,
 		"dnsmasq_config":         dnsmasqPreview,
 		"firewall_rules":         firewallPreview,
@@ -218,8 +236,17 @@ func HandleRollbackNetworkServices(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func applyNetworkServices(cfg *config.Config, createdBy string) (networkApplyResult, error) {
+func applyNetworkServices(cfg *config.Config, createdBy, confirmationText string) (networkApplyResult, error) {
 	result := networkApplyResult{}
+	currentState, err := network.LoadState(network.StatePath(cfg))
+	if err != nil {
+		return result, err
+	}
+	desiredState := network.DesiredState(cfg)
+	result.Risk = assessApplyRiskFn(cfg, currentState, desiredState)
+	if result.Risk.RequiresConfirmation && strings.TrimSpace(confirmationText) != result.Risk.ConfirmationPhrase {
+		return result, fmt.Errorf("risky edge-network change requires confirmation phrase: %s", result.Risk.ConfirmationPhrase)
+	}
 
 	backup, err := captureNetworkSnapshot(cfg, createdBy, "pre-apply")
 	if err != nil {
@@ -244,6 +271,7 @@ func applyNetworkServices(cfg *config.Config, createdBy string) (networkApplyRes
 			_ = db.RecordNetworkApplyHistory("apply", "failed", cause.Error(), backup.ID, "", createdBy, map[string]any{
 				"backup_id":       backup.ID,
 				"validation":      result.Validation,
+				"risk":            result.Risk,
 				"rollback_status": "failed",
 				"rollback_error":  rollbackErr.Error(),
 			})
@@ -252,6 +280,7 @@ func applyNetworkServices(cfg *config.Config, createdBy string) (networkApplyRes
 		_ = db.RecordNetworkApplyHistory("apply", "rolled_back", cause.Error(), backup.ID, backup.ID, createdBy, map[string]any{
 			"backup_id":       backup.ID,
 			"validation":      result.Validation,
+			"risk":            result.Risk,
 			"rollback_status": "success",
 		})
 		return fmt.Errorf("%w; automatic rollback restored snapshot %s", cause, backup.ID)
@@ -278,6 +307,7 @@ func applyNetworkServices(cfg *config.Config, createdBy string) (networkApplyRes
 	_ = db.RecordNetworkApplyHistory("apply", "success", validation.Summary(), backup.ID, "", createdBy, map[string]any{
 		"backup_id":  backup.ID,
 		"validation": validation,
+		"risk":       result.Risk,
 	})
 
 	return result, nil

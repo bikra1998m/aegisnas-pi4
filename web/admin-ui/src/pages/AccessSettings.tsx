@@ -90,6 +90,16 @@ type NetworkPreview = {
   desired_state: JsonMap;
   current_state: JsonMap;
   diff: NetworkDiffSummary;
+  risk: {
+    requires_confirmation: boolean;
+    confirmation_phrase?: string;
+    summary: string;
+    items: Array<{
+      level: string;
+      code: string;
+      message: string;
+    }>;
+  };
   dnsmasq_enabled: boolean;
   dnsmasq_config: string;
   firewall_rules: string;
@@ -108,6 +118,17 @@ type NetworkValidationCheck = {
 type NetworkValidationReport = {
   healthy: boolean;
   checks: NetworkValidationCheck[];
+};
+
+type NetworkApplyRisk = {
+  requires_confirmation: boolean;
+  confirmation_phrase?: string;
+  summary: string;
+  items: Array<{
+    level: string;
+    code: string;
+    message: string;
+  }>;
 };
 
 const defaultSettings: JsonMap = {
@@ -631,6 +652,7 @@ export default function AccessSettings() {
   const [networkApplyHistory, setNetworkApplyHistory] = useState<NetworkApplyHistoryRecord[]>([]);
   const [lastNetworkValidation, setLastNetworkValidation] = useState<NetworkValidationReport | null>(null);
   const [selectedRollbackId, setSelectedRollbackId] = useState('');
+  const [networkConfirmationText, setNetworkConfirmationText] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [previewError, setPreviewError] = useState('');
@@ -691,6 +713,9 @@ export default function AccessSettings() {
         api.get('/system/network-apply-history'),
       ]);
       setNetworkPreview(previewRes.data || null);
+      if (!previewRes.data?.risk?.requires_confirmation) {
+        setNetworkConfirmationText('');
+      }
       const snapshots = backupsRes.data?.snapshots || previewRes.data?.available_rollback_ids || [];
       setNetworkBackups(snapshots);
       setNetworkApplyHistory(historyRes.data?.history || []);
@@ -785,7 +810,8 @@ export default function AccessSettings() {
     setError('');
     setMessage('');
     try {
-      const { data } = await api.post('/system/network-apply');
+      const payload = riskyNetworkApply?.requires_confirmation ? { confirmation_text: networkConfirmationText } : {};
+      const { data } = await api.post('/system/network-apply', payload);
       setLastNetworkValidation(data.validation || null);
       const backupSuffix = data.backup_id ? ` Backup snapshot ${data.backup_id} was saved first.` : '';
       const validationCount = Array.isArray(data.validation?.checks) ? data.validation.checks.length : 0;
@@ -794,6 +820,7 @@ export default function AccessSettings() {
           ? ` Post-apply validation passed across ${validationCount} checks.`
           : '';
       setMessage(`Interfaces, routes, dnsmasq, and firewall rules were applied on the appliance.${backupSuffix}${validationSuffix}`);
+      setNetworkConfirmationText('');
       await loadLeaseReport();
       await loadNetworkPreview();
     } catch (err: any) {
@@ -921,6 +948,12 @@ export default function AccessSettings() {
           label: `${snapshot.created_at} · ${snapshot.id}`,
         }));
 
+  const riskyNetworkApply: NetworkApplyRisk | null = networkPreview?.risk || null;
+  const requiredConfirmationPhrase = riskyNetworkApply?.confirmation_phrase?.trim() || '';
+  const networkApplyConfirmed =
+    !riskyNetworkApply?.requires_confirmation ||
+    (requiredConfirmationPhrase !== '' && networkConfirmationText.trim() === requiredConfirmationPhrase);
+
   if (loading) {
     return <div className="text-gray-600">Loading access settings...</div>;
   }
@@ -948,10 +981,14 @@ export default function AccessSettings() {
           </button>
           <button
             onClick={applyNetworkServices}
-            disabled={applyingNetwork}
+            disabled={applyingNetwork || !networkApplyConfirmed}
             className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-800 disabled:opacity-60"
           >
-            {applyingNetwork ? 'Applying Network...' : 'Apply Edge Network'}
+            {applyingNetwork
+              ? 'Applying Network...'
+              : riskyNetworkApply?.requires_confirmation
+                ? 'Confirm And Apply Edge Network'
+                : 'Apply Edge Network'}
           </button>
           <button
             onClick={loadNetworkPreview}
@@ -1397,6 +1434,54 @@ export default function AccessSettings() {
             </div>
           </div>
         )}
+        {riskyNetworkApply && riskyNetworkApply.items.length > 0 ? (
+          <div
+            className={`mt-4 rounded-lg border p-4 text-sm ${
+              riskyNetworkApply.requires_confirmation
+                ? 'border-amber-300 bg-amber-50 text-amber-950'
+                : 'border-sky-200 bg-sky-50 text-sky-900'
+            }`}
+          >
+            <div className="font-semibold">
+              {riskyNetworkApply.requires_confirmation ? 'Management Impact Confirmation Required' : 'Edge Network Warnings'}
+            </div>
+            <div className="mt-1">{riskyNetworkApply.summary}</div>
+            <div className="mt-3 space-y-2">
+              {riskyNetworkApply.items.map((item) => (
+                <div
+                  key={`${item.code}-${item.message}`}
+                  className={`rounded-md border px-3 py-2 ${
+                    item.level === 'danger'
+                      ? 'border-amber-300 bg-white text-amber-950'
+                      : 'border-sky-200 bg-white text-sky-900'
+                  }`}
+                >
+                  <div className="text-xs font-semibold uppercase tracking-wide">{item.level}</div>
+                  <div className="mt-1">{item.message}</div>
+                </div>
+              ))}
+            </div>
+            {riskyNetworkApply.requires_confirmation ? (
+              <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px] md:items-end">
+                <label className="block text-sm font-medium text-gray-700">
+                  <span>Type the confirmation phrase to unlock apply</span>
+                  <input
+                    type="text"
+                    value={networkConfirmationText}
+                    onChange={(event) => setNetworkConfirmationText(event.target.value)}
+                    placeholder={requiredConfirmationPhrase}
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 font-mono"
+                  />
+                </label>
+                <div className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Confirmation Phrase</div>
+                  <div className="mt-1 font-mono text-gray-900">{requiredConfirmationPhrase}</div>
+                  <div className="mt-2 text-xs text-gray-500">The apply button stays locked until this phrase matches exactly.</div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-lg border border-gray-200 p-4">
             <div className="text-sm font-semibold text-gray-900">Saved Config Delta</div>

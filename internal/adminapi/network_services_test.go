@@ -19,6 +19,7 @@ func TestApplyNetworkServicesRollsBackOnValidationFailure(t *testing.T) {
 	originalBuildDNS := buildDNSMasqConfigFn
 	originalApplyDNS := applyDNSMasqContentFn
 	originalBuildFirewall := buildFirewallRulesFn
+	originalAssessRisk := assessApplyRiskFn
 	defer func() {
 		saveNetworkSnapshotFn = originalSaveSnapshot
 		applyManagedNetworkFn = originalApplyManaged
@@ -28,6 +29,7 @@ func TestApplyNetworkServicesRollsBackOnValidationFailure(t *testing.T) {
 		buildDNSMasqConfigFn = originalBuildDNS
 		applyDNSMasqContentFn = originalApplyDNS
 		buildFirewallRulesFn = originalBuildFirewall
+		assessApplyRiskFn = originalAssessRisk
 	}()
 
 	cfg := &config.Config{}
@@ -50,8 +52,11 @@ func TestApplyNetworkServicesRollsBackOnValidationFailure(t *testing.T) {
 		report.AddCheck("service:dnsmasq", "failed", "dnsmasq is not active after apply.")
 		return report, nil
 	}
+	assessApplyRiskFn = func(cfg *config.Config, current, desired network.AppliedState) network.ApplyRiskAssessment {
+		return network.ApplyRiskAssessment{}
+	}
 
-	result, err := applyNetworkServices(cfg, "tester")
+	result, err := applyNetworkServices(cfg, "tester", "")
 
 	require.Error(t, err)
 	assert.True(t, rolledBack)
@@ -116,4 +121,28 @@ func TestValidateAppliedNetworkServicesFlagsHealthFailures(t *testing.T) {
 	assert.False(t, report.Healthy)
 	assert.Contains(t, report.Summary(), "dnsmasq is not active after apply")
 	assert.Contains(t, report.Summary(), "admin_api health endpoint")
+}
+
+func TestApplyNetworkServicesRequiresConfirmationForRiskyChanges(t *testing.T) {
+	originalAssessRisk := assessApplyRiskFn
+	defer func() {
+		assessApplyRiskFn = originalAssessRisk
+	}()
+
+	cfg := &config.Config{}
+	cfg.Database.Path = t.TempDir() + "/aegisnas.db"
+
+	assessApplyRiskFn = func(cfg *config.Config, current, desired network.AppliedState) network.ApplyRiskAssessment {
+		return network.ApplyRiskAssessment{
+			RequiresConfirmation: true,
+			ConfirmationPhrase:   network.ApplyConfirmationPhrase,
+			Summary:              "risk",
+		}
+	}
+
+	result, err := applyNetworkServices(cfg, "tester", "")
+
+	require.Error(t, err)
+	assert.Equal(t, network.ApplyConfirmationPhrase, result.Risk.ConfirmationPhrase)
+	assert.Contains(t, err.Error(), "confirmation phrase")
 }
