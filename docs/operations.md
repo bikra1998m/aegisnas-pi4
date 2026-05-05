@@ -115,6 +115,8 @@ Current day-two operator workflows include:
 
 For captive portal and guest workflow investigations, use the focused runbook in [Login And Captive Portal Test Runbook](login-test-runbook.md).
 
+For managed interface, gateway, DNS, DHCP, firewall, and rollback work in `Access Settings`, use the dedicated [Edge Network Operations Guide](edge-network-operations.md).
+
 ## Logs
 
 Logs are structured JSON.
@@ -176,6 +178,12 @@ snap set system refresh.timer=sun,02:00-04:00
 
 For VM or package-based deployments from a local clone, pull the updated repo and follow the relevant runbook for rebuild, reinstall, and service restart.
 
+For in-place Ubuntu VM upgrades with migration and network safety checks, use:
+
+```bash
+sudo bash scripts/ubuntu-vm-upgrade-smoke-test.sh --wan <wan-if> --lan <lan-if>
+```
+
 Before updating production devices:
 
 1. Export a config JSON backup.
@@ -184,3 +192,4 @@ Before updating production devices:
 4. Confirm break-glass admin token access still works before changing SSO settings.
 5. Apply the update.
 6. Check health, sessions, RADIUS auth, portal login, onboarding, alerts, and dashboard integration state.
+7. Review edge-network preview, risk banner, validation result, rollback snapshots, lease history, and apply history if network settings are part of the change.

@@ -14,6 +14,7 @@ Use this guide together with:
 - [Ubuntu Appliance Deployment](ubuntu-appliance-deployment.md)
 - [VMware Workstation 17 Player Full Product Runbook](vmware-workstation-17-player-full-test.md)
 - [Deployment Profiles](deployment-profiles.md)
+- [Edge Network Operations Guide](edge-network-operations.md)
 - [Login And Captive Portal Test Runbook](login-test-runbook.md)
 - [Wireless Access And UI Guide](wireless-access-ui-guide.md)
 - [External AAA Product Mode](external-aaa-product-mode.md)
@@ -69,6 +70,53 @@ Useful variants:
 ```
 
 After the bootstrap completes, continue at `Step 11` in this runbook for health checks, login, and full-flow validation.
+
+## In-Place Upgrade From An Older Ubuntu VM Deployment
+
+If the VM already has an older AegisNAS version installed, do not wipe it unless you actually want a fresh lab.
+
+The safe in-place path is:
+
+1. create a hypervisor snapshot
+2. back up `/etc/aegisnas/config.yaml`, `/etc/default/aegisnas`, and `/var/lib/aegisnas/data.db`
+3. pull the latest repo
+4. rerun bootstrap without `--force-config`
+5. verify schema version, health endpoints, and the new edge-network safety UI
+
+The quickest repeatable path is:
+
+```bash
+cd ~/aegisnas-pi4
+git pull --ff-only
+sudo bash scripts/ubuntu-vm-upgrade-smoke-test.sh --wan ens33 --lan ens37
+```
+
+That helper script:
+
+- preserves the existing appliance config
+- reruns the bootstrap for the current checkout
+- checks the database schema version against the repo migration set
+- verifies the major health endpoints
+- checks the authenticated admin API paths for:
+  - edge-network preview
+  - rollback snapshots
+  - network apply history
+  - DHCP lease history
+- stores results under `/var/tmp/aegisnas-upgrade-smoke/<timestamp>/`
+
+If you need packages refreshed too:
+
+```bash
+sudo bash scripts/ubuntu-vm-upgrade-smoke-test.sh --wan ens33 --lan ens37 --with-packages
+```
+
+If you intentionally want netplan rewritten during the upgrade:
+
+```bash
+sudo bash scripts/ubuntu-vm-upgrade-smoke-test.sh --wan ens33 --lan ens37 --with-netplan
+```
+
+Keep `--force-config` out of upgrade runs unless you are deliberately replacing the current VM configuration.
 
 ## Target Outcome
 
@@ -729,20 +777,46 @@ Pass condition:
 - rollback succeeds
 - the previous settings return
 
-### 14.12 Sessions And Alerts
+### 14.12 Access Settings Network Safety
+
+1. open `Access Settings`
+2. click `Preview Edge Network`
+3. confirm these panels load:
+   - saved config delta
+   - rollback safety net
+   - lease history
+   - network apply history
+4. if the preview shows a risky connectivity change, type the confirmation phrase and verify the apply button unlocks only after the phrase matches exactly
+5. make one benign change such as a DNS search domain or DHCP reservation
+6. save settings
+7. preview again
+8. click `Apply Edge Network`
+9. confirm the post-apply validation banner shows healthy checks
+10. confirm a new rollback snapshot appears
+11. confirm a new network apply history row appears
+
+Pass condition:
+
+- preview works
+- risky-change confirmation is enforced when required
+- apply validation is visible
+- rollback snapshot list updates
+- lease and apply history load without errors
+
+### 14.13 Sessions And Alerts
 
 1. open `Sessions`
 2. confirm the page loads even before users connect
 3. open `Alerts`
 4. confirm the page loads and acknowledge a test alert if one exists
 
-### 14.13 AI Recommendations
+### 14.14 AI Recommendations
 
 1. open `AI Recommendations`
 2. confirm the page loads
 3. acknowledge a recommendation if present
 
-### 14.14 Guest Requests
+### 14.15 Guest Requests
 
 1. open `Guest Requests`
 2. confirm the table loads even before requests exist
@@ -754,7 +828,7 @@ Pass condition:
 - request state updates cleanly
 - approval or rejection writes audit history without crashing the portal path
 
-### 14.15 Devices And Onboarding
+### 14.16 Devices And Onboarding
 
 1. open `Devices`
 2. confirm the table loads
@@ -767,7 +841,36 @@ Pass condition:
 - certificate download works when enrollment is enabled
 - external CA mode works when configured
 
-### 14.16 Admin Access
+## Lab Drill: Controlled Failure And Rollback
+
+Use this only in a lab VM.
+
+This drill intentionally forces `dnsmasq` restart failure so the new rollback path can be exercised without changing the whole VM shape.
+
+1. open a VM console session
+2. mask `dnsmasq`
+
+```bash
+sudo systemctl mask dnsmasq
+```
+
+3. in `Access Settings`, add a benign DNS search domain
+4. save settings
+5. click `Preview Edge Network`
+6. click `Apply Edge Network`
+7. confirm the UI reports a failed apply and automatic rollback
+8. unmask and restart `dnsmasq`
+
+```bash
+sudo systemctl unmask dnsmasq
+sudo systemctl restart dnsmasq aegis-gateway aegis-admin-api
+```
+
+9. confirm the latest network apply history shows the failed apply and rollback evidence
+
+For a normal rollback rehearsal, use the safer drill in [Edge Network Operations Guide](edge-network-operations.md).
+
+### 14.17 Admin Access
 
 1. open `Admin Access`
 2. confirm the page loads

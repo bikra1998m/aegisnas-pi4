@@ -138,6 +138,16 @@ git status --short
 git pull --ff-only
 ```
 
+In-place upgrade and smoke test for an already deployed VM:
+
+```bash
+cd ~/aegisnas-pi4
+git pull --ff-only
+sudo bash scripts/ubuntu-vm-upgrade-smoke-test.sh --wan ens33 --lan ens37
+```
+
+That path preserves the current VM config, reruns bootstrap without `--force-config`, checks schema migration state, and saves API and health results under `/var/tmp/aegisnas-upgrade-smoke/`.
+
 If a previous bootstrap changed the script locally and pull fails:
 
 ```bash
