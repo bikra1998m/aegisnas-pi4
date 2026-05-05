@@ -40,6 +40,21 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	for _, item := range runtimeStatuses {
 		runtimeMap[item.Component] = item
 	}
+	applyStats, err := db.GetNetworkApplyStats()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	leaseTrends, err := db.GetDHCPLeaseTrendSummary(24 * time.Hour)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	recoveryState, err := CurrentNetworkRecoveryState()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	services := []serviceStatus{
 		httpServiceStatus("admin_api", "Admin API", cfg.AdminPort),
@@ -250,6 +265,12 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"wireless":     wirelessStatus,
 		"enforcement":  enforcementStatus,
 		"integrations": integrationsStatus,
+		"network_observability": map[string]any{
+			"apply_stats":     applyStats,
+			"lease_trends":    leaseTrends,
+			"recovery":        recoveryState,
+			"controller_sync": runtimeMap["controller_automation"],
+		},
 	})
 }
 

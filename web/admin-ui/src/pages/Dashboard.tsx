@@ -121,6 +121,39 @@ type SystemStatus = {
       sync: RuntimeStatus;
     };
   };
+  network_observability: {
+    apply_stats: {
+      total_records: number;
+      apply_success_count: number;
+      apply_failure_count: number;
+      pending_confirmation_count: number;
+      confirmed_count: number;
+      rollback_count: number;
+      auto_rollback_count: number;
+      auto_rollback_failure_count: number;
+      last_applied_at?: string;
+      last_failure_at?: string;
+    };
+    lease_trends: {
+      window_hours: number;
+      total_records: number;
+      unique_macs_window: number;
+      unique_ips_window: number;
+      active_observations_window: number;
+      expired_observations_window: number;
+      reservation_observations_window: number;
+      peak_concurrent_leases_window: number;
+      latest_observed_at?: string;
+    };
+    recovery?: {
+      pending?: boolean;
+      backup_id?: string;
+      deadline?: string;
+      status?: string;
+      message?: string;
+    } | null;
+    controller_sync?: RuntimeStatus;
+  };
 };
 
 const statusTone: Record<string, string> = {
@@ -216,6 +249,7 @@ export default function Dashboard() {
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
   const serviceProblems = services.filter((service) => !['ok', 'disabled'].includes(service.status));
   const sessionMethods = Object.entries(systemStatus.summary?.session_methods || {});
+  const networkObservability = systemStatus.network_observability;
 
   return (
     <div className="space-y-6">
@@ -514,6 +548,63 @@ export default function Dashboard() {
                     ) : null}
                   </div>
                   <StatusBadge status={systemStatus.integrations.controller.sync?.status || (systemStatus.integrations.controller.enabled ? 'unknown' : 'disabled')} />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-lg bg-white p-6 shadow">
+            <h3 className="text-lg font-semibold text-gray-900">Edge Network Observability</h3>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="font-medium text-gray-900">Apply And Rollback Counters</div>
+                <div className="mt-2 grid gap-2 text-sm text-gray-700">
+                  <div className="flex items-center justify-between"><span>Apply successes</span><span className="font-semibold">{networkObservability.apply_stats.apply_success_count}</span></div>
+                  <div className="flex items-center justify-between"><span>Apply failures</span><span className="font-semibold">{networkObservability.apply_stats.apply_failure_count}</span></div>
+                  <div className="flex items-center justify-between"><span>Pending confirmations</span><span className="font-semibold">{networkObservability.apply_stats.pending_confirmation_count}</span></div>
+                  <div className="flex items-center justify-between"><span>Manual rollbacks</span><span className="font-semibold">{networkObservability.apply_stats.rollback_count}</span></div>
+                  <div className="flex items-center justify-between"><span>Auto-rollbacks</span><span className="font-semibold">{networkObservability.apply_stats.auto_rollback_count}</span></div>
+                </div>
+                <div className="mt-3 text-xs text-gray-500">
+                  Last apply {networkObservability.apply_stats.last_applied_at || 'not recorded'}.
+                  {networkObservability.apply_stats.last_failure_at ? ` Last failure ${networkObservability.apply_stats.last_failure_at}.` : ''}
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="font-medium text-gray-900">DHCP Lease Trend</div>
+                <div className="mt-2 grid gap-2 text-sm text-gray-700">
+                  <div className="flex items-center justify-between"><span>Window</span><span className="font-semibold">{networkObservability.lease_trends.window_hours}h</span></div>
+                  <div className="flex items-center justify-between"><span>Unique MACs</span><span className="font-semibold">{networkObservability.lease_trends.unique_macs_window}</span></div>
+                  <div className="flex items-center justify-between"><span>Active observations</span><span className="font-semibold">{networkObservability.lease_trends.active_observations_window}</span></div>
+                  <div className="flex items-center justify-between"><span>Expired observations</span><span className="font-semibold">{networkObservability.lease_trends.expired_observations_window}</span></div>
+                  <div className="flex items-center justify-between"><span>Peak concurrent leases</span><span className="font-semibold">{networkObservability.lease_trends.peak_concurrent_leases_window}</span></div>
+                </div>
+                <div className="mt-3 text-xs text-gray-500">
+                  Latest lease observation {networkObservability.lease_trends.latest_observed_at || 'not recorded'}.
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">Management-Loss Safety Timer</div>
+                    <div className="mt-1 text-sm text-gray-600">{networkObservability.recovery?.message || 'No risky edge-network recovery window is active.'}</div>
+                    {networkObservability.recovery?.deadline ? (
+                      <div className="mt-2 text-xs text-gray-500">Deadline {String(networkObservability.recovery.deadline)}</div>
+                    ) : null}
+                  </div>
+                  <StatusBadge status={networkObservability.recovery?.status || 'disabled'} />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">Controller Runtime Counters</div>
+                    <div className="mt-1 text-sm text-gray-600">{networkObservability.controller_sync?.message || 'No controller runtime status recorded yet.'}</div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Syncs {networkObservability.controller_sync?.details?.sync_count ?? 0}, successes {networkObservability.controller_sync?.details?.success_count ?? 0}, failures {networkObservability.controller_sync?.details?.failure_count ?? 0}, last duration {networkObservability.controller_sync?.details?.last_duration_ms ?? 0} ms.
+                    </div>
+                  </div>
+                  <StatusBadge status={networkObservability.controller_sync?.status || 'disabled'} />
                 </div>
               </div>
             </div>

@@ -89,7 +89,7 @@ function createSettings() {
       static_leases: [{ mac: 'aa:bb:cc:dd:ee:ff', ip: '192.168.50.10', hostname: 'lab-client', enabled: true, description: 'Lab device' }],
     },
     policy: { default_role: 'guest-basic', runtime_shaping_enabled: true },
-    telemetry: { enabled: true, prometheus_port: 9090 },
+    telemetry: { enabled: true, prometheus_port: 9090, lease_history_poll_seconds: 300 },
     ailite: {
       enabled: true,
       mode: 'lite',
@@ -341,8 +341,35 @@ function createSystemStatus() {
         endpoint: 'https://controller.example.test/api',
         sync_mode: 'monitor',
         site: 'lab',
-        sync: { status: 'ok', message: 'Controller sync healthy.' },
+        sync: { status: 'ok', message: 'Controller sync healthy.', details: { sync_count: 4, success_count: 4, failure_count: 0, last_duration_ms: 182 } },
       },
+    },
+    network_observability: {
+      apply_stats: {
+        total_records: 3,
+        apply_success_count: 1,
+        apply_failure_count: 0,
+        pending_confirmation_count: 0,
+        confirmed_count: 1,
+        rollback_count: 1,
+        auto_rollback_count: 0,
+        auto_rollback_failure_count: 0,
+        last_applied_at: '2026-05-05T12:10:00Z',
+        last_failure_at: '',
+      },
+      lease_trends: {
+        window_hours: 24,
+        total_records: 2,
+        unique_macs_window: 1,
+        unique_ips_window: 1,
+        active_observations_window: 2,
+        expired_observations_window: 0,
+        reservation_observations_window: 2,
+        peak_concurrent_leases_window: 1,
+        latest_observed_at: '2026-05-05T12:00:00Z',
+      },
+      recovery: null,
+      controller_sync: { status: 'ok', message: 'Controller sync healthy.', details: { sync_count: 4, success_count: 4, failure_count: 0, last_duration_ms: 182 } },
     },
   };
 }
@@ -628,6 +655,14 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({ json: { history: state.dhcpLeaseHistory, count: state.dhcpLeaseHistory.length, generated_at: '2026-05-05T12:00:00Z' } });
       return;
     }
+    if (path === '/system/dhcp-lease-history/export' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/csv; charset=utf-8' },
+        body: 'id,observed_at,mac,ip,hostname,client_id,reservation,expired,expires_at,remaining_seconds\n1,2026-05-05T11:55:00Z,aa:bb:cc:dd:ee:ff,192.168.50.10,lab-client,,true,false,2026-05-05T13:00:00Z,3600\n',
+      });
+      return;
+    }
     if (path === '/system/network-preview' && method === 'GET') {
       const preview = state.networkApplied ? createAppliedPreview() : createRiskyPreview();
       preview.available_rollback_ids = state.networkBackups;
@@ -641,6 +676,26 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
     }
     if (path === '/system/network-apply-history' && method === 'GET') {
       await route.fulfill({ json: { history: state.networkApplyHistory, count: state.networkApplyHistory.length, generated_at: '2026-05-05T12:00:00Z' } });
+      return;
+    }
+    if (path === '/system/network-apply-history/export' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/csv; charset=utf-8' },
+        body: 'id,created_at,action,status,summary,backup_id,rollback_id,actor,details_json\n1,2026-05-05T12:00:00Z,apply,success,Previous edge-network apply completed successfully.,snap-001,,seed,\n',
+      });
+      return;
+    }
+    if (path === '/system/network-observability' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          generated_at: '2026-05-05T12:00:00Z',
+          apply_stats: state.systemStatus.network_observability.apply_stats,
+          lease_trends: state.systemStatus.network_observability.lease_trends,
+          controller_sync: state.systemStatus.network_observability.controller_sync,
+          recovery: state.networkRecovery,
+        },
+      });
       return;
     }
     if (path === '/system/network-apply' && method === 'POST') {
@@ -687,6 +742,9 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         status: 'pending',
         message: 'Risky edge-network changes are live. Confirm management reachability before the rollback deadline or the appliance will restore the previous snapshot automatically.',
       };
+      state.systemStatus.network_observability.apply_stats.pending_confirmation_count = 1;
+      state.systemStatus.network_observability.apply_stats.last_applied_at = '2026-05-05T12:10:00Z';
+      state.systemStatus.network_observability.recovery = state.networkRecovery;
       await route.fulfill({
         json: {
           status: 'applied',
@@ -727,6 +785,9 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         },
         ...state.networkApplyHistory,
       ];
+      state.systemStatus.network_observability.apply_stats.pending_confirmation_count = 0;
+      state.systemStatus.network_observability.apply_stats.confirmed_count = 2;
+      state.systemStatus.network_observability.recovery = state.networkRecovery;
       await route.fulfill({ json: { status: 'confirmed', recovery: state.networkRecovery } });
       return;
     }
@@ -745,6 +806,8 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         },
         ...state.networkApplyHistory,
       ];
+      state.systemStatus.network_observability.apply_stats.rollback_count += 1;
+      state.systemStatus.network_observability.recovery = null;
       await route.fulfill({ json: { status: 'restored', rollback_id: 'snap-002', restart_required: false } });
       return;
     }

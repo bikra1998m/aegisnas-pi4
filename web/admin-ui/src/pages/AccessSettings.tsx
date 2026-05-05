@@ -148,6 +148,46 @@ type NetworkRecoveryState = {
   rolled_back_at?: string;
 };
 
+type NetworkApplyStats = {
+  total_records: number;
+  apply_success_count: number;
+  apply_failure_count: number;
+  pending_confirmation_count: number;
+  confirmed_count: number;
+  rollback_count: number;
+  auto_rollback_count: number;
+  auto_rollback_failure_count: number;
+  last_applied_at?: string;
+  last_failure_at?: string;
+};
+
+type DHCPLeaseTrendSummary = {
+  window_hours: number;
+  total_records: number;
+  unique_macs_window: number;
+  unique_ips_window: number;
+  active_observations_window: number;
+  expired_observations_window: number;
+  reservation_observations_window: number;
+  peak_concurrent_leases_window: number;
+  latest_observed_at?: string;
+};
+
+type RuntimeStatus = {
+  status?: string;
+  message?: string;
+  updated_at?: string;
+  details?: Record<string, any>;
+};
+
+type NetworkObservabilityResponse = {
+  generated_at: string;
+  apply_stats: NetworkApplyStats;
+  lease_trends: DHCPLeaseTrendSummary;
+  controller_sync?: RuntimeStatus | null;
+  recovery?: NetworkRecoveryState | null;
+};
+
 const defaultSettings: JsonMap = {
   mode: 'two-nic',
   admin_port: 8083,
@@ -670,6 +710,7 @@ export default function AccessSettings() {
   const [networkApplyHistory, setNetworkApplyHistory] = useState<NetworkApplyHistoryRecord[]>([]);
   const [lastNetworkValidation, setLastNetworkValidation] = useState<NetworkValidationReport | null>(null);
   const [networkRecovery, setNetworkRecovery] = useState<NetworkRecoveryState | null>(null);
+  const [networkObservability, setNetworkObservability] = useState<NetworkObservabilityResponse | null>(null);
   const [confirmingNetworkRecovery, setConfirmingNetworkRecovery] = useState(false);
   const [selectedRollbackId, setSelectedRollbackId] = useState('');
   const [networkConfirmationText, setNetworkConfirmationText] = useState('');
@@ -753,6 +794,18 @@ export default function AccessSettings() {
     }
   };
 
+  const loadNetworkObservability = async () => {
+    try {
+      const { data } = await api.get('/system/network-observability');
+      setNetworkObservability(data || null);
+      if (data?.recovery) {
+        setNetworkRecovery(data.recovery);
+      }
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load network observability.');
+    }
+  };
+
   const loadSettings = async () => {
     setLoading(true);
     setError('');
@@ -767,6 +820,7 @@ export default function AccessSettings() {
       setHostapdPath(previewRes.data.path || '');
       await loadLeaseReport();
       await loadNetworkPreview();
+      await loadNetworkObservability();
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not load access settings.');
     } finally {
@@ -829,6 +883,7 @@ export default function AccessSettings() {
       setHostapdPath(previewRes.data.path || '');
       await loadLeaseReport();
       await loadNetworkPreview();
+      await loadNetworkObservability();
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not save settings.');
     } finally {
@@ -859,6 +914,7 @@ export default function AccessSettings() {
       setNetworkConfirmationText('');
       await loadLeaseReport();
       await loadNetworkPreview();
+      await loadNetworkObservability();
     } catch (err: any) {
       setLastNetworkValidation(null);
       setError(err.response?.data || err.message || 'Could not apply edge network services.');
@@ -879,6 +935,7 @@ export default function AccessSettings() {
       setMessage(`Edge network state rolled back to snapshot ${data.rollback_id}.`);
       await loadLeaseReport();
       await loadNetworkPreview();
+      await loadNetworkObservability();
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not roll back edge network services.');
     } finally {
@@ -898,6 +955,7 @@ export default function AccessSettings() {
       setNetworkRecovery(data.recovery || null);
       setMessage('Management access confirmed. Automatic rollback has been cancelled for the current edge-network change.');
       await loadNetworkPreview();
+      await loadNetworkObservability();
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not confirm management reachability.');
     } finally {
@@ -916,6 +974,26 @@ export default function AccessSettings() {
       URL.revokeObjectURL(href);
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not export settings.');
+    }
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(href);
+  };
+
+  const exportNetworkHistory = async (kind: 'apply' | 'lease') => {
+    try {
+      const url = kind === 'apply' ? '/system/network-apply-history/export' : '/system/dhcp-lease-history/export';
+      const filename = kind === 'apply' ? 'aegisnas-network-apply-history.csv' : 'aegisnas-dhcp-lease-history.csv';
+      const response = await api.get(url, { responseType: 'blob', params: { format: 'csv' } });
+      downloadBlob(response.data, filename);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not export network history.');
     }
   };
 
@@ -1386,6 +1464,28 @@ export default function AccessSettings() {
         </div>
 
         <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-lg border border-gray-200 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Lease Observations</div>
+              <div className="mt-2 text-2xl font-bold text-gray-900">{networkObservability?.lease_trends?.total_records ?? dhcpLeaseHistory.length}</div>
+              <div className="mt-1 text-sm text-gray-600">Stored lease-history rows.</div>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Unique Clients {networkObservability?.lease_trends?.window_hours || 24}h</div>
+              <div className="mt-2 text-2xl font-bold text-gray-900">{networkObservability?.lease_trends?.unique_macs_window ?? 0}</div>
+              <div className="mt-1 text-sm text-gray-600">Distinct MAC addresses seen recently.</div>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Peak Concurrent Leases</div>
+              <div className="mt-2 text-2xl font-bold text-gray-900">{networkObservability?.lease_trends?.peak_concurrent_leases_window ?? 0}</div>
+              <div className="mt-1 text-sm text-gray-600">Highest distinct lease count inside the trend window.</div>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Reservations In Window</div>
+              <div className="mt-2 text-2xl font-bold text-gray-900">{networkObservability?.lease_trends?.reservation_observations_window ?? 0}</div>
+              <div className="mt-1 text-sm text-gray-600">Reserved-address lease observations inside the trend window.</div>
+            </div>
+          </div>
           <div className="mb-3 flex items-center justify-between">
             <div>
               <h4 className="font-semibold text-gray-900">IP Leasing Report</h4>
@@ -1431,9 +1531,17 @@ export default function AccessSettings() {
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <h5 className="font-semibold text-gray-900">Recent Lease History</h5>
-                <p className="mt-1 text-sm text-gray-600">Recent lease observations captured whenever the report is refreshed.</p>
+                <p className="mt-1 text-sm text-gray-600">Recent lease observations captured by the background collector and on-demand refreshes.</p>
               </div>
-              <span className="text-sm text-gray-500">{leasesLoading ? 'Refreshing history...' : `${dhcpLeaseHistory.length} observations`}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">{leasesLoading ? 'Refreshing history...' : `${dhcpLeaseHistory.length} observations`}</span>
+                <button
+                  onClick={() => exportNetworkHistory('lease')}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+                >
+                  Export Lease CSV
+                </button>
+              </div>
             </div>
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -1611,6 +1719,29 @@ export default function AccessSettings() {
           </div>
         </div>
 
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Apply Successes</div>
+            <div className="mt-2 text-2xl font-bold text-gray-900">{networkObservability?.apply_stats?.apply_success_count ?? 0}</div>
+            <div className="mt-1 text-sm text-gray-600">Successful edge-network applies recorded so far.</div>
+          </div>
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Apply Failures</div>
+            <div className="mt-2 text-2xl font-bold text-gray-900">{networkObservability?.apply_stats?.apply_failure_count ?? 0}</div>
+            <div className="mt-1 text-sm text-gray-600">Pre- or post-apply failures that interrupted a network rollout.</div>
+          </div>
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Rollback Count</div>
+            <div className="mt-2 text-2xl font-bold text-gray-900">{networkObservability?.apply_stats?.rollback_count ?? 0}</div>
+            <div className="mt-1 text-sm text-gray-600">Manual rollback operations completed from the UI.</div>
+          </div>
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Auto-Rollbacks</div>
+            <div className="mt-2 text-2xl font-bold text-gray-900">{networkObservability?.apply_stats?.auto_rollback_count ?? 0}</div>
+            <div className="mt-1 text-sm text-gray-600">Timed safety restores after risky changes lost confirmation.</div>
+          </div>
+        </div>
+
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <div>
             <h4 className="font-semibold text-gray-900">Change Summary</h4>
@@ -1680,7 +1811,18 @@ export default function AccessSettings() {
         </div>
 
         <div className="mt-6">
-          <h4 className="font-semibold text-gray-900">Recent Apply History</h4>
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold text-gray-900">Recent Apply History</h4>
+              <p className="mt-1 text-sm text-gray-600">This captures applies, confirmations, failures, rollbacks, and auto-recovery events.</p>
+            </div>
+            <button
+              onClick={() => exportNetworkHistory('apply')}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+            >
+              Export Apply CSV
+            </button>
+          </div>
           <div className="mt-3 overflow-x-auto rounded-lg border border-gray-200">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
@@ -1713,6 +1855,25 @@ export default function AccessSettings() {
               </tbody>
             </table>
           </div>
+          {networkObservability?.controller_sync ? (
+            <div className="mt-6 rounded-lg border border-gray-200 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h5 className="font-semibold text-gray-900">Controller Sync Health</h5>
+                  <p className="mt-1 text-sm text-gray-600">{networkObservability.controller_sync.message || 'No controller sync runtime message recorded yet.'}</p>
+                  <div className="mt-3 grid gap-2 text-sm text-gray-700 md:grid-cols-2 xl:grid-cols-4">
+                    <div>Sync Count: <span className="font-semibold">{networkObservability.controller_sync.details?.sync_count ?? 0}</span></div>
+                    <div>Successes: <span className="font-semibold">{networkObservability.controller_sync.details?.success_count ?? 0}</span></div>
+                    <div>Failures: <span className="font-semibold">{networkObservability.controller_sync.details?.failure_count ?? 0}</span></div>
+                    <div>Last Duration: <span className="font-semibold">{networkObservability.controller_sync.details?.last_duration_ms ?? 0} ms</span></div>
+                  </div>
+                </div>
+                <span className="rounded-md border border-gray-200 px-2 py-1 text-xs font-semibold uppercase text-gray-700">
+                  {networkObservability.controller_sync.status || 'unknown'}
+                </span>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">

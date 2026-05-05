@@ -17,6 +17,10 @@ import (
 
 const controllerComponent = "controller_automation"
 
+func ControllerComponent() string {
+	return controllerComponent
+}
+
 func StartControllerAutomation(ctx context.Context, cfg *config.Config, logger *zap.Logger) {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -27,21 +31,40 @@ func StartControllerAutomation(ctx context.Context, cfg *config.Config, logger *
 	}
 
 	syncOnce := func() {
+		startedAt := time.Now().UTC()
+		lastStatus, _ := db.GetRuntimeStatus(controllerComponent)
+		syncCount, successCount, failureCount := controllerStatusCounters(lastStatus)
 		if err := pushControllerState(ctx, cfg); err != nil {
+			syncCount++
+			failureCount++
 			logger.Warn("controller automation sync failed", zap.Error(err))
 			_ = db.UpsertRuntimeStatus(controllerComponent, "degraded", err.Error(), map[string]any{
-				"platform":  cfg.Integrations.Controller.Platform,
-				"endpoint":  cfg.Integrations.Controller.Endpoint,
-				"sync_mode": cfg.Integrations.Controller.SyncMode,
-				"site":      cfg.Integrations.Controller.Site,
+				"platform":         cfg.Integrations.Controller.Platform,
+				"endpoint":         cfg.Integrations.Controller.Endpoint,
+				"sync_mode":        cfg.Integrations.Controller.SyncMode,
+				"site":             cfg.Integrations.Controller.Site,
+				"last_sync_at":     startedAt.Format(time.RFC3339),
+				"last_duration_ms": time.Since(startedAt).Milliseconds(),
+				"sync_count":       syncCount,
+				"success_count":    successCount,
+				"failure_count":    failureCount,
+				"last_error":       err.Error(),
 			})
 			return
 		}
+		syncCount++
+		successCount++
 		_ = db.UpsertRuntimeStatus(controllerComponent, "ok", "Controller automation sync completed.", map[string]any{
-			"platform":  cfg.Integrations.Controller.Platform,
-			"endpoint":  cfg.Integrations.Controller.Endpoint,
-			"sync_mode": cfg.Integrations.Controller.SyncMode,
-			"site":      cfg.Integrations.Controller.Site,
+			"platform":         cfg.Integrations.Controller.Platform,
+			"endpoint":         cfg.Integrations.Controller.Endpoint,
+			"sync_mode":        cfg.Integrations.Controller.SyncMode,
+			"site":             cfg.Integrations.Controller.Site,
+			"last_sync_at":     time.Now().UTC().Format(time.RFC3339),
+			"last_duration_ms": time.Since(startedAt).Milliseconds(),
+			"sync_count":       syncCount,
+			"success_count":    successCount,
+			"failure_count":    failureCount,
+			"last_error":       "",
 		})
 	}
 
@@ -133,4 +156,34 @@ func controllerToken(cfg *config.Config) string {
 		return ""
 	}
 	return strings.TrimSpace(os.Getenv(strings.TrimSpace(cfg.Integrations.Controller.APITokenEnv)))
+}
+
+func controllerStatusCounters(status *db.RuntimeStatus) (int64, int64, int64) {
+	if status == nil || status.Details == nil {
+		return 0, 0, 0
+	}
+	return int64ControllerDetail(status.Details, "sync_count"),
+		int64ControllerDetail(status.Details, "success_count"),
+		int64ControllerDetail(status.Details, "failure_count")
+}
+
+func int64ControllerDetail(details map[string]any, key string) int64 {
+	if details == nil {
+		return 0
+	}
+	switch value := details[key].(type) {
+	case int:
+		return int64(value)
+	case int32:
+		return int64(value)
+	case int64:
+		return value
+	case float64:
+		return int64(value)
+	case json.Number:
+		number, _ := value.Int64()
+		return number
+	default:
+		return 0
+	}
 }
