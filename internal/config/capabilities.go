@@ -67,6 +67,7 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 		evaluateMDMUEMCapability(cfg),
 		evaluateSIEMExportCapability(cfg),
 		evaluateControllerAutomationCapability(cfg),
+		evaluateHighAvailabilityCapability(cfg),
 		evaluateAdminSSOCapability(cfg),
 		evaluateDelegatedAdminCapability(cfg),
 		evaluateMultiTenantCapability(cfg),
@@ -737,6 +738,37 @@ func evaluateControllerAutomationCapability(cfg *Config) FeatureCapability {
 	default:
 		capability.State = CapabilityAvailable
 		capability.Summary = "Controller automation is supported but currently off."
+	}
+
+	return capability
+}
+
+func evaluateHighAvailabilityCapability(cfg *Config) FeatureCapability {
+	profile := EffectiveDeploymentProfile(cfg.Deployment.Profile)
+	capability := FeatureCapability{
+		Key:    "high_availability_failover",
+		Label:  "High Availability / Failover",
+		Active: cfg.HighAvailability.Enabled,
+	}
+
+	switch {
+	case profile != "enterprise":
+		capability.State = CapabilityBlocked
+		capability.Summary = "High availability is reserved for the enterprise profile."
+	case cfg.HighAvailability.Enabled && !highAvailabilityConfigured(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "High availability requires role, peer API URL, virtual IP, and positive heartbeat timers."
+		capability.Dependencies = []string{"high_availability.role", "high_availability.peer_api_url", "high_availability.virtual_ip", "high_availability.heartbeat_interval_seconds", "high_availability.failover_timeout_seconds"}
+	case cfg.HighAvailability.Enabled && !hasEnterpriseHeadroom(cfg):
+		capability.State = CapabilityWarned
+		capability.Summary = "High availability is active, but the node is below the recommended enterprise hardware floor."
+		capability.Recommendation = "Use at least 4 cores and 8 GB RAM before treating failover monitoring as a production control plane."
+	case cfg.HighAvailability.Enabled:
+		capability.State = CapabilityEnabled
+		capability.Summary = "High availability peer monitoring is active."
+	default:
+		capability.State = CapabilityAvailable
+		capability.Summary = "High availability groundwork is supported but currently off."
 	}
 
 	return capability

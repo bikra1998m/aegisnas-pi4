@@ -642,7 +642,7 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	}
 
 	capabilities := EvaluateFeatureCapabilities(cfg)
-	require.Len(t, capabilities, 20)
+	require.Len(t, capabilities, 21)
 
 	byKey := make(map[string]FeatureCapability, len(capabilities))
 	for _, capability := range capabilities {
@@ -666,6 +666,7 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	assert.Equal(t, CapabilityBlocked, byKey["mdm_uem_integration"].State)
 	assert.Equal(t, CapabilityEnabled, byKey["siem_webhook_export"].State)
 	assert.Equal(t, CapabilityBlocked, byKey["controller_automation"].State)
+	assert.Equal(t, CapabilityBlocked, byKey["high_availability_failover"].State)
 	assert.Equal(t, CapabilityWarned, byKey["admin_sso"].State)
 	assert.Equal(t, CapabilityWarned, byKey["delegated_admin_rbac"].State)
 	assert.Equal(t, CapabilityBlocked, byKey["multi_tenant_governance"].State)
@@ -945,4 +946,63 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	badTenant := base()
 	badTenant.Governance.TenantClaim = ""
 	assert.ErrorContains(t, badTenant.Validate(), "governance.multi_tenant_enabled requires governance.tenant_claim when admin SSO is enabled")
+}
+
+func TestConfigValidationHighAvailability(t *testing.T) {
+	base := func() *Config {
+		return &Config{
+			Mode:     "two-nic",
+			WAN:      InterfaceConfig{Name: "eth0"},
+			LAN:      InterfaceConfig{Name: "eth1"},
+			Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+			Health:   HealthConfig{Port: 8080},
+			Telemetry: TelemetryConfig{
+				Enabled:        true,
+				PrometheusPort: 9090,
+			},
+			Portal: PortalConfig{
+				Enabled: true,
+			},
+			Radius: RadiusConfig{
+				AuthPort:              1812,
+				AcctPort:              1813,
+				RequestTimeoutSeconds: 5,
+			},
+			Deployment: DeploymentConfig{
+				Profile: "enterprise",
+				Hardware: DeploymentHardwareConfig{
+					MemoryMB: 8192,
+					CPUCores: 4,
+				},
+			},
+			HighAvailability: HighAvailabilityConfig{
+				Enabled:                  true,
+				Role:                     "standby",
+				PeerAPIURL:               "https://peer.example.com:8083",
+				VirtualIP:                "192.168.50.2",
+				HeartbeatIntervalSeconds: 5,
+				FailoverTimeoutSeconds:   20,
+				SharedStateDir:           "/var/lib/aegisnas/ha",
+			},
+		}
+	}
+
+	valid := base()
+	assert.NoError(t, valid.Validate())
+
+	badProfile := base()
+	badProfile.Deployment.Profile = "branch"
+	assert.ErrorContains(t, badProfile.Validate(), "high_availability.enabled is only supported on the enterprise deployment profile")
+
+	badPeer := base()
+	badPeer.HighAvailability.PeerAPIURL = ""
+	assert.ErrorContains(t, badPeer.Validate(), "high_availability.enabled requires role, peer_api_url, virtual_ip, and positive heartbeat/failover timers")
+
+	badTiming := base()
+	badTiming.HighAvailability.FailoverTimeoutSeconds = 5
+	assert.ErrorContains(t, badTiming.Validate(), "high_availability.failover_timeout_seconds must be greater")
+
+	badVIP := base()
+	badVIP.HighAvailability.VirtualIP = "not-an-ip"
+	assert.ErrorContains(t, badVIP.Validate(), "high_availability.virtual_ip")
 }

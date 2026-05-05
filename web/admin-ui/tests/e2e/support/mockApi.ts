@@ -162,6 +162,16 @@ function createSettings() {
       multi_tenant_enabled: false,
       tenant_claim: '',
     },
+    high_availability: {
+      enabled: true,
+      role: 'standby',
+      peer_api_url: 'https://peer.example.test:8083',
+      virtual_ip: '192.168.50.2',
+      heartbeat_interval_seconds: 5,
+      failover_timeout_seconds: 20,
+      preempt: false,
+      shared_state_dir: '/var/lib/aegisnas/ha',
+    },
     portal: {
       enabled: true,
       port: 8081,
@@ -318,6 +328,26 @@ function createSystemStatus() {
       shaping_interface: 'ens37',
       shaped_sessions: 2,
       shaper: { status: 'ok', message: 'Runtime shaper healthy.' },
+    },
+    high_availability: {
+      enabled: true,
+      role: 'standby',
+      peer_api_url: 'https://peer.example.test:8083',
+      virtual_ip: '192.168.50.2',
+      heartbeat_interval_seconds: 5,
+      failover_timeout_seconds: 20,
+      preempt: false,
+      shared_state_dir: '/var/lib/aegisnas/ha',
+      runtime: {
+        status: 'ok',
+        message: 'Peer health probe is healthy.',
+        updated_at: '2026-05-05T12:00:00Z',
+        details: {
+          peer_health_url: 'https://peer.example.test:8083/health',
+          peer_reachable: true,
+          peer_status_code: 200,
+        },
+      },
     },
     integrations: {
       admin_sso: {

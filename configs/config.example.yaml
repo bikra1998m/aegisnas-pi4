@@ -269,6 +269,16 @@ governance:
   multi_tenant_enabled: false
   tenant_claim: ""
 
+high_availability:
+  enabled: false
+  role: "standby" # active or standby.
+  peer_api_url: ""
+  virtual_ip: ""
+  heartbeat_interval_seconds: 5
+  failover_timeout_seconds: 20
+  preempt: false
+  shared_state_dir: "/var/lib/aegisnas/ha"
+
 dhcp:
   enabled: true
   lease_time: 12h

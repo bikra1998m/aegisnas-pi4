@@ -96,6 +96,17 @@ type SystemStatus = {
     shaped_sessions: number;
     shaper: RuntimeStatus;
   };
+  high_availability: {
+    enabled: boolean;
+    role: string;
+    peer_api_url: string;
+    virtual_ip: string;
+    heartbeat_interval_seconds: number;
+    failover_timeout_seconds: number;
+    preempt: boolean;
+    shared_state_dir: string;
+    runtime: RuntimeStatus;
+  };
   integrations: {
     admin_sso: {
       enabled: boolean;
@@ -548,6 +559,26 @@ export default function Dashboard() {
                     ) : null}
                   </div>
                   <StatusBadge status={systemStatus.integrations.controller.sync?.status || (systemStatus.integrations.controller.enabled ? 'unknown' : 'disabled')} />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">High Availability</div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.high_availability.enabled
+                        ? `${systemStatus.high_availability.role || 'standby'} role watching ${systemStatus.high_availability.peer_api_url || 'peer unset'} with VIP ${systemStatus.high_availability.virtual_ip || 'unset'}.`
+                        : 'Enterprise HA peer monitoring is disabled on this node.'}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">{systemStatus.high_availability.runtime?.message || 'No HA runtime status recorded yet.'}</div>
+                    {systemStatus.high_availability.runtime?.details?.peer_health_url ? (
+                      <div className="mt-1 text-xs text-gray-500 break-all">{String(systemStatus.high_availability.runtime.details.peer_health_url)}</div>
+                    ) : null}
+                    {systemStatus.high_availability.runtime?.updated_at ? (
+                      <div className="mt-1 text-xs text-gray-500">Updated {systemStatus.high_availability.runtime.updated_at}</div>
+                    ) : null}
+                  </div>
+                  <StatusBadge status={systemStatus.high_availability.runtime?.status || (systemStatus.high_availability.enabled ? 'unknown' : 'disabled')} />
                 </div>
               </div>
             </div>

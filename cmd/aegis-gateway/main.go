@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,6 +15,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/dnsmasq"
 	"github.com/yourorg/aegisnas-pi4/internal/enforcement"
 	"github.com/yourorg/aegisnas-pi4/internal/firewall"
+	"github.com/yourorg/aegisnas-pi4/internal/ha"
 	"github.com/yourorg/aegisnas-pi4/internal/health"
 	"github.com/yourorg/aegisnas-pi4/internal/logging"
 	"github.com/yourorg/aegisnas-pi4/internal/network"
@@ -86,12 +88,21 @@ var runCmd = &cobra.Command{
 
 		go health.StartServer(cfg.Health.Port, logger)
 
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go ha.StartMonitor(ctx, cfg, logger)
+
 		// Background cleanup of idle portal clients
 		go func() {
 			ticker := time.NewTicker(5 * time.Minute)
 			defer ticker.Stop()
-			for range ticker.C {
-				stateMachine.CleanupIdle(10 * time.Minute)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					stateMachine.CleanupIdle(10 * time.Minute)
+				}
 			}
 		}()
 
@@ -103,6 +114,7 @@ var runCmd = &cobra.Command{
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 		<-sig
 
+		cancel()
 		logger.Info("shutting down")
 		return nil
 	},

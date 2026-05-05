@@ -12,28 +12,29 @@ import (
 )
 
 type Config struct {
-	Mode         string             `mapstructure:"mode"`
-	Deployment   DeploymentConfig   `mapstructure:"deployment"`
-	WAN          InterfaceConfig    `mapstructure:"wan"`
-	LAN          InterfaceConfig    `mapstructure:"lan"`
-	Network      NetworkConfig      `mapstructure:"network"`
-	VLANs        []VLANConfig       `mapstructure:"vlans"`
-	Database     DatabaseConfig     `mapstructure:"database"`
-	Logging      LoggingConfig      `mapstructure:"logging"`
-	Health       HealthConfig       `mapstructure:"health"`
-	Radius       RadiusConfig       `mapstructure:"radius"`
-	Portal       PortalConfig       `mapstructure:"portal"`
-	LDAP         LDAPConfig         `mapstructure:"ldap"`
-	Policy       PolicyConfig       `mapstructure:"policy"`
-	Telemetry    TelemetryConfig    `mapstructure:"telemetry"`
-	AILite       AILiteConfig       `mapstructure:"ailite"`
-	Onboarding   OnboardingConfig   `mapstructure:"onboarding"`
-	Profiling    ProfilingConfig    `mapstructure:"profiling"`
-	Integrations IntegrationsConfig `mapstructure:"integrations"`
-	Governance   GovernanceConfig   `mapstructure:"governance"`
-	DHCP         DHCPConfig         `mapstructure:"dhcp"`
-	Wireless     WirelessConfig     `mapstructure:"wireless"`
-	AdminPort    int                `mapstructure:"admin_port"`
+	Mode             string                 `mapstructure:"mode"`
+	Deployment       DeploymentConfig       `mapstructure:"deployment"`
+	WAN              InterfaceConfig        `mapstructure:"wan"`
+	LAN              InterfaceConfig        `mapstructure:"lan"`
+	Network          NetworkConfig          `mapstructure:"network"`
+	VLANs            []VLANConfig           `mapstructure:"vlans"`
+	Database         DatabaseConfig         `mapstructure:"database"`
+	Logging          LoggingConfig          `mapstructure:"logging"`
+	Health           HealthConfig           `mapstructure:"health"`
+	Radius           RadiusConfig           `mapstructure:"radius"`
+	Portal           PortalConfig           `mapstructure:"portal"`
+	LDAP             LDAPConfig             `mapstructure:"ldap"`
+	Policy           PolicyConfig           `mapstructure:"policy"`
+	Telemetry        TelemetryConfig        `mapstructure:"telemetry"`
+	AILite           AILiteConfig           `mapstructure:"ailite"`
+	Onboarding       OnboardingConfig       `mapstructure:"onboarding"`
+	Profiling        ProfilingConfig        `mapstructure:"profiling"`
+	Integrations     IntegrationsConfig     `mapstructure:"integrations"`
+	Governance       GovernanceConfig       `mapstructure:"governance"`
+	HighAvailability HighAvailabilityConfig `mapstructure:"high_availability"`
+	DHCP             DHCPConfig             `mapstructure:"dhcp"`
+	Wireless         WirelessConfig         `mapstructure:"wireless"`
+	AdminPort        int                    `mapstructure:"admin_port"`
 }
 
 type DeploymentConfig struct {
@@ -369,6 +370,17 @@ type GovernanceConfig struct {
 	TenantClaim           string `mapstructure:"tenant_claim"`
 }
 
+type HighAvailabilityConfig struct {
+	Enabled                  bool   `mapstructure:"enabled"`
+	Role                     string `mapstructure:"role"`
+	PeerAPIURL               string `mapstructure:"peer_api_url"`
+	VirtualIP                string `mapstructure:"virtual_ip"`
+	HeartbeatIntervalSeconds int    `mapstructure:"heartbeat_interval_seconds"`
+	FailoverTimeoutSeconds   int    `mapstructure:"failover_timeout_seconds"`
+	Preempt                  bool   `mapstructure:"preempt"`
+	SharedStateDir           string `mapstructure:"shared_state_dir"`
+}
+
 type WirelessConfig struct {
 	Enabled           bool         `mapstructure:"enabled"`
 	CountryCode       string       `mapstructure:"country_code"`
@@ -447,6 +459,12 @@ func Load(configPath string) (*Config, error) {
 	v.SetDefault("integrations.siem.batch_size", 100)
 	v.SetDefault("integrations.controller.sync_mode", "monitor")
 	v.SetDefault("governance.rbac_mode", "local")
+	v.SetDefault("high_availability.enabled", false)
+	v.SetDefault("high_availability.role", "standby")
+	v.SetDefault("high_availability.heartbeat_interval_seconds", 5)
+	v.SetDefault("high_availability.failover_timeout_seconds", 20)
+	v.SetDefault("high_availability.preempt", false)
+	v.SetDefault("high_availability.shared_state_dir", "/var/lib/aegisnas/ha")
 	v.SetDefault("dhcp.enabled", true)
 	v.SetDefault("dhcp.lease_time", "12h")
 	v.SetDefault("dhcp.authoritative", true)
@@ -1062,6 +1080,39 @@ func (c *Config) Validate() error {
 			return errors.New("governance.multi_tenant_enabled requires governance.tenant_claim when admin SSO is enabled")
 		}
 	}
+	switch strings.ToLower(strings.TrimSpace(c.HighAvailability.Role)) {
+	case "", "active", "standby":
+	default:
+		return fmt.Errorf("high_availability.role %q is invalid", c.HighAvailability.Role)
+	}
+	if c.HighAvailability.PeerAPIURL != "" {
+		if err := requireHTTPURL("high_availability.peer_api_url", c.HighAvailability.PeerAPIURL); err != nil {
+			return err
+		}
+	}
+	if ip := strings.TrimSpace(c.HighAvailability.VirtualIP); ip != "" {
+		parsed := net.ParseIP(ip)
+		if parsed == nil || parsed.To4() == nil {
+			return fmt.Errorf("high_availability.virtual_ip %q must be a valid IPv4 address", c.HighAvailability.VirtualIP)
+		}
+	}
+	if c.HighAvailability.HeartbeatIntervalSeconds < 0 {
+		return fmt.Errorf("high_availability.heartbeat_interval_seconds %d cannot be negative", c.HighAvailability.HeartbeatIntervalSeconds)
+	}
+	if c.HighAvailability.FailoverTimeoutSeconds < 0 {
+		return fmt.Errorf("high_availability.failover_timeout_seconds %d cannot be negative", c.HighAvailability.FailoverTimeoutSeconds)
+	}
+	if c.HighAvailability.Enabled {
+		if profile != "enterprise" {
+			return errors.New("high_availability.enabled is only supported on the enterprise deployment profile")
+		}
+		if !highAvailabilityConfigured(c) {
+			return errors.New("high_availability.enabled requires role, peer_api_url, virtual_ip, and positive heartbeat/failover timers")
+		}
+		if c.HighAvailability.FailoverTimeoutSeconds <= c.HighAvailability.HeartbeatIntervalSeconds {
+			return errors.New("high_availability.failover_timeout_seconds must be greater than high_availability.heartbeat_interval_seconds")
+		}
+	}
 	aiMode := EffectiveAIMode(c)
 	switch aiMode {
 	case "lite", "full":
@@ -1431,6 +1482,17 @@ func delegatedAdminIdentityReady(c *Config) bool {
 		return false
 	}
 	return c.Integrations.AdminSSO.Enabled || c.LDAP.Enabled
+}
+
+func highAvailabilityConfigured(c *Config) bool {
+	if c == nil {
+		return false
+	}
+	return strings.TrimSpace(c.HighAvailability.Role) != "" &&
+		strings.TrimSpace(c.HighAvailability.PeerAPIURL) != "" &&
+		strings.TrimSpace(c.HighAvailability.VirtualIP) != "" &&
+		c.HighAvailability.HeartbeatIntervalSeconds > 0 &&
+		c.HighAvailability.FailoverTimeoutSeconds > 0
 }
 
 func adminGroupSourceReady(c *Config) bool {

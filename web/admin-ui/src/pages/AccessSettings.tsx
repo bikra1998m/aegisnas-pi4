@@ -306,6 +306,16 @@ const defaultSettings: JsonMap = {
     multi_tenant_enabled: false,
     tenant_claim: '',
   },
+  high_availability: {
+    enabled: false,
+    role: 'standby',
+    peer_api_url: '',
+    virtual_ip: '',
+    heartbeat_interval_seconds: 5,
+    failover_timeout_seconds: 20,
+    preempt: false,
+    shared_state_dir: '/var/lib/aegisnas/ha',
+  },
   portal: {
     enabled: true,
     port: 8081,
@@ -2633,6 +2643,66 @@ export default function AccessSettings() {
               placeholder="branch-west-01"
             />
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">High Availability And Failover</h3>
+          <p className="mt-1 text-sm text-gray-600">Use enterprise deployments for active and standby peer monitoring, shared virtual IP planning, and recovery orchestration groundwork.</p>
+        </div>
+        <div className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <ToggleField
+            label="High Availability Enabled"
+            checked={Boolean(settings.high_availability?.enabled)}
+            onChange={(value) => updateField(['high_availability', 'enabled'], value)}
+          />
+          <ToggleField
+            label="Preempt Preferred"
+            checked={Boolean(settings.high_availability?.preempt)}
+            onChange={(value) => updateField(['high_availability', 'preempt'], value)}
+          />
+          <SelectField
+            label="Node Role"
+            value={settings.high_availability?.role || 'standby'}
+            onChange={(value) => updateField(['high_availability', 'role'], value)}
+            options={[
+              { value: 'active', label: 'Active' },
+              { value: 'standby', label: 'Standby' },
+            ]}
+          />
+          <TextField
+            label="Virtual IP"
+            value={settings.high_availability?.virtual_ip || ''}
+            onChange={(value) => updateField(['high_availability', 'virtual_ip'], value)}
+            placeholder="192.168.50.2"
+          />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <TextField
+            label="Peer API URL"
+            value={settings.high_availability?.peer_api_url || ''}
+            onChange={(value) => updateField(['high_availability', 'peer_api_url'], value)}
+            placeholder="https://peer.example.com:8083"
+          />
+          <TextField
+            label="Heartbeat Interval"
+            type="number"
+            value={settings.high_availability?.heartbeat_interval_seconds || 5}
+            onChange={(value) => updateField(['high_availability', 'heartbeat_interval_seconds'], Number(value))}
+          />
+          <TextField
+            label="Failover Timeout"
+            type="number"
+            value={settings.high_availability?.failover_timeout_seconds || 20}
+            onChange={(value) => updateField(['high_availability', 'failover_timeout_seconds'], Number(value))}
+          />
+          <TextField
+            label="Shared State Directory"
+            value={settings.high_availability?.shared_state_dir || '/var/lib/aegisnas/ha'}
+            onChange={(value) => updateField(['high_availability', 'shared_state_dir'], value)}
+            placeholder="/var/lib/aegisnas/ha"
+          />
         </div>
       </section>
 

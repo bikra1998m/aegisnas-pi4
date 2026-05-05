@@ -10,6 +10,10 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 )
 
+const runtimeFirewallTableName = "aegis_runtime"
+
+var runtimeFirewallExecCommand = exec.Command
+
 // SyncRuntimeFirewall rebuilds the dynamic quarantine table from current active sessions.
 // Sessions are considered quarantined when their role or Filter-Id contains "quarantine"
 // or when they are assigned to VLAN 99.
@@ -22,9 +26,38 @@ func SyncRuntimeFirewall() error {
 		return err
 	}
 
+	if err := resetRuntimeFirewallTable(); err != nil {
+		return err
+	}
+	return applyRuntimeFirewallRuleset(buildRuntimeFirewallRuleset(ips))
+}
+
+func resetRuntimeFirewallTable() error {
+	cmd := runtimeFirewallExecCommand("nft", "delete", "table", "inet", runtimeFirewallTableName)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		output := strings.TrimSpace(string(out))
+		if canIgnoreRuntimeFirewallDeleteError(output) {
+			return nil
+		}
+		return fmt.Errorf("reset runtime firewall: %w\nOutput: %s", err, output)
+	}
+	return nil
+}
+
+func applyRuntimeFirewallRuleset(ruleset string) error {
+	cmd := runtimeFirewallExecCommand("nft", "-f", "/dev/stdin")
+	cmd.Stdin = strings.NewReader(ruleset)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("apply runtime firewall: %w\nOutput: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func buildRuntimeFirewallRuleset(ips []string) string {
 	var builder strings.Builder
-	builder.WriteString("delete table inet aegis_runtime\n")
-	builder.WriteString("table inet aegis_runtime {\n")
+	builder.WriteString("table inet ")
+	builder.WriteString(runtimeFirewallTableName)
+	builder.WriteString(" {\n")
 	builder.WriteString("    set quarantine_ipv4 {\n")
 	builder.WriteString("        type ipv4_addr\n")
 	if len(ips) > 0 {
@@ -39,13 +72,12 @@ func SyncRuntimeFirewall() error {
 	builder.WriteString("        ip daddr @quarantine_ipv4 drop\n")
 	builder.WriteString("    }\n")
 	builder.WriteString("}\n")
+	return builder.String()
+}
 
-	cmd := exec.Command("nft", "-f", "/dev/stdin")
-	cmd.Stdin = strings.NewReader(builder.String())
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("apply runtime firewall: %w\nOutput: %s", err, out)
-	}
-	return nil
+func canIgnoreRuntimeFirewallDeleteError(output string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(output))
+	return strings.Contains(normalized, "no such file or directory")
 }
 
 func quarantinedIPs() ([]string, error) {
