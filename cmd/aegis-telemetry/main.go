@@ -72,6 +72,7 @@ var runCmd = &cobra.Command{
 		defer cancel()
 		go telemetry.StartAlertMonitor(ctx, time.Minute, logger)
 		go telemetry.StartSIEMExporter(ctx, 30*time.Second, cfg, logger)
+		go telemetry.StartDHCPLeaseHistoryCollector(ctx, cfg, logger)
 		go telemetry.StartProfilingRuntime(ctx, cfg, logger)
 		go integrations.StartControllerAutomation(ctx, cfg, logger)
 

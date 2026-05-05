@@ -176,6 +176,7 @@ const defaultSettings: JsonMap = {
   telemetry: {
     enabled: true,
     prometheus_port: 9090,
+    lease_history_poll_seconds: 300,
   },
   ailite: {
     enabled: true,
@@ -2052,6 +2053,12 @@ export default function AccessSettings() {
             type="number"
             value={settings.telemetry?.prometheus_port || 9090}
             onChange={(value) => updateField(['telemetry', 'prometheus_port'], Number(value))}
+          />
+          <TextField
+            label="Lease History Poll Seconds"
+            type="number"
+            value={settings.telemetry?.lease_history_poll_seconds || 300}
+            onChange={(value) => updateField(['telemetry', 'lease_history_poll_seconds'], Number(value))}
           />
           <TextField
             label="Recommendation Limit"

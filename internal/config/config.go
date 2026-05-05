@@ -282,8 +282,9 @@ type PolicyConfig struct {
 }
 
 type TelemetryConfig struct {
-	Enabled        bool `mapstructure:"enabled"`
-	PrometheusPort int  `mapstructure:"prometheus_port"`
+	Enabled                 bool `mapstructure:"enabled"`
+	PrometheusPort          int  `mapstructure:"prometheus_port"`
+	LeaseHistoryPollSeconds int  `mapstructure:"lease_history_poll_seconds"`
 }
 
 type AILiteConfig struct {
@@ -781,6 +782,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Telemetry.PrometheusPort < 1 || c.Telemetry.PrometheusPort > 65535 {
 		return fmt.Errorf("telemetry.prometheus_port %d out of range", c.Telemetry.PrometheusPort)
+	}
+	if c.Telemetry.LeaseHistoryPollSeconds < 0 {
+		return fmt.Errorf("telemetry.lease_history_poll_seconds %d out of range", c.Telemetry.LeaseHistoryPollSeconds)
 	}
 	profile := EffectiveDeploymentProfile(c.Deployment.Profile)
 	switch strings.ToLower(strings.TrimSpace(c.Portal.GuestWorkflows.InviteDelivery)) {

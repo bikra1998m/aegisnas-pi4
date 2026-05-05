@@ -199,6 +199,7 @@ policy:
 telemetry:
   enabled: true
   prometheus_port: 9090
+  lease_history_poll_seconds: 300
 
 ailite:
   enabled: true
