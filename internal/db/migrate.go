@@ -4,6 +4,10 @@ import (
 	"fmt"
 )
 
+func LatestSchemaVersion() int {
+	return 7
+}
+
 func Migrate() error {
 	db := GetDB()
 
@@ -31,7 +35,7 @@ func Migrate() error {
 		{4, schemaV4},
 		{5, schemaV5},
 		{6, schemaV6},
-		{7, schemaV7},
+		{LatestSchemaVersion(), schemaV7},
 	}
 
 	for _, m := range migrations {

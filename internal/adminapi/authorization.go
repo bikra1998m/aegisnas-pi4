@@ -143,6 +143,12 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/network-observability"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/ha/replication-package"):
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/ha/replication-staged"):
+		return readonly || identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/ha/replication-activate"):
+		return identity.Role == adminRoleOpsAdmin
 	case strings.HasPrefix(path, "/api/v1/system/network-recovery"):
 		return readonly || identity.Role == adminRoleOpsAdmin
 	case strings.HasPrefix(path, "/api/v1/system/network-apply"):

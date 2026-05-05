@@ -41,15 +41,11 @@ func SaveSettingsMap(input map[string]any) (*Config, error) {
 	return globalConfig, nil
 }
 
-func EvaluateSettingsMap(input map[string]any) (*Config, error) {
-	if input == nil {
-		return nil, fmt.Errorf("settings payload cannot be empty")
+func WriteFile(path string, cfg *Config) error {
+	if cfg == nil {
+		return fmt.Errorf("config cannot be nil")
 	}
-	return decodeSettingsMap(input)
-}
-
-func saveToDisk(cfg *Config) error {
-	target := strings.TrimSpace(globalConfigPath)
+	target := strings.TrimSpace(path)
 	if target == "" {
 		target = "config.yaml"
 	}
@@ -68,6 +64,21 @@ func saveToDisk(cfg *Config) error {
 		return fmt.Errorf("write config file: %w", err)
 	}
 	return nil
+}
+
+func EvaluateSettingsMap(input map[string]any) (*Config, error) {
+	if input == nil {
+		return nil, fmt.Errorf("settings payload cannot be empty")
+	}
+	return decodeSettingsMap(input)
+}
+
+func saveToDisk(cfg *Config) error {
+	target := strings.TrimSpace(globalConfigPath)
+	if target == "" {
+		target = "config.yaml"
+	}
+	return WriteFile(target, cfg)
 }
 
 func mergeMaps(dst, src map[string]any) {

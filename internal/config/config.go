@@ -415,6 +415,14 @@ var globalConfig *Config
 var globalConfigPath string
 
 func Load(configPath string) (*Config, error) {
+	return load(configPath, true)
+}
+
+func LoadCandidate(configPath string) (*Config, error) {
+	return load(configPath, false)
+}
+
+func load(configPath string, persistGlobal bool) (*Config, error) {
 	v := viper.New()
 	if configPath != "" {
 		v.SetConfigFile(configPath)
@@ -529,13 +537,15 @@ func Load(configPath string) (*Config, error) {
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("config unmarshal error: %w", err)
 	}
-	globalConfig = &cfg
-	globalConfigPath = v.ConfigFileUsed()
-	if globalConfigPath == "" {
-		if configPath != "" {
-			globalConfigPath = configPath
-		} else {
-			globalConfigPath = "config.yaml"
+	if persistGlobal {
+		globalConfig = &cfg
+		globalConfigPath = v.ConfigFileUsed()
+		if globalConfigPath == "" {
+			if configPath != "" {
+				globalConfigPath = configPath
+			} else {
+				globalConfigPath = "config.yaml"
+			}
 		}
 	}
 	return &cfg, nil
