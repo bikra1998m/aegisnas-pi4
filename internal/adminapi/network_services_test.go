@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
+	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/network"
 )
 
@@ -20,6 +21,7 @@ func TestApplyNetworkServicesRollsBackOnValidationFailure(t *testing.T) {
 	originalApplyDNS := applyDNSMasqContentFn
 	originalBuildFirewall := buildFirewallRulesFn
 	originalAssessRisk := assessApplyRiskFn
+	originalGetRuntimeStatus := getRuntimeStatusFn
 	defer func() {
 		saveNetworkSnapshotFn = originalSaveSnapshot
 		applyManagedNetworkFn = originalApplyManaged
@@ -30,6 +32,7 @@ func TestApplyNetworkServicesRollsBackOnValidationFailure(t *testing.T) {
 		applyDNSMasqContentFn = originalApplyDNS
 		buildFirewallRulesFn = originalBuildFirewall
 		assessApplyRiskFn = originalAssessRisk
+		getRuntimeStatusFn = originalGetRuntimeStatus
 	}()
 
 	cfg := &config.Config{}
@@ -41,6 +44,7 @@ func TestApplyNetworkServicesRollsBackOnValidationFailure(t *testing.T) {
 	applyDNSMasqContentFn = func(enabled bool, content string) error { return nil }
 	buildFirewallRulesFn = func(cfg *config.Config) (string, error) { return "table inet aegis {}", nil }
 	applyFirewallRulesetFn = func(content string) error { return nil }
+	getRuntimeStatusFn = func(component string) (*db.RuntimeStatus, error) { return nil, nil }
 
 	rolledBack := false
 	restoreNetworkSnapshotFn = func(cfg *config.Config, snapshot network.Snapshot) error {
@@ -125,8 +129,10 @@ func TestValidateAppliedNetworkServicesFlagsHealthFailures(t *testing.T) {
 
 func TestApplyNetworkServicesRequiresConfirmationForRiskyChanges(t *testing.T) {
 	originalAssessRisk := assessApplyRiskFn
+	originalGetRuntimeStatus := getRuntimeStatusFn
 	defer func() {
 		assessApplyRiskFn = originalAssessRisk
+		getRuntimeStatusFn = originalGetRuntimeStatus
 	}()
 
 	cfg := &config.Config{}
@@ -139,6 +145,7 @@ func TestApplyNetworkServicesRequiresConfirmationForRiskyChanges(t *testing.T) {
 			Summary:              "risk",
 		}
 	}
+	getRuntimeStatusFn = func(component string) (*db.RuntimeStatus, error) { return nil, nil }
 
 	result, err := applyNetworkServices(cfg, "tester", "")
 

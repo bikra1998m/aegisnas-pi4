@@ -107,6 +107,7 @@ type NetworkPreview = {
   custom_firewall_rules: number;
   static_reservations: number;
   available_rollback_ids: NetworkSnapshotSummary[];
+  recovery?: NetworkRecoveryState | null;
 };
 
 type NetworkValidationCheck = {
@@ -129,6 +130,22 @@ type NetworkApplyRisk = {
     code: string;
     message: string;
   }>;
+};
+
+type NetworkRecoveryState = {
+  pending: boolean;
+  backup_id?: string;
+  deadline?: string;
+  remaining_seconds?: number;
+  grace_period_seconds?: number;
+  risk_summary?: string;
+  validation_summary?: string;
+  status?: string;
+  message?: string;
+  requested_by?: string;
+  confirmed_by?: string;
+  confirmed_at?: string;
+  rolled_back_at?: string;
 };
 
 const defaultSettings: JsonMap = {
@@ -652,6 +669,8 @@ export default function AccessSettings() {
   const [networkBackups, setNetworkBackups] = useState<NetworkSnapshotSummary[]>([]);
   const [networkApplyHistory, setNetworkApplyHistory] = useState<NetworkApplyHistoryRecord[]>([]);
   const [lastNetworkValidation, setLastNetworkValidation] = useState<NetworkValidationReport | null>(null);
+  const [networkRecovery, setNetworkRecovery] = useState<NetworkRecoveryState | null>(null);
+  const [confirmingNetworkRecovery, setConfirmingNetworkRecovery] = useState(false);
   const [selectedRollbackId, setSelectedRollbackId] = useState('');
   const [networkConfirmationText, setNetworkConfirmationText] = useState('');
   const [message, setMessage] = useState('');
@@ -661,6 +680,7 @@ export default function AccessSettings() {
   const [hostapdPath, setHostapdPath] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
+  const [recoveryTick, setRecoveryTick] = useState(Date.now());
 
   const updateField = (path: string[], value: any) => {
     setSettings((current) => {
@@ -714,6 +734,7 @@ export default function AccessSettings() {
         api.get('/system/network-apply-history'),
       ]);
       setNetworkPreview(previewRes.data || null);
+      setNetworkRecovery(previewRes.data?.recovery || null);
       if (!previewRes.data?.risk?.requires_confirmation) {
         setNetworkConfirmationText('');
       }
@@ -786,6 +807,15 @@ export default function AccessSettings() {
     };
   }, [settings, loading]);
 
+  useEffect(() => {
+    if (!networkRecovery?.pending || !networkRecovery.deadline) {
+      return;
+    }
+    setRecoveryTick(Date.now());
+    const timer = window.setInterval(() => setRecoveryTick(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [networkRecovery?.pending, networkRecovery?.deadline]);
+
   const saveSettings = async () => {
     setSaving(true);
     setError('');
@@ -814,13 +844,18 @@ export default function AccessSettings() {
       const payload = riskyNetworkApply?.requires_confirmation ? { confirmation_text: networkConfirmationText } : {};
       const { data } = await api.post('/system/network-apply', payload);
       setLastNetworkValidation(data.validation || null);
+      setNetworkRecovery(data.recovery || null);
       const backupSuffix = data.backup_id ? ` Backup snapshot ${data.backup_id} was saved first.` : '';
       const validationCount = Array.isArray(data.validation?.checks) ? data.validation.checks.length : 0;
       const validationSuffix =
         data.validation?.healthy && validationCount > 0
           ? ` Post-apply validation passed across ${validationCount} checks.`
           : '';
-      setMessage(`Interfaces, routes, dnsmasq, and firewall rules were applied on the appliance.${backupSuffix}${validationSuffix}`);
+      const recoverySuffix =
+        data.recovery?.pending
+          ? ` Confirm management reachability within ${data.recovery?.grace_period_seconds || data.recovery?.remaining_seconds || 0} seconds or snapshot ${data.recovery?.backup_id || data.backup_id} will be restored automatically.`
+          : '';
+      setMessage(`Interfaces, routes, dnsmasq, and firewall rules were applied on the appliance.${backupSuffix}${validationSuffix}${recoverySuffix}`);
       setNetworkConfirmationText('');
       await loadLeaseReport();
       await loadNetworkPreview();
@@ -840,6 +875,7 @@ export default function AccessSettings() {
       const payload = selectedRollbackId ? { id: selectedRollbackId } : {};
       const { data } = await api.post('/system/network-rollback', payload);
       setLastNetworkValidation(null);
+      setNetworkRecovery(data.recovery || null);
       setMessage(`Edge network state rolled back to snapshot ${data.rollback_id}.`);
       await loadLeaseReport();
       await loadNetworkPreview();
@@ -847,6 +883,25 @@ export default function AccessSettings() {
       setError(err.response?.data || err.message || 'Could not roll back edge network services.');
     } finally {
       setRollingBackNetwork(false);
+    }
+  };
+
+  const confirmNetworkRecovery = async () => {
+    if (!networkRecovery?.pending) {
+      return;
+    }
+    setConfirmingNetworkRecovery(true);
+    setError('');
+    setMessage('');
+    try {
+      const { data } = await api.post('/system/network-recovery/confirm', { backup_id: networkRecovery.backup_id || '' });
+      setNetworkRecovery(data.recovery || null);
+      setMessage('Management access confirmed. Automatic rollback has been cancelled for the current edge-network change.');
+      await loadNetworkPreview();
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not confirm management reachability.');
+    } finally {
+      setConfirmingNetworkRecovery(false);
     }
   };
 
@@ -954,6 +1009,11 @@ export default function AccessSettings() {
   const networkApplyConfirmed =
     !riskyNetworkApply?.requires_confirmation ||
     (requiredConfirmationPhrase !== '' && networkConfirmationText.trim() === requiredConfirmationPhrase);
+  const networkRecoveryDeadlineMs = networkRecovery?.deadline ? new Date(networkRecovery.deadline).getTime() : 0;
+  const networkRecoveryRemainingSeconds =
+    networkRecovery?.pending && networkRecoveryDeadlineMs > 0
+      ? Math.max(0, Math.floor((networkRecoveryDeadlineMs - recoveryTick) / 1000))
+      : networkRecovery?.remaining_seconds || 0;
 
   if (loading) {
     return <div className="text-gray-600">Loading access settings...</div>;
@@ -982,11 +1042,13 @@ export default function AccessSettings() {
           </button>
           <button
             onClick={applyNetworkServices}
-            disabled={applyingNetwork || !networkApplyConfirmed}
+            disabled={applyingNetwork || !networkApplyConfirmed || Boolean(networkRecovery?.pending)}
             className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-800 disabled:opacity-60"
           >
             {applyingNetwork
               ? 'Applying Network...'
+              : networkRecovery?.pending
+                ? 'Awaiting Reachability Confirmation'
               : riskyNetworkApply?.requires_confirmation
                 ? 'Confirm And Apply Edge Network'
                 : 'Apply Edge Network'}
@@ -1435,6 +1497,43 @@ export default function AccessSettings() {
             </div>
           </div>
         )}
+        {networkRecovery ? (
+          <div
+            className={`mt-4 rounded-lg border p-4 text-sm ${
+              networkRecovery.pending
+                ? 'border-amber-300 bg-amber-50 text-amber-950'
+                : networkRecovery.status === 'degraded'
+                  ? 'border-red-200 bg-red-50 text-red-900'
+                  : 'border-sky-200 bg-sky-50 text-sky-900'
+            }`}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="font-semibold">
+                  {networkRecovery.pending ? 'Management Reachability Confirmation Pending' : 'Latest Reachability Recovery Status'}
+                </div>
+                <div className="mt-1">{networkRecovery.message || 'No management-loss recovery state is currently recorded.'}</div>
+                {networkRecovery.risk_summary ? <div className="mt-2 text-xs text-gray-700">Risk summary: {networkRecovery.risk_summary}</div> : null}
+                {networkRecovery.validation_summary ? <div className="mt-1 text-xs text-gray-700">Validation: {networkRecovery.validation_summary}</div> : null}
+                {networkRecovery.backup_id ? <div className="mt-1 text-xs text-gray-700">Protected snapshot: {networkRecovery.backup_id}</div> : null}
+                {networkRecovery.deadline ? <div className="mt-1 text-xs text-gray-700">Rollback deadline: {networkRecovery.deadline}</div> : null}
+              </div>
+              {networkRecovery.pending ? (
+                <div className="rounded-md border border-amber-300 bg-white px-3 py-2 text-sm text-amber-950">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">Time Remaining</div>
+                  <div className="mt-1 font-mono text-lg">{networkRecoveryRemainingSeconds}s</div>
+                  <button
+                    onClick={confirmNetworkRecovery}
+                    disabled={confirmingNetworkRecovery}
+                    className="mt-3 rounded-md border border-emerald-300 px-3 py-2 text-sm font-medium text-emerald-800 disabled:opacity-60"
+                  >
+                    {confirmingNetworkRecovery ? 'Confirming Access...' : 'I Still Have Admin Access'}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
         {riskyNetworkApply && riskyNetworkApply.items.length > 0 ? (
           <div
             className={`mt-4 rounded-lg border p-4 text-sm ${

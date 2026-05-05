@@ -27,6 +27,13 @@ test.describe('Access Settings edge-network flow', () => {
     await expect(page.getByText('Last Apply Validation Passed')).toBeVisible();
     await expect(page.getByText(/Interfaces, routes, dnsmasq, and firewall rules were applied on the appliance\./)).toBeVisible();
     await expect(page.getByText(/Backup snapshot snap-002 was saved first\./)).toBeVisible();
+    await expect(page.getByText('Management Reachability Confirmation Pending')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'I Still Have Admin Access' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Awaiting Reachability Confirmation' })).toBeDisabled();
+
+    await page.getByRole('button', { name: 'I Still Have Admin Access' }).click();
+    await expect(page.getByText(/Management access confirmed\. Automatic rollback has been cancelled/)).toBeVisible();
+    await expect(page.getByText('Latest Reachability Recovery Status')).toBeVisible();
 
     await page.getByRole('button', { name: 'Rollback Edge Network' }).click();
     await expect(page.getByText(/Edge network state rolled back to snapshot snap-002\./)).toBeVisible();

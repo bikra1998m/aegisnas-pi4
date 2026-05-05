@@ -64,6 +64,9 @@ var runCmd = &cobra.Command{
 			return fmt.Errorf("init db: %w", err)
 		}
 		defer db.Close()
+		if err := adminapi.StartNetworkRecoveryMonitor(cfg, logger); err != nil {
+			return fmt.Errorf("resume network recovery monitor: %w", err)
+		}
 
 		r := chi.NewRouter()
 		r.Use(middleware.Logger)
@@ -133,6 +136,7 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/settings/export", adminapi.HandleExportSystemSettings)
 			r.Post("/system/settings/import", adminapi.HandleImportSystemSettings)
 			r.Post("/system/network-apply", adminapi.HandleApplyNetworkServices)
+			r.Post("/system/network-recovery/confirm", adminapi.HandleConfirmNetworkRecovery)
 			r.Post("/system/network-rollback", adminapi.HandleRollbackNetworkServices)
 			r.Get("/system/hostapd-preview", adminapi.HandlePreviewHostapdConfig)
 			r.Post("/system/hostapd-config", adminapi.HandleWriteHostapdConfig)

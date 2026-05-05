@@ -23,6 +23,7 @@ type networkApplyResult struct {
 	BackupID   string                      `json:"backup_id"`
 	Validation network.ValidationReport    `json:"validation"`
 	Risk       network.ApplyRiskAssessment `json:"risk"`
+	Recovery   *NetworkRecoveryState       `json:"recovery,omitempty"`
 }
 
 var (
@@ -73,6 +74,7 @@ func HandleApplyNetworkServices(w http.ResponseWriter, r *http.Request) {
 		"leases_path":      dnsmasqLeasePath,
 		"backup_id":        result.BackupID,
 		"validation":       result.Validation,
+		"recovery":         result.Recovery,
 	})
 }
 
@@ -114,6 +116,7 @@ func HandlePreviewNetworkServices(w http.ResponseWriter, r *http.Request) {
 		"current_state":          currentState,
 		"diff":                   diff,
 		"risk":                   risk,
+		"recovery":               currentNetworkRecoveryStateForPreview(),
 		"dnsmasq_enabled":        cfg.DHCP.Enabled,
 		"dnsmasq_config":         dnsmasqPreview,
 		"firewall_rules":         firewallPreview,
@@ -227,6 +230,9 @@ func HandleRollbackNetworkServices(w http.ResponseWriter, r *http.Request) {
 	_ = db.RecordNetworkApplyHistory("rollback", "success", fmt.Sprintf("Restored rollback snapshot %s.", snapshot.ID), "", snapshot.ID, userFromRequest(r), map[string]any{
 		"rollback_id": snapshot.ID,
 	})
+	_ = ClearPendingNetworkRecovery(fmt.Sprintf("Edge network state was rolled back to snapshot %s.", snapshot.ID), map[string]any{
+		"rollback_id": snapshot.ID,
+	})
 
 	audit(r, "rollback_network_services", snapshot.ID, "restored")
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -238,6 +244,11 @@ func HandleRollbackNetworkServices(w http.ResponseWriter, r *http.Request) {
 
 func applyNetworkServices(cfg *config.Config, createdBy, confirmationText string) (networkApplyResult, error) {
 	result := networkApplyResult{}
+	if currentRecovery, err := CurrentNetworkRecoveryState(); err != nil {
+		return result, err
+	} else if currentRecovery != nil && currentRecovery.Pending {
+		return result, fmt.Errorf("management-loss auto-revert is still pending for snapshot %s; confirm reachability or wait for rollback before applying more network changes", currentRecovery.BackupID)
+	}
 	currentState, err := network.LoadState(network.StatePath(cfg))
 	if err != nil {
 		return result, err
@@ -304,6 +315,14 @@ func applyNetworkServices(cfg *config.Config, createdBy, confirmationText string
 	if !validation.Healthy {
 		return result, rollbackOnFailure(fmt.Errorf("post-apply validation failed: %s", validation.Summary()))
 	}
+	if result.Risk.RequiresConfirmation {
+		recovery, err := StartPendingNetworkRecovery(cfg, backup.ID, result.Risk, validation, createdBy)
+		if err != nil {
+			return result, rollbackOnFailure(fmt.Errorf("start management-loss auto-revert: %w", err))
+		}
+		result.Recovery = recovery
+		return result, nil
+	}
 	_ = db.RecordNetworkApplyHistory("apply", "success", validation.Summary(), backup.ID, "", createdBy, map[string]any{
 		"backup_id":  backup.ID,
 		"validation": validation,
@@ -311,6 +330,39 @@ func applyNetworkServices(cfg *config.Config, createdBy, confirmationText string
 	})
 
 	return result, nil
+}
+
+func HandleConfirmNetworkRecovery(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		BackupID string `json:"backup_id"`
+	}
+	if r.ContentLength > 0 {
+		if err := decodeBody(r, &payload); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+	}
+	state, err := ConfirmPendingNetworkRecovery(payload.BackupID, userFromRequest(r))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	audit(r, "confirm_network_recovery", state.BackupID, "confirmed")
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":   "confirmed",
+		"recovery": state,
+	})
+}
+
+func currentNetworkRecoveryStateForPreview() *NetworkRecoveryState {
+	state, err := CurrentNetworkRecoveryState()
+	if err != nil {
+		return &NetworkRecoveryState{
+			Status:  "degraded",
+			Message: err.Error(),
+		}
+	}
+	return state
 }
 
 func applyDNSMasqConfig(cfg *config.Config) error {

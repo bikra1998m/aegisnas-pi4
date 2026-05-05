@@ -405,6 +405,7 @@ function createAppliedPreview() {
     custom_firewall_rules: 1,
     static_reservations: 1,
     available_rollback_ids: [],
+    recovery: null,
   };
 }
 
@@ -516,6 +517,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         created_at: '2026-05-05T12:05:00Z',
       },
     ],
+    networkRecovery: null as null | Record<string, any>,
   };
 
   await page.route('**/api/v1/**', async (route) => {
@@ -629,6 +631,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
     if (path === '/system/network-preview' && method === 'GET') {
       const preview = state.networkApplied ? createAppliedPreview() : createRiskyPreview();
       preview.available_rollback_ids = state.networkBackups;
+      preview.recovery = state.networkRecovery;
       await route.fulfill({ json: preview });
       return;
     }
@@ -665,20 +668,32 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         {
           id: state.networkApplyHistory.length + 1,
           action: 'apply',
-          status: 'success',
-          summary: 'Applied edge-network changes successfully.',
+          status: 'pending_confirmation',
+          summary: 'Applied edge-network changes successfully and opened the management confirmation window.',
           backup_id: 'snap-002',
           actor: 'Aegis Admin',
           created_at: '2026-05-05T12:10:00Z',
         },
         ...state.networkApplyHistory,
       ];
+      state.networkRecovery = {
+        pending: true,
+        backup_id: 'snap-002',
+        deadline: '2026-05-05T12:11:30Z',
+        remaining_seconds: 90,
+        grace_period_seconds: 90,
+        risk_summary: 'This edge-network apply changes primary connectivity.',
+        validation_summary: 'all validation checks passed',
+        status: 'pending',
+        message: 'Risky edge-network changes are live. Confirm management reachability before the rollback deadline or the appliance will restore the previous snapshot automatically.',
+      };
       await route.fulfill({
         json: {
           status: 'applied',
           restart_required: false,
           leases_path: '/var/lib/misc/dnsmasq.leases',
           backup_id: 'snap-002',
+          recovery: state.networkRecovery,
           validation: {
             healthy: true,
             checks: [
@@ -690,8 +705,34 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
+    if (path === '/system/network-recovery/confirm' && method === 'POST') {
+      state.networkRecovery = {
+        ...(state.networkRecovery || {}),
+        pending: false,
+        remaining_seconds: 0,
+        status: 'ok',
+        message: 'Admin reachability was confirmed before the rollback deadline.',
+        confirmed_by: 'Aegis Admin',
+        confirmed_at: '2026-05-05T12:10:30Z',
+      };
+      state.networkApplyHistory = [
+        {
+          id: state.networkApplyHistory.length + 1,
+          action: 'apply',
+          status: 'confirmed',
+          summary: 'Management reachability confirmed before the rollback deadline.',
+          backup_id: 'snap-002',
+          actor: 'Aegis Admin',
+          created_at: '2026-05-05T12:10:30Z',
+        },
+        ...state.networkApplyHistory,
+      ];
+      await route.fulfill({ json: { status: 'confirmed', recovery: state.networkRecovery } });
+      return;
+    }
     if (path === '/system/network-rollback' && method === 'POST') {
       state.networkApplied = false;
+      state.networkRecovery = null;
       state.networkApplyHistory = [
         {
           id: state.networkApplyHistory.length + 1,
