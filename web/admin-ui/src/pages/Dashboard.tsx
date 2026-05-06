@@ -570,6 +570,21 @@ export default function Dashboard() {
                         ? `${systemStatus.high_availability.role || 'standby'} role watching ${systemStatus.high_availability.peer_api_url || 'peer unset'} with VIP ${systemStatus.high_availability.virtual_ip || 'unset'}.`
                         : 'Enterprise HA peer monitoring is disabled on this node.'}
                     </div>
+                    {systemStatus.high_availability.runtime?.details?.effective_role ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Effective role {String(systemStatus.high_availability.runtime.details.effective_role)}
+                        {systemStatus.high_availability.runtime?.details?.vip_assigned ? ', VIP currently assigned locally.' : ', VIP not assigned locally.'}
+                      </div>
+                    ) : null}
+                    {systemStatus.high_availability.runtime?.details?.lease_holder ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Lease holder {String(systemStatus.high_availability.runtime.details.lease_holder)}
+                        {systemStatus.high_availability.runtime?.details?.lease_expires_at
+                          ? ` until ${String(systemStatus.high_availability.runtime.details.lease_expires_at)}`
+                          : ''}
+                        .
+                      </div>
+                    ) : null}
                     <div className="mt-1 text-xs text-gray-500">{systemStatus.high_availability.runtime?.message || 'No HA runtime status recorded yet.'}</div>
                     {systemStatus.high_availability.runtime?.details?.peer_health_url ? (
                       <div className="mt-1 text-xs text-gray-500 break-all">{String(systemStatus.high_availability.runtime.details.peer_health_url)}</div>

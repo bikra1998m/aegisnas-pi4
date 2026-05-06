@@ -19,27 +19,7 @@ type httpDoer interface {
 }
 
 func StartMonitor(ctx context.Context, cfg *config.Config, logger *zap.Logger) {
-	publishStatus(cfg, nil, logger)
-	if cfg == nil || !cfg.HighAvailability.Enabled {
-		return
-	}
-
-	interval := time.Duration(cfg.HighAvailability.HeartbeatIntervalSeconds) * time.Second
-	if interval <= 0 {
-		interval = 5 * time.Second
-	}
-
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			publishStatus(cfg, nil, logger)
-		}
-	}
+	StartController(ctx, cfg, nil, logger)
 }
 
 func ProbeStatus(cfg *config.Config, client httpDoer) (string, string, map[string]any) {
