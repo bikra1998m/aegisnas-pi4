@@ -51,6 +51,7 @@ type StagedReplicationPackage struct {
 	DatabaseValid       bool                `json:"database_valid"`
 	NetworkStatePresent bool                `json:"network_state_present"`
 	PackageChecksum     string              `json:"package_checksum,omitempty"`
+	ContentFingerprint  string              `json:"content_fingerprint,omitempty"`
 	ActivationBackup    string              `json:"activation_backup,omitempty"`
 	Manifest            ReplicationManifest `json:"manifest"`
 }
@@ -211,6 +212,7 @@ func importReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 	stage.Manifest = manifest
 	stage.ConfigValid = true
 	stage.DatabaseValid = true
+	stage.ContentFingerprint = contentFingerprintForManifest(manifest)
 
 	networkStatePath := filepath.Join(contentDir, "network-state.json")
 	if _, err := os.Stat(networkStatePath); err == nil {
@@ -227,23 +229,25 @@ func importReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 		return stage, err
 	}
 	_ = db.RecordHAHistory("replication_stage", "staged", stage.Summary, strings.TrimSpace(cfg.HighAvailability.Role), stage.ImportedBy, map[string]any{
-		"stage_id":         stage.ID,
-		"source_node":      manifest.SourceNode,
-		"source_role":      manifest.SourceRole,
-		"schema_version":   manifest.SchemaVersion,
-		"network_present":  stage.NetworkStatePresent,
-		"package_type":     manifest.PackageType,
-		"package_checksum": stage.PackageChecksum,
-		"imported_source":  stage.ImportedSource,
+		"stage_id":            stage.ID,
+		"source_node":         manifest.SourceNode,
+		"source_role":         manifest.SourceRole,
+		"schema_version":      manifest.SchemaVersion,
+		"network_present":     stage.NetworkStatePresent,
+		"package_type":        manifest.PackageType,
+		"package_checksum":    stage.PackageChecksum,
+		"content_fingerprint": stage.ContentFingerprint,
+		"imported_source":     stage.ImportedSource,
 	})
 	_ = db.UpsertRuntimeStatus(ReplicationRuntimeComponent, "ok", stage.Summary, map[string]any{
-		"staged_id":        stage.ID,
-		"source_node":      manifest.SourceNode,
-		"source_role":      manifest.SourceRole,
-		"imported_at":      stage.ImportedAt,
-		"network_present":  stage.NetworkStatePresent,
-		"package_checksum": stage.PackageChecksum,
-		"imported_source":  stage.ImportedSource,
+		"staged_id":           stage.ID,
+		"source_node":         manifest.SourceNode,
+		"source_role":         manifest.SourceRole,
+		"imported_at":         stage.ImportedAt,
+		"network_present":     stage.NetworkStatePresent,
+		"package_checksum":    stage.PackageChecksum,
+		"content_fingerprint": stage.ContentFingerprint,
+		"imported_source":     stage.ImportedSource,
 	})
 	return stage, nil
 }
@@ -262,6 +266,30 @@ func FindStagedReplicationPackageByChecksum(cfg *config.Config, checksum string)
 	}
 	for _, stage := range packages {
 		if strings.EqualFold(strings.TrimSpace(stage.PackageChecksum), checksum) {
+			return stage, true, nil
+		}
+	}
+	return StagedReplicationPackage{}, false, nil
+}
+
+func FindStagedReplicationPackageByContentFingerprint(cfg *config.Config, fingerprint string) (StagedReplicationPackage, bool, error) {
+	if cfg == nil {
+		return StagedReplicationPackage{}, false, errors.New("ha staged replication fingerprint lookup requires a config")
+	}
+	fingerprint = strings.TrimSpace(fingerprint)
+	if fingerprint == "" {
+		return StagedReplicationPackage{}, false, nil
+	}
+	packages, err := ListStagedReplicationPackages(cfg)
+	if err != nil {
+		return StagedReplicationPackage{}, false, err
+	}
+	for _, stage := range packages {
+		stageFingerprint := strings.TrimSpace(stage.ContentFingerprint)
+		if stageFingerprint == "" {
+			stageFingerprint = strings.TrimSpace(stage.PackageChecksum)
+		}
+		if strings.EqualFold(stageFingerprint, fingerprint) {
 			return stage, true, nil
 		}
 	}
@@ -380,19 +408,21 @@ func ActivateStagedReplicationPackage(cfg *config.Config, id, activatedBy string
 		"aegis-admin-api",
 	}
 	_ = db.RecordHAHistory("replication_activate", "activated", stage.Summary, strings.TrimSpace(cfg.HighAvailability.Role), stage.ActivatedBy, map[string]any{
-		"stage_id":          stage.ID,
-		"activation_backup": backupPath,
-		"restart_services":  services,
-		"source_node":       stage.Manifest.SourceNode,
-		"source_role":       stage.Manifest.SourceRole,
-		"schema_version":    stage.Manifest.SchemaVersion,
+		"stage_id":            stage.ID,
+		"activation_backup":   backupPath,
+		"restart_services":    services,
+		"source_node":         stage.Manifest.SourceNode,
+		"source_role":         stage.Manifest.SourceRole,
+		"schema_version":      stage.Manifest.SchemaVersion,
+		"content_fingerprint": stage.ContentFingerprint,
 	})
 	_ = db.UpsertRuntimeStatus(ReplicationRuntimeComponent, "pending", stage.Summary, map[string]any{
-		"staged_id":         stage.ID,
-		"activated_at":      stage.ActivatedAt,
-		"activated_by":      stage.ActivatedBy,
-		"activation_backup": backupPath,
-		"restart_services":  services,
+		"staged_id":           stage.ID,
+		"activated_at":        stage.ActivatedAt,
+		"activated_by":        stage.ActivatedBy,
+		"activation_backup":   backupPath,
+		"restart_services":    services,
+		"content_fingerprint": stage.ContentFingerprint,
 	})
 	return ActivationResult{
 		ID:               stage.ID,
@@ -528,6 +558,25 @@ func fileChecksum(path string) (string, error) {
 	}
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+func contentFingerprintForManifest(manifest ReplicationManifest) string {
+	parts := make([]string, 0, len(manifest.Files)+2)
+	parts = append(parts, fmt.Sprintf("schema:%d", manifest.SchemaVersion))
+	if manifest.NetworkStatePath != "" {
+		parts = append(parts, "network:true")
+	} else {
+		parts = append(parts, "network:false")
+	}
+	names := make([]string, 0, len(manifest.Files))
+	for name := range manifest.Files {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		parts = append(parts, fmt.Sprintf("%s:%s", name, manifest.Files[name]))
+	}
+	return checksumBytes([]byte(strings.Join(parts, "\n")))
 }
 
 func verifyDatabase(path string) error {

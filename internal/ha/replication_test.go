@@ -134,12 +134,14 @@ func TestPublishSharedReplicationPackageAndLoadStatus(t *testing.T) {
 	assert.Equal(t, "active", shared.SourceRole)
 	assert.FileExists(t, shared.PackagePath)
 	assert.FileExists(t, shared.MetadataPath)
+	assert.NotEmpty(t, shared.ContentFingerprint)
 
 	loaded, err := LoadSharedReplicationStatus(cfg)
 	require.NoError(t, err)
 	assert.True(t, loaded.Present)
 	assert.Equal(t, shared.SourceNode, loaded.SourceNode)
 	assert.Equal(t, shared.PackageChecksum, loaded.PackageChecksum)
+	assert.Equal(t, shared.ContentFingerprint, loaded.ContentFingerprint)
 }
 
 func TestStageLatestSharedReplicationPackageUsesPublishedBundle(t *testing.T) {
@@ -179,6 +181,7 @@ func TestStageLatestSharedReplicationPackageUsesPublishedBundle(t *testing.T) {
 	assert.Equal(t, "active", stage.Manifest.SourceRole)
 	assert.Equal(t, "shared-live", stage.ImportedSource)
 	assert.NotEmpty(t, stage.PackageChecksum)
+	assert.NotEmpty(t, stage.ContentFingerprint)
 	assert.Equal(t, "fresh-sync-user", lookupFirstUsername(t, filepath.Join(standbyCfg.HighAvailability.SharedStateDir, "replication", "staged", stage.ID, "content", "data.db")))
 }
 
@@ -222,12 +225,21 @@ func TestReplicationMonitorAutoStagesFreshSharedPackage(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, packages, 1)
 	assert.Equal(t, "shared-auto", packages[0].ImportedSource)
-	assert.Equal(t, shared.PackageChecksum, packages[0].PackageChecksum)
+	assert.Equal(t, shared.ContentFingerprint, packages[0].ContentFingerprint)
+
+	time.Sleep(1100 * time.Millisecond)
+	_, err = config.Load(activeCfgPath)
+	require.NoError(t, err)
+	republished, err := PublishSharedReplicationPackage(activeCfg)
+	require.NoError(t, err)
+	assert.NotEqual(t, shared.PackageChecksum, republished.PackageChecksum)
+	assert.Equal(t, shared.ContentFingerprint, republished.ContentFingerprint)
 
 	status, message, details = monitor.probe()
 	require.Equal(t, "ok", status)
 	assert.Contains(t, message, "auto-stage is ready")
 	assert.Equal(t, "ready", details["auto_stage_status"])
+	assert.Equal(t, republished.ContentFingerprint, details["auto_stage_content_fingerprint"])
 
 	packages, err = ListStagedReplicationPackages(standbyCfg)
 	require.NoError(t, err)

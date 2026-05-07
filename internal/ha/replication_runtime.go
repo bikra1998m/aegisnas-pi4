@@ -32,6 +32,7 @@ type SharedReplicationStatus struct {
 	SchemaVersion       int    `json:"schema_version,omitempty"`
 	PackageSizeBytes    int64  `json:"package_size_bytes,omitempty"`
 	PackageChecksum     string `json:"package_checksum,omitempty"`
+	ContentFingerprint  string `json:"content_fingerprint,omitempty"`
 	NetworkStatePresent bool   `json:"network_state_present,omitempty"`
 }
 
@@ -127,11 +128,12 @@ func (m *replicationMonitor) probe() (string, string, map[string]any) {
 		mergeSharedReplicationDetails(details, shared, m.cfg, m.now().UTC())
 		details["published_by_this_node"] = true
 		m.recordPublishEvent("success", "Published shared HA replication package.", map[string]any{
-			"source_node":        shared.SourceNode,
-			"source_role":        shared.SourceRole,
-			"schema_version":     shared.SchemaVersion,
-			"package_checksum":   shared.PackageChecksum,
-			"package_size_bytes": shared.PackageSizeBytes,
+			"source_node":         shared.SourceNode,
+			"source_role":         shared.SourceRole,
+			"schema_version":      shared.SchemaVersion,
+			"package_checksum":    shared.PackageChecksum,
+			"content_fingerprint": shared.ContentFingerprint,
+			"package_size_bytes":  shared.PackageSizeBytes,
 		})
 		return "ok", "Published shared HA replication package for standby sync.", details
 	}
@@ -201,10 +203,14 @@ func (m *replicationMonitor) maybeAutoStageSharedPackage(role string, shared Sha
 		return "", nil
 	}
 
-	existing, found, err := FindStagedReplicationPackageByChecksum(m.cfg, shared.PackageChecksum)
+	fingerprint := strings.TrimSpace(shared.ContentFingerprint)
+	if fingerprint == "" {
+		fingerprint = strings.TrimSpace(shared.PackageChecksum)
+	}
+	existing, found, err := FindStagedReplicationPackageByContentFingerprint(m.cfg, fingerprint)
 	if err != nil {
 		details["auto_stage_status"] = "failed"
-		return "", fmt.Errorf("check staged package checksum: %w", err)
+		return "", fmt.Errorf("check staged package fingerprint: %w", err)
 	}
 	if found {
 		details["auto_stage_status"] = "ready"
@@ -212,6 +218,7 @@ func (m *replicationMonitor) maybeAutoStageSharedPackage(role string, shared Sha
 		details["auto_stage_imported_at"] = existing.ImportedAt
 		details["auto_stage_imported_source"] = existing.ImportedSource
 		details["auto_stage_package_checksum"] = existing.PackageChecksum
+		details["auto_stage_content_fingerprint"] = existing.ContentFingerprint
 		details["auto_stage_summary"] = existing.Summary
 		return fmt.Sprintf("Observed fresh shared HA replication package. Standby auto-stage is ready with package %s.", existing.ID), nil
 	}
@@ -231,6 +238,7 @@ func (m *replicationMonitor) maybeAutoStageSharedPackage(role string, shared Sha
 	details["auto_stage_imported_at"] = stage.ImportedAt
 	details["auto_stage_imported_source"] = stage.ImportedSource
 	details["auto_stage_package_checksum"] = stage.PackageChecksum
+	details["auto_stage_content_fingerprint"] = stage.ContentFingerprint
 	details["auto_stage_summary"] = stage.Summary
 	return fmt.Sprintf("Observed fresh shared HA replication package. Standby auto-staged package %s.", stage.ID), nil
 }
@@ -255,6 +263,7 @@ func PublishSharedReplicationPackage(cfg *config.Config) (SharedReplicationStatu
 		SchemaVersion:       manifest.SchemaVersion,
 		PackageSizeBytes:    int64(len(packageBytes)),
 		PackageChecksum:     checksumBytes(packageBytes),
+		ContentFingerprint:  contentFingerprintForManifest(manifest),
 		NetworkStatePresent: manifest.NetworkStatePath != "",
 	}
 
@@ -336,6 +345,7 @@ func mergeSharedReplicationDetails(details map[string]any, shared SharedReplicat
 	details["latest_schema_version"] = shared.SchemaVersion
 	details["latest_package_size_bytes"] = shared.PackageSizeBytes
 	details["latest_package_checksum"] = shared.PackageChecksum
+	details["latest_content_fingerprint"] = shared.ContentFingerprint
 	details["latest_network_state_present"] = shared.NetworkStatePresent
 	if shared.PublishedAt == "" {
 		return
