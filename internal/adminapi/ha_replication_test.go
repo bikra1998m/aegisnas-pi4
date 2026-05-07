@@ -3,6 +3,7 @@ package adminapi
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
+	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/ha"
 )
 
@@ -57,8 +59,9 @@ func TestHandleActivateHAReplicationPackageSchedulesRestart(t *testing.T) {
 		}, nil
 	}
 	scheduled := []string{}
-	scheduleReplicationRestartFn = func(services []string) {
+	scheduleReplicationRestartFn = func(services []string) error {
 		scheduled = append([]string(nil), services...)
+		return nil
 	}
 
 	body, err := json.Marshal(map[string]any{"id": "stage-123"})
@@ -70,6 +73,43 @@ func TestHandleActivateHAReplicationPackageSchedulesRestart(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, []string{"aegis-admin-api", "aegis-gateway"}, scheduled)
 	assert.Contains(t, rec.Body.String(), "stage-123")
+	assert.Contains(t, rec.Body.String(), "\"restart_warning\":\"\"")
+}
+
+func TestHandleActivateHAReplicationPackageReturnsRestartWarning(t *testing.T) {
+	prepareReplicationConfig(t)
+
+	originalActivate := activateStagedReplicationFn
+	originalSchedule := scheduleReplicationRestartFn
+	defer func() {
+		activateStagedReplicationFn = originalActivate
+		scheduleReplicationRestartFn = originalSchedule
+	}()
+
+	activateStagedReplicationFn = func(cfg *config.Config, id, activatedBy string) (ha.ActivationResult, error) {
+		return ha.ActivationResult{
+			ID:               id,
+			BackupPath:       "/var/lib/aegisnas/ha/replication/backups/rollback.tar.gz",
+			RestartScheduled: true,
+			RestartServices:  []string{"aegis-admin-api", "aegis-gateway"},
+			Summary:          "Activated",
+		}, nil
+	}
+	scheduleReplicationRestartFn = func(services []string) error {
+		return errors.New("systemd-run unavailable")
+	}
+
+	body, err := json.Marshal(map[string]any{"id": "stage-456"})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/system/ha/replication-activate", bytes.NewReader(body))
+	req = req.WithContext(withAdminIdentity(req.Context(), AdminIdentity{Subject: "ops-admin", Role: adminRoleSuperAdmin}))
+	rec := httptest.NewRecorder()
+	HandleActivateHAReplicationPackage(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "\"restart_scheduled\":false")
+	assert.Contains(t, rec.Body.String(), "systemd-run unavailable")
+	assert.Contains(t, rec.Body.String(), "Restart the listed services manually")
 }
 
 func TestHandleGetSharedHAReplicationStatus(t *testing.T) {
@@ -129,6 +169,27 @@ func TestHandleStageLatestSharedHAReplicationPackage(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "Latest shared HA replication package is staged")
 }
 
+func TestScheduleReplicationRestartUsesTransientUnit(t *testing.T) {
+	original := replicationRestartCommandFn
+	defer func() { replicationRestartCommandFn = original }()
+
+	called := []string{}
+	replicationRestartCommandFn = func(services []string) error {
+		called = append([]string(nil), services...)
+		return nil
+	}
+
+	err := scheduleReplicationRestart([]string{"aegis-admin-api", "aegis-gateway", "aegis-admin-api", ""})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"aegis-admin-api", "aegis-gateway"}, called)
+}
+
+func TestBuildReplicationRestartScriptQuotesServices(t *testing.T) {
+	script := buildReplicationRestartScript([]string{"aegis-admin-api", "svc'quote"})
+	assert.Contains(t, script, "sleep 2; exec")
+	assert.Contains(t, script, "'systemctl' 'restart' 'aegis-admin-api' 'svc'\"'\"'quote'")
+}
+
 func prepareReplicationConfig(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()
@@ -186,4 +247,9 @@ func prepareReplicationConfig(t *testing.T) {
 	require.NoError(t, config.WriteFile(configPath, cfg))
 	_, err := config.Load(configPath)
 	require.NoError(t, err)
+	require.NoError(t, db.Init(cfg.Database.Path))
+	require.NoError(t, db.Migrate())
+	t.Cleanup(func() {
+		db.Close()
+	})
 }

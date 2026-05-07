@@ -7,10 +7,12 @@ import (
 	"io"
 	"net/http"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/yourorg/aegisnas-pi4/internal/config"
+	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/ha"
 )
 
@@ -22,7 +24,8 @@ var (
 	loadSharedReplicationStatusFn   = ha.LoadSharedReplicationStatus
 	stageLatestSharedReplicationFn  = ha.StageLatestSharedReplicationPackage
 	scheduleReplicationRestartFn    = scheduleReplicationRestart
-	replicationSystemctlCommandFn   = runSystemctlCommand
+	replicationRestartCommandFn     = runRestartHandoffCommand
+	replicationClockFn              = time.Now
 )
 
 func HandleDownloadHAReplicationPackage(w http.ResponseWriter, r *http.Request) {
@@ -140,12 +143,39 @@ func HandleActivateHAReplicationPackage(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	scheduleReplicationRestartFn(result.RestartServices)
+	restartWarning := ""
+	if err := scheduleReplicationRestartFn(result.RestartServices); err != nil {
+		restartWarning = err.Error()
+		result.RestartScheduled = false
+		summary := "Standby replication data was activated, but automatic restart handoff failed. Restart appliance services manually."
+		_ = db.RecordHAHistory("replication_restart", "failed", summary, strings.TrimSpace(cfg.HighAvailability.Role), userFromRequest(r), map[string]any{
+			"stage_id":         result.ID,
+			"restart_services": result.RestartServices,
+			"error":            restartWarning,
+		})
+		_ = db.UpsertRuntimeStatus(ha.ReplicationRuntimeComponent, "degraded", summary, map[string]any{
+			"staged_id":           result.ID,
+			"restart_services":    result.RestartServices,
+			"restart_scheduled":   false,
+			"restart_warning":     restartWarning,
+			"restart_backup_path": result.BackupPath,
+		})
+	} else {
+		_ = db.RecordHAHistory("replication_restart", "scheduled", "Service restart handoff queued for the activated standby package.", strings.TrimSpace(cfg.HighAvailability.Role), userFromRequest(r), map[string]any{
+			"stage_id":         result.ID,
+			"restart_services": result.RestartServices,
+		})
+	}
 	audit(r, "activate_ha_replication_package", result.ID, "activated")
+	message := "Standby replication data was activated. Appliance services are restarting to pick up the imported config and database."
+	if restartWarning != "" {
+		message = "Standby replication data was activated, but automatic restart handoff failed. Restart the listed services manually."
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status":  "activated",
-		"result":  result,
-		"message": "Standby replication data was activated. Appliance services are restarting to pick up the imported config and database.",
+		"status":          "activated",
+		"result":          result,
+		"message":         message,
+		"restart_warning": restartWarning,
 	})
 }
 
@@ -180,19 +210,23 @@ func readReplicationPackageUpload(r *http.Request) ([]byte, error) {
 	return data, nil
 }
 
-func scheduleReplicationRestart(services []string) {
-	if len(services) == 0 {
-		return
+func scheduleReplicationRestart(services []string) error {
+	items := normalizeRestartServices(services)
+	if len(items) == 0 {
+		return nil
 	}
-	items := append([]string(nil), services...)
-	go func() {
-		time.Sleep(1500 * time.Millisecond)
-		_ = replicationSystemctlCommandFn(append([]string{"restart"}, items...)...)
-	}()
+	return replicationRestartCommandFn(items)
 }
 
-func runSystemctlCommand(args ...string) error {
-	cmd := exec.Command("systemctl", args...)
+func runRestartHandoffCommand(services []string) error {
+	unitName := fmt.Sprintf("aegis-ha-activate-%d", replicationClockFn().UTC().UnixNano())
+	script := buildReplicationRestartScript(services)
+	cmd := exec.Command("systemd-run",
+		"--unit", unitName,
+		"--collect",
+		"--property=Type=oneshot",
+		"/bin/sh", "-lc", script,
+	)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		trimmed := strings.TrimSpace(string(output))
@@ -202,4 +236,31 @@ func runSystemctlCommand(args ...string) error {
 		return fmt.Errorf("%w: %s", err, trimmed)
 	}
 	return nil
+}
+
+func buildReplicationRestartScript(services []string) string {
+	args := make([]string, 0, len(services)+2)
+	args = append(args, "systemctl", "restart")
+	args = append(args, services...)
+	quoted := make([]string, 0, len(args))
+	for _, arg := range args {
+		quoted = append(quoted, shellQuote(arg))
+	}
+	return "sleep 2; exec " + strings.Join(quoted, " ")
+}
+
+func normalizeRestartServices(services []string) []string {
+	items := make([]string, 0, len(services))
+	for _, service := range services {
+		service = strings.TrimSpace(service)
+		if service == "" || slices.Contains(items, service) {
+			continue
+		}
+		items = append(items, service)
+	}
+	return items
+}
+
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", `'"'"'`) + "'"
 }
