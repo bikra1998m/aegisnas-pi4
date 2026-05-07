@@ -72,6 +72,63 @@ func TestHandleActivateHAReplicationPackageSchedulesRestart(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "stage-123")
 }
 
+func TestHandleGetSharedHAReplicationStatus(t *testing.T) {
+	prepareReplicationConfig(t)
+
+	original := loadSharedReplicationStatusFn
+	defer func() { loadSharedReplicationStatusFn = original }()
+	loadSharedReplicationStatusFn = func(cfg *config.Config) (ha.SharedReplicationStatus, error) {
+		return ha.SharedReplicationStatus{
+			Present:          true,
+			SourceNode:       "active-node",
+			SourceRole:       "active",
+			PublishedAt:      "2026-05-06T10:00:00Z",
+			SchemaVersion:    7,
+			PackagePath:      "/var/lib/aegisnas/ha/replication/live/latest.tar.gz",
+			MetadataPath:     "/var/lib/aegisnas/ha/replication/live/latest.json",
+			PackageSizeBytes: 1024,
+		}, nil
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/ha/replication-shared", nil)
+	rec := httptest.NewRecorder()
+	HandleGetSharedHAReplicationStatus(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "active-node")
+	assert.Contains(t, rec.Body.String(), "\"present\":true")
+}
+
+func TestHandleStageLatestSharedHAReplicationPackage(t *testing.T) {
+	prepareReplicationConfig(t)
+
+	original := stageLatestSharedReplicationFn
+	defer func() { stageLatestSharedReplicationFn = original }()
+	stageLatestSharedReplicationFn = func(cfg *config.Config, importedBy string) (ha.StagedReplicationPackage, error) {
+		return ha.StagedReplicationPackage{
+			ID:         "shared-stage-1",
+			ImportedAt: "2026-05-06T10:05:00Z",
+			ImportedBy: importedBy,
+			Ready:      true,
+			Status:     "ready",
+			Summary:    "Shared package staged",
+			Manifest: ha.ReplicationManifest{
+				SourceNode: "active-node",
+				SourceRole: "active",
+			},
+		}, nil
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/system/ha/replication-stage-shared", bytes.NewReader([]byte(`{}`)))
+	req = req.WithContext(withAdminIdentity(req.Context(), AdminIdentity{Subject: "ops-admin", Role: adminRoleOpsAdmin}))
+	rec := httptest.NewRecorder()
+	HandleStageLatestSharedHAReplicationPackage(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "shared-stage-1")
+	assert.Contains(t, rec.Body.String(), "Latest shared HA replication package is staged")
+}
+
 func prepareReplicationConfig(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()

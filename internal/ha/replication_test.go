@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -112,6 +113,94 @@ func TestImportReplicationPackageRejectsUnsupportedSchema(t *testing.T) {
 	require.NoError(t, db.Close())
 }
 
+func TestPublishSharedReplicationPackageAndLoadStatus(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+	dbPath := filepath.Join(dir, "data.db")
+	cfg := testHAConfig(dbPath, "active", "https://standby.example.test:8083", "Active Branding")
+	writeTestConfig(t, cfgPath, cfg)
+
+	require.NoError(t, db.Init(dbPath))
+	require.NoError(t, db.Migrate())
+	require.NoError(t, db.Close())
+
+	_, err := config.Load(cfgPath)
+	require.NoError(t, err)
+
+	shared, err := PublishSharedReplicationPackage(cfg)
+	require.NoError(t, err)
+	assert.True(t, shared.Present)
+	assert.Equal(t, "active", shared.SourceRole)
+	assert.FileExists(t, shared.PackagePath)
+	assert.FileExists(t, shared.MetadataPath)
+
+	loaded, err := LoadSharedReplicationStatus(cfg)
+	require.NoError(t, err)
+	assert.True(t, loaded.Present)
+	assert.Equal(t, shared.SourceNode, loaded.SourceNode)
+	assert.Equal(t, shared.PackageChecksum, loaded.PackageChecksum)
+}
+
+func TestStageLatestSharedReplicationPackageUsesPublishedBundle(t *testing.T) {
+	activeDir := t.TempDir()
+	activeCfgPath := filepath.Join(activeDir, "config.yaml")
+	activeDBPath := filepath.Join(activeDir, "data.db")
+	activeCfg := testHAConfig(activeDBPath, "active", "https://standby.example.test:8083", "Active Branding")
+	writeTestConfig(t, activeCfgPath, activeCfg)
+
+	require.NoError(t, db.Init(activeDBPath))
+	require.NoError(t, db.Migrate())
+	_, err := db.DB.Exec(`INSERT INTO local_users (username, password_hash, role) VALUES ('fresh-sync-user', 'hash', 'guest-basic')`)
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+
+	_, err = config.Load(activeCfgPath)
+	require.NoError(t, err)
+	_, err = PublishSharedReplicationPackage(activeCfg)
+	require.NoError(t, err)
+
+	standbyDir := t.TempDir()
+	standbyCfgPath := filepath.Join(standbyDir, "config.yaml")
+	standbyDBPath := filepath.Join(standbyDir, "data.db")
+	standbyCfg := testHAConfig(standbyDBPath, "standby", "https://active.example.test:8083", "Standby Branding")
+	standbyCfg.HighAvailability.SharedStateDir = activeCfg.HighAvailability.SharedStateDir
+	writeTestConfig(t, standbyCfgPath, standbyCfg)
+
+	require.NoError(t, db.Init(standbyDBPath))
+	defer db.Close()
+	require.NoError(t, db.Migrate())
+	_, err = config.Load(standbyCfgPath)
+	require.NoError(t, err)
+
+	stage, err := StageLatestSharedReplicationPackage(standbyCfg, "ops-admin")
+	require.NoError(t, err)
+	assert.True(t, stage.Ready)
+	assert.Equal(t, "active", stage.Manifest.SourceRole)
+	assert.Equal(t, "fresh-sync-user", lookupFirstUsername(t, filepath.Join(standbyCfg.HighAvailability.SharedStateDir, "replication", "staged", stage.ID, "content", "data.db")))
+}
+
+func TestReplicationMonitorMarksStaleSharedPackage(t *testing.T) {
+	cfg := testHAConfig(filepath.Join(t.TempDir(), "data.db"), "standby", "https://active.example.test:8083", "Standby")
+	cfg.HighAvailability.ReplicationIntervalSeconds = 60
+	cfg.HighAvailability.ReplicationStaleAfterSeconds = 120
+
+	shared := SharedReplicationStatus{
+		Present:          true,
+		SourceNode:       "active-node",
+		SourceRole:       "active",
+		PublishedAt:      time.Now().UTC().Add(-10 * time.Minute).Format(time.RFC3339),
+		SchemaVersion:    7,
+		PackagePath:      "/var/lib/aegisnas/ha/replication/live/latest.tar.gz",
+		MetadataPath:     "/var/lib/aegisnas/ha/replication/live/latest.json",
+		PackageSizeBytes: 2048,
+	}
+
+	details := map[string]any{}
+	mergeSharedReplicationDetails(details, shared, cfg, time.Now().UTC())
+	assert.Equal(t, true, details["stale"])
+	assert.Greater(t, details["latest_age_seconds"].(int), 120)
+}
+
 func testHAConfig(dbPath, role, peerURL, branding string) *config.Config {
 	return &config.Config{
 		Mode:      "two-nic",
@@ -183,6 +272,16 @@ func countUsers(t *testing.T, dbPath string) int {
 	var count int
 	require.NoError(t, sqlDB.QueryRow(`SELECT COUNT(*) FROM local_users`).Scan(&count))
 	return count
+}
+
+func lookupFirstUsername(t *testing.T, dbPath string) string {
+	t.Helper()
+	sqlDB, err := sql.Open("sqlite", dbPath)
+	require.NoError(t, err)
+	defer sqlDB.Close()
+	var username string
+	require.NoError(t, sqlDB.QueryRow(`SELECT username FROM local_users ORDER BY id LIMIT 1`).Scan(&username))
+	return username
 }
 
 func buildTestPackage(t *testing.T, manifest ReplicationManifest) []byte {

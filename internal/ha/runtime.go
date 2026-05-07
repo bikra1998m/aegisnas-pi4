@@ -19,7 +19,8 @@ type httpDoer interface {
 }
 
 func StartMonitor(ctx context.Context, cfg *config.Config, logger *zap.Logger) {
-	StartController(ctx, cfg, nil, logger)
+	go StartController(ctx, cfg, nil, logger)
+	StartContinuousReplication(ctx, cfg, logger)
 }
 
 func ProbeStatus(cfg *config.Config, client httpDoer) (string, string, map[string]any) {

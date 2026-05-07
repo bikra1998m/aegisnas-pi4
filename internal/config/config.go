@@ -371,14 +371,16 @@ type GovernanceConfig struct {
 }
 
 type HighAvailabilityConfig struct {
-	Enabled                  bool   `mapstructure:"enabled"`
-	Role                     string `mapstructure:"role"`
-	PeerAPIURL               string `mapstructure:"peer_api_url"`
-	VirtualIP                string `mapstructure:"virtual_ip"`
-	HeartbeatIntervalSeconds int    `mapstructure:"heartbeat_interval_seconds"`
-	FailoverTimeoutSeconds   int    `mapstructure:"failover_timeout_seconds"`
-	Preempt                  bool   `mapstructure:"preempt"`
-	SharedStateDir           string `mapstructure:"shared_state_dir"`
+	Enabled                      bool   `mapstructure:"enabled"`
+	Role                         string `mapstructure:"role"`
+	PeerAPIURL                   string `mapstructure:"peer_api_url"`
+	VirtualIP                    string `mapstructure:"virtual_ip"`
+	HeartbeatIntervalSeconds     int    `mapstructure:"heartbeat_interval_seconds"`
+	FailoverTimeoutSeconds       int    `mapstructure:"failover_timeout_seconds"`
+	ReplicationIntervalSeconds   int    `mapstructure:"replication_interval_seconds"`
+	ReplicationStaleAfterSeconds int    `mapstructure:"replication_stale_after_seconds"`
+	Preempt                      bool   `mapstructure:"preempt"`
+	SharedStateDir               string `mapstructure:"shared_state_dir"`
 }
 
 type WirelessConfig struct {
@@ -471,6 +473,8 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.role", "standby")
 	v.SetDefault("high_availability.heartbeat_interval_seconds", 5)
 	v.SetDefault("high_availability.failover_timeout_seconds", 20)
+	v.SetDefault("high_availability.replication_interval_seconds", 300)
+	v.SetDefault("high_availability.replication_stale_after_seconds", 900)
 	v.SetDefault("high_availability.preempt", false)
 	v.SetDefault("high_availability.shared_state_dir", "/var/lib/aegisnas/ha")
 	v.SetDefault("dhcp.enabled", true)
@@ -1111,6 +1115,17 @@ func (c *Config) Validate() error {
 	}
 	if c.HighAvailability.FailoverTimeoutSeconds < 0 {
 		return fmt.Errorf("high_availability.failover_timeout_seconds %d cannot be negative", c.HighAvailability.FailoverTimeoutSeconds)
+	}
+	if c.HighAvailability.ReplicationIntervalSeconds < 0 {
+		return fmt.Errorf("high_availability.replication_interval_seconds %d cannot be negative", c.HighAvailability.ReplicationIntervalSeconds)
+	}
+	if c.HighAvailability.ReplicationStaleAfterSeconds < 0 {
+		return fmt.Errorf("high_availability.replication_stale_after_seconds %d cannot be negative", c.HighAvailability.ReplicationStaleAfterSeconds)
+	}
+	if c.HighAvailability.ReplicationIntervalSeconds > 0 &&
+		c.HighAvailability.ReplicationStaleAfterSeconds > 0 &&
+		c.HighAvailability.ReplicationStaleAfterSeconds <= c.HighAvailability.ReplicationIntervalSeconds {
+		return errors.New("high_availability.replication_stale_after_seconds must be greater than high_availability.replication_interval_seconds")
 	}
 	if c.HighAvailability.Enabled {
 		if profile != "enterprise" {

@@ -976,13 +976,15 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 				},
 			},
 			HighAvailability: HighAvailabilityConfig{
-				Enabled:                  true,
-				Role:                     "standby",
-				PeerAPIURL:               "https://peer.example.com:8083",
-				VirtualIP:                "192.168.50.2",
-				HeartbeatIntervalSeconds: 5,
-				FailoverTimeoutSeconds:   20,
-				SharedStateDir:           "/var/lib/aegisnas/ha",
+				Enabled:                      true,
+				Role:                         "standby",
+				PeerAPIURL:                   "https://peer.example.com:8083",
+				VirtualIP:                    "192.168.50.2",
+				HeartbeatIntervalSeconds:     5,
+				FailoverTimeoutSeconds:       20,
+				ReplicationIntervalSeconds:   300,
+				ReplicationStaleAfterSeconds: 900,
+				SharedStateDir:               "/var/lib/aegisnas/ha",
 			},
 		}
 	}
@@ -1005,4 +1007,9 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badVIP := base()
 	badVIP.HighAvailability.VirtualIP = "not-an-ip"
 	assert.ErrorContains(t, badVIP.Validate(), "high_availability.virtual_ip")
+
+	badReplication := base()
+	badReplication.HighAvailability.ReplicationStaleAfterSeconds = 120
+	badReplication.HighAvailability.ReplicationIntervalSeconds = 120
+	assert.ErrorContains(t, badReplication.Validate(), "high_availability.replication_stale_after_seconds must be greater")
 }

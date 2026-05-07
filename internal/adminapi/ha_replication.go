@@ -19,6 +19,8 @@ var (
 	importReplicationPackageFn      = ha.ImportReplicationPackage
 	listStagedReplicationPackagesFn = ha.ListStagedReplicationPackages
 	activateStagedReplicationFn     = ha.ActivateStagedReplicationPackage
+	loadSharedReplicationStatusFn   = ha.LoadSharedReplicationStatus
+	stageLatestSharedReplicationFn  = ha.StageLatestSharedReplicationPackage
 	scheduleReplicationRestartFn    = scheduleReplicationRestart
 	replicationSystemctlCommandFn   = runSystemctlCommand
 )
@@ -61,6 +63,23 @@ func HandleListHAReplicationPackages(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func HandleGetSharedHAReplicationStatus(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Get()
+	if cfg == nil {
+		http.Error(w, "configuration not loaded", http.StatusInternalServerError)
+		return
+	}
+	shared, err := loadSharedReplicationStatusFn(cfg)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"shared":       shared,
+		"generated_at": time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
 func HandleImportHAReplicationPackage(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	if cfg == nil {
@@ -81,6 +100,25 @@ func HandleImportHAReplicationPackage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status":  "staged",
 		"package": stage,
+	})
+}
+
+func HandleStageLatestSharedHAReplicationPackage(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Get()
+	if cfg == nil {
+		http.Error(w, "configuration not loaded", http.StatusInternalServerError)
+		return
+	}
+	stage, err := stageLatestSharedReplicationFn(cfg, userFromRequest(r))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	audit(r, "stage_shared_ha_replication_package", stage.ID, "staged")
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":  "staged",
+		"package": stage,
+		"message": "Latest shared HA replication package is staged on this node.",
 	})
 }
 

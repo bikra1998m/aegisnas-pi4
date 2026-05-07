@@ -103,9 +103,12 @@ type SystemStatus = {
     virtual_ip: string;
     heartbeat_interval_seconds: number;
     failover_timeout_seconds: number;
+    replication_interval_seconds: number;
+    replication_stale_after_seconds: number;
     preempt: boolean;
     shared_state_dir: string;
     runtime: RuntimeStatus;
+    replication_runtime: RuntimeStatus;
   };
   integrations: {
     admin_sso: {
@@ -261,6 +264,13 @@ export default function Dashboard() {
   const serviceProblems = services.filter((service) => !['ok', 'disabled'].includes(service.status));
   const sessionMethods = Object.entries(systemStatus.summary?.session_methods || {});
   const networkObservability = systemStatus.network_observability;
+  const highAvailabilityStatus =
+    systemStatus.high_availability.replication_runtime?.status === 'degraded'
+      ? 'degraded'
+      : systemStatus.high_availability.replication_runtime?.status === 'pending' &&
+          !systemStatus.high_availability.runtime?.status
+        ? 'pending'
+        : systemStatus.high_availability.runtime?.status || (systemStatus.high_availability.enabled ? 'unknown' : 'disabled');
 
   return (
     <div className="space-y-6">
@@ -585,15 +595,31 @@ export default function Dashboard() {
                         .
                       </div>
                     ) : null}
+                    <div className="mt-1 text-xs text-gray-500">
+                      {systemStatus.high_availability.replication_runtime?.message ||
+                        `Shared replication every ${systemStatus.high_availability.replication_interval_seconds || 300}s with stale threshold ${systemStatus.high_availability.replication_stale_after_seconds || 900}s.`}
+                    </div>
+                    {systemStatus.high_availability.replication_runtime?.details?.latest_source_node ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Latest shared package from {String(systemStatus.high_availability.replication_runtime.details.latest_source_node)}
+                        {systemStatus.high_availability.replication_runtime?.details?.latest_age_seconds !== undefined
+                          ? `, age ${String(systemStatus.high_availability.replication_runtime.details.latest_age_seconds)}s`
+                          : ''}
+                        {systemStatus.high_availability.replication_runtime?.details?.stale ? ', marked stale.' : ', marked fresh.'}
+                      </div>
+                    ) : null}
                     <div className="mt-1 text-xs text-gray-500">{systemStatus.high_availability.runtime?.message || 'No HA runtime status recorded yet.'}</div>
                     {systemStatus.high_availability.runtime?.details?.peer_health_url ? (
                       <div className="mt-1 text-xs text-gray-500 break-all">{String(systemStatus.high_availability.runtime.details.peer_health_url)}</div>
+                    ) : null}
+                    {systemStatus.high_availability.replication_runtime?.updated_at ? (
+                      <div className="mt-1 text-xs text-gray-500">Replication updated {systemStatus.high_availability.replication_runtime.updated_at}</div>
                     ) : null}
                     {systemStatus.high_availability.runtime?.updated_at ? (
                       <div className="mt-1 text-xs text-gray-500">Updated {systemStatus.high_availability.runtime.updated_at}</div>
                     ) : null}
                   </div>
-                  <StatusBadge status={systemStatus.high_availability.runtime?.status || (systemStatus.high_availability.enabled ? 'unknown' : 'disabled')} />
+                  <StatusBadge status={highAvailabilityStatus} />
                 </div>
               </div>
             </div>

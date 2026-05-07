@@ -24,13 +24,29 @@ type StagedReplicationPackage = {
   manifest: ReplicationManifest;
 };
 
+type SharedReplicationStatus = {
+  present: boolean;
+  package_path: string;
+  metadata_path: string;
+  published_at?: string;
+  generated_at?: string;
+  source_node?: string;
+  source_role?: string;
+  schema_version?: number;
+  package_size_bytes?: number;
+  package_checksum?: string;
+  network_state_present?: boolean;
+};
+
 export default function Backups() {
   const [configFile, setConfigFile] = useState<File | null>(null);
   const [replicationFile, setReplicationFile] = useState<File | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [stagedPackages, setStagedPackages] = useState<StagedReplicationPackage[]>([]);
+  const [sharedStatus, setSharedStatus] = useState<SharedReplicationStatus | null>(null);
   const [loadingStages, setLoadingStages] = useState(true);
+  const [loadingSharedStatus, setLoadingSharedStatus] = useState(true);
   const [busyAction, setBusyAction] = useState('');
 
   const loadStages = async () => {
@@ -45,8 +61,21 @@ export default function Backups() {
     }
   };
 
+  const loadSharedStatus = async () => {
+    setLoadingSharedStatus(true);
+    try {
+      const { data } = await api.get('/system/ha/replication-shared');
+      setSharedStatus(data.shared || null);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load shared HA replication status.');
+    } finally {
+      setLoadingSharedStatus(false);
+    }
+  };
+
   useEffect(() => {
     void loadStages();
+    void loadSharedStatus();
   }, []);
 
   const downloadConfigBackup = async () => {
@@ -123,6 +152,23 @@ export default function Backups() {
     }
   };
 
+  const stageLatestSharedPackage = async () => {
+    if (!confirm('Stage the latest shared HA package on this node? This is intended for the standby appliance before activation.')) return;
+    setError('');
+    setMessage('');
+    setBusyAction('replication-stage-shared');
+    try {
+      const { data } = await api.post('/system/ha/replication-stage-shared', {});
+      setMessage(data.message || `Shared replication package ${data.package?.id || ''} is staged on this node.`);
+      await loadStages();
+      await loadSharedStatus();
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not stage the latest shared HA replication package.');
+    } finally {
+      setBusyAction('');
+    }
+  };
+
   const activateReplicationPackage = async (pkg: StagedReplicationPackage) => {
     if (!confirm(`Activate staged package ${pkg.id}? This is intended for standby appliances and will restart services after local safety backup capture.`)) return;
     setError('');
@@ -132,6 +178,7 @@ export default function Backups() {
       const { data } = await api.post('/system/ha/replication-activate', { id: pkg.id });
       setMessage(data.message || `Replication package ${pkg.id} was activated and service restart was scheduled.`);
       await loadStages();
+      await loadSharedStatus();
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not activate staged HA replication package.');
     } finally {
@@ -154,6 +201,19 @@ export default function Backups() {
             <input type="file" accept="application/json,.json" onChange={(event) => setConfigFile(event.target.files?.[0] ?? null)} className="max-w-full text-sm" />
             <button disabled={!configFile || busyAction !== ''} onClick={uploadConfigBackup} className="rounded-md bg-amber-700 px-4 py-2 text-white hover:bg-amber-800 disabled:opacity-50">Upload And Restore</button>
           </div>
+          <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            {loadingSharedStatus ? (
+              <span>Loading shared HA replication status...</span>
+            ) : sharedStatus?.present ? (
+              <span>
+                Latest shared package from <span className="font-medium">{sharedStatus.source_node || 'unknown'}</span>
+                {sharedStatus.published_at ? ` published ${sharedStatus.published_at}` : ''}.
+                {sharedStatus.schema_version ? ` Schema v${sharedStatus.schema_version}.` : ''}
+              </span>
+            ) : (
+              <span>No shared HA package has been published yet. The active node will create one during the continuous replication interval.</span>
+            )}
+          </div>
         </section>
 
         <section className="rounded-lg bg-white p-6 shadow">
@@ -163,6 +223,7 @@ export default function Backups() {
             <button onClick={downloadReplicationPackage} disabled={busyAction !== ''} className="rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-black disabled:opacity-50">Download HA Package</button>
             <input type="file" accept=".tar.gz,application/gzip,application/x-gzip" onChange={(event) => setReplicationFile(event.target.files?.[0] ?? null)} className="max-w-full text-sm" />
             <button disabled={!replicationFile || busyAction !== ''} onClick={uploadReplicationPackage} className="rounded-md bg-emerald-700 px-4 py-2 text-white hover:bg-emerald-800 disabled:opacity-50">Stage On This Node</button>
+            <button disabled={busyAction !== '' || !sharedStatus?.present} onClick={stageLatestSharedPackage} className="rounded-md bg-indigo-700 px-4 py-2 text-white hover:bg-indigo-800 disabled:opacity-50">Stage Latest Shared Package</button>
           </div>
           <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
             Activation keeps the <span className="font-medium">local HA role, peer URL, and database path</span> so the standby does not accidentally impersonate the active node’s identity.
@@ -176,7 +237,7 @@ export default function Backups() {
             <h3 className="text-lg font-semibold text-gray-900">Staged HA Packages</h3>
             <p className="mt-1 text-sm text-gray-600">Import on the standby, validate the package, then activate it to lay down the replicated config and database before the service restart.</p>
           </div>
-          <button onClick={() => void loadStages()} disabled={loadingStages || busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+          <button onClick={() => { void loadStages(); void loadSharedStatus(); }} disabled={loadingStages || busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
             Refresh
           </button>
         </div>

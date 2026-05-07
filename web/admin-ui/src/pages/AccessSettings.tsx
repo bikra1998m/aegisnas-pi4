@@ -313,6 +313,8 @@ const defaultSettings: JsonMap = {
     virtual_ip: '',
     heartbeat_interval_seconds: 5,
     failover_timeout_seconds: 20,
+    replication_interval_seconds: 300,
+    replication_stale_after_seconds: 900,
     preempt: false,
     shared_state_dir: '/var/lib/aegisnas/ha',
   },
@@ -2678,7 +2680,7 @@ export default function AccessSettings() {
             placeholder="192.168.50.2"
           />
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <TextField
             label="Peer API URL"
             value={settings.high_availability?.peer_api_url || ''}
@@ -2696,6 +2698,18 @@ export default function AccessSettings() {
             type="number"
             value={settings.high_availability?.failover_timeout_seconds || 20}
             onChange={(value) => updateField(['high_availability', 'failover_timeout_seconds'], Number(value))}
+          />
+          <TextField
+            label="Replication Interval"
+            type="number"
+            value={settings.high_availability?.replication_interval_seconds || 300}
+            onChange={(value) => updateField(['high_availability', 'replication_interval_seconds'], Number(value))}
+          />
+          <TextField
+            label="Replication Stale After"
+            type="number"
+            value={settings.high_availability?.replication_stale_after_seconds || 900}
+            onChange={(value) => updateField(['high_availability', 'replication_stale_after_seconds'], Number(value))}
           />
           <TextField
             label="Shared State Directory"
