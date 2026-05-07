@@ -7,6 +7,7 @@ OUTPUT_ROOT="/var/tmp/aegisnas-ha-smoke"
 ROLE=""
 ADMIN_URL="http://127.0.0.1:8083"
 STAGE_SHARED=0
+ACTIVATE_LATEST=0
 
 usage() {
   cat <<EOF
@@ -16,6 +17,7 @@ Usage:
 Options:
   --admin-url URL      Admin API base URL. Default: http://127.0.0.1:8083
   --stage-shared       On standby nodes, stage the latest shared HA package.
+  --activate-latest    On standby nodes, activate the latest staged HA package after staging checks.
   --help               Show this help text.
 
 This helper captures a local HA smoke-test bundle for active or standby nodes.
@@ -56,6 +58,10 @@ parse_args() {
         ;;
       --stage-shared)
         STAGE_SHARED=1
+        shift
+        ;;
+      --activate-latest)
+        ACTIVATE_LATEST=1
         shift
         ;;
       --help|-h)
@@ -101,6 +107,11 @@ api_post_json() {
     -H "Content-Type: application/json" \
     -d "${body}" \
     "${ADMIN_URL}/api/v1${path}" >"${target_file}"
+}
+
+latest_stage_id() {
+  local source_file="$1"
+  jq -r '.packages[0].id // ""' "${source_file}"
 }
 
 main() {
@@ -153,6 +164,24 @@ main() {
     api_get "/system/ha/replication-staged" "${output_dir}/api/ha-replication-staged-after-stage.json"
   fi
 
+  if [[ "${ACTIVATE_LATEST}" -eq 1 ]]; then
+    if [[ "${ROLE}" != "standby" ]]; then
+      fail "--activate-latest is only valid with --role standby"
+    fi
+    local staged_source stage_id
+    staged_source="${output_dir}/api/ha-replication-staged-after-stage.json"
+    if [[ ! -f "${staged_source}" ]]; then
+      staged_source="${output_dir}/api/ha-replication-staged.json"
+    fi
+    stage_id="$(latest_stage_id "${staged_source}")"
+    [[ -n "${stage_id}" ]] || fail "could not find a staged HA package to activate"
+    log "Activating latest staged HA replication package ${stage_id}"
+    api_post_json "/system/ha/replication-activate" "{\"id\":\"${stage_id}\"}" "${output_dir}/api/ha-activate-latest.json"
+    sleep 2
+    api_get "/system/ha/replication-staged" "${output_dir}/api/ha-replication-staged-after-activate.json"
+    api_get "/system/status" "${output_dir}/api/system-status-after-activate.json"
+  fi
+
   log "Writing summary"
   jq '{
     generated_at,
@@ -161,6 +190,12 @@ main() {
     vip_assigned: .high_availability.runtime.details.vip_assigned,
     vip_interface: .high_availability.runtime.details.vip_interface,
     virtual_ip: .high_availability.virtual_ip,
+    auto_stage_enabled: .high_availability.auto_stage_shared_package,
+    auto_stage_status: .high_availability.replication_runtime.details.auto_stage_status,
+    auto_stage_stage_id: .high_availability.replication_runtime.details.auto_stage_stage_id,
+    auto_activate_enabled: .high_availability.auto_activate_on_failover,
+    auto_activate_status: .high_availability.runtime.details.auto_activate_status,
+    auto_activate_stage_id: .high_availability.runtime.details.auto_activate_stage_id,
     replication_status: .high_availability.replication_runtime.status,
     replication_message: .high_availability.replication_runtime.message,
     latest_source_node: .high_availability.replication_runtime.details.latest_source_node,
@@ -179,8 +214,10 @@ Recommended manual follow-up:
   1. Review summary.json and confirm the effective role is expected.
   2. If this is the active node, confirm ha-replication-shared.json shows a present package.
   3. If this is the standby node, confirm the shared package is fresh.
-  4. If you staged a shared package, review ha-replication-staged-after-stage.json.
-  5. Follow docs/ha-active-standby-runbook.md for activation and failover drills.
+  4. If auto-stage is enabled, confirm summary.json shows the expected auto_stage_status.
+  5. If you staged a shared package, review ha-replication-staged-after-stage.json.
+  6. If you activated the latest package, review ha-activate-latest.json and system-status-after-activate.json.
+  7. Follow docs/ha-active-standby-runbook.md for failover drills and auto-activation expectations.
 EOF
 
   log "HA smoke test completed. Review ${output_dir}/summary.json"

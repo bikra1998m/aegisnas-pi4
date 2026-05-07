@@ -196,4 +196,5 @@ Before updating production devices:
 6. Check health, sessions, RADIUS auth, portal login, onboarding, alerts, and dashboard integration state.
 7. Review edge-network preview, risk banner, validation result, rollback snapshots, lease history, and apply history if network settings are part of the change.
 8. For HA-enabled nodes, run `scripts/ha-active-standby-smoke-test.sh` on both active and standby nodes and review HA history plus replication freshness before failover drills.
-9. Use `scripts/ha-failover-drill.sh` on the active node for a controlled promotion and recovery test with saved artifacts under `/var/tmp/aegisnas-ha-failover/`.
+9. If standby auto-stage or auto-activation is enabled, confirm the smoke helper summary includes the expected `auto_stage_status` and `auto_activate_status`.
+10. Use `scripts/ha-failover-drill.sh` on the active node for a controlled promotion and recovery test with saved artifacts under `/var/tmp/aegisnas-ha-failover/`.

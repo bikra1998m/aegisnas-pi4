@@ -6,6 +6,7 @@ This runbook is the operator path for AegisNAS high availability with:
 - VIP takeover
 - continuous shared replication freshness tracking
 - staged standby activation
+- optional standby auto-activation during failover
 - HA history and export
 
 Use this with:
@@ -28,8 +29,9 @@ This guide covers:
 Important boundary:
 
 - continuous HA replication publishes and stages fresh state
-- standby activation is still an explicit operator action
-- that is intentional so a stale or unwanted package does not silently take over your standby node
+- manual standby activation is always available
+- optional auto-activation only runs on a standby during a real failover promotion path
+- that keeps the standby calm during normal replication while still letting it promote with fresh state when the active node really disappears
 
 ## Target Shape
 
@@ -62,6 +64,8 @@ high_availability:
   failover_timeout_seconds: 20
   replication_interval_seconds: 300
   replication_stale_after_seconds: 900
+  auto_stage_shared_package: true
+  auto_activate_on_failover: false
   preempt: false
   shared_state_dir: "/var/lib/aegisnas/ha"
 ```
@@ -72,6 +76,8 @@ Guidance:
 - `failover_timeout_seconds`: how long a standby waits before declaring failover active
 - `replication_interval_seconds`: how often the active node publishes a fresh shared package
 - `replication_stale_after_seconds`: when the shared package is considered stale
+- `auto_stage_shared_package`: whether the standby keeps the freshest shared package staged automatically
+- `auto_activate_on_failover`: whether the standby activates that fresh staged package before claiming the VIP during failover
 - `preempt: false`: safer default for most labs and branch environments
 
 ## Shared State Directory
@@ -147,7 +153,7 @@ Expected result:
 
 ## Standby Activation
 
-Activation is still manual.
+Activation can be manual or failover-driven.
 
 UI path:
 
@@ -169,6 +175,31 @@ After activation:
 3. confirm the safety backup path is shown
 4. confirm `Dashboard -> High Availability` still reports standby role and a fresh shared package
 
+### Automatic Activation During Failover
+
+If this is enabled:
+
+```yaml
+high_availability:
+  auto_stage_shared_package: true
+  auto_activate_on_failover: true
+```
+
+Then the standby promotion path becomes:
+
+1. peer health fails long enough to cross `failover_timeout_seconds`
+2. standby checks the freshest shared package
+3. standby requires that the shared package is fresh, not stale
+4. standby activates the matching staged package, or stages then activates it
+5. standby queues the HA restart handoff
+6. after restart, the standby can reclaim the VIP with the activated state
+
+Important safety boundary:
+
+- this does not auto-activate on every publish
+- it only auto-activates when the standby is genuinely promoting during failover
+- if restart handoff fails, HA runtime will say so and VIP takeover will not quietly pretend everything is fine
+
 ## HA Smoke Helper
 
 Use the helper script on each node:
@@ -184,6 +215,12 @@ On the standby, you can also stage the shared package through the helper:
 sudo bash scripts/ha-active-standby-smoke-test.sh --role standby --stage-shared
 ```
 
+And for a full standby package path:
+
+```bash
+sudo bash scripts/ha-active-standby-smoke-test.sh --role standby --stage-shared --activate-latest
+```
+
 The script:
 
 - captures local service and network state
@@ -191,6 +228,7 @@ The script:
 - saves HA API responses
 - records replication freshness
 - optionally stages the latest shared package on a standby node
+- optionally activates the latest staged package on a standby node
 
 Output location:
 
@@ -206,6 +244,8 @@ Useful files:
 - `api/ha-replication-shared.json`
 - `api/ha-replication-staged.json`
 - `api/ha-history.json`
+- `api/ha-stage-shared.json` when staging is requested
+- `api/ha-activate-latest.json` when activation is requested
 
 ## Manual Failover Drill
 
@@ -229,7 +269,7 @@ What the helper does:
 - confirms the peer is currently effective standby
 - captures local and peer HA status before the drill
 - stops `aegis-gateway` on the active node
-- waits for peer promotion and VIP takeover
+- waits for peer promotion and VIP takeover, or for auto-activation restart scheduling when enabled
 - optionally starts the original active node again for recovery observation
 - stores artifacts under `/var/tmp/aegisnas-ha-failover/<timestamp>/`
 
@@ -264,6 +304,12 @@ Expected outcome after `failover_timeout_seconds`:
 - standby reports VIP assigned locally
 - HA history records a promotion
 - active node stops serving the VIP
+
+Expected additional outcome when `auto_activate_on_failover: true`:
+
+- standby runtime shows `auto_activate_status`
+- HA history records `replication_activate` and `replication_restart`
+- if restart handoff fails, HA runtime should show the failure clearly instead of silently claiming success
 
 Useful checks on standby:
 
@@ -328,6 +374,7 @@ Mark the HA pair ready when all of these are true:
 [ ] standby node reports shared replication package fresh
 [ ] standby can stage latest shared package
 [ ] standby activation succeeds
+[ ] standby auto-activation behavior matches configuration
 [ ] standby safety backup path is recorded
 [ ] HA history shows replication publish/stage/activate events
 [ ] manual failover promotes standby after timeout

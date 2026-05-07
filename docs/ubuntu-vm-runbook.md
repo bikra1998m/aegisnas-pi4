@@ -130,6 +130,7 @@ cd ~/aegisnas-pi4
 git pull --ff-only
 sudo bash scripts/ha-active-standby-smoke-test.sh --role active
 sudo bash scripts/ha-active-standby-smoke-test.sh --role standby --stage-shared
+sudo bash scripts/ha-active-standby-smoke-test.sh --role standby --stage-shared --activate-latest
 ```
 
 Use the helper output under `/var/tmp/aegisnas-ha-smoke/` to confirm:
@@ -138,6 +139,7 @@ Use the helper output under `/var/tmp/aegisnas-ha-smoke/` to confirm:
 - VIP ownership
 - shared replication freshness
 - staged package visibility
+- auto-stage and auto-activate status when enabled
 - HA history counters
 
 For the full failover drill, continue with [HA Active/Standby Runbook](ha-active-standby-runbook.md) and use:

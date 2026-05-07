@@ -155,6 +155,7 @@ For an HA-enabled VMware lab with two Ubuntu VMs, run the HA helper after the up
 ```bash
 sudo bash scripts/ha-active-standby-smoke-test.sh --role active
 sudo bash scripts/ha-active-standby-smoke-test.sh --role standby --stage-shared
+sudo bash scripts/ha-active-standby-smoke-test.sh --role standby --stage-shared --activate-latest
 ```
 
 Then continue with the failover and recovery steps in [HA Active/Standby Runbook](ha-active-standby-runbook.md). The quickest controlled drill on the active node is:

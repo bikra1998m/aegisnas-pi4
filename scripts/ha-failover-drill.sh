@@ -116,7 +116,7 @@ capture_snapshot() {
 wait_for_peer_promotion() {
   local status_file="$1"
   local timeout_seconds="$2"
-  local start now elapsed effective_role vip_assigned
+  local start now elapsed effective_role vip_assigned auto_activate_status
   start="$(date +%s)"
 
   while true; do
@@ -125,7 +125,11 @@ wait_for_peer_promotion() {
     api_get "${PEER_ADMIN_URL}" "${PEER_TOKEN}" "/system/status" "${status_file}"
     effective_role="$(jq -r '.high_availability.runtime.details.effective_role // ""' "${status_file}")"
     vip_assigned="$(jq -r '.high_availability.runtime.details.vip_assigned // false' "${status_file}")"
+    auto_activate_status="$(jq -r '.high_availability.runtime.details.auto_activate_status // ""' "${status_file}")"
     if [[ "${effective_role}" == "active" && "${vip_assigned}" == "true" ]]; then
+      return 0
+    fi
+    if [[ "${auto_activate_status}" == "restart_scheduled" || "${auto_activate_status}" == "failed" ]]; then
       return 0
     fi
     if (( elapsed >= timeout_seconds )); then
@@ -148,6 +152,7 @@ main() {
 
   local timestamp output_dir local_status peer_status local_role local_effective_role local_vip_assigned
   local peer_url failover_timeout expected_timeout preempt peer_effective_role peer_vip_assigned
+  local auto_activate_enabled
   local promotion_result recovery_note
   timestamp="$(date '+%Y%m%d-%H%M%S')"
   output_dir="${OUTPUT_ROOT}/${timestamp}"
@@ -169,6 +174,7 @@ main() {
 
   failover_timeout="$(jq -r '.high_availability.failover_timeout_seconds // 20' "${output_dir}/baseline-local-status.json")"
   preempt="$(jq -r '.high_availability.preempt // false' "${output_dir}/baseline-local-status.json")"
+  auto_activate_enabled="$(jq -r '.high_availability.auto_activate_on_failover // false' "${output_dir}/baseline-local-status.json")"
   expected_timeout=$(( failover_timeout + 30 ))
   if (( TIMEOUT_SECONDS > 0 )); then
     expected_timeout="${TIMEOUT_SECONDS}"
@@ -213,6 +219,7 @@ main() {
   "peer_admin_url": "${PEER_ADMIN_URL}",
   "failover_timeout_seconds": ${failover_timeout},
   "drill_timeout_seconds": ${expected_timeout},
+  "auto_activate_on_failover": ${auto_activate_enabled},
   "preempt": ${preempt},
   "promotion_result": "${promotion_result}",
   "recovery_skipped": $( [[ "${SKIP_RECOVERY}" -eq 1 ]] && echo true || echo false ),
