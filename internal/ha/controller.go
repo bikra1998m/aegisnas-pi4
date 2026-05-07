@@ -3,6 +3,7 @@ package ha
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -47,6 +48,14 @@ type controller struct {
 	lastLeaseEventStatus string
 	ipRunner             func(args ...string) (string, error)
 }
+
+var (
+	controllerLoadSharedReplicationStatusFn               = LoadSharedReplicationStatus
+	controllerFindStagedReplicationPackageByFingerprintFn = FindStagedReplicationPackageByContentFingerprint
+	controllerStageLatestSharedReplicationPackageFn       = StageLatestSharedReplicationPackage
+	controllerActivateStagedReplicationPackageFn          = ActivateStagedReplicationPackage
+	controllerScheduleActivationRestartFn                 = ScheduleActivationRestart
+)
 
 func StartController(ctx context.Context, cfg *config.Config, client httpDoer, logger *zap.Logger) {
 	ctrl := newController(cfg, client, logger)
@@ -127,6 +136,7 @@ func (c *controller) tick() {
 	failoverActive := c.failoverActive(now, peerReachable)
 	details["effective_role"] = strings.TrimSpace(c.cfg.HighAvailability.Role)
 	details["failover_active"] = failoverActive
+	details["auto_activate_enabled"] = c.cfg.HighAvailability.AutoActivateOnFailover
 	details["peer_last_healthy_at"] = formatTime(c.lastHealthyAt)
 	details["peer_failure_since"] = formatTime(c.failureSince)
 	details["vip_interface"] = target.Interface
@@ -145,6 +155,22 @@ func (c *controller) tick() {
 	leaseAction := "idle"
 
 	if shouldHold {
+		activationScheduled, err := c.ensureStandbyActivationForFailover(details, now)
+		if err != nil {
+			details["auto_activate_status"] = "failed"
+			details["auto_activate_error"] = err.Error()
+			status = "degraded"
+			message = "Standby failover could not activate the latest shared replication package."
+			c.publish(status, message, details)
+			return
+		}
+		if activationScheduled {
+			status = "pending"
+			message = "Standby activated the latest shared replication package and queued a service restart before VIP takeover."
+			c.publish(status, message, details)
+			return
+		}
+
 		acquired, action, updatedLease, err := c.ensureLease(lease, target, now, peerReachable)
 		leaseAction = action
 		if err != nil {
@@ -207,6 +233,68 @@ func (c *controller) tick() {
 	c.recordEffectiveRoleChange(fmt.Sprint(details["effective_role"]), details)
 
 	c.publish(status, message, details)
+}
+
+func (c *controller) ensureStandbyActivationForFailover(details map[string]any, observedAt time.Time) (bool, error) {
+	if details == nil {
+		details = map[string]any{}
+	}
+	if !c.cfg.HighAvailability.AutoActivateOnFailover {
+		details["auto_activate_status"] = "disabled"
+		return false, nil
+	}
+	if !strings.EqualFold(strings.TrimSpace(c.cfg.HighAvailability.Role), "standby") {
+		details["auto_activate_status"] = "not_applicable"
+		return false, nil
+	}
+
+	shared, err := controllerLoadSharedReplicationStatusFn(c.cfg)
+	if err != nil {
+		return false, fmt.Errorf("load shared replication package: %w", err)
+	}
+	if !shared.Present {
+		return false, errors.New("no shared HA replication package has been published yet")
+	}
+	mergeSharedReplicationDetails(details, shared, c.cfg, observedAt.UTC())
+	if stale, _ := details["stale"].(bool); stale {
+		details["auto_activate_status"] = "waiting_fresh"
+		return false, errors.New("shared HA replication package is stale")
+	}
+
+	fingerprint := strings.TrimSpace(shared.ContentFingerprint)
+	if fingerprint == "" {
+		fingerprint = strings.TrimSpace(shared.PackageChecksum)
+	}
+	stage, found, err := controllerFindStagedReplicationPackageByFingerprintFn(c.cfg, fingerprint)
+	if err != nil {
+		return false, fmt.Errorf("check staged package fingerprint: %w", err)
+	}
+	if !found {
+		stage, err = controllerStageLatestSharedReplicationPackageFn(c.cfg, "ha-auto-activate")
+		if err != nil {
+			return false, fmt.Errorf("stage latest shared package: %w", err)
+		}
+	}
+
+	details["auto_activate_stage_id"] = stage.ID
+	details["auto_activate_imported_source"] = stage.ImportedSource
+	details["auto_activate_content_fingerprint"] = stage.ContentFingerprint
+	if strings.TrimSpace(stage.ActivatedAt) != "" {
+		details["auto_activate_status"] = "activated"
+		details["auto_activate_activated_at"] = stage.ActivatedAt
+		return false, nil
+	}
+
+	result, err := controllerActivateStagedReplicationPackageFn(c.cfg, stage.ID, "ha-auto-activate")
+	if err != nil {
+		return false, fmt.Errorf("activate staged package: %w", err)
+	}
+	if err := controllerScheduleActivationRestartFn(c.cfg, result, "ha-auto-activate"); err != nil {
+		return false, fmt.Errorf("schedule activation restart: %w", err)
+	}
+	details["auto_activate_status"] = "restart_scheduled"
+	details["auto_activate_restart_services"] = result.RestartServices
+	return true, nil
 }
 
 func (c *controller) publish(status, message string, details map[string]any) {

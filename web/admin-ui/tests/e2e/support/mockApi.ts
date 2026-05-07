@@ -172,6 +172,7 @@ function createSettings() {
       replication_interval_seconds: 300,
       replication_stale_after_seconds: 900,
       auto_stage_shared_package: true,
+      auto_activate_on_failover: false,
       preempt: false,
       shared_state_dir: '/var/lib/aegisnas/ha',
     },
@@ -342,6 +343,7 @@ function createSystemStatus() {
       replication_interval_seconds: 300,
       replication_stale_after_seconds: 900,
       auto_stage_shared_package: true,
+      auto_activate_on_failover: false,
       preempt: false,
       shared_state_dir: '/var/lib/aegisnas/ha',
       runtime: {

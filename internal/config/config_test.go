@@ -1017,4 +1017,9 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badAutoStage.HighAvailability.Enabled = false
 	badAutoStage.HighAvailability.AutoStageSharedPackage = true
 	assert.ErrorContains(t, badAutoStage.Validate(), "high_availability.auto_stage_shared_package requires high_availability.enabled")
+
+	badAutoActivate := base()
+	badAutoActivate.HighAvailability.Enabled = false
+	badAutoActivate.HighAvailability.AutoActivateOnFailover = true
+	assert.ErrorContains(t, badAutoActivate.Validate(), "high_availability.auto_activate_on_failover requires high_availability.enabled")
 }

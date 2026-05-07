@@ -316,6 +316,7 @@ const defaultSettings: JsonMap = {
     replication_interval_seconds: 300,
     replication_stale_after_seconds: 900,
     auto_stage_shared_package: false,
+    auto_activate_on_failover: false,
     preempt: false,
     shared_state_dir: '/var/lib/aegisnas/ha',
   },
@@ -2654,7 +2655,7 @@ export default function AccessSettings() {
           <h3 className="text-lg font-semibold text-gray-900">High Availability And Failover</h3>
           <p className="mt-1 text-sm text-gray-600">Use enterprise deployments for active and standby peer monitoring, shared virtual IP planning, and recovery orchestration groundwork.</p>
         </div>
-        <div className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+        <div className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-6">
           <ToggleField
             label="High Availability Enabled"
             checked={Boolean(settings.high_availability?.enabled)}
@@ -2669,6 +2670,11 @@ export default function AccessSettings() {
             label="Auto-Stage Shared Package"
             checked={Boolean(settings.high_availability?.auto_stage_shared_package)}
             onChange={(value) => updateField(['high_availability', 'auto_stage_shared_package'], value)}
+          />
+          <ToggleField
+            label="Auto-Activate On Failover"
+            checked={Boolean(settings.high_availability?.auto_activate_on_failover)}
+            onChange={(value) => updateField(['high_availability', 'auto_activate_on_failover'], value)}
           />
           <SelectField
             label="Node Role"

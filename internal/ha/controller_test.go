@@ -128,6 +128,131 @@ func TestActiveWaitsWhenPreemptDisabled(t *testing.T) {
 	assert.Equal(t, "standby-1", lease.HolderNode)
 }
 
+func TestStandbySchedulesActivationBeforeVIPTakeover(t *testing.T) {
+	cfg := haTestConfig(t, "standby")
+	cfg.HighAvailability.AutoActivateOnFailover = true
+	now := time.Date(2026, 5, 6, 13, 0, 0, 0, time.UTC)
+
+	originalLoadShared := controllerLoadSharedReplicationStatusFn
+	originalFindStage := controllerFindStagedReplicationPackageByFingerprintFn
+	originalActivate := controllerActivateStagedReplicationPackageFn
+	originalSchedule := controllerScheduleActivationRestartFn
+	defer func() {
+		controllerLoadSharedReplicationStatusFn = originalLoadShared
+		controllerFindStagedReplicationPackageByFingerprintFn = originalFindStage
+		controllerActivateStagedReplicationPackageFn = originalActivate
+		controllerScheduleActivationRestartFn = originalSchedule
+	}()
+
+	controllerLoadSharedReplicationStatusFn = func(cfg *config.Config) (SharedReplicationStatus, error) {
+		return SharedReplicationStatus{
+			Present:            true,
+			SourceNode:         "active-1",
+			SourceRole:         "active",
+			PublishedAt:        now.Add(-30 * time.Second).Format(time.RFC3339),
+			SchemaVersion:      8,
+			PackageChecksum:    "archive-checksum",
+			ContentFingerprint: "content-fingerprint",
+		}, nil
+	}
+	controllerFindStagedReplicationPackageByFingerprintFn = func(cfg *config.Config, fingerprint string) (StagedReplicationPackage, bool, error) {
+		return StagedReplicationPackage{
+			ID:                 "stage-001",
+			Ready:              true,
+			ContentFingerprint: fingerprint,
+			ImportedSource:     "shared-auto",
+		}, true, nil
+	}
+	activated := []string{}
+	controllerActivateStagedReplicationPackageFn = func(cfg *config.Config, id, activatedBy string) (ActivationResult, error) {
+		activated = append(activated, id)
+		return ActivationResult{
+			ID:              id,
+			RestartServices: []string{"aegis-gateway", "aegis-admin-api"},
+			BackupPath:      "/var/lib/aegisnas/ha/replication/backups/rollback.tar.gz",
+		}, nil
+	}
+	scheduled := []string{}
+	controllerScheduleActivationRestartFn = func(cfg *config.Config, result ActivationResult, actor string) error {
+		scheduled = append([]string(nil), result.RestartServices...)
+		return nil
+	}
+
+	ctrl := newController(cfg, probeClient{do: func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("peer down")
+	}}, zap.NewNop())
+	ctrl.nodeName = "standby-1"
+	ctrl.now = func() time.Time { return now }
+	ctrl.failureSince = now.Add(-30 * time.Second)
+	ctrl.ipRunner = func(args ...string) (string, error) {
+		t.Fatalf("VIP should not be assigned before activation restart handoff, got %v", args)
+		return "", nil
+	}
+
+	ctrl.tick()
+
+	assert.False(t, ctrl.vipAssigned)
+	assert.Equal(t, []string{"stage-001"}, activated)
+	assert.Equal(t, []string{"aegis-gateway", "aegis-admin-api"}, scheduled)
+}
+
+func TestStandbyUsesActivatedStageBeforeVIPTakeover(t *testing.T) {
+	cfg := haTestConfig(t, "standby")
+	cfg.HighAvailability.AutoActivateOnFailover = true
+	now := time.Date(2026, 5, 6, 14, 0, 0, 0, time.UTC)
+
+	originalLoadShared := controllerLoadSharedReplicationStatusFn
+	originalFindStage := controllerFindStagedReplicationPackageByFingerprintFn
+	originalActivate := controllerActivateStagedReplicationPackageFn
+	defer func() {
+		controllerLoadSharedReplicationStatusFn = originalLoadShared
+		controllerFindStagedReplicationPackageByFingerprintFn = originalFindStage
+		controllerActivateStagedReplicationPackageFn = originalActivate
+	}()
+
+	controllerLoadSharedReplicationStatusFn = func(cfg *config.Config) (SharedReplicationStatus, error) {
+		return SharedReplicationStatus{
+			Present:            true,
+			SourceNode:         "active-1",
+			SourceRole:         "active",
+			PublishedAt:        now.Add(-30 * time.Second).Format(time.RFC3339),
+			SchemaVersion:      8,
+			PackageChecksum:    "archive-checksum",
+			ContentFingerprint: "content-fingerprint",
+		}, nil
+	}
+	controllerFindStagedReplicationPackageByFingerprintFn = func(cfg *config.Config, fingerprint string) (StagedReplicationPackage, bool, error) {
+		return StagedReplicationPackage{
+			ID:                 "stage-002",
+			Ready:              true,
+			ActivatedAt:        now.Add(-10 * time.Second).Format(time.RFC3339),
+			ContentFingerprint: fingerprint,
+			ImportedSource:     "shared-auto",
+		}, true, nil
+	}
+	controllerActivateStagedReplicationPackageFn = func(cfg *config.Config, id, activatedBy string) (ActivationResult, error) {
+		t.Fatalf("already activated stage should not be activated again")
+		return ActivationResult{}, nil
+	}
+
+	var ipCalls []string
+	ctrl := newController(cfg, probeClient{do: func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("peer down")
+	}}, zap.NewNop())
+	ctrl.nodeName = "standby-1"
+	ctrl.now = func() time.Time { return now }
+	ctrl.failureSince = now.Add(-30 * time.Second)
+	ctrl.ipRunner = func(args ...string) (string, error) {
+		ipCalls = append(ipCalls, strings.Join(args, " "))
+		return "", nil
+	}
+
+	ctrl.tick()
+
+	assert.True(t, ctrl.vipAssigned)
+	assert.Contains(t, ipCalls[len(ipCalls)-1], "addr replace 192.168.50.2/24 dev ens37")
+}
+
 func haTestConfig(t *testing.T, role string) *config.Config {
 	t.Helper()
 	root := t.TempDir()

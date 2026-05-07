@@ -106,6 +106,7 @@ type SystemStatus = {
     replication_interval_seconds: number;
     replication_stale_after_seconds: number;
     auto_stage_shared_package: boolean;
+    auto_activate_on_failover: boolean;
     preempt: boolean;
     shared_state_dir: string;
     runtime: RuntimeStatus;
@@ -621,6 +622,15 @@ export default function Dashboard() {
                         Auto-stage {String(systemStatus.high_availability.replication_runtime?.details?.auto_stage_status || 'enabled')}
                         {systemStatus.high_availability.replication_runtime?.details?.auto_stage_stage_id
                           ? ` with staged package ${String(systemStatus.high_availability.replication_runtime.details.auto_stage_stage_id)}`
+                          : ''}
+                        .
+                      </div>
+                    ) : null}
+                    {systemStatus.high_availability.auto_activate_on_failover ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Auto-activate on failover {String(systemStatus.high_availability.runtime?.details?.auto_activate_status || 'enabled')}
+                        {systemStatus.high_availability.runtime?.details?.auto_activate_stage_id
+                          ? ` using staged package ${String(systemStatus.high_availability.runtime.details.auto_activate_stage_id)}`
                           : ''}
                         .
                       </div>

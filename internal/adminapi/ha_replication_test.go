@@ -43,10 +43,10 @@ func TestHandleActivateHAReplicationPackageSchedulesRestart(t *testing.T) {
 	prepareReplicationConfig(t)
 
 	originalActivate := activateStagedReplicationFn
-	originalSchedule := scheduleReplicationRestartFn
+	originalSchedule := scheduleActivationRestartFn
 	defer func() {
 		activateStagedReplicationFn = originalActivate
-		scheduleReplicationRestartFn = originalSchedule
+		scheduleActivationRestartFn = originalSchedule
 	}()
 
 	activateStagedReplicationFn = func(cfg *config.Config, id, activatedBy string) (ha.ActivationResult, error) {
@@ -59,8 +59,8 @@ func TestHandleActivateHAReplicationPackageSchedulesRestart(t *testing.T) {
 		}, nil
 	}
 	scheduled := []string{}
-	scheduleReplicationRestartFn = func(services []string) error {
-		scheduled = append([]string(nil), services...)
+	scheduleActivationRestartFn = func(cfg *config.Config, result ha.ActivationResult, actor string) error {
+		scheduled = append([]string(nil), result.RestartServices...)
 		return nil
 	}
 
@@ -80,10 +80,10 @@ func TestHandleActivateHAReplicationPackageReturnsRestartWarning(t *testing.T) {
 	prepareReplicationConfig(t)
 
 	originalActivate := activateStagedReplicationFn
-	originalSchedule := scheduleReplicationRestartFn
+	originalSchedule := scheduleActivationRestartFn
 	defer func() {
 		activateStagedReplicationFn = originalActivate
-		scheduleReplicationRestartFn = originalSchedule
+		scheduleActivationRestartFn = originalSchedule
 	}()
 
 	activateStagedReplicationFn = func(cfg *config.Config, id, activatedBy string) (ha.ActivationResult, error) {
@@ -95,7 +95,7 @@ func TestHandleActivateHAReplicationPackageReturnsRestartWarning(t *testing.T) {
 			Summary:          "Activated",
 		}, nil
 	}
-	scheduleReplicationRestartFn = func(services []string) error {
+	scheduleActivationRestartFn = func(cfg *config.Config, result ha.ActivationResult, actor string) error {
 		return errors.New("systemd-run unavailable")
 	}
 
@@ -167,27 +167,6 @@ func TestHandleStageLatestSharedHAReplicationPackage(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "shared-stage-1")
 	assert.Contains(t, rec.Body.String(), "Latest shared HA replication package is staged")
-}
-
-func TestScheduleReplicationRestartUsesTransientUnit(t *testing.T) {
-	original := replicationRestartCommandFn
-	defer func() { replicationRestartCommandFn = original }()
-
-	called := []string{}
-	replicationRestartCommandFn = func(services []string) error {
-		called = append([]string(nil), services...)
-		return nil
-	}
-
-	err := scheduleReplicationRestart([]string{"aegis-admin-api", "aegis-gateway", "aegis-admin-api", ""})
-	require.NoError(t, err)
-	assert.Equal(t, []string{"aegis-admin-api", "aegis-gateway"}, called)
-}
-
-func TestBuildReplicationRestartScriptQuotesServices(t *testing.T) {
-	script := buildReplicationRestartScript([]string{"aegis-admin-api", "svc'quote"})
-	assert.Contains(t, script, "sleep 2; exec")
-	assert.Contains(t, script, "'systemctl' 'restart' 'aegis-admin-api' 'svc'\"'\"'quote'")
 }
 
 func prepareReplicationConfig(t *testing.T) {
