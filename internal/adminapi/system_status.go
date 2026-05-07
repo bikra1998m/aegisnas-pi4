@@ -278,6 +278,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"failover_timeout_seconds":        cfg.HighAvailability.FailoverTimeoutSeconds,
 			"replication_interval_seconds":    cfg.HighAvailability.ReplicationIntervalSeconds,
 			"replication_stale_after_seconds": cfg.HighAvailability.ReplicationStaleAfterSeconds,
+			"auto_stage_shared_package":       cfg.HighAvailability.AutoStageSharedPackage,
 			"preempt":                         cfg.HighAvailability.Preempt,
 			"shared_state_dir":                cfg.HighAvailability.SharedStateDir,
 			"runtime":                         runtimeMap["high_availability"],

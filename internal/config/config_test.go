@@ -1012,4 +1012,9 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badReplication.HighAvailability.ReplicationStaleAfterSeconds = 120
 	badReplication.HighAvailability.ReplicationIntervalSeconds = 120
 	assert.ErrorContains(t, badReplication.Validate(), "high_availability.replication_stale_after_seconds must be greater")
+
+	badAutoStage := base()
+	badAutoStage.HighAvailability.Enabled = false
+	badAutoStage.HighAvailability.AutoStageSharedPackage = true
+	assert.ErrorContains(t, badAutoStage.Validate(), "high_availability.auto_stage_shared_package requires high_availability.enabled")
 }

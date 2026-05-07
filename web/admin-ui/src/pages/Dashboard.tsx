@@ -105,6 +105,7 @@ type SystemStatus = {
     failover_timeout_seconds: number;
     replication_interval_seconds: number;
     replication_stale_after_seconds: number;
+    auto_stage_shared_package: boolean;
     preempt: boolean;
     shared_state_dir: string;
     runtime: RuntimeStatus;
@@ -615,6 +616,15 @@ export default function Dashboard() {
                       {systemStatus.high_availability.replication_runtime?.message ||
                         `Shared replication every ${systemStatus.high_availability.replication_interval_seconds || 300}s with stale threshold ${systemStatus.high_availability.replication_stale_after_seconds || 900}s.`}
                     </div>
+                    {systemStatus.high_availability.auto_stage_shared_package ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Auto-stage {String(systemStatus.high_availability.replication_runtime?.details?.auto_stage_status || 'enabled')}
+                        {systemStatus.high_availability.replication_runtime?.details?.auto_stage_stage_id
+                          ? ` with staged package ${String(systemStatus.high_availability.replication_runtime.details.auto_stage_stage_id)}`
+                          : ''}
+                        .
+                      </div>
+                    ) : null}
                     {systemStatus.high_availability.replication_runtime?.details?.latest_source_node ? (
                       <div className="mt-1 text-xs text-gray-500">
                         Latest shared package from {String(systemStatus.high_availability.replication_runtime.details.latest_source_node)}

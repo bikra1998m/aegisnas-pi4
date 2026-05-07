@@ -36,10 +36,10 @@ type SharedReplicationStatus struct {
 }
 
 type replicationMonitor struct {
-	cfg      *config.Config
-	logger   *zap.Logger
-	now      func() time.Time
-	nodeName string
+	cfg                *config.Config
+	logger             *zap.Logger
+	now                func() time.Time
+	nodeName           string
 	lastFreshnessState string
 	lastPublishStatus  string
 }
@@ -91,6 +91,8 @@ func (m *replicationMonitor) probe() (string, string, map[string]any) {
 		"shared_state_dir":                "",
 		"replication_interval_seconds":    0,
 		"replication_stale_after_seconds": 0,
+		"auto_stage_enabled":              false,
+		"auto_stage_status":               "disabled",
 	}
 	if m.cfg == nil {
 		return "disabled", "Configuration is unavailable.", details
@@ -102,6 +104,7 @@ func (m *replicationMonitor) probe() (string, string, map[string]any) {
 	details["shared_state_dir"] = strings.TrimSpace(m.cfg.HighAvailability.SharedStateDir)
 	details["replication_interval_seconds"] = int(effectiveReplicationInterval(m.cfg) / time.Second)
 	details["replication_stale_after_seconds"] = int(effectiveReplicationStaleAfter(m.cfg) / time.Second)
+	details["auto_stage_enabled"] = m.cfg.HighAvailability.AutoStageSharedPackage
 	details["package_path"] = sharedPackagePath(m.cfg)
 	details["metadata_path"] = sharedMetadataPath(m.cfg)
 
@@ -124,10 +127,10 @@ func (m *replicationMonitor) probe() (string, string, map[string]any) {
 		mergeSharedReplicationDetails(details, shared, m.cfg, m.now().UTC())
 		details["published_by_this_node"] = true
 		m.recordPublishEvent("success", "Published shared HA replication package.", map[string]any{
-			"source_node":       shared.SourceNode,
-			"source_role":       shared.SourceRole,
-			"schema_version":    shared.SchemaVersion,
-			"package_checksum":  shared.PackageChecksum,
+			"source_node":        shared.SourceNode,
+			"source_role":        shared.SourceRole,
+			"schema_version":     shared.SchemaVersion,
+			"package_checksum":   shared.PackageChecksum,
 			"package_size_bytes": shared.PackageSizeBytes,
 		})
 		return "ok", "Published shared HA replication package for standby sync.", details
@@ -144,10 +147,21 @@ func (m *replicationMonitor) probe() (string, string, map[string]any) {
 
 	mergeSharedReplicationDetails(details, shared, m.cfg, m.now().UTC())
 	if stale, _ := details["stale"].(bool); stale {
+		if m.cfg.HighAvailability.AutoStageSharedPackage && role == "standby" {
+			details["auto_stage_status"] = "waiting_fresh"
+		}
 		m.recordFreshnessEvent("stale", "Shared HA replication package is stale.", details)
 		return "degraded", "Shared HA replication package is stale.", details
 	}
+	autoStageMessage, err := m.maybeAutoStageSharedPackage(role, shared, details)
+	if err != nil {
+		details["last_error"] = err.Error()
+		return "degraded", "Shared HA replication package is fresh, but standby auto-stage failed.", details
+	}
 	m.recordFreshnessEvent("fresh", "Observed fresh shared HA replication package.", details)
+	if autoStageMessage != "" {
+		return "ok", autoStageMessage, details
+	}
 	return "ok", "Observed fresh shared HA replication package.", details
 }
 
@@ -168,6 +182,57 @@ func (m *replicationMonitor) recordFreshnessEvent(status, summary string, detail
 	}
 	_ = db.RecordHAHistory("replication_freshness", status, summary, strings.TrimSpace(m.cfg.HighAvailability.Role), "", details)
 	m.lastFreshnessState = status
+}
+
+func (m *replicationMonitor) maybeAutoStageSharedPackage(role string, shared SharedReplicationStatus, details map[string]any) (string, error) {
+	if details == nil {
+		details = map[string]any{}
+	}
+	if !m.cfg.HighAvailability.AutoStageSharedPackage {
+		details["auto_stage_status"] = "disabled"
+		return "", nil
+	}
+	if role != "standby" {
+		details["auto_stage_status"] = "not_applicable"
+		return "", nil
+	}
+	if !shared.Present {
+		details["auto_stage_status"] = "waiting_shared_package"
+		return "", nil
+	}
+
+	existing, found, err := FindStagedReplicationPackageByChecksum(m.cfg, shared.PackageChecksum)
+	if err != nil {
+		details["auto_stage_status"] = "failed"
+		return "", fmt.Errorf("check staged package checksum: %w", err)
+	}
+	if found {
+		details["auto_stage_status"] = "ready"
+		details["auto_stage_stage_id"] = existing.ID
+		details["auto_stage_imported_at"] = existing.ImportedAt
+		details["auto_stage_imported_source"] = existing.ImportedSource
+		details["auto_stage_package_checksum"] = existing.PackageChecksum
+		details["auto_stage_summary"] = existing.Summary
+		return fmt.Sprintf("Observed fresh shared HA replication package. Standby auto-stage is ready with package %s.", existing.ID), nil
+	}
+
+	packageBytes, err := os.ReadFile(shared.PackagePath)
+	if err != nil {
+		details["auto_stage_status"] = "failed"
+		return "", fmt.Errorf("read shared package for auto-stage: %w", err)
+	}
+	stage, err := importReplicationPackage(m.cfg, packageBytes, "ha-auto-stage", "shared-auto")
+	if err != nil {
+		details["auto_stage_status"] = "failed"
+		return "", fmt.Errorf("auto-stage shared package: %w", err)
+	}
+	details["auto_stage_status"] = "staged"
+	details["auto_stage_stage_id"] = stage.ID
+	details["auto_stage_imported_at"] = stage.ImportedAt
+	details["auto_stage_imported_source"] = stage.ImportedSource
+	details["auto_stage_package_checksum"] = stage.PackageChecksum
+	details["auto_stage_summary"] = stage.Summary
+	return fmt.Sprintf("Observed fresh shared HA replication package. Standby auto-staged package %s.", stage.ID), nil
 }
 
 func PublishSharedReplicationPackage(cfg *config.Config) (SharedReplicationStatus, error) {
@@ -254,7 +319,7 @@ func StageLatestSharedReplicationPackage(cfg *config.Config, importedBy string) 
 	if err != nil {
 		return StagedReplicationPackage{}, fmt.Errorf("read shared replication package: %w", err)
 	}
-	return ImportReplicationPackage(cfg, packageBytes, importedBy)
+	return importReplicationPackage(cfg, packageBytes, importedBy, "shared-live")
 }
 
 func mergeSharedReplicationDetails(details map[string]any, shared SharedReplicationStatus, cfg *config.Config, observedAt time.Time) {

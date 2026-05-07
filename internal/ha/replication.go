@@ -41,6 +41,7 @@ type StagedReplicationPackage struct {
 	ID                  string              `json:"id"`
 	ImportedAt          string              `json:"imported_at"`
 	ImportedBy          string              `json:"imported_by"`
+	ImportedSource      string              `json:"imported_source,omitempty"`
 	ActivatedAt         string              `json:"activated_at,omitempty"`
 	ActivatedBy         string              `json:"activated_by,omitempty"`
 	Ready               bool                `json:"ready"`
@@ -49,6 +50,7 @@ type StagedReplicationPackage struct {
 	ConfigValid         bool                `json:"config_valid"`
 	DatabaseValid       bool                `json:"database_valid"`
 	NetworkStatePresent bool                `json:"network_state_present"`
+	PackageChecksum     string              `json:"package_checksum,omitempty"`
 	ActivationBackup    string              `json:"activation_backup,omitempty"`
 	Manifest            ReplicationManifest `json:"manifest"`
 }
@@ -144,6 +146,10 @@ func SaveReplicationPackage(path string, packageBytes []byte) error {
 }
 
 func ImportReplicationPackage(cfg *config.Config, packageBytes []byte, importedBy string) (StagedReplicationPackage, error) {
+	return importReplicationPackage(cfg, packageBytes, importedBy, "upload")
+}
+
+func importReplicationPackage(cfg *config.Config, packageBytes []byte, importedBy, importedSource string) (StagedReplicationPackage, error) {
 	if cfg == nil {
 		return StagedReplicationPackage{}, errors.New("ha replication import requires a config")
 	}
@@ -151,14 +157,19 @@ func ImportReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 		return StagedReplicationPackage{}, errors.New("replication package is empty")
 	}
 	stage := StagedReplicationPackage{
-		ID:         time.Now().UTC().Format("20060102T150405Z"),
-		ImportedAt: time.Now().UTC().Format(time.RFC3339),
-		ImportedBy: strings.TrimSpace(importedBy),
-		Status:     "degraded",
-		Summary:    "Replication package import did not complete.",
+		ID:              time.Now().UTC().Format("20060102T150405Z"),
+		ImportedAt:      time.Now().UTC().Format(time.RFC3339),
+		ImportedBy:      strings.TrimSpace(importedBy),
+		ImportedSource:  strings.TrimSpace(importedSource),
+		Status:          "degraded",
+		Summary:         "Replication package import did not complete.",
+		PackageChecksum: checksumBytes(packageBytes),
 	}
 	if stage.ImportedBy == "" {
 		stage.ImportedBy = "unknown"
+	}
+	if stage.ImportedSource == "" {
+		stage.ImportedSource = "upload"
 	}
 
 	stageDir := stagedPackageDir(cfg, stage.ID)
@@ -216,21 +227,45 @@ func ImportReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 		return stage, err
 	}
 	_ = db.RecordHAHistory("replication_stage", "staged", stage.Summary, strings.TrimSpace(cfg.HighAvailability.Role), stage.ImportedBy, map[string]any{
-		"stage_id":        stage.ID,
-		"source_node":     manifest.SourceNode,
-		"source_role":     manifest.SourceRole,
-		"schema_version":  manifest.SchemaVersion,
-		"network_present": stage.NetworkStatePresent,
-		"package_type":    manifest.PackageType,
+		"stage_id":         stage.ID,
+		"source_node":      manifest.SourceNode,
+		"source_role":      manifest.SourceRole,
+		"schema_version":   manifest.SchemaVersion,
+		"network_present":  stage.NetworkStatePresent,
+		"package_type":     manifest.PackageType,
+		"package_checksum": stage.PackageChecksum,
+		"imported_source":  stage.ImportedSource,
 	})
 	_ = db.UpsertRuntimeStatus(ReplicationRuntimeComponent, "ok", stage.Summary, map[string]any{
-		"staged_id":       stage.ID,
-		"source_node":     manifest.SourceNode,
-		"source_role":     manifest.SourceRole,
-		"imported_at":     stage.ImportedAt,
-		"network_present": stage.NetworkStatePresent,
+		"staged_id":        stage.ID,
+		"source_node":      manifest.SourceNode,
+		"source_role":      manifest.SourceRole,
+		"imported_at":      stage.ImportedAt,
+		"network_present":  stage.NetworkStatePresent,
+		"package_checksum": stage.PackageChecksum,
+		"imported_source":  stage.ImportedSource,
 	})
 	return stage, nil
+}
+
+func FindStagedReplicationPackageByChecksum(cfg *config.Config, checksum string) (StagedReplicationPackage, bool, error) {
+	if cfg == nil {
+		return StagedReplicationPackage{}, false, errors.New("ha staged replication lookup requires a config")
+	}
+	checksum = strings.TrimSpace(checksum)
+	if checksum == "" {
+		return StagedReplicationPackage{}, false, nil
+	}
+	packages, err := ListStagedReplicationPackages(cfg)
+	if err != nil {
+		return StagedReplicationPackage{}, false, err
+	}
+	for _, stage := range packages {
+		if strings.EqualFold(strings.TrimSpace(stage.PackageChecksum), checksum) {
+			return stage, true, nil
+		}
+	}
+	return StagedReplicationPackage{}, false, nil
 }
 
 func ListStagedReplicationPackages(cfg *config.Config) ([]StagedReplicationPackage, error) {

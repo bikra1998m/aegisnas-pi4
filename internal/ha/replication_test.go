@@ -18,6 +18,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/network"
+	"go.uber.org/zap"
 	_ "modernc.org/sqlite"
 )
 
@@ -176,7 +177,61 @@ func TestStageLatestSharedReplicationPackageUsesPublishedBundle(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, stage.Ready)
 	assert.Equal(t, "active", stage.Manifest.SourceRole)
+	assert.Equal(t, "shared-live", stage.ImportedSource)
+	assert.NotEmpty(t, stage.PackageChecksum)
 	assert.Equal(t, "fresh-sync-user", lookupFirstUsername(t, filepath.Join(standbyCfg.HighAvailability.SharedStateDir, "replication", "staged", stage.ID, "content", "data.db")))
+}
+
+func TestReplicationMonitorAutoStagesFreshSharedPackage(t *testing.T) {
+	activeDir := t.TempDir()
+	activeCfgPath := filepath.Join(activeDir, "config.yaml")
+	activeDBPath := filepath.Join(activeDir, "data.db")
+	activeCfg := testHAConfig(activeDBPath, "active", "https://standby.example.test:8083", "Active Branding")
+	writeTestConfig(t, activeCfgPath, activeCfg)
+
+	require.NoError(t, db.Init(activeDBPath))
+	require.NoError(t, db.Migrate())
+	require.NoError(t, db.Close())
+
+	_, err := config.Load(activeCfgPath)
+	require.NoError(t, err)
+	shared, err := PublishSharedReplicationPackage(activeCfg)
+	require.NoError(t, err)
+
+	standbyDir := t.TempDir()
+	standbyCfgPath := filepath.Join(standbyDir, "config.yaml")
+	standbyDBPath := filepath.Join(standbyDir, "data.db")
+	standbyCfg := testHAConfig(standbyDBPath, "standby", "https://active.example.test:8083", "Standby Branding")
+	standbyCfg.HighAvailability.SharedStateDir = activeCfg.HighAvailability.SharedStateDir
+	standbyCfg.HighAvailability.AutoStageSharedPackage = true
+	writeTestConfig(t, standbyCfgPath, standbyCfg)
+
+	require.NoError(t, db.Init(standbyDBPath))
+	defer db.Close()
+	require.NoError(t, db.Migrate())
+	_, err = config.Load(standbyCfgPath)
+	require.NoError(t, err)
+
+	monitor := newReplicationMonitor(standbyCfg, zap.NewNop())
+	status, message, details := monitor.probe()
+	require.Equal(t, "ok", status)
+	assert.Contains(t, message, "auto-staged")
+	assert.Equal(t, "staged", details["auto_stage_status"])
+
+	packages, err := ListStagedReplicationPackages(standbyCfg)
+	require.NoError(t, err)
+	require.Len(t, packages, 1)
+	assert.Equal(t, "shared-auto", packages[0].ImportedSource)
+	assert.Equal(t, shared.PackageChecksum, packages[0].PackageChecksum)
+
+	status, message, details = monitor.probe()
+	require.Equal(t, "ok", status)
+	assert.Contains(t, message, "auto-stage is ready")
+	assert.Equal(t, "ready", details["auto_stage_status"])
+
+	packages, err = ListStagedReplicationPackages(standbyCfg)
+	require.NoError(t, err)
+	assert.Len(t, packages, 1)
 }
 
 func TestReplicationMonitorMarksStaleSharedPackage(t *testing.T) {

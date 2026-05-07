@@ -379,6 +379,7 @@ type HighAvailabilityConfig struct {
 	FailoverTimeoutSeconds       int    `mapstructure:"failover_timeout_seconds"`
 	ReplicationIntervalSeconds   int    `mapstructure:"replication_interval_seconds"`
 	ReplicationStaleAfterSeconds int    `mapstructure:"replication_stale_after_seconds"`
+	AutoStageSharedPackage       bool   `mapstructure:"auto_stage_shared_package"`
 	Preempt                      bool   `mapstructure:"preempt"`
 	SharedStateDir               string `mapstructure:"shared_state_dir"`
 }
@@ -475,6 +476,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.failover_timeout_seconds", 20)
 	v.SetDefault("high_availability.replication_interval_seconds", 300)
 	v.SetDefault("high_availability.replication_stale_after_seconds", 900)
+	v.SetDefault("high_availability.auto_stage_shared_package", false)
 	v.SetDefault("high_availability.preempt", false)
 	v.SetDefault("high_availability.shared_state_dir", "/var/lib/aegisnas/ha")
 	v.SetDefault("dhcp.enabled", true)
@@ -1126,6 +1128,9 @@ func (c *Config) Validate() error {
 		c.HighAvailability.ReplicationStaleAfterSeconds > 0 &&
 		c.HighAvailability.ReplicationStaleAfterSeconds <= c.HighAvailability.ReplicationIntervalSeconds {
 		return errors.New("high_availability.replication_stale_after_seconds must be greater than high_availability.replication_interval_seconds")
+	}
+	if c.HighAvailability.AutoStageSharedPackage && !c.HighAvailability.Enabled {
+		return errors.New("high_availability.auto_stage_shared_package requires high_availability.enabled")
 	}
 	if c.HighAvailability.Enabled {
 		if profile != "enterprise" {

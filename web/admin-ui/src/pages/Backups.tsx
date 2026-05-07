@@ -12,6 +12,7 @@ type StagedReplicationPackage = {
   id: string;
   imported_at: string;
   imported_by: string;
+  imported_source?: string;
   activated_at?: string;
   activated_by?: string;
   ready: boolean;
@@ -20,6 +21,7 @@ type StagedReplicationPackage = {
   config_valid: boolean;
   database_valid: boolean;
   network_state_present: boolean;
+  package_checksum?: string;
   activation_backup?: string;
   manifest: ReplicationManifest;
 };
@@ -322,6 +324,8 @@ export default function Backups() {
                     <div className="mt-2 text-xs text-gray-500">
                       Imported {pkg.imported_at} by {pkg.imported_by}. Source: {pkg.manifest?.source_node || 'unknown'} ({pkg.manifest?.source_role || 'unknown'}).
                     </div>
+                    {pkg.imported_source ? <div className="mt-1 text-xs text-gray-500">Imported via {pkg.imported_source}.</div> : null}
+                    {pkg.package_checksum ? <div className="mt-1 text-xs text-gray-500 break-all">Checksum {pkg.package_checksum}</div> : null}
                     {pkg.activation_backup ? <div className="mt-1 text-xs text-gray-500">Safety backup: {pkg.activation_backup}</div> : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">

@@ -171,6 +171,7 @@ function createSettings() {
       failover_timeout_seconds: 20,
       replication_interval_seconds: 300,
       replication_stale_after_seconds: 900,
+      auto_stage_shared_package: true,
       preempt: false,
       shared_state_dir: '/var/lib/aegisnas/ha',
     },
@@ -340,6 +341,7 @@ function createSystemStatus() {
       failover_timeout_seconds: 20,
       replication_interval_seconds: 300,
       replication_stale_after_seconds: 900,
+      auto_stage_shared_package: true,
       preempt: false,
       shared_state_dir: '/var/lib/aegisnas/ha',
       runtime: {
@@ -354,12 +356,15 @@ function createSystemStatus() {
       },
       replication_runtime: {
         status: 'ok',
-        message: 'Observed fresh shared HA replication package.',
+        message: 'Observed fresh shared HA replication package. Standby auto-stage is ready with package shared-stage-001.',
         updated_at: '2026-05-05T12:00:00Z',
         details: {
           latest_source_node: 'active-node',
           latest_age_seconds: 42,
           stale: false,
+          auto_stage_enabled: true,
+          auto_stage_status: 'ready',
+          auto_stage_stage_id: 'shared-stage-001',
         },
       },
       history_stats: {
