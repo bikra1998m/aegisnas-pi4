@@ -268,6 +268,7 @@ sudo apt-get install -y \
   freeradius-ldap \
   freeradius-utils \
   hostapd \
+  iputils-arping \
   iproute2 \
   jq \
   kmod \

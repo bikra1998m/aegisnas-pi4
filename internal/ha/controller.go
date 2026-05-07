@@ -47,7 +47,11 @@ type controller struct {
 	lastEffectiveRole    string
 	lastLeaseEventStatus string
 	lastFencingStatus    string
+	lastAnnouncementAt   string
+	lastAnnouncementErr  string
+	lastAnnouncementMode string
 	ipRunner             func(args ...string) (string, error)
+	arpingRunner         func(args ...string) (string, error)
 }
 
 var (
@@ -69,12 +73,13 @@ func newController(cfg *config.Config, client httpDoer, logger *zap.Logger) *con
 		client = &httpClientWithTimeout{timeout: 1500 * time.Millisecond}
 	}
 	return &controller{
-		cfg:      cfg,
-		client:   client,
-		logger:   logger,
-		now:      time.Now,
-		nodeName: strings.TrimSpace(nodeName),
-		ipRunner: defaultIPRunner,
+		cfg:          cfg,
+		client:       client,
+		logger:       logger,
+		now:          time.Now,
+		nodeName:     strings.TrimSpace(nodeName),
+		ipRunner:     defaultIPRunner,
+		arpingRunner: defaultArpingRunner,
 	}
 }
 
@@ -145,6 +150,7 @@ func (c *controller) tick() {
 	details["peer_failure_since"] = formatTime(c.failureSince)
 	details["vip_interface"] = target.Interface
 	details["vip_address"] = target.Address
+	c.appendAnnouncementDetails(details)
 
 	fencing := c.evaluateFencing(now, peerReachable, failoverActive, details)
 	c.recordFencingChange(fencing, details)
@@ -209,10 +215,17 @@ func (c *controller) tick() {
 				c.publish(status, message, details)
 				return
 			}
+			if err := c.refreshVIPAnnouncement(target, details); err != nil {
+				if status == "ok" {
+					status = "degraded"
+				}
+				message = "Virtual IP takeover succeeded, but announcement refresh failed."
+			}
 			if strings.EqualFold(strings.TrimSpace(c.cfg.HighAvailability.Role), "standby") {
 				details["effective_role"] = "active"
-				message = "Standby node is serving the virtual IP after peer timeout."
-				status = "ok"
+				if status == "ok" {
+					message = "Standby node is serving the virtual IP after peer timeout."
+				}
 			}
 			c.recordLeaseAction(action, target, details)
 		} else {
@@ -425,6 +438,21 @@ func (c *controller) recordFencingChange(result fencingResult, details map[strin
 	c.lastFencingStatus = status
 }
 
+func (c *controller) appendAnnouncementDetails(details map[string]any) {
+	if details == nil {
+		return
+	}
+	if strings.TrimSpace(c.lastAnnouncementMode) != "" {
+		details["vip_announcement_status"] = c.lastAnnouncementMode
+	}
+	if strings.TrimSpace(c.lastAnnouncementAt) != "" {
+		details["vip_announcement_at"] = c.lastAnnouncementAt
+	}
+	if strings.TrimSpace(c.lastAnnouncementErr) != "" {
+		details["vip_announcement_error"] = c.lastAnnouncementErr
+	}
+}
+
 func (c *controller) failoverActive(now time.Time, peerReachable bool) bool {
 	if peerReachable {
 		return false
@@ -512,6 +540,64 @@ func (c *controller) assignVIP(target vipTarget) error {
 	return nil
 }
 
+func (c *controller) refreshVIPAnnouncement(target vipTarget, details map[string]any) error {
+	if details == nil {
+		details = map[string]any{}
+	}
+	ipOnly := vipAddressOnly(target.Address)
+	attempts := []struct {
+		name string
+		args []string
+	}{
+		{name: "reply", args: []string{"-q", "-A", "-c", "2", "-I", target.Interface, ipOnly}},
+		{name: "request", args: []string{"-q", "-U", "-c", "2", "-I", target.Interface, ipOnly}},
+	}
+	details["vip_announcement_attempts"] = len(attempts)
+	details["vip_announcement_target"] = ipOnly
+
+	var failures []string
+	for _, attempt := range attempts {
+		output, err := c.runArping(attempt.args...)
+		if err != nil {
+			if strings.TrimSpace(output) != "" {
+				failures = append(failures, fmt.Sprintf("%s: %s (%v)", attempt.name, output, err))
+			} else {
+				failures = append(failures, fmt.Sprintf("%s: %v", attempt.name, err))
+			}
+		}
+	}
+
+	c.lastAnnouncementAt = c.now().UTC().Format(time.RFC3339)
+	if len(failures) == 0 {
+		c.lastAnnouncementMode = "sent"
+		c.lastAnnouncementErr = ""
+		details["vip_announcement_status"] = "sent"
+		details["vip_announcement_at"] = c.lastAnnouncementAt
+		_ = db.RecordHAHistory("vip_announcement", "sent", "Sent gratuitous ARP refresh for the HA virtual IP.", strings.TrimSpace(c.cfg.HighAvailability.Role), "", map[string]any{
+			"interface": target.Interface,
+			"vip":       target.Address,
+			"target_ip": ipOnly,
+			"attempts":  len(attempts),
+		})
+		return nil
+	}
+
+	joined := strings.Join(failures, "; ")
+	c.lastAnnouncementMode = "failed"
+	c.lastAnnouncementErr = joined
+	details["vip_announcement_status"] = "failed"
+	details["vip_announcement_at"] = c.lastAnnouncementAt
+	details["vip_announcement_error"] = joined
+	_ = db.RecordHAHistory("vip_announcement", "failed", "HA VIP was assigned, but gratuitous ARP refresh failed.", strings.TrimSpace(c.cfg.HighAvailability.Role), "", map[string]any{
+		"interface": target.Interface,
+		"vip":       target.Address,
+		"target_ip": ipOnly,
+		"attempts":  len(attempts),
+		"errors":    failures,
+	})
+	return fmt.Errorf("%s", joined)
+}
+
 func (c *controller) withdrawVIP(target vipTarget) error {
 	if err := c.runIP("addr", "del", target.Address, "dev", target.Interface); err != nil {
 		if isIgnorableVIPDeleteError(err) {
@@ -559,6 +645,30 @@ func defaultIPRunner(args ...string) (string, error) {
 	cmd := exec.Command("ip", args...)
 	output, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(output)), err
+}
+
+func defaultArpingRunner(args ...string) (string, error) {
+	cmd := exec.Command("arping", args...)
+	output, err := cmd.CombinedOutput()
+	return strings.TrimSpace(string(output)), err
+}
+
+func (c *controller) runArping(args ...string) (string, error) {
+	if c.arpingRunner == nil {
+		return "", fmt.Errorf("arping runner is unavailable")
+	}
+	return c.arpingRunner(args...)
+}
+
+func vipAddressOnly(address string) string {
+	address = strings.TrimSpace(address)
+	if address == "" {
+		return ""
+	}
+	if ip, _, err := net.ParseCIDR(address); err == nil && ip != nil {
+		return ip.String()
+	}
+	return address
 }
 
 func resolveVIPTarget(cfg *config.Config) (vipTarget, error) {

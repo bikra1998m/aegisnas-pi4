@@ -361,6 +361,8 @@ function createSystemStatus() {
           peer_shared_heartbeat_present: true,
           peer_shared_heartbeat_age_seconds: 4,
           peer_shared_heartbeat_stale: false,
+          vip_announcement_status: 'sent',
+          vip_announcement_at: '2026-05-05T11:59:58Z',
         },
       },
       replication_runtime: {
@@ -385,6 +387,8 @@ function createSystemStatus() {
         vip_acquisitions: 2,
         vip_preemptions: 0,
         vip_releases: 2,
+        vip_announcements: 2,
+        vip_announcement_failures: 0,
         replication_publishes: 4,
         replication_failures: 0,
         replication_stale_count: 1,

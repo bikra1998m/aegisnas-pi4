@@ -29,6 +29,8 @@ type HAHistoryStats struct {
 	VIPAcquisitions       int    `json:"vip_acquisitions"`
 	VIPPreemptions        int    `json:"vip_preemptions"`
 	VIPReleases           int    `json:"vip_releases"`
+	VIPAnnouncements      int    `json:"vip_announcements"`
+	VIPAnnouncementFails  int    `json:"vip_announcement_failures"`
 	ReplicationPublishes  int    `json:"replication_publishes"`
 	ReplicationFailures   int    `json:"replication_failures"`
 	ReplicationStaleCount int    `json:"replication_stale_count"`
@@ -114,6 +116,8 @@ func GetHAHistoryStats() (HAHistoryStats, error) {
 		SUM(CASE WHEN event_type = 'vip_lease' AND status = 'acquired' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN event_type = 'vip_lease' AND status = 'preempted' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN event_type = 'vip_lease' AND status = 'released' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN event_type = 'vip_announcement' AND status = 'sent' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN event_type = 'vip_announcement' AND status = 'failed' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN event_type = 'replication_publish' AND status = 'success' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN event_type = 'replication_publish' AND status = 'failed' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN event_type = 'replication_freshness' AND status = 'stale' THEN 1 ELSE 0 END),
@@ -129,6 +133,8 @@ func GetHAHistoryStats() (HAHistoryStats, error) {
 		&stats.VIPAcquisitions,
 		&stats.VIPPreemptions,
 		&stats.VIPReleases,
+		&stats.VIPAnnouncements,
+		&stats.VIPAnnouncementFails,
 		&stats.ReplicationPublishes,
 		&stats.ReplicationFailures,
 		&stats.ReplicationStaleCount,

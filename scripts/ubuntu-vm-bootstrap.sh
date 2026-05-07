@@ -243,6 +243,7 @@ install_packages() {
     freeradius-ldap \
     freeradius-utils \
     hostapd \
+    iputils-arping \
     iproute2 \
     jq \
     kmod \

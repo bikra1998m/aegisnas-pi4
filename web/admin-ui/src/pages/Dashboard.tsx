@@ -121,6 +121,8 @@ type SystemStatus = {
       vip_acquisitions: number;
       vip_preemptions: number;
       vip_releases: number;
+      vip_announcements: number;
+      vip_announcement_failures: number;
       replication_publishes: number;
       replication_failures: number;
       replication_stale_count: number;
@@ -614,6 +616,20 @@ export default function Dashboard() {
                         .
                       </div>
                     ) : null}
+                    {systemStatus.high_availability.runtime?.details?.vip_announcement_status ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        VIP announcement {String(systemStatus.high_availability.runtime.details.vip_announcement_status)}
+                        {systemStatus.high_availability.runtime?.details?.vip_announcement_at
+                          ? ` at ${String(systemStatus.high_availability.runtime.details.vip_announcement_at)}`
+                          : ''}
+                        .
+                      </div>
+                    ) : null}
+                    {systemStatus.high_availability.runtime?.details?.vip_announcement_error ? (
+                      <div className="mt-1 text-xs text-gray-500 break-all">
+                        {String(systemStatus.high_availability.runtime.details.vip_announcement_error)}
+                      </div>
+                    ) : null}
                     <div className="mt-1 text-xs text-gray-500">
                       {systemStatus.high_availability.replication_runtime?.message ||
                         `Shared replication every ${systemStatus.high_availability.replication_interval_seconds || 300}s with stale threshold ${systemStatus.high_availability.replication_stale_after_seconds || 900}s.`}
@@ -662,7 +678,7 @@ export default function Dashboard() {
                       </div>
                     ) : null}
                     <div className="mt-1 text-xs text-gray-500">
-                      Promotions {systemStatus.high_availability.history_stats?.failover_promotions ?? 0}, peer failures {systemStatus.high_availability.history_stats?.peer_failures ?? 0}, replication publishes {systemStatus.high_availability.history_stats?.replication_publishes ?? 0}.
+                      Promotions {systemStatus.high_availability.history_stats?.failover_promotions ?? 0}, peer failures {systemStatus.high_availability.history_stats?.peer_failures ?? 0}, VIP announcements {systemStatus.high_availability.history_stats?.vip_announcements ?? 0}, replication publishes {systemStatus.high_availability.history_stats?.replication_publishes ?? 0}.
                     </div>
                     {systemStatus.high_availability.history_stats?.last_event_at ? (
                       <div className="mt-1 text-xs text-gray-500">HA history last updated {systemStatus.high_availability.history_stats.last_event_at}</div>

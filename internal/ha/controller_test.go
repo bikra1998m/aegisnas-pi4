@@ -35,6 +35,7 @@ func TestStandbyWaitsBeforeTakingVIP(t *testing.T) {
 		ipCalls = append(ipCalls, strings.Join(args, " "))
 		return "", nil
 	}
+	ctrl.arpingRunner = func(args ...string) (string, error) { return "", nil }
 
 	ctrl.tick()
 	assert.False(t, ctrl.vipAssigned)
@@ -81,6 +82,7 @@ func TestActivePreemptsLowerPriorityLeaseWhenEnabled(t *testing.T) {
 		ipCalls = append(ipCalls, strings.Join(args, " "))
 		return "", nil
 	}
+	ctrl.arpingRunner = func(args ...string) (string, error) { return "", nil }
 
 	ctrl.tick()
 	assert.True(t, ctrl.vipAssigned)
@@ -119,6 +121,7 @@ func TestActiveWaitsWhenPreemptDisabled(t *testing.T) {
 		t.Fatalf("unexpected ip call: %v", args)
 		return "", nil
 	}
+	ctrl.arpingRunner = func(args ...string) (string, error) { return "", nil }
 
 	ctrl.tick()
 	assert.False(t, ctrl.vipAssigned)
@@ -188,6 +191,7 @@ func TestStandbySchedulesActivationBeforeVIPTakeover(t *testing.T) {
 		t.Fatalf("VIP should not be assigned before activation restart handoff, got %v", args)
 		return "", nil
 	}
+	ctrl.arpingRunner = func(args ...string) (string, error) { return "", nil }
 
 	ctrl.tick()
 
@@ -246,6 +250,7 @@ func TestStandbyUsesActivatedStageBeforeVIPTakeover(t *testing.T) {
 		ipCalls = append(ipCalls, strings.Join(args, " "))
 		return "", nil
 	}
+	ctrl.arpingRunner = func(args ...string) (string, error) { return "", nil }
 
 	ctrl.tick()
 
@@ -280,6 +285,7 @@ func TestStandbyDoesNotPromoteWhenPeerSharedHeartbeatIsFresh(t *testing.T) {
 		ipCalls = append(ipCalls, strings.Join(args, " "))
 		return "", nil
 	}
+	ctrl.arpingRunner = func(args ...string) (string, error) { return "", nil }
 
 	ctrl.tick()
 
@@ -317,12 +323,65 @@ func TestStandbyPromotesWhenPeerSharedHeartbeatIsStale(t *testing.T) {
 		ipCalls = append(ipCalls, strings.Join(args, " "))
 		return "", nil
 	}
+	ctrl.arpingRunner = func(args ...string) (string, error) { return "", nil }
 
 	ctrl.tick()
 
 	assert.True(t, ctrl.vipAssigned)
 	require.NotEmpty(t, ipCalls)
 	assert.Contains(t, ipCalls[len(ipCalls)-1], "addr replace 192.168.50.2/24 dev ens37")
+}
+
+func TestVIPAnnouncementUsesReplyAndRequestModes(t *testing.T) {
+	cfg := haTestConfig(t, "active")
+	now := time.Date(2026, 5, 8, 9, 0, 0, 0, time.UTC)
+
+	ctrl := newController(cfg, probeClient{do: func(req *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Status: "200 OK", Body: http.NoBody}, nil
+	}}, zap.NewNop())
+	ctrl.nodeName = "active-1"
+	ctrl.now = func() time.Time { return now }
+
+	var calls []string
+	ctrl.arpingRunner = func(args ...string) (string, error) {
+		calls = append(calls, strings.Join(args, " "))
+		return "", nil
+	}
+
+	details := map[string]any{}
+	err := ctrl.refreshVIPAnnouncement(vipTarget{Interface: "ens37", Address: "192.168.50.2/24"}, details)
+	require.NoError(t, err)
+	require.Len(t, calls, 2)
+	assert.Contains(t, calls[0], "-A")
+	assert.Contains(t, calls[1], "-U")
+	assert.Equal(t, "sent", ctrl.lastAnnouncementMode)
+	assert.Equal(t, "sent", details["vip_announcement_status"])
+}
+
+func TestVIPAnnouncementFailureDoesNotBlockAssignment(t *testing.T) {
+	cfg := haTestConfig(t, "active")
+	now := time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC)
+
+	var ipCalls []string
+	ctrl := newController(cfg, probeClient{do: func(req *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Status: "200 OK", Body: http.NoBody}, nil
+	}}, zap.NewNop())
+	ctrl.nodeName = "active-1"
+	ctrl.now = func() time.Time { return now }
+	ctrl.ipRunner = func(args ...string) (string, error) {
+		ipCalls = append(ipCalls, strings.Join(args, " "))
+		return "", nil
+	}
+	ctrl.arpingRunner = func(args ...string) (string, error) {
+		return "arping missing", errors.New("exit status 127")
+	}
+
+	ctrl.tick()
+
+	assert.True(t, ctrl.vipAssigned)
+	require.NotEmpty(t, ipCalls)
+	assert.Equal(t, "failed", ctrl.lastAnnouncementMode)
+	assert.Contains(t, ctrl.lastAnnouncementErr, "arping missing")
 }
 
 func haTestConfig(t *testing.T, role string) *config.Config {

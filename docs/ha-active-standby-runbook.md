@@ -4,6 +4,7 @@ This runbook is the operator path for AegisNAS high availability with:
 
 - active and standby roles
 - VIP takeover
+- VIP announcement refresh after takeover
 - continuous shared replication freshness tracking
 - staged standby activation
 - optional standby auto-activation during failover
@@ -306,6 +307,7 @@ Expected outcome after `failover_timeout_seconds`:
 
 - standby `Dashboard -> High Availability` shows effective role `active`
 - standby reports VIP assigned locally
+- standby reports VIP announcement status `sent`
 - HA history records a promotion
 - active node stops serving the VIP
 
