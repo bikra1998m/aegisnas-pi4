@@ -278,6 +278,7 @@ high_availability:
   failover_timeout_seconds: 20
   replication_interval_seconds: 300
   replication_stale_after_seconds: 900
+  split_brain_protection_enabled: true
   auto_stage_shared_package: false
   auto_activate_on_failover: false
   preempt: false

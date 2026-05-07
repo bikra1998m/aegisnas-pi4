@@ -253,6 +253,78 @@ func TestStandbyUsesActivatedStageBeforeVIPTakeover(t *testing.T) {
 	assert.Contains(t, ipCalls[len(ipCalls)-1], "addr replace 192.168.50.2/24 dev ens37")
 }
 
+func TestStandbyDoesNotPromoteWhenPeerSharedHeartbeatIsFresh(t *testing.T) {
+	cfg := haTestConfig(t, "standby")
+	cfg.HighAvailability.SplitBrainProtectionEnabled = true
+	now := time.Date(2026, 5, 7, 9, 0, 0, 0, time.UTC)
+
+	peerCfg := *cfg
+	peerCfg.HighAvailability.Role = "active"
+	require.NoError(t, saveSharedHeartbeat(&peerCfg, sharedHeartbeat{
+		NodeName:       "active-1",
+		ConfiguredRole: "active",
+		EffectiveRole:  "active",
+		VirtualIP:      cfg.HighAvailability.VirtualIP,
+		VIPAssigned:    true,
+		PublishedAt:    now.Add(-5 * time.Second).Format(time.RFC3339),
+	}))
+
+	var ipCalls []string
+	ctrl := newController(cfg, probeClient{do: func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("peer down")
+	}}, zap.NewNop())
+	ctrl.nodeName = "standby-1"
+	ctrl.now = func() time.Time { return now }
+	ctrl.failureSince = now.Add(-30 * time.Second)
+	ctrl.ipRunner = func(args ...string) (string, error) {
+		ipCalls = append(ipCalls, strings.Join(args, " "))
+		return "", nil
+	}
+
+	ctrl.tick()
+
+	assert.False(t, ctrl.vipAssigned)
+	assert.NotContains(t, strings.Join(ipCalls, "\n"), "addr replace")
+	lease, err := loadLease(cfg)
+	require.NoError(t, err)
+	assert.Empty(t, lease.HolderNode)
+}
+
+func TestStandbyPromotesWhenPeerSharedHeartbeatIsStale(t *testing.T) {
+	cfg := haTestConfig(t, "standby")
+	cfg.HighAvailability.SplitBrainProtectionEnabled = true
+	now := time.Date(2026, 5, 7, 10, 0, 0, 0, time.UTC)
+
+	peerCfg := *cfg
+	peerCfg.HighAvailability.Role = "active"
+	require.NoError(t, saveSharedHeartbeat(&peerCfg, sharedHeartbeat{
+		NodeName:       "active-1",
+		ConfiguredRole: "active",
+		EffectiveRole:  "active",
+		VirtualIP:      cfg.HighAvailability.VirtualIP,
+		VIPAssigned:    true,
+		PublishedAt:    now.Add(-31 * time.Second).Format(time.RFC3339),
+	}))
+
+	var ipCalls []string
+	ctrl := newController(cfg, probeClient{do: func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("peer down")
+	}}, zap.NewNop())
+	ctrl.nodeName = "standby-1"
+	ctrl.now = func() time.Time { return now }
+	ctrl.failureSince = now.Add(-30 * time.Second)
+	ctrl.ipRunner = func(args ...string) (string, error) {
+		ipCalls = append(ipCalls, strings.Join(args, " "))
+		return "", nil
+	}
+
+	ctrl.tick()
+
+	assert.True(t, ctrl.vipAssigned)
+	require.NotEmpty(t, ipCalls)
+	assert.Contains(t, ipCalls[len(ipCalls)-1], "addr replace 192.168.50.2/24 dev ens37")
+}
+
 func haTestConfig(t *testing.T, role string) *config.Config {
 	t.Helper()
 	root := t.TempDir()

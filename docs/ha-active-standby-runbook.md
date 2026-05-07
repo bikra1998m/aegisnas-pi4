@@ -64,6 +64,7 @@ high_availability:
   failover_timeout_seconds: 20
   replication_interval_seconds: 300
   replication_stale_after_seconds: 900
+  split_brain_protection_enabled: true
   auto_stage_shared_package: true
   auto_activate_on_failover: false
   preempt: false
@@ -76,6 +77,7 @@ Guidance:
 - `failover_timeout_seconds`: how long a standby waits before declaring failover active
 - `replication_interval_seconds`: how often the active node publishes a fresh shared package
 - `replication_stale_after_seconds`: when the shared package is considered stale
+- `split_brain_protection_enabled`: whether standby nodes require the peer shared heartbeat to go stale before promoting
 - `auto_stage_shared_package`: whether the standby keeps the freshest shared package staged automatically
 - `auto_activate_on_failover`: whether the standby activates that fresh staged package before claiming the VIP during failover
 - `preempt: false`: safer default for most labs and branch environments
@@ -94,6 +96,8 @@ Current HA artifacts live under:
 
 ```text
 <shared_state_dir>/vip-lease.json
+<shared_state_dir>/heartbeats/active.json
+<shared_state_dir>/heartbeats/standby.json
 <shared_state_dir>/replication/live/latest.tar.gz
 <shared_state_dir>/replication/live/latest.json
 <shared_state_dir>/replication/staged/
@@ -311,6 +315,12 @@ Expected additional outcome when `auto_activate_on_failover: true`:
 - HA history records `replication_activate` and `replication_restart`
 - if restart handoff fails, HA runtime should show the failure clearly instead of silently claiming success
 
+Expected additional outcome when `split_brain_protection_enabled: true`:
+
+- standby does not promote while the peer shared heartbeat is still fresh
+- standby promotes only after peer health fails and the peer shared heartbeat becomes stale
+- runtime details show `fencing_status`, peer heartbeat age, and whether the peer heartbeat is marked stale
+
 Useful checks on standby:
 
 ```bash
@@ -372,6 +382,7 @@ Mark the HA pair ready when all of these are true:
 [ ] active node publishes shared replication package
 [ ] standby node reports effective role standby
 [ ] standby node reports shared replication package fresh
+[ ] standby node reports split-brain protection enabled
 [ ] standby can stage latest shared package
 [ ] standby activation succeeds
 [ ] standby auto-activation behavior matches configuration
@@ -431,6 +442,7 @@ Check:
 
 - active gateway was really stopped, not just admin API
 - standby `failover_timeout_seconds` is long enough to observe
+- split-brain protection did not hold the standby back because the peer shared heartbeat was still fresh
 - shared VIP lease is visible
 - standby gateway logs show peer failure and promotion path
 

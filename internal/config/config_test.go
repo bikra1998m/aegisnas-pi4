@@ -984,6 +984,7 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 				FailoverTimeoutSeconds:       20,
 				ReplicationIntervalSeconds:   300,
 				ReplicationStaleAfterSeconds: 900,
+				SplitBrainProtectionEnabled:  true,
 				SharedStateDir:               "/var/lib/aegisnas/ha",
 			},
 		}

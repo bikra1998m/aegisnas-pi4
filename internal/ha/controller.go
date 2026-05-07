@@ -46,6 +46,7 @@ type controller struct {
 	lastPeerReachable    *bool
 	lastEffectiveRole    string
 	lastLeaseEventStatus string
+	lastFencingStatus    string
 	ipRunner             func(args ...string) (string, error)
 }
 
@@ -135,12 +136,22 @@ func (c *controller) tick() {
 
 	failoverActive := c.failoverActive(now, peerReachable)
 	details["effective_role"] = strings.TrimSpace(c.cfg.HighAvailability.Role)
+	if strings.EqualFold(strings.TrimSpace(c.cfg.HighAvailability.Role), "standby") && c.vipAssigned {
+		details["effective_role"] = "active"
+	}
 	details["failover_active"] = failoverActive
 	details["auto_activate_enabled"] = c.cfg.HighAvailability.AutoActivateOnFailover
 	details["peer_last_healthy_at"] = formatTime(c.lastHealthyAt)
 	details["peer_failure_since"] = formatTime(c.failureSince)
 	details["vip_interface"] = target.Interface
 	details["vip_address"] = target.Address
+
+	fencing := c.evaluateFencing(now, peerReachable, failoverActive, details)
+	c.recordFencingChange(fencing, details)
+	if fencing.Enabled && (fencing.LocalWriteError != nil || fencing.PeerLoadError != nil || !fencing.PeerPresent || fencing.PeerAgeErr != nil) {
+		status = "degraded"
+		message = fencing.Summary
+	}
 
 	lease, leaseErr := loadLease(c.cfg)
 	if leaseErr != nil {
@@ -153,6 +164,15 @@ func (c *controller) tick() {
 
 	shouldHold := c.shouldHoldVIP(peerReachable, failoverActive)
 	leaseAction := "idle"
+	if shouldHold && strings.EqualFold(strings.TrimSpace(c.cfg.HighAvailability.Role), "standby") && !fencing.AllowPromotion {
+		shouldHold = false
+		leaseAction = "blocked_by_fencing"
+		status = "degraded"
+		message = "Standby failover is paused until peer shared-state heartbeat is stale."
+		if strings.TrimSpace(fencing.Summary) != "" {
+			message = fencing.Summary
+		}
+	}
 
 	if shouldHold {
 		activationScheduled, err := c.ensureStandbyActivationForFailover(details, now)
@@ -207,7 +227,9 @@ func (c *controller) tick() {
 			}
 		}
 	} else {
-		leaseAction = "release"
+		if leaseAction == "idle" {
+			leaseAction = "release"
+		}
 		if err := c.releaseLeaseIfOwned(lease); err != nil && c.logger != nil {
 			c.logger.Warn("failed to release HA lease", zap.Error(err))
 		}
@@ -215,8 +237,9 @@ func (c *controller) tick() {
 			c.logger.Warn("failed to withdraw virtual IP", zap.Error(err))
 		}
 		c.vipAssigned = false
+		details["effective_role"] = strings.TrimSpace(c.cfg.HighAvailability.Role)
 		c.recordLeaseAction(leaseAction, target, details)
-		if !peerReachable && c.cfg.HighAvailability.Enabled {
+		if !peerReachable && c.cfg.HighAvailability.Enabled && leaseAction != "blocked_by_fencing" {
 			status = "degraded"
 			message = "Peer health probe failed, but failover timeout has not expired yet."
 		}
@@ -230,6 +253,18 @@ func (c *controller) tick() {
 	}
 	details["lease_action"] = leaseAction
 	details["vip_assigned"] = c.vipAssigned
+	if c.cfg.HighAvailability.SplitBrainProtectionEnabled {
+		finalHeartbeat := localHeartbeatState(c, now)
+		if err := saveSharedHeartbeat(c.cfg, finalHeartbeat); err != nil {
+			details["shared_heartbeat_error"] = err.Error()
+			if status == "ok" {
+				status = "degraded"
+				message = "High availability heartbeat could not be refreshed after the latest state change."
+			}
+		} else {
+			details["shared_heartbeat_published_at"] = finalHeartbeat.PublishedAt
+		}
+	}
 	c.recordEffectiveRoleChange(fmt.Sprint(details["effective_role"]), details)
 
 	c.publish(status, message, details)
@@ -374,6 +409,20 @@ func (c *controller) recordEffectiveRoleChange(role string, details map[string]a
 		}
 	}
 	c.lastEffectiveRole = role
+}
+
+func (c *controller) recordFencingChange(result fencingResult, details map[string]any) {
+	status := strings.TrimSpace(result.Status)
+	if status == "" || c.lastFencingStatus == status {
+		return
+	}
+	role := strings.TrimSpace(c.cfg.HighAvailability.Role)
+	summary := strings.TrimSpace(result.Summary)
+	if summary == "" {
+		summary = "HA split-brain protection state changed."
+	}
+	_ = db.RecordHAHistory("fencing", status, summary, role, "", details)
+	c.lastFencingStatus = status
 }
 
 func (c *controller) failoverActive(now time.Time, peerReachable bool) bool {

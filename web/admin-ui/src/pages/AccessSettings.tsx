@@ -315,6 +315,7 @@ const defaultSettings: JsonMap = {
     failover_timeout_seconds: 20,
     replication_interval_seconds: 300,
     replication_stale_after_seconds: 900,
+    split_brain_protection_enabled: true,
     auto_stage_shared_package: false,
     auto_activate_on_failover: false,
     preempt: false,
@@ -2665,6 +2666,11 @@ export default function AccessSettings() {
             label="Preempt Preferred"
             checked={Boolean(settings.high_availability?.preempt)}
             onChange={(value) => updateField(['high_availability', 'preempt'], value)}
+          />
+          <ToggleField
+            label="Split-Brain Protection"
+            checked={Boolean(settings.high_availability?.split_brain_protection_enabled)}
+            onChange={(value) => updateField(['high_availability', 'split_brain_protection_enabled'], value)}
           />
           <ToggleField
             label="Auto-Stage Shared Package"

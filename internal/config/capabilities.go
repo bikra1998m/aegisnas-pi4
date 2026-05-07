@@ -763,9 +763,13 @@ func evaluateHighAvailabilityCapability(cfg *Config) FeatureCapability {
 		capability.State = CapabilityWarned
 		capability.Summary = "High availability is active, but the node is below the recommended enterprise hardware floor."
 		capability.Recommendation = "Use at least 4 cores and 8 GB RAM before treating failover monitoring as a production control plane."
+	case cfg.HighAvailability.Enabled && !cfg.HighAvailability.SplitBrainProtectionEnabled:
+		capability.State = CapabilityWarned
+		capability.Summary = "High availability is active without split-brain protection."
+		capability.Recommendation = "Turn on high_availability.split_brain_protection_enabled so standby nodes require stale shared-state heartbeats before promoting."
 	case cfg.HighAvailability.Enabled:
 		capability.State = CapabilityEnabled
-		capability.Summary = "High availability peer monitoring is active."
+		capability.Summary = "High availability peer monitoring and split-brain protection are active."
 	default:
 		capability.State = CapabilityAvailable
 		capability.Summary = "High availability groundwork is supported but currently off."

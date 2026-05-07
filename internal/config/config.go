@@ -379,6 +379,7 @@ type HighAvailabilityConfig struct {
 	FailoverTimeoutSeconds       int    `mapstructure:"failover_timeout_seconds"`
 	ReplicationIntervalSeconds   int    `mapstructure:"replication_interval_seconds"`
 	ReplicationStaleAfterSeconds int    `mapstructure:"replication_stale_after_seconds"`
+	SplitBrainProtectionEnabled  bool   `mapstructure:"split_brain_protection_enabled"`
 	AutoStageSharedPackage       bool   `mapstructure:"auto_stage_shared_package"`
 	AutoActivateOnFailover       bool   `mapstructure:"auto_activate_on_failover"`
 	Preempt                      bool   `mapstructure:"preempt"`
@@ -477,6 +478,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.failover_timeout_seconds", 20)
 	v.SetDefault("high_availability.replication_interval_seconds", 300)
 	v.SetDefault("high_availability.replication_stale_after_seconds", 900)
+	v.SetDefault("high_availability.split_brain_protection_enabled", true)
 	v.SetDefault("high_availability.auto_stage_shared_package", false)
 	v.SetDefault("high_availability.auto_activate_on_failover", false)
 	v.SetDefault("high_availability.preempt", false)
