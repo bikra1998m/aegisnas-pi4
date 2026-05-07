@@ -134,6 +134,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/network-apply-history", adminapi.HandleListNetworkApplyHistory)
 			r.Get("/system/network-apply-history/export", adminapi.HandleExportNetworkApplyHistory)
 			r.Get("/system/network-observability", adminapi.HandleGetNetworkObservability)
+			r.Get("/system/ha/history", adminapi.HandleListHAHistory)
+			r.Get("/system/ha/history/export", adminapi.HandleExportHAHistory)
 			r.Get("/system/ha/replication-package", adminapi.HandleDownloadHAReplicationPackage)
 			r.Get("/system/ha/replication-shared", adminapi.HandleGetSharedHAReplicationStatus)
 			r.Get("/system/ha/replication-staged", adminapi.HandleListHAReplicationPackages)

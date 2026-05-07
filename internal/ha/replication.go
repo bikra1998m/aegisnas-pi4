@@ -215,6 +215,14 @@ func ImportReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 	if err := writeStageMetadata(stageDir, stage); err != nil {
 		return stage, err
 	}
+	_ = db.RecordHAHistory("replication_stage", "staged", stage.Summary, strings.TrimSpace(cfg.HighAvailability.Role), stage.ImportedBy, map[string]any{
+		"stage_id":        stage.ID,
+		"source_node":     manifest.SourceNode,
+		"source_role":     manifest.SourceRole,
+		"schema_version":  manifest.SchemaVersion,
+		"network_present": stage.NetworkStatePresent,
+		"package_type":    manifest.PackageType,
+	})
 	_ = db.UpsertRuntimeStatus(ReplicationRuntimeComponent, "ok", stage.Summary, map[string]any{
 		"staged_id":       stage.ID,
 		"source_node":     manifest.SourceNode,
@@ -323,7 +331,6 @@ func ActivateStagedReplicationPackage(cfg *config.Config, id, activatedBy string
 	if err := writeStageMetadata(stageDir, stage); err != nil {
 		return ActivationResult{}, err
 	}
-
 	services := []string{
 		"dnsmasq",
 		"freeradius",
@@ -337,6 +344,14 @@ func ActivateStagedReplicationPackage(cfg *config.Config, id, activatedBy string
 		"aegis-telemetry",
 		"aegis-admin-api",
 	}
+	_ = db.RecordHAHistory("replication_activate", "activated", stage.Summary, strings.TrimSpace(cfg.HighAvailability.Role), stage.ActivatedBy, map[string]any{
+		"stage_id":          stage.ID,
+		"activation_backup": backupPath,
+		"restart_services":  services,
+		"source_node":       stage.Manifest.SourceNode,
+		"source_role":       stage.Manifest.SourceRole,
+		"schema_version":    stage.Manifest.SchemaVersion,
+	})
 	_ = db.UpsertRuntimeStatus(ReplicationRuntimeComponent, "pending", stage.Summary, map[string]any{
 		"staged_id":         stage.ID,
 		"activated_at":      stage.ActivatedAt,

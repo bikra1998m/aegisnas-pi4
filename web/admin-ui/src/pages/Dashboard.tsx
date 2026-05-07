@@ -109,6 +109,22 @@ type SystemStatus = {
     shared_state_dir: string;
     runtime: RuntimeStatus;
     replication_runtime: RuntimeStatus;
+    history_stats: {
+      total_records: number;
+      failover_promotions: number;
+      failover_returns: number;
+      peer_failures: number;
+      peer_recoveries: number;
+      vip_acquisitions: number;
+      vip_preemptions: number;
+      vip_releases: number;
+      replication_publishes: number;
+      replication_failures: number;
+      replication_stale_count: number;
+      shared_stages: number;
+      activations: number;
+      last_event_at: string;
+    };
   };
   integrations: {
     admin_sso: {
@@ -607,6 +623,12 @@ export default function Dashboard() {
                           : ''}
                         {systemStatus.high_availability.replication_runtime?.details?.stale ? ', marked stale.' : ', marked fresh.'}
                       </div>
+                    ) : null}
+                    <div className="mt-1 text-xs text-gray-500">
+                      Promotions {systemStatus.high_availability.history_stats?.failover_promotions ?? 0}, peer failures {systemStatus.high_availability.history_stats?.peer_failures ?? 0}, replication publishes {systemStatus.high_availability.history_stats?.replication_publishes ?? 0}.
+                    </div>
+                    {systemStatus.high_availability.history_stats?.last_event_at ? (
+                      <div className="mt-1 text-xs text-gray-500">HA history last updated {systemStatus.high_availability.history_stats.last_event_at}</div>
                     ) : null}
                     <div className="mt-1 text-xs text-gray-500">{systemStatus.high_availability.runtime?.message || 'No HA runtime status recorded yet.'}</div>
                     {systemStatus.high_availability.runtime?.details?.peer_health_url ? (

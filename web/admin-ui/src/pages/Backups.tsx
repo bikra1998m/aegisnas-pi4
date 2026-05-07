@@ -38,6 +38,34 @@ type SharedReplicationStatus = {
   network_state_present?: boolean;
 };
 
+type HAHistoryRecord = {
+  id: number;
+  event_type: string;
+  status: string;
+  summary: string;
+  node_role?: string;
+  actor?: string;
+  details?: Record<string, any>;
+  created_at: string;
+};
+
+type HAHistoryStats = {
+  total_records: number;
+  failover_promotions: number;
+  failover_returns: number;
+  peer_failures: number;
+  peer_recoveries: number;
+  vip_acquisitions: number;
+  vip_preemptions: number;
+  vip_releases: number;
+  replication_publishes: number;
+  replication_failures: number;
+  replication_stale_count: number;
+  shared_stages: number;
+  activations: number;
+  last_event_at?: string;
+};
+
 export default function Backups() {
   const [configFile, setConfigFile] = useState<File | null>(null);
   const [replicationFile, setReplicationFile] = useState<File | null>(null);
@@ -45,8 +73,11 @@ export default function Backups() {
   const [error, setError] = useState('');
   const [stagedPackages, setStagedPackages] = useState<StagedReplicationPackage[]>([]);
   const [sharedStatus, setSharedStatus] = useState<SharedReplicationStatus | null>(null);
+  const [haHistory, setHAHistory] = useState<HAHistoryRecord[]>([]);
+  const [haHistoryStats, setHAHistoryStats] = useState<HAHistoryStats | null>(null);
   const [loadingStages, setLoadingStages] = useState(true);
   const [loadingSharedStatus, setLoadingSharedStatus] = useState(true);
+  const [loadingHAHistory, setLoadingHAHistory] = useState(true);
   const [busyAction, setBusyAction] = useState('');
 
   const loadStages = async () => {
@@ -73,9 +104,23 @@ export default function Backups() {
     }
   };
 
+  const loadHAHistory = async () => {
+    setLoadingHAHistory(true);
+    try {
+      const { data } = await api.get('/system/ha/history');
+      setHAHistory(data.history || []);
+      setHAHistoryStats(data.stats || null);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load HA history.');
+    } finally {
+      setLoadingHAHistory(false);
+    }
+  };
+
   useEffect(() => {
     void loadStages();
     void loadSharedStatus();
+    void loadHAHistory();
   }, []);
 
   const downloadConfigBackup = async () => {
@@ -145,6 +190,7 @@ export default function Backups() {
       });
       setMessage(`Replication package ${data.package?.id || ''} is staged and validated on this node.`);
       await loadStages();
+      await loadHAHistory();
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not stage HA replication package.');
     } finally {
@@ -162,6 +208,7 @@ export default function Backups() {
       setMessage(data.message || `Shared replication package ${data.package?.id || ''} is staged on this node.`);
       await loadStages();
       await loadSharedStatus();
+      await loadHAHistory();
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not stage the latest shared HA replication package.');
     } finally {
@@ -179,10 +226,28 @@ export default function Backups() {
       setMessage(data.message || `Replication package ${pkg.id} was activated and service restart was scheduled.`);
       await loadStages();
       await loadSharedStatus();
+      await loadHAHistory();
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not activate staged HA replication package.');
     } finally {
       setBusyAction('');
+    }
+  };
+
+  const exportHAHistory = async (format: 'csv' | 'json') => {
+    setError('');
+    setMessage('');
+    try {
+      const response = await api.get(`/system/ha/history/export?format=${format}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = format === 'json' ? 'aegisnas-ha-history.json' : 'aegisnas-ha-history.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`HA history exported as ${format.toUpperCase()}.`);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not export HA history.');
     }
   };
 
@@ -290,6 +355,78 @@ export default function Backups() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">HA History</h3>
+            <p className="mt-1 text-sm text-gray-600">Track failover promotions, peer health changes, VIP lease actions, and replication activity over time.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => void loadHAHistory()} disabled={loadingHAHistory || busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              Refresh
+            </button>
+            <button onClick={() => void exportHAHistory('csv')} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              Export CSV
+            </button>
+            <button onClick={() => void exportHAHistory('json')} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              Export JSON
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Failover Events</div>
+            <div className="mt-2">Promotions {haHistoryStats?.failover_promotions ?? 0}, returns {haHistoryStats?.failover_returns ?? 0}</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Peer Health</div>
+            <div className="mt-2">Failures {haHistoryStats?.peer_failures ?? 0}, recoveries {haHistoryStats?.peer_recoveries ?? 0}</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">VIP Lease</div>
+            <div className="mt-2">Acquired {haHistoryStats?.vip_acquisitions ?? 0}, preempted {haHistoryStats?.vip_preemptions ?? 0}, released {haHistoryStats?.vip_releases ?? 0}</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Replication</div>
+            <div className="mt-2">Publishes {haHistoryStats?.replication_publishes ?? 0}, stale events {haHistoryStats?.replication_stale_count ?? 0}, activations {haHistoryStats?.activations ?? 0}</div>
+          </div>
+        </div>
+
+        {loadingHAHistory ? (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">Loading HA history...</div>
+        ) : haHistory.length === 0 ? (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">No HA history recorded yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">When</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Event</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Status</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Role</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Actor</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Summary</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {haHistory.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-3 py-2 text-gray-600">{item.created_at}</td>
+                    <td className="px-3 py-2 text-gray-900">{item.event_type}</td>
+                    <td className="px-3 py-2 text-gray-700">{item.status}</td>
+                    <td className="px-3 py-2 text-gray-700">{item.node_role || '-'}</td>
+                    <td className="px-3 py-2 text-gray-700">{item.actor || '-'}</td>
+                    <td className="px-3 py-2 text-gray-700">{item.summary}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

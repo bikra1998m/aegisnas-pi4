@@ -50,6 +50,11 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	haHistoryStats, err := db.GetHAHistoryStats()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	recoveryState, err := CurrentNetworkRecoveryState()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -277,6 +282,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"shared_state_dir":                cfg.HighAvailability.SharedStateDir,
 			"runtime":                         runtimeMap["high_availability"],
 			"replication_runtime":             runtimeMap["ha_replication"],
+			"history_stats":                   haHistoryStats,
 		},
 		"integrations": integrationsStatus,
 		"network_observability": map[string]any{

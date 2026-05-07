@@ -34,15 +34,18 @@ type vipTarget struct {
 }
 
 type controller struct {
-	cfg           *config.Config
-	client        httpDoer
-	logger        *zap.Logger
-	now           func() time.Time
-	nodeName      string
-	vipAssigned   bool
-	lastHealthyAt time.Time
-	failureSince  time.Time
-	ipRunner      func(args ...string) (string, error)
+	cfg                  *config.Config
+	client               httpDoer
+	logger               *zap.Logger
+	now                  func() time.Time
+	nodeName             string
+	vipAssigned          bool
+	lastHealthyAt        time.Time
+	failureSince         time.Time
+	lastPeerReachable    *bool
+	lastEffectiveRole    string
+	lastLeaseEventStatus string
+	ipRunner             func(args ...string) (string, error)
 }
 
 func StartController(ctx context.Context, cfg *config.Config, client httpDoer, logger *zap.Logger) {
@@ -108,6 +111,7 @@ func (c *controller) tick() {
 	} else if c.failureSince.IsZero() {
 		c.failureSince = now
 	}
+	c.recordPeerHealthChange(peerReachable)
 
 	target, targetErr := resolveVIPTarget(c.cfg)
 	if targetErr != nil {
@@ -164,11 +168,13 @@ func (c *controller) tick() {
 				message = "Standby node is serving the virtual IP after peer timeout."
 				status = "ok"
 			}
+			c.recordLeaseAction(action, target, details)
 		} else {
 			if err := c.withdrawVIP(target); err != nil && c.logger != nil {
 				c.logger.Warn("failed to withdraw virtual IP while lease is owned elsewhere", zap.Error(err))
 			}
 			c.vipAssigned = false
+			c.recordLeaseAction(action, target, details)
 			if strings.EqualFold(strings.TrimSpace(c.cfg.HighAvailability.Role), "active") && !c.cfg.HighAvailability.Preempt {
 				message = "Peer currently owns the virtual IP lease; local active node is waiting because preempt is disabled."
 				status = "degraded"
@@ -183,6 +189,7 @@ func (c *controller) tick() {
 			c.logger.Warn("failed to withdraw virtual IP", zap.Error(err))
 		}
 		c.vipAssigned = false
+		c.recordLeaseAction(leaseAction, target, details)
 		if !peerReachable && c.cfg.HighAvailability.Enabled {
 			status = "degraded"
 			message = "Peer health probe failed, but failover timeout has not expired yet."
@@ -197,6 +204,7 @@ func (c *controller) tick() {
 	}
 	details["lease_action"] = leaseAction
 	details["vip_assigned"] = c.vipAssigned
+	c.recordEffectiveRoleChange(fmt.Sprint(details["effective_role"]), details)
 
 	c.publish(status, message, details)
 }
@@ -205,6 +213,79 @@ func (c *controller) publish(status, message string, details map[string]any) {
 	if err := db.UpsertRuntimeStatus(RuntimeComponent, status, message, details); err != nil && c.logger != nil {
 		c.logger.Warn("failed to update high availability runtime status", zap.Error(err))
 	}
+}
+
+func (c *controller) recordPeerHealthChange(peerReachable bool) {
+	if c.lastPeerReachable == nil {
+		if peerReachable {
+			value := peerReachable
+			c.lastPeerReachable = &value
+			return
+		}
+	} else if *c.lastPeerReachable == peerReachable {
+		return
+	}
+	status := "failed"
+	summary := "Peer health probe failed."
+	if peerReachable {
+		status = "recovered"
+		summary = "Peer health probe recovered."
+	}
+	_ = db.RecordHAHistory("peer_health", status, summary, strings.TrimSpace(c.cfg.HighAvailability.Role), "", map[string]any{
+		"peer_api_url": strings.TrimSpace(c.cfg.HighAvailability.PeerAPIURL),
+		"virtual_ip":   strings.TrimSpace(c.cfg.HighAvailability.VirtualIP),
+	})
+	value := peerReachable
+	c.lastPeerReachable = &value
+}
+
+func (c *controller) recordLeaseAction(action string, target vipTarget, details map[string]any) {
+	switch action {
+	case "acquired", "preempted", "release", "released":
+	default:
+		return
+	}
+	status := action
+	if action == "release" {
+		status = "released"
+	}
+	if c.lastLeaseEventStatus == status {
+		return
+	}
+	summary := "HA VIP lease updated."
+	switch status {
+	case "acquired":
+		summary = "Local node acquired the HA VIP lease."
+	case "preempted":
+		summary = "Local node preempted the HA VIP lease."
+	case "released":
+		summary = "Local node released the HA VIP lease."
+	}
+	_ = db.RecordHAHistory("vip_lease", status, summary, strings.TrimSpace(c.cfg.HighAvailability.Role), "", map[string]any{
+		"interface": target.Interface,
+		"vip":       target.Address,
+		"details":   details,
+	})
+	c.lastLeaseEventStatus = status
+}
+
+func (c *controller) recordEffectiveRoleChange(role string, details map[string]any) {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		return
+	}
+	if c.lastEffectiveRole == role {
+		return
+	}
+	if c.lastEffectiveRole != "" {
+		switch {
+		case c.lastEffectiveRole == "standby" && role == "active":
+			_ = db.RecordHAHistory("failover", "promoted", "Standby node promoted after peer failure.", strings.TrimSpace(c.cfg.HighAvailability.Role), "", details)
+		case c.lastEffectiveRole == "active" && role == "standby":
+			_ = db.RecordHAHistory("failover", "returned", "Node returned to standby role after peer recovery.", strings.TrimSpace(c.cfg.HighAvailability.Role), "", details)
+		}
+	}
+	c.lastEffectiveRole = role
 }
 
 func (c *controller) failoverActive(now time.Time, peerReachable bool) bool {

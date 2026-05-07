@@ -5,7 +5,7 @@ import (
 )
 
 func LatestSchemaVersion() int {
-	return 7
+	return 8
 }
 
 func Migrate() error {
@@ -35,7 +35,8 @@ func Migrate() error {
 		{4, schemaV4},
 		{5, schemaV5},
 		{6, schemaV6},
-		{LatestSchemaVersion(), schemaV7},
+		{7, schemaV7},
+		{LatestSchemaVersion(), schemaV8},
 	}
 
 	for _, m := range migrations {
@@ -441,4 +442,20 @@ CREATE INDEX IF NOT EXISTS idx_network_apply_history_created_at ON network_apply
 CREATE INDEX IF NOT EXISTS idx_dhcp_lease_history_observed_at ON dhcp_lease_history(observed_at);
 CREATE INDEX IF NOT EXISTS idx_dhcp_lease_history_mac ON dhcp_lease_history(mac);
 CREATE INDEX IF NOT EXISTS idx_dhcp_lease_history_ip ON dhcp_lease_history(ip);
+`
+
+const schemaV8 = `
+CREATE TABLE IF NOT EXISTS ha_history (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_type TEXT NOT NULL,
+	status TEXT NOT NULL,
+	summary TEXT,
+	node_role TEXT,
+	actor TEXT,
+	details_json TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ha_history_created_at ON ha_history(created_at);
+CREATE INDEX IF NOT EXISTS idx_ha_history_event_type ON ha_history(event_type);
 `

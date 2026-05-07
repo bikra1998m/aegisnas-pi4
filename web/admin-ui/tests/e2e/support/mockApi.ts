@@ -362,6 +362,22 @@ function createSystemStatus() {
           stale: false,
         },
       },
+      history_stats: {
+        total_records: 12,
+        failover_promotions: 1,
+        failover_returns: 1,
+        peer_failures: 2,
+        peer_recoveries: 2,
+        vip_acquisitions: 2,
+        vip_preemptions: 0,
+        vip_releases: 2,
+        replication_publishes: 4,
+        replication_failures: 0,
+        replication_stale_count: 1,
+        shared_stages: 2,
+        activations: 1,
+        last_event_at: '2026-05-05T12:00:00Z',
+      },
     },
     integrations: {
       admin_sso: {
@@ -534,6 +550,26 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         backup_id: 'snap-001',
         actor: 'seed',
         created_at: '2026-05-05T12:00:00Z',
+      },
+    ],
+    haHistory: [
+      {
+        id: 1,
+        event_type: 'replication_publish',
+        status: 'success',
+        summary: 'Published shared HA replication package.',
+        node_role: 'active',
+        actor: '',
+        created_at: '2026-05-05T12:00:00Z',
+      },
+      {
+        id: 2,
+        event_type: 'failover',
+        status: 'promoted',
+        summary: 'Standby node promoted after peer failure.',
+        node_role: 'standby',
+        actor: '',
+        created_at: '2026-05-05T11:50:00Z',
       },
     ],
     dhcpLeases: [
@@ -738,6 +774,52 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           lease_trends: state.systemStatus.network_observability.lease_trends,
           controller_sync: state.systemStatus.network_observability.controller_sync,
           recovery: state.networkRecovery,
+        },
+      });
+      return;
+    }
+    if (path === '/system/ha/history' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          history: state.haHistory,
+          count: state.haHistory.length,
+          generated_at: '2026-05-05T12:00:00Z',
+          stats: state.systemStatus.high_availability.history_stats,
+        },
+      });
+      return;
+    }
+    if (path === '/system/ha/history/export' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/csv; charset=utf-8' },
+        body: 'id,created_at,event_type,status,summary,node_role,actor,details_json\n1,2026-05-05T12:00:00Z,replication_publish,success,Published shared HA replication package.,active,,\n',
+      });
+      return;
+    }
+    if (path === '/system/ha/replication-shared' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          shared: {
+            present: true,
+            package_path: '/var/lib/aegisnas/ha/replication/live/latest.tar.gz',
+            metadata_path: '/var/lib/aegisnas/ha/replication/live/latest.json',
+            published_at: '2026-05-05T12:00:00Z',
+            source_node: 'active-node',
+            source_role: 'active',
+            schema_version: 8,
+          },
+        },
+      });
+      return;
+    }
+    if (path === '/system/ha/replication-stage-shared' && method === 'POST') {
+      await route.fulfill({
+        json: {
+          message: 'Latest shared HA replication package is staged on this node.',
+          package: {
+            id: 'shared-stage-001',
+          },
         },
       });
       return;

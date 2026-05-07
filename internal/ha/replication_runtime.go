@@ -40,6 +40,8 @@ type replicationMonitor struct {
 	logger   *zap.Logger
 	now      func() time.Time
 	nodeName string
+	lastFreshnessState string
+	lastPublishStatus  string
 }
 
 func StartContinuousReplication(ctx context.Context, cfg *config.Config, logger *zap.Logger) {
@@ -113,11 +115,21 @@ func (m *replicationMonitor) probe() (string, string, map[string]any) {
 	if role == "active" {
 		shared, err := PublishSharedReplicationPackage(m.cfg)
 		if err != nil {
+			m.recordPublishEvent("failed", "Publishing the shared HA replication package failed.", map[string]any{
+				"error": err.Error(),
+			})
 			details["last_error"] = err.Error()
 			return "degraded", "Publishing the shared HA replication package failed.", details
 		}
 		mergeSharedReplicationDetails(details, shared, m.cfg, m.now().UTC())
 		details["published_by_this_node"] = true
+		m.recordPublishEvent("success", "Published shared HA replication package.", map[string]any{
+			"source_node":       shared.SourceNode,
+			"source_role":       shared.SourceRole,
+			"schema_version":    shared.SchemaVersion,
+			"package_checksum":  shared.PackageChecksum,
+			"package_size_bytes": shared.PackageSizeBytes,
+		})
 		return "ok", "Published shared HA replication package for standby sync.", details
 	}
 
@@ -132,9 +144,30 @@ func (m *replicationMonitor) probe() (string, string, map[string]any) {
 
 	mergeSharedReplicationDetails(details, shared, m.cfg, m.now().UTC())
 	if stale, _ := details["stale"].(bool); stale {
+		m.recordFreshnessEvent("stale", "Shared HA replication package is stale.", details)
 		return "degraded", "Shared HA replication package is stale.", details
 	}
+	m.recordFreshnessEvent("fresh", "Observed fresh shared HA replication package.", details)
 	return "ok", "Observed fresh shared HA replication package.", details
+}
+
+func (m *replicationMonitor) recordPublishEvent(status, summary string, details map[string]any) {
+	if strings.TrimSpace(status) == "" {
+		return
+	}
+	if status == "failed" && m.lastPublishStatus == "failed" {
+		return
+	}
+	_ = db.RecordHAHistory("replication_publish", status, summary, strings.TrimSpace(m.cfg.HighAvailability.Role), "", details)
+	m.lastPublishStatus = status
+}
+
+func (m *replicationMonitor) recordFreshnessEvent(status, summary string, details map[string]any) {
+	if strings.TrimSpace(status) == "" || m.lastFreshnessState == status {
+		return
+	}
+	_ = db.RecordHAHistory("replication_freshness", status, summary, strings.TrimSpace(m.cfg.HighAvailability.Role), "", details)
+	m.lastFreshnessState = status
 }
 
 func PublishSharedReplicationPackage(cfg *config.Config) (SharedReplicationStatus, error) {
