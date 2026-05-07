@@ -157,7 +157,11 @@ sudo bash scripts/ha-active-standby-smoke-test.sh --role active
 sudo bash scripts/ha-active-standby-smoke-test.sh --role standby --stage-shared
 ```
 
-Then continue with the failover and recovery steps in [HA Active/Standby Runbook](ha-active-standby-runbook.md).
+Then continue with the failover and recovery steps in [HA Active/Standby Runbook](ha-active-standby-runbook.md). The quickest controlled drill on the active node is:
+
+```bash
+sudo bash scripts/ha-failover-drill.sh
+```
 
 If a previous bootstrap changed the script locally and pull fails:
 

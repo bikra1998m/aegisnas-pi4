@@ -140,7 +140,11 @@ Use the helper output under `/var/tmp/aegisnas-ha-smoke/` to confirm:
 - staged package visibility
 - HA history counters
 
-For the full failover drill, continue with [HA Active/Standby Runbook](ha-active-standby-runbook.md).
+For the full failover drill, continue with [HA Active/Standby Runbook](ha-active-standby-runbook.md) and use:
+
+```bash
+sudo bash scripts/ha-failover-drill.sh
+```
 
 ## Target Outcome
 

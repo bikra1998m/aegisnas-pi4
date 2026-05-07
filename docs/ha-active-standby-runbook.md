@@ -217,7 +217,37 @@ Safer test order:
 2. confirm active node currently owns the VIP
 3. confirm standby is healthy and idle
 
-Then simulate active-node failure by stopping the gateway on the active node:
+The easiest repeatable path is now the dedicated helper on the active node:
+
+```bash
+sudo bash scripts/ha-failover-drill.sh
+```
+
+What the helper does:
+
+- confirms the local node is currently effective active and holds the VIP
+- confirms the peer is currently effective standby
+- captures local and peer HA status before the drill
+- stops `aegis-gateway` on the active node
+- waits for peer promotion and VIP takeover
+- optionally starts the original active node again for recovery observation
+- stores artifacts under `/var/tmp/aegisnas-ha-failover/<timestamp>/`
+
+Useful files from the helper:
+
+- `summary.json`
+- `polls/peer-promoted.json`
+- `snapshots/pre-stop-local-status.json`
+- `snapshots/post-stop-peer-status.json`
+- `snapshots/post-recovery-peer-status.json` when recovery is not skipped
+
+If you want to hold the failed-active state open for manual inspection, use:
+
+```bash
+sudo bash scripts/ha-failover-drill.sh --skip-recovery
+```
+
+The manual fallback is still valid if you want to drive each step yourself. Simulate active-node failure by stopping the gateway on the active node:
 
 ```bash
 sudo systemctl stop aegis-gateway
