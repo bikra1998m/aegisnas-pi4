@@ -117,6 +117,8 @@ For captive portal and guest workflow investigations, use the focused runbook in
 
 For managed interface, gateway, DNS, DHCP, firewall, and rollback work in `Access Settings`, use the dedicated [Edge Network Operations Guide](edge-network-operations.md).
 
+For active/standby deployment, shared replication, VIP takeover, and HA history, use the dedicated [HA Active/Standby Runbook](ha-active-standby-runbook.md).
+
 ## Logs
 
 Logs are structured JSON.
@@ -193,3 +195,4 @@ Before updating production devices:
 5. Apply the update.
 6. Check health, sessions, RADIUS auth, portal login, onboarding, alerts, and dashboard integration state.
 7. Review edge-network preview, risk banner, validation result, rollback snapshots, lease history, and apply history if network settings are part of the change.
+8. For HA-enabled nodes, run `scripts/ha-active-standby-smoke-test.sh` on both active and standby nodes and review HA history plus replication freshness before failover drills.

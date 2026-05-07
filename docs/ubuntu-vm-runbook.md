@@ -18,6 +18,7 @@ Use this guide together with:
 - [Login And Captive Portal Test Runbook](login-test-runbook.md)
 - [Wireless Access And UI Guide](wireless-access-ui-guide.md)
 - [External AAA Product Mode](external-aaa-product-mode.md)
+- [HA Active/Standby Runbook](ha-active-standby-runbook.md)
 
 ## What This VM Guide Covers
 
@@ -117,6 +118,29 @@ sudo bash scripts/ubuntu-vm-upgrade-smoke-test.sh --wan ens33 --lan ens37 --with
 ```
 
 Keep `--force-config` out of upgrade runs unless you are deliberately replacing the current VM configuration.
+
+## HA Pair Upgrade And Smoke Path
+
+If this VM is part of an HA pair, upgrade the active node first, then the standby node.
+
+After each upgrade:
+
+```bash
+cd ~/aegisnas-pi4
+git pull --ff-only
+sudo bash scripts/ha-active-standby-smoke-test.sh --role active
+sudo bash scripts/ha-active-standby-smoke-test.sh --role standby --stage-shared
+```
+
+Use the helper output under `/var/tmp/aegisnas-ha-smoke/` to confirm:
+
+- local effective role
+- VIP ownership
+- shared replication freshness
+- staged package visibility
+- HA history counters
+
+For the full failover drill, continue with [HA Active/Standby Runbook](ha-active-standby-runbook.md).
 
 ## Target Outcome
 

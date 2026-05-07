@@ -4,6 +4,8 @@ This guide starts after Ubuntu is installed in a VMware Workstation 17 Player VM
 
 Use this guide when you want one repeatable VMware lab process from a fresh Ubuntu VM to a full product test.
 
+For HA pair setup and failover drills, use this guide together with [HA Active/Standby Runbook](ha-active-standby-runbook.md).
+
 ## 0. Target Lab
 
 Recommended topology:
@@ -147,6 +149,15 @@ sudo bash scripts/ubuntu-vm-upgrade-smoke-test.sh --wan ens33 --lan ens37
 ```
 
 That path preserves the current VM config, reruns bootstrap without `--force-config`, checks schema migration state, and saves API and health results under `/var/tmp/aegisnas-upgrade-smoke/`.
+
+For an HA-enabled VMware lab with two Ubuntu VMs, run the HA helper after the upgrade:
+
+```bash
+sudo bash scripts/ha-active-standby-smoke-test.sh --role active
+sudo bash scripts/ha-active-standby-smoke-test.sh --role standby --stage-shared
+```
+
+Then continue with the failover and recovery steps in [HA Active/Standby Runbook](ha-active-standby-runbook.md).
 
 If a previous bootstrap changed the script locally and pull fails:
 
