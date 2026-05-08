@@ -158,6 +158,18 @@ sudo bash scripts/ha-active-standby-smoke-test.sh --role standby --stage-shared
 sudo bash scripts/ha-active-standby-smoke-test.sh --role standby --stage-shared --activate-latest
 ```
 
+Then validate the pair from the active VM:
+
+```bash
+sudo bash scripts/ha-pair-upgrade-validate.sh
+```
+
+If SSH between the pair is available, use:
+
+```bash
+sudo bash scripts/ha-pair-upgrade-validate.sh --peer-ssh ubuntu@192.168.50.12
+```
+
 Then continue with the failover and recovery steps in [HA Active/Standby Runbook](ha-active-standby-runbook.md). The quickest controlled drill on the active node is:
 
 ```bash

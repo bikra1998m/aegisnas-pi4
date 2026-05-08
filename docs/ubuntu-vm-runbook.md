@@ -133,6 +133,18 @@ sudo bash scripts/ha-active-standby-smoke-test.sh --role standby --stage-shared
 sudo bash scripts/ha-active-standby-smoke-test.sh --role standby --stage-shared --activate-latest
 ```
 
+Then validate the pair from the active node:
+
+```bash
+sudo bash scripts/ha-pair-upgrade-validate.sh
+```
+
+For a stronger pair check with peer schema and peer service status:
+
+```bash
+sudo bash scripts/ha-pair-upgrade-validate.sh --peer-ssh ubuntu@192.168.50.12
+```
+
 Use the helper output under `/var/tmp/aegisnas-ha-smoke/` to confirm:
 
 - local effective role
@@ -162,6 +174,13 @@ sudo bash scripts/ha-soak-test.sh --cycles 3 --stage-shared-before-start --activ
 ```
 
 Use a VM console for this path too. Multi-cycle runs require `high_availability.preempt: true`, because the original active node needs to reclaim the VIP between cycles.
+
+If you want the upgrade validation helper to include the post-upgrade failover or soak exercise in one pass:
+
+```bash
+sudo bash scripts/ha-pair-upgrade-validate.sh --run-failover-drill
+sudo bash scripts/ha-pair-upgrade-validate.sh --run-soak-cycles 3
+```
 
 ## Target Outcome
 

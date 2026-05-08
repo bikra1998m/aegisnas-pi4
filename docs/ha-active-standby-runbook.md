@@ -25,8 +25,9 @@ This guide covers:
 2. how to configure shared HA state
 3. how to publish and stage replication packages
 4. how to activate the standby safely
-5. how to run failover and recovery drills
-6. how to read the HA dashboard, history, and export data
+5. how to validate pair upgrades
+6. how to run failover and recovery drills
+7. how to read the HA dashboard, history, and export data
 
 Important boundary:
 
@@ -257,6 +258,68 @@ Useful files:
 - `api/ha-history.json`
 - `api/ha-stage-shared.json` when staging is requested
 - `api/ha-activate-latest.json` when activation is requested
+
+## HA Pair Upgrade Validation
+
+After both nodes have been upgraded, use the pair-aware validation helper from the active node:
+
+```bash
+sudo bash scripts/ha-pair-upgrade-validate.sh
+```
+
+For a stronger pass that also proves peer schema and peer service status over SSH:
+
+```bash
+sudo bash scripts/ha-pair-upgrade-validate.sh --peer-ssh ubuntu@192.168.50.12
+```
+
+If you want the standby refreshed and activated before the post-upgrade drill:
+
+```bash
+sudo bash scripts/ha-pair-upgrade-validate.sh \
+  --peer-ssh ubuntu@192.168.50.12 \
+  --stage-shared-peer \
+  --activate-latest-peer
+```
+
+Optional post-upgrade HA exercise:
+
+```bash
+sudo bash scripts/ha-pair-upgrade-validate.sh --run-failover-drill
+sudo bash scripts/ha-pair-upgrade-validate.sh --run-soak-cycles 3
+```
+
+What the helper validates:
+
+- local schema version against the repo migration version
+- local service and health status
+- peer HA status through the admin API
+- shared replication and staged-package visibility
+- optional peer schema and service status through SSH
+- optional failover or soak validation after the pair checks pass
+
+Important boundary:
+
+- this helper does not SSH in and perform the upgrade for you
+- it validates the HA pair after both nodes have already been updated
+- `--run-soak-cycles` still requires `preempt: true`
+
+Output location:
+
+```text
+/var/tmp/aegisnas-ha-upgrade-validate/<timestamp>/
+```
+
+Useful files:
+
+- `summary.json`
+- `schema-local.txt`
+- `schema-peer.txt` when `--peer-ssh` is used
+- `api/local-system-status.json`
+- `api/peer-system-status.json`
+- `api/local-ha-replication-shared.json`
+- `api/peer-ha-replication-staged.json`
+- `post-upgrade-failover-artifact-dir.txt` or `post-upgrade-soak-artifact-dir.txt` when an exercise is requested
 
 ## Manual Failover Drill
 
