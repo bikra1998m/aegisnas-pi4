@@ -73,6 +73,7 @@ high_availability:
   replication_signing_key_env: "AEGIS_HA_REPLICATION_SIGNING_KEY"
   replication_encryption_key_env: "AEGIS_HA_REPLICATION_ENCRYPTION_KEY"
   preempt: false
+  preempt_holdoff_seconds: 0
   shared_state_dir: "/var/lib/aegisnas/ha"
 ```
 
@@ -88,6 +89,7 @@ Guidance:
 - `replication_signing_key_env`: optional shared HMAC key env used to sign and verify HA replication bundles
 - `replication_encryption_key_env`: optional shared env used to encrypt HA replication bundles before they are written to shared storage or downloaded for standby import
 - `preempt: false`: safer default for most labs and branch environments
+- `preempt_holdoff_seconds`: optional delay before a recovered active node reclaims the VIP when `preempt: true`
 
 ## Shared State Directory
 
@@ -469,6 +471,7 @@ Expected behavior with `preempt: false`:
 Expected behavior with `preempt: true`:
 
 - the preferred active node may reclaim the VIP
+- if `preempt_holdoff_seconds` is greater than `0`, the recovered active node waits through that holdoff before reclaiming
 - HA history should show a lease preemption or return event
 
 ## HA History And Export

@@ -109,6 +109,7 @@ type SystemStatus = {
     auto_stage_shared_package: boolean;
     auto_activate_on_failover: boolean;
     preempt: boolean;
+    preempt_holdoff_seconds: number;
     shared_state_dir: string;
     runtime: RuntimeStatus;
     replication_runtime: RuntimeStatus;
@@ -613,6 +614,20 @@ export default function Dashboard() {
                         Lease holder {String(systemStatus.high_availability.runtime.details.lease_holder)}
                         {systemStatus.high_availability.runtime?.details?.lease_expires_at
                           ? ` until ${String(systemStatus.high_availability.runtime.details.lease_expires_at)}`
+                          : ''}
+                        .
+                      </div>
+                    ) : null}
+                    {systemStatus.high_availability.preempt ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Preempt {String(systemStatus.high_availability.runtime?.details?.preempt_status || 'enabled')}
+                        {systemStatus.high_availability.runtime?.details?.preempt_holdoff_remaining_seconds !== undefined
+                          ? `, holdoff remaining ${String(systemStatus.high_availability.runtime.details.preempt_holdoff_remaining_seconds)}s`
+                          : systemStatus.high_availability.preempt_holdoff_seconds
+                            ? `, configured holdoff ${String(systemStatus.high_availability.preempt_holdoff_seconds)}s`
+                            : ''}
+                        {systemStatus.high_availability.runtime?.details?.preempt_ready_at
+                          ? `, ready at ${String(systemStatus.high_availability.runtime.details.preempt_ready_at)}`
                           : ''}
                         .
                       </div>

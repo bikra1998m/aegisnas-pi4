@@ -1024,6 +1024,10 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badAutoActivate.HighAvailability.AutoActivateOnFailover = true
 	assert.ErrorContains(t, badAutoActivate.Validate(), "high_availability.auto_activate_on_failover requires high_availability.enabled")
 
+	badHoldoff := base()
+	badHoldoff.HighAvailability.PreemptHoldoffSeconds = -1
+	assert.ErrorContains(t, badHoldoff.Validate(), "high_availability.preempt_holdoff_seconds -1 cannot be negative")
+
 	badSigning := base()
 	badSigning.HighAvailability.Enabled = false
 	badSigning.HighAvailability.ReplicationSigningKeyEnv = "AEGIS_HA_REPLICATION_SIGNING_KEY"

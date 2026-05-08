@@ -321,6 +321,7 @@ const defaultSettings: JsonMap = {
       replication_signing_key_env: '',
       replication_encryption_key_env: '',
       preempt: false,
+      preempt_holdoff_seconds: 0,
       shared_state_dir: '/var/lib/aegisnas/ha',
     },
   portal: {
@@ -2730,6 +2731,12 @@ export default function AccessSettings() {
             type="number"
             value={settings.high_availability?.replication_stale_after_seconds || 900}
             onChange={(value) => updateField(['high_availability', 'replication_stale_after_seconds'], Number(value))}
+          />
+          <TextField
+            label="Preempt Holdoff"
+            type="number"
+            value={settings.high_availability?.preempt_holdoff_seconds || 0}
+            onChange={(value) => updateField(['high_availability', 'preempt_holdoff_seconds'], Number(value))}
           />
           <TextField
             label="Shared State Directory"

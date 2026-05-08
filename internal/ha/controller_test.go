@@ -94,6 +94,54 @@ func TestActivePreemptsLowerPriorityLeaseWhenEnabled(t *testing.T) {
 	assert.Equal(t, 100, lease.Priority)
 }
 
+func TestActiveWaitsForPreemptHoldoffBeforeReclaimingVIP(t *testing.T) {
+	cfg := haTestConfig(t, "active")
+	cfg.HighAvailability.Preempt = true
+	cfg.HighAvailability.PreemptHoldoffSeconds = 30
+	now := time.Date(2026, 5, 6, 11, 30, 0, 0, time.UTC)
+	require.NoError(t, saveLease(cfg, vipLease{
+		HolderNode: "standby-1",
+		HolderRole: "standby",
+		VirtualIP:  cfg.HighAvailability.VirtualIP,
+		Interface:  "ens37",
+		Priority:   50,
+		AcquiredAt: now.Add(-45 * time.Second).Format(time.RFC3339),
+		RenewedAt:  now.Add(-5 * time.Second).Format(time.RFC3339),
+		ExpiresAt:  now.Add(30 * time.Second).Format(time.RFC3339),
+	}))
+
+	var ipCalls []string
+	ctrl := newController(cfg, probeClient{do: func(req *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Status: "200 OK", Body: http.NoBody}, nil
+	}}, zap.NewNop())
+	ctrl.nodeName = "active-1"
+	ctrl.now = func() time.Time { return now }
+	ctrl.ipRunner = func(args ...string) (string, error) {
+		ipCalls = append(ipCalls, strings.Join(args, " "))
+		return "", nil
+	}
+	ctrl.arpingRunner = func(args ...string) (string, error) { return "", nil }
+
+	ctrl.tick()
+	assert.False(t, ctrl.vipAssigned)
+	assert.Contains(t, ipCalls, "addr del 192.168.50.2/24 dev ens37")
+	assert.NotContains(t, strings.Join(ipCalls, "\n"), "addr replace 192.168.50.2/24 dev ens37")
+
+	lease, err := loadLease(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "standby-1", lease.HolderNode)
+
+	now = now.Add(31 * time.Second)
+	ctrl.tick()
+	assert.True(t, ctrl.vipAssigned)
+	assert.Contains(t, ipCalls, "addr replace 192.168.50.2/24 dev ens37")
+
+	lease, err = loadLease(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "active-1", lease.HolderNode)
+	assert.Equal(t, 100, lease.Priority)
+}
+
 func TestActiveWaitsWhenPreemptDisabled(t *testing.T) {
 	cfg := haTestConfig(t, "active")
 	cfg.HighAvailability.Preempt = false

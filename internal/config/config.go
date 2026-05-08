@@ -385,6 +385,7 @@ type HighAvailabilityConfig struct {
 	ReplicationSigningKeyEnv     string `mapstructure:"replication_signing_key_env"`
 	ReplicationEncryptionKeyEnv  string `mapstructure:"replication_encryption_key_env"`
 	Preempt                      bool   `mapstructure:"preempt"`
+	PreemptHoldoffSeconds        int    `mapstructure:"preempt_holdoff_seconds"`
 	SharedStateDir               string `mapstructure:"shared_state_dir"`
 }
 
@@ -486,6 +487,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.replication_signing_key_env", "")
 	v.SetDefault("high_availability.replication_encryption_key_env", "")
 	v.SetDefault("high_availability.preempt", false)
+	v.SetDefault("high_availability.preempt_holdoff_seconds", 0)
 	v.SetDefault("high_availability.shared_state_dir", "/var/lib/aegisnas/ha")
 	v.SetDefault("dhcp.enabled", true)
 	v.SetDefault("dhcp.lease_time", "12h")
@@ -1142,6 +1144,9 @@ func (c *Config) Validate() error {
 	}
 	if c.HighAvailability.AutoActivateOnFailover && !c.HighAvailability.Enabled {
 		return errors.New("high_availability.auto_activate_on_failover requires high_availability.enabled")
+	}
+	if c.HighAvailability.PreemptHoldoffSeconds < 0 {
+		return fmt.Errorf("high_availability.preempt_holdoff_seconds %d cannot be negative", c.HighAvailability.PreemptHoldoffSeconds)
 	}
 	if strings.TrimSpace(c.HighAvailability.ReplicationSigningKeyEnv) != "" && !c.HighAvailability.Enabled {
 		return errors.New("high_availability.replication_signing_key_env requires high_availability.enabled")

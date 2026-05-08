@@ -43,6 +43,7 @@ type controller struct {
 	vipAssigned          bool
 	lastHealthyAt        time.Time
 	failureSince         time.Time
+	peerRecoveredAt      time.Time
 	lastPeerReachable    *bool
 	lastEffectiveRole    string
 	lastLeaseEventStatus string
@@ -121,10 +122,14 @@ func (c *controller) tick() {
 	now := c.now().UTC()
 	peerReachable := boolDetail(details, "peer_reachable")
 	if peerReachable {
+		if c.lastPeerReachable == nil || !*c.lastPeerReachable {
+			c.peerRecoveredAt = now
+		}
 		c.lastHealthyAt = now
 		c.failureSince = time.Time{}
 	} else if c.failureSince.IsZero() {
 		c.failureSince = now
+		c.peerRecoveredAt = time.Time{}
 	}
 	c.recordPeerHealthChange(peerReachable)
 
@@ -148,9 +153,28 @@ func (c *controller) tick() {
 	details["auto_activate_enabled"] = c.cfg.HighAvailability.AutoActivateOnFailover
 	details["peer_last_healthy_at"] = formatTime(c.lastHealthyAt)
 	details["peer_failure_since"] = formatTime(c.failureSince)
+	details["peer_recovered_at"] = formatTime(c.peerRecoveredAt)
 	details["vip_interface"] = target.Interface
 	details["vip_address"] = target.Address
+	details["preempt_holdoff_seconds"] = c.cfg.HighAvailability.PreemptHoldoffSeconds
 	c.appendAnnouncementDetails(details)
+	if strings.EqualFold(strings.TrimSpace(c.cfg.HighAvailability.Role), "active") && c.cfg.HighAvailability.Preempt {
+		remaining := c.preemptHoldoffRemaining(now, peerReachable)
+		if remaining > 0 {
+			details["preempt_status"] = "holding"
+			details["preempt_holdoff_remaining_seconds"] = int((remaining + time.Second - 1) / time.Second)
+			if !c.peerRecoveredAt.IsZero() {
+				details["preempt_ready_at"] = c.peerRecoveredAt.Add(time.Duration(c.cfg.HighAvailability.PreemptHoldoffSeconds) * time.Second).Format(time.RFC3339)
+			}
+		} else {
+			details["preempt_status"] = "eligible"
+			details["preempt_holdoff_remaining_seconds"] = 0
+		}
+	} else if !c.cfg.HighAvailability.Preempt {
+		details["preempt_status"] = "disabled"
+	} else {
+		details["preempt_status"] = "not_applicable"
+	}
 
 	fencing := c.evaluateFencing(now, peerReachable, failoverActive, details)
 	c.recordFencingChange(fencing, details)
@@ -237,6 +261,11 @@ func (c *controller) tick() {
 			if strings.EqualFold(strings.TrimSpace(c.cfg.HighAvailability.Role), "active") && !c.cfg.HighAvailability.Preempt {
 				message = "Peer currently owns the virtual IP lease; local active node is waiting because preempt is disabled."
 				status = "degraded"
+			} else if strings.EqualFold(strings.TrimSpace(c.cfg.HighAvailability.Role), "active") {
+				if remaining := c.preemptHoldoffRemaining(now, peerReachable); remaining > 0 {
+					message = fmt.Sprintf("Peer currently owns the virtual IP lease; local active node is waiting %ds for preempt holdoff to expire.", int((remaining+time.Second-1)/time.Second))
+					status = "degraded"
+				}
 			}
 		}
 	} else {
@@ -500,7 +529,7 @@ func (c *controller) ensureLease(current vipLease, target vipTarget, now time.Ti
 		return true, "acquired", next, saveLease(c.cfg, next)
 	}
 
-	if c.shouldPreempt(current, priority, peerReachable) {
+	if c.shouldPreempt(current, priority, peerReachable, now) {
 		next := newLease(c, target, now, priority)
 		return true, "preempted", next, saveLease(c.cfg, next)
 	}
@@ -508,7 +537,7 @@ func (c *controller) ensureLease(current vipLease, target vipTarget, now time.Ti
 	return false, "blocked", current, nil
 }
 
-func (c *controller) shouldPreempt(current vipLease, priority int, peerReachable bool) bool {
+func (c *controller) shouldPreempt(current vipLease, priority int, peerReachable bool, now time.Time) bool {
 	if current.HolderNode == "" {
 		return true
 	}
@@ -522,7 +551,31 @@ func (c *controller) shouldPreempt(current vipLease, priority int, peerReachable
 	if role == "standby" && peerReachable {
 		return false
 	}
+	if role == "active" && c.preemptHoldoffRemaining(now, peerReachable) > 0 {
+		return false
+	}
 	return true
+}
+
+func (c *controller) preemptHoldoffRemaining(now time.Time, peerReachable bool) time.Duration {
+	if c == nil || c.cfg == nil {
+		return 0
+	}
+	if !c.cfg.HighAvailability.Preempt || !strings.EqualFold(strings.TrimSpace(c.cfg.HighAvailability.Role), "active") || !peerReachable {
+		return 0
+	}
+	holdoff := time.Duration(c.cfg.HighAvailability.PreemptHoldoffSeconds) * time.Second
+	if holdoff <= 0 {
+		return 0
+	}
+	if c.peerRecoveredAt.IsZero() {
+		return holdoff
+	}
+	remaining := holdoff - now.Sub(c.peerRecoveredAt)
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
 }
 
 func (c *controller) desiredPriority() int {
