@@ -283,6 +283,7 @@ high_availability:
   auto_activate_on_failover: false
   replication_signing_key_env: "" # Optional shared HMAC key env for signing HA replication bundles.
   replication_encryption_key_env: "" # Optional shared env for encrypting HA replication bundles at rest and in transit.
+  witness_api_url: "" # Optional external witness that must allow standby promotion before VIP takeover.
   preempt: false
   preempt_holdoff_seconds: 0 # Optional active-node wait before reclaiming the VIP after peer recovery when preempt is enabled.
   shared_state_dir: "/var/lib/aegisnas/ha"

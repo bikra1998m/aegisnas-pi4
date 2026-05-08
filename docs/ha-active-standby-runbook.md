@@ -72,6 +72,7 @@ high_availability:
   auto_activate_on_failover: false
   replication_signing_key_env: "AEGIS_HA_REPLICATION_SIGNING_KEY"
   replication_encryption_key_env: "AEGIS_HA_REPLICATION_ENCRYPTION_KEY"
+  witness_api_url: "https://witness.example.test/ha"
   preempt: false
   preempt_holdoff_seconds: 0
   shared_state_dir: "/var/lib/aegisnas/ha"
@@ -88,6 +89,7 @@ Guidance:
 - `auto_activate_on_failover`: whether the standby activates that fresh staged package before claiming the VIP during failover
 - `replication_signing_key_env`: optional shared HMAC key env used to sign and verify HA replication bundles
 - `replication_encryption_key_env`: optional shared env used to encrypt HA replication bundles before they are written to shared storage or downloaded for standby import
+- `witness_api_url`: optional external witness that must explicitly allow standby promotion during a failover window; this requires split-brain protection to stay enabled
 - `preempt: false`: safer default for most labs and branch environments
 - `preempt_holdoff_seconds`: optional delay before a recovered active node reclaims the VIP when `preempt: true`
 

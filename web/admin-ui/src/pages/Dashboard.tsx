@@ -108,6 +108,7 @@ type SystemStatus = {
     split_brain_protection_enabled: boolean;
     auto_stage_shared_package: boolean;
     auto_activate_on_failover: boolean;
+    witness_api_url: string;
     preempt: boolean;
     preempt_holdoff_seconds: number;
     shared_state_dir: string;
@@ -657,6 +658,17 @@ export default function Dashboard() {
                         : ''}
                       .
                     </div>
+                    {systemStatus.high_availability.witness_api_url ? (
+                      <div className="mt-1 text-xs text-gray-500 break-all">
+                        Witness {systemStatus.high_availability.runtime?.details?.witness_status
+                          ? String(systemStatus.high_availability.runtime.details.witness_status)
+                          : 'configured'}
+                        {systemStatus.high_availability.runtime?.details?.witness_allow_promotion !== undefined
+                          ? `, allow promotion ${String(systemStatus.high_availability.runtime.details.witness_allow_promotion)}`
+                          : ''}
+                        : {systemStatus.high_availability.witness_api_url}
+                      </div>
+                    ) : null}
                     {systemStatus.high_availability.runtime?.details?.peer_shared_heartbeat_present ? (
                       <div className="mt-1 text-xs text-gray-500">
                         Peer shared heartbeat age{' '}

@@ -1028,6 +1028,20 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badHoldoff.HighAvailability.PreemptHoldoffSeconds = -1
 	assert.ErrorContains(t, badHoldoff.Validate(), "high_availability.preempt_holdoff_seconds -1 cannot be negative")
 
+	badWitness := base()
+	badWitness.HighAvailability.Enabled = false
+	badWitness.HighAvailability.WitnessAPIURL = "https://witness.example.test/ha"
+	assert.ErrorContains(t, badWitness.Validate(), "high_availability.witness_api_url requires high_availability.enabled")
+
+	badWitnessMode := base()
+	badWitnessMode.HighAvailability.SplitBrainProtectionEnabled = false
+	badWitnessMode.HighAvailability.WitnessAPIURL = "https://witness.example.test/ha"
+	assert.ErrorContains(t, badWitnessMode.Validate(), "high_availability.witness_api_url requires high_availability.split_brain_protection_enabled")
+
+	badWitnessURL := base()
+	badWitnessURL.HighAvailability.WitnessAPIURL = "not-a-url"
+	assert.ErrorContains(t, badWitnessURL.Validate(), "high_availability.witness_api_url")
+
 	badSigning := base()
 	badSigning.HighAvailability.Enabled = false
 	badSigning.HighAvailability.ReplicationSigningKeyEnv = "AEGIS_HA_REPLICATION_SIGNING_KEY"

@@ -281,6 +281,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"split_brain_protection_enabled":  cfg.HighAvailability.SplitBrainProtectionEnabled,
 			"auto_stage_shared_package":       cfg.HighAvailability.AutoStageSharedPackage,
 			"auto_activate_on_failover":       cfg.HighAvailability.AutoActivateOnFailover,
+			"witness_api_url":                 cfg.HighAvailability.WitnessAPIURL,
 			"preempt":                         cfg.HighAvailability.Preempt,
 			"preempt_holdoff_seconds":         cfg.HighAvailability.PreemptHoldoffSeconds,
 			"shared_state_dir":                cfg.HighAvailability.SharedStateDir,

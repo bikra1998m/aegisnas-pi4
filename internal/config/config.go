@@ -384,6 +384,7 @@ type HighAvailabilityConfig struct {
 	AutoActivateOnFailover       bool   `mapstructure:"auto_activate_on_failover"`
 	ReplicationSigningKeyEnv     string `mapstructure:"replication_signing_key_env"`
 	ReplicationEncryptionKeyEnv  string `mapstructure:"replication_encryption_key_env"`
+	WitnessAPIURL                string `mapstructure:"witness_api_url"`
 	Preempt                      bool   `mapstructure:"preempt"`
 	PreemptHoldoffSeconds        int    `mapstructure:"preempt_holdoff_seconds"`
 	SharedStateDir               string `mapstructure:"shared_state_dir"`
@@ -486,6 +487,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.auto_activate_on_failover", false)
 	v.SetDefault("high_availability.replication_signing_key_env", "")
 	v.SetDefault("high_availability.replication_encryption_key_env", "")
+	v.SetDefault("high_availability.witness_api_url", "")
 	v.SetDefault("high_availability.preempt", false)
 	v.SetDefault("high_availability.preempt_holdoff_seconds", 0)
 	v.SetDefault("high_availability.shared_state_dir", "/var/lib/aegisnas/ha")
@@ -1147,6 +1149,17 @@ func (c *Config) Validate() error {
 	}
 	if c.HighAvailability.PreemptHoldoffSeconds < 0 {
 		return fmt.Errorf("high_availability.preempt_holdoff_seconds %d cannot be negative", c.HighAvailability.PreemptHoldoffSeconds)
+	}
+	if strings.TrimSpace(c.HighAvailability.WitnessAPIURL) != "" {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_api_url requires high_availability.enabled")
+		}
+		if !c.HighAvailability.SplitBrainProtectionEnabled {
+			return errors.New("high_availability.witness_api_url requires high_availability.split_brain_protection_enabled")
+		}
+		if err := requireHTTPURL("high_availability.witness_api_url", c.HighAvailability.WitnessAPIURL); err != nil {
+			return err
+		}
 	}
 	if strings.TrimSpace(c.HighAvailability.ReplicationSigningKeyEnv) != "" && !c.HighAvailability.Enabled {
 		return errors.New("high_availability.replication_signing_key_env requires high_availability.enabled")

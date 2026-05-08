@@ -1,8 +1,10 @@
 package ha
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,6 +35,19 @@ type fencingResult struct {
 	PeerStale       bool
 	PeerHeartbeat   sharedHeartbeat
 	LocalHeartbeat  sharedHeartbeat
+	WitnessStatus   string
+	WitnessSummary  string
+	WitnessAllowed  bool
+	WitnessObserved string
+	WitnessNode     string
+	WitnessError    error
+}
+
+type witnessDecision struct {
+	AllowPromotion bool   `json:"allow_promotion"`
+	Summary        string `json:"summary,omitempty"`
+	ObservedAt     string `json:"observed_at,omitempty"`
+	WitnessNode    string `json:"witness_node,omitempty"`
 }
 
 func saveSharedHeartbeat(cfg *config.Config, state sharedHeartbeat) error {
@@ -160,7 +175,13 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	details["split_brain_protection_enabled"] = result.Enabled
 	details["shared_heartbeat_path"] = sharedHeartbeatPath(c.cfg, strings.TrimSpace(c.cfg.HighAvailability.Role))
 	details["peer_shared_heartbeat_path"] = sharedHeartbeatPath(c.cfg, peerConfiguredRole(c.cfg))
+	details["witness_url"] = strings.TrimSpace(c.cfg.HighAvailability.WitnessAPIURL)
 	if !result.Enabled {
+		if strings.TrimSpace(c.cfg.HighAvailability.WitnessAPIURL) != "" {
+			details["witness_status"] = "configured"
+		} else {
+			details["witness_status"] = "disabled"
+		}
 		details["fencing_status"] = result.Status
 		details["fencing_summary"] = result.Summary
 		details["fencing_promotion_allowed"] = result.AllowPromotion
@@ -226,8 +247,104 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 			result.PeerStale
 	}
 
+	witnessURL := strings.TrimSpace(c.cfg.HighAvailability.WitnessAPIURL)
+	if witnessURL == "" {
+		result.WitnessStatus = "disabled"
+	} else if !standbyPromotionWindow {
+		result.WitnessStatus = "idle"
+		result.WitnessSummary = "External HA witness is configured and will be consulted during standby promotion."
+	} else {
+		decision, err := controllerProbeWitnessDecisionFn(c.cfg, c.client)
+		if err != nil {
+			result.WitnessStatus = "failed"
+			result.WitnessSummary = "External HA witness could not be read during standby promotion."
+			result.WitnessError = err
+			result.AllowPromotion = false
+		} else {
+			result.WitnessStatus = "ok"
+			result.WitnessAllowed = decision.AllowPromotion
+			result.WitnessSummary = strings.TrimSpace(decision.Summary)
+			result.WitnessObserved = strings.TrimSpace(decision.ObservedAt)
+			result.WitnessNode = strings.TrimSpace(decision.WitnessNode)
+			if result.WitnessSummary == "" {
+				if decision.AllowPromotion {
+					result.WitnessSummary = "External HA witness allows standby promotion."
+				} else {
+					result.WitnessSummary = "External HA witness denied standby promotion."
+				}
+			}
+			if !decision.AllowPromotion {
+				result.WitnessStatus = "blocked"
+				result.AllowPromotion = false
+			}
+		}
+	}
+
+	details["witness_status"] = result.WitnessStatus
+	if result.WitnessSummary != "" {
+		details["witness_summary"] = result.WitnessSummary
+	}
+	if result.WitnessObserved != "" {
+		details["witness_observed_at"] = result.WitnessObserved
+	}
+	if result.WitnessNode != "" {
+		details["witness_node"] = result.WitnessNode
+	}
+	if result.WitnessStatus == "ok" || result.WitnessStatus == "blocked" {
+		details["witness_allow_promotion"] = result.WitnessAllowed
+	}
+	if result.WitnessError != nil {
+		details["witness_error"] = result.WitnessError.Error()
+	}
+
+	if standbyPromotionWindow {
+		switch {
+		case result.WitnessError != nil:
+			result.Status = "witness_failed"
+			result.Summary = result.WitnessSummary
+		case witnessURL != "" && !result.WitnessAllowed:
+			result.Status = "witness_blocked"
+			result.Summary = result.WitnessSummary
+		case witnessURL != "" && result.AllowPromotion:
+			result.Status = "witness_allowed"
+			result.Summary = "Peer shared HA heartbeat is stale and the external HA witness allows standby promotion."
+		}
+	}
+
 	details["fencing_status"] = result.Status
 	details["fencing_summary"] = result.Summary
 	details["fencing_promotion_allowed"] = result.AllowPromotion
 	return result
+}
+
+func probeWitnessDecision(cfg *config.Config, client httpDoer) (witnessDecision, error) {
+	var decision witnessDecision
+	if cfg == nil {
+		return decision, fmt.Errorf("ha witness probe requires a config")
+	}
+	url := strings.TrimSpace(cfg.HighAvailability.WitnessAPIURL)
+	if url == "" {
+		return decision, fmt.Errorf("ha witness probe requires high_availability.witness_api_url")
+	}
+	if client == nil {
+		client = &http.Client{Timeout: 1500 * time.Millisecond}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return decision, fmt.Errorf("construct witness request: %w", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return decision, fmt.Errorf("probe witness: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return decision, fmt.Errorf("witness returned %s", resp.Status)
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&decision); err != nil {
+		return decision, fmt.Errorf("decode witness response: %w", err)
+	}
+	return decision, nil
 }
