@@ -55,6 +55,8 @@ type StagedReplicationPackage struct {
 	NetworkStatePresent bool                `json:"network_state_present"`
 	PackageChecksum     string              `json:"package_checksum,omitempty"`
 	ContentFingerprint  string              `json:"content_fingerprint,omitempty"`
+	EncryptionAlgorithm string              `json:"encryption_algorithm,omitempty"`
+	EncryptionStatus    string              `json:"encryption_status,omitempty"`
 	Signature           string              `json:"signature,omitempty"`
 	SignatureAlgorithm  string              `json:"signature_algorithm,omitempty"`
 	SignatureStatus     string              `json:"signature_status,omitempty"`
@@ -140,7 +142,11 @@ func CreateReplicationPackage(cfg *config.Config) ([]byte, ReplicationManifest, 
 	if err := gzipWriter.Close(); err != nil {
 		return nil, ReplicationManifest{}, fmt.Errorf("close gzip writer: %w", err)
 	}
-	return buffer.Bytes(), manifest, nil
+	packageBytes, _, err := encryptReplicationPackage(cfg, buffer.Bytes())
+	if err != nil {
+		return nil, ReplicationManifest{}, err
+	}
+	return packageBytes, manifest, nil
 }
 
 func SaveReplicationPackage(path string, packageBytes []byte) error {
@@ -193,7 +199,11 @@ func importReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 	if err := os.WriteFile(archivePath, packageBytes, 0640); err != nil {
 		return stage, fmt.Errorf("write staged replication archive: %w", err)
 	}
-	if err := extractTarGzBytes(packageBytes, contentDir); err != nil {
+	archiveBytes, encryptionStatus, encryptionAlgorithm, err := decodeReplicationPackage(cfg, packageBytes)
+	if err != nil {
+		return stage, err
+	}
+	if err := extractTarGzBytes(archiveBytes, contentDir); err != nil {
 		return stage, fmt.Errorf("extract replication package: %w", err)
 	}
 
@@ -224,6 +234,8 @@ func importReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 	stage.ConfigValid = true
 	stage.DatabaseValid = true
 	stage.ContentFingerprint = strings.TrimSpace(manifest.ContentFingerprint)
+	stage.EncryptionStatus = encryptionStatus
+	stage.EncryptionAlgorithm = encryptionAlgorithm
 	if stage.ContentFingerprint == "" {
 		stage.ContentFingerprint = contentFingerprintForManifest(manifest)
 	}
@@ -257,6 +269,8 @@ func importReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 		"package_type":        manifest.PackageType,
 		"package_checksum":    stage.PackageChecksum,
 		"content_fingerprint": stage.ContentFingerprint,
+		"encryption_status":   stage.EncryptionStatus,
+		"encryption_algorithm": stage.EncryptionAlgorithm,
 		"signature_status":    stage.SignatureStatus,
 		"imported_source":     stage.ImportedSource,
 	})
@@ -268,6 +282,8 @@ func importReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 		"network_present":     stage.NetworkStatePresent,
 		"package_checksum":    stage.PackageChecksum,
 		"content_fingerprint": stage.ContentFingerprint,
+		"encryption_status":   stage.EncryptionStatus,
+		"encryption_algorithm": stage.EncryptionAlgorithm,
 		"signature_status":    stage.SignatureStatus,
 		"imported_source":     stage.ImportedSource,
 	})
@@ -437,6 +453,7 @@ func ActivateStagedReplicationPackage(cfg *config.Config, id, activatedBy string
 		"source_role":         stage.Manifest.SourceRole,
 		"schema_version":      stage.Manifest.SchemaVersion,
 		"content_fingerprint": stage.ContentFingerprint,
+		"encryption_status":   stage.EncryptionStatus,
 	})
 	_ = db.UpsertRuntimeStatus(ReplicationRuntimeComponent, "pending", stage.Summary, map[string]any{
 		"staged_id":           stage.ID,
@@ -445,6 +462,7 @@ func ActivateStagedReplicationPackage(cfg *config.Config, id, activatedBy string
 		"activation_backup":   backupPath,
 		"restart_services":    services,
 		"content_fingerprint": stage.ContentFingerprint,
+		"encryption_status":   stage.EncryptionStatus,
 	})
 	return ActivationResult{
 		ID:               stage.ID,

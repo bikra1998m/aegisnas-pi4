@@ -282,6 +282,7 @@ high_availability:
   auto_stage_shared_package: false
   auto_activate_on_failover: false
   replication_signing_key_env: "" # Optional shared HMAC key env for signing HA replication bundles.
+  replication_encryption_key_env: "" # Optional shared env for encrypting HA replication bundles at rest and in transit.
   preempt: false
   shared_state_dir: "/var/lib/aegisnas/ha"
 

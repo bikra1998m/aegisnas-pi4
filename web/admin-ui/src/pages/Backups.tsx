@@ -25,6 +25,8 @@ type StagedReplicationPackage = {
   network_state_present: boolean;
   package_checksum?: string;
   content_fingerprint?: string;
+  encryption_algorithm?: string;
+  encryption_status?: string;
   signature?: string;
   signature_algorithm?: string;
   signature_status?: string;
@@ -44,6 +46,8 @@ type SharedReplicationStatus = {
   package_size_bytes?: number;
   package_checksum?: string;
   content_fingerprint?: string;
+  encryption_algorithm?: string;
+  encryption_status?: string;
   signature?: string;
   signature_algorithm?: string;
   signature_status?: string;
@@ -174,11 +178,14 @@ export default function Backups() {
     setMessage('');
     setBusyAction('replication-download');
     try {
-      const { data } = await api.get('/system/ha/replication-package', { responseType: 'blob' });
+      const response = await api.get('/system/ha/replication-package', { responseType: 'blob' });
+      const { data, headers } = response;
       const url = URL.createObjectURL(data);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'aegisnas-ha-replication.tar.gz';
+      const disposition = `${headers?.['content-disposition'] || ''}`;
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      link.download = filenameMatch?.[1] || 'aegisnas-ha-replication.pkg';
       link.click();
       URL.revokeObjectURL(url);
       setMessage('HA replication package downloaded. Import it on the standby appliance, then activate it there.');
@@ -286,6 +293,7 @@ export default function Backups() {
                 Latest shared package from <span className="font-medium">{sharedStatus.source_node || 'unknown'}</span>
                 {sharedStatus.published_at ? ` published ${sharedStatus.published_at}` : ''}.
                 {sharedStatus.schema_version ? ` Schema v${sharedStatus.schema_version}.` : ''}
+                {sharedStatus.encryption_status ? ` Encryption ${sharedStatus.encryption_status}${sharedStatus.encryption_algorithm ? ` via ${sharedStatus.encryption_algorithm}` : ''}.` : ''}
                 {sharedStatus.signature_status ? ` Signature ${sharedStatus.signature_status}.` : ''}
               </span>
             ) : (
@@ -299,7 +307,7 @@ export default function Backups() {
           <p className="mb-4 text-sm text-gray-600">Package the live config, database, and managed network state from the active appliance, then stage and activate that package on a standby peer.</p>
           <div className="flex flex-wrap gap-3">
             <button onClick={downloadReplicationPackage} disabled={busyAction !== ''} className="rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-black disabled:opacity-50">Download HA Package</button>
-            <input type="file" accept=".tar.gz,application/gzip,application/x-gzip" onChange={(event) => setReplicationFile(event.target.files?.[0] ?? null)} className="max-w-full text-sm" />
+            <input type="file" accept=".pkg,.tar.gz,application/octet-stream,application/gzip,application/x-gzip" onChange={(event) => setReplicationFile(event.target.files?.[0] ?? null)} className="max-w-full text-sm" />
             <button disabled={!replicationFile || busyAction !== ''} onClick={uploadReplicationPackage} className="rounded-md bg-emerald-700 px-4 py-2 text-white hover:bg-emerald-800 disabled:opacity-50">Stage On This Node</button>
             <button disabled={busyAction !== '' || !sharedStatus?.present} onClick={stageLatestSharedPackage} className="rounded-md bg-indigo-700 px-4 py-2 text-white hover:bg-indigo-800 disabled:opacity-50">Stage Latest Shared Package</button>
           </div>
@@ -338,6 +346,7 @@ export default function Backups() {
                     {pkg.imported_source ? <div className="mt-1 text-xs text-gray-500">Imported via {pkg.imported_source}.</div> : null}
                     {pkg.package_checksum ? <div className="mt-1 text-xs text-gray-500 break-all">Archive checksum {pkg.package_checksum}</div> : null}
                     {pkg.content_fingerprint ? <div className="mt-1 text-xs text-gray-500 break-all">Content fingerprint {pkg.content_fingerprint}</div> : null}
+                    {pkg.encryption_status ? <div className="mt-1 text-xs text-gray-500">Encryption {pkg.encryption_status}{pkg.encryption_algorithm ? ` via ${pkg.encryption_algorithm}` : ''}.</div> : null}
                     {pkg.signature_status ? <div className="mt-1 text-xs text-gray-500">Signature {pkg.signature_status}{pkg.signature_algorithm ? ` via ${pkg.signature_algorithm}` : ''}.</div> : null}
                     {pkg.activation_backup ? <div className="mt-1 text-xs text-gray-500">Safety backup: {pkg.activation_backup}</div> : null}
                   </div>

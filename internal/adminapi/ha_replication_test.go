@@ -33,7 +33,8 @@ func TestHandleDownloadHAReplicationPackage(t *testing.T) {
 	HandleDownloadHAReplicationPackage(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "application/gzip", rec.Header().Get("Content-Type"))
+	assert.Equal(t, "application/octet-stream", rec.Header().Get("Content-Type"))
+	assert.Contains(t, rec.Header().Get("Content-Disposition"), ".pkg")
 	assert.Equal(t, "active-node", rec.Header().Get("X-Aegis-Source-Node"))
 	assert.Equal(t, "active", rec.Header().Get("X-Aegis-Source-Role"))
 	assert.Equal(t, "package-bytes", rec.Body.String())

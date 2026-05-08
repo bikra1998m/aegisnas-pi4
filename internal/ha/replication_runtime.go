@@ -33,6 +33,8 @@ type SharedReplicationStatus struct {
 	PackageSizeBytes    int64  `json:"package_size_bytes,omitempty"`
 	PackageChecksum     string `json:"package_checksum,omitempty"`
 	ContentFingerprint  string `json:"content_fingerprint,omitempty"`
+	EncryptionAlgorithm string `json:"encryption_algorithm,omitempty"`
+	EncryptionStatus    string `json:"encryption_status,omitempty"`
 	Signature           string `json:"signature,omitempty"`
 	SignatureAlgorithm  string `json:"signature_algorithm,omitempty"`
 	SignatureStatus     string `json:"signature_status,omitempty"`
@@ -267,10 +269,15 @@ func PublishSharedReplicationPackage(cfg *config.Config) (SharedReplicationStatu
 		PackageSizeBytes:    int64(len(packageBytes)),
 		PackageChecksum:     checksumBytes(packageBytes),
 		ContentFingerprint:  manifest.ContentFingerprint,
+		EncryptionStatus:    "unencrypted",
 		Signature:           manifest.Signature,
 		SignatureAlgorithm:  manifest.SignatureAlgorithm,
 		SignatureStatus:     "unsigned",
 		NetworkStatePresent: manifest.NetworkStatePath != "",
+	}
+	if len(replicationEncryptionKey(cfg)) > 0 {
+		status.EncryptionStatus = "encrypted"
+		status.EncryptionAlgorithm = replicationEncryptionAlgorithm
 	}
 	if strings.TrimSpace(manifest.Signature) != "" {
 		status.SignatureStatus = "signed"
@@ -355,6 +362,8 @@ func mergeSharedReplicationDetails(details map[string]any, shared SharedReplicat
 	details["latest_package_size_bytes"] = shared.PackageSizeBytes
 	details["latest_package_checksum"] = shared.PackageChecksum
 	details["latest_content_fingerprint"] = shared.ContentFingerprint
+	details["latest_encryption_status"] = shared.EncryptionStatus
+	details["latest_encryption_algorithm"] = shared.EncryptionAlgorithm
 	details["latest_signature_status"] = shared.SignatureStatus
 	details["latest_network_state_present"] = shared.NetworkStatePresent
 	if shared.PublishedAt == "" {

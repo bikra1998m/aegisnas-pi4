@@ -71,6 +71,7 @@ high_availability:
   auto_stage_shared_package: true
   auto_activate_on_failover: false
   replication_signing_key_env: "AEGIS_HA_REPLICATION_SIGNING_KEY"
+  replication_encryption_key_env: "AEGIS_HA_REPLICATION_ENCRYPTION_KEY"
   preempt: false
   shared_state_dir: "/var/lib/aegisnas/ha"
 ```
@@ -85,6 +86,7 @@ Guidance:
 - `auto_stage_shared_package`: whether the standby keeps the freshest shared package staged automatically
 - `auto_activate_on_failover`: whether the standby activates that fresh staged package before claiming the VIP during failover
 - `replication_signing_key_env`: optional shared HMAC key env used to sign and verify HA replication bundles
+- `replication_encryption_key_env`: optional shared env used to encrypt HA replication bundles before they are written to shared storage or downloaded for standby import
 - `preempt: false`: safer default for most labs and branch environments
 
 ## Shared State Directory
@@ -158,6 +160,7 @@ Expected result:
 
 - a new staged package appears under `Staged HA Packages`
 - source node and schema version match the active node
+- encryption status is `decrypted` when bundle encryption is enabled
 - summary confirms the package is ready
 
 ## Standby Activation

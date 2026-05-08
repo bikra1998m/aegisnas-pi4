@@ -1028,4 +1028,9 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badSigning.HighAvailability.Enabled = false
 	badSigning.HighAvailability.ReplicationSigningKeyEnv = "AEGIS_HA_REPLICATION_SIGNING_KEY"
 	assert.ErrorContains(t, badSigning.Validate(), "high_availability.replication_signing_key_env requires high_availability.enabled")
+
+	badEncryption := base()
+	badEncryption.HighAvailability.Enabled = false
+	badEncryption.HighAvailability.ReplicationEncryptionKeyEnv = "AEGIS_HA_REPLICATION_ENCRYPTION_KEY"
+	assert.ErrorContains(t, badEncryption.Validate(), "high_availability.replication_encryption_key_env requires high_availability.enabled")
 }

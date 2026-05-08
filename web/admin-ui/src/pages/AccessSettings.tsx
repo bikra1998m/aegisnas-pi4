@@ -319,6 +319,7 @@ const defaultSettings: JsonMap = {
       auto_stage_shared_package: false,
       auto_activate_on_failover: false,
       replication_signing_key_env: '',
+      replication_encryption_key_env: '',
       preempt: false,
       shared_state_dir: '/var/lib/aegisnas/ha',
     },
@@ -2741,6 +2742,12 @@ export default function AccessSettings() {
             value={settings.high_availability?.replication_signing_key_env || ''}
             onChange={(value) => updateField(['high_availability', 'replication_signing_key_env'], value)}
             placeholder="AEGIS_HA_REPLICATION_SIGNING_KEY"
+          />
+          <TextField
+            label="Replication Encryption Key Env"
+            value={settings.high_availability?.replication_encryption_key_env || ''}
+            onChange={(value) => updateField(['high_availability', 'replication_encryption_key_env'], value)}
+            placeholder="AEGIS_HA_REPLICATION_ENCRYPTION_KEY"
           />
         </div>
       </section>

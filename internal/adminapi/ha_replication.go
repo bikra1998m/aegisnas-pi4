@@ -34,8 +34,8 @@ func HandleDownloadHAReplicationPackage(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	filename := fmt.Sprintf("aegisnas-ha-replication-%s.tar.gz", time.Now().UTC().Format("20060102-150405"))
-	w.Header().Set("Content-Type", "application/gzip")
+	filename := fmt.Sprintf("aegisnas-ha-replication-%s.pkg", time.Now().UTC().Format("20060102-150405"))
+	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 	w.Header().Set("X-Aegis-Source-Node", manifest.SourceNode)
 	w.Header().Set("X-Aegis-Source-Role", manifest.SourceRole)

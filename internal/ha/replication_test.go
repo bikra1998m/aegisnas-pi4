@@ -129,6 +129,123 @@ func TestSignedReplicationPackageVerifiesOnStandby(t *testing.T) {
 	assert.Equal(t, replicationSignatureAlgorithm, stage.SignatureAlgorithm)
 }
 
+func TestEncryptedReplicationPackageDecryptsOnStandby(t *testing.T) {
+	encryptionEnv := "AEGIS_HA_REPLICATION_ENCRYPTION_KEY"
+	t.Setenv(encryptionEnv, "shared-encryption-secret")
+
+	activeDir := t.TempDir()
+	activeCfgPath := filepath.Join(activeDir, "config.yaml")
+	activeDBPath := filepath.Join(activeDir, "data.db")
+	activeCfg := testHAConfig(activeDBPath, "active", "https://standby.example.test:8083", "Active Branding")
+	activeCfg.HighAvailability.ReplicationEncryptionKeyEnv = encryptionEnv
+	writeTestConfig(t, activeCfgPath, activeCfg)
+
+	require.NoError(t, db.Init(activeDBPath))
+	require.NoError(t, db.Migrate())
+	require.NoError(t, db.Close())
+
+	_, err := config.Load(activeCfgPath)
+	require.NoError(t, err)
+	packageBytes, manifest, err := CreateReplicationPackage(activeCfg)
+	require.NoError(t, err)
+	assert.NotEmpty(t, manifest.ContentFingerprint)
+	assert.NotContains(t, string(packageBytes), "config.yaml")
+
+	standbyDir := t.TempDir()
+	standbyCfgPath := filepath.Join(standbyDir, "config.yaml")
+	standbyDBPath := filepath.Join(standbyDir, "data.db")
+	standbyCfg := testHAConfig(standbyDBPath, "standby", "https://active.example.test:8083", "Standby Branding")
+	standbyCfg.HighAvailability.ReplicationEncryptionKeyEnv = encryptionEnv
+	writeTestConfig(t, standbyCfgPath, standbyCfg)
+
+	require.NoError(t, db.Init(standbyDBPath))
+	defer db.Close()
+	require.NoError(t, db.Migrate())
+	_, err = config.Load(standbyCfgPath)
+	require.NoError(t, err)
+
+	stage, err := ImportReplicationPackage(standbyCfg, packageBytes, "ops-admin")
+	require.NoError(t, err)
+	assert.Equal(t, "decrypted", stage.EncryptionStatus)
+	assert.Equal(t, replicationEncryptionAlgorithm, stage.EncryptionAlgorithm)
+	assert.True(t, stage.Ready)
+}
+
+func TestEncryptedReplicationPackageIsRequiredWhenStandbyHasEncryptionKey(t *testing.T) {
+	encryptionEnv := "AEGIS_HA_REPLICATION_ENCRYPTION_KEY"
+	t.Setenv(encryptionEnv, "shared-encryption-secret")
+
+	activeDir := t.TempDir()
+	activeCfgPath := filepath.Join(activeDir, "config.yaml")
+	activeDBPath := filepath.Join(activeDir, "data.db")
+	activeCfg := testHAConfig(activeDBPath, "active", "https://standby.example.test:8083", "Active Branding")
+	writeTestConfig(t, activeCfgPath, activeCfg)
+
+	require.NoError(t, db.Init(activeDBPath))
+	require.NoError(t, db.Migrate())
+	require.NoError(t, db.Close())
+
+	_, err := config.Load(activeCfgPath)
+	require.NoError(t, err)
+	packageBytes, _, err := CreateReplicationPackage(activeCfg)
+	require.NoError(t, err)
+
+	standbyDir := t.TempDir()
+	standbyCfgPath := filepath.Join(standbyDir, "config.yaml")
+	standbyDBPath := filepath.Join(standbyDir, "data.db")
+	standbyCfg := testHAConfig(standbyDBPath, "standby", "https://active.example.test:8083", "Standby Branding")
+	standbyCfg.HighAvailability.ReplicationEncryptionKeyEnv = encryptionEnv
+	writeTestConfig(t, standbyCfgPath, standbyCfg)
+
+	require.NoError(t, db.Init(standbyDBPath))
+	defer db.Close()
+	require.NoError(t, db.Migrate())
+	_, err = config.Load(standbyCfgPath)
+	require.NoError(t, err)
+
+	_, err = ImportReplicationPackage(standbyCfg, packageBytes, "ops-admin")
+	require.ErrorContains(t, err, "encrypted HA replication packages are required")
+}
+
+func TestEncryptedReplicationPackageFailsWithWrongKey(t *testing.T) {
+	activeEnv := "AEGIS_HA_REPLICATION_ENCRYPTION_KEY_ACTIVE"
+	standbyEnv := "AEGIS_HA_REPLICATION_ENCRYPTION_KEY_STANDBY"
+	t.Setenv(activeEnv, "active-secret")
+	t.Setenv(standbyEnv, "standby-secret")
+
+	activeDir := t.TempDir()
+	activeCfgPath := filepath.Join(activeDir, "config.yaml")
+	activeDBPath := filepath.Join(activeDir, "data.db")
+	activeCfg := testHAConfig(activeDBPath, "active", "https://standby.example.test:8083", "Active Branding")
+	activeCfg.HighAvailability.ReplicationEncryptionKeyEnv = activeEnv
+	writeTestConfig(t, activeCfgPath, activeCfg)
+
+	require.NoError(t, db.Init(activeDBPath))
+	require.NoError(t, db.Migrate())
+	require.NoError(t, db.Close())
+
+	_, err := config.Load(activeCfgPath)
+	require.NoError(t, err)
+	packageBytes, _, err := CreateReplicationPackage(activeCfg)
+	require.NoError(t, err)
+
+	standbyDir := t.TempDir()
+	standbyCfgPath := filepath.Join(standbyDir, "config.yaml")
+	standbyDBPath := filepath.Join(standbyDir, "data.db")
+	standbyCfg := testHAConfig(standbyDBPath, "standby", "https://active.example.test:8083", "Standby Branding")
+	standbyCfg.HighAvailability.ReplicationEncryptionKeyEnv = standbyEnv
+	writeTestConfig(t, standbyCfgPath, standbyCfg)
+
+	require.NoError(t, db.Init(standbyDBPath))
+	defer db.Close()
+	require.NoError(t, db.Migrate())
+	_, err = config.Load(standbyCfgPath)
+	require.NoError(t, err)
+
+	_, err = ImportReplicationPackage(standbyCfg, packageBytes, "ops-admin")
+	require.ErrorContains(t, err, "decryption failed")
+}
+
 func TestSignedReplicationPackageIsRequiredWhenStandbyHasSigningKey(t *testing.T) {
 	tokenEnv := "AEGIS_HA_REPLICATION_SIGNING_KEY"
 	t.Setenv(tokenEnv, "shared-secret-value")
