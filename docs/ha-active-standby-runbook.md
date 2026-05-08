@@ -338,6 +338,52 @@ ip -br addr
 curl -fsS http://127.0.0.1:8083/api/v1/system/status -H "Authorization: Bearer <token>"
 ```
 
+## Repeated HA Soak Drill
+
+When you want to rehearse the failover path more than once, use the soak helper on the active node:
+
+```bash
+sudo bash scripts/ha-soak-test.sh --cycles 3
+```
+
+Optional standby preparation before cycle 1:
+
+```bash
+sudo bash scripts/ha-soak-test.sh \
+  --cycles 3 \
+  --stage-shared-before-start \
+  --activate-latest-before-start
+```
+
+What the helper does:
+
+- confirms the local node starts as the effective active node
+- optionally stages and activates the latest standby package before the first cycle
+- runs `scripts/ha-failover-drill.sh` once per cycle
+- captures local and peer HA status plus HA history before and after each cycle
+- records the matching failover artifact directory for every cycle
+- writes a top-level summary under `/var/tmp/aegisnas-ha-soak/<timestamp>/`
+
+Important boundary:
+
+- repeated cycles from one node require `preempt: true`
+- otherwise the peer may remain active after the first recovery and there is no honest second cycle to run from the original node
+
+Useful soak artifacts:
+
+- `summary.json`
+- `cycle-summaries.json`
+- `cycles/cycle-01/summary.json`
+- `cycles/cycle-01/failover-artifact-dir.txt`
+- `cycles/cycle-01/failover-artifacts/`
+
+Acceptance checks for a healthy soak run:
+
+- every cycle shows `promotion_result: success`
+- when `preempt: true`, every cycle shows `reclaim_status: reclaimed`
+- post-cycle local and peer effective roles match the configured preempt policy
+- HA history remains coherent across repeated promotion, restart, and recovery events
+
 ## Recovery Drill
 
 Bring the original active node back:
@@ -400,6 +446,7 @@ Mark the HA pair ready when all of these are true:
 [ ] standby safety backup path is recorded
 [ ] HA history shows replication publish/stage/activate events
 [ ] manual failover promotes standby after timeout
+[ ] repeated soak drill passes for the intended cycle count
 [ ] recovery behavior matches the configured preempt policy
 ```
 

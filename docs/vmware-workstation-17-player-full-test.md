@@ -164,6 +164,20 @@ Then continue with the failover and recovery steps in [HA Active/Standby Runbook
 sudo bash scripts/ha-failover-drill.sh
 ```
 
+For repeated HA rehearsal in the VMware lab, run this from the active VM console:
+
+```bash
+sudo bash scripts/ha-soak-test.sh --cycles 3
+```
+
+If the standby should be staged and activated before the soak begins:
+
+```bash
+sudo bash scripts/ha-soak-test.sh --cycles 3 --stage-shared-before-start --activate-latest-before-start
+```
+
+Multi-cycle soak runs require `high_availability.preempt: true` so the original active VM can reclaim the VIP between cycles.
+
 If a previous bootstrap changed the script locally and pull fails:
 
 ```bash

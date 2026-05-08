@@ -149,6 +149,20 @@ For the full failover drill, continue with [HA Active/Standby Runbook](ha-active
 sudo bash scripts/ha-failover-drill.sh
 ```
 
+For repeated failover and recovery rehearsal from the active node:
+
+```bash
+sudo bash scripts/ha-soak-test.sh --cycles 3
+```
+
+If you also want the standby prepared with the freshest staged and activated package before cycle 1:
+
+```bash
+sudo bash scripts/ha-soak-test.sh --cycles 3 --stage-shared-before-start --activate-latest-before-start
+```
+
+Use a VM console for this path too. Multi-cycle runs require `high_availability.preempt: true`, because the original active node needs to reclaim the VIP between cycles.
+
 ## Target Outcome
 
 At the end of this runbook you should have:
