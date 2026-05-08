@@ -282,6 +282,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"auto_stage_shared_package":       cfg.HighAvailability.AutoStageSharedPackage,
 			"auto_activate_on_failover":       cfg.HighAvailability.AutoActivateOnFailover,
 			"witness_api_url":                 cfg.HighAvailability.WitnessAPIURL,
+			"witness_token_env":               cfg.HighAvailability.WitnessTokenEnv,
 			"preempt":                         cfg.HighAvailability.Preempt,
 			"preempt_holdoff_seconds":         cfg.HighAvailability.PreemptHoldoffSeconds,
 			"shared_state_dir":                cfg.HighAvailability.SharedStateDir,

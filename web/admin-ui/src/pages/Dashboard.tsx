@@ -109,6 +109,7 @@ type SystemStatus = {
     auto_stage_shared_package: boolean;
     auto_activate_on_failover: boolean;
     witness_api_url: string;
+    witness_token_env: string;
     preempt: boolean;
     preempt_holdoff_seconds: number;
     shared_state_dir: string;
@@ -666,6 +667,11 @@ export default function Dashboard() {
                         {systemStatus.high_availability.runtime?.details?.witness_allow_promotion !== undefined
                           ? `, allow promotion ${String(systemStatus.high_availability.runtime.details.witness_allow_promotion)}`
                           : ''}
+                        {systemStatus.high_availability.runtime?.details?.witness_auth_status
+                          ? `, auth ${String(systemStatus.high_availability.runtime.details.witness_auth_status)}`
+                          : systemStatus.high_availability.witness_token_env
+                            ? ', auth configured'
+                            : ''}
                         : {systemStatus.high_availability.witness_api_url}
                       </div>
                     ) : null}

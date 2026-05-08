@@ -50,6 +50,17 @@ type witnessDecision struct {
 	WitnessNode    string `json:"witness_node,omitempty"`
 }
 
+func witnessBearerToken(cfg *config.Config) string {
+	if cfg == nil {
+		return ""
+	}
+	envName := strings.TrimSpace(cfg.HighAvailability.WitnessTokenEnv)
+	if envName == "" {
+		return ""
+	}
+	return strings.TrimSpace(os.Getenv(envName))
+}
+
 func saveSharedHeartbeat(cfg *config.Config, state sharedHeartbeat) error {
 	path := sharedHeartbeatPath(cfg, state.ConfiguredRole)
 	if strings.TrimSpace(path) == "" {
@@ -176,6 +187,11 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	details["shared_heartbeat_path"] = sharedHeartbeatPath(c.cfg, strings.TrimSpace(c.cfg.HighAvailability.Role))
 	details["peer_shared_heartbeat_path"] = sharedHeartbeatPath(c.cfg, peerConfiguredRole(c.cfg))
 	details["witness_url"] = strings.TrimSpace(c.cfg.HighAvailability.WitnessAPIURL)
+	if strings.TrimSpace(c.cfg.HighAvailability.WitnessTokenEnv) != "" {
+		details["witness_auth_status"] = "configured"
+	} else {
+		details["witness_auth_status"] = "disabled"
+	}
 	if !result.Enabled {
 		if strings.TrimSpace(c.cfg.HighAvailability.WitnessAPIURL) != "" {
 			details["witness_status"] = "configured"
@@ -295,6 +311,9 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	}
 	if result.WitnessError != nil {
 		details["witness_error"] = result.WitnessError.Error()
+		if strings.TrimSpace(c.cfg.HighAvailability.WitnessTokenEnv) != "" && strings.TrimSpace(witnessBearerToken(c.cfg)) == "" {
+			details["witness_auth_status"] = "missing"
+		}
 	}
 
 	if standbyPromotionWindow {
@@ -329,11 +348,17 @@ func probeWitnessDecision(cfg *config.Config, client httpDoer) (witnessDecision,
 	if client == nil {
 		client = &http.Client{Timeout: 1500 * time.Millisecond}
 	}
+	if strings.TrimSpace(cfg.HighAvailability.WitnessTokenEnv) != "" && strings.TrimSpace(witnessBearerToken(cfg)) == "" {
+		return decision, fmt.Errorf("ha witness bearer token env %q is configured but not loaded", strings.TrimSpace(cfg.HighAvailability.WitnessTokenEnv))
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return decision, fmt.Errorf("construct witness request: %w", err)
+	}
+	if token := witnessBearerToken(cfg); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	resp, err := client.Do(req)
 	if err != nil {

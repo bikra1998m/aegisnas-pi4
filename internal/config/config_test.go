@@ -1042,6 +1042,16 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessURL.HighAvailability.WitnessAPIURL = "not-a-url"
 	assert.ErrorContains(t, badWitnessURL.Validate(), "high_availability.witness_api_url")
 
+	badWitnessToken := base()
+	badWitnessToken.HighAvailability.Enabled = false
+	badWitnessToken.HighAvailability.WitnessTokenEnv = "AEGIS_HA_WITNESS_TOKEN"
+	assert.ErrorContains(t, badWitnessToken.Validate(), "high_availability.witness_token_env requires high_availability.enabled")
+
+	badWitnessTokenNoURL := base()
+	badWitnessTokenNoURL.HighAvailability.WitnessAPIURL = ""
+	badWitnessTokenNoURL.HighAvailability.WitnessTokenEnv = "AEGIS_HA_WITNESS_TOKEN"
+	assert.ErrorContains(t, badWitnessTokenNoURL.Validate(), "high_availability.witness_token_env requires high_availability.witness_api_url")
+
 	badSigning := base()
 	badSigning.HighAvailability.Enabled = false
 	badSigning.HighAvailability.ReplicationSigningKeyEnv = "AEGIS_HA_REPLICATION_SIGNING_KEY"
