@@ -382,6 +382,7 @@ type HighAvailabilityConfig struct {
 	SplitBrainProtectionEnabled  bool   `mapstructure:"split_brain_protection_enabled"`
 	AutoStageSharedPackage       bool   `mapstructure:"auto_stage_shared_package"`
 	AutoActivateOnFailover       bool   `mapstructure:"auto_activate_on_failover"`
+	ReplicationSigningKeyEnv     string `mapstructure:"replication_signing_key_env"`
 	Preempt                      bool   `mapstructure:"preempt"`
 	SharedStateDir               string `mapstructure:"shared_state_dir"`
 }
@@ -481,6 +482,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.split_brain_protection_enabled", true)
 	v.SetDefault("high_availability.auto_stage_shared_package", false)
 	v.SetDefault("high_availability.auto_activate_on_failover", false)
+	v.SetDefault("high_availability.replication_signing_key_env", "")
 	v.SetDefault("high_availability.preempt", false)
 	v.SetDefault("high_availability.shared_state_dir", "/var/lib/aegisnas/ha")
 	v.SetDefault("dhcp.enabled", true)
@@ -1138,6 +1140,9 @@ func (c *Config) Validate() error {
 	}
 	if c.HighAvailability.AutoActivateOnFailover && !c.HighAvailability.Enabled {
 		return errors.New("high_availability.auto_activate_on_failover requires high_availability.enabled")
+	}
+	if strings.TrimSpace(c.HighAvailability.ReplicationSigningKeyEnv) != "" && !c.HighAvailability.Enabled {
+		return errors.New("high_availability.replication_signing_key_env requires high_availability.enabled")
 	}
 	if c.HighAvailability.Enabled {
 		if profile != "enterprise" {

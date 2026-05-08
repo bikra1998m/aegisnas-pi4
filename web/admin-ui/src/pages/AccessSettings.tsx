@@ -306,21 +306,22 @@ const defaultSettings: JsonMap = {
     multi_tenant_enabled: false,
     tenant_claim: '',
   },
-  high_availability: {
-    enabled: false,
-    role: 'standby',
-    peer_api_url: '',
-    virtual_ip: '',
+    high_availability: {
+      enabled: false,
+      role: 'standby',
+      peer_api_url: '',
+      virtual_ip: '',
     heartbeat_interval_seconds: 5,
     failover_timeout_seconds: 20,
     replication_interval_seconds: 300,
     replication_stale_after_seconds: 900,
-    split_brain_protection_enabled: true,
-    auto_stage_shared_package: false,
-    auto_activate_on_failover: false,
-    preempt: false,
-    shared_state_dir: '/var/lib/aegisnas/ha',
-  },
+      split_brain_protection_enabled: true,
+      auto_stage_shared_package: false,
+      auto_activate_on_failover: false,
+      replication_signing_key_env: '',
+      preempt: false,
+      shared_state_dir: '/var/lib/aegisnas/ha',
+    },
   portal: {
     enabled: true,
     port: 8081,
@@ -2734,6 +2735,12 @@ export default function AccessSettings() {
             value={settings.high_availability?.shared_state_dir || '/var/lib/aegisnas/ha'}
             onChange={(value) => updateField(['high_availability', 'shared_state_dir'], value)}
             placeholder="/var/lib/aegisnas/ha"
+          />
+          <TextField
+            label="Replication Signing Key Env"
+            value={settings.high_availability?.replication_signing_key_env || ''}
+            onChange={(value) => updateField(['high_availability', 'replication_signing_key_env'], value)}
+            placeholder="AEGIS_HA_REPLICATION_SIGNING_KEY"
           />
         </div>
       </section>

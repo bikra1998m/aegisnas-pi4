@@ -26,15 +26,18 @@ import (
 const ReplicationRuntimeComponent = "ha_replication"
 
 type ReplicationManifest struct {
-	PackageType      string            `json:"package_type"`
-	GeneratedAt      string            `json:"generated_at"`
-	SourceNode       string            `json:"source_node"`
-	SourceRole       string            `json:"source_role"`
-	SchemaVersion    int               `json:"schema_version"`
-	ConfigPath       string            `json:"config_path"`
-	DatabasePath     string            `json:"database_path"`
-	NetworkStatePath string            `json:"network_state_path,omitempty"`
-	Files            map[string]string `json:"files"`
+	PackageType        string            `json:"package_type"`
+	GeneratedAt        string            `json:"generated_at"`
+	SourceNode         string            `json:"source_node"`
+	SourceRole         string            `json:"source_role"`
+	SchemaVersion      int               `json:"schema_version"`
+	ConfigPath         string            `json:"config_path"`
+	DatabasePath       string            `json:"database_path"`
+	NetworkStatePath   string            `json:"network_state_path,omitempty"`
+	ContentFingerprint string            `json:"content_fingerprint,omitempty"`
+	SignatureAlgorithm string            `json:"signature_algorithm,omitempty"`
+	Signature          string            `json:"signature,omitempty"`
+	Files              map[string]string `json:"files"`
 }
 
 type StagedReplicationPackage struct {
@@ -52,6 +55,9 @@ type StagedReplicationPackage struct {
 	NetworkStatePresent bool                `json:"network_state_present"`
 	PackageChecksum     string              `json:"package_checksum,omitempty"`
 	ContentFingerprint  string              `json:"content_fingerprint,omitempty"`
+	Signature           string              `json:"signature,omitempty"`
+	SignatureAlgorithm  string              `json:"signature_algorithm,omitempty"`
+	SignatureStatus     string              `json:"signature_status,omitempty"`
 	ActivationBackup    string              `json:"activation_backup,omitempty"`
 	Manifest            ReplicationManifest `json:"manifest"`
 }
@@ -113,6 +119,11 @@ func CreateReplicationPackage(cfg *config.Config) ([]byte, ReplicationManifest, 
 		if err := addFileToArchive(tarWriter, networkStatePath, "network-state.json", manifest.Files); err != nil {
 			return nil, ReplicationManifest{}, fmt.Errorf("add network state: %w", err)
 		}
+	}
+	manifest.ContentFingerprint = contentFingerprintForManifest(manifest)
+	if signature := signReplicationFingerprint(cfg, manifest.ContentFingerprint); signature != "" {
+		manifest.SignatureAlgorithm = replicationSignatureAlgorithm
+		manifest.Signature = signature
 	}
 
 	manifestBytes, err := json.MarshalIndent(manifest, "", "  ")
@@ -212,7 +223,16 @@ func importReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 	stage.Manifest = manifest
 	stage.ConfigValid = true
 	stage.DatabaseValid = true
-	stage.ContentFingerprint = contentFingerprintForManifest(manifest)
+	stage.ContentFingerprint = strings.TrimSpace(manifest.ContentFingerprint)
+	if stage.ContentFingerprint == "" {
+		stage.ContentFingerprint = contentFingerprintForManifest(manifest)
+	}
+	stage.Signature = strings.TrimSpace(manifest.Signature)
+	stage.SignatureAlgorithm = strings.TrimSpace(manifest.SignatureAlgorithm)
+	stage.SignatureStatus, err = evaluateReplicationSignature(cfg, manifest, stage.ContentFingerprint)
+	if err != nil {
+		return stage, err
+	}
 
 	networkStatePath := filepath.Join(contentDir, "network-state.json")
 	if _, err := os.Stat(networkStatePath); err == nil {
@@ -237,6 +257,7 @@ func importReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 		"package_type":        manifest.PackageType,
 		"package_checksum":    stage.PackageChecksum,
 		"content_fingerprint": stage.ContentFingerprint,
+		"signature_status":    stage.SignatureStatus,
 		"imported_source":     stage.ImportedSource,
 	})
 	_ = db.UpsertRuntimeStatus(ReplicationRuntimeComponent, "ok", stage.Summary, map[string]any{
@@ -247,6 +268,7 @@ func importReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 		"network_present":     stage.NetworkStatePresent,
 		"package_checksum":    stage.PackageChecksum,
 		"content_fingerprint": stage.ContentFingerprint,
+		"signature_status":    stage.SignatureStatus,
 		"imported_source":     stage.ImportedSource,
 	})
 	return stage, nil
@@ -568,6 +590,33 @@ func verifyManifest(contentDir string, manifest ReplicationManifest) error {
 		}
 	}
 	return nil
+}
+
+func evaluateReplicationSignature(cfg *config.Config, manifest ReplicationManifest, fingerprint string) (string, error) {
+	signature := strings.TrimSpace(manifest.Signature)
+	algorithm := strings.TrimSpace(manifest.SignatureAlgorithm)
+	signingKeyConfigured := len(replicationSigningKey(cfg)) > 0
+
+	if signature == "" {
+		if signingKeyConfigured {
+			return "missing", errors.New("signed HA replication packages are required when high_availability.replication_signing_key_env is configured")
+		}
+		return "unsigned", nil
+	}
+
+	if algorithm == "" {
+		algorithm = replicationSignatureAlgorithm
+	}
+	if algorithm != replicationSignatureAlgorithm {
+		return "invalid", fmt.Errorf("unsupported HA replication signature algorithm %q", algorithm)
+	}
+	if !signingKeyConfigured {
+		return "unverified", nil
+	}
+	if !verifyReplicationFingerprint(cfg, fingerprint, signature) {
+		return "invalid", errors.New("HA replication package signature verification failed")
+	}
+	return "verified", nil
 }
 
 func fileChecksum(path string) (string, error) {

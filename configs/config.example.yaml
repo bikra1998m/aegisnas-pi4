@@ -281,6 +281,7 @@ high_availability:
   split_brain_protection_enabled: true
   auto_stage_shared_package: false
   auto_activate_on_failover: false
+  replication_signing_key_env: "" # Optional shared HMAC key env for signing HA replication bundles.
   preempt: false
   shared_state_dir: "/var/lib/aegisnas/ha"
 

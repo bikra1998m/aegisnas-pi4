@@ -64,6 +64,7 @@ func TestReplicationPackageRoundTripAndStandbyActivation(t *testing.T) {
 	assert.True(t, stage.ConfigValid)
 	assert.True(t, stage.DatabaseValid)
 	assert.True(t, stage.NetworkStatePresent)
+	assert.Equal(t, "unsigned", stage.SignatureStatus)
 
 	stagedPackages, err := ListStagedReplicationPackages(standbyCfg)
 	require.NoError(t, err)
@@ -84,6 +85,84 @@ func TestReplicationPackageRoundTripAndStandbyActivation(t *testing.T) {
 
 	userCount := countUsers(t, standbyDBPath)
 	assert.Equal(t, 1, userCount)
+}
+
+func TestSignedReplicationPackageVerifiesOnStandby(t *testing.T) {
+	tokenEnv := "AEGIS_HA_REPLICATION_SIGNING_KEY"
+	t.Setenv(tokenEnv, "shared-secret-value")
+
+	activeDir := t.TempDir()
+	activeCfgPath := filepath.Join(activeDir, "config.yaml")
+	activeDBPath := filepath.Join(activeDir, "data.db")
+	activeCfg := testHAConfig(activeDBPath, "active", "https://standby.example.test:8083", "Active Branding")
+	activeCfg.HighAvailability.ReplicationSigningKeyEnv = tokenEnv
+	writeTestConfig(t, activeCfgPath, activeCfg)
+
+	require.NoError(t, db.Init(activeDBPath))
+	require.NoError(t, db.Migrate())
+	require.NoError(t, db.Close())
+
+	_, err := config.Load(activeCfgPath)
+	require.NoError(t, err)
+	packageBytes, manifest, err := CreateReplicationPackage(activeCfg)
+	require.NoError(t, err)
+	assert.Equal(t, replicationSignatureAlgorithm, manifest.SignatureAlgorithm)
+	assert.NotEmpty(t, manifest.Signature)
+
+	standbyDir := t.TempDir()
+	standbyCfgPath := filepath.Join(standbyDir, "config.yaml")
+	standbyDBPath := filepath.Join(standbyDir, "data.db")
+	standbyCfg := testHAConfig(standbyDBPath, "standby", "https://active.example.test:8083", "Standby Branding")
+	standbyCfg.HighAvailability.ReplicationSigningKeyEnv = tokenEnv
+	writeTestConfig(t, standbyCfgPath, standbyCfg)
+
+	require.NoError(t, db.Init(standbyDBPath))
+	defer db.Close()
+	require.NoError(t, db.Migrate())
+	_, err = config.Load(standbyCfgPath)
+	require.NoError(t, err)
+
+	stage, err := ImportReplicationPackage(standbyCfg, packageBytes, "ops-admin")
+	require.NoError(t, err)
+	assert.Equal(t, "verified", stage.SignatureStatus)
+	assert.NotEmpty(t, stage.Signature)
+	assert.Equal(t, replicationSignatureAlgorithm, stage.SignatureAlgorithm)
+}
+
+func TestSignedReplicationPackageIsRequiredWhenStandbyHasSigningKey(t *testing.T) {
+	tokenEnv := "AEGIS_HA_REPLICATION_SIGNING_KEY"
+	t.Setenv(tokenEnv, "shared-secret-value")
+
+	activeDir := t.TempDir()
+	activeCfgPath := filepath.Join(activeDir, "config.yaml")
+	activeDBPath := filepath.Join(activeDir, "data.db")
+	activeCfg := testHAConfig(activeDBPath, "active", "https://standby.example.test:8083", "Active Branding")
+	writeTestConfig(t, activeCfgPath, activeCfg)
+
+	require.NoError(t, db.Init(activeDBPath))
+	require.NoError(t, db.Migrate())
+	require.NoError(t, db.Close())
+
+	_, err := config.Load(activeCfgPath)
+	require.NoError(t, err)
+	packageBytes, _, err := CreateReplicationPackage(activeCfg)
+	require.NoError(t, err)
+
+	standbyDir := t.TempDir()
+	standbyCfgPath := filepath.Join(standbyDir, "config.yaml")
+	standbyDBPath := filepath.Join(standbyDir, "data.db")
+	standbyCfg := testHAConfig(standbyDBPath, "standby", "https://active.example.test:8083", "Standby Branding")
+	standbyCfg.HighAvailability.ReplicationSigningKeyEnv = tokenEnv
+	writeTestConfig(t, standbyCfgPath, standbyCfg)
+
+	require.NoError(t, db.Init(standbyDBPath))
+	defer db.Close()
+	require.NoError(t, db.Migrate())
+	_, err = config.Load(standbyCfgPath)
+	require.NoError(t, err)
+
+	_, err = ImportReplicationPackage(standbyCfg, packageBytes, "ops-admin")
+	require.ErrorContains(t, err, "signed HA replication packages are required")
 }
 
 func TestImportReplicationPackageRejectsUnsupportedSchema(t *testing.T) {

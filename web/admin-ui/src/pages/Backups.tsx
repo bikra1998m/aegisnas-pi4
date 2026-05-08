@@ -6,6 +6,8 @@ type ReplicationManifest = {
   source_node: string;
   source_role: string;
   schema_version: number;
+  signature?: string;
+  signature_algorithm?: string;
 };
 
 type StagedReplicationPackage = {
@@ -23,6 +25,9 @@ type StagedReplicationPackage = {
   network_state_present: boolean;
   package_checksum?: string;
   content_fingerprint?: string;
+  signature?: string;
+  signature_algorithm?: string;
+  signature_status?: string;
   activation_backup?: string;
   manifest: ReplicationManifest;
 };
@@ -38,6 +43,10 @@ type SharedReplicationStatus = {
   schema_version?: number;
   package_size_bytes?: number;
   package_checksum?: string;
+  content_fingerprint?: string;
+  signature?: string;
+  signature_algorithm?: string;
+  signature_status?: string;
   network_state_present?: boolean;
 };
 
@@ -277,6 +286,7 @@ export default function Backups() {
                 Latest shared package from <span className="font-medium">{sharedStatus.source_node || 'unknown'}</span>
                 {sharedStatus.published_at ? ` published ${sharedStatus.published_at}` : ''}.
                 {sharedStatus.schema_version ? ` Schema v${sharedStatus.schema_version}.` : ''}
+                {sharedStatus.signature_status ? ` Signature ${sharedStatus.signature_status}.` : ''}
               </span>
             ) : (
               <span>No shared HA package has been published yet. The active node will create one during the continuous replication interval.</span>
@@ -328,6 +338,7 @@ export default function Backups() {
                     {pkg.imported_source ? <div className="mt-1 text-xs text-gray-500">Imported via {pkg.imported_source}.</div> : null}
                     {pkg.package_checksum ? <div className="mt-1 text-xs text-gray-500 break-all">Archive checksum {pkg.package_checksum}</div> : null}
                     {pkg.content_fingerprint ? <div className="mt-1 text-xs text-gray-500 break-all">Content fingerprint {pkg.content_fingerprint}</div> : null}
+                    {pkg.signature_status ? <div className="mt-1 text-xs text-gray-500">Signature {pkg.signature_status}{pkg.signature_algorithm ? ` via ${pkg.signature_algorithm}` : ''}.</div> : null}
                     {pkg.activation_backup ? <div className="mt-1 text-xs text-gray-500">Safety backup: {pkg.activation_backup}</div> : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">

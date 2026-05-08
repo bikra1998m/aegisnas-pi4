@@ -33,6 +33,9 @@ type SharedReplicationStatus struct {
 	PackageSizeBytes    int64  `json:"package_size_bytes,omitempty"`
 	PackageChecksum     string `json:"package_checksum,omitempty"`
 	ContentFingerprint  string `json:"content_fingerprint,omitempty"`
+	Signature           string `json:"signature,omitempty"`
+	SignatureAlgorithm  string `json:"signature_algorithm,omitempty"`
+	SignatureStatus     string `json:"signature_status,omitempty"`
 	NetworkStatePresent bool   `json:"network_state_present,omitempty"`
 }
 
@@ -263,8 +266,14 @@ func PublishSharedReplicationPackage(cfg *config.Config) (SharedReplicationStatu
 		SchemaVersion:       manifest.SchemaVersion,
 		PackageSizeBytes:    int64(len(packageBytes)),
 		PackageChecksum:     checksumBytes(packageBytes),
-		ContentFingerprint:  contentFingerprintForManifest(manifest),
+		ContentFingerprint:  manifest.ContentFingerprint,
+		Signature:           manifest.Signature,
+		SignatureAlgorithm:  manifest.SignatureAlgorithm,
+		SignatureStatus:     "unsigned",
 		NetworkStatePresent: manifest.NetworkStatePath != "",
+	}
+	if strings.TrimSpace(manifest.Signature) != "" {
+		status.SignatureStatus = "signed"
 	}
 
 	if err := writeAtomicFile(status.PackagePath, packageBytes, 0640); err != nil {
@@ -346,6 +355,7 @@ func mergeSharedReplicationDetails(details map[string]any, shared SharedReplicat
 	details["latest_package_size_bytes"] = shared.PackageSizeBytes
 	details["latest_package_checksum"] = shared.PackageChecksum
 	details["latest_content_fingerprint"] = shared.ContentFingerprint
+	details["latest_signature_status"] = shared.SignatureStatus
 	details["latest_network_state_present"] = shared.NetworkStatePresent
 	if shared.PublishedAt == "" {
 		return

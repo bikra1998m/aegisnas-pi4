@@ -1023,4 +1023,9 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badAutoActivate.HighAvailability.Enabled = false
 	badAutoActivate.HighAvailability.AutoActivateOnFailover = true
 	assert.ErrorContains(t, badAutoActivate.Validate(), "high_availability.auto_activate_on_failover requires high_availability.enabled")
+
+	badSigning := base()
+	badSigning.HighAvailability.Enabled = false
+	badSigning.HighAvailability.ReplicationSigningKeyEnv = "AEGIS_HA_REPLICATION_SIGNING_KEY"
+	assert.ErrorContains(t, badSigning.Validate(), "high_availability.replication_signing_key_env requires high_availability.enabled")
 }

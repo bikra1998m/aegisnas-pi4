@@ -69,6 +69,7 @@ high_availability:
   split_brain_protection_enabled: true
   auto_stage_shared_package: true
   auto_activate_on_failover: false
+  replication_signing_key_env: "AEGIS_HA_REPLICATION_SIGNING_KEY"
   preempt: false
   shared_state_dir: "/var/lib/aegisnas/ha"
 ```
@@ -82,6 +83,7 @@ Guidance:
 - `split_brain_protection_enabled`: whether standby nodes require the peer shared heartbeat to go stale before promoting
 - `auto_stage_shared_package`: whether the standby keeps the freshest shared package staged automatically
 - `auto_activate_on_failover`: whether the standby activates that fresh staged package before claiming the VIP during failover
+- `replication_signing_key_env`: optional shared HMAC key env used to sign and verify HA replication bundles
 - `preempt: false`: safer default for most labs and branch environments
 
 ## Shared State Directory
