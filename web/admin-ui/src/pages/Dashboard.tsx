@@ -110,6 +110,7 @@ type SystemStatus = {
     auto_activate_on_failover: boolean;
     witness_api_url: string;
     witness_token_env: string;
+    witness_signing_key_env: string;
     preempt: boolean;
     preempt_holdoff_seconds: number;
     shared_state_dir: string;
@@ -671,6 +672,11 @@ export default function Dashboard() {
                           ? `, auth ${String(systemStatus.high_availability.runtime.details.witness_auth_status)}`
                           : systemStatus.high_availability.witness_token_env
                             ? ', auth configured'
+                            : ''}
+                        {systemStatus.high_availability.runtime?.details?.witness_signature_status
+                          ? `, signature ${String(systemStatus.high_availability.runtime.details.witness_signature_status)}`
+                          : systemStatus.high_availability.witness_signing_key_env
+                            ? ', signature configured'
                             : ''}
                         : {systemStatus.high_availability.witness_api_url}
                       </div>

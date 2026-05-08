@@ -283,6 +283,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"auto_activate_on_failover":       cfg.HighAvailability.AutoActivateOnFailover,
 			"witness_api_url":                 cfg.HighAvailability.WitnessAPIURL,
 			"witness_token_env":               cfg.HighAvailability.WitnessTokenEnv,
+			"witness_signing_key_env":         cfg.HighAvailability.WitnessSigningKeyEnv,
 			"preempt":                         cfg.HighAvailability.Preempt,
 			"preempt_holdoff_seconds":         cfg.HighAvailability.PreemptHoldoffSeconds,
 			"shared_state_dir":                cfg.HighAvailability.SharedStateDir,

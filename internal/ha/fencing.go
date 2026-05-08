@@ -2,8 +2,13 @@ package ha
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -50,6 +55,13 @@ type witnessDecision struct {
 	WitnessNode    string `json:"witness_node,omitempty"`
 }
 
+var (
+	errWitnessTokenMissing      = errors.New("ha witness bearer token env is configured but not loaded")
+	errWitnessSigningKeyMissing = errors.New("ha witness signing key env is configured but not loaded")
+	errWitnessSignatureMissing  = errors.New("ha witness response signature is missing")
+	errWitnessSignatureInvalid  = errors.New("ha witness response signature is invalid")
+)
+
 func witnessBearerToken(cfg *config.Config) string {
 	if cfg == nil {
 		return ""
@@ -59,6 +71,50 @@ func witnessBearerToken(cfg *config.Config) string {
 		return ""
 	}
 	return strings.TrimSpace(os.Getenv(envName))
+}
+
+func witnessSigningKey(cfg *config.Config) string {
+	if cfg == nil {
+		return ""
+	}
+	envName := strings.TrimSpace(cfg.HighAvailability.WitnessSigningKeyEnv)
+	if envName == "" {
+		return ""
+	}
+	return strings.TrimSpace(os.Getenv(envName))
+}
+
+func normalizeWitnessSignature(raw string) string {
+	signature := strings.TrimSpace(raw)
+	signature = strings.TrimPrefix(signature, "sha256=")
+	signature = strings.TrimPrefix(signature, "SHA256=")
+	return strings.TrimSpace(signature)
+}
+
+func verifyWitnessSignature(cfg *config.Config, headers http.Header, body []byte) error {
+	if cfg == nil || strings.TrimSpace(cfg.HighAvailability.WitnessSigningKeyEnv) == "" {
+		return nil
+	}
+	key := witnessSigningKey(cfg)
+	if key == "" {
+		return fmt.Errorf("%w %q", errWitnessSigningKeyMissing, strings.TrimSpace(cfg.HighAvailability.WitnessSigningKeyEnv))
+	}
+	signature := normalizeWitnessSignature(headers.Get("X-AegisNAS-Witness-Signature"))
+	if signature == "" {
+		return errWitnessSignatureMissing
+	}
+	decodedSignature, err := hex.DecodeString(signature)
+	if err != nil {
+		return fmt.Errorf("%w: decode hex: %v", errWitnessSignatureInvalid, err)
+	}
+	mac := hmac.New(sha256.New, []byte(key))
+	if _, err := mac.Write(body); err != nil {
+		return fmt.Errorf("sign witness response: %w", err)
+	}
+	if !hmac.Equal(decodedSignature, mac.Sum(nil)) {
+		return errWitnessSignatureInvalid
+	}
+	return nil
 }
 
 func saveSharedHeartbeat(cfg *config.Config, state sharedHeartbeat) error {
@@ -192,6 +248,11 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	} else {
 		details["witness_auth_status"] = "disabled"
 	}
+	if strings.TrimSpace(c.cfg.HighAvailability.WitnessSigningKeyEnv) != "" {
+		details["witness_signature_status"] = "configured"
+	} else {
+		details["witness_signature_status"] = "disabled"
+	}
 	if !result.Enabled {
 		if strings.TrimSpace(c.cfg.HighAvailability.WitnessAPIURL) != "" {
 			details["witness_status"] = "configured"
@@ -314,6 +375,18 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		if strings.TrimSpace(c.cfg.HighAvailability.WitnessTokenEnv) != "" && strings.TrimSpace(witnessBearerToken(c.cfg)) == "" {
 			details["witness_auth_status"] = "missing"
 		}
+		if strings.TrimSpace(c.cfg.HighAvailability.WitnessSigningKeyEnv) != "" {
+			switch {
+			case errors.Is(result.WitnessError, errWitnessSigningKeyMissing):
+				details["witness_signature_status"] = "missing"
+			case errors.Is(result.WitnessError, errWitnessSignatureMissing):
+				details["witness_signature_status"] = "missing"
+			case errors.Is(result.WitnessError, errWitnessSignatureInvalid):
+				details["witness_signature_status"] = "invalid"
+			}
+		}
+	} else if strings.TrimSpace(c.cfg.HighAvailability.WitnessSigningKeyEnv) != "" {
+		details["witness_signature_status"] = "verified"
 	}
 
 	if standbyPromotionWindow {
@@ -349,7 +422,10 @@ func probeWitnessDecision(cfg *config.Config, client httpDoer) (witnessDecision,
 		client = &http.Client{Timeout: 1500 * time.Millisecond}
 	}
 	if strings.TrimSpace(cfg.HighAvailability.WitnessTokenEnv) != "" && strings.TrimSpace(witnessBearerToken(cfg)) == "" {
-		return decision, fmt.Errorf("ha witness bearer token env %q is configured but not loaded", strings.TrimSpace(cfg.HighAvailability.WitnessTokenEnv))
+		return decision, fmt.Errorf("ha witness bearer token env %q is configured but not loaded: %w", strings.TrimSpace(cfg.HighAvailability.WitnessTokenEnv), errWitnessTokenMissing)
+	}
+	if strings.TrimSpace(cfg.HighAvailability.WitnessSigningKeyEnv) != "" && strings.TrimSpace(witnessSigningKey(cfg)) == "" {
+		return decision, fmt.Errorf("ha witness signing key env %q is configured but not loaded: %w", strings.TrimSpace(cfg.HighAvailability.WitnessSigningKeyEnv), errWitnessSigningKeyMissing)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
@@ -368,7 +444,14 @@ func probeWitnessDecision(cfg *config.Config, client httpDoer) (witnessDecision,
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return decision, fmt.Errorf("witness returned %s", resp.Status)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&decision); err != nil {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return decision, fmt.Errorf("read witness response: %w", err)
+	}
+	if err := verifyWitnessSignature(cfg, resp.Header, body); err != nil {
+		return decision, err
+	}
+	if err := json.Unmarshal(body, &decision); err != nil {
 		return decision, fmt.Errorf("decode witness response: %w", err)
 	}
 	return decision, nil

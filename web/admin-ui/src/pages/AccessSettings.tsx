@@ -322,6 +322,7 @@ const defaultSettings: JsonMap = {
       replication_encryption_key_env: '',
       witness_api_url: '',
       witness_token_env: '',
+      witness_signing_key_env: '',
       preempt: false,
       preempt_holdoff_seconds: 0,
       shared_state_dir: '/var/lib/aegisnas/ha',
@@ -2769,6 +2770,12 @@ export default function AccessSettings() {
             value={settings.high_availability?.witness_token_env || ''}
             onChange={(value) => updateField(['high_availability', 'witness_token_env'], value)}
             placeholder="AEGIS_HA_WITNESS_TOKEN"
+          />
+          <TextField
+            label="Witness Signing Key Env"
+            value={settings.high_availability?.witness_signing_key_env || ''}
+            onChange={(value) => updateField(['high_availability', 'witness_signing_key_env'], value)}
+            placeholder="AEGIS_HA_WITNESS_SIGNING_KEY"
           />
         </div>
       </section>
