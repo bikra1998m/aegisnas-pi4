@@ -140,6 +140,7 @@ Use the helper output under `/var/tmp/aegisnas-ha-smoke/` to confirm:
 - shared replication freshness
 - staged package visibility
 - auto-stage and auto-activate status when enabled
+- post-failover recovery status after restart when auto-activate is enabled
 - HA history counters
 
 For the full failover drill, continue with [HA Active/Standby Runbook](ha-active-standby-runbook.md) and use:

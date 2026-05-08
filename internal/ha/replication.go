@@ -433,6 +433,25 @@ func ActivateStagedReplicationPackage(cfg *config.Config, id, activatedBy string
 	}, nil
 }
 
+func RestoreReplicationBackup(cfg *config.Config, backupPath, activatedBy string) (ActivationResult, error) {
+	if cfg == nil {
+		return ActivationResult{}, errors.New("ha replication rollback requires a config")
+	}
+	backupPath = strings.TrimSpace(backupPath)
+	if backupPath == "" {
+		return ActivationResult{}, errors.New("ha replication rollback requires a backup path")
+	}
+	packageBytes, err := os.ReadFile(backupPath)
+	if err != nil {
+		return ActivationResult{}, fmt.Errorf("read standby rollback backup: %w", err)
+	}
+	stage, err := importReplicationPackage(cfg, packageBytes, activatedBy, "rollback-backup")
+	if err != nil {
+		return ActivationResult{}, fmt.Errorf("stage standby rollback backup: %w", err)
+	}
+	return ActivateStagedReplicationPackage(cfg, stage.ID, activatedBy)
+}
+
 func stagedRootDir(cfg *config.Config) string {
 	return filepath.Join(replicationRootDir(cfg), "staged")
 }

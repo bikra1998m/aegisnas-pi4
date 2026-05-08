@@ -112,6 +112,7 @@ type SystemStatus = {
     shared_state_dir: string;
     runtime: RuntimeStatus;
     replication_runtime: RuntimeStatus;
+    post_failover_recovery: RuntimeStatus;
     history_stats: {
       total_records: number;
       failover_promotions: number;
@@ -666,6 +667,21 @@ export default function Dashboard() {
                           ? ` using staged package ${String(systemStatus.high_availability.runtime.details.auto_activate_stage_id)}`
                           : ''}
                         .
+                      </div>
+                    ) : null}
+                    {systemStatus.high_availability.post_failover_recovery?.message ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Post-failover recovery {String(systemStatus.high_availability.post_failover_recovery.status || 'unknown')}: {systemStatus.high_availability.post_failover_recovery.message}
+                      </div>
+                    ) : null}
+                    {systemStatus.high_availability.post_failover_recovery?.details?.validated_at ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Validated {String(systemStatus.high_availability.post_failover_recovery.details.validated_at)}.
+                      </div>
+                    ) : null}
+                    {systemStatus.high_availability.post_failover_recovery?.details?.rolled_back_at ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Rolled back {String(systemStatus.high_availability.post_failover_recovery.details.rolled_back_at)}.
                       </div>
                     ) : null}
                     {systemStatus.high_availability.replication_runtime?.details?.latest_source_node ? (

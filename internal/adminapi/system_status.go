@@ -285,6 +285,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"shared_state_dir":                cfg.HighAvailability.SharedStateDir,
 			"runtime":                         runtimeMap["high_availability"],
 			"replication_runtime":             runtimeMap["ha_replication"],
+			"post_failover_recovery":          runtimeMap["ha_post_failover_recovery"],
 			"history_stats":                   haHistoryStats,
 		},
 		"integrations": integrationsStatus,

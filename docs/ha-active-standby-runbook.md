@@ -8,6 +8,7 @@ This runbook is the operator path for AegisNAS high availability with:
 - continuous shared replication freshness tracking
 - staged standby activation
 - optional standby auto-activation during failover
+- post-failover health validation with automatic standby rollback
 - HA history and export
 
 Use this with:
@@ -197,13 +198,16 @@ Then the standby promotion path becomes:
 3. standby requires that the shared package is fresh, not stale
 4. standby activates the matching staged package, or stages then activates it
 5. standby queues the HA restart handoff
-6. after restart, the standby can reclaim the VIP with the activated state
+6. after restart, the standby validates core service health before it keeps the promoted state
+7. if validation passes, the standby can reclaim the VIP with the activated state
+8. if validation fails, the standby restores its last known-good rollback bundle and restarts again
 
 Important safety boundary:
 
 - this does not auto-activate on every publish
 - it only auto-activates when the standby is genuinely promoting during failover
 - if restart handoff fails, HA runtime will say so and VIP takeover will not quietly pretend everything is fine
+- if the promoted standby comes back unhealthy after restart, HA runtime records the failure and automatically restores the standby rollback bundle
 
 ## HA Smoke Helper
 
@@ -315,6 +319,8 @@ Expected additional outcome when `auto_activate_on_failover: true`:
 
 - standby runtime shows `auto_activate_status`
 - HA history records `replication_activate` and `replication_restart`
+- HA runtime shows `post_failover_recovery` state
+- if the promoted standby is unhealthy after restart, HA history records `post_failover_validation: rolled_back`
 - if restart handoff fails, HA runtime should show the failure clearly instead of silently claiming success
 
 Expected additional outcome when `split_brain_protection_enabled: true`:
@@ -366,6 +372,7 @@ What you get:
 - VIP lease acquisitions, releases, and preemptions
 - replication publishes and stale-fresh transitions
 - shared package staging and activations
+- post-failover validation pass or rollback outcomes
 
 Export options:
 

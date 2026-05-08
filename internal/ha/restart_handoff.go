@@ -12,8 +12,10 @@ import (
 )
 
 var (
-	restartClockFn   = time.Now
-	restartCommandFn = runRestartHandoffCommand
+	restartClockFn              = time.Now
+	restartCommandFn            = runRestartHandoffCommand
+	beginPostFailoverRecoveryFn = BeginPostFailoverHealthRecovery
+	clearPostFailoverRecoveryFn = ClearPostFailoverHealthRecovery
 )
 
 func ScheduleServiceRestart(services []string) error {
@@ -26,7 +28,35 @@ func ScheduleServiceRestart(services []string) error {
 
 func ScheduleActivationRestart(cfg *config.Config, result ActivationResult, actor string) error {
 	summary := "Service restart handoff queued for the activated standby package."
+	autoFailoverRecovery := strings.EqualFold(strings.TrimSpace(actor), "ha-auto-activate")
+	if autoFailoverRecovery {
+		if err := beginPostFailoverRecoveryFn(cfg, result, actor); err != nil {
+			summary = "Standby replication data was activated, but post-failover safety tracking could not be prepared. Services were not restarted automatically."
+			_ = db.RecordHAHistory("replication_restart", "failed", summary, standbyRole(cfg), strings.TrimSpace(actor), map[string]any{
+				"stage_id":         result.ID,
+				"restart_services": result.RestartServices,
+				"error":            err.Error(),
+			})
+			_ = db.UpsertRuntimeStatus(ReplicationRuntimeComponent, "degraded", summary, map[string]any{
+				"staged_id":           result.ID,
+				"restart_services":    result.RestartServices,
+				"restart_scheduled":   false,
+				"restart_warning":     err.Error(),
+				"restart_backup_path": result.BackupPath,
+			})
+			return err
+		}
+	}
 	if err := ScheduleServiceRestart(result.RestartServices); err != nil {
+		if autoFailoverRecovery {
+			_ = clearPostFailoverRecoveryFn("Post-failover health validation was cancelled because restart handoff failed.", map[string]any{
+				"status":           "degraded",
+				"stage_id":         result.ID,
+				"restart_services": result.RestartServices,
+				"backup_path":      result.BackupPath,
+				"actor":            actor,
+			})
+		}
 		summary = "Standby replication data was activated, but automatic restart handoff failed. Restart appliance services manually."
 		_ = db.RecordHAHistory("replication_restart", "failed", summary, standbyRole(cfg), strings.TrimSpace(actor), map[string]any{
 			"stage_id":         result.ID,

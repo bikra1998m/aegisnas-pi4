@@ -19,6 +19,13 @@ type httpDoer interface {
 }
 
 func StartMonitor(ctx context.Context, cfg *config.Config, logger *zap.Logger) {
+	restartScheduled, err := ResumePendingPostFailoverRecovery(ctx, cfg, logger)
+	if err != nil && logger != nil {
+		logger.Warn("failed to resume post-failover recovery validation", zap.Error(err))
+	}
+	if restartScheduled {
+		return
+	}
 	go StartController(ctx, cfg, nil, logger)
 	StartContinuousReplication(ctx, cfg, logger)
 }
