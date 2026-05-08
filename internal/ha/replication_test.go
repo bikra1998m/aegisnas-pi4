@@ -328,9 +328,11 @@ func TestPublishSharedReplicationPackageAndLoadStatus(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, shared.Present)
 	assert.Equal(t, "active", shared.SourceRole)
+	assert.Equal(t, "written", shared.PublishMode)
 	assert.FileExists(t, shared.PackagePath)
 	assert.FileExists(t, shared.MetadataPath)
 	assert.NotEmpty(t, shared.ContentFingerprint)
+	assert.NotEmpty(t, shared.SecurityProfileHash)
 
 	loaded, err := LoadSharedReplicationStatus(cfg)
 	require.NoError(t, err)
@@ -338,6 +340,8 @@ func TestPublishSharedReplicationPackageAndLoadStatus(t *testing.T) {
 	assert.Equal(t, shared.SourceNode, loaded.SourceNode)
 	assert.Equal(t, shared.PackageChecksum, loaded.PackageChecksum)
 	assert.Equal(t, shared.ContentFingerprint, loaded.ContentFingerprint)
+	assert.Equal(t, shared.PublishMode, loaded.PublishMode)
+	assert.Equal(t, shared.SecurityProfileHash, loaded.SecurityProfileHash)
 }
 
 func TestStageLatestSharedReplicationPackageUsesPublishedBundle(t *testing.T) {
@@ -428,8 +432,10 @@ func TestReplicationMonitorAutoStagesFreshSharedPackage(t *testing.T) {
 	require.NoError(t, err)
 	republished, err := PublishSharedReplicationPackage(activeCfg)
 	require.NoError(t, err)
-	assert.NotEqual(t, shared.PackageChecksum, republished.PackageChecksum)
+	assert.Equal(t, "reused", republished.PublishMode)
+	assert.Equal(t, shared.PackageChecksum, republished.PackageChecksum)
 	assert.Equal(t, shared.ContentFingerprint, republished.ContentFingerprint)
+	assert.Equal(t, shared.SecurityProfileHash, republished.SecurityProfileHash)
 
 	status, message, details = monitor.probe()
 	require.Equal(t, "ok", status)

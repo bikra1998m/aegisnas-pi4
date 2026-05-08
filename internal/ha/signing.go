@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"os"
 	"strings"
 
@@ -47,4 +48,17 @@ func verifyReplicationFingerprint(cfg *config.Config, fingerprint, signature str
 		return false
 	}
 	return hmac.Equal([]byte(expected), []byte(signature))
+}
+
+func replicationSecurityProfileHash(cfg *config.Config) string {
+	parts := []string{"signing:disabled", "encryption:disabled"}
+	if key := replicationSigningKey(cfg); len(key) > 0 {
+		sum := sha256.Sum256(key)
+		parts[0] = "signing:" + replicationSignatureAlgorithm + ":" + hex.EncodeToString(sum[:])
+	}
+	if key := replicationEncryptionKey(cfg); len(key) > 0 {
+		sum := sha256.Sum256(key)
+		parts[1] = "encryption:" + replicationEncryptionAlgorithm + ":" + hex.EncodeToString(sum[:])
+	}
+	return checksumBytes([]byte(strings.Join(parts, "\n")))
 }

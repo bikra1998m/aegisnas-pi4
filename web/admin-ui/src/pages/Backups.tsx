@@ -40,12 +40,14 @@ type SharedReplicationStatus = {
   metadata_path: string;
   published_at?: string;
   generated_at?: string;
+  publish_mode?: string;
   source_node?: string;
   source_role?: string;
   schema_version?: number;
   package_size_bytes?: number;
   package_checksum?: string;
   content_fingerprint?: string;
+  security_profile_hash?: string;
   encryption_algorithm?: string;
   encryption_status?: string;
   signature?: string;
@@ -292,6 +294,7 @@ export default function Backups() {
               <span>
                 Latest shared package from <span className="font-medium">{sharedStatus.source_node || 'unknown'}</span>
                 {sharedStatus.published_at ? ` published ${sharedStatus.published_at}` : ''}.
+                {sharedStatus.publish_mode ? ` Publish mode ${sharedStatus.publish_mode}.` : ''}
                 {sharedStatus.schema_version ? ` Schema v${sharedStatus.schema_version}.` : ''}
                 {sharedStatus.encryption_status ? ` Encryption ${sharedStatus.encryption_status}${sharedStatus.encryption_algorithm ? ` via ${sharedStatus.encryption_algorithm}` : ''}.` : ''}
                 {sharedStatus.signature_status ? ` Signature ${sharedStatus.signature_status}.` : ''}

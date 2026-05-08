@@ -145,6 +145,7 @@ Expected operator view:
 - replication status is `ok`
 - latest source node is the active node
 - package age stays below the stale threshold
+- when content and HA protection keys are unchanged, `publish_mode` can show `reused`, meaning freshness was refreshed without rewriting the shared package payload
 
 ### Standby Node
 

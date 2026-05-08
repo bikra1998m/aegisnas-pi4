@@ -27,12 +27,14 @@ type SharedReplicationStatus struct {
 	MetadataPath        string `json:"metadata_path"`
 	PublishedAt         string `json:"published_at,omitempty"`
 	GeneratedAt         string `json:"generated_at,omitempty"`
+	PublishMode         string `json:"publish_mode,omitempty"`
 	SourceNode          string `json:"source_node,omitempty"`
 	SourceRole          string `json:"source_role,omitempty"`
 	SchemaVersion       int    `json:"schema_version,omitempty"`
 	PackageSizeBytes    int64  `json:"package_size_bytes,omitempty"`
 	PackageChecksum     string `json:"package_checksum,omitempty"`
 	ContentFingerprint  string `json:"content_fingerprint,omitempty"`
+	SecurityProfileHash string `json:"security_profile_hash,omitempty"`
 	EncryptionAlgorithm string `json:"encryption_algorithm,omitempty"`
 	EncryptionStatus    string `json:"encryption_status,omitempty"`
 	Signature           string `json:"signature,omitempty"`
@@ -132,15 +134,23 @@ func (m *replicationMonitor) probe() (string, string, map[string]any) {
 		}
 		mergeSharedReplicationDetails(details, shared, m.cfg, m.now().UTC())
 		details["published_by_this_node"] = true
-		m.recordPublishEvent("success", "Published shared HA replication package.", map[string]any{
+		summary := "Published shared HA replication package for standby sync."
+		historySummary := "Published shared HA replication package."
+		if strings.EqualFold(strings.TrimSpace(shared.PublishMode), "reused") {
+			summary = "Refreshed shared HA replication freshness without rewriting unchanged package content."
+			historySummary = "Refreshed shared HA replication freshness without rewriting unchanged package content."
+		}
+		m.recordPublishEvent("success", historySummary, map[string]any{
 			"source_node":         shared.SourceNode,
 			"source_role":         shared.SourceRole,
 			"schema_version":      shared.SchemaVersion,
 			"package_checksum":    shared.PackageChecksum,
 			"content_fingerprint": shared.ContentFingerprint,
 			"package_size_bytes":  shared.PackageSizeBytes,
+			"publish_mode":        shared.PublishMode,
+			"security_profile":    shared.SecurityProfileHash,
 		})
-		return "ok", "Published shared HA replication package for standby sync.", details
+		return "ok", summary, details
 	}
 
 	shared, err := LoadSharedReplicationStatus(m.cfg)
@@ -176,11 +186,19 @@ func (m *replicationMonitor) recordPublishEvent(status, summary string, details 
 	if strings.TrimSpace(status) == "" {
 		return
 	}
-	if status == "failed" && m.lastPublishStatus == "failed" {
+	mode, _ := details["publish_mode"].(string)
+	identity := status
+	if trimmedMode := strings.TrimSpace(mode); trimmedMode != "" {
+		identity = status + ":" + trimmedMode
+	}
+	if status == "failed" && m.lastPublishStatus == identity {
+		return
+	}
+	if status == "success" && strings.EqualFold(strings.TrimSpace(mode), "reused") && m.lastPublishStatus == identity {
 		return
 	}
 	_ = db.RecordHAHistory("replication_publish", status, summary, strings.TrimSpace(m.cfg.HighAvailability.Role), "", details)
-	m.lastPublishStatus = status
+	m.lastPublishStatus = identity
 }
 
 func (m *replicationMonitor) recordFreshnessEvent(status, summary string, details map[string]any) {
@@ -263,12 +281,14 @@ func PublishSharedReplicationPackage(cfg *config.Config) (SharedReplicationStatu
 		MetadataPath:        sharedMetadataPath(cfg),
 		PublishedAt:         time.Now().UTC().Format(time.RFC3339),
 		GeneratedAt:         manifest.GeneratedAt,
+		PublishMode:         "written",
 		SourceNode:          manifest.SourceNode,
 		SourceRole:          manifest.SourceRole,
 		SchemaVersion:       manifest.SchemaVersion,
 		PackageSizeBytes:    int64(len(packageBytes)),
 		PackageChecksum:     checksumBytes(packageBytes),
 		ContentFingerprint:  manifest.ContentFingerprint,
+		SecurityProfileHash: replicationSecurityProfileHash(cfg),
 		EncryptionStatus:    "unencrypted",
 		Signature:           manifest.Signature,
 		SignatureAlgorithm:  manifest.SignatureAlgorithm,
@@ -281,6 +301,25 @@ func PublishSharedReplicationPackage(cfg *config.Config) (SharedReplicationStatu
 	}
 	if strings.TrimSpace(manifest.Signature) != "" {
 		status.SignatureStatus = "signed"
+	}
+
+	if existing, err := LoadSharedReplicationStatus(cfg); err == nil && canReuseSharedReplicationPackage(existing, status) {
+		existing.Present = true
+		existing.PackagePath = sharedPackagePath(cfg)
+		existing.MetadataPath = sharedMetadataPath(cfg)
+		existing.PublishedAt = status.PublishedAt
+		existing.PublishMode = "reused"
+		if existing.SecurityProfileHash == "" {
+			existing.SecurityProfileHash = status.SecurityProfileHash
+		}
+		metadataBytes, err := json.MarshalIndent(existing, "", "  ")
+		if err != nil {
+			return SharedReplicationStatus{}, fmt.Errorf("marshal shared replication metadata: %w", err)
+		}
+		if err := writeAtomicFile(existing.MetadataPath, metadataBytes, 0644); err != nil {
+			return SharedReplicationStatus{}, fmt.Errorf("write shared replication metadata: %w", err)
+		}
+		return existing, nil
 	}
 
 	if err := writeAtomicFile(status.PackagePath, packageBytes, 0640); err != nil {
@@ -356,12 +395,14 @@ func mergeSharedReplicationDetails(details map[string]any, shared SharedReplicat
 	details["metadata_path"] = shared.MetadataPath
 	details["latest_published_at"] = shared.PublishedAt
 	details["latest_generated_at"] = shared.GeneratedAt
+	details["latest_publish_mode"] = shared.PublishMode
 	details["latest_source_node"] = shared.SourceNode
 	details["latest_source_role"] = shared.SourceRole
 	details["latest_schema_version"] = shared.SchemaVersion
 	details["latest_package_size_bytes"] = shared.PackageSizeBytes
 	details["latest_package_checksum"] = shared.PackageChecksum
 	details["latest_content_fingerprint"] = shared.ContentFingerprint
+	details["latest_security_profile"] = shared.SecurityProfileHash
 	details["latest_encryption_status"] = shared.EncryptionStatus
 	details["latest_encryption_algorithm"] = shared.EncryptionAlgorithm
 	details["latest_signature_status"] = shared.SignatureStatus
@@ -413,6 +454,20 @@ func sharedMetadataPath(cfg *config.Config) string {
 func checksumBytes(data []byte) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
+}
+
+func canReuseSharedReplicationPackage(existing, candidate SharedReplicationStatus) bool {
+	if !existing.Present {
+		return false
+	}
+	if strings.TrimSpace(existing.PackagePath) == "" || strings.TrimSpace(existing.MetadataPath) == "" {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(existing.ContentFingerprint), strings.TrimSpace(candidate.ContentFingerprint)) &&
+		strings.EqualFold(strings.TrimSpace(existing.SecurityProfileHash), strings.TrimSpace(candidate.SecurityProfileHash)) &&
+		strings.EqualFold(strings.TrimSpace(existing.SourceNode), strings.TrimSpace(candidate.SourceNode)) &&
+		strings.EqualFold(strings.TrimSpace(existing.SourceRole), strings.TrimSpace(candidate.SourceRole)) &&
+		existing.SchemaVersion == candidate.SchemaVersion
 }
 
 func writeAtomicFile(path string, data []byte, perm os.FileMode) error {
