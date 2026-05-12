@@ -323,6 +323,8 @@ const defaultSettings: JsonMap = {
       witness_api_url: '',
       witness_urls: [],
       witness_quorum: 1,
+      witness_weights: {},
+      witness_weight_threshold: 0,
       witness_token_env: '',
       witness_signing_key_env: '',
       witness_max_age_seconds: 0,
@@ -2795,6 +2797,41 @@ export default function AccessSettings() {
             value={settings.high_availability?.witness_quorum || 1}
             onChange={(value) => updateField(['high_availability', 'witness_quorum'], Number(value))}
           />
+          <TextField
+            label="Witness Weight Threshold"
+            type="number"
+            value={settings.high_availability?.witness_weight_threshold || 0}
+            onChange={(value) => updateField(['high_availability', 'witness_weight_threshold'], Number(value))}
+          />
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Weight Overrides</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={Object.entries(settings.high_availability?.witness_weights || {})
+                .map(([url, weight]) => `${url}=${weight}`)
+                .join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                const weights: Record<string, number> = {};
+                event.target.value
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .forEach((line) => {
+                    const parts = line.split('=');
+                    const url = parts.slice(0, -1).join('=').trim();
+                    const rawWeight = parts.length > 1 ? parts[parts.length - 1].trim() : '';
+                    const parsedWeight = Number(rawWeight);
+                    if (url && Number.isFinite(parsedWeight) && parsedWeight > 0) {
+                      weights[url] = parsedWeight;
+                    }
+                  });
+                updateField(['high_availability', 'witness_weights'], weights);
+              }}
+              placeholder={'https://witness-a.example.test/ha=3\nhttps://witness-b.example.test/ha=1'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional per-witness weights. Unlisted witnesses count as weight 1.</p>
+          </div>
           <TextField
             label="Witness Token Env"
             value={settings.high_availability?.witness_token_env || ''}

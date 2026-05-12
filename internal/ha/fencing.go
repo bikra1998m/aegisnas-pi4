@@ -179,6 +179,25 @@ func effectiveWitnessQuorum(cfg *config.Config, witnessCount int) int {
 	return 1
 }
 
+func effectiveWitnessWeights(cfg *config.Config, witnessURLs []string) (map[string]int, int) {
+	weights := make(map[string]int, len(witnessURLs))
+	total := 0
+	if cfg == nil {
+		return weights, total
+	}
+	for _, witnessURL := range witnessURLs {
+		weight := 1
+		if cfg.HighAvailability.WitnessWeights != nil {
+			if override, ok := cfg.HighAvailability.WitnessWeights[strings.TrimSpace(witnessURL)]; ok && override > 0 {
+				weight = override
+			}
+		}
+		weights[witnessURL] = weight
+		total += weight
+	}
+	return weights, total
+}
+
 func newWitnessChallenge() (string, error) {
 	buf := make([]byte, 16)
 	if _, err := rand.Read(buf); err != nil {
@@ -369,9 +388,13 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	details["shared_heartbeat_path"] = sharedHeartbeatPath(c.cfg, strings.TrimSpace(c.cfg.HighAvailability.Role))
 	details["peer_shared_heartbeat_path"] = sharedHeartbeatPath(c.cfg, peerConfiguredRole(c.cfg))
 	witnessURLs := effectiveWitnessURLs(c.cfg)
+	witnessWeights, totalWitnessWeight := effectiveWitnessWeights(c.cfg, witnessURLs)
 	details["witness_url"] = strings.TrimSpace(c.cfg.HighAvailability.WitnessAPIURL)
 	details["witness_urls"] = witnessURLs
 	details["witness_quorum_required"] = effectiveWitnessQuorum(c.cfg, len(witnessURLs))
+	details["witness_weight_threshold"] = c.cfg.HighAvailability.WitnessWeightThreshold
+	details["witness_total_weight"] = totalWitnessWeight
+	details["witness_weights"] = witnessWeights
 	details["witness_max_age_seconds"] = c.cfg.HighAvailability.WitnessMaxAgeSeconds
 	details["witness_required_node"] = strings.TrimSpace(c.cfg.HighAvailability.WitnessRequiredNode)
 	details["witness_replay_protection_enabled"] = replayProtectionEnabled(c.cfg)
@@ -472,7 +495,9 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		}
 	} else {
 		quorum := effectiveWitnessQuorum(c.cfg, len(witnessURLs))
+		weightThreshold := c.cfg.HighAvailability.WitnessWeightThreshold
 		allowCount := 0
+		allowWeight := 0
 		witnessResults := make([]map[string]any, 0, len(witnessURLs))
 		var firstFailure error
 		var firstFailureSummary string
@@ -489,6 +514,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 			}
 			if evaluation.Allowed {
 				allowCount++
+				allowWeight += witnessWeights[witnessURL]
 			} else if firstFailure == nil && evaluation.Err != nil {
 				firstFailure = evaluation.Err
 				firstFailureSummary = evaluation.Summary
@@ -500,6 +526,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 				"status":          evaluation.Status,
 				"summary":         evaluation.Summary,
 				"allow_promotion": evaluation.Allowed,
+				"weight":          witnessWeights[witnessURL],
 				"witness_node":    strings.TrimSpace(evaluation.Decision.WitnessNode),
 				"observed_at":     strings.TrimSpace(evaluation.Decision.ObservedAt),
 			}
@@ -520,7 +547,9 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		details["witness_results"] = witnessResults
 		details["witness_allow_count"] = allowCount
 		details["witness_total_count"] = len(witnessURLs)
-		if allowCount >= quorum {
+		details["witness_allow_weight"] = allowWeight
+		weightSatisfied := weightThreshold <= 0 || allowWeight >= weightThreshold
+		if allowCount >= quorum && weightSatisfied {
 			result.WitnessAllowed = true
 			result.AllowPromotion = result.AllowPromotion && true
 			if len(witnessURLs) == 1 {
@@ -528,7 +557,11 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 				result.WitnessSummary = witnessResults[0]["summary"].(string)
 			} else {
 				result.WitnessStatus = "quorum_met"
-				result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion; quorum %d satisfied.", allowCount, len(witnessURLs), quorum)
+				if weightThreshold > 0 {
+					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d; quorum %d and weight threshold %d satisfied.", allowCount, len(witnessURLs), allowWeight, quorum, weightThreshold)
+				} else {
+					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion; quorum %d satisfied.", allowCount, len(witnessURLs), quorum)
+				}
 			}
 		} else {
 			result.WitnessAllowed = false
@@ -542,11 +575,20 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 					result.WitnessSummary = fmt.Sprint(witnessResults[0]["summary"])
 				}
 			} else {
-				result.WitnessStatus = "quorum_unmet"
-				if firstFailureSummary != "" {
-					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion; quorum %d required. First blocking result: %s", allowCount, len(witnessURLs), quorum, firstFailureSummary)
+				if allowCount >= quorum && !weightSatisfied {
+					result.WitnessStatus = "weight_unmet"
+					if firstFailureSummary != "" {
+						result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion but combined weight %d is below required threshold %d. First blocking result: %s", allowCount, len(witnessURLs), allowWeight, weightThreshold, firstFailureSummary)
+					} else {
+						result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion but combined weight %d is below required threshold %d.", allowCount, len(witnessURLs), allowWeight, weightThreshold)
+					}
 				} else {
-					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion; quorum %d required.", allowCount, len(witnessURLs), quorum)
+					result.WitnessStatus = "quorum_unmet"
+					if firstFailureSummary != "" {
+						result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d; quorum %d required. First blocking result: %s", allowCount, len(witnessURLs), allowWeight, quorum, firstFailureSummary)
+					} else {
+						result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d; quorum %d required.", allowCount, len(witnessURLs), allowWeight, quorum)
+					}
 				}
 			}
 		}

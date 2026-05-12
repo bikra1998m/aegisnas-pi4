@@ -284,6 +284,8 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"witness_api_url":                   cfg.HighAvailability.WitnessAPIURL,
 			"witness_urls":                      cfg.HighAvailability.WitnessURLs,
 			"witness_quorum":                    cfg.HighAvailability.WitnessQuorum,
+			"witness_weights":                   cfg.HighAvailability.WitnessWeights,
+			"witness_weight_threshold":          cfg.HighAvailability.WitnessWeightThreshold,
 			"witness_token_env":                 cfg.HighAvailability.WitnessTokenEnv,
 			"witness_signing_key_env":           cfg.HighAvailability.WitnessSigningKeyEnv,
 			"witness_max_age_seconds":           cfg.HighAvailability.WitnessMaxAgeSeconds,

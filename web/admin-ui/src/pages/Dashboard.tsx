@@ -111,6 +111,8 @@ type SystemStatus = {
     witness_api_url: string;
     witness_urls: string[];
     witness_quorum: number;
+    witness_weights: Record<string, number>;
+    witness_weight_threshold: number;
     witness_token_env: string;
     witness_signing_key_env: string;
     witness_max_age_seconds: number;
@@ -674,8 +676,15 @@ export default function Dashboard() {
                         systemStatus.high_availability.runtime?.details?.witness_total_count !== undefined
                           ? `, approvals ${String(systemStatus.high_availability.runtime.details.witness_allow_count)}/${String(systemStatus.high_availability.runtime.details.witness_total_count)}`
                           : ''}
+                        {systemStatus.high_availability.runtime?.details?.witness_allow_weight !== undefined &&
+                        systemStatus.high_availability.runtime?.details?.witness_total_weight !== undefined
+                          ? `, weight ${String(systemStatus.high_availability.runtime.details.witness_allow_weight)}/${String(systemStatus.high_availability.runtime.details.witness_total_weight)}`
+                          : ''}
                         {systemStatus.high_availability.witness_urls?.length
                           ? `, quorum ${systemStatus.high_availability.witness_quorum}`
+                          : ''}
+                        {systemStatus.high_availability.witness_weight_threshold > 0
+                          ? `, weight threshold ${systemStatus.high_availability.witness_weight_threshold}`
                           : ''}
                         {systemStatus.high_availability.runtime?.details?.witness_allow_promotion !== undefined
                           ? `, allow promotion ${String(systemStatus.high_availability.runtime.details.witness_allow_promotion)}`

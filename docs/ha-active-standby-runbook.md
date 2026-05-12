@@ -77,6 +77,10 @@ high_availability:
     - "https://witness-a.example.test/ha"
     - "https://witness-b.example.test/ha"
   witness_quorum: 2
+  witness_weights:
+    "https://witness-a.example.test/ha": 3
+    "https://witness-b.example.test/ha": 1
+  witness_weight_threshold: 4
   witness_token_env: "AEGIS_HA_WITNESS_TOKEN"
   witness_signing_key_env: "AEGIS_HA_WITNESS_SIGNING_KEY"
   witness_max_age_seconds: 30
@@ -101,6 +105,8 @@ Guidance:
 - `witness_api_url`: optional external witness that must explicitly allow standby promotion during a failover window; this requires split-brain protection to stay enabled
 - `witness_urls`: optional multi-witness list; when populated, the standby consults this set instead of the single `witness_api_url`
 - `witness_quorum`: minimum number of configured witnesses that must allow promotion
+- `witness_weights`: optional per-witness weight overrides keyed by witness URL; unspecified witnesses count as weight `1`
+- `witness_weight_threshold`: optional minimum combined witness weight required in addition to the plain witness quorum count
 - `witness_token_env`: optional bearer token env used when the external witness requires authenticated requests
 - `witness_signing_key_env`: optional shared HMAC key env used to verify the witness response body before standby promotion is allowed
 - `witness_max_age_seconds`: optional maximum allowed age for the witness `observed_at` timestamp; if the response is older, or missing `observed_at`, standby promotion is blocked

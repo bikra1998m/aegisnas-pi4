@@ -1096,6 +1096,34 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessQuorumZero.HighAvailability.WitnessQuorum = 0
 	assert.ErrorContains(t, badWitnessQuorumZero.Validate(), "high_availability.witness_quorum 0 must be at least 1")
 
+	badWitnessWeightNegative := base()
+	badWitnessWeightNegative.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessWeightNegative.HighAvailability.WitnessQuorum = 1
+	badWitnessWeightNegative.HighAvailability.WitnessWeightThreshold = -1
+	assert.ErrorContains(t, badWitnessWeightNegative.Validate(), "high_availability.witness_weight_threshold -1 cannot be negative")
+
+	badWitnessWeightUnknown := base()
+	badWitnessWeightUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessWeightUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessWeightUnknown.HighAvailability.WitnessWeights = map[string]int{"https://witness-b.example.test/ha": 2}
+	assert.ErrorContains(t, badWitnessWeightUnknown.Validate(), `high_availability.witness_weights key "https://witness-b.example.test/ha" does not match a configured witness URL`)
+
+	badWitnessWeightZero := base()
+	badWitnessWeightZero.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessWeightZero.HighAvailability.WitnessQuorum = 1
+	badWitnessWeightZero.HighAvailability.WitnessWeights = map[string]int{"https://witness-a.example.test/ha": 0}
+	assert.ErrorContains(t, badWitnessWeightZero.Validate(), `high_availability.witness_weights["https://witness-a.example.test/ha"] 0 must be at least 1`)
+
+	badWitnessWeightThreshold := base()
+	badWitnessWeightThreshold.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha", "https://witness-b.example.test/ha"}
+	badWitnessWeightThreshold.HighAvailability.WitnessQuorum = 1
+	badWitnessWeightThreshold.HighAvailability.WitnessWeights = map[string]int{
+		"https://witness-a.example.test/ha": 2,
+		"https://witness-b.example.test/ha": 1,
+	}
+	badWitnessWeightThreshold.HighAvailability.WitnessWeightThreshold = 5
+	assert.ErrorContains(t, badWitnessWeightThreshold.Validate(), "high_availability.witness_weight_threshold 5 cannot exceed configured witness weight 3")
+
 	badWitnessReplayDisabled := base()
 	badWitnessReplayDisabled.HighAvailability.Enabled = false
 	badWitnessReplayDisabled.HighAvailability.WitnessReplayProtectionEnabled = true
