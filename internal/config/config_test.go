@@ -1062,6 +1062,30 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessSigningNoURL.HighAvailability.WitnessSigningKeyEnv = "AEGIS_HA_WITNESS_SIGNING_KEY"
 	assert.ErrorContains(t, badWitnessSigningNoURL.Validate(), "high_availability.witness_signing_key_env requires high_availability.witness_api_url")
 
+	badWitnessAge := base()
+	badWitnessAge.HighAvailability.WitnessMaxAgeSeconds = -1
+	assert.ErrorContains(t, badWitnessAge.Validate(), "high_availability.witness_max_age_seconds")
+
+	badWitnessAgeDisabled := base()
+	badWitnessAgeDisabled.HighAvailability.Enabled = false
+	badWitnessAgeDisabled.HighAvailability.WitnessMaxAgeSeconds = 30
+	assert.ErrorContains(t, badWitnessAgeDisabled.Validate(), "high_availability.witness_max_age_seconds requires high_availability.enabled")
+
+	badWitnessAgeNoURL := base()
+	badWitnessAgeNoURL.HighAvailability.WitnessAPIURL = ""
+	badWitnessAgeNoURL.HighAvailability.WitnessMaxAgeSeconds = 30
+	assert.ErrorContains(t, badWitnessAgeNoURL.Validate(), "high_availability.witness_max_age_seconds requires high_availability.witness_api_url")
+
+	badWitnessNode := base()
+	badWitnessNode.HighAvailability.Enabled = false
+	badWitnessNode.HighAvailability.WitnessRequiredNode = "witness-1"
+	assert.ErrorContains(t, badWitnessNode.Validate(), "high_availability.witness_required_node requires high_availability.enabled")
+
+	badWitnessNodeNoURL := base()
+	badWitnessNodeNoURL.HighAvailability.WitnessAPIURL = ""
+	badWitnessNodeNoURL.HighAvailability.WitnessRequiredNode = "witness-1"
+	assert.ErrorContains(t, badWitnessNodeNoURL.Validate(), "high_availability.witness_required_node requires high_availability.witness_api_url")
+
 	badSigning := base()
 	badSigning.HighAvailability.Enabled = false
 	badSigning.HighAvailability.ReplicationSigningKeyEnv = "AEGIS_HA_REPLICATION_SIGNING_KEY"

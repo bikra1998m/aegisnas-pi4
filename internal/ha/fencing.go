@@ -28,24 +28,26 @@ type sharedHeartbeat struct {
 }
 
 type fencingResult struct {
-	Enabled         bool
-	Status          string
-	Summary         string
-	AllowPromotion  bool
-	LocalWriteError error
-	PeerLoadError   error
-	PeerPresent     bool
-	PeerAge         time.Duration
-	PeerAgeErr      error
-	PeerStale       bool
-	PeerHeartbeat   sharedHeartbeat
-	LocalHeartbeat  sharedHeartbeat
-	WitnessStatus   string
-	WitnessSummary  string
-	WitnessAllowed  bool
-	WitnessObserved string
-	WitnessNode     string
-	WitnessError    error
+	Enabled            bool
+	Status             string
+	Summary            string
+	AllowPromotion     bool
+	LocalWriteError    error
+	PeerLoadError      error
+	PeerPresent        bool
+	PeerAge            time.Duration
+	PeerAgeErr         error
+	PeerStale          bool
+	PeerHeartbeat      sharedHeartbeat
+	LocalHeartbeat     sharedHeartbeat
+	WitnessStatus      string
+	WitnessSummary     string
+	WitnessAllowed     bool
+	WitnessObserved    string
+	WitnessObservedAge time.Duration
+	WitnessObservedErr error
+	WitnessNode        string
+	WitnessError       error
 }
 
 type witnessDecision struct {
@@ -163,6 +165,18 @@ func sharedHeartbeatAge(state sharedHeartbeat, now time.Time) (time.Duration, er
 	return age, nil
 }
 
+func witnessObservedAge(observedAt string, now time.Time) (time.Duration, error) {
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(observedAt))
+	if err != nil {
+		return 0, err
+	}
+	age := now.Sub(parsed)
+	if age < 0 {
+		return 0, nil
+	}
+	return age, nil
+}
+
 func fencingHeartbeatStaleAfter(cfg *config.Config) time.Duration {
 	if cfg == nil {
 		return 20 * time.Second
@@ -243,6 +257,8 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	details["shared_heartbeat_path"] = sharedHeartbeatPath(c.cfg, strings.TrimSpace(c.cfg.HighAvailability.Role))
 	details["peer_shared_heartbeat_path"] = sharedHeartbeatPath(c.cfg, peerConfiguredRole(c.cfg))
 	details["witness_url"] = strings.TrimSpace(c.cfg.HighAvailability.WitnessAPIURL)
+	details["witness_max_age_seconds"] = c.cfg.HighAvailability.WitnessMaxAgeSeconds
+	details["witness_required_node"] = strings.TrimSpace(c.cfg.HighAvailability.WitnessRequiredNode)
 	if strings.TrimSpace(c.cfg.HighAvailability.WitnessTokenEnv) != "" {
 		details["witness_auth_status"] = "configured"
 	} else {
@@ -343,6 +359,9 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 			result.WitnessSummary = strings.TrimSpace(decision.Summary)
 			result.WitnessObserved = strings.TrimSpace(decision.ObservedAt)
 			result.WitnessNode = strings.TrimSpace(decision.WitnessNode)
+			if result.WitnessObserved != "" {
+				result.WitnessObservedAge, result.WitnessObservedErr = witnessObservedAge(result.WitnessObserved, observedAt)
+			}
 			if result.WitnessSummary == "" {
 				if decision.AllowPromotion {
 					result.WitnessSummary = "External HA witness allows standby promotion."
@@ -350,8 +369,32 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 					result.WitnessSummary = "External HA witness denied standby promotion."
 				}
 			}
-			if !decision.AllowPromotion {
+			requiredNode := strings.TrimSpace(c.cfg.HighAvailability.WitnessRequiredNode)
+			maxWitnessAge := time.Duration(c.cfg.HighAvailability.WitnessMaxAgeSeconds) * time.Second
+			switch {
+			case !decision.AllowPromotion:
 				result.WitnessStatus = "blocked"
+				result.AllowPromotion = false
+			case requiredNode != "" && !strings.EqualFold(result.WitnessNode, requiredNode):
+				result.WitnessStatus = "unexpected_node"
+				result.WitnessSummary = fmt.Sprintf("External HA witness %q does not match required witness node %q.", result.WitnessNode, requiredNode)
+				result.WitnessAllowed = false
+				result.AllowPromotion = false
+			case maxWitnessAge > 0 && result.WitnessObserved == "":
+				result.WitnessStatus = "stale"
+				result.WitnessSummary = "External HA witness did not include observed_at required by local freshness policy."
+				result.WitnessAllowed = false
+				result.AllowPromotion = false
+			case result.WitnessObservedErr != nil:
+				result.WitnessStatus = "invalid"
+				result.WitnessSummary = "External HA witness observed_at timestamp is invalid."
+				result.WitnessError = result.WitnessObservedErr
+				result.WitnessAllowed = false
+				result.AllowPromotion = false
+			case maxWitnessAge > 0 && result.WitnessObservedAge > maxWitnessAge:
+				result.WitnessStatus = "stale"
+				result.WitnessSummary = fmt.Sprintf("External HA witness response is stale at %ds and exceeds the %ds freshness policy.", int(result.WitnessObservedAge.Seconds()), c.cfg.HighAvailability.WitnessMaxAgeSeconds)
+				result.WitnessAllowed = false
 				result.AllowPromotion = false
 			}
 		}
@@ -363,6 +406,9 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	}
 	if result.WitnessObserved != "" {
 		details["witness_observed_at"] = result.WitnessObserved
+	}
+	if result.WitnessObserved != "" && result.WitnessObservedErr == nil {
+		details["witness_observed_age_seconds"] = int(result.WitnessObservedAge.Seconds())
 	}
 	if result.WitnessNode != "" {
 		details["witness_node"] = result.WitnessNode

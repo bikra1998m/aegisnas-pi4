@@ -286,6 +286,8 @@ high_availability:
   witness_api_url: "" # Optional external witness that must allow standby promotion before VIP takeover.
   witness_token_env: "" # Optional bearer token env used when calling the external HA witness.
   witness_signing_key_env: "" # Optional shared HMAC key env used to verify external witness responses.
+  witness_max_age_seconds: 0 # Optional maximum witness observed_at age; 0 disables freshness enforcement.
+  witness_required_node: "" # Optional witness node identity that must match witness_node in the response.
   preempt: false
   preempt_holdoff_seconds: 0 # Optional active-node wait before reclaiming the VIP after peer recovery when preempt is enabled.
   shared_state_dir: "/var/lib/aegisnas/ha"

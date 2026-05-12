@@ -111,6 +111,8 @@ type SystemStatus = {
     witness_api_url: string;
     witness_token_env: string;
     witness_signing_key_env: string;
+    witness_max_age_seconds: number;
+    witness_required_node: string;
     preempt: boolean;
     preempt_holdoff_seconds: number;
     shared_state_dir: string;
@@ -678,6 +680,15 @@ export default function Dashboard() {
                           : systemStatus.high_availability.witness_signing_key_env
                             ? ', signature configured'
                             : ''}
+                        {systemStatus.high_availability.runtime?.details?.witness_observed_age_seconds !== undefined
+                          ? `, observed age ${String(systemStatus.high_availability.runtime.details.witness_observed_age_seconds)}s`
+                          : ''}
+                        {systemStatus.high_availability.witness_required_node
+                          ? `, required node ${systemStatus.high_availability.witness_required_node}`
+                          : ''}
+                        {systemStatus.high_availability.witness_max_age_seconds > 0
+                          ? `, max age ${systemStatus.high_availability.witness_max_age_seconds}s`
+                          : ''}
                         : {systemStatus.high_availability.witness_api_url}
                       </div>
                     ) : null}

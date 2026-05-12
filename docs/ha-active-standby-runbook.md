@@ -75,6 +75,8 @@ high_availability:
   witness_api_url: "https://witness.example.test/ha"
   witness_token_env: "AEGIS_HA_WITNESS_TOKEN"
   witness_signing_key_env: "AEGIS_HA_WITNESS_SIGNING_KEY"
+  witness_max_age_seconds: 30
+  witness_required_node: "witness-1"
   preempt: false
   preempt_holdoff_seconds: 0
   shared_state_dir: "/var/lib/aegisnas/ha"
@@ -94,6 +96,8 @@ Guidance:
 - `witness_api_url`: optional external witness that must explicitly allow standby promotion during a failover window; this requires split-brain protection to stay enabled
 - `witness_token_env`: optional bearer token env used when the external witness requires authenticated requests
 - `witness_signing_key_env`: optional shared HMAC key env used to verify the witness response body before standby promotion is allowed
+- `witness_max_age_seconds`: optional maximum allowed age for the witness `observed_at` timestamp; if the response is older, or missing `observed_at`, standby promotion is blocked
+- `witness_required_node`: optional expected `witness_node` identity; if the response comes from a different witness identity, standby promotion is blocked
 - `preempt: false`: safer default for most labs and branch environments
 - `preempt_holdoff_seconds`: optional delay before a recovered active node reclaims the VIP when `preempt: true`
 

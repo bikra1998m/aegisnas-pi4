@@ -387,6 +387,8 @@ type HighAvailabilityConfig struct {
 	WitnessAPIURL                string `mapstructure:"witness_api_url"`
 	WitnessTokenEnv              string `mapstructure:"witness_token_env"`
 	WitnessSigningKeyEnv         string `mapstructure:"witness_signing_key_env"`
+	WitnessMaxAgeSeconds         int    `mapstructure:"witness_max_age_seconds"`
+	WitnessRequiredNode          string `mapstructure:"witness_required_node"`
 	Preempt                      bool   `mapstructure:"preempt"`
 	PreemptHoldoffSeconds        int    `mapstructure:"preempt_holdoff_seconds"`
 	SharedStateDir               string `mapstructure:"shared_state_dir"`
@@ -492,6 +494,8 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.witness_api_url", "")
 	v.SetDefault("high_availability.witness_token_env", "")
 	v.SetDefault("high_availability.witness_signing_key_env", "")
+	v.SetDefault("high_availability.witness_max_age_seconds", 0)
+	v.SetDefault("high_availability.witness_required_node", "")
 	v.SetDefault("high_availability.preempt", false)
 	v.SetDefault("high_availability.preempt_holdoff_seconds", 0)
 	v.SetDefault("high_availability.shared_state_dir", "/var/lib/aegisnas/ha")
@@ -1179,6 +1183,25 @@ func (c *Config) Validate() error {
 		}
 		if strings.TrimSpace(c.HighAvailability.WitnessAPIURL) == "" {
 			return errors.New("high_availability.witness_signing_key_env requires high_availability.witness_api_url")
+		}
+	}
+	if c.HighAvailability.WitnessMaxAgeSeconds < 0 {
+		return fmt.Errorf("high_availability.witness_max_age_seconds %d cannot be negative", c.HighAvailability.WitnessMaxAgeSeconds)
+	}
+	if c.HighAvailability.WitnessMaxAgeSeconds > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_max_age_seconds requires high_availability.enabled")
+		}
+		if strings.TrimSpace(c.HighAvailability.WitnessAPIURL) == "" {
+			return errors.New("high_availability.witness_max_age_seconds requires high_availability.witness_api_url")
+		}
+	}
+	if strings.TrimSpace(c.HighAvailability.WitnessRequiredNode) != "" {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_required_node requires high_availability.enabled")
+		}
+		if strings.TrimSpace(c.HighAvailability.WitnessAPIURL) == "" {
+			return errors.New("high_availability.witness_required_node requires high_availability.witness_api_url")
 		}
 	}
 	if strings.TrimSpace(c.HighAvailability.ReplicationSigningKeyEnv) != "" && !c.HighAvailability.Enabled {
