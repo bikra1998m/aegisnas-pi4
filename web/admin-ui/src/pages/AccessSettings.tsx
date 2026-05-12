@@ -325,6 +325,7 @@ const defaultSettings: JsonMap = {
       witness_signing_key_env: '',
       witness_max_age_seconds: 0,
       witness_required_node: '',
+      witness_replay_protection_enabled: false,
       preempt: false,
       preempt_holdoff_seconds: 0,
       shared_state_dir: '/var/lib/aegisnas/ha',
@@ -2790,6 +2791,11 @@ export default function AccessSettings() {
             value={settings.high_availability?.witness_required_node || ''}
             onChange={(value) => updateField(['high_availability', 'witness_required_node'], value)}
             placeholder="witness-1"
+          />
+          <ToggleField
+            label="Witness Replay Protection"
+            checked={Boolean(settings.high_availability?.witness_replay_protection_enabled)}
+            onChange={(checked) => updateField(['high_availability', 'witness_replay_protection_enabled'], checked)}
           />
         </div>
       </section>

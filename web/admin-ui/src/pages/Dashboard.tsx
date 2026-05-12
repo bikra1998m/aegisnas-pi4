@@ -113,6 +113,7 @@ type SystemStatus = {
     witness_signing_key_env: string;
     witness_max_age_seconds: number;
     witness_required_node: string;
+    witness_replay_protection_enabled: boolean;
     preempt: boolean;
     preempt_holdoff_seconds: number;
     shared_state_dir: string;
@@ -689,6 +690,11 @@ export default function Dashboard() {
                         {systemStatus.high_availability.witness_max_age_seconds > 0
                           ? `, max age ${systemStatus.high_availability.witness_max_age_seconds}s`
                           : ''}
+                        {systemStatus.high_availability.runtime?.details?.witness_replay_status
+                          ? `, replay ${String(systemStatus.high_availability.runtime.details.witness_replay_status)}`
+                          : systemStatus.high_availability.witness_replay_protection_enabled
+                            ? ', replay configured'
+                            : ''}
                         : {systemStatus.high_availability.witness_api_url}
                       </div>
                     ) : null}

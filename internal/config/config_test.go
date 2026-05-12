@@ -1086,6 +1086,22 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessNodeNoURL.HighAvailability.WitnessRequiredNode = "witness-1"
 	assert.ErrorContains(t, badWitnessNodeNoURL.Validate(), "high_availability.witness_required_node requires high_availability.witness_api_url")
 
+	badWitnessReplayDisabled := base()
+	badWitnessReplayDisabled.HighAvailability.Enabled = false
+	badWitnessReplayDisabled.HighAvailability.WitnessReplayProtectionEnabled = true
+	assert.ErrorContains(t, badWitnessReplayDisabled.Validate(), "high_availability.witness_replay_protection_enabled requires high_availability.enabled")
+
+	badWitnessReplayNoURL := base()
+	badWitnessReplayNoURL.HighAvailability.WitnessAPIURL = ""
+	badWitnessReplayNoURL.HighAvailability.WitnessReplayProtectionEnabled = true
+	assert.ErrorContains(t, badWitnessReplayNoURL.Validate(), "high_availability.witness_replay_protection_enabled requires high_availability.witness_api_url")
+
+	badWitnessReplayNoSigning := base()
+	badWitnessReplayNoSigning.HighAvailability.WitnessAPIURL = "https://witness.example.test/ha"
+	badWitnessReplayNoSigning.HighAvailability.WitnessSigningKeyEnv = ""
+	badWitnessReplayNoSigning.HighAvailability.WitnessReplayProtectionEnabled = true
+	assert.ErrorContains(t, badWitnessReplayNoSigning.Validate(), "high_availability.witness_replay_protection_enabled requires high_availability.witness_signing_key_env")
+
 	badSigning := base()
 	badSigning.HighAvailability.Enabled = false
 	badSigning.HighAvailability.ReplicationSigningKeyEnv = "AEGIS_HA_REPLICATION_SIGNING_KEY"

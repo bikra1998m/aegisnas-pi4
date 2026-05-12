@@ -3,6 +3,7 @@ package ha
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -55,6 +56,7 @@ type witnessDecision struct {
 	Summary        string `json:"summary,omitempty"`
 	ObservedAt     string `json:"observed_at,omitempty"`
 	WitnessNode    string `json:"witness_node,omitempty"`
+	Challenge      string `json:"challenge,omitempty"`
 }
 
 var (
@@ -62,6 +64,8 @@ var (
 	errWitnessSigningKeyMissing = errors.New("ha witness signing key env is configured but not loaded")
 	errWitnessSignatureMissing  = errors.New("ha witness response signature is missing")
 	errWitnessSignatureInvalid  = errors.New("ha witness response signature is invalid")
+	errWitnessChallengeMissing  = errors.New("ha witness response challenge is missing")
+	errWitnessChallengeMismatch = errors.New("ha witness response challenge does not match the request")
 )
 
 func witnessBearerToken(cfg *config.Config) string {
@@ -117,6 +121,18 @@ func verifyWitnessSignature(cfg *config.Config, headers http.Header, body []byte
 		return errWitnessSignatureInvalid
 	}
 	return nil
+}
+
+func replayProtectionEnabled(cfg *config.Config) bool {
+	return cfg != nil && cfg.HighAvailability.WitnessReplayProtectionEnabled
+}
+
+func newWitnessChallenge() (string, error) {
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("generate witness challenge: %w", err)
+	}
+	return hex.EncodeToString(buf), nil
 }
 
 func saveSharedHeartbeat(cfg *config.Config, state sharedHeartbeat) error {
@@ -259,6 +275,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	details["witness_url"] = strings.TrimSpace(c.cfg.HighAvailability.WitnessAPIURL)
 	details["witness_max_age_seconds"] = c.cfg.HighAvailability.WitnessMaxAgeSeconds
 	details["witness_required_node"] = strings.TrimSpace(c.cfg.HighAvailability.WitnessRequiredNode)
+	details["witness_replay_protection_enabled"] = replayProtectionEnabled(c.cfg)
 	if strings.TrimSpace(c.cfg.HighAvailability.WitnessTokenEnv) != "" {
 		details["witness_auth_status"] = "configured"
 	} else {
@@ -268,6 +285,11 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		details["witness_signature_status"] = "configured"
 	} else {
 		details["witness_signature_status"] = "disabled"
+	}
+	if replayProtectionEnabled(c.cfg) {
+		details["witness_replay_status"] = "configured"
+	} else {
+		details["witness_replay_status"] = "disabled"
 	}
 	if !result.Enabled {
 		if strings.TrimSpace(c.cfg.HighAvailability.WitnessAPIURL) != "" {
@@ -429,10 +451,19 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 				details["witness_signature_status"] = "missing"
 			case errors.Is(result.WitnessError, errWitnessSignatureInvalid):
 				details["witness_signature_status"] = "invalid"
+			case errors.Is(result.WitnessError, errWitnessChallengeMissing):
+				details["witness_replay_status"] = "missing"
+			case errors.Is(result.WitnessError, errWitnessChallengeMismatch):
+				details["witness_replay_status"] = "mismatch"
 			}
 		}
-	} else if strings.TrimSpace(c.cfg.HighAvailability.WitnessSigningKeyEnv) != "" {
-		details["witness_signature_status"] = "verified"
+	} else {
+		if strings.TrimSpace(c.cfg.HighAvailability.WitnessSigningKeyEnv) != "" {
+			details["witness_signature_status"] = "verified"
+		}
+		if replayProtectionEnabled(c.cfg) {
+			details["witness_replay_status"] = "verified"
+		}
 	}
 
 	if standbyPromotionWindow {
@@ -473,6 +504,14 @@ func probeWitnessDecision(cfg *config.Config, client httpDoer) (witnessDecision,
 	if strings.TrimSpace(cfg.HighAvailability.WitnessSigningKeyEnv) != "" && strings.TrimSpace(witnessSigningKey(cfg)) == "" {
 		return decision, fmt.Errorf("ha witness signing key env %q is configured but not loaded: %w", strings.TrimSpace(cfg.HighAvailability.WitnessSigningKeyEnv), errWitnessSigningKeyMissing)
 	}
+	challenge := ""
+	if replayProtectionEnabled(cfg) {
+		var err error
+		challenge, err = newWitnessChallenge()
+		if err != nil {
+			return decision, err
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -481,6 +520,9 @@ func probeWitnessDecision(cfg *config.Config, client httpDoer) (witnessDecision,
 	}
 	if token := witnessBearerToken(cfg); token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	if challenge != "" {
+		req.Header.Set("X-AegisNAS-Witness-Challenge", challenge)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -499,6 +541,14 @@ func probeWitnessDecision(cfg *config.Config, client httpDoer) (witnessDecision,
 	}
 	if err := json.Unmarshal(body, &decision); err != nil {
 		return decision, fmt.Errorf("decode witness response: %w", err)
+	}
+	if challenge != "" {
+		switch {
+		case strings.TrimSpace(decision.Challenge) == "":
+			return decision, errWitnessChallengeMissing
+		case strings.TrimSpace(decision.Challenge) != challenge:
+			return decision, errWitnessChallengeMismatch
+		}
 	}
 	return decision, nil
 }

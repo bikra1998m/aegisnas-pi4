@@ -371,27 +371,28 @@ type GovernanceConfig struct {
 }
 
 type HighAvailabilityConfig struct {
-	Enabled                      bool   `mapstructure:"enabled"`
-	Role                         string `mapstructure:"role"`
-	PeerAPIURL                   string `mapstructure:"peer_api_url"`
-	VirtualIP                    string `mapstructure:"virtual_ip"`
-	HeartbeatIntervalSeconds     int    `mapstructure:"heartbeat_interval_seconds"`
-	FailoverTimeoutSeconds       int    `mapstructure:"failover_timeout_seconds"`
-	ReplicationIntervalSeconds   int    `mapstructure:"replication_interval_seconds"`
-	ReplicationStaleAfterSeconds int    `mapstructure:"replication_stale_after_seconds"`
-	SplitBrainProtectionEnabled  bool   `mapstructure:"split_brain_protection_enabled"`
-	AutoStageSharedPackage       bool   `mapstructure:"auto_stage_shared_package"`
-	AutoActivateOnFailover       bool   `mapstructure:"auto_activate_on_failover"`
-	ReplicationSigningKeyEnv     string `mapstructure:"replication_signing_key_env"`
-	ReplicationEncryptionKeyEnv  string `mapstructure:"replication_encryption_key_env"`
-	WitnessAPIURL                string `mapstructure:"witness_api_url"`
-	WitnessTokenEnv              string `mapstructure:"witness_token_env"`
-	WitnessSigningKeyEnv         string `mapstructure:"witness_signing_key_env"`
-	WitnessMaxAgeSeconds         int    `mapstructure:"witness_max_age_seconds"`
-	WitnessRequiredNode          string `mapstructure:"witness_required_node"`
-	Preempt                      bool   `mapstructure:"preempt"`
-	PreemptHoldoffSeconds        int    `mapstructure:"preempt_holdoff_seconds"`
-	SharedStateDir               string `mapstructure:"shared_state_dir"`
+	Enabled                        bool   `mapstructure:"enabled"`
+	Role                           string `mapstructure:"role"`
+	PeerAPIURL                     string `mapstructure:"peer_api_url"`
+	VirtualIP                      string `mapstructure:"virtual_ip"`
+	HeartbeatIntervalSeconds       int    `mapstructure:"heartbeat_interval_seconds"`
+	FailoverTimeoutSeconds         int    `mapstructure:"failover_timeout_seconds"`
+	ReplicationIntervalSeconds     int    `mapstructure:"replication_interval_seconds"`
+	ReplicationStaleAfterSeconds   int    `mapstructure:"replication_stale_after_seconds"`
+	SplitBrainProtectionEnabled    bool   `mapstructure:"split_brain_protection_enabled"`
+	AutoStageSharedPackage         bool   `mapstructure:"auto_stage_shared_package"`
+	AutoActivateOnFailover         bool   `mapstructure:"auto_activate_on_failover"`
+	ReplicationSigningKeyEnv       string `mapstructure:"replication_signing_key_env"`
+	ReplicationEncryptionKeyEnv    string `mapstructure:"replication_encryption_key_env"`
+	WitnessAPIURL                  string `mapstructure:"witness_api_url"`
+	WitnessTokenEnv                string `mapstructure:"witness_token_env"`
+	WitnessSigningKeyEnv           string `mapstructure:"witness_signing_key_env"`
+	WitnessMaxAgeSeconds           int    `mapstructure:"witness_max_age_seconds"`
+	WitnessRequiredNode            string `mapstructure:"witness_required_node"`
+	WitnessReplayProtectionEnabled bool   `mapstructure:"witness_replay_protection_enabled"`
+	Preempt                        bool   `mapstructure:"preempt"`
+	PreemptHoldoffSeconds          int    `mapstructure:"preempt_holdoff_seconds"`
+	SharedStateDir                 string `mapstructure:"shared_state_dir"`
 }
 
 type WirelessConfig struct {
@@ -496,6 +497,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.witness_signing_key_env", "")
 	v.SetDefault("high_availability.witness_max_age_seconds", 0)
 	v.SetDefault("high_availability.witness_required_node", "")
+	v.SetDefault("high_availability.witness_replay_protection_enabled", false)
 	v.SetDefault("high_availability.preempt", false)
 	v.SetDefault("high_availability.preempt_holdoff_seconds", 0)
 	v.SetDefault("high_availability.shared_state_dir", "/var/lib/aegisnas/ha")
@@ -1202,6 +1204,17 @@ func (c *Config) Validate() error {
 		}
 		if strings.TrimSpace(c.HighAvailability.WitnessAPIURL) == "" {
 			return errors.New("high_availability.witness_required_node requires high_availability.witness_api_url")
+		}
+	}
+	if c.HighAvailability.WitnessReplayProtectionEnabled {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_replay_protection_enabled requires high_availability.enabled")
+		}
+		if strings.TrimSpace(c.HighAvailability.WitnessAPIURL) == "" {
+			return errors.New("high_availability.witness_replay_protection_enabled requires high_availability.witness_api_url")
+		}
+		if strings.TrimSpace(c.HighAvailability.WitnessSigningKeyEnv) == "" {
+			return errors.New("high_availability.witness_replay_protection_enabled requires high_availability.witness_signing_key_env")
 		}
 	}
 	if strings.TrimSpace(c.HighAvailability.ReplicationSigningKeyEnv) != "" && !c.HighAvailability.Enabled {
