@@ -73,6 +73,10 @@ high_availability:
   replication_signing_key_env: "AEGIS_HA_REPLICATION_SIGNING_KEY"
   replication_encryption_key_env: "AEGIS_HA_REPLICATION_ENCRYPTION_KEY"
   witness_api_url: "https://witness.example.test/ha"
+  witness_urls:
+    - "https://witness-a.example.test/ha"
+    - "https://witness-b.example.test/ha"
+  witness_quorum: 2
   witness_token_env: "AEGIS_HA_WITNESS_TOKEN"
   witness_signing_key_env: "AEGIS_HA_WITNESS_SIGNING_KEY"
   witness_max_age_seconds: 30
@@ -95,6 +99,8 @@ Guidance:
 - `replication_signing_key_env`: optional shared HMAC key env used to sign and verify HA replication bundles
 - `replication_encryption_key_env`: optional shared env used to encrypt HA replication bundles before they are written to shared storage or downloaded for standby import
 - `witness_api_url`: optional external witness that must explicitly allow standby promotion during a failover window; this requires split-brain protection to stay enabled
+- `witness_urls`: optional multi-witness list; when populated, the standby consults this set instead of the single `witness_api_url`
+- `witness_quorum`: minimum number of configured witnesses that must allow promotion
 - `witness_token_env`: optional bearer token env used when the external witness requires authenticated requests
 - `witness_signing_key_env`: optional shared HMAC key env used to verify the witness response body before standby promotion is allowed
 - `witness_max_age_seconds`: optional maximum allowed age for the witness `observed_at` timestamp; if the response is older, or missing `observed_at`, standby promotion is blocked

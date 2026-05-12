@@ -399,7 +399,7 @@ func TestStandbyWitnessBlocksPromotionWhenHeartbeatIsStale(t *testing.T) {
 
 	originalWitness := controllerProbeWitnessDecisionFn
 	defer func() { controllerProbeWitnessDecisionFn = originalWitness }()
-	controllerProbeWitnessDecisionFn = func(cfg *config.Config, client httpDoer) (witnessDecision, error) {
+	controllerProbeWitnessDecisionFn = func(cfg *config.Config, client httpDoer, witnessURL string) (witnessDecision, error) {
 		return witnessDecision{
 			AllowPromotion: false,
 			Summary:        "Witness still sees the active node.",
@@ -449,7 +449,7 @@ func TestStandbyWitnessAllowsPromotionWhenHeartbeatIsStale(t *testing.T) {
 
 	originalWitness := controllerProbeWitnessDecisionFn
 	defer func() { controllerProbeWitnessDecisionFn = originalWitness }()
-	controllerProbeWitnessDecisionFn = func(cfg *config.Config, client httpDoer) (witnessDecision, error) {
+	controllerProbeWitnessDecisionFn = func(cfg *config.Config, client httpDoer, witnessURL string) (witnessDecision, error) {
 		return witnessDecision{
 			AllowPromotion: true,
 			Summary:        "Witness confirms standby promotion is safe.",
@@ -498,7 +498,7 @@ func TestStandbyWitnessBlocksPromotionWhenResponseIsStale(t *testing.T) {
 
 	originalWitness := controllerProbeWitnessDecisionFn
 	defer func() { controllerProbeWitnessDecisionFn = originalWitness }()
-	controllerProbeWitnessDecisionFn = func(cfg *config.Config, client httpDoer) (witnessDecision, error) {
+	controllerProbeWitnessDecisionFn = func(cfg *config.Config, client httpDoer, witnessURL string) (witnessDecision, error) {
 		return witnessDecision{
 			AllowPromotion: true,
 			Summary:        "Witness confirms standby promotion is safe.",
@@ -541,10 +541,129 @@ func TestStandbyWitnessBlocksPromotionWhenNodeDoesNotMatchPolicy(t *testing.T) {
 
 	originalWitness := controllerProbeWitnessDecisionFn
 	defer func() { controllerProbeWitnessDecisionFn = originalWitness }()
-	controllerProbeWitnessDecisionFn = func(cfg *config.Config, client httpDoer) (witnessDecision, error) {
+	controllerProbeWitnessDecisionFn = func(cfg *config.Config, client httpDoer, witnessURL string) (witnessDecision, error) {
 		return witnessDecision{
 			AllowPromotion: true,
 			Summary:        "Witness confirms standby promotion is safe.",
+			ObservedAt:     now.Format(time.RFC3339),
+			WitnessNode:    "witness-2",
+		}, nil
+	}
+
+	ctrl := newController(cfg, probeClient{do: func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("peer down")
+	}}, zap.NewNop())
+	ctrl.nodeName = "standby-1"
+	ctrl.now = func() time.Time { return now }
+	ctrl.failureSince = now.Add(-30 * time.Second)
+	ctrl.ipRunner = func(args ...string) (string, error) { return "", nil }
+	ctrl.arpingRunner = func(args ...string) (string, error) { return "", nil }
+
+	ctrl.tick()
+
+	assert.False(t, ctrl.vipAssigned)
+}
+
+func TestStandbyWitnessQuorumAllowsPromotion(t *testing.T) {
+	cfg := haTestConfig(t, "standby")
+	cfg.HighAvailability.SplitBrainProtectionEnabled = true
+	cfg.HighAvailability.WitnessAPIURL = ""
+	cfg.HighAvailability.WitnessURLs = []string{
+		"https://witness-a.example.test/ha",
+		"https://witness-b.example.test/ha",
+		"https://witness-c.example.test/ha",
+	}
+	cfg.HighAvailability.WitnessQuorum = 2
+	now := time.Date(2026, 5, 7, 11, 45, 0, 0, time.UTC)
+
+	peerCfg := *cfg
+	peerCfg.HighAvailability.Role = "active"
+	require.NoError(t, saveSharedHeartbeat(&peerCfg, sharedHeartbeat{
+		NodeName:       "active-1",
+		ConfiguredRole: "active",
+		EffectiveRole:  "active",
+		VirtualIP:      cfg.HighAvailability.VirtualIP,
+		VIPAssigned:    true,
+		PublishedAt:    now.Add(-31 * time.Second).Format(time.RFC3339),
+	}))
+
+	originalWitness := controllerProbeWitnessDecisionFn
+	defer func() { controllerProbeWitnessDecisionFn = originalWitness }()
+	controllerProbeWitnessDecisionFn = func(cfg *config.Config, client httpDoer, witnessURL string) (witnessDecision, error) {
+		switch witnessURL {
+		case "https://witness-a.example.test/ha", "https://witness-b.example.test/ha":
+			return witnessDecision{
+				AllowPromotion: true,
+				Summary:        "Witness confirms standby promotion is safe.",
+				ObservedAt:     now.Format(time.RFC3339),
+				WitnessNode:    "witness-1",
+			}, nil
+		default:
+			return witnessDecision{
+				AllowPromotion: false,
+				Summary:        "Witness still sees the active node.",
+				ObservedAt:     now.Format(time.RFC3339),
+				WitnessNode:    "witness-2",
+			}, nil
+		}
+	}
+
+	var ipCalls []string
+	ctrl := newController(cfg, probeClient{do: func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("peer down")
+	}}, zap.NewNop())
+	ctrl.nodeName = "standby-1"
+	ctrl.now = func() time.Time { return now }
+	ctrl.failureSince = now.Add(-30 * time.Second)
+	ctrl.ipRunner = func(args ...string) (string, error) {
+		ipCalls = append(ipCalls, strings.Join(args, " "))
+		return "", nil
+	}
+	ctrl.arpingRunner = func(args ...string) (string, error) { return "", nil }
+
+	ctrl.tick()
+
+	assert.True(t, ctrl.vipAssigned)
+	require.NotEmpty(t, ipCalls)
+	assert.Contains(t, ipCalls[len(ipCalls)-1], "addr replace 192.168.50.2/24 dev ens37")
+}
+
+func TestStandbyWitnessQuorumBlocksPromotionWhenQuorumNotMet(t *testing.T) {
+	cfg := haTestConfig(t, "standby")
+	cfg.HighAvailability.SplitBrainProtectionEnabled = true
+	cfg.HighAvailability.WitnessAPIURL = ""
+	cfg.HighAvailability.WitnessURLs = []string{
+		"https://witness-a.example.test/ha",
+		"https://witness-b.example.test/ha",
+	}
+	cfg.HighAvailability.WitnessQuorum = 2
+	now := time.Date(2026, 5, 7, 12, 0, 0, 0, time.UTC)
+
+	peerCfg := *cfg
+	peerCfg.HighAvailability.Role = "active"
+	require.NoError(t, saveSharedHeartbeat(&peerCfg, sharedHeartbeat{
+		NodeName:       "active-1",
+		ConfiguredRole: "active",
+		EffectiveRole:  "active",
+		VirtualIP:      cfg.HighAvailability.VirtualIP,
+		VIPAssigned:    true,
+		PublishedAt:    now.Add(-31 * time.Second).Format(time.RFC3339),
+	}))
+
+	originalWitness := controllerProbeWitnessDecisionFn
+	defer func() { controllerProbeWitnessDecisionFn = originalWitness }()
+	controllerProbeWitnessDecisionFn = func(cfg *config.Config, client httpDoer, witnessURL string) (witnessDecision, error) {
+		if witnessURL == "https://witness-a.example.test/ha" {
+			return witnessDecision{
+				AllowPromotion: true,
+				Summary:        "Witness confirms standby promotion is safe.",
+				ObservedAt:     now.Format(time.RFC3339),
+				WitnessNode:    "witness-1",
+			}, nil
+		}
+		return witnessDecision{
+			AllowPromotion: false,
+			Summary:        "Witness still sees the active node.",
 			ObservedAt:     now.Format(time.RFC3339),
 			WitnessNode:    "witness-2",
 		}, nil

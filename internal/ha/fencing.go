@@ -59,6 +59,17 @@ type witnessDecision struct {
 	Challenge      string `json:"challenge,omitempty"`
 }
 
+type witnessEvaluation struct {
+	URL            string
+	Status         string
+	Summary        string
+	Allowed        bool
+	Decision       witnessDecision
+	ObservedAge    time.Duration
+	ObservedAgeErr error
+	Err            error
+}
+
 var (
 	errWitnessTokenMissing      = errors.New("ha witness bearer token env is configured but not loaded")
 	errWitnessSigningKeyMissing = errors.New("ha witness signing key env is configured but not loaded")
@@ -127,12 +138,97 @@ func replayProtectionEnabled(cfg *config.Config) bool {
 	return cfg != nil && cfg.HighAvailability.WitnessReplayProtectionEnabled
 }
 
+func normalizeWitnessURLSet(primary string, urls []string) []string {
+	normalized := make([]string, 0, len(urls)+1)
+	seen := map[string]struct{}{}
+	appendURL := func(raw string) {
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" {
+			return
+		}
+		if _, exists := seen[trimmed]; exists {
+			return
+		}
+		seen[trimmed] = struct{}{}
+		normalized = append(normalized, trimmed)
+	}
+	if len(urls) > 0 {
+		for _, witnessURL := range urls {
+			appendURL(witnessURL)
+		}
+		return normalized
+	}
+	appendURL(primary)
+	return normalized
+}
+
+func effectiveWitnessURLs(cfg *config.Config) []string {
+	if cfg == nil {
+		return nil
+	}
+	return normalizeWitnessURLSet(cfg.HighAvailability.WitnessAPIURL, cfg.HighAvailability.WitnessURLs)
+}
+
+func effectiveWitnessQuorum(cfg *config.Config, witnessCount int) int {
+	if cfg == nil || witnessCount <= 0 {
+		return 0
+	}
+	if cfg.HighAvailability.WitnessQuorum > 0 {
+		return cfg.HighAvailability.WitnessQuorum
+	}
+	return 1
+}
+
 func newWitnessChallenge() (string, error) {
 	buf := make([]byte, 16)
 	if _, err := rand.Read(buf); err != nil {
 		return "", fmt.Errorf("generate witness challenge: %w", err)
 	}
 	return hex.EncodeToString(buf), nil
+}
+
+func evaluateWitnessDecisionPolicy(cfg *config.Config, observedAt time.Time, decision witnessDecision) witnessEvaluation {
+	evaluation := witnessEvaluation{
+		Status:   "ok",
+		Summary:  strings.TrimSpace(decision.Summary),
+		Allowed:  decision.AllowPromotion,
+		Decision: decision,
+	}
+	if evaluation.Summary == "" {
+		if decision.AllowPromotion {
+			evaluation.Summary = "External HA witness allows standby promotion."
+		} else {
+			evaluation.Summary = "External HA witness denied standby promotion."
+		}
+	}
+	if strings.TrimSpace(decision.ObservedAt) != "" {
+		evaluation.ObservedAge, evaluation.ObservedAgeErr = witnessObservedAge(strings.TrimSpace(decision.ObservedAt), observedAt)
+	}
+	requiredNode := strings.TrimSpace(cfg.HighAvailability.WitnessRequiredNode)
+	maxWitnessAge := time.Duration(cfg.HighAvailability.WitnessMaxAgeSeconds) * time.Second
+	switch {
+	case !decision.AllowPromotion:
+		evaluation.Status = "blocked"
+		evaluation.Allowed = false
+	case requiredNode != "" && !strings.EqualFold(strings.TrimSpace(decision.WitnessNode), requiredNode):
+		evaluation.Status = "unexpected_node"
+		evaluation.Summary = fmt.Sprintf("External HA witness %q does not match required witness node %q.", strings.TrimSpace(decision.WitnessNode), requiredNode)
+		evaluation.Allowed = false
+	case maxWitnessAge > 0 && strings.TrimSpace(decision.ObservedAt) == "":
+		evaluation.Status = "stale"
+		evaluation.Summary = "External HA witness did not include observed_at required by local freshness policy."
+		evaluation.Allowed = false
+	case evaluation.ObservedAgeErr != nil:
+		evaluation.Status = "invalid"
+		evaluation.Summary = "External HA witness observed_at timestamp is invalid."
+		evaluation.Err = evaluation.ObservedAgeErr
+		evaluation.Allowed = false
+	case maxWitnessAge > 0 && evaluation.ObservedAge > maxWitnessAge:
+		evaluation.Status = "stale"
+		evaluation.Summary = fmt.Sprintf("External HA witness response is stale at %ds and exceeds the %ds freshness policy.", int(evaluation.ObservedAge.Seconds()), cfg.HighAvailability.WitnessMaxAgeSeconds)
+		evaluation.Allowed = false
+	}
+	return evaluation
 }
 
 func saveSharedHeartbeat(cfg *config.Config, state sharedHeartbeat) error {
@@ -272,7 +368,10 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	details["split_brain_protection_enabled"] = result.Enabled
 	details["shared_heartbeat_path"] = sharedHeartbeatPath(c.cfg, strings.TrimSpace(c.cfg.HighAvailability.Role))
 	details["peer_shared_heartbeat_path"] = sharedHeartbeatPath(c.cfg, peerConfiguredRole(c.cfg))
+	witnessURLs := effectiveWitnessURLs(c.cfg)
 	details["witness_url"] = strings.TrimSpace(c.cfg.HighAvailability.WitnessAPIURL)
+	details["witness_urls"] = witnessURLs
+	details["witness_quorum_required"] = effectiveWitnessQuorum(c.cfg, len(witnessURLs))
 	details["witness_max_age_seconds"] = c.cfg.HighAvailability.WitnessMaxAgeSeconds
 	details["witness_required_node"] = strings.TrimSpace(c.cfg.HighAvailability.WitnessRequiredNode)
 	details["witness_replay_protection_enabled"] = replayProtectionEnabled(c.cfg)
@@ -292,7 +391,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		details["witness_replay_status"] = "disabled"
 	}
 	if !result.Enabled {
-		if strings.TrimSpace(c.cfg.HighAvailability.WitnessAPIURL) != "" {
+		if len(witnessURLs) > 0 {
 			details["witness_status"] = "configured"
 		} else {
 			details["witness_status"] = "disabled"
@@ -362,62 +461,93 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 			result.PeerStale
 	}
 
-	witnessURL := strings.TrimSpace(c.cfg.HighAvailability.WitnessAPIURL)
-	if witnessURL == "" {
+	if len(witnessURLs) == 0 {
 		result.WitnessStatus = "disabled"
 	} else if !standbyPromotionWindow {
 		result.WitnessStatus = "idle"
-		result.WitnessSummary = "External HA witness is configured and will be consulted during standby promotion."
-	} else {
-		decision, err := controllerProbeWitnessDecisionFn(c.cfg, c.client)
-		if err != nil {
-			result.WitnessStatus = "failed"
-			result.WitnessSummary = "External HA witness could not be read during standby promotion."
-			result.WitnessError = err
-			result.AllowPromotion = false
+		if len(witnessURLs) == 1 {
+			result.WitnessSummary = "External HA witness is configured and will be consulted during standby promotion."
 		} else {
-			result.WitnessStatus = "ok"
-			result.WitnessAllowed = decision.AllowPromotion
-			result.WitnessSummary = strings.TrimSpace(decision.Summary)
-			result.WitnessObserved = strings.TrimSpace(decision.ObservedAt)
-			result.WitnessNode = strings.TrimSpace(decision.WitnessNode)
-			if result.WitnessObserved != "" {
-				result.WitnessObservedAge, result.WitnessObservedErr = witnessObservedAge(result.WitnessObserved, observedAt)
+			result.WitnessSummary = fmt.Sprintf("%d external HA witnesses are configured and will be consulted during standby promotion.", len(witnessURLs))
+		}
+	} else {
+		quorum := effectiveWitnessQuorum(c.cfg, len(witnessURLs))
+		allowCount := 0
+		witnessResults := make([]map[string]any, 0, len(witnessURLs))
+		var firstFailure error
+		var firstFailureSummary string
+		for _, witnessURL := range witnessURLs {
+			evaluation := witnessEvaluation{URL: witnessURL}
+			decision, err := controllerProbeWitnessDecisionFn(c.cfg, c.client, witnessURL)
+			if err != nil {
+				evaluation.Status = "failed"
+				evaluation.Summary = "External HA witness could not be read during standby promotion."
+				evaluation.Err = err
+			} else {
+				evaluation = evaluateWitnessDecisionPolicy(c.cfg, observedAt, decision)
+				evaluation.URL = witnessURL
 			}
-			if result.WitnessSummary == "" {
-				if decision.AllowPromotion {
-					result.WitnessSummary = "External HA witness allows standby promotion."
+			if evaluation.Allowed {
+				allowCount++
+			} else if firstFailure == nil && evaluation.Err != nil {
+				firstFailure = evaluation.Err
+				firstFailureSummary = evaluation.Summary
+			} else if firstFailureSummary == "" {
+				firstFailureSummary = evaluation.Summary
+			}
+			entry := map[string]any{
+				"url":             evaluation.URL,
+				"status":          evaluation.Status,
+				"summary":         evaluation.Summary,
+				"allow_promotion": evaluation.Allowed,
+				"witness_node":    strings.TrimSpace(evaluation.Decision.WitnessNode),
+				"observed_at":     strings.TrimSpace(evaluation.Decision.ObservedAt),
+			}
+			if evaluation.ObservedAgeErr == nil && strings.TrimSpace(evaluation.Decision.ObservedAt) != "" {
+				entry["observed_age_seconds"] = int(evaluation.ObservedAge.Seconds())
+			}
+			if evaluation.Err != nil {
+				entry["error"] = evaluation.Err.Error()
+			}
+			witnessResults = append(witnessResults, entry)
+			if len(witnessURLs) == 1 {
+				result.WitnessObserved = strings.TrimSpace(evaluation.Decision.ObservedAt)
+				result.WitnessNode = strings.TrimSpace(evaluation.Decision.WitnessNode)
+				result.WitnessObservedAge = evaluation.ObservedAge
+				result.WitnessObservedErr = evaluation.ObservedAgeErr
+			}
+		}
+		details["witness_results"] = witnessResults
+		details["witness_allow_count"] = allowCount
+		details["witness_total_count"] = len(witnessURLs)
+		if allowCount >= quorum {
+			result.WitnessAllowed = true
+			result.AllowPromotion = result.AllowPromotion && true
+			if len(witnessURLs) == 1 {
+				result.WitnessStatus = "ok"
+				result.WitnessSummary = witnessResults[0]["summary"].(string)
+			} else {
+				result.WitnessStatus = "quorum_met"
+				result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion; quorum %d satisfied.", allowCount, len(witnessURLs), quorum)
+			}
+		} else {
+			result.WitnessAllowed = false
+			result.AllowPromotion = false
+			result.WitnessError = firstFailure
+			if len(witnessURLs) == 1 {
+				result.WitnessStatus = fmt.Sprint(witnessResults[0]["status"])
+				if firstFailureSummary != "" {
+					result.WitnessSummary = firstFailureSummary
 				} else {
-					result.WitnessSummary = "External HA witness denied standby promotion."
+					result.WitnessSummary = fmt.Sprint(witnessResults[0]["summary"])
 				}
-			}
-			requiredNode := strings.TrimSpace(c.cfg.HighAvailability.WitnessRequiredNode)
-			maxWitnessAge := time.Duration(c.cfg.HighAvailability.WitnessMaxAgeSeconds) * time.Second
-			switch {
-			case !decision.AllowPromotion:
-				result.WitnessStatus = "blocked"
-				result.AllowPromotion = false
-			case requiredNode != "" && !strings.EqualFold(result.WitnessNode, requiredNode):
-				result.WitnessStatus = "unexpected_node"
-				result.WitnessSummary = fmt.Sprintf("External HA witness %q does not match required witness node %q.", result.WitnessNode, requiredNode)
-				result.WitnessAllowed = false
-				result.AllowPromotion = false
-			case maxWitnessAge > 0 && result.WitnessObserved == "":
-				result.WitnessStatus = "stale"
-				result.WitnessSummary = "External HA witness did not include observed_at required by local freshness policy."
-				result.WitnessAllowed = false
-				result.AllowPromotion = false
-			case result.WitnessObservedErr != nil:
-				result.WitnessStatus = "invalid"
-				result.WitnessSummary = "External HA witness observed_at timestamp is invalid."
-				result.WitnessError = result.WitnessObservedErr
-				result.WitnessAllowed = false
-				result.AllowPromotion = false
-			case maxWitnessAge > 0 && result.WitnessObservedAge > maxWitnessAge:
-				result.WitnessStatus = "stale"
-				result.WitnessSummary = fmt.Sprintf("External HA witness response is stale at %ds and exceeds the %ds freshness policy.", int(result.WitnessObservedAge.Seconds()), c.cfg.HighAvailability.WitnessMaxAgeSeconds)
-				result.WitnessAllowed = false
-				result.AllowPromotion = false
+			} else {
+				result.WitnessStatus = "quorum_unmet"
+				if firstFailureSummary != "" {
+					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion; quorum %d required. First blocking result: %s", allowCount, len(witnessURLs), quorum, firstFailureSummary)
+				} else {
+					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion; quorum %d required.", allowCount, len(witnessURLs), quorum)
+				}
 			}
 		}
 	}
@@ -435,7 +565,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	if result.WitnessNode != "" {
 		details["witness_node"] = result.WitnessNode
 	}
-	if result.WitnessStatus == "ok" || result.WitnessStatus == "blocked" {
+	if result.WitnessStatus == "ok" || result.WitnessStatus == "blocked" || result.WitnessStatus == "quorum_met" || result.WitnessStatus == "quorum_unmet" {
 		details["witness_allow_promotion"] = result.WitnessAllowed
 	}
 	if result.WitnessError != nil {
@@ -471,12 +601,16 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		case result.WitnessError != nil:
 			result.Status = "witness_failed"
 			result.Summary = result.WitnessSummary
-		case witnessURL != "" && !result.WitnessAllowed:
+		case len(witnessURLs) > 0 && !result.WitnessAllowed:
 			result.Status = "witness_blocked"
 			result.Summary = result.WitnessSummary
-		case witnessURL != "" && result.AllowPromotion:
+		case len(witnessURLs) > 0 && result.AllowPromotion:
 			result.Status = "witness_allowed"
-			result.Summary = "Peer shared HA heartbeat is stale and the external HA witness allows standby promotion."
+			if len(witnessURLs) == 1 {
+				result.Summary = "Peer shared HA heartbeat is stale and the external HA witness allows standby promotion."
+			} else {
+				result.Summary = fmt.Sprintf("Peer shared HA heartbeat is stale and %d external HA witnesses satisfy quorum.", effectiveWitnessQuorum(c.cfg, len(witnessURLs)))
+			}
 		}
 	}
 
@@ -487,11 +621,20 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 }
 
 func probeWitnessDecision(cfg *config.Config, client httpDoer) (witnessDecision, error) {
+	witnessURLs := effectiveWitnessURLs(cfg)
+	if len(witnessURLs) == 0 {
+		var decision witnessDecision
+		return decision, fmt.Errorf("ha witness probe requires high_availability.witness_api_url")
+	}
+	return probeWitnessDecisionURL(cfg, client, witnessURLs[0])
+}
+
+func probeWitnessDecisionURL(cfg *config.Config, client httpDoer, url string) (witnessDecision, error) {
 	var decision witnessDecision
 	if cfg == nil {
 		return decision, fmt.Errorf("ha witness probe requires a config")
 	}
-	url := strings.TrimSpace(cfg.HighAvailability.WitnessAPIURL)
+	url = strings.TrimSpace(url)
 	if url == "" {
 		return decision, fmt.Errorf("ha witness probe requires high_availability.witness_api_url")
 	}

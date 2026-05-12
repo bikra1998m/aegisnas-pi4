@@ -1040,7 +1040,7 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 
 	badWitnessURL := base()
 	badWitnessURL.HighAvailability.WitnessAPIURL = "not-a-url"
-	assert.ErrorContains(t, badWitnessURL.Validate(), "high_availability.witness_api_url")
+	assert.ErrorContains(t, badWitnessURL.Validate(), "high_availability.witness_urls[0]")
 
 	badWitnessToken := base()
 	badWitnessToken.HighAvailability.Enabled = false
@@ -1086,6 +1086,16 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessNodeNoURL.HighAvailability.WitnessRequiredNode = "witness-1"
 	assert.ErrorContains(t, badWitnessNodeNoURL.Validate(), "high_availability.witness_required_node requires high_availability.witness_api_url")
 
+	badWitnessQuorum := base()
+	badWitnessQuorum.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessQuorum.HighAvailability.WitnessQuorum = 2
+	assert.ErrorContains(t, badWitnessQuorum.Validate(), "high_availability.witness_quorum 2 cannot exceed configured witness count 1")
+
+	badWitnessQuorumZero := base()
+	badWitnessQuorumZero.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessQuorumZero.HighAvailability.WitnessQuorum = 0
+	assert.ErrorContains(t, badWitnessQuorumZero.Validate(), "high_availability.witness_quorum 0 must be at least 1")
+
 	badWitnessReplayDisabled := base()
 	badWitnessReplayDisabled.HighAvailability.Enabled = false
 	badWitnessReplayDisabled.HighAvailability.WitnessReplayProtectionEnabled = true
@@ -1098,6 +1108,7 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 
 	badWitnessReplayNoSigning := base()
 	badWitnessReplayNoSigning.HighAvailability.WitnessAPIURL = "https://witness.example.test/ha"
+	badWitnessReplayNoSigning.HighAvailability.WitnessQuorum = 1
 	badWitnessReplayNoSigning.HighAvailability.WitnessSigningKeyEnv = ""
 	badWitnessReplayNoSigning.HighAvailability.WitnessReplayProtectionEnabled = true
 	assert.ErrorContains(t, badWitnessReplayNoSigning.Validate(), "high_availability.witness_replay_protection_enabled requires high_availability.witness_signing_key_env")

@@ -282,6 +282,8 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"auto_stage_shared_package":         cfg.HighAvailability.AutoStageSharedPackage,
 			"auto_activate_on_failover":         cfg.HighAvailability.AutoActivateOnFailover,
 			"witness_api_url":                   cfg.HighAvailability.WitnessAPIURL,
+			"witness_urls":                      cfg.HighAvailability.WitnessURLs,
+			"witness_quorum":                    cfg.HighAvailability.WitnessQuorum,
 			"witness_token_env":                 cfg.HighAvailability.WitnessTokenEnv,
 			"witness_signing_key_env":           cfg.HighAvailability.WitnessSigningKeyEnv,
 			"witness_max_age_seconds":           cfg.HighAvailability.WitnessMaxAgeSeconds,

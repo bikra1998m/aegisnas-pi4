@@ -109,6 +109,8 @@ type SystemStatus = {
     auto_stage_shared_package: boolean;
     auto_activate_on_failover: boolean;
     witness_api_url: string;
+    witness_urls: string[];
+    witness_quorum: number;
     witness_token_env: string;
     witness_signing_key_env: string;
     witness_max_age_seconds: number;
@@ -663,11 +665,18 @@ export default function Dashboard() {
                         : ''}
                       .
                     </div>
-                    {systemStatus.high_availability.witness_api_url ? (
+                    {(systemStatus.high_availability.witness_api_url || systemStatus.high_availability.witness_urls?.length) ? (
                       <div className="mt-1 text-xs text-gray-500 break-all">
                         Witness {systemStatus.high_availability.runtime?.details?.witness_status
                           ? String(systemStatus.high_availability.runtime.details.witness_status)
                           : 'configured'}
+                        {systemStatus.high_availability.runtime?.details?.witness_allow_count !== undefined &&
+                        systemStatus.high_availability.runtime?.details?.witness_total_count !== undefined
+                          ? `, approvals ${String(systemStatus.high_availability.runtime.details.witness_allow_count)}/${String(systemStatus.high_availability.runtime.details.witness_total_count)}`
+                          : ''}
+                        {systemStatus.high_availability.witness_urls?.length
+                          ? `, quorum ${systemStatus.high_availability.witness_quorum}`
+                          : ''}
                         {systemStatus.high_availability.runtime?.details?.witness_allow_promotion !== undefined
                           ? `, allow promotion ${String(systemStatus.high_availability.runtime.details.witness_allow_promotion)}`
                           : ''}
@@ -695,7 +704,7 @@ export default function Dashboard() {
                           : systemStatus.high_availability.witness_replay_protection_enabled
                             ? ', replay configured'
                             : ''}
-                        : {systemStatus.high_availability.witness_api_url}
+                        : {(systemStatus.high_availability.witness_urls?.length ? systemStatus.high_availability.witness_urls.join(', ') : systemStatus.high_availability.witness_api_url)}
                       </div>
                     ) : null}
                     {systemStatus.high_availability.runtime?.details?.peer_shared_heartbeat_present ? (

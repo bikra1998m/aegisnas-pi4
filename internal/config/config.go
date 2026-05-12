@@ -371,28 +371,30 @@ type GovernanceConfig struct {
 }
 
 type HighAvailabilityConfig struct {
-	Enabled                        bool   `mapstructure:"enabled"`
-	Role                           string `mapstructure:"role"`
-	PeerAPIURL                     string `mapstructure:"peer_api_url"`
-	VirtualIP                      string `mapstructure:"virtual_ip"`
-	HeartbeatIntervalSeconds       int    `mapstructure:"heartbeat_interval_seconds"`
-	FailoverTimeoutSeconds         int    `mapstructure:"failover_timeout_seconds"`
-	ReplicationIntervalSeconds     int    `mapstructure:"replication_interval_seconds"`
-	ReplicationStaleAfterSeconds   int    `mapstructure:"replication_stale_after_seconds"`
-	SplitBrainProtectionEnabled    bool   `mapstructure:"split_brain_protection_enabled"`
-	AutoStageSharedPackage         bool   `mapstructure:"auto_stage_shared_package"`
-	AutoActivateOnFailover         bool   `mapstructure:"auto_activate_on_failover"`
-	ReplicationSigningKeyEnv       string `mapstructure:"replication_signing_key_env"`
-	ReplicationEncryptionKeyEnv    string `mapstructure:"replication_encryption_key_env"`
-	WitnessAPIURL                  string `mapstructure:"witness_api_url"`
-	WitnessTokenEnv                string `mapstructure:"witness_token_env"`
-	WitnessSigningKeyEnv           string `mapstructure:"witness_signing_key_env"`
-	WitnessMaxAgeSeconds           int    `mapstructure:"witness_max_age_seconds"`
-	WitnessRequiredNode            string `mapstructure:"witness_required_node"`
-	WitnessReplayProtectionEnabled bool   `mapstructure:"witness_replay_protection_enabled"`
-	Preempt                        bool   `mapstructure:"preempt"`
-	PreemptHoldoffSeconds          int    `mapstructure:"preempt_holdoff_seconds"`
-	SharedStateDir                 string `mapstructure:"shared_state_dir"`
+	Enabled                        bool     `mapstructure:"enabled"`
+	Role                           string   `mapstructure:"role"`
+	PeerAPIURL                     string   `mapstructure:"peer_api_url"`
+	VirtualIP                      string   `mapstructure:"virtual_ip"`
+	HeartbeatIntervalSeconds       int      `mapstructure:"heartbeat_interval_seconds"`
+	FailoverTimeoutSeconds         int      `mapstructure:"failover_timeout_seconds"`
+	ReplicationIntervalSeconds     int      `mapstructure:"replication_interval_seconds"`
+	ReplicationStaleAfterSeconds   int      `mapstructure:"replication_stale_after_seconds"`
+	SplitBrainProtectionEnabled    bool     `mapstructure:"split_brain_protection_enabled"`
+	AutoStageSharedPackage         bool     `mapstructure:"auto_stage_shared_package"`
+	AutoActivateOnFailover         bool     `mapstructure:"auto_activate_on_failover"`
+	ReplicationSigningKeyEnv       string   `mapstructure:"replication_signing_key_env"`
+	ReplicationEncryptionKeyEnv    string   `mapstructure:"replication_encryption_key_env"`
+	WitnessAPIURL                  string   `mapstructure:"witness_api_url"`
+	WitnessURLs                    []string `mapstructure:"witness_urls"`
+	WitnessQuorum                  int      `mapstructure:"witness_quorum"`
+	WitnessTokenEnv                string   `mapstructure:"witness_token_env"`
+	WitnessSigningKeyEnv           string   `mapstructure:"witness_signing_key_env"`
+	WitnessMaxAgeSeconds           int      `mapstructure:"witness_max_age_seconds"`
+	WitnessRequiredNode            string   `mapstructure:"witness_required_node"`
+	WitnessReplayProtectionEnabled bool     `mapstructure:"witness_replay_protection_enabled"`
+	Preempt                        bool     `mapstructure:"preempt"`
+	PreemptHoldoffSeconds          int      `mapstructure:"preempt_holdoff_seconds"`
+	SharedStateDir                 string   `mapstructure:"shared_state_dir"`
 }
 
 type WirelessConfig struct {
@@ -408,6 +410,30 @@ type WirelessConfig struct {
 	CtrlInterface     string       `mapstructure:"ctrl_interface"`
 	HostapdConfigPath string       `mapstructure:"hostapd_config_path"`
 	SSIDs             []SSIDConfig `mapstructure:"ssids"`
+}
+
+func normalizeWitnessURLs(primary string, urls []string) []string {
+	normalized := make([]string, 0, len(urls)+1)
+	seen := map[string]struct{}{}
+	appendURL := func(raw string) {
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" {
+			return
+		}
+		if _, exists := seen[trimmed]; exists {
+			return
+		}
+		seen[trimmed] = struct{}{}
+		normalized = append(normalized, trimmed)
+	}
+	if len(urls) > 0 {
+		for _, witnessURL := range urls {
+			appendURL(witnessURL)
+		}
+		return normalized
+	}
+	appendURL(primary)
+	return normalized
 }
 
 type SSIDConfig struct {
@@ -493,6 +519,8 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.replication_signing_key_env", "")
 	v.SetDefault("high_availability.replication_encryption_key_env", "")
 	v.SetDefault("high_availability.witness_api_url", "")
+	v.SetDefault("high_availability.witness_urls", []string{})
+	v.SetDefault("high_availability.witness_quorum", 1)
 	v.SetDefault("high_availability.witness_token_env", "")
 	v.SetDefault("high_availability.witness_signing_key_env", "")
 	v.SetDefault("high_availability.witness_max_age_seconds", 0)
@@ -1160,22 +1188,31 @@ func (c *Config) Validate() error {
 	if c.HighAvailability.PreemptHoldoffSeconds < 0 {
 		return fmt.Errorf("high_availability.preempt_holdoff_seconds %d cannot be negative", c.HighAvailability.PreemptHoldoffSeconds)
 	}
-	if strings.TrimSpace(c.HighAvailability.WitnessAPIURL) != "" {
+	witnessURLs := normalizeWitnessURLs(c.HighAvailability.WitnessAPIURL, c.HighAvailability.WitnessURLs)
+	if len(witnessURLs) > 0 {
 		if !c.HighAvailability.Enabled {
 			return errors.New("high_availability.witness_api_url requires high_availability.enabled")
 		}
 		if !c.HighAvailability.SplitBrainProtectionEnabled {
 			return errors.New("high_availability.witness_api_url requires high_availability.split_brain_protection_enabled")
 		}
-		if err := requireHTTPURL("high_availability.witness_api_url", c.HighAvailability.WitnessAPIURL); err != nil {
-			return err
+		for index, witnessURL := range witnessURLs {
+			if err := requireHTTPURL(fmt.Sprintf("high_availability.witness_urls[%d]", index), witnessURL); err != nil {
+				return err
+			}
+		}
+		if c.HighAvailability.WitnessQuorum <= 0 {
+			return fmt.Errorf("high_availability.witness_quorum %d must be at least 1", c.HighAvailability.WitnessQuorum)
+		}
+		if c.HighAvailability.WitnessQuorum > len(witnessURLs) {
+			return fmt.Errorf("high_availability.witness_quorum %d cannot exceed configured witness count %d", c.HighAvailability.WitnessQuorum, len(witnessURLs))
 		}
 	}
 	if strings.TrimSpace(c.HighAvailability.WitnessTokenEnv) != "" {
 		if !c.HighAvailability.Enabled {
 			return errors.New("high_availability.witness_token_env requires high_availability.enabled")
 		}
-		if strings.TrimSpace(c.HighAvailability.WitnessAPIURL) == "" {
+		if len(witnessURLs) == 0 {
 			return errors.New("high_availability.witness_token_env requires high_availability.witness_api_url")
 		}
 	}
@@ -1183,7 +1220,7 @@ func (c *Config) Validate() error {
 		if !c.HighAvailability.Enabled {
 			return errors.New("high_availability.witness_signing_key_env requires high_availability.enabled")
 		}
-		if strings.TrimSpace(c.HighAvailability.WitnessAPIURL) == "" {
+		if len(witnessURLs) == 0 {
 			return errors.New("high_availability.witness_signing_key_env requires high_availability.witness_api_url")
 		}
 	}
@@ -1194,7 +1231,7 @@ func (c *Config) Validate() error {
 		if !c.HighAvailability.Enabled {
 			return errors.New("high_availability.witness_max_age_seconds requires high_availability.enabled")
 		}
-		if strings.TrimSpace(c.HighAvailability.WitnessAPIURL) == "" {
+		if len(witnessURLs) == 0 {
 			return errors.New("high_availability.witness_max_age_seconds requires high_availability.witness_api_url")
 		}
 	}
@@ -1202,7 +1239,7 @@ func (c *Config) Validate() error {
 		if !c.HighAvailability.Enabled {
 			return errors.New("high_availability.witness_required_node requires high_availability.enabled")
 		}
-		if strings.TrimSpace(c.HighAvailability.WitnessAPIURL) == "" {
+		if len(witnessURLs) == 0 {
 			return errors.New("high_availability.witness_required_node requires high_availability.witness_api_url")
 		}
 	}
@@ -1210,7 +1247,7 @@ func (c *Config) Validate() error {
 		if !c.HighAvailability.Enabled {
 			return errors.New("high_availability.witness_replay_protection_enabled requires high_availability.enabled")
 		}
-		if strings.TrimSpace(c.HighAvailability.WitnessAPIURL) == "" {
+		if len(witnessURLs) == 0 {
 			return errors.New("high_availability.witness_replay_protection_enabled requires high_availability.witness_api_url")
 		}
 		if strings.TrimSpace(c.HighAvailability.WitnessSigningKeyEnv) == "" {

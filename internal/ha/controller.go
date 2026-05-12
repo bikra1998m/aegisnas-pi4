@@ -61,7 +61,7 @@ var (
 	controllerStageLatestSharedReplicationPackageFn       = StageLatestSharedReplicationPackage
 	controllerActivateStagedReplicationPackageFn          = ActivateStagedReplicationPackage
 	controllerScheduleActivationRestartFn                 = ScheduleActivationRestart
-	controllerProbeWitnessDecisionFn                      = probeWitnessDecision
+	controllerProbeWitnessDecisionFn                      = probeWitnessDecisionURL
 )
 
 func StartController(ctx context.Context, cfg *config.Config, client httpDoer, logger *zap.Logger) {
