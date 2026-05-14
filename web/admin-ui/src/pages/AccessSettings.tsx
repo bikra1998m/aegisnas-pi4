@@ -333,6 +333,7 @@ const defaultSettings: JsonMap = {
       witness_policy_mode: 'all',
       witness_failure_tolerance: 0,
       witness_failure_weight_tolerance: 0,
+      witness_min_approvals_by_tier: {},
       witness_failure_tolerance_by_tier: {},
       witness_failure_weight_tolerance_by_tier: {},
       witness_blocking_tiers: [],
@@ -2872,6 +2873,35 @@ export default function AccessSettings() {
             value={settings.high_availability?.witness_failure_weight_tolerance || 0}
             onChange={(value) => updateField(['high_availability', 'witness_failure_weight_tolerance'], Number(value))}
           />
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Minimum Approvals By Tier</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={Object.entries(settings.high_availability?.witness_min_approvals_by_tier || {})
+                .map(([tier, approvals]) => `${tier}=${approvals}`)
+                .join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                const minimums: Record<string, number> = {};
+                event.target.value
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .forEach((line) => {
+                    const parts = line.split('=');
+                    const tier = parts.slice(0, -1).join('=').trim();
+                    const rawApprovals = parts.length > 1 ? parts[parts.length - 1].trim() : '';
+                    const parsedApprovals = Number(rawApprovals);
+                    if (tier && Number.isFinite(parsedApprovals) && parsedApprovals >= 0) {
+                      minimums[tier] = parsedApprovals;
+                    }
+                  });
+                updateField(['high_availability', 'witness_min_approvals_by_tier'], minimums);
+              }}
+              placeholder={'critical=1\nadvisory=1'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional per-tier approval floors. Promotion must include at least this many approvals from each listed confidence tier.</p>
+          </div>
           <div className="md:col-span-2 lg:col-span-4">
             <label className="mb-1 block text-sm font-medium text-gray-700">Witness Group Overrides</label>
             <textarea

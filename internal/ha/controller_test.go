@@ -1239,6 +1239,73 @@ func TestStandbyWitnessBlockingTierDeniesPromotion(t *testing.T) {
 	assert.Equal(t, "witness_blocked", ctrl.lastFencingStatus)
 }
 
+func TestStandbyWitnessTierMinimumBlocksPromotion(t *testing.T) {
+	cfg := haTestConfig(t, "standby")
+	cfg.HighAvailability.SplitBrainProtectionEnabled = true
+	cfg.HighAvailability.WitnessAPIURL = ""
+	cfg.HighAvailability.WitnessURLs = []string{
+		"https://witness-a.example.test/ha",
+		"https://witness-b.example.test/ha",
+	}
+	cfg.HighAvailability.WitnessQuorum = 1
+	cfg.HighAvailability.WitnessSources = map[string]string{
+		"https://witness-a.example.test/ha": "local",
+		"https://witness-b.example.test/ha": "external",
+	}
+	cfg.HighAvailability.WitnessSourceConfidence = map[string]string{
+		"local":    "critical",
+		"external": "advisory",
+	}
+	cfg.HighAvailability.WitnessMinApprovalsByTier = map[string]int{
+		"critical": 1,
+	}
+	now := time.Date(2026, 5, 7, 13, 52, 0, 0, time.UTC)
+
+	peerCfg := *cfg
+	peerCfg.HighAvailability.Role = "active"
+	require.NoError(t, saveSharedHeartbeat(&peerCfg, sharedHeartbeat{
+		NodeName:       "active-1",
+		ConfiguredRole: "active",
+		EffectiveRole:  "active",
+		VirtualIP:      cfg.HighAvailability.VirtualIP,
+		VIPAssigned:    true,
+		PublishedAt:    now.Add(-31 * time.Second).Format(time.RFC3339),
+	}))
+
+	originalWitness := controllerProbeWitnessDecisionFn
+	defer func() { controllerProbeWitnessDecisionFn = originalWitness }()
+	controllerProbeWitnessDecisionFn = func(cfg *config.Config, client httpDoer, witnessURL string) (witnessDecision, error) {
+		if witnessURL == "https://witness-a.example.test/ha" {
+			return witnessDecision{
+				AllowPromotion: false,
+				Summary:        "Critical witness did not approve promotion.",
+				ObservedAt:     now.Format(time.RFC3339),
+				WitnessNode:    "witness-a",
+			}, nil
+		}
+		return witnessDecision{
+			AllowPromotion: true,
+			Summary:        "Advisory witness allows promotion.",
+			ObservedAt:     now.Format(time.RFC3339),
+			WitnessNode:    "witness-b",
+		}, nil
+	}
+
+	ctrl := newController(cfg, probeClient{do: func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("peer down")
+	}}, zap.NewNop())
+	ctrl.nodeName = "standby-1"
+	ctrl.now = func() time.Time { return now }
+	ctrl.failureSince = now.Add(-30 * time.Second)
+	ctrl.ipRunner = func(args ...string) (string, error) { return "", nil }
+	ctrl.arpingRunner = func(args ...string) (string, error) { return "", nil }
+
+	ctrl.tick()
+
+	assert.False(t, ctrl.vipAssigned)
+	assert.Equal(t, "witness_blocked", ctrl.lastFencingStatus)
+}
+
 func TestStandbyWitnessFailureToleranceAllowsPromotionWithOneProbeFailure(t *testing.T) {
 	cfg := haTestConfig(t, "standby")
 	cfg.HighAvailability.SplitBrainProtectionEnabled = true
@@ -1274,6 +1341,79 @@ func TestStandbyWitnessFailureToleranceAllowsPromotionWithOneProbeFailure(t *tes
 			}, nil
 		}
 		return witnessDecision{}, errors.New("witness unavailable")
+	}
+
+	var ipCalls []string
+	ctrl := newController(cfg, probeClient{do: func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("peer down")
+	}}, zap.NewNop())
+	ctrl.nodeName = "standby-1"
+	ctrl.now = func() time.Time { return now }
+	ctrl.failureSince = now.Add(-30 * time.Second)
+	ctrl.ipRunner = func(args ...string) (string, error) {
+		ipCalls = append(ipCalls, strings.Join(args, " "))
+		return "", nil
+	}
+	ctrl.arpingRunner = func(args ...string) (string, error) { return "", nil }
+
+	ctrl.tick()
+
+	assert.True(t, ctrl.vipAssigned)
+	require.NotEmpty(t, ipCalls)
+	assert.Contains(t, ipCalls[len(ipCalls)-1], "addr replace 192.168.50.2/24 dev ens37")
+}
+
+func TestStandbyWitnessTierMinimumAllowsPromotion(t *testing.T) {
+	cfg := haTestConfig(t, "standby")
+	cfg.HighAvailability.SplitBrainProtectionEnabled = true
+	cfg.HighAvailability.WitnessAPIURL = ""
+	cfg.HighAvailability.WitnessURLs = []string{
+		"https://witness-a.example.test/ha",
+		"https://witness-b.example.test/ha",
+	}
+	cfg.HighAvailability.WitnessQuorum = 2
+	cfg.HighAvailability.WitnessSources = map[string]string{
+		"https://witness-a.example.test/ha": "local",
+		"https://witness-b.example.test/ha": "external",
+	}
+	cfg.HighAvailability.WitnessSourceConfidence = map[string]string{
+		"local":    "critical",
+		"external": "advisory",
+	}
+	cfg.HighAvailability.WitnessMinApprovalsByTier = map[string]int{
+		"critical": 1,
+		"advisory": 1,
+	}
+	now := time.Date(2026, 5, 7, 14, 10, 0, 0, time.UTC)
+
+	peerCfg := *cfg
+	peerCfg.HighAvailability.Role = "active"
+	require.NoError(t, saveSharedHeartbeat(&peerCfg, sharedHeartbeat{
+		NodeName:       "active-1",
+		ConfiguredRole: "active",
+		EffectiveRole:  "active",
+		VirtualIP:      cfg.HighAvailability.VirtualIP,
+		VIPAssigned:    true,
+		PublishedAt:    now.Add(-31 * time.Second).Format(time.RFC3339),
+	}))
+
+	originalWitness := controllerProbeWitnessDecisionFn
+	defer func() { controllerProbeWitnessDecisionFn = originalWitness }()
+	controllerProbeWitnessDecisionFn = func(cfg *config.Config, client httpDoer, witnessURL string) (witnessDecision, error) {
+		if witnessURL == "https://witness-a.example.test/ha" {
+			return witnessDecision{
+				AllowPromotion: true,
+				Summary:        "Critical witness confirms promotion is safe.",
+				ObservedAt:     now.Format(time.RFC3339),
+				WitnessNode:    "witness-a",
+			}, nil
+		}
+		return witnessDecision{
+			AllowPromotion: true,
+			Summary:        "Advisory witness confirms promotion is safe.",
+			ObservedAt:     now.Format(time.RFC3339),
+			WitnessNode:    "witness-b",
+		}, nil
 	}
 
 	var ipCalls []string

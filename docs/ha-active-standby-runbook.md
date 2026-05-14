@@ -97,6 +97,8 @@ high_availability:
   witness_policy_mode: "all"
   witness_failure_tolerance: 1
   witness_failure_weight_tolerance: 1
+  witness_min_approvals_by_tier:
+    "critical": 1
   witness_failure_tolerance_by_tier:
     "advisory": 1
   witness_failure_weight_tolerance_by_tier:
@@ -137,6 +139,7 @@ Guidance:
 - `witness_policy_mode`: how group and source diversity rules combine; `all` requires every configured family, `any` accepts either family, and `group_only` / `source_only` make one family authoritative
 - `witness_failure_tolerance`: optional count of failed witness probes that may reduce the required quorum during promotion
 - `witness_failure_weight_tolerance`: optional failed witness weight budget that may reduce the effective weight threshold during promotion
+- `witness_min_approvals_by_tier`: optional per-tier approval floors; promotion must include at least this many approvals from each listed confidence tier
 - `witness_failure_tolerance_by_tier`: optional per-tier failed witness count budgets; tiers without overrides fall back to `witness_failure_tolerance`
 - `witness_failure_weight_tolerance_by_tier`: optional per-tier failed witness weight budgets; tiers without overrides fall back to `witness_failure_weight_tolerance`
 - `witness_blocking_tiers`: optional confidence tiers whose explicit witness denies block standby promotion immediately even when other witnesses would otherwise satisfy quorum

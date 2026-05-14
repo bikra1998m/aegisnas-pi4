@@ -199,6 +199,9 @@ function createSettings() {
       witness_policy_mode: 'all',
       witness_failure_tolerance: 1,
       witness_failure_weight_tolerance: 1,
+      witness_min_approvals_by_tier: {
+        critical: 1,
+      },
       witness_failure_tolerance_by_tier: {
         advisory: 1,
       },
@@ -408,6 +411,9 @@ function createSystemStatus() {
       witness_policy_mode: 'all',
       witness_failure_tolerance: 1,
       witness_failure_weight_tolerance: 1,
+      witness_min_approvals_by_tier: {
+        critical: 1,
+      },
       witness_failure_tolerance_by_tier: {
         advisory: 1,
       },
@@ -445,6 +451,9 @@ function createSystemStatus() {
           witness_policy_mode: 'all',
           witness_failure_tolerance: 1,
           witness_failure_weight_tolerance: 1,
+          witness_min_approvals_by_tier: {
+            critical: 1,
+          },
           witness_confidence: {
             'https://witness-a.example.test/ha': 'critical',
             'https://witness-b.example.test/ha': 'advisory',

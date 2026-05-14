@@ -398,6 +398,7 @@ type HighAvailabilityConfig struct {
 	WitnessFailureTolerance        int               `mapstructure:"witness_failure_tolerance"`
 	WitnessFailureWeightTolerance  int               `mapstructure:"witness_failure_weight_tolerance"`
 	WitnessSourceConfidence        map[string]string `mapstructure:"witness_source_confidence"`
+	WitnessMinApprovalsByTier      map[string]int    `mapstructure:"witness_min_approvals_by_tier"`
 	WitnessFailureToleranceByTier  map[string]int    `mapstructure:"witness_failure_tolerance_by_tier"`
 	WitnessFailureWeightByTier     map[string]int    `mapstructure:"witness_failure_weight_tolerance_by_tier"`
 	WitnessBlockingTiers           []string          `mapstructure:"witness_blocking_tiers"`
@@ -639,6 +640,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.witness_failure_tolerance", 0)
 	v.SetDefault("high_availability.witness_failure_weight_tolerance", 0)
 	v.SetDefault("high_availability.witness_source_confidence", map[string]string{})
+	v.SetDefault("high_availability.witness_min_approvals_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_failure_tolerance_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_failure_weight_tolerance_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_blocking_tiers", []string{})
@@ -1393,7 +1395,31 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("high_availability.witness_source_confidence[%q] must not be blank", trimmedSource)
 			}
 		}
-		_, distinctTiers := effectiveWitnessConfidenceTiers(distinctSources, c.HighAvailability.WitnessSourceConfidence)
+		confidenceBySource, distinctTiers := effectiveWitnessConfidenceTiers(distinctSources, c.HighAvailability.WitnessSourceConfidence)
+		tierWitnessCounts := make(map[string]int, len(distinctTiers))
+		for _, witnessURL := range witnessURLs {
+			source := sourceMap[strings.TrimSpace(witnessURL)]
+			tier := strings.TrimSpace(confidenceBySource[source])
+			if tier == "" {
+				tier = "standard"
+			}
+			tierWitnessCounts[tier]++
+		}
+		for tier, approvals := range c.HighAvailability.WitnessMinApprovalsByTier {
+			trimmedTier := strings.TrimSpace(tier)
+			if trimmedTier == "" {
+				return errors.New("high_availability.witness_min_approvals_by_tier keys cannot be blank")
+			}
+			if !slices.Contains(distinctTiers, trimmedTier) {
+				return fmt.Errorf("high_availability.witness_min_approvals_by_tier key %q does not match a configured witness confidence tier", trimmedTier)
+			}
+			if approvals < 0 {
+				return fmt.Errorf("high_availability.witness_min_approvals_by_tier[%q] %d cannot be negative", trimmedTier, approvals)
+			}
+			if approvals > tierWitnessCounts[trimmedTier] {
+				return fmt.Errorf("high_availability.witness_min_approvals_by_tier[%q] %d cannot exceed configured witness count %d for that tier", trimmedTier, approvals, tierWitnessCounts[trimmedTier])
+			}
+		}
 		for tier, budget := range c.HighAvailability.WitnessFailureToleranceByTier {
 			trimmedTier := strings.TrimSpace(tier)
 			if trimmedTier == "" {
@@ -1546,6 +1572,14 @@ func (c *Config) Validate() error {
 		}
 		if len(witnessURLs) == 0 {
 			return errors.New("high_availability.witness_failure_tolerance requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessMinApprovalsByTier) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_min_approvals_by_tier requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_min_approvals_by_tier requires high_availability.witness_api_url")
 		}
 	}
 	if len(c.HighAvailability.WitnessFailureToleranceByTier) > 0 {

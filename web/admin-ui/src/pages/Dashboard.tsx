@@ -121,6 +121,7 @@ type SystemStatus = {
     witness_policy_mode: string;
     witness_failure_tolerance: number;
     witness_failure_weight_tolerance: number;
+    witness_min_approvals_by_tier: Record<string, number>;
     witness_failure_tolerance_by_tier: Record<string, number>;
     witness_failure_weight_tolerance_by_tier: Record<string, number>;
     witness_blocking_tiers: string[];
@@ -751,6 +752,7 @@ export default function Dashboard() {
                       </div>
                     ) : null}
                     {Object.keys(systemStatus.high_availability.witness_source_confidence || {}).length > 0 ||
+                    Object.keys(systemStatus.high_availability.witness_min_approvals_by_tier || {}).length > 0 ||
                     Object.keys(systemStatus.high_availability.witness_failure_tolerance_by_tier || {}).length > 0 ||
                     Object.keys(systemStatus.high_availability.witness_failure_weight_tolerance_by_tier || {}).length > 0 ||
                     systemStatus.high_availability.witness_blocking_tiers?.length ? (
@@ -760,6 +762,11 @@ export default function Dashboard() {
                               .map(([source, tier]) => `${source}=${tier}`)
                               .join(', ')}`
                           : 'Confidence standard'}
+                        {Object.keys(systemStatus.high_availability.witness_min_approvals_by_tier || {}).length > 0
+                          ? `, tier minimums ${Object.entries(systemStatus.high_availability.witness_min_approvals_by_tier)
+                              .map(([tier, count]) => `${tier}=${count}`)
+                              .join(', ')}`
+                          : ''}
                         {Object.keys(systemStatus.high_availability.witness_failure_tolerance_by_tier || {}).length > 0
                           ? `, tier failure budgets ${Object.entries(systemStatus.high_availability.witness_failure_tolerance_by_tier)
                               .map(([tier, budget]) => `${tier}=${budget}`)
