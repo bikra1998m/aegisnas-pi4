@@ -123,6 +123,7 @@ type SystemStatus = {
     witness_failure_weight_tolerance: number;
     witness_min_approvals_by_tier: Record<string, number>;
     witness_min_weight_by_tier: Record<string, number>;
+    witness_max_age_by_tier: Record<string, number>;
     witness_failure_tolerance_by_tier: Record<string, number>;
     witness_failure_weight_tolerance_by_tier: Record<string, number>;
     witness_blocking_tiers: string[];
@@ -743,6 +744,11 @@ export default function Dashboard() {
                           : ''}
                         {systemStatus.high_availability.witness_max_age_seconds > 0
                           ? `, max age ${systemStatus.high_availability.witness_max_age_seconds}s`
+                          : ''}
+                        {Object.keys(systemStatus.high_availability.witness_max_age_by_tier || {}).length > 0
+                          ? `, tier max age ${Object.entries(systemStatus.high_availability.witness_max_age_by_tier)
+                              .map(([tier, seconds]) => `${tier}=${seconds}`)
+                              .join(', ')}`
                           : ''}
                         {systemStatus.high_availability.runtime?.details?.witness_replay_status
                           ? `, replay ${String(systemStatus.high_availability.runtime.details.witness_replay_status)}`

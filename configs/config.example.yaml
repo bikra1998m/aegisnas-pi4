@@ -298,6 +298,7 @@ high_availability:
   witness_failure_weight_tolerance: 0 # Optional amount of failed witness weight that may reduce the effective weight threshold.
   witness_min_approvals_by_tier: {} # Optional per-tier approval floors. Promotion must include at least this many approvals from each listed confidence tier.
   witness_min_weight_by_tier: {} # Optional per-tier weight floors. Promotion must include at least this much witness weight from each listed confidence tier.
+  witness_max_age_by_tier: {} # Optional per-tier freshness overrides in seconds. Tiers without overrides fall back to witness_max_age_seconds.
   witness_failure_tolerance_by_tier: {} # Optional per-tier failed witness count budgets. Tiers without overrides fall back to witness_failure_tolerance.
   witness_failure_weight_tolerance_by_tier: {} # Optional per-tier failed witness weight budgets. Tiers without overrides fall back to witness_failure_weight_tolerance.
   witness_blocking_tiers: [] # Optional confidence tiers whose explicit witness denies block promotion immediately.

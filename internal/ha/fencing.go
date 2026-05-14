@@ -66,6 +66,7 @@ type witnessEvaluation struct {
 	Summary        string
 	Allowed        bool
 	Decision       witnessDecision
+	MaxAgeSeconds  int
 	ObservedAge    time.Duration
 	ObservedAgeErr error
 	Err            error
@@ -444,12 +445,29 @@ func newWitnessChallenge() (string, error) {
 	return hex.EncodeToString(buf), nil
 }
 
-func evaluateWitnessDecisionPolicy(cfg *config.Config, observedAt time.Time, decision witnessDecision) witnessEvaluation {
+func effectiveWitnessMaxAgeSeconds(cfg *config.Config, tier string) int {
+	if cfg == nil {
+		return 0
+	}
+	tier = strings.TrimSpace(tier)
+	if tier != "" && cfg.HighAvailability.WitnessMaxAgeByTier != nil {
+		if override, ok := cfg.HighAvailability.WitnessMaxAgeByTier[tier]; ok && override >= 0 {
+			return override
+		}
+	}
+	if cfg.HighAvailability.WitnessMaxAgeSeconds < 0 {
+		return 0
+	}
+	return cfg.HighAvailability.WitnessMaxAgeSeconds
+}
+
+func evaluateWitnessDecisionPolicy(cfg *config.Config, observedAt time.Time, tier string, decision witnessDecision) witnessEvaluation {
 	evaluation := witnessEvaluation{
-		Status:   "ok",
-		Summary:  strings.TrimSpace(decision.Summary),
-		Allowed:  decision.AllowPromotion,
-		Decision: decision,
+		Status:        "ok",
+		Summary:       strings.TrimSpace(decision.Summary),
+		Allowed:       decision.AllowPromotion,
+		Decision:      decision,
+		MaxAgeSeconds: effectiveWitnessMaxAgeSeconds(cfg, tier),
 	}
 	if evaluation.Summary == "" {
 		if decision.AllowPromotion {
@@ -462,7 +480,7 @@ func evaluateWitnessDecisionPolicy(cfg *config.Config, observedAt time.Time, dec
 		evaluation.ObservedAge, evaluation.ObservedAgeErr = witnessObservedAge(strings.TrimSpace(decision.ObservedAt), observedAt)
 	}
 	requiredNode := strings.TrimSpace(cfg.HighAvailability.WitnessRequiredNode)
-	maxWitnessAge := time.Duration(cfg.HighAvailability.WitnessMaxAgeSeconds) * time.Second
+	maxWitnessAge := time.Duration(evaluation.MaxAgeSeconds) * time.Second
 	switch {
 	case !decision.AllowPromotion:
 		evaluation.Status = "blocked"
@@ -482,7 +500,7 @@ func evaluateWitnessDecisionPolicy(cfg *config.Config, observedAt time.Time, dec
 		evaluation.Allowed = false
 	case maxWitnessAge > 0 && evaluation.ObservedAge > maxWitnessAge:
 		evaluation.Status = "stale"
-		evaluation.Summary = fmt.Sprintf("External HA witness response is stale at %ds and exceeds the %ds freshness policy.", int(evaluation.ObservedAge.Seconds()), cfg.HighAvailability.WitnessMaxAgeSeconds)
+		evaluation.Summary = fmt.Sprintf("External HA witness response is stale at %ds and exceeds the %ds freshness policy.", int(evaluation.ObservedAge.Seconds()), evaluation.MaxAgeSeconds)
 		evaluation.Allowed = false
 	}
 	return evaluation
@@ -663,6 +681,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	details["witness_policy_mode"] = policyMode
 	details["witness_failure_tolerance"] = failureTolerance
 	details["witness_failure_weight_tolerance"] = failureWeightTolerance
+	details["witness_max_age_by_tier"] = c.cfg.HighAvailability.WitnessMaxAgeByTier
 	details["witness_failure_tolerance_by_tier"] = c.cfg.HighAvailability.WitnessFailureToleranceByTier
 	details["witness_failure_weight_tolerance_by_tier"] = c.cfg.HighAvailability.WitnessFailureWeightByTier
 	details["witness_max_age_seconds"] = c.cfg.HighAvailability.WitnessMaxAgeSeconds
@@ -784,17 +803,18 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		blockingDenyURL := ""
 		blockingDenySummary := ""
 		for _, witnessURL := range witnessURLs {
+			confidenceTier := strings.TrimSpace(witnessConfidence[witnessURL])
 			evaluation := witnessEvaluation{URL: witnessURL}
 			decision, err := controllerProbeWitnessDecisionFn(c.cfg, c.client, witnessURL)
 			if err != nil {
 				evaluation.Status = "failed"
 				evaluation.Summary = "External HA witness could not be read during standby promotion."
 				evaluation.Err = err
+				evaluation.MaxAgeSeconds = effectiveWitnessMaxAgeSeconds(c.cfg, confidenceTier)
 			} else {
-				evaluation = evaluateWitnessDecisionPolicy(c.cfg, observedAt, decision)
+				evaluation = evaluateWitnessDecisionPolicy(c.cfg, observedAt, confidenceTier, decision)
 				evaluation.URL = witnessURL
 			}
-			confidenceTier := strings.TrimSpace(witnessConfidence[witnessURL])
 			if evaluation.Allowed {
 				allowCount++
 				allowWeight += witnessWeights[witnessURL]
@@ -833,6 +853,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 				"group":           witnessGroups[witnessURL],
 				"source":          witnessSources[witnessURL],
 				"confidence_tier": confidenceTier,
+				"max_age_seconds": evaluation.MaxAgeSeconds,
 				"witness_node":    strings.TrimSpace(evaluation.Decision.WitnessNode),
 				"observed_at":     strings.TrimSpace(evaluation.Decision.ObservedAt),
 			}

@@ -1076,6 +1076,18 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessAgeNoURL.HighAvailability.WitnessMaxAgeSeconds = 30
 	assert.ErrorContains(t, badWitnessAgeNoURL.Validate(), "high_availability.witness_max_age_seconds requires high_availability.witness_api_url")
 
+	badWitnessAgeByTierUnknown := base()
+	badWitnessAgeByTierUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessAgeByTierUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessAgeByTierUnknown.HighAvailability.WitnessMaxAgeByTier = map[string]int{"critical": 10}
+	assert.ErrorContains(t, badWitnessAgeByTierUnknown.Validate(), `high_availability.witness_max_age_by_tier key "critical" does not match a configured witness confidence tier`)
+
+	badWitnessAgeByTierNegative := base()
+	badWitnessAgeByTierNegative.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessAgeByTierNegative.HighAvailability.WitnessQuorum = 1
+	badWitnessAgeByTierNegative.HighAvailability.WitnessMaxAgeByTier = map[string]int{"standard": -1}
+	assert.ErrorContains(t, badWitnessAgeByTierNegative.Validate(), `high_availability.witness_max_age_by_tier["standard"] -1 cannot be negative`)
+
 	badWitnessNode := base()
 	badWitnessNode.HighAvailability.Enabled = false
 	badWitnessNode.HighAvailability.WitnessRequiredNode = "witness-1"

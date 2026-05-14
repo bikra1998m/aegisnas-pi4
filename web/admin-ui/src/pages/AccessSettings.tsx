@@ -335,6 +335,7 @@ const defaultSettings: JsonMap = {
       witness_failure_weight_tolerance: 0,
       witness_min_approvals_by_tier: {},
       witness_min_weight_by_tier: {},
+      witness_max_age_by_tier: {},
       witness_failure_tolerance_by_tier: {},
       witness_failure_weight_tolerance_by_tier: {},
       witness_blocking_tiers: [],
@@ -3130,6 +3131,35 @@ export default function AccessSettings() {
             value={settings.high_availability?.witness_max_age_seconds || 0}
             onChange={(value) => updateField(['high_availability', 'witness_max_age_seconds'], Number(value))}
           />
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Max Age By Tier</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={Object.entries(settings.high_availability?.witness_max_age_by_tier || {})
+                .map(([tier, seconds]) => `${tier}=${seconds}`)
+                .join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                const maximums: Record<string, number> = {};
+                event.target.value
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .forEach((line) => {
+                    const parts = line.split('=');
+                    const tier = parts.slice(0, -1).join('=').trim();
+                    const rawSeconds = parts.length > 1 ? parts[parts.length - 1].trim() : '';
+                    const parsedSeconds = Number(rawSeconds);
+                    if (tier && Number.isFinite(parsedSeconds) && parsedSeconds >= 0) {
+                      maximums[tier] = parsedSeconds;
+                    }
+                  });
+                updateField(['high_availability', 'witness_max_age_by_tier'], maximums);
+              }}
+              placeholder={'critical=10\nadvisory=30'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional per-tier freshness overrides in seconds. Any tier without an override falls back to the global witness max age.</p>
+          </div>
           <TextField
             label="Witness Required Node"
             value={settings.high_availability?.witness_required_node || ''}
