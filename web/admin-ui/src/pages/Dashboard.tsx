@@ -113,6 +113,17 @@ type SystemStatus = {
     witness_quorum: number;
     witness_weights: Record<string, number>;
     witness_weight_threshold: number;
+    witness_groups: Record<string, string>;
+    witness_min_distinct_groups: number;
+    witness_sources: Record<string, string>;
+    witness_source_confidence: Record<string, string>;
+    witness_required_sources: string[];
+    witness_policy_mode: string;
+    witness_failure_tolerance: number;
+    witness_failure_weight_tolerance: number;
+    witness_failure_tolerance_by_tier: Record<string, number>;
+    witness_failure_weight_tolerance_by_tier: Record<string, number>;
+    witness_blocking_tiers: string[];
     witness_token_env: string;
     witness_signing_key_env: string;
     witness_max_age_seconds: number;
@@ -680,11 +691,34 @@ export default function Dashboard() {
                         systemStatus.high_availability.runtime?.details?.witness_total_weight !== undefined
                           ? `, weight ${String(systemStatus.high_availability.runtime.details.witness_allow_weight)}/${String(systemStatus.high_availability.runtime.details.witness_total_weight)}`
                           : ''}
+                        {systemStatus.high_availability.runtime?.details?.witness_allow_group_count !== undefined &&
+                        systemStatus.high_availability.runtime?.details?.witness_total_group_count !== undefined
+                          ? `, groups ${String(systemStatus.high_availability.runtime.details.witness_allow_group_count)}/${String(systemStatus.high_availability.runtime.details.witness_total_group_count)}`
+                          : ''}
+                        {systemStatus.high_availability.runtime?.details?.witness_allow_source_count !== undefined &&
+                        systemStatus.high_availability.witness_required_sources?.length
+                          ? `, sources ${String(systemStatus.high_availability.runtime.details.witness_allow_source_count)}/${String(systemStatus.high_availability.witness_required_sources.length)}`
+                          : ''}
                         {systemStatus.high_availability.witness_urls?.length
                           ? `, quorum ${systemStatus.high_availability.witness_quorum}`
                           : ''}
                         {systemStatus.high_availability.witness_weight_threshold > 0
                           ? `, weight threshold ${systemStatus.high_availability.witness_weight_threshold}`
+                          : ''}
+                        {systemStatus.high_availability.witness_min_distinct_groups > 0
+                          ? `, distinct groups ${systemStatus.high_availability.witness_min_distinct_groups}`
+                          : ''}
+                        {systemStatus.high_availability.witness_policy_mode
+                          ? `, policy ${systemStatus.high_availability.witness_policy_mode}`
+                          : ''}
+                        {systemStatus.high_availability.witness_failure_tolerance > 0
+                          ? `, failure budget ${systemStatus.high_availability.witness_failure_tolerance}`
+                          : ''}
+                        {systemStatus.high_availability.witness_failure_weight_tolerance > 0
+                          ? `, failure weight budget ${systemStatus.high_availability.witness_failure_weight_tolerance}`
+                          : ''}
+                        {systemStatus.high_availability.witness_required_sources?.length
+                          ? `, required sources ${systemStatus.high_availability.witness_required_sources.join(', ')}`
                           : ''}
                         {systemStatus.high_availability.runtime?.details?.witness_allow_promotion !== undefined
                           ? `, allow promotion ${String(systemStatus.high_availability.runtime.details.witness_allow_promotion)}`
@@ -714,6 +748,32 @@ export default function Dashboard() {
                             ? ', replay configured'
                             : ''}
                         : {(systemStatus.high_availability.witness_urls?.length ? systemStatus.high_availability.witness_urls.join(', ') : systemStatus.high_availability.witness_api_url)}
+                      </div>
+                    ) : null}
+                    {Object.keys(systemStatus.high_availability.witness_source_confidence || {}).length > 0 ||
+                    Object.keys(systemStatus.high_availability.witness_failure_tolerance_by_tier || {}).length > 0 ||
+                    Object.keys(systemStatus.high_availability.witness_failure_weight_tolerance_by_tier || {}).length > 0 ||
+                    systemStatus.high_availability.witness_blocking_tiers?.length ? (
+                      <div className="mt-1 text-xs text-gray-500 break-all">
+                        {Object.keys(systemStatus.high_availability.witness_source_confidence || {}).length > 0
+                          ? `Confidence ${Object.entries(systemStatus.high_availability.witness_source_confidence)
+                              .map(([source, tier]) => `${source}=${tier}`)
+                              .join(', ')}`
+                          : 'Confidence standard'}
+                        {Object.keys(systemStatus.high_availability.witness_failure_tolerance_by_tier || {}).length > 0
+                          ? `, tier failure budgets ${Object.entries(systemStatus.high_availability.witness_failure_tolerance_by_tier)
+                              .map(([tier, budget]) => `${tier}=${budget}`)
+                              .join(', ')}`
+                          : ''}
+                        {Object.keys(systemStatus.high_availability.witness_failure_weight_tolerance_by_tier || {}).length > 0
+                          ? `, tier weight budgets ${Object.entries(systemStatus.high_availability.witness_failure_weight_tolerance_by_tier)
+                              .map(([tier, budget]) => `${tier}=${budget}`)
+                              .join(', ')}`
+                          : ''}
+                        {systemStatus.high_availability.witness_blocking_tiers?.length
+                          ? `, blocking tiers ${systemStatus.high_availability.witness_blocking_tiers.join(', ')}`
+                          : ''}
+                        .
                       </div>
                     ) : null}
                     {systemStatus.high_availability.runtime?.details?.peer_shared_heartbeat_present ? (

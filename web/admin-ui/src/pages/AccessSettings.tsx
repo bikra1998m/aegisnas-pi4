@@ -325,6 +325,17 @@ const defaultSettings: JsonMap = {
       witness_quorum: 1,
       witness_weights: {},
       witness_weight_threshold: 0,
+      witness_groups: {},
+      witness_min_distinct_groups: 0,
+      witness_sources: {},
+      witness_source_confidence: {},
+      witness_required_sources: [],
+      witness_policy_mode: 'all',
+      witness_failure_tolerance: 0,
+      witness_failure_weight_tolerance: 0,
+      witness_failure_tolerance_by_tier: {},
+      witness_failure_weight_tolerance_by_tier: {},
+      witness_blocking_tiers: [],
       witness_token_env: '',
       witness_signing_key_env: '',
       witness_max_age_seconds: 0,
@@ -2831,6 +2842,215 @@ export default function AccessSettings() {
               placeholder={'https://witness-a.example.test/ha=3\nhttps://witness-b.example.test/ha=1'}
             />
             <p className="mt-1 text-xs text-gray-500">Optional per-witness weights. Unlisted witnesses count as weight 1.</p>
+          </div>
+          <TextField
+            label="Witness Distinct Group Threshold"
+            type="number"
+            value={settings.high_availability?.witness_min_distinct_groups || 0}
+            onChange={(value) => updateField(['high_availability', 'witness_min_distinct_groups'], Number(value))}
+          />
+          <SelectField
+            label="Witness Policy Mode"
+            value={settings.high_availability?.witness_policy_mode || 'all'}
+            onChange={(value) => updateField(['high_availability', 'witness_policy_mode'], value)}
+            options={[
+              { value: 'all', label: 'All configured policies' },
+              { value: 'any', label: 'Any diversity policy' },
+              { value: 'group_only', label: 'Group only' },
+              { value: 'source_only', label: 'Source only' },
+            ]}
+          />
+          <TextField
+            label="Witness Failure Tolerance"
+            type="number"
+            value={settings.high_availability?.witness_failure_tolerance || 0}
+            onChange={(value) => updateField(['high_availability', 'witness_failure_tolerance'], Number(value))}
+          />
+          <TextField
+            label="Witness Failure Weight Tolerance"
+            type="number"
+            value={settings.high_availability?.witness_failure_weight_tolerance || 0}
+            onChange={(value) => updateField(['high_availability', 'witness_failure_weight_tolerance'], Number(value))}
+          />
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Group Overrides</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={Object.entries(settings.high_availability?.witness_groups || {})
+                .map(([url, group]) => `${url}=${group}`)
+                .join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                const groups: Record<string, string> = {};
+                event.target.value
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .forEach((line) => {
+                    const parts = line.split('=');
+                    const url = parts.slice(0, -1).join('=').trim();
+                    const rawGroup = parts.length > 1 ? parts[parts.length - 1].trim() : '';
+                    if (url && rawGroup) {
+                      groups[url] = rawGroup;
+                    }
+                  });
+                updateField(['high_availability', 'witness_groups'], groups);
+              }}
+              placeholder={'https://witness-a.example.test/ha=dc-a\nhttps://witness-b.example.test/ha=dc-b'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional group mapping for witness diversity. Unlisted witnesses count as their own group.</p>
+          </div>
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Source Overrides</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={Object.entries(settings.high_availability?.witness_sources || {})
+                .map(([url, source]) => `${url}=${source}`)
+                .join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                const sources: Record<string, string> = {};
+                event.target.value
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .forEach((line) => {
+                    const parts = line.split('=');
+                    const url = parts.slice(0, -1).join('=').trim();
+                    const rawSource = parts.length > 1 ? parts[parts.length - 1].trim() : '';
+                    if (url && rawSource) {
+                      sources[url] = rawSource;
+                    }
+                  });
+                updateField(['high_availability', 'witness_sources'], sources);
+              }}
+              placeholder={'https://witness-a.example.test/ha=local\nhttps://witness-b.example.test/ha=external'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional source mapping for mixed-source quorum. Unlisted witnesses count as their own source.</p>
+          </div>
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Required Sources</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={2}
+              value={(settings.high_availability?.witness_required_sources || []).join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+                updateField(
+                  ['high_availability', 'witness_required_sources'],
+                  event.target.value
+                    .split(/\r?\n/)
+                    .map((value) => value.trim())
+                    .filter(Boolean),
+                )
+              }
+              placeholder={'local\nexternal'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional source classes that must all be represented in witness approvals before promotion is allowed.</p>
+          </div>
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Source Confidence</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={Object.entries(settings.high_availability?.witness_source_confidence || {})
+                .map(([source, tier]) => `${source}=${tier}`)
+                .join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                const confidence: Record<string, string> = {};
+                event.target.value
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .forEach((line) => {
+                    const parts = line.split('=');
+                    const source = parts.slice(0, -1).join('=').trim();
+                    const rawTier = parts.length > 1 ? parts[parts.length - 1].trim() : '';
+                    if (source && rawTier) {
+                      confidence[source] = rawTier;
+                    }
+                  });
+                updateField(['high_availability', 'witness_source_confidence'], confidence);
+              }}
+              placeholder={'local=critical\nexternal=advisory'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional source-to-tier mapping. Unlisted sources use the standard confidence tier.</p>
+          </div>
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Failure Tolerance By Tier</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={Object.entries(settings.high_availability?.witness_failure_tolerance_by_tier || {})
+                .map(([tier, budget]) => `${tier}=${budget}`)
+                .join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                const budgets: Record<string, number> = {};
+                event.target.value
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .forEach((line) => {
+                    const parts = line.split('=');
+                    const tier = parts.slice(0, -1).join('=').trim();
+                    const rawBudget = parts.length > 1 ? parts[parts.length - 1].trim() : '';
+                    const parsedBudget = Number(rawBudget);
+                    if (tier && Number.isFinite(parsedBudget) && parsedBudget >= 0) {
+                      budgets[tier] = parsedBudget;
+                    }
+                  });
+                updateField(['high_availability', 'witness_failure_tolerance_by_tier'], budgets);
+              }}
+              placeholder={'advisory=1\nstandard=0'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional tier-specific failed probe count budgets. Any tier without an override falls back to the global failure budget.</p>
+          </div>
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Failure Weight Tolerance By Tier</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={Object.entries(settings.high_availability?.witness_failure_weight_tolerance_by_tier || {})
+                .map(([tier, budget]) => `${tier}=${budget}`)
+                .join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                const budgets: Record<string, number> = {};
+                event.target.value
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .forEach((line) => {
+                    const parts = line.split('=');
+                    const tier = parts.slice(0, -1).join('=').trim();
+                    const rawBudget = parts.length > 1 ? parts[parts.length - 1].trim() : '';
+                    const parsedBudget = Number(rawBudget);
+                    if (tier && Number.isFinite(parsedBudget) && parsedBudget >= 0) {
+                      budgets[tier] = parsedBudget;
+                    }
+                  });
+                updateField(['high_availability', 'witness_failure_weight_tolerance_by_tier'], budgets);
+              }}
+              placeholder={'advisory=1\nstandard=0'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional tier-specific failed witness weight budgets. Any tier without an override falls back to the global failed-weight budget.</p>
+          </div>
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Blocking Tiers</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={2}
+              value={(settings.high_availability?.witness_blocking_tiers || []).join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+                updateField(
+                  ['high_availability', 'witness_blocking_tiers'],
+                  event.target.value
+                    .split(/\r?\n/)
+                    .map((value) => value.trim())
+                    .filter(Boolean),
+                )
+              }
+              placeholder={'critical'}
+            />
+            <p className="mt-1 text-xs text-gray-500">If a witness in one of these tiers explicitly denies promotion, standby promotion is blocked immediately.</p>
           </div>
           <TextField
             label="Witness Token Env"

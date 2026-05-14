@@ -81,6 +81,28 @@ high_availability:
     "https://witness-a.example.test/ha": 3
     "https://witness-b.example.test/ha": 1
   witness_weight_threshold: 4
+  witness_groups:
+    "https://witness-a.example.test/ha": "dc-a"
+    "https://witness-b.example.test/ha": "dc-b"
+  witness_min_distinct_groups: 2
+  witness_sources:
+    "https://witness-a.example.test/ha": "local"
+    "https://witness-b.example.test/ha": "external"
+  witness_source_confidence:
+    "local": "critical"
+    "external": "advisory"
+  witness_required_sources:
+    - "local"
+    - "external"
+  witness_policy_mode: "all"
+  witness_failure_tolerance: 1
+  witness_failure_weight_tolerance: 1
+  witness_failure_tolerance_by_tier:
+    "advisory": 1
+  witness_failure_weight_tolerance_by_tier:
+    "advisory": 1
+  witness_blocking_tiers:
+    - "critical"
   witness_token_env: "AEGIS_HA_WITNESS_TOKEN"
   witness_signing_key_env: "AEGIS_HA_WITNESS_SIGNING_KEY"
   witness_max_age_seconds: 30
@@ -107,6 +129,17 @@ Guidance:
 - `witness_quorum`: minimum number of configured witnesses that must allow promotion
 - `witness_weights`: optional per-witness weight overrides keyed by witness URL; unspecified witnesses count as weight `1`
 - `witness_weight_threshold`: optional minimum combined witness weight required in addition to the plain witness quorum count
+- `witness_groups`: optional per-witness group overrides keyed by witness URL; unspecified witnesses count as their own distinct group
+- `witness_min_distinct_groups`: optional minimum number of distinct witness groups that must allow promotion in addition to the plain witness quorum and weight rules
+- `witness_sources`: optional per-witness source overrides keyed by witness URL; unspecified witnesses count as their own source
+- `witness_source_confidence`: optional source-to-confidence-tier mapping; unspecified sources use the `standard` tier
+- `witness_required_sources`: optional source classes that must all be represented in witness approvals before promotion is allowed
+- `witness_policy_mode`: how group and source diversity rules combine; `all` requires every configured family, `any` accepts either family, and `group_only` / `source_only` make one family authoritative
+- `witness_failure_tolerance`: optional count of failed witness probes that may reduce the required quorum during promotion
+- `witness_failure_weight_tolerance`: optional failed witness weight budget that may reduce the effective weight threshold during promotion
+- `witness_failure_tolerance_by_tier`: optional per-tier failed witness count budgets; tiers without overrides fall back to `witness_failure_tolerance`
+- `witness_failure_weight_tolerance_by_tier`: optional per-tier failed witness weight budgets; tiers without overrides fall back to `witness_failure_weight_tolerance`
+- `witness_blocking_tiers`: optional confidence tiers whose explicit witness denies block standby promotion immediately even when other witnesses would otherwise satisfy quorum
 - `witness_token_env`: optional bearer token env used when the external witness requires authenticated requests
 - `witness_signing_key_env`: optional shared HMAC key env used to verify the witness response body before standby promotion is allowed
 - `witness_max_age_seconds`: optional maximum allowed age for the witness `observed_at` timestamp; if the response is older, or missing `observed_at`, standby promotion is blocked

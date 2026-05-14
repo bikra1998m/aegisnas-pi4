@@ -1124,6 +1124,153 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessWeightThreshold.HighAvailability.WitnessWeightThreshold = 5
 	assert.ErrorContains(t, badWitnessWeightThreshold.Validate(), "high_availability.witness_weight_threshold 5 cannot exceed configured witness weight 3")
 
+	badWitnessGroupUnknown := base()
+	badWitnessGroupUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessGroupUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessGroupUnknown.HighAvailability.WitnessGroups = map[string]string{"https://witness-b.example.test/ha": "dc-b"}
+	assert.ErrorContains(t, badWitnessGroupUnknown.Validate(), `high_availability.witness_groups key "https://witness-b.example.test/ha" does not match a configured witness URL`)
+
+	badWitnessGroupBlank := base()
+	badWitnessGroupBlank.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessGroupBlank.HighAvailability.WitnessQuorum = 1
+	badWitnessGroupBlank.HighAvailability.WitnessGroups = map[string]string{"https://witness-a.example.test/ha": " "}
+	assert.ErrorContains(t, badWitnessGroupBlank.Validate(), `high_availability.witness_groups["https://witness-a.example.test/ha"] must not be blank`)
+
+	badWitnessGroupThresholdNegative := base()
+	badWitnessGroupThresholdNegative.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessGroupThresholdNegative.HighAvailability.WitnessQuorum = 1
+	badWitnessGroupThresholdNegative.HighAvailability.WitnessMinDistinctGroups = -1
+	assert.ErrorContains(t, badWitnessGroupThresholdNegative.Validate(), "high_availability.witness_min_distinct_groups -1 cannot be negative")
+
+	badWitnessGroupThresholdTooHigh := base()
+	badWitnessGroupThresholdTooHigh.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha", "https://witness-b.example.test/ha"}
+	badWitnessGroupThresholdTooHigh.HighAvailability.WitnessQuorum = 1
+	badWitnessGroupThresholdTooHigh.HighAvailability.WitnessGroups = map[string]string{
+		"https://witness-a.example.test/ha": "dc-a",
+		"https://witness-b.example.test/ha": "dc-a",
+	}
+	badWitnessGroupThresholdTooHigh.HighAvailability.WitnessMinDistinctGroups = 2
+	assert.ErrorContains(t, badWitnessGroupThresholdTooHigh.Validate(), "high_availability.witness_min_distinct_groups 2 cannot exceed configured witness group count 1")
+
+	badWitnessSourceUnknown := base()
+	badWitnessSourceUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessSourceUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessSourceUnknown.HighAvailability.WitnessSources = map[string]string{"https://witness-b.example.test/ha": "external"}
+	assert.ErrorContains(t, badWitnessSourceUnknown.Validate(), `high_availability.witness_sources key "https://witness-b.example.test/ha" does not match a configured witness URL`)
+
+	badWitnessSourceBlank := base()
+	badWitnessSourceBlank.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessSourceBlank.HighAvailability.WitnessQuorum = 1
+	badWitnessSourceBlank.HighAvailability.WitnessSources = map[string]string{"https://witness-a.example.test/ha": " "}
+	assert.ErrorContains(t, badWitnessSourceBlank.Validate(), `high_availability.witness_sources["https://witness-a.example.test/ha"] must not be blank`)
+
+	badWitnessRequiredSourceBlank := base()
+	badWitnessRequiredSourceBlank.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessRequiredSourceBlank.HighAvailability.WitnessQuorum = 1
+	badWitnessRequiredSourceBlank.HighAvailability.WitnessRequiredSources = []string{" "}
+	assert.ErrorContains(t, badWitnessRequiredSourceBlank.Validate(), "high_availability.witness_required_sources entries must not be blank")
+
+	badWitnessRequiredSourceUnknown := base()
+	badWitnessRequiredSourceUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessRequiredSourceUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessRequiredSourceUnknown.HighAvailability.WitnessSources = map[string]string{"https://witness-a.example.test/ha": "local"}
+	badWitnessRequiredSourceUnknown.HighAvailability.WitnessRequiredSources = []string{"external"}
+	assert.ErrorContains(t, badWitnessRequiredSourceUnknown.Validate(), `high_availability.witness_required_sources entry "external" does not match a configured witness source`)
+
+	badWitnessConfidenceSourceUnknown := base()
+	badWitnessConfidenceSourceUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessConfidenceSourceUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessConfidenceSourceUnknown.HighAvailability.WitnessSourceConfidence = map[string]string{"external": "critical"}
+	assert.ErrorContains(t, badWitnessConfidenceSourceUnknown.Validate(), `high_availability.witness_source_confidence key "external" does not match a configured witness source`)
+
+	badWitnessConfidenceTierBlank := base()
+	badWitnessConfidenceTierBlank.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessConfidenceTierBlank.HighAvailability.WitnessQuorum = 1
+	badWitnessConfidenceTierBlank.HighAvailability.WitnessSourceConfidence = map[string]string{"https://witness-a.example.test/ha": " "}
+	assert.ErrorContains(t, badWitnessConfidenceTierBlank.Validate(), `high_availability.witness_source_confidence["https://witness-a.example.test/ha"] must not be blank`)
+
+	badWitnessPolicyMode := base()
+	badWitnessPolicyMode.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessPolicyMode.HighAvailability.WitnessQuorum = 1
+	badWitnessPolicyMode.HighAvailability.WitnessPolicyMode = "mystery"
+	assert.ErrorContains(t, badWitnessPolicyMode.Validate(), `high_availability.witness_policy_mode "mystery" must be one of all, any, group_only, or source_only`)
+
+	badWitnessPolicyAny := base()
+	badWitnessPolicyAny.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessPolicyAny.HighAvailability.WitnessQuorum = 1
+	badWitnessPolicyAny.HighAvailability.WitnessPolicyMode = "any"
+	assert.ErrorContains(t, badWitnessPolicyAny.Validate(), "high_availability.witness_policy_mode any requires witness_min_distinct_groups or witness_required_sources")
+
+	badWitnessPolicyGroupOnly := base()
+	badWitnessPolicyGroupOnly.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessPolicyGroupOnly.HighAvailability.WitnessQuorum = 1
+	badWitnessPolicyGroupOnly.HighAvailability.WitnessPolicyMode = "group_only"
+	assert.ErrorContains(t, badWitnessPolicyGroupOnly.Validate(), "high_availability.witness_policy_mode group_only requires high_availability.witness_min_distinct_groups")
+
+	badWitnessPolicySourceOnly := base()
+	badWitnessPolicySourceOnly.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessPolicySourceOnly.HighAvailability.WitnessQuorum = 1
+	badWitnessPolicySourceOnly.HighAvailability.WitnessPolicyMode = "source_only"
+	assert.ErrorContains(t, badWitnessPolicySourceOnly.Validate(), "high_availability.witness_policy_mode source_only requires high_availability.witness_required_sources")
+
+	badWitnessFailureToleranceNegative := base()
+	badWitnessFailureToleranceNegative.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessFailureToleranceNegative.HighAvailability.WitnessQuorum = 1
+	badWitnessFailureToleranceNegative.HighAvailability.WitnessFailureTolerance = -1
+	assert.ErrorContains(t, badWitnessFailureToleranceNegative.Validate(), "high_availability.witness_failure_tolerance -1 cannot be negative")
+
+	badWitnessFailureToleranceHigh := base()
+	badWitnessFailureToleranceHigh.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessFailureToleranceHigh.HighAvailability.WitnessQuorum = 1
+	badWitnessFailureToleranceHigh.HighAvailability.WitnessFailureTolerance = 2
+	assert.ErrorContains(t, badWitnessFailureToleranceHigh.Validate(), "high_availability.witness_failure_tolerance 2 cannot exceed configured witness count 1")
+
+	badWitnessFailureWeightToleranceNegative := base()
+	badWitnessFailureWeightToleranceNegative.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessFailureWeightToleranceNegative.HighAvailability.WitnessQuorum = 1
+	badWitnessFailureWeightToleranceNegative.HighAvailability.WitnessFailureWeightTolerance = -1
+	assert.ErrorContains(t, badWitnessFailureWeightToleranceNegative.Validate(), "high_availability.witness_failure_weight_tolerance -1 cannot be negative")
+
+	badWitnessFailureWeightToleranceHigh := base()
+	badWitnessFailureWeightToleranceHigh.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha", "https://witness-b.example.test/ha"}
+	badWitnessFailureWeightToleranceHigh.HighAvailability.WitnessQuorum = 1
+	badWitnessFailureWeightToleranceHigh.HighAvailability.WitnessWeights = map[string]int{
+		"https://witness-a.example.test/ha": 2,
+		"https://witness-b.example.test/ha": 1,
+	}
+	badWitnessFailureWeightToleranceHigh.HighAvailability.WitnessFailureWeightTolerance = 4
+	assert.ErrorContains(t, badWitnessFailureWeightToleranceHigh.Validate(), "high_availability.witness_failure_weight_tolerance 4 cannot exceed configured witness weight 3")
+
+	badWitnessTierFailureToleranceUnknown := base()
+	badWitnessTierFailureToleranceUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessTierFailureToleranceUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessTierFailureToleranceUnknown.HighAvailability.WitnessFailureToleranceByTier = map[string]int{"critical": 1}
+	assert.ErrorContains(t, badWitnessTierFailureToleranceUnknown.Validate(), `high_availability.witness_failure_tolerance_by_tier key "critical" does not match a configured witness confidence tier`)
+
+	badWitnessTierFailureToleranceNegative := base()
+	badWitnessTierFailureToleranceNegative.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessTierFailureToleranceNegative.HighAvailability.WitnessQuorum = 1
+	badWitnessTierFailureToleranceNegative.HighAvailability.WitnessFailureToleranceByTier = map[string]int{"standard": -1}
+	assert.ErrorContains(t, badWitnessTierFailureToleranceNegative.Validate(), `high_availability.witness_failure_tolerance_by_tier["standard"] -1 cannot be negative`)
+
+	badWitnessTierFailureWeightToleranceUnknown := base()
+	badWitnessTierFailureWeightToleranceUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessTierFailureWeightToleranceUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessTierFailureWeightToleranceUnknown.HighAvailability.WitnessFailureWeightByTier = map[string]int{"critical": 1}
+	assert.ErrorContains(t, badWitnessTierFailureWeightToleranceUnknown.Validate(), `high_availability.witness_failure_weight_tolerance_by_tier key "critical" does not match a configured witness confidence tier`)
+
+	badWitnessTierFailureWeightToleranceNegative := base()
+	badWitnessTierFailureWeightToleranceNegative.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessTierFailureWeightToleranceNegative.HighAvailability.WitnessQuorum = 1
+	badWitnessTierFailureWeightToleranceNegative.HighAvailability.WitnessFailureWeightByTier = map[string]int{"standard": -1}
+	assert.ErrorContains(t, badWitnessTierFailureWeightToleranceNegative.Validate(), `high_availability.witness_failure_weight_tolerance_by_tier["standard"] -1 cannot be negative`)
+
+	badWitnessBlockingTierUnknown := base()
+	badWitnessBlockingTierUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessBlockingTierUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessBlockingTierUnknown.HighAvailability.WitnessBlockingTiers = []string{"critical"}
+	assert.ErrorContains(t, badWitnessBlockingTierUnknown.Validate(), `high_availability.witness_blocking_tiers entry "critical" does not match a configured witness confidence tier`)
+
 	badWitnessReplayDisabled := base()
 	badWitnessReplayDisabled.HighAvailability.Enabled = false
 	badWitnessReplayDisabled.HighAvailability.WitnessReplayProtectionEnabled = true

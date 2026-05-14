@@ -372,32 +372,43 @@ type GovernanceConfig struct {
 }
 
 type HighAvailabilityConfig struct {
-	Enabled                        bool           `mapstructure:"enabled"`
-	Role                           string         `mapstructure:"role"`
-	PeerAPIURL                     string         `mapstructure:"peer_api_url"`
-	VirtualIP                      string         `mapstructure:"virtual_ip"`
-	HeartbeatIntervalSeconds       int            `mapstructure:"heartbeat_interval_seconds"`
-	FailoverTimeoutSeconds         int            `mapstructure:"failover_timeout_seconds"`
-	ReplicationIntervalSeconds     int            `mapstructure:"replication_interval_seconds"`
-	ReplicationStaleAfterSeconds   int            `mapstructure:"replication_stale_after_seconds"`
-	SplitBrainProtectionEnabled    bool           `mapstructure:"split_brain_protection_enabled"`
-	AutoStageSharedPackage         bool           `mapstructure:"auto_stage_shared_package"`
-	AutoActivateOnFailover         bool           `mapstructure:"auto_activate_on_failover"`
-	ReplicationSigningKeyEnv       string         `mapstructure:"replication_signing_key_env"`
-	ReplicationEncryptionKeyEnv    string         `mapstructure:"replication_encryption_key_env"`
-	WitnessAPIURL                  string         `mapstructure:"witness_api_url"`
-	WitnessURLs                    []string       `mapstructure:"witness_urls"`
-	WitnessQuorum                  int            `mapstructure:"witness_quorum"`
-	WitnessWeights                 map[string]int `mapstructure:"witness_weights"`
-	WitnessWeightThreshold         int            `mapstructure:"witness_weight_threshold"`
-	WitnessTokenEnv                string         `mapstructure:"witness_token_env"`
-	WitnessSigningKeyEnv           string         `mapstructure:"witness_signing_key_env"`
-	WitnessMaxAgeSeconds           int            `mapstructure:"witness_max_age_seconds"`
-	WitnessRequiredNode            string         `mapstructure:"witness_required_node"`
-	WitnessReplayProtectionEnabled bool           `mapstructure:"witness_replay_protection_enabled"`
-	Preempt                        bool           `mapstructure:"preempt"`
-	PreemptHoldoffSeconds          int            `mapstructure:"preempt_holdoff_seconds"`
-	SharedStateDir                 string         `mapstructure:"shared_state_dir"`
+	Enabled                        bool              `mapstructure:"enabled"`
+	Role                           string            `mapstructure:"role"`
+	PeerAPIURL                     string            `mapstructure:"peer_api_url"`
+	VirtualIP                      string            `mapstructure:"virtual_ip"`
+	HeartbeatIntervalSeconds       int               `mapstructure:"heartbeat_interval_seconds"`
+	FailoverTimeoutSeconds         int               `mapstructure:"failover_timeout_seconds"`
+	ReplicationIntervalSeconds     int               `mapstructure:"replication_interval_seconds"`
+	ReplicationStaleAfterSeconds   int               `mapstructure:"replication_stale_after_seconds"`
+	SplitBrainProtectionEnabled    bool              `mapstructure:"split_brain_protection_enabled"`
+	AutoStageSharedPackage         bool              `mapstructure:"auto_stage_shared_package"`
+	AutoActivateOnFailover         bool              `mapstructure:"auto_activate_on_failover"`
+	ReplicationSigningKeyEnv       string            `mapstructure:"replication_signing_key_env"`
+	ReplicationEncryptionKeyEnv    string            `mapstructure:"replication_encryption_key_env"`
+	WitnessAPIURL                  string            `mapstructure:"witness_api_url"`
+	WitnessURLs                    []string          `mapstructure:"witness_urls"`
+	WitnessQuorum                  int               `mapstructure:"witness_quorum"`
+	WitnessWeights                 map[string]int    `mapstructure:"witness_weights"`
+	WitnessWeightThreshold         int               `mapstructure:"witness_weight_threshold"`
+	WitnessGroups                  map[string]string `mapstructure:"witness_groups"`
+	WitnessMinDistinctGroups       int               `mapstructure:"witness_min_distinct_groups"`
+	WitnessSources                 map[string]string `mapstructure:"witness_sources"`
+	WitnessRequiredSources         []string          `mapstructure:"witness_required_sources"`
+	WitnessPolicyMode              string            `mapstructure:"witness_policy_mode"`
+	WitnessFailureTolerance        int               `mapstructure:"witness_failure_tolerance"`
+	WitnessFailureWeightTolerance  int               `mapstructure:"witness_failure_weight_tolerance"`
+	WitnessSourceConfidence        map[string]string `mapstructure:"witness_source_confidence"`
+	WitnessFailureToleranceByTier  map[string]int    `mapstructure:"witness_failure_tolerance_by_tier"`
+	WitnessFailureWeightByTier     map[string]int    `mapstructure:"witness_failure_weight_tolerance_by_tier"`
+	WitnessBlockingTiers           []string          `mapstructure:"witness_blocking_tiers"`
+	WitnessTokenEnv                string            `mapstructure:"witness_token_env"`
+	WitnessSigningKeyEnv           string            `mapstructure:"witness_signing_key_env"`
+	WitnessMaxAgeSeconds           int               `mapstructure:"witness_max_age_seconds"`
+	WitnessRequiredNode            string            `mapstructure:"witness_required_node"`
+	WitnessReplayProtectionEnabled bool              `mapstructure:"witness_replay_protection_enabled"`
+	Preempt                        bool              `mapstructure:"preempt"`
+	PreemptHoldoffSeconds          int               `mapstructure:"preempt_holdoff_seconds"`
+	SharedStateDir                 string            `mapstructure:"shared_state_dir"`
 }
 
 type WirelessConfig struct {
@@ -453,6 +464,84 @@ func effectiveWitnessWeights(urls []string, overrides map[string]int) (map[strin
 		total += weight
 	}
 	return weights, total
+}
+
+func effectiveWitnessGroups(urls []string, overrides map[string]string) (map[string]string, []string) {
+	groups := make(map[string]string, len(urls))
+	distinctSet := make(map[string]struct{}, len(urls))
+	distinct := make([]string, 0, len(urls))
+	for _, witnessURL := range urls {
+		group := strings.TrimSpace(witnessURL)
+		if overrides != nil {
+			if override, ok := overrides[strings.TrimSpace(witnessURL)]; ok && strings.TrimSpace(override) != "" {
+				group = strings.TrimSpace(override)
+			}
+		}
+		groups[witnessURL] = group
+		if _, exists := distinctSet[group]; exists {
+			continue
+		}
+		distinctSet[group] = struct{}{}
+		distinct = append(distinct, group)
+	}
+	return groups, distinct
+}
+
+func effectiveWitnessSources(urls []string, overrides map[string]string) (map[string]string, []string) {
+	sources := make(map[string]string, len(urls))
+	distinctSet := make(map[string]struct{}, len(urls))
+	distinct := make([]string, 0, len(urls))
+	for _, witnessURL := range urls {
+		source := strings.TrimSpace(witnessURL)
+		if overrides != nil {
+			if override, ok := overrides[strings.TrimSpace(witnessURL)]; ok && strings.TrimSpace(override) != "" {
+				source = strings.TrimSpace(override)
+			}
+		}
+		sources[witnessURL] = source
+		if _, exists := distinctSet[source]; exists {
+			continue
+		}
+		distinctSet[source] = struct{}{}
+		distinct = append(distinct, source)
+	}
+	return sources, distinct
+}
+
+func normalizeWitnessPolicyMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", "all":
+		return "all"
+	case "any":
+		return "any"
+	case "group_only":
+		return "group_only"
+	case "source_only":
+		return "source_only"
+	default:
+		return strings.ToLower(strings.TrimSpace(mode))
+	}
+}
+
+func effectiveWitnessConfidenceTiers(sources []string, overrides map[string]string) (map[string]string, []string) {
+	tiers := make(map[string]string, len(sources))
+	distinctSet := make(map[string]struct{}, len(sources)+1)
+	distinct := make([]string, 0, len(sources)+1)
+	for _, source := range sources {
+		tier := "standard"
+		if overrides != nil {
+			if override, ok := overrides[strings.TrimSpace(source)]; ok && strings.TrimSpace(override) != "" {
+				tier = strings.TrimSpace(override)
+			}
+		}
+		tiers[source] = tier
+		if _, exists := distinctSet[tier]; exists {
+			continue
+		}
+		distinctSet[tier] = struct{}{}
+		distinct = append(distinct, tier)
+	}
+	return tiers, distinct
 }
 
 type SSIDConfig struct {
@@ -542,6 +631,17 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.witness_quorum", 1)
 	v.SetDefault("high_availability.witness_weights", map[string]int{})
 	v.SetDefault("high_availability.witness_weight_threshold", 0)
+	v.SetDefault("high_availability.witness_groups", map[string]string{})
+	v.SetDefault("high_availability.witness_min_distinct_groups", 0)
+	v.SetDefault("high_availability.witness_sources", map[string]string{})
+	v.SetDefault("high_availability.witness_required_sources", []string{})
+	v.SetDefault("high_availability.witness_policy_mode", "all")
+	v.SetDefault("high_availability.witness_failure_tolerance", 0)
+	v.SetDefault("high_availability.witness_failure_weight_tolerance", 0)
+	v.SetDefault("high_availability.witness_source_confidence", map[string]string{})
+	v.SetDefault("high_availability.witness_failure_tolerance_by_tier", map[string]int{})
+	v.SetDefault("high_availability.witness_failure_weight_tolerance_by_tier", map[string]int{})
+	v.SetDefault("high_availability.witness_blocking_tiers", []string{})
 	v.SetDefault("high_availability.witness_token_env", "")
 	v.SetDefault("high_availability.witness_signing_key_env", "")
 	v.SetDefault("high_availability.witness_max_age_seconds", 0)
@@ -1249,6 +1349,129 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("high_availability.witness_weight_threshold %d cannot exceed configured witness weight %d", c.HighAvailability.WitnessWeightThreshold, totalWeight)
 			}
 		}
+		for witnessURL, group := range c.HighAvailability.WitnessGroups {
+			trimmedURL := strings.TrimSpace(witnessURL)
+			if trimmedURL == "" {
+				return errors.New("high_availability.witness_groups keys cannot be blank")
+			}
+			if !slices.Contains(witnessURLs, trimmedURL) {
+				return fmt.Errorf("high_availability.witness_groups key %q does not match a configured witness URL", trimmedURL)
+			}
+			if strings.TrimSpace(group) == "" {
+				return fmt.Errorf("high_availability.witness_groups[%q] must not be blank", trimmedURL)
+			}
+		}
+		if c.HighAvailability.WitnessMinDistinctGroups > 0 {
+			_, distinctGroups := effectiveWitnessGroups(witnessURLs, c.HighAvailability.WitnessGroups)
+			if c.HighAvailability.WitnessMinDistinctGroups > len(distinctGroups) {
+				return fmt.Errorf("high_availability.witness_min_distinct_groups %d cannot exceed configured witness group count %d", c.HighAvailability.WitnessMinDistinctGroups, len(distinctGroups))
+			}
+		}
+		for witnessURL, source := range c.HighAvailability.WitnessSources {
+			trimmedURL := strings.TrimSpace(witnessURL)
+			if trimmedURL == "" {
+				return errors.New("high_availability.witness_sources keys cannot be blank")
+			}
+			if !slices.Contains(witnessURLs, trimmedURL) {
+				return fmt.Errorf("high_availability.witness_sources key %q does not match a configured witness URL", trimmedURL)
+			}
+			if strings.TrimSpace(source) == "" {
+				return fmt.Errorf("high_availability.witness_sources[%q] must not be blank", trimmedURL)
+			}
+		}
+		sourceMap, distinctSources := effectiveWitnessSources(witnessURLs, c.HighAvailability.WitnessSources)
+		_ = sourceMap
+		for source, tier := range c.HighAvailability.WitnessSourceConfidence {
+			trimmedSource := strings.TrimSpace(source)
+			if trimmedSource == "" {
+				return errors.New("high_availability.witness_source_confidence keys cannot be blank")
+			}
+			if !slices.Contains(distinctSources, trimmedSource) {
+				return fmt.Errorf("high_availability.witness_source_confidence key %q does not match a configured witness source", trimmedSource)
+			}
+			if strings.TrimSpace(tier) == "" {
+				return fmt.Errorf("high_availability.witness_source_confidence[%q] must not be blank", trimmedSource)
+			}
+		}
+		_, distinctTiers := effectiveWitnessConfidenceTiers(distinctSources, c.HighAvailability.WitnessSourceConfidence)
+		for tier, budget := range c.HighAvailability.WitnessFailureToleranceByTier {
+			trimmedTier := strings.TrimSpace(tier)
+			if trimmedTier == "" {
+				return errors.New("high_availability.witness_failure_tolerance_by_tier keys cannot be blank")
+			}
+			if !slices.Contains(distinctTiers, trimmedTier) {
+				return fmt.Errorf("high_availability.witness_failure_tolerance_by_tier key %q does not match a configured witness confidence tier", trimmedTier)
+			}
+			if budget < 0 {
+				return fmt.Errorf("high_availability.witness_failure_tolerance_by_tier[%q] %d cannot be negative", trimmedTier, budget)
+			}
+		}
+		for tier, budget := range c.HighAvailability.WitnessFailureWeightByTier {
+			trimmedTier := strings.TrimSpace(tier)
+			if trimmedTier == "" {
+				return errors.New("high_availability.witness_failure_weight_tolerance_by_tier keys cannot be blank")
+			}
+			if !slices.Contains(distinctTiers, trimmedTier) {
+				return fmt.Errorf("high_availability.witness_failure_weight_tolerance_by_tier key %q does not match a configured witness confidence tier", trimmedTier)
+			}
+			if budget < 0 {
+				return fmt.Errorf("high_availability.witness_failure_weight_tolerance_by_tier[%q] %d cannot be negative", trimmedTier, budget)
+			}
+		}
+		for _, tier := range c.HighAvailability.WitnessBlockingTiers {
+			trimmedTier := strings.TrimSpace(tier)
+			if trimmedTier == "" {
+				return errors.New("high_availability.witness_blocking_tiers entries must not be blank")
+			}
+			if !slices.Contains(distinctTiers, trimmedTier) {
+				return fmt.Errorf("high_availability.witness_blocking_tiers entry %q does not match a configured witness confidence tier", trimmedTier)
+			}
+		}
+		if len(c.HighAvailability.WitnessRequiredSources) > 0 {
+			for _, source := range c.HighAvailability.WitnessRequiredSources {
+				trimmedSource := strings.TrimSpace(source)
+				if trimmedSource == "" {
+					return errors.New("high_availability.witness_required_sources entries must not be blank")
+				}
+				if !slices.Contains(distinctSources, trimmedSource) {
+					return fmt.Errorf("high_availability.witness_required_sources entry %q does not match a configured witness source", trimmedSource)
+				}
+			}
+		}
+		groupConfigured := c.HighAvailability.WitnessMinDistinctGroups > 0
+		sourceConfigured := len(c.HighAvailability.WitnessRequiredSources) > 0
+		switch mode := normalizeWitnessPolicyMode(c.HighAvailability.WitnessPolicyMode); mode {
+		case "all":
+		case "any":
+			if !groupConfigured && !sourceConfigured {
+				return errors.New("high_availability.witness_policy_mode any requires witness_min_distinct_groups or witness_required_sources")
+			}
+		case "group_only":
+			if !groupConfigured {
+				return errors.New("high_availability.witness_policy_mode group_only requires high_availability.witness_min_distinct_groups")
+			}
+		case "source_only":
+			if !sourceConfigured {
+				return errors.New("high_availability.witness_policy_mode source_only requires high_availability.witness_required_sources")
+			}
+		default:
+			return fmt.Errorf("high_availability.witness_policy_mode %q must be one of all, any, group_only, or source_only", c.HighAvailability.WitnessPolicyMode)
+		}
+		if c.HighAvailability.WitnessFailureTolerance < 0 {
+			return fmt.Errorf("high_availability.witness_failure_tolerance %d cannot be negative", c.HighAvailability.WitnessFailureTolerance)
+		}
+		if c.HighAvailability.WitnessFailureTolerance > len(witnessURLs) {
+			return fmt.Errorf("high_availability.witness_failure_tolerance %d cannot exceed configured witness count %d", c.HighAvailability.WitnessFailureTolerance, len(witnessURLs))
+		}
+		if c.HighAvailability.WitnessFailureWeightTolerance < 0 {
+			return fmt.Errorf("high_availability.witness_failure_weight_tolerance %d cannot be negative", c.HighAvailability.WitnessFailureWeightTolerance)
+		}
+		if c.HighAvailability.WitnessFailureWeightTolerance > 0 {
+			_, totalWeight := effectiveWitnessWeights(witnessURLs, c.HighAvailability.WitnessWeights)
+			if c.HighAvailability.WitnessFailureWeightTolerance > totalWeight {
+				return fmt.Errorf("high_availability.witness_failure_weight_tolerance %d cannot exceed configured witness weight %d", c.HighAvailability.WitnessFailureWeightTolerance, totalWeight)
+			}
+		}
 	}
 	if strings.TrimSpace(c.HighAvailability.WitnessTokenEnv) != "" {
 		if !c.HighAvailability.Enabled {
@@ -1264,6 +1487,97 @@ func (c *Config) Validate() error {
 		}
 		if len(witnessURLs) == 0 {
 			return errors.New("high_availability.witness_signing_key_env requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessGroups) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_groups requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_groups requires high_availability.witness_api_url")
+		}
+	}
+	if c.HighAvailability.WitnessMinDistinctGroups < 0 {
+		return fmt.Errorf("high_availability.witness_min_distinct_groups %d cannot be negative", c.HighAvailability.WitnessMinDistinctGroups)
+	}
+	if c.HighAvailability.WitnessMinDistinctGroups > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_min_distinct_groups requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_min_distinct_groups requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessSources) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_sources requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_sources requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessRequiredSources) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_required_sources requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_required_sources requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessSourceConfidence) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_source_confidence requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_source_confidence requires high_availability.witness_api_url")
+		}
+	}
+	if strings.TrimSpace(c.HighAvailability.WitnessPolicyMode) != "" {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_policy_mode requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_policy_mode requires high_availability.witness_api_url")
+		}
+	}
+	if c.HighAvailability.WitnessFailureTolerance > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_failure_tolerance requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_failure_tolerance requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessFailureToleranceByTier) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_failure_tolerance_by_tier requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_failure_tolerance_by_tier requires high_availability.witness_api_url")
+		}
+	}
+	if c.HighAvailability.WitnessFailureWeightTolerance > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_failure_weight_tolerance requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_failure_weight_tolerance requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessFailureWeightByTier) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_failure_weight_tolerance_by_tier requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_failure_weight_tolerance_by_tier requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessBlockingTiers) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_blocking_tiers requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_blocking_tiers requires high_availability.witness_api_url")
 		}
 	}
 	if c.HighAvailability.WitnessMaxAgeSeconds < 0 {
