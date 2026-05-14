@@ -1294,6 +1294,39 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessMinApprovalsTooHigh.HighAvailability.WitnessMinApprovalsByTier = map[string]int{"critical": 2}
 	assert.ErrorContains(t, badWitnessMinApprovalsTooHigh.Validate(), `high_availability.witness_min_approvals_by_tier["critical"] 2 cannot exceed configured witness count 1 for that tier`)
 
+	badWitnessMinWeightUnknown := base()
+	badWitnessMinWeightUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessMinWeightUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessMinWeightUnknown.HighAvailability.WitnessMinWeightByTier = map[string]int{"critical": 1}
+	assert.ErrorContains(t, badWitnessMinWeightUnknown.Validate(), `high_availability.witness_min_weight_by_tier key "critical" does not match a configured witness confidence tier`)
+
+	badWitnessMinWeightNegative := base()
+	badWitnessMinWeightNegative.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessMinWeightNegative.HighAvailability.WitnessQuorum = 1
+	badWitnessMinWeightNegative.HighAvailability.WitnessMinWeightByTier = map[string]int{"standard": -1}
+	assert.ErrorContains(t, badWitnessMinWeightNegative.Validate(), `high_availability.witness_min_weight_by_tier["standard"] -1 cannot be negative`)
+
+	badWitnessMinWeightTooHigh := base()
+	badWitnessMinWeightTooHigh.HighAvailability.WitnessURLs = []string{
+		"https://witness-a.example.test/ha",
+		"https://witness-b.example.test/ha",
+	}
+	badWitnessMinWeightTooHigh.HighAvailability.WitnessQuorum = 1
+	badWitnessMinWeightTooHigh.HighAvailability.WitnessWeights = map[string]int{
+		"https://witness-a.example.test/ha": 2,
+		"https://witness-b.example.test/ha": 1,
+	}
+	badWitnessMinWeightTooHigh.HighAvailability.WitnessSources = map[string]string{
+		"https://witness-a.example.test/ha": "local",
+		"https://witness-b.example.test/ha": "external",
+	}
+	badWitnessMinWeightTooHigh.HighAvailability.WitnessSourceConfidence = map[string]string{
+		"local":    "critical",
+		"external": "advisory",
+	}
+	badWitnessMinWeightTooHigh.HighAvailability.WitnessMinWeightByTier = map[string]int{"critical": 3}
+	assert.ErrorContains(t, badWitnessMinWeightTooHigh.Validate(), `high_availability.witness_min_weight_by_tier["critical"] 3 cannot exceed configured witness weight 2 for that tier`)
+
 	badWitnessBlockingTierUnknown := base()
 	badWitnessBlockingTierUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
 	badWitnessBlockingTierUnknown.HighAvailability.WitnessQuorum = 1

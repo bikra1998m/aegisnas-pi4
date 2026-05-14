@@ -202,6 +202,9 @@ function createSettings() {
       witness_min_approvals_by_tier: {
         critical: 1,
       },
+      witness_min_weight_by_tier: {
+        critical: 2,
+      },
       witness_failure_tolerance_by_tier: {
         advisory: 1,
       },
@@ -414,6 +417,9 @@ function createSystemStatus() {
       witness_min_approvals_by_tier: {
         critical: 1,
       },
+      witness_min_weight_by_tier: {
+        critical: 2,
+      },
       witness_failure_tolerance_by_tier: {
         advisory: 1,
       },
@@ -453,6 +459,9 @@ function createSystemStatus() {
           witness_failure_weight_tolerance: 1,
           witness_min_approvals_by_tier: {
             critical: 1,
+          },
+          witness_min_weight_by_tier: {
+            critical: 2,
           },
           witness_confidence: {
             'https://witness-a.example.test/ha': 'critical',
