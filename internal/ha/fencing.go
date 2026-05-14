@@ -461,6 +461,19 @@ func effectiveWitnessMaxAgeSeconds(cfg *config.Config, tier string) int {
 	return cfg.HighAvailability.WitnessMaxAgeSeconds
 }
 
+func effectiveWitnessRequiredNode(cfg *config.Config, tier string) string {
+	if cfg == nil {
+		return ""
+	}
+	tier = strings.TrimSpace(tier)
+	if tier != "" && cfg.HighAvailability.WitnessRequiredNodeByTier != nil {
+		if override, ok := cfg.HighAvailability.WitnessRequiredNodeByTier[tier]; ok && strings.TrimSpace(override) != "" {
+			return strings.TrimSpace(override)
+		}
+	}
+	return strings.TrimSpace(cfg.HighAvailability.WitnessRequiredNode)
+}
+
 func evaluateWitnessDecisionPolicy(cfg *config.Config, observedAt time.Time, tier string, decision witnessDecision) witnessEvaluation {
 	evaluation := witnessEvaluation{
 		Status:        "ok",
@@ -479,7 +492,7 @@ func evaluateWitnessDecisionPolicy(cfg *config.Config, observedAt time.Time, tie
 	if strings.TrimSpace(decision.ObservedAt) != "" {
 		evaluation.ObservedAge, evaluation.ObservedAgeErr = witnessObservedAge(strings.TrimSpace(decision.ObservedAt), observedAt)
 	}
-	requiredNode := strings.TrimSpace(cfg.HighAvailability.WitnessRequiredNode)
+	requiredNode := effectiveWitnessRequiredNode(cfg, tier)
 	maxWitnessAge := time.Duration(evaluation.MaxAgeSeconds) * time.Second
 	switch {
 	case !decision.AllowPromotion:
@@ -677,6 +690,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	details["witness_configured_weight_by_tier"] = configuredWeightByTier
 	details["witness_min_approvals_by_tier"] = c.cfg.HighAvailability.WitnessMinApprovalsByTier
 	details["witness_min_weight_by_tier"] = c.cfg.HighAvailability.WitnessMinWeightByTier
+	details["witness_required_node_by_tier"] = c.cfg.HighAvailability.WitnessRequiredNodeByTier
 	details["witness_blocking_tiers"] = blockingTiers
 	details["witness_policy_mode"] = policyMode
 	details["witness_failure_tolerance"] = failureTolerance
@@ -854,6 +868,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 				"source":          witnessSources[witnessURL],
 				"confidence_tier": confidenceTier,
 				"max_age_seconds": evaluation.MaxAgeSeconds,
+				"required_node":   effectiveWitnessRequiredNode(c.cfg, confidenceTier),
 				"witness_node":    strings.TrimSpace(evaluation.Decision.WitnessNode),
 				"observed_at":     strings.TrimSpace(evaluation.Decision.ObservedAt),
 			}

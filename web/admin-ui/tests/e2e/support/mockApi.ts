@@ -209,6 +209,9 @@ function createSettings() {
         critical: 10,
         advisory: 30,
       },
+      witness_required_node_by_tier: {
+        critical: 'witness-a',
+      },
       witness_failure_tolerance_by_tier: {
         advisory: 1,
       },
@@ -427,6 +430,9 @@ function createSystemStatus() {
       witness_max_age_by_tier: {
         critical: 10,
         advisory: 30,
+      },
+      witness_required_node_by_tier: {
+        critical: 'witness-a',
       },
       witness_failure_tolerance_by_tier: {
         advisory: 1,
