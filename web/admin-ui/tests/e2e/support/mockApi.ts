@@ -196,6 +196,9 @@ function createSettings() {
         external: 'advisory',
       },
       witness_required_sources: ['local', 'external'],
+      witness_required_sources_by_tier: {
+        critical: ['local'],
+      },
       witness_policy_mode: 'all',
       witness_failure_tolerance: 1,
       witness_failure_weight_tolerance: 1,
@@ -420,6 +423,9 @@ function createSystemStatus() {
         external: 'advisory',
       },
       witness_required_sources: ['local', 'external'],
+      witness_required_sources_by_tier: {
+        critical: ['local'],
+      },
       witness_policy_mode: 'all',
       witness_failure_tolerance: 1,
       witness_failure_weight_tolerance: 1,

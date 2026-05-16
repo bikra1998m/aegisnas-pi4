@@ -1229,6 +1229,39 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessRequiredSourceUnknown.HighAvailability.WitnessRequiredSources = []string{"external"}
 	assert.ErrorContains(t, badWitnessRequiredSourceUnknown.Validate(), `high_availability.witness_required_sources entry "external" does not match a configured witness source`)
 
+	badWitnessRequiredSourceByTierUnknownTier := base()
+	badWitnessRequiredSourceByTierUnknownTier.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessRequiredSourceByTierUnknownTier.HighAvailability.WitnessQuorum = 1
+	badWitnessRequiredSourceByTierUnknownTier.HighAvailability.WitnessSources = map[string]string{
+		"https://witness-a.example.test/ha": "local",
+	}
+	badWitnessRequiredSourceByTierUnknownTier.HighAvailability.WitnessRequiredSourcesByTier = map[string][]string{
+		"critical": {"local"},
+	}
+	assert.ErrorContains(t, badWitnessRequiredSourceByTierUnknownTier.Validate(), `high_availability.witness_required_sources_by_tier key "critical" does not match a configured witness confidence tier`)
+
+	badWitnessRequiredSourceByTierBlankEntry := base()
+	badWitnessRequiredSourceByTierBlankEntry.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessRequiredSourceByTierBlankEntry.HighAvailability.WitnessQuorum = 1
+	badWitnessRequiredSourceByTierBlankEntry.HighAvailability.WitnessSources = map[string]string{
+		"https://witness-a.example.test/ha": "local",
+	}
+	badWitnessRequiredSourceByTierBlankEntry.HighAvailability.WitnessRequiredSourcesByTier = map[string][]string{
+		"standard": {" "},
+	}
+	assert.ErrorContains(t, badWitnessRequiredSourceByTierBlankEntry.Validate(), `high_availability.witness_required_sources_by_tier["standard"] entries must not be blank`)
+
+	badWitnessRequiredSourceByTierUnknownSource := base()
+	badWitnessRequiredSourceByTierUnknownSource.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessRequiredSourceByTierUnknownSource.HighAvailability.WitnessQuorum = 1
+	badWitnessRequiredSourceByTierUnknownSource.HighAvailability.WitnessSources = map[string]string{
+		"https://witness-a.example.test/ha": "local",
+	}
+	badWitnessRequiredSourceByTierUnknownSource.HighAvailability.WitnessRequiredSourcesByTier = map[string][]string{
+		"standard": {"external"},
+	}
+	assert.ErrorContains(t, badWitnessRequiredSourceByTierUnknownSource.Validate(), `high_availability.witness_required_sources_by_tier["standard"] entry "external" does not match a configured witness source`)
+
 	badWitnessConfidenceSourceUnknown := base()
 	badWitnessConfidenceSourceUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
 	badWitnessConfidenceSourceUnknown.HighAvailability.WitnessQuorum = 1
