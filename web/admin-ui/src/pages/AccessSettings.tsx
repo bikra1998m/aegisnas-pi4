@@ -337,6 +337,7 @@ const defaultSettings: JsonMap = {
       witness_min_weight_by_tier: {},
       witness_max_age_by_tier: {},
       witness_required_node_by_tier: {},
+      witness_signature_required_tiers: [],
       witness_replay_required_tiers: [],
       witness_failure_tolerance_by_tier: {},
       witness_failure_weight_tolerance_by_tier: {},
@@ -3195,6 +3196,25 @@ export default function AccessSettings() {
               placeholder={'critical=witness-a\nadvisory=witness-b'}
             />
             <p className="mt-1 text-xs text-gray-500">Optional per-tier required witness identities. Tiers without overrides fall back to the global Witness Required Node field.</p>
+          </div>
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Signature Required Tiers</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={(settings.high_availability?.witness_signature_required_tiers || []).join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+                updateField(
+                  ['high_availability', 'witness_signature_required_tiers'],
+                  event.target.value
+                    .split(/\r?\n/)
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                )
+              }
+              placeholder={'critical\nadvisory'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional confidence tiers that must return signed witness responses even when signature enforcement is not global.</p>
           </div>
           <div className="md:col-span-2 lg:col-span-4">
             <label className="mb-1 block text-sm font-medium text-gray-700">Witness Replay Required Tiers</label>

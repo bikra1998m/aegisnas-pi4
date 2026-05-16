@@ -53,13 +53,15 @@ type fencingResult struct {
 }
 
 type witnessDecision struct {
-	AllowPromotion   bool   `json:"allow_promotion"`
-	Summary          string `json:"summary,omitempty"`
-	ObservedAt       string `json:"observed_at,omitempty"`
-	WitnessNode      string `json:"witness_node,omitempty"`
-	Challenge        string `json:"challenge,omitempty"`
-	RequestChallenge string `json:"-"`
-	ReplayStatus     string `json:"-"`
+	AllowPromotion    bool   `json:"allow_promotion"`
+	Summary           string `json:"summary,omitempty"`
+	ObservedAt        string `json:"observed_at,omitempty"`
+	WitnessNode       string `json:"witness_node,omitempty"`
+	Challenge         string `json:"challenge,omitempty"`
+	RequestChallenge  string `json:"-"`
+	ReplayStatus      string `json:"-"`
+	SignatureStatus   string `json:"-"`
+	SignatureRequired bool   `json:"-"`
 }
 
 type witnessEvaluation struct {
@@ -112,34 +114,74 @@ func normalizeWitnessSignature(raw string) string {
 	return strings.TrimSpace(signature)
 }
 
-func verifyWitnessSignature(cfg *config.Config, headers http.Header, body []byte) error {
+func verifyWitnessSignature(cfg *config.Config, tier string, headers http.Header, body []byte) (string, error) {
 	if cfg == nil || strings.TrimSpace(cfg.HighAvailability.WitnessSigningKeyEnv) == "" {
-		return nil
+		return "disabled", nil
 	}
 	key := witnessSigningKey(cfg)
 	if key == "" {
-		return fmt.Errorf("%w %q", errWitnessSigningKeyMissing, strings.TrimSpace(cfg.HighAvailability.WitnessSigningKeyEnv))
+		return "missing", fmt.Errorf("%w %q", errWitnessSigningKeyMissing, strings.TrimSpace(cfg.HighAvailability.WitnessSigningKeyEnv))
 	}
+	required := witnessTierRequiresSignature(cfg, tier)
 	signature := normalizeWitnessSignature(headers.Get("X-AegisNAS-Witness-Signature"))
 	if signature == "" {
-		return errWitnessSignatureMissing
+		if required {
+			return "missing", errWitnessSignatureMissing
+		}
+		return "unsigned", nil
 	}
 	decodedSignature, err := hex.DecodeString(signature)
 	if err != nil {
-		return fmt.Errorf("%w: decode hex: %v", errWitnessSignatureInvalid, err)
+		return "invalid", fmt.Errorf("%w: decode hex: %v", errWitnessSignatureInvalid, err)
 	}
 	mac := hmac.New(sha256.New, []byte(key))
 	if _, err := mac.Write(body); err != nil {
-		return fmt.Errorf("sign witness response: %w", err)
+		return "invalid", fmt.Errorf("sign witness response: %w", err)
 	}
 	if !hmac.Equal(decodedSignature, mac.Sum(nil)) {
-		return errWitnessSignatureInvalid
+		return "invalid", errWitnessSignatureInvalid
 	}
-	return nil
+	return "verified", nil
 }
 
 func replayProtectionEnabled(cfg *config.Config) bool {
 	return cfg != nil && cfg.HighAvailability.WitnessReplayProtectionEnabled
+}
+
+func witnessSignatureRequiredTiers(cfg *config.Config) ([]string, map[string]struct{}) {
+	if cfg == nil {
+		return nil, map[string]struct{}{}
+	}
+	tiers := make([]string, 0, len(cfg.HighAvailability.WitnessSignatureRequiredTiers))
+	seen := make(map[string]struct{}, len(cfg.HighAvailability.WitnessSignatureRequiredTiers))
+	for _, tier := range cfg.HighAvailability.WitnessSignatureRequiredTiers {
+		trimmed := strings.TrimSpace(tier)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		tiers = append(tiers, trimmed)
+	}
+	return tiers, seen
+}
+
+func witnessTierRequiresSignature(cfg *config.Config, tier string) bool {
+	if cfg == nil {
+		return false
+	}
+	if replayProtectionEnabled(cfg) {
+		return true
+	}
+	tier = strings.TrimSpace(tier)
+	requiredTiers, requiredSet := witnessSignatureRequiredTiers(cfg)
+	if len(requiredTiers) == 0 {
+		return strings.TrimSpace(cfg.HighAvailability.WitnessSigningKeyEnv) != ""
+	}
+	_, ok := requiredSet[tier]
+	return ok
 }
 
 func witnessReplayRequiredTiers(cfg *config.Config) ([]string, map[string]struct{}) {
@@ -513,6 +555,20 @@ func effectiveWitnessRequiredNode(cfg *config.Config, tier string) string {
 	return strings.TrimSpace(cfg.HighAvailability.WitnessRequiredNode)
 }
 
+func effectiveWitnessConfidenceForURL(cfg *config.Config, witnessURL string) string {
+	witnessURL = strings.TrimSpace(witnessURL)
+	if witnessURL == "" {
+		return "standard"
+	}
+	urls := []string{witnessURL}
+	sources, _ := effectiveWitnessSources(cfg, urls)
+	confidence, _ := effectiveWitnessConfidence(cfg, urls, sources)
+	if tier := strings.TrimSpace(confidence[witnessURL]); tier != "" {
+		return tier
+	}
+	return "standard"
+}
+
 func evaluateWitnessDecisionPolicy(cfg *config.Config, observedAt time.Time, tier string, decision witnessDecision) witnessEvaluation {
 	evaluation := witnessEvaluation{
 		Status:        "ok",
@@ -533,10 +589,21 @@ func evaluateWitnessDecisionPolicy(cfg *config.Config, observedAt time.Time, tie
 	}
 	requiredNode := effectiveWitnessRequiredNode(cfg, tier)
 	replayRequired := witnessTierRequiresReplay(cfg, tier)
+	signatureRequired := witnessTierRequiresSignature(cfg, tier)
 	maxWitnessAge := time.Duration(evaluation.MaxAgeSeconds) * time.Second
 	switch {
 	case !decision.AllowPromotion:
 		evaluation.Status = "blocked"
+		evaluation.Allowed = false
+	case signatureRequired && decision.SignatureStatus == "missing":
+		evaluation.Status = "signature_missing"
+		evaluation.Summary = "External HA witness did not include the signed response required by local signature policy."
+		evaluation.Err = errWitnessSignatureMissing
+		evaluation.Allowed = false
+	case signatureRequired && decision.SignatureStatus == "invalid":
+		evaluation.Status = "signature_invalid"
+		evaluation.Summary = "External HA witness signature failed local signature policy verification."
+		evaluation.Err = errWitnessSignatureInvalid
 		evaluation.Allowed = false
 	case replayRequired && decision.ReplayStatus == "missing":
 		evaluation.Status = "replay_missing"
@@ -719,6 +786,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	}
 	blockingTiers, blockingTierSet := witnessBlockingTiers(c.cfg)
 	requiredSources := requiredWitnessSources(c.cfg)
+	signatureRequiredTiers, _ := witnessSignatureRequiredTiers(c.cfg)
 	replayRequiredTiers, _ := witnessReplayRequiredTiers(c.cfg)
 	policyMode := witnessPolicyMode(c.cfg)
 	failureTolerance := effectiveWitnessFailureTolerance(c.cfg, len(witnessURLs))
@@ -742,6 +810,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	details["witness_min_approvals_by_tier"] = c.cfg.HighAvailability.WitnessMinApprovalsByTier
 	details["witness_min_weight_by_tier"] = c.cfg.HighAvailability.WitnessMinWeightByTier
 	details["witness_required_node_by_tier"] = c.cfg.HighAvailability.WitnessRequiredNodeByTier
+	details["witness_signature_required_tiers"] = signatureRequiredTiers
 	details["witness_replay_required_tiers"] = replayRequiredTiers
 	details["witness_blocking_tiers"] = blockingTiers
 	details["witness_policy_mode"] = policyMode
@@ -760,6 +829,9 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	}
 	if strings.TrimSpace(c.cfg.HighAvailability.WitnessSigningKeyEnv) != "" {
 		details["witness_signature_status"] = "configured"
+		if len(signatureRequiredTiers) > 0 && !replayProtectionEnabled(c.cfg) {
+			details["witness_signature_status"] = "tiered"
+		}
 	} else {
 		details["witness_signature_status"] = "disabled"
 	}
@@ -913,20 +985,22 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 				}
 			}
 			entry := map[string]any{
-				"url":             evaluation.URL,
-				"status":          evaluation.Status,
-				"summary":         evaluation.Summary,
-				"allow_promotion": evaluation.Allowed,
-				"weight":          witnessWeights[witnessURL],
-				"group":           witnessGroups[witnessURL],
-				"source":          witnessSources[witnessURL],
-				"confidence_tier": confidenceTier,
-				"max_age_seconds": evaluation.MaxAgeSeconds,
-				"required_node":   effectiveWitnessRequiredNode(c.cfg, confidenceTier),
-				"replay_required": witnessTierRequiresReplay(c.cfg, confidenceTier),
-				"replay_status":   strings.TrimSpace(evaluation.Decision.ReplayStatus),
-				"witness_node":    strings.TrimSpace(evaluation.Decision.WitnessNode),
-				"observed_at":     strings.TrimSpace(evaluation.Decision.ObservedAt),
+				"url":                evaluation.URL,
+				"status":             evaluation.Status,
+				"summary":            evaluation.Summary,
+				"allow_promotion":    evaluation.Allowed,
+				"weight":             witnessWeights[witnessURL],
+				"group":              witnessGroups[witnessURL],
+				"source":             witnessSources[witnessURL],
+				"confidence_tier":    confidenceTier,
+				"signature_required": decision.SignatureRequired,
+				"signature_status":   strings.TrimSpace(evaluation.Decision.SignatureStatus),
+				"max_age_seconds":    evaluation.MaxAgeSeconds,
+				"required_node":      effectiveWitnessRequiredNode(c.cfg, confidenceTier),
+				"replay_required":    witnessTierRequiresReplay(c.cfg, confidenceTier),
+				"replay_status":      strings.TrimSpace(evaluation.Decision.ReplayStatus),
+				"witness_node":       strings.TrimSpace(evaluation.Decision.WitnessNode),
+				"observed_at":        strings.TrimSpace(evaluation.Decision.ObservedAt),
 			}
 			if evaluation.ObservedAgeErr == nil && strings.TrimSpace(evaluation.Decision.ObservedAt) != "" {
 				entry["observed_age_seconds"] = int(evaluation.ObservedAge.Seconds())
@@ -1233,7 +1307,11 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		}
 	} else {
 		if strings.TrimSpace(c.cfg.HighAvailability.WitnessSigningKeyEnv) != "" {
-			details["witness_signature_status"] = "verified"
+			if len(signatureRequiredTiers) > 0 && !replayProtectionEnabled(c.cfg) {
+				details["witness_signature_status"] = "tiered_verified"
+			} else {
+				details["witness_signature_status"] = "verified"
+			}
 		}
 		if witnessChallengeEnabled(c.cfg) {
 			details["witness_replay_status"] = "verified"
@@ -1279,6 +1357,7 @@ func probeWitnessDecisionURL(cfg *config.Config, client httpDoer, url string) (w
 		return decision, fmt.Errorf("ha witness probe requires a config")
 	}
 	url = strings.TrimSpace(url)
+	tier := effectiveWitnessConfidenceForURL(cfg, url)
 	if url == "" {
 		return decision, fmt.Errorf("ha witness probe requires high_availability.witness_api_url")
 	}
@@ -1323,7 +1402,10 @@ func probeWitnessDecisionURL(cfg *config.Config, client httpDoer, url string) (w
 	if err != nil {
 		return decision, fmt.Errorf("read witness response: %w", err)
 	}
-	if err := verifyWitnessSignature(cfg, resp.Header, body); err != nil {
+	signatureStatus, err := verifyWitnessSignature(cfg, tier, resp.Header, body)
+	decision.SignatureRequired = witnessTierRequiresSignature(cfg, tier)
+	decision.SignatureStatus = signatureStatus
+	if err != nil {
 		return decision, err
 	}
 	if err := json.Unmarshal(body, &decision); err != nil {

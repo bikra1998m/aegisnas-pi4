@@ -1100,6 +1100,20 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessNodeByTierBlank.HighAvailability.WitnessRequiredNodeByTier = map[string]string{"standard": " "}
 	assert.ErrorContains(t, badWitnessNodeByTierBlank.Validate(), `high_availability.witness_required_node_by_tier["standard"] must not be blank`)
 
+	badWitnessSignatureTierUnknown := base()
+	badWitnessSignatureTierUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessSignatureTierUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessSignatureTierUnknown.HighAvailability.WitnessSigningKeyEnv = "AEGIS_WITNESS_SIGNING_KEY"
+	badWitnessSignatureTierUnknown.HighAvailability.WitnessSignatureRequiredTiers = []string{"critical"}
+	assert.ErrorContains(t, badWitnessSignatureTierUnknown.Validate(), `high_availability.witness_signature_required_tiers entry "critical" does not match a configured witness confidence tier`)
+
+	badWitnessSignatureTierBlank := base()
+	badWitnessSignatureTierBlank.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessSignatureTierBlank.HighAvailability.WitnessQuorum = 1
+	badWitnessSignatureTierBlank.HighAvailability.WitnessSigningKeyEnv = "AEGIS_WITNESS_SIGNING_KEY"
+	badWitnessSignatureTierBlank.HighAvailability.WitnessSignatureRequiredTiers = []string{" "}
+	assert.ErrorContains(t, badWitnessSignatureTierBlank.Validate(), "high_availability.witness_signature_required_tiers entries must not be blank")
+
 	badWitnessReplayTierUnknown := base()
 	badWitnessReplayTierUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
 	badWitnessReplayTierUnknown.HighAvailability.WitnessQuorum = 1
@@ -1393,6 +1407,12 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessReplayTierNoSigning.HighAvailability.WitnessQuorum = 1
 	badWitnessReplayTierNoSigning.HighAvailability.WitnessReplayRequiredTiers = []string{"standard"}
 	assert.ErrorContains(t, badWitnessReplayTierNoSigning.Validate(), "high_availability.witness_replay_required_tiers requires high_availability.witness_signing_key_env")
+
+	badWitnessSignatureTierNoSigning := base()
+	badWitnessSignatureTierNoSigning.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessSignatureTierNoSigning.HighAvailability.WitnessQuorum = 1
+	badWitnessSignatureTierNoSigning.HighAvailability.WitnessSignatureRequiredTiers = []string{"standard"}
+	assert.ErrorContains(t, badWitnessSignatureTierNoSigning.Validate(), "high_availability.witness_signature_required_tiers requires high_availability.witness_signing_key_env")
 
 	badSigning := base()
 	badSigning.HighAvailability.Enabled = false

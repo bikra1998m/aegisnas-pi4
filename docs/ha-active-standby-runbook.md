@@ -106,6 +106,8 @@ high_availability:
     "advisory": 30
   witness_required_node_by_tier:
     "critical": "witness-a"
+  witness_signature_required_tiers:
+    - "critical"
   witness_replay_required_tiers:
     - "critical"
   witness_failure_tolerance_by_tier:
@@ -152,6 +154,7 @@ Guidance:
 - `witness_min_weight_by_tier`: optional per-tier weight floors; promotion must include at least this much witness weight from each listed confidence tier
 - `witness_max_age_by_tier`: optional per-tier freshness overrides in seconds; tiers without overrides fall back to `witness_max_age_seconds`
 - `witness_required_node_by_tier`: optional per-tier witness identities; tiers without overrides fall back to `witness_required_node`
+- `witness_signature_required_tiers`: optional confidence tiers that must return signed witness responses even when signature enforcement is not global
 - `witness_replay_required_tiers`: optional confidence tiers that must satisfy replay challenge verification even when global `witness_replay_protection_enabled` is disabled
 - `witness_failure_tolerance_by_tier`: optional per-tier failed witness count budgets; tiers without overrides fall back to `witness_failure_tolerance`
 - `witness_failure_weight_tolerance_by_tier`: optional per-tier failed witness weight budgets; tiers without overrides fall back to `witness_failure_weight_tolerance`

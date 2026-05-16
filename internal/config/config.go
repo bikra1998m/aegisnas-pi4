@@ -402,6 +402,7 @@ type HighAvailabilityConfig struct {
 	WitnessMinWeightByTier         map[string]int    `mapstructure:"witness_min_weight_by_tier"`
 	WitnessMaxAgeByTier            map[string]int    `mapstructure:"witness_max_age_by_tier"`
 	WitnessRequiredNodeByTier      map[string]string `mapstructure:"witness_required_node_by_tier"`
+	WitnessSignatureRequiredTiers  []string          `mapstructure:"witness_signature_required_tiers"`
 	WitnessReplayRequiredTiers     []string          `mapstructure:"witness_replay_required_tiers"`
 	WitnessFailureToleranceByTier  map[string]int    `mapstructure:"witness_failure_tolerance_by_tier"`
 	WitnessFailureWeightByTier     map[string]int    `mapstructure:"witness_failure_weight_tolerance_by_tier"`
@@ -648,6 +649,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.witness_min_weight_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_max_age_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_required_node_by_tier", map[string]string{})
+	v.SetDefault("high_availability.witness_signature_required_tiers", []string{})
 	v.SetDefault("high_availability.witness_replay_required_tiers", []string{})
 	v.SetDefault("high_availability.witness_failure_tolerance_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_failure_weight_tolerance_by_tier", map[string]int{})
@@ -1473,6 +1475,15 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("high_availability.witness_required_node_by_tier[%q] must not be blank", trimmedTier)
 			}
 		}
+		for _, tier := range c.HighAvailability.WitnessSignatureRequiredTiers {
+			trimmedTier := strings.TrimSpace(tier)
+			if trimmedTier == "" {
+				return errors.New("high_availability.witness_signature_required_tiers entries must not be blank")
+			}
+			if !slices.Contains(distinctTiers, trimmedTier) {
+				return fmt.Errorf("high_availability.witness_signature_required_tiers entry %q does not match a configured witness confidence tier", trimmedTier)
+			}
+		}
 		for _, tier := range c.HighAvailability.WitnessReplayRequiredTiers {
 			trimmedTier := strings.TrimSpace(tier)
 			if trimmedTier == "" {
@@ -1666,6 +1677,17 @@ func (c *Config) Validate() error {
 		}
 		if len(witnessURLs) == 0 {
 			return errors.New("high_availability.witness_required_node_by_tier requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessSignatureRequiredTiers) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_signature_required_tiers requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_signature_required_tiers requires high_availability.witness_api_url")
+		}
+		if strings.TrimSpace(c.HighAvailability.WitnessSigningKeyEnv) == "" {
+			return errors.New("high_availability.witness_signature_required_tiers requires high_availability.witness_signing_key_env")
 		}
 	}
 	if len(c.HighAvailability.WitnessReplayRequiredTiers) > 0 {

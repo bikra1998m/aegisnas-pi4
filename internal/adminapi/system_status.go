@@ -298,6 +298,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"witness_min_weight_by_tier":               cfg.HighAvailability.WitnessMinWeightByTier,
 			"witness_max_age_by_tier":                  cfg.HighAvailability.WitnessMaxAgeByTier,
 			"witness_required_node_by_tier":            cfg.HighAvailability.WitnessRequiredNodeByTier,
+			"witness_signature_required_tiers":         cfg.HighAvailability.WitnessSignatureRequiredTiers,
 			"witness_replay_required_tiers":            cfg.HighAvailability.WitnessReplayRequiredTiers,
 			"witness_failure_tolerance_by_tier":        cfg.HighAvailability.WitnessFailureToleranceByTier,
 			"witness_failure_weight_tolerance_by_tier": cfg.HighAvailability.WitnessFailureWeightByTier,

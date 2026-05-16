@@ -125,6 +125,7 @@ type SystemStatus = {
     witness_min_weight_by_tier: Record<string, number>;
     witness_max_age_by_tier: Record<string, number>;
     witness_required_node_by_tier: Record<string, string>;
+    witness_signature_required_tiers: string[];
     witness_replay_required_tiers: string[];
     witness_failure_tolerance_by_tier: Record<string, number>;
     witness_failure_weight_tolerance_by_tier: Record<string, number>;
@@ -748,6 +749,9 @@ export default function Dashboard() {
                           ? `, tier node ${Object.entries(systemStatus.high_availability.witness_required_node_by_tier)
                               .map(([tier, node]) => `${tier}=${node}`)
                               .join(', ')}`
+                          : ''}
+                        {systemStatus.high_availability.witness_signature_required_tiers?.length
+                          ? `, tier signature ${systemStatus.high_availability.witness_signature_required_tiers.join(', ')}`
                           : ''}
                         {systemStatus.high_availability.witness_replay_required_tiers?.length
                           ? `, tier replay ${systemStatus.high_availability.witness_replay_required_tiers.join(', ')}`
