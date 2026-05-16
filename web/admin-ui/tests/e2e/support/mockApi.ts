@@ -199,6 +199,9 @@ function createSettings() {
       witness_required_sources_by_tier: {
         critical: ['local'],
       },
+      witness_required_groups_by_tier: {
+        critical: ['dc-a'],
+      },
       witness_policy_mode: 'all',
       witness_failure_tolerance: 1,
       witness_failure_weight_tolerance: 1,
@@ -425,6 +428,9 @@ function createSystemStatus() {
       witness_required_sources: ['local', 'external'],
       witness_required_sources_by_tier: {
         critical: ['local'],
+      },
+      witness_required_groups_by_tier: {
+        critical: ['dc-a'],
       },
       witness_policy_mode: 'all',
       witness_failure_tolerance: 1,

@@ -119,6 +119,7 @@ type SystemStatus = {
     witness_source_confidence: Record<string, string>;
     witness_required_sources: string[];
     witness_required_sources_by_tier: Record<string, string[]>;
+    witness_required_groups_by_tier: Record<string, string[]>;
     witness_policy_mode: string;
     witness_failure_tolerance: number;
     witness_failure_weight_tolerance: number;
@@ -730,6 +731,11 @@ export default function Dashboard() {
                         {Object.keys(systemStatus.high_availability.witness_required_sources_by_tier || {}).length > 0
                           ? `, tier sources ${Object.entries(systemStatus.high_availability.witness_required_sources_by_tier)
                               .map(([tier, sources]) => `${tier}=${(sources || []).join(',')}`)
+                              .join(', ')}`
+                          : ''}
+                        {Object.keys(systemStatus.high_availability.witness_required_groups_by_tier || {}).length > 0
+                          ? `, tier groups ${Object.entries(systemStatus.high_availability.witness_required_groups_by_tier)
+                              .map(([tier, groups]) => `${tier}=${(groups || []).join(',')}`)
                               .join(', ')}`
                           : ''}
                         {systemStatus.high_availability.runtime?.details?.witness_allow_promotion !== undefined

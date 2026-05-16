@@ -467,6 +467,37 @@ func requiredWitnessSourcesByTier(cfg *config.Config) map[string][]string {
 	return required
 }
 
+func requiredWitnessGroupsByTier(cfg *config.Config) map[string][]string {
+	if cfg == nil || cfg.HighAvailability.WitnessRequiredGroupsByTier == nil {
+		return nil
+	}
+	required := make(map[string][]string, len(cfg.HighAvailability.WitnessRequiredGroupsByTier))
+	for tier, groups := range cfg.HighAvailability.WitnessRequiredGroupsByTier {
+		trimmedTier := strings.TrimSpace(tier)
+		if trimmedTier == "" {
+			continue
+		}
+		seen := make(map[string]struct{}, len(groups))
+		normalized := make([]string, 0, len(groups))
+		for _, group := range groups {
+			trimmedGroup := strings.TrimSpace(group)
+			if trimmedGroup == "" {
+				continue
+			}
+			if _, exists := seen[trimmedGroup]; exists {
+				continue
+			}
+			seen[trimmedGroup] = struct{}{}
+			normalized = append(normalized, trimmedGroup)
+		}
+		if len(normalized) == 0 {
+			continue
+		}
+		required[trimmedTier] = normalized
+	}
+	return required
+}
+
 func mapKeysSorted(values map[string]struct{}) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {
@@ -831,6 +862,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	blockingTiers, blockingTierSet := witnessBlockingTiers(c.cfg)
 	requiredSources := requiredWitnessSources(c.cfg)
 	requiredSourcesByTier := requiredWitnessSourcesByTier(c.cfg)
+	requiredGroupsByTier := requiredWitnessGroupsByTier(c.cfg)
 	signatureRequiredTiers, _ := witnessSignatureRequiredTiers(c.cfg)
 	replayRequiredTiers, _ := witnessReplayRequiredTiers(c.cfg)
 	policyMode := witnessPolicyMode(c.cfg)
@@ -849,6 +881,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	details["witness_total_source_count"] = len(distinctWitnessSources)
 	details["witness_required_sources"] = requiredSources
 	details["witness_required_sources_by_tier"] = requiredSourcesByTier
+	details["witness_required_groups_by_tier"] = requiredGroupsByTier
 	details["witness_confidence"] = witnessConfidence
 	details["witness_total_tier_count"] = len(distinctWitnessConfidence)
 	details["witness_configured_count_by_tier"] = configuredCountByTier
@@ -977,6 +1010,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		failureCount := 0
 		failureWeight := 0
 		allowGroups := make(map[string]struct{}, len(witnessURLs))
+		allowGroupsByTier := make(map[string]map[string]struct{}, len(distinctWitnessConfidence))
 		allowSources := make(map[string]struct{}, len(witnessURLs))
 		allowSourcesByTier := make(map[string]map[string]struct{}, len(distinctWitnessConfidence))
 		allowCountByTier := make(map[string]int, len(distinctWitnessConfidence))
@@ -1009,6 +1043,12 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 				allowWeightByTier[confidenceTier] += witnessWeights[witnessURL]
 				if group := strings.TrimSpace(witnessGroups[witnessURL]); group != "" {
 					allowGroups[group] = struct{}{}
+					tierGroups := allowGroupsByTier[confidenceTier]
+					if tierGroups == nil {
+						tierGroups = make(map[string]struct{})
+						allowGroupsByTier[confidenceTier] = tierGroups
+					}
+					tierGroups[group] = struct{}{}
 				}
 				if source := strings.TrimSpace(witnessSources[witnessURL]); source != "" {
 					allowSources[source] = struct{}{}
@@ -1075,6 +1115,11 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		details["witness_allow_weight"] = allowWeight
 		details["witness_allow_group_count"] = len(allowGroups)
 		details["witness_allow_source_count"] = len(allowSources)
+		allowGroupsByTierFormatted := make(map[string][]string, len(allowGroupsByTier))
+		for tier, groups := range allowGroupsByTier {
+			allowGroupsByTierFormatted[tier] = mapKeysSorted(groups)
+		}
+		details["witness_allow_groups_by_tier"] = allowGroupsByTierFormatted
 		details["witness_allow_sources"] = mapKeysSorted(allowSources)
 		allowSourcesByTierFormatted := make(map[string][]string, len(allowSourcesByTier))
 		for tier, sources := range allowSourcesByTier {
@@ -1170,6 +1215,32 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		if len(missingTierSources) > 0 {
 			details["witness_missing_tier_sources"] = missingTierSources
 		}
+		tierGroupSatisfied := true
+		missingTierGroups := make([]string, 0)
+		for tier, requiredTierGroups := range requiredGroupsByTier {
+			if len(requiredTierGroups) == 0 {
+				continue
+			}
+			availableGroups := allowGroupsByTier[tier]
+			missingForTier := make([]string, 0)
+			for _, group := range requiredTierGroups {
+				if _, ok := availableGroups[group]; ok {
+					continue
+				}
+				missingForTier = append(missingForTier, group)
+			}
+			if len(missingForTier) == 0 {
+				continue
+			}
+			tierGroupSatisfied = false
+			sort.Strings(missingForTier)
+			missingTierGroups = append(missingTierGroups, fmt.Sprintf("%s missing %s", tier, strings.Join(missingForTier, ",")))
+		}
+		sort.Strings(missingTierGroups)
+		details["witness_tier_group_rule_satisfied"] = tierGroupSatisfied
+		if len(missingTierGroups) > 0 {
+			details["witness_missing_tier_groups"] = missingTierGroups
+		}
 		groupSatisfied := groupThreshold <= 0 || len(allowGroups) >= groupThreshold
 		groupConfigured := groupThreshold > 0
 		sourceSatisfied := true
@@ -1238,7 +1309,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 			} else {
 				result.WitnessSummary = fmt.Sprintf("Witness tier %s blocked standby promotion.", blockingDenyTier)
 			}
-		} else if allowCount >= effectiveQuorum && weightSatisfied && tierApprovalsSatisfied && tierWeightSatisfied && tierSourceSatisfied && policySatisfied {
+		} else if allowCount >= effectiveQuorum && weightSatisfied && tierApprovalsSatisfied && tierWeightSatisfied && tierSourceSatisfied && tierGroupSatisfied && policySatisfied {
 			result.WitnessAllowed = true
 			result.AllowPromotion = result.AllowPromotion && true
 			if len(witnessURLs) == 1 {
@@ -1253,7 +1324,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d; witness policy mode any is satisfied by group diversity (%d/%d) even though required sources %s are not all present.", allowCount, len(witnessURLs), allowWeight, len(allowGroups), groupThreshold, strings.Join(requiredSources, ", "))
 				case policyMode == "any" && groupConfigured && sourceConfigured && !groupSatisfied && sourceSatisfied:
 					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d; witness policy mode any is satisfied by required sources %s even though group diversity is %d/%d.", allowCount, len(witnessURLs), allowWeight, strings.Join(requiredSources, ", "), len(allowGroups), groupThreshold)
-				case len(c.cfg.HighAvailability.WitnessMinApprovalsByTier) > 0 || len(c.cfg.HighAvailability.WitnessMinWeightByTier) > 0 || len(requiredSourcesByTier) > 0:
+				case len(c.cfg.HighAvailability.WitnessMinApprovalsByTier) > 0 || len(c.cfg.HighAvailability.WitnessMinWeightByTier) > 0 || len(requiredSourcesByTier) > 0 || len(requiredGroupsByTier) > 0:
 					summaryParts := make([]string, 0, 2)
 					if len(c.cfg.HighAvailability.WitnessMinApprovalsByTier) > 0 {
 						summaryParts = append(summaryParts, fmt.Sprintf("tier approvals %s", strings.Join(formatIntMapSorted(c.cfg.HighAvailability.WitnessMinApprovalsByTier), ", ")))
@@ -1263,6 +1334,9 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 					}
 					if len(requiredSourcesByTier) > 0 {
 						summaryParts = append(summaryParts, fmt.Sprintf("tier sources %s", strings.Join(formatStringSliceMapSorted(requiredSourcesByTier), ", ")))
+					}
+					if len(requiredGroupsByTier) > 0 {
+						summaryParts = append(summaryParts, fmt.Sprintf("tier groups %s", strings.Join(formatStringSliceMapSorted(requiredGroupsByTier), ", ")))
 					}
 					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with %s satisfied.", allowCount, len(witnessURLs), strings.Join(summaryParts, " and "))
 				case weightThreshold > 0 && groupThreshold > 0 && len(requiredSources) > 0:
@@ -1323,6 +1397,13 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 					} else {
 						result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion, but tier source rules are unmet: %s.", allowCount, len(witnessURLs), strings.Join(missingTierSources, ", "))
 					}
+				} else if allowCount >= effectiveQuorum && weightSatisfied && tierApprovalsSatisfied && tierWeightSatisfied && tierSourceSatisfied && !tierGroupSatisfied {
+					result.WitnessStatus = "tier_group_unmet"
+					if firstFailureSummary != "" {
+						result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion, but tier group rules are unmet: %s. First blocking result: %s", allowCount, len(witnessURLs), strings.Join(missingTierGroups, ", "), firstFailureSummary)
+					} else {
+						result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion, but tier group rules are unmet: %s.", allowCount, len(witnessURLs), strings.Join(missingTierGroups, ", "))
+					}
 				} else if allowCount >= effectiveQuorum && weightSatisfied && !groupSatisfied {
 					result.WitnessStatus = "diversity_unmet"
 					if firstFailureSummary != "" {
@@ -1377,7 +1458,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	if result.WitnessNode != "" {
 		details["witness_node"] = result.WitnessNode
 	}
-	if result.WitnessStatus == "ok" || result.WitnessStatus == "blocked" || result.WitnessStatus == "quorum_met" || result.WitnessStatus == "quorum_unmet" || result.WitnessStatus == "weight_unmet" || result.WitnessStatus == "diversity_unmet" || result.WitnessStatus == "source_unmet" || result.WitnessStatus == "policy_any_unmet" || result.WitnessStatus == "blocking_deny" || result.WitnessStatus == "tier_approval_unmet" || result.WitnessStatus == "tier_weight_unmet" || result.WitnessStatus == "tier_source_unmet" {
+	if result.WitnessStatus == "ok" || result.WitnessStatus == "blocked" || result.WitnessStatus == "quorum_met" || result.WitnessStatus == "quorum_unmet" || result.WitnessStatus == "weight_unmet" || result.WitnessStatus == "diversity_unmet" || result.WitnessStatus == "source_unmet" || result.WitnessStatus == "policy_any_unmet" || result.WitnessStatus == "blocking_deny" || result.WitnessStatus == "tier_approval_unmet" || result.WitnessStatus == "tier_weight_unmet" || result.WitnessStatus == "tier_source_unmet" || result.WitnessStatus == "tier_group_unmet" {
 		details["witness_allow_promotion"] = result.WitnessAllowed
 	}
 	if result.WitnessError != nil {

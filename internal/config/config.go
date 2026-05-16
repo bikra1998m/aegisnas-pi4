@@ -401,6 +401,7 @@ type HighAvailabilityConfig struct {
 	WitnessMinApprovalsByTier      map[string]int      `mapstructure:"witness_min_approvals_by_tier"`
 	WitnessMinWeightByTier         map[string]int      `mapstructure:"witness_min_weight_by_tier"`
 	WitnessRequiredSourcesByTier   map[string][]string `mapstructure:"witness_required_sources_by_tier"`
+	WitnessRequiredGroupsByTier    map[string][]string `mapstructure:"witness_required_groups_by_tier"`
 	WitnessMaxAgeByTier            map[string]int      `mapstructure:"witness_max_age_by_tier"`
 	WitnessRequiredNodeByTier      map[string]string   `mapstructure:"witness_required_node_by_tier"`
 	WitnessSignatureRequiredTiers  []string            `mapstructure:"witness_signature_required_tiers"`
@@ -649,6 +650,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.witness_min_approvals_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_min_weight_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_required_sources_by_tier", map[string][]string{})
+	v.SetDefault("high_availability.witness_required_groups_by_tier", map[string][]string{})
 	v.SetDefault("high_availability.witness_max_age_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_required_node_by_tier", map[string]string{})
 	v.SetDefault("high_availability.witness_signature_required_tiers", []string{})
@@ -1375,8 +1377,8 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("high_availability.witness_groups[%q] must not be blank", trimmedURL)
 			}
 		}
+		_, distinctGroups := effectiveWitnessGroups(witnessURLs, c.HighAvailability.WitnessGroups)
 		if c.HighAvailability.WitnessMinDistinctGroups > 0 {
-			_, distinctGroups := effectiveWitnessGroups(witnessURLs, c.HighAvailability.WitnessGroups)
 			if c.HighAvailability.WitnessMinDistinctGroups > len(distinctGroups) {
 				return fmt.Errorf("high_availability.witness_min_distinct_groups %d cannot exceed configured witness group count %d", c.HighAvailability.WitnessMinDistinctGroups, len(distinctGroups))
 			}
@@ -1468,6 +1470,24 @@ func (c *Config) Validate() error {
 				}
 				if !slices.Contains(distinctSources, trimmedSource) {
 					return fmt.Errorf("high_availability.witness_required_sources_by_tier[%q] entry %q does not match a configured witness source", trimmedTier, trimmedSource)
+				}
+			}
+		}
+		for tier, groups := range c.HighAvailability.WitnessRequiredGroupsByTier {
+			trimmedTier := strings.TrimSpace(tier)
+			if trimmedTier == "" {
+				return errors.New("high_availability.witness_required_groups_by_tier keys cannot be blank")
+			}
+			if !slices.Contains(distinctTiers, trimmedTier) {
+				return fmt.Errorf("high_availability.witness_required_groups_by_tier key %q does not match a configured witness confidence tier", trimmedTier)
+			}
+			for _, group := range groups {
+				trimmedGroup := strings.TrimSpace(group)
+				if trimmedGroup == "" {
+					return fmt.Errorf("high_availability.witness_required_groups_by_tier[%q] entries must not be blank", trimmedTier)
+				}
+				if !slices.Contains(distinctGroups, trimmedGroup) {
+					return fmt.Errorf("high_availability.witness_required_groups_by_tier[%q] entry %q does not match a configured witness group", trimmedTier, trimmedGroup)
 				}
 			}
 		}
@@ -1689,6 +1709,14 @@ func (c *Config) Validate() error {
 		}
 		if len(witnessURLs) == 0 {
 			return errors.New("high_availability.witness_required_sources_by_tier requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessRequiredGroupsByTier) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_required_groups_by_tier requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_required_groups_by_tier requires high_availability.witness_api_url")
 		}
 	}
 	if len(c.HighAvailability.WitnessMaxAgeByTier) > 0 {

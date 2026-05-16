@@ -294,6 +294,7 @@ high_availability:
   witness_source_confidence: {} # Optional source-to-confidence-tier mapping. Unlisted sources use the standard confidence tier.
   witness_required_sources: [] # Optional source classes that must all appear in witness approvals before promotion is allowed.
   witness_required_sources_by_tier: {} # Optional per-tier source classes. Each listed tier must include approvals from the named sources.
+  witness_required_groups_by_tier: {} # Optional per-tier witness groups. Each listed tier must include approvals from the named groups.
   witness_policy_mode: "all" # all, any, group_only, or source_only for combining group and source diversity rules.
   witness_failure_tolerance: 0 # Optional number of failed witness probes that may reduce the required quorum during promotion.
   witness_failure_weight_tolerance: 0 # Optional amount of failed witness weight that may reduce the effective weight threshold.

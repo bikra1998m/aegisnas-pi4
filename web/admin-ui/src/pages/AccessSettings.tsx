@@ -331,6 +331,7 @@ const defaultSettings: JsonMap = {
       witness_source_confidence: {},
       witness_required_sources: [],
       witness_required_sources_by_tier: {},
+      witness_required_groups_by_tier: {},
       witness_policy_mode: 'all',
       witness_failure_tolerance: 0,
       witness_failure_weight_tolerance: 0,
@@ -3046,6 +3047,41 @@ export default function AccessSettings() {
               placeholder={'critical=local\nadvisory=external,cloud'}
             />
             <p className="mt-1 text-xs text-gray-500">Optional per-tier source rules. Each listed tier must include approvals from the named source classes.</p>
+          </div>
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Required Groups By Tier</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={Object.entries(settings.high_availability?.witness_required_groups_by_tier || {})
+                .map(([tier, groups]) => `${tier}=${(Array.isArray(groups) ? groups : []).join(',')}`)
+                .join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                const requiredByTier: Record<string, string[]> = {};
+                event.target.value
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .forEach((line) => {
+                    const parts = line.split('=');
+                    const tier = parts.slice(0, -1).join('=').trim();
+                    const rawGroups = parts.length > 1 ? parts[parts.length - 1].trim() : '';
+                    if (!tier || !rawGroups) {
+                      return;
+                    }
+                    const groups = rawGroups
+                      .split(',')
+                      .map((group) => group.trim())
+                      .filter(Boolean);
+                    if (groups.length > 0) {
+                      requiredByTier[tier] = groups;
+                    }
+                  });
+                updateField(['high_availability', 'witness_required_groups_by_tier'], requiredByTier);
+              }}
+              placeholder={'critical=dc-a\nadvisory=dc-b,cloud'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional per-tier group rules. Each listed tier must include approvals from the named witness groups.</p>
           </div>
           <div className="md:col-span-2 lg:col-span-4">
             <label className="mb-1 block text-sm font-medium text-gray-700">Witness Source Confidence</label>
