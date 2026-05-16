@@ -53,11 +53,13 @@ type fencingResult struct {
 }
 
 type witnessDecision struct {
-	AllowPromotion bool   `json:"allow_promotion"`
-	Summary        string `json:"summary,omitempty"`
-	ObservedAt     string `json:"observed_at,omitempty"`
-	WitnessNode    string `json:"witness_node,omitempty"`
-	Challenge      string `json:"challenge,omitempty"`
+	AllowPromotion   bool   `json:"allow_promotion"`
+	Summary          string `json:"summary,omitempty"`
+	ObservedAt       string `json:"observed_at,omitempty"`
+	WitnessNode      string `json:"witness_node,omitempty"`
+	Challenge        string `json:"challenge,omitempty"`
+	RequestChallenge string `json:"-"`
+	ReplayStatus     string `json:"-"`
 }
 
 type witnessEvaluation struct {
@@ -138,6 +140,43 @@ func verifyWitnessSignature(cfg *config.Config, headers http.Header, body []byte
 
 func replayProtectionEnabled(cfg *config.Config) bool {
 	return cfg != nil && cfg.HighAvailability.WitnessReplayProtectionEnabled
+}
+
+func witnessReplayRequiredTiers(cfg *config.Config) ([]string, map[string]struct{}) {
+	if cfg == nil {
+		return nil, map[string]struct{}{}
+	}
+	tiers := make([]string, 0, len(cfg.HighAvailability.WitnessReplayRequiredTiers))
+	seen := make(map[string]struct{}, len(cfg.HighAvailability.WitnessReplayRequiredTiers))
+	for _, tier := range cfg.HighAvailability.WitnessReplayRequiredTiers {
+		trimmed := strings.TrimSpace(tier)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		tiers = append(tiers, trimmed)
+	}
+	return tiers, seen
+}
+
+func witnessChallengeEnabled(cfg *config.Config) bool {
+	if replayProtectionEnabled(cfg) {
+		return true
+	}
+	tiers, _ := witnessReplayRequiredTiers(cfg)
+	return len(tiers) > 0
+}
+
+func witnessTierRequiresReplay(cfg *config.Config, tier string) bool {
+	if replayProtectionEnabled(cfg) {
+		return true
+	}
+	_, required := witnessReplayRequiredTiers(cfg)
+	_, ok := required[strings.TrimSpace(tier)]
+	return ok
 }
 
 func normalizeWitnessURLSet(primary string, urls []string) []string {
@@ -493,10 +532,21 @@ func evaluateWitnessDecisionPolicy(cfg *config.Config, observedAt time.Time, tie
 		evaluation.ObservedAge, evaluation.ObservedAgeErr = witnessObservedAge(strings.TrimSpace(decision.ObservedAt), observedAt)
 	}
 	requiredNode := effectiveWitnessRequiredNode(cfg, tier)
+	replayRequired := witnessTierRequiresReplay(cfg, tier)
 	maxWitnessAge := time.Duration(evaluation.MaxAgeSeconds) * time.Second
 	switch {
 	case !decision.AllowPromotion:
 		evaluation.Status = "blocked"
+		evaluation.Allowed = false
+	case replayRequired && decision.ReplayStatus == "missing":
+		evaluation.Status = "replay_missing"
+		evaluation.Summary = "External HA witness did not echo the per-request challenge required by local replay policy."
+		evaluation.Err = errWitnessChallengeMissing
+		evaluation.Allowed = false
+	case replayRequired && decision.ReplayStatus == "mismatch":
+		evaluation.Status = "replay_mismatch"
+		evaluation.Summary = "External HA witness challenge did not match the local replay policy request."
+		evaluation.Err = errWitnessChallengeMismatch
 		evaluation.Allowed = false
 	case requiredNode != "" && !strings.EqualFold(strings.TrimSpace(decision.WitnessNode), requiredNode):
 		evaluation.Status = "unexpected_node"
@@ -669,6 +719,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	}
 	blockingTiers, blockingTierSet := witnessBlockingTiers(c.cfg)
 	requiredSources := requiredWitnessSources(c.cfg)
+	replayRequiredTiers, _ := witnessReplayRequiredTiers(c.cfg)
 	policyMode := witnessPolicyMode(c.cfg)
 	failureTolerance := effectiveWitnessFailureTolerance(c.cfg, len(witnessURLs))
 	failureWeightTolerance := effectiveWitnessFailureWeightTolerance(c.cfg, totalWitnessWeight)
@@ -691,6 +742,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	details["witness_min_approvals_by_tier"] = c.cfg.HighAvailability.WitnessMinApprovalsByTier
 	details["witness_min_weight_by_tier"] = c.cfg.HighAvailability.WitnessMinWeightByTier
 	details["witness_required_node_by_tier"] = c.cfg.HighAvailability.WitnessRequiredNodeByTier
+	details["witness_replay_required_tiers"] = replayRequiredTiers
 	details["witness_blocking_tiers"] = blockingTiers
 	details["witness_policy_mode"] = policyMode
 	details["witness_failure_tolerance"] = failureTolerance
@@ -713,6 +765,8 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	}
 	if replayProtectionEnabled(c.cfg) {
 		details["witness_replay_status"] = "configured"
+	} else if len(replayRequiredTiers) > 0 {
+		details["witness_replay_status"] = "tiered"
 	} else {
 		details["witness_replay_status"] = "disabled"
 	}
@@ -869,6 +923,8 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 				"confidence_tier": confidenceTier,
 				"max_age_seconds": evaluation.MaxAgeSeconds,
 				"required_node":   effectiveWitnessRequiredNode(c.cfg, confidenceTier),
+				"replay_required": witnessTierRequiresReplay(c.cfg, confidenceTier),
+				"replay_status":   strings.TrimSpace(evaluation.Decision.ReplayStatus),
 				"witness_node":    strings.TrimSpace(evaluation.Decision.WitnessNode),
 				"observed_at":     strings.TrimSpace(evaluation.Decision.ObservedAt),
 			}
@@ -1179,7 +1235,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		if strings.TrimSpace(c.cfg.HighAvailability.WitnessSigningKeyEnv) != "" {
 			details["witness_signature_status"] = "verified"
 		}
-		if replayProtectionEnabled(c.cfg) {
+		if witnessChallengeEnabled(c.cfg) {
 			details["witness_replay_status"] = "verified"
 		}
 	}
@@ -1236,7 +1292,7 @@ func probeWitnessDecisionURL(cfg *config.Config, client httpDoer, url string) (w
 		return decision, fmt.Errorf("ha witness signing key env %q is configured but not loaded: %w", strings.TrimSpace(cfg.HighAvailability.WitnessSigningKeyEnv), errWitnessSigningKeyMissing)
 	}
 	challenge := ""
-	if replayProtectionEnabled(cfg) {
+	if witnessChallengeEnabled(cfg) {
 		var err error
 		challenge, err = newWitnessChallenge()
 		if err != nil {
@@ -1274,11 +1330,20 @@ func probeWitnessDecisionURL(cfg *config.Config, client httpDoer, url string) (w
 		return decision, fmt.Errorf("decode witness response: %w", err)
 	}
 	if challenge != "" {
+		decision.RequestChallenge = challenge
 		switch {
 		case strings.TrimSpace(decision.Challenge) == "":
-			return decision, errWitnessChallengeMissing
+			decision.ReplayStatus = "missing"
+			if replayProtectionEnabled(cfg) {
+				return decision, errWitnessChallengeMissing
+			}
 		case strings.TrimSpace(decision.Challenge) != challenge:
-			return decision, errWitnessChallengeMismatch
+			decision.ReplayStatus = "mismatch"
+			if replayProtectionEnabled(cfg) {
+				return decision, errWitnessChallengeMismatch
+			}
+		default:
+			decision.ReplayStatus = "verified"
 		}
 	}
 	return decision, nil

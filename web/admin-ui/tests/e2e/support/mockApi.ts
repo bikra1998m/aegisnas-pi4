@@ -212,6 +212,7 @@ function createSettings() {
       witness_required_node_by_tier: {
         critical: 'witness-a',
       },
+      witness_replay_required_tiers: ['critical'],
       witness_failure_tolerance_by_tier: {
         advisory: 1,
       },
@@ -434,6 +435,7 @@ function createSystemStatus() {
       witness_required_node_by_tier: {
         critical: 'witness-a',
       },
+      witness_replay_required_tiers: ['critical'],
       witness_failure_tolerance_by_tier: {
         advisory: 1,
       },

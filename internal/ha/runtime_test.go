@@ -291,6 +291,45 @@ func TestProbeWitnessDecisionFailsWhenReplayChallengeMissing(t *testing.T) {
 	assert.ErrorIs(t, err, errWitnessChallengeMissing)
 }
 
+func TestProbeWitnessDecisionRecordsTierReplayChallengeWithoutGlobalReplay(t *testing.T) {
+	t.Setenv("AEGIS_HA_WITNESS_SIGNING_KEY", "witness-signing-secret")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		challenge := r.Header.Get("X-AegisNAS-Witness-Challenge")
+		assert.NotEmpty(t, challenge)
+		body, signature := signWitnessBody(t, "witness-signing-secret", witnessDecision{
+			AllowPromotion: true,
+			Summary:        "Witness allows promotion.",
+			ObservedAt:     "2026-05-12T10:00:00Z",
+			WitnessNode:    "witness-1",
+		})
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-AegisNAS-Witness-Signature", "sha256="+signature)
+		_, err := w.Write(body)
+		assert.NoError(t, err)
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{
+		HighAvailability: config.HighAvailabilityConfig{
+			Enabled:                     true,
+			Role:                        "standby",
+			PeerAPIURL:                  "https://active.example.test:8083",
+			VirtualIP:                   "192.0.2.11",
+			HeartbeatIntervalSeconds:    5,
+			FailoverTimeoutSeconds:      20,
+			SplitBrainProtectionEnabled: true,
+			WitnessAPIURL:               server.URL,
+			WitnessSigningKeyEnv:        "AEGIS_HA_WITNESS_SIGNING_KEY",
+			WitnessReplayRequiredTiers:  []string{"critical"},
+		},
+	}
+
+	decision, err := probeWitnessDecision(cfg, server.Client())
+	assert.NoError(t, err)
+	assert.Equal(t, "missing", decision.ReplayStatus)
+	assert.NotEmpty(t, decision.RequestChallenge)
+}
+
 func TestProbeWitnessDecisionFailsWhenReplayChallengeMismatches(t *testing.T) {
 	t.Setenv("AEGIS_HA_WITNESS_SIGNING_KEY", "witness-signing-secret")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
