@@ -125,6 +125,7 @@ type SystemStatus = {
     witness_failure_weight_tolerance: number;
     witness_min_approvals_by_tier: Record<string, number>;
     witness_min_weight_by_tier: Record<string, number>;
+    witness_min_distinct_groups_by_tier: Record<string, number>;
     witness_max_age_by_tier: Record<string, number>;
     witness_required_node_by_tier: Record<string, string>;
     witness_signature_required_tiers: string[];
@@ -736,6 +737,11 @@ export default function Dashboard() {
                         {Object.keys(systemStatus.high_availability.witness_required_groups_by_tier || {}).length > 0
                           ? `, tier groups ${Object.entries(systemStatus.high_availability.witness_required_groups_by_tier)
                               .map(([tier, groups]) => `${tier}=${(groups || []).join(',')}`)
+                              .join(', ')}`
+                          : ''}
+                        {Object.keys(systemStatus.high_availability.witness_min_distinct_groups_by_tier || {}).length > 0
+                          ? `, tier group diversity ${Object.entries(systemStatus.high_availability.witness_min_distinct_groups_by_tier)
+                              .map(([tier, count]) => `${tier}=${count}`)
                               .join(', ')}`
                           : ''}
                         {systemStatus.high_availability.runtime?.details?.witness_allow_promotion !== undefined

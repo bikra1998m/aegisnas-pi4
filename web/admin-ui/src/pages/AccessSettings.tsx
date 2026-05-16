@@ -337,6 +337,7 @@ const defaultSettings: JsonMap = {
       witness_failure_weight_tolerance: 0,
       witness_min_approvals_by_tier: {},
       witness_min_weight_by_tier: {},
+      witness_min_distinct_groups_by_tier: {},
       witness_max_age_by_tier: {},
       witness_required_node_by_tier: {},
       witness_signature_required_tiers: [],
@@ -2937,6 +2938,35 @@ export default function AccessSettings() {
               placeholder={'critical=2\nadvisory=1'}
             />
             <p className="mt-1 text-xs text-gray-500">Optional per-tier weight floors. Promotion must include at least this much witness weight from each listed confidence tier.</p>
+          </div>
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Minimum Distinct Groups By Tier</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={Object.entries(settings.high_availability?.witness_min_distinct_groups_by_tier || {})
+                .map(([tier, count]) => `${tier}=${count}`)
+                .join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                const minimums: Record<string, number> = {};
+                event.target.value
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .forEach((line) => {
+                    const parts = line.split('=');
+                    const tier = parts.slice(0, -1).join('=').trim();
+                    const rawCount = parts.length > 1 ? parts[parts.length - 1].trim() : '';
+                    const parsedCount = Number(rawCount);
+                    if (tier && Number.isFinite(parsedCount) && parsedCount >= 0) {
+                      minimums[tier] = parsedCount;
+                    }
+                  });
+                updateField(['high_availability', 'witness_min_distinct_groups_by_tier'], minimums);
+              }}
+              placeholder={'critical=2\nadvisory=1'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional per-tier diversity floors. Promotion must include approvals from at least this many distinct witness groups in each listed confidence tier.</p>
           </div>
           <div className="md:col-span-2 lg:col-span-4">
             <label className="mb-1 block text-sm font-medium text-gray-700">Witness Group Overrides</label>

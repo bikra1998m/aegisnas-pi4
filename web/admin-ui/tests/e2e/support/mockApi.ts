@@ -211,6 +211,9 @@ function createSettings() {
       witness_min_weight_by_tier: {
         critical: 2,
       },
+      witness_min_distinct_groups_by_tier: {
+        critical: 1,
+      },
       witness_max_age_by_tier: {
         critical: 10,
         advisory: 30,
@@ -440,6 +443,9 @@ function createSystemStatus() {
       },
       witness_min_weight_by_tier: {
         critical: 2,
+      },
+      witness_min_distinct_groups_by_tier: {
+        critical: 1,
       },
       witness_max_age_by_tier: {
         critical: 10,

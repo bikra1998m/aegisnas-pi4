@@ -300,6 +300,7 @@ high_availability:
   witness_failure_weight_tolerance: 0 # Optional amount of failed witness weight that may reduce the effective weight threshold.
   witness_min_approvals_by_tier: {} # Optional per-tier approval floors. Promotion must include at least this many approvals from each listed confidence tier.
   witness_min_weight_by_tier: {} # Optional per-tier weight floors. Promotion must include at least this much witness weight from each listed confidence tier.
+  witness_min_distinct_groups_by_tier: {} # Optional per-tier group diversity floors. Promotion must include this many distinct witness groups in each listed confidence tier.
   witness_max_age_by_tier: {} # Optional per-tier freshness overrides in seconds. Tiers without overrides fall back to witness_max_age_seconds.
   witness_required_node_by_tier: {} # Optional per-tier witness identities. Tiers without overrides fall back to witness_required_node.
   witness_signature_required_tiers: [] # Optional confidence tiers that must return signed witness responses even when signature enforcement is not global.

@@ -107,6 +107,8 @@ high_availability:
     "critical": 1
   witness_min_weight_by_tier:
     "critical": 3
+  witness_min_distinct_groups_by_tier:
+    "critical": 1
   witness_max_age_by_tier:
     "critical": 10
     "advisory": 30
@@ -160,6 +162,7 @@ Guidance:
 - `witness_failure_weight_tolerance`: optional failed witness weight budget that may reduce the effective weight threshold during promotion
 - `witness_min_approvals_by_tier`: optional per-tier approval floors; promotion must include at least this many approvals from each listed confidence tier
 - `witness_min_weight_by_tier`: optional per-tier weight floors; promotion must include at least this much witness weight from each listed confidence tier
+- `witness_min_distinct_groups_by_tier`: optional per-tier group diversity floors; promotion must include approvals from at least this many distinct witness groups in each listed confidence tier
 - `witness_max_age_by_tier`: optional per-tier freshness overrides in seconds; tiers without overrides fall back to `witness_max_age_seconds`
 - `witness_required_node_by_tier`: optional per-tier witness identities; tiers without overrides fall back to `witness_required_node`
 - `witness_signature_required_tiers`: optional confidence tiers that must return signed witness responses even when signature enforcement is not global
