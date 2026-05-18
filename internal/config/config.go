@@ -394,6 +394,7 @@ type HighAvailabilityConfig struct {
 	WitnessMinDistinctGroups        int                 `mapstructure:"witness_min_distinct_groups"`
 	WitnessSources                  map[string]string   `mapstructure:"witness_sources"`
 	WitnessRequiredSources          []string            `mapstructure:"witness_required_sources"`
+	WitnessRequiredURLs             []string            `mapstructure:"witness_required_urls"`
 	WitnessPolicyMode               string              `mapstructure:"witness_policy_mode"`
 	WitnessPolicyModeByTier         map[string]string   `mapstructure:"witness_policy_mode_by_tier"`
 	WitnessFailureTolerance         int                 `mapstructure:"witness_failure_tolerance"`
@@ -530,6 +531,8 @@ func normalizeWitnessPolicyMode(mode string) string {
 		return "group_only"
 	case "source_only":
 		return "source_only"
+	case "url_only":
+		return "url_only"
 	default:
 		return strings.ToLower(strings.TrimSpace(mode))
 	}
@@ -664,6 +667,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.witness_min_distinct_groups", 0)
 	v.SetDefault("high_availability.witness_sources", map[string]string{})
 	v.SetDefault("high_availability.witness_required_sources", []string{})
+	v.SetDefault("high_availability.witness_required_urls", []string{})
 	v.SetDefault("high_availability.witness_policy_mode", "all")
 	v.SetDefault("high_availability.witness_policy_mode_by_tier", map[string]string{})
 	v.SetDefault("high_availability.witness_failure_tolerance", 0)
@@ -1676,13 +1680,25 @@ func (c *Config) Validate() error {
 				}
 			}
 		}
+		if len(c.HighAvailability.WitnessRequiredURLs) > 0 {
+			for _, witnessURL := range c.HighAvailability.WitnessRequiredURLs {
+				trimmedURL := strings.TrimSpace(witnessURL)
+				if trimmedURL == "" {
+					return errors.New("high_availability.witness_required_urls entries must not be blank")
+				}
+				if !slices.Contains(witnessURLs, trimmedURL) {
+					return fmt.Errorf("high_availability.witness_required_urls entry %q does not match a configured witness URL", trimmedURL)
+				}
+			}
+		}
 		groupConfigured := c.HighAvailability.WitnessMinDistinctGroups > 0
 		sourceConfigured := len(c.HighAvailability.WitnessRequiredSources) > 0
+		urlConfigured := len(c.HighAvailability.WitnessRequiredURLs) > 0
 		switch mode := normalizeWitnessPolicyMode(c.HighAvailability.WitnessPolicyMode); mode {
 		case "all":
 		case "any":
-			if !groupConfigured && !sourceConfigured {
-				return errors.New("high_availability.witness_policy_mode any requires witness_min_distinct_groups or witness_required_sources")
+			if !groupConfigured && !sourceConfigured && !urlConfigured {
+				return errors.New("high_availability.witness_policy_mode any requires witness_min_distinct_groups, witness_required_sources, or witness_required_urls")
 			}
 		case "group_only":
 			if !groupConfigured {
@@ -1692,8 +1708,12 @@ func (c *Config) Validate() error {
 			if !sourceConfigured {
 				return errors.New("high_availability.witness_policy_mode source_only requires high_availability.witness_required_sources")
 			}
+		case "url_only":
+			if !urlConfigured {
+				return errors.New("high_availability.witness_policy_mode url_only requires high_availability.witness_required_urls")
+			}
 		default:
-			return fmt.Errorf("high_availability.witness_policy_mode %q must be one of all, any, group_only, or source_only", c.HighAvailability.WitnessPolicyMode)
+			return fmt.Errorf("high_availability.witness_policy_mode %q must be one of all, any, group_only, source_only, or url_only", c.HighAvailability.WitnessPolicyMode)
 		}
 		tierGroupConfigured := make(map[string]bool, len(distinctTiers))
 		tierSourceConfigured := make(map[string]bool, len(distinctTiers))
@@ -1796,6 +1816,14 @@ func (c *Config) Validate() error {
 		}
 		if len(witnessURLs) == 0 {
 			return errors.New("high_availability.witness_required_sources requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessRequiredURLs) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_required_urls requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_required_urls requires high_availability.witness_api_url")
 		}
 	}
 	if len(c.HighAvailability.WitnessSourceConfidence) > 0 {

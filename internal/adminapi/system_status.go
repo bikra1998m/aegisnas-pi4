@@ -291,6 +291,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"witness_sources":                          cfg.HighAvailability.WitnessSources,
 			"witness_source_confidence":                cfg.HighAvailability.WitnessSourceConfidence,
 			"witness_required_sources":                 cfg.HighAvailability.WitnessRequiredSources,
+			"witness_required_urls":                    cfg.HighAvailability.WitnessRequiredURLs,
 			"witness_required_sources_by_tier":         cfg.HighAvailability.WitnessRequiredSourcesByTier,
 			"witness_required_urls_by_tier":            cfg.HighAvailability.WitnessRequiredURLsByTier,
 			"witness_required_groups_by_tier":          cfg.HighAvailability.WitnessRequiredGroupsByTier,

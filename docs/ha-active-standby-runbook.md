@@ -94,6 +94,8 @@ high_availability:
   witness_required_sources:
     - "local"
     - "external"
+  witness_required_urls:
+    - "https://witness-a.example.test/ha"
   witness_required_sources_by_tier:
     "critical":
       - "local"
@@ -162,10 +164,11 @@ Guidance:
 - `witness_sources`: optional per-witness source overrides keyed by witness URL; unspecified witnesses count as their own source
 - `witness_source_confidence`: optional source-to-confidence-tier mapping; unspecified sources use the `standard` tier
 - `witness_required_sources`: optional source classes that must all be represented in witness approvals before promotion is allowed
+- `witness_required_urls`: optional witness endpoints that must all be represented in witness approvals before promotion is allowed
 - `witness_required_sources_by_tier`: optional per-tier source classes; each listed confidence tier must include approvals from the named sources
 - `witness_required_urls_by_tier`: optional per-tier witness endpoints; each listed confidence tier must include approvals from the named witness URLs
 - `witness_required_groups_by_tier`: optional per-tier witness groups; each listed confidence tier must include approvals from the named groups
-- `witness_policy_mode`: how group and source diversity rules combine; `all` requires every configured family, `any` accepts either family, and `group_only` / `source_only` make one family authoritative
+- `witness_policy_mode`: how group, source, and URL policy families combine; `all` requires every configured family, `any` accepts any configured family, and `group_only` / `source_only` / `url_only` make one family authoritative
 - `witness_policy_mode_by_tier`: optional per-tier overrides for combining tier-specific source, group, and URL rules; tiers without an override keep the conservative `all` behavior. `url_only` makes the named tier URLs authoritative.
 - `witness_failure_tolerance`: optional count of failed witness probes that may reduce the required quorum during promotion
 - `witness_failure_weight_tolerance`: optional failed witness weight budget that may reduce the effective weight threshold during promotion

@@ -330,6 +330,7 @@ const defaultSettings: JsonMap = {
       witness_sources: {},
       witness_source_confidence: {},
       witness_required_sources: [],
+      witness_required_urls: [],
       witness_required_sources_by_tier: {},
       witness_required_urls_by_tier: {},
       witness_required_groups_by_tier: {},
@@ -2870,6 +2871,7 @@ export default function AccessSettings() {
               { value: 'any', label: 'Any diversity policy' },
               { value: 'group_only', label: 'Group only' },
               { value: 'source_only', label: 'Source only' },
+              { value: 'url_only', label: 'URL only' },
             ]}
           />
           <div className="md:col-span-2 lg:col-span-4">
@@ -3102,6 +3104,25 @@ export default function AccessSettings() {
               placeholder={'local\nexternal'}
             />
             <p className="mt-1 text-xs text-gray-500">Optional source classes that must all be represented in witness approvals before promotion is allowed.</p>
+          </div>
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Required URLs</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={2}
+              value={(settings.high_availability?.witness_required_urls || []).join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+                updateField(
+                  ['high_availability', 'witness_required_urls'],
+                  event.target.value
+                    .split(/\r?\n/)
+                    .map((value) => value.trim())
+                    .filter(Boolean),
+                )
+              }
+              placeholder={'https://witness-a.example.test/ha\nhttps://witness-b.example.test/ha'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional witness endpoints that must all be represented in approvals before promotion is allowed.</p>
           </div>
           <div className="md:col-span-2 lg:col-span-4">
             <label className="mb-1 block text-sm font-medium text-gray-700">Witness Required Sources By Tier</label>

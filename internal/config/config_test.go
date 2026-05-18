@@ -1229,6 +1229,18 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessRequiredSourceUnknown.HighAvailability.WitnessRequiredSources = []string{"external"}
 	assert.ErrorContains(t, badWitnessRequiredSourceUnknown.Validate(), `high_availability.witness_required_sources entry "external" does not match a configured witness source`)
 
+	badWitnessRequiredURLBlank := base()
+	badWitnessRequiredURLBlank.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessRequiredURLBlank.HighAvailability.WitnessQuorum = 1
+	badWitnessRequiredURLBlank.HighAvailability.WitnessRequiredURLs = []string{" "}
+	assert.ErrorContains(t, badWitnessRequiredURLBlank.Validate(), "high_availability.witness_required_urls entries must not be blank")
+
+	badWitnessRequiredURLUnknown := base()
+	badWitnessRequiredURLUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessRequiredURLUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessRequiredURLUnknown.HighAvailability.WitnessRequiredURLs = []string{"https://witness-b.example.test/ha"}
+	assert.ErrorContains(t, badWitnessRequiredURLUnknown.Validate(), `high_availability.witness_required_urls entry "https://witness-b.example.test/ha" does not match a configured witness URL`)
+
 	badWitnessRequiredSourceByTierUnknownTier := base()
 	badWitnessRequiredSourceByTierUnknownTier.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
 	badWitnessRequiredSourceByTierUnknownTier.HighAvailability.WitnessQuorum = 1
@@ -1335,13 +1347,13 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessPolicyMode.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
 	badWitnessPolicyMode.HighAvailability.WitnessQuorum = 1
 	badWitnessPolicyMode.HighAvailability.WitnessPolicyMode = "mystery"
-	assert.ErrorContains(t, badWitnessPolicyMode.Validate(), `high_availability.witness_policy_mode "mystery" must be one of all, any, group_only, or source_only`)
+	assert.ErrorContains(t, badWitnessPolicyMode.Validate(), `high_availability.witness_policy_mode "mystery" must be one of all, any, group_only, source_only, or url_only`)
 
 	badWitnessPolicyAny := base()
 	badWitnessPolicyAny.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
 	badWitnessPolicyAny.HighAvailability.WitnessQuorum = 1
 	badWitnessPolicyAny.HighAvailability.WitnessPolicyMode = "any"
-	assert.ErrorContains(t, badWitnessPolicyAny.Validate(), "high_availability.witness_policy_mode any requires witness_min_distinct_groups or witness_required_sources")
+	assert.ErrorContains(t, badWitnessPolicyAny.Validate(), "high_availability.witness_policy_mode any requires witness_min_distinct_groups, witness_required_sources, or witness_required_urls")
 
 	badWitnessPolicyGroupOnly := base()
 	badWitnessPolicyGroupOnly.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
@@ -1354,6 +1366,12 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessPolicySourceOnly.HighAvailability.WitnessQuorum = 1
 	badWitnessPolicySourceOnly.HighAvailability.WitnessPolicyMode = "source_only"
 	assert.ErrorContains(t, badWitnessPolicySourceOnly.Validate(), "high_availability.witness_policy_mode source_only requires high_availability.witness_required_sources")
+
+	badWitnessPolicyURLOnly := base()
+	badWitnessPolicyURLOnly.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessPolicyURLOnly.HighAvailability.WitnessQuorum = 1
+	badWitnessPolicyURLOnly.HighAvailability.WitnessPolicyMode = "url_only"
+	assert.ErrorContains(t, badWitnessPolicyURLOnly.Validate(), "high_availability.witness_policy_mode url_only requires high_availability.witness_required_urls")
 
 	badWitnessPolicyModeByTierUnknownTier := base()
 	badWitnessPolicyModeByTierUnknownTier.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}

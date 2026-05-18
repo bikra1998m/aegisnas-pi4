@@ -118,6 +118,7 @@ type SystemStatus = {
     witness_sources: Record<string, string>;
     witness_source_confidence: Record<string, string>;
     witness_required_sources: string[];
+    witness_required_urls: string[];
     witness_required_sources_by_tier: Record<string, string[]>;
     witness_required_urls_by_tier: Record<string, string[]>;
     witness_required_groups_by_tier: Record<string, string[]>;
@@ -736,6 +737,9 @@ export default function Dashboard() {
                           : ''}
                         {systemStatus.high_availability.witness_required_sources?.length
                           ? `, required sources ${systemStatus.high_availability.witness_required_sources.join(', ')}`
+                          : ''}
+                        {systemStatus.high_availability.witness_required_urls?.length
+                          ? `, required urls ${systemStatus.high_availability.witness_required_urls.join(', ')}`
                           : ''}
                         {Object.keys(systemStatus.high_availability.witness_required_sources_by_tier || {}).length > 0
                           ? `, tier sources ${Object.entries(systemStatus.high_availability.witness_required_sources_by_tier)

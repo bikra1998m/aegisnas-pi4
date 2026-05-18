@@ -196,6 +196,7 @@ function createSettings() {
         external: 'advisory',
       },
       witness_required_sources: ['local', 'external'],
+      witness_required_urls: ['https://witness-a.example.test/ha'],
       witness_required_sources_by_tier: {
         critical: ['local'],
       },
@@ -438,6 +439,7 @@ function createSystemStatus() {
         external: 'advisory',
       },
       witness_required_sources: ['local', 'external'],
+      witness_required_urls: ['https://witness-a.example.test/ha'],
       witness_required_sources_by_tier: {
         critical: ['local'],
       },

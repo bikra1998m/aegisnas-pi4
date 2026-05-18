@@ -436,6 +436,26 @@ func requiredWitnessSources(cfg *config.Config) []string {
 	return required
 }
 
+func requiredWitnessURLs(cfg *config.Config) []string {
+	if cfg == nil {
+		return nil
+	}
+	required := make([]string, 0, len(cfg.HighAvailability.WitnessRequiredURLs))
+	seen := make(map[string]struct{}, len(cfg.HighAvailability.WitnessRequiredURLs))
+	for _, witnessURL := range cfg.HighAvailability.WitnessRequiredURLs {
+		trimmed := strings.TrimSpace(witnessURL)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		required = append(required, trimmed)
+	}
+	return required
+}
+
 func requiredWitnessSourcesByTier(cfg *config.Config) map[string][]string {
 	if cfg == nil || cfg.HighAvailability.WitnessRequiredSourcesByTier == nil {
 		return nil
@@ -608,6 +628,8 @@ func normalizeWitnessPolicyModeValue(mode string) string {
 		return "group_only"
 	case "source_only":
 		return "source_only"
+	case "url_only":
+		return "url_only"
 	default:
 		return "all"
 	}
@@ -973,6 +995,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	}
 	blockingTiers, blockingTierSet := witnessBlockingTiers(c.cfg)
 	requiredSources := requiredWitnessSources(c.cfg)
+	requiredURLs := requiredWitnessURLs(c.cfg)
 	requiredSourcesByTier := requiredWitnessSourcesByTier(c.cfg)
 	requiredURLsByTier := requiredWitnessURLsByTier(c.cfg)
 	requiredGroupsByTier := requiredWitnessGroupsByTier(c.cfg)
@@ -994,6 +1017,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	details["witness_sources"] = witnessSources
 	details["witness_total_source_count"] = len(distinctWitnessSources)
 	details["witness_required_sources"] = requiredSources
+	details["witness_required_urls"] = requiredURLs
 	details["witness_required_sources_by_tier"] = requiredSourcesByTier
 	details["witness_required_urls_by_tier"] = requiredURLsByTier
 	details["witness_required_groups_by_tier"] = requiredGroupsByTier
@@ -1141,6 +1165,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		allowGroupsByTier := make(map[string]map[string]struct{}, len(distinctWitnessConfidence))
 		allowSources := make(map[string]struct{}, len(witnessURLs))
 		allowSourcesByTier := make(map[string]map[string]struct{}, len(distinctWitnessConfidence))
+		allowURLs := make(map[string]struct{}, len(witnessURLs))
 		allowURLsByTier := make(map[string]map[string]struct{}, len(distinctWitnessConfidence))
 		allowCountByTier := make(map[string]int, len(distinctWitnessConfidence))
 		allowWeightByTier := make(map[string]int, len(distinctWitnessConfidence))
@@ -1170,6 +1195,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 				allowWeight += witnessWeights[witnessURL]
 				allowCountByTier[confidenceTier]++
 				allowWeightByTier[confidenceTier] += witnessWeights[witnessURL]
+				allowURLs[witnessURL] = struct{}{}
 				tierURLs := allowURLsByTier[confidenceTier]
 				if tierURLs == nil {
 					tierURLs = make(map[string]struct{})
@@ -1259,6 +1285,8 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		details["witness_allow_groups_by_tier"] = allowGroupsByTierFormatted
 		details["witness_allow_group_count_by_tier"] = allowGroupCountByTier
 		details["witness_allow_sources"] = mapKeysSorted(allowSources)
+		details["witness_allow_urls"] = mapKeysSorted(allowURLs)
+		details["witness_allow_url_count"] = len(allowURLs)
 		allowURLsByTierFormatted := make(map[string][]string, len(allowURLsByTier))
 		for tier, urls := range allowURLsByTier {
 			allowURLsByTierFormatted[tier] = mapKeysSorted(urls)
@@ -1522,6 +1550,8 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 		groupConfigured := groupThreshold > 0
 		sourceSatisfied := true
 		sourceConfigured := len(requiredSources) > 0
+		urlSatisfied := true
+		urlConfigured := len(requiredURLs) > 0
 		missingSources := make([]string, 0)
 		if len(requiredSources) > 0 {
 			for _, source := range requiredSources {
@@ -1532,19 +1562,51 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 				missingSources = append(missingSources, source)
 			}
 		}
+		missingURLs := make([]string, 0)
+		if len(requiredURLs) > 0 {
+			for _, requiredURL := range requiredURLs {
+				if _, ok := allowURLs[requiredURL]; ok {
+					continue
+				}
+				urlSatisfied = false
+				missingURLs = append(missingURLs, requiredURL)
+			}
+		}
 		details["witness_group_rule_satisfied"] = groupSatisfied
 		details["witness_source_rule_satisfied"] = sourceSatisfied
+		details["witness_url_rule_satisfied"] = urlSatisfied
+		if len(missingURLs) > 0 {
+			details["witness_missing_urls"] = missingURLs
+		}
 		policySatisfied := true
 		policyFailureStatus := ""
 		policyFailureSummary := ""
 		switch policyMode {
 		case "any":
 			switch {
+			case groupConfigured && sourceConfigured && urlConfigured:
+				policySatisfied = groupSatisfied || sourceSatisfied || urlSatisfied
+				if !policySatisfied {
+					policyFailureStatus = "policy_any_unmet"
+					policyFailureSummary = fmt.Sprintf("Witness policy mode any requires group diversity, required sources %s, or required URLs %s, but none of those rules are satisfied.", strings.Join(requiredSources, ", "), strings.Join(requiredURLs, ", "))
+				}
 			case groupConfigured && sourceConfigured:
 				policySatisfied = groupSatisfied || sourceSatisfied
 				if !policySatisfied {
 					policyFailureStatus = "policy_any_unmet"
 					policyFailureSummary = fmt.Sprintf("Witness policy mode any requires either %d distinct groups or required sources %s, but neither rule is satisfied.", groupThreshold, strings.Join(requiredSources, ", "))
+				}
+			case groupConfigured && urlConfigured:
+				policySatisfied = groupSatisfied || urlSatisfied
+				if !policySatisfied {
+					policyFailureStatus = "policy_any_unmet"
+					policyFailureSummary = fmt.Sprintf("Witness policy mode any requires either %d distinct groups or required URLs %s, but neither rule is satisfied.", groupThreshold, strings.Join(requiredURLs, ", "))
+				}
+			case sourceConfigured && urlConfigured:
+				policySatisfied = sourceSatisfied || urlSatisfied
+				if !policySatisfied {
+					policyFailureStatus = "policy_any_unmet"
+					policyFailureSummary = fmt.Sprintf("Witness policy mode any requires either required sources %s or required URLs %s, but neither rule is satisfied.", strings.Join(requiredSources, ", "), strings.Join(requiredURLs, ", "))
 				}
 			case groupConfigured:
 				policySatisfied = groupSatisfied
@@ -1555,6 +1617,11 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 				policySatisfied = sourceSatisfied
 				if !policySatisfied {
 					policyFailureStatus = "source_unmet"
+				}
+			case urlConfigured:
+				policySatisfied = urlSatisfied
+				if !policySatisfied {
+					policyFailureStatus = "url_unmet"
 				}
 			}
 		case "group_only":
@@ -1567,12 +1634,19 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 			if !policySatisfied {
 				policyFailureStatus = "source_unmet"
 			}
+		case "url_only":
+			policySatisfied = urlSatisfied
+			if !policySatisfied {
+				policyFailureStatus = "url_unmet"
+			}
 		default:
-			policySatisfied = groupSatisfied && sourceSatisfied
+			policySatisfied = groupSatisfied && sourceSatisfied && urlSatisfied
 			if !groupSatisfied {
 				policyFailureStatus = "diversity_unmet"
 			} else if !sourceSatisfied {
 				policyFailureStatus = "source_unmet"
+			} else if !urlSatisfied {
+				policyFailureStatus = "url_unmet"
 			}
 		}
 		if blockingDenyTier != "" {
@@ -1597,11 +1671,11 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 				switch {
 				case (toleratedFailureCount > 0 || toleratedFailureWeight > 0) && (effectiveQuorum != quorum || effectiveWeightThreshold != weightThreshold):
 					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion after tolerating %d failed witness probes (weight %d); effective quorum %d/%d and effective weight threshold %d/%d satisfied.", allowCount, len(witnessURLs), failureCount, failureWeight, effectiveQuorum, quorum, effectiveWeightThreshold, weightThreshold)
-				case policyMode == "any" && groupConfigured && sourceConfigured && groupSatisfied && !sourceSatisfied:
+				case policyMode == "any" && groupConfigured && sourceConfigured && !urlConfigured && groupSatisfied && !sourceSatisfied:
 					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d; witness policy mode any is satisfied by group diversity (%d/%d) even though required sources %s are not all present.", allowCount, len(witnessURLs), allowWeight, len(allowGroups), groupThreshold, strings.Join(requiredSources, ", "))
-				case policyMode == "any" && groupConfigured && sourceConfigured && !groupSatisfied && sourceSatisfied:
+				case policyMode == "any" && groupConfigured && sourceConfigured && !urlConfigured && !groupSatisfied && sourceSatisfied:
 					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d; witness policy mode any is satisfied by required sources %s even though group diversity is %d/%d.", allowCount, len(witnessURLs), allowWeight, strings.Join(requiredSources, ", "), len(allowGroups), groupThreshold)
-				case len(c.cfg.HighAvailability.WitnessMinApprovalsByTier) > 0 || len(c.cfg.HighAvailability.WitnessMinWeightByTier) > 0 || len(c.cfg.HighAvailability.WitnessMinDistinctGroupsByTier) > 0 || len(c.cfg.HighAvailability.WitnessMinDistinctSourcesByTier) > 0 || len(requiredSourcesByTier) > 0 || len(requiredGroupsByTier) > 0 || len(policyModeByTier) > 0:
+				case len(c.cfg.HighAvailability.WitnessMinApprovalsByTier) > 0 || len(c.cfg.HighAvailability.WitnessMinWeightByTier) > 0 || len(c.cfg.HighAvailability.WitnessMinDistinctGroupsByTier) > 0 || len(c.cfg.HighAvailability.WitnessMinDistinctSourcesByTier) > 0 || len(requiredSourcesByTier) > 0 || len(requiredURLsByTier) > 0 || len(requiredGroupsByTier) > 0 || len(policyModeByTier) > 0:
 					summaryParts := make([]string, 0, 2)
 					if len(c.cfg.HighAvailability.WitnessMinApprovalsByTier) > 0 {
 						summaryParts = append(summaryParts, fmt.Sprintf("tier approvals %s", strings.Join(formatIntMapSorted(c.cfg.HighAvailability.WitnessMinApprovalsByTier), ", ")))
@@ -1628,6 +1702,14 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 						summaryParts = append(summaryParts, fmt.Sprintf("tier policy %s", strings.Join(formatStringMapSorted(policyModeByTier), ", ")))
 					}
 					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with %s satisfied.", allowCount, len(witnessURLs), strings.Join(summaryParts, " and "))
+				case weightThreshold > 0 && groupThreshold > 0 && len(requiredSources) > 0 && len(requiredURLs) > 0:
+					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d across %d distinct groups, required sources %s, and required URLs %s; quorum %d, weight threshold %d, and group threshold %d satisfied.", allowCount, len(witnessURLs), allowWeight, len(allowGroups), strings.Join(requiredSources, ", "), strings.Join(requiredURLs, ", "), quorum, weightThreshold, groupThreshold)
+				case weightThreshold > 0 && len(requiredSources) > 0 && len(requiredURLs) > 0:
+					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d, required sources %s, and required URLs %s; quorum %d and weight threshold %d satisfied.", allowCount, len(witnessURLs), allowWeight, strings.Join(requiredSources, ", "), strings.Join(requiredURLs, ", "), quorum, weightThreshold)
+				case groupThreshold > 0 && len(requiredSources) > 0 && len(requiredURLs) > 0:
+					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion across %d distinct groups, required sources %s, and required URLs %s; quorum %d and group threshold %d satisfied.", allowCount, len(witnessURLs), len(allowGroups), strings.Join(requiredSources, ", "), strings.Join(requiredURLs, ", "), quorum, groupThreshold)
+				case len(requiredSources) > 0 && len(requiredURLs) > 0:
+					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion and required sources %s and URLs %s are present; quorum %d satisfied.", allowCount, len(witnessURLs), strings.Join(requiredSources, ", "), strings.Join(requiredURLs, ", "), quorum)
 				case weightThreshold > 0 && groupThreshold > 0 && len(requiredSources) > 0:
 					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d across %d distinct groups and required sources %s; quorum %d, weight threshold %d, and group threshold %d satisfied.", allowCount, len(witnessURLs), allowWeight, len(allowGroups), strings.Join(requiredSources, ", "), quorum, weightThreshold, groupThreshold)
 				case weightThreshold > 0 && len(requiredSources) > 0:
@@ -1636,6 +1718,14 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion across %d distinct groups and required sources %s; quorum %d and group threshold %d satisfied.", allowCount, len(witnessURLs), len(allowGroups), strings.Join(requiredSources, ", "), quorum, groupThreshold)
 				case len(requiredSources) > 0:
 					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion and required sources %s are present; quorum %d satisfied.", allowCount, len(witnessURLs), strings.Join(requiredSources, ", "), quorum)
+				case weightThreshold > 0 && groupThreshold > 0 && len(requiredURLs) > 0:
+					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d across %d distinct groups and required URLs %s; quorum %d, weight threshold %d, and group threshold %d satisfied.", allowCount, len(witnessURLs), allowWeight, len(allowGroups), strings.Join(requiredURLs, ", "), quorum, weightThreshold, groupThreshold)
+				case weightThreshold > 0 && len(requiredURLs) > 0:
+					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d and required URLs %s; quorum %d and weight threshold %d satisfied.", allowCount, len(witnessURLs), allowWeight, strings.Join(requiredURLs, ", "), quorum, weightThreshold)
+				case groupThreshold > 0 && len(requiredURLs) > 0:
+					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion across %d distinct groups and required URLs %s; quorum %d and group threshold %d satisfied.", allowCount, len(witnessURLs), len(allowGroups), strings.Join(requiredURLs, ", "), quorum, groupThreshold)
+				case len(requiredURLs) > 0:
+					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion and required URLs %s are present; quorum %d satisfied.", allowCount, len(witnessURLs), strings.Join(requiredURLs, ", "), quorum)
 				case weightThreshold > 0 && groupThreshold > 0:
 					result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d across %d distinct groups; quorum %d, weight threshold %d, and group threshold %d satisfied.", allowCount, len(witnessURLs), allowWeight, len(allowGroups), quorum, weightThreshold, groupThreshold)
 				case weightThreshold > 0:
@@ -1737,6 +1827,12 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 						} else {
 							result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d and %d distinct groups, but required sources %s are missing.", allowCount, len(witnessURLs), allowWeight, len(allowGroups), strings.Join(missingSources, ", "))
 						}
+					case "url_unmet":
+						if firstFailureSummary != "" {
+							result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d and %d distinct groups, but required URLs %s are missing. First blocking result: %s", allowCount, len(witnessURLs), allowWeight, len(allowGroups), strings.Join(missingURLs, ", "), firstFailureSummary)
+						} else {
+							result.WitnessSummary = fmt.Sprintf("%d of %d external HA witnesses allow standby promotion with weight %d and %d distinct groups, but required URLs %s are missing.", allowCount, len(witnessURLs), allowWeight, len(allowGroups), strings.Join(missingURLs, ", "))
+						}
 					case "policy_any_unmet":
 						if firstFailureSummary != "" {
 							result.WitnessSummary = fmt.Sprintf("%s First blocking result: %s", policyFailureSummary, firstFailureSummary)
@@ -1775,7 +1871,7 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 	if result.WitnessNode != "" {
 		details["witness_node"] = result.WitnessNode
 	}
-	if result.WitnessStatus == "ok" || result.WitnessStatus == "blocked" || result.WitnessStatus == "quorum_met" || result.WitnessStatus == "quorum_unmet" || result.WitnessStatus == "weight_unmet" || result.WitnessStatus == "diversity_unmet" || result.WitnessStatus == "source_unmet" || result.WitnessStatus == "policy_any_unmet" || result.WitnessStatus == "blocking_deny" || result.WitnessStatus == "tier_approval_unmet" || result.WitnessStatus == "tier_weight_unmet" || result.WitnessStatus == "tier_diversity_unmet" || result.WitnessStatus == "tier_source_diversity_unmet" || result.WitnessStatus == "tier_source_unmet" || result.WitnessStatus == "tier_group_unmet" || result.WitnessStatus == "tier_policy_unmet" {
+	if result.WitnessStatus == "ok" || result.WitnessStatus == "blocked" || result.WitnessStatus == "quorum_met" || result.WitnessStatus == "quorum_unmet" || result.WitnessStatus == "weight_unmet" || result.WitnessStatus == "diversity_unmet" || result.WitnessStatus == "source_unmet" || result.WitnessStatus == "url_unmet" || result.WitnessStatus == "policy_any_unmet" || result.WitnessStatus == "blocking_deny" || result.WitnessStatus == "tier_approval_unmet" || result.WitnessStatus == "tier_weight_unmet" || result.WitnessStatus == "tier_diversity_unmet" || result.WitnessStatus == "tier_source_diversity_unmet" || result.WitnessStatus == "tier_source_unmet" || result.WitnessStatus == "tier_group_unmet" || result.WitnessStatus == "tier_policy_unmet" {
 		details["witness_allow_promotion"] = result.WitnessAllowed
 	}
 	if result.WitnessError != nil {
