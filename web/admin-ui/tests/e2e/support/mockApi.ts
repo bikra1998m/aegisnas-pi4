@@ -203,6 +203,9 @@ function createSettings() {
         critical: ['dc-a'],
       },
       witness_policy_mode: 'all',
+      witness_policy_mode_by_tier: {
+        advisory: 'any',
+      },
       witness_failure_tolerance: 1,
       witness_failure_weight_tolerance: 1,
       witness_min_approvals_by_tier: {
@@ -439,6 +442,9 @@ function createSystemStatus() {
         critical: ['dc-a'],
       },
       witness_policy_mode: 'all',
+      witness_policy_mode_by_tier: {
+        advisory: 'any',
+      },
       witness_failure_tolerance: 1,
       witness_failure_weight_tolerance: 1,
       witness_min_approvals_by_tier: {

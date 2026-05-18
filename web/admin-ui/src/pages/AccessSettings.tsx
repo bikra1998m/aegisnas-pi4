@@ -333,6 +333,7 @@ const defaultSettings: JsonMap = {
       witness_required_sources_by_tier: {},
       witness_required_groups_by_tier: {},
       witness_policy_mode: 'all',
+      witness_policy_mode_by_tier: {},
       witness_failure_tolerance: 0,
       witness_failure_weight_tolerance: 0,
       witness_min_approvals_by_tier: {},
@@ -2870,6 +2871,34 @@ export default function AccessSettings() {
               { value: 'source_only', label: 'Source only' },
             ]}
           />
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Policy Mode By Tier</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={Object.entries(settings.high_availability?.witness_policy_mode_by_tier || {})
+                .map(([tier, mode]) => `${tier}=${mode}`)
+                .join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                const overrides: Record<string, string> = {};
+                event.target.value
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .forEach((line) => {
+                    const parts = line.split('=');
+                    const tier = parts.slice(0, -1).join('=').trim();
+                    const rawMode = parts.length > 1 ? parts[parts.length - 1].trim() : '';
+                    if (tier && rawMode) {
+                      overrides[tier] = rawMode;
+                    }
+                  });
+                updateField(['high_availability', 'witness_policy_mode_by_tier'], overrides);
+              }}
+              placeholder={'critical=all\nadvisory=any'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional per-tier source/group combination overrides. Tiers without an override use the conservative all-mode behavior for their tier-specific source and group rules.</p>
+          </div>
           <TextField
             label="Witness Failure Tolerance"
             type="number"

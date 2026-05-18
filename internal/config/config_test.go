@@ -1331,6 +1331,36 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessPolicySourceOnly.HighAvailability.WitnessPolicyMode = "source_only"
 	assert.ErrorContains(t, badWitnessPolicySourceOnly.Validate(), "high_availability.witness_policy_mode source_only requires high_availability.witness_required_sources")
 
+	badWitnessPolicyModeByTierUnknownTier := base()
+	badWitnessPolicyModeByTierUnknownTier.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessPolicyModeByTierUnknownTier.HighAvailability.WitnessQuorum = 1
+	badWitnessPolicyModeByTierUnknownTier.HighAvailability.WitnessPolicyModeByTier = map[string]string{"critical": "all"}
+	assert.ErrorContains(t, badWitnessPolicyModeByTierUnknownTier.Validate(), `high_availability.witness_policy_mode_by_tier key "critical" does not match a configured witness confidence tier`)
+
+	badWitnessPolicyModeByTierInvalid := base()
+	badWitnessPolicyModeByTierInvalid.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessPolicyModeByTierInvalid.HighAvailability.WitnessQuorum = 1
+	badWitnessPolicyModeByTierInvalid.HighAvailability.WitnessPolicyModeByTier = map[string]string{"standard": "mystery"}
+	assert.ErrorContains(t, badWitnessPolicyModeByTierInvalid.Validate(), `high_availability.witness_policy_mode_by_tier["standard"] "mystery" must be one of all, any, group_only, or source_only`)
+
+	badWitnessPolicyModeByTierAny := base()
+	badWitnessPolicyModeByTierAny.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessPolicyModeByTierAny.HighAvailability.WitnessQuorum = 1
+	badWitnessPolicyModeByTierAny.HighAvailability.WitnessPolicyModeByTier = map[string]string{"standard": "any"}
+	assert.ErrorContains(t, badWitnessPolicyModeByTierAny.Validate(), `high_availability.witness_policy_mode_by_tier["standard"] any requires high_availability.witness_min_distinct_groups_by_tier, high_availability.witness_required_groups_by_tier, high_availability.witness_min_distinct_sources_by_tier, or high_availability.witness_required_sources_by_tier`)
+
+	badWitnessPolicyModeByTierGroupOnly := base()
+	badWitnessPolicyModeByTierGroupOnly.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessPolicyModeByTierGroupOnly.HighAvailability.WitnessQuorum = 1
+	badWitnessPolicyModeByTierGroupOnly.HighAvailability.WitnessPolicyModeByTier = map[string]string{"standard": "group_only"}
+	assert.ErrorContains(t, badWitnessPolicyModeByTierGroupOnly.Validate(), `high_availability.witness_policy_mode_by_tier["standard"] group_only requires high_availability.witness_min_distinct_groups_by_tier or high_availability.witness_required_groups_by_tier`)
+
+	badWitnessPolicyModeByTierSourceOnly := base()
+	badWitnessPolicyModeByTierSourceOnly.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessPolicyModeByTierSourceOnly.HighAvailability.WitnessQuorum = 1
+	badWitnessPolicyModeByTierSourceOnly.HighAvailability.WitnessPolicyModeByTier = map[string]string{"standard": "source_only"}
+	assert.ErrorContains(t, badWitnessPolicyModeByTierSourceOnly.Validate(), `high_availability.witness_policy_mode_by_tier["standard"] source_only requires high_availability.witness_min_distinct_sources_by_tier or high_availability.witness_required_sources_by_tier`)
+
 	badWitnessFailureToleranceNegative := base()
 	badWitnessFailureToleranceNegative.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
 	badWitnessFailureToleranceNegative.HighAvailability.WitnessQuorum = 1

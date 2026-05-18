@@ -121,6 +121,7 @@ type SystemStatus = {
     witness_required_sources_by_tier: Record<string, string[]>;
     witness_required_groups_by_tier: Record<string, string[]>;
     witness_policy_mode: string;
+    witness_policy_mode_by_tier: Record<string, string>;
     witness_failure_tolerance: number;
     witness_failure_weight_tolerance: number;
     witness_min_approvals_by_tier: Record<string, number>;
@@ -720,6 +721,11 @@ export default function Dashboard() {
                           : ''}
                         {systemStatus.high_availability.witness_policy_mode
                           ? `, policy ${systemStatus.high_availability.witness_policy_mode}`
+                          : ''}
+                        {Object.keys(systemStatus.high_availability.witness_policy_mode_by_tier || {}).length > 0
+                          ? `, tier policy ${Object.entries(systemStatus.high_availability.witness_policy_mode_by_tier)
+                              .map(([tier, mode]) => `${tier}=${mode}`)
+                              .join(', ')}`
                           : ''}
                         {systemStatus.high_availability.witness_failure_tolerance > 0
                           ? `, failure budget ${systemStatus.high_availability.witness_failure_tolerance}`
