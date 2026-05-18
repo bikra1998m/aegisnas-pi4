@@ -404,6 +404,7 @@ type HighAvailabilityConfig struct {
 	WitnessMinDistinctGroupsByTier  map[string]int      `mapstructure:"witness_min_distinct_groups_by_tier"`
 	WitnessMinDistinctSourcesByTier map[string]int      `mapstructure:"witness_min_distinct_sources_by_tier"`
 	WitnessRequiredSourcesByTier    map[string][]string `mapstructure:"witness_required_sources_by_tier"`
+	WitnessRequiredURLsByTier       map[string][]string `mapstructure:"witness_required_urls_by_tier"`
 	WitnessRequiredGroupsByTier     map[string][]string `mapstructure:"witness_required_groups_by_tier"`
 	WitnessMaxAgeByTier             map[string]int      `mapstructure:"witness_max_age_by_tier"`
 	WitnessRequiredNodeByTier       map[string]string   `mapstructure:"witness_required_node_by_tier"`
@@ -656,6 +657,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.witness_min_distinct_groups_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_min_distinct_sources_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_required_sources_by_tier", map[string][]string{})
+	v.SetDefault("high_availability.witness_required_urls_by_tier", map[string][]string{})
 	v.SetDefault("high_availability.witness_required_groups_by_tier", map[string][]string{})
 	v.SetDefault("high_availability.witness_max_age_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_required_node_by_tier", map[string]string{})
@@ -1535,6 +1537,24 @@ func (c *Config) Validate() error {
 				}
 			}
 		}
+		for tier, urls := range c.HighAvailability.WitnessRequiredURLsByTier {
+			trimmedTier := strings.TrimSpace(tier)
+			if trimmedTier == "" {
+				return errors.New("high_availability.witness_required_urls_by_tier keys cannot be blank")
+			}
+			if !slices.Contains(distinctTiers, trimmedTier) {
+				return fmt.Errorf("high_availability.witness_required_urls_by_tier key %q does not match a configured witness confidence tier", trimmedTier)
+			}
+			for _, witnessURL := range urls {
+				trimmedURL := strings.TrimSpace(witnessURL)
+				if trimmedURL == "" {
+					return fmt.Errorf("high_availability.witness_required_urls_by_tier[%q] entries must not be blank", trimmedTier)
+				}
+				if !slices.Contains(witnessURLs, trimmedURL) {
+					return fmt.Errorf("high_availability.witness_required_urls_by_tier[%q] entry %q does not match a configured witness URL", trimmedTier, trimmedURL)
+				}
+			}
+		}
 		for tier, groups := range c.HighAvailability.WitnessRequiredGroupsByTier {
 			trimmedTier := strings.TrimSpace(tier)
 			if trimmedTier == "" {
@@ -1662,7 +1682,7 @@ func (c *Config) Validate() error {
 		tierSourceConfigured := make(map[string]bool, len(distinctTiers))
 		for _, tier := range distinctTiers {
 			tierGroupConfigured[tier] = c.HighAvailability.WitnessMinDistinctGroupsByTier[tier] > 0 || len(c.HighAvailability.WitnessRequiredGroupsByTier[tier]) > 0
-			tierSourceConfigured[tier] = c.HighAvailability.WitnessMinDistinctSourcesByTier[tier] > 0 || len(c.HighAvailability.WitnessRequiredSourcesByTier[tier]) > 0
+			tierSourceConfigured[tier] = c.HighAvailability.WitnessMinDistinctSourcesByTier[tier] > 0 || len(c.HighAvailability.WitnessRequiredSourcesByTier[tier]) > 0 || len(c.HighAvailability.WitnessRequiredURLsByTier[tier]) > 0
 		}
 		for tier, mode := range c.HighAvailability.WitnessPolicyModeByTier {
 			trimmedTier := strings.TrimSpace(tier)
@@ -1676,7 +1696,7 @@ func (c *Config) Validate() error {
 			case "all":
 			case "any":
 				if !tierGroupConfigured[trimmedTier] && !tierSourceConfigured[trimmedTier] {
-					return fmt.Errorf("high_availability.witness_policy_mode_by_tier[%q] any requires high_availability.witness_min_distinct_groups_by_tier, high_availability.witness_required_groups_by_tier, high_availability.witness_min_distinct_sources_by_tier, or high_availability.witness_required_sources_by_tier", trimmedTier)
+					return fmt.Errorf("high_availability.witness_policy_mode_by_tier[%q] any requires high_availability.witness_min_distinct_groups_by_tier, high_availability.witness_required_groups_by_tier, high_availability.witness_min_distinct_sources_by_tier, high_availability.witness_required_sources_by_tier, or high_availability.witness_required_urls_by_tier", trimmedTier)
 				}
 			case "group_only":
 				if !tierGroupConfigured[trimmedTier] {
@@ -1684,7 +1704,7 @@ func (c *Config) Validate() error {
 				}
 			case "source_only":
 				if !tierSourceConfigured[trimmedTier] {
-					return fmt.Errorf("high_availability.witness_policy_mode_by_tier[%q] source_only requires high_availability.witness_min_distinct_sources_by_tier or high_availability.witness_required_sources_by_tier", trimmedTier)
+					return fmt.Errorf("high_availability.witness_policy_mode_by_tier[%q] source_only requires high_availability.witness_min_distinct_sources_by_tier, high_availability.witness_required_sources_by_tier, or high_availability.witness_required_urls_by_tier", trimmedTier)
 				}
 			default:
 				return fmt.Errorf("high_availability.witness_policy_mode_by_tier[%q] %q must be one of all, any, group_only, or source_only", trimmedTier, mode)
@@ -1827,6 +1847,14 @@ func (c *Config) Validate() error {
 		}
 		if len(witnessURLs) == 0 {
 			return errors.New("high_availability.witness_required_sources_by_tier requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessRequiredURLsByTier) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_required_urls_by_tier requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_required_urls_by_tier requires high_availability.witness_api_url")
 		}
 	}
 	if len(c.HighAvailability.WitnessRequiredGroupsByTier) > 0 {

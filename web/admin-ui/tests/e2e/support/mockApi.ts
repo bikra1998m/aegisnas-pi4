@@ -199,6 +199,9 @@ function createSettings() {
       witness_required_sources_by_tier: {
         critical: ['local'],
       },
+      witness_required_urls_by_tier: {
+        critical: ['https://witness-a.example.test/ha'],
+      },
       witness_required_groups_by_tier: {
         critical: ['dc-a'],
       },
@@ -437,6 +440,9 @@ function createSystemStatus() {
       witness_required_sources: ['local', 'external'],
       witness_required_sources_by_tier: {
         critical: ['local'],
+      },
+      witness_required_urls_by_tier: {
+        critical: ['https://witness-a.example.test/ha'],
       },
       witness_required_groups_by_tier: {
         critical: ['dc-a'],

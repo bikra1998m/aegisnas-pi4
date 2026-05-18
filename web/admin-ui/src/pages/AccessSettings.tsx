@@ -331,6 +331,7 @@ const defaultSettings: JsonMap = {
       witness_source_confidence: {},
       witness_required_sources: [],
       witness_required_sources_by_tier: {},
+      witness_required_urls_by_tier: {},
       witness_required_groups_by_tier: {},
       witness_policy_mode: 'all',
       witness_policy_mode_by_tier: {},
@@ -3136,6 +3137,41 @@ export default function AccessSettings() {
               placeholder={'critical=local\nadvisory=external,cloud'}
             />
             <p className="mt-1 text-xs text-gray-500">Optional per-tier source rules. Each listed tier must include approvals from the named source classes.</p>
+          </div>
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Required URLs By Tier</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={Object.entries(settings.high_availability?.witness_required_urls_by_tier || {})
+                .map(([tier, urls]) => `${tier}=${(Array.isArray(urls) ? urls : []).join(',')}`)
+                .join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                const requiredByTier: Record<string, string[]> = {};
+                event.target.value
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .forEach((line) => {
+                    const parts = line.split('=');
+                    const tier = parts.slice(0, -1).join('=').trim();
+                    const rawURLs = parts.length > 1 ? parts[parts.length - 1].trim() : '';
+                    if (!tier || !rawURLs) {
+                      return;
+                    }
+                    const urls = rawURLs
+                      .split(',')
+                      .map((url) => url.trim())
+                      .filter(Boolean);
+                    if (urls.length > 0) {
+                      requiredByTier[tier] = urls;
+                    }
+                  });
+                updateField(['high_availability', 'witness_required_urls_by_tier'], requiredByTier);
+              }}
+              placeholder={'critical=https://witness-a.example.test/ha\nadvisory=https://witness-b.example.test/ha,https://witness-c.example.test/ha'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional per-tier witness URL rules. Each listed tier must include approvals from the named witness endpoints.</p>
           </div>
           <div className="md:col-span-2 lg:col-span-4">
             <label className="mb-1 block text-sm font-medium text-gray-700">Witness Required Groups By Tier</label>

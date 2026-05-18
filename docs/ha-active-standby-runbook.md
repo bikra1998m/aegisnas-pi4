@@ -97,6 +97,9 @@ high_availability:
   witness_required_sources_by_tier:
     "critical":
       - "local"
+  witness_required_urls_by_tier:
+    "critical":
+      - "https://witness-a.example.test/ha"
   witness_required_groups_by_tier:
     "critical":
       - "dc-a"
@@ -160,6 +163,7 @@ Guidance:
 - `witness_source_confidence`: optional source-to-confidence-tier mapping; unspecified sources use the `standard` tier
 - `witness_required_sources`: optional source classes that must all be represented in witness approvals before promotion is allowed
 - `witness_required_sources_by_tier`: optional per-tier source classes; each listed confidence tier must include approvals from the named sources
+- `witness_required_urls_by_tier`: optional per-tier witness endpoints; each listed confidence tier must include approvals from the named witness URLs
 - `witness_required_groups_by_tier`: optional per-tier witness groups; each listed confidence tier must include approvals from the named groups
 - `witness_policy_mode`: how group and source diversity rules combine; `all` requires every configured family, `any` accepts either family, and `group_only` / `source_only` make one family authoritative
 - `witness_policy_mode_by_tier`: optional per-tier overrides for combining tier-specific source and group rules; tiers without an override keep the conservative `all` behavior

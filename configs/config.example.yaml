@@ -294,6 +294,7 @@ high_availability:
   witness_source_confidence: {} # Optional source-to-confidence-tier mapping. Unlisted sources use the standard confidence tier.
   witness_required_sources: [] # Optional source classes that must all appear in witness approvals before promotion is allowed.
   witness_required_sources_by_tier: {} # Optional per-tier source classes. Each listed tier must include approvals from the named sources.
+  witness_required_urls_by_tier: {} # Optional per-tier witness endpoints. Each listed tier must include approvals from the named witness URLs.
   witness_required_groups_by_tier: {} # Optional per-tier witness groups. Each listed tier must include approvals from the named groups.
   witness_policy_mode: "all" # all, any, group_only, or source_only for combining group and source diversity rules.
   witness_policy_mode_by_tier: {} # Optional per-tier overrides for combining tier-specific source and group rules. Values: all, any, group_only, source_only.
