@@ -372,52 +372,53 @@ type GovernanceConfig struct {
 }
 
 type HighAvailabilityConfig struct {
-	Enabled                        bool                `mapstructure:"enabled"`
-	Role                           string              `mapstructure:"role"`
-	PeerAPIURL                     string              `mapstructure:"peer_api_url"`
-	VirtualIP                      string              `mapstructure:"virtual_ip"`
-	HeartbeatIntervalSeconds       int                 `mapstructure:"heartbeat_interval_seconds"`
-	FailoverTimeoutSeconds         int                 `mapstructure:"failover_timeout_seconds"`
-	ReplicationIntervalSeconds     int                 `mapstructure:"replication_interval_seconds"`
-	ReplicationStaleAfterSeconds   int                 `mapstructure:"replication_stale_after_seconds"`
-	SplitBrainProtectionEnabled    bool                `mapstructure:"split_brain_protection_enabled"`
-	AutoStageSharedPackage         bool                `mapstructure:"auto_stage_shared_package"`
-	AutoActivateOnFailover         bool                `mapstructure:"auto_activate_on_failover"`
-	ReplicationSigningKeyEnv       string              `mapstructure:"replication_signing_key_env"`
-	ReplicationEncryptionKeyEnv    string              `mapstructure:"replication_encryption_key_env"`
-	WitnessAPIURL                  string              `mapstructure:"witness_api_url"`
-	WitnessURLs                    []string            `mapstructure:"witness_urls"`
-	WitnessQuorum                  int                 `mapstructure:"witness_quorum"`
-	WitnessWeights                 map[string]int      `mapstructure:"witness_weights"`
-	WitnessWeightThreshold         int                 `mapstructure:"witness_weight_threshold"`
-	WitnessGroups                  map[string]string   `mapstructure:"witness_groups"`
-	WitnessMinDistinctGroups       int                 `mapstructure:"witness_min_distinct_groups"`
-	WitnessSources                 map[string]string   `mapstructure:"witness_sources"`
-	WitnessRequiredSources         []string            `mapstructure:"witness_required_sources"`
-	WitnessPolicyMode              string              `mapstructure:"witness_policy_mode"`
-	WitnessFailureTolerance        int                 `mapstructure:"witness_failure_tolerance"`
-	WitnessFailureWeightTolerance  int                 `mapstructure:"witness_failure_weight_tolerance"`
-	WitnessSourceConfidence        map[string]string   `mapstructure:"witness_source_confidence"`
-	WitnessMinApprovalsByTier      map[string]int      `mapstructure:"witness_min_approvals_by_tier"`
-	WitnessMinWeightByTier         map[string]int      `mapstructure:"witness_min_weight_by_tier"`
-	WitnessMinDistinctGroupsByTier map[string]int      `mapstructure:"witness_min_distinct_groups_by_tier"`
-	WitnessRequiredSourcesByTier   map[string][]string `mapstructure:"witness_required_sources_by_tier"`
-	WitnessRequiredGroupsByTier    map[string][]string `mapstructure:"witness_required_groups_by_tier"`
-	WitnessMaxAgeByTier            map[string]int      `mapstructure:"witness_max_age_by_tier"`
-	WitnessRequiredNodeByTier      map[string]string   `mapstructure:"witness_required_node_by_tier"`
-	WitnessSignatureRequiredTiers  []string            `mapstructure:"witness_signature_required_tiers"`
-	WitnessReplayRequiredTiers     []string            `mapstructure:"witness_replay_required_tiers"`
-	WitnessFailureToleranceByTier  map[string]int      `mapstructure:"witness_failure_tolerance_by_tier"`
-	WitnessFailureWeightByTier     map[string]int      `mapstructure:"witness_failure_weight_tolerance_by_tier"`
-	WitnessBlockingTiers           []string            `mapstructure:"witness_blocking_tiers"`
-	WitnessTokenEnv                string              `mapstructure:"witness_token_env"`
-	WitnessSigningKeyEnv           string              `mapstructure:"witness_signing_key_env"`
-	WitnessMaxAgeSeconds           int                 `mapstructure:"witness_max_age_seconds"`
-	WitnessRequiredNode            string              `mapstructure:"witness_required_node"`
-	WitnessReplayProtectionEnabled bool                `mapstructure:"witness_replay_protection_enabled"`
-	Preempt                        bool                `mapstructure:"preempt"`
-	PreemptHoldoffSeconds          int                 `mapstructure:"preempt_holdoff_seconds"`
-	SharedStateDir                 string              `mapstructure:"shared_state_dir"`
+	Enabled                         bool                `mapstructure:"enabled"`
+	Role                            string              `mapstructure:"role"`
+	PeerAPIURL                      string              `mapstructure:"peer_api_url"`
+	VirtualIP                       string              `mapstructure:"virtual_ip"`
+	HeartbeatIntervalSeconds        int                 `mapstructure:"heartbeat_interval_seconds"`
+	FailoverTimeoutSeconds          int                 `mapstructure:"failover_timeout_seconds"`
+	ReplicationIntervalSeconds      int                 `mapstructure:"replication_interval_seconds"`
+	ReplicationStaleAfterSeconds    int                 `mapstructure:"replication_stale_after_seconds"`
+	SplitBrainProtectionEnabled     bool                `mapstructure:"split_brain_protection_enabled"`
+	AutoStageSharedPackage          bool                `mapstructure:"auto_stage_shared_package"`
+	AutoActivateOnFailover          bool                `mapstructure:"auto_activate_on_failover"`
+	ReplicationSigningKeyEnv        string              `mapstructure:"replication_signing_key_env"`
+	ReplicationEncryptionKeyEnv     string              `mapstructure:"replication_encryption_key_env"`
+	WitnessAPIURL                   string              `mapstructure:"witness_api_url"`
+	WitnessURLs                     []string            `mapstructure:"witness_urls"`
+	WitnessQuorum                   int                 `mapstructure:"witness_quorum"`
+	WitnessWeights                  map[string]int      `mapstructure:"witness_weights"`
+	WitnessWeightThreshold          int                 `mapstructure:"witness_weight_threshold"`
+	WitnessGroups                   map[string]string   `mapstructure:"witness_groups"`
+	WitnessMinDistinctGroups        int                 `mapstructure:"witness_min_distinct_groups"`
+	WitnessSources                  map[string]string   `mapstructure:"witness_sources"`
+	WitnessRequiredSources          []string            `mapstructure:"witness_required_sources"`
+	WitnessPolicyMode               string              `mapstructure:"witness_policy_mode"`
+	WitnessFailureTolerance         int                 `mapstructure:"witness_failure_tolerance"`
+	WitnessFailureWeightTolerance   int                 `mapstructure:"witness_failure_weight_tolerance"`
+	WitnessSourceConfidence         map[string]string   `mapstructure:"witness_source_confidence"`
+	WitnessMinApprovalsByTier       map[string]int      `mapstructure:"witness_min_approvals_by_tier"`
+	WitnessMinWeightByTier          map[string]int      `mapstructure:"witness_min_weight_by_tier"`
+	WitnessMinDistinctGroupsByTier  map[string]int      `mapstructure:"witness_min_distinct_groups_by_tier"`
+	WitnessMinDistinctSourcesByTier map[string]int      `mapstructure:"witness_min_distinct_sources_by_tier"`
+	WitnessRequiredSourcesByTier    map[string][]string `mapstructure:"witness_required_sources_by_tier"`
+	WitnessRequiredGroupsByTier     map[string][]string `mapstructure:"witness_required_groups_by_tier"`
+	WitnessMaxAgeByTier             map[string]int      `mapstructure:"witness_max_age_by_tier"`
+	WitnessRequiredNodeByTier       map[string]string   `mapstructure:"witness_required_node_by_tier"`
+	WitnessSignatureRequiredTiers   []string            `mapstructure:"witness_signature_required_tiers"`
+	WitnessReplayRequiredTiers      []string            `mapstructure:"witness_replay_required_tiers"`
+	WitnessFailureToleranceByTier   map[string]int      `mapstructure:"witness_failure_tolerance_by_tier"`
+	WitnessFailureWeightByTier      map[string]int      `mapstructure:"witness_failure_weight_tolerance_by_tier"`
+	WitnessBlockingTiers            []string            `mapstructure:"witness_blocking_tiers"`
+	WitnessTokenEnv                 string              `mapstructure:"witness_token_env"`
+	WitnessSigningKeyEnv            string              `mapstructure:"witness_signing_key_env"`
+	WitnessMaxAgeSeconds            int                 `mapstructure:"witness_max_age_seconds"`
+	WitnessRequiredNode             string              `mapstructure:"witness_required_node"`
+	WitnessReplayProtectionEnabled  bool                `mapstructure:"witness_replay_protection_enabled"`
+	Preempt                         bool                `mapstructure:"preempt"`
+	PreemptHoldoffSeconds           int                 `mapstructure:"preempt_holdoff_seconds"`
+	SharedStateDir                  string              `mapstructure:"shared_state_dir"`
 }
 
 type WirelessConfig struct {
@@ -651,6 +652,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.witness_min_approvals_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_min_weight_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_min_distinct_groups_by_tier", map[string]int{})
+	v.SetDefault("high_availability.witness_min_distinct_sources_by_tier", map[string]int{})
 	v.SetDefault("high_availability.witness_required_sources_by_tier", map[string][]string{})
 	v.SetDefault("high_availability.witness_required_groups_by_tier", map[string][]string{})
 	v.SetDefault("high_availability.witness_max_age_by_tier", map[string]int{})
@@ -1428,6 +1430,7 @@ func (c *Config) Validate() error {
 			tierWitnessWeights[tier] += weight
 		}
 		tierWitnessGroups := make(map[string]map[string]struct{}, len(distinctTiers))
+		tierWitnessSources := make(map[string]map[string]struct{}, len(distinctTiers))
 		for _, witnessURL := range witnessURLs {
 			trimmedURL := strings.TrimSpace(witnessURL)
 			source := sourceMap[trimmedURL]
@@ -1445,6 +1448,12 @@ func (c *Config) Validate() error {
 				tierWitnessGroups[tier] = groups
 			}
 			groups[group] = struct{}{}
+			sources := tierWitnessSources[tier]
+			if sources == nil {
+				sources = make(map[string]struct{})
+				tierWitnessSources[tier] = sources
+			}
+			sources[source] = struct{}{}
 		}
 		for tier, approvals := range c.HighAvailability.WitnessMinApprovalsByTier {
 			trimmedTier := strings.TrimSpace(tier)
@@ -1489,6 +1498,21 @@ func (c *Config) Validate() error {
 			}
 			if minimum > len(tierWitnessGroups[trimmedTier]) {
 				return fmt.Errorf("high_availability.witness_min_distinct_groups_by_tier[%q] %d cannot exceed configured witness group count %d for that tier", trimmedTier, minimum, len(tierWitnessGroups[trimmedTier]))
+			}
+		}
+		for tier, minimum := range c.HighAvailability.WitnessMinDistinctSourcesByTier {
+			trimmedTier := strings.TrimSpace(tier)
+			if trimmedTier == "" {
+				return errors.New("high_availability.witness_min_distinct_sources_by_tier keys cannot be blank")
+			}
+			if !slices.Contains(distinctTiers, trimmedTier) {
+				return fmt.Errorf("high_availability.witness_min_distinct_sources_by_tier key %q does not match a configured witness confidence tier", trimmedTier)
+			}
+			if minimum < 0 {
+				return fmt.Errorf("high_availability.witness_min_distinct_sources_by_tier[%q] %d cannot be negative", trimmedTier, minimum)
+			}
+			if minimum > len(tierWitnessSources[trimmedTier]) {
+				return fmt.Errorf("high_availability.witness_min_distinct_sources_by_tier[%q] %d cannot exceed configured witness source count %d for that tier", trimmedTier, minimum, len(tierWitnessSources[trimmedTier]))
 			}
 		}
 		for tier, sources := range c.HighAvailability.WitnessRequiredSourcesByTier {
@@ -1745,6 +1769,14 @@ func (c *Config) Validate() error {
 		}
 		if len(witnessURLs) == 0 {
 			return errors.New("high_availability.witness_min_distinct_groups_by_tier requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessMinDistinctSourcesByTier) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_min_distinct_sources_by_tier requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_min_distinct_sources_by_tier requires high_availability.witness_api_url")
 		}
 	}
 	if len(c.HighAvailability.WitnessRequiredSourcesByTier) > 0 {

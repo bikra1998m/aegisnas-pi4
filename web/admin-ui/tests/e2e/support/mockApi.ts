@@ -214,6 +214,9 @@ function createSettings() {
       witness_min_distinct_groups_by_tier: {
         critical: 1,
       },
+      witness_min_distinct_sources_by_tier: {
+        critical: 1,
+      },
       witness_max_age_by_tier: {
         critical: 10,
         advisory: 30,
@@ -445,6 +448,9 @@ function createSystemStatus() {
         critical: 2,
       },
       witness_min_distinct_groups_by_tier: {
+        critical: 1,
+      },
+      witness_min_distinct_sources_by_tier: {
         critical: 1,
       },
       witness_max_age_by_tier: {

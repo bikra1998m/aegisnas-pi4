@@ -1478,6 +1478,35 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessMinDistinctGroupsByTierTooHigh.HighAvailability.WitnessMinDistinctGroupsByTier = map[string]int{"critical": 2}
 	assert.ErrorContains(t, badWitnessMinDistinctGroupsByTierTooHigh.Validate(), `high_availability.witness_min_distinct_groups_by_tier["critical"] 2 cannot exceed configured witness group count 1 for that tier`)
 
+	badWitnessMinDistinctSourcesByTierUnknown := base()
+	badWitnessMinDistinctSourcesByTierUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessMinDistinctSourcesByTierUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessMinDistinctSourcesByTierUnknown.HighAvailability.WitnessMinDistinctSourcesByTier = map[string]int{"critical": 1}
+	assert.ErrorContains(t, badWitnessMinDistinctSourcesByTierUnknown.Validate(), `high_availability.witness_min_distinct_sources_by_tier key "critical" does not match a configured witness confidence tier`)
+
+	badWitnessMinDistinctSourcesByTierNegative := base()
+	badWitnessMinDistinctSourcesByTierNegative.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessMinDistinctSourcesByTierNegative.HighAvailability.WitnessQuorum = 1
+	badWitnessMinDistinctSourcesByTierNegative.HighAvailability.WitnessMinDistinctSourcesByTier = map[string]int{"standard": -1}
+	assert.ErrorContains(t, badWitnessMinDistinctSourcesByTierNegative.Validate(), `high_availability.witness_min_distinct_sources_by_tier["standard"] -1 cannot be negative`)
+
+	badWitnessMinDistinctSourcesByTierTooHigh := base()
+	badWitnessMinDistinctSourcesByTierTooHigh.HighAvailability.WitnessURLs = []string{
+		"https://witness-a.example.test/ha",
+		"https://witness-b.example.test/ha",
+	}
+	badWitnessMinDistinctSourcesByTierTooHigh.HighAvailability.WitnessQuorum = 1
+	badWitnessMinDistinctSourcesByTierTooHigh.HighAvailability.WitnessSources = map[string]string{
+		"https://witness-a.example.test/ha": "local",
+		"https://witness-b.example.test/ha": "external",
+	}
+	badWitnessMinDistinctSourcesByTierTooHigh.HighAvailability.WitnessSourceConfidence = map[string]string{
+		"local":    "critical",
+		"external": "advisory",
+	}
+	badWitnessMinDistinctSourcesByTierTooHigh.HighAvailability.WitnessMinDistinctSourcesByTier = map[string]int{"critical": 2}
+	assert.ErrorContains(t, badWitnessMinDistinctSourcesByTierTooHigh.Validate(), `high_availability.witness_min_distinct_sources_by_tier["critical"] 2 cannot exceed configured witness source count 1 for that tier`)
+
 	badWitnessBlockingTierUnknown := base()
 	badWitnessBlockingTierUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
 	badWitnessBlockingTierUnknown.HighAvailability.WitnessQuorum = 1
