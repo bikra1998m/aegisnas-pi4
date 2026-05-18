@@ -1365,7 +1365,7 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessPolicyModeByTierInvalid.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
 	badWitnessPolicyModeByTierInvalid.HighAvailability.WitnessQuorum = 1
 	badWitnessPolicyModeByTierInvalid.HighAvailability.WitnessPolicyModeByTier = map[string]string{"standard": "mystery"}
-	assert.ErrorContains(t, badWitnessPolicyModeByTierInvalid.Validate(), `high_availability.witness_policy_mode_by_tier["standard"] "mystery" must be one of all, any, group_only, or source_only`)
+	assert.ErrorContains(t, badWitnessPolicyModeByTierInvalid.Validate(), `high_availability.witness_policy_mode_by_tier["standard"] "mystery" must be one of all, any, group_only, source_only, or url_only`)
 
 	badWitnessPolicyModeByTierAny := base()
 	badWitnessPolicyModeByTierAny.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
@@ -1384,6 +1384,12 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessPolicyModeByTierSourceOnly.HighAvailability.WitnessQuorum = 1
 	badWitnessPolicyModeByTierSourceOnly.HighAvailability.WitnessPolicyModeByTier = map[string]string{"standard": "source_only"}
 	assert.ErrorContains(t, badWitnessPolicyModeByTierSourceOnly.Validate(), `high_availability.witness_policy_mode_by_tier["standard"] source_only requires high_availability.witness_min_distinct_sources_by_tier, high_availability.witness_required_sources_by_tier, or high_availability.witness_required_urls_by_tier`)
+
+	badWitnessPolicyModeByTierURLOnly := base()
+	badWitnessPolicyModeByTierURLOnly.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessPolicyModeByTierURLOnly.HighAvailability.WitnessQuorum = 1
+	badWitnessPolicyModeByTierURLOnly.HighAvailability.WitnessPolicyModeByTier = map[string]string{"standard": "url_only"}
+	assert.ErrorContains(t, badWitnessPolicyModeByTierURLOnly.Validate(), `high_availability.witness_policy_mode_by_tier["standard"] url_only requires high_availability.witness_required_urls_by_tier`)
 
 	badWitnessFailureToleranceNegative := base()
 	badWitnessFailureToleranceNegative.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}

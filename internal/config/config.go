@@ -535,6 +535,23 @@ func normalizeWitnessPolicyMode(mode string) string {
 	}
 }
 
+func normalizeWitnessTierPolicyMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", "all":
+		return "all"
+	case "any":
+		return "any"
+	case "group_only":
+		return "group_only"
+	case "source_only":
+		return "source_only"
+	case "url_only":
+		return "url_only"
+	default:
+		return strings.ToLower(strings.TrimSpace(mode))
+	}
+}
+
 func effectiveWitnessConfidenceTiers(sources []string, overrides map[string]string) (map[string]string, []string) {
 	tiers := make(map[string]string, len(sources))
 	distinctSet := make(map[string]struct{}, len(sources)+1)
@@ -1692,7 +1709,7 @@ func (c *Config) Validate() error {
 			if !slices.Contains(distinctTiers, trimmedTier) {
 				return fmt.Errorf("high_availability.witness_policy_mode_by_tier key %q does not match a configured witness confidence tier", trimmedTier)
 			}
-			switch normalized := normalizeWitnessPolicyMode(mode); normalized {
+			switch normalized := normalizeWitnessTierPolicyMode(mode); normalized {
 			case "all":
 			case "any":
 				if !tierGroupConfigured[trimmedTier] && !tierSourceConfigured[trimmedTier] {
@@ -1706,8 +1723,12 @@ func (c *Config) Validate() error {
 				if !tierSourceConfigured[trimmedTier] {
 					return fmt.Errorf("high_availability.witness_policy_mode_by_tier[%q] source_only requires high_availability.witness_min_distinct_sources_by_tier, high_availability.witness_required_sources_by_tier, or high_availability.witness_required_urls_by_tier", trimmedTier)
 				}
+			case "url_only":
+				if len(c.HighAvailability.WitnessRequiredURLsByTier[trimmedTier]) == 0 {
+					return fmt.Errorf("high_availability.witness_policy_mode_by_tier[%q] url_only requires high_availability.witness_required_urls_by_tier", trimmedTier)
+				}
 			default:
-				return fmt.Errorf("high_availability.witness_policy_mode_by_tier[%q] %q must be one of all, any, group_only, or source_only", trimmedTier, mode)
+				return fmt.Errorf("high_availability.witness_policy_mode_by_tier[%q] %q must be one of all, any, group_only, source_only, or url_only", trimmedTier, mode)
 			}
 		}
 		if c.HighAvailability.WitnessFailureTolerance < 0 {

@@ -166,7 +166,7 @@ Guidance:
 - `witness_required_urls_by_tier`: optional per-tier witness endpoints; each listed confidence tier must include approvals from the named witness URLs
 - `witness_required_groups_by_tier`: optional per-tier witness groups; each listed confidence tier must include approvals from the named groups
 - `witness_policy_mode`: how group and source diversity rules combine; `all` requires every configured family, `any` accepts either family, and `group_only` / `source_only` make one family authoritative
-- `witness_policy_mode_by_tier`: optional per-tier overrides for combining tier-specific source and group rules; tiers without an override keep the conservative `all` behavior
+- `witness_policy_mode_by_tier`: optional per-tier overrides for combining tier-specific source, group, and URL rules; tiers without an override keep the conservative `all` behavior. `url_only` makes the named tier URLs authoritative.
 - `witness_failure_tolerance`: optional count of failed witness probes that may reduce the required quorum during promotion
 - `witness_failure_weight_tolerance`: optional failed witness weight budget that may reduce the effective weight threshold during promotion
 - `witness_min_approvals_by_tier`: optional per-tier approval floors; promotion must include at least this many approvals from each listed confidence tier

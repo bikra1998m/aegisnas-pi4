@@ -2898,7 +2898,7 @@ export default function AccessSettings() {
               }}
               placeholder={'critical=all\nadvisory=any'}
             />
-            <p className="mt-1 text-xs text-gray-500">Optional per-tier source/group combination overrides. Tiers without an override use the conservative all-mode behavior for their tier-specific source and group rules.</p>
+            <p className="mt-1 text-xs text-gray-500">Optional per-tier policy overrides. Use all, any, group_only, source_only, or url_only. Tiers without an override keep the conservative all-mode behavior.</p>
           </div>
           <TextField
             label="Witness Failure Tolerance"

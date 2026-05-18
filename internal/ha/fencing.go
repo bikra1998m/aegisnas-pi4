@@ -613,6 +613,23 @@ func normalizeWitnessPolicyModeValue(mode string) string {
 	}
 }
 
+func normalizeWitnessTierPolicyModeValue(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", "all":
+		return "all"
+	case "any":
+		return "any"
+	case "group_only":
+		return "group_only"
+	case "source_only":
+		return "source_only"
+	case "url_only":
+		return "url_only"
+	default:
+		return "all"
+	}
+}
+
 func witnessPolicyModeByTier(cfg *config.Config) map[string]string {
 	if cfg == nil || cfg.HighAvailability.WitnessPolicyModeByTier == nil {
 		return nil
@@ -623,7 +640,7 @@ func witnessPolicyModeByTier(cfg *config.Config) map[string]string {
 		if trimmedTier == "" {
 			continue
 		}
-		overrides[trimmedTier] = normalizeWitnessPolicyModeValue(mode)
+		overrides[trimmedTier] = normalizeWitnessTierPolicyModeValue(mode)
 	}
 	return overrides
 }
@@ -632,7 +649,7 @@ func effectiveWitnessPolicyModeForTier(cfg *config.Config, tier string) string {
 	tier = strings.TrimSpace(tier)
 	if tier != "" && cfg != nil && cfg.HighAvailability.WitnessPolicyModeByTier != nil {
 		if override, ok := cfg.HighAvailability.WitnessPolicyModeByTier[tier]; ok {
-			return normalizeWitnessPolicyModeValue(override)
+			return normalizeWitnessTierPolicyModeValue(override)
 		}
 	}
 	return "all"
@@ -1485,6 +1502,8 @@ func (c *controller) evaluateFencing(observedAt time.Time, peerReachable, failov
 				tierSatisfied = groupFamilySatisfied
 			case "source_only":
 				tierSatisfied = sourceFamilySatisfied
+			case "url_only":
+				tierSatisfied = !tierURLMissingByTier[tier]
 			default:
 				tierSatisfied = groupFamilySatisfied && sourceFamilySatisfied
 			}
