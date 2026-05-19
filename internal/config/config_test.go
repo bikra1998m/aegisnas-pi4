@@ -1204,6 +1204,20 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessGroupThresholdTooHigh.HighAvailability.WitnessMinDistinctGroups = 2
 	assert.ErrorContains(t, badWitnessGroupThresholdTooHigh.Validate(), "high_availability.witness_min_distinct_groups 2 cannot exceed configured witness group count 1")
 
+	badWitnessRequiredGroupBlank := base()
+	badWitnessRequiredGroupBlank.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessRequiredGroupBlank.HighAvailability.WitnessQuorum = 1
+	badWitnessRequiredGroupBlank.HighAvailability.WitnessGroups = map[string]string{"https://witness-a.example.test/ha": "dc-a"}
+	badWitnessRequiredGroupBlank.HighAvailability.WitnessRequiredGroups = []string{" "}
+	assert.ErrorContains(t, badWitnessRequiredGroupBlank.Validate(), "high_availability.witness_required_groups entries must not be blank")
+
+	badWitnessRequiredGroupUnknown := base()
+	badWitnessRequiredGroupUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
+	badWitnessRequiredGroupUnknown.HighAvailability.WitnessQuorum = 1
+	badWitnessRequiredGroupUnknown.HighAvailability.WitnessGroups = map[string]string{"https://witness-a.example.test/ha": "dc-a"}
+	badWitnessRequiredGroupUnknown.HighAvailability.WitnessRequiredGroups = []string{"dc-b"}
+	assert.ErrorContains(t, badWitnessRequiredGroupUnknown.Validate(), `high_availability.witness_required_groups entry "dc-b" does not match a configured witness group`)
+
 	badWitnessSourceUnknown := base()
 	badWitnessSourceUnknown.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
 	badWitnessSourceUnknown.HighAvailability.WitnessQuorum = 1
@@ -1353,13 +1367,13 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badWitnessPolicyAny.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
 	badWitnessPolicyAny.HighAvailability.WitnessQuorum = 1
 	badWitnessPolicyAny.HighAvailability.WitnessPolicyMode = "any"
-	assert.ErrorContains(t, badWitnessPolicyAny.Validate(), "high_availability.witness_policy_mode any requires witness_min_distinct_groups, witness_required_sources, or witness_required_urls")
+	assert.ErrorContains(t, badWitnessPolicyAny.Validate(), "high_availability.witness_policy_mode any requires witness_min_distinct_groups, witness_required_groups, witness_required_sources, or witness_required_urls")
 
 	badWitnessPolicyGroupOnly := base()
 	badWitnessPolicyGroupOnly.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}
 	badWitnessPolicyGroupOnly.HighAvailability.WitnessQuorum = 1
 	badWitnessPolicyGroupOnly.HighAvailability.WitnessPolicyMode = "group_only"
-	assert.ErrorContains(t, badWitnessPolicyGroupOnly.Validate(), "high_availability.witness_policy_mode group_only requires high_availability.witness_min_distinct_groups")
+	assert.ErrorContains(t, badWitnessPolicyGroupOnly.Validate(), "high_availability.witness_policy_mode group_only requires high_availability.witness_min_distinct_groups or high_availability.witness_required_groups")
 
 	badWitnessPolicySourceOnly := base()
 	badWitnessPolicySourceOnly.HighAvailability.WitnessURLs = []string{"https://witness-a.example.test/ha"}

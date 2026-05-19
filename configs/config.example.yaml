@@ -290,6 +290,7 @@ high_availability:
   witness_weight_threshold: 0 # Optional minimum combined witness weight required for promotion. 0 disables weight enforcement.
   witness_groups: {} # Optional per-witness group overrides keyed by witness URL. Unlisted witnesses count as their own group.
   witness_min_distinct_groups: 0 # Optional minimum number of distinct witness groups that must approve promotion. 0 disables diversity enforcement.
+  witness_required_groups: [] # Optional witness groups that must all appear in witness approvals before promotion is allowed.
   witness_sources: {} # Optional per-witness source overrides keyed by witness URL. Unlisted witnesses count as their own source.
   witness_source_confidence: {} # Optional source-to-confidence-tier mapping. Unlisted sources use the standard confidence tier.
   witness_required_sources: [] # Optional source classes that must all appear in witness approvals before promotion is allowed.

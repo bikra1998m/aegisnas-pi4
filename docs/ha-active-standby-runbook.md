@@ -85,6 +85,8 @@ high_availability:
     "https://witness-a.example.test/ha": "dc-a"
     "https://witness-b.example.test/ha": "dc-b"
   witness_min_distinct_groups: 2
+  witness_required_groups:
+    - "dc-a"
   witness_sources:
     "https://witness-a.example.test/ha": "local"
     "https://witness-b.example.test/ha": "external"
@@ -161,6 +163,7 @@ Guidance:
 - `witness_weight_threshold`: optional minimum combined witness weight required in addition to the plain witness quorum count
 - `witness_groups`: optional per-witness group overrides keyed by witness URL; unspecified witnesses count as their own distinct group
 - `witness_min_distinct_groups`: optional minimum number of distinct witness groups that must allow promotion in addition to the plain witness quorum and weight rules
+- `witness_required_groups`: optional witness groups that must all be represented in witness approvals before promotion is allowed
 - `witness_sources`: optional per-witness source overrides keyed by witness URL; unspecified witnesses count as their own source
 - `witness_source_confidence`: optional source-to-confidence-tier mapping; unspecified sources use the `standard` tier
 - `witness_required_sources`: optional source classes that must all be represented in witness approvals before promotion is allowed

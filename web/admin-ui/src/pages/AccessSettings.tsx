@@ -327,6 +327,7 @@ const defaultSettings: JsonMap = {
       witness_weight_threshold: 0,
       witness_groups: {},
       witness_min_distinct_groups: 0,
+      witness_required_groups: [],
       witness_sources: {},
       witness_source_confidence: {},
       witness_required_sources: [],
@@ -3085,6 +3086,25 @@ export default function AccessSettings() {
               placeholder={'https://witness-a.example.test/ha=local\nhttps://witness-b.example.test/ha=external'}
             />
             <p className="mt-1 text-xs text-gray-500">Optional source mapping for mixed-source quorum. Unlisted witnesses count as their own source.</p>
+          </div>
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Witness Required Groups</label>
+            <textarea
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={2}
+              value={(settings.high_availability?.witness_required_groups || []).join('\n')}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+                updateField(
+                  ['high_availability', 'witness_required_groups'],
+                  event.target.value
+                    .split(/\r?\n/)
+                    .map((value) => value.trim())
+                    .filter(Boolean),
+                )
+              }
+              placeholder={'dc-a\ndc-b'}
+            />
+            <p className="mt-1 text-xs text-gray-500">Optional witness groups that must all be represented in approvals before promotion is allowed.</p>
           </div>
           <div className="md:col-span-2 lg:col-span-4">
             <label className="mb-1 block text-sm font-medium text-gray-700">Witness Required Sources</label>

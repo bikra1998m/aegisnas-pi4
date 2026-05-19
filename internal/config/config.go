@@ -392,6 +392,7 @@ type HighAvailabilityConfig struct {
 	WitnessWeightThreshold          int                 `mapstructure:"witness_weight_threshold"`
 	WitnessGroups                   map[string]string   `mapstructure:"witness_groups"`
 	WitnessMinDistinctGroups        int                 `mapstructure:"witness_min_distinct_groups"`
+	WitnessRequiredGroups           []string            `mapstructure:"witness_required_groups"`
 	WitnessSources                  map[string]string   `mapstructure:"witness_sources"`
 	WitnessRequiredSources          []string            `mapstructure:"witness_required_sources"`
 	WitnessRequiredURLs             []string            `mapstructure:"witness_required_urls"`
@@ -665,6 +666,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("high_availability.witness_weight_threshold", 0)
 	v.SetDefault("high_availability.witness_groups", map[string]string{})
 	v.SetDefault("high_availability.witness_min_distinct_groups", 0)
+	v.SetDefault("high_availability.witness_required_groups", []string{})
 	v.SetDefault("high_availability.witness_sources", map[string]string{})
 	v.SetDefault("high_availability.witness_required_sources", []string{})
 	v.SetDefault("high_availability.witness_required_urls", []string{})
@@ -1669,6 +1671,17 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("high_availability.witness_blocking_tiers entry %q does not match a configured witness confidence tier", trimmedTier)
 			}
 		}
+		if len(c.HighAvailability.WitnessRequiredGroups) > 0 {
+			for _, group := range c.HighAvailability.WitnessRequiredGroups {
+				trimmedGroup := strings.TrimSpace(group)
+				if trimmedGroup == "" {
+					return errors.New("high_availability.witness_required_groups entries must not be blank")
+				}
+				if !slices.Contains(distinctGroups, trimmedGroup) {
+					return fmt.Errorf("high_availability.witness_required_groups entry %q does not match a configured witness group", trimmedGroup)
+				}
+			}
+		}
 		if len(c.HighAvailability.WitnessRequiredSources) > 0 {
 			for _, source := range c.HighAvailability.WitnessRequiredSources {
 				trimmedSource := strings.TrimSpace(source)
@@ -1691,18 +1704,18 @@ func (c *Config) Validate() error {
 				}
 			}
 		}
-		groupConfigured := c.HighAvailability.WitnessMinDistinctGroups > 0
+		groupConfigured := c.HighAvailability.WitnessMinDistinctGroups > 0 || len(c.HighAvailability.WitnessRequiredGroups) > 0
 		sourceConfigured := len(c.HighAvailability.WitnessRequiredSources) > 0
 		urlConfigured := len(c.HighAvailability.WitnessRequiredURLs) > 0
 		switch mode := normalizeWitnessPolicyMode(c.HighAvailability.WitnessPolicyMode); mode {
 		case "all":
 		case "any":
 			if !groupConfigured && !sourceConfigured && !urlConfigured {
-				return errors.New("high_availability.witness_policy_mode any requires witness_min_distinct_groups, witness_required_sources, or witness_required_urls")
+				return errors.New("high_availability.witness_policy_mode any requires witness_min_distinct_groups, witness_required_groups, witness_required_sources, or witness_required_urls")
 			}
 		case "group_only":
 			if !groupConfigured {
-				return errors.New("high_availability.witness_policy_mode group_only requires high_availability.witness_min_distinct_groups")
+				return errors.New("high_availability.witness_policy_mode group_only requires high_availability.witness_min_distinct_groups or high_availability.witness_required_groups")
 			}
 		case "source_only":
 			if !sourceConfigured {
@@ -1789,6 +1802,14 @@ func (c *Config) Validate() error {
 		}
 		if len(witnessURLs) == 0 {
 			return errors.New("high_availability.witness_groups requires high_availability.witness_api_url")
+		}
+	}
+	if len(c.HighAvailability.WitnessRequiredGroups) > 0 {
+		if !c.HighAvailability.Enabled {
+			return errors.New("high_availability.witness_required_groups requires high_availability.enabled")
+		}
+		if len(witnessURLs) == 0 {
+			return errors.New("high_availability.witness_required_groups requires high_availability.witness_api_url")
 		}
 	}
 	if c.HighAvailability.WitnessMinDistinctGroups < 0 {

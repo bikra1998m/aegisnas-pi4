@@ -288,6 +288,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"witness_weight_threshold":                 cfg.HighAvailability.WitnessWeightThreshold,
 			"witness_groups":                           cfg.HighAvailability.WitnessGroups,
 			"witness_min_distinct_groups":              cfg.HighAvailability.WitnessMinDistinctGroups,
+			"witness_required_groups":                  cfg.HighAvailability.WitnessRequiredGroups,
 			"witness_sources":                          cfg.HighAvailability.WitnessSources,
 			"witness_source_confidence":                cfg.HighAvailability.WitnessSourceConfidence,
 			"witness_required_sources":                 cfg.HighAvailability.WitnessRequiredSources,

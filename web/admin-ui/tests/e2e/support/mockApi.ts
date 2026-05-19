@@ -187,6 +187,7 @@ function createSettings() {
         'https://witness-b.example.test/ha': 'dc-b',
       },
       witness_min_distinct_groups: 2,
+      witness_required_groups: ['dc-a'],
       witness_sources: {
         'https://witness-a.example.test/ha': 'local',
         'https://witness-b.example.test/ha': 'external',
@@ -430,6 +431,7 @@ function createSystemStatus() {
         'https://witness-b.example.test/ha': 'dc-b',
       },
       witness_min_distinct_groups: 2,
+      witness_required_groups: ['dc-a'],
       witness_sources: {
         'https://witness-a.example.test/ha': 'local',
         'https://witness-b.example.test/ha': 'external',

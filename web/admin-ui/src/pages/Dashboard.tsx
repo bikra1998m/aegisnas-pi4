@@ -115,6 +115,7 @@ type SystemStatus = {
     witness_weight_threshold: number;
     witness_groups: Record<string, string>;
     witness_min_distinct_groups: number;
+    witness_required_groups: string[];
     witness_sources: Record<string, string>;
     witness_source_confidence: Record<string, string>;
     witness_required_sources: string[];
@@ -720,6 +721,9 @@ export default function Dashboard() {
                           : ''}
                         {systemStatus.high_availability.witness_min_distinct_groups > 0
                           ? `, distinct groups ${systemStatus.high_availability.witness_min_distinct_groups}`
+                          : ''}
+                        {systemStatus.high_availability.witness_required_groups?.length
+                          ? `, required groups ${systemStatus.high_availability.witness_required_groups.join(', ')}`
                           : ''}
                         {systemStatus.high_availability.witness_policy_mode
                           ? `, policy ${systemStatus.high_availability.witness_policy_mode}`
