@@ -198,6 +198,29 @@ export default function Backups() {
     }
   };
 
+  const downloadSupportBundle = async () => {
+    setError('');
+    setMessage('');
+    setBusyAction('support-bundle');
+    try {
+      const response = await api.get('/system/support-bundle', { responseType: 'blob' });
+      const { data, headers } = response;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      const disposition = `${headers?.['content-disposition'] || ''}`;
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      link.download = filenameMatch?.[1] || 'aegisnas-support-bundle.zip';
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage('Support bundle downloaded. It includes redacted settings, runtime health, network and HA history, plus best-effort service diagnostics.');
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not download support bundle.');
+    } finally {
+      setBusyAction('');
+    }
+  };
+
   const uploadReplicationPackage = async () => {
     if (!replicationFile) return;
     setError('');
@@ -319,6 +342,18 @@ export default function Backups() {
           </div>
         </section>
       </div>
+
+      <section className="mt-6 rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Support Bundle</h3>
+            <p className="mt-1 text-sm text-gray-600">Capture a downloadable operator bundle with redacted settings, runtime status, HA and network history, and best-effort service logs for troubleshooting.</p>
+          </div>
+          <button onClick={() => void downloadSupportBundle()} disabled={busyAction !== ''} className="rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-black disabled:opacity-50">
+            Download Support Bundle
+          </button>
+        </div>
+      </section>
 
       <section className="mt-6 rounded-lg bg-white p-6 shadow">
         <div className="mb-4 flex items-center justify-between">
