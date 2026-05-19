@@ -29,22 +29,43 @@ func StartProfilingRuntime(ctx context.Context, cfg *config.Config, logger *zap.
 			"posture_enabled": cfg.Profiling.PostureEnabled,
 		})
 		if cfg.Profiling.MDMSyncEnabled {
-			if err := service.SyncFromMDM(ctx); err != nil {
+			if stats, err := service.SyncFromMDM(ctx); err != nil {
 				_ = db.UpsertRuntimeStatus("mdm_sync", "degraded", fmt.Sprintf("MDM sync failed: %v", err), nil)
 				logger.Warn("mdm sync failed", zap.Error(err))
 			} else {
-				_ = db.UpsertRuntimeStatus("mdm_sync", "ok", "MDM sync completed successfully.", map[string]any{"provider": cfg.Profiling.MDMProvider})
+				_ = db.UpsertRuntimeStatus("mdm_sync", "ok", "MDM sync completed successfully.", map[string]any{
+					"provider":              stats.Provider,
+					"source":                stats.Source,
+					"total_records":         stats.TotalRecords,
+					"managed_records":       stats.ManagedRecords,
+					"compliant_records":     stats.CompliantRecords,
+					"non_compliant_records": stats.NonCompliantRecords,
+					"unknown_records":       stats.UnknownRecords,
+					"remediation_records":   stats.RemediationRecords,
+				})
 			}
 		}
 		if cfg.Profiling.PostureEnabled && cfg.Profiling.ComplianceWebhook != "" {
-			if err := service.SyncFromComplianceWebhook(ctx); err != nil {
+			if stats, err := service.SyncFromComplianceWebhook(ctx); err != nil {
 				_ = db.UpsertRuntimeStatus("posture_checks", "degraded", fmt.Sprintf("Compliance webhook failed: %v", err), nil)
 				logger.Warn("compliance webhook failed", zap.Error(err))
 			} else {
-				_ = db.UpsertRuntimeStatus("posture_checks", "ok", "Compliance webhook evaluation completed.", nil)
+				_ = db.UpsertRuntimeStatus("posture_checks", "ok", "Compliance webhook evaluation completed.", map[string]any{
+					"provider":              stats.Provider,
+					"source":                stats.Source,
+					"total_records":         stats.TotalRecords,
+					"managed_records":       stats.ManagedRecords,
+					"compliant_records":     stats.CompliantRecords,
+					"non_compliant_records": stats.NonCompliantRecords,
+					"unknown_records":       stats.UnknownRecords,
+					"remediation_records":   stats.RemediationRecords,
+				})
 			}
 		} else if cfg.Profiling.PostureEnabled {
-			_ = db.UpsertRuntimeStatus("posture_checks", "ok", "Posture checks are active with MDM-backed compliance.", nil)
+			_ = db.UpsertRuntimeStatus("posture_checks", "ok", "Posture checks are active with MDM-backed compliance.", map[string]any{
+				"provider": cfg.Profiling.MDMProvider,
+				"source":   "mdm-sync",
+			})
 		}
 	}
 

@@ -206,18 +206,127 @@ func TestSyncFromMDMAndComplianceWebhookUseBearerTokens(t *testing.T) {
 	}
 	service := New(cfg, nil)
 
-	require.NoError(t, service.SyncFromMDM(context.Background()))
-	require.NoError(t, service.SyncFromComplianceWebhook(context.Background()))
+	mdmStats, err := service.SyncFromMDM(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, mdmStats)
+	assert.Equal(t, "workspace-one", mdmStats.Provider)
+	assert.Equal(t, 1, mdmStats.TotalRecords)
+	assert.Equal(t, 1, mdmStats.ManagedRecords)
+	assert.Equal(t, 1, mdmStats.CompliantRecords)
+
+	webhookStats, err := service.SyncFromComplianceWebhook(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, webhookStats)
+	assert.Equal(t, "compliance-webhook", webhookStats.Provider)
+	assert.Equal(t, 1, webhookStats.TotalRecords)
+	assert.Equal(t, 1, webhookStats.NonCompliantRecords)
 
 	device, err := service.GetDeviceByMAC("aa:bb:cc:dd:ee:ff")
 	require.NoError(t, err)
 	assert.Equal(t, "non_compliant", device.ComplianceStatus)
-	assert.Equal(t, "workspace-one-like", device.MDMProvider)
+	assert.Equal(t, "workspace-one", device.MDMProvider)
 
 	var filterID string
 	err = db.DB.QueryRow(`SELECT COALESCE(filter_id, '') FROM sessions WHERE id = ?`, "session-1").Scan(&filterID)
 	require.NoError(t, err)
 	assert.Equal(t, "quarantine-posture", filterID)
+}
+
+func TestSyncFromMDMIntuneAdapter(t *testing.T) {
+	setupOnboardingDB(t)
+	t.Setenv("AEGIS_MDM_API_TOKEN", "mdm-secret")
+
+	mdmServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer mdm-secret", r.Header.Get("Authorization"))
+		writeJSON(t, w, map[string]any{
+			"value": []map[string]any{
+				{
+					"id":              "intune-1",
+					"deviceName":      "Corp MacBook",
+					"operatingSystem": "macOS",
+					"wiFiMacAddress":  "aa:bb:cc:dd:ee:11",
+					"complianceState": "compliant",
+					"managed":         true,
+					"complianceGracePeriodExpirationDateTime": "soon",
+				},
+			},
+		})
+	}))
+	defer mdmServer.Close()
+
+	cfg := &config.Config{
+		Database: config.DatabaseConfig{Path: dbPathFromTest(t)},
+		Profiling: config.ProfilingConfig{
+			MDMSyncEnabled: true,
+			MDMProvider:    "intune",
+			MDMEndpoint:    mdmServer.URL,
+			MDMAPITokenEnv: "AEGIS_MDM_API_TOKEN",
+		},
+	}
+	service := New(cfg, nil)
+
+	stats, err := service.SyncFromMDM(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, stats)
+	assert.Equal(t, "intune", stats.Provider)
+	assert.Equal(t, 1, stats.TotalRecords)
+	assert.Equal(t, 1, stats.CompliantRecords)
+
+	device, err := service.GetDeviceByMAC("aa:bb:cc:dd:ee:11")
+	require.NoError(t, err)
+	assert.Equal(t, "intune", device.MDMProvider)
+	assert.Equal(t, "intune-1", device.MDMDeviceID)
+	assert.Equal(t, "Corp MacBook", device.FriendlyName)
+	assert.Equal(t, "macos", device.Platform)
+}
+
+func TestSyncFromMDMJamfAdapter(t *testing.T) {
+	setupOnboardingDB(t)
+	t.Setenv("AEGIS_MDM_API_TOKEN", "mdm-secret")
+
+	mdmServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer mdm-secret", r.Header.Get("Authorization"))
+		writeJSON(t, w, map[string]any{
+			"results": []map[string]any{
+				{
+					"udid":              "jamf-1",
+					"device_name":       "Student iPad",
+					"platform":          "ios",
+					"mac_address":       "aa:bb:cc:dd:ee:22",
+					"managed":           true,
+					"compliance_state":  "non_compliant",
+					"remediation_state": "pending-profile",
+				},
+			},
+		})
+	}))
+	defer mdmServer.Close()
+
+	cfg := &config.Config{
+		Database: config.DatabaseConfig{Path: dbPathFromTest(t)},
+		Profiling: config.ProfilingConfig{
+			MDMSyncEnabled: true,
+			MDMProvider:    "jamf",
+			MDMEndpoint:    mdmServer.URL,
+			MDMAPITokenEnv: "AEGIS_MDM_API_TOKEN",
+		},
+	}
+	service := New(cfg, nil)
+
+	stats, err := service.SyncFromMDM(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, stats)
+	assert.Equal(t, "jamf", stats.Provider)
+	assert.Equal(t, 1, stats.TotalRecords)
+	assert.Equal(t, 1, stats.NonCompliantRecords)
+	assert.Equal(t, 1, stats.RemediationRecords)
+
+	device, err := service.GetDeviceByMAC("aa:bb:cc:dd:ee:22")
+	require.NoError(t, err)
+	assert.Equal(t, "jamf", device.MDMProvider)
+	assert.Equal(t, "jamf-1", device.MDMDeviceID)
+	assert.Equal(t, "pending-profile", device.RemediationState)
+	assert.Equal(t, "non_compliant", device.ComplianceStatus)
 }
 
 func setupOnboardingDB(t *testing.T) {

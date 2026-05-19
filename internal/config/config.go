@@ -1136,6 +1136,11 @@ func (c *Config) Validate() error {
 			return err
 		}
 	}
+	switch strings.ToLower(strings.TrimSpace(c.Profiling.MDMProvider)) {
+	case "", "generic", "workspace-one", "workspace-one-like", "intune", "jamf":
+	default:
+		return fmt.Errorf("profiling.mdm_provider %q is invalid", c.Profiling.MDMProvider)
+	}
 	if c.Onboarding.DeviceInventoryEnabled && profile == "lite" {
 		return errors.New("onboarding.device_inventory_enabled is not supported on the lite deployment profile")
 	}

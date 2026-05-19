@@ -515,6 +515,14 @@ const controllerSyncOptions: Option[] = [
   { value: 'coa-only', label: 'CoA Only' },
 ];
 
+const mdmProviderOptions: Option[] = [
+  { value: '', label: 'Select MDM or UEM' },
+  { value: 'generic', label: 'Generic API' },
+  { value: 'workspace-one', label: 'Workspace ONE' },
+  { value: 'intune', label: 'Microsoft Intune' },
+  { value: 'jamf', label: 'Jamf' },
+];
+
 const rbacModeOptions: Option[] = [
   { value: 'local', label: 'Local Roles' },
   { value: 'external-groups', label: 'External Groups' },
@@ -2501,11 +2509,11 @@ export default function AccessSettings() {
               value={settings.profiling?.mdm_cache_hours || 12}
               onChange={(value) => updateField(['profiling', 'mdm_cache_hours'], Number(value))}
             />
-            <TextField
+            <SelectField
               label="MDM Provider"
               value={settings.profiling?.mdm_provider || ''}
               onChange={(value) => updateField(['profiling', 'mdm_provider'], value)}
-              placeholder="workspace-one-like"
+              options={mdmProviderOptions}
             />
               <TextField
                 label="MDM Endpoint"

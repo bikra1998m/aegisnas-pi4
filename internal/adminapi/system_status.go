@@ -251,6 +251,28 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	profilingStatus := map[string]any{
+		"mac_inventory_enabled": cfg.Profiling.MACInventoryEnabled,
+		"passive_enabled":       cfg.Profiling.PassiveEnabled,
+		"posture_enabled":       cfg.Profiling.PostureEnabled,
+		"mdm_sync_enabled":      cfg.Profiling.MDMSyncEnabled,
+		"mdm_provider":          cfg.Profiling.MDMProvider,
+		"mdm_endpoint":          cfg.Profiling.MDMEndpoint,
+		"compliance_webhook":    cfg.Profiling.ComplianceWebhook,
+		"device_inventory":      runtimeMap["device_inventory"],
+		"mdm_sync":              runtimeMap["mdm_sync"],
+		"posture_checks":        runtimeMap["posture_checks"],
+	}
+	if !cfg.Profiling.MACInventoryEnabled && !cfg.Profiling.PassiveEnabled && !cfg.Profiling.PostureEnabled && !cfg.Profiling.MDMSyncEnabled {
+		profilingStatus["device_inventory"] = map[string]any{"status": "disabled", "message": "Profiling runtime is disabled in config"}
+		profilingStatus["mdm_sync"] = map[string]any{"status": "disabled", "message": "MDM sync is disabled in config"}
+		profilingStatus["posture_checks"] = map[string]any{"status": "disabled", "message": "Posture checks are disabled in config"}
+	} else if !cfg.Telemetry.Enabled {
+		profilingStatus["device_inventory"] = map[string]any{"status": "degraded", "message": "Telemetry service is disabled, so profiling runtime is not running."}
+		profilingStatus["mdm_sync"] = map[string]any{"status": "degraded", "message": "Telemetry service is disabled, so MDM sync is not running."}
+		profilingStatus["posture_checks"] = map[string]any{"status": "degraded", "message": "Telemetry service is disabled, so posture checks are not running."}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"generated_at": time.Now().UTC().Format(time.RFC3339),
 		"summary": map[string]any{
@@ -325,6 +347,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"history_stats":                            haHistoryStats,
 		},
 		"integrations": integrationsStatus,
+		"profiling":    profilingStatus,
 		"network_observability": map[string]any{
 			"apply_stats":     applyStats,
 			"lease_trends":    leaseTrends,

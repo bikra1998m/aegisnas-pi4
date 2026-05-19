@@ -601,6 +601,18 @@ function createSystemStatus() {
         sync: { status: 'ok', message: 'Controller sync healthy.', details: { sync_count: 4, success_count: 4, failure_count: 0, last_duration_ms: 182 } },
       },
     },
+    profiling: {
+      mac_inventory_enabled: true,
+      passive_enabled: true,
+      posture_enabled: true,
+      mdm_sync_enabled: true,
+      mdm_provider: 'workspace-one',
+      mdm_endpoint: 'https://mdm.example.test/api',
+      compliance_webhook: 'https://policy.example.test/compliance',
+      device_inventory: { status: 'ok', message: 'Device inventory runtime is active.', details: { passive_enabled: true, posture_enabled: true } },
+      mdm_sync: { status: 'ok', message: 'MDM sync completed successfully.', details: { provider: 'workspace-one', total_records: 12, managed_records: 11, compliant_records: 10, non_compliant_records: 2, remediation_records: 1 } },
+      posture_checks: { status: 'ok', message: 'Compliance webhook evaluation completed.', details: { provider: 'compliance-webhook', total_records: 4, managed_records: 4, compliant_records: 3, non_compliant_records: 1, remediation_records: 1 } },
+    },
     network_observability: {
       apply_stats: {
         total_records: 3,

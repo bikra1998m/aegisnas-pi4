@@ -847,6 +847,10 @@ func TestConfigValidationOnboardingAndProfiling(t *testing.T) {
 	noComplianceSource.Profiling.MDMProvider = ""
 	noComplianceSource.Profiling.MDMEndpoint = ""
 	assert.ErrorContains(t, noComplianceSource.Validate(), "profiling.posture_enabled requires an MDM endpoint or compliance webhook")
+
+	badMDMProvider := base()
+	badMDMProvider.Profiling.MDMProvider = "mystery-mdm"
+	assert.ErrorContains(t, badMDMProvider.Validate(), `profiling.mdm_provider "mystery-mdm" is invalid`)
 }
 
 func TestConfigValidationPhase4Integrations(t *testing.T) {

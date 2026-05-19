@@ -193,6 +193,18 @@ type SystemStatus = {
       sync: RuntimeStatus;
     };
   };
+  profiling: {
+    mac_inventory_enabled: boolean;
+    passive_enabled: boolean;
+    posture_enabled: boolean;
+    mdm_sync_enabled: boolean;
+    mdm_provider: string;
+    mdm_endpoint: string;
+    compliance_webhook: string;
+    device_inventory: RuntimeStatus;
+    mdm_sync: RuntimeStatus;
+    posture_checks: RuntimeStatus;
+  };
   network_observability: {
     apply_stats: {
       total_records: number;
@@ -980,6 +992,18 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <StatusBadge status={networkObservability.controller_sync?.status || 'disabled'} />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">MDM And Posture Runtime</div>
+                    <div className="mt-1 text-sm text-gray-600">{systemStatus.profiling?.mdm_sync?.message || 'No MDM runtime status recorded yet.'}</div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Provider {systemStatus.profiling?.mdm_provider || 'unset'}, total {systemStatus.profiling?.mdm_sync?.details?.total_records ?? 0}, compliant {systemStatus.profiling?.mdm_sync?.details?.compliant_records ?? 0}, non-compliant {systemStatus.profiling?.mdm_sync?.details?.non_compliant_records ?? 0}, remediation {systemStatus.profiling?.posture_checks?.details?.remediation_records ?? 0}.
+                    </div>
+                  </div>
+                  <StatusBadge status={systemStatus.profiling?.mdm_sync?.status || 'disabled'} />
                 </div>
               </div>
             </div>

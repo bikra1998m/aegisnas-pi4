@@ -231,7 +231,7 @@ profiling:
   retention_hours: 24
   posture_enabled: false
   mdm_sync_enabled: false
-  mdm_provider: ""
+  mdm_provider: "" # generic, workspace-one, intune, or jamf.
   mdm_endpoint: ""
   mdm_api_token_env: "AEGIS_MDM_API_TOKEN" # Optional bearer token env for MDM or UEM APIs.
   mdm_cache_hours: 12

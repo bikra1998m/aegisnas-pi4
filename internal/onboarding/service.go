@@ -107,6 +107,17 @@ type ComplianceRecord struct {
 	Platform         string `json:"platform"`
 }
 
+type ComplianceSyncStats struct {
+	Source              string `json:"source"`
+	Provider            string `json:"provider"`
+	TotalRecords        int    `json:"total_records"`
+	ManagedRecords      int    `json:"managed_records"`
+	CompliantRecords    int    `json:"compliant_records"`
+	NonCompliantRecords int    `json:"non_compliant_records"`
+	UnknownRecords      int    `json:"unknown_records"`
+	RemediationRecords  int    `json:"remediation_records"`
+}
+
 type Service struct {
 	cfg    *config.Config
 	logger *zap.Logger
@@ -324,13 +335,17 @@ func (s *Service) LoadCertificateBundle(certificateID string) (*DeviceCertificat
 	return &item, string(certPEM), string(keyPEM), string(caPEM), nil
 }
 
-func (s *Service) ApplyCompliance(records []ComplianceRecord) error {
+func (s *Service) ApplyCompliance(records []ComplianceRecord, source, provider string) (*ComplianceSyncStats, error) {
+	stats := &ComplianceSyncStats{
+		Source:   strings.TrimSpace(source),
+		Provider: normalizeMDMProvider(provider),
+	}
 	if len(records) == 0 {
-		return nil
+		return stats, nil
 	}
 	tx, err := db.DB.Begin()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer tx.Rollback()
 
@@ -339,6 +354,7 @@ func (s *Service) ApplyCompliance(records []ComplianceRecord) error {
 		if mac == "" {
 			continue
 		}
+		stats.TotalRecords++
 		status := strings.TrimSpace(record.ComplianceStatus)
 		if status == "" {
 			if record.Compliant {
@@ -350,6 +366,18 @@ func (s *Service) ApplyCompliance(records []ComplianceRecord) error {
 		managed := 0
 		if record.Managed {
 			managed = 1
+			stats.ManagedRecords++
+		}
+		switch normalizeComplianceStatus(status) {
+		case complianceCompliant:
+			stats.CompliantRecords++
+		case complianceNonCompliant:
+			stats.NonCompliantRecords++
+		default:
+			stats.UnknownRecords++
+		}
+		if strings.TrimSpace(record.RemediationState) != "" {
+			stats.RemediationRecords++
 		}
 		_, err := tx.Exec(`INSERT INTO device_inventory (
 			mac, tenant, friendly_name, platform, managed, compliant, compliance_status, remediation_state, mdm_provider, mdm_device_id, source, last_seen, updated_at
@@ -369,73 +397,87 @@ func (s *Service) ApplyCompliance(records []ComplianceRecord) error {
 			updated_at = excluded.updated_at`,
 			mac, nullable(s.lookupTenant("")),
 			nullable(record.FriendlyName), nullable(record.Platform), managed, record.Compliant, status,
-			nullable(record.RemediationState), nullable(record.MDMProvider), nullable(record.MDMDeviceID), "mdm-sync",
+			nullable(record.RemediationState), nullable(normalizeMDMProvider(firstNonEmptyString(record.MDMProvider, provider))), nullable(record.MDMDeviceID), nullable(strings.TrimSpace(source)),
 			time.Now().UTC().Format(time.RFC3339), time.Now().UTC().Format(time.RFC3339))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return err
+		return nil, err
 	}
-	return s.applyPostureToSessions()
+	return stats, s.applyPostureToSessions()
 }
 
-func (s *Service) SyncFromMDM(ctx context.Context) error {
-	if s.cfg == nil || !s.cfg.Profiling.MDMSyncEnabled {
-		return nil
+func (s *Service) SyncFromMDM(ctx context.Context) (*ComplianceSyncStats, error) {
+	if s.cfg == nil {
+		return &ComplianceSyncStats{Source: "mdm-sync", Provider: "generic"}, nil
+	}
+	if !s.cfg.Profiling.MDMSyncEnabled {
+		return &ComplianceSyncStats{Source: "mdm-sync", Provider: normalizeMDMProvider(s.cfg.Profiling.MDMProvider)}, nil
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.cfg.Profiling.MDMEndpoint, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	setBearerToken(req, s.cfg.Profiling.MDMAPITokenEnv)
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("mdm sync returned %s", resp.Status)
+		return nil, fmt.Errorf("mdm sync returned %s", resp.Status)
 	}
-	var records []ComplianceRecord
-	if err := jsonNewDecoder(resp.Body).Decode(&records); err != nil {
-		return err
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
 	}
-	return s.ApplyCompliance(records)
+	records, err := parseMDMComplianceRecords(normalizeMDMProvider(s.cfg.Profiling.MDMProvider), body)
+	if err != nil {
+		return nil, err
+	}
+	return s.ApplyCompliance(records, "mdm-sync", s.cfg.Profiling.MDMProvider)
 }
 
-func (s *Service) SyncFromComplianceWebhook(ctx context.Context) error {
-	if s.cfg == nil || strings.TrimSpace(s.cfg.Profiling.ComplianceWebhook) == "" {
-		return nil
+func (s *Service) SyncFromComplianceWebhook(ctx context.Context) (*ComplianceSyncStats, error) {
+	if s.cfg == nil {
+		return &ComplianceSyncStats{Source: "compliance-webhook", Provider: "compliance-webhook"}, nil
+	}
+	if strings.TrimSpace(s.cfg.Profiling.ComplianceWebhook) == "" {
+		return &ComplianceSyncStats{Source: "compliance-webhook", Provider: "compliance-webhook"}, nil
 	}
 	active, err := s.activeDevices()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	payload, err := jsonMarshal(map[string]any{"devices": active})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.cfg.Profiling.ComplianceWebhook, strings.NewReader(string(payload)))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	setBearerToken(req, s.cfg.Profiling.ComplianceTokenEnv)
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("compliance webhook returned %s", resp.Status)
+		return nil, fmt.Errorf("compliance webhook returned %s", resp.Status)
 	}
-	var records []ComplianceRecord
-	if err := jsonNewDecoder(resp.Body).Decode(&records); err != nil {
-		return err
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
 	}
-	return s.ApplyCompliance(records)
+	records, err := parseComplianceWebhookRecords(body)
+	if err != nil {
+		return nil, err
+	}
+	return s.ApplyCompliance(records, "compliance-webhook", "compliance-webhook")
 }
 
 func (s *Service) applyPostureToSessions() error {
@@ -896,6 +938,214 @@ func (s *Service) activeDevices() ([]map[string]any, error) {
 		})
 	}
 	return devices, rows.Err()
+}
+
+func parseMDMComplianceRecords(provider string, body []byte) ([]ComplianceRecord, error) {
+	switch normalizeMDMProvider(provider) {
+	case "intune":
+		return parseIntuneComplianceRecords(body)
+	case "jamf":
+		return parseJamfComplianceRecords(body)
+	case "workspace-one", "workspace-one-like", "generic":
+		fallthrough
+	default:
+		return parseGenericComplianceRecords(body)
+	}
+}
+
+func parseComplianceWebhookRecords(body []byte) ([]ComplianceRecord, error) {
+	return parseGenericComplianceRecords(body)
+}
+
+func parseGenericComplianceRecords(body []byte) ([]ComplianceRecord, error) {
+	var direct []ComplianceRecord
+	if err := json.Unmarshal(body, &direct); err == nil {
+		return direct, nil
+	}
+	var envelope struct {
+		Records []ComplianceRecord `json:"records"`
+		Devices []ComplianceRecord `json:"devices"`
+		Items   []ComplianceRecord `json:"items"`
+		Results []ComplianceRecord `json:"results"`
+		Value   []ComplianceRecord `json:"value"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil, err
+	}
+	switch {
+	case len(envelope.Records) > 0:
+		return envelope.Records, nil
+	case len(envelope.Devices) > 0:
+		return envelope.Devices, nil
+	case len(envelope.Items) > 0:
+		return envelope.Items, nil
+	case len(envelope.Results) > 0:
+		return envelope.Results, nil
+	case len(envelope.Value) > 0:
+		return envelope.Value, nil
+	default:
+		return []ComplianceRecord{}, nil
+	}
+}
+
+func parseIntuneComplianceRecords(body []byte) ([]ComplianceRecord, error) {
+	var envelope struct {
+		Value []map[string]any `json:"value"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil, err
+	}
+	records := make([]ComplianceRecord, 0, len(envelope.Value))
+	for _, item := range envelope.Value {
+		mac := firstNonEmptyString(
+			stringMap(item, "wiFiMacAddress"),
+			stringMap(item, "wifiMacAddress"),
+			stringMap(item, "ethernetMacAddress"),
+			stringMap(item, "macAddress"),
+			stringMap(item, "mac"),
+		)
+		if normalizeMAC(mac) == "" {
+			continue
+		}
+		complianceState := strings.ToLower(strings.TrimSpace(firstNonEmptyString(
+			stringMap(item, "complianceState"),
+			stringMap(item, "compliance_status"),
+		)))
+		status := complianceUnknown
+		compliant := false
+		switch complianceState {
+		case "compliant":
+			status = complianceCompliant
+			compliant = true
+		case "noncompliant", "non_compliant", "non-compliant", "in_grace_period":
+			status = complianceNonCompliant
+		}
+		records = append(records, ComplianceRecord{
+			MAC:              mac,
+			Managed:          boolMap(item, "isManaged", "managed"),
+			Compliant:        compliant,
+			ComplianceStatus: status,
+			RemediationState: firstNonEmptyString(stringMap(item, "complianceGracePeriodExpirationDateTime"), stringMap(item, "managementState")),
+			MDMProvider:      "intune",
+			MDMDeviceID:      firstNonEmptyString(stringMap(item, "azureADDeviceId"), stringMap(item, "id")),
+			FriendlyName:     firstNonEmptyString(stringMap(item, "deviceName"), stringMap(item, "managedDeviceName")),
+			Platform:         strings.ToLower(strings.TrimSpace(firstNonEmptyString(stringMap(item, "operatingSystem"), stringMap(item, "platform")))),
+		})
+	}
+	return records, nil
+}
+
+func parseJamfComplianceRecords(body []byte) ([]ComplianceRecord, error) {
+	var envelope struct {
+		Results []map[string]any `json:"results"`
+		Devices []map[string]any `json:"devices"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil, err
+	}
+	items := envelope.Results
+	if len(items) == 0 {
+		items = envelope.Devices
+	}
+	records := make([]ComplianceRecord, 0, len(items))
+	for _, item := range items {
+		mac := firstNonEmptyString(
+			stringMap(item, "mac_address"),
+			stringMap(item, "macAddress"),
+			stringMap(item, "wifi_mac_address"),
+			stringMap(item, "wifiMacAddress"),
+			stringMap(item, "ethernet_mac_address"),
+		)
+		if normalizeMAC(mac) == "" {
+			continue
+		}
+		complianceState := strings.ToLower(strings.TrimSpace(firstNonEmptyString(
+			stringMap(item, "compliance_state"),
+			stringMap(item, "complianceStatus"),
+			stringMap(item, "status"),
+		)))
+		status := complianceUnknown
+		compliant := false
+		switch complianceState {
+		case "compliant", "managed":
+			status = complianceCompliant
+			compliant = true
+		case "non_compliant", "non-compliant", "not_compliant", "unmanaged":
+			status = complianceNonCompliant
+		}
+		records = append(records, ComplianceRecord{
+			MAC:              mac,
+			Managed:          boolMap(item, "managed", "is_managed"),
+			Compliant:        compliant,
+			ComplianceStatus: status,
+			RemediationState: firstNonEmptyString(stringMap(item, "remediation_state"), stringMap(item, "status_reason")),
+			MDMProvider:      "jamf",
+			MDMDeviceID:      firstNonEmptyString(stringMap(item, "udid"), stringMap(item, "id")),
+			FriendlyName:     firstNonEmptyString(stringMap(item, "device_name"), stringMap(item, "name")),
+			Platform:         strings.ToLower(strings.TrimSpace(firstNonEmptyString(stringMap(item, "platform"), stringMap(item, "os_type")))),
+		})
+	}
+	return records, nil
+}
+
+func normalizeMDMProvider(provider string) string {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "", "generic":
+		return "generic"
+	case "workspace-one", "workspace-one-like":
+		return "workspace-one"
+	case "intune":
+		return "intune"
+	case "jamf":
+		return "jamf"
+	default:
+		return strings.ToLower(strings.TrimSpace(provider))
+	}
+}
+
+func normalizeComplianceStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case complianceCompliant:
+		return complianceCompliant
+	case complianceNonCompliant:
+		return complianceNonCompliant
+	default:
+		return complianceUnknown
+	}
+}
+
+func stringMap(item map[string]any, key string) string {
+	if item == nil {
+		return ""
+	}
+	if value, ok := item[key]; ok {
+		if text, ok := value.(string); ok {
+			return strings.TrimSpace(text)
+		}
+	}
+	return ""
+}
+
+func boolMap(item map[string]any, keys ...string) bool {
+	for _, key := range keys {
+		if item == nil {
+			return false
+		}
+		value, ok := item[key]
+		if !ok {
+			continue
+		}
+		switch typed := value.(type) {
+		case bool:
+			return typed
+		case string:
+			switch strings.ToLower(strings.TrimSpace(typed)) {
+			case "true", "yes", "managed", "compliant":
+				return true
+			}
+		}
+	}
+	return false
 }
 
 var (
