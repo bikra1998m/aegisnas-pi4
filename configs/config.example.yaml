@@ -260,7 +260,7 @@ integrations:
     endpoint: ""
     api_token_env: "AEGIS_CONTROLLER_API_TOKEN"
     sync_mode: "monitor" # monitor, push-config, or coa-only.
-    site: ""
+    site: "" # Required for vendor-native adapters. Use the controller site, zone, or network identifier.
 
 governance:
   delegated_admin_enabled: false

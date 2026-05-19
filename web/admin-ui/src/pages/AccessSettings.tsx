@@ -1919,6 +1919,9 @@ export default function AccessSettings() {
                     <div>Successes: <span className="font-semibold">{networkObservability.controller_sync.details?.success_count ?? 0}</span></div>
                     <div>Failures: <span className="font-semibold">{networkObservability.controller_sync.details?.failure_count ?? 0}</span></div>
                     <div>Last Duration: <span className="font-semibold">{networkObservability.controller_sync.details?.last_duration_ms ?? 0} ms</span></div>
+                    <div>Adapter: <span className="font-semibold">{String(networkObservability.controller_sync.details?.adapter || 'unknown')}</span></div>
+                    <div>Auth: <span className="font-semibold">{String(networkObservability.controller_sync.details?.auth_scheme || 'unknown')}</span></div>
+                    <div className="md:col-span-2">Target: <span className="font-semibold break-all">{String(networkObservability.controller_sync.details?.request_url || networkObservability.controller_sync.details?.endpoint || 'n/a')}</span></div>
                   </div>
                 </div>
                 <span className="rounded-md border border-gray-200 px-2 py-1 text-xs font-semibold uppercase text-gray-700">
@@ -2680,12 +2683,13 @@ export default function AccessSettings() {
               options={controllerSyncOptions}
             />
             <TextField
-              label="Controller Site"
+              label="Controller Site / Zone / Network"
               value={settings.integrations?.controller?.site || ''}
               onChange={(value) => updateField(['integrations', 'controller', 'site'], value)}
               placeholder="branch-west-01"
             />
           </div>
+          <p className="mt-3 text-xs text-gray-500">Vendor-native controller adapters use this field as the site, zone, or network identifier. Generic REST mode can leave it blank.</p>
         </div>
       </section>
 

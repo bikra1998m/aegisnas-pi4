@@ -1283,6 +1283,9 @@ func (c *Config) Validate() error {
 		if !controllerConfigured(c) {
 			return errors.New("integrations.controller.enabled requires platform, endpoint, api_token_env, and sync_mode")
 		}
+		if controllerPlatformRequiresSite(c.Integrations.Controller.Platform) && strings.TrimSpace(c.Integrations.Controller.Site) == "" {
+			return fmt.Errorf("integrations.controller.site is required for platform %q", strings.TrimSpace(c.Integrations.Controller.Platform))
+		}
 		if c.Wireless.Enabled {
 			return errors.New("integrations.controller.enabled requires the external AP model; disable wireless.enabled before turning on controller automation")
 		}
@@ -2414,6 +2417,15 @@ func controllerConfigured(c *Config) bool {
 		strings.TrimSpace(c.Integrations.Controller.Endpoint) != "" &&
 		strings.TrimSpace(c.Integrations.Controller.APITokenEnv) != "" &&
 		strings.TrimSpace(c.Integrations.Controller.SyncMode) != ""
+}
+
+func controllerPlatformRequiresSite(platform string) bool {
+	switch strings.ToLower(strings.TrimSpace(platform)) {
+	case "", "generic":
+		return false
+	default:
+		return true
+	}
 }
 
 func delegatedAdminIdentityReady(c *Config) bool {

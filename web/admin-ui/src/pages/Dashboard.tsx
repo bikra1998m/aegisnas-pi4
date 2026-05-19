@@ -976,7 +976,7 @@ export default function Dashboard() {
                     <div className="font-medium text-gray-900">Controller Runtime Counters</div>
                     <div className="mt-1 text-sm text-gray-600">{networkObservability.controller_sync?.message || 'No controller runtime status recorded yet.'}</div>
                     <div className="mt-2 text-xs text-gray-500">
-                      Syncs {networkObservability.controller_sync?.details?.sync_count ?? 0}, successes {networkObservability.controller_sync?.details?.success_count ?? 0}, failures {networkObservability.controller_sync?.details?.failure_count ?? 0}, last duration {networkObservability.controller_sync?.details?.last_duration_ms ?? 0} ms.
+                      Syncs {networkObservability.controller_sync?.details?.sync_count ?? 0}, successes {networkObservability.controller_sync?.details?.success_count ?? 0}, failures {networkObservability.controller_sync?.details?.failure_count ?? 0}, last duration {networkObservability.controller_sync?.details?.last_duration_ms ?? 0} ms, adapter {String(networkObservability.controller_sync?.details?.adapter || 'unknown')}, auth {String(networkObservability.controller_sync?.details?.auth_scheme || 'unknown')}.
                     </div>
                   </div>
                   <StatusBadge status={networkObservability.controller_sync?.status || 'disabled'} />

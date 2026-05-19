@@ -806,6 +806,7 @@ func TestConfigValidationOnboardingAndProfiling(t *testing.T) {
 					Endpoint:    "https://controller.example.com/api",
 					APITokenEnv: "AEGIS_CONTROLLER_API_TOKEN",
 					SyncMode:    "monitor",
+					Site:        "branch-lab",
 				},
 			},
 			Governance: GovernanceConfig{
@@ -901,6 +902,7 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 					Endpoint:    "https://controller.example.com/api",
 					APITokenEnv: "AEGIS_CONTROLLER_API_TOKEN",
 					SyncMode:    "monitor",
+					Site:        "branch-lab",
 				},
 			},
 			Governance: GovernanceConfig{
@@ -934,6 +936,15 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	badController.Wireless.BeaconInterval = 100
 	badController.Wireless.SSIDs = []SSIDConfig{{Name: "Guest", AuthMode: "captive-portal"}}
 	assert.ErrorContains(t, badController.Validate(), "requires the external AP model")
+
+	missingVendorSite := base()
+	missingVendorSite.Integrations.Controller.Site = ""
+	assert.ErrorContains(t, missingVendorSite.Validate(), `integrations.controller.site is required for platform "aruba"`)
+
+	genericWithoutSite := base()
+	genericWithoutSite.Integrations.Controller.Platform = "generic"
+	genericWithoutSite.Integrations.Controller.Site = ""
+	assert.NoError(t, genericWithoutSite.Validate())
 
 	badDelegation := base()
 	badDelegation.Integrations.AdminSSO.Enabled = false
