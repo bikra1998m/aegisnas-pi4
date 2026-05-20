@@ -84,6 +84,29 @@ type HAHistoryStats = {
   last_event_at?: string;
 };
 
+type UpgradeReadinessReport = {
+  generated_at: string;
+  config_path: string;
+  database_path: string;
+  database_exists: boolean;
+  database_size_bytes: number;
+  current_schema_version: number;
+  target_schema_version: number;
+  config_valid: boolean;
+  config_validation_error?: string;
+  deployment_profile?: string;
+  deployment_form?: string;
+  rehearsal: {
+    ran: boolean;
+    succeeded: boolean;
+    started_schema_version: number;
+    result_schema_version: number;
+    duration_milliseconds: number;
+    error?: string;
+  };
+  recommendations?: string[];
+};
+
 export default function Backups() {
   const [configFile, setConfigFile] = useState<File | null>(null);
   const [replicationFile, setReplicationFile] = useState<File | null>(null);
@@ -93,9 +116,11 @@ export default function Backups() {
   const [sharedStatus, setSharedStatus] = useState<SharedReplicationStatus | null>(null);
   const [haHistory, setHAHistory] = useState<HAHistoryRecord[]>([]);
   const [haHistoryStats, setHAHistoryStats] = useState<HAHistoryStats | null>(null);
+  const [upgradeReadiness, setUpgradeReadiness] = useState<UpgradeReadinessReport | null>(null);
   const [loadingStages, setLoadingStages] = useState(true);
   const [loadingSharedStatus, setLoadingSharedStatus] = useState(true);
   const [loadingHAHistory, setLoadingHAHistory] = useState(true);
+  const [loadingUpgradeReadiness, setLoadingUpgradeReadiness] = useState(false);
   const [busyAction, setBusyAction] = useState('');
 
   const loadStages = async () => {
@@ -218,6 +243,20 @@ export default function Backups() {
       setError(err.response?.data || err.message || 'Could not download support bundle.');
     } finally {
       setBusyAction('');
+    }
+  };
+
+  const loadUpgradeReadiness = async () => {
+    setError('');
+    setLoadingUpgradeReadiness(true);
+    try {
+      const { data } = await api.get('/system/upgrade-readiness');
+      setUpgradeReadiness(data);
+      setMessage('Upgrade readiness refreshed.');
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load upgrade readiness.');
+    } finally {
+      setLoadingUpgradeReadiness(false);
     }
   };
 
@@ -353,6 +392,71 @@ export default function Backups() {
             Download Support Bundle
           </button>
         </div>
+      </section>
+
+      <section className="mt-6 rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Upgrade Readiness</h3>
+            <p className="mt-1 text-sm text-gray-600">Rehearse database migration on a temporary copy, compare schema versions, and catch upgrade blockers before touching the live appliance.</p>
+          </div>
+          <button onClick={() => void loadUpgradeReadiness()} disabled={loadingUpgradeReadiness || busyAction !== ''} className="rounded-md bg-indigo-700 px-4 py-2 text-white hover:bg-indigo-800 disabled:opacity-50">
+            {loadingUpgradeReadiness ? 'Checking...' : 'Run Upgrade Readiness'}
+          </button>
+        </div>
+
+        {!upgradeReadiness ? (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">Run the readiness check to compare the current database schema, validate config, and rehearse migrations safely on a temporary copy.</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Schema</div>
+                <div className="mt-2">Current v{upgradeReadiness.current_schema_version}, target v{upgradeReadiness.target_schema_version}</div>
+              </div>
+              <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Config</div>
+                <div className="mt-2">{upgradeReadiness.config_valid ? 'Valid' : 'Needs attention'}</div>
+              </div>
+              <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Database</div>
+                <div className="mt-2">{upgradeReadiness.database_exists ? `${upgradeReadiness.database_size_bytes} bytes` : 'Missing'}</div>
+              </div>
+              <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Migration Rehearsal</div>
+                <div className="mt-2">{upgradeReadiness.rehearsal.ran ? (upgradeReadiness.rehearsal.succeeded ? 'Passed' : 'Failed') : 'Not run'}</div>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <div><span className="font-medium text-slate-900">Config path:</span> {upgradeReadiness.config_path}</div>
+              <div className="mt-1"><span className="font-medium text-slate-900">Database path:</span> {upgradeReadiness.database_path}</div>
+              <div className="mt-1"><span className="font-medium text-slate-900">Deployment:</span> {upgradeReadiness.deployment_profile || 'unknown'} / {upgradeReadiness.deployment_form || 'unknown'}</div>
+              {upgradeReadiness.config_validation_error ? (
+                <div className="mt-2 text-red-700"><span className="font-medium">Validation error:</span> {upgradeReadiness.config_validation_error}</div>
+              ) : null}
+              {upgradeReadiness.rehearsal.error ? (
+                <div className="mt-2 text-red-700"><span className="font-medium">Rehearsal error:</span> {upgradeReadiness.rehearsal.error}</div>
+              ) : null}
+              {upgradeReadiness.rehearsal.ran ? (
+                <div className="mt-2">
+                  Started on schema v{upgradeReadiness.rehearsal.started_schema_version}, ended on v{upgradeReadiness.rehearsal.result_schema_version} in {upgradeReadiness.rehearsal.duration_milliseconds} ms.
+                </div>
+              ) : null}
+            </div>
+
+            {upgradeReadiness.recommendations && upgradeReadiness.recommendations.length > 0 ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div className="font-medium">Recommendations</div>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {upgradeReadiness.recommendations.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        )}
       </section>
 
       <section className="mt-6 rounded-lg bg-white p-6 shadow">

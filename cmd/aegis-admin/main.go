@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -8,11 +9,13 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/logging"
+	"github.com/yourorg/aegisnas-pi4/internal/upgrade"
 )
 
 var (
-	cfgFile string
-	rootCmd = &cobra.Command{
+	cfgFile              string
+	upgradeReadinessJSON bool
+	rootCmd              = &cobra.Command{
 		Use:   "aegis-admin",
 		Short: "AegisNAS administrative CLI",
 	}
@@ -101,8 +104,61 @@ var validateConfigCmd = &cobra.Command{
 	},
 }
 
+var upgradeReadinessCmd = &cobra.Command{
+	Use:   "upgrade-readiness",
+	Short: "Assess upgrade readiness and rehearse database migration on a temporary copy",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.Load(cfgFile)
+		if err != nil {
+			return fmt.Errorf("load config: %w", err)
+		}
+		report, err := upgrade.AssessReadiness(cfg, config.Path())
+		if err != nil {
+			return fmt.Errorf("assess upgrade readiness: %w", err)
+		}
+		if upgradeReadinessJSON {
+			encoder := json.NewEncoder(os.Stdout)
+			encoder.SetIndent("", "  ")
+			return encoder.Encode(report)
+		}
+
+		fmt.Printf("Generated at: %s\n", report.GeneratedAt)
+		fmt.Printf("Config path: %s\n", report.ConfigPath)
+		fmt.Printf("Database path: %s\n", report.DatabasePath)
+		fmt.Printf("Deployment: %s / %s\n", report.DeploymentProfile, report.DeploymentForm)
+		fmt.Printf("Config valid: %t\n", report.ConfigValid)
+		if report.ConfigValidationError != "" {
+			fmt.Printf("Config validation error: %s\n", report.ConfigValidationError)
+		}
+		fmt.Printf("Schema: current=%d target=%d\n", report.CurrentSchemaVersion, report.TargetSchemaVersion)
+		fmt.Printf("Database exists: %t (%d bytes)\n", report.DatabaseExists, report.DatabaseSizeBytes)
+		if report.Rehearsal.Ran {
+			fmt.Printf("Migration rehearsal: success=%t started=%d result=%d duration_ms=%d\n",
+				report.Rehearsal.Succeeded,
+				report.Rehearsal.StartedSchemaVersion,
+				report.Rehearsal.ResultSchemaVersion,
+				report.Rehearsal.DurationMilliseconds,
+			)
+			if report.Rehearsal.Error != "" {
+				fmt.Printf("Migration rehearsal error: %s\n", report.Rehearsal.Error)
+			}
+		} else {
+			fmt.Println("Migration rehearsal: not run")
+		}
+		if len(report.Recommendations) > 0 {
+			fmt.Println("Recommendations:")
+			for _, item := range report.Recommendations {
+				fmt.Printf("  - %s\n", item)
+			}
+		}
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(migrateCmd)
 	rootCmd.AddCommand(seedCmd)
 	rootCmd.AddCommand(validateConfigCmd)
+	upgradeReadinessCmd.Flags().BoolVar(&upgradeReadinessJSON, "json", false, "print the readiness report as JSON")
+	rootCmd.AddCommand(upgradeReadinessCmd)
 }

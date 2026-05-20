@@ -11,23 +11,33 @@ import (
 
 var DB *sql.DB
 
-func Init(dataSourceName string) error {
+func Open(dataSourceName string) (*sql.DB, error) {
 	dir := filepath.Dir(dataSourceName)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("create db dir: %w", err)
+		return nil, fmt.Errorf("create db dir: %w", err)
 	}
 
-	var err error
-	DB, err = sql.Open("sqlite", dataSourceName)
+	handle, err := sql.Open("sqlite", dataSourceName)
 	if err != nil {
-		return fmt.Errorf("open db: %w", err)
+		return nil, fmt.Errorf("open db: %w", err)
 	}
-	if err = DB.Ping(); err != nil {
-		return fmt.Errorf("ping db: %w", err)
+	if err = handle.Ping(); err != nil {
+		_ = handle.Close()
+		return nil, fmt.Errorf("ping db: %w", err)
 	}
-	if _, err = DB.Exec("PRAGMA busy_timeout = 5000"); err != nil {
-		return fmt.Errorf("set busy timeout: %w", err)
+	if _, err = handle.Exec("PRAGMA busy_timeout = 5000"); err != nil {
+		_ = handle.Close()
+		return nil, fmt.Errorf("set busy timeout: %w", err)
 	}
+	return handle, nil
+}
+
+func Init(dataSourceName string) error {
+	handle, err := Open(dataSourceName)
+	if err != nil {
+		return err
+	}
+	DB = handle
 	return nil
 }
 
