@@ -121,6 +121,35 @@ func TestInspectRollbackPackageBytesOfflineRequiredOnSchemaMismatch(t *testing.T
 	assert.NotEmpty(t, inspection.Warnings)
 }
 
+func TestExtractRollbackPackageBytes(t *testing.T) {
+	cfg, configPath := prepareRollbackPackageTestConfig(t)
+	payload, _, manifest, err := CreateRollbackPackage(cfg, configPath)
+	require.NoError(t, err)
+
+	outputDir := filepath.Join(t.TempDir(), "rollback-extracted")
+	extraction, err := ExtractRollbackPackageBytes(payload, outputDir)
+	require.NoError(t, err)
+
+	assert.Equal(t, outputDir, extraction.OutputDir)
+	assert.Equal(t, manifest, extraction.Manifest)
+	assert.FileExists(t, extraction.ManifestPath)
+	assert.FileExists(t, extraction.ConfigPath)
+	assert.FileExists(t, extraction.SystemSettingsPath)
+	assert.FileExists(t, extraction.DatabasePath)
+
+	configBytes, err := os.ReadFile(extraction.ConfigPath)
+	require.NoError(t, err)
+	assert.NotEmpty(t, configBytes)
+
+	settingsBytes, err := os.ReadFile(extraction.SystemSettingsPath)
+	require.NoError(t, err)
+	assert.NotEmpty(t, settingsBytes)
+
+	dbBytes, err := os.ReadFile(extraction.DatabasePath)
+	require.NoError(t, err)
+	assert.NotEmpty(t, dbBytes)
+}
+
 func prepareRollbackPackageTestConfig(t *testing.T) (*config.Config, string) {
 	t.Helper()
 

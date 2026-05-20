@@ -66,6 +66,17 @@ type RollbackRestoreResult struct {
 	RestartRequired    bool                      `json:"restart_required"`
 }
 
+type RollbackPackageExtraction struct {
+	OutputDir          string                  `json:"output_dir"`
+	Manifest           RollbackPackageManifest `json:"manifest"`
+	ManifestPath       string                  `json:"manifest_path"`
+	ConfigPath         string                  `json:"config_path"`
+	SystemSettingsPath string                  `json:"system_settings_path"`
+	DatabasePath       string                  `json:"database_path"`
+	PackageSizeBytes   int64                   `json:"package_size_bytes"`
+	ContainsSecrets    bool                    `json:"contains_secrets"`
+}
+
 func CreateRollbackPackage(cfg *config.Config, configPath string) ([]byte, string, RollbackPackageManifest, error) {
 	manifest := RollbackPackageManifest{
 		PackageVersion:      rollbackPackageVersion,
@@ -253,6 +264,67 @@ func InspectRollbackPackageBytes(packageBytes []byte, cfg *config.Config, config
 		return RollbackPackageInspection{}, err
 	}
 	return inspectRollbackPackageContents(contents, cfg, configPath)
+}
+
+func ExtractRollbackPackageBytes(packageBytes []byte, outputDir string) (RollbackPackageExtraction, error) {
+	contents, err := ReadRollbackPackage(bytes.NewReader(packageBytes), int64(len(packageBytes)))
+	if err != nil {
+		return RollbackPackageExtraction{}, err
+	}
+	if strings.TrimSpace(outputDir) == "" {
+		return RollbackPackageExtraction{}, fmt.Errorf("output directory is required")
+	}
+	if len(contents.ConfigYAML) == 0 {
+		return RollbackPackageExtraction{}, fmt.Errorf("rollback package is missing config/config.yaml")
+	}
+	if len(contents.SystemSettings) == 0 {
+		return RollbackPackageExtraction{}, fmt.Errorf("rollback package is missing config/system-settings.json")
+	}
+	if len(contents.Database) == 0 {
+		return RollbackPackageExtraction{}, fmt.Errorf("rollback package is missing database/data.db")
+	}
+
+	outputDir = filepath.Clean(outputDir)
+	if err := os.MkdirAll(filepath.Join(outputDir, "config"), 0755); err != nil {
+		return RollbackPackageExtraction{}, fmt.Errorf("create config extraction directory: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Join(outputDir, "database"), 0755); err != nil {
+		return RollbackPackageExtraction{}, fmt.Errorf("create database extraction directory: %w", err)
+	}
+
+	manifestPath := filepath.Join(outputDir, "manifest.json")
+	configPath := filepath.Join(outputDir, "config", "config.yaml")
+	settingsPath := filepath.Join(outputDir, "config", "system-settings.json")
+	databasePath := filepath.Join(outputDir, "database", "data.db")
+
+	manifestJSON, err := json.MarshalIndent(contents.Manifest, "", "  ")
+	if err != nil {
+		return RollbackPackageExtraction{}, fmt.Errorf("marshal rollback package manifest: %w", err)
+	}
+
+	if err := os.WriteFile(manifestPath, append(manifestJSON, '\n'), 0600); err != nil {
+		return RollbackPackageExtraction{}, fmt.Errorf("write extracted manifest: %w", err)
+	}
+	if err := os.WriteFile(configPath, contents.ConfigYAML, 0600); err != nil {
+		return RollbackPackageExtraction{}, fmt.Errorf("write extracted config: %w", err)
+	}
+	if err := os.WriteFile(settingsPath, contents.SystemSettings, 0600); err != nil {
+		return RollbackPackageExtraction{}, fmt.Errorf("write extracted settings snapshot: %w", err)
+	}
+	if err := os.WriteFile(databasePath, contents.Database, 0600); err != nil {
+		return RollbackPackageExtraction{}, fmt.Errorf("write extracted database: %w", err)
+	}
+
+	return RollbackPackageExtraction{
+		OutputDir:          outputDir,
+		Manifest:           contents.Manifest,
+		ManifestPath:       manifestPath,
+		ConfigPath:         configPath,
+		SystemSettingsPath: settingsPath,
+		DatabasePath:       databasePath,
+		PackageSizeBytes:   contents.PackageSizeBytes,
+		ContainsSecrets:    contents.Manifest.ContainsSecrets,
+	}, nil
 }
 
 func inspectRollbackPackageContents(contents RollbackPackageContents, cfg *config.Config, configPath string) (RollbackPackageInspection, error) {

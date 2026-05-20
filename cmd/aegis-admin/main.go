@@ -18,6 +18,7 @@ var (
 	upgradeReadinessJSON bool
 	rollbackPackageOut   string
 	rollbackPackageIn    string
+	rollbackExtractDir   string
 	rootCmd              = &cobra.Command{
 		Use:   "aegis-admin",
 		Short: "AegisNAS administrative CLI",
@@ -238,6 +239,30 @@ var restoreUpgradeRollbackPackageCmd = &cobra.Command{
 	},
 }
 
+var extractUpgradeRollbackPackageCmd = &cobra.Command{
+	Use:   "extract-upgrade-rollback-package",
+	Short: "Extract an upgrade rollback package into a local workspace for offline restore or review",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if rollbackPackageIn == "" {
+			return fmt.Errorf("--input is required")
+		}
+		if rollbackExtractDir == "" {
+			return fmt.Errorf("--output-dir is required")
+		}
+		packageBytes, err := os.ReadFile(rollbackPackageIn)
+		if err != nil {
+			return fmt.Errorf("read rollback package: %w", err)
+		}
+		extraction, err := upgrade.ExtractRollbackPackageBytes(packageBytes, rollbackExtractDir)
+		if err != nil {
+			return fmt.Errorf("extract rollback package: %w", err)
+		}
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(extraction)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(migrateCmd)
 	rootCmd.AddCommand(seedCmd)
@@ -250,4 +275,7 @@ func init() {
 	rootCmd.AddCommand(inspectUpgradeRollbackPackageCmd)
 	restoreUpgradeRollbackPackageCmd.Flags().StringVar(&rollbackPackageIn, "input", "", "input rollback package zip")
 	rootCmd.AddCommand(restoreUpgradeRollbackPackageCmd)
+	extractUpgradeRollbackPackageCmd.Flags().StringVar(&rollbackPackageIn, "input", "", "input rollback package zip")
+	extractUpgradeRollbackPackageCmd.Flags().StringVar(&rollbackExtractDir, "output-dir", "", "output directory for extracted rollback package contents")
+	rootCmd.AddCommand(extractUpgradeRollbackPackageCmd)
 }
