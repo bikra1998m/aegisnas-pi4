@@ -136,6 +136,24 @@ type UpgradeRollbackInspection = {
   required_confirmation_text?: string;
 };
 
+type SupportBundleSummary = {
+  bundle_version: string;
+  generated_at: string;
+  config_path: string;
+  database_path: string;
+  deployment_profile?: string;
+  deployment_form?: string;
+  ha_role?: string;
+  contains_secrets: boolean;
+  redaction_note: string;
+  archive_entries: string[];
+  api_captures: string[];
+  runtime_entries: string[];
+  system_captures: string[];
+  log_captures: string[];
+  upgrade_diagnostics: string[];
+};
+
 export default function Backups() {
   const [configFile, setConfigFile] = useState<File | null>(null);
   const [replicationFile, setReplicationFile] = useState<File | null>(null);
@@ -148,11 +166,13 @@ export default function Backups() {
   const [haHistoryStats, setHAHistoryStats] = useState<HAHistoryStats | null>(null);
   const [upgradeReadiness, setUpgradeReadiness] = useState<UpgradeReadinessReport | null>(null);
   const [upgradeRollbackInspection, setUpgradeRollbackInspection] = useState<UpgradeRollbackInspection | null>(null);
+  const [supportBundleSummary, setSupportBundleSummary] = useState<SupportBundleSummary | null>(null);
   const [loadingStages, setLoadingStages] = useState(true);
   const [loadingSharedStatus, setLoadingSharedStatus] = useState(true);
   const [loadingHAHistory, setLoadingHAHistory] = useState(true);
   const [loadingUpgradeReadiness, setLoadingUpgradeReadiness] = useState(false);
   const [loadingUpgradeRollbackInspect, setLoadingUpgradeRollbackInspect] = useState(false);
+  const [loadingSupportBundleSummary, setLoadingSupportBundleSummary] = useState(false);
   const [upgradeRollbackConfirmationText, setUpgradeRollbackConfirmationText] = useState('');
   const [busyAction, setBusyAction] = useState('');
 
@@ -197,6 +217,7 @@ export default function Backups() {
     void loadStages();
     void loadSharedStatus();
     void loadHAHistory();
+    void loadSupportBundleSummary();
   }, []);
 
   const downloadConfigBackup = async () => {
@@ -276,6 +297,18 @@ export default function Backups() {
       setError(err.response?.data || err.message || 'Could not download support bundle.');
     } finally {
       setBusyAction('');
+    }
+  };
+
+  const loadSupportBundleSummary = async () => {
+    setLoadingSupportBundleSummary(true);
+    try {
+      const { data } = await api.get('/system/support-bundle/summary');
+      setSupportBundleSummary(data);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load support bundle summary.');
+    } finally {
+      setLoadingSupportBundleSummary(false);
     }
   };
 
@@ -522,6 +555,42 @@ export default function Backups() {
         </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
           The OpenAPI schema documents the admin API surface, bearer-auth requirements, and role hints so integrations and runbooks can target the same contract the appliance is serving right now.
+        </div>
+        <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          {loadingSupportBundleSummary ? (
+            <span>Loading support bundle summary...</span>
+          ) : supportBundleSummary ? (
+            <div className="space-y-2">
+              <div>
+                Bundle v<span className="font-medium">{supportBundleSummary.bundle_version}</span> for {supportBundleSummary.deployment_profile || 'unknown'} / {supportBundleSummary.deployment_form || 'unknown'}
+                {supportBundleSummary.ha_role ? ` with HA role ${supportBundleSummary.ha_role}` : ''}.
+              </div>
+              <div>{supportBundleSummary.redaction_note}</div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded border border-slate-200 bg-white px-3 py-2">
+                  <div className="text-xs uppercase tracking-wide text-slate-500">API captures</div>
+                  <div className="mt-1 font-semibold text-slate-900">{supportBundleSummary.api_captures.length}</div>
+                </div>
+                <div className="rounded border border-slate-200 bg-white px-3 py-2">
+                  <div className="text-xs uppercase tracking-wide text-slate-500">System captures</div>
+                  <div className="mt-1 font-semibold text-slate-900">{supportBundleSummary.system_captures.length}</div>
+                </div>
+                <div className="rounded border border-slate-200 bg-white px-3 py-2">
+                  <div className="text-xs uppercase tracking-wide text-slate-500">Log captures</div>
+                  <div className="mt-1 font-semibold text-slate-900">{supportBundleSummary.log_captures.length}</div>
+                </div>
+                <div className="rounded border border-slate-200 bg-white px-3 py-2">
+                  <div className="text-xs uppercase tracking-wide text-slate-500">Archive entries</div>
+                  <div className="mt-1 font-semibold text-slate-900">{supportBundleSummary.archive_entries.length}</div>
+                </div>
+              </div>
+              <div className="text-xs text-slate-500">
+                Upgrade diagnostics included: {supportBundleSummary.upgrade_diagnostics.join(', ')}
+              </div>
+            </div>
+          ) : (
+            <span>Support bundle summary is not available yet.</span>
+          )}
         </div>
       </section>
 

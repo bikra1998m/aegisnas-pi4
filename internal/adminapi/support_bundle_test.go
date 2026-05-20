@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
+	upgradepkg "github.com/yourorg/aegisnas-pi4/internal/upgrade"
 )
 
 func TestHandleDownloadSupportBundle(t *testing.T) {
@@ -45,6 +46,7 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	origNow := supportBundleNow
 	origHostname := supportBundleHostname
 	origRunCommand := supportBundleRunCommand
+	origAssessUpgradeReadiness := assessUpgradeReadinessFn
 	supportBundleNow = func() time.Time { return now }
 	supportBundleHostname = func() (string, error) { return "support-node", nil }
 	supportBundleRunCommand = func(name string, args ...string) (string, error) {
@@ -63,10 +65,24 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 			return "", nil
 		}
 	}
+	assessUpgradeReadinessFn = func(cfg *config.Config, configPath string) (upgradepkg.ReadinessReport, error) {
+		return upgradepkg.ReadinessReport{
+			ConfigPath:           configPath,
+			DatabasePath:         cfg.Database.Path,
+			CurrentSchemaVersion: db.LatestSchemaVersion(),
+			TargetSchemaVersion:  db.LatestSchemaVersion(),
+			ConfigValid:          true,
+			Rehearsal: upgradepkg.MigrationRehearsal{
+				Ran:       true,
+				Succeeded: true,
+			},
+		}, nil
+	}
 	t.Cleanup(func() {
 		supportBundleNow = origNow
 		supportBundleHostname = origHostname
 		supportBundleRunCommand = origRunCommand
+		assessUpgradeReadinessFn = origAssessUpgradeReadiness
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/support-bundle", nil)
@@ -79,10 +95,14 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 
 	entries := readSupportBundleZip(t, rec.Body.Bytes())
 	require.Contains(t, entries, "manifest.json")
+	require.Contains(t, entries, "api/support-bundle-summary.json")
 	require.Contains(t, entries, "api/system-settings-redacted.json")
+	require.Contains(t, entries, "api/network-preview.json")
 	require.Contains(t, entries, "api/network-apply-history.json")
 	require.Contains(t, entries, "api/dhcp-lease-history.json")
 	require.Contains(t, entries, "api/ha-history.json")
+	require.Contains(t, entries, "api/upgrade-readiness.json")
+	require.Contains(t, entries, "api/openapi.json")
 	require.Contains(t, entries, "runtime/runtime-statuses.json")
 	require.Contains(t, entries, "system/ip-addr.txt")
 	require.Contains(t, entries, "logs/aegis-admin-api.log")
@@ -106,6 +126,8 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	assert.Contains(t, string(entries["system/ip-addr.txt"]), "ip output ok")
 	assert.Contains(t, string(entries["logs/aegis-admin-api.log"]), "journal output ok")
 	assert.Contains(t, string(entries["api/ha-history.json"]), "Standby promoted cleanly.")
+	assert.Contains(t, string(entries["api/upgrade-readiness.json"]), "\"config_valid\": true")
+	assert.Contains(t, string(entries["api/openapi.json"]), "\"openapi\": \"3.1.0\"")
 }
 
 func TestBuildSupportBundleCapturesCommandWarnings(t *testing.T) {
@@ -113,6 +135,7 @@ func TestBuildSupportBundleCapturesCommandWarnings(t *testing.T) {
 
 	origRunCommand := supportBundleRunCommand
 	origHostname := supportBundleHostname
+	origAssessUpgradeReadiness := assessUpgradeReadinessFn
 	supportBundleRunCommand = func(name string, args ...string) (string, error) {
 		if name == "ip" {
 			return "", errors.New("ip unavailable")
@@ -120,9 +143,19 @@ func TestBuildSupportBundleCapturesCommandWarnings(t *testing.T) {
 		return "ok", nil
 	}
 	supportBundleHostname = func() (string, error) { return "warning-node", nil }
+	assessUpgradeReadinessFn = func(cfg *config.Config, configPath string) (upgradepkg.ReadinessReport, error) {
+		return upgradepkg.ReadinessReport{
+			ConfigPath:           configPath,
+			DatabasePath:         cfg.Database.Path,
+			CurrentSchemaVersion: db.LatestSchemaVersion(),
+			TargetSchemaVersion:  db.LatestSchemaVersion(),
+			ConfigValid:          true,
+		}, nil
+	}
 	t.Cleanup(func() {
 		supportBundleRunCommand = origRunCommand
 		supportBundleHostname = origHostname
+		assessUpgradeReadinessFn = origAssessUpgradeReadiness
 	})
 
 	payload, _, err := buildSupportBundle(config.Get())
@@ -133,6 +166,34 @@ func TestBuildSupportBundleCapturesCommandWarnings(t *testing.T) {
 	require.NoError(t, json.Unmarshal(entries["manifest.json"], &manifest))
 	require.NotEmpty(t, manifest.Warnings)
 	assert.Contains(t, string(entries["system/ip-addr.txt"]), "command failed: ip unavailable")
+}
+
+func TestHandleGetSupportBundleSummary(t *testing.T) {
+	_ = prepareSupportBundleTestConfig(t)
+	now := time.Date(2026, 5, 19, 8, 45, 0, 0, time.UTC)
+
+	origNow := supportBundleNow
+	supportBundleNow = func() time.Time { return now }
+	t.Cleanup(func() {
+		supportBundleNow = origNow
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/support-bundle/summary", nil)
+	rec := httptest.NewRecorder()
+	HandleGetSupportBundleSummary(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var payload supportBundleSummary
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	assert.Equal(t, supportBundleVersion, payload.BundleVersion)
+	assert.True(t, payload.ContainsSecrets)
+	assert.Contains(t, payload.ArchiveEntries, "api/upgrade-readiness.json")
+	assert.Contains(t, payload.ArchiveEntries, "api/openapi.json")
+	assert.Contains(t, payload.APICaptures, "Upgrade readiness")
+	assert.Contains(t, payload.APICaptures, "OpenAPI schema")
+	assert.Contains(t, payload.SystemCaptures, "system/ip-addr.txt")
+	assert.Contains(t, payload.LogCaptures, "logs/aegis-admin-api.log")
 }
 
 func prepareSupportBundleTestConfig(t *testing.T) *config.Config {

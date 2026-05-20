@@ -69,6 +69,9 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Import result."),
 		"default": responseText("Import validation error."),
 	}))
+	addOperation(paths, "/api/v1/system/support-bundle/summary", "get", securedOperation("Preview support bundle contents", "System", []string{"ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Support bundle capture summary, redaction notes, and included diagnostics."),
+	}))
 	addOperation(paths, "/api/v1/system/support-bundle", "get", securedOperation("Download support bundle", "System", []string{"ops_admin", "super_admin"}, map[string]any{
 		"200": responseBinary("application/zip", "Support bundle zip with redacted settings and diagnostics."),
 	}))

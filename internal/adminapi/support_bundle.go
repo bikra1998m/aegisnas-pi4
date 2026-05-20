@@ -36,6 +36,31 @@ type supportBundleManifest struct {
 	Warnings          []string `json:"warnings,omitempty"`
 }
 
+type supportBundleSummary struct {
+	BundleVersion      string   `json:"bundle_version"`
+	GeneratedAt        string   `json:"generated_at"`
+	ConfigPath         string   `json:"config_path"`
+	DatabasePath       string   `json:"database_path"`
+	DeploymentProfile  string   `json:"deployment_profile,omitempty"`
+	DeploymentForm     string   `json:"deployment_form,omitempty"`
+	HARole             string   `json:"ha_role,omitempty"`
+	ContainsSecrets    bool     `json:"contains_secrets"`
+	RedactionNote      string   `json:"redaction_note"`
+	ArchiveEntries     []string `json:"archive_entries"`
+	APICaptures        []string `json:"api_captures"`
+	RuntimeEntries     []string `json:"runtime_entries"`
+	SystemCaptures     []string `json:"system_captures"`
+	LogCaptures        []string `json:"log_captures"`
+	UpgradeDiagnostics []string `json:"upgrade_diagnostics"`
+}
+
+type supportBundleAPICapture struct {
+	archivePath string
+	requestPath string
+	label       string
+	handler     http.HandlerFunc
+}
+
 var (
 	supportBundleNow        = time.Now
 	supportBundleHostname   = os.Hostname
@@ -64,6 +89,15 @@ func HandleDownloadSupportBundle(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(payload)
 	audit(r, "download_support_bundle", filename, "downloaded")
+}
+
+func HandleGetSupportBundleSummary(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Get()
+	if cfg == nil {
+		http.Error(w, "configuration not loaded", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, buildSupportBundleSummary(cfg, supportBundleNow().UTC()))
 }
 
 func buildSupportBundle(cfg *config.Config) ([]byte, string, error) {
@@ -135,11 +169,14 @@ func buildSupportBundle(cfg *config.Config) ([]byte, string, error) {
 		return nil, "", fmt.Errorf("load schema version: %w", err)
 	}
 
-	addCapturedHandler("api/system-status.json", "/api/v1/system/status", HandleGetSystemStatus)
-	addCapturedHandler("api/network-observability.json", "/api/v1/system/network-observability", HandleGetNetworkObservability)
-	addCapturedHandler("api/network-apply-history.json", "/api/v1/system/network-apply-history", HandleListNetworkApplyHistory)
-	addCapturedHandler("api/dhcp-lease-history.json", "/api/v1/system/dhcp-lease-history", HandleListDHCPLeaseHistory)
-	addCapturedHandler("api/ha-history.json", "/api/v1/system/ha/history", HandleListHAHistory)
+	for _, capture := range supportBundleAPICaptures() {
+		addCapturedHandler(capture.archivePath, capture.requestPath, capture.handler)
+	}
+
+	summary := buildSupportBundleSummary(cfg, generatedAt)
+	if err := addJSON("api/support-bundle-summary.json", summary); err != nil {
+		return nil, "", fmt.Errorf("write support bundle summary: %w", err)
+	}
 
 	if err := addJSON("api/system-settings-redacted.json", redactSupportBundleValue(config.SettingsSnapshot())); err != nil {
 		return nil, "", fmt.Errorf("write redacted settings: %w", err)
@@ -233,6 +270,19 @@ func supportBundleCommandCaptures() []supportBundleCommandCapture {
 	}
 }
 
+func supportBundleAPICaptures() []supportBundleAPICapture {
+	return []supportBundleAPICapture{
+		{archivePath: "api/system-status.json", requestPath: "/api/v1/system/status", label: "System runtime status", handler: HandleGetSystemStatus},
+		{archivePath: "api/network-preview.json", requestPath: "/api/v1/system/network-preview", label: "Managed network preview", handler: HandlePreviewNetworkServices},
+		{archivePath: "api/network-observability.json", requestPath: "/api/v1/system/network-observability", label: "Network observability", handler: HandleGetNetworkObservability},
+		{archivePath: "api/network-apply-history.json", requestPath: "/api/v1/system/network-apply-history", label: "Network apply history", handler: HandleListNetworkApplyHistory},
+		{archivePath: "api/dhcp-lease-history.json", requestPath: "/api/v1/system/dhcp-lease-history", label: "DHCP lease history", handler: HandleListDHCPLeaseHistory},
+		{archivePath: "api/ha-history.json", requestPath: "/api/v1/system/ha/history", label: "HA history", handler: HandleListHAHistory},
+		{archivePath: "api/upgrade-readiness.json", requestPath: "/api/v1/system/upgrade-readiness", label: "Upgrade readiness", handler: HandleGetUpgradeReadiness},
+		{archivePath: "api/openapi.json", requestPath: "/api/v1/openapi.json", label: "OpenAPI schema", handler: HandleGetOpenAPI},
+	}
+}
+
 func supportBundleJournalUnits() []string {
 	return []string{
 		"aegis-admin-api",
@@ -245,6 +295,40 @@ func supportBundleJournalUnits() []string {
 		"freeradius",
 		"nftables",
 	}
+}
+
+func buildSupportBundleSummary(cfg *config.Config, generatedAt time.Time) supportBundleSummary {
+	summary := supportBundleSummary{
+		BundleVersion:      supportBundleVersion,
+		GeneratedAt:        generatedAt.Format(time.RFC3339),
+		ContainsSecrets:    true,
+		RedactionNote:      "Secret-like fields are redacted, but *_env references remain visible so operators can see which environment variables the node expects.",
+		ArchiveEntries:     []string{"manifest.json", "api/support-bundle-summary.json", "api/system-settings-redacted.json", "runtime/runtime-statuses.json", "runtime/network-recovery.json", "system/schema-version.txt", "system/config-path.txt", "system/database-path.txt"},
+		UpgradeDiagnostics: []string{"api/upgrade-readiness.json", "api/openapi.json"},
+	}
+	if cfg != nil {
+		summary.ConfigPath = config.Path()
+		summary.DatabasePath = cfg.Database.Path
+		summary.DeploymentProfile = cfg.Deployment.Profile
+		summary.DeploymentForm = cfg.Deployment.Form
+		summary.HARole = cfg.HighAvailability.Role
+	}
+
+	for _, capture := range supportBundleAPICaptures() {
+		summary.APICaptures = append(summary.APICaptures, capture.label)
+		summary.ArchiveEntries = append(summary.ArchiveEntries, capture.archivePath)
+	}
+	summary.RuntimeEntries = []string{"runtime/runtime-statuses.json", "runtime/network-recovery.json"}
+	for _, capture := range supportBundleCommandCaptures() {
+		summary.SystemCaptures = append(summary.SystemCaptures, capture.file)
+		summary.ArchiveEntries = append(summary.ArchiveEntries, capture.file)
+	}
+	for _, unit := range supportBundleJournalUnits() {
+		logPath := "logs/" + unit + ".log"
+		summary.LogCaptures = append(summary.LogCaptures, logPath)
+		summary.ArchiveEntries = append(summary.ArchiveEntries, logPath)
+	}
+	return summary
 }
 
 func captureSupportBundleHandler(path string, handler http.HandlerFunc) ([]byte, error) {
