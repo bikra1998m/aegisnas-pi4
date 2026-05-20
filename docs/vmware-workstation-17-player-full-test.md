@@ -5,6 +5,7 @@ This guide starts after Ubuntu is installed in a VMware Workstation 17 Player VM
 Use this guide when you want one repeatable VMware lab process from a fresh Ubuntu VM to a full product test.
 
 For HA pair setup and failover drills, use this guide together with [HA Active/Standby Runbook](ha-active-standby-runbook.md).
+For version-aware upgrade rollback package rehearsal and offline recovery, use this guide together with [Upgrade Rollback Runbook](upgrade-rollback-runbook.md).
 
 ## 0. Target Lab
 
@@ -149,6 +150,27 @@ sudo bash scripts/ubuntu-vm-upgrade-smoke-test.sh --wan ens33 --lan ens37
 ```
 
 That path preserves the current VM config, reruns bootstrap without `--force-config`, checks schema migration state, and saves API and health results under `/var/tmp/aegisnas-upgrade-smoke/`.
+
+Before a real VMware upgrade window, rehearse the rollback path too:
+
+```bash
+cd ~/aegisnas-pi4
+sudo bash scripts/ubuntu-upgrade-rollback-rehearsal.sh
+```
+
+That gives you:
+
+- a fresh version-aware rollback package
+- inspection output for online versus offline restore
+- an extracted package workspace
+- a prepared offline restore helper workspace
+
+If you want to dry-run a specific rollback package:
+
+```bash
+sudo bash scripts/ubuntu-upgrade-rollback-rehearsal.sh \
+  --package /var/tmp/aegisnas-upgrade-rollback.zip
+```
 
 For an HA-enabled VMware lab with two Ubuntu VMs, run the HA helper after the upgrade:
 

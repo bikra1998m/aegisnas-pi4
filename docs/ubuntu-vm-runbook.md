@@ -15,6 +15,7 @@ Use this guide together with:
 - [VMware Workstation 17 Player Full Product Runbook](vmware-workstation-17-player-full-test.md)
 - [Deployment Profiles](deployment-profiles.md)
 - [Edge Network Operations Guide](edge-network-operations.md)
+- [Upgrade Rollback Runbook](upgrade-rollback-runbook.md)
 - [Login And Captive Portal Test Runbook](login-test-runbook.md)
 - [Wireless Access And UI Guide](wireless-access-ui-guide.md)
 - [External AAA Product Mode](external-aaa-product-mode.md)
@@ -118,6 +119,44 @@ sudo bash scripts/ubuntu-vm-upgrade-smoke-test.sh --wan ens33 --lan ens37 --with
 ```
 
 Keep `--force-config` out of upgrade runs unless you are deliberately replacing the current VM configuration.
+
+## Upgrade Rollback Rehearsal On The Ubuntu VM
+
+Before a real upgrade window, rehearse the rollback path on the VM:
+
+```bash
+cd ~/aegisnas-pi4
+sudo bash scripts/ubuntu-upgrade-rollback-rehearsal.sh
+```
+
+That helper:
+
+- runs upgrade readiness
+- creates or reuses a rollback package
+- inspects the package for online versus offline restore support
+- extracts the rollback package into a workspace
+- validates the extracted config and database
+- prepares the offline restore helper workspace without touching live state
+
+Artifacts are saved under:
+
+```text
+/var/tmp/aegisnas-upgrade-rollback-rehearsal/<timestamp>/
+```
+
+If you want to rehearse a specific package from an earlier maintenance window:
+
+```bash
+sudo bash scripts/ubuntu-upgrade-rollback-rehearsal.sh \
+  --package /var/tmp/aegisnas-upgrade-rollback.zip
+```
+
+If the inspection result says `offline_required`, continue with the guarded helper in [Upgrade Rollback Runbook](upgrade-rollback-runbook.md):
+
+```bash
+sudo bash scripts/ubuntu-upgrade-rollback-restore.sh \
+  --package /var/tmp/aegisnas-upgrade-rollback.zip
+```
 
 ## HA Pair Upgrade And Smoke Path
 

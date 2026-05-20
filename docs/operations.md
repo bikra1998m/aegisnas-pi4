@@ -119,6 +119,8 @@ For managed interface, gateway, DNS, DHCP, firewall, and rollback work in `Acces
 
 For active/standby deployment, shared replication, VIP takeover, and HA history, use the dedicated [HA Active/Standby Runbook](ha-active-standby-runbook.md).
 
+For version-aware upgrade rollback package creation, inspection, rehearsal, and offline restore, use the dedicated [Upgrade Rollback Runbook](upgrade-rollback-runbook.md).
+
 ## Logs
 
 Logs are structured JSON.
@@ -186,6 +188,12 @@ For in-place Ubuntu VM upgrades with migration and network safety checks, use:
 sudo bash scripts/ubuntu-vm-upgrade-smoke-test.sh --wan <wan-if> --lan <lan-if>
 ```
 
+For version-aware rollback rehearsal before a production change window, use:
+
+```bash
+sudo bash scripts/ubuntu-upgrade-rollback-rehearsal.sh
+```
+
 Before updating production devices:
 
 1. Export a config JSON backup.
@@ -200,3 +208,4 @@ Before updating production devices:
 10. Use `scripts/ha-failover-drill.sh` on the active node for a controlled promotion and recovery test with saved artifacts under `/var/tmp/aegisnas-ha-failover/`.
 11. When you want confidence over repeated cycles instead of a single drill, run `scripts/ha-soak-test.sh --cycles <n>` on the active node. Multi-cycle runs require `high_availability.preempt: true`.
 12. After both HA nodes are upgraded, run `scripts/ha-pair-upgrade-validate.sh` from the active node. Add `--peer-ssh <user@host>` when you want peer schema and service proof, not just peer API status.
+13. Create and inspect a fresh upgrade rollback package, then run `scripts/ubuntu-upgrade-rollback-rehearsal.sh` so the rollback path is proven before the real maintenance window.
