@@ -107,9 +107,39 @@ type UpgradeReadinessReport = {
   recommendations?: string[];
 };
 
+type UpgradeRollbackInspection = {
+  manifest: {
+    package_version: string;
+    generated_at: string;
+    config_path: string;
+    database_path: string;
+    current_schema_version: number;
+    target_schema_version: number;
+    deployment_profile?: string;
+    deployment_form?: string;
+    database_copy_mode: string;
+    contains_secrets: boolean;
+  };
+  package_size_bytes: number;
+  has_config_yaml: boolean;
+  has_system_settings: boolean;
+  has_database: boolean;
+  current_runtime_schema_version: number;
+  runtime_target_schema_version: number;
+  config_valid: boolean;
+  config_validation_error?: string;
+  database_path_matches: boolean;
+  compatibility_status: string;
+  online_restore_supported: boolean;
+  warnings?: string[];
+  restore_steps?: string[];
+  required_confirmation_text?: string;
+};
+
 export default function Backups() {
   const [configFile, setConfigFile] = useState<File | null>(null);
   const [replicationFile, setReplicationFile] = useState<File | null>(null);
+  const [upgradeRollbackFile, setUpgradeRollbackFile] = useState<File | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [stagedPackages, setStagedPackages] = useState<StagedReplicationPackage[]>([]);
@@ -117,10 +147,13 @@ export default function Backups() {
   const [haHistory, setHAHistory] = useState<HAHistoryRecord[]>([]);
   const [haHistoryStats, setHAHistoryStats] = useState<HAHistoryStats | null>(null);
   const [upgradeReadiness, setUpgradeReadiness] = useState<UpgradeReadinessReport | null>(null);
+  const [upgradeRollbackInspection, setUpgradeRollbackInspection] = useState<UpgradeRollbackInspection | null>(null);
   const [loadingStages, setLoadingStages] = useState(true);
   const [loadingSharedStatus, setLoadingSharedStatus] = useState(true);
   const [loadingHAHistory, setLoadingHAHistory] = useState(true);
   const [loadingUpgradeReadiness, setLoadingUpgradeReadiness] = useState(false);
+  const [loadingUpgradeRollbackInspect, setLoadingUpgradeRollbackInspect] = useState(false);
+  const [upgradeRollbackConfirmationText, setUpgradeRollbackConfirmationText] = useState('');
   const [busyAction, setBusyAction] = useState('');
 
   const loadStages = async () => {
@@ -257,6 +290,73 @@ export default function Backups() {
       setError(err.response?.data || err.message || 'Could not load upgrade readiness.');
     } finally {
       setLoadingUpgradeReadiness(false);
+    }
+  };
+
+  const downloadUpgradeRollbackPackage = async () => {
+    setError('');
+    setMessage('');
+    setBusyAction('upgrade-rollback-package');
+    try {
+      const response = await api.get('/system/upgrade-rollback-package', { responseType: 'blob' });
+      const { data, headers } = response;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      const disposition = `${headers?.['content-disposition'] || ''}`;
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      link.download = filenameMatch?.[1] || 'aegisnas-upgrade-rollback.zip';
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage('Upgrade rollback package downloaded. It contains a live config copy and a consistent database snapshot, so store it like credentials.');
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not download upgrade rollback package.');
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const inspectUpgradeRollbackPackage = async () => {
+    if (!upgradeRollbackFile) return;
+    setError('');
+    setMessage('');
+    setLoadingUpgradeRollbackInspect(true);
+    try {
+      const form = new FormData();
+      form.append('package', upgradeRollbackFile);
+      const { data } = await api.post('/system/upgrade-rollback-package/inspect', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setUpgradeRollbackInspection(data.inspection || null);
+      setUpgradeRollbackConfirmationText('');
+      setMessage(`Rollback package ${data.filename || upgradeRollbackFile.name} inspected.`);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not inspect upgrade rollback package.');
+      setUpgradeRollbackInspection(null);
+    } finally {
+      setLoadingUpgradeRollbackInspect(false);
+    }
+  };
+
+  const restoreUpgradeRollbackPackage = async () => {
+    if (!upgradeRollbackFile || !upgradeRollbackInspection) return;
+    if (!confirm('Restore this upgrade rollback package onto the appliance? A safety rollback package will be captured first.')) return;
+    setError('');
+    setMessage('');
+    setBusyAction('upgrade-rollback-restore');
+    try {
+      const form = new FormData();
+      form.append('package', upgradeRollbackFile);
+      form.append('confirmation_text', upgradeRollbackConfirmationText);
+      const { data } = await api.post('/system/upgrade-rollback-package/restore', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setMessage(`Upgrade rollback package restored. Safety package saved at ${data.safety_package_path}.${data.restart_required ? ' Restart the appliance services before continuing.' : ''}`);
+      window.dispatchEvent(new Event('config-applied'));
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not restore upgrade rollback package.');
+    } finally {
+      setBusyAction('');
     }
   };
 
@@ -400,9 +500,14 @@ export default function Backups() {
             <h3 className="text-lg font-semibold text-gray-900">Upgrade Readiness</h3>
             <p className="mt-1 text-sm text-gray-600">Rehearse database migration on a temporary copy, compare schema versions, and catch upgrade blockers before touching the live appliance.</p>
           </div>
-          <button onClick={() => void loadUpgradeReadiness()} disabled={loadingUpgradeReadiness || busyAction !== ''} className="rounded-md bg-indigo-700 px-4 py-2 text-white hover:bg-indigo-800 disabled:opacity-50">
-            {loadingUpgradeReadiness ? 'Checking...' : 'Run Upgrade Readiness'}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => void loadUpgradeReadiness()} disabled={loadingUpgradeReadiness || busyAction !== ''} className="rounded-md bg-indigo-700 px-4 py-2 text-white hover:bg-indigo-800 disabled:opacity-50">
+              {loadingUpgradeReadiness ? 'Checking...' : 'Run Upgrade Readiness'}
+            </button>
+            <button onClick={() => void downloadUpgradeRollbackPackage()} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-4 py-2 text-gray-800 hover:bg-gray-50 disabled:opacity-50">
+              Download Rollback Package
+            </button>
+          </div>
         </div>
 
         {!upgradeReadiness ? (
@@ -455,6 +560,103 @@ export default function Backups() {
                 </ul>
               </div>
             ) : null}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Rollback Package Restore</h3>
+            <p className="mt-1 text-sm text-gray-600">Inspect an upgrade rollback package first, then restore it only when the runtime says online restore is supported for this schema and path context.</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <input type="file" accept=".zip,application/zip" onChange={(event) => setUpgradeRollbackFile(event.target.files?.[0] ?? null)} className="max-w-full text-sm" />
+          <button disabled={!upgradeRollbackFile || loadingUpgradeRollbackInspect || busyAction !== ''} onClick={() => void inspectUpgradeRollbackPackage()} className="rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-black disabled:opacity-50">
+            {loadingUpgradeRollbackInspect ? 'Inspecting...' : 'Inspect Rollback Package'}
+          </button>
+        </div>
+
+        {!upgradeRollbackInspection ? (
+          <div className="mt-4 rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">Choose a rollback package zip and inspect it before any restore action.</div>
+        ) : (
+          <div className="mt-4 space-y-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Compatibility</div>
+                <div className="mt-2">{upgradeRollbackInspection.compatibility_status}</div>
+              </div>
+              <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Schema</div>
+                <div className="mt-2">Package v{upgradeRollbackInspection.manifest.current_schema_version} to runtime target v{upgradeRollbackInspection.runtime_target_schema_version}</div>
+              </div>
+              <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Config Validation</div>
+                <div className="mt-2">{upgradeRollbackInspection.config_valid ? 'Valid' : 'Failed'}</div>
+              </div>
+              <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Online Restore</div>
+                <div className="mt-2">{upgradeRollbackInspection.online_restore_supported ? 'Supported' : 'Offline required'}</div>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <div><span className="font-medium text-slate-900">Config path:</span> {upgradeRollbackInspection.manifest.config_path || 'unknown'}</div>
+              <div className="mt-1"><span className="font-medium text-slate-900">Database path:</span> {upgradeRollbackInspection.manifest.database_path || 'unknown'}</div>
+              <div className="mt-1"><span className="font-medium text-slate-900">Contents:</span> config YAML {upgradeRollbackInspection.has_config_yaml ? 'present' : 'missing'}, system settings {upgradeRollbackInspection.has_system_settings ? 'present' : 'missing'}, database {upgradeRollbackInspection.has_database ? 'present' : 'missing'}</div>
+              <div className="mt-1"><span className="font-medium text-slate-900">Database path match:</span> {upgradeRollbackInspection.database_path_matches ? 'yes' : 'no'}</div>
+              {upgradeRollbackInspection.config_validation_error ? (
+                <div className="mt-2 text-red-700"><span className="font-medium">Validation error:</span> {upgradeRollbackInspection.config_validation_error}</div>
+              ) : null}
+            </div>
+
+            {upgradeRollbackInspection.warnings && upgradeRollbackInspection.warnings.length > 0 ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div className="font-medium">Warnings</div>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {upgradeRollbackInspection.warnings.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {upgradeRollbackInspection.restore_steps && upgradeRollbackInspection.restore_steps.length > 0 ? (
+              <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Restore Steps</div>
+                <ol className="mt-2 list-decimal space-y-1 pl-5">
+                  {upgradeRollbackInspection.restore_steps.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <div className="font-medium text-slate-900">Confirm Restore</div>
+              <p className="mt-1">Type <span className="font-mono">{upgradeRollbackInspection.required_confirmation_text || 'RESTORE UPGRADE ROLLBACK'}</span> to allow the restore action.</p>
+              <input
+                value={upgradeRollbackConfirmationText}
+                onChange={(event) => setUpgradeRollbackConfirmationText(event.target.value)}
+                className="mt-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                placeholder={upgradeRollbackInspection.required_confirmation_text || 'RESTORE UPGRADE ROLLBACK'}
+              />
+              <div className="mt-3">
+                <button
+                  disabled={
+                    busyAction !== '' ||
+                    !upgradeRollbackInspection.online_restore_supported ||
+                    upgradeRollbackConfirmationText !== (upgradeRollbackInspection.required_confirmation_text || 'RESTORE UPGRADE ROLLBACK')
+                  }
+                  onClick={() => void restoreUpgradeRollbackPackage()}
+                  className="rounded-md bg-amber-700 px-4 py-2 text-white hover:bg-amber-800 disabled:opacity-50"
+                >
+                  Restore From Rollback Package
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </section>

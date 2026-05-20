@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
@@ -15,6 +16,8 @@ import (
 var (
 	cfgFile              string
 	upgradeReadinessJSON bool
+	rollbackPackageOut   string
+	rollbackPackageIn    string
 	rootCmd              = &cobra.Command{
 		Use:   "aegis-admin",
 		Short: "AegisNAS administrative CLI",
@@ -155,10 +158,96 @@ var upgradeReadinessCmd = &cobra.Command{
 	},
 }
 
+var createUpgradeRollbackPackageCmd = &cobra.Command{
+	Use:   "create-upgrade-rollback-package",
+	Short: "Create a version-aware rollback package with the live config and a consistent database snapshot",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.Load(cfgFile)
+		if err != nil {
+			return fmt.Errorf("load config: %w", err)
+		}
+		outputPath := rollbackPackageOut
+		if outputPath == "" {
+			outputPath = fmt.Sprintf("aegisnas-upgrade-rollback-%s.zip", time.Now().UTC().Format("20060102-150405Z"))
+		}
+		payload, _, manifest, err := upgrade.CreateRollbackPackage(cfg, config.Path())
+		if err != nil {
+			return fmt.Errorf("create upgrade rollback package: %w", err)
+		}
+		if err := os.WriteFile(outputPath, payload, 0600); err != nil {
+			return fmt.Errorf("write rollback package: %w", err)
+		}
+		fmt.Printf("Upgrade rollback package written to %s\n", outputPath)
+		fmt.Printf("Schema context: current=%d target=%d\n", manifest.CurrentSchemaVersion, manifest.TargetSchemaVersion)
+		return nil
+	},
+}
+
+var inspectUpgradeRollbackPackageCmd = &cobra.Command{
+	Use:   "inspect-upgrade-rollback-package",
+	Short: "Inspect an upgrade rollback package and report whether online restore is supported on this runtime",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if rollbackPackageIn == "" {
+			return fmt.Errorf("--input is required")
+		}
+		cfg, err := config.Load(cfgFile)
+		if err != nil {
+			return fmt.Errorf("load config: %w", err)
+		}
+		packageBytes, err := os.ReadFile(rollbackPackageIn)
+		if err != nil {
+			return fmt.Errorf("read rollback package: %w", err)
+		}
+		inspection, err := upgrade.InspectRollbackPackageBytes(packageBytes, cfg, config.Path())
+		if err != nil {
+			return fmt.Errorf("inspect rollback package: %w", err)
+		}
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(inspection)
+	},
+}
+
+var restoreUpgradeRollbackPackageCmd = &cobra.Command{
+	Use:   "restore-upgrade-rollback-package",
+	Short: "Restore a compatible upgrade rollback package onto the local appliance",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if rollbackPackageIn == "" {
+			return fmt.Errorf("--input is required")
+		}
+		cfg, err := config.Load(cfgFile)
+		if err != nil {
+			return fmt.Errorf("load config: %w", err)
+		}
+		packageBytes, err := os.ReadFile(rollbackPackageIn)
+		if err != nil {
+			return fmt.Errorf("read rollback package: %w", err)
+		}
+		result, err := upgrade.RestoreRollbackPackage(cfg, config.Path(), packageBytes, "RESTORE UPGRADE ROLLBACK")
+		if err != nil {
+			return fmt.Errorf("restore rollback package: %w", err)
+		}
+		fmt.Printf("Rollback restore applied. Safety package: %s\n", result.SafetyPackagePath)
+		if result.DatabaseBackupPath != "" {
+			fmt.Printf("Database backup: %s\n", result.DatabaseBackupPath)
+		}
+		if result.RestartRequired {
+			fmt.Println("Restart required: true")
+		}
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(migrateCmd)
 	rootCmd.AddCommand(seedCmd)
 	rootCmd.AddCommand(validateConfigCmd)
 	upgradeReadinessCmd.Flags().BoolVar(&upgradeReadinessJSON, "json", false, "print the readiness report as JSON")
 	rootCmd.AddCommand(upgradeReadinessCmd)
+	createUpgradeRollbackPackageCmd.Flags().StringVar(&rollbackPackageOut, "output", "", "output path for the rollback package zip")
+	rootCmd.AddCommand(createUpgradeRollbackPackageCmd)
+	inspectUpgradeRollbackPackageCmd.Flags().StringVar(&rollbackPackageIn, "input", "", "input rollback package zip")
+	rootCmd.AddCommand(inspectUpgradeRollbackPackageCmd)
+	restoreUpgradeRollbackPackageCmd.Flags().StringVar(&rollbackPackageIn, "input", "", "input rollback package zip")
+	rootCmd.AddCommand(restoreUpgradeRollbackPackageCmd)
 }

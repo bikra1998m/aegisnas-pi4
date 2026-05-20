@@ -147,6 +147,12 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly && identity.Role == adminRoleOpsAdmin
 	case strings.HasPrefix(path, "/api/v1/system/upgrade-readiness"):
 		return readonly && identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/upgrade-rollback-package/inspect"):
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/upgrade-rollback-package/restore"):
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/upgrade-rollback-package"):
+		return readonly && identity.Role == adminRoleOpsAdmin
 	case strings.HasPrefix(path, "/api/v1/system/ha/history/export"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/ha/history"):
