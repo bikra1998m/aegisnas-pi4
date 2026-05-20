@@ -121,6 +121,8 @@ For active/standby deployment, shared replication, VIP takeover, and HA history,
 
 For version-aware upgrade rollback package creation, inspection, rehearsal, and offline restore, use the dedicated [Upgrade Rollback Runbook](upgrade-rollback-runbook.md).
 
+For the live admin API contract, OpenAPI download path, and role-hint guidance, use [Admin API Guide](admin-api.md).
+
 ## Logs
 
 Logs are structured JSON.

@@ -115,6 +115,7 @@ func init() {
 
 func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Get("/openapi.json", adminapi.HandleGetOpenAPI)
 		r.Get("/auth/options", adminapi.HandleAdminAuthOptions)
 		r.Get("/auth/sso/start", adminapi.HandleAdminSSOStart)
 		r.Get("/auth/sso/metadata", adminapi.HandleAdminSSOMetadata)

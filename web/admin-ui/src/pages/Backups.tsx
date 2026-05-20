@@ -279,6 +279,29 @@ export default function Backups() {
     }
   };
 
+  const downloadOpenAPISchema = async () => {
+    setError('');
+    setMessage('');
+    setBusyAction('openapi-schema');
+    try {
+      const response = await api.get('/openapi.json', { responseType: 'blob' });
+      const { data, headers } = response;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      const disposition = `${headers?.['content-disposition'] || ''}`;
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      link.download = filenameMatch?.[1] || 'aegisnas-admin-api-openapi.json';
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage('Admin API OpenAPI schema downloaded. It includes endpoint groups, bearer-auth requirements, and AegisNAS role hints.');
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not download the OpenAPI schema.');
+    } finally {
+      setBusyAction('');
+    }
+  };
+
   const loadUpgradeReadiness = async () => {
     setError('');
     setLoadingUpgradeReadiness(true);
@@ -488,9 +511,17 @@ export default function Backups() {
             <h3 className="text-lg font-semibold text-gray-900">Support Bundle</h3>
             <p className="mt-1 text-sm text-gray-600">Capture a downloadable operator bundle with redacted settings, runtime status, HA and network history, and best-effort service logs for troubleshooting.</p>
           </div>
-          <button onClick={() => void downloadSupportBundle()} disabled={busyAction !== ''} className="rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-black disabled:opacity-50">
-            Download Support Bundle
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button onClick={() => void downloadOpenAPISchema()} disabled={busyAction !== ''} className="rounded-md bg-sky-700 px-4 py-2 text-white hover:bg-sky-800 disabled:opacity-50">
+              Download OpenAPI JSON
+            </button>
+            <button onClick={() => void downloadSupportBundle()} disabled={busyAction !== ''} className="rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-black disabled:opacity-50">
+              Download Support Bundle
+            </button>
+          </div>
+        </div>
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          The OpenAPI schema documents the admin API surface, bearer-auth requirements, and role hints so integrations and runbooks can target the same contract the appliance is serving right now.
         </div>
       </section>
 

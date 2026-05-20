@@ -1,0 +1,54 @@
+package adminapi
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestHandleGetOpenAPI(t *testing.T) {
+	_ = prepareSupportBundleTestConfig(t)
+
+	req := httptest.NewRequest(http.MethodGet, "https://appliance.example.test/api/v1/openapi.json", nil)
+	rec := httptest.NewRecorder()
+
+	HandleGetOpenAPI(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+
+	assert.Equal(t, "3.1.0", payload["openapi"])
+
+	info, ok := payload["info"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "AegisNAS Admin API", info["title"])
+
+	paths, ok := payload["paths"].(map[string]any)
+	require.True(t, ok)
+
+	statusPath, ok := paths["/api/v1/system/status"].(map[string]any)
+	require.True(t, ok)
+	statusGet, ok := statusPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read system runtime status", statusGet["summary"])
+	assert.Contains(t, statusGet["x-aegisnas-roles"], "read_only")
+
+	specPath, ok := paths["/api/v1/openapi.json"].(map[string]any)
+	require.True(t, ok)
+	specGet, ok := specPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "public", specGet["x-aegisnas-visibility"])
+
+	components, ok := payload["components"].(map[string]any)
+	require.True(t, ok)
+	securitySchemes, ok := components["securitySchemes"].(map[string]any)
+	require.True(t, ok)
+	require.Contains(t, securitySchemes, "bearerAuth")
+}
