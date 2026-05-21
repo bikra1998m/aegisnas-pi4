@@ -277,6 +277,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/network-observability.json", requestPath: "/api/v1/system/network-observability", label: "Network observability", handler: HandleGetNetworkObservability},
 		{archivePath: "api/network-apply-history.json", requestPath: "/api/v1/system/network-apply-history", label: "Network apply history", handler: HandleListNetworkApplyHistory},
 		{archivePath: "api/dhcp-lease-history.json", requestPath: "/api/v1/system/dhcp-lease-history", label: "DHCP lease history", handler: HandleListDHCPLeaseHistory},
+		{archivePath: "api/integration-history.json", requestPath: "/api/v1/system/integration-history", label: "Integration history", handler: HandleListIntegrationHistory},
 		{archivePath: "api/ha-history.json", requestPath: "/api/v1/system/ha/history", label: "HA history", handler: HandleListHAHistory},
 		{archivePath: "api/upgrade-readiness.json", requestPath: "/api/v1/system/upgrade-readiness", label: "Upgrade readiness", handler: HandleGetUpgradeReadiness},
 		{archivePath: "api/openapi.json", requestPath: "/api/v1/openapi.json", label: "OpenAPI schema", handler: HandleGetOpenAPI},

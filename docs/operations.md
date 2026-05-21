@@ -127,6 +127,8 @@ For one-shot cross-domain operational snapshots that combine network, HA, upgrad
 
 For recurring report capture without manual operator action, enable scheduled diagnostics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/diagnostics-exports`.
 
+For durable controller, MDM sync, and posture automation history, use `Backups` or `GET /api/v1/system/integration-history`.
+
 ## Logs
 
 Logs are structured JSON.
@@ -168,6 +170,7 @@ When integrations are enabled, operators should verify:
 - SIEM export health and last delivery message
 - controller automation last sync message
 - MDM or compliance posture synchronization status
+- recent integration history for controller, MDM sync, and posture failures or recoveries
 - external CA enrollment reachability when `ca_mode: external`
 
 Those states are surfaced in the dashboard and reflected in alerts when delivery or sync degrades.
@@ -181,6 +184,7 @@ Run at least one restore drill before production sign-off.
 Before handing an issue to another team or opening a support case, download:
 
 - the diagnostics report in JSON or CSV
+- the integration history export in JSON or CSV when the issue is controller- or MDM-related
 - the support bundle zip
 
 That gives you a quick human-readable snapshot plus the deeper redacted artifact set.

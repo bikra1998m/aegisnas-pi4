@@ -112,6 +112,33 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/dhcp-lease-history/export", "get", securedOperation("Export DHCP lease history", "Network", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseBinary("text/csv", "DHCP lease history export."),
 	}))
+	addOperation(paths, "/api/v1/system/integration-history", "get", securedOperationWithParameters("List integration automation history", "Integrations", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("component", "Optional component filter such as controller_automation, mdm_sync, or posture_checks.", false),
+		queryStringParameter("limit", "Optional record limit. Defaults to 200 and caps at 2000.", false),
+	}, map[string]any{
+		"200": responseJSON("Durable integration history records with aggregate counters for controller, MDM, and posture automation."),
+	}))
+	addOperation(paths, "/api/v1/system/integration-history/export", "get", securedOperationWithParameters("Export integration automation history", "Integrations", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("format", "Optional export format. Defaults to csv.", []string{"json", "csv"}, false),
+		queryStringParameter("component", "Optional component filter such as controller_automation, mdm_sync, or posture_checks.", false),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Integration history export in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/network-preview", "get", securedOperation("Preview managed network changes", "Network", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Generated preview, risk summary, and validation details for managed network state."),
 	}))
@@ -128,7 +155,7 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200": responseJSON("Network observability counters, trends, and recovery state."),
 	}))
 	addOperation(paths, "/api/v1/system/diagnostics-report", "get", securedOperation("Read diagnostics report", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
-		"200": responseJSON("Cross-domain diagnostics report with network, HA, upgrade, integration, and runtime status data."),
+		"200": responseJSON("Cross-domain diagnostics report with network, HA, upgrade, integration, runtime status, and integration-history summary data."),
 	}))
 	addOperation(paths, "/api/v1/system/diagnostics-report/export", "get", securedOperationWithParameters("Export diagnostics report", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("format", "Optional export format. Defaults to json.", []string{"json", "csv"}, false),
@@ -315,7 +342,7 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"servers": buildOpenAPIServers(r, cfg),
 		"tags": []map[string]any{
 			{"name": "Documentation"}, {"name": "Health"}, {"name": "Authentication"},
-			{"name": "System"}, {"name": "Upgrade"}, {"name": "Network"}, {"name": "HA"},
+			{"name": "System"}, {"name": "Upgrade"}, {"name": "Network"}, {"name": "Integrations"}, {"name": "HA"},
 			{"name": "Wireless"}, {"name": "RADIUS"}, {"name": "VLANs"}, {"name": "Users"},
 			{"name": "Devices"}, {"name": "Admin Access"}, {"name": "Guest"}, {"name": "Vouchers"},
 			{"name": "Roles"}, {"name": "Policies"}, {"name": "Identity Sources"},

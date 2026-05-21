@@ -86,6 +86,29 @@ type HAHistoryStats = {
   last_event_at?: string;
 };
 
+type IntegrationHistoryRecord = {
+  id: number;
+  component: string;
+  status: string;
+  summary: string;
+  details?: Record<string, any>;
+  created_at: string;
+};
+
+type IntegrationHistoryStats = {
+  total_records: number;
+  controller_event_count: number;
+  controller_success_count: number;
+  controller_failure_count: number;
+  mdm_sync_event_count: number;
+  mdm_sync_success_count: number;
+  mdm_sync_failure_count: number;
+  posture_event_count: number;
+  posture_success_count: number;
+  posture_failure_count: number;
+  last_event_at?: string;
+};
+
 type UpgradeReadinessReport = {
   generated_at: string;
   config_path: string;
@@ -247,6 +270,7 @@ type DiagnosticsReport = {
     device_inventory?: RuntimeStatusView;
     mdm_sync?: RuntimeStatusView;
     posture_checks?: RuntimeStatusView;
+    history_stats?: IntegrationHistoryStats;
     upstream_aaa?: UpstreamAAAHealth[];
     upstream_aaa_probe_error?: string;
   };
@@ -279,6 +303,8 @@ export default function Backups() {
   const [sharedStatus, setSharedStatus] = useState<SharedReplicationStatus | null>(null);
   const [haHistory, setHAHistory] = useState<HAHistoryRecord[]>([]);
   const [haHistoryStats, setHAHistoryStats] = useState<HAHistoryStats | null>(null);
+  const [integrationHistory, setIntegrationHistory] = useState<IntegrationHistoryRecord[]>([]);
+  const [integrationHistoryStats, setIntegrationHistoryStats] = useState<IntegrationHistoryStats | null>(null);
   const [diagnosticsReport, setDiagnosticsReport] = useState<DiagnosticsReport | null>(null);
   const [diagnosticsExportRuntime, setDiagnosticsExportRuntime] = useState<DiagnosticsExportRuntime | null>(null);
   const [diagnosticsExportArtifacts, setDiagnosticsExportArtifacts] = useState<DiagnosticsExportArtifact[]>([]);
@@ -288,6 +314,7 @@ export default function Backups() {
   const [loadingStages, setLoadingStages] = useState(true);
   const [loadingSharedStatus, setLoadingSharedStatus] = useState(true);
   const [loadingHAHistory, setLoadingHAHistory] = useState(true);
+  const [loadingIntegrationHistory, setLoadingIntegrationHistory] = useState(true);
   const [loadingDiagnosticsReport, setLoadingDiagnosticsReport] = useState(false);
   const [loadingDiagnosticsExports, setLoadingDiagnosticsExports] = useState(false);
   const [loadingUpgradeReadiness, setLoadingUpgradeReadiness] = useState(false);
@@ -330,6 +357,26 @@ export default function Backups() {
       setError(err.response?.data || err.message || 'Could not load HA history.');
     } finally {
       setLoadingHAHistory(false);
+    }
+  };
+
+  const loadIntegrationHistory = async (announce = false) => {
+    if (announce) {
+      setError('');
+      setMessage('');
+    }
+    setLoadingIntegrationHistory(true);
+    try {
+      const { data } = await api.get('/system/integration-history');
+      setIntegrationHistory(data.history || []);
+      setIntegrationHistoryStats(data.stats || null);
+      if (announce) {
+        setMessage('Integration history refreshed.');
+      }
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load integration history.');
+    } finally {
+      setLoadingIntegrationHistory(false);
     }
   };
 
@@ -376,6 +423,7 @@ export default function Backups() {
     void loadStages();
     void loadSharedStatus();
     void loadHAHistory();
+    void loadIntegrationHistory(false);
     void loadDiagnosticsReport(false);
     void loadDiagnosticsExports(false);
     void loadSupportBundleSummary();
@@ -453,7 +501,7 @@ export default function Backups() {
       link.download = filenameMatch?.[1] || 'aegisnas-support-bundle.zip';
       link.click();
       URL.revokeObjectURL(url);
-      setMessage('Support bundle downloaded. It includes redacted settings, runtime health, network and HA history, plus best-effort service diagnostics.');
+      setMessage('Support bundle downloaded. It includes redacted settings, runtime health, network, integration, and HA history, plus best-effort service diagnostics.');
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not download support bundle.');
     } finally {
@@ -697,6 +745,36 @@ export default function Backups() {
     }
   };
 
+  const exportIntegrationHistory = async (format: 'csv' | 'json') => {
+    setError('');
+    setMessage('');
+    try {
+      const response = await api.get(`/system/integration-history/export?format=${format}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = format === 'json' ? 'aegisnas-integration-history.json' : 'aegisnas-integration-history.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`Integration history exported as ${format.toUpperCase()}.`);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not export integration history.');
+    }
+  };
+
+  const integrationComponentLabel = (component: string) => {
+    switch (component) {
+      case 'controller_automation':
+        return 'Controller';
+      case 'mdm_sync':
+        return 'MDM Sync';
+      case 'posture_checks':
+        return 'Posture Checks';
+      default:
+        return component;
+    }
+  };
+
   return (
     <div>
       <h2 className="mb-6 text-2xl font-bold text-gray-900">Backups</h2>
@@ -911,6 +989,19 @@ export default function Backups() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                ) : null}
+                {diagnosticsReport.integrations.history_stats ? (
+                  <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    <div className="font-medium text-slate-900">Integration History</div>
+                    <div className="mt-1">
+                      Controller {diagnosticsReport.integrations.history_stats.controller_success_count}/{diagnosticsReport.integrations.history_stats.controller_event_count} successful,
+                      MDM {diagnosticsReport.integrations.history_stats.mdm_sync_success_count}/{diagnosticsReport.integrations.history_stats.mdm_sync_event_count} successful,
+                      posture {diagnosticsReport.integrations.history_stats.posture_success_count}/{diagnosticsReport.integrations.history_stats.posture_event_count} successful.
+                    </div>
+                    {diagnosticsReport.integrations.history_stats.last_event_at ? (
+                      <div className="mt-1">Last recorded integration event {diagnosticsReport.integrations.history_stats.last_event_at}.</div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -1221,6 +1312,74 @@ export default function Backups() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Integration History</h3>
+            <p className="mt-1 text-sm text-gray-600">Keep durable controller, MDM sync, and posture automation events so operator reviews and support handoffs do not depend on the last runtime status alone.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => void loadIntegrationHistory(true)} disabled={loadingIntegrationHistory || busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              {loadingIntegrationHistory ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button onClick={() => void exportIntegrationHistory('csv')} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              Export CSV
+            </button>
+            <button onClick={() => void exportIntegrationHistory('json')} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              Export JSON
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Controller Sync</div>
+            <div className="mt-2">{integrationHistoryStats?.controller_success_count ?? 0} successful / {integrationHistoryStats?.controller_event_count ?? 0} total</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">MDM Sync</div>
+            <div className="mt-2">{integrationHistoryStats?.mdm_sync_success_count ?? 0} successful / {integrationHistoryStats?.mdm_sync_event_count ?? 0} total</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Posture Checks</div>
+            <div className="mt-2">{integrationHistoryStats?.posture_success_count ?? 0} successful / {integrationHistoryStats?.posture_event_count ?? 0} total</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Last Event</div>
+            <div className="mt-2">{integrationHistoryStats?.last_event_at || 'No data yet'}</div>
+          </div>
+        </div>
+
+        {loadingIntegrationHistory ? (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">Loading integration history...</div>
+        ) : integrationHistory.length === 0 ? (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">No integration history recorded yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">When</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Component</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Status</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Summary</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {integrationHistory.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-3 py-2 text-gray-600">{item.created_at}</td>
+                    <td className="px-3 py-2 text-gray-900">{integrationComponentLabel(item.component)}</td>
+                    <td className="px-3 py-2 text-gray-700">{item.status}</td>
+                    <td className="px-3 py-2 text-gray-700">{item.summary}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

@@ -64,6 +64,7 @@ Use this report when you want one payload that combines:
 - HA role and failover counters
 - upgrade-readiness results
 - integration and runtime status snapshots
+- controller, MDM sync, and posture history counters
 
 From the admin UI:
 
@@ -72,6 +73,41 @@ From the admin UI:
 3. select `Refresh Report`
 4. download `JSON` or `CSV`
 5. review the scheduled export runtime and recent artifacts when recurring export is enabled
+
+## Integration History Endpoints
+
+The appliance also keeps durable automation history for controller sync, MDM sync, and posture evaluation at:
+
+```text
+/api/v1/system/integration-history
+```
+
+And export variants at:
+
+```text
+/api/v1/system/integration-history/export?format=json
+/api/v1/system/integration-history/export?format=csv
+```
+
+Optional query parameters:
+
+- `component=controller_automation`
+- `component=mdm_sync`
+- `component=posture_checks`
+- `limit=<n>`
+
+Use this history when you want:
+
+- more than the last runtime status message
+- a quick operator timeline for sync failures and recoveries
+- exportable evidence for controller or MDM troubleshooting
+
+From the admin UI:
+
+1. sign in
+2. open `Backups`
+3. review `Integration History`
+4. export `JSON` or `CSV` when you need to hand it to another team
 
 ## What The Schema Includes
 
@@ -128,6 +164,7 @@ Use the OpenAPI JSON for:
 - runbook authoring
 - change-review prep before automation is pointed at the appliance
 - mapping diagnostics-report exports into external support workflows
+- mapping integration-history exports into controller and endpoint support workflows
 
 ## Operational Reminder
 

@@ -63,6 +63,7 @@ type DiagnosticsIntegrations struct {
 	DeviceInventory       *db.RuntimeStatus             `json:"device_inventory,omitempty"`
 	MDMSync               *db.RuntimeStatus             `json:"mdm_sync,omitempty"`
 	PostureChecks         *db.RuntimeStatus             `json:"posture_checks,omitempty"`
+	HistoryStats          *db.IntegrationHistoryStats   `json:"history_stats,omitempty"`
 	UpstreamAAA           []radius.UpstreamServerHealth `json:"upstream_aaa,omitempty"`
 	UpstreamAAAProbeError string                        `json:"upstream_aaa_probe_error,omitempty"`
 }
@@ -148,6 +149,10 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load ha stats: %w", err)
 	}
+	integrationHistoryStats, err := db.GetIntegrationHistoryStats()
+	if err != nil {
+		return DiagnosticsReport{}, fmt.Errorf("load integration history stats: %w", err)
+	}
 	recoveryState, err := CurrentNetworkRecoveryState()
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load network recovery state: %w", err)
@@ -175,6 +180,7 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 		DeviceInventory: runtimeStatusPointer(runtimeMap, "device_inventory"),
 		MDMSync:         runtimeStatusPointer(runtimeMap, "mdm_sync"),
 		PostureChecks:   runtimeStatusPointer(runtimeMap, "posture_checks"),
+		HistoryStats:    &integrationHistoryStats,
 		UpstreamAAA:     upstreamStatuses,
 	}
 	if probeErr != nil {
@@ -253,6 +259,13 @@ func diagnosticsReportCSV(report DiagnosticsReport) ([]byte, error) {
 		{"ha_total_records", strconv.Itoa(report.HighAvailability.Stats.TotalRecords)},
 		{"ha_failover_promotions", strconv.Itoa(report.HighAvailability.Stats.FailoverPromotions)},
 		{"ha_replication_failures", strconv.Itoa(report.HighAvailability.Stats.ReplicationFailures)},
+		{"integration_history_total_records", strconv.Itoa(report.Integrations.HistoryStats.TotalRecords)},
+		{"integration_history_controller_events", strconv.Itoa(report.Integrations.HistoryStats.ControllerEventCount)},
+		{"integration_history_controller_failures", strconv.Itoa(report.Integrations.HistoryStats.ControllerFailureCount)},
+		{"integration_history_mdm_events", strconv.Itoa(report.Integrations.HistoryStats.MDMSyncEventCount)},
+		{"integration_history_mdm_failures", strconv.Itoa(report.Integrations.HistoryStats.MDMSyncFailureCount)},
+		{"integration_history_posture_events", strconv.Itoa(report.Integrations.HistoryStats.PostureEventCount)},
+		{"integration_history_posture_failures", strconv.Itoa(report.Integrations.HistoryStats.PostureFailureCount)},
 		{"upgrade_current_schema", strconv.Itoa(report.Upgrade.CurrentSchemaVersion)},
 		{"upgrade_target_schema", strconv.Itoa(report.Upgrade.TargetSchemaVersion)},
 		{"upgrade_config_valid", strconv.FormatBool(report.Upgrade.ConfigValid)},

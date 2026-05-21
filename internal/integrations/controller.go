@@ -73,6 +73,7 @@ func StartControllerAutomation(ctx context.Context, cfg *config.Config, logger *
 			details["success_count"] = successCount
 			details["failure_count"] = failureCount
 			details["last_error"] = err.Error()
+			_ = db.RecordIntegrationHistory(controllerComponent, "degraded", err.Error(), details)
 			_ = db.UpsertRuntimeStatus(controllerComponent, "degraded", err.Error(), details)
 			return
 		}
@@ -86,6 +87,7 @@ func StartControllerAutomation(ctx context.Context, cfg *config.Config, logger *
 		if result != nil && strings.TrimSpace(result.ResponseSummary) != "" {
 			message = fmt.Sprintf("Controller automation sync completed. %s", strings.TrimSpace(result.ResponseSummary))
 		}
+		_ = db.RecordIntegrationHistory(controllerComponent, "ok", message, details)
 		_ = db.UpsertRuntimeStatus(controllerComponent, "ok", message, details)
 	}
 

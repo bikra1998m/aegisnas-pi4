@@ -214,6 +214,12 @@ func TestStartControllerAutomationTracksRuntimeCounters(t *testing.T) {
 			int64ControllerDetail(status.Details, "failure_count") == 0
 	}, 2*time.Second, 50*time.Millisecond)
 
+	history, err := db.ListIntegrationHistory(ControllerComponent(), 10)
+	require.NoError(t, err)
+	require.NotEmpty(t, history)
+	assert.Equal(t, ControllerComponent(), history[0].Component)
+	assert.Equal(t, "ok", history[0].Status)
+
 	cancel()
 	select {
 	case <-done:

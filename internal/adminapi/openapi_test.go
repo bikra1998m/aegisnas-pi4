@@ -62,6 +62,12 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "Download scheduled diagnostics export", scheduledDiagnosticsGet["summary"])
 
+	integrationHistoryPath, ok := paths["/api/v1/system/integration-history/export"].(map[string]any)
+	require.True(t, ok)
+	integrationHistoryGet, ok := integrationHistoryPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Export integration automation history", integrationHistoryGet["summary"])
+
 	components, ok := payload["components"].(map[string]any)
 	require.True(t, ok)
 	securitySchemes, ok := components["securitySchemes"].(map[string]any)

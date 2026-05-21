@@ -33,6 +33,8 @@ func TestHandleGetDiagnosticsReport(t *testing.T) {
 		RemainingSeconds: 3600,
 	}}))
 	require.NoError(t, db.RecordHAHistory("failover", "promoted", "Standby promoted cleanly.", "standby", "", map[string]any{"vip": "192.168.50.2"}))
+	require.NoError(t, db.RecordIntegrationHistory("controller_automation", "ok", "Controller sync completed.", map[string]any{"adapter": "cisco-ise"}))
+	require.NoError(t, db.RecordIntegrationHistory("mdm_sync", "degraded", "MDM sync failed.", map[string]any{"provider": "intune"}))
 	require.NoError(t, db.UpsertRuntimeStatus("controller_automation", "ok", "Controller sync healthy.", map[string]any{"sync_count": 2}))
 	require.NoError(t, db.UpsertRuntimeStatus("siem_export", "ok", "SIEM export healthy.", map[string]any{"delivered": 4}))
 	require.NoError(t, db.UpsertRuntimeStatus("admin_sso", "ok", "SSO healthy.", map[string]any{"provider": "oidc"}))
@@ -85,6 +87,8 @@ func TestHandleGetDiagnosticsReport(t *testing.T) {
 	assert.Equal(t, 1, payload.HighAvailability.Stats.FailoverPromotions)
 	require.NotNil(t, payload.Integrations.Controller)
 	assert.Equal(t, "ok", payload.Integrations.Controller.Status)
+	require.NotNil(t, payload.Integrations.HistoryStats)
+	assert.Equal(t, 2, payload.Integrations.HistoryStats.TotalRecords)
 	require.Len(t, payload.Integrations.UpstreamAAA, 1)
 	assert.Equal(t, "primary", payload.Integrations.UpstreamAAA[0].Name)
 	assert.True(t, payload.Upgrade.ConfigValid)
@@ -126,6 +130,7 @@ func TestHandleExportDiagnosticsReportCSV(t *testing.T) {
 	require.NotEmpty(t, rows)
 	assert.Contains(t, rec.Body.String(), "upgrade_target_schema")
 	assert.Contains(t, rec.Body.String(), "upstream_aaa_primary")
+	assert.Contains(t, rec.Body.String(), "integration_history_total_records")
 }
 
 func TestHandleExportDiagnosticsReportRejectsUnsupportedFormat(t *testing.T) {
