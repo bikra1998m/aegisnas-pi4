@@ -1659,3 +1659,55 @@ func TestConfigValidationHighAvailability(t *testing.T) {
 	badEncryption.HighAvailability.ReplicationEncryptionKeyEnv = "AEGIS_HA_REPLICATION_ENCRYPTION_KEY"
 	assert.ErrorContains(t, badEncryption.Validate(), "high_availability.replication_encryption_key_env requires high_availability.enabled")
 }
+
+func TestConfigValidationDiagnosticsExports(t *testing.T) {
+	base := func() *Config {
+		return &Config{
+			Mode:     "two-nic",
+			WAN:      InterfaceConfig{Name: "eth0"},
+			LAN:      InterfaceConfig{Name: "eth1"},
+			Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+			Health:   HealthConfig{Port: 8080},
+			Telemetry: TelemetryConfig{
+				Enabled:                 true,
+				PrometheusPort:          9090,
+				LeaseHistoryPollSeconds: 300,
+				DiagnosticsExports: DiagnosticsExportConfig{
+					Enabled:         true,
+					Directory:       "/var/lib/aegisnas/diagnostics",
+					Format:          "both",
+					IntervalMinutes: 60,
+					RetentionCount:  14,
+				},
+			},
+			Radius: RadiusConfig{
+				AuthPort:              1812,
+				AcctPort:              1813,
+				RequestTimeoutSeconds: 5,
+			},
+		}
+	}
+
+	valid := base()
+	assert.NoError(t, valid.Validate())
+
+	badFormat := base()
+	badFormat.Telemetry.DiagnosticsExports.Format = "xml"
+	assert.ErrorContains(t, badFormat.Validate(), `telemetry.diagnostics_exports.format "xml" is invalid`)
+
+	badDisabledTelemetry := base()
+	badDisabledTelemetry.Telemetry.Enabled = false
+	assert.ErrorContains(t, badDisabledTelemetry.Validate(), "telemetry.diagnostics_exports.enabled requires telemetry.enabled")
+
+	badDirectory := base()
+	badDirectory.Telemetry.DiagnosticsExports.Directory = ""
+	assert.ErrorContains(t, badDirectory.Validate(), "telemetry.diagnostics_exports.enabled requires telemetry.diagnostics_exports.directory")
+
+	badInterval := base()
+	badInterval.Telemetry.DiagnosticsExports.IntervalMinutes = 0
+	assert.ErrorContains(t, badInterval.Validate(), "telemetry.diagnostics_exports.enabled requires a positive telemetry.diagnostics_exports.interval_minutes")
+
+	badRetention := base()
+	badRetention.Telemetry.DiagnosticsExports.RetentionCount = 0
+	assert.ErrorContains(t, badRetention.Validate(), "telemetry.diagnostics_exports.enabled requires a positive telemetry.diagnostics_exports.retention_count")
+}

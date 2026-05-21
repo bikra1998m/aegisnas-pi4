@@ -125,6 +125,8 @@ For the live admin API contract, OpenAPI download path, and role-hint guidance, 
 
 For one-shot cross-domain operational snapshots that combine network, HA, upgrade, and integration state, use the diagnostics report from `Backups` or `GET /api/v1/system/diagnostics-report`.
 
+For recurring report capture without manual operator action, enable scheduled diagnostics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/diagnostics-exports`.
+
 ## Logs
 
 Logs are structured JSON.

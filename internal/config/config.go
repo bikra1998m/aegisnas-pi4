@@ -284,9 +284,18 @@ type PolicyConfig struct {
 }
 
 type TelemetryConfig struct {
-	Enabled                 bool `mapstructure:"enabled"`
-	PrometheusPort          int  `mapstructure:"prometheus_port"`
-	LeaseHistoryPollSeconds int  `mapstructure:"lease_history_poll_seconds"`
+	Enabled                 bool                    `mapstructure:"enabled"`
+	PrometheusPort          int                     `mapstructure:"prometheus_port"`
+	LeaseHistoryPollSeconds int                     `mapstructure:"lease_history_poll_seconds"`
+	DiagnosticsExports      DiagnosticsExportConfig `mapstructure:"diagnostics_exports"`
+}
+
+type DiagnosticsExportConfig struct {
+	Enabled         bool   `mapstructure:"enabled"`
+	Directory       string `mapstructure:"directory"`
+	Format          string `mapstructure:"format"`
+	IntervalMinutes int    `mapstructure:"interval_minutes"`
+	RetentionCount  int    `mapstructure:"retention_count"`
 }
 
 type AILiteConfig struct {
@@ -1037,6 +1046,31 @@ func (c *Config) Validate() error {
 	}
 	if c.Telemetry.LeaseHistoryPollSeconds < 0 {
 		return fmt.Errorf("telemetry.lease_history_poll_seconds %d out of range", c.Telemetry.LeaseHistoryPollSeconds)
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Telemetry.DiagnosticsExports.Format)) {
+	case "", "json", "csv", "both":
+	default:
+		return fmt.Errorf("telemetry.diagnostics_exports.format %q is invalid", c.Telemetry.DiagnosticsExports.Format)
+	}
+	if c.Telemetry.DiagnosticsExports.IntervalMinutes < 0 {
+		return fmt.Errorf("telemetry.diagnostics_exports.interval_minutes %d out of range", c.Telemetry.DiagnosticsExports.IntervalMinutes)
+	}
+	if c.Telemetry.DiagnosticsExports.RetentionCount < 0 {
+		return fmt.Errorf("telemetry.diagnostics_exports.retention_count %d out of range", c.Telemetry.DiagnosticsExports.RetentionCount)
+	}
+	if c.Telemetry.DiagnosticsExports.Enabled {
+		if !c.Telemetry.Enabled {
+			return errors.New("telemetry.diagnostics_exports.enabled requires telemetry.enabled")
+		}
+		if strings.TrimSpace(c.Telemetry.DiagnosticsExports.Directory) == "" {
+			return errors.New("telemetry.diagnostics_exports.enabled requires telemetry.diagnostics_exports.directory")
+		}
+		if c.Telemetry.DiagnosticsExports.IntervalMinutes <= 0 {
+			return errors.New("telemetry.diagnostics_exports.enabled requires a positive telemetry.diagnostics_exports.interval_minutes")
+		}
+		if c.Telemetry.DiagnosticsExports.RetentionCount <= 0 {
+			return errors.New("telemetry.diagnostics_exports.enabled requires a positive telemetry.diagnostics_exports.retention_count")
+		}
 	}
 	profile := EffectiveDeploymentProfile(c.Deployment.Profile)
 	switch strings.ToLower(strings.TrimSpace(c.Portal.GuestWorkflows.InviteDelivery)) {

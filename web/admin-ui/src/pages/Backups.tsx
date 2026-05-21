@@ -253,6 +253,22 @@ type DiagnosticsReport = {
   runtime_statuses: RuntimeStatusView[];
 };
 
+type DiagnosticsExportRuntime = {
+  component: string;
+  status: string;
+  message: string;
+  updated_at: string;
+  details?: Record<string, any>;
+};
+
+type DiagnosticsExportArtifact = {
+  name: string;
+  path: string;
+  format: string;
+  size_bytes: number;
+  created_at: string;
+};
+
 export default function Backups() {
   const [configFile, setConfigFile] = useState<File | null>(null);
   const [replicationFile, setReplicationFile] = useState<File | null>(null);
@@ -264,6 +280,8 @@ export default function Backups() {
   const [haHistory, setHAHistory] = useState<HAHistoryRecord[]>([]);
   const [haHistoryStats, setHAHistoryStats] = useState<HAHistoryStats | null>(null);
   const [diagnosticsReport, setDiagnosticsReport] = useState<DiagnosticsReport | null>(null);
+  const [diagnosticsExportRuntime, setDiagnosticsExportRuntime] = useState<DiagnosticsExportRuntime | null>(null);
+  const [diagnosticsExportArtifacts, setDiagnosticsExportArtifacts] = useState<DiagnosticsExportArtifact[]>([]);
   const [upgradeReadiness, setUpgradeReadiness] = useState<UpgradeReadinessReport | null>(null);
   const [upgradeRollbackInspection, setUpgradeRollbackInspection] = useState<UpgradeRollbackInspection | null>(null);
   const [supportBundleSummary, setSupportBundleSummary] = useState<SupportBundleSummary | null>(null);
@@ -271,6 +289,7 @@ export default function Backups() {
   const [loadingSharedStatus, setLoadingSharedStatus] = useState(true);
   const [loadingHAHistory, setLoadingHAHistory] = useState(true);
   const [loadingDiagnosticsReport, setLoadingDiagnosticsReport] = useState(false);
+  const [loadingDiagnosticsExports, setLoadingDiagnosticsExports] = useState(false);
   const [loadingUpgradeReadiness, setLoadingUpgradeReadiness] = useState(false);
   const [loadingUpgradeRollbackInspect, setLoadingUpgradeRollbackInspect] = useState(false);
   const [loadingSupportBundleSummary, setLoadingSupportBundleSummary] = useState(false);
@@ -333,11 +352,32 @@ export default function Backups() {
     }
   };
 
+  const loadDiagnosticsExports = async (announce = false) => {
+    if (announce) {
+      setError('');
+      setMessage('');
+    }
+    setLoadingDiagnosticsExports(true);
+    try {
+      const { data } = await api.get('/system/diagnostics-exports');
+      setDiagnosticsExportRuntime(data.runtime || null);
+      setDiagnosticsExportArtifacts(data.exports || []);
+      if (announce) {
+        setMessage('Scheduled diagnostics exports refreshed.');
+      }
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load scheduled diagnostics exports.');
+    } finally {
+      setLoadingDiagnosticsExports(false);
+    }
+  };
+
   useEffect(() => {
     void loadStages();
     void loadSharedStatus();
     void loadHAHistory();
     void loadDiagnosticsReport(false);
+    void loadDiagnosticsExports(false);
     void loadSupportBundleSummary();
   }, []);
 
@@ -439,6 +479,29 @@ export default function Backups() {
       setMessage(`Diagnostics report downloaded as ${format.toUpperCase()}.`);
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not download diagnostics report.');
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const downloadScheduledDiagnosticsExport = async (artifact: DiagnosticsExportArtifact) => {
+    setError('');
+    setMessage('');
+    setBusyAction(`scheduled-diagnostics-${artifact.name}`);
+    try {
+      const response = await api.get(`/system/diagnostics-exports/download?name=${encodeURIComponent(artifact.name)}`, { responseType: 'blob' });
+      const { data, headers } = response;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      const disposition = `${headers?.['content-disposition'] || ''}`;
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      link.download = filenameMatch?.[1] || artifact.name;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`Scheduled diagnostics export ${artifact.name} downloaded.`);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not download scheduled diagnostics export.');
     } finally {
       setBusyAction('');
     }
@@ -859,6 +922,69 @@ export default function Backups() {
               {diagnosticsReport.upgrade.recommendations && diagnosticsReport.upgrade.recommendations.length > 0 ? (
                 <div className="mt-2 text-slate-600">{diagnosticsReport.upgrade.recommendations.length} readiness recommendations are attached to this report.</div>
               ) : null}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium text-slate-900">Scheduled Diagnostics Exports</div>
+                  <div className="mt-1">Keep recurring report artifacts on the appliance so support handoffs don’t depend on someone remembering to click export at the right moment.</div>
+                </div>
+                <button onClick={() => void loadDiagnosticsExports(true)} disabled={loadingDiagnosticsExports || busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                  {loadingDiagnosticsExports ? 'Refreshing...' : 'Refresh Scheduled Exports'}
+                </button>
+              </div>
+              {diagnosticsExportRuntime ? (
+                <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  <div><span className="font-medium text-slate-900">Runtime:</span> {diagnosticsExportRuntime.status} / {diagnosticsExportRuntime.message}</div>
+                  <div className="mt-1">
+                    Format {String(diagnosticsExportRuntime.details?.format || 'json')}, every {String(diagnosticsExportRuntime.details?.interval_minutes || 0)} minutes, retain {String(diagnosticsExportRuntime.details?.retention_count || 0)}, directory {String(diagnosticsExportRuntime.details?.directory || 'unset')}.
+                  </div>
+                  {diagnosticsExportRuntime.details?.last_export_at ? (
+                    <div className="mt-1">
+                      Last export {String(diagnosticsExportRuntime.details.last_export_at)}
+                      {diagnosticsExportRuntime.details?.next_due_at ? `, next due ${String(diagnosticsExportRuntime.details.next_due_at)}` : ''}
+                      .
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-3 rounded-md border border-dashed border-gray-300 px-3 py-4 text-xs text-gray-500">No scheduled diagnostics export runtime has been recorded yet.</div>
+              )}
+              {diagnosticsExportArtifacts.length === 0 ? (
+                <div className="mt-3 text-xs text-gray-500">No scheduled diagnostics export artifacts are present yet.</div>
+              ) : (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Created</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Name</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Format</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Size</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Path</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {diagnosticsExportArtifacts.map((artifact) => (
+                        <tr key={artifact.name}>
+                          <td className="px-3 py-2 text-gray-600">{artifact.created_at}</td>
+                          <td className="px-3 py-2 font-medium text-gray-900">{artifact.name}</td>
+                          <td className="px-3 py-2 text-gray-700">{artifact.format}</td>
+                          <td className="px-3 py-2 text-gray-700">{artifact.size_bytes} bytes</td>
+                          <td className="px-3 py-2 text-gray-500 break-all">{artifact.path}</td>
+                          <td className="px-3 py-2">
+                            <button onClick={() => void downloadScheduledDiagnosticsExport(artifact)} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                              Download
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}

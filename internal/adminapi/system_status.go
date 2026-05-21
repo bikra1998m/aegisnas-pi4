@@ -273,6 +273,39 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		profilingStatus["posture_checks"] = map[string]any{"status": "degraded", "message": "Telemetry service is disabled, so posture checks are not running."}
 	}
 
+	telemetryStatus := map[string]any{
+		"enabled":                    cfg.Telemetry.Enabled,
+		"prometheus_port":            cfg.Telemetry.PrometheusPort,
+		"lease_history_poll_seconds": cfg.Telemetry.LeaseHistoryPollSeconds,
+		"diagnostics_exports": map[string]any{
+			"enabled":          cfg.Telemetry.DiagnosticsExports.Enabled,
+			"directory":        cfg.Telemetry.DiagnosticsExports.Directory,
+			"format":           cfg.Telemetry.DiagnosticsExports.Format,
+			"interval_minutes": cfg.Telemetry.DiagnosticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.DiagnosticsExports.RetentionCount,
+			"runtime":          runtimeMap[diagnosticsExportsComponent],
+		},
+	}
+	if !cfg.Telemetry.Enabled {
+		telemetryStatus["diagnostics_exports"] = map[string]any{
+			"enabled":          cfg.Telemetry.DiagnosticsExports.Enabled,
+			"directory":        cfg.Telemetry.DiagnosticsExports.Directory,
+			"format":           cfg.Telemetry.DiagnosticsExports.Format,
+			"interval_minutes": cfg.Telemetry.DiagnosticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.DiagnosticsExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled diagnostics exports are not running."},
+		}
+	} else if !cfg.Telemetry.DiagnosticsExports.Enabled {
+		telemetryStatus["diagnostics_exports"] = map[string]any{
+			"enabled":          false,
+			"directory":        cfg.Telemetry.DiagnosticsExports.Directory,
+			"format":           cfg.Telemetry.DiagnosticsExports.Format,
+			"interval_minutes": cfg.Telemetry.DiagnosticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.DiagnosticsExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled diagnostics exports are disabled in config."},
+		}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"generated_at": time.Now().UTC().Format(time.RFC3339),
 		"summary": map[string]any{
@@ -348,6 +381,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		},
 		"integrations": integrationsStatus,
 		"profiling":    profilingStatus,
+		"telemetry":    telemetryStatus,
 		"network_observability": map[string]any{
 			"apply_stats":     applyStats,
 			"lease_trends":    leaseTrends,

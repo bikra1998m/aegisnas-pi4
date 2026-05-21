@@ -205,6 +205,19 @@ type SystemStatus = {
     mdm_sync: RuntimeStatus;
     posture_checks: RuntimeStatus;
   };
+  telemetry: {
+    enabled: boolean;
+    prometheus_port: number;
+    lease_history_poll_seconds: number;
+    diagnostics_exports: {
+      enabled: boolean;
+      directory: string;
+      format: string;
+      interval_minutes: number;
+      retention_count: number;
+      runtime: RuntimeStatus;
+    };
+  };
   network_observability: {
     apply_stats: {
       total_records: number;
@@ -1004,6 +1017,27 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <StatusBadge status={systemStatus.profiling?.mdm_sync?.status || 'disabled'} />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">Scheduled Diagnostics Exports</div>
+                    <div className="mt-1 text-sm text-gray-600">{systemStatus.telemetry?.diagnostics_exports?.runtime?.message || 'No scheduled diagnostics export runtime status recorded yet.'}</div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Format {systemStatus.telemetry?.diagnostics_exports?.format || 'json'}, every {systemStatus.telemetry?.diagnostics_exports?.interval_minutes || 0} minutes, retain {systemStatus.telemetry?.diagnostics_exports?.retention_count || 0}, directory {systemStatus.telemetry?.diagnostics_exports?.directory || 'unset'}.
+                    </div>
+                    {systemStatus.telemetry?.diagnostics_exports?.runtime?.details?.last_export_at ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Last export {String(systemStatus.telemetry.diagnostics_exports.runtime.details.last_export_at)}
+                        {systemStatus.telemetry?.diagnostics_exports?.runtime?.details?.next_due_at
+                          ? `, next due ${String(systemStatus.telemetry.diagnostics_exports.runtime.details.next_due_at)}`
+                          : ''}
+                        .
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge status={systemStatus.telemetry?.diagnostics_exports?.runtime?.status || 'disabled'} />
                 </div>
               </div>
             </div>

@@ -150,6 +150,29 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/diagnostics-exports", "get", securedOperation("List scheduled diagnostics exports", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled diagnostics export runtime status and recent artifact list."),
+	}))
+	addOperation(paths, "/api/v1/system/diagnostics-exports/download", "get", securedOperationWithParameters("Download scheduled diagnostics export", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "Diagnostics export artifact filename.", true),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Scheduled diagnostics export artifact in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/network-apply", "post", securedOperationWithBody("Apply managed network state", "Network", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional apply request metadata and confirmation details."), map[string]any{
 		"200":     responseJSON("Apply result, validation details, and rollback snapshot references."),
 		"default": responseText("Apply or validation error."),
@@ -533,5 +556,17 @@ func queryEnumParameter(name, description string, values []string, required bool
 		"required":    required,
 		"description": description,
 		"schema":      schema,
+	}
+}
+
+func queryStringParameter(name, description string, required bool) map[string]any {
+	return map[string]any{
+		"name":        name,
+		"in":          "query",
+		"required":    required,
+		"description": description,
+		"schema": map[string]any{
+			"type": "string",
+		},
 	}
 }

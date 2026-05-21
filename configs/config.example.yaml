@@ -200,6 +200,12 @@ telemetry:
   enabled: true
   prometheus_port: 9090
   lease_history_poll_seconds: 300
+  diagnostics_exports:
+    enabled: false
+    directory: /var/lib/aegisnas/diagnostics
+    format: json # json, csv, or both.
+    interval_minutes: 60
+    retention_count: 14
 
 ailite:
   enabled: true

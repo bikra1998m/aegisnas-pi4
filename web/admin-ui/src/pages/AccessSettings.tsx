@@ -234,6 +234,13 @@ const defaultSettings: JsonMap = {
     enabled: true,
     prometheus_port: 9090,
     lease_history_poll_seconds: 300,
+    diagnostics_exports: {
+      enabled: false,
+      directory: '/var/lib/aegisnas/diagnostics',
+      format: 'json',
+      interval_minutes: 60,
+      retention_count: 14,
+    },
   },
   ailite: {
     enabled: true,
@@ -2383,6 +2390,38 @@ export default function AccessSettings() {
             type="number"
             value={settings.telemetry?.lease_history_poll_seconds || 300}
             onChange={(value) => updateField(['telemetry', 'lease_history_poll_seconds'], Number(value))}
+          />
+          <ToggleField
+            label="Scheduled Diagnostics Exports"
+            checked={Boolean(settings.telemetry?.diagnostics_exports?.enabled)}
+            onChange={(value) => updateField(['telemetry', 'diagnostics_exports', 'enabled'], value)}
+          />
+          <TextField
+            label="Diagnostics Export Directory"
+            value={settings.telemetry?.diagnostics_exports?.directory || '/var/lib/aegisnas/diagnostics'}
+            onChange={(value) => updateField(['telemetry', 'diagnostics_exports', 'directory'], value)}
+          />
+          <SelectField
+            label="Diagnostics Export Format"
+            value={settings.telemetry?.diagnostics_exports?.format || 'json'}
+            onChange={(value) => updateField(['telemetry', 'diagnostics_exports', 'format'], value)}
+            options={[
+              { value: 'json', label: 'JSON' },
+              { value: 'csv', label: 'CSV' },
+              { value: 'both', label: 'JSON + CSV' },
+            ]}
+          />
+          <TextField
+            label="Diagnostics Export Interval Minutes"
+            type="number"
+            value={settings.telemetry?.diagnostics_exports?.interval_minutes || 60}
+            onChange={(value) => updateField(['telemetry', 'diagnostics_exports', 'interval_minutes'], Number(value))}
+          />
+          <TextField
+            label="Diagnostics Export Retention"
+            type="number"
+            value={settings.telemetry?.diagnostics_exports?.retention_count || 14}
+            onChange={(value) => updateField(['telemetry', 'diagnostics_exports', 'retention_count'], Number(value))}
           />
           <TextField
             label="Recommendation Limit"

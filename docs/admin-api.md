@@ -50,6 +50,13 @@ And export variants at:
 /api/v1/system/diagnostics-report/export?format=csv
 ```
 
+When scheduled diagnostics exports are enabled, the appliance also serves:
+
+```text
+/api/v1/system/diagnostics-exports
+/api/v1/system/diagnostics-exports/download?name=<artifact>
+```
+
 Use this report when you want one payload that combines:
 
 - session and alert counts
@@ -64,6 +71,7 @@ From the admin UI:
 2. open `Backups`
 3. select `Refresh Report`
 4. download `JSON` or `CSV`
+5. review the scheduled export runtime and recent artifacts when recurring export is enabled
 
 ## What The Schema Includes
 

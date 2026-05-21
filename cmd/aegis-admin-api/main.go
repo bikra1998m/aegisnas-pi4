@@ -67,6 +67,9 @@ var runCmd = &cobra.Command{
 		if err := adminapi.StartNetworkRecoveryMonitor(cfg, logger); err != nil {
 			return fmt.Errorf("resume network recovery monitor: %w", err)
 		}
+		if err := adminapi.StartDiagnosticsExportScheduler(cfg, logger); err != nil {
+			return fmt.Errorf("start diagnostics export scheduler: %w", err)
+		}
 
 		r := chi.NewRouter()
 		r.Use(middleware.Logger)
@@ -137,6 +140,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/network-observability", adminapi.HandleGetNetworkObservability)
 			r.Get("/system/diagnostics-report", adminapi.HandleGetDiagnosticsReport)
 			r.Get("/system/diagnostics-report/export", adminapi.HandleExportDiagnosticsReport)
+			r.Get("/system/diagnostics-exports", adminapi.HandleListDiagnosticsExports)
+			r.Get("/system/diagnostics-exports/download", adminapi.HandleDownloadDiagnosticsExport)
 			r.Get("/system/support-bundle/summary", adminapi.HandleGetSupportBundleSummary)
 			r.Get("/system/support-bundle", adminapi.HandleDownloadSupportBundle)
 			r.Get("/system/upgrade-readiness", adminapi.HandleGetUpgradeReadiness)
