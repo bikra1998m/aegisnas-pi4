@@ -109,6 +109,41 @@ From the admin UI:
 3. review `Integration History`
 4. export `JSON` or `CSV` when you need to hand it to another team
 
+## Audit History Endpoints
+
+The appliance also serves a durable audit timeline at:
+
+```text
+/api/v1/system/audit-history
+```
+
+And export variants at:
+
+```text
+/api/v1/system/audit-history/export?format=json
+/api/v1/system/audit-history/export?format=csv
+```
+
+Optional query parameters:
+
+- `user=<admin-subject>`
+- `action_prefix=download_`
+- `action_prefix=guest_`
+- `limit=<n>`
+
+Use this history when you want:
+
+- a quick record of admin-visible actions
+- change-window evidence for network, HA, or upgrade work
+- an exportable operator timeline for incident review
+
+From the admin UI:
+
+1. sign in
+2. open `Backups`
+3. review `Audit History`
+4. export `JSON` or `CSV` when you need a handoff-ready timeline
+
 ## What The Schema Includes
 
 The OpenAPI document includes:

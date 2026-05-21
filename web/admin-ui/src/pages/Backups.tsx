@@ -109,6 +109,28 @@ type IntegrationHistoryStats = {
   last_event_at?: string;
 };
 
+type AuditHistoryRecord = {
+  id: number;
+  timestamp: string;
+  user: string;
+  action: string;
+  details: string;
+  result: string;
+  ip_address: string;
+};
+
+type AuditHistoryStats = {
+  total_records: number;
+  unique_users: number;
+  export_action_count: number;
+  staged_change_count: number;
+  network_action_count: number;
+  ha_action_count: number;
+  upgrade_action_count: number;
+  guest_action_count: number;
+  last_recorded_at?: string;
+};
+
 type UpgradeReadinessReport = {
   generated_at: string;
   config_path: string;
@@ -216,6 +238,7 @@ type DiagnosticsReport = {
     unacknowledged_alerts: number;
     session_methods?: Record<string, number>;
   };
+  audit: AuditHistoryStats;
   network: {
     apply_stats: {
       total_records: number;
@@ -303,6 +326,8 @@ export default function Backups() {
   const [sharedStatus, setSharedStatus] = useState<SharedReplicationStatus | null>(null);
   const [haHistory, setHAHistory] = useState<HAHistoryRecord[]>([]);
   const [haHistoryStats, setHAHistoryStats] = useState<HAHistoryStats | null>(null);
+  const [auditHistory, setAuditHistory] = useState<AuditHistoryRecord[]>([]);
+  const [auditHistoryStats, setAuditHistoryStats] = useState<AuditHistoryStats | null>(null);
   const [integrationHistory, setIntegrationHistory] = useState<IntegrationHistoryRecord[]>([]);
   const [integrationHistoryStats, setIntegrationHistoryStats] = useState<IntegrationHistoryStats | null>(null);
   const [diagnosticsReport, setDiagnosticsReport] = useState<DiagnosticsReport | null>(null);
@@ -314,6 +339,7 @@ export default function Backups() {
   const [loadingStages, setLoadingStages] = useState(true);
   const [loadingSharedStatus, setLoadingSharedStatus] = useState(true);
   const [loadingHAHistory, setLoadingHAHistory] = useState(true);
+  const [loadingAuditHistory, setLoadingAuditHistory] = useState(true);
   const [loadingIntegrationHistory, setLoadingIntegrationHistory] = useState(true);
   const [loadingDiagnosticsReport, setLoadingDiagnosticsReport] = useState(false);
   const [loadingDiagnosticsExports, setLoadingDiagnosticsExports] = useState(false);
@@ -380,6 +406,26 @@ export default function Backups() {
     }
   };
 
+  const loadAuditHistory = async (announce = false) => {
+    if (announce) {
+      setError('');
+      setMessage('');
+    }
+    setLoadingAuditHistory(true);
+    try {
+      const { data } = await api.get('/system/audit-history');
+      setAuditHistory(data.history || []);
+      setAuditHistoryStats(data.stats || null);
+      if (announce) {
+        setMessage('Audit history refreshed.');
+      }
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load audit history.');
+    } finally {
+      setLoadingAuditHistory(false);
+    }
+  };
+
   const loadDiagnosticsReport = async (announce = true) => {
     if (announce) {
       setError('');
@@ -423,6 +469,7 @@ export default function Backups() {
     void loadStages();
     void loadSharedStatus();
     void loadHAHistory();
+    void loadAuditHistory(false);
     void loadIntegrationHistory(false);
     void loadDiagnosticsReport(false);
     void loadDiagnosticsExports(false);
@@ -762,6 +809,23 @@ export default function Backups() {
     }
   };
 
+  const exportAuditHistory = async (format: 'csv' | 'json') => {
+    setError('');
+    setMessage('');
+    try {
+      const response = await api.get(`/system/audit-history/export?format=${format}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = format === 'json' ? 'aegisnas-audit-history.json' : 'aegisnas-audit-history.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`Audit history exported as ${format.toUpperCase()}.`);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not export audit history.');
+    }
+  };
+
   const integrationComponentLabel = (component: string) => {
     switch (component) {
       case 'controller_automation':
@@ -1012,6 +1076,16 @@ export default function Backups() {
               <div className="mt-2">Config {diagnosticsReport.upgrade.config_valid ? 'valid' : 'invalid'}, schema v{diagnosticsReport.upgrade.current_schema_version} to v{diagnosticsReport.upgrade.target_schema_version}, rehearsal {diagnosticsReport.upgrade.rehearsal.ran ? (diagnosticsReport.upgrade.rehearsal.succeeded ? 'passed' : 'failed') : 'not run'}.</div>
               {diagnosticsReport.upgrade.recommendations && diagnosticsReport.upgrade.recommendations.length > 0 ? (
                 <div className="mt-2 text-slate-600">{diagnosticsReport.upgrade.recommendations.length} readiness recommendations are attached to this report.</div>
+              ) : null}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <div className="font-medium text-slate-900">Audit Signal</div>
+              <div className="mt-2">
+                {diagnosticsReport.audit.total_records} audit records across {diagnosticsReport.audit.unique_users} user{diagnosticsReport.audit.unique_users === 1 ? '' : 's'}, with {diagnosticsReport.audit.export_action_count} export actions and {diagnosticsReport.audit.network_action_count} network actions.
+              </div>
+              {diagnosticsReport.audit.last_recorded_at ? (
+                <div className="mt-2 text-slate-600">Last recorded audit action {diagnosticsReport.audit.last_recorded_at}.</div>
               ) : null}
             </div>
 
@@ -1312,6 +1386,76 @@ export default function Backups() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Audit History</h3>
+            <p className="mt-1 text-sm text-gray-600">Review exported reports, network applies, HA actions, guest approvals, and other operator-visible actions from one durable appliance timeline.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => void loadAuditHistory(true)} disabled={loadingAuditHistory || busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              {loadingAuditHistory ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button onClick={() => void exportAuditHistory('csv')} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              Export CSV
+            </button>
+            <button onClick={() => void exportAuditHistory('json')} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              Export JSON
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Exports</div>
+            <div className="mt-2">{auditHistoryStats?.export_action_count ?? 0} recorded downloads</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Network Actions</div>
+            <div className="mt-2">{auditHistoryStats?.network_action_count ?? 0} network and runtime apply actions</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">HA And Upgrade</div>
+            <div className="mt-2">{auditHistoryStats?.ha_action_count ?? 0} HA, {auditHistoryStats?.upgrade_action_count ?? 0} upgrade actions</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Last Recorded</div>
+            <div className="mt-2">{auditHistoryStats?.last_recorded_at || 'No data yet'}</div>
+          </div>
+        </div>
+
+        {loadingAuditHistory ? (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">Loading audit history...</div>
+        ) : auditHistory.length === 0 ? (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">No audit history recorded yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">When</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">User</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Action</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Result</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {auditHistory.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-3 py-2 text-gray-600">{item.timestamp}</td>
+                    <td className="px-3 py-2 text-gray-900">{item.user || '-'}</td>
+                    <td className="px-3 py-2 text-gray-700">{item.action}</td>
+                    <td className="px-3 py-2 text-gray-700">{item.result || '-'}</td>
+                    <td className="px-3 py-2 text-gray-700">{item.details || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

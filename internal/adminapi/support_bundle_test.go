@@ -27,6 +27,9 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	require.NoError(t, db.RecordNetworkApplyHistory("apply", "success", "all validation checks passed", "backup-7", "", "tester", map[string]any{
 		"validated": true,
 	}))
+	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+		now, "ops-admin", "download_support_bundle", "bundle-1", "downloaded", "192.168.50.10")
+	require.NoError(t, err)
 	require.NoError(t, db.StoreDHCPLeaseObservations(observedAt, []db.DHCPLeaseObservation{{
 		MAC:              "aa:bb:cc:dd:ee:ff",
 		IP:               "192.168.50.10",
@@ -100,6 +103,7 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	require.Contains(t, entries, "api/network-preview.json")
 	require.Contains(t, entries, "api/network-apply-history.json")
 	require.Contains(t, entries, "api/dhcp-lease-history.json")
+	require.Contains(t, entries, "api/audit-history.json")
 	require.Contains(t, entries, "api/integration-history.json")
 	require.Contains(t, entries, "api/ha-history.json")
 	require.Contains(t, entries, "api/upgrade-readiness.json")
@@ -126,6 +130,7 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 
 	assert.Contains(t, string(entries["system/ip-addr.txt"]), "ip output ok")
 	assert.Contains(t, string(entries["logs/aegis-admin-api.log"]), "journal output ok")
+	assert.Contains(t, string(entries["api/audit-history.json"]), "download_support_bundle")
 	assert.Contains(t, string(entries["api/ha-history.json"]), "Standby promoted cleanly.")
 	assert.Contains(t, string(entries["api/integration-history.json"]), "\"history\"")
 	assert.Contains(t, string(entries["api/upgrade-readiness.json"]), "\"config_valid\": true")
@@ -192,9 +197,11 @@ func TestHandleGetSupportBundleSummary(t *testing.T) {
 	assert.True(t, payload.ContainsSecrets)
 	assert.Contains(t, payload.ArchiveEntries, "api/upgrade-readiness.json")
 	assert.Contains(t, payload.ArchiveEntries, "api/openapi.json")
+	assert.Contains(t, payload.ArchiveEntries, "api/audit-history.json")
 	assert.Contains(t, payload.ArchiveEntries, "api/integration-history.json")
 	assert.Contains(t, payload.APICaptures, "Upgrade readiness")
 	assert.Contains(t, payload.APICaptures, "OpenAPI schema")
+	assert.Contains(t, payload.APICaptures, "Audit history")
 	assert.Contains(t, payload.APICaptures, "Integration history")
 	assert.Contains(t, payload.SystemCaptures, "system/ip-addr.txt")
 	assert.Contains(t, payload.LogCaptures, "logs/aegis-admin-api.log")

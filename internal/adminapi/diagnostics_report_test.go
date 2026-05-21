@@ -23,6 +23,9 @@ func TestHandleGetDiagnosticsReport(t *testing.T) {
 	observedAt := time.Date(2026, 5, 20, 9, 0, 0, 0, time.UTC)
 
 	require.NoError(t, db.RecordNetworkApplyHistory("apply", "success", "apply ok", "backup-1", "", "tester", map[string]any{"validated": true}))
+	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+		observedAt, "ops-admin", "download_support_bundle", "bundle-1", "downloaded", "192.168.50.10")
+	require.NoError(t, err)
 	require.NoError(t, db.StoreDHCPLeaseObservations(observedAt, []db.DHCPLeaseObservation{{
 		MAC:              "aa:bb:cc:dd:ee:ff",
 		IP:               "192.168.50.10",
@@ -83,6 +86,7 @@ func TestHandleGetDiagnosticsReport(t *testing.T) {
 	assert.Equal(t, cfg.Database.Path, payload.DatabasePath)
 	assert.Equal(t, "enterprise", payload.DeploymentProfile)
 	assert.Equal(t, "standby", payload.HARole)
+	assert.Equal(t, 1, payload.Audit.TotalRecords)
 	assert.Equal(t, 1, payload.Network.ApplyStats.ApplySuccessCount)
 	assert.Equal(t, 1, payload.HighAvailability.Stats.FailoverPromotions)
 	require.NotNil(t, payload.Integrations.Controller)
@@ -128,6 +132,7 @@ func TestHandleExportDiagnosticsReportCSV(t *testing.T) {
 	rows, err := reader.ReadAll()
 	require.NoError(t, err)
 	require.NotEmpty(t, rows)
+	assert.Contains(t, rec.Body.String(), "audit_total_records")
 	assert.Contains(t, rec.Body.String(), "upgrade_target_schema")
 	assert.Contains(t, rec.Body.String(), "upstream_aaa_primary")
 	assert.Contains(t, rec.Body.String(), "integration_history_total_records")

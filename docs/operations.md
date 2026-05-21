@@ -129,6 +129,8 @@ For recurring report capture without manual operator action, enable scheduled di
 
 For durable controller, MDM sync, and posture automation history, use `Backups` or `GET /api/v1/system/integration-history`.
 
+For a durable record of operator-visible admin actions, exports, guest approvals, network changes, HA activations, and upgrade work, use `Backups` or `GET /api/v1/system/audit-history`.
+
 ## Logs
 
 Logs are structured JSON.
@@ -184,6 +186,7 @@ Run at least one restore drill before production sign-off.
 Before handing an issue to another team or opening a support case, download:
 
 - the diagnostics report in JSON or CSV
+- the audit history export in JSON or CSV when the issue crosses multiple operator actions
 - the integration history export in JSON or CSV when the issue is controller- or MDM-related
 - the support bundle zip
 

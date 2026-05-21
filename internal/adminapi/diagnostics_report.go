@@ -27,6 +27,7 @@ type DiagnosticsReport struct {
 	DeploymentForm    string                  `json:"deployment_form,omitempty"`
 	HARole            string                  `json:"ha_role,omitempty"`
 	Summary           DiagnosticsSummary      `json:"summary"`
+	Audit             db.AuditHistoryStats    `json:"audit"`
 	Network           DiagnosticsNetwork      `json:"network"`
 	HighAvailability  DiagnosticsHA           `json:"high_availability"`
 	Upgrade           upgrade.ReadinessReport `json:"upgrade"`
@@ -157,6 +158,10 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load network recovery state: %w", err)
 	}
+	auditStats, err := db.GetAuditHistoryStats()
+	if err != nil {
+		return DiagnosticsReport{}, fmt.Errorf("load audit stats: %w", err)
+	}
 	readiness, err := assessDiagnosticsUpgradeReadinessFn(cfg, config.Path())
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load upgrade readiness: %w", err)
@@ -203,6 +208,7 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 			UnacknowledgedAlerts: unackedAlerts,
 			SessionMethods:       authMethods,
 		},
+		Audit: auditStats,
 		Network: DiagnosticsNetwork{
 			ApplyStats:    applyStats,
 			LeaseTrends:   leaseTrends,
@@ -248,6 +254,12 @@ func diagnosticsReportCSV(report DiagnosticsReport) ([]byte, error) {
 		{"quarantined_sessions", strconv.Itoa(report.Summary.QuarantinedSessions)},
 		{"shaped_sessions", strconv.Itoa(report.Summary.ShapedSessions)},
 		{"unacknowledged_alerts", strconv.Itoa(report.Summary.UnacknowledgedAlerts)},
+		{"audit_total_records", strconv.Itoa(report.Audit.TotalRecords)},
+		{"audit_unique_users", strconv.Itoa(report.Audit.UniqueUsers)},
+		{"audit_export_actions", strconv.Itoa(report.Audit.ExportActionCount)},
+		{"audit_network_actions", strconv.Itoa(report.Audit.NetworkActionCount)},
+		{"audit_ha_actions", strconv.Itoa(report.Audit.HAActionCount)},
+		{"audit_upgrade_actions", strconv.Itoa(report.Audit.UpgradeActionCount)},
 		{"network_total_records", strconv.Itoa(report.Network.ApplyStats.TotalRecords)},
 		{"network_apply_success_count", strconv.Itoa(report.Network.ApplyStats.ApplySuccessCount)},
 		{"network_apply_failure_count", strconv.Itoa(report.Network.ApplyStats.ApplyFailureCount)},
