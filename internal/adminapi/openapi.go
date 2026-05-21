@@ -127,6 +127,29 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/network-observability", "get", securedOperation("Read network observability summary", "Network", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Network observability counters, trends, and recovery state."),
 	}))
+	addOperation(paths, "/api/v1/system/diagnostics-report", "get", securedOperation("Read diagnostics report", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Cross-domain diagnostics report with network, HA, upgrade, integration, and runtime status data."),
+	}))
+	addOperation(paths, "/api/v1/system/diagnostics-report/export", "get", securedOperationWithParameters("Export diagnostics report", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("format", "Optional export format. Defaults to json.", []string{"json", "csv"}, false),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Diagnostics report export in JSON or CSV.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/network-apply", "post", securedOperationWithBody("Apply managed network state", "Network", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional apply request metadata and confirmation details."), map[string]any{
 		"200":     responseJSON("Apply result, validation details, and rollback snapshot references."),
 		"default": responseText("Apply or validation error."),
@@ -494,5 +517,21 @@ func idParameter(name, description string) map[string]any {
 		"schema": map[string]any{
 			"type": "string",
 		},
+	}
+}
+
+func queryEnumParameter(name, description string, values []string, required bool) map[string]any {
+	schema := map[string]any{
+		"type": "string",
+	}
+	if len(values) > 0 {
+		schema["enum"] = values
+	}
+	return map[string]any{
+		"name":        name,
+		"in":          "query",
+		"required":    required,
+		"description": description,
+		"schema":      schema,
 	}
 }

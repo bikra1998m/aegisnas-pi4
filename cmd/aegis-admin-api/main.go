@@ -135,6 +135,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/network-apply-history", adminapi.HandleListNetworkApplyHistory)
 			r.Get("/system/network-apply-history/export", adminapi.HandleExportNetworkApplyHistory)
 			r.Get("/system/network-observability", adminapi.HandleGetNetworkObservability)
+			r.Get("/system/diagnostics-report", adminapi.HandleGetDiagnosticsReport)
+			r.Get("/system/diagnostics-report/export", adminapi.HandleExportDiagnosticsReport)
 			r.Get("/system/support-bundle/summary", adminapi.HandleGetSupportBundleSummary)
 			r.Get("/system/support-bundle", adminapi.HandleDownloadSupportBundle)
 			r.Get("/system/upgrade-readiness", adminapi.HandleGetUpgradeReadiness)

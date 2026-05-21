@@ -76,6 +76,8 @@ type HAHistoryStats = {
   vip_acquisitions: number;
   vip_preemptions: number;
   vip_releases: number;
+  vip_announcements?: number;
+  vip_announcement_failures?: number;
   replication_publishes: number;
   replication_failures: number;
   replication_stale_count: number;
@@ -154,6 +156,103 @@ type SupportBundleSummary = {
   upgrade_diagnostics: string[];
 };
 
+type RuntimeStatusView = {
+  component: string;
+  status: string;
+  message: string;
+  updated_at: string;
+  details?: Record<string, any>;
+};
+
+type UpstreamAAAHealth = {
+  name: string;
+  address: string;
+  auth_port: number;
+  acct_port: number;
+  status: string;
+  message: string;
+  response_code?: string;
+  latency_ms?: number;
+  checked_at: string;
+  supports_status_server: boolean;
+};
+
+type DiagnosticsReport = {
+  generated_at: string;
+  config_path: string;
+  database_path: string;
+  schema_version: number;
+  deployment_profile?: string;
+  deployment_form?: string;
+  ha_role?: string;
+  summary: {
+    users: number;
+    active_sessions: number;
+    quarantined_sessions: number;
+    shaped_sessions: number;
+    unacknowledged_alerts: number;
+    session_methods?: Record<string, number>;
+  };
+  network: {
+    apply_stats: {
+      total_records: number;
+      apply_success_count: number;
+      apply_failure_count: number;
+      pending_confirmation_count: number;
+      confirmed_count: number;
+      rollback_count: number;
+      auto_rollback_count: number;
+      auto_rollback_failure_count: number;
+      last_applied_at?: string;
+      last_failure_at?: string;
+    };
+    lease_trends: {
+      window_hours: number;
+      total_records: number;
+      unique_macs_window: number;
+      unique_ips_window: number;
+      active_observations_window: number;
+      expired_observations_window: number;
+      reservation_observations_window: number;
+      peak_concurrent_leases_window: number;
+      latest_observed_at?: string;
+    };
+    recovery_state?: {
+      pending: boolean;
+      backup_id?: string;
+      deadline?: string;
+      remaining_seconds?: number;
+      grace_period_seconds?: number;
+      risk_summary?: string;
+      validation_summary?: string;
+      status?: string;
+      message?: string;
+      requested_by?: string;
+      confirmed_by?: string;
+      confirmed_at?: string;
+      rolled_back_at?: string;
+    };
+  };
+  high_availability: {
+    enabled: boolean;
+    role?: string;
+    stats: HAHistoryStats;
+    runtime?: RuntimeStatusView;
+  };
+  upgrade: UpgradeReadinessReport;
+  integrations: {
+    controller?: RuntimeStatusView;
+    siem?: RuntimeStatusView;
+    admin_sso?: RuntimeStatusView;
+    device_inventory?: RuntimeStatusView;
+    mdm_sync?: RuntimeStatusView;
+    posture_checks?: RuntimeStatusView;
+    upstream_aaa?: UpstreamAAAHealth[];
+    upstream_aaa_probe_error?: string;
+  };
+  runtime_statuses: RuntimeStatusView[];
+};
+
 export default function Backups() {
   const [configFile, setConfigFile] = useState<File | null>(null);
   const [replicationFile, setReplicationFile] = useState<File | null>(null);
@@ -164,12 +263,14 @@ export default function Backups() {
   const [sharedStatus, setSharedStatus] = useState<SharedReplicationStatus | null>(null);
   const [haHistory, setHAHistory] = useState<HAHistoryRecord[]>([]);
   const [haHistoryStats, setHAHistoryStats] = useState<HAHistoryStats | null>(null);
+  const [diagnosticsReport, setDiagnosticsReport] = useState<DiagnosticsReport | null>(null);
   const [upgradeReadiness, setUpgradeReadiness] = useState<UpgradeReadinessReport | null>(null);
   const [upgradeRollbackInspection, setUpgradeRollbackInspection] = useState<UpgradeRollbackInspection | null>(null);
   const [supportBundleSummary, setSupportBundleSummary] = useState<SupportBundleSummary | null>(null);
   const [loadingStages, setLoadingStages] = useState(true);
   const [loadingSharedStatus, setLoadingSharedStatus] = useState(true);
   const [loadingHAHistory, setLoadingHAHistory] = useState(true);
+  const [loadingDiagnosticsReport, setLoadingDiagnosticsReport] = useState(false);
   const [loadingUpgradeReadiness, setLoadingUpgradeReadiness] = useState(false);
   const [loadingUpgradeRollbackInspect, setLoadingUpgradeRollbackInspect] = useState(false);
   const [loadingSupportBundleSummary, setLoadingSupportBundleSummary] = useState(false);
@@ -213,10 +314,30 @@ export default function Backups() {
     }
   };
 
+  const loadDiagnosticsReport = async (announce = true) => {
+    if (announce) {
+      setError('');
+      setMessage('');
+    }
+    setLoadingDiagnosticsReport(true);
+    try {
+      const { data } = await api.get('/system/diagnostics-report');
+      setDiagnosticsReport(data);
+      if (announce) {
+        setMessage('Diagnostics report refreshed.');
+      }
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load diagnostics report.');
+    } finally {
+      setLoadingDiagnosticsReport(false);
+    }
+  };
+
   useEffect(() => {
     void loadStages();
     void loadSharedStatus();
     void loadHAHistory();
+    void loadDiagnosticsReport(false);
     void loadSupportBundleSummary();
   }, []);
 
@@ -295,6 +416,29 @@ export default function Backups() {
       setMessage('Support bundle downloaded. It includes redacted settings, runtime health, network and HA history, plus best-effort service diagnostics.');
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not download support bundle.');
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const downloadDiagnosticsReport = async (format: 'json' | 'csv') => {
+    setError('');
+    setMessage('');
+    setBusyAction(`diagnostics-report-${format}`);
+    try {
+      const response = await api.get(`/system/diagnostics-report/export?format=${format}`, { responseType: 'blob' });
+      const { data, headers } = response;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      const disposition = `${headers?.['content-disposition'] || ''}`;
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      link.download = filenameMatch?.[1] || `aegisnas-diagnostics-report.${format}`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`Diagnostics report downloaded as ${format.toUpperCase()}.`);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not download diagnostics report.');
     } finally {
       setBusyAction('');
     }
@@ -592,6 +736,132 @@ export default function Backups() {
             <span>Support bundle summary is not available yet.</span>
           )}
         </div>
+      </section>
+
+      <section className="mt-6 rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Diagnostics Report</h3>
+            <p className="mt-1 text-sm text-gray-600">Capture one cross-domain operations snapshot with session counts, network safety state, HA signals, upgrade readiness, and integration health.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => void loadDiagnosticsReport()} disabled={loadingDiagnosticsReport || busyAction !== ''} className="rounded-md bg-indigo-700 px-4 py-2 text-white hover:bg-indigo-800 disabled:opacity-50">
+              {loadingDiagnosticsReport ? 'Refreshing...' : 'Refresh Report'}
+            </button>
+            <button onClick={() => void downloadDiagnosticsReport('json')} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-4 py-2 text-gray-800 hover:bg-gray-50 disabled:opacity-50">
+              Download JSON
+            </button>
+            <button onClick={() => void downloadDiagnosticsReport('csv')} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-4 py-2 text-gray-800 hover:bg-gray-50 disabled:opacity-50">
+              Download CSV
+            </button>
+          </div>
+        </div>
+
+        {!diagnosticsReport ? (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">
+            {loadingDiagnosticsReport ? 'Loading diagnostics report...' : 'Refresh the diagnostics report to capture a current operations snapshot.'}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Sessions</div>
+                <div className="mt-2">{diagnosticsReport.summary.active_sessions} active, {diagnosticsReport.summary.quarantined_sessions} quarantined, {diagnosticsReport.summary.users} users</div>
+              </div>
+              <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Network Apply</div>
+                <div className="mt-2">{diagnosticsReport.network.apply_stats.apply_success_count} success, {diagnosticsReport.network.apply_stats.apply_failure_count} failed, {diagnosticsReport.network.apply_stats.rollback_count} rollbacks</div>
+              </div>
+              <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Lease Window</div>
+                <div className="mt-2">{diagnosticsReport.network.lease_trends.unique_macs_window} MACs, {diagnosticsReport.network.lease_trends.peak_concurrent_leases_window} peak active</div>
+              </div>
+              <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">HA</div>
+                <div className="mt-2">{diagnosticsReport.high_availability.enabled ? (diagnosticsReport.high_availability.role || 'enabled') : 'disabled'}, {diagnosticsReport.high_availability.stats.failover_promotions} promotions</div>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <div><span className="font-medium text-slate-900">Generated:</span> {diagnosticsReport.generated_at}</div>
+              <div className="mt-1"><span className="font-medium text-slate-900">Deployment:</span> {diagnosticsReport.deployment_profile || 'unknown'} / {diagnosticsReport.deployment_form || 'unknown'}{diagnosticsReport.ha_role ? ` / ${diagnosticsReport.ha_role}` : ''}</div>
+              <div className="mt-1"><span className="font-medium text-slate-900">Schema:</span> v{diagnosticsReport.schema_version}</div>
+              <div className="mt-1"><span className="font-medium text-slate-900">Config path:</span> {diagnosticsReport.config_path}</div>
+              <div className="mt-1"><span className="font-medium text-slate-900">Database path:</span> {diagnosticsReport.database_path}</div>
+              <div className="mt-1"><span className="font-medium text-slate-900">Runtime components tracked:</span> {diagnosticsReport.runtime_statuses.length}</div>
+            </div>
+
+            {diagnosticsReport.network.recovery_state ? (
+              <div className={`rounded-md border px-4 py-3 text-sm ${diagnosticsReport.network.recovery_state.pending ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                <div className="font-medium">{diagnosticsReport.network.recovery_state.pending ? 'Management confirmation is still pending.' : 'Network recovery state is available.'}</div>
+                <div className="mt-1">{diagnosticsReport.network.recovery_state.message || 'No recovery message was recorded.'}</div>
+                {diagnosticsReport.network.recovery_state.risk_summary ? <div className="mt-1"><span className="font-medium">Risk:</span> {diagnosticsReport.network.recovery_state.risk_summary}</div> : null}
+                {diagnosticsReport.network.recovery_state.validation_summary ? <div className="mt-1"><span className="font-medium">Validation:</span> {diagnosticsReport.network.recovery_state.validation_summary}</div> : null}
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Session Methods</div>
+                {Object.entries(diagnosticsReport.summary.session_methods || {}).length === 0 ? (
+                  <div className="mt-2 text-slate-500">No session method data is available yet.</div>
+                ) : (
+                  <div className="mt-2 space-y-1">
+                    {Object.entries(diagnosticsReport.summary.session_methods || {}).map(([method, count]) => (
+                      <div key={method} className="flex items-center justify-between gap-3">
+                        <span>{method}</span>
+                        <span className="font-medium text-slate-900">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                <div className="font-medium text-slate-900">Integrations</div>
+                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                  {[
+                    { label: 'Controller', status: diagnosticsReport.integrations.controller },
+                    { label: 'SIEM', status: diagnosticsReport.integrations.siem },
+                    { label: 'Admin SSO', status: diagnosticsReport.integrations.admin_sso },
+                    { label: 'Device Inventory', status: diagnosticsReport.integrations.device_inventory },
+                    { label: 'MDM Sync', status: diagnosticsReport.integrations.mdm_sync },
+                    { label: 'Posture Checks', status: diagnosticsReport.integrations.posture_checks },
+                  ].map((item) => (
+                    <div key={item.label} className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                      <div className="font-medium text-slate-900">{item.label}</div>
+                      <div className="mt-1">{item.status ? `${item.status.status}: ${item.status.message || 'ok'}` : 'not reported'}</div>
+                    </div>
+                  ))}
+                </div>
+                {diagnosticsReport.integrations.upstream_aaa_probe_error ? (
+                  <div className="mt-3 text-red-700"><span className="font-medium">Upstream AAA probe error:</span> {diagnosticsReport.integrations.upstream_aaa_probe_error}</div>
+                ) : null}
+                {diagnosticsReport.integrations.upstream_aaa && diagnosticsReport.integrations.upstream_aaa.length > 0 ? (
+                  <div className="mt-3">
+                    <div className="font-medium text-slate-900">Upstream AAA</div>
+                    <div className="mt-2 space-y-1">
+                      {diagnosticsReport.integrations.upstream_aaa.map((item) => (
+                        <div key={`${item.name || item.address}-${item.auth_port}`} className="flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                          <span>{item.name || item.address}</span>
+                          <span className="text-slate-900">{item.status}{item.latency_ms ? ` / ${item.latency_ms} ms` : ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <div className="font-medium text-slate-900">Upgrade Signal</div>
+              <div className="mt-2">Config {diagnosticsReport.upgrade.config_valid ? 'valid' : 'invalid'}, schema v{diagnosticsReport.upgrade.current_schema_version} to v{diagnosticsReport.upgrade.target_schema_version}, rehearsal {diagnosticsReport.upgrade.rehearsal.ran ? (diagnosticsReport.upgrade.rehearsal.succeeded ? 'passed' : 'failed') : 'not run'}.</div>
+              {diagnosticsReport.upgrade.recommendations && diagnosticsReport.upgrade.recommendations.length > 0 ? (
+                <div className="mt-2 text-slate-600">{diagnosticsReport.upgrade.recommendations.length} readiness recommendations are attached to this report.</div>
+              ) : null}
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="mt-6 rounded-lg bg-white p-6 shadow">

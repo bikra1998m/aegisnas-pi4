@@ -35,6 +35,36 @@ Or from the admin UI:
 2. open `Backups`
 3. select `Download OpenAPI JSON`
 
+## Diagnostics Report Endpoints
+
+The appliance also serves a cross-domain diagnostics snapshot at:
+
+```text
+/api/v1/system/diagnostics-report
+```
+
+And export variants at:
+
+```text
+/api/v1/system/diagnostics-report/export?format=json
+/api/v1/system/diagnostics-report/export?format=csv
+```
+
+Use this report when you want one payload that combines:
+
+- session and alert counts
+- managed network apply and lease-trend stats
+- HA role and failover counters
+- upgrade-readiness results
+- integration and runtime status snapshots
+
+From the admin UI:
+
+1. sign in
+2. open `Backups`
+3. select `Refresh Report`
+4. download `JSON` or `CSV`
+
 ## What The Schema Includes
 
 The OpenAPI document includes:
@@ -89,6 +119,7 @@ Use the OpenAPI JSON for:
 - API client generation experiments
 - runbook authoring
 - change-review prep before automation is pointed at the appliance
+- mapping diagnostics-report exports into external support workflows
 
 ## Operational Reminder
 

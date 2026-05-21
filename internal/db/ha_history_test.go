@@ -41,3 +41,22 @@ func TestHAHistoryRoundTripAndStats(t *testing.T) {
 	assert.Equal(t, 1, stats.Activations)
 	assert.NotEmpty(t, stats.LastEventAt)
 }
+
+func TestEmptyHAHistoryStats(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", "ha-history-empty-*.db")
+	require.NoError(t, err)
+	defer os.Remove(tmpfile.Name())
+	require.NoError(t, tmpfile.Close())
+
+	require.NoError(t, Init(tmpfile.Name()))
+	defer Close()
+	require.NoError(t, Migrate())
+
+	stats, err := GetHAHistoryStats()
+	require.NoError(t, err)
+	assert.Equal(t, 0, stats.TotalRecords)
+	assert.Equal(t, 0, stats.FailoverPromotions)
+	assert.Equal(t, 0, stats.VIPAnnouncements)
+	assert.Equal(t, 0, stats.ReplicationFailures)
+	assert.Empty(t, stats.LastEventAt)
+}

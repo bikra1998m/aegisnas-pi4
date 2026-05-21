@@ -231,13 +231,13 @@ func GetNetworkApplyStats() (NetworkApplyStats, error) {
 	var stats NetworkApplyStats
 	err := DB.QueryRow(`SELECT
 		COUNT(*),
-		SUM(CASE WHEN action = 'apply' AND status = 'success' THEN 1 ELSE 0 END),
-		SUM(CASE WHEN action = 'apply' AND status = 'failed' THEN 1 ELSE 0 END),
-		SUM(CASE WHEN action = 'apply' AND status = 'pending_confirmation' THEN 1 ELSE 0 END),
-		SUM(CASE WHEN action = 'apply' AND status = 'confirmed' THEN 1 ELSE 0 END),
-		SUM(CASE WHEN action = 'rollback' AND status = 'success' THEN 1 ELSE 0 END),
-		SUM(CASE WHEN action = 'apply' AND status = 'auto_rolled_back' THEN 1 ELSE 0 END),
-		SUM(CASE WHEN action = 'apply' AND status = 'auto_rollback_failed' THEN 1 ELSE 0 END),
+		COALESCE(SUM(CASE WHEN action = 'apply' AND status = 'success' THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN action = 'apply' AND status = 'failed' THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN action = 'apply' AND status = 'pending_confirmation' THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN action = 'apply' AND status = 'confirmed' THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN action = 'rollback' AND status = 'success' THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN action = 'apply' AND status = 'auto_rolled_back' THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN action = 'apply' AND status = 'auto_rollback_failed' THEN 1 ELSE 0 END), 0),
 		COALESCE(MAX(CASE WHEN action = 'apply' AND status IN ('success', 'pending_confirmation', 'confirmed', 'auto_rolled_back') THEN created_at END), ''),
 		COALESCE(MAX(CASE WHEN status IN ('failed', 'auto_rollback_failed') THEN created_at END), '')
 		FROM network_apply_history`).Scan(
@@ -277,9 +277,9 @@ func GetDHCPLeaseTrendSummary(window time.Duration) (DHCPLeaseTrendSummary, erro
 		COUNT(*),
 		COUNT(DISTINCT CASE WHEN observed_at >= ? THEN mac END),
 		COUNT(DISTINCT CASE WHEN observed_at >= ? THEN ip END),
-		SUM(CASE WHEN observed_at >= ? AND expired = 0 THEN 1 ELSE 0 END),
-		SUM(CASE WHEN observed_at >= ? AND expired = 1 THEN 1 ELSE 0 END),
-		SUM(CASE WHEN observed_at >= ? AND reservation = 1 THEN 1 ELSE 0 END),
+		COALESCE(SUM(CASE WHEN observed_at >= ? AND expired = 0 THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN observed_at >= ? AND expired = 1 THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN observed_at >= ? AND reservation = 1 THEN 1 ELSE 0 END), 0),
 		COALESCE(MAX(observed_at), '')
 		FROM dhcp_lease_history`,
 		cutoff, cutoff, cutoff, cutoff, cutoff).Scan(

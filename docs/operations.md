@@ -123,6 +123,8 @@ For version-aware upgrade rollback package creation, inspection, rehearsal, and 
 
 For the live admin API contract, OpenAPI download path, and role-hint guidance, use [Admin API Guide](admin-api.md).
 
+For one-shot cross-domain operational snapshots that combine network, HA, upgrade, and integration state, use the diagnostics report from `Backups` or `GET /api/v1/system/diagnostics-report`.
+
 ## Logs
 
 Logs are structured JSON.
@@ -173,6 +175,13 @@ Those states are surfaced in the dashboard and reflected in alerts when delivery
 Use the CLI for full appliance backup and the admin UI for config-only JSON backup. See [Backup and Restore Procedures](backup-restore.md).
 
 Run at least one restore drill before production sign-off.
+
+Before handing an issue to another team or opening a support case, download:
+
+- the diagnostics report in JSON or CSV
+- the support bundle zip
+
+That gives you a quick human-readable snapshot plus the deeper redacted artifact set.
 
 ## Software Updates
 

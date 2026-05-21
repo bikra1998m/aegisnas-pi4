@@ -113,3 +113,28 @@ func TestStoreAndListDHCPLeaseHistory(t *testing.T) {
 	assert.Equal(t, 1, summary.ReservationObservationsWindow)
 	assert.Equal(t, 2, summary.PeakConcurrentLeasesWindow)
 }
+
+func TestEmptyNetworkHistoryStats(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", "network-history-empty-*.db")
+	require.NoError(t, err)
+	defer os.Remove(tmpfile.Name())
+	tmpfile.Close()
+
+	require.NoError(t, Init(tmpfile.Name()))
+	defer Close()
+	require.NoError(t, Migrate())
+
+	stats, err := GetNetworkApplyStats()
+	require.NoError(t, err)
+	assert.Equal(t, 0, stats.TotalRecords)
+	assert.Equal(t, 0, stats.ApplySuccessCount)
+	assert.Equal(t, 0, stats.ApplyFailureCount)
+	assert.Equal(t, 0, stats.RollbackCount)
+	assert.Equal(t, 0, stats.AutoRollbackCount)
+
+	summary, err := GetDHCPLeaseTrendSummary(24 * time.Hour)
+	require.NoError(t, err)
+	assert.Equal(t, 0, summary.TotalRecords)
+	assert.Equal(t, 0, summary.UniqueMACsWindow)
+	assert.Equal(t, 0, summary.PeakConcurrentLeasesWindow)
+}

@@ -46,6 +46,16 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "public", specGet["x-aegisnas-visibility"])
 
+	diagnosticsPath, ok := paths["/api/v1/system/diagnostics-report/export"].(map[string]any)
+	require.True(t, ok)
+	diagnosticsGet, ok := diagnosticsPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Export diagnostics report", diagnosticsGet["summary"])
+	assert.Contains(t, diagnosticsGet["x-aegisnas-roles"], "read_only")
+	parameters, ok := diagnosticsGet["parameters"].([]any)
+	require.True(t, ok)
+	require.NotEmpty(t, parameters)
+
 	components, ok := payload["components"].(map[string]any)
 	require.True(t, ok)
 	securitySchemes, ok := components["securitySchemes"].(map[string]any)
