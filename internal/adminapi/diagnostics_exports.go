@@ -227,7 +227,7 @@ func writeDiagnosticsExportArtifacts(exportCfg config.DiagnosticsExportConfig, r
 	}
 
 	baseName := diagnosticsExportPrefix + now.Format("20060102-150405Z")
-	formats := diagnosticsExportFormats(exportCfg.Format)
+	formats := scheduledExportFormats(exportCfg.Format)
 	artifacts := make([]DiagnosticsExportArtifact, 0, len(formats))
 	for _, format := range formats {
 		filename := baseName + "." + format
@@ -351,7 +351,7 @@ func writeDiagnosticsExportRuntimeStatus(status, message string, exportCfg confi
 	details := map[string]any{
 		"enabled":          exportCfg.Enabled,
 		"directory":        strings.TrimSpace(exportCfg.Directory),
-		"format":           diagnosticsEffectiveFormat(exportCfg.Format),
+		"format":           scheduledExportEffectiveFormat(exportCfg.Format),
 		"interval_minutes": exportCfg.IntervalMinutes,
 		"retention_count":  exportCfg.RetentionCount,
 	}
@@ -379,8 +379,8 @@ func writeDiagnosticsExportRuntimeStatus(status, message string, exportCfg confi
 	return diagnosticsExportUpsertRuntime(diagnosticsExportsComponent, status, message, details)
 }
 
-func diagnosticsExportFormats(raw string) []string {
-	switch diagnosticsEffectiveFormat(raw) {
+func scheduledExportFormats(raw string) []string {
+	switch scheduledExportEffectiveFormat(raw) {
 	case "csv":
 		return []string{"csv"}
 	case "both":
@@ -390,7 +390,7 @@ func diagnosticsExportFormats(raw string) []string {
 	}
 }
 
-func diagnosticsEffectiveFormat(raw string) string {
+func scheduledExportEffectiveFormat(raw string) string {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
 	case "csv":
 		return "csv"

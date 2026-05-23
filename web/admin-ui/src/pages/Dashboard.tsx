@@ -217,6 +217,14 @@ type SystemStatus = {
       retention_count: number;
       runtime: RuntimeStatus;
     };
+    audit_exports: {
+      enabled: boolean;
+      directory: string;
+      format: string;
+      interval_minutes: number;
+      retention_count: number;
+      runtime: RuntimeStatus;
+    };
   };
   network_observability: {
     apply_stats: {
@@ -1038,6 +1046,27 @@ export default function Dashboard() {
                     ) : null}
                   </div>
                   <StatusBadge status={systemStatus.telemetry?.diagnostics_exports?.runtime?.status || 'disabled'} />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">Scheduled Audit Exports</div>
+                    <div className="mt-1 text-sm text-gray-600">{systemStatus.telemetry?.audit_exports?.runtime?.message || 'No scheduled audit export runtime status recorded yet.'}</div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Format {systemStatus.telemetry?.audit_exports?.format || 'json'}, every {systemStatus.telemetry?.audit_exports?.interval_minutes || 0} minutes, retain {systemStatus.telemetry?.audit_exports?.retention_count || 0}, directory {systemStatus.telemetry?.audit_exports?.directory || 'unset'}.
+                    </div>
+                    {systemStatus.telemetry?.audit_exports?.runtime?.details?.last_export_at ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Last export {String(systemStatus.telemetry.audit_exports.runtime.details.last_export_at)}
+                        {systemStatus.telemetry?.audit_exports?.runtime?.details?.next_due_at
+                          ? `, next due ${String(systemStatus.telemetry.audit_exports.runtime.details.next_due_at)}`
+                          : ''}
+                        .
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge status={systemStatus.telemetry?.audit_exports?.runtime?.status || 'disabled'} />
                 </div>
               </div>
             </div>

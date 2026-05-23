@@ -57,6 +57,13 @@ When scheduled diagnostics exports are enabled, the appliance also serves:
 /api/v1/system/diagnostics-exports/download?name=<artifact>
 ```
 
+When scheduled audit exports are enabled, the appliance also serves:
+
+```text
+/api/v1/system/audit-exports
+/api/v1/system/audit-exports/download?name=<artifact>
+```
+
 Use this report when you want one payload that combines:
 
 - session and alert counts
@@ -136,6 +143,7 @@ Use this history when you want:
 - a quick record of admin-visible actions
 - change-window evidence for network, HA, or upgrade work
 - an exportable operator timeline for incident review
+- recurring audit artifacts without relying on a manual export step
 
 From the admin UI:
 
@@ -143,6 +151,7 @@ From the admin UI:
 2. open `Backups`
 3. review `Audit History`
 4. export `JSON` or `CSV` when you need a handoff-ready timeline
+5. review scheduled audit export runtime and artifacts when recurring export is enabled
 
 ## What The Schema Includes
 
@@ -200,6 +209,7 @@ Use the OpenAPI JSON for:
 - change-review prep before automation is pointed at the appliance
 - mapping diagnostics-report exports into external support workflows
 - mapping integration-history exports into controller and endpoint support workflows
+- mapping scheduled audit exports into change-review and incident timelines
 
 ## Operational Reminder
 

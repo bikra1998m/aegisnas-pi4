@@ -89,7 +89,25 @@ function createSettings() {
       static_leases: [{ mac: 'aa:bb:cc:dd:ee:ff', ip: '192.168.50.10', hostname: 'lab-client', enabled: true, description: 'Lab device' }],
     },
     policy: { default_role: 'guest-basic', runtime_shaping_enabled: true },
-    telemetry: { enabled: true, prometheus_port: 9090, lease_history_poll_seconds: 300 },
+    telemetry: {
+      enabled: true,
+      prometheus_port: 9090,
+      lease_history_poll_seconds: 300,
+      diagnostics_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/diagnostics',
+        format: 'both',
+        interval_minutes: 60,
+        retention_count: 14,
+      },
+      audit_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/audit-exports',
+        format: 'json',
+        interval_minutes: 60,
+        retention_count: 21,
+      },
+    },
     ailite: {
       enabled: true,
       mode: 'lite',
@@ -613,6 +631,49 @@ function createSystemStatus() {
       mdm_sync: { status: 'ok', message: 'MDM sync completed successfully.', details: { provider: 'workspace-one', total_records: 12, managed_records: 11, compliant_records: 10, non_compliant_records: 2, remediation_records: 1 } },
       posture_checks: { status: 'ok', message: 'Compliance webhook evaluation completed.', details: { provider: 'compliance-webhook', total_records: 4, managed_records: 4, compliant_records: 3, non_compliant_records: 1, remediation_records: 1 } },
     },
+    telemetry: {
+      enabled: true,
+      prometheus_port: 9090,
+      lease_history_poll_seconds: 300,
+      diagnostics_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/diagnostics',
+        format: 'both',
+        interval_minutes: 60,
+        retention_count: 14,
+        runtime: {
+          status: 'ok',
+          message: 'Scheduled diagnostics exports are healthy.',
+          details: {
+            format: 'both',
+            interval_minutes: 60,
+            retention_count: 14,
+            directory: '/var/lib/aegisnas/diagnostics',
+            last_export_at: '2026-05-05T11:55:00Z',
+            next_due_at: '2026-05-05T12:55:00Z',
+          },
+        },
+      },
+      audit_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/audit-exports',
+        format: 'json',
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: 'ok',
+          message: 'Scheduled audit exports are healthy.',
+          details: {
+            format: 'json',
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: '/var/lib/aegisnas/audit-exports',
+            last_export_at: '2026-05-05T11:58:00Z',
+            next_due_at: '2026-05-05T12:58:00Z',
+          },
+        },
+      },
+    },
     network_observability: {
       apply_stats: {
         total_records: 3,
@@ -779,6 +840,26 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         node_role: 'standby',
         actor: '',
         created_at: '2026-05-05T11:50:00Z',
+      },
+    ],
+    auditHistory: [
+      {
+        id: 1,
+        timestamp: '2026-05-05T12:00:00Z',
+        user: 'Aegis Admin',
+        action: 'download_support_bundle',
+        details: 'aegisnas-support-bundle.zip',
+        result: 'downloaded',
+        ip_address: '192.168.50.10',
+      },
+      {
+        id: 2,
+        timestamp: '2026-05-05T12:10:30Z',
+        user: 'Aegis Admin',
+        action: 'apply_edge_network',
+        details: 'snap-002',
+        result: 'confirmed',
+        ip_address: '192.168.50.10',
       },
     ],
     dhcpLeases: [
@@ -949,6 +1030,66 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         status: 200,
         headers: { 'content-type': 'text/csv; charset=utf-8' },
         body: 'id,observed_at,mac,ip,hostname,client_id,reservation,expired,expires_at,remaining_seconds\n1,2026-05-05T11:55:00Z,aa:bb:cc:dd:ee:ff,192.168.50.10,lab-client,,true,false,2026-05-05T13:00:00Z,3600\n',
+      });
+      return;
+    }
+    if (path === '/system/audit-history' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          history: state.auditHistory,
+          count: state.auditHistory.length,
+          generated_at: '2026-05-05T12:00:00Z',
+          stats: {
+            total_records: state.auditHistory.length,
+            unique_users: 1,
+            export_action_count: 1,
+            staged_change_count: 0,
+            network_action_count: 1,
+            ha_action_count: 0,
+            upgrade_action_count: 0,
+            guest_action_count: 0,
+            last_recorded_at: '2026-05-05T12:10:30Z',
+          },
+        },
+      });
+      return;
+    }
+    if (path === '/system/audit-history/export' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/csv; charset=utf-8' },
+        body: 'id,timestamp,user,action,details,result,ip_address\n1,2026-05-05T12:00:00Z,Aegis Admin,download_support_bundle,aegisnas-support-bundle.zip,downloaded,192.168.50.10\n',
+      });
+      return;
+    }
+    if (path === '/system/audit-exports' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          runtime: state.systemStatus.telemetry.audit_exports.runtime,
+          exports: [
+            {
+              name: 'aegisnas-audit-history-20260505-115800Z.json',
+              path: '/var/lib/aegisnas/audit-exports/aegisnas-audit-history-20260505-115800Z.json',
+              format: 'json',
+              size_bytes: 1024,
+              created_at: '2026-05-05T11:58:00Z',
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (path === '/system/audit-exports/download' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          generated_at: '2026-05-05T11:58:00Z',
+          user: '',
+          action_prefix: '',
+          history: state.auditHistory,
+          count: state.auditHistory.length,
+        }),
       });
       return;
     }

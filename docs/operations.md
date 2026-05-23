@@ -131,6 +131,8 @@ For durable controller, MDM sync, and posture automation history, use `Backups` 
 
 For a durable record of operator-visible admin actions, exports, guest approvals, network changes, HA activations, and upgrade work, use `Backups` or `GET /api/v1/system/audit-history`.
 
+For recurring audit capture without relying on manual export timing, enable scheduled audit exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/audit-exports`.
+
 ## Logs
 
 Logs are structured JSON.

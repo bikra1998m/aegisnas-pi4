@@ -241,6 +241,13 @@ const defaultSettings: JsonMap = {
       interval_minutes: 60,
       retention_count: 14,
     },
+    audit_exports: {
+      enabled: false,
+      directory: '/var/lib/aegisnas/audit-exports',
+      format: 'json',
+      interval_minutes: 60,
+      retention_count: 21,
+    },
   },
   ailite: {
     enabled: true,
@@ -2422,6 +2429,38 @@ export default function AccessSettings() {
             type="number"
             value={settings.telemetry?.diagnostics_exports?.retention_count || 14}
             onChange={(value) => updateField(['telemetry', 'diagnostics_exports', 'retention_count'], Number(value))}
+          />
+          <ToggleField
+            label="Scheduled Audit Exports"
+            checked={Boolean(settings.telemetry?.audit_exports?.enabled)}
+            onChange={(value) => updateField(['telemetry', 'audit_exports', 'enabled'], value)}
+          />
+          <TextField
+            label="Audit Export Directory"
+            value={settings.telemetry?.audit_exports?.directory || '/var/lib/aegisnas/audit-exports'}
+            onChange={(value) => updateField(['telemetry', 'audit_exports', 'directory'], value)}
+          />
+          <SelectField
+            label="Audit Export Format"
+            value={settings.telemetry?.audit_exports?.format || 'json'}
+            onChange={(value) => updateField(['telemetry', 'audit_exports', 'format'], value)}
+            options={[
+              { value: 'json', label: 'JSON' },
+              { value: 'csv', label: 'CSV' },
+              { value: 'both', label: 'JSON + CSV' },
+            ]}
+          />
+          <TextField
+            label="Audit Export Interval Minutes"
+            type="number"
+            value={settings.telemetry?.audit_exports?.interval_minutes || 60}
+            onChange={(value) => updateField(['telemetry', 'audit_exports', 'interval_minutes'], Number(value))}
+          />
+          <TextField
+            label="Audit Export Retention"
+            type="number"
+            value={settings.telemetry?.audit_exports?.retention_count || 21}
+            onChange={(value) => updateField(['telemetry', 'audit_exports', 'retention_count'], Number(value))}
           />
           <TextField
             label="Recommendation Limit"

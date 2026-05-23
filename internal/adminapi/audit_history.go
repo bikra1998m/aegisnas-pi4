@@ -1,8 +1,8 @@
 package adminapi
 
 import (
+	"bytes"
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -52,33 +52,66 @@ func HandleExportAuditHistory(w http.ResponseWriter, r *http.Request) {
 
 	switch format {
 	case "", "csv":
+		payload, err := auditHistoryCSV(history)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.csv"`, filenamePrefix))
-		writer := csv.NewWriter(w)
-		defer writer.Flush()
-		_ = writer.Write([]string{"id", "timestamp", "user", "action", "details", "result", "ip_address"})
-		for _, item := range history {
-			_ = writer.Write([]string{
-				fmt.Sprint(item.ID),
-				item.Timestamp,
-				item.User,
-				item.Action,
-				item.Details,
-				item.Result,
-				item.IPAddress,
-			})
-		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(payload)
 	case "json":
+		payload, err := auditHistoryJSONPayload(userFilter, actionPrefix, history)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.json"`, filenamePrefix))
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"generated_at":  time.Now().UTC().Format(time.RFC3339),
-			"user":          userFilter,
-			"action_prefix": actionPrefix,
-			"history":       history,
-			"count":         len(history),
-		})
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(payload)
 	default:
 		http.Error(w, "unsupported export format", http.StatusBadRequest)
 	}
+}
+
+func auditHistoryCSV(history []db.AuditHistoryRecord) ([]byte, error) {
+	var buffer bytes.Buffer
+	writer := csv.NewWriter(&buffer)
+	if err := writer.Write([]string{"id", "timestamp", "user", "action", "details", "result", "ip_address"}); err != nil {
+		return nil, err
+	}
+	for _, item := range history {
+		if err := writer.Write([]string{
+			fmt.Sprint(item.ID),
+			item.Timestamp,
+			item.User,
+			item.Action,
+			item.Details,
+			item.Result,
+			item.IPAddress,
+		}); err != nil {
+			return nil, err
+		}
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
+func auditHistoryJSONPayload(userFilter, actionPrefix string, history []db.AuditHistoryRecord) ([]byte, error) {
+	data, err := jsonMarshalIndented(map[string]any{
+		"generated_at":  time.Now().UTC().Format(time.RFC3339),
+		"user":          userFilter,
+		"action_prefix": actionPrefix,
+		"history":       history,
+		"count":         len(history),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return append(data, '\n'), nil
 }

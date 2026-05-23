@@ -1679,6 +1679,13 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 					IntervalMinutes: 60,
 					RetentionCount:  14,
 				},
+				AuditExports: DiagnosticsExportConfig{
+					Enabled:         true,
+					Directory:       "/var/lib/aegisnas/audit-exports",
+					Format:          "json",
+					IntervalMinutes: 30,
+					RetentionCount:  21,
+				},
 			},
 			Radius: RadiusConfig{
 				AuthPort:              1812,
@@ -1710,4 +1717,25 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badRetention := base()
 	badRetention.Telemetry.DiagnosticsExports.RetentionCount = 0
 	assert.ErrorContains(t, badRetention.Validate(), "telemetry.diagnostics_exports.enabled requires a positive telemetry.diagnostics_exports.retention_count")
+
+	badAuditFormat := base()
+	badAuditFormat.Telemetry.AuditExports.Format = "xml"
+	assert.ErrorContains(t, badAuditFormat.Validate(), `telemetry.audit_exports.format "xml" is invalid`)
+
+	badAuditDisabledTelemetry := base()
+	badAuditDisabledTelemetry.Telemetry.Enabled = false
+	badAuditDisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
+	assert.ErrorContains(t, badAuditDisabledTelemetry.Validate(), "telemetry.audit_exports.enabled requires telemetry.enabled")
+
+	badAuditDirectory := base()
+	badAuditDirectory.Telemetry.AuditExports.Directory = ""
+	assert.ErrorContains(t, badAuditDirectory.Validate(), "telemetry.audit_exports.enabled requires telemetry.audit_exports.directory")
+
+	badAuditInterval := base()
+	badAuditInterval.Telemetry.AuditExports.IntervalMinutes = 0
+	assert.ErrorContains(t, badAuditInterval.Validate(), "telemetry.audit_exports.enabled requires a positive telemetry.audit_exports.interval_minutes")
+
+	badAuditRetention := base()
+	badAuditRetention.Telemetry.AuditExports.RetentionCount = 0
+	assert.ErrorContains(t, badAuditRetention.Validate(), "telemetry.audit_exports.enabled requires a positive telemetry.audit_exports.retention_count")
 }

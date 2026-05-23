@@ -141,6 +141,29 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/audit-exports", "get", securedOperation("List scheduled audit exports", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled audit export runtime status and recent artifact list."),
+	}))
+	addOperation(paths, "/api/v1/system/audit-exports/download", "get", securedOperationWithParameters("Download scheduled audit export", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "Audit export artifact filename.", true),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Scheduled audit export artifact in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/integration-history", "get", securedOperationWithParameters("List integration automation history", "Integrations", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("component", "Optional component filter such as controller_automation, mdm_sync, or posture_checks.", false),
 		queryStringParameter("limit", "Optional record limit. Defaults to 200 and caps at 2000.", false),

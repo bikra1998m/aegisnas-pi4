@@ -70,6 +70,9 @@ var runCmd = &cobra.Command{
 		if err := adminapi.StartDiagnosticsExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start diagnostics export scheduler: %w", err)
 		}
+		if err := adminapi.StartAuditExportScheduler(cfg, logger); err != nil {
+			return fmt.Errorf("start audit export scheduler: %w", err)
+		}
 
 		r := chi.NewRouter()
 		r.Use(middleware.Logger)
@@ -135,6 +138,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/dhcp-lease-history/export", adminapi.HandleExportDHCPLeaseHistory)
 			r.Get("/system/audit-history", adminapi.HandleListAuditHistory)
 			r.Get("/system/audit-history/export", adminapi.HandleExportAuditHistory)
+			r.Get("/system/audit-exports", adminapi.HandleListAuditExports)
+			r.Get("/system/audit-exports/download", adminapi.HandleDownloadAuditExport)
 			r.Get("/system/integration-history", adminapi.HandleListIntegrationHistory)
 			r.Get("/system/integration-history/export", adminapi.HandleExportIntegrationHistory)
 			r.Get("/system/network-preview", adminapi.HandlePreviewNetworkServices)

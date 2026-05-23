@@ -288,6 +288,7 @@ type TelemetryConfig struct {
 	PrometheusPort          int                     `mapstructure:"prometheus_port"`
 	LeaseHistoryPollSeconds int                     `mapstructure:"lease_history_poll_seconds"`
 	DiagnosticsExports      DiagnosticsExportConfig `mapstructure:"diagnostics_exports"`
+	AuditExports            DiagnosticsExportConfig `mapstructure:"audit_exports"`
 }
 
 type DiagnosticsExportConfig struct {
@@ -1052,11 +1053,22 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("telemetry.diagnostics_exports.format %q is invalid", c.Telemetry.DiagnosticsExports.Format)
 	}
+	switch strings.ToLower(strings.TrimSpace(c.Telemetry.AuditExports.Format)) {
+	case "", "json", "csv", "both":
+	default:
+		return fmt.Errorf("telemetry.audit_exports.format %q is invalid", c.Telemetry.AuditExports.Format)
+	}
 	if c.Telemetry.DiagnosticsExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.diagnostics_exports.interval_minutes %d out of range", c.Telemetry.DiagnosticsExports.IntervalMinutes)
 	}
+	if c.Telemetry.AuditExports.IntervalMinutes < 0 {
+		return fmt.Errorf("telemetry.audit_exports.interval_minutes %d out of range", c.Telemetry.AuditExports.IntervalMinutes)
+	}
 	if c.Telemetry.DiagnosticsExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.diagnostics_exports.retention_count %d out of range", c.Telemetry.DiagnosticsExports.RetentionCount)
+	}
+	if c.Telemetry.AuditExports.RetentionCount < 0 {
+		return fmt.Errorf("telemetry.audit_exports.retention_count %d out of range", c.Telemetry.AuditExports.RetentionCount)
 	}
 	if c.Telemetry.DiagnosticsExports.Enabled {
 		if !c.Telemetry.Enabled {
@@ -1070,6 +1082,20 @@ func (c *Config) Validate() error {
 		}
 		if c.Telemetry.DiagnosticsExports.RetentionCount <= 0 {
 			return errors.New("telemetry.diagnostics_exports.enabled requires a positive telemetry.diagnostics_exports.retention_count")
+		}
+	}
+	if c.Telemetry.AuditExports.Enabled {
+		if !c.Telemetry.Enabled {
+			return errors.New("telemetry.audit_exports.enabled requires telemetry.enabled")
+		}
+		if strings.TrimSpace(c.Telemetry.AuditExports.Directory) == "" {
+			return errors.New("telemetry.audit_exports.enabled requires telemetry.audit_exports.directory")
+		}
+		if c.Telemetry.AuditExports.IntervalMinutes <= 0 {
+			return errors.New("telemetry.audit_exports.enabled requires a positive telemetry.audit_exports.interval_minutes")
+		}
+		if c.Telemetry.AuditExports.RetentionCount <= 0 {
+			return errors.New("telemetry.audit_exports.enabled requires a positive telemetry.audit_exports.retention_count")
 		}
 	}
 	profile := EffectiveDeploymentProfile(c.Deployment.Profile)

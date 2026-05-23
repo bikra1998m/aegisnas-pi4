@@ -285,6 +285,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"retention_count":  cfg.Telemetry.DiagnosticsExports.RetentionCount,
 			"runtime":          runtimeMap[diagnosticsExportsComponent],
 		},
+		"audit_exports": map[string]any{
+			"enabled":          cfg.Telemetry.AuditExports.Enabled,
+			"directory":        cfg.Telemetry.AuditExports.Directory,
+			"format":           cfg.Telemetry.AuditExports.Format,
+			"interval_minutes": cfg.Telemetry.AuditExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.AuditExports.RetentionCount,
+			"runtime":          runtimeMap[auditExportsComponent],
+		},
 	}
 	if !cfg.Telemetry.Enabled {
 		telemetryStatus["diagnostics_exports"] = map[string]any{
@@ -295,6 +303,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"retention_count":  cfg.Telemetry.DiagnosticsExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled diagnostics exports are not running."},
 		}
+		telemetryStatus["audit_exports"] = map[string]any{
+			"enabled":          cfg.Telemetry.AuditExports.Enabled,
+			"directory":        cfg.Telemetry.AuditExports.Directory,
+			"format":           cfg.Telemetry.AuditExports.Format,
+			"interval_minutes": cfg.Telemetry.AuditExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.AuditExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled audit exports are not running."},
+		}
 	} else if !cfg.Telemetry.DiagnosticsExports.Enabled {
 		telemetryStatus["diagnostics_exports"] = map[string]any{
 			"enabled":          false,
@@ -303,6 +319,16 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.DiagnosticsExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.DiagnosticsExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled diagnostics exports are disabled in config."},
+		}
+	}
+	if cfg.Telemetry.Enabled && !cfg.Telemetry.AuditExports.Enabled {
+		telemetryStatus["audit_exports"] = map[string]any{
+			"enabled":          false,
+			"directory":        cfg.Telemetry.AuditExports.Directory,
+			"format":           cfg.Telemetry.AuditExports.Format,
+			"interval_minutes": cfg.Telemetry.AuditExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.AuditExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled audit exports are disabled in config."},
 		}
 	}
 
