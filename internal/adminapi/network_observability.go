@@ -1,6 +1,7 @@
 package adminapi
 
 import (
+	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -56,30 +57,21 @@ func HandleExportNetworkApplyHistory(w http.ResponseWriter, r *http.Request) {
 	case "", "csv":
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", `attachment; filename="aegisnas-network-apply-history.csv"`)
-		writer := csv.NewWriter(w)
-		defer writer.Flush()
-		_ = writer.Write([]string{"id", "created_at", "action", "status", "summary", "backup_id", "rollback_id", "actor", "details_json"})
-		for _, item := range history {
-			_ = writer.Write([]string{
-				fmt.Sprint(item.ID),
-				item.CreatedAt,
-				item.Action,
-				item.Status,
-				item.Summary,
-				item.BackupID,
-				item.RollbackID,
-				item.Actor,
-				string(item.Details),
-			})
+		payload, err := networkApplyHistoryCSV(history)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
+		_, _ = w.Write(payload)
 	case "json":
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Content-Disposition", `attachment; filename="aegisnas-network-apply-history.json"`)
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"generated_at": time.Now().UTC().Format(time.RFC3339),
-			"history":      history,
-			"count":        len(history),
-		})
+		payload, err := networkApplyHistoryJSONPayload(history)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_, _ = w.Write(payload)
 	default:
 		http.Error(w, "unsupported export format", http.StatusBadRequest)
 	}
@@ -96,32 +88,95 @@ func HandleExportDHCPLeaseHistory(w http.ResponseWriter, r *http.Request) {
 	case "", "csv":
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", `attachment; filename="aegisnas-dhcp-lease-history.csv"`)
-		writer := csv.NewWriter(w)
-		defer writer.Flush()
-		_ = writer.Write([]string{"id", "observed_at", "mac", "ip", "hostname", "client_id", "reservation", "expired", "expires_at", "remaining_seconds"})
-		for _, item := range history {
-			_ = writer.Write([]string{
-				fmt.Sprint(item.ID),
-				item.ObservedAt,
-				item.MAC,
-				item.IP,
-				item.Hostname,
-				item.ClientID,
-				fmt.Sprint(item.Reservation),
-				fmt.Sprint(item.Expired),
-				item.ExpiresAt,
-				fmt.Sprint(item.RemainingSeconds),
-			})
+		payload, err := dhcpLeaseHistoryCSV(history)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
+		_, _ = w.Write(payload)
 	case "json":
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Content-Disposition", `attachment; filename="aegisnas-dhcp-lease-history.json"`)
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"generated_at": time.Now().UTC().Format(time.RFC3339),
-			"history":      history,
-			"count":        len(history),
-		})
+		payload, err := dhcpLeaseHistoryJSONPayload(history)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_, _ = w.Write(payload)
 	default:
 		http.Error(w, "unsupported export format", http.StatusBadRequest)
 	}
+}
+
+func networkApplyHistoryJSONPayload(history []db.NetworkApplyHistoryRecord) ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"generated_at": time.Now().UTC().Format(time.RFC3339),
+		"history":      history,
+		"count":        len(history),
+	})
+}
+
+func networkApplyHistoryCSV(history []db.NetworkApplyHistoryRecord) ([]byte, error) {
+	var buffer bytes.Buffer
+	writer := csv.NewWriter(&buffer)
+	if err := writer.Write([]string{"id", "created_at", "action", "status", "summary", "backup_id", "rollback_id", "actor", "details_json"}); err != nil {
+		return nil, err
+	}
+	for _, item := range history {
+		if err := writer.Write([]string{
+			fmt.Sprint(item.ID),
+			item.CreatedAt,
+			item.Action,
+			item.Status,
+			item.Summary,
+			item.BackupID,
+			item.RollbackID,
+			item.Actor,
+			string(item.Details),
+		}); err != nil {
+			return nil, err
+		}
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
+func dhcpLeaseHistoryJSONPayload(history []db.DHCPLeaseHistoryRecord) ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"generated_at": time.Now().UTC().Format(time.RFC3339),
+		"history":      history,
+		"count":        len(history),
+	})
+}
+
+func dhcpLeaseHistoryCSV(history []db.DHCPLeaseHistoryRecord) ([]byte, error) {
+	var buffer bytes.Buffer
+	writer := csv.NewWriter(&buffer)
+	if err := writer.Write([]string{"id", "observed_at", "mac", "ip", "hostname", "client_id", "reservation", "expired", "expires_at", "remaining_seconds"}); err != nil {
+		return nil, err
+	}
+	for _, item := range history {
+		if err := writer.Write([]string{
+			fmt.Sprint(item.ID),
+			item.ObservedAt,
+			item.MAC,
+			item.IP,
+			item.Hostname,
+			item.ClientID,
+			fmt.Sprint(item.Reservation),
+			fmt.Sprint(item.Expired),
+			item.ExpiresAt,
+			fmt.Sprint(item.RemainingSeconds),
+		}); err != nil {
+			return nil, err
+		}
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
 }

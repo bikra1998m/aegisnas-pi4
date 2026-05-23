@@ -229,6 +229,29 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/network-observability", "get", securedOperation("Read network observability summary", "Network", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Network observability counters, trends, and recovery state."),
 	}))
+	addOperation(paths, "/api/v1/system/network-exports", "get", securedOperation("List scheduled network exports", "Network", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled network export runtime status and recent artifact list for apply and DHCP lease history."),
+	}))
+	addOperation(paths, "/api/v1/system/network-exports/download", "get", securedOperationWithParameters("Download scheduled network export", "Network", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "Network export artifact filename.", true),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Scheduled network export artifact in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/diagnostics-report", "get", securedOperation("Read diagnostics report", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Cross-domain diagnostics report with network, HA, upgrade, integration, runtime status, and integration-history summary data."),
 	}))

@@ -80,6 +80,12 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "Download scheduled HA export", scheduledHAGet["summary"])
 
+	scheduledNetworkPath, ok := paths["/api/v1/system/network-exports/download"].(map[string]any)
+	require.True(t, ok)
+	scheduledNetworkGet, ok := scheduledNetworkPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Download scheduled network export", scheduledNetworkGet["summary"])
+
 	auditHistoryPath, ok := paths["/api/v1/system/audit-history/export"].(map[string]any)
 	require.True(t, ok)
 	auditHistoryGet, ok := auditHistoryPath["get"].(map[string]any)

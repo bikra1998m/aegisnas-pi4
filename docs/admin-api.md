@@ -78,6 +78,13 @@ When scheduled HA exports are enabled, the appliance also serves:
 /api/v1/system/ha/exports/download?name=<artifact>
 ```
 
+When scheduled network exports are enabled, the appliance also serves:
+
+```text
+/api/v1/system/network-exports
+/api/v1/system/network-exports/download?name=<artifact>
+```
+
 Use this report when you want one payload that combines:
 
 - session and alert counts
@@ -167,6 +174,44 @@ From the admin UI:
 3. review `HA History`
 4. export `JSON` or `CSV`
 5. review scheduled HA export runtime and artifacts when recurring export is enabled
+
+## Network History Endpoints
+
+The appliance also keeps durable managed network and DHCP lease history at:
+
+```text
+/api/v1/system/network-apply-history
+/api/v1/system/dhcp-lease-history
+```
+
+And export variants at:
+
+```text
+/api/v1/system/network-apply-history/export?format=json
+/api/v1/system/network-apply-history/export?format=csv
+/api/v1/system/dhcp-lease-history/export?format=json
+/api/v1/system/dhcp-lease-history/export?format=csv
+```
+
+When recurring network export is enabled, operators can also use:
+
+```text
+/api/v1/system/network-exports
+/api/v1/system/network-exports/download?name=<artifact>
+```
+
+Use this history when you want:
+
+- a durable apply and rollback timeline beyond the latest validation toast
+- recurring DHCP lease evidence for client troubleshooting
+- exportable network change artifacts without relying on a manual export step
+
+From the admin UI:
+
+1. sign in
+2. open `Access Settings` to review live network history
+3. open `Backups`
+4. review scheduled network export runtime and artifacts when recurring export is enabled
 
 ## Audit History Endpoints
 

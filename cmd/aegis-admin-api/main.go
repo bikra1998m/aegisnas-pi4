@@ -79,6 +79,9 @@ var runCmd = &cobra.Command{
 		if err := adminapi.StartHAExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start ha export scheduler: %w", err)
 		}
+		if err := adminapi.StartNetworkExportScheduler(cfg, logger); err != nil {
+			return fmt.Errorf("start network export scheduler: %w", err)
+		}
 
 		r := chi.NewRouter()
 		r.Use(middleware.Logger)
@@ -155,6 +158,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/network-apply-history", adminapi.HandleListNetworkApplyHistory)
 			r.Get("/system/network-apply-history/export", adminapi.HandleExportNetworkApplyHistory)
 			r.Get("/system/network-observability", adminapi.HandleGetNetworkObservability)
+			r.Get("/system/network-exports", adminapi.HandleListNetworkExports)
+			r.Get("/system/network-exports/download", adminapi.HandleDownloadNetworkExport)
 			r.Get("/system/diagnostics-report", adminapi.HandleGetDiagnosticsReport)
 			r.Get("/system/diagnostics-report/export", adminapi.HandleExportDiagnosticsReport)
 			r.Get("/system/diagnostics-exports", adminapi.HandleListDiagnosticsExports)

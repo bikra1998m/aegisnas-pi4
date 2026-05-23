@@ -137,6 +137,8 @@ For recurring audit capture without relying on manual export timing, enable sche
 
 For recurring HA capture without manual export timing, enable scheduled HA exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/ha/exports`.
 
+For recurring network capture without manual export timing, enable scheduled network exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/network-exports`.
+
 ## Logs
 
 Logs are structured JSON.

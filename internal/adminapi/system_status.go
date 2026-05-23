@@ -309,6 +309,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"retention_count":  cfg.Telemetry.HAExports.RetentionCount,
 			"runtime":          runtimeMap[haExportsComponent],
 		},
+		"network_exports": map[string]any{
+			"enabled":          cfg.Telemetry.NetworkExports.Enabled,
+			"directory":        cfg.Telemetry.NetworkExports.Directory,
+			"format":           cfg.Telemetry.NetworkExports.Format,
+			"interval_minutes": cfg.Telemetry.NetworkExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.NetworkExports.RetentionCount,
+			"runtime":          runtimeMap[networkExportsComponent],
+		},
 	}
 	if !cfg.Telemetry.Enabled {
 		telemetryStatus["diagnostics_exports"] = map[string]any{
@@ -342,6 +350,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.HAExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.HAExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled HA exports are not running."},
+		}
+		telemetryStatus["network_exports"] = map[string]any{
+			"enabled":          cfg.Telemetry.NetworkExports.Enabled,
+			"directory":        cfg.Telemetry.NetworkExports.Directory,
+			"format":           cfg.Telemetry.NetworkExports.Format,
+			"interval_minutes": cfg.Telemetry.NetworkExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.NetworkExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled network exports are not running."},
 		}
 	} else if !cfg.Telemetry.DiagnosticsExports.Enabled {
 		telemetryStatus["diagnostics_exports"] = map[string]any{
@@ -381,6 +397,16 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.HAExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.HAExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled HA exports are disabled in config."},
+		}
+	}
+	if cfg.Telemetry.Enabled && !cfg.Telemetry.NetworkExports.Enabled {
+		telemetryStatus["network_exports"] = map[string]any{
+			"enabled":          false,
+			"directory":        cfg.Telemetry.NetworkExports.Directory,
+			"format":           cfg.Telemetry.NetworkExports.Format,
+			"interval_minutes": cfg.Telemetry.NetworkExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.NetworkExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled network exports are disabled in config."},
 		}
 	}
 

@@ -1700,6 +1700,13 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 					IntervalMinutes: 30,
 					RetentionCount:  21,
 				},
+				NetworkExports: DiagnosticsExportConfig{
+					Enabled:         true,
+					Directory:       "/var/lib/aegisnas/network-exports",
+					Format:          "both",
+					IntervalMinutes: 30,
+					RetentionCount:  21,
+				},
 			},
 			Radius: RadiusConfig{
 				AuthPort:              1812,
@@ -1797,4 +1804,28 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badHARetention := base()
 	badHARetention.Telemetry.HAExports.RetentionCount = 0
 	assert.ErrorContains(t, badHARetention.Validate(), "telemetry.ha_exports.enabled requires a positive telemetry.ha_exports.retention_count")
+
+	badNetworkFormat := base()
+	badNetworkFormat.Telemetry.NetworkExports.Format = "xml"
+	assert.ErrorContains(t, badNetworkFormat.Validate(), `telemetry.network_exports.format "xml" is invalid`)
+
+	badNetworkDisabledTelemetry := base()
+	badNetworkDisabledTelemetry.Telemetry.Enabled = false
+	badNetworkDisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
+	badNetworkDisabledTelemetry.Telemetry.AuditExports.Enabled = false
+	badNetworkDisabledTelemetry.Telemetry.IntegrationExports.Enabled = false
+	badNetworkDisabledTelemetry.Telemetry.HAExports.Enabled = false
+	assert.ErrorContains(t, badNetworkDisabledTelemetry.Validate(), "telemetry.network_exports.enabled requires telemetry.enabled")
+
+	badNetworkDirectory := base()
+	badNetworkDirectory.Telemetry.NetworkExports.Directory = ""
+	assert.ErrorContains(t, badNetworkDirectory.Validate(), "telemetry.network_exports.enabled requires telemetry.network_exports.directory")
+
+	badNetworkInterval := base()
+	badNetworkInterval.Telemetry.NetworkExports.IntervalMinutes = 0
+	assert.ErrorContains(t, badNetworkInterval.Validate(), "telemetry.network_exports.enabled requires a positive telemetry.network_exports.interval_minutes")
+
+	badNetworkRetention := base()
+	badNetworkRetention.Telemetry.NetworkExports.RetentionCount = 0
+	assert.ErrorContains(t, badNetworkRetention.Validate(), "telemetry.network_exports.enabled requires a positive telemetry.network_exports.retention_count")
 }

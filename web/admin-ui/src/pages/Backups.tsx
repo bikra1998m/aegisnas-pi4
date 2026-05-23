@@ -359,6 +359,24 @@ type HAExportRuntime = {
 type HAExportArtifact = {
   name: string;
   path: string;
+  kind?: string;
+  format: string;
+  size_bytes: number;
+  created_at: string;
+};
+
+type NetworkExportRuntime = {
+  component: string;
+  status: string;
+  message: string;
+  updated_at: string;
+  details?: Record<string, any>;
+};
+
+type NetworkExportArtifact = {
+  name: string;
+  path: string;
+  kind: string;
   format: string;
   size_bytes: number;
   created_at: string;
@@ -387,6 +405,8 @@ export default function Backups() {
   const [integrationExportArtifacts, setIntegrationExportArtifacts] = useState<IntegrationExportArtifact[]>([]);
   const [haExportRuntime, setHAExportRuntime] = useState<HAExportRuntime | null>(null);
   const [haExportArtifacts, setHAExportArtifacts] = useState<HAExportArtifact[]>([]);
+  const [networkExportRuntime, setNetworkExportRuntime] = useState<NetworkExportRuntime | null>(null);
+  const [networkExportArtifacts, setNetworkExportArtifacts] = useState<NetworkExportArtifact[]>([]);
   const [upgradeReadiness, setUpgradeReadiness] = useState<UpgradeReadinessReport | null>(null);
   const [upgradeRollbackInspection, setUpgradeRollbackInspection] = useState<UpgradeRollbackInspection | null>(null);
   const [supportBundleSummary, setSupportBundleSummary] = useState<SupportBundleSummary | null>(null);
@@ -400,6 +420,7 @@ export default function Backups() {
   const [loadingAuditExports, setLoadingAuditExports] = useState(false);
   const [loadingIntegrationExports, setLoadingIntegrationExports] = useState(false);
   const [loadingHAExports, setLoadingHAExports] = useState(false);
+  const [loadingNetworkExports, setLoadingNetworkExports] = useState(false);
   const [loadingUpgradeReadiness, setLoadingUpgradeReadiness] = useState(false);
   const [loadingUpgradeRollbackInspect, setLoadingUpgradeRollbackInspect] = useState(false);
   const [loadingSupportBundleSummary, setLoadingSupportBundleSummary] = useState(false);
@@ -582,6 +603,26 @@ export default function Backups() {
     }
   };
 
+  const loadNetworkExports = async (announce = false) => {
+    if (announce) {
+      setError('');
+      setMessage('');
+    }
+    setLoadingNetworkExports(true);
+    try {
+      const { data } = await api.get('/system/network-exports');
+      setNetworkExportRuntime(data.runtime || null);
+      setNetworkExportArtifacts(data.exports || []);
+      if (announce) {
+        setMessage('Scheduled network exports refreshed.');
+      }
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load scheduled network exports.');
+    } finally {
+      setLoadingNetworkExports(false);
+    }
+  };
+
   useEffect(() => {
     void loadStages();
     void loadSharedStatus();
@@ -593,6 +634,7 @@ export default function Backups() {
     void loadAuditExports(false);
     void loadIntegrationExports(false);
     void loadHAExports(false);
+    void loadNetworkExports(false);
     void loadSupportBundleSummary();
   }, []);
 
@@ -786,6 +828,29 @@ export default function Backups() {
       setMessage(`Scheduled HA export ${artifact.name} downloaded.`);
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not download scheduled HA export.');
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const downloadScheduledNetworkExport = async (artifact: NetworkExportArtifact) => {
+    setError('');
+    setMessage('');
+    setBusyAction(`scheduled-network-${artifact.name}`);
+    try {
+      const response = await api.get(`/system/network-exports/download?name=${encodeURIComponent(artifact.name)}`, { responseType: 'blob' });
+      const { data, headers } = response;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      const disposition = `${headers?.['content-disposition'] || ''}`;
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      link.download = filenameMatch?.[1] || artifact.name;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`Scheduled network export ${artifact.name} downloaded.`);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not download scheduled network export.');
     } finally {
       setBusyAction('');
     }
@@ -1519,6 +1584,71 @@ export default function Backups() {
                           <td className="px-3 py-2 text-gray-500 break-all">{artifact.path}</td>
                           <td className="px-3 py-2">
                             <button onClick={() => void downloadScheduledHAExport(artifact)} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                              Download
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium text-slate-900">Scheduled Network Exports</div>
+                  <div className="mt-1">Keep managed network apply history and DHCP lease history on disk so rollback reviews, client troubleshooting, and change windows have a recurring export trail ready.</div>
+                </div>
+                <button onClick={() => void loadNetworkExports(true)} disabled={loadingNetworkExports || busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                  {loadingNetworkExports ? 'Refreshing...' : 'Refresh Scheduled Network Exports'}
+                </button>
+              </div>
+              {networkExportRuntime ? (
+                <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  <div><span className="font-medium text-slate-900">Runtime:</span> {networkExportRuntime.status} / {networkExportRuntime.message}</div>
+                  <div className="mt-1">
+                    Format {String(networkExportRuntime.details?.format || 'json')}, every {String(networkExportRuntime.details?.interval_minutes || 0)} minutes, retain {String(networkExportRuntime.details?.retention_count || 0)}, directory {String(networkExportRuntime.details?.directory || 'unset')}.
+                  </div>
+                  {networkExportRuntime.details?.last_export_at ? (
+                    <div className="mt-1">
+                      Last export {String(networkExportRuntime.details.last_export_at)}
+                      {networkExportRuntime.details?.next_due_at ? `, next due ${String(networkExportRuntime.details.next_due_at)}` : ''}
+                      .
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-3 rounded-md border border-dashed border-gray-300 px-3 py-4 text-xs text-gray-500">No scheduled network export runtime has been recorded yet.</div>
+              )}
+              {networkExportArtifacts.length === 0 ? (
+                <div className="mt-3 text-xs text-gray-500">No scheduled network export artifacts are present yet.</div>
+              ) : (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Created</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Name</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Kind</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Format</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Size</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Path</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {networkExportArtifacts.map((artifact) => (
+                        <tr key={artifact.name}>
+                          <td className="px-3 py-2 text-gray-600">{artifact.created_at}</td>
+                          <td className="px-3 py-2 font-medium text-gray-900">{artifact.name}</td>
+                          <td className="px-3 py-2 text-gray-700">{artifact.kind}</td>
+                          <td className="px-3 py-2 text-gray-700">{artifact.format}</td>
+                          <td className="px-3 py-2 text-gray-700">{artifact.size_bytes} bytes</td>
+                          <td className="px-3 py-2 text-gray-500 break-all">{artifact.path}</td>
+                          <td className="px-3 py-2">
+                            <button onClick={() => void downloadScheduledNetworkExport(artifact)} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50">
                               Download
                             </button>
                           </td>

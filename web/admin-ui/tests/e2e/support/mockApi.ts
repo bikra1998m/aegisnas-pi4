@@ -121,6 +121,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      network_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/network-exports',
+        format: 'both',
+        interval_minutes: 60,
+        retention_count: 21,
+      },
     },
     ailite: {
       enabled: true,
@@ -725,6 +732,25 @@ function createSystemStatus() {
           },
         },
       },
+      network_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/network-exports',
+        format: 'both',
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: 'ok',
+          message: 'Scheduled network exports are healthy.',
+          details: {
+            format: 'both',
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: '/var/lib/aegisnas/network-exports',
+            last_export_at: '2026-05-05T11:54:00Z',
+            next_due_at: '2026-05-05T12:54:00Z',
+          },
+        },
+      },
     },
     network_observability: {
       apply_stats: {
@@ -1264,6 +1290,60 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           controller_sync: state.systemStatus.network_observability.controller_sync,
           recovery: state.networkRecovery,
         },
+      });
+      return;
+    }
+    if (path === '/system/network-exports' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          runtime: state.systemStatus.telemetry.network_exports.runtime,
+          exports: [
+            {
+              name: 'aegisnas-network-apply-history-20260505-115400Z.json',
+              path: '/var/lib/aegisnas/network-exports/aegisnas-network-apply-history-20260505-115400Z.json',
+              kind: 'network_apply_history',
+              format: 'json',
+              size_bytes: 1540,
+              created_at: '2026-05-05T11:54:00Z',
+            },
+            {
+              name: 'aegisnas-dhcp-lease-history-20260505-115400Z.json',
+              path: '/var/lib/aegisnas/network-exports/aegisnas-dhcp-lease-history-20260505-115400Z.json',
+              kind: 'dhcp_lease_history',
+              format: 'json',
+              size_bytes: 1180,
+              created_at: '2026-05-05T11:54:00Z',
+            },
+            {
+              name: 'aegisnas-network-apply-history-20260505-115400Z.csv',
+              path: '/var/lib/aegisnas/network-exports/aegisnas-network-apply-history-20260505-115400Z.csv',
+              kind: 'network_apply_history',
+              format: 'csv',
+              size_bytes: 620,
+              created_at: '2026-05-05T11:54:00Z',
+            },
+            {
+              name: 'aegisnas-dhcp-lease-history-20260505-115400Z.csv',
+              path: '/var/lib/aegisnas/network-exports/aegisnas-dhcp-lease-history-20260505-115400Z.csv',
+              kind: 'dhcp_lease_history',
+              format: 'csv',
+              size_bytes: 540,
+              created_at: '2026-05-05T11:54:00Z',
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (path === '/system/network-exports/download' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          generated_at: '2026-05-05T11:54:00Z',
+          history: state.networkApplyHistory,
+          count: state.networkApplyHistory.length,
+        }),
       });
       return;
     }
