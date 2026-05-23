@@ -294,6 +294,29 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/ha/history/export", "get", securedOperation("Export HA history", "HA", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseBinary("text/csv", "HA history export."),
 	}))
+	addOperation(paths, "/api/v1/system/ha/exports", "get", securedOperation("List scheduled HA exports", "HA", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled HA export runtime status and recent artifact list."),
+	}))
+	addOperation(paths, "/api/v1/system/ha/exports/download", "get", securedOperationWithParameters("Download scheduled HA export", "HA", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "HA export artifact filename.", true),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Scheduled HA export artifact in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/ha/replication-package", "get", securedOperation("Download HA replication package", "HA", []string{"ops_admin", "super_admin"}, map[string]any{
 		"200": responseBinary("application/octet-stream", "HA replication package for a standby node."),
 	}))

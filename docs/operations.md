@@ -135,6 +135,8 @@ For a durable record of operator-visible admin actions, exports, guest approvals
 
 For recurring audit capture without relying on manual export timing, enable scheduled audit exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/audit-exports`.
 
+For recurring HA capture without manual export timing, enable scheduled HA exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/ha/exports`.
+
 ## Logs
 
 Logs are structured JSON.

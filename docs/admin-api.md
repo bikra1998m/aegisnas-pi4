@@ -71,6 +71,13 @@ When scheduled integration exports are enabled, the appliance also serves:
 /api/v1/system/integration-exports/download?name=<artifact>
 ```
 
+When scheduled HA exports are enabled, the appliance also serves:
+
+```text
+/api/v1/system/ha/exports
+/api/v1/system/ha/exports/download?name=<artifact>
+```
+
 Use this report when you want one payload that combines:
 
 - session and alert counts
@@ -124,6 +131,42 @@ From the admin UI:
 3. review `Integration History`
 4. export `JSON` or `CSV` when you need to hand it to another team
 5. review scheduled integration export runtime and artifacts when recurring export is enabled
+
+## HA History Endpoints
+
+The appliance also keeps durable HA history at:
+
+```text
+/api/v1/system/ha/history
+```
+
+And export variants at:
+
+```text
+/api/v1/system/ha/history/export?format=json
+/api/v1/system/ha/history/export?format=csv
+```
+
+When recurring HA export is enabled, operators can also use:
+
+```text
+/api/v1/system/ha/exports
+/api/v1/system/ha/exports/download?name=<artifact>
+```
+
+Use this history when you want:
+
+- a failover and replication timeline beyond the latest runtime message
+- exportable evidence for HA drills and incident review
+- recurring HA artifacts without relying on manual export timing
+
+From the admin UI:
+
+1. sign in
+2. open `Backups`
+3. review `HA History`
+4. export `JSON` or `CSV`
+5. review scheduled HA export runtime and artifacts when recurring export is enabled
 
 ## Audit History Endpoints
 
@@ -220,6 +263,7 @@ Use the OpenAPI JSON for:
 - mapping integration-history exports into controller and endpoint support workflows
 - mapping scheduled integration exports into controller, MDM, and posture support handoffs
 - mapping scheduled audit exports into change-review and incident timelines
+- mapping scheduled HA exports into failover drill evidence and recovery handoffs
 
 ## Operational Reminder
 

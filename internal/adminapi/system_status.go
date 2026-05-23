@@ -301,6 +301,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"retention_count":  cfg.Telemetry.IntegrationExports.RetentionCount,
 			"runtime":          runtimeMap[integrationExportsComponent],
 		},
+		"ha_exports": map[string]any{
+			"enabled":          cfg.Telemetry.HAExports.Enabled,
+			"directory":        cfg.Telemetry.HAExports.Directory,
+			"format":           cfg.Telemetry.HAExports.Format,
+			"interval_minutes": cfg.Telemetry.HAExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.HAExports.RetentionCount,
+			"runtime":          runtimeMap[haExportsComponent],
+		},
 	}
 	if !cfg.Telemetry.Enabled {
 		telemetryStatus["diagnostics_exports"] = map[string]any{
@@ -326,6 +334,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.IntegrationExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.IntegrationExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled integration exports are not running."},
+		}
+		telemetryStatus["ha_exports"] = map[string]any{
+			"enabled":          cfg.Telemetry.HAExports.Enabled,
+			"directory":        cfg.Telemetry.HAExports.Directory,
+			"format":           cfg.Telemetry.HAExports.Format,
+			"interval_minutes": cfg.Telemetry.HAExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.HAExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled HA exports are not running."},
 		}
 	} else if !cfg.Telemetry.DiagnosticsExports.Enabled {
 		telemetryStatus["diagnostics_exports"] = map[string]any{
@@ -355,6 +371,16 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.IntegrationExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.IntegrationExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled integration exports are disabled in config."},
+		}
+	}
+	if cfg.Telemetry.Enabled && !cfg.Telemetry.HAExports.Enabled {
+		telemetryStatus["ha_exports"] = map[string]any{
+			"enabled":          false,
+			"directory":        cfg.Telemetry.HAExports.Directory,
+			"format":           cfg.Telemetry.HAExports.Format,
+			"interval_minutes": cfg.Telemetry.HAExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.HAExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled HA exports are disabled in config."},
 		}
 	}
 

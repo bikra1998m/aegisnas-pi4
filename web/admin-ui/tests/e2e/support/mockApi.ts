@@ -114,6 +114,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      ha_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/ha-exports',
+        format: 'json',
+        interval_minutes: 60,
+        retention_count: 21,
+      },
     },
     ailite: {
       enabled: true,
@@ -699,6 +706,25 @@ function createSystemStatus() {
           },
         },
       },
+      ha_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/ha-exports',
+        format: 'json',
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: 'ok',
+          message: 'Scheduled HA exports are healthy.',
+          details: {
+            format: 'json',
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: '/var/lib/aegisnas/ha-exports',
+            last_export_at: '2026-05-05T11:56:00Z',
+            next_due_at: '2026-05-05T12:56:00Z',
+          },
+        },
+      },
     },
     network_observability: {
       apply_stats: {
@@ -1257,6 +1283,35 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         status: 200,
         headers: { 'content-type': 'text/csv; charset=utf-8' },
         body: 'id,created_at,event_type,status,summary,node_role,actor,details_json\n1,2026-05-05T12:00:00Z,replication_publish,success,Published shared HA replication package.,active,,\n',
+      });
+      return;
+    }
+    if (path === '/system/ha/exports' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          runtime: state.systemStatus.telemetry.ha_exports.runtime,
+          exports: [
+            {
+              name: 'aegisnas-ha-history-20260505-115600Z.json',
+              path: '/var/lib/aegisnas/ha-exports/aegisnas-ha-history-20260505-115600Z.json',
+              format: 'json',
+              size_bytes: 1280,
+              created_at: '2026-05-05T11:56:00Z',
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (path === '/system/ha/exports/download' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          generated_at: '2026-05-05T11:56:00Z',
+          history: state.haHistory,
+          count: state.haHistory.length,
+        }),
       });
       return;
     }

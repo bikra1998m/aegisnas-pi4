@@ -76,6 +76,9 @@ var runCmd = &cobra.Command{
 		if err := adminapi.StartIntegrationExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start integration export scheduler: %w", err)
 		}
+		if err := adminapi.StartHAExportScheduler(cfg, logger); err != nil {
+			return fmt.Errorf("start ha export scheduler: %w", err)
+		}
 
 		r := chi.NewRouter()
 		r.Use(middleware.Logger)
@@ -164,6 +167,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Post("/system/upgrade-rollback-package/restore", adminapi.HandleRestoreUpgradeRollbackPackage)
 			r.Get("/system/ha/history", adminapi.HandleListHAHistory)
 			r.Get("/system/ha/history/export", adminapi.HandleExportHAHistory)
+			r.Get("/system/ha/exports", adminapi.HandleListHAExports)
+			r.Get("/system/ha/exports/download", adminapi.HandleDownloadHAExport)
 			r.Get("/system/ha/replication-package", adminapi.HandleDownloadHAReplicationPackage)
 			r.Get("/system/ha/replication-shared", adminapi.HandleGetSharedHAReplicationStatus)
 			r.Get("/system/ha/replication-staged", adminapi.HandleListHAReplicationPackages)

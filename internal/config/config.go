@@ -290,6 +290,7 @@ type TelemetryConfig struct {
 	DiagnosticsExports      DiagnosticsExportConfig `mapstructure:"diagnostics_exports"`
 	AuditExports            DiagnosticsExportConfig `mapstructure:"audit_exports"`
 	IntegrationExports      DiagnosticsExportConfig `mapstructure:"integration_exports"`
+	HAExports               DiagnosticsExportConfig `mapstructure:"ha_exports"`
 }
 
 type DiagnosticsExportConfig struct {
@@ -1064,6 +1065,11 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("telemetry.integration_exports.format %q is invalid", c.Telemetry.IntegrationExports.Format)
 	}
+	switch strings.ToLower(strings.TrimSpace(c.Telemetry.HAExports.Format)) {
+	case "", "json", "csv", "both":
+	default:
+		return fmt.Errorf("telemetry.ha_exports.format %q is invalid", c.Telemetry.HAExports.Format)
+	}
 	if c.Telemetry.DiagnosticsExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.diagnostics_exports.interval_minutes %d out of range", c.Telemetry.DiagnosticsExports.IntervalMinutes)
 	}
@@ -1073,6 +1079,9 @@ func (c *Config) Validate() error {
 	if c.Telemetry.IntegrationExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.integration_exports.interval_minutes %d out of range", c.Telemetry.IntegrationExports.IntervalMinutes)
 	}
+	if c.Telemetry.HAExports.IntervalMinutes < 0 {
+		return fmt.Errorf("telemetry.ha_exports.interval_minutes %d out of range", c.Telemetry.HAExports.IntervalMinutes)
+	}
 	if c.Telemetry.DiagnosticsExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.diagnostics_exports.retention_count %d out of range", c.Telemetry.DiagnosticsExports.RetentionCount)
 	}
@@ -1081,6 +1090,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Telemetry.IntegrationExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.integration_exports.retention_count %d out of range", c.Telemetry.IntegrationExports.RetentionCount)
+	}
+	if c.Telemetry.HAExports.RetentionCount < 0 {
+		return fmt.Errorf("telemetry.ha_exports.retention_count %d out of range", c.Telemetry.HAExports.RetentionCount)
 	}
 	if c.Telemetry.DiagnosticsExports.Enabled {
 		if !c.Telemetry.Enabled {
@@ -1122,6 +1134,20 @@ func (c *Config) Validate() error {
 		}
 		if c.Telemetry.IntegrationExports.RetentionCount <= 0 {
 			return errors.New("telemetry.integration_exports.enabled requires a positive telemetry.integration_exports.retention_count")
+		}
+	}
+	if c.Telemetry.HAExports.Enabled {
+		if !c.Telemetry.Enabled {
+			return errors.New("telemetry.ha_exports.enabled requires telemetry.enabled")
+		}
+		if strings.TrimSpace(c.Telemetry.HAExports.Directory) == "" {
+			return errors.New("telemetry.ha_exports.enabled requires telemetry.ha_exports.directory")
+		}
+		if c.Telemetry.HAExports.IntervalMinutes <= 0 {
+			return errors.New("telemetry.ha_exports.enabled requires a positive telemetry.ha_exports.interval_minutes")
+		}
+		if c.Telemetry.HAExports.RetentionCount <= 0 {
+			return errors.New("telemetry.ha_exports.enabled requires a positive telemetry.ha_exports.retention_count")
 		}
 	}
 	profile := EffectiveDeploymentProfile(c.Deployment.Profile)

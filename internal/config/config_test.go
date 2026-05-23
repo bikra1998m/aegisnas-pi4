@@ -1693,6 +1693,13 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 					IntervalMinutes: 45,
 					RetentionCount:  21,
 				},
+				HAExports: DiagnosticsExportConfig{
+					Enabled:         true,
+					Directory:       "/var/lib/aegisnas/ha-exports",
+					Format:          "json",
+					IntervalMinutes: 30,
+					RetentionCount:  21,
+				},
 			},
 			Radius: RadiusConfig{
 				AuthPort:              1812,
@@ -1767,4 +1774,27 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badIntegrationRetention := base()
 	badIntegrationRetention.Telemetry.IntegrationExports.RetentionCount = 0
 	assert.ErrorContains(t, badIntegrationRetention.Validate(), "telemetry.integration_exports.enabled requires a positive telemetry.integration_exports.retention_count")
+
+	badHAFormat := base()
+	badHAFormat.Telemetry.HAExports.Format = "xml"
+	assert.ErrorContains(t, badHAFormat.Validate(), `telemetry.ha_exports.format "xml" is invalid`)
+
+	badHADisabledTelemetry := base()
+	badHADisabledTelemetry.Telemetry.Enabled = false
+	badHADisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
+	badHADisabledTelemetry.Telemetry.AuditExports.Enabled = false
+	badHADisabledTelemetry.Telemetry.IntegrationExports.Enabled = false
+	assert.ErrorContains(t, badHADisabledTelemetry.Validate(), "telemetry.ha_exports.enabled requires telemetry.enabled")
+
+	badHADirectory := base()
+	badHADirectory.Telemetry.HAExports.Directory = ""
+	assert.ErrorContains(t, badHADirectory.Validate(), "telemetry.ha_exports.enabled requires telemetry.ha_exports.directory")
+
+	badHAInterval := base()
+	badHAInterval.Telemetry.HAExports.IntervalMinutes = 0
+	assert.ErrorContains(t, badHAInterval.Validate(), "telemetry.ha_exports.enabled requires a positive telemetry.ha_exports.interval_minutes")
+
+	badHARetention := base()
+	badHARetention.Telemetry.HAExports.RetentionCount = 0
+	assert.ErrorContains(t, badHARetention.Validate(), "telemetry.ha_exports.enabled requires a positive telemetry.ha_exports.retention_count")
 }
