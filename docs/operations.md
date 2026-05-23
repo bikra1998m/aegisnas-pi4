@@ -129,6 +129,8 @@ For recurring report capture without manual operator action, enable scheduled di
 
 For durable controller, MDM sync, and posture automation history, use `Backups` or `GET /api/v1/system/integration-history`.
 
+For recurring integration capture without manual export timing, enable scheduled integration exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/integration-exports`.
+
 For a durable record of operator-visible admin actions, exports, guest approvals, network changes, HA activations, and upgrade work, use `Backups` or `GET /api/v1/system/audit-history`.
 
 For recurring audit capture without relying on manual export timing, enable scheduled audit exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/audit-exports`.

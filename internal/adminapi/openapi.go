@@ -191,6 +191,29 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/integration-exports", "get", securedOperation("List scheduled integration exports", "Integrations", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled integration export runtime status and recent artifact list."),
+	}))
+	addOperation(paths, "/api/v1/system/integration-exports/download", "get", securedOperationWithParameters("Download scheduled integration export", "Integrations", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "Integration export artifact filename.", true),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Scheduled integration export artifact in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/network-preview", "get", securedOperation("Preview managed network changes", "Network", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Generated preview, risk summary, and validation details for managed network state."),
 	}))

@@ -248,6 +248,13 @@ const defaultSettings: JsonMap = {
       interval_minutes: 60,
       retention_count: 21,
     },
+    integration_exports: {
+      enabled: false,
+      directory: '/var/lib/aegisnas/integration-exports',
+      format: 'json',
+      interval_minutes: 60,
+      retention_count: 21,
+    },
   },
   ailite: {
     enabled: true,
@@ -2461,6 +2468,38 @@ export default function AccessSettings() {
             type="number"
             value={settings.telemetry?.audit_exports?.retention_count || 21}
             onChange={(value) => updateField(['telemetry', 'audit_exports', 'retention_count'], Number(value))}
+          />
+          <ToggleField
+            label="Scheduled Integration Exports"
+            checked={Boolean(settings.telemetry?.integration_exports?.enabled)}
+            onChange={(value) => updateField(['telemetry', 'integration_exports', 'enabled'], value)}
+          />
+          <TextField
+            label="Integration Export Directory"
+            value={settings.telemetry?.integration_exports?.directory || '/var/lib/aegisnas/integration-exports'}
+            onChange={(value) => updateField(['telemetry', 'integration_exports', 'directory'], value)}
+          />
+          <SelectField
+            label="Integration Export Format"
+            value={settings.telemetry?.integration_exports?.format || 'json'}
+            onChange={(value) => updateField(['telemetry', 'integration_exports', 'format'], value)}
+            options={[
+              { value: 'json', label: 'JSON' },
+              { value: 'csv', label: 'CSV' },
+              { value: 'both', label: 'JSON + CSV' },
+            ]}
+          />
+          <TextField
+            label="Integration Export Interval Minutes"
+            type="number"
+            value={settings.telemetry?.integration_exports?.interval_minutes || 60}
+            onChange={(value) => updateField(['telemetry', 'integration_exports', 'interval_minutes'], Number(value))}
+          />
+          <TextField
+            label="Integration Export Retention"
+            type="number"
+            value={settings.telemetry?.integration_exports?.retention_count || 21}
+            onChange={(value) => updateField(['telemetry', 'integration_exports', 'retention_count'], Number(value))}
           />
           <TextField
             label="Recommendation Limit"

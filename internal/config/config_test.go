@@ -1686,6 +1686,13 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 					IntervalMinutes: 30,
 					RetentionCount:  21,
 				},
+				IntegrationExports: DiagnosticsExportConfig{
+					Enabled:         true,
+					Directory:       "/var/lib/aegisnas/integration-exports",
+					Format:          "both",
+					IntervalMinutes: 45,
+					RetentionCount:  21,
+				},
 			},
 			Radius: RadiusConfig{
 				AuthPort:              1812,
@@ -1738,4 +1745,26 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badAuditRetention := base()
 	badAuditRetention.Telemetry.AuditExports.RetentionCount = 0
 	assert.ErrorContains(t, badAuditRetention.Validate(), "telemetry.audit_exports.enabled requires a positive telemetry.audit_exports.retention_count")
+
+	badIntegrationFormat := base()
+	badIntegrationFormat.Telemetry.IntegrationExports.Format = "xml"
+	assert.ErrorContains(t, badIntegrationFormat.Validate(), `telemetry.integration_exports.format "xml" is invalid`)
+
+	badIntegrationDisabledTelemetry := base()
+	badIntegrationDisabledTelemetry.Telemetry.Enabled = false
+	badIntegrationDisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
+	badIntegrationDisabledTelemetry.Telemetry.AuditExports.Enabled = false
+	assert.ErrorContains(t, badIntegrationDisabledTelemetry.Validate(), "telemetry.integration_exports.enabled requires telemetry.enabled")
+
+	badIntegrationDirectory := base()
+	badIntegrationDirectory.Telemetry.IntegrationExports.Directory = ""
+	assert.ErrorContains(t, badIntegrationDirectory.Validate(), "telemetry.integration_exports.enabled requires telemetry.integration_exports.directory")
+
+	badIntegrationInterval := base()
+	badIntegrationInterval.Telemetry.IntegrationExports.IntervalMinutes = 0
+	assert.ErrorContains(t, badIntegrationInterval.Validate(), "telemetry.integration_exports.enabled requires a positive telemetry.integration_exports.interval_minutes")
+
+	badIntegrationRetention := base()
+	badIntegrationRetention.Telemetry.IntegrationExports.RetentionCount = 0
+	assert.ErrorContains(t, badIntegrationRetention.Validate(), "telemetry.integration_exports.enabled requires a positive telemetry.integration_exports.retention_count")
 }

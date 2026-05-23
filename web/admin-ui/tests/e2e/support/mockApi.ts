@@ -107,6 +107,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      integration_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/integration-exports',
+        format: 'both',
+        interval_minutes: 60,
+        retention_count: 21,
+      },
     },
     ailite: {
       enabled: true,
@@ -673,6 +680,25 @@ function createSystemStatus() {
           },
         },
       },
+      integration_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/integration-exports',
+        format: 'both',
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: 'ok',
+          message: 'Scheduled integration exports are healthy.',
+          details: {
+            format: 'both',
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: '/var/lib/aegisnas/integration-exports',
+            last_export_at: '2026-05-05T11:57:00Z',
+            next_due_at: '2026-05-05T12:57:00Z',
+          },
+        },
+      },
     },
     network_observability: {
       apply_stats: {
@@ -914,6 +940,24 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         created_at: '2026-05-05T12:05:00Z',
       },
     ],
+    integrationHistory: [
+      {
+        id: 1,
+        component: 'controller_automation',
+        status: 'ok',
+        summary: 'Controller sync completed.',
+        details: { adapter: 'cisco', sync_count: 2 },
+        created_at: '2026-05-05T11:58:00Z',
+      },
+      {
+        id: 2,
+        component: 'mdm_sync',
+        status: 'degraded',
+        summary: 'MDM sync needs attention.',
+        details: { provider: 'intune' },
+        created_at: '2026-05-05T11:59:00Z',
+      },
+    ],
     networkRecovery: null as null | Record<string, any>,
   };
 
@@ -1089,6 +1133,75 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           action_prefix: '',
           history: state.auditHistory,
           count: state.auditHistory.length,
+        }),
+      });
+      return;
+    }
+    if (path === '/system/integration-history' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          history: state.integrationHistory,
+          count: state.integrationHistory.length,
+          component: url.searchParams.get('component') || '',
+          generated_at: '2026-05-05T12:00:00Z',
+          stats: {
+            total_records: state.integrationHistory.length,
+            controller_event_count: 1,
+            controller_success_count: 1,
+            controller_failure_count: 0,
+            mdm_sync_event_count: 1,
+            mdm_sync_success_count: 0,
+            mdm_sync_failure_count: 1,
+            posture_event_count: 0,
+            posture_success_count: 0,
+            posture_failure_count: 0,
+            last_event_at: '2026-05-05T11:59:00Z',
+          },
+        },
+      });
+      return;
+    }
+    if (path === '/system/integration-history/export' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/csv; charset=utf-8' },
+        body: 'id,created_at,component,status,summary,details_json\n1,2026-05-05T11:58:00Z,controller_automation,ok,Controller sync completed.,"{""adapter"":""cisco""}"\n',
+      });
+      return;
+    }
+    if (path === '/system/integration-exports' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          runtime: state.systemStatus.telemetry.integration_exports.runtime,
+          exports: [
+            {
+              name: 'aegisnas-integration-history-20260505-115700Z.json',
+              path: '/var/lib/aegisnas/integration-exports/aegisnas-integration-history-20260505-115700Z.json',
+              format: 'json',
+              size_bytes: 1536,
+              created_at: '2026-05-05T11:57:00Z',
+            },
+            {
+              name: 'aegisnas-integration-history-20260505-115700Z.csv',
+              path: '/var/lib/aegisnas/integration-exports/aegisnas-integration-history-20260505-115700Z.csv',
+              format: 'csv',
+              size_bytes: 512,
+              created_at: '2026-05-05T11:57:00Z',
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (path === '/system/integration-exports/download' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          generated_at: '2026-05-05T11:57:00Z',
+          component: '',
+          history: state.integrationHistory,
+          count: state.integrationHistory.length,
         }),
       });
       return;

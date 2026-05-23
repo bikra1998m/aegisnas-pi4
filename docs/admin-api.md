@@ -64,6 +64,13 @@ When scheduled audit exports are enabled, the appliance also serves:
 /api/v1/system/audit-exports/download?name=<artifact>
 ```
 
+When scheduled integration exports are enabled, the appliance also serves:
+
+```text
+/api/v1/system/integration-exports
+/api/v1/system/integration-exports/download?name=<artifact>
+```
+
 Use this report when you want one payload that combines:
 
 - session and alert counts
@@ -108,6 +115,7 @@ Use this history when you want:
 - more than the last runtime status message
 - a quick operator timeline for sync failures and recoveries
 - exportable evidence for controller or MDM troubleshooting
+- recurring integration artifacts without relying on manual export timing
 
 From the admin UI:
 
@@ -115,6 +123,7 @@ From the admin UI:
 2. open `Backups`
 3. review `Integration History`
 4. export `JSON` or `CSV` when you need to hand it to another team
+5. review scheduled integration export runtime and artifacts when recurring export is enabled
 
 ## Audit History Endpoints
 
@@ -209,6 +218,7 @@ Use the OpenAPI JSON for:
 - change-review prep before automation is pointed at the appliance
 - mapping diagnostics-report exports into external support workflows
 - mapping integration-history exports into controller and endpoint support workflows
+- mapping scheduled integration exports into controller, MDM, and posture support handoffs
 - mapping scheduled audit exports into change-review and incident timelines
 
 ## Operational Reminder
