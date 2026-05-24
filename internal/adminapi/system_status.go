@@ -317,6 +317,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"retention_count":  cfg.Telemetry.NetworkExports.RetentionCount,
 			"runtime":          runtimeMap[networkExportsComponent],
 		},
+		"upstream_aaa_exports": map[string]any{
+			"enabled":          cfg.Telemetry.UpstreamAAAExports.Enabled,
+			"directory":        cfg.Telemetry.UpstreamAAAExports.Directory,
+			"format":           cfg.Telemetry.UpstreamAAAExports.Format,
+			"interval_minutes": cfg.Telemetry.UpstreamAAAExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.UpstreamAAAExports.RetentionCount,
+			"runtime":          runtimeMap[upstreamAAAExportsComponent],
+		},
 	}
 	if !cfg.Telemetry.Enabled {
 		telemetryStatus["diagnostics_exports"] = map[string]any{
@@ -358,6 +366,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.NetworkExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.NetworkExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled network exports are not running."},
+		}
+		telemetryStatus["upstream_aaa_exports"] = map[string]any{
+			"enabled":          cfg.Telemetry.UpstreamAAAExports.Enabled,
+			"directory":        cfg.Telemetry.UpstreamAAAExports.Directory,
+			"format":           cfg.Telemetry.UpstreamAAAExports.Format,
+			"interval_minutes": cfg.Telemetry.UpstreamAAAExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.UpstreamAAAExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled upstream AAA exports are not running."},
 		}
 	} else if !cfg.Telemetry.DiagnosticsExports.Enabled {
 		telemetryStatus["diagnostics_exports"] = map[string]any{
@@ -407,6 +423,16 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.NetworkExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.NetworkExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled network exports are disabled in config."},
+		}
+	}
+	if cfg.Telemetry.Enabled && !cfg.Telemetry.UpstreamAAAExports.Enabled {
+		telemetryStatus["upstream_aaa_exports"] = map[string]any{
+			"enabled":          false,
+			"directory":        cfg.Telemetry.UpstreamAAAExports.Directory,
+			"format":           cfg.Telemetry.UpstreamAAAExports.Format,
+			"interval_minutes": cfg.Telemetry.UpstreamAAAExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.UpstreamAAAExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled upstream AAA exports are disabled in config."},
 		}
 	}
 

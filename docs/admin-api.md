@@ -85,6 +85,13 @@ When scheduled network exports are enabled, the appliance also serves:
 /api/v1/system/network-exports/download?name=<artifact>
 ```
 
+When scheduled upstream AAA exports are enabled, the appliance also serves:
+
+```text
+/api/v1/system/upstream-aaa-exports
+/api/v1/system/upstream-aaa-exports/download?name=<artifact>
+```
+
 Use this report when you want one payload that combines:
 
 - session and alert counts
@@ -127,6 +134,7 @@ From the admin UI:
 2. open `Backups`
 3. review `Upstream AAA History`
 4. export `JSON` or `CSV` when you need a handoff-ready timeline
+5. review scheduled upstream AAA export runtime and artifacts when recurring export is enabled
 
 From the admin UI:
 
@@ -343,6 +351,7 @@ Use the OpenAPI JSON for:
 - mapping scheduled integration exports into controller, MDM, and posture support handoffs
 - mapping scheduled audit exports into change-review and incident timelines
 - mapping scheduled HA exports into failover drill evidence and recovery handoffs
+- mapping scheduled upstream AAA exports into RADIUS fail-over and timeout investigations
 
 ## Operational Reminder
 

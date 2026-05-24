@@ -408,6 +408,22 @@ type NetworkExportArtifact = {
   created_at: string;
 };
 
+type UpstreamAAAExportRuntime = {
+  component: string;
+  status: string;
+  message: string;
+  updated_at: string;
+  details?: Record<string, any>;
+};
+
+type UpstreamAAAExportArtifact = {
+  name: string;
+  path: string;
+  format: string;
+  size_bytes: number;
+  created_at: string;
+};
+
 export default function Backups() {
   const [configFile, setConfigFile] = useState<File | null>(null);
   const [replicationFile, setReplicationFile] = useState<File | null>(null);
@@ -435,6 +451,8 @@ export default function Backups() {
   const [haExportArtifacts, setHAExportArtifacts] = useState<HAExportArtifact[]>([]);
   const [networkExportRuntime, setNetworkExportRuntime] = useState<NetworkExportRuntime | null>(null);
   const [networkExportArtifacts, setNetworkExportArtifacts] = useState<NetworkExportArtifact[]>([]);
+  const [upstreamAAAExportRuntime, setUpstreamAAAExportRuntime] = useState<UpstreamAAAExportRuntime | null>(null);
+  const [upstreamAAAExportArtifacts, setUpstreamAAAExportArtifacts] = useState<UpstreamAAAExportArtifact[]>([]);
   const [upgradeReadiness, setUpgradeReadiness] = useState<UpgradeReadinessReport | null>(null);
   const [upgradeRollbackInspection, setUpgradeRollbackInspection] = useState<UpgradeRollbackInspection | null>(null);
   const [supportBundleSummary, setSupportBundleSummary] = useState<SupportBundleSummary | null>(null);
@@ -450,6 +468,7 @@ export default function Backups() {
   const [loadingIntegrationExports, setLoadingIntegrationExports] = useState(false);
   const [loadingHAExports, setLoadingHAExports] = useState(false);
   const [loadingNetworkExports, setLoadingNetworkExports] = useState(false);
+  const [loadingUpstreamAAAExports, setLoadingUpstreamAAAExports] = useState(false);
   const [loadingUpgradeReadiness, setLoadingUpgradeReadiness] = useState(false);
   const [loadingUpgradeRollbackInspect, setLoadingUpgradeRollbackInspect] = useState(false);
   const [loadingSupportBundleSummary, setLoadingSupportBundleSummary] = useState(false);
@@ -672,6 +691,26 @@ export default function Backups() {
     }
   };
 
+  const loadUpstreamAAAExports = async (announce = false) => {
+    if (announce) {
+      setError('');
+      setMessage('');
+    }
+    setLoadingUpstreamAAAExports(true);
+    try {
+      const { data } = await api.get('/system/upstream-aaa-exports');
+      setUpstreamAAAExportRuntime(data.runtime || null);
+      setUpstreamAAAExportArtifacts(data.exports || []);
+      if (announce) {
+        setMessage('Scheduled upstream AAA exports refreshed.');
+      }
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load scheduled upstream AAA exports.');
+    } finally {
+      setLoadingUpstreamAAAExports(false);
+    }
+  };
+
   useEffect(() => {
     void loadStages();
     void loadSharedStatus();
@@ -685,6 +724,7 @@ export default function Backups() {
     void loadIntegrationExports(false);
     void loadHAExports(false);
     void loadNetworkExports(false);
+    void loadUpstreamAAAExports(false);
     void loadSupportBundleSummary();
   }, []);
 
@@ -901,6 +941,29 @@ export default function Backups() {
       setMessage(`Scheduled network export ${artifact.name} downloaded.`);
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not download scheduled network export.');
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const downloadScheduledUpstreamAAAExport = async (artifact: UpstreamAAAExportArtifact) => {
+    setError('');
+    setMessage('');
+    setBusyAction(`scheduled-upstream-aaa-${artifact.name}`);
+    try {
+      const response = await api.get(`/system/upstream-aaa-exports/download?name=${encodeURIComponent(artifact.name)}`, { responseType: 'blob' });
+      const { data, headers } = response;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      const disposition = `${headers?.['content-disposition'] || ''}`;
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      link.download = filenameMatch?.[1] || artifact.name;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`Scheduled upstream AAA export ${artifact.name} downloaded.`);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not download scheduled upstream AAA export.');
     } finally {
       setBusyAction('');
     }
@@ -1729,6 +1792,69 @@ export default function Backups() {
                           <td className="px-3 py-2 text-gray-500 break-all">{artifact.path}</td>
                           <td className="px-3 py-2">
                             <button onClick={() => void downloadScheduledNetworkExport(artifact)} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                              Download
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium text-slate-900">Scheduled Upstream AAA Exports</div>
+                  <div className="mt-1">Keep recurring upstream AAA probe artifacts on disk so fail-over review, reject analysis, and timeout investigations already have a durable handoff package waiting.</div>
+                </div>
+                <button onClick={() => void loadUpstreamAAAExports(true)} disabled={loadingUpstreamAAAExports || busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                  {loadingUpstreamAAAExports ? 'Refreshing...' : 'Refresh Scheduled Upstream AAA Exports'}
+                </button>
+              </div>
+              {upstreamAAAExportRuntime ? (
+                <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  <div><span className="font-medium text-slate-900">Runtime:</span> {upstreamAAAExportRuntime.status} / {upstreamAAAExportRuntime.message}</div>
+                  <div className="mt-1">
+                    Format {String(upstreamAAAExportRuntime.details?.format || 'json')}, every {String(upstreamAAAExportRuntime.details?.interval_minutes || 0)} minutes, retain {String(upstreamAAAExportRuntime.details?.retention_count || 0)}, directory {String(upstreamAAAExportRuntime.details?.directory || 'unset')}.
+                  </div>
+                  {upstreamAAAExportRuntime.details?.last_export_at ? (
+                    <div className="mt-1">
+                      Last export {String(upstreamAAAExportRuntime.details.last_export_at)}
+                      {upstreamAAAExportRuntime.details?.next_due_at ? `, next due ${String(upstreamAAAExportRuntime.details.next_due_at)}` : ''}
+                      .
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-3 rounded-md border border-dashed border-gray-300 px-3 py-4 text-xs text-gray-500">No scheduled upstream AAA export runtime has been recorded yet.</div>
+              )}
+              {upstreamAAAExportArtifacts.length === 0 ? (
+                <div className="mt-3 text-xs text-gray-500">No scheduled upstream AAA export artifacts are present yet.</div>
+              ) : (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Created</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Name</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Format</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Size</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Path</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {upstreamAAAExportArtifacts.map((artifact) => (
+                        <tr key={artifact.name}>
+                          <td className="px-3 py-2 text-gray-600">{artifact.created_at}</td>
+                          <td className="px-3 py-2 font-medium text-gray-900">{artifact.name}</td>
+                          <td className="px-3 py-2 text-gray-700">{artifact.format}</td>
+                          <td className="px-3 py-2 text-gray-700">{artifact.size_bytes} bytes</td>
+                          <td className="px-3 py-2 text-gray-500 break-all">{artifact.path}</td>
+                          <td className="px-3 py-2">
+                            <button onClick={() => void downloadScheduledUpstreamAAAExport(artifact)} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50">
                               Download
                             </button>
                           </td>

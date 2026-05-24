@@ -128,6 +128,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      upstream_aaa_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/upstream-aaa-exports',
+        format: 'json',
+        interval_minutes: 60,
+        retention_count: 21,
+      },
     },
     ailite: {
       enabled: true,
@@ -751,6 +758,25 @@ function createSystemStatus() {
           },
         },
       },
+      upstream_aaa_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/upstream-aaa-exports',
+        format: 'json',
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: 'ok',
+          message: 'Scheduled upstream AAA exports are healthy.',
+          details: {
+            format: 'json',
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: '/var/lib/aegisnas/upstream-aaa-exports',
+            last_export_at: '2026-05-05T11:59:30Z',
+            next_due_at: '2026-05-05T12:59:30Z',
+          },
+        },
+      },
     },
     network_observability: {
       apply_stats: {
@@ -1184,6 +1210,52 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         status: 200,
         headers: { 'content-type': 'text/csv; charset=utf-8' },
         body: 'id,checked_at,created_at,server_name,address,auth_port,acct_port,status,message,response_code,latency_ms,supports_status_server\n1,2026-05-05T11:59:30Z,2026-05-05T11:59:30Z,upstream-1,10.0.0.20,1812,1813,ok,Healthy,Access-Accept,12,true\n',
+      });
+      return;
+    }
+    if (path === '/system/upstream-aaa-exports' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          runtime: state.systemStatus.telemetry.upstream_aaa_exports.runtime,
+          exports: [
+            {
+              name: 'aegisnas-upstream-aaa-history-20260505-115930Z.json',
+              path: '/var/lib/aegisnas/upstream-aaa-exports/aegisnas-upstream-aaa-history-20260505-115930Z.json',
+              format: 'json',
+              size_bytes: 880,
+              created_at: '2026-05-05T11:59:30Z',
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (path === '/system/upstream-aaa-exports/download' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          generated_at: '2026-05-05T11:59:30Z',
+          server: '',
+          status: '',
+          history: [
+            {
+              id: 1,
+              server_name: 'upstream-1',
+              address: '10.0.0.20',
+              auth_port: 1812,
+              acct_port: 1813,
+              status: 'ok',
+              message: 'Healthy',
+              response_code: 'Access-Accept',
+              latency_ms: 12,
+              supports_status_server: true,
+              checked_at: '2026-05-05T11:59:30Z',
+              created_at: '2026-05-05T11:59:30Z',
+            },
+          ],
+          count: 1,
+        }),
       });
       return;
     }

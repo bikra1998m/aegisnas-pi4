@@ -141,6 +141,29 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/upstream-aaa-exports", "get", securedOperation("List scheduled upstream AAA exports", "AAA", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled upstream AAA export runtime status and recent artifact list."),
+	}))
+	addOperation(paths, "/api/v1/system/upstream-aaa-exports/download", "get", securedOperationWithParameters("Download scheduled upstream AAA export", "AAA", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "Upstream AAA export artifact filename.", true),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Scheduled upstream AAA export artifact in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/audit-history", "get", securedOperationWithParameters("List audit history", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("user", "Optional exact user filter.", false),
 		queryStringParameter("action_prefix", "Optional action prefix filter such as download_ or guest_.", false),

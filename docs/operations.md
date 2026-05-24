@@ -141,6 +141,8 @@ For recurring HA capture without manual export timing, enable scheduled HA expor
 
 For recurring network capture without manual export timing, enable scheduled network exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/network-exports`.
 
+For recurring upstream AAA capture without relying on manual probe-history export timing, enable scheduled upstream AAA exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/upstream-aaa-exports`.
+
 ## Logs
 
 Logs are structured JSON.

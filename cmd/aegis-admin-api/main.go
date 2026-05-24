@@ -82,6 +82,9 @@ var runCmd = &cobra.Command{
 		if err := adminapi.StartNetworkExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start network export scheduler: %w", err)
 		}
+		if err := adminapi.StartUpstreamAAAExportScheduler(cfg, logger); err != nil {
+			return fmt.Errorf("start upstream aaa export scheduler: %w", err)
+		}
 
 		r := chi.NewRouter()
 		r.Use(middleware.Logger)
@@ -147,6 +150,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/dhcp-lease-history/export", adminapi.HandleExportDHCPLeaseHistory)
 			r.Get("/system/upstream-aaa-history", adminapi.HandleListUpstreamAAAHistory)
 			r.Get("/system/upstream-aaa-history/export", adminapi.HandleExportUpstreamAAAHistory)
+			r.Get("/system/upstream-aaa-exports", adminapi.HandleListUpstreamAAAExports)
+			r.Get("/system/upstream-aaa-exports/download", adminapi.HandleDownloadUpstreamAAAExport)
 			r.Get("/system/audit-history", adminapi.HandleListAuditHistory)
 			r.Get("/system/audit-history/export", adminapi.HandleExportAuditHistory)
 			r.Get("/system/audit-exports", adminapi.HandleListAuditExports)

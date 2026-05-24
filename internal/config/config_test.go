@@ -1707,6 +1707,13 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 					IntervalMinutes: 30,
 					RetentionCount:  21,
 				},
+				UpstreamAAAExports: DiagnosticsExportConfig{
+					Enabled:         true,
+					Directory:       "/var/lib/aegisnas/upstream-aaa-exports",
+					Format:          "json",
+					IntervalMinutes: 30,
+					RetentionCount:  21,
+				},
 			},
 			Radius: RadiusConfig{
 				AuthPort:              1812,
@@ -1828,4 +1835,29 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badNetworkRetention := base()
 	badNetworkRetention.Telemetry.NetworkExports.RetentionCount = 0
 	assert.ErrorContains(t, badNetworkRetention.Validate(), "telemetry.network_exports.enabled requires a positive telemetry.network_exports.retention_count")
+
+	badUpstreamAAAFormat := base()
+	badUpstreamAAAFormat.Telemetry.UpstreamAAAExports.Format = "xml"
+	assert.ErrorContains(t, badUpstreamAAAFormat.Validate(), `telemetry.upstream_aaa_exports.format "xml" is invalid`)
+
+	badUpstreamAAADisabledTelemetry := base()
+	badUpstreamAAADisabledTelemetry.Telemetry.Enabled = false
+	badUpstreamAAADisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
+	badUpstreamAAADisabledTelemetry.Telemetry.AuditExports.Enabled = false
+	badUpstreamAAADisabledTelemetry.Telemetry.IntegrationExports.Enabled = false
+	badUpstreamAAADisabledTelemetry.Telemetry.HAExports.Enabled = false
+	badUpstreamAAADisabledTelemetry.Telemetry.NetworkExports.Enabled = false
+	assert.ErrorContains(t, badUpstreamAAADisabledTelemetry.Validate(), "telemetry.upstream_aaa_exports.enabled requires telemetry.enabled")
+
+	badUpstreamAAADirectory := base()
+	badUpstreamAAADirectory.Telemetry.UpstreamAAAExports.Directory = ""
+	assert.ErrorContains(t, badUpstreamAAADirectory.Validate(), "telemetry.upstream_aaa_exports.enabled requires telemetry.upstream_aaa_exports.directory")
+
+	badUpstreamAAAInterval := base()
+	badUpstreamAAAInterval.Telemetry.UpstreamAAAExports.IntervalMinutes = 0
+	assert.ErrorContains(t, badUpstreamAAAInterval.Validate(), "telemetry.upstream_aaa_exports.enabled requires a positive telemetry.upstream_aaa_exports.interval_minutes")
+
+	badUpstreamAAARetention := base()
+	badUpstreamAAARetention.Telemetry.UpstreamAAAExports.RetentionCount = 0
+	assert.ErrorContains(t, badUpstreamAAARetention.Validate(), "telemetry.upstream_aaa_exports.enabled requires a positive telemetry.upstream_aaa_exports.retention_count")
 }
