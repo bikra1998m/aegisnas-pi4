@@ -135,6 +135,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      upgrade_readiness_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/upgrade-readiness-exports',
+        format: 'json',
+        interval_minutes: 240,
+        retention_count: 14,
+      },
     },
     ailite: {
       enabled: true,
@@ -777,6 +784,25 @@ function createSystemStatus() {
           },
         },
       },
+      upgrade_readiness_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/upgrade-readiness-exports',
+        format: 'json',
+        interval_minutes: 240,
+        retention_count: 14,
+        runtime: {
+          status: 'ok',
+          message: 'Scheduled upgrade readiness exports are healthy.',
+          details: {
+            format: 'json',
+            interval_minutes: 240,
+            retention_count: 14,
+            directory: '/var/lib/aegisnas/upgrade-readiness-exports',
+            last_export_at: '2026-05-05T08:00:00Z',
+            next_due_at: '2026-05-05T12:00:00Z',
+          },
+        },
+      },
     },
     network_observability: {
       apply_stats: {
@@ -1255,6 +1281,50 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             },
           ],
           count: 1,
+        }),
+      });
+      return;
+    }
+    if (path === '/system/upgrade-readiness-exports' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          runtime: state.systemStatus.telemetry.upgrade_readiness_exports.runtime,
+          exports: [
+            {
+              name: 'aegisnas-upgrade-readiness-20260505-080000Z.json',
+              path: '/var/lib/aegisnas/upgrade-readiness-exports/aegisnas-upgrade-readiness-20260505-080000Z.json',
+              format: 'json',
+              size_bytes: 940,
+              created_at: '2026-05-05T08:00:00Z',
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (path === '/system/upgrade-readiness-exports/download' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          generated_at: '2026-05-05T08:00:00Z',
+          config_path: '/etc/aegisnas/config.yaml',
+          database_path: '/var/lib/aegisnas/data.db',
+          database_exists: true,
+          database_size_bytes: 4096,
+          current_schema_version: 10,
+          target_schema_version: 10,
+          config_valid: true,
+          deployment_profile: 'branch',
+          deployment_form: 'virtual',
+          rehearsal: {
+            ran: true,
+            succeeded: true,
+            started_schema_version: 10,
+            result_schema_version: 10,
+            duration_milliseconds: 42,
+          },
+          recommendations: ['Upgrade rehearsal passed.'],
         }),
       });
       return;

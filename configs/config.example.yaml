@@ -236,6 +236,12 @@ telemetry:
     format: json # json, csv, or both.
     interval_minutes: 60
     retention_count: 21
+  upgrade_readiness_exports:
+    enabled: false
+    directory: /var/lib/aegisnas/upgrade-readiness-exports
+    format: json # json, csv, or both.
+    interval_minutes: 240
+    retention_count: 14
 
 ailite:
   enabled: true

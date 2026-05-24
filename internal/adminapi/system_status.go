@@ -325,6 +325,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"retention_count":  cfg.Telemetry.UpstreamAAAExports.RetentionCount,
 			"runtime":          runtimeMap[upstreamAAAExportsComponent],
 		},
+		"upgrade_readiness_exports": map[string]any{
+			"enabled":          cfg.Telemetry.UpgradeReadinessExports.Enabled,
+			"directory":        cfg.Telemetry.UpgradeReadinessExports.Directory,
+			"format":           cfg.Telemetry.UpgradeReadinessExports.Format,
+			"interval_minutes": cfg.Telemetry.UpgradeReadinessExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.UpgradeReadinessExports.RetentionCount,
+			"runtime":          runtimeMap[upgradeReadinessExportsComponent],
+		},
 	}
 	if !cfg.Telemetry.Enabled {
 		telemetryStatus["diagnostics_exports"] = map[string]any{
@@ -374,6 +382,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.UpstreamAAAExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.UpstreamAAAExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled upstream AAA exports are not running."},
+		}
+		telemetryStatus["upgrade_readiness_exports"] = map[string]any{
+			"enabled":          cfg.Telemetry.UpgradeReadinessExports.Enabled,
+			"directory":        cfg.Telemetry.UpgradeReadinessExports.Directory,
+			"format":           cfg.Telemetry.UpgradeReadinessExports.Format,
+			"interval_minutes": cfg.Telemetry.UpgradeReadinessExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.UpgradeReadinessExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled upgrade readiness exports are not running."},
 		}
 	} else if !cfg.Telemetry.DiagnosticsExports.Enabled {
 		telemetryStatus["diagnostics_exports"] = map[string]any{
@@ -433,6 +449,16 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.UpstreamAAAExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.UpstreamAAAExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled upstream AAA exports are disabled in config."},
+		}
+	}
+	if cfg.Telemetry.Enabled && !cfg.Telemetry.UpgradeReadinessExports.Enabled {
+		telemetryStatus["upgrade_readiness_exports"] = map[string]any{
+			"enabled":          false,
+			"directory":        cfg.Telemetry.UpgradeReadinessExports.Directory,
+			"format":           cfg.Telemetry.UpgradeReadinessExports.Format,
+			"interval_minutes": cfg.Telemetry.UpgradeReadinessExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.UpgradeReadinessExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled upgrade readiness exports are disabled in config."},
 		}
 	}
 

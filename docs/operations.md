@@ -143,6 +143,8 @@ For recurring network capture without manual export timing, enable scheduled net
 
 For recurring upstream AAA capture without relying on manual probe-history export timing, enable scheduled upstream AAA exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/upstream-aaa-exports`.
 
+For recurring upgrade-readiness evidence without manually rerunning the rehearsal before every change window, enable scheduled upgrade readiness exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/upgrade-readiness-exports`.
+
 ## Logs
 
 Logs are structured JSON.

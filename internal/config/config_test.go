@@ -1714,6 +1714,13 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 					IntervalMinutes: 30,
 					RetentionCount:  21,
 				},
+				UpgradeReadinessExports: DiagnosticsExportConfig{
+					Enabled:         true,
+					Directory:       "/var/lib/aegisnas/upgrade-readiness-exports",
+					Format:          "json",
+					IntervalMinutes: 120,
+					RetentionCount:  14,
+				},
 			},
 			Radius: RadiusConfig{
 				AuthPort:              1812,
@@ -1860,4 +1867,30 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badUpstreamAAARetention := base()
 	badUpstreamAAARetention.Telemetry.UpstreamAAAExports.RetentionCount = 0
 	assert.ErrorContains(t, badUpstreamAAARetention.Validate(), "telemetry.upstream_aaa_exports.enabled requires a positive telemetry.upstream_aaa_exports.retention_count")
+
+	badUpgradeReadinessFormat := base()
+	badUpgradeReadinessFormat.Telemetry.UpgradeReadinessExports.Format = "xml"
+	assert.ErrorContains(t, badUpgradeReadinessFormat.Validate(), `telemetry.upgrade_readiness_exports.format "xml" is invalid`)
+
+	badUpgradeReadinessDisabledTelemetry := base()
+	badUpgradeReadinessDisabledTelemetry.Telemetry.Enabled = false
+	badUpgradeReadinessDisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
+	badUpgradeReadinessDisabledTelemetry.Telemetry.AuditExports.Enabled = false
+	badUpgradeReadinessDisabledTelemetry.Telemetry.IntegrationExports.Enabled = false
+	badUpgradeReadinessDisabledTelemetry.Telemetry.HAExports.Enabled = false
+	badUpgradeReadinessDisabledTelemetry.Telemetry.NetworkExports.Enabled = false
+	badUpgradeReadinessDisabledTelemetry.Telemetry.UpstreamAAAExports.Enabled = false
+	assert.ErrorContains(t, badUpgradeReadinessDisabledTelemetry.Validate(), "telemetry.upgrade_readiness_exports.enabled requires telemetry.enabled")
+
+	badUpgradeReadinessDirectory := base()
+	badUpgradeReadinessDirectory.Telemetry.UpgradeReadinessExports.Directory = ""
+	assert.ErrorContains(t, badUpgradeReadinessDirectory.Validate(), "telemetry.upgrade_readiness_exports.enabled requires telemetry.upgrade_readiness_exports.directory")
+
+	badUpgradeReadinessInterval := base()
+	badUpgradeReadinessInterval.Telemetry.UpgradeReadinessExports.IntervalMinutes = 0
+	assert.ErrorContains(t, badUpgradeReadinessInterval.Validate(), "telemetry.upgrade_readiness_exports.enabled requires a positive telemetry.upgrade_readiness_exports.interval_minutes")
+
+	badUpgradeReadinessRetention := base()
+	badUpgradeReadinessRetention.Telemetry.UpgradeReadinessExports.RetentionCount = 0
+	assert.ErrorContains(t, badUpgradeReadinessRetention.Validate(), "telemetry.upgrade_readiness_exports.enabled requires a positive telemetry.upgrade_readiness_exports.retention_count")
 }

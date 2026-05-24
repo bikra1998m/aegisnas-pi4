@@ -92,6 +92,13 @@ When scheduled upstream AAA exports are enabled, the appliance also serves:
 /api/v1/system/upstream-aaa-exports/download?name=<artifact>
 ```
 
+When scheduled upgrade readiness exports are enabled, the appliance also serves:
+
+```text
+/api/v1/system/upgrade-readiness-exports
+/api/v1/system/upgrade-readiness-exports/download?name=<artifact>
+```
+
 Use this report when you want one payload that combines:
 
 - session and alert counts
@@ -143,6 +150,34 @@ From the admin UI:
 3. select `Refresh Report`
 4. download `JSON` or `CSV`
 5. review the scheduled export runtime and recent artifacts when recurring export is enabled
+
+## Upgrade Readiness Export Endpoints
+
+The appliance also serves live upgrade readiness at:
+
+```text
+/api/v1/system/upgrade-readiness
+```
+
+When recurring upgrade readiness export is enabled, operators can also use:
+
+```text
+/api/v1/system/upgrade-readiness-exports
+/api/v1/system/upgrade-readiness-exports/download?name=<artifact>
+```
+
+Use these when you want:
+
+- durable migration-rehearsal evidence for a maintenance window
+- a saved trail of config validation and schema checks
+- recurring readiness snapshots without manually rerunning the report
+
+From the admin UI:
+
+1. sign in
+2. open `Backups`
+3. review `Upgrade Readiness`
+4. review the scheduled upgrade readiness export runtime and artifacts when recurring export is enabled
 
 ## Integration History Endpoints
 

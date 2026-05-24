@@ -85,6 +85,9 @@ var runCmd = &cobra.Command{
 		if err := adminapi.StartUpstreamAAAExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start upstream aaa export scheduler: %w", err)
 		}
+		if err := adminapi.StartUpgradeReadinessExportScheduler(cfg, logger); err != nil {
+			return fmt.Errorf("start upgrade readiness export scheduler: %w", err)
+		}
 
 		r := chi.NewRouter()
 		r.Use(middleware.Logger)
@@ -174,6 +177,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/support-bundle/summary", adminapi.HandleGetSupportBundleSummary)
 			r.Get("/system/support-bundle", adminapi.HandleDownloadSupportBundle)
 			r.Get("/system/upgrade-readiness", adminapi.HandleGetUpgradeReadiness)
+			r.Get("/system/upgrade-readiness-exports", adminapi.HandleListUpgradeReadinessExports)
+			r.Get("/system/upgrade-readiness-exports/download", adminapi.HandleDownloadUpgradeReadinessExport)
 			r.Get("/system/upgrade-rollback-package", adminapi.HandleDownloadUpgradeRollbackPackage)
 			r.Post("/system/upgrade-rollback-package/inspect", adminapi.HandleInspectUpgradeRollbackPackage)
 			r.Post("/system/upgrade-rollback-package/restore", adminapi.HandleRestoreUpgradeRollbackPackage)

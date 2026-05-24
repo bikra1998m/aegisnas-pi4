@@ -276,6 +276,13 @@ const defaultSettings: JsonMap = {
       interval_minutes: 60,
       retention_count: 21,
     },
+    upgrade_readiness_exports: {
+      enabled: false,
+      directory: '/var/lib/aegisnas/upgrade-readiness-exports',
+      format: 'json',
+      interval_minutes: 240,
+      retention_count: 14,
+    },
   },
   ailite: {
     enabled: true,
@@ -2617,6 +2624,38 @@ export default function AccessSettings() {
             type="number"
             value={settings.telemetry?.upstream_aaa_exports?.retention_count || 21}
             onChange={(value) => updateField(['telemetry', 'upstream_aaa_exports', 'retention_count'], Number(value))}
+          />
+          <ToggleField
+            label="Scheduled Upgrade Readiness Exports"
+            checked={Boolean(settings.telemetry?.upgrade_readiness_exports?.enabled)}
+            onChange={(value) => updateField(['telemetry', 'upgrade_readiness_exports', 'enabled'], value)}
+          />
+          <TextField
+            label="Upgrade Readiness Export Directory"
+            value={settings.telemetry?.upgrade_readiness_exports?.directory || '/var/lib/aegisnas/upgrade-readiness-exports'}
+            onChange={(value) => updateField(['telemetry', 'upgrade_readiness_exports', 'directory'], value)}
+          />
+          <SelectField
+            label="Upgrade Readiness Export Format"
+            value={settings.telemetry?.upgrade_readiness_exports?.format || 'json'}
+            onChange={(value) => updateField(['telemetry', 'upgrade_readiness_exports', 'format'], value)}
+            options={[
+              { value: 'json', label: 'JSON' },
+              { value: 'csv', label: 'CSV' },
+              { value: 'both', label: 'JSON + CSV' },
+            ]}
+          />
+          <TextField
+            label="Upgrade Readiness Export Interval Minutes"
+            type="number"
+            value={settings.telemetry?.upgrade_readiness_exports?.interval_minutes || 240}
+            onChange={(value) => updateField(['telemetry', 'upgrade_readiness_exports', 'interval_minutes'], Number(value))}
+          />
+          <TextField
+            label="Upgrade Readiness Export Retention"
+            type="number"
+            value={settings.telemetry?.upgrade_readiness_exports?.retention_count || 14}
+            onChange={(value) => updateField(['telemetry', 'upgrade_readiness_exports', 'retention_count'], Number(value))}
           />
           <TextField
             label="Recommendation Limit"

@@ -78,6 +78,29 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/upgrade-readiness", "get", securedOperation("Assess upgrade readiness", "Upgrade", []string{"ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Upgrade readiness report with migration rehearsal details."),
 	}))
+	addOperation(paths, "/api/v1/system/upgrade-readiness-exports", "get", securedOperation("List scheduled upgrade readiness exports", "Upgrade", []string{"ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled upgrade readiness export runtime status and recent artifact list."),
+	}))
+	addOperation(paths, "/api/v1/system/upgrade-readiness-exports/download", "get", securedOperationWithParameters("Download scheduled upgrade readiness export", "Upgrade", []string{"ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "Upgrade readiness export artifact filename.", true),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Scheduled upgrade readiness export artifact in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/upgrade-rollback-package", "get", securedOperation("Download upgrade rollback package", "Upgrade", []string{"ops_admin", "super_admin"}, map[string]any{
 		"200": responseBinary("application/zip", "Version-aware rollback package containing config and SQLite snapshot."),
 	}))
