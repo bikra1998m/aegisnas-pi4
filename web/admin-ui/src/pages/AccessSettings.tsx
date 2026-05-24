@@ -234,6 +234,12 @@ const defaultSettings: JsonMap = {
     enabled: true,
     prometheus_port: 9090,
     lease_history_poll_seconds: 300,
+    support_bundle_exports: {
+      enabled: false,
+      directory: '/var/lib/aegisnas/support-bundles',
+      interval_minutes: 360,
+      retention_count: 7,
+    },
     diagnostics_exports: {
       enabled: false,
       directory: '/var/lib/aegisnas/diagnostics',
@@ -2432,6 +2438,28 @@ export default function AccessSettings() {
             type="number"
             value={settings.telemetry?.lease_history_poll_seconds || 300}
             onChange={(value) => updateField(['telemetry', 'lease_history_poll_seconds'], Number(value))}
+          />
+          <ToggleField
+            label="Scheduled Support Bundle Exports"
+            checked={Boolean(settings.telemetry?.support_bundle_exports?.enabled)}
+            onChange={(value) => updateField(['telemetry', 'support_bundle_exports', 'enabled'], value)}
+          />
+          <TextField
+            label="Support Bundle Export Directory"
+            value={settings.telemetry?.support_bundle_exports?.directory || '/var/lib/aegisnas/support-bundles'}
+            onChange={(value) => updateField(['telemetry', 'support_bundle_exports', 'directory'], value)}
+          />
+          <TextField
+            label="Support Bundle Export Interval Minutes"
+            type="number"
+            value={settings.telemetry?.support_bundle_exports?.interval_minutes || 360}
+            onChange={(value) => updateField(['telemetry', 'support_bundle_exports', 'interval_minutes'], Number(value))}
+          />
+          <TextField
+            label="Support Bundle Export Retention"
+            type="number"
+            value={settings.telemetry?.support_bundle_exports?.retention_count || 7}
+            onChange={(value) => updateField(['telemetry', 'support_bundle_exports', 'retention_count'], Number(value))}
           />
           <ToggleField
             label="Scheduled Diagnostics Exports"

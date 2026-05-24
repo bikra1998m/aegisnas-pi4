@@ -284,16 +284,24 @@ type PolicyConfig struct {
 }
 
 type TelemetryConfig struct {
-	Enabled                 bool                    `mapstructure:"enabled"`
-	PrometheusPort          int                     `mapstructure:"prometheus_port"`
-	LeaseHistoryPollSeconds int                     `mapstructure:"lease_history_poll_seconds"`
-	DiagnosticsExports      DiagnosticsExportConfig `mapstructure:"diagnostics_exports"`
-	AuditExports            DiagnosticsExportConfig `mapstructure:"audit_exports"`
-	IntegrationExports      DiagnosticsExportConfig `mapstructure:"integration_exports"`
-	HAExports               DiagnosticsExportConfig `mapstructure:"ha_exports"`
-	NetworkExports          DiagnosticsExportConfig `mapstructure:"network_exports"`
-	UpstreamAAAExports      DiagnosticsExportConfig `mapstructure:"upstream_aaa_exports"`
-	UpgradeReadinessExports DiagnosticsExportConfig `mapstructure:"upgrade_readiness_exports"`
+	Enabled                 bool                      `mapstructure:"enabled"`
+	PrometheusPort          int                       `mapstructure:"prometheus_port"`
+	LeaseHistoryPollSeconds int                       `mapstructure:"lease_history_poll_seconds"`
+	SupportBundleExports    SupportBundleExportConfig `mapstructure:"support_bundle_exports"`
+	DiagnosticsExports      DiagnosticsExportConfig   `mapstructure:"diagnostics_exports"`
+	AuditExports            DiagnosticsExportConfig   `mapstructure:"audit_exports"`
+	IntegrationExports      DiagnosticsExportConfig   `mapstructure:"integration_exports"`
+	HAExports               DiagnosticsExportConfig   `mapstructure:"ha_exports"`
+	NetworkExports          DiagnosticsExportConfig   `mapstructure:"network_exports"`
+	UpstreamAAAExports      DiagnosticsExportConfig   `mapstructure:"upstream_aaa_exports"`
+	UpgradeReadinessExports DiagnosticsExportConfig   `mapstructure:"upgrade_readiness_exports"`
+}
+
+type SupportBundleExportConfig struct {
+	Enabled         bool   `mapstructure:"enabled"`
+	Directory       string `mapstructure:"directory"`
+	IntervalMinutes int    `mapstructure:"interval_minutes"`
+	RetentionCount  int    `mapstructure:"retention_count"`
 }
 
 type DiagnosticsExportConfig struct {
@@ -1053,6 +1061,12 @@ func (c *Config) Validate() error {
 	if c.Telemetry.LeaseHistoryPollSeconds < 0 {
 		return fmt.Errorf("telemetry.lease_history_poll_seconds %d out of range", c.Telemetry.LeaseHistoryPollSeconds)
 	}
+	if c.Telemetry.SupportBundleExports.IntervalMinutes < 0 {
+		return fmt.Errorf("telemetry.support_bundle_exports.interval_minutes %d out of range", c.Telemetry.SupportBundleExports.IntervalMinutes)
+	}
+	if c.Telemetry.SupportBundleExports.RetentionCount < 0 {
+		return fmt.Errorf("telemetry.support_bundle_exports.retention_count %d out of range", c.Telemetry.SupportBundleExports.RetentionCount)
+	}
 	switch strings.ToLower(strings.TrimSpace(c.Telemetry.DiagnosticsExports.Format)) {
 	case "", "json", "csv", "both":
 	default:
@@ -1129,6 +1143,20 @@ func (c *Config) Validate() error {
 	}
 	if c.Telemetry.UpgradeReadinessExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.upgrade_readiness_exports.retention_count %d out of range", c.Telemetry.UpgradeReadinessExports.RetentionCount)
+	}
+	if c.Telemetry.SupportBundleExports.Enabled {
+		if !c.Telemetry.Enabled {
+			return errors.New("telemetry.support_bundle_exports.enabled requires telemetry.enabled")
+		}
+		if strings.TrimSpace(c.Telemetry.SupportBundleExports.Directory) == "" {
+			return errors.New("telemetry.support_bundle_exports.enabled requires telemetry.support_bundle_exports.directory")
+		}
+		if c.Telemetry.SupportBundleExports.IntervalMinutes <= 0 {
+			return errors.New("telemetry.support_bundle_exports.enabled requires a positive telemetry.support_bundle_exports.interval_minutes")
+		}
+		if c.Telemetry.SupportBundleExports.RetentionCount <= 0 {
+			return errors.New("telemetry.support_bundle_exports.enabled requires a positive telemetry.support_bundle_exports.retention_count")
+		}
 	}
 	if c.Telemetry.DiagnosticsExports.Enabled {
 		if !c.Telemetry.Enabled {

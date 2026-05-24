@@ -200,6 +200,11 @@ telemetry:
   enabled: true
   prometheus_port: 9090
   lease_history_poll_seconds: 300
+  support_bundle_exports:
+    enabled: false
+    directory: /var/lib/aegisnas/support-bundles
+    interval_minutes: 360
+    retention_count: 7
   diagnostics_exports:
     enabled: false
     directory: /var/lib/aegisnas/diagnostics

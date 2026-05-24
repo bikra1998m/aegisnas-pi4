@@ -35,6 +35,17 @@ Or from the admin UI:
 2. open `Backups`
 3. select `Download OpenAPI JSON`
 
+## Support Bundle Endpoints
+
+The appliance also serves support bundle preview and live bundle download at:
+
+```text
+/api/v1/system/support-bundle/summary
+/api/v1/system/support-bundle
+```
+
+Use these when you want a redacted ZIP with runtime status, history, diagnostics, OpenAPI, and upgrade context in one operator bundle.
+
 ## Diagnostics Report Endpoints
 
 The appliance also serves a cross-domain diagnostics snapshot at:
@@ -55,6 +66,13 @@ When scheduled diagnostics exports are enabled, the appliance also serves:
 ```text
 /api/v1/system/diagnostics-exports
 /api/v1/system/diagnostics-exports/download?name=<artifact>
+```
+
+When scheduled support bundle exports are enabled, the appliance also serves:
+
+```text
+/api/v1/system/support-bundle-exports
+/api/v1/system/support-bundle-exports/download?name=<artifact>
 ```
 
 When scheduled audit exports are enabled, the appliance also serves:

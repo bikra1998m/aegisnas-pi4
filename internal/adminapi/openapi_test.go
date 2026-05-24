@@ -62,6 +62,12 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "Download scheduled diagnostics export", scheduledDiagnosticsGet["summary"])
 
+	scheduledSupportBundlePath, ok := paths["/api/v1/system/support-bundle-exports/download"].(map[string]any)
+	require.True(t, ok)
+	scheduledSupportBundleGet, ok := scheduledSupportBundlePath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Download scheduled support bundle export", scheduledSupportBundleGet["summary"])
+
 	integrationHistoryPath, ok := paths["/api/v1/system/integration-history/export"].(map[string]any)
 	require.True(t, ok)
 	integrationHistoryGet, ok := integrationHistoryPath["get"].(map[string]any)

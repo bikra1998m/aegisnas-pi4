@@ -75,6 +75,14 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/support-bundle", "get", securedOperation("Download support bundle", "System", []string{"ops_admin", "super_admin"}, map[string]any{
 		"200": responseBinary("application/zip", "Support bundle zip with redacted settings and diagnostics."),
 	}))
+	addOperation(paths, "/api/v1/system/support-bundle-exports", "get", securedOperation("List scheduled support bundle exports", "System", []string{"ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled support bundle export runtime status and recent artifact list."),
+	}))
+	addOperation(paths, "/api/v1/system/support-bundle-exports/download", "get", securedOperationWithParameters("Download scheduled support bundle export", "System", []string{"ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "Support bundle export artifact filename.", true),
+	}, map[string]any{
+		"200": responseBinary("application/zip", "Scheduled support bundle export zip artifact."),
+	}))
 	addOperation(paths, "/api/v1/system/upgrade-readiness", "get", securedOperation("Assess upgrade readiness", "Upgrade", []string{"ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Upgrade readiness report with migration rehearsal details."),
 	}))

@@ -88,6 +88,9 @@ var runCmd = &cobra.Command{
 		if err := adminapi.StartUpgradeReadinessExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start upgrade readiness export scheduler: %w", err)
 		}
+		if err := adminapi.StartSupportBundleExportScheduler(cfg, logger); err != nil {
+			return fmt.Errorf("start support bundle export scheduler: %w", err)
+		}
 
 		r := chi.NewRouter()
 		r.Use(middleware.Logger)
@@ -176,6 +179,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/diagnostics-exports/download", adminapi.HandleDownloadDiagnosticsExport)
 			r.Get("/system/support-bundle/summary", adminapi.HandleGetSupportBundleSummary)
 			r.Get("/system/support-bundle", adminapi.HandleDownloadSupportBundle)
+			r.Get("/system/support-bundle-exports", adminapi.HandleListSupportBundleExports)
+			r.Get("/system/support-bundle-exports/download", adminapi.HandleDownloadSupportBundleExport)
 			r.Get("/system/upgrade-readiness", adminapi.HandleGetUpgradeReadiness)
 			r.Get("/system/upgrade-readiness-exports", adminapi.HandleListUpgradeReadinessExports)
 			r.Get("/system/upgrade-readiness-exports/download", adminapi.HandleDownloadUpgradeReadinessExport)

@@ -1672,6 +1672,12 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 				Enabled:                 true,
 				PrometheusPort:          9090,
 				LeaseHistoryPollSeconds: 300,
+				SupportBundleExports: SupportBundleExportConfig{
+					Enabled:         true,
+					Directory:       "/var/lib/aegisnas/support-bundles",
+					IntervalMinutes: 360,
+					RetentionCount:  7,
+				},
 				DiagnosticsExports: DiagnosticsExportConfig{
 					Enabled:         true,
 					Directory:       "/var/lib/aegisnas/diagnostics",
@@ -1733,12 +1739,29 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	valid := base()
 	assert.NoError(t, valid.Validate())
 
+	badSupportBundleDisabledTelemetry := base()
+	badSupportBundleDisabledTelemetry.Telemetry.Enabled = false
+	assert.ErrorContains(t, badSupportBundleDisabledTelemetry.Validate(), "telemetry.support_bundle_exports.enabled requires telemetry.enabled")
+
+	badSupportBundleDirectory := base()
+	badSupportBundleDirectory.Telemetry.SupportBundleExports.Directory = ""
+	assert.ErrorContains(t, badSupportBundleDirectory.Validate(), "telemetry.support_bundle_exports.enabled requires telemetry.support_bundle_exports.directory")
+
+	badSupportBundleInterval := base()
+	badSupportBundleInterval.Telemetry.SupportBundleExports.IntervalMinutes = 0
+	assert.ErrorContains(t, badSupportBundleInterval.Validate(), "telemetry.support_bundle_exports.enabled requires a positive telemetry.support_bundle_exports.interval_minutes")
+
+	badSupportBundleRetention := base()
+	badSupportBundleRetention.Telemetry.SupportBundleExports.RetentionCount = 0
+	assert.ErrorContains(t, badSupportBundleRetention.Validate(), "telemetry.support_bundle_exports.enabled requires a positive telemetry.support_bundle_exports.retention_count")
+
 	badFormat := base()
 	badFormat.Telemetry.DiagnosticsExports.Format = "xml"
 	assert.ErrorContains(t, badFormat.Validate(), `telemetry.diagnostics_exports.format "xml" is invalid`)
 
 	badDisabledTelemetry := base()
 	badDisabledTelemetry.Telemetry.Enabled = false
+	badDisabledTelemetry.Telemetry.SupportBundleExports.Enabled = false
 	assert.ErrorContains(t, badDisabledTelemetry.Validate(), "telemetry.diagnostics_exports.enabled requires telemetry.enabled")
 
 	badDirectory := base()
@@ -1759,6 +1782,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 
 	badAuditDisabledTelemetry := base()
 	badAuditDisabledTelemetry.Telemetry.Enabled = false
+	badAuditDisabledTelemetry.Telemetry.SupportBundleExports.Enabled = false
 	badAuditDisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
 	assert.ErrorContains(t, badAuditDisabledTelemetry.Validate(), "telemetry.audit_exports.enabled requires telemetry.enabled")
 
@@ -1780,6 +1804,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 
 	badIntegrationDisabledTelemetry := base()
 	badIntegrationDisabledTelemetry.Telemetry.Enabled = false
+	badIntegrationDisabledTelemetry.Telemetry.SupportBundleExports.Enabled = false
 	badIntegrationDisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
 	badIntegrationDisabledTelemetry.Telemetry.AuditExports.Enabled = false
 	assert.ErrorContains(t, badIntegrationDisabledTelemetry.Validate(), "telemetry.integration_exports.enabled requires telemetry.enabled")
@@ -1802,6 +1827,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 
 	badHADisabledTelemetry := base()
 	badHADisabledTelemetry.Telemetry.Enabled = false
+	badHADisabledTelemetry.Telemetry.SupportBundleExports.Enabled = false
 	badHADisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
 	badHADisabledTelemetry.Telemetry.AuditExports.Enabled = false
 	badHADisabledTelemetry.Telemetry.IntegrationExports.Enabled = false
@@ -1825,6 +1851,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 
 	badNetworkDisabledTelemetry := base()
 	badNetworkDisabledTelemetry.Telemetry.Enabled = false
+	badNetworkDisabledTelemetry.Telemetry.SupportBundleExports.Enabled = false
 	badNetworkDisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
 	badNetworkDisabledTelemetry.Telemetry.AuditExports.Enabled = false
 	badNetworkDisabledTelemetry.Telemetry.IntegrationExports.Enabled = false
@@ -1849,6 +1876,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 
 	badUpstreamAAADisabledTelemetry := base()
 	badUpstreamAAADisabledTelemetry.Telemetry.Enabled = false
+	badUpstreamAAADisabledTelemetry.Telemetry.SupportBundleExports.Enabled = false
 	badUpstreamAAADisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
 	badUpstreamAAADisabledTelemetry.Telemetry.AuditExports.Enabled = false
 	badUpstreamAAADisabledTelemetry.Telemetry.IntegrationExports.Enabled = false
@@ -1874,6 +1902,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 
 	badUpgradeReadinessDisabledTelemetry := base()
 	badUpgradeReadinessDisabledTelemetry.Telemetry.Enabled = false
+	badUpgradeReadinessDisabledTelemetry.Telemetry.SupportBundleExports.Enabled = false
 	badUpgradeReadinessDisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
 	badUpgradeReadinessDisabledTelemetry.Telemetry.AuditExports.Enabled = false
 	badUpgradeReadinessDisabledTelemetry.Telemetry.IntegrationExports.Enabled = false

@@ -125,6 +125,8 @@ For the live admin API contract, OpenAPI download path, and role-hint guidance, 
 
 For one-shot cross-domain operational snapshots that combine network, HA, upgrade, and integration state, use the diagnostics report from `Backups` or `GET /api/v1/system/diagnostics-report`.
 
+For recurring redacted troubleshooting bundles without waiting for a manual click during an incident, enable scheduled support bundle exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/support-bundle-exports`.
+
 For recurring report capture without manual operator action, enable scheduled diagnostics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/diagnostics-exports`.
 
 For durable controller, MDM sync, and posture automation history, use `Backups` or `GET /api/v1/system/integration-history`.

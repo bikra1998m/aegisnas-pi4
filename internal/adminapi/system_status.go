@@ -277,6 +277,13 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"enabled":                    cfg.Telemetry.Enabled,
 		"prometheus_port":            cfg.Telemetry.PrometheusPort,
 		"lease_history_poll_seconds": cfg.Telemetry.LeaseHistoryPollSeconds,
+		"support_bundle_exports": map[string]any{
+			"enabled":          cfg.Telemetry.SupportBundleExports.Enabled,
+			"directory":        cfg.Telemetry.SupportBundleExports.Directory,
+			"interval_minutes": cfg.Telemetry.SupportBundleExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.SupportBundleExports.RetentionCount,
+			"runtime":          runtimeMap[supportBundleExportsComponent],
+		},
 		"diagnostics_exports": map[string]any{
 			"enabled":          cfg.Telemetry.DiagnosticsExports.Enabled,
 			"directory":        cfg.Telemetry.DiagnosticsExports.Directory,
@@ -335,6 +342,13 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	if !cfg.Telemetry.Enabled {
+		telemetryStatus["support_bundle_exports"] = map[string]any{
+			"enabled":          cfg.Telemetry.SupportBundleExports.Enabled,
+			"directory":        cfg.Telemetry.SupportBundleExports.Directory,
+			"interval_minutes": cfg.Telemetry.SupportBundleExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.SupportBundleExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled support bundle exports are not running."},
+		}
 		telemetryStatus["diagnostics_exports"] = map[string]any{
 			"enabled":          cfg.Telemetry.DiagnosticsExports.Enabled,
 			"directory":        cfg.Telemetry.DiagnosticsExports.Directory,
@@ -399,6 +413,15 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.DiagnosticsExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.DiagnosticsExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled diagnostics exports are disabled in config."},
+		}
+	}
+	if cfg.Telemetry.Enabled && !cfg.Telemetry.SupportBundleExports.Enabled {
+		telemetryStatus["support_bundle_exports"] = map[string]any{
+			"enabled":          false,
+			"directory":        cfg.Telemetry.SupportBundleExports.Directory,
+			"interval_minutes": cfg.Telemetry.SupportBundleExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.SupportBundleExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled support bundle exports are disabled in config."},
 		}
 	}
 	if cfg.Telemetry.Enabled && !cfg.Telemetry.AuditExports.Enabled {
