@@ -92,7 +92,41 @@ Use this report when you want one payload that combines:
 - HA role and failover counters
 - upgrade-readiness results
 - integration and runtime status snapshots
-- controller, MDM sync, and posture history counters
+- controller, MDM sync, posture, and upstream AAA history counters
+
+## Upstream AAA History Endpoints
+
+The appliance also keeps durable upstream AAA probe history at:
+
+```text
+/api/v1/system/upstream-aaa-history
+```
+
+And export variants at:
+
+```text
+/api/v1/system/upstream-aaa-history/export?format=json
+/api/v1/system/upstream-aaa-history/export?format=csv
+```
+
+Optional query parameters:
+
+- `server=<home-server-name>`
+- `status=ok|degraded|down|disabled`
+- `limit=<n>`
+
+Use this history when you want:
+
+- a durable timeline for upstream RADIUS probe health
+- exportable evidence for fail-over, reject, and timeout investigation
+- a way to compare live dashboard state with recent probe outcomes
+
+From the admin UI:
+
+1. sign in
+2. open `Backups`
+3. review `Upstream AAA History`
+4. export `JSON` or `CSV` when you need a handoff-ready timeline
 
 From the admin UI:
 

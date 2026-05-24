@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 9
+	return 10
 }
 
 func Migrate() error {
@@ -427,4 +427,25 @@ CREATE TABLE IF NOT EXISTS integration_history (
 
 CREATE INDEX IF NOT EXISTS idx_integration_history_created_at ON integration_history(created_at);
 CREATE INDEX IF NOT EXISTS idx_integration_history_component ON integration_history(component);
+`
+
+const schemaV10 = `
+CREATE TABLE IF NOT EXISTS upstream_aaa_history (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	server_name TEXT,
+	address TEXT,
+	auth_port INTEGER,
+	acct_port INTEGER,
+	status TEXT NOT NULL,
+	message TEXT,
+	response_code TEXT,
+	latency_ms INTEGER DEFAULT 0,
+	supports_status_server BOOLEAN DEFAULT 0,
+	checked_at DATETIME NOT NULL,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_upstream_aaa_history_checked_at ON upstream_aaa_history(checked_at);
+CREATE INDEX IF NOT EXISTS idx_upstream_aaa_history_server_name ON upstream_aaa_history(server_name);
+CREATE INDEX IF NOT EXISTS idx_upstream_aaa_history_status ON upstream_aaa_history(status);
 `

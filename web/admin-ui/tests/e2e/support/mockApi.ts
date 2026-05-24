@@ -1129,6 +1129,64 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
+    if (path === '/system/upstream-aaa-history' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          history: [
+            {
+              id: 1,
+              server_name: 'upstream-1',
+              address: '10.0.0.20',
+              auth_port: 1812,
+              acct_port: 1813,
+              status: 'ok',
+              message: 'Healthy',
+              response_code: 'Access-Accept',
+              latency_ms: 12,
+              supports_status_server: true,
+              checked_at: '2026-05-05T11:59:30Z',
+              created_at: '2026-05-05T11:59:30Z',
+            },
+            {
+              id: 2,
+              server_name: 'upstream-2',
+              address: '10.0.0.21',
+              auth_port: 1812,
+              acct_port: 1813,
+              status: 'degraded',
+              message: 'Unexpected reject response',
+              response_code: 'Access-Reject',
+              latency_ms: 21,
+              supports_status_server: true,
+              checked_at: '2026-05-05T11:57:30Z',
+              created_at: '2026-05-05T11:57:30Z',
+            },
+          ],
+          count: 2,
+          server: url.searchParams.get('server') || '',
+          status: url.searchParams.get('status') || '',
+          generated_at: '2026-05-05T12:00:00Z',
+          stats: {
+            total_records: 2,
+            ok_count: 1,
+            degraded_count: 1,
+            down_count: 0,
+            disabled_count: 0,
+            avg_latency_ms: 17,
+            last_checked_at: '2026-05-05T11:59:30Z',
+          },
+        },
+      });
+      return;
+    }
+    if (path === '/system/upstream-aaa-history/export' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/csv; charset=utf-8' },
+        body: 'id,checked_at,created_at,server_name,address,auth_port,acct_port,status,message,response_code,latency_ms,supports_status_server\n1,2026-05-05T11:59:30Z,2026-05-05T11:59:30Z,upstream-1,10.0.0.20,1812,1813,ok,Healthy,Access-Accept,12,true\n',
+      });
+      return;
+    }
     if (path === '/system/audit-history' && method === 'GET') {
       await route.fulfill({
         json: {

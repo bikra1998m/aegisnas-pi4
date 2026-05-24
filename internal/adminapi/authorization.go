@@ -133,6 +133,10 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/dhcp-lease-history/export"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/upstream-aaa-history/export"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/upstream-aaa-history"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/audit-history/export"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/audit-history"):

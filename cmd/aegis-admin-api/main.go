@@ -145,6 +145,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/dhcp-leases", adminapi.HandleListDHCPLeases)
 			r.Get("/system/dhcp-lease-history", adminapi.HandleListDHCPLeaseHistory)
 			r.Get("/system/dhcp-lease-history/export", adminapi.HandleExportDHCPLeaseHistory)
+			r.Get("/system/upstream-aaa-history", adminapi.HandleListUpstreamAAAHistory)
+			r.Get("/system/upstream-aaa-history/export", adminapi.HandleExportUpstreamAAAHistory)
 			r.Get("/system/audit-history", adminapi.HandleListAuditHistory)
 			r.Get("/system/audit-history/export", adminapi.HandleExportAuditHistory)
 			r.Get("/system/audit-exports", adminapi.HandleListAuditExports)

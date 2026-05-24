@@ -112,6 +112,35 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/dhcp-lease-history/export", "get", securedOperation("Export DHCP lease history", "Network", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseBinary("text/csv", "DHCP lease history export."),
 	}))
+	addOperation(paths, "/api/v1/system/upstream-aaa-history", "get", securedOperationWithParameters("List upstream AAA probe history", "AAA", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("server", "Optional exact upstream server name filter.", false),
+		queryStringParameter("status", "Optional status filter such as ok, degraded, down, or disabled.", false),
+		queryStringParameter("limit", "Optional record limit. Defaults to 200 and caps at 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("Durable upstream AAA probe history with aggregate status counters."),
+	}))
+	addOperation(paths, "/api/v1/system/upstream-aaa-history/export", "get", securedOperationWithParameters("Export upstream AAA probe history", "AAA", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("format", "Optional export format. Defaults to csv.", []string{"json", "csv"}, false),
+		queryStringParameter("server", "Optional exact upstream server name filter.", false),
+		queryStringParameter("status", "Optional status filter such as ok, degraded, down, or disabled.", false),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Upstream AAA probe history export in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/audit-history", "get", securedOperationWithParameters("List audit history", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("user", "Optional exact user filter.", false),
 		queryStringParameter("action_prefix", "Optional action prefix filter such as download_ or guest_.", false),

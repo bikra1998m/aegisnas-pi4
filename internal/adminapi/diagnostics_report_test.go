@@ -135,6 +135,7 @@ func TestHandleExportDiagnosticsReportCSV(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "audit_total_records")
 	assert.Contains(t, rec.Body.String(), "upgrade_target_schema")
 	assert.Contains(t, rec.Body.String(), "upstream_aaa_primary")
+	assert.Contains(t, rec.Body.String(), "upstream_aaa_history_total_records")
 	assert.Contains(t, rec.Body.String(), "integration_history_total_records")
 }
 

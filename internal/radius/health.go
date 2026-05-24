@@ -79,19 +79,19 @@ func probeUpstreamServer(ctx context.Context, cfg *config.Config, server config.
 	if !cfg.Radius.Upstream.Enabled {
 		status.Status = "disabled"
 		status.Message = "Upstream AAA is disabled"
-		_ = db.UpsertRuntimeStatus(component, status.Status, status.Message, runtimeStatusDetails(status))
+		persistUpstreamProbeStatus(component, status)
 		return status
 	}
 	if !status.SupportsStatusServer {
 		status.Status = "disabled"
 		status.Message = "Per-server probing is disabled because radius.upstream.status_check is none"
-		_ = db.UpsertRuntimeStatus(component, status.Status, status.Message, runtimeStatusDetails(status))
+		persistUpstreamProbeStatus(component, status)
 		return status
 	}
 	if status.Address == "" {
 		status.Status = "down"
 		status.Message = "Upstream server address is empty"
-		_ = db.UpsertRuntimeStatus(component, status.Status, status.Message, runtimeStatusDetails(status))
+		persistUpstreamProbeStatus(component, status)
 		return status
 	}
 
@@ -103,27 +103,27 @@ func probeUpstreamServer(ctx context.Context, cfg *config.Config, server config.
 	if err := rfc2865.NASIdentifier_SetString(request, cfg.Radius.NASIdentifier); err != nil {
 		status.Status = "unknown"
 		status.Message = err.Error()
-		_ = db.UpsertRuntimeStatus(component, status.Status, status.Message, runtimeStatusDetails(status))
+		persistUpstreamProbeStatus(component, status)
 		return status
 	}
 	if err := rfc2865.ServiceType_Set(request, rfc2865.ServiceType_Value_AuthenticateOnly); err != nil {
 		status.Status = "unknown"
 		status.Message = err.Error()
-		_ = db.UpsertRuntimeStatus(component, status.Status, status.Message, runtimeStatusDetails(status))
+		persistUpstreamProbeStatus(component, status)
 		return status
 	}
 	if nasIP := resolveNASIP(cfg); nasIP != nil {
 		if err := rfc2865.NASIPAddress_Set(request, nasIP); err != nil {
 			status.Status = "unknown"
 			status.Message = err.Error()
-			_ = db.UpsertRuntimeStatus(component, status.Status, status.Message, runtimeStatusDetails(status))
+			persistUpstreamProbeStatus(component, status)
 			return status
 		}
 	}
 	if err := setMessageAuthenticator(request); err != nil {
 		status.Status = "unknown"
 		status.Message = err.Error()
-		_ = db.UpsertRuntimeStatus(component, status.Status, status.Message, runtimeStatusDetails(status))
+		persistUpstreamProbeStatus(component, status)
 		return status
 	}
 
@@ -137,7 +137,7 @@ func probeUpstreamServer(ctx context.Context, cfg *config.Config, server config.
 	if err != nil {
 		status.Status = "down"
 		status.Message = err.Error()
-		_ = db.UpsertRuntimeStatus(component, status.Status, status.Message, runtimeStatusDetails(status))
+		persistUpstreamProbeStatus(component, status)
 		return status
 	}
 
@@ -156,7 +156,7 @@ func probeUpstreamServer(ctx context.Context, cfg *config.Config, server config.
 		status.Status = "degraded"
 	}
 	status.Message = replyMessage
-	_ = db.UpsertRuntimeStatus(component, status.Status, status.Message, runtimeStatusDetails(status))
+	persistUpstreamProbeStatus(component, status)
 	return status
 }
 
@@ -241,4 +241,20 @@ func runtimeStatusDetails(status UpstreamServerHealth) map[string]any {
 		"checked_at":             status.CheckedAt,
 		"supports_status_server": status.SupportsStatusServer,
 	}
+}
+
+func persistUpstreamProbeStatus(component string, status UpstreamServerHealth) {
+	_ = db.UpsertRuntimeStatus(component, status.Status, status.Message, runtimeStatusDetails(status))
+	_ = db.RecordUpstreamAAAHistory(
+		status.Name,
+		status.Address,
+		status.AuthPort,
+		status.AcctPort,
+		status.Status,
+		status.Message,
+		status.ResponseCode,
+		status.LatencyMs,
+		status.SupportsStatusServer,
+		status.CheckedAt,
+	)
 }

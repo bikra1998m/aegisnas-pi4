@@ -109,6 +109,31 @@ type IntegrationHistoryStats = {
   last_event_at?: string;
 };
 
+type UpstreamAAAHistoryRecord = {
+  id: number;
+  server_name: string;
+  address: string;
+  auth_port: number;
+  acct_port: number;
+  status: string;
+  message: string;
+  response_code?: string;
+  latency_ms: number;
+  supports_status_server: boolean;
+  checked_at: string;
+  created_at: string;
+};
+
+type UpstreamAAAHistoryStats = {
+  total_records: number;
+  ok_count: number;
+  degraded_count: number;
+  down_count: number;
+  disabled_count: number;
+  avg_latency_ms: number;
+  last_checked_at?: string;
+};
+
 type AuditHistoryRecord = {
   id: number;
   timestamp: string;
@@ -295,6 +320,7 @@ type DiagnosticsReport = {
     posture_checks?: RuntimeStatusView;
     history_stats?: IntegrationHistoryStats;
     upstream_aaa?: UpstreamAAAHealth[];
+    upstream_aaa_history?: UpstreamAAAHistoryStats;
     upstream_aaa_probe_error?: string;
   };
   runtime_statuses: RuntimeStatusView[];
@@ -396,6 +422,8 @@ export default function Backups() {
   const [auditHistoryStats, setAuditHistoryStats] = useState<AuditHistoryStats | null>(null);
   const [integrationHistory, setIntegrationHistory] = useState<IntegrationHistoryRecord[]>([]);
   const [integrationHistoryStats, setIntegrationHistoryStats] = useState<IntegrationHistoryStats | null>(null);
+  const [upstreamAAAHistory, setUpstreamAAAHistory] = useState<UpstreamAAAHistoryRecord[]>([]);
+  const [upstreamAAAHistoryStats, setUpstreamAAAHistoryStats] = useState<UpstreamAAAHistoryStats | null>(null);
   const [diagnosticsReport, setDiagnosticsReport] = useState<DiagnosticsReport | null>(null);
   const [diagnosticsExportRuntime, setDiagnosticsExportRuntime] = useState<DiagnosticsExportRuntime | null>(null);
   const [diagnosticsExportArtifacts, setDiagnosticsExportArtifacts] = useState<DiagnosticsExportArtifact[]>([]);
@@ -415,6 +443,7 @@ export default function Backups() {
   const [loadingHAHistory, setLoadingHAHistory] = useState(true);
   const [loadingAuditHistory, setLoadingAuditHistory] = useState(true);
   const [loadingIntegrationHistory, setLoadingIntegrationHistory] = useState(true);
+  const [loadingUpstreamAAAHistory, setLoadingUpstreamAAAHistory] = useState(true);
   const [loadingDiagnosticsReport, setLoadingDiagnosticsReport] = useState(false);
   const [loadingDiagnosticsExports, setLoadingDiagnosticsExports] = useState(false);
   const [loadingAuditExports, setLoadingAuditExports] = useState(false);
@@ -481,6 +510,26 @@ export default function Backups() {
       setError(err.response?.data || err.message || 'Could not load integration history.');
     } finally {
       setLoadingIntegrationHistory(false);
+    }
+  };
+
+  const loadUpstreamAAAHistory = async (announce = false) => {
+    if (announce) {
+      setError('');
+      setMessage('');
+    }
+    setLoadingUpstreamAAAHistory(true);
+    try {
+      const { data } = await api.get('/system/upstream-aaa-history');
+      setUpstreamAAAHistory(data.history || []);
+      setUpstreamAAAHistoryStats(data.stats || null);
+      if (announce) {
+        setMessage('Upstream AAA history refreshed.');
+      }
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load upstream AAA history.');
+    } finally {
+      setLoadingUpstreamAAAHistory(false);
     }
   };
 
@@ -629,6 +678,7 @@ export default function Backups() {
     void loadHAHistory();
     void loadAuditHistory(false);
     void loadIntegrationHistory(false);
+    void loadUpstreamAAAHistory(false);
     void loadDiagnosticsReport(false);
     void loadDiagnosticsExports(false);
     void loadAuditExports(false);
@@ -1063,6 +1113,23 @@ export default function Backups() {
     }
   };
 
+  const exportUpstreamAAAHistory = async (format: 'csv' | 'json') => {
+    setError('');
+    setMessage('');
+    try {
+      const response = await api.get(`/system/upstream-aaa-history/export?format=${format}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = format === 'json' ? 'aegisnas-upstream-aaa-history.json' : 'aegisnas-upstream-aaa-history.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`Upstream AAA history exported as ${format.toUpperCase()}.`);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not export upstream AAA history.');
+    }
+  };
+
   const exportAuditHistory = async (format: 'csv' | 'json') => {
     setError('');
     setMessage('');
@@ -1320,6 +1387,19 @@ export default function Backups() {
                     {diagnosticsReport.integrations.history_stats.last_event_at ? (
                       <div className="mt-1">Last recorded integration event {diagnosticsReport.integrations.history_stats.last_event_at}.</div>
                     ) : null}
+                  </div>
+                ) : null}
+                {diagnosticsReport.integrations.upstream_aaa_history ? (
+                  <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    <div className="font-medium text-slate-900">Upstream AAA History</div>
+                    <div className="mt-1">
+                      {diagnosticsReport.integrations.upstream_aaa_history.ok_count} ok, {diagnosticsReport.integrations.upstream_aaa_history.degraded_count} degraded,
+                      {' '}{diagnosticsReport.integrations.upstream_aaa_history.down_count} down, {diagnosticsReport.integrations.upstream_aaa_history.disabled_count} disabled.
+                    </div>
+                    <div className="mt-1">
+                      Average healthy latency {diagnosticsReport.integrations.upstream_aaa_history.avg_latency_ms} ms
+                      {diagnosticsReport.integrations.upstream_aaa_history.last_checked_at ? `, last probe ${diagnosticsReport.integrations.upstream_aaa_history.last_checked_at}` : ''}.
+                    </div>
                   </div>
                 ) : null}
               </div>
@@ -1894,6 +1974,85 @@ export default function Backups() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Upstream AAA History</h3>
+            <p className="mt-1 text-sm text-gray-600">Keep a durable timeline of upstream RADIUS probe outcomes so reject storms, timeouts, and fail-over questions are not reduced to one live status message.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => void loadUpstreamAAAHistory(true)} disabled={loadingUpstreamAAAHistory || busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              {loadingUpstreamAAAHistory ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button onClick={() => void exportUpstreamAAAHistory('csv')} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              Export CSV
+            </button>
+            <button onClick={() => void exportUpstreamAAAHistory('json')} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              Export JSON
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Healthy</div>
+            <div className="mt-2">{upstreamAAAHistoryStats?.ok_count ?? 0} ok probes</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Degraded</div>
+            <div className="mt-2">{upstreamAAAHistoryStats?.degraded_count ?? 0} degraded probes</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Down</div>
+            <div className="mt-2">{upstreamAAAHistoryStats?.down_count ?? 0} down probes</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Disabled</div>
+            <div className="mt-2">{upstreamAAAHistoryStats?.disabled_count ?? 0} disabled probes</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Last Probe</div>
+            <div className="mt-2">{upstreamAAAHistoryStats?.last_checked_at || 'No data yet'}</div>
+          </div>
+        </div>
+
+        {loadingUpstreamAAAHistory ? (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">Loading upstream AAA history...</div>
+        ) : upstreamAAAHistory.length === 0 ? (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">No upstream AAA probe history recorded yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Checked</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Server</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Status</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Response</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Latency</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Message</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {upstreamAAAHistory.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-3 py-2 text-gray-600">{item.checked_at}</td>
+                    <td className="px-3 py-2 text-gray-900">
+                      <div>{item.server_name || item.address}</div>
+                      <div className="text-xs text-gray-500">{item.address}:{item.auth_port}</div>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">{item.status}</td>
+                    <td className="px-3 py-2 text-gray-700">{item.response_code || '-'}</td>
+                    <td className="px-3 py-2 text-gray-700">{item.latency_ms ? `${item.latency_ms} ms` : '-'}</td>
+                    <td className="px-3 py-2 text-gray-700">{item.message || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

@@ -66,6 +66,7 @@ type DiagnosticsIntegrations struct {
 	PostureChecks         *db.RuntimeStatus             `json:"posture_checks,omitempty"`
 	HistoryStats          *db.IntegrationHistoryStats   `json:"history_stats,omitempty"`
 	UpstreamAAA           []radius.UpstreamServerHealth `json:"upstream_aaa,omitempty"`
+	UpstreamAAAHistory    *db.UpstreamAAAHistoryStats   `json:"upstream_aaa_history,omitempty"`
 	UpstreamAAAProbeError string                        `json:"upstream_aaa_probe_error,omitempty"`
 }
 
@@ -154,6 +155,10 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load integration history stats: %w", err)
 	}
+	upstreamAAAHistoryStats, err := db.GetUpstreamAAAHistoryStats()
+	if err != nil {
+		return DiagnosticsReport{}, fmt.Errorf("load upstream aaa history stats: %w", err)
+	}
 	recoveryState, err := CurrentNetworkRecoveryState()
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load network recovery state: %w", err)
@@ -179,14 +184,15 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 
 	upstreamStatuses, probeErr := probeDiagnosticsUpstreamServersFn(ctx, cfg)
 	integrations := DiagnosticsIntegrations{
-		Controller:      runtimeStatusPointer(runtimeMap, "controller_automation"),
-		SIEM:            runtimeStatusPointer(runtimeMap, "siem_export"),
-		AdminSSO:        runtimeStatusPointer(runtimeMap, "admin_sso"),
-		DeviceInventory: runtimeStatusPointer(runtimeMap, "device_inventory"),
-		MDMSync:         runtimeStatusPointer(runtimeMap, "mdm_sync"),
-		PostureChecks:   runtimeStatusPointer(runtimeMap, "posture_checks"),
-		HistoryStats:    &integrationHistoryStats,
-		UpstreamAAA:     upstreamStatuses,
+		Controller:         runtimeStatusPointer(runtimeMap, "controller_automation"),
+		SIEM:               runtimeStatusPointer(runtimeMap, "siem_export"),
+		AdminSSO:           runtimeStatusPointer(runtimeMap, "admin_sso"),
+		DeviceInventory:    runtimeStatusPointer(runtimeMap, "device_inventory"),
+		MDMSync:            runtimeStatusPointer(runtimeMap, "mdm_sync"),
+		PostureChecks:      runtimeStatusPointer(runtimeMap, "posture_checks"),
+		HistoryStats:       &integrationHistoryStats,
+		UpstreamAAAHistory: &upstreamAAAHistoryStats,
+		UpstreamAAA:        upstreamStatuses,
 	}
 	if probeErr != nil {
 		integrations.UpstreamAAAProbeError = probeErr.Error()
@@ -278,6 +284,12 @@ func diagnosticsReportCSV(report DiagnosticsReport) ([]byte, error) {
 		{"integration_history_mdm_failures", strconv.Itoa(report.Integrations.HistoryStats.MDMSyncFailureCount)},
 		{"integration_history_posture_events", strconv.Itoa(report.Integrations.HistoryStats.PostureEventCount)},
 		{"integration_history_posture_failures", strconv.Itoa(report.Integrations.HistoryStats.PostureFailureCount)},
+		{"upstream_aaa_history_total_records", strconv.Itoa(report.Integrations.UpstreamAAAHistory.TotalRecords)},
+		{"upstream_aaa_history_ok_count", strconv.Itoa(report.Integrations.UpstreamAAAHistory.OKCount)},
+		{"upstream_aaa_history_degraded_count", strconv.Itoa(report.Integrations.UpstreamAAAHistory.DegradedCount)},
+		{"upstream_aaa_history_down_count", strconv.Itoa(report.Integrations.UpstreamAAAHistory.DownCount)},
+		{"upstream_aaa_history_disabled_count", strconv.Itoa(report.Integrations.UpstreamAAAHistory.DisabledCount)},
+		{"upstream_aaa_history_avg_latency_ms", strconv.FormatInt(report.Integrations.UpstreamAAAHistory.AvgLatencyMs, 10)},
 		{"upgrade_current_schema", strconv.Itoa(report.Upgrade.CurrentSchemaVersion)},
 		{"upgrade_target_schema", strconv.Itoa(report.Upgrade.TargetSchemaVersion)},
 		{"upgrade_config_valid", strconv.FormatBool(report.Upgrade.ConfigValid)},
@@ -300,6 +312,9 @@ func diagnosticsReportCSV(report DiagnosticsReport) ([]byte, error) {
 	}
 	if report.Integrations.UpstreamAAAProbeError != "" {
 		rows = append(rows, []string{"upstream_aaa_probe_error", report.Integrations.UpstreamAAAProbeError})
+	}
+	if report.Integrations.UpstreamAAAHistory.LastCheckedAt != "" {
+		rows = append(rows, []string{"upstream_aaa_history_last_checked_at", report.Integrations.UpstreamAAAHistory.LastCheckedAt})
 	}
 
 	upstreamRows := make([][]string, 0, len(report.Integrations.UpstreamAAA))
