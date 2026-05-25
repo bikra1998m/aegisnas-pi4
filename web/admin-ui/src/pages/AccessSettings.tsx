@@ -254,6 +254,13 @@ const defaultSettings: JsonMap = {
       interval_minutes: 60,
       retention_count: 21,
     },
+    session_exports: {
+      enabled: false,
+      directory: '/var/lib/aegisnas/session-exports',
+      format: 'both',
+      interval_minutes: 60,
+      retention_count: 21,
+    },
     integration_exports: {
       enabled: false,
       directory: '/var/lib/aegisnas/integration-exports',
@@ -2524,6 +2531,38 @@ export default function AccessSettings() {
             type="number"
             value={settings.telemetry?.audit_exports?.retention_count || 21}
             onChange={(value) => updateField(['telemetry', 'audit_exports', 'retention_count'], Number(value))}
+          />
+          <ToggleField
+            label="Scheduled Session Exports"
+            checked={Boolean(settings.telemetry?.session_exports?.enabled)}
+            onChange={(value) => updateField(['telemetry', 'session_exports', 'enabled'], value)}
+          />
+          <TextField
+            label="Session Export Directory"
+            value={settings.telemetry?.session_exports?.directory || '/var/lib/aegisnas/session-exports'}
+            onChange={(value) => updateField(['telemetry', 'session_exports', 'directory'], value)}
+          />
+          <SelectField
+            label="Session Export Format"
+            value={settings.telemetry?.session_exports?.format || 'both'}
+            onChange={(value) => updateField(['telemetry', 'session_exports', 'format'], value)}
+            options={[
+              { value: 'json', label: 'JSON' },
+              { value: 'csv', label: 'CSV' },
+              { value: 'both', label: 'JSON + CSV' },
+            ]}
+          />
+          <TextField
+            label="Session Export Interval"
+            type="number"
+            value={settings.telemetry?.session_exports?.interval_minutes || 60}
+            onChange={(value) => updateField(['telemetry', 'session_exports', 'interval_minutes'], Number(value))}
+          />
+          <TextField
+            label="Session Export Retention"
+            type="number"
+            value={settings.telemetry?.session_exports?.retention_count || 21}
+            onChange={(value) => updateField(['telemetry', 'session_exports', 'retention_count'], Number(value))}
           />
           <ToggleField
             label="Scheduled Integration Exports"

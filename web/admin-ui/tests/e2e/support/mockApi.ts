@@ -107,6 +107,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      session_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/session-exports',
+        format: 'both',
+        interval_minutes: 60,
+        retention_count: 21,
+      },
       integration_exports: {
         enabled: true,
         directory: '/var/lib/aegisnas/integration-exports',
@@ -708,6 +715,25 @@ function createSystemStatus() {
           },
         },
       },
+      session_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/session-exports',
+        format: 'both',
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: 'ok',
+          message: 'Scheduled session exports are healthy.',
+          details: {
+            format: 'both',
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: '/var/lib/aegisnas/session-exports',
+            last_export_at: '2026-05-05T11:53:00Z',
+            next_due_at: '2026-05-05T12:53:00Z',
+          },
+        },
+      },
       integration_exports: {
         enabled: true,
         directory: '/var/lib/aegisnas/integration-exports',
@@ -992,6 +1018,60 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         ip_address: '192.168.50.10',
       },
     ],
+    sessionHistory: [
+      {
+        id: 'sess-001',
+        username: 'alice',
+        mac: 'aa:bb:cc:dd:ee:ff',
+        ip: '192.168.50.10',
+        auth_method: 'dot1x',
+        identity_source: 'local-users',
+        vlan: 20,
+        role: 'employee',
+        bandwidth_profile: '10m-down-5m-up',
+        filter_id: 'corp-access',
+        radius_class: 'radius-class-1',
+        session_timeout: 3600,
+        idle_timeout: 900,
+        acct_session_time: 1800,
+        called_station_id: 'ap-lab-1',
+        nas_identifier: 'switch-lab-1',
+        radius_session_id: 'radius-001',
+        start_time: '2026-05-05T11:30:00Z',
+        last_activity: '2026-05-05T11:59:00Z',
+        end_time: '',
+        stop_reason: '',
+        bytes_in: 1024,
+        bytes_out: 2048,
+        total_bytes: 3072,
+      },
+      {
+        id: 'sess-000',
+        username: 'bob',
+        mac: '11:22:33:44:55:66',
+        ip: '192.168.50.22',
+        auth_method: 'mab',
+        identity_source: 'device-inventory',
+        vlan: 30,
+        role: 'iot',
+        bandwidth_profile: '2m-down-1m-up',
+        filter_id: 'iot-access',
+        radius_class: 'radius-class-2',
+        session_timeout: 7200,
+        idle_timeout: 600,
+        acct_session_time: 2400,
+        called_station_id: 'ap-lab-2',
+        nas_identifier: 'switch-lab-2',
+        radius_session_id: 'radius-000',
+        start_time: '2026-05-05T10:00:00Z',
+        last_activity: '2026-05-05T10:40:00Z',
+        end_time: '2026-05-05T10:40:00Z',
+        stop_reason: 'user-request',
+        bytes_in: 4096,
+        bytes_out: 8192,
+        total_bytes: 12288,
+      },
+    ],
     dhcpLeases: [
       {
         expires_at: '2026-05-05T13:00:00Z',
@@ -1178,6 +1258,168 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         status: 200,
         headers: { 'content-type': 'text/csv; charset=utf-8' },
         body: 'id,observed_at,mac,ip,hostname,client_id,reservation,expired,expires_at,remaining_seconds\n1,2026-05-05T11:55:00Z,aa:bb:cc:dd:ee:ff,192.168.50.10,lab-client,,true,false,2026-05-05T13:00:00Z,3600\n',
+      });
+      return;
+    }
+    if (path === '/system/session-history' && method === 'GET') {
+      const username = url.searchParams.get('username') || '';
+      const authMethod = url.searchParams.get('auth_method') || '';
+      const active = url.searchParams.get('active') || '';
+      let history = [...state.sessionHistory];
+      if (username) {
+        history = history.filter((item) => item.username === username);
+      }
+      if (authMethod) {
+        history = history.filter((item) => item.auth_method === authMethod);
+      }
+      if (active === 'true') {
+        history = history.filter((item) => !item.end_time);
+      } else if (active === 'false') {
+        history = history.filter((item) => Boolean(item.end_time));
+      }
+      const stats = history.reduce(
+        (acc, item) => {
+          acc.total_records += 1;
+          if (item.end_time) {
+            acc.ended_count += 1;
+          } else {
+            acc.active_count += 1;
+          }
+          if (item.acct_session_time > 0 || item.bytes_in > 0 || item.bytes_out > 0) {
+            acc.accounted_record_count += 1;
+          }
+          acc.bytes_in_total += item.bytes_in;
+          acc.bytes_out_total += item.bytes_out;
+          acc.traffic_total += item.total_bytes;
+          acc.acct_session_seconds_total += item.acct_session_time;
+          acc.max_acct_session_seconds = Math.max(acc.max_acct_session_seconds, item.acct_session_time);
+          if (!acc.last_started_at || item.start_time > acc.last_started_at) {
+            acc.last_started_at = item.start_time;
+          }
+          if (item.end_time && (!acc.last_ended_at || item.end_time > acc.last_ended_at)) {
+            acc.last_ended_at = item.end_time;
+          }
+          return acc;
+        },
+        {
+          total_records: 0,
+          active_count: 0,
+          ended_count: 0,
+          accounted_record_count: 0,
+          bytes_in_total: 0,
+          bytes_out_total: 0,
+          traffic_total: 0,
+          acct_session_seconds_total: 0,
+          avg_acct_session_seconds: 0,
+          max_acct_session_seconds: 0,
+          last_started_at: '',
+          last_ended_at: '',
+        },
+      );
+      if (stats.total_records > 0) {
+        stats.avg_acct_session_seconds = Math.trunc(stats.acct_session_seconds_total / stats.total_records);
+      }
+      await route.fulfill({
+        json: {
+          generated_at: '2026-05-05T12:00:00Z',
+          username,
+          auth_method: authMethod,
+          active: active === 'true' ? true : active === 'false' ? false : null,
+          history,
+          count: history.length,
+          stats,
+        },
+      });
+      return;
+    }
+    if (path === '/system/session-history/export' && method === 'GET') {
+      const format = (url.searchParams.get('format') || 'csv').toLowerCase();
+      if (format === 'json') {
+        await route.fulfill({
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            generated_at: '2026-05-05T12:00:00Z',
+            username: '',
+            auth_method: '',
+            active: null,
+            history: state.sessionHistory,
+            count: state.sessionHistory.length,
+            stats: {
+              total_records: 2,
+              active_count: 1,
+              ended_count: 1,
+              accounted_record_count: 2,
+              bytes_in_total: 5120,
+              bytes_out_total: 10240,
+              traffic_total: 15360,
+              acct_session_seconds_total: 4200,
+              avg_acct_session_seconds: 2100,
+              max_acct_session_seconds: 2400,
+              last_started_at: '2026-05-05T11:30:00Z',
+              last_ended_at: '2026-05-05T10:40:00Z',
+            },
+          }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/csv; charset=utf-8' },
+        body: 'id,username,mac,ip,auth_method,identity_source,vlan,role,bandwidth_profile,filter_id,radius_class,session_timeout,idle_timeout,acct_session_time,called_station_id,nas_identifier,radius_session_id,start_time,last_activity,end_time,stop_reason,bytes_in,bytes_out,total_bytes\nsess-001,alice,aa:bb:cc:dd:ee:ff,192.168.50.10,dot1x,local-users,20,employee,10m-down-5m-up,corp-access,radius-class-1,3600,900,1800,ap-lab-1,switch-lab-1,radius-001,2026-05-05T11:30:00Z,2026-05-05T11:59:00Z,,,1024,2048,3072\n',
+      });
+      return;
+    }
+    if (path === '/system/session-exports' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          runtime: state.systemStatus.telemetry.session_exports.runtime,
+          exports: [
+            {
+              name: 'aegisnas-session-history-20260505-115300Z.json',
+              path: '/var/lib/aegisnas/session-exports/aegisnas-session-history-20260505-115300Z.json',
+              format: 'json',
+              size_bytes: 1320,
+              created_at: '2026-05-05T11:53:00Z',
+            },
+            {
+              name: 'aegisnas-session-history-20260505-115300Z.csv',
+              path: '/var/lib/aegisnas/session-exports/aegisnas-session-history-20260505-115300Z.csv',
+              format: 'csv',
+              size_bytes: 640,
+              created_at: '2026-05-05T11:53:00Z',
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (path === '/system/session-exports/download' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          generated_at: '2026-05-05T11:53:00Z',
+          username: '',
+          auth_method: '',
+          active: null,
+          history: state.sessionHistory,
+          count: state.sessionHistory.length,
+          stats: {
+            total_records: 2,
+            active_count: 1,
+            ended_count: 1,
+            accounted_record_count: 2,
+            bytes_in_total: 5120,
+            bytes_out_total: 10240,
+            traffic_total: 15360,
+            acct_session_seconds_total: 4200,
+            avg_acct_session_seconds: 2100,
+            max_acct_session_seconds: 2400,
+            last_started_at: '2026-05-05T11:30:00Z',
+            last_ended_at: '2026-05-05T10:40:00Z',
+          },
+        }),
       });
       return;
     }

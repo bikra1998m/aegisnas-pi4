@@ -139,6 +139,10 @@ For a durable record of operator-visible admin actions, exports, guest approvals
 
 For recurring audit capture without relying on manual export timing, enable scheduled audit exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/audit-exports`.
 
+For durable session and accounting history beyond the live sessions table, use `Backups` or `GET /api/v1/system/session-history`.
+
+For recurring session/accounting capture without relying on a manual export step, enable scheduled session exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/session-exports`.
+
 For recurring HA capture without manual export timing, enable scheduled HA exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/ha/exports`.
 
 For recurring network capture without manual export timing, enable scheduled network exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/network-exports`.

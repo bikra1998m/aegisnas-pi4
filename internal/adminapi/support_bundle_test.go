@@ -42,6 +42,13 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	require.NoError(t, db.RecordHAHistory("failover", "promoted", "Standby promoted cleanly.", "standby", "", map[string]any{
 		"vip": "192.168.50.2",
 	}))
+	_, err = db.DB.Exec(`INSERT INTO sessions (
+		id, username, mac, ip, auth_method, identity_source, vlan, role, bandwidth_profile, start_time, last_activity, end_time, stop_reason, radius_session_id, bytes_in, bytes_out, acct_session_time
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"session-1", "alice", "aa:bb:cc:dd:ee:ff", "192.168.50.10", "dot1x", "ldap", 20, "employee", "gold",
+		observedAt.Add(-30*time.Minute), observedAt.Add(-5*time.Minute), observedAt.Add(-1*time.Minute), "User-Request", "radius-1", 1024, 2048, 1800,
+	)
+	require.NoError(t, err)
 	require.NoError(t, db.UpsertRuntimeStatus("controller_automation", "ok", "Controller sync healthy.", map[string]any{
 		"sync_count": 2,
 	}))
@@ -101,6 +108,7 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	require.Contains(t, entries, "api/support-bundle-summary.json")
 	require.Contains(t, entries, "api/system-settings-redacted.json")
 	require.Contains(t, entries, "api/network-preview.json")
+	require.Contains(t, entries, "api/session-history.json")
 	require.Contains(t, entries, "api/network-apply-history.json")
 	require.Contains(t, entries, "api/dhcp-lease-history.json")
 	require.Contains(t, entries, "api/upstream-aaa-history.json")
@@ -132,6 +140,7 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	assert.Contains(t, string(entries["system/ip-addr.txt"]), "ip output ok")
 	assert.Contains(t, string(entries["logs/aegis-admin-api.log"]), "journal output ok")
 	assert.Contains(t, string(entries["api/audit-history.json"]), "download_support_bundle")
+	assert.Contains(t, string(entries["api/session-history.json"]), "\"history\"")
 	assert.Contains(t, string(entries["api/upstream-aaa-history.json"]), "\"history\"")
 	assert.Contains(t, string(entries["api/ha-history.json"]), "Standby promoted cleanly.")
 	assert.Contains(t, string(entries["api/integration-history.json"]), "\"history\"")
@@ -201,11 +210,13 @@ func TestHandleGetSupportBundleSummary(t *testing.T) {
 	assert.Contains(t, payload.ArchiveEntries, "api/openapi.json")
 	assert.Contains(t, payload.ArchiveEntries, "api/upstream-aaa-history.json")
 	assert.Contains(t, payload.ArchiveEntries, "api/audit-history.json")
+	assert.Contains(t, payload.ArchiveEntries, "api/session-history.json")
 	assert.Contains(t, payload.ArchiveEntries, "api/integration-history.json")
 	assert.Contains(t, payload.APICaptures, "Upgrade readiness")
 	assert.Contains(t, payload.APICaptures, "OpenAPI schema")
 	assert.Contains(t, payload.APICaptures, "Upstream AAA history")
 	assert.Contains(t, payload.APICaptures, "Audit history")
+	assert.Contains(t, payload.APICaptures, "Session and accounting history")
 	assert.Contains(t, payload.APICaptures, "Integration history")
 	assert.Contains(t, payload.SystemCaptures, "system/ip-addr.txt")
 	assert.Contains(t, payload.LogCaptures, "logs/aegis-admin-api.log")

@@ -82,6 +82,13 @@ When scheduled audit exports are enabled, the appliance also serves:
 /api/v1/system/audit-exports/download?name=<artifact>
 ```
 
+When scheduled session exports are enabled, the appliance also serves:
+
+```text
+/api/v1/system/session-exports
+/api/v1/system/session-exports/download?name=<artifact>
+```
+
 When scheduled integration exports are enabled, the appliance also serves:
 
 ```text
@@ -125,6 +132,42 @@ Use this report when you want one payload that combines:
 - upgrade-readiness results
 - integration and runtime status snapshots
 - controller, MDM sync, posture, and upstream AAA history counters
+
+## Session History Endpoints
+
+The appliance also keeps durable session and accounting history at:
+
+```text
+/api/v1/system/session-history
+```
+
+And export variants at:
+
+```text
+/api/v1/system/session-history/export?format=json
+/api/v1/system/session-history/export?format=csv
+```
+
+Optional query parameters:
+
+- `username=<exact-username>`
+- `auth_method=<exact-method>`
+- `active=true|false`
+- `limit=<n>`
+
+Use this history when you want:
+
+- a durable view of who authenticated, how, and when the session ended
+- accounting-oriented byte and duration exports for operator handoff
+- recurring session artifacts without relying on a manual export step
+
+From the admin UI:
+
+1. sign in
+2. open `Backups`
+3. review `Session History`
+4. export `JSON` or `CSV`
+5. review scheduled session export runtime and artifacts when recurring export is enabled
 
 ## Upstream AAA History Endpoints
 

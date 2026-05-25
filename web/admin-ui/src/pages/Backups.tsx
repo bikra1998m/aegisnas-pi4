@@ -156,6 +156,48 @@ type AuditHistoryStats = {
   last_recorded_at?: string;
 };
 
+type SessionHistoryRecord = {
+  id: string;
+  username: string;
+  mac: string;
+  ip: string;
+  auth_method: string;
+  identity_source: string;
+  vlan: number;
+  role: string;
+  bandwidth_profile: string;
+  filter_id: string;
+  radius_class: string;
+  session_timeout: number;
+  idle_timeout: number;
+  acct_session_time: number;
+  called_station_id: string;
+  nas_identifier: string;
+  radius_session_id: string;
+  start_time: string;
+  last_activity: string;
+  end_time: string;
+  stop_reason: string;
+  bytes_in: number;
+  bytes_out: number;
+  total_bytes: number;
+};
+
+type SessionHistoryStats = {
+  total_records: number;
+  active_count: number;
+  ended_count: number;
+  accounted_record_count: number;
+  bytes_in_total: number;
+  bytes_out_total: number;
+  traffic_total: number;
+  acct_session_seconds_total: number;
+  avg_acct_session_seconds: number;
+  max_acct_session_seconds: number;
+  last_started_at?: string;
+  last_ended_at?: string;
+};
+
 type UpgradeReadinessReport = {
   generated_at: string;
   config_path: string;
@@ -263,6 +305,7 @@ type DiagnosticsReport = {
     unacknowledged_alerts: number;
     session_methods?: Record<string, number>;
   };
+  sessions: SessionHistoryStats;
   audit: AuditHistoryStats;
   network: {
     apply_stats: {
@@ -351,6 +394,22 @@ type AuditExportRuntime = {
 };
 
 type AuditExportArtifact = {
+  name: string;
+  path: string;
+  format: string;
+  size_bytes: number;
+  created_at: string;
+};
+
+type SessionExportRuntime = {
+  component: string;
+  status: string;
+  message: string;
+  updated_at: string;
+  details?: Record<string, any>;
+};
+
+type SessionExportArtifact = {
   name: string;
   path: string;
   format: string;
@@ -467,6 +526,8 @@ export default function Backups() {
   const [haHistoryStats, setHAHistoryStats] = useState<HAHistoryStats | null>(null);
   const [auditHistory, setAuditHistory] = useState<AuditHistoryRecord[]>([]);
   const [auditHistoryStats, setAuditHistoryStats] = useState<AuditHistoryStats | null>(null);
+  const [sessionHistory, setSessionHistory] = useState<SessionHistoryRecord[]>([]);
+  const [sessionHistoryStats, setSessionHistoryStats] = useState<SessionHistoryStats | null>(null);
   const [integrationHistory, setIntegrationHistory] = useState<IntegrationHistoryRecord[]>([]);
   const [integrationHistoryStats, setIntegrationHistoryStats] = useState<IntegrationHistoryStats | null>(null);
   const [upstreamAAAHistory, setUpstreamAAAHistory] = useState<UpstreamAAAHistoryRecord[]>([]);
@@ -476,6 +537,8 @@ export default function Backups() {
   const [diagnosticsExportArtifacts, setDiagnosticsExportArtifacts] = useState<DiagnosticsExportArtifact[]>([]);
   const [auditExportRuntime, setAuditExportRuntime] = useState<AuditExportRuntime | null>(null);
   const [auditExportArtifacts, setAuditExportArtifacts] = useState<AuditExportArtifact[]>([]);
+  const [sessionExportRuntime, setSessionExportRuntime] = useState<SessionExportRuntime | null>(null);
+  const [sessionExportArtifacts, setSessionExportArtifacts] = useState<SessionExportArtifact[]>([]);
   const [integrationExportRuntime, setIntegrationExportRuntime] = useState<IntegrationExportRuntime | null>(null);
   const [integrationExportArtifacts, setIntegrationExportArtifacts] = useState<IntegrationExportArtifact[]>([]);
   const [haExportRuntime, setHAExportRuntime] = useState<HAExportRuntime | null>(null);
@@ -495,11 +558,13 @@ export default function Backups() {
   const [loadingSharedStatus, setLoadingSharedStatus] = useState(true);
   const [loadingHAHistory, setLoadingHAHistory] = useState(true);
   const [loadingAuditHistory, setLoadingAuditHistory] = useState(true);
+  const [loadingSessionHistory, setLoadingSessionHistory] = useState(true);
   const [loadingIntegrationHistory, setLoadingIntegrationHistory] = useState(true);
   const [loadingUpstreamAAAHistory, setLoadingUpstreamAAAHistory] = useState(true);
   const [loadingDiagnosticsReport, setLoadingDiagnosticsReport] = useState(false);
   const [loadingDiagnosticsExports, setLoadingDiagnosticsExports] = useState(false);
   const [loadingAuditExports, setLoadingAuditExports] = useState(false);
+  const [loadingSessionExports, setLoadingSessionExports] = useState(false);
   const [loadingIntegrationExports, setLoadingIntegrationExports] = useState(false);
   const [loadingHAExports, setLoadingHAExports] = useState(false);
   const [loadingNetworkExports, setLoadingNetworkExports] = useState(false);
@@ -609,6 +674,26 @@ export default function Backups() {
     }
   };
 
+  const loadSessionHistory = async (announce = false) => {
+    if (announce) {
+      setError('');
+      setMessage('');
+    }
+    setLoadingSessionHistory(true);
+    try {
+      const { data } = await api.get('/system/session-history');
+      setSessionHistory(data.history || []);
+      setSessionHistoryStats(data.stats || null);
+      if (announce) {
+        setMessage('Session history refreshed.');
+      }
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load session history.');
+    } finally {
+      setLoadingSessionHistory(false);
+    }
+  };
+
   const loadDiagnosticsReport = async (announce = true) => {
     if (announce) {
       setError('');
@@ -665,6 +750,26 @@ export default function Backups() {
       setError(err.response?.data || err.message || 'Could not load scheduled audit exports.');
     } finally {
       setLoadingAuditExports(false);
+    }
+  };
+
+  const loadSessionExports = async (announce = false) => {
+    if (announce) {
+      setError('');
+      setMessage('');
+    }
+    setLoadingSessionExports(true);
+    try {
+      const { data } = await api.get('/system/session-exports');
+      setSessionExportRuntime(data.runtime || null);
+      setSessionExportArtifacts(data.exports || []);
+      if (announce) {
+        setMessage('Scheduled session exports refreshed.');
+      }
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load scheduled session exports.');
+    } finally {
+      setLoadingSessionExports(false);
     }
   };
 
@@ -793,11 +898,13 @@ export default function Backups() {
     void loadSharedStatus();
     void loadHAHistory();
     void loadAuditHistory(false);
+    void loadSessionHistory(false);
     void loadIntegrationHistory(false);
     void loadUpstreamAAAHistory(false);
     void loadDiagnosticsReport(false);
     void loadDiagnosticsExports(false);
     void loadAuditExports(false);
+    void loadSessionExports(false);
     void loadIntegrationExports(false);
     void loadHAExports(false);
     void loadNetworkExports(false);
@@ -974,6 +1081,29 @@ export default function Backups() {
       setMessage(`Scheduled audit export ${artifact.name} downloaded.`);
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not download scheduled audit export.');
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const downloadScheduledSessionExport = async (artifact: SessionExportArtifact) => {
+    setError('');
+    setMessage('');
+    setBusyAction(`scheduled-session-${artifact.name}`);
+    try {
+      const response = await api.get(`/system/session-exports/download?name=${encodeURIComponent(artifact.name)}`, { responseType: 'blob' });
+      const { data, headers } = response;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      const disposition = `${headers?.['content-disposition'] || ''}`;
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      link.download = filenameMatch?.[1] || artifact.name;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`Scheduled session export ${artifact.name} downloaded.`);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not download scheduled session export.');
     } finally {
       setBusyAction('');
     }
@@ -1332,6 +1462,23 @@ export default function Backups() {
       setMessage(`Audit history exported as ${format.toUpperCase()}.`);
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not export audit history.');
+    }
+  };
+
+  const exportSessionHistory = async (format: 'csv' | 'json') => {
+    setError('');
+    setMessage('');
+    try {
+      const response = await api.get(`/system/session-history/export?format=${format}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = format === 'json' ? 'aegisnas-session-history.json' : 'aegisnas-session-history.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`Session history exported as ${format.toUpperCase()}.`);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not export session history.');
     }
   };
 
@@ -1788,6 +1935,69 @@ export default function Backups() {
                           <td className="px-3 py-2 text-gray-500 break-all">{artifact.path}</td>
                           <td className="px-3 py-2">
                             <button onClick={() => void downloadScheduledAuditExport(artifact)} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                              Download
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium text-slate-900">Scheduled Session Exports</div>
+                  <div className="mt-1">Keep recurring session and accounting exports on disk so access timelines and byte-count handoffs are ready without a manual export step.</div>
+                </div>
+                <button onClick={() => void loadSessionExports(true)} disabled={loadingSessionExports || busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                  {loadingSessionExports ? 'Refreshing...' : 'Refresh Scheduled Session Exports'}
+                </button>
+              </div>
+              {sessionExportRuntime ? (
+                <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  <div><span className="font-medium text-slate-900">Runtime:</span> {sessionExportRuntime.status} / {sessionExportRuntime.message}</div>
+                  <div className="mt-1">
+                    Format {String(sessionExportRuntime.details?.format || 'json')}, every {String(sessionExportRuntime.details?.interval_minutes || 0)} minutes, retain {String(sessionExportRuntime.details?.retention_count || 0)}, directory {String(sessionExportRuntime.details?.directory || 'unset')}.
+                  </div>
+                  {sessionExportRuntime.details?.last_export_at ? (
+                    <div className="mt-1">
+                      Last export {String(sessionExportRuntime.details.last_export_at)}
+                      {sessionExportRuntime.details?.next_due_at ? `, next due ${String(sessionExportRuntime.details.next_due_at)}` : ''}
+                      .
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-3 rounded-md border border-dashed border-gray-300 px-3 py-4 text-xs text-gray-500">No scheduled session export runtime has been recorded yet.</div>
+              )}
+              {sessionExportArtifacts.length === 0 ? (
+                <div className="mt-3 text-xs text-gray-500">No scheduled session export artifacts are present yet.</div>
+              ) : (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Created</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Name</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Format</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Size</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Path</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {sessionExportArtifacts.map((artifact) => (
+                        <tr key={artifact.name}>
+                          <td className="px-3 py-2 text-gray-600">{artifact.created_at}</td>
+                          <td className="px-3 py-2 font-medium text-gray-900">{artifact.name}</td>
+                          <td className="px-3 py-2 text-gray-700">{artifact.format}</td>
+                          <td className="px-3 py-2 text-gray-700">{artifact.size_bytes} bytes</td>
+                          <td className="px-3 py-2 text-gray-500 break-all">{artifact.path}</td>
+                          <td className="px-3 py-2">
+                            <button onClick={() => void downloadScheduledSessionExport(artifact)} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50">
                               Download
                             </button>
                           </td>
@@ -2425,6 +2635,106 @@ export default function Backups() {
                     <td className="px-3 py-2 text-gray-700">{item.response_code || '-'}</td>
                     <td className="px-3 py-2 text-gray-700">{item.latency_ms ? `${item.latency_ms} ms` : '-'}</td>
                     <td className="px-3 py-2 text-gray-700">{item.message || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Session History</h3>
+            <p className="mt-1 text-sm text-gray-600">Review durable session and accounting records with auth method, role, byte counts, and session duration so access investigations do not depend on the live sessions table alone.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => void loadSessionHistory(true)} disabled={loadingSessionHistory || busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              {loadingSessionHistory ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button onClick={() => void exportSessionHistory('csv')} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              Export CSV
+            </button>
+            <button onClick={() => void exportSessionHistory('json')} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              Export JSON
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Records</div>
+            <div className="mt-2">{sessionHistoryStats?.total_records ?? 0} total, {sessionHistoryStats?.active_count ?? 0} active</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Traffic</div>
+            <div className="mt-2">{sessionHistoryStats?.traffic_total ?? 0} bytes across {sessionHistoryStats?.accounted_record_count ?? 0} accounted records</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Duration</div>
+            <div className="mt-2">{sessionHistoryStats?.acct_session_seconds_total ?? 0}s total, {sessionHistoryStats?.avg_acct_session_seconds ?? 0}s average</div>
+          </div>
+          <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-medium text-slate-900">Latest Start</div>
+            <div className="mt-2">{sessionHistoryStats?.last_started_at || 'No data yet'}</div>
+          </div>
+        </div>
+
+        {loadingSessionHistory ? (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">Loading session history...</div>
+        ) : sessionHistory.length === 0 ? (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">No session history recorded yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Started</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">User</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Method</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Role</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Addressing</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Traffic</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Accounting</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">Ended</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {sessionHistory.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-3 py-2 text-gray-600">
+                      <div>{item.start_time}</div>
+                      <div className="text-xs text-gray-500">{item.last_activity ? `Last active ${item.last_activity}` : 'No activity recorded'}</div>
+                    </td>
+                    <td className="px-3 py-2 text-gray-900">
+                      <div>{item.username || '-'}</div>
+                      <div className="text-xs text-gray-500">{item.identity_source || 'source unset'}</div>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">
+                      <div>{item.auth_method || '-'}</div>
+                      <div className="text-xs text-gray-500">{item.radius_session_id || 'radius session unset'}</div>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">
+                      <div>{item.role || '-'}</div>
+                      <div className="text-xs text-gray-500">VLAN {item.vlan || 0}{item.bandwidth_profile ? ` / ${item.bandwidth_profile}` : ''}</div>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">
+                      <div>{item.ip || '-'}</div>
+                      <div className="text-xs text-gray-500">{item.mac || '-'}</div>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">
+                      <div>{item.total_bytes} bytes</div>
+                      <div className="text-xs text-gray-500">In {item.bytes_in} / Out {item.bytes_out}</div>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">
+                      <div>{item.acct_session_time || 0}s</div>
+                      <div className="text-xs text-gray-500">Session {item.session_timeout || 0}s / Idle {item.idle_timeout || 0}s</div>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">
+                      <div>{item.end_time || 'active'}</div>
+                      <div className="text-xs text-gray-500">{item.stop_reason || 'still active'}</div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -300,6 +300,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"retention_count":  cfg.Telemetry.AuditExports.RetentionCount,
 			"runtime":          runtimeMap[auditExportsComponent],
 		},
+		"session_exports": map[string]any{
+			"enabled":          cfg.Telemetry.SessionExports.Enabled,
+			"directory":        cfg.Telemetry.SessionExports.Directory,
+			"format":           cfg.Telemetry.SessionExports.Format,
+			"interval_minutes": cfg.Telemetry.SessionExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.SessionExports.RetentionCount,
+			"runtime":          runtimeMap[sessionExportsComponent],
+		},
 		"integration_exports": map[string]any{
 			"enabled":          cfg.Telemetry.IntegrationExports.Enabled,
 			"directory":        cfg.Telemetry.IntegrationExports.Directory,
@@ -364,6 +372,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.AuditExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.AuditExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled audit exports are not running."},
+		}
+		telemetryStatus["session_exports"] = map[string]any{
+			"enabled":          cfg.Telemetry.SessionExports.Enabled,
+			"directory":        cfg.Telemetry.SessionExports.Directory,
+			"format":           cfg.Telemetry.SessionExports.Format,
+			"interval_minutes": cfg.Telemetry.SessionExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.SessionExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled session exports are not running."},
 		}
 		telemetryStatus["integration_exports"] = map[string]any{
 			"enabled":          cfg.Telemetry.IntegrationExports.Enabled,
@@ -432,6 +448,16 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.AuditExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.AuditExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled audit exports are disabled in config."},
+		}
+	}
+	if cfg.Telemetry.Enabled && !cfg.Telemetry.SessionExports.Enabled {
+		telemetryStatus["session_exports"] = map[string]any{
+			"enabled":          false,
+			"directory":        cfg.Telemetry.SessionExports.Directory,
+			"format":           cfg.Telemetry.SessionExports.Format,
+			"interval_minutes": cfg.Telemetry.SessionExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.SessionExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled session exports are disabled in config."},
 		}
 	}
 	if cfg.Telemetry.Enabled && !cfg.Telemetry.IntegrationExports.Enabled {

@@ -143,6 +143,60 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/dhcp-lease-history/export", "get", securedOperation("Export DHCP lease history", "Network", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseBinary("text/csv", "DHCP lease history export."),
 	}))
+	addOperation(paths, "/api/v1/system/session-history", "get", securedOperationWithParameters("List session and accounting history", "Sessions", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("username", "Optional exact username filter.", false),
+		queryStringParameter("auth_method", "Optional exact authentication method filter.", false),
+		queryStringParameter("active", "Optional active-state filter using true or false.", false),
+		queryStringParameter("limit", "Optional record limit. Defaults to 200 and caps at 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("Durable session and accounting history with traffic and duration counters."),
+	}))
+	addOperation(paths, "/api/v1/system/session-history/export", "get", securedOperationWithParameters("Export session and accounting history", "Sessions", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("format", "Optional export format. Defaults to csv.", []string{"json", "csv"}, false),
+		queryStringParameter("username", "Optional exact username filter.", false),
+		queryStringParameter("auth_method", "Optional exact authentication method filter.", false),
+		queryStringParameter("active", "Optional active-state filter using true or false.", false),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Session and accounting history export in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
+	addOperation(paths, "/api/v1/system/session-exports", "get", securedOperation("List scheduled session exports", "Sessions", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled session export runtime status and recent artifact list."),
+	}))
+	addOperation(paths, "/api/v1/system/session-exports/download", "get", securedOperationWithParameters("Download scheduled session export", "Sessions", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "Session export artifact filename.", true),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Scheduled session export artifact in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/upstream-aaa-history", "get", securedOperationWithParameters("List upstream AAA probe history", "AAA", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("server", "Optional exact upstream server name filter.", false),
 		queryStringParameter("status", "Optional status filter such as ok, degraded, down, or disabled.", false),
@@ -336,7 +390,7 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		},
 	}))
 	addOperation(paths, "/api/v1/system/diagnostics-report", "get", securedOperation("Read diagnostics report", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
-		"200": responseJSON("Cross-domain diagnostics report with network, HA, upgrade, integration, runtime status, and integration-history summary data."),
+		"200": responseJSON("Cross-domain diagnostics report with session, network, HA, upgrade, integration, runtime status, and history summary data."),
 	}))
 	addOperation(paths, "/api/v1/system/diagnostics-report/export", "get", securedOperationWithParameters("Export diagnostics report", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("format", "Optional export format. Defaults to json.", []string{"json", "csv"}, false),

@@ -27,6 +27,7 @@ type DiagnosticsReport struct {
 	DeploymentForm    string                  `json:"deployment_form,omitempty"`
 	HARole            string                  `json:"ha_role,omitempty"`
 	Summary           DiagnosticsSummary      `json:"summary"`
+	Sessions          db.SessionHistoryStats  `json:"sessions"`
 	Audit             db.AuditHistoryStats    `json:"audit"`
 	Network           DiagnosticsNetwork      `json:"network"`
 	HighAvailability  DiagnosticsHA           `json:"high_availability"`
@@ -167,6 +168,10 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load audit stats: %w", err)
 	}
+	sessionStats, err := db.GetSessionHistoryStats(db.SessionHistoryQuery{})
+	if err != nil {
+		return DiagnosticsReport{}, fmt.Errorf("load session stats: %w", err)
+	}
 	readiness, err := assessDiagnosticsUpgradeReadinessFn(cfg, config.Path())
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load upgrade readiness: %w", err)
@@ -214,7 +219,8 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 			UnacknowledgedAlerts: unackedAlerts,
 			SessionMethods:       authMethods,
 		},
-		Audit: auditStats,
+		Sessions: sessionStats,
+		Audit:    auditStats,
 		Network: DiagnosticsNetwork{
 			ApplyStats:    applyStats,
 			LeaseTrends:   leaseTrends,
@@ -260,6 +266,18 @@ func diagnosticsReportCSV(report DiagnosticsReport) ([]byte, error) {
 		{"quarantined_sessions", strconv.Itoa(report.Summary.QuarantinedSessions)},
 		{"shaped_sessions", strconv.Itoa(report.Summary.ShapedSessions)},
 		{"unacknowledged_alerts", strconv.Itoa(report.Summary.UnacknowledgedAlerts)},
+		{"session_history_total_records", strconv.Itoa(report.Sessions.TotalRecords)},
+		{"session_history_active_count", strconv.Itoa(report.Sessions.ActiveCount)},
+		{"session_history_ended_count", strconv.Itoa(report.Sessions.EndedCount)},
+		{"session_history_accounted_record_count", strconv.Itoa(report.Sessions.AccountedRecordCount)},
+		{"session_history_bytes_in_total", fmt.Sprint(report.Sessions.BytesInTotal)},
+		{"session_history_bytes_out_total", fmt.Sprint(report.Sessions.BytesOutTotal)},
+		{"session_history_traffic_total", fmt.Sprint(report.Sessions.TrafficTotal)},
+		{"session_history_acct_session_seconds_total", fmt.Sprint(report.Sessions.AcctSessionSecondsTotal)},
+		{"session_history_avg_acct_session_seconds", fmt.Sprint(report.Sessions.AvgAcctSessionSeconds)},
+		{"session_history_max_acct_session_seconds", fmt.Sprint(report.Sessions.MaxAcctSessionSeconds)},
+		{"session_history_last_started_at", report.Sessions.LastStartedAt},
+		{"session_history_last_ended_at", report.Sessions.LastEndedAt},
 		{"audit_total_records", strconv.Itoa(report.Audit.TotalRecords)},
 		{"audit_unique_users", strconv.Itoa(report.Audit.UniqueUsers)},
 		{"audit_export_actions", strconv.Itoa(report.Audit.ExportActionCount)},
