@@ -128,6 +128,12 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "Export session activity analytics", sessionAnalyticsGet["summary"])
 
+	scheduledSessionAnalyticsPath, ok := paths["/api/v1/system/session-analytics-exports/download"].(map[string]any)
+	require.True(t, ok)
+	scheduledSessionAnalyticsGet, ok := scheduledSessionAnalyticsPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Download scheduled session analytics export", scheduledSessionAnalyticsGet["summary"])
+
 	scheduledSessionPath, ok := paths["/api/v1/system/session-exports/download"].(map[string]any)
 	require.True(t, ok)
 	scheduledSessionGet, ok := scheduledSessionPath["get"].(map[string]any)

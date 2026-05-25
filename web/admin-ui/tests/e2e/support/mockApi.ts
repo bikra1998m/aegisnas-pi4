@@ -114,6 +114,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      session_analytics_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/session-analytics-exports',
+        format: 'json',
+        interval_minutes: 60,
+        retention_count: 21,
+      },
       integration_exports: {
         enabled: true,
         directory: '/var/lib/aegisnas/integration-exports',
@@ -731,6 +738,27 @@ function createSystemStatus() {
             directory: '/var/lib/aegisnas/session-exports',
             last_export_at: '2026-05-05T11:53:00Z',
             next_due_at: '2026-05-05T12:53:00Z',
+          },
+        },
+      },
+      session_analytics_exports: {
+        enabled: true,
+        directory: '/var/lib/aegisnas/session-analytics-exports',
+        format: 'json',
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: 'ok',
+          message: 'Scheduled session analytics exports are healthy.',
+          details: {
+            format: 'json',
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: '/var/lib/aegisnas/session-analytics-exports',
+            window_hours: 24,
+            bucket_count: 24,
+            last_export_at: '2026-05-05T11:54:00Z',
+            next_due_at: '2026-05-05T12:54:00Z',
           },
         },
       },
@@ -1561,6 +1589,61 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             max_acct_session_seconds: 2400,
             last_started_at: '2026-05-05T11:30:00Z',
             last_ended_at: '2026-05-05T10:40:00Z',
+          },
+        }),
+      });
+      return;
+    }
+    if (path === '/system/session-analytics-exports' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          runtime: state.systemStatus.telemetry.session_analytics_exports.runtime,
+          exports: [
+            {
+              name: 'aegisnas-session-analytics-20260505-115400Z.json',
+              path: '/var/lib/aegisnas/session-analytics-exports/aegisnas-session-analytics-20260505-115400Z.json',
+              format: 'json',
+              size_bytes: 1480,
+              created_at: '2026-05-05T11:54:00Z',
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (path === '/system/session-analytics-exports/download' && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          generated_at: '2026-05-05T11:54:00Z',
+          username: '',
+          auth_method: '',
+          window_hours: 24,
+          bucket_count: 24,
+          summary: {
+            window_hours: 24,
+            bucket_count: 24,
+            bucket_minutes: 60,
+            total_records: 2,
+            started_count: 2,
+            ended_count: 1,
+            active_now: 1,
+            unique_users_window: 2,
+            unique_macs_window: 2,
+            unique_ips_window: 2,
+            ended_traffic_total: 12288,
+            ended_session_seconds_total: 2400,
+            avg_ended_session_seconds: 2400,
+            max_ended_session_seconds: 2400,
+            longest_active_session_seconds: 1800,
+            peak_concurrent_sessions: 2,
+            latest_start_at: '2026-05-05T11:30:00Z',
+            latest_end_at: '2026-05-05T10:40:00Z',
+            auth_methods: [{ name: 'dot1x', count: 1 }, { name: 'mab', count: 1 }],
+            roles: [{ name: 'employee', count: 1 }, { name: 'iot', count: 1 }],
+            vlans: [{ name: '20', count: 1 }, { name: '30', count: 1 }],
+            buckets: [],
           },
         }),
       });

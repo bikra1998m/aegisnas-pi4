@@ -308,6 +308,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"retention_count":  cfg.Telemetry.SessionExports.RetentionCount,
 			"runtime":          runtimeMap[sessionExportsComponent],
 		},
+		"session_analytics_exports": map[string]any{
+			"enabled":          cfg.Telemetry.SessionAnalyticsExports.Enabled,
+			"directory":        cfg.Telemetry.SessionAnalyticsExports.Directory,
+			"format":           cfg.Telemetry.SessionAnalyticsExports.Format,
+			"interval_minutes": cfg.Telemetry.SessionAnalyticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.SessionAnalyticsExports.RetentionCount,
+			"runtime":          runtimeMap[sessionAnalyticsExportsComponent],
+		},
 		"integration_exports": map[string]any{
 			"enabled":          cfg.Telemetry.IntegrationExports.Enabled,
 			"directory":        cfg.Telemetry.IntegrationExports.Directory,
@@ -380,6 +388,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.SessionExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.SessionExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled session exports are not running."},
+		}
+		telemetryStatus["session_analytics_exports"] = map[string]any{
+			"enabled":          cfg.Telemetry.SessionAnalyticsExports.Enabled,
+			"directory":        cfg.Telemetry.SessionAnalyticsExports.Directory,
+			"format":           cfg.Telemetry.SessionAnalyticsExports.Format,
+			"interval_minutes": cfg.Telemetry.SessionAnalyticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.SessionAnalyticsExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled session analytics exports are not running."},
 		}
 		telemetryStatus["integration_exports"] = map[string]any{
 			"enabled":          cfg.Telemetry.IntegrationExports.Enabled,
@@ -458,6 +474,16 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.SessionExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.SessionExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled session exports are disabled in config."},
+		}
+	}
+	if cfg.Telemetry.Enabled && !cfg.Telemetry.SessionAnalyticsExports.Enabled {
+		telemetryStatus["session_analytics_exports"] = map[string]any{
+			"enabled":          false,
+			"directory":        cfg.Telemetry.SessionAnalyticsExports.Directory,
+			"format":           cfg.Telemetry.SessionAnalyticsExports.Format,
+			"interval_minutes": cfg.Telemetry.SessionAnalyticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.SessionAnalyticsExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled session analytics exports are disabled in config."},
 		}
 	}
 	if cfg.Telemetry.Enabled && !cfg.Telemetry.IntegrationExports.Enabled {

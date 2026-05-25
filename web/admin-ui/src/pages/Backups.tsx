@@ -417,6 +417,22 @@ type SessionExportArtifact = {
   created_at: string;
 };
 
+type SessionAnalyticsExportRuntime = {
+  component: string;
+  status: string;
+  message: string;
+  updated_at: string;
+  details?: Record<string, any>;
+};
+
+type SessionAnalyticsExportArtifact = {
+  name: string;
+  path: string;
+  format: string;
+  size_bytes: number;
+  created_at: string;
+};
+
 type IntegrationExportRuntime = {
   component: string;
   status: string;
@@ -539,6 +555,8 @@ export default function Backups() {
   const [auditExportArtifacts, setAuditExportArtifacts] = useState<AuditExportArtifact[]>([]);
   const [sessionExportRuntime, setSessionExportRuntime] = useState<SessionExportRuntime | null>(null);
   const [sessionExportArtifacts, setSessionExportArtifacts] = useState<SessionExportArtifact[]>([]);
+  const [sessionAnalyticsExportRuntime, setSessionAnalyticsExportRuntime] = useState<SessionAnalyticsExportRuntime | null>(null);
+  const [sessionAnalyticsExportArtifacts, setSessionAnalyticsExportArtifacts] = useState<SessionAnalyticsExportArtifact[]>([]);
   const [integrationExportRuntime, setIntegrationExportRuntime] = useState<IntegrationExportRuntime | null>(null);
   const [integrationExportArtifacts, setIntegrationExportArtifacts] = useState<IntegrationExportArtifact[]>([]);
   const [haExportRuntime, setHAExportRuntime] = useState<HAExportRuntime | null>(null);
@@ -565,6 +583,7 @@ export default function Backups() {
   const [loadingDiagnosticsExports, setLoadingDiagnosticsExports] = useState(false);
   const [loadingAuditExports, setLoadingAuditExports] = useState(false);
   const [loadingSessionExports, setLoadingSessionExports] = useState(false);
+  const [loadingSessionAnalyticsExports, setLoadingSessionAnalyticsExports] = useState(false);
   const [loadingIntegrationExports, setLoadingIntegrationExports] = useState(false);
   const [loadingHAExports, setLoadingHAExports] = useState(false);
   const [loadingNetworkExports, setLoadingNetworkExports] = useState(false);
@@ -773,6 +792,26 @@ export default function Backups() {
     }
   };
 
+  const loadSessionAnalyticsExports = async (announce = false) => {
+    if (announce) {
+      setError('');
+      setMessage('');
+    }
+    setLoadingSessionAnalyticsExports(true);
+    try {
+      const { data } = await api.get('/system/session-analytics-exports');
+      setSessionAnalyticsExportRuntime(data.runtime || null);
+      setSessionAnalyticsExportArtifacts(data.exports || []);
+      if (announce) {
+        setMessage('Scheduled session analytics exports refreshed.');
+      }
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not load scheduled session analytics exports.');
+    } finally {
+      setLoadingSessionAnalyticsExports(false);
+    }
+  };
+
   const loadIntegrationExports = async (announce = false) => {
     if (announce) {
       setError('');
@@ -905,6 +944,7 @@ export default function Backups() {
     void loadDiagnosticsExports(false);
     void loadAuditExports(false);
     void loadSessionExports(false);
+    void loadSessionAnalyticsExports(false);
     void loadIntegrationExports(false);
     void loadHAExports(false);
     void loadNetworkExports(false);
@@ -1104,6 +1144,29 @@ export default function Backups() {
       setMessage(`Scheduled session export ${artifact.name} downloaded.`);
     } catch (err: any) {
       setError(err.response?.data || err.message || 'Could not download scheduled session export.');
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const downloadScheduledSessionAnalyticsExport = async (artifact: SessionAnalyticsExportArtifact) => {
+    setError('');
+    setMessage('');
+    setBusyAction(`scheduled-session-analytics-${artifact.name}`);
+    try {
+      const response = await api.get(`/system/session-analytics-exports/download?name=${encodeURIComponent(artifact.name)}`, { responseType: 'blob' });
+      const { data, headers } = response;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      const disposition = `${headers?.['content-disposition'] || ''}`;
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      link.download = filenameMatch?.[1] || artifact.name;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`Scheduled session analytics export ${artifact.name} downloaded.`);
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not download scheduled session analytics export.');
     } finally {
       setBusyAction('');
     }
@@ -1998,6 +2061,72 @@ export default function Backups() {
                           <td className="px-3 py-2 text-gray-500 break-all">{artifact.path}</td>
                           <td className="px-3 py-2">
                             <button onClick={() => void downloadScheduledSessionExport(artifact)} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                              Download
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium text-slate-900">Scheduled Session Analytics Exports</div>
+                  <div className="mt-1">Keep recurring access-pattern snapshots on disk so concurrency, auth mix, and ended-session trend reviews do not depend on a manual analytics export.</div>
+                </div>
+                <button onClick={() => void loadSessionAnalyticsExports(true)} disabled={loadingSessionAnalyticsExports || busyAction !== ''} className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                  {loadingSessionAnalyticsExports ? 'Refreshing...' : 'Refresh Scheduled Session Analytics Exports'}
+                </button>
+              </div>
+              {sessionAnalyticsExportRuntime ? (
+                <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  <div><span className="font-medium text-slate-900">Runtime:</span> {sessionAnalyticsExportRuntime.status} / {sessionAnalyticsExportRuntime.message}</div>
+                  <div className="mt-1">
+                    Format {String(sessionAnalyticsExportRuntime.details?.format || 'json')}, every {String(sessionAnalyticsExportRuntime.details?.interval_minutes || 0)} minutes, retain {String(sessionAnalyticsExportRuntime.details?.retention_count || 0)}, directory {String(sessionAnalyticsExportRuntime.details?.directory || 'unset')}.
+                  </div>
+                  <div className="mt-1">
+                    Window {String(sessionAnalyticsExportRuntime.details?.window_hours || 24)} hours with {String(sessionAnalyticsExportRuntime.details?.bucket_count || 24)} buckets.
+                  </div>
+                  {sessionAnalyticsExportRuntime.details?.last_export_at ? (
+                    <div className="mt-1">
+                      Last export {String(sessionAnalyticsExportRuntime.details.last_export_at)}
+                      {sessionAnalyticsExportRuntime.details?.next_due_at ? `, next due ${String(sessionAnalyticsExportRuntime.details.next_due_at)}` : ''}
+                      .
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-3 rounded-md border border-dashed border-gray-300 px-3 py-4 text-xs text-gray-500">No scheduled session analytics export runtime has been recorded yet.</div>
+              )}
+              {sessionAnalyticsExportArtifacts.length === 0 ? (
+                <div className="mt-3 text-xs text-gray-500">No scheduled session analytics export artifacts are present yet.</div>
+              ) : (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Created</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Name</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Format</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Size</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Path</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {sessionAnalyticsExportArtifacts.map((artifact) => (
+                        <tr key={artifact.name}>
+                          <td className="px-3 py-2 text-gray-600">{artifact.created_at}</td>
+                          <td className="px-3 py-2 font-medium text-gray-900">{artifact.name}</td>
+                          <td className="px-3 py-2 text-gray-700">{artifact.format}</td>
+                          <td className="px-3 py-2 text-gray-700">{artifact.size_bytes} bytes</td>
+                          <td className="px-3 py-2 text-gray-500 break-all">{artifact.path}</td>
+                          <td className="px-3 py-2">
+                            <button onClick={() => void downloadScheduledSessionAnalyticsExport(artifact)} disabled={busyAction !== ''} className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50">
                               Download
                             </button>
                           </td>

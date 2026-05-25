@@ -76,6 +76,9 @@ var runCmd = &cobra.Command{
 		if err := adminapi.StartSessionExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start session export scheduler: %w", err)
 		}
+		if err := adminapi.StartSessionAnalyticsExportScheduler(cfg, logger); err != nil {
+			return fmt.Errorf("start session analytics export scheduler: %w", err)
+		}
 		if err := adminapi.StartIntegrationExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start integration export scheduler: %w", err)
 		}
@@ -161,6 +164,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/session-history/export", adminapi.HandleExportSessionHistory)
 			r.Get("/system/session-analytics", adminapi.HandleGetSessionAnalytics)
 			r.Get("/system/session-analytics/export", adminapi.HandleExportSessionAnalytics)
+			r.Get("/system/session-analytics-exports", adminapi.HandleListSessionAnalyticsExports)
+			r.Get("/system/session-analytics-exports/download", adminapi.HandleDownloadSessionAnalyticsExport)
 			r.Get("/system/session-exports", adminapi.HandleListSessionExports)
 			r.Get("/system/session-exports/download", adminapi.HandleDownloadSessionExport)
 			r.Get("/system/upstream-aaa-history", adminapi.HandleListUpstreamAAAHistory)

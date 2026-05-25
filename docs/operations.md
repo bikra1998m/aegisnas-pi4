@@ -145,6 +145,8 @@ For started/ended trends, auth mix, role mix, VLAN mix, and peak concurrency acr
 
 For recurring session/accounting capture without relying on a manual export step, enable scheduled session exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/session-exports`.
 
+For recurring session trend snapshots without manually exporting analytics every time, enable scheduled session analytics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/session-analytics-exports`.
+
 For recurring HA capture without manual export timing, enable scheduled HA exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/ha/exports`.
 
 For recurring network capture without manual export timing, enable scheduled network exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/network-exports`.
