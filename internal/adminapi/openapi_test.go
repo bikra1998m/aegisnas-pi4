@@ -122,6 +122,12 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "Export session and accounting history", sessionHistoryGet["summary"])
 
+	sessionAnalyticsPath, ok := paths["/api/v1/system/session-analytics/export"].(map[string]any)
+	require.True(t, ok)
+	sessionAnalyticsGet, ok := sessionAnalyticsPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Export session activity analytics", sessionAnalyticsGet["summary"])
+
 	scheduledSessionPath, ok := paths["/api/v1/system/session-exports/download"].(map[string]any)
 	require.True(t, ok)
 	scheduledSessionGet, ok := scheduledSessionPath["get"].(map[string]any)

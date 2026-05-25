@@ -161,11 +161,33 @@ Use this history when you want:
 - accounting-oriented byte and duration exports for operator handoff
 - recurring session artifacts without relying on a manual export step
 
+For summarized session activity trends, the appliance also serves:
+
+```text
+/api/v1/system/session-analytics
+/api/v1/system/session-analytics/export?format=json
+/api/v1/system/session-analytics/export?format=csv
+```
+
+Optional query parameters:
+
+- `username=<exact-username>`
+- `auth_method=<exact-method>`
+- `window_hours=<n>`
+- `bucket_count=<n>`
+
+Use this analytics view when you want:
+
+- started vs ended session trends over the selected window
+- peak concurrent session counts without scanning raw rows by hand
+- auth-method, role, and VLAN mix snapshots for operator review
+- ended-session traffic and duration summaries that are safer to reason about than cumulative active-session bytes
+
 From the admin UI:
 
 1. sign in
-2. open `Backups`
-3. review `Session History`
+2. open `Sessions` for live activity and trend analytics
+3. open `Backups` for durable `Session History`
 4. export `JSON` or `CSV`
 5. review scheduled session export runtime and artifacts when recurring export is enabled
 

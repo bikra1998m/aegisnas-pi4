@@ -141,6 +141,8 @@ For recurring audit capture without relying on manual export timing, enable sche
 
 For durable session and accounting history beyond the live sessions table, use `Backups` or `GET /api/v1/system/session-history`.
 
+For started/ended trends, auth mix, role mix, VLAN mix, and peak concurrency across a selected window, use `Sessions` or `GET /api/v1/system/session-analytics`.
+
 For recurring session/accounting capture without relying on a manual export step, enable scheduled session exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/session-exports`.
 
 For recurring HA capture without manual export timing, enable scheduled HA exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/ha/exports`.

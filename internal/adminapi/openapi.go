@@ -174,6 +174,38 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/session-analytics", "get", securedOperationWithParameters("Summarize session and accounting activity trends", "Sessions", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("username", "Optional exact username filter.", false),
+		queryStringParameter("auth_method", "Optional exact authentication method filter.", false),
+		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 24.", false),
+		queryStringParameter("bucket_count", "Optional trend bucket count. Defaults to 24 and caps at 96.", false),
+	}, map[string]any{
+		"200": responseJSON("Session activity summary with auth, role, VLAN, concurrency, and bucketed trend counters."),
+	}))
+	addOperation(paths, "/api/v1/system/session-analytics/export", "get", securedOperationWithParameters("Export session activity analytics", "Sessions", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("format", "Optional export format. Defaults to csv.", []string{"json", "csv"}, false),
+		queryStringParameter("username", "Optional exact username filter.", false),
+		queryStringParameter("auth_method", "Optional exact authentication method filter.", false),
+		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 24.", false),
+		queryStringParameter("bucket_count", "Optional trend bucket count. Defaults to 24 and caps at 96.", false),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Session activity analytics export in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/session-exports", "get", securedOperation("List scheduled session exports", "Sessions", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Scheduled session export runtime status and recent artifact list."),
 	}))

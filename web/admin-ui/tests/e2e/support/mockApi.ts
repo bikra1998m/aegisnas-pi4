@@ -1261,6 +1261,38 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
+    if (path === '/sessions' && method === 'GET') {
+      await route.fulfill({
+        json: state.sessionHistory.map((item) => ({
+          id: item.id,
+          username: item.username,
+          mac: item.mac,
+          ip: item.ip,
+          auth_method: item.auth_method,
+          vlan: item.vlan,
+          start_time: item.start_time,
+          last_activity: item.last_activity,
+          end_time: item.end_time,
+          bytes_in: item.bytes_in,
+          bytes_out: item.bytes_out,
+        })),
+      });
+      return;
+    }
+    if (path.startsWith('/sessions/') && method === 'DELETE') {
+      const id = path.split('/')[2];
+      state.sessionHistory = state.sessionHistory.map((item) =>
+        item.id === id && !item.end_time
+          ? {
+              ...item,
+              end_time: '2026-05-05T12:00:00Z',
+              stop_reason: 'admin',
+            }
+          : item,
+      );
+      await route.fulfill({ status: 204, body: '' });
+      return;
+    }
     if (path === '/system/session-history' && method === 'GET') {
       const username = url.searchParams.get('username') || '';
       const authMethod = url.searchParams.get('auth_method') || '';
@@ -1367,6 +1399,117 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         status: 200,
         headers: { 'content-type': 'text/csv; charset=utf-8' },
         body: 'id,username,mac,ip,auth_method,identity_source,vlan,role,bandwidth_profile,filter_id,radius_class,session_timeout,idle_timeout,acct_session_time,called_station_id,nas_identifier,radius_session_id,start_time,last_activity,end_time,stop_reason,bytes_in,bytes_out,total_bytes\nsess-001,alice,aa:bb:cc:dd:ee:ff,192.168.50.10,dot1x,local-users,20,employee,10m-down-5m-up,corp-access,radius-class-1,3600,900,1800,ap-lab-1,switch-lab-1,radius-001,2026-05-05T11:30:00Z,2026-05-05T11:59:00Z,,,1024,2048,3072\n',
+      });
+      return;
+    }
+    if (path === '/system/session-analytics' && method === 'GET') {
+      const windowHours = Number(url.searchParams.get('window_hours') || '24');
+      const bucketCount = Number(url.searchParams.get('bucket_count') || '24');
+      await route.fulfill({
+        json: {
+          generated_at: '2026-05-05T12:00:00Z',
+          username: '',
+          auth_method: '',
+          window_hours: windowHours,
+          bucket_count: bucketCount,
+          summary: {
+            window_hours: windowHours,
+            bucket_count: bucketCount,
+            bucket_minutes: windowHours >= 24 ? Math.round((windowHours * 60) / bucketCount) : 60,
+            total_records: state.sessionHistory.length,
+            started_count: 2,
+            ended_count: state.sessionHistory.filter((item) => Boolean(item.end_time)).length,
+            active_now: state.sessionHistory.filter((item) => !item.end_time).length,
+            unique_users_window: 2,
+            unique_macs_window: 2,
+            unique_ips_window: 2,
+            ended_traffic_total: 12288,
+            ended_session_seconds_total: 2400,
+            avg_ended_session_seconds: 2400,
+            max_ended_session_seconds: 2400,
+            longest_active_session_seconds: 1800,
+            peak_concurrent_sessions: 2,
+            latest_start_at: '2026-05-05T11:30:00Z',
+            latest_end_at: '2026-05-05T10:40:00Z',
+            auth_methods: [
+              { name: 'dot1x', count: 1 },
+              { name: 'mab', count: 1 },
+            ],
+            roles: [
+              { name: 'employee', count: 1 },
+              { name: 'iot', count: 1 },
+            ],
+            vlans: [
+              { name: '20', count: 1 },
+              { name: '30', count: 1 },
+            ],
+            buckets: [
+              {
+                start: '2026-05-05T10:00:00Z',
+                end: '2026-05-05T11:00:00Z',
+                started_count: 1,
+                ended_count: 1,
+                ended_traffic_total: 12288,
+                ended_session_seconds_total: 2400,
+              },
+              {
+                start: '2026-05-05T11:00:00Z',
+                end: '2026-05-05T12:00:00Z',
+                started_count: 1,
+                ended_count: 0,
+                ended_traffic_total: 0,
+                ended_session_seconds_total: 0,
+              },
+            ],
+          },
+        },
+      });
+      return;
+    }
+    if (path === '/system/session-analytics/export' && method === 'GET') {
+      const format = (url.searchParams.get('format') || 'csv').toLowerCase();
+      if (format === 'json') {
+        await route.fulfill({
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            generated_at: '2026-05-05T12:00:00Z',
+            username: '',
+            auth_method: '',
+            window_hours: 24,
+            bucket_count: 24,
+            summary: {
+              window_hours: 24,
+              bucket_count: 24,
+              bucket_minutes: 60,
+              total_records: 2,
+              started_count: 2,
+              ended_count: 1,
+              active_now: 1,
+              unique_users_window: 2,
+              unique_macs_window: 2,
+              unique_ips_window: 2,
+              ended_traffic_total: 12288,
+              ended_session_seconds_total: 2400,
+              avg_ended_session_seconds: 2400,
+              max_ended_session_seconds: 2400,
+              longest_active_session_seconds: 1800,
+              peak_concurrent_sessions: 2,
+              latest_start_at: '2026-05-05T11:30:00Z',
+              latest_end_at: '2026-05-05T10:40:00Z',
+              auth_methods: [{ name: 'dot1x', count: 1 }, { name: 'mab', count: 1 }],
+              roles: [{ name: 'employee', count: 1 }, { name: 'iot', count: 1 }],
+              vlans: [{ name: '20', count: 1 }, { name: '30', count: 1 }],
+              buckets: [],
+            },
+          }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/csv; charset=utf-8' },
+        body: 'section,name,bucket_start,bucket_end,count,bytes_total,seconds_total\nsummary,total_records,,,2,,\nauth_method,dot1x,,,1,,\nbucket,ended_traffic_total,2026-05-05T10:00:00Z,2026-05-05T11:00:00Z,,12288,\n',
       });
       return;
     }
