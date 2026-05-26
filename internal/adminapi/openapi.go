@@ -238,6 +238,29 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/guest-lifecycle-exports", "get", securedOperation("List scheduled guest lifecycle exports", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled guest lifecycle export runtime status and recent artifact list."),
+	}))
+	addOperation(paths, "/api/v1/system/guest-lifecycle-exports/download", "get", securedOperationWithParameters("Download scheduled guest lifecycle export", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "Guest lifecycle export artifact filename.", true),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Scheduled guest lifecycle export artifact in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/session-analytics-exports", "get", securedOperation("List scheduled session analytics exports", "Sessions", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Scheduled session analytics export runtime status and recent artifact list."),
 	}))

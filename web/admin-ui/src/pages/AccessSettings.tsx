@@ -268,6 +268,13 @@ const defaultSettings: JsonMap = {
       interval_minutes: 60,
       retention_count: 21,
     },
+    guest_lifecycle_exports: {
+      enabled: false,
+      directory: '/var/lib/aegisnas/guest-lifecycle-exports',
+      format: 'json',
+      interval_minutes: 60,
+      retention_count: 21,
+    },
     integration_exports: {
       enabled: false,
       directory: '/var/lib/aegisnas/integration-exports',
@@ -2602,6 +2609,38 @@ export default function AccessSettings() {
             type="number"
             value={settings.telemetry?.session_analytics_exports?.retention_count || 21}
             onChange={(value) => updateField(['telemetry', 'session_analytics_exports', 'retention_count'], Number(value))}
+          />
+          <ToggleField
+            label="Scheduled Guest Lifecycle Exports"
+            checked={Boolean(settings.telemetry?.guest_lifecycle_exports?.enabled)}
+            onChange={(value) => updateField(['telemetry', 'guest_lifecycle_exports', 'enabled'], value)}
+          />
+          <TextField
+            label="Guest Lifecycle Export Directory"
+            value={settings.telemetry?.guest_lifecycle_exports?.directory || '/var/lib/aegisnas/guest-lifecycle-exports'}
+            onChange={(value) => updateField(['telemetry', 'guest_lifecycle_exports', 'directory'], value)}
+          />
+          <SelectField
+            label="Guest Lifecycle Export Format"
+            value={settings.telemetry?.guest_lifecycle_exports?.format || 'json'}
+            onChange={(value) => updateField(['telemetry', 'guest_lifecycle_exports', 'format'], value)}
+            options={[
+              { value: 'json', label: 'JSON' },
+              { value: 'csv', label: 'CSV' },
+              { value: 'both', label: 'JSON + CSV' },
+            ]}
+          />
+          <TextField
+            label="Guest Lifecycle Export Interval Minutes"
+            type="number"
+            value={settings.telemetry?.guest_lifecycle_exports?.interval_minutes || 60}
+            onChange={(value) => updateField(['telemetry', 'guest_lifecycle_exports', 'interval_minutes'], Number(value))}
+          />
+          <TextField
+            label="Guest Lifecycle Export Retention"
+            type="number"
+            value={settings.telemetry?.guest_lifecycle_exports?.retention_count || 21}
+            onChange={(value) => updateField(['telemetry', 'guest_lifecycle_exports', 'retention_count'], Number(value))}
           />
           <ToggleField
             label="Scheduled Integration Exports"

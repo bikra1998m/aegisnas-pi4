@@ -142,6 +142,8 @@ For recurring audit capture without relying on manual export timing, enable sche
 
 For guest lifecycle summary, delivery-state visibility, and JSON or CSV handoff artifacts without leaving the approval console, use `Guest Requests` or `GET /api/v1/system/guest-lifecycle`.
 
+For recurring guest lifecycle capture without depending on a manual export step, enable scheduled guest lifecycle exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/guest-lifecycle-exports`.
+
 For durable session and accounting history beyond the live sessions table, use `Backups` or `GET /api/v1/system/session-history`.
 
 For started/ended trends, auth mix, role mix, VLAN mix, and peak concurrency across a selected window, use `Sessions` or `GET /api/v1/system/session-analytics`.

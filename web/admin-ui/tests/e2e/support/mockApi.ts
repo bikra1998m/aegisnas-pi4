@@ -171,6 +171,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      guest_lifecycle_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/guest-lifecycle-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+      },
       integration_exports: {
         enabled: true,
         directory: "/var/lib/aegisnas/integration-exports",
@@ -889,6 +896,28 @@ function createSystemStatus() {
             bucket_count: 24,
             last_export_at: "2026-05-05T11:54:00Z",
             next_due_at: "2026-05-05T12:54:00Z",
+          },
+        },
+      },
+      guest_lifecycle_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/guest-lifecycle-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: "ok",
+          message: "Scheduled guest lifecycle exports are healthy.",
+          details: {
+            format: "json",
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: "/var/lib/aegisnas/guest-lifecycle-exports",
+            window_hours: 24,
+            bucket_count: 24,
+            limit: 5000,
+            last_export_at: "2026-05-05T11:55:00Z",
+            next_due_at: "2026-05-05T12:55:00Z",
           },
         },
       },
@@ -1982,6 +2011,36 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             },
           ],
         },
+      });
+      return;
+    }
+    if (path === "/system/guest-lifecycle-exports" && method === "GET") {
+      await route.fulfill({
+        json: {
+          runtime: state.systemStatus.telemetry.guest_lifecycle_exports.runtime,
+          exports: [
+            {
+              name: "aegisnas-guest-lifecycle-20260505-115500Z.json",
+              path: "/var/lib/aegisnas/guest-lifecycle-exports/aegisnas-guest-lifecycle-20260505-115500Z.json",
+              format: "json",
+              size_bytes: 1720,
+              created_at: "2026-05-05T11:55:00Z",
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/guest-lifecycle-exports/download" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildGuestLifecycleResponse(state.guestRegistrations, ""),
+        ),
       });
       return;
     }

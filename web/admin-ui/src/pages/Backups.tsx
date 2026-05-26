@@ -451,6 +451,22 @@ type SessionAnalyticsExportArtifact = {
   created_at: string;
 };
 
+type GuestLifecycleExportRuntime = {
+  component: string;
+  status: string;
+  message: string;
+  updated_at: string;
+  details?: Record<string, any>;
+};
+
+type GuestLifecycleExportArtifact = {
+  name: string;
+  path: string;
+  format: string;
+  size_bytes: number;
+  created_at: string;
+};
+
 type IntegrationExportRuntime = {
   component: string;
   status: string;
@@ -604,6 +620,10 @@ export default function Backups() {
     useState<SessionAnalyticsExportRuntime | null>(null);
   const [sessionAnalyticsExportArtifacts, setSessionAnalyticsExportArtifacts] =
     useState<SessionAnalyticsExportArtifact[]>([]);
+  const [guestLifecycleExportRuntime, setGuestLifecycleExportRuntime] =
+    useState<GuestLifecycleExportRuntime | null>(null);
+  const [guestLifecycleExportArtifacts, setGuestLifecycleExportArtifacts] =
+    useState<GuestLifecycleExportArtifact[]>([]);
   const [integrationExportRuntime, setIntegrationExportRuntime] =
     useState<IntegrationExportRuntime | null>(null);
   const [integrationExportArtifacts, setIntegrationExportArtifacts] = useState<
@@ -654,6 +674,8 @@ export default function Backups() {
   const [loadingAuditExports, setLoadingAuditExports] = useState(false);
   const [loadingSessionExports, setLoadingSessionExports] = useState(false);
   const [loadingSessionAnalyticsExports, setLoadingSessionAnalyticsExports] =
+    useState(false);
+  const [loadingGuestLifecycleExports, setLoadingGuestLifecycleExports] =
     useState(false);
   const [loadingIntegrationExports, setLoadingIntegrationExports] =
     useState(false);
@@ -932,6 +954,30 @@ export default function Backups() {
     }
   };
 
+  const loadGuestLifecycleExports = async (announce = false) => {
+    if (announce) {
+      setError("");
+      setMessage("");
+    }
+    setLoadingGuestLifecycleExports(true);
+    try {
+      const { data } = await api.get("/system/guest-lifecycle-exports");
+      setGuestLifecycleExportRuntime(data.runtime || null);
+      setGuestLifecycleExportArtifacts(data.exports || []);
+      if (announce) {
+        setMessage("Scheduled guest lifecycle exports refreshed.");
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load scheduled guest lifecycle exports.",
+      );
+    } finally {
+      setLoadingGuestLifecycleExports(false);
+    }
+  };
+
   const loadIntegrationExports = async (announce = false) => {
     if (announce) {
       setError("");
@@ -1089,6 +1135,7 @@ export default function Backups() {
     void loadAuditExports(false);
     void loadSessionExports(false);
     void loadSessionAnalyticsExports(false);
+    void loadGuestLifecycleExports(false);
     void loadIntegrationExports(false);
     void loadHAExports(false);
     void loadNetworkExports(false);
@@ -1392,6 +1439,38 @@ export default function Backups() {
         err.response?.data ||
           err.message ||
           "Could not download scheduled session analytics export.",
+      );
+    } finally {
+      setBusyAction("");
+    }
+  };
+
+  const downloadScheduledGuestLifecycleExport = async (
+    artifact: GuestLifecycleExportArtifact,
+  ) => {
+    setError("");
+    setMessage("");
+    setBusyAction(`scheduled-guest-lifecycle-${artifact.name}`);
+    try {
+      const response = await api.get(
+        `/system/guest-lifecycle-exports/download?name=${encodeURIComponent(artifact.name)}`,
+        { responseType: "blob" },
+      );
+      const { data, headers } = response;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement("a");
+      link.href = url;
+      const disposition = `${headers?.["content-disposition"] || ""}`;
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      link.download = filenameMatch?.[1] || artifact.name;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`Scheduled guest lifecycle export ${artifact.name} downloaded.`);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not download scheduled guest lifecycle export.",
       );
     } finally {
       setBusyAction("");
@@ -3276,6 +3355,154 @@ export default function Backups() {
                             <button
                               onClick={() =>
                                 void downloadScheduledSessionAnalyticsExport(
+                                  artifact,
+                                )
+                              }
+                              disabled={busyAction !== ""}
+                              className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Download
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium text-slate-900">
+                    Scheduled Guest Lifecycle Exports
+                  </div>
+                  <div className="mt-1">
+                    Keep recurring guest approval and delivery snapshots on disk
+                    so sponsor workflows, invite failures, and approval timing
+                    stay exportable without a manual pull during an incident.
+                  </div>
+                </div>
+                <button
+                  onClick={() => void loadGuestLifecycleExports(true)}
+                  disabled={loadingGuestLifecycleExports || busyAction !== ""}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {loadingGuestLifecycleExports
+                    ? "Refreshing..."
+                    : "Refresh Scheduled Guest Lifecycle Exports"}
+                </button>
+              </div>
+              {guestLifecycleExportRuntime ? (
+                <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  <div>
+                    <span className="font-medium text-slate-900">Runtime:</span>{" "}
+                    {guestLifecycleExportRuntime.status} /{" "}
+                    {guestLifecycleExportRuntime.message}
+                  </div>
+                  <div className="mt-1">
+                    Format{" "}
+                    {String(
+                      guestLifecycleExportRuntime.details?.format || "json",
+                    )}
+                    , every{" "}
+                    {String(
+                      guestLifecycleExportRuntime.details?.interval_minutes || 0,
+                    )}{" "}
+                    minutes, retain{" "}
+                    {String(
+                      guestLifecycleExportRuntime.details?.retention_count || 0,
+                    )}
+                    , directory{" "}
+                    {String(
+                      guestLifecycleExportRuntime.details?.directory || "unset",
+                    )}
+                    .
+                  </div>
+                  <div className="mt-1">
+                    Window{" "}
+                    {String(
+                      guestLifecycleExportRuntime.details?.window_hours || 24,
+                    )}{" "}
+                    hours with{" "}
+                    {String(
+                      guestLifecycleExportRuntime.details?.bucket_count || 24,
+                    )}{" "}
+                    buckets, limit{" "}
+                    {String(
+                      guestLifecycleExportRuntime.details?.limit || 5000,
+                    )}
+                    .
+                  </div>
+                  {guestLifecycleExportRuntime.details?.last_export_at ? (
+                    <div className="mt-1">
+                      Last export{" "}
+                      {String(guestLifecycleExportRuntime.details.last_export_at)}
+                      {guestLifecycleExportRuntime.details?.next_due_at
+                        ? `, next due ${String(guestLifecycleExportRuntime.details.next_due_at)}`
+                        : ""}
+                      .
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-3 rounded-md border border-dashed border-gray-300 px-3 py-4 text-xs text-gray-500">
+                  No scheduled guest lifecycle export runtime has been recorded
+                  yet.
+                </div>
+              )}
+              {guestLifecycleExportArtifacts.length === 0 ? (
+                <div className="mt-3 text-xs text-gray-500">
+                  No scheduled guest lifecycle export artifacts are present yet.
+                </div>
+              ) : (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Created
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Name
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Format
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Size
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Path
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {guestLifecycleExportArtifacts.map((artifact) => (
+                        <tr key={artifact.name}>
+                          <td className="px-3 py-2 text-gray-600">
+                            {artifact.created_at}
+                          </td>
+                          <td className="px-3 py-2 font-medium text-gray-900">
+                            {artifact.name}
+                          </td>
+                          <td className="px-3 py-2 text-gray-700">
+                            {artifact.format}
+                          </td>
+                          <td className="px-3 py-2 text-gray-700">
+                            {artifact.size_bytes} bytes
+                          </td>
+                          <td className="px-3 py-2 text-gray-500 break-all">
+                            {artifact.path}
+                          </td>
+                          <td className="px-3 py-2">
+                            <button
+                              onClick={() =>
+                                void downloadScheduledGuestLifecycleExport(
                                   artifact,
                                 )
                               }

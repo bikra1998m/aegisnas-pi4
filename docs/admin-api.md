@@ -154,6 +154,8 @@ And export variants at:
 ```text
 /api/v1/system/guest-lifecycle/export?format=json
 /api/v1/system/guest-lifecycle/export?format=csv
+/api/v1/system/guest-lifecycle-exports
+/api/v1/system/guest-lifecycle-exports/download?name=<artifact>
 ```
 
 Optional query parameters:
@@ -169,6 +171,7 @@ Use this report when you want:
 - approval and invite delivery failure visibility without scanning raw rows by hand
 - recent submitted/approved/rejected/completed trends for the guest workflow window
 - handoff-ready JSON or CSV exports from the same guest workflow page operators already use
+- recurring JSON or CSV artifacts that land on disk without waiting for a manual export click
 
 From the admin UI:
 
