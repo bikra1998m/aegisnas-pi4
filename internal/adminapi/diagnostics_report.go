@@ -28,6 +28,7 @@ type DiagnosticsReport struct {
 	HARole            string                  `json:"ha_role,omitempty"`
 	Summary           DiagnosticsSummary      `json:"summary"`
 	Sessions          db.SessionHistoryStats  `json:"sessions"`
+	Guest             DiagnosticsGuest        `json:"guest"`
 	Audit             db.AuditHistoryStats    `json:"audit"`
 	Network           DiagnosticsNetwork      `json:"network"`
 	HighAvailability  DiagnosticsHA           `json:"high_availability"`
@@ -49,6 +50,11 @@ type DiagnosticsNetwork struct {
 	ApplyStats    db.NetworkApplyStats     `json:"apply_stats"`
 	LeaseTrends   db.DHCPLeaseTrendSummary `json:"lease_trends"`
 	RecoveryState *NetworkRecoveryState    `json:"recovery_state,omitempty"`
+}
+
+type DiagnosticsGuest struct {
+	Summary db.GuestLifecycleSummary `json:"summary"`
+	Runtime *db.RuntimeStatus        `json:"runtime,omitempty"`
 }
 
 type DiagnosticsHA struct {
@@ -172,6 +178,13 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load session stats: %w", err)
 	}
+	guestSummary, err := db.GetGuestLifecycleSummary(db.GuestLifecycleQuery{
+		Window:      24 * time.Hour,
+		BucketCount: 24,
+	})
+	if err != nil {
+		return DiagnosticsReport{}, fmt.Errorf("load guest lifecycle summary: %w", err)
+	}
 	readiness, err := assessDiagnosticsUpgradeReadinessFn(cfg, config.Path())
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load upgrade readiness: %w", err)
@@ -220,7 +233,11 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 			SessionMethods:       authMethods,
 		},
 		Sessions: sessionStats,
-		Audit:    auditStats,
+		Guest: DiagnosticsGuest{
+			Summary: guestSummary,
+			Runtime: runtimeStatusPointer(runtimeMap, "guest_workflows"),
+		},
+		Audit: auditStats,
 		Network: DiagnosticsNetwork{
 			ApplyStats:    applyStats,
 			LeaseTrends:   leaseTrends,
@@ -278,6 +295,17 @@ func diagnosticsReportCSV(report DiagnosticsReport) ([]byte, error) {
 		{"session_history_max_acct_session_seconds", fmt.Sprint(report.Sessions.MaxAcctSessionSeconds)},
 		{"session_history_last_started_at", report.Sessions.LastStartedAt},
 		{"session_history_last_ended_at", report.Sessions.LastEndedAt},
+		{"guest_total_records", strconv.Itoa(report.Guest.Summary.TotalRecords)},
+		{"guest_pending_count", strconv.Itoa(report.Guest.Summary.PendingCount)},
+		{"guest_approved_count", strconv.Itoa(report.Guest.Summary.ApprovedCount)},
+		{"guest_rejected_count", strconv.Itoa(report.Guest.Summary.RejectedCount)},
+		{"guest_completed_count", strconv.Itoa(report.Guest.Summary.CompletedCount)},
+		{"guest_approval_delivery_failed_count", strconv.Itoa(report.Guest.Summary.ApprovalDeliveryFailedCount)},
+		{"guest_invite_failed_count", strconv.Itoa(report.Guest.Summary.InviteFailedCount)},
+		{"guest_unique_guests_window", strconv.Itoa(report.Guest.Summary.UniqueGuestsWindow)},
+		{"guest_unique_sponsors_window", strconv.Itoa(report.Guest.Summary.UniqueSponsorsWindow)},
+		{"guest_avg_approval_minutes", fmt.Sprint(report.Guest.Summary.AvgApprovalMinutes)},
+		{"guest_avg_completion_minutes", fmt.Sprint(report.Guest.Summary.AvgCompletionMinutes)},
 		{"audit_total_records", strconv.Itoa(report.Audit.TotalRecords)},
 		{"audit_unique_users", strconv.Itoa(report.Audit.UniqueUsers)},
 		{"audit_export_actions", strconv.Itoa(report.Audit.ExportActionCount)},

@@ -26,6 +26,15 @@ func TestHandleGetDiagnosticsReport(t *testing.T) {
 	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
 		observedAt, "ops-admin", "download_support_bundle", "bundle-1", "downloaded", "192.168.50.10")
 	require.NoError(t, err)
+	_, err = db.DB.Exec(`INSERT INTO guest_registrations (
+		id, status, tenant, full_name, email, sponsor_name, sponsor_email, role,
+		guest_token_hash, approval_delivery_status, invite_delivery_status,
+		created_at, approved_at, expires_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"guest-1", "approved", "tenant-a", "Alice Guest", "alice@example.test", "Sam Sponsor", "sam@example.test", "guest-basic",
+		"hash-1", "sent", "sent", observedAt.Add(-20*time.Minute), observedAt.Add(-10*time.Minute), observedAt.Add(24*time.Hour),
+	)
+	require.NoError(t, err)
 	require.NoError(t, db.StoreDHCPLeaseObservations(observedAt, []db.DHCPLeaseObservation{{
 		MAC:              "aa:bb:cc:dd:ee:ff",
 		IP:               "192.168.50.10",
@@ -95,6 +104,8 @@ func TestHandleGetDiagnosticsReport(t *testing.T) {
 	assert.Equal(t, "standby", payload.HARole)
 	assert.Equal(t, 1, payload.Audit.TotalRecords)
 	assert.Equal(t, 1, payload.Sessions.TotalRecords)
+	assert.Equal(t, 1, payload.Guest.Summary.TotalRecords)
+	assert.Equal(t, 1, payload.Guest.Summary.ApprovedCount)
 	assert.Equal(t, int64(3072), payload.Sessions.TrafficTotal)
 	assert.Equal(t, 1, payload.Network.ApplyStats.ApplySuccessCount)
 	assert.Equal(t, 1, payload.HighAvailability.Stats.FailoverPromotions)
@@ -143,6 +154,8 @@ func TestHandleExportDiagnosticsReportCSV(t *testing.T) {
 	require.NotEmpty(t, rows)
 	assert.Contains(t, rec.Body.String(), "audit_total_records")
 	assert.Contains(t, rec.Body.String(), "session_history_total_records")
+	assert.Contains(t, rec.Body.String(), "guest_total_records")
+	assert.Contains(t, rec.Body.String(), "guest_approved_count")
 	assert.Contains(t, rec.Body.String(), "upgrade_target_schema")
 	assert.Contains(t, rec.Body.String(), "upstream_aaa_primary")
 	assert.Contains(t, rec.Body.String(), "upstream_aaa_history_total_records")

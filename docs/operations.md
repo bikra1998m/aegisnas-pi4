@@ -108,6 +108,7 @@ The AI engine stores recommendations in `ai_recommendations`. These remain advis
 Current day-two operator workflows include:
 
 - approve or reject guest self-registration requests from `Guest Requests`
+- review guest lifecycle counts, delivery failures, and recent request trends from `Guest Requests`
 - review device inventory and certificate bundles from `Devices`
 - review or update delegated-admin mappings from `Admin Access`
 - terminate live sessions from `Sessions`
@@ -138,6 +139,8 @@ For a durable upstream AAA probe timeline beyond the live dashboard badge, use `
 For a durable record of operator-visible admin actions, exports, guest approvals, network changes, HA activations, and upgrade work, use `Backups` or `GET /api/v1/system/audit-history`.
 
 For recurring audit capture without relying on manual export timing, enable scheduled audit exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/audit-exports`.
+
+For guest lifecycle summary, delivery-state visibility, and JSON or CSV handoff artifacts without leaving the approval console, use `Guest Requests` or `GET /api/v1/system/guest-lifecycle`.
 
 For durable session and accounting history beyond the live sessions table, use `Backups` or `GET /api/v1/system/session-history`.
 

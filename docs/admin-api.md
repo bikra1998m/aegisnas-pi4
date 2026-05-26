@@ -134,11 +134,49 @@ When scheduled upgrade readiness exports are enabled, the appliance also serves:
 Use this report when you want one payload that combines:
 
 - session and alert counts
+- guest lifecycle and delivery state
 - managed network apply and lease-trend stats
 - HA role and failover counters
 - upgrade-readiness results
 - integration and runtime status snapshots
 - controller, MDM sync, posture, and upstream AAA history counters
+
+## Guest Lifecycle Endpoints
+
+The appliance also serves a guest access lifecycle report at:
+
+```text
+/api/v1/system/guest-lifecycle
+```
+
+And export variants at:
+
+```text
+/api/v1/system/guest-lifecycle/export?format=json
+/api/v1/system/guest-lifecycle/export?format=csv
+```
+
+Optional query parameters:
+
+- `status=pending|approved|rejected|completed`
+- `limit=<n>`
+- `window_hours=<n>`
+- `bucket_count=<n>`
+
+Use this report when you want:
+
+- pending, approved, rejected, and completed guest-request counts in one place
+- approval and invite delivery failure visibility without scanning raw rows by hand
+- recent submitted/approved/rejected/completed trends for the guest workflow window
+- handoff-ready JSON or CSV exports from the same guest workflow page operators already use
+
+From the admin UI:
+
+1. sign in
+2. open `Guest Requests`
+3. filter by status when you want a narrower lifecycle view
+4. review the summary and recent lifecycle trend
+5. export `JSON` or `CSV` when you need an operator handoff artifact
 
 ## Session History Endpoints
 

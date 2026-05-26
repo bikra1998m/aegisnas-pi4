@@ -1,4 +1,4 @@
-import type { Page, Route } from '@playwright/test';
+import type { Page, Route } from "@playwright/test";
 
 type AuthIdentity = {
   subject: string;
@@ -26,6 +26,11 @@ type GuestRecord = {
   invite_delivery_status?: string;
   invite_delivery_error?: string;
   created_at: string;
+  approved_at?: string;
+  rejected_at?: string;
+  completed_at?: string;
+  role?: string;
+  approved_by?: string;
 };
 
 type MockOptions = {
@@ -35,22 +40,22 @@ type MockOptions = {
 };
 
 const SUPER_ADMIN: AuthIdentity = {
-  subject: 'admin-1',
-  display_name: 'Aegis Admin',
-  role: 'super_admin',
-  source: 'token',
-  tenants: ['default'],
-  permissions: ['*'],
+  subject: "admin-1",
+  display_name: "Aegis Admin",
+  role: "super_admin",
+  source: "token",
+  tenants: ["default"],
+  permissions: ["*"],
   break_glass: true,
 };
 
 function createSettings() {
   return {
-    mode: 'two-nic',
+    mode: "two-nic",
     admin_port: 8083,
     deployment: {
-      profile: 'branch',
-      form: 'virtual',
+      profile: "branch",
+      form: "virtual",
       hardware: {
         memory_mb: 8192,
         cpu_cores: 4,
@@ -58,25 +63,62 @@ function createSettings() {
         wireless_passthrough: false,
       },
     },
-    wan: { name: 'ens33', dhcp: true, address: '', gateway: '', dhcp_range: '' },
-    lan: { name: 'ens37', dhcp: false, address: '192.168.50.1/24', gateway: '', dhcp_range: '192.168.50.100,192.168.50.200,12h' },
+    wan: {
+      name: "ens33",
+      dhcp: true,
+      address: "",
+      gateway: "",
+      dhcp_range: "",
+    },
+    lan: {
+      name: "ens37",
+      dhcp: false,
+      address: "192.168.50.1/24",
+      gateway: "",
+      dhcp_range: "192.168.50.100,192.168.50.200,12h",
+    },
     network: {
       interfaces: [],
-      gateways: [{ name: 'wan-default', address: '10.0.0.1', interface: 'ens33', metric: 10 }],
+      gateways: [
+        {
+          name: "wan-default",
+          address: "10.0.0.1",
+          interface: "ens33",
+          metric: 10,
+        },
+      ],
       dns: {
-        upstream_servers: ['8.8.8.8', '8.8.4.4'],
-        search_domains: ['corp.example'],
-        local_domain: 'aegis.local',
+        upstream_servers: ["8.8.8.8", "8.8.4.4"],
+        search_domains: ["corp.example"],
+        local_domain: "aegis.local",
       },
-      static_routes: [{ name: 'branch-a', destination: '172.16.20.0/24', gateway: '10.0.0.254', interface: 'ens33', metric: 20 }],
+      static_routes: [
+        {
+          name: "branch-a",
+          destination: "172.16.20.0/24",
+          gateway: "10.0.0.254",
+          interface: "ens33",
+          metric: 20,
+        },
+      ],
       firewall: {
-        rules: [{ name: 'allow-admin', action: 'allow', source: '192.168.50.0/24', destination: '0.0.0.0/0', protocol: 'tcp', ports: '8083', enabled: true }],
-        free_sites: ['neverssl.com'],
+        rules: [
+          {
+            name: "allow-admin",
+            action: "allow",
+            source: "192.168.50.0/24",
+            destination: "0.0.0.0/0",
+            protocol: "tcp",
+            ports: "8083",
+            enabled: true,
+          },
+        ],
+        free_sites: ["neverssl.com"],
         dos_protection: {
           enabled: true,
-          syn_rate: '50/second',
-          icmp_rate: '25/second',
-          conn_rate: '200/second',
+          syn_rate: "50/second",
+          icmp_rate: "25/second",
+          conn_rate: "200/second",
           burst: 100,
           log_drops: true,
         },
@@ -84,101 +126,109 @@ function createSettings() {
     },
     dhcp: {
       enabled: true,
-      lease_time: '12h',
+      lease_time: "12h",
       authoritative: true,
-      static_leases: [{ mac: 'aa:bb:cc:dd:ee:ff', ip: '192.168.50.10', hostname: 'lab-client', enabled: true, description: 'Lab device' }],
+      static_leases: [
+        {
+          mac: "aa:bb:cc:dd:ee:ff",
+          ip: "192.168.50.10",
+          hostname: "lab-client",
+          enabled: true,
+          description: "Lab device",
+        },
+      ],
     },
-    policy: { default_role: 'guest-basic', runtime_shaping_enabled: true },
+    policy: { default_role: "guest-basic", runtime_shaping_enabled: true },
     telemetry: {
       enabled: true,
       prometheus_port: 9090,
       lease_history_poll_seconds: 300,
       diagnostics_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/diagnostics',
-        format: 'both',
+        directory: "/var/lib/aegisnas/diagnostics",
+        format: "both",
         interval_minutes: 60,
         retention_count: 14,
       },
       audit_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/audit-exports',
-        format: 'json',
+        directory: "/var/lib/aegisnas/audit-exports",
+        format: "json",
         interval_minutes: 60,
         retention_count: 21,
       },
       session_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/session-exports',
-        format: 'both',
+        directory: "/var/lib/aegisnas/session-exports",
+        format: "both",
         interval_minutes: 60,
         retention_count: 21,
       },
       session_analytics_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/session-analytics-exports',
-        format: 'json',
+        directory: "/var/lib/aegisnas/session-analytics-exports",
+        format: "json",
         interval_minutes: 60,
         retention_count: 21,
       },
       integration_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/integration-exports',
-        format: 'both',
+        directory: "/var/lib/aegisnas/integration-exports",
+        format: "both",
         interval_minutes: 60,
         retention_count: 21,
       },
       ha_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/ha-exports',
-        format: 'json',
+        directory: "/var/lib/aegisnas/ha-exports",
+        format: "json",
         interval_minutes: 60,
         retention_count: 21,
       },
       network_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/network-exports',
-        format: 'both',
+        directory: "/var/lib/aegisnas/network-exports",
+        format: "both",
         interval_minutes: 60,
         retention_count: 21,
       },
       upstream_aaa_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/upstream-aaa-exports',
-        format: 'json',
+        directory: "/var/lib/aegisnas/upstream-aaa-exports",
+        format: "json",
         interval_minutes: 60,
         retention_count: 21,
       },
       upgrade_readiness_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/upgrade-readiness-exports',
-        format: 'json',
+        directory: "/var/lib/aegisnas/upgrade-readiness-exports",
+        format: "json",
         interval_minutes: 240,
         retention_count: 14,
       },
     },
     ailite: {
       enabled: true,
-      mode: 'lite',
-      provider: 'local',
-      endpoint: '',
-      model: '',
-      api_key_env: 'AEGIS_AI_API_KEY',
+      mode: "lite",
+      provider: "local",
+      endpoint: "",
+      model: "",
+      api_key_env: "AEGIS_AI_API_KEY",
       request_timeout_seconds: 20,
       max_input_events: 200,
       recommendation_limit: 100,
-      remote_webhook: '',
+      remote_webhook: "",
     },
     onboarding: {
       device_inventory_enabled: false,
       portal_enabled: false,
       certificate_enrollment_enabled: false,
       eap_tls_enabled: false,
-      ca_mode: 'none',
-      ca_cert_path: '',
-      ca_key_path: '',
-      ca_enrollment_url: '',
-      ca_enrollment_token_env: '',
+      ca_mode: "none",
+      ca_cert_path: "",
+      ca_key_path: "",
+      ca_enrollment_url: "",
+      ca_enrollment_token_env: "",
     },
     profiling: {
       mac_inventory_enabled: false,
@@ -187,53 +237,53 @@ function createSettings() {
       retention_hours: 24,
       posture_enabled: false,
       mdm_sync_enabled: false,
-      mdm_provider: '',
-      mdm_endpoint: '',
-      mdm_api_token_env: '',
+      mdm_provider: "",
+      mdm_endpoint: "",
+      mdm_api_token_env: "",
       mdm_cache_hours: 12,
-      compliance_webhook: '',
-      compliance_token_env: '',
+      compliance_webhook: "",
+      compliance_token_env: "",
       remediation_enabled: false,
     },
     integrations: {
       admin_sso: {
         enabled: true,
-        provider: 'oidc',
-        issuer_url: 'https://sso.example.test',
-        client_id: 'aegisnas-ui',
-        client_secret_env: 'AEGIS_SSO_SECRET',
-        redirect_url: 'http://127.0.0.1:4173/login',
-        groups_claim: 'groups',
-        tenant_claim: '',
+        provider: "oidc",
+        issuer_url: "https://sso.example.test",
+        client_id: "aegisnas-ui",
+        client_secret_env: "AEGIS_SSO_SECRET",
+        redirect_url: "http://127.0.0.1:4173/login",
+        groups_claim: "groups",
+        tenant_claim: "",
       },
       siem: {
         enabled: true,
-        provider: 'webhook',
-        endpoint: 'https://siem.example.test/events',
-        api_key_env: 'AEGIS_SIEM_API_KEY',
+        provider: "webhook",
+        endpoint: "https://siem.example.test/events",
+        api_key_env: "AEGIS_SIEM_API_KEY",
         batch_size: 100,
       },
       controller: {
         enabled: true,
-        platform: 'vendor-neutral',
-        endpoint: 'https://controller.example.test/api',
-        api_token_env: 'AEGIS_CONTROLLER_API_TOKEN',
-        sync_mode: 'monitor',
-        site: 'lab',
+        platform: "vendor-neutral",
+        endpoint: "https://controller.example.test/api",
+        api_token_env: "AEGIS_CONTROLLER_API_TOKEN",
+        sync_mode: "monitor",
+        site: "lab",
       },
     },
     governance: {
       delegated_admin_enabled: true,
-      rbac_mode: 'local',
+      rbac_mode: "local",
       external_groups_enabled: false,
       multi_tenant_enabled: false,
-      tenant_claim: '',
+      tenant_claim: "",
     },
     high_availability: {
       enabled: true,
-      role: 'standby',
-      peer_api_url: 'https://peer.example.test:8083',
-      virtual_ip: '192.168.50.2',
+      role: "standby",
+      peer_api_url: "https://peer.example.test:8083",
+      virtual_ip: "192.168.50.2",
       heartbeat_interval_seconds: 5,
       failover_timeout_seconds: 20,
       replication_interval_seconds: 300,
@@ -241,42 +291,45 @@ function createSettings() {
       split_brain_protection_enabled: true,
       auto_stage_shared_package: true,
       auto_activate_on_failover: false,
-      witness_api_url: '',
-      witness_urls: ['https://witness-a.example.test/ha', 'https://witness-b.example.test/ha'],
+      witness_api_url: "",
+      witness_urls: [
+        "https://witness-a.example.test/ha",
+        "https://witness-b.example.test/ha",
+      ],
       witness_quorum: 2,
       witness_weights: {
-        'https://witness-a.example.test/ha': 2,
-        'https://witness-b.example.test/ha': 1,
+        "https://witness-a.example.test/ha": 2,
+        "https://witness-b.example.test/ha": 1,
       },
       witness_weight_threshold: 2,
       witness_groups: {
-        'https://witness-a.example.test/ha': 'dc-a',
-        'https://witness-b.example.test/ha': 'dc-b',
+        "https://witness-a.example.test/ha": "dc-a",
+        "https://witness-b.example.test/ha": "dc-b",
       },
       witness_min_distinct_groups: 2,
-      witness_required_groups: ['dc-a'],
+      witness_required_groups: ["dc-a"],
       witness_sources: {
-        'https://witness-a.example.test/ha': 'local',
-        'https://witness-b.example.test/ha': 'external',
+        "https://witness-a.example.test/ha": "local",
+        "https://witness-b.example.test/ha": "external",
       },
       witness_source_confidence: {
-        local: 'critical',
-        external: 'advisory',
+        local: "critical",
+        external: "advisory",
       },
-      witness_required_sources: ['local', 'external'],
-      witness_required_urls: ['https://witness-a.example.test/ha'],
+      witness_required_sources: ["local", "external"],
+      witness_required_urls: ["https://witness-a.example.test/ha"],
       witness_required_sources_by_tier: {
-        critical: ['local'],
+        critical: ["local"],
       },
       witness_required_urls_by_tier: {
-        critical: ['https://witness-a.example.test/ha'],
+        critical: ["https://witness-a.example.test/ha"],
       },
       witness_required_groups_by_tier: {
-        critical: ['dc-a'],
+        critical: ["dc-a"],
       },
-      witness_policy_mode: 'all',
+      witness_policy_mode: "all",
       witness_policy_mode_by_tier: {
-        advisory: 'any',
+        advisory: "any",
       },
       witness_failure_tolerance: 1,
       witness_failure_weight_tolerance: 1,
@@ -297,104 +350,111 @@ function createSettings() {
         advisory: 30,
       },
       witness_required_node_by_tier: {
-        critical: 'witness-a',
+        critical: "witness-a",
       },
-      witness_signature_required_tiers: ['critical'],
-      witness_replay_required_tiers: ['critical'],
+      witness_signature_required_tiers: ["critical"],
+      witness_replay_required_tiers: ["critical"],
       witness_failure_tolerance_by_tier: {
         advisory: 1,
       },
       witness_failure_weight_tolerance_by_tier: {
         advisory: 1,
       },
-      witness_blocking_tiers: ['critical'],
-      witness_token_env: 'AEGIS_HA_WITNESS_TOKEN',
-      witness_signing_key_env: 'AEGIS_HA_WITNESS_SIGNING_KEY',
+      witness_blocking_tiers: ["critical"],
+      witness_token_env: "AEGIS_HA_WITNESS_TOKEN",
+      witness_signing_key_env: "AEGIS_HA_WITNESS_SIGNING_KEY",
       witness_max_age_seconds: 30,
-      witness_required_node: 'witness-1',
+      witness_required_node: "witness-1",
       witness_replay_protection_enabled: true,
       preempt: false,
-      shared_state_dir: '/var/lib/aegisnas/ha',
+      shared_state_dir: "/var/lib/aegisnas/ha",
     },
     portal: {
       enabled: true,
       port: 8081,
-      listen_ip: '',
-      branding: 'AegisNAS',
-      success_url: '',
-      logout_url: '',
+      listen_ip: "",
+      branding: "AegisNAS",
+      success_url: "",
+      logout_url: "",
       radius_auth: false,
       local_fallback: true,
       guest_workflows: {
         self_registration_enabled: true,
         sponsor_approval_enabled: true,
-        invite_delivery: 'email',
-        approval_delivery: 'email',
-        email_from: 'guest@example.test',
-        smtp_server: 'smtp.example.test',
+        invite_delivery: "email",
+        approval_delivery: "email",
+        email_from: "guest@example.test",
+        smtp_server: "smtp.example.test",
         smtp_port: 587,
-        sms_provider: '',
-        sms_endpoint: '',
+        sms_provider: "",
+        sms_endpoint: "",
       },
     },
     radius: {
-      secret: 'secret',
+      secret: "secret",
       auth_port: 1812,
       acct_port: 1813,
       max_sessions: 1024,
-      cert_dir: '/etc/freeradius/3.0/certs',
-      nas_identifier: 'aegisnas',
+      cert_dir: "/etc/freeradius/3.0/certs",
+      nas_identifier: "aegisnas",
       request_timeout_seconds: 5,
       interim_update_seconds: 300,
       dynamic_auth: { enabled: true, port: 3799 },
       vendor: {
         enabled: true,
-        name: 'AegisNAS',
+        name: "AegisNAS",
         id: 55555,
         attributes: [],
       },
       eap: {
-        default_type: 'peap',
-        peap_inner: 'mschapv2',
-        ttls_inner: 'mschapv2',
-        tls_min_version: '1.2',
-        tls_max_version: '1.3',
+        default_type: "peap",
+        peap_inner: "mschapv2",
+        ttls_inner: "mschapv2",
+        tls_min_version: "1.2",
+        tls_max_version: "1.3",
       },
       upstream: {
         enabled: true,
-        realm: 'aegis-upstream',
-        pool_strategy: 'fail-over',
-        status_check: 'status-server',
+        realm: "aegis-upstream",
+        pool_strategy: "fail-over",
+        status_check: "status-server",
         response_window: 20,
         zombie_period: 40,
         revive_interval: 120,
         check_interval: 30,
         num_answers_to_alive: 3,
         strip_realm: false,
-        servers: [{ name: 'upstream-1', address: '10.0.0.20', auth_port: 1812, acct_port: 1813 }],
+        servers: [
+          {
+            name: "upstream-1",
+            address: "10.0.0.20",
+            auth_port: 1812,
+            acct_port: 1813,
+          },
+        ],
       },
     },
     ldap: {
       enabled: false,
-      url: '',
-      base_dn: '',
-      bind_dn: '',
-      bind_password: '',
-      user_filter: '(uid=%s)',
-      group_filter: '(memberUid=%s)',
+      url: "",
+      base_dn: "",
+      bind_dn: "",
+      bind_password: "",
+      user_filter: "(uid=%s)",
+      group_filter: "(memberUid=%s)",
     },
     wireless: {
       enabled: false,
-      country_code: 'US',
-      interface: '',
-      driver: 'nl80211',
-      hw_mode: 'g',
+      country_code: "US",
+      interface: "",
+      driver: "nl80211",
+      hw_mode: "g",
       channel: 6,
       beacon_interval: 100,
       wmm_enabled: true,
       ht_enabled: true,
-      ctrl_interface: '/var/run/hostapd',
-      hostapd_config_path: '/etc/hostapd/hostapd.conf',
+      ctrl_interface: "/var/run/hostapd",
+      hostapd_config_path: "/etc/hostapd/hostapd.conf",
       ssids: [],
     },
   };
@@ -402,10 +462,10 @@ function createSettings() {
 
 function createDeploymentPreview() {
   return {
-    profile: 'branch',
-    form: 'virtual',
-    label: 'Branch Virtual Appliance',
-    summary: 'Balanced branch profile for a virtual appliance.',
+    profile: "branch",
+    form: "virtual",
+    label: "Branch Virtual Appliance",
+    summary: "Balanced branch profile for a virtual appliance.",
     recommended_min_memory: 4096,
     recommended_min_cores: 2,
     hardware: {
@@ -417,12 +477,12 @@ function createDeploymentPreview() {
     warnings: [],
     capabilities: [
       {
-        key: 'runtime_shaping',
-        label: 'Runtime Shaping',
-        state: 'enabled',
+        key: "runtime_shaping",
+        label: "Runtime Shaping",
+        state: "enabled",
         active: true,
-        summary: 'Runtime bandwidth shaping is ready.',
-        recommendation: '',
+        summary: "Runtime bandwidth shaping is ready.",
+        recommendation: "",
         dependencies: [],
       },
     ],
@@ -431,7 +491,7 @@ function createDeploymentPreview() {
 
 function createSystemStatus() {
   return {
-    generated_at: '2026-05-05T12:00:00Z',
+    generated_at: "2026-05-05T12:00:00Z",
     summary: {
       users: 12,
       active_sessions: 3,
@@ -444,40 +504,71 @@ function createSystemStatus() {
       session_methods: { portal: 2, radius: 1 },
     },
     services: [
-      { key: 'admin_api', label: 'Admin API', kind: 'go', status: 'ok', message: 'Admin API is healthy.', port: 8083 },
-      { key: 'gateway', label: 'Gateway', kind: 'go', status: 'ok', message: 'Gateway is healthy.', port: 8080 },
+      {
+        key: "admin_api",
+        label: "Admin API",
+        kind: "go",
+        status: "ok",
+        message: "Admin API is healthy.",
+        port: 8083,
+      },
+      {
+        key: "gateway",
+        label: "Gateway",
+        kind: "go",
+        status: "ok",
+        message: "Gateway is healthy.",
+        port: 8080,
+      },
     ],
     deployment: createDeploymentPreview(),
     radius: {
       upstream_enabled: true,
-      realm: 'aegis-upstream',
-      pool_strategy: 'fail-over',
-      configured_servers: [{ name: 'upstream-1', address: '10.0.0.20', auth_port: 1812, acct_port: 1813 }],
-      server_statuses: [{ name: 'upstream-1', address: '10.0.0.20', auth_port: 1812, acct_port: 1813, status: 'ok', message: 'Healthy', supports_status_server: true }],
+      realm: "aegis-upstream",
+      pool_strategy: "fail-over",
+      configured_servers: [
+        {
+          name: "upstream-1",
+          address: "10.0.0.20",
+          auth_port: 1812,
+          acct_port: 1813,
+        },
+      ],
+      server_statuses: [
+        {
+          name: "upstream-1",
+          address: "10.0.0.20",
+          auth_port: 1812,
+          acct_port: 1813,
+          status: "ok",
+          message: "Healthy",
+          supports_status_server: true,
+        },
+      ],
       enabled_radius_clients: 2,
-      broker_auth: { status: 'ok', message: 'Auth path healthy.' },
-      broker_accounting: { status: 'ok', message: 'Accounting path healthy.' },
+      broker_auth: { status: "ok", message: "Auth path healthy." },
+      broker_accounting: { status: "ok", message: "Accounting path healthy." },
     },
     wireless: {
       enabled: false,
-      interface: '',
-      country_code: 'US',
+      interface: "",
+      country_code: "US",
       channel: 6,
-      hostapd_config_path: '/etc/hostapd/hostapd.conf',
+      hostapd_config_path: "/etc/hostapd/hostapd.conf",
       ssid_count: 0,
       auth_modes: [],
     },
     enforcement: {
       shaping_enabled: true,
-      shaping_interface: 'ens37',
+      shaping_interface: "ens37",
       shaped_sessions: 2,
-      shaper: { status: 'ok', message: 'Runtime shaper healthy.' },
+      shaper: { status: "ok", message: "Runtime shaper healthy." },
     },
     high_availability: {
       enabled: true,
-      role: 'standby',
-      peer_api_url: 'https://peer.example.test:8083',
-      virtual_ip: '192.168.50.2',
+      role: "standby",
+      peer_api_url: "https://peer.example.test:8083",
+      virtual_ip: "192.168.50.2",
       heartbeat_interval_seconds: 5,
       failover_timeout_seconds: 20,
       replication_interval_seconds: 300,
@@ -485,42 +576,45 @@ function createSystemStatus() {
       split_brain_protection_enabled: true,
       auto_stage_shared_package: true,
       auto_activate_on_failover: false,
-      witness_api_url: '',
-      witness_urls: ['https://witness-a.example.test/ha', 'https://witness-b.example.test/ha'],
+      witness_api_url: "",
+      witness_urls: [
+        "https://witness-a.example.test/ha",
+        "https://witness-b.example.test/ha",
+      ],
       witness_quorum: 2,
       witness_weights: {
-        'https://witness-a.example.test/ha': 2,
-        'https://witness-b.example.test/ha': 1,
+        "https://witness-a.example.test/ha": 2,
+        "https://witness-b.example.test/ha": 1,
       },
       witness_weight_threshold: 2,
       witness_groups: {
-        'https://witness-a.example.test/ha': 'dc-a',
-        'https://witness-b.example.test/ha': 'dc-b',
+        "https://witness-a.example.test/ha": "dc-a",
+        "https://witness-b.example.test/ha": "dc-b",
       },
       witness_min_distinct_groups: 2,
-      witness_required_groups: ['dc-a'],
+      witness_required_groups: ["dc-a"],
       witness_sources: {
-        'https://witness-a.example.test/ha': 'local',
-        'https://witness-b.example.test/ha': 'external',
+        "https://witness-a.example.test/ha": "local",
+        "https://witness-b.example.test/ha": "external",
       },
       witness_source_confidence: {
-        local: 'critical',
-        external: 'advisory',
+        local: "critical",
+        external: "advisory",
       },
-      witness_required_sources: ['local', 'external'],
-      witness_required_urls: ['https://witness-a.example.test/ha'],
+      witness_required_sources: ["local", "external"],
+      witness_required_urls: ["https://witness-a.example.test/ha"],
       witness_required_sources_by_tier: {
-        critical: ['local'],
+        critical: ["local"],
       },
       witness_required_urls_by_tier: {
-        critical: ['https://witness-a.example.test/ha'],
+        critical: ["https://witness-a.example.test/ha"],
       },
       witness_required_groups_by_tier: {
-        critical: ['dc-a'],
+        critical: ["dc-a"],
       },
-      witness_policy_mode: 'all',
+      witness_policy_mode: "all",
       witness_policy_mode_by_tier: {
-        advisory: 'any',
+        advisory: "any",
       },
       witness_failure_tolerance: 1,
       witness_failure_weight_tolerance: 1,
@@ -541,35 +635,35 @@ function createSystemStatus() {
         advisory: 30,
       },
       witness_required_node_by_tier: {
-        critical: 'witness-a',
+        critical: "witness-a",
       },
-      witness_signature_required_tiers: ['critical'],
-      witness_replay_required_tiers: ['critical'],
+      witness_signature_required_tiers: ["critical"],
+      witness_replay_required_tiers: ["critical"],
       witness_failure_tolerance_by_tier: {
         advisory: 1,
       },
       witness_failure_weight_tolerance_by_tier: {
         advisory: 1,
       },
-      witness_blocking_tiers: ['critical'],
-      witness_token_env: 'AEGIS_HA_WITNESS_TOKEN',
-      witness_signing_key_env: 'AEGIS_HA_WITNESS_SIGNING_KEY',
+      witness_blocking_tiers: ["critical"],
+      witness_token_env: "AEGIS_HA_WITNESS_TOKEN",
+      witness_signing_key_env: "AEGIS_HA_WITNESS_SIGNING_KEY",
       witness_max_age_seconds: 30,
-      witness_required_node: 'witness-1',
+      witness_required_node: "witness-1",
       witness_replay_protection_enabled: true,
       preempt: false,
-      shared_state_dir: '/var/lib/aegisnas/ha',
+      shared_state_dir: "/var/lib/aegisnas/ha",
       runtime: {
-        status: 'ok',
-        message: 'Peer health probe is healthy.',
-        updated_at: '2026-05-05T12:00:00Z',
+        status: "ok",
+        message: "Peer health probe is healthy.",
+        updated_at: "2026-05-05T12:00:00Z",
         details: {
-          peer_health_url: 'https://peer.example.test:8083/health',
+          peer_health_url: "https://peer.example.test:8083/health",
           peer_reachable: true,
           peer_status_code: 200,
-          fencing_status: 'peer_fresh',
+          fencing_status: "peer_fresh",
           split_brain_protection_enabled: true,
-          witness_status: 'idle',
+          witness_status: "idle",
           witness_allow_count: 0,
           witness_total_count: 2,
           witness_allow_weight: 0,
@@ -579,7 +673,7 @@ function createSystemStatus() {
           witness_allow_source_count: 0,
           witness_total_source_count: 2,
           witness_allow_sources: [],
-          witness_policy_mode: 'all',
+          witness_policy_mode: "all",
           witness_failure_tolerance: 1,
           witness_failure_weight_tolerance: 1,
           witness_min_approvals_by_tier: {
@@ -593,11 +687,11 @@ function createSystemStatus() {
             advisory: 30,
           },
           witness_confidence: {
-            'https://witness-a.example.test/ha': 'critical',
-            'https://witness-b.example.test/ha': 'advisory',
+            "https://witness-a.example.test/ha": "critical",
+            "https://witness-b.example.test/ha": "advisory",
           },
           witness_total_tier_count: 2,
-          witness_blocking_tiers: ['critical'],
+          witness_blocking_tiers: ["critical"],
           witness_failure_tolerance_by_tier: {
             advisory: 1,
           },
@@ -607,21 +701,22 @@ function createSystemStatus() {
           peer_shared_heartbeat_present: true,
           peer_shared_heartbeat_age_seconds: 4,
           peer_shared_heartbeat_stale: false,
-          vip_announcement_status: 'sent',
-          vip_announcement_at: '2026-05-05T11:59:58Z',
+          vip_announcement_status: "sent",
+          vip_announcement_at: "2026-05-05T11:59:58Z",
         },
       },
       replication_runtime: {
-        status: 'ok',
-        message: 'Observed fresh shared HA replication package. Standby auto-stage is ready with package shared-stage-001.',
-        updated_at: '2026-05-05T12:00:00Z',
+        status: "ok",
+        message:
+          "Observed fresh shared HA replication package. Standby auto-stage is ready with package shared-stage-001.",
+        updated_at: "2026-05-05T12:00:00Z",
         details: {
-          latest_source_node: 'active-node',
+          latest_source_node: "active-node",
           latest_age_seconds: 42,
           stale: false,
           auto_stage_enabled: true,
-          auto_stage_status: 'ready',
-          auto_stage_stage_id: 'shared-stage-001',
+          auto_stage_status: "ready",
+          auto_stage_stage_id: "shared-stage-001",
         },
       },
       history_stats: {
@@ -640,32 +735,41 @@ function createSystemStatus() {
         replication_stale_count: 1,
         shared_stages: 2,
         activations: 1,
-        last_event_at: '2026-05-05T12:00:00Z',
+        last_event_at: "2026-05-05T12:00:00Z",
       },
     },
     integrations: {
       admin_sso: {
         enabled: true,
-        provider: 'oidc',
-        issuer_url: 'https://sso.example.test',
-        redirect_url: 'http://127.0.0.1:4173/login',
-        groups_claim: 'groups',
-        session: { status: 'ok', message: 'OIDC admin SSO ready.' },
+        provider: "oidc",
+        issuer_url: "https://sso.example.test",
+        redirect_url: "http://127.0.0.1:4173/login",
+        groups_claim: "groups",
+        session: { status: "ok", message: "OIDC admin SSO ready." },
       },
       siem: {
         enabled: true,
-        provider: 'webhook',
-        endpoint: 'https://siem.example.test/events',
+        provider: "webhook",
+        endpoint: "https://siem.example.test/events",
         batch_size: 100,
-        export: { status: 'ok', message: 'SIEM export healthy.' },
+        export: { status: "ok", message: "SIEM export healthy." },
       },
       controller: {
         enabled: true,
-        platform: 'vendor-neutral',
-        endpoint: 'https://controller.example.test/api',
-        sync_mode: 'monitor',
-        site: 'lab',
-        sync: { status: 'ok', message: 'Controller sync healthy.', details: { sync_count: 4, success_count: 4, failure_count: 0, last_duration_ms: 182 } },
+        platform: "vendor-neutral",
+        endpoint: "https://controller.example.test/api",
+        sync_mode: "monitor",
+        site: "lab",
+        sync: {
+          status: "ok",
+          message: "Controller sync healthy.",
+          details: {
+            sync_count: 4,
+            success_count: 4,
+            failure_count: 0,
+            last_duration_ms: 182,
+          },
+        },
       },
     },
     profiling: {
@@ -673,12 +777,38 @@ function createSystemStatus() {
       passive_enabled: true,
       posture_enabled: true,
       mdm_sync_enabled: true,
-      mdm_provider: 'workspace-one',
-      mdm_endpoint: 'https://mdm.example.test/api',
-      compliance_webhook: 'https://policy.example.test/compliance',
-      device_inventory: { status: 'ok', message: 'Device inventory runtime is active.', details: { passive_enabled: true, posture_enabled: true } },
-      mdm_sync: { status: 'ok', message: 'MDM sync completed successfully.', details: { provider: 'workspace-one', total_records: 12, managed_records: 11, compliant_records: 10, non_compliant_records: 2, remediation_records: 1 } },
-      posture_checks: { status: 'ok', message: 'Compliance webhook evaluation completed.', details: { provider: 'compliance-webhook', total_records: 4, managed_records: 4, compliant_records: 3, non_compliant_records: 1, remediation_records: 1 } },
+      mdm_provider: "workspace-one",
+      mdm_endpoint: "https://mdm.example.test/api",
+      compliance_webhook: "https://policy.example.test/compliance",
+      device_inventory: {
+        status: "ok",
+        message: "Device inventory runtime is active.",
+        details: { passive_enabled: true, posture_enabled: true },
+      },
+      mdm_sync: {
+        status: "ok",
+        message: "MDM sync completed successfully.",
+        details: {
+          provider: "workspace-one",
+          total_records: 12,
+          managed_records: 11,
+          compliant_records: 10,
+          non_compliant_records: 2,
+          remediation_records: 1,
+        },
+      },
+      posture_checks: {
+        status: "ok",
+        message: "Compliance webhook evaluation completed.",
+        details: {
+          provider: "compliance-webhook",
+          total_records: 4,
+          managed_records: 4,
+          compliant_records: 3,
+          non_compliant_records: 1,
+          remediation_records: 1,
+        },
+      },
     },
     telemetry: {
       enabled: true,
@@ -686,174 +816,174 @@ function createSystemStatus() {
       lease_history_poll_seconds: 300,
       diagnostics_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/diagnostics',
-        format: 'both',
+        directory: "/var/lib/aegisnas/diagnostics",
+        format: "both",
         interval_minutes: 60,
         retention_count: 14,
         runtime: {
-          status: 'ok',
-          message: 'Scheduled diagnostics exports are healthy.',
+          status: "ok",
+          message: "Scheduled diagnostics exports are healthy.",
           details: {
-            format: 'both',
+            format: "both",
             interval_minutes: 60,
             retention_count: 14,
-            directory: '/var/lib/aegisnas/diagnostics',
-            last_export_at: '2026-05-05T11:55:00Z',
-            next_due_at: '2026-05-05T12:55:00Z',
+            directory: "/var/lib/aegisnas/diagnostics",
+            last_export_at: "2026-05-05T11:55:00Z",
+            next_due_at: "2026-05-05T12:55:00Z",
           },
         },
       },
       audit_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/audit-exports',
-        format: 'json',
+        directory: "/var/lib/aegisnas/audit-exports",
+        format: "json",
         interval_minutes: 60,
         retention_count: 21,
         runtime: {
-          status: 'ok',
-          message: 'Scheduled audit exports are healthy.',
+          status: "ok",
+          message: "Scheduled audit exports are healthy.",
           details: {
-            format: 'json',
+            format: "json",
             interval_minutes: 60,
             retention_count: 21,
-            directory: '/var/lib/aegisnas/audit-exports',
-            last_export_at: '2026-05-05T11:58:00Z',
-            next_due_at: '2026-05-05T12:58:00Z',
+            directory: "/var/lib/aegisnas/audit-exports",
+            last_export_at: "2026-05-05T11:58:00Z",
+            next_due_at: "2026-05-05T12:58:00Z",
           },
         },
       },
       session_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/session-exports',
-        format: 'both',
+        directory: "/var/lib/aegisnas/session-exports",
+        format: "both",
         interval_minutes: 60,
         retention_count: 21,
         runtime: {
-          status: 'ok',
-          message: 'Scheduled session exports are healthy.',
+          status: "ok",
+          message: "Scheduled session exports are healthy.",
           details: {
-            format: 'both',
+            format: "both",
             interval_minutes: 60,
             retention_count: 21,
-            directory: '/var/lib/aegisnas/session-exports',
-            last_export_at: '2026-05-05T11:53:00Z',
-            next_due_at: '2026-05-05T12:53:00Z',
+            directory: "/var/lib/aegisnas/session-exports",
+            last_export_at: "2026-05-05T11:53:00Z",
+            next_due_at: "2026-05-05T12:53:00Z",
           },
         },
       },
       session_analytics_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/session-analytics-exports',
-        format: 'json',
+        directory: "/var/lib/aegisnas/session-analytics-exports",
+        format: "json",
         interval_minutes: 60,
         retention_count: 21,
         runtime: {
-          status: 'ok',
-          message: 'Scheduled session analytics exports are healthy.',
+          status: "ok",
+          message: "Scheduled session analytics exports are healthy.",
           details: {
-            format: 'json',
+            format: "json",
             interval_minutes: 60,
             retention_count: 21,
-            directory: '/var/lib/aegisnas/session-analytics-exports',
+            directory: "/var/lib/aegisnas/session-analytics-exports",
             window_hours: 24,
             bucket_count: 24,
-            last_export_at: '2026-05-05T11:54:00Z',
-            next_due_at: '2026-05-05T12:54:00Z',
+            last_export_at: "2026-05-05T11:54:00Z",
+            next_due_at: "2026-05-05T12:54:00Z",
           },
         },
       },
       integration_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/integration-exports',
-        format: 'both',
+        directory: "/var/lib/aegisnas/integration-exports",
+        format: "both",
         interval_minutes: 60,
         retention_count: 21,
         runtime: {
-          status: 'ok',
-          message: 'Scheduled integration exports are healthy.',
+          status: "ok",
+          message: "Scheduled integration exports are healthy.",
           details: {
-            format: 'both',
+            format: "both",
             interval_minutes: 60,
             retention_count: 21,
-            directory: '/var/lib/aegisnas/integration-exports',
-            last_export_at: '2026-05-05T11:57:00Z',
-            next_due_at: '2026-05-05T12:57:00Z',
+            directory: "/var/lib/aegisnas/integration-exports",
+            last_export_at: "2026-05-05T11:57:00Z",
+            next_due_at: "2026-05-05T12:57:00Z",
           },
         },
       },
       ha_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/ha-exports',
-        format: 'json',
+        directory: "/var/lib/aegisnas/ha-exports",
+        format: "json",
         interval_minutes: 60,
         retention_count: 21,
         runtime: {
-          status: 'ok',
-          message: 'Scheduled HA exports are healthy.',
+          status: "ok",
+          message: "Scheduled HA exports are healthy.",
           details: {
-            format: 'json',
+            format: "json",
             interval_minutes: 60,
             retention_count: 21,
-            directory: '/var/lib/aegisnas/ha-exports',
-            last_export_at: '2026-05-05T11:56:00Z',
-            next_due_at: '2026-05-05T12:56:00Z',
+            directory: "/var/lib/aegisnas/ha-exports",
+            last_export_at: "2026-05-05T11:56:00Z",
+            next_due_at: "2026-05-05T12:56:00Z",
           },
         },
       },
       network_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/network-exports',
-        format: 'both',
+        directory: "/var/lib/aegisnas/network-exports",
+        format: "both",
         interval_minutes: 60,
         retention_count: 21,
         runtime: {
-          status: 'ok',
-          message: 'Scheduled network exports are healthy.',
+          status: "ok",
+          message: "Scheduled network exports are healthy.",
           details: {
-            format: 'both',
+            format: "both",
             interval_minutes: 60,
             retention_count: 21,
-            directory: '/var/lib/aegisnas/network-exports',
-            last_export_at: '2026-05-05T11:54:00Z',
-            next_due_at: '2026-05-05T12:54:00Z',
+            directory: "/var/lib/aegisnas/network-exports",
+            last_export_at: "2026-05-05T11:54:00Z",
+            next_due_at: "2026-05-05T12:54:00Z",
           },
         },
       },
       upstream_aaa_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/upstream-aaa-exports',
-        format: 'json',
+        directory: "/var/lib/aegisnas/upstream-aaa-exports",
+        format: "json",
         interval_minutes: 60,
         retention_count: 21,
         runtime: {
-          status: 'ok',
-          message: 'Scheduled upstream AAA exports are healthy.',
+          status: "ok",
+          message: "Scheduled upstream AAA exports are healthy.",
           details: {
-            format: 'json',
+            format: "json",
             interval_minutes: 60,
             retention_count: 21,
-            directory: '/var/lib/aegisnas/upstream-aaa-exports',
-            last_export_at: '2026-05-05T11:59:30Z',
-            next_due_at: '2026-05-05T12:59:30Z',
+            directory: "/var/lib/aegisnas/upstream-aaa-exports",
+            last_export_at: "2026-05-05T11:59:30Z",
+            next_due_at: "2026-05-05T12:59:30Z",
           },
         },
       },
       upgrade_readiness_exports: {
         enabled: true,
-        directory: '/var/lib/aegisnas/upgrade-readiness-exports',
-        format: 'json',
+        directory: "/var/lib/aegisnas/upgrade-readiness-exports",
+        format: "json",
         interval_minutes: 240,
         retention_count: 14,
         runtime: {
-          status: 'ok',
-          message: 'Scheduled upgrade readiness exports are healthy.',
+          status: "ok",
+          message: "Scheduled upgrade readiness exports are healthy.",
           details: {
-            format: 'json',
+            format: "json",
             interval_minutes: 240,
             retention_count: 14,
-            directory: '/var/lib/aegisnas/upgrade-readiness-exports',
-            last_export_at: '2026-05-05T08:00:00Z',
-            next_due_at: '2026-05-05T12:00:00Z',
+            directory: "/var/lib/aegisnas/upgrade-readiness-exports",
+            last_export_at: "2026-05-05T08:00:00Z",
+            next_due_at: "2026-05-05T12:00:00Z",
           },
         },
       },
@@ -868,8 +998,8 @@ function createSystemStatus() {
         rollback_count: 1,
         auto_rollback_count: 0,
         auto_rollback_failure_count: 0,
-        last_applied_at: '2026-05-05T12:10:00Z',
-        last_failure_at: '',
+        last_applied_at: "2026-05-05T12:10:00Z",
+        last_failure_at: "",
       },
       lease_trends: {
         window_hours: 24,
@@ -880,10 +1010,19 @@ function createSystemStatus() {
         expired_observations_window: 0,
         reservation_observations_window: 2,
         peak_concurrent_leases_window: 1,
-        latest_observed_at: '2026-05-05T12:00:00Z',
+        latest_observed_at: "2026-05-05T12:00:00Z",
       },
       recovery: null,
-      controller_sync: { status: 'ok', message: 'Controller sync healthy.', details: { sync_count: 4, success_count: 4, failure_count: 0, last_duration_ms: 182 } },
+      controller_sync: {
+        status: "ok",
+        message: "Controller sync healthy.",
+        details: {
+          sync_count: 4,
+          success_count: 4,
+          failure_count: 0,
+          last_duration_ms: 182,
+        },
+      },
     },
   };
 }
@@ -895,26 +1034,29 @@ function createRiskyPreview() {
     diff: {
       interfaces_added: [],
       interfaces_removed: [],
-      gateways_added: ['wan-default via 10.0.1.1'],
-      gateways_removed: ['wan-default via 10.0.0.1'],
-      routes_added: ['172.16.30.0/24 via 10.0.1.254'],
-      routes_removed: ['172.16.20.0/24 via 10.0.0.254'],
+      gateways_added: ["wan-default via 10.0.1.1"],
+      gateways_removed: ["wan-default via 10.0.0.1"],
+      routes_added: ["172.16.30.0/24 via 10.0.1.254"],
+      routes_removed: ["172.16.20.0/24 via 10.0.0.254"],
     },
     risk: {
       requires_confirmation: true,
-      confirmation_phrase: 'APPLY EDGE NETWORK',
-      summary: 'This edge-network apply changes primary connectivity. Review the warnings and enter the confirmation phrase before applying.',
+      confirmation_phrase: "APPLY EDGE NETWORK",
+      summary:
+        "This edge-network apply changes primary connectivity. Review the warnings and enter the confirmation phrase before applying.",
       items: [
         {
-          level: 'danger',
-          code: 'default_gateway_change',
-          message: 'Default gateway selection will change. Upstream reachability and remote management may be interrupted until the new gateway is healthy.',
+          level: "danger",
+          code: "default_gateway_change",
+          message:
+            "Default gateway selection will change. Upstream reachability and remote management may be interrupted until the new gateway is healthy.",
         },
       ],
     },
     dnsmasq_enabled: true,
-    dnsmasq_config: 'dhcp-range=192.168.50.100,192.168.50.200,12h',
-    firewall_rules: 'table inet aegis { chain input { type filter hook input priority 0; } }',
+    dnsmasq_config: "dhcp-range=192.168.50.100,192.168.50.200,12h",
+    firewall_rules:
+      "table inet aegis { chain input { type filter hook input priority 0; } }",
     free_site_count: 1,
     custom_firewall_rules: 1,
     static_reservations: 1,
@@ -936,12 +1078,13 @@ function createAppliedPreview() {
     },
     risk: {
       requires_confirmation: false,
-      summary: 'No risky edge-network changes detected.',
+      summary: "No risky edge-network changes detected.",
       items: [],
     },
     dnsmasq_enabled: true,
-    dnsmasq_config: 'dhcp-range=192.168.50.100,192.168.50.200,12h',
-    firewall_rules: 'table inet aegis { chain input { type filter hook input priority 0; } }',
+    dnsmasq_config: "dhcp-range=192.168.50.100,192.168.50.200,12h",
+    firewall_rules:
+      "table inet aegis { chain input { type filter hook input priority 0; } }",
     free_site_count: 1,
     custom_firewall_rules: 1,
     static_reservations: 1,
@@ -958,10 +1101,186 @@ function parseBody(route: Route): any {
   }
 }
 
-export async function seedAuthenticatedSession(page: Page, token = 'token-super') {
+function buildGuestLifecycleResponse(
+  records: GuestRecord[],
+  statusFilter = "",
+) {
+  const history = statusFilter
+    ? records.filter((item) => item.status === statusFilter)
+    : records;
+  const roles = new Map<string, number>();
+  const summary = {
+    window_hours: 24,
+    bucket_count: 24,
+    bucket_minutes: 60,
+    total_records: history.length,
+    pending_count: 0,
+    approved_count: 0,
+    rejected_count: 0,
+    completed_count: 0,
+    sponsor_approval_required_count: 0,
+    approval_delivery_pending_count: 0,
+    approval_delivery_sent_count: 0,
+    approval_delivery_failed_count: 0,
+    invite_queued_count: 0,
+    invite_sent_count: 0,
+    invite_failed_count: 0,
+    unique_guests_window: 0,
+    unique_sponsors_window: 0,
+    unique_companies_window: 0,
+    avg_approval_minutes: 15,
+    avg_completion_minutes: 40,
+    latest_submitted_at: "",
+    latest_approved_at: "",
+    latest_rejected_at: "",
+    latest_completed_at: "",
+    roles: [] as { name: string; count: number }[],
+    buckets: [
+      {
+        start: "2026-05-05T08:00:00Z",
+        end: "2026-05-05T09:00:00Z",
+        submitted_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T09:00:00Z",
+        end: "2026-05-05T10:00:00Z",
+        submitted_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T10:00:00Z",
+        end: "2026-05-05T11:00:00Z",
+        submitted_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T11:00:00Z",
+        end: "2026-05-05T12:00:00Z",
+        submitted_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T12:00:00Z",
+        end: "2026-05-05T13:00:00Z",
+        submitted_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T13:00:00Z",
+        end: "2026-05-05T14:00:00Z",
+        submitted_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        completed_count: 0,
+      },
+    ],
+  };
+  const guestSet = new Set<string>();
+  const sponsorSet = new Set<string>();
+  const companySet = new Set<string>();
+
+  history.forEach((item, index) => {
+    if (item.status === "pending") summary.pending_count += 1;
+    if (item.status === "approved") summary.approved_count += 1;
+    if (item.status === "rejected") summary.rejected_count += 1;
+    if (item.status === "completed") summary.completed_count += 1;
+
+    if (
+      item.approval_delivery_status &&
+      item.approval_delivery_status !== "not_required"
+    ) {
+      summary.sponsor_approval_required_count += 1;
+    }
+    if (item.approval_delivery_status === "pending")
+      summary.approval_delivery_pending_count += 1;
+    if (item.approval_delivery_status === "sent")
+      summary.approval_delivery_sent_count += 1;
+    if (item.approval_delivery_status === "failed")
+      summary.approval_delivery_failed_count += 1;
+    if (item.invite_delivery_status === "queued")
+      summary.invite_queued_count += 1;
+    if (item.invite_delivery_status === "sent") summary.invite_sent_count += 1;
+    if (item.invite_delivery_status === "failed")
+      summary.invite_failed_count += 1;
+
+    guestSet.add(item.email || item.full_name || item.id);
+    if (item.sponsor_email || item.sponsor_name) {
+      sponsorSet.add(item.sponsor_email || item.sponsor_name || item.id);
+    }
+    if (item.company) {
+      companySet.add(item.company);
+    }
+    if (item.role) {
+      roles.set(item.role, (roles.get(item.role) || 0) + 1);
+    }
+
+    if (
+      !summary.latest_submitted_at ||
+      item.created_at > summary.latest_submitted_at
+    )
+      summary.latest_submitted_at = item.created_at;
+    if (
+      item.approved_at &&
+      (!summary.latest_approved_at ||
+        item.approved_at > summary.latest_approved_at)
+    )
+      summary.latest_approved_at = item.approved_at;
+    if (
+      item.rejected_at &&
+      (!summary.latest_rejected_at ||
+        item.rejected_at > summary.latest_rejected_at)
+    )
+      summary.latest_rejected_at = item.rejected_at;
+    if (
+      item.completed_at &&
+      (!summary.latest_completed_at ||
+        item.completed_at > summary.latest_completed_at)
+    )
+      summary.latest_completed_at = item.completed_at;
+
+    const bucket = summary.buckets[Math.min(index, summary.buckets.length - 1)];
+    bucket.submitted_count += 1;
+    if (item.status === "approved") bucket.approved_count += 1;
+    if (item.status === "rejected") bucket.rejected_count += 1;
+    if (item.status === "completed") bucket.completed_count += 1;
+  });
+
+  summary.unique_guests_window = guestSet.size;
+  summary.unique_sponsors_window = sponsorSet.size;
+  summary.unique_companies_window = companySet.size;
+  summary.roles = Array.from(roles.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  return {
+    generated_at: "2026-05-05T12:15:00Z",
+    status: statusFilter,
+    window_hours: summary.window_hours,
+    bucket_count: summary.bucket_count,
+    count: history.length,
+    history,
+    summary,
+  };
+}
+
+export async function seedAuthenticatedSession(
+  page: Page,
+  token = "token-super",
+) {
   await page.addInitScript((seedToken) => {
-    localStorage.setItem('token', seedToken);
-    localStorage.setItem('auth_mode', 'token');
+    localStorage.setItem("token", seedToken);
+    localStorage.setItem("auth_mode", "token");
   }, token);
 }
 
@@ -975,126 +1294,126 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       token_login: true,
       sso: {
         enabled: true,
-        provider: 'oidc',
+        provider: "oidc",
         supported: true,
-        redirect_url: 'http://127.0.0.1:4173/login',
-        issuer_url: 'https://sso.example.test',
+        redirect_url: "http://127.0.0.1:4173/login",
+        issuer_url: "https://sso.example.test",
       },
     },
     networkApplied: false,
     networkBackups: [
       {
-        id: 'snap-001',
-        created_at: '2026-05-05T12:00:00Z',
+        id: "snap-001",
+        created_at: "2026-05-05T12:00:00Z",
         interfaces: 2,
         gateways: 1,
         routes: 1,
         dnsmasq_enabled: true,
         has_firewall: true,
-        created_by: 'seed',
-        reason: 'pre-apply',
+        created_by: "seed",
+        reason: "pre-apply",
       },
     ],
     networkApplyHistory: [
       {
         id: 1,
-        action: 'apply',
-        status: 'success',
-        summary: 'Previous edge-network apply completed successfully.',
-        backup_id: 'snap-001',
-        actor: 'seed',
-        created_at: '2026-05-05T12:00:00Z',
+        action: "apply",
+        status: "success",
+        summary: "Previous edge-network apply completed successfully.",
+        backup_id: "snap-001",
+        actor: "seed",
+        created_at: "2026-05-05T12:00:00Z",
       },
     ],
     haHistory: [
       {
         id: 1,
-        event_type: 'replication_publish',
-        status: 'success',
-        summary: 'Published shared HA replication package.',
-        node_role: 'active',
-        actor: '',
-        created_at: '2026-05-05T12:00:00Z',
+        event_type: "replication_publish",
+        status: "success",
+        summary: "Published shared HA replication package.",
+        node_role: "active",
+        actor: "",
+        created_at: "2026-05-05T12:00:00Z",
       },
       {
         id: 2,
-        event_type: 'failover',
-        status: 'promoted',
-        summary: 'Standby node promoted after peer failure.',
-        node_role: 'standby',
-        actor: '',
-        created_at: '2026-05-05T11:50:00Z',
+        event_type: "failover",
+        status: "promoted",
+        summary: "Standby node promoted after peer failure.",
+        node_role: "standby",
+        actor: "",
+        created_at: "2026-05-05T11:50:00Z",
       },
     ],
     auditHistory: [
       {
         id: 1,
-        timestamp: '2026-05-05T12:00:00Z',
-        user: 'Aegis Admin',
-        action: 'download_support_bundle',
-        details: 'aegisnas-support-bundle.zip',
-        result: 'downloaded',
-        ip_address: '192.168.50.10',
+        timestamp: "2026-05-05T12:00:00Z",
+        user: "Aegis Admin",
+        action: "download_support_bundle",
+        details: "aegisnas-support-bundle.zip",
+        result: "downloaded",
+        ip_address: "192.168.50.10",
       },
       {
         id: 2,
-        timestamp: '2026-05-05T12:10:30Z',
-        user: 'Aegis Admin',
-        action: 'apply_edge_network',
-        details: 'snap-002',
-        result: 'confirmed',
-        ip_address: '192.168.50.10',
+        timestamp: "2026-05-05T12:10:30Z",
+        user: "Aegis Admin",
+        action: "apply_edge_network",
+        details: "snap-002",
+        result: "confirmed",
+        ip_address: "192.168.50.10",
       },
     ],
     sessionHistory: [
       {
-        id: 'sess-001',
-        username: 'alice',
-        mac: 'aa:bb:cc:dd:ee:ff',
-        ip: '192.168.50.10',
-        auth_method: 'dot1x',
-        identity_source: 'local-users',
+        id: "sess-001",
+        username: "alice",
+        mac: "aa:bb:cc:dd:ee:ff",
+        ip: "192.168.50.10",
+        auth_method: "dot1x",
+        identity_source: "local-users",
         vlan: 20,
-        role: 'employee',
-        bandwidth_profile: '10m-down-5m-up',
-        filter_id: 'corp-access',
-        radius_class: 'radius-class-1',
+        role: "employee",
+        bandwidth_profile: "10m-down-5m-up",
+        filter_id: "corp-access",
+        radius_class: "radius-class-1",
         session_timeout: 3600,
         idle_timeout: 900,
         acct_session_time: 1800,
-        called_station_id: 'ap-lab-1',
-        nas_identifier: 'switch-lab-1',
-        radius_session_id: 'radius-001',
-        start_time: '2026-05-05T11:30:00Z',
-        last_activity: '2026-05-05T11:59:00Z',
-        end_time: '',
-        stop_reason: '',
+        called_station_id: "ap-lab-1",
+        nas_identifier: "switch-lab-1",
+        radius_session_id: "radius-001",
+        start_time: "2026-05-05T11:30:00Z",
+        last_activity: "2026-05-05T11:59:00Z",
+        end_time: "",
+        stop_reason: "",
         bytes_in: 1024,
         bytes_out: 2048,
         total_bytes: 3072,
       },
       {
-        id: 'sess-000',
-        username: 'bob',
-        mac: '11:22:33:44:55:66',
-        ip: '192.168.50.22',
-        auth_method: 'mab',
-        identity_source: 'device-inventory',
+        id: "sess-000",
+        username: "bob",
+        mac: "11:22:33:44:55:66",
+        ip: "192.168.50.22",
+        auth_method: "mab",
+        identity_source: "device-inventory",
         vlan: 30,
-        role: 'iot',
-        bandwidth_profile: '2m-down-1m-up',
-        filter_id: 'iot-access',
-        radius_class: 'radius-class-2',
+        role: "iot",
+        bandwidth_profile: "2m-down-1m-up",
+        filter_id: "iot-access",
+        radius_class: "radius-class-2",
         session_timeout: 7200,
         idle_timeout: 600,
         acct_session_time: 2400,
-        called_station_id: 'ap-lab-2',
-        nas_identifier: 'switch-lab-2',
-        radius_session_id: 'radius-000',
-        start_time: '2026-05-05T10:00:00Z',
-        last_activity: '2026-05-05T10:40:00Z',
-        end_time: '2026-05-05T10:40:00Z',
-        stop_reason: 'user-request',
+        called_station_id: "ap-lab-2",
+        nas_identifier: "switch-lab-2",
+        radius_session_id: "radius-000",
+        start_time: "2026-05-05T10:00:00Z",
+        last_activity: "2026-05-05T10:40:00Z",
+        end_time: "2026-05-05T10:40:00Z",
+        stop_reason: "user-request",
         bytes_in: 4096,
         bytes_out: 8192,
         total_bytes: 12288,
@@ -1102,12 +1421,12 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
     ],
     dhcpLeases: [
       {
-        expires_at: '2026-05-05T13:00:00Z',
+        expires_at: "2026-05-05T13:00:00Z",
         remaining_seconds: 3600,
-        mac: 'aa:bb:cc:dd:ee:ff',
-        ip: '192.168.50.10',
-        hostname: 'lab-client',
-        client_id: '',
+        mac: "aa:bb:cc:dd:ee:ff",
+        ip: "192.168.50.10",
+        hostname: "lab-client",
+        client_id: "",
         reservation: true,
         expired: false,
       },
@@ -1115,181 +1434,208 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
     dhcpLeaseHistory: [
       {
         id: 1,
-        observed_at: '2026-05-05T11:55:00Z',
-        mac: 'aa:bb:cc:dd:ee:ff',
-        ip: '192.168.50.10',
-        hostname: 'lab-client',
-        client_id: '',
+        observed_at: "2026-05-05T11:55:00Z",
+        mac: "aa:bb:cc:dd:ee:ff",
+        ip: "192.168.50.10",
+        hostname: "lab-client",
+        client_id: "",
         reservation: true,
         expired: false,
-        expires_at: '2026-05-05T13:00:00Z',
+        expires_at: "2026-05-05T13:00:00Z",
         remaining_seconds: 3600,
       },
     ],
     guestRegistrations: options.guestRegistrations || [
       {
-        id: 'guest-1',
-        full_name: 'Alice Guest',
-        company: 'LabCo',
-        email: 'alice@example.test',
-        sponsor_name: 'Sam Sponsor',
-        sponsor_email: 'sam@example.test',
-        status: 'pending',
-        approval_delivery_status: 'sent',
-        invite_delivery_status: 'queued',
-        created_at: '2026-05-05T12:00:00Z',
+        id: "guest-1",
+        full_name: "Alice Guest",
+        company: "LabCo",
+        email: "alice@example.test",
+        sponsor_name: "Sam Sponsor",
+        sponsor_email: "sam@example.test",
+        status: "pending",
+        role: "guest-basic",
+        approval_delivery_status: "sent",
+        invite_delivery_status: "queued",
+        created_at: "2026-05-05T12:00:00Z",
       },
       {
-        id: 'guest-2',
-        full_name: 'Bob Visitor',
-        company: 'Visitors Inc',
-        email: 'bob@example.test',
-        sponsor_name: 'Taylor Sponsor',
-        sponsor_email: 'taylor@example.test',
-        status: 'pending',
-        approval_delivery_status: 'sent',
-        invite_delivery_status: 'queued',
-        created_at: '2026-05-05T12:05:00Z',
+        id: "guest-2",
+        full_name: "Bob Visitor",
+        company: "Visitors Inc",
+        email: "bob@example.test",
+        sponsor_name: "Taylor Sponsor",
+        sponsor_email: "taylor@example.test",
+        status: "pending",
+        role: "guest-standard",
+        approval_delivery_status: "sent",
+        invite_delivery_status: "queued",
+        created_at: "2026-05-05T12:05:00Z",
       },
     ],
     integrationHistory: [
       {
         id: 1,
-        component: 'controller_automation',
-        status: 'ok',
-        summary: 'Controller sync completed.',
-        details: { adapter: 'cisco', sync_count: 2 },
-        created_at: '2026-05-05T11:58:00Z',
+        component: "controller_automation",
+        status: "ok",
+        summary: "Controller sync completed.",
+        details: { adapter: "cisco", sync_count: 2 },
+        created_at: "2026-05-05T11:58:00Z",
       },
       {
         id: 2,
-        component: 'mdm_sync',
-        status: 'degraded',
-        summary: 'MDM sync needs attention.',
-        details: { provider: 'intune' },
-        created_at: '2026-05-05T11:59:00Z',
+        component: "mdm_sync",
+        status: "degraded",
+        summary: "MDM sync needs attention.",
+        details: { provider: "intune" },
+        created_at: "2026-05-05T11:59:00Z",
       },
     ],
     networkRecovery: null as null | Record<string, any>,
   };
 
-  await page.route('**/api/v1/**', async (route) => {
+  await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
-    const path = url.pathname.replace(/^\/api\/v1/, '');
+    const path = url.pathname.replace(/^\/api\/v1/, "");
     const method = request.method().toUpperCase();
 
-    if (path === '/auth/sso/start' && method === 'GET') {
+    if (path === "/auth/sso/start" && method === "GET") {
       await route.fulfill({
         status: 302,
-        headers: { location: '/login#sso_token=sso-demo&auth_mode=sso' },
-        body: '',
+        headers: { location: "/login#sso_token=sso-demo&auth_mode=sso" },
+        body: "",
       });
       return;
     }
 
-    if (path === '/auth/options' && method === 'GET') {
+    if (path === "/auth/options" && method === "GET") {
       await route.fulfill({ json: state.authOptions });
       return;
     }
 
-    if (path === '/auth/validate' && method === 'GET') {
-      const authHeader = request.headers()['authorization'] || '';
-      if (authHeader === 'Bearer token-super' || authHeader === 'Bearer sso-demo') {
-        await route.fulfill({ json: { identity: { ...state.identity, source: authHeader.includes('sso-demo') ? 'sso' : state.identity.source } } });
+    if (path === "/auth/validate" && method === "GET") {
+      const authHeader = request.headers()["authorization"] || "";
+      if (
+        authHeader === "Bearer token-super" ||
+        authHeader === "Bearer sso-demo"
+      ) {
+        await route.fulfill({
+          json: {
+            identity: {
+              ...state.identity,
+              source: authHeader.includes("sso-demo")
+                ? "sso"
+                : state.identity.source,
+            },
+          },
+        });
       } else {
-        await route.fulfill({ status: 401, json: { error: 'invalid token' } });
+        await route.fulfill({ status: 401, json: { error: "invalid token" } });
       }
       return;
     }
 
-    if (path === '/auth/logout' && method === 'POST') {
-      await route.fulfill({ json: { status: 'ok' } });
+    if (path === "/auth/logout" && method === "POST") {
+      await route.fulfill({ json: { status: "ok" } });
       return;
     }
 
-    if (path === '/system/status' && method === 'GET') {
+    if (path === "/system/status" && method === "GET") {
       await route.fulfill({ json: state.systemStatus });
       return;
     }
 
-    if (path === '/staged-changes' && method === 'GET') {
+    if (path === "/staged-changes" && method === "GET") {
       await route.fulfill({ json: [] });
       return;
     }
 
-    if (path === '/validate' && method === 'POST') {
+    if (path === "/validate" && method === "POST") {
       await route.fulfill({ json: { changes: 0 } });
       return;
     }
 
-    if (path === '/apply' && method === 'POST') {
+    if (path === "/apply" && method === "POST") {
       await route.fulfill({ json: { changes: 0 } });
       return;
     }
 
-    if (path === '/roles' && method === 'GET') {
-      await route.fulfill({ json: [{ id: 1, name: 'guest-basic' }] });
+    if (path === "/roles" && method === "GET") {
+      await route.fulfill({ json: [{ id: 1, name: "guest-basic" }] });
       return;
     }
-    if (path === '/portal-profiles' && method === 'GET') {
-      await route.fulfill({ json: [{ id: 1, name: 'default-guest' }] });
+    if (path === "/portal-profiles" && method === "GET") {
+      await route.fulfill({ json: [{ id: 1, name: "default-guest" }] });
       return;
     }
-    if (path === '/identity-sources' && method === 'GET') {
-      await route.fulfill({ json: [{ id: 1, name: 'local-users' }] });
+    if (path === "/identity-sources" && method === "GET") {
+      await route.fulfill({ json: [{ id: 1, name: "local-users" }] });
       return;
     }
-    if (path === '/bandwidth-profiles' && method === 'GET') {
-      await route.fulfill({ json: [{ id: 1, name: '10m-down-5m-up' }] });
+    if (path === "/bandwidth-profiles" && method === "GET") {
+      await route.fulfill({ json: [{ id: 1, name: "10m-down-5m-up" }] });
       return;
     }
 
-    if (path === '/system/settings' && method === 'GET') {
+    if (path === "/system/settings" && method === "GET") {
       await route.fulfill({ json: state.settings });
       return;
     }
-    if (path === '/system/settings' && method === 'PUT') {
+    if (path === "/system/settings" && method === "PUT") {
       state.settings = parseBody(route);
       await route.fulfill({ json: { settings: state.settings } });
       return;
     }
-    if (path === '/system/settings/evaluate' && method === 'POST') {
-      await route.fulfill({ json: { valid: true, deployment: state.deploymentPreview } });
+    if (path === "/system/settings/evaluate" && method === "POST") {
+      await route.fulfill({
+        json: { valid: true, deployment: state.deploymentPreview },
+      });
       return;
     }
-    if (path === '/system/hostapd-preview' && method === 'GET') {
-      await route.fulfill({ json: { path: '/etc/hostapd/hostapd.conf', config: '# hostapd preview' } });
+    if (path === "/system/hostapd-preview" && method === "GET") {
+      await route.fulfill({
+        json: {
+          path: "/etc/hostapd/hostapd.conf",
+          config: "# hostapd preview",
+        },
+      });
       return;
     }
-    if (path === '/system/dhcp-leases' && method === 'GET') {
+    if (path === "/system/dhcp-leases" && method === "GET") {
       await route.fulfill({
         json: {
           leases: state.dhcpLeases,
           count: state.dhcpLeases.length,
           dhcp_enabled: true,
-          lease_file: '/var/lib/misc/dnsmasq.leases',
-          generated_at: '2026-05-05T12:00:00Z',
+          lease_file: "/var/lib/misc/dnsmasq.leases",
+          generated_at: "2026-05-05T12:00:00Z",
           static_leases: 1,
           authoritative: true,
-          lease_duration: '12h',
+          lease_duration: "12h",
         },
       });
       return;
     }
-    if (path === '/system/dhcp-lease-history' && method === 'GET') {
-      await route.fulfill({ json: { history: state.dhcpLeaseHistory, count: state.dhcpLeaseHistory.length, generated_at: '2026-05-05T12:00:00Z' } });
-      return;
-    }
-    if (path === '/system/dhcp-lease-history/export' && method === 'GET') {
+    if (path === "/system/dhcp-lease-history" && method === "GET") {
       await route.fulfill({
-        status: 200,
-        headers: { 'content-type': 'text/csv; charset=utf-8' },
-        body: 'id,observed_at,mac,ip,hostname,client_id,reservation,expired,expires_at,remaining_seconds\n1,2026-05-05T11:55:00Z,aa:bb:cc:dd:ee:ff,192.168.50.10,lab-client,,true,false,2026-05-05T13:00:00Z,3600\n',
+        json: {
+          history: state.dhcpLeaseHistory,
+          count: state.dhcpLeaseHistory.length,
+          generated_at: "2026-05-05T12:00:00Z",
+        },
       });
       return;
     }
-    if (path === '/sessions' && method === 'GET') {
+    if (path === "/system/dhcp-lease-history/export" && method === "GET") {
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "text/csv; charset=utf-8" },
+        body: "id,observed_at,mac,ip,hostname,client_id,reservation,expired,expires_at,remaining_seconds\n1,2026-05-05T11:55:00Z,aa:bb:cc:dd:ee:ff,192.168.50.10,lab-client,,true,false,2026-05-05T13:00:00Z,3600\n",
+      });
+      return;
+    }
+    if (path === "/sessions" && method === "GET") {
       await route.fulfill({
         json: state.sessionHistory.map((item) => ({
           id: item.id,
@@ -1307,24 +1653,24 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (path.startsWith('/sessions/') && method === 'DELETE') {
-      const id = path.split('/')[2];
+    if (path.startsWith("/sessions/") && method === "DELETE") {
+      const id = path.split("/")[2];
       state.sessionHistory = state.sessionHistory.map((item) =>
         item.id === id && !item.end_time
           ? {
               ...item,
-              end_time: '2026-05-05T12:00:00Z',
-              stop_reason: 'admin',
+              end_time: "2026-05-05T12:00:00Z",
+              stop_reason: "admin",
             }
           : item,
       );
-      await route.fulfill({ status: 204, body: '' });
+      await route.fulfill({ status: 204, body: "" });
       return;
     }
-    if (path === '/system/session-history' && method === 'GET') {
-      const username = url.searchParams.get('username') || '';
-      const authMethod = url.searchParams.get('auth_method') || '';
-      const active = url.searchParams.get('active') || '';
+    if (path === "/system/session-history" && method === "GET") {
+      const username = url.searchParams.get("username") || "";
+      const authMethod = url.searchParams.get("auth_method") || "";
+      const active = url.searchParams.get("active") || "";
       let history = [...state.sessionHistory];
       if (username) {
         history = history.filter((item) => item.username === username);
@@ -1332,9 +1678,9 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       if (authMethod) {
         history = history.filter((item) => item.auth_method === authMethod);
       }
-      if (active === 'true') {
+      if (active === "true") {
         history = history.filter((item) => !item.end_time);
-      } else if (active === 'false') {
+      } else if (active === "false") {
         history = history.filter((item) => Boolean(item.end_time));
       }
       const stats = history.reduce(
@@ -1345,18 +1691,28 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           } else {
             acc.active_count += 1;
           }
-          if (item.acct_session_time > 0 || item.bytes_in > 0 || item.bytes_out > 0) {
+          if (
+            item.acct_session_time > 0 ||
+            item.bytes_in > 0 ||
+            item.bytes_out > 0
+          ) {
             acc.accounted_record_count += 1;
           }
           acc.bytes_in_total += item.bytes_in;
           acc.bytes_out_total += item.bytes_out;
           acc.traffic_total += item.total_bytes;
           acc.acct_session_seconds_total += item.acct_session_time;
-          acc.max_acct_session_seconds = Math.max(acc.max_acct_session_seconds, item.acct_session_time);
+          acc.max_acct_session_seconds = Math.max(
+            acc.max_acct_session_seconds,
+            item.acct_session_time,
+          );
           if (!acc.last_started_at || item.start_time > acc.last_started_at) {
             acc.last_started_at = item.start_time;
           }
-          if (item.end_time && (!acc.last_ended_at || item.end_time > acc.last_ended_at)) {
+          if (
+            item.end_time &&
+            (!acc.last_ended_at || item.end_time > acc.last_ended_at)
+          ) {
             acc.last_ended_at = item.end_time;
           }
           return acc;
@@ -1372,19 +1728,21 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           acct_session_seconds_total: 0,
           avg_acct_session_seconds: 0,
           max_acct_session_seconds: 0,
-          last_started_at: '',
-          last_ended_at: '',
+          last_started_at: "",
+          last_ended_at: "",
         },
       );
       if (stats.total_records > 0) {
-        stats.avg_acct_session_seconds = Math.trunc(stats.acct_session_seconds_total / stats.total_records);
+        stats.avg_acct_session_seconds = Math.trunc(
+          stats.acct_session_seconds_total / stats.total_records,
+        );
       }
       await route.fulfill({
         json: {
-          generated_at: '2026-05-05T12:00:00Z',
+          generated_at: "2026-05-05T12:00:00Z",
           username,
           auth_method: authMethod,
-          active: active === 'true' ? true : active === 'false' ? false : null,
+          active: active === "true" ? true : active === "false" ? false : null,
           history,
           count: history.length,
           stats,
@@ -1392,16 +1750,16 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (path === '/system/session-history/export' && method === 'GET') {
-      const format = (url.searchParams.get('format') || 'csv').toLowerCase();
-      if (format === 'json') {
+    if (path === "/system/session-history/export" && method === "GET") {
+      const format = (url.searchParams.get("format") || "csv").toLowerCase();
+      if (format === "json") {
         await route.fulfill({
           status: 200,
-          headers: { 'content-type': 'application/json' },
+          headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            generated_at: '2026-05-05T12:00:00Z',
-            username: '',
-            auth_method: '',
+            generated_at: "2026-05-05T12:00:00Z",
+            username: "",
+            auth_method: "",
             active: null,
             history: state.sessionHistory,
             count: state.sessionHistory.length,
@@ -1416,8 +1774,8 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
               acct_session_seconds_total: 4200,
               avg_acct_session_seconds: 2100,
               max_acct_session_seconds: 2400,
-              last_started_at: '2026-05-05T11:30:00Z',
-              last_ended_at: '2026-05-05T10:40:00Z',
+              last_started_at: "2026-05-05T11:30:00Z",
+              last_ended_at: "2026-05-05T10:40:00Z",
             },
           }),
         });
@@ -1425,29 +1783,35 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       }
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'text/csv; charset=utf-8' },
-        body: 'id,username,mac,ip,auth_method,identity_source,vlan,role,bandwidth_profile,filter_id,radius_class,session_timeout,idle_timeout,acct_session_time,called_station_id,nas_identifier,radius_session_id,start_time,last_activity,end_time,stop_reason,bytes_in,bytes_out,total_bytes\nsess-001,alice,aa:bb:cc:dd:ee:ff,192.168.50.10,dot1x,local-users,20,employee,10m-down-5m-up,corp-access,radius-class-1,3600,900,1800,ap-lab-1,switch-lab-1,radius-001,2026-05-05T11:30:00Z,2026-05-05T11:59:00Z,,,1024,2048,3072\n',
+        headers: { "content-type": "text/csv; charset=utf-8" },
+        body: "id,username,mac,ip,auth_method,identity_source,vlan,role,bandwidth_profile,filter_id,radius_class,session_timeout,idle_timeout,acct_session_time,called_station_id,nas_identifier,radius_session_id,start_time,last_activity,end_time,stop_reason,bytes_in,bytes_out,total_bytes\nsess-001,alice,aa:bb:cc:dd:ee:ff,192.168.50.10,dot1x,local-users,20,employee,10m-down-5m-up,corp-access,radius-class-1,3600,900,1800,ap-lab-1,switch-lab-1,radius-001,2026-05-05T11:30:00Z,2026-05-05T11:59:00Z,,,1024,2048,3072\n",
       });
       return;
     }
-    if (path === '/system/session-analytics' && method === 'GET') {
-      const windowHours = Number(url.searchParams.get('window_hours') || '24');
-      const bucketCount = Number(url.searchParams.get('bucket_count') || '24');
+    if (path === "/system/session-analytics" && method === "GET") {
+      const windowHours = Number(url.searchParams.get("window_hours") || "24");
+      const bucketCount = Number(url.searchParams.get("bucket_count") || "24");
       await route.fulfill({
         json: {
-          generated_at: '2026-05-05T12:00:00Z',
-          username: '',
-          auth_method: '',
+          generated_at: "2026-05-05T12:00:00Z",
+          username: "",
+          auth_method: "",
           window_hours: windowHours,
           bucket_count: bucketCount,
           summary: {
             window_hours: windowHours,
             bucket_count: bucketCount,
-            bucket_minutes: windowHours >= 24 ? Math.round((windowHours * 60) / bucketCount) : 60,
+            bucket_minutes:
+              windowHours >= 24
+                ? Math.round((windowHours * 60) / bucketCount)
+                : 60,
             total_records: state.sessionHistory.length,
             started_count: 2,
-            ended_count: state.sessionHistory.filter((item) => Boolean(item.end_time)).length,
-            active_now: state.sessionHistory.filter((item) => !item.end_time).length,
+            ended_count: state.sessionHistory.filter((item) =>
+              Boolean(item.end_time),
+            ).length,
+            active_now: state.sessionHistory.filter((item) => !item.end_time)
+              .length,
             unique_users_window: 2,
             unique_macs_window: 2,
             unique_ips_window: 2,
@@ -1457,32 +1821,32 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             max_ended_session_seconds: 2400,
             longest_active_session_seconds: 1800,
             peak_concurrent_sessions: 2,
-            latest_start_at: '2026-05-05T11:30:00Z',
-            latest_end_at: '2026-05-05T10:40:00Z',
+            latest_start_at: "2026-05-05T11:30:00Z",
+            latest_end_at: "2026-05-05T10:40:00Z",
             auth_methods: [
-              { name: 'dot1x', count: 1 },
-              { name: 'mab', count: 1 },
+              { name: "dot1x", count: 1 },
+              { name: "mab", count: 1 },
             ],
             roles: [
-              { name: 'employee', count: 1 },
-              { name: 'iot', count: 1 },
+              { name: "employee", count: 1 },
+              { name: "iot", count: 1 },
             ],
             vlans: [
-              { name: '20', count: 1 },
-              { name: '30', count: 1 },
+              { name: "20", count: 1 },
+              { name: "30", count: 1 },
             ],
             buckets: [
               {
-                start: '2026-05-05T10:00:00Z',
-                end: '2026-05-05T11:00:00Z',
+                start: "2026-05-05T10:00:00Z",
+                end: "2026-05-05T11:00:00Z",
                 started_count: 1,
                 ended_count: 1,
                 ended_traffic_total: 12288,
                 ended_session_seconds_total: 2400,
               },
               {
-                start: '2026-05-05T11:00:00Z',
-                end: '2026-05-05T12:00:00Z',
+                start: "2026-05-05T11:00:00Z",
+                end: "2026-05-05T12:00:00Z",
                 started_count: 1,
                 ended_count: 0,
                 ended_traffic_total: 0,
@@ -1494,16 +1858,16 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (path === '/system/session-analytics/export' && method === 'GET') {
-      const format = (url.searchParams.get('format') || 'csv').toLowerCase();
-      if (format === 'json') {
+    if (path === "/system/session-analytics/export" && method === "GET") {
+      const format = (url.searchParams.get("format") || "csv").toLowerCase();
+      if (format === "json") {
         await route.fulfill({
           status: 200,
-          headers: { 'content-type': 'application/json' },
+          headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            generated_at: '2026-05-05T12:00:00Z',
-            username: '',
-            auth_method: '',
+            generated_at: "2026-05-05T12:00:00Z",
+            username: "",
+            auth_method: "",
             window_hours: 24,
             bucket_count: 24,
             summary: {
@@ -1523,11 +1887,20 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
               max_ended_session_seconds: 2400,
               longest_active_session_seconds: 1800,
               peak_concurrent_sessions: 2,
-              latest_start_at: '2026-05-05T11:30:00Z',
-              latest_end_at: '2026-05-05T10:40:00Z',
-              auth_methods: [{ name: 'dot1x', count: 1 }, { name: 'mab', count: 1 }],
-              roles: [{ name: 'employee', count: 1 }, { name: 'iot', count: 1 }],
-              vlans: [{ name: '20', count: 1 }, { name: '30', count: 1 }],
+              latest_start_at: "2026-05-05T11:30:00Z",
+              latest_end_at: "2026-05-05T10:40:00Z",
+              auth_methods: [
+                { name: "dot1x", count: 1 },
+                { name: "mab", count: 1 },
+              ],
+              roles: [
+                { name: "employee", count: 1 },
+                { name: "iot", count: 1 },
+              ],
+              vlans: [
+                { name: "20", count: 1 },
+                { name: "30", count: 1 },
+              ],
               buckets: [],
             },
           }),
@@ -1536,43 +1909,43 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       }
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'text/csv; charset=utf-8' },
-        body: 'section,name,bucket_start,bucket_end,count,bytes_total,seconds_total\nsummary,total_records,,,2,,\nauth_method,dot1x,,,1,,\nbucket,ended_traffic_total,2026-05-05T10:00:00Z,2026-05-05T11:00:00Z,,12288,\n',
+        headers: { "content-type": "text/csv; charset=utf-8" },
+        body: "section,name,bucket_start,bucket_end,count,bytes_total,seconds_total\nsummary,total_records,,,2,,\nauth_method,dot1x,,,1,,\nbucket,ended_traffic_total,2026-05-05T10:00:00Z,2026-05-05T11:00:00Z,,12288,\n",
       });
       return;
     }
-    if (path === '/system/session-exports' && method === 'GET') {
+    if (path === "/system/session-exports" && method === "GET") {
       await route.fulfill({
         json: {
           runtime: state.systemStatus.telemetry.session_exports.runtime,
           exports: [
             {
-              name: 'aegisnas-session-history-20260505-115300Z.json',
-              path: '/var/lib/aegisnas/session-exports/aegisnas-session-history-20260505-115300Z.json',
-              format: 'json',
+              name: "aegisnas-session-history-20260505-115300Z.json",
+              path: "/var/lib/aegisnas/session-exports/aegisnas-session-history-20260505-115300Z.json",
+              format: "json",
               size_bytes: 1320,
-              created_at: '2026-05-05T11:53:00Z',
+              created_at: "2026-05-05T11:53:00Z",
             },
             {
-              name: 'aegisnas-session-history-20260505-115300Z.csv',
-              path: '/var/lib/aegisnas/session-exports/aegisnas-session-history-20260505-115300Z.csv',
-              format: 'csv',
+              name: "aegisnas-session-history-20260505-115300Z.csv",
+              path: "/var/lib/aegisnas/session-exports/aegisnas-session-history-20260505-115300Z.csv",
+              format: "csv",
               size_bytes: 640,
-              created_at: '2026-05-05T11:53:00Z',
+              created_at: "2026-05-05T11:53:00Z",
             },
           ],
         },
       });
       return;
     }
-    if (path === '/system/session-exports/download' && method === 'GET') {
+    if (path === "/system/session-exports/download" && method === "GET") {
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'application/json' },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          generated_at: '2026-05-05T11:53:00Z',
-          username: '',
-          auth_method: '',
+          generated_at: "2026-05-05T11:53:00Z",
+          username: "",
+          auth_method: "",
           active: null,
           history: state.sessionHistory,
           count: state.sessionHistory.length,
@@ -1587,38 +1960,42 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             acct_session_seconds_total: 4200,
             avg_acct_session_seconds: 2100,
             max_acct_session_seconds: 2400,
-            last_started_at: '2026-05-05T11:30:00Z',
-            last_ended_at: '2026-05-05T10:40:00Z',
+            last_started_at: "2026-05-05T11:30:00Z",
+            last_ended_at: "2026-05-05T10:40:00Z",
           },
         }),
       });
       return;
     }
-    if (path === '/system/session-analytics-exports' && method === 'GET') {
+    if (path === "/system/session-analytics-exports" && method === "GET") {
       await route.fulfill({
         json: {
-          runtime: state.systemStatus.telemetry.session_analytics_exports.runtime,
+          runtime:
+            state.systemStatus.telemetry.session_analytics_exports.runtime,
           exports: [
             {
-              name: 'aegisnas-session-analytics-20260505-115400Z.json',
-              path: '/var/lib/aegisnas/session-analytics-exports/aegisnas-session-analytics-20260505-115400Z.json',
-              format: 'json',
+              name: "aegisnas-session-analytics-20260505-115400Z.json",
+              path: "/var/lib/aegisnas/session-analytics-exports/aegisnas-session-analytics-20260505-115400Z.json",
+              format: "json",
               size_bytes: 1480,
-              created_at: '2026-05-05T11:54:00Z',
+              created_at: "2026-05-05T11:54:00Z",
             },
           ],
         },
       });
       return;
     }
-    if (path === '/system/session-analytics-exports/download' && method === 'GET') {
+    if (
+      path === "/system/session-analytics-exports/download" &&
+      method === "GET"
+    ) {
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'application/json' },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          generated_at: '2026-05-05T11:54:00Z',
-          username: '',
-          auth_method: '',
+          generated_at: "2026-05-05T11:54:00Z",
+          username: "",
+          auth_method: "",
           window_hours: 24,
           bucket_count: 24,
           summary: {
@@ -1638,54 +2015,63 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             max_ended_session_seconds: 2400,
             longest_active_session_seconds: 1800,
             peak_concurrent_sessions: 2,
-            latest_start_at: '2026-05-05T11:30:00Z',
-            latest_end_at: '2026-05-05T10:40:00Z',
-            auth_methods: [{ name: 'dot1x', count: 1 }, { name: 'mab', count: 1 }],
-            roles: [{ name: 'employee', count: 1 }, { name: 'iot', count: 1 }],
-            vlans: [{ name: '20', count: 1 }, { name: '30', count: 1 }],
+            latest_start_at: "2026-05-05T11:30:00Z",
+            latest_end_at: "2026-05-05T10:40:00Z",
+            auth_methods: [
+              { name: "dot1x", count: 1 },
+              { name: "mab", count: 1 },
+            ],
+            roles: [
+              { name: "employee", count: 1 },
+              { name: "iot", count: 1 },
+            ],
+            vlans: [
+              { name: "20", count: 1 },
+              { name: "30", count: 1 },
+            ],
             buckets: [],
           },
         }),
       });
       return;
     }
-    if (path === '/system/upstream-aaa-history' && method === 'GET') {
+    if (path === "/system/upstream-aaa-history" && method === "GET") {
       await route.fulfill({
         json: {
           history: [
             {
               id: 1,
-              server_name: 'upstream-1',
-              address: '10.0.0.20',
+              server_name: "upstream-1",
+              address: "10.0.0.20",
               auth_port: 1812,
               acct_port: 1813,
-              status: 'ok',
-              message: 'Healthy',
-              response_code: 'Access-Accept',
+              status: "ok",
+              message: "Healthy",
+              response_code: "Access-Accept",
               latency_ms: 12,
               supports_status_server: true,
-              checked_at: '2026-05-05T11:59:30Z',
-              created_at: '2026-05-05T11:59:30Z',
+              checked_at: "2026-05-05T11:59:30Z",
+              created_at: "2026-05-05T11:59:30Z",
             },
             {
               id: 2,
-              server_name: 'upstream-2',
-              address: '10.0.0.21',
+              server_name: "upstream-2",
+              address: "10.0.0.21",
               auth_port: 1812,
               acct_port: 1813,
-              status: 'degraded',
-              message: 'Unexpected reject response',
-              response_code: 'Access-Reject',
+              status: "degraded",
+              message: "Unexpected reject response",
+              response_code: "Access-Reject",
               latency_ms: 21,
               supports_status_server: true,
-              checked_at: '2026-05-05T11:57:30Z',
-              created_at: '2026-05-05T11:57:30Z',
+              checked_at: "2026-05-05T11:57:30Z",
+              created_at: "2026-05-05T11:57:30Z",
             },
           ],
           count: 2,
-          server: url.searchParams.get('server') || '',
-          status: url.searchParams.get('status') || '',
-          generated_at: '2026-05-05T12:00:00Z',
+          server: url.searchParams.get("server") || "",
+          status: url.searchParams.get("status") || "",
+          generated_at: "2026-05-05T12:00:00Z",
           stats: {
             total_records: 2,
             ok_count: 1,
@@ -1693,59 +2079,59 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             down_count: 0,
             disabled_count: 0,
             avg_latency_ms: 17,
-            last_checked_at: '2026-05-05T11:59:30Z',
+            last_checked_at: "2026-05-05T11:59:30Z",
           },
         },
       });
       return;
     }
-    if (path === '/system/upstream-aaa-history/export' && method === 'GET') {
+    if (path === "/system/upstream-aaa-history/export" && method === "GET") {
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'text/csv; charset=utf-8' },
-        body: 'id,checked_at,created_at,server_name,address,auth_port,acct_port,status,message,response_code,latency_ms,supports_status_server\n1,2026-05-05T11:59:30Z,2026-05-05T11:59:30Z,upstream-1,10.0.0.20,1812,1813,ok,Healthy,Access-Accept,12,true\n',
+        headers: { "content-type": "text/csv; charset=utf-8" },
+        body: "id,checked_at,created_at,server_name,address,auth_port,acct_port,status,message,response_code,latency_ms,supports_status_server\n1,2026-05-05T11:59:30Z,2026-05-05T11:59:30Z,upstream-1,10.0.0.20,1812,1813,ok,Healthy,Access-Accept,12,true\n",
       });
       return;
     }
-    if (path === '/system/upstream-aaa-exports' && method === 'GET') {
+    if (path === "/system/upstream-aaa-exports" && method === "GET") {
       await route.fulfill({
         json: {
           runtime: state.systemStatus.telemetry.upstream_aaa_exports.runtime,
           exports: [
             {
-              name: 'aegisnas-upstream-aaa-history-20260505-115930Z.json',
-              path: '/var/lib/aegisnas/upstream-aaa-exports/aegisnas-upstream-aaa-history-20260505-115930Z.json',
-              format: 'json',
+              name: "aegisnas-upstream-aaa-history-20260505-115930Z.json",
+              path: "/var/lib/aegisnas/upstream-aaa-exports/aegisnas-upstream-aaa-history-20260505-115930Z.json",
+              format: "json",
               size_bytes: 880,
-              created_at: '2026-05-05T11:59:30Z',
+              created_at: "2026-05-05T11:59:30Z",
             },
           ],
         },
       });
       return;
     }
-    if (path === '/system/upstream-aaa-exports/download' && method === 'GET') {
+    if (path === "/system/upstream-aaa-exports/download" && method === "GET") {
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'application/json' },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          generated_at: '2026-05-05T11:59:30Z',
-          server: '',
-          status: '',
+          generated_at: "2026-05-05T11:59:30Z",
+          server: "",
+          status: "",
           history: [
             {
               id: 1,
-              server_name: 'upstream-1',
-              address: '10.0.0.20',
+              server_name: "upstream-1",
+              address: "10.0.0.20",
               auth_port: 1812,
               acct_port: 1813,
-              status: 'ok',
-              message: 'Healthy',
-              response_code: 'Access-Accept',
+              status: "ok",
+              message: "Healthy",
+              response_code: "Access-Accept",
               latency_ms: 12,
               supports_status_server: true,
-              checked_at: '2026-05-05T11:59:30Z',
-              created_at: '2026-05-05T11:59:30Z',
+              checked_at: "2026-05-05T11:59:30Z",
+              created_at: "2026-05-05T11:59:30Z",
             },
           ],
           count: 1,
@@ -1753,38 +2139,42 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (path === '/system/upgrade-readiness-exports' && method === 'GET') {
+    if (path === "/system/upgrade-readiness-exports" && method === "GET") {
       await route.fulfill({
         json: {
-          runtime: state.systemStatus.telemetry.upgrade_readiness_exports.runtime,
+          runtime:
+            state.systemStatus.telemetry.upgrade_readiness_exports.runtime,
           exports: [
             {
-              name: 'aegisnas-upgrade-readiness-20260505-080000Z.json',
-              path: '/var/lib/aegisnas/upgrade-readiness-exports/aegisnas-upgrade-readiness-20260505-080000Z.json',
-              format: 'json',
+              name: "aegisnas-upgrade-readiness-20260505-080000Z.json",
+              path: "/var/lib/aegisnas/upgrade-readiness-exports/aegisnas-upgrade-readiness-20260505-080000Z.json",
+              format: "json",
               size_bytes: 940,
-              created_at: '2026-05-05T08:00:00Z',
+              created_at: "2026-05-05T08:00:00Z",
             },
           ],
         },
       });
       return;
     }
-    if (path === '/system/upgrade-readiness-exports/download' && method === 'GET') {
+    if (
+      path === "/system/upgrade-readiness-exports/download" &&
+      method === "GET"
+    ) {
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'application/json' },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          generated_at: '2026-05-05T08:00:00Z',
-          config_path: '/etc/aegisnas/config.yaml',
-          database_path: '/var/lib/aegisnas/data.db',
+          generated_at: "2026-05-05T08:00:00Z",
+          config_path: "/etc/aegisnas/config.yaml",
+          database_path: "/var/lib/aegisnas/data.db",
           database_exists: true,
           database_size_bytes: 4096,
           current_schema_version: 10,
           target_schema_version: 10,
           config_valid: true,
-          deployment_profile: 'branch',
-          deployment_form: 'virtual',
+          deployment_profile: "branch",
+          deployment_form: "virtual",
           rehearsal: {
             ran: true,
             succeeded: true,
@@ -1792,17 +2182,17 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             result_schema_version: 10,
             duration_milliseconds: 42,
           },
-          recommendations: ['Upgrade rehearsal passed.'],
+          recommendations: ["Upgrade rehearsal passed."],
         }),
       });
       return;
     }
-    if (path === '/system/audit-history' && method === 'GET') {
+    if (path === "/system/audit-history" && method === "GET") {
       await route.fulfill({
         json: {
           history: state.auditHistory,
           count: state.auditHistory.length,
-          generated_at: '2026-05-05T12:00:00Z',
+          generated_at: "2026-05-05T12:00:00Z",
           stats: {
             total_records: state.auditHistory.length,
             unique_users: 1,
@@ -1812,58 +2202,58 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             ha_action_count: 0,
             upgrade_action_count: 0,
             guest_action_count: 0,
-            last_recorded_at: '2026-05-05T12:10:30Z',
+            last_recorded_at: "2026-05-05T12:10:30Z",
           },
         },
       });
       return;
     }
-    if (path === '/system/audit-history/export' && method === 'GET') {
+    if (path === "/system/audit-history/export" && method === "GET") {
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'text/csv; charset=utf-8' },
-        body: 'id,timestamp,user,action,details,result,ip_address\n1,2026-05-05T12:00:00Z,Aegis Admin,download_support_bundle,aegisnas-support-bundle.zip,downloaded,192.168.50.10\n',
+        headers: { "content-type": "text/csv; charset=utf-8" },
+        body: "id,timestamp,user,action,details,result,ip_address\n1,2026-05-05T12:00:00Z,Aegis Admin,download_support_bundle,aegisnas-support-bundle.zip,downloaded,192.168.50.10\n",
       });
       return;
     }
-    if (path === '/system/audit-exports' && method === 'GET') {
+    if (path === "/system/audit-exports" && method === "GET") {
       await route.fulfill({
         json: {
           runtime: state.systemStatus.telemetry.audit_exports.runtime,
           exports: [
             {
-              name: 'aegisnas-audit-history-20260505-115800Z.json',
-              path: '/var/lib/aegisnas/audit-exports/aegisnas-audit-history-20260505-115800Z.json',
-              format: 'json',
+              name: "aegisnas-audit-history-20260505-115800Z.json",
+              path: "/var/lib/aegisnas/audit-exports/aegisnas-audit-history-20260505-115800Z.json",
+              format: "json",
               size_bytes: 1024,
-              created_at: '2026-05-05T11:58:00Z',
+              created_at: "2026-05-05T11:58:00Z",
             },
           ],
         },
       });
       return;
     }
-    if (path === '/system/audit-exports/download' && method === 'GET') {
+    if (path === "/system/audit-exports/download" && method === "GET") {
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'application/json' },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          generated_at: '2026-05-05T11:58:00Z',
-          user: '',
-          action_prefix: '',
+          generated_at: "2026-05-05T11:58:00Z",
+          user: "",
+          action_prefix: "",
           history: state.auditHistory,
           count: state.auditHistory.length,
         }),
       });
       return;
     }
-    if (path === '/system/integration-history' && method === 'GET') {
+    if (path === "/system/integration-history" && method === "GET") {
       await route.fulfill({
         json: {
           history: state.integrationHistory,
           count: state.integrationHistory.length,
-          component: url.searchParams.get('component') || '',
-          generated_at: '2026-05-05T12:00:00Z',
+          component: url.searchParams.get("component") || "",
+          generated_at: "2026-05-05T12:00:00Z",
           stats: {
             total_records: state.integrationHistory.length,
             controller_event_count: 1,
@@ -1875,358 +2265,431 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             posture_event_count: 0,
             posture_success_count: 0,
             posture_failure_count: 0,
-            last_event_at: '2026-05-05T11:59:00Z',
+            last_event_at: "2026-05-05T11:59:00Z",
           },
         },
       });
       return;
     }
-    if (path === '/system/integration-history/export' && method === 'GET') {
+    if (path === "/system/integration-history/export" && method === "GET") {
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'text/csv; charset=utf-8' },
+        headers: { "content-type": "text/csv; charset=utf-8" },
         body: 'id,created_at,component,status,summary,details_json\n1,2026-05-05T11:58:00Z,controller_automation,ok,Controller sync completed.,"{""adapter"":""cisco""}"\n',
       });
       return;
     }
-    if (path === '/system/integration-exports' && method === 'GET') {
+    if (path === "/system/integration-exports" && method === "GET") {
       await route.fulfill({
         json: {
           runtime: state.systemStatus.telemetry.integration_exports.runtime,
           exports: [
             {
-              name: 'aegisnas-integration-history-20260505-115700Z.json',
-              path: '/var/lib/aegisnas/integration-exports/aegisnas-integration-history-20260505-115700Z.json',
-              format: 'json',
+              name: "aegisnas-integration-history-20260505-115700Z.json",
+              path: "/var/lib/aegisnas/integration-exports/aegisnas-integration-history-20260505-115700Z.json",
+              format: "json",
               size_bytes: 1536,
-              created_at: '2026-05-05T11:57:00Z',
+              created_at: "2026-05-05T11:57:00Z",
             },
             {
-              name: 'aegisnas-integration-history-20260505-115700Z.csv',
-              path: '/var/lib/aegisnas/integration-exports/aegisnas-integration-history-20260505-115700Z.csv',
-              format: 'csv',
+              name: "aegisnas-integration-history-20260505-115700Z.csv",
+              path: "/var/lib/aegisnas/integration-exports/aegisnas-integration-history-20260505-115700Z.csv",
+              format: "csv",
               size_bytes: 512,
-              created_at: '2026-05-05T11:57:00Z',
+              created_at: "2026-05-05T11:57:00Z",
             },
           ],
         },
       });
       return;
     }
-    if (path === '/system/integration-exports/download' && method === 'GET') {
+    if (path === "/system/integration-exports/download" && method === "GET") {
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'application/json' },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          generated_at: '2026-05-05T11:57:00Z',
-          component: '',
+          generated_at: "2026-05-05T11:57:00Z",
+          component: "",
           history: state.integrationHistory,
           count: state.integrationHistory.length,
         }),
       });
       return;
     }
-    if (path === '/system/network-preview' && method === 'GET') {
-      const preview = state.networkApplied ? createAppliedPreview() : createRiskyPreview();
+    if (path === "/system/network-preview" && method === "GET") {
+      const preview = state.networkApplied
+        ? createAppliedPreview()
+        : createRiskyPreview();
       preview.available_rollback_ids = state.networkBackups;
       preview.recovery = state.networkRecovery;
       await route.fulfill({ json: preview });
       return;
     }
-    if (path === '/system/network-backups' && method === 'GET') {
-      await route.fulfill({ json: { snapshots: state.networkBackups, count: state.networkBackups.length } });
-      return;
-    }
-    if (path === '/system/network-apply-history' && method === 'GET') {
-      await route.fulfill({ json: { history: state.networkApplyHistory, count: state.networkApplyHistory.length, generated_at: '2026-05-05T12:00:00Z' } });
-      return;
-    }
-    if (path === '/system/network-apply-history/export' && method === 'GET') {
+    if (path === "/system/network-backups" && method === "GET") {
       await route.fulfill({
-        status: 200,
-        headers: { 'content-type': 'text/csv; charset=utf-8' },
-        body: 'id,created_at,action,status,summary,backup_id,rollback_id,actor,details_json\n1,2026-05-05T12:00:00Z,apply,success,Previous edge-network apply completed successfully.,snap-001,,seed,\n',
+        json: {
+          snapshots: state.networkBackups,
+          count: state.networkBackups.length,
+        },
       });
       return;
     }
-    if (path === '/system/network-observability' && method === 'GET') {
+    if (path === "/system/network-apply-history" && method === "GET") {
       await route.fulfill({
         json: {
-          generated_at: '2026-05-05T12:00:00Z',
+          history: state.networkApplyHistory,
+          count: state.networkApplyHistory.length,
+          generated_at: "2026-05-05T12:00:00Z",
+        },
+      });
+      return;
+    }
+    if (path === "/system/network-apply-history/export" && method === "GET") {
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "text/csv; charset=utf-8" },
+        body: "id,created_at,action,status,summary,backup_id,rollback_id,actor,details_json\n1,2026-05-05T12:00:00Z,apply,success,Previous edge-network apply completed successfully.,snap-001,,seed,\n",
+      });
+      return;
+    }
+    if (path === "/system/network-observability" && method === "GET") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
           apply_stats: state.systemStatus.network_observability.apply_stats,
           lease_trends: state.systemStatus.network_observability.lease_trends,
-          controller_sync: state.systemStatus.network_observability.controller_sync,
+          controller_sync:
+            state.systemStatus.network_observability.controller_sync,
           recovery: state.networkRecovery,
         },
       });
       return;
     }
-    if (path === '/system/network-exports' && method === 'GET') {
+    if (path === "/system/network-exports" && method === "GET") {
       await route.fulfill({
         json: {
           runtime: state.systemStatus.telemetry.network_exports.runtime,
           exports: [
             {
-              name: 'aegisnas-network-apply-history-20260505-115400Z.json',
-              path: '/var/lib/aegisnas/network-exports/aegisnas-network-apply-history-20260505-115400Z.json',
-              kind: 'network_apply_history',
-              format: 'json',
+              name: "aegisnas-network-apply-history-20260505-115400Z.json",
+              path: "/var/lib/aegisnas/network-exports/aegisnas-network-apply-history-20260505-115400Z.json",
+              kind: "network_apply_history",
+              format: "json",
               size_bytes: 1540,
-              created_at: '2026-05-05T11:54:00Z',
+              created_at: "2026-05-05T11:54:00Z",
             },
             {
-              name: 'aegisnas-dhcp-lease-history-20260505-115400Z.json',
-              path: '/var/lib/aegisnas/network-exports/aegisnas-dhcp-lease-history-20260505-115400Z.json',
-              kind: 'dhcp_lease_history',
-              format: 'json',
+              name: "aegisnas-dhcp-lease-history-20260505-115400Z.json",
+              path: "/var/lib/aegisnas/network-exports/aegisnas-dhcp-lease-history-20260505-115400Z.json",
+              kind: "dhcp_lease_history",
+              format: "json",
               size_bytes: 1180,
-              created_at: '2026-05-05T11:54:00Z',
+              created_at: "2026-05-05T11:54:00Z",
             },
             {
-              name: 'aegisnas-network-apply-history-20260505-115400Z.csv',
-              path: '/var/lib/aegisnas/network-exports/aegisnas-network-apply-history-20260505-115400Z.csv',
-              kind: 'network_apply_history',
-              format: 'csv',
+              name: "aegisnas-network-apply-history-20260505-115400Z.csv",
+              path: "/var/lib/aegisnas/network-exports/aegisnas-network-apply-history-20260505-115400Z.csv",
+              kind: "network_apply_history",
+              format: "csv",
               size_bytes: 620,
-              created_at: '2026-05-05T11:54:00Z',
+              created_at: "2026-05-05T11:54:00Z",
             },
             {
-              name: 'aegisnas-dhcp-lease-history-20260505-115400Z.csv',
-              path: '/var/lib/aegisnas/network-exports/aegisnas-dhcp-lease-history-20260505-115400Z.csv',
-              kind: 'dhcp_lease_history',
-              format: 'csv',
+              name: "aegisnas-dhcp-lease-history-20260505-115400Z.csv",
+              path: "/var/lib/aegisnas/network-exports/aegisnas-dhcp-lease-history-20260505-115400Z.csv",
+              kind: "dhcp_lease_history",
+              format: "csv",
               size_bytes: 540,
-              created_at: '2026-05-05T11:54:00Z',
+              created_at: "2026-05-05T11:54:00Z",
             },
           ],
         },
       });
       return;
     }
-    if (path === '/system/network-exports/download' && method === 'GET') {
+    if (path === "/system/network-exports/download" && method === "GET") {
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'application/json' },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          generated_at: '2026-05-05T11:54:00Z',
+          generated_at: "2026-05-05T11:54:00Z",
           history: state.networkApplyHistory,
           count: state.networkApplyHistory.length,
         }),
       });
       return;
     }
-    if (path === '/system/ha/history' && method === 'GET') {
+    if (path === "/system/ha/history" && method === "GET") {
       await route.fulfill({
         json: {
           history: state.haHistory,
           count: state.haHistory.length,
-          generated_at: '2026-05-05T12:00:00Z',
+          generated_at: "2026-05-05T12:00:00Z",
           stats: state.systemStatus.high_availability.history_stats,
         },
       });
       return;
     }
-    if (path === '/system/ha/history/export' && method === 'GET') {
+    if (path === "/system/ha/history/export" && method === "GET") {
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'text/csv; charset=utf-8' },
-        body: 'id,created_at,event_type,status,summary,node_role,actor,details_json\n1,2026-05-05T12:00:00Z,replication_publish,success,Published shared HA replication package.,active,,\n',
+        headers: { "content-type": "text/csv; charset=utf-8" },
+        body: "id,created_at,event_type,status,summary,node_role,actor,details_json\n1,2026-05-05T12:00:00Z,replication_publish,success,Published shared HA replication package.,active,,\n",
       });
       return;
     }
-    if (path === '/system/ha/exports' && method === 'GET') {
+    if (path === "/system/ha/exports" && method === "GET") {
       await route.fulfill({
         json: {
           runtime: state.systemStatus.telemetry.ha_exports.runtime,
           exports: [
             {
-              name: 'aegisnas-ha-history-20260505-115600Z.json',
-              path: '/var/lib/aegisnas/ha-exports/aegisnas-ha-history-20260505-115600Z.json',
-              format: 'json',
+              name: "aegisnas-ha-history-20260505-115600Z.json",
+              path: "/var/lib/aegisnas/ha-exports/aegisnas-ha-history-20260505-115600Z.json",
+              format: "json",
               size_bytes: 1280,
-              created_at: '2026-05-05T11:56:00Z',
+              created_at: "2026-05-05T11:56:00Z",
             },
           ],
         },
       });
       return;
     }
-    if (path === '/system/ha/exports/download' && method === 'GET') {
+    if (path === "/system/ha/exports/download" && method === "GET") {
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'application/json' },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          generated_at: '2026-05-05T11:56:00Z',
+          generated_at: "2026-05-05T11:56:00Z",
           history: state.haHistory,
           count: state.haHistory.length,
         }),
       });
       return;
     }
-    if (path === '/system/ha/replication-shared' && method === 'GET') {
+    if (path === "/system/ha/replication-shared" && method === "GET") {
       await route.fulfill({
         json: {
           shared: {
             present: true,
-            package_path: '/var/lib/aegisnas/ha/replication/live/latest.tar.gz',
-            metadata_path: '/var/lib/aegisnas/ha/replication/live/latest.json',
-            published_at: '2026-05-05T12:00:00Z',
-            source_node: 'active-node',
-            source_role: 'active',
+            package_path: "/var/lib/aegisnas/ha/replication/live/latest.tar.gz",
+            metadata_path: "/var/lib/aegisnas/ha/replication/live/latest.json",
+            published_at: "2026-05-05T12:00:00Z",
+            source_node: "active-node",
+            source_role: "active",
             schema_version: 8,
           },
         },
       });
       return;
     }
-    if (path === '/system/ha/replication-stage-shared' && method === 'POST') {
+    if (path === "/system/ha/replication-stage-shared" && method === "POST") {
       await route.fulfill({
         json: {
-          message: 'Latest shared HA replication package is staged on this node.',
+          message:
+            "Latest shared HA replication package is staged on this node.",
           package: {
-            id: 'shared-stage-001',
+            id: "shared-stage-001",
           },
         },
       });
       return;
     }
-    if (path === '/system/network-apply' && method === 'POST') {
+    if (path === "/system/network-apply" && method === "POST") {
       const body = parseBody(route);
-      if (body?.confirmation_text !== 'APPLY EDGE NETWORK') {
-        await route.fulfill({ status: 400, body: 'risky edge-network change requires confirmation phrase: APPLY EDGE NETWORK' });
+      if (body?.confirmation_text !== "APPLY EDGE NETWORK") {
+        await route.fulfill({
+          status: 400,
+          body: "risky edge-network change requires confirmation phrase: APPLY EDGE NETWORK",
+        });
         return;
       }
       state.networkApplied = true;
       state.networkBackups = [
         {
-          id: 'snap-002',
-          created_at: '2026-05-05T12:10:00Z',
+          id: "snap-002",
+          created_at: "2026-05-05T12:10:00Z",
           interfaces: 2,
           gateways: 1,
           routes: 1,
           dnsmasq_enabled: true,
           has_firewall: true,
-          created_by: 'Aegis Admin',
-          reason: 'pre-apply',
+          created_by: "Aegis Admin",
+          reason: "pre-apply",
         },
         ...state.networkBackups,
       ];
       state.networkApplyHistory = [
         {
           id: state.networkApplyHistory.length + 1,
-          action: 'apply',
-          status: 'pending_confirmation',
-          summary: 'Applied edge-network changes successfully and opened the management confirmation window.',
-          backup_id: 'snap-002',
-          actor: 'Aegis Admin',
-          created_at: '2026-05-05T12:10:00Z',
+          action: "apply",
+          status: "pending_confirmation",
+          summary:
+            "Applied edge-network changes successfully and opened the management confirmation window.",
+          backup_id: "snap-002",
+          actor: "Aegis Admin",
+          created_at: "2026-05-05T12:10:00Z",
         },
         ...state.networkApplyHistory,
       ];
       state.networkRecovery = {
         pending: true,
-        backup_id: 'snap-002',
-        deadline: '2026-05-05T12:11:30Z',
+        backup_id: "snap-002",
+        deadline: "2026-05-05T12:11:30Z",
         remaining_seconds: 90,
         grace_period_seconds: 90,
-        risk_summary: 'This edge-network apply changes primary connectivity.',
-        validation_summary: 'all validation checks passed',
-        status: 'pending',
-        message: 'Risky edge-network changes are live. Confirm management reachability before the rollback deadline or the appliance will restore the previous snapshot automatically.',
+        risk_summary: "This edge-network apply changes primary connectivity.",
+        validation_summary: "all validation checks passed",
+        status: "pending",
+        message:
+          "Risky edge-network changes are live. Confirm management reachability before the rollback deadline or the appliance will restore the previous snapshot automatically.",
       };
       state.systemStatus.network_observability.apply_stats.pending_confirmation_count = 1;
-      state.systemStatus.network_observability.apply_stats.last_applied_at = '2026-05-05T12:10:00Z';
+      state.systemStatus.network_observability.apply_stats.last_applied_at =
+        "2026-05-05T12:10:00Z";
       state.systemStatus.network_observability.recovery = state.networkRecovery;
       await route.fulfill({
         json: {
-          status: 'applied',
+          status: "applied",
           restart_required: false,
-          leases_path: '/var/lib/misc/dnsmasq.leases',
-          backup_id: 'snap-002',
+          leases_path: "/var/lib/misc/dnsmasq.leases",
+          backup_id: "snap-002",
           recovery: state.networkRecovery,
           validation: {
             healthy: true,
             checks: [
-              { name: 'service:dnsmasq', status: 'ok', detail: 'dnsmasq is active after apply.' },
-              { name: 'health:admin_api', status: 'ok', detail: 'admin_api health endpoint responded.' },
+              {
+                name: "service:dnsmasq",
+                status: "ok",
+                detail: "dnsmasq is active after apply.",
+              },
+              {
+                name: "health:admin_api",
+                status: "ok",
+                detail: "admin_api health endpoint responded.",
+              },
             ],
           },
         },
       });
       return;
     }
-    if (path === '/system/network-recovery/confirm' && method === 'POST') {
+    if (path === "/system/network-recovery/confirm" && method === "POST") {
       state.networkRecovery = {
         ...(state.networkRecovery || {}),
         pending: false,
         remaining_seconds: 0,
-        status: 'ok',
-        message: 'Admin reachability was confirmed before the rollback deadline.',
-        confirmed_by: 'Aegis Admin',
-        confirmed_at: '2026-05-05T12:10:30Z',
+        status: "ok",
+        message:
+          "Admin reachability was confirmed before the rollback deadline.",
+        confirmed_by: "Aegis Admin",
+        confirmed_at: "2026-05-05T12:10:30Z",
       };
       state.networkApplyHistory = [
         {
           id: state.networkApplyHistory.length + 1,
-          action: 'apply',
-          status: 'confirmed',
-          summary: 'Management reachability confirmed before the rollback deadline.',
-          backup_id: 'snap-002',
-          actor: 'Aegis Admin',
-          created_at: '2026-05-05T12:10:30Z',
+          action: "apply",
+          status: "confirmed",
+          summary:
+            "Management reachability confirmed before the rollback deadline.",
+          backup_id: "snap-002",
+          actor: "Aegis Admin",
+          created_at: "2026-05-05T12:10:30Z",
         },
         ...state.networkApplyHistory,
       ];
       state.systemStatus.network_observability.apply_stats.pending_confirmation_count = 0;
       state.systemStatus.network_observability.apply_stats.confirmed_count = 2;
       state.systemStatus.network_observability.recovery = state.networkRecovery;
-      await route.fulfill({ json: { status: 'confirmed', recovery: state.networkRecovery } });
+      await route.fulfill({
+        json: { status: "confirmed", recovery: state.networkRecovery },
+      });
       return;
     }
-    if (path === '/system/network-rollback' && method === 'POST') {
+    if (path === "/system/network-rollback" && method === "POST") {
       state.networkApplied = false;
       state.networkRecovery = null;
       state.networkApplyHistory = [
         {
           id: state.networkApplyHistory.length + 1,
-          action: 'rollback',
-          status: 'success',
-          summary: 'Restored rollback snapshot snap-002.',
-          rollback_id: 'snap-002',
-          actor: 'Aegis Admin',
-          created_at: '2026-05-05T12:11:00Z',
+          action: "rollback",
+          status: "success",
+          summary: "Restored rollback snapshot snap-002.",
+          rollback_id: "snap-002",
+          actor: "Aegis Admin",
+          created_at: "2026-05-05T12:11:00Z",
         },
         ...state.networkApplyHistory,
       ];
       state.systemStatus.network_observability.apply_stats.rollback_count += 1;
       state.systemStatus.network_observability.recovery = null;
-      await route.fulfill({ json: { status: 'restored', rollback_id: 'snap-002', restart_required: false } });
+      await route.fulfill({
+        json: {
+          status: "restored",
+          rollback_id: "snap-002",
+          restart_required: false,
+        },
+      });
       return;
     }
 
-    if (path === '/guest-registrations' && method === 'GET') {
+    if (path === "/guest-registrations" && method === "GET") {
       await route.fulfill({ json: state.guestRegistrations });
       return;
     }
-    if (path.startsWith('/guest-registrations/') && path.endsWith('/approve') && method === 'POST') {
-      const id = path.split('/')[2];
-      state.guestRegistrations = state.guestRegistrations.map((record) =>
-        record.id === id ? { ...record, status: 'approved', invite_delivery_status: 'sent' } : record,
-      );
-      await route.fulfill({ json: { status: 'approved' } });
+    if (path === "/system/guest-lifecycle" && method === "GET") {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        json: buildGuestLifecycleResponse(state.guestRegistrations, status),
+      });
       return;
     }
-    if (path.startsWith('/guest-registrations/') && path.endsWith('/reject') && method === 'POST') {
-      const id = path.split('/')[2];
+    if (
+      path.startsWith("/guest-registrations/") &&
+      path.endsWith("/approve") &&
+      method === "POST"
+    ) {
+      const id = path.split("/")[2];
+      state.guestRegistrations = state.guestRegistrations.map((record) =>
+        record.id === id
+          ? {
+              ...record,
+              status: "approved",
+              approved_by: "Aegis Admin",
+              approved_at: "2026-05-05T12:10:00Z",
+              invite_delivery_status: "sent",
+            }
+          : record,
+      );
+      await route.fulfill({ json: { status: "approved" } });
+      return;
+    }
+    if (
+      path.startsWith("/guest-registrations/") &&
+      path.endsWith("/reject") &&
+      method === "POST"
+    ) {
+      const id = path.split("/")[2];
       const body = parseBody(route);
       state.guestRegistrations = state.guestRegistrations.map((record) =>
-        record.id === id ? { ...record, status: 'rejected', rejection_reason: body?.reason || '' } : record,
+        record.id === id
+          ? {
+              ...record,
+              status: "rejected",
+              rejected_at: "2026-05-05T12:11:00Z",
+              rejection_reason: body?.reason || "",
+            }
+          : record,
       );
-      await route.fulfill({ json: { status: 'rejected' } });
+      await route.fulfill({ json: { status: "rejected" } });
       return;
     }
 
-    await route.fulfill({ status: 404, body: `Unhandled mock API route: ${method} ${path}` });
+    await route.fulfill({
+      status: 404,
+      body: `Unhandled mock API route: ${method} ${path}`,
+    });
   });
 
   return state;
