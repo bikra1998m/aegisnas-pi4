@@ -275,6 +275,14 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/guest-invite-analytics-exports", "get", securedOperation("List scheduled guest invite analytics exports", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled guest invite analytics export runtime and artifacts."),
+	}))
+	addOperation(paths, "/api/v1/system/guest-invite-analytics-exports/download", "get", securedOperationWithParameters("Download scheduled guest invite analytics export", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "Scheduled guest invite analytics export filename.", true),
+	}, map[string]any{
+		"200": responseBinary("application/octet-stream", "Scheduled guest invite analytics export content."),
+	}))
 	addOperation(paths, "/api/v1/system/guest-delivery-analytics/export", "get", securedOperationWithParameters("Export guest delivery analytics", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("format", "Optional export format. Defaults to csv.", []string{"json", "csv"}, false),
 		queryStringParameter("status", "Optional guest status filter.", false),

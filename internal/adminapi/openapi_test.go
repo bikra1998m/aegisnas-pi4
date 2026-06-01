@@ -139,6 +139,11 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	guestInviteGet, ok := guestInvitePath["get"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "Export guest invite analytics", guestInviteGet["summary"])
+	guestInviteScheduledPath, ok := paths["/api/v1/system/guest-invite-analytics-exports/download"].(map[string]any)
+	require.True(t, ok)
+	guestInviteScheduledGet, ok := guestInviteScheduledPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Download scheduled guest invite analytics export", guestInviteScheduledGet["summary"])
 
 	guestDeliveryFailuresPath, ok := paths["/api/v1/system/guest-delivery-failures/export"].(map[string]any)
 	require.True(t, ok)

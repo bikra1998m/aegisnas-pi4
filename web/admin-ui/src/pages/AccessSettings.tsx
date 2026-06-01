@@ -280,6 +280,13 @@ const defaultSettings: JsonMap = {
       interval_minutes: 60,
       retention_count: 21,
     },
+    guest_invite_analytics_exports: {
+      enabled: false,
+      directory: "/var/lib/aegisnas/guest-invite-analytics-exports",
+      format: "json",
+      interval_minutes: 60,
+      retention_count: 21,
+    },
     guest_delivery_analytics_exports: {
       enabled: false,
       directory: "/var/lib/aegisnas/guest-delivery-analytics-exports",
@@ -4390,6 +4397,85 @@ export default function AccessSettings() {
             onChange={(value) =>
               updateField(
                 ["telemetry", "guest_lifecycle_exports", "retention_count"],
+                Number(value),
+              )
+            }
+          />
+          <ToggleField
+            label="Scheduled Guest Invite Analytics Exports"
+            checked={Boolean(
+              settings.telemetry?.guest_invite_analytics_exports?.enabled,
+            )}
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "guest_invite_analytics_exports", "enabled"],
+                value,
+              )
+            }
+          />
+          <TextField
+            label="Guest Invite Analytics Export Directory"
+            value={
+              settings.telemetry?.guest_invite_analytics_exports?.directory ||
+              "/var/lib/aegisnas/guest-invite-analytics-exports"
+            }
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "guest_invite_analytics_exports", "directory"],
+                value,
+              )
+            }
+          />
+          <SelectField
+            label="Guest Invite Analytics Export Format"
+            value={
+              settings.telemetry?.guest_invite_analytics_exports?.format ||
+              "json"
+            }
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "guest_invite_analytics_exports", "format"],
+                value,
+              )
+            }
+            options={[
+              { value: "json", label: "JSON" },
+              { value: "csv", label: "CSV" },
+              { value: "both", label: "JSON + CSV" },
+            ]}
+          />
+          <TextField
+            label="Guest Invite Analytics Export Interval Minutes"
+            type="number"
+            value={
+              settings.telemetry?.guest_invite_analytics_exports
+                ?.interval_minutes || 60
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "guest_invite_analytics_exports",
+                  "interval_minutes",
+                ],
+                Number(value),
+              )
+            }
+          />
+          <TextField
+            label="Guest Invite Analytics Export Retention"
+            type="number"
+            value={
+              settings.telemetry?.guest_invite_analytics_exports
+                ?.retention_count || 21
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "guest_invite_analytics_exports",
+                  "retention_count",
+                ],
                 Number(value),
               )
             }

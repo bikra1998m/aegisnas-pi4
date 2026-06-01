@@ -178,6 +178,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      guest_invite_analytics_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/guest-invite-analytics-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+      },
       guest_delivery_analytics_exports: {
         enabled: true,
         directory: "/var/lib/aegisnas/guest-delivery-analytics-exports",
@@ -939,6 +946,28 @@ function createSystemStatus() {
             limit: 5000,
             last_export_at: "2026-05-05T11:55:00Z",
             next_due_at: "2026-05-05T12:55:00Z",
+          },
+        },
+      },
+      guest_invite_analytics_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/guest-invite-analytics-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: "ok",
+          message: "Scheduled guest invite analytics exports are healthy.",
+          details: {
+            format: "json",
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: "/var/lib/aegisnas/guest-invite-analytics-exports",
+            window_hours: 24,
+            bucket_count: 24,
+            limit: 5000,
+            last_export_at: "2026-05-05T11:55:30Z",
+            next_due_at: "2026-05-05T12:55:30Z",
           },
         },
       },
@@ -3253,6 +3282,37 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             },
           ],
         },
+      });
+      return;
+    }
+    if (path === "/system/guest-invite-analytics-exports" && method === "GET") {
+      await route.fulfill({
+        json: {
+          runtime:
+            state.systemStatus.telemetry.guest_invite_analytics_exports.runtime,
+          exports: [
+            {
+              name: "aegisnas-guest-invite-analytics-20260505-115530Z.json",
+              path: "/var/lib/aegisnas/guest-invite-analytics-exports/aegisnas-guest-invite-analytics-20260505-115530Z.json",
+              format: "json",
+              size_bytes: 1130,
+              created_at: "2026-05-05T11:55:30Z",
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/guest-invite-analytics-exports/download" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildGuestInviteAnalyticsResponse(state.guestRegistrations, ""),
+        ),
       });
       return;
     }

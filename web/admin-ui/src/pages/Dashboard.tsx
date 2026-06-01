@@ -261,6 +261,14 @@ type SystemStatus = {
       retention_count: number;
       runtime: RuntimeStatus;
     };
+    guest_invite_analytics_exports: {
+      enabled: boolean;
+      directory: string;
+      format: string;
+      interval_minutes: number;
+      retention_count: number;
+      runtime: RuntimeStatus;
+    };
     guest_delivery_analytics_exports: {
       enabled: boolean;
       directory: string;
@@ -2068,6 +2076,69 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="font-medium text-gray-900">
+                      Scheduled Guest Invite Analytics Exports
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.telemetry?.guest_invite_analytics_exports
+                        ?.runtime?.message ||
+                        "No scheduled guest invite analytics export runtime status recorded yet."}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Format{" "}
+                      {systemStatus.telemetry?.guest_invite_analytics_exports
+                        ?.format || "json"}
+                      , every{" "}
+                      {systemStatus.telemetry?.guest_invite_analytics_exports
+                        ?.interval_minutes || 0}{" "}
+                      minutes, retain{" "}
+                      {systemStatus.telemetry?.guest_invite_analytics_exports
+                        ?.retention_count || 0}
+                      , directory{" "}
+                      {systemStatus.telemetry?.guest_invite_analytics_exports
+                        ?.directory || "unset"}
+                      .
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      Window{" "}
+                      {String(
+                        systemStatus.telemetry?.guest_invite_analytics_exports
+                          ?.runtime?.details?.window_hours || 24,
+                      )}{" "}
+                      hours with{" "}
+                      {String(
+                        systemStatus.telemetry?.guest_invite_analytics_exports
+                          ?.runtime?.details?.bucket_count || 24,
+                      )}{" "}
+                      buckets.
+                    </div>
+                    {systemStatus.telemetry?.guest_invite_analytics_exports
+                      ?.runtime?.details?.last_export_at ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Last export{" "}
+                        {String(
+                          systemStatus.telemetry.guest_invite_analytics_exports
+                            .runtime.details.last_export_at,
+                        )}
+                        {systemStatus.telemetry?.guest_invite_analytics_exports
+                          ?.runtime?.details?.next_due_at
+                          ? `, next due ${String(systemStatus.telemetry.guest_invite_analytics_exports.runtime.details.next_due_at)}`
+                          : ""}
+                        .
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    status={
+                      systemStatus.telemetry?.guest_invite_analytics_exports
+                        ?.runtime?.status || "disabled"
+                    }
+                  />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
                       Scheduled Guest Delivery Analytics Exports
                     </div>
                     <div className="mt-1 text-sm text-gray-600">
@@ -2173,13 +2244,11 @@ export default function Dashboard() {
                       <div className="mt-1 text-xs text-gray-500">
                         Last export{" "}
                         {String(
-                          systemStatus.telemetry
-                            .guest_delivery_failures_exports.runtime.details
-                            .last_export_at,
+                          systemStatus.telemetry.guest_delivery_failures_exports
+                            .runtime.details.last_export_at,
                         )}
-                        {systemStatus.telemetry
-                          ?.guest_delivery_failures_exports?.runtime?.details
-                          ?.next_due_at
+                        {systemStatus.telemetry?.guest_delivery_failures_exports
+                          ?.runtime?.details?.next_due_at
                           ? `, next due ${String(systemStatus.telemetry.guest_delivery_failures_exports.runtime.details.next_due_at)}`
                           : ""}
                         .
@@ -2238,9 +2307,8 @@ export default function Dashboard() {
                       <div className="mt-1 text-xs text-gray-500">
                         Last export{" "}
                         {String(
-                          systemStatus.telemetry
-                            .guest_sponsor_analytics_exports.runtime.details
-                            .last_export_at,
+                          systemStatus.telemetry.guest_sponsor_analytics_exports
+                            .runtime.details.last_export_at,
                         )}
                         {systemStatus.telemetry?.guest_sponsor_analytics_exports
                           ?.runtime?.details?.next_due_at

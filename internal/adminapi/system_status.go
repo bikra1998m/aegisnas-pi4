@@ -324,6 +324,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"retention_count":  cfg.Telemetry.GuestLifecycleExports.RetentionCount,
 			"runtime":          runtimeMap[guestLifecycleExportsComponent],
 		},
+		"guest_invite_analytics_exports": map[string]any{
+			"enabled":          cfg.Telemetry.GuestInviteAnalyticsExports.Enabled,
+			"directory":        cfg.Telemetry.GuestInviteAnalyticsExports.Directory,
+			"format":           cfg.Telemetry.GuestInviteAnalyticsExports.Format,
+			"interval_minutes": cfg.Telemetry.GuestInviteAnalyticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.GuestInviteAnalyticsExports.RetentionCount,
+			"runtime":          runtimeMap[guestInviteAnalyticsExportsComponent],
+		},
 		"guest_delivery_analytics_exports": map[string]any{
 			"enabled":          cfg.Telemetry.GuestDeliveryAnalyticsExports.Enabled,
 			"directory":        cfg.Telemetry.GuestDeliveryAnalyticsExports.Directory,
@@ -436,6 +444,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.GuestLifecycleExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.GuestLifecycleExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled guest lifecycle exports are not running."},
+		}
+		telemetryStatus["guest_invite_analytics_exports"] = map[string]any{
+			"enabled":          cfg.Telemetry.GuestInviteAnalyticsExports.Enabled,
+			"directory":        cfg.Telemetry.GuestInviteAnalyticsExports.Directory,
+			"format":           cfg.Telemetry.GuestInviteAnalyticsExports.Format,
+			"interval_minutes": cfg.Telemetry.GuestInviteAnalyticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.GuestInviteAnalyticsExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled guest invite analytics exports are not running."},
 		}
 		telemetryStatus["guest_delivery_analytics_exports"] = map[string]any{
 			"enabled":          cfg.Telemetry.GuestDeliveryAnalyticsExports.Enabled,
@@ -558,6 +574,16 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.GuestLifecycleExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.GuestLifecycleExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled guest lifecycle exports are disabled in config."},
+		}
+	}
+	if cfg.Telemetry.Enabled && !cfg.Telemetry.GuestInviteAnalyticsExports.Enabled {
+		telemetryStatus["guest_invite_analytics_exports"] = map[string]any{
+			"enabled":          false,
+			"directory":        cfg.Telemetry.GuestInviteAnalyticsExports.Directory,
+			"format":           cfg.Telemetry.GuestInviteAnalyticsExports.Format,
+			"interval_minutes": cfg.Telemetry.GuestInviteAnalyticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.GuestInviteAnalyticsExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled guest invite analytics exports are disabled in config."},
 		}
 	}
 	if cfg.Telemetry.Enabled && !cfg.Telemetry.GuestDeliveryAnalyticsExports.Enabled {
