@@ -142,6 +142,53 @@ type GuestDeliveryAnalyticsReport = {
   summary: GuestDeliveryAnalyticsSummary;
 };
 
+type GuestInviteAnalyticsBucket = {
+  start: string;
+  end: string;
+  invite_queued_count: number;
+  invite_sent_count: number;
+  invite_failed_count: number;
+  completed_after_invite_count: number;
+};
+
+type GuestInviteAnalyticsSummary = {
+  window_hours: number;
+  bucket_count: number;
+  bucket_minutes: number;
+  total_records: number;
+  tracked_invite_records_count: number;
+  invite_queued_count: number;
+  invite_sent_count: number;
+  invite_failed_count: number;
+  invite_not_requested_count: number;
+  completed_after_invite_count: number;
+  unique_guests_window: number;
+  unique_sponsors_window: number;
+  unique_companies_window: number;
+  avg_approval_to_invite_minutes: number;
+  max_approval_to_invite_minutes: number;
+  avg_invite_to_completion_minutes: number;
+  max_invite_to_completion_minutes: number;
+  latest_invite_queued_at?: string;
+  latest_invite_sent_at?: string;
+  latest_invite_failed_at?: string;
+  latest_invite_completed_at?: string;
+  sponsors: GuestLifecycleCount[];
+  companies: GuestLifecycleCount[];
+  roles: GuestLifecycleCount[];
+  invite_delivery_statuses: GuestLifecycleCount[];
+  invite_failure_reasons: GuestLifecycleCount[];
+  buckets: GuestInviteAnalyticsBucket[];
+};
+
+type GuestInviteAnalyticsReport = {
+  generated_at: string;
+  status?: string;
+  window_hours: number;
+  bucket_count: number;
+  summary: GuestInviteAnalyticsSummary;
+};
+
 type GuestDeliveryFailureCounterparty = {
   name: string;
   delivery_issue_records_count: number;
@@ -326,6 +373,8 @@ export default function GuestRegistrations() {
   const [report, setReport] = useState<GuestLifecycleReport | null>(null);
   const [deliveryReport, setDeliveryReport] =
     useState<GuestDeliveryAnalyticsReport | null>(null);
+  const [inviteReport, setInviteReport] =
+    useState<GuestInviteAnalyticsReport | null>(null);
   const [failureReport, setFailureReport] =
     useState<GuestDeliveryFailureReport | null>(null);
   const [sponsorReport, setSponsorReport] =
@@ -333,6 +382,7 @@ export default function GuestRegistrations() {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [loadingLifecycle, setLoadingLifecycle] = useState(true);
   const [loadingDelivery, setLoadingDelivery] = useState(true);
+  const [loadingInvite, setLoadingInvite] = useState(true);
   const [loadingFailures, setLoadingFailures] = useState(true);
   const [loadingSponsor, setLoadingSponsor] = useState(true);
   const [error, setError] = useState("");
@@ -387,6 +437,24 @@ export default function GuestRegistrations() {
     }
   };
 
+  const fetchInviteReport = async () => {
+    try {
+      const suffix = buildQuerySuffix();
+      const inviteResponse = await api.get<GuestInviteAnalyticsReport>(
+        `/system/guest-invite-analytics${suffix}`,
+      );
+      setInviteReport(inviteResponse.data);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load guest invite analytics.",
+      );
+    } finally {
+      setLoadingInvite(false);
+    }
+  };
+
   const fetchSponsorReport = async () => {
     try {
       const suffix = buildQuerySuffix();
@@ -427,11 +495,13 @@ export default function GuestRegistrations() {
     setError("");
     setLoadingLifecycle(true);
     setLoadingDelivery(true);
+    setLoadingInvite(true);
     setLoadingFailures(true);
     setLoadingSponsor(true);
     await Promise.allSettled([
       fetchLifecycleReport(showMessage),
       fetchDeliveryReport(),
+      fetchInviteReport(),
       fetchFailureReport(),
       fetchSponsorReport(),
     ]);
@@ -456,6 +526,7 @@ export default function GuestRegistrations() {
       await Promise.allSettled([
         fetchLifecycleReport(),
         fetchDeliveryReport(),
+        fetchInviteReport(),
         fetchFailureReport(),
         fetchSponsorReport(),
       ]);
@@ -480,6 +551,7 @@ export default function GuestRegistrations() {
       await Promise.allSettled([
         fetchLifecycleReport(),
         fetchDeliveryReport(),
+        fetchInviteReport(),
         fetchFailureReport(),
         fetchSponsorReport(),
       ]);
@@ -493,7 +565,7 @@ export default function GuestRegistrations() {
   };
 
   const downloadExport = async (
-    reportKind: "lifecycle" | "delivery" | "failures" | "sponsor",
+    reportKind: "lifecycle" | "delivery" | "invite" | "failures" | "sponsor",
     format: "json" | "csv",
   ) => {
     setBusyAction(`export-${reportKind}-${format}`);
@@ -507,9 +579,11 @@ export default function GuestRegistrations() {
           ? "/system/guest-lifecycle/export"
           : reportKind === "delivery"
             ? "/system/guest-delivery-analytics/export"
-            : reportKind === "failures"
-              ? "/system/guest-delivery-failures/export"
-            : "/system/guest-sponsor-analytics/export";
+            : reportKind === "invite"
+              ? "/system/guest-invite-analytics/export"
+              : reportKind === "failures"
+                ? "/system/guest-delivery-failures/export"
+                : "/system/guest-sponsor-analytics/export";
       const response = await api.get(`${endpoint}?${params.toString()}`, {
         responseType: "blob",
       });
@@ -529,9 +603,11 @@ export default function GuestRegistrations() {
             ? "lifecycle"
             : reportKind === "delivery"
               ? "delivery-analytics"
-              : reportKind === "failures"
-                ? "delivery-failures"
-              : "sponsor-analytics"
+              : reportKind === "invite"
+                ? "invite-analytics"
+                : reportKind === "failures"
+                  ? "delivery-failures"
+                  : "sponsor-analytics"
         }.${format}`;
       document.body.appendChild(link);
       link.click();
@@ -543,9 +619,11 @@ export default function GuestRegistrations() {
             ? "lifecycle"
             : reportKind === "delivery"
               ? "delivery analytics"
-              : reportKind === "failures"
-                ? "delivery failures"
-              : "sponsor analytics"
+              : reportKind === "invite"
+                ? "invite analytics"
+                : reportKind === "failures"
+                  ? "delivery failures"
+                  : "sponsor analytics"
         } ${format.toUpperCase()} export downloaded.`,
       );
     } catch (err: any) {
@@ -562,6 +640,7 @@ export default function GuestRegistrations() {
   const records = report?.history || [];
   const summary = report?.summary;
   const deliverySummary = deliveryReport?.summary;
+  const inviteSummary = inviteReport?.summary;
   const failureSummary = failureReport?.summary;
   const sponsorSummary = sponsorReport?.summary;
   const recentBuckets = useMemo(
@@ -571,6 +650,10 @@ export default function GuestRegistrations() {
   const recentDeliveryBuckets = useMemo(
     () => (deliverySummary?.buckets || []).slice(-6),
     [deliverySummary],
+  );
+  const recentInviteBuckets = useMemo(
+    () => (inviteSummary?.buckets || []).slice(-6),
+    [inviteSummary],
   );
   const recentFailureBuckets = useMemo(
     () => (failureSummary?.buckets || []).slice(-6),
@@ -632,6 +715,22 @@ export default function GuestRegistrations() {
             className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Delivery CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadExport("invite", "json")}
+            disabled={busyAction === "export-invite-json"}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Invite JSON
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadExport("invite", "csv")}
+            disabled={busyAction === "export-invite-csv"}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Invite CSV
           </button>
           <button
             type="button"
@@ -1058,6 +1157,192 @@ export default function GuestRegistrations() {
           <div className="mt-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
             <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
               <h3 className="text-base font-semibold text-slate-900">
+                Invite throughput and completion
+              </h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Recent invite queue, send, failure, and post-invite completion
+                movement.
+              </p>
+              {!inviteSummary ? (
+                <div className="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
+                  {loadingInvite
+                    ? "Loading guest invite analytics..."
+                    : "Guest invite analytics are not available yet."}
+                </div>
+              ) : (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        {[
+                          "Bucket",
+                          "Queued",
+                          "Sent",
+                          "Failed",
+                          "Completed",
+                        ].map((label) => (
+                          <th
+                            key={label}
+                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600"
+                          >
+                            {label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {recentInviteBuckets.length === 0 ? (
+                        <tr>
+                          <td className="px-3 py-4 text-slate-500" colSpan={5}>
+                            No invite buckets recorded yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        recentInviteBuckets.map((bucket) => (
+                          <tr key={`${bucket.start}-${bucket.end}`}>
+                            <td className="px-3 py-3 text-slate-700">
+                              {formatTimestamp(bucket.start)}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.invite_queued_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.invite_sent_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.invite_failed_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.completed_after_invite_count}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">
+                Invite delivery highlights
+              </h3>
+              {!inviteSummary ? (
+                <div className="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
+                  {loadingInvite
+                    ? "Loading guest invite analytics..."
+                    : "Guest invite analytics are not available yet."}
+                </div>
+              ) : (
+                <>
+                  <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Invite throughput
+                      </div>
+                      <div className="mt-1">
+                        {inviteSummary.tracked_invite_records_count} tracked
+                        invite records
+                      </div>
+                      <div>{inviteSummary.invite_queued_count} queued</div>
+                      <div>{inviteSummary.invite_sent_count} sent</div>
+                      <div>{inviteSummary.invite_failed_count} failed</div>
+                      <div>
+                        {inviteSummary.completed_after_invite_count} completed
+                        after invite
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Timing window
+                      </div>
+                      <div className="mt-1">
+                        {inviteSummary.avg_approval_to_invite_minutes} minute
+                        average approval-to-invite
+                      </div>
+                      <div>
+                        {inviteSummary.max_approval_to_invite_minutes} minute
+                        slowest approval-to-invite
+                      </div>
+                      <div>
+                        {inviteSummary.avg_invite_to_completion_minutes} minute
+                        average invite-to-completion
+                      </div>
+                      <div>
+                        {inviteSummary.max_invite_to_completion_minutes} minute
+                        slowest invite-to-completion
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Latest milestones
+                      </div>
+                      <div className="mt-1">
+                        Queued:{" "}
+                        {formatTimestamp(inviteSummary.latest_invite_queued_at)}
+                      </div>
+                      <div>
+                        Sent:{" "}
+                        {formatTimestamp(inviteSummary.latest_invite_sent_at)}
+                      </div>
+                      <div>
+                        Failed:{" "}
+                        {formatTimestamp(inviteSummary.latest_invite_failed_at)}
+                      </div>
+                      <div>
+                        Completed:{" "}
+                        {formatTimestamp(
+                          inviteSummary.latest_invite_completed_at,
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">Coverage</div>
+                      <div className="mt-1">
+                        {inviteSummary.unique_guests_window} guests
+                      </div>
+                      <div>{inviteSummary.unique_sponsors_window} sponsors</div>
+                      <div>
+                        {inviteSummary.unique_companies_window} companies
+                      </div>
+                      <div>
+                        {inviteSummary.invite_not_requested_count} without
+                        invite requests
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <MixList
+                      title="Invite delivery states"
+                      items={inviteSummary.invite_delivery_statuses}
+                      empty="No invite delivery states recorded yet."
+                    />
+                    <MixList
+                      title="Invite failure reasons"
+                      items={inviteSummary.invite_failure_reasons}
+                      empty="No invite failures recorded yet."
+                    />
+                    <MixList
+                      title="Sponsors"
+                      items={inviteSummary.sponsors}
+                      empty="No sponsor invite activity recorded yet."
+                    />
+                    <MixList
+                      title="Companies"
+                      items={inviteSummary.companies}
+                      empty="No company invite activity recorded yet."
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">
                 Sponsor approval backlog
               </h3>
               <p className="mt-1 text-sm text-slate-600">
@@ -1170,8 +1455,8 @@ export default function GuestRegistrations() {
                         than 4 hours
                       </div>
                       <div>
-                        {sponsorSummary.pending_older_than_24_hours_count}{" "}
-                        older than 24 hours
+                        {sponsorSummary.pending_older_than_24_hours_count} older
+                        than 24 hours
                       </div>
                     </div>
                     <div>
@@ -1213,9 +1498,7 @@ export default function GuestRegistrations() {
                       </div>
                     </div>
                     <div>
-                      <div className="font-medium text-slate-900">
-                        Coverage
-                      </div>
+                      <div className="font-medium text-slate-900">Coverage</div>
                       <div className="mt-1">
                         {sponsorSummary.sponsor_approval_required_count} sponsor
                         approvals required
@@ -1403,11 +1686,15 @@ export default function GuestRegistrations() {
                       </div>
                       <div>
                         Invite failure:{" "}
-                        {formatTimestamp(failureSummary.latest_invite_failure_at)}
+                        {formatTimestamp(
+                          failureSummary.latest_invite_failure_at,
+                        )}
                       </div>
                       <div>
                         Invite queued:{" "}
-                        {formatTimestamp(failureSummary.latest_queued_invite_at)}
+                        {formatTimestamp(
+                          failureSummary.latest_queued_invite_at,
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1435,9 +1722,10 @@ export default function GuestRegistrations() {
                                 {item.pending_invite_queue_count} queued invites
                               </div>
                               <div className="mt-1 text-xs text-slate-600">
-                                Avg queue {item.avg_pending_invite_queue_minutes}
-                                m, oldest {item.max_pending_invite_queue_minutes}
-                                m
+                                Avg queue{" "}
+                                {item.avg_pending_invite_queue_minutes}
+                                m, oldest{" "}
+                                {item.max_pending_invite_queue_minutes}m
                               </div>
                             </div>
                           ))}

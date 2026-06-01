@@ -1648,6 +1648,192 @@ function buildGuestDeliveryAnalyticsResponse(
   };
 }
 
+function buildGuestInviteAnalyticsResponse(
+  records: GuestRecord[],
+  statusFilter = "",
+) {
+  const history = statusFilter
+    ? records.filter((item) => item.status === statusFilter)
+    : records;
+  const sponsors = new Map<string, number>();
+  const companies = new Map<string, number>();
+  const roles = new Map<string, number>();
+  const inviteStatuses = new Map<string, number>();
+  const inviteFailureReasons = new Map<string, number>();
+  const guestSet = new Set<string>();
+  const sponsorSet = new Set<string>();
+  const companySet = new Set<string>();
+  const summary = {
+    window_hours: 24,
+    bucket_count: 24,
+    bucket_minutes: 60,
+    total_records: history.length,
+    tracked_invite_records_count: 0,
+    invite_queued_count: 0,
+    invite_sent_count: 0,
+    invite_failed_count: 0,
+    invite_not_requested_count: 0,
+    completed_after_invite_count: 0,
+    unique_guests_window: 0,
+    unique_sponsors_window: 0,
+    unique_companies_window: 0,
+    avg_approval_to_invite_minutes: 12,
+    max_approval_to_invite_minutes: 20,
+    avg_invite_to_completion_minutes: 18,
+    max_invite_to_completion_minutes: 30,
+    latest_invite_queued_at: "",
+    latest_invite_sent_at: "",
+    latest_invite_failed_at: "",
+    latest_invite_completed_at: "",
+    sponsors: [] as { name: string; count: number }[],
+    companies: [] as { name: string; count: number }[],
+    roles: [] as { name: string; count: number }[],
+    invite_delivery_statuses: [] as { name: string; count: number }[],
+    invite_failure_reasons: [] as { name: string; count: number }[],
+    buckets: [
+      {
+        start: "2026-05-05T08:00:00Z",
+        end: "2026-05-05T09:00:00Z",
+        invite_queued_count: 0,
+        invite_sent_count: 0,
+        invite_failed_count: 0,
+        completed_after_invite_count: 0,
+      },
+      {
+        start: "2026-05-05T09:00:00Z",
+        end: "2026-05-05T10:00:00Z",
+        invite_queued_count: 0,
+        invite_sent_count: 0,
+        invite_failed_count: 0,
+        completed_after_invite_count: 0,
+      },
+      {
+        start: "2026-05-05T10:00:00Z",
+        end: "2026-05-05T11:00:00Z",
+        invite_queued_count: 0,
+        invite_sent_count: 0,
+        invite_failed_count: 0,
+        completed_after_invite_count: 0,
+      },
+      {
+        start: "2026-05-05T11:00:00Z",
+        end: "2026-05-05T12:00:00Z",
+        invite_queued_count: 0,
+        invite_sent_count: 0,
+        invite_failed_count: 0,
+        completed_after_invite_count: 0,
+      },
+      {
+        start: "2026-05-05T12:00:00Z",
+        end: "2026-05-05T13:00:00Z",
+        invite_queued_count: 0,
+        invite_sent_count: 0,
+        invite_failed_count: 0,
+        completed_after_invite_count: 0,
+      },
+      {
+        start: "2026-05-05T13:00:00Z",
+        end: "2026-05-05T14:00:00Z",
+        invite_queued_count: 0,
+        invite_sent_count: 0,
+        invite_failed_count: 0,
+        completed_after_invite_count: 0,
+      },
+    ],
+  };
+
+  history.forEach((item, index) => {
+    const inviteStatus = item.invite_delivery_status || "unknown";
+    inviteStatuses.set(
+      inviteStatus,
+      (inviteStatuses.get(inviteStatus) || 0) + 1,
+    );
+
+    if (inviteStatus === "queued") {
+      summary.tracked_invite_records_count += 1;
+      summary.invite_queued_count += 1;
+      summary.latest_invite_queued_at = item.approved_at || item.created_at;
+    } else if (inviteStatus === "sent") {
+      summary.tracked_invite_records_count += 1;
+      summary.invite_sent_count += 1;
+      summary.latest_invite_sent_at =
+        item.approved_at || item.completed_at || item.created_at;
+    } else if (inviteStatus === "failed") {
+      summary.tracked_invite_records_count += 1;
+      summary.invite_failed_count += 1;
+      summary.latest_invite_failed_at =
+        item.rejected_at || item.approved_at || item.created_at;
+      const reason = item.invite_delivery_error || "unknown";
+      inviteFailureReasons.set(
+        reason,
+        (inviteFailureReasons.get(reason) || 0) + 1,
+      );
+    } else if (inviteStatus === "not_requested") {
+      summary.invite_not_requested_count += 1;
+    }
+
+    if (item.completed_at && inviteStatus === "sent") {
+      summary.completed_after_invite_count += 1;
+      summary.latest_invite_completed_at = item.completed_at;
+    }
+
+    if (
+      inviteStatus === "queued" ||
+      inviteStatus === "sent" ||
+      inviteStatus === "failed"
+    ) {
+      guestSet.add(item.email || item.full_name || item.id);
+      if (item.sponsor_email || item.sponsor_name) {
+        const label = item.sponsor_email || item.sponsor_name || item.id;
+        sponsorSet.add(label);
+        sponsors.set(label, (sponsors.get(label) || 0) + 1);
+      }
+      if (item.company) {
+        companySet.add(item.company);
+        companies.set(item.company, (companies.get(item.company) || 0) + 1);
+      }
+      if (item.role) {
+        roles.set(item.role, (roles.get(item.role) || 0) + 1);
+      }
+    }
+
+    const bucket = summary.buckets[Math.min(index, summary.buckets.length - 1)];
+    if (inviteStatus === "queued") bucket.invite_queued_count += 1;
+    if (inviteStatus === "sent") bucket.invite_sent_count += 1;
+    if (inviteStatus === "failed") bucket.invite_failed_count += 1;
+    if (item.completed_at && inviteStatus === "sent") {
+      bucket.completed_after_invite_count += 1;
+    }
+  });
+
+  summary.unique_guests_window = guestSet.size;
+  summary.unique_sponsors_window = sponsorSet.size;
+  summary.unique_companies_window = companySet.size;
+  summary.sponsors = Array.from(sponsors.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.companies = Array.from(companies.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.roles = Array.from(roles.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.invite_delivery_statuses = Array.from(inviteStatuses.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.invite_failure_reasons = Array.from(inviteFailureReasons.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  return {
+    generated_at: "2026-05-05T12:15:00Z",
+    status: statusFilter,
+    window_hours: summary.window_hours,
+    bucket_count: summary.bucket_count,
+    summary,
+  };
+}
+
 function buildGuestDeliveryFailuresResponse(
   records: GuestRecord[],
   statusFilter = "",
@@ -1774,8 +1960,7 @@ function buildGuestDeliveryFailuresResponse(
     const sponsor =
       sponsorName === ""
         ? null
-        : sponsors.get(sponsorName) ||
-          {
+        : sponsors.get(sponsorName) || {
             name: sponsorName,
             delivery_issue_records_count: 0,
             approval_delivery_failed_count: 0,
@@ -1794,8 +1979,7 @@ function buildGuestDeliveryFailuresResponse(
     const company =
       companyName === ""
         ? null
-        : companies.get(companyName) ||
-          {
+        : companies.get(companyName) || {
             name: companyName,
             delivery_issue_records_count: 0,
             approval_delivery_failed_count: 0,
@@ -1814,14 +1998,16 @@ function buildGuestDeliveryFailuresResponse(
 
     let issueRecord = false;
     const bucket = summary.buckets[Math.min(index, summary.buckets.length - 1)];
-    const createdAt = item.created_at ? Date.parse(item.created_at) : Number.NaN;
+    const createdAt = item.created_at
+      ? Date.parse(item.created_at)
+      : Number.NaN;
     const approvedAt = item.approved_at
       ? Date.parse(item.approved_at)
       : Number.NaN;
-    const updatedAt = item.updated_at ? Date.parse(item.updated_at) : Number.NaN;
-    const inviteAnchor = !Number.isNaN(approvedAt)
-      ? approvedAt
-      : createdAt;
+    const updatedAt = item.updated_at
+      ? Date.parse(item.updated_at)
+      : Number.NaN;
+    const inviteAnchor = !Number.isNaN(approvedAt) ? approvedAt : createdAt;
 
     const latestStamp = (current: string, next?: string) =>
       !next ? current : !current || next > current ? next : current;
@@ -1845,13 +2031,19 @@ function buildGuestDeliveryFailuresResponse(
       if (sponsor) {
         sponsor.approval_delivery_failed_count += 1;
         sponsor.total_failure_count += 1;
-        sponsor.latest_issue_at = latestStamp(sponsor.latest_issue_at || "", issueAtText);
+        sponsor.latest_issue_at = latestStamp(
+          sponsor.latest_issue_at || "",
+          issueAtText,
+        );
         sponsorSet.add(sponsor.name);
       }
       if (company) {
         company.approval_delivery_failed_count += 1;
         company.total_failure_count += 1;
-        company.latest_issue_at = latestStamp(company.latest_issue_at || "", issueAtText);
+        company.latest_issue_at = latestStamp(
+          company.latest_issue_at || "",
+          issueAtText,
+        );
         companySet.add(company.name);
       }
     }
@@ -1871,13 +2063,19 @@ function buildGuestDeliveryFailuresResponse(
       if (sponsor) {
         sponsor.invite_failed_count += 1;
         sponsor.total_failure_count += 1;
-        sponsor.latest_issue_at = latestStamp(sponsor.latest_issue_at || "", issueAtText);
+        sponsor.latest_issue_at = latestStamp(
+          sponsor.latest_issue_at || "",
+          issueAtText,
+        );
         sponsorSet.add(sponsor.name);
       }
       if (company) {
         company.invite_failed_count += 1;
         company.total_failure_count += 1;
-        company.latest_issue_at = latestStamp(company.latest_issue_at || "", issueAtText);
+        company.latest_issue_at = latestStamp(
+          company.latest_issue_at || "",
+          issueAtText,
+        );
         companySet.add(company.name);
       }
     }
@@ -1895,7 +2093,10 @@ function buildGuestDeliveryFailuresResponse(
         queuedAtText,
       );
       if (!Number.isNaN(inviteAnchor) && inviteAnchor > 0) {
-        const queueMinutes = Math.max(0, Math.floor((now - inviteAnchor) / 60000));
+        const queueMinutes = Math.max(
+          0,
+          Math.floor((now - inviteAnchor) / 60000),
+        );
         queueTotalMinutes += queueMinutes;
         queueSamples += 1;
         summary.max_pending_invite_queue_minutes = Math.max(
@@ -1910,7 +2111,10 @@ function buildGuestDeliveryFailuresResponse(
             sponsor.max_pending_invite_queue_minutes,
             queueMinutes,
           );
-          sponsor.latest_issue_at = latestStamp(sponsor.latest_issue_at || "", queuedAtText);
+          sponsor.latest_issue_at = latestStamp(
+            sponsor.latest_issue_at || "",
+            queuedAtText,
+          );
           sponsorSet.add(sponsor.name);
         }
         if (company) {
@@ -1921,7 +2125,10 @@ function buildGuestDeliveryFailuresResponse(
             company.max_pending_invite_queue_minutes,
             queueMinutes,
           );
-          company.latest_issue_at = latestStamp(company.latest_issue_at || "", queuedAtText);
+          company.latest_issue_at = latestStamp(
+            company.latest_issue_at || "",
+            queuedAtText,
+          );
           companySet.add(company.name);
         }
       }
@@ -2129,25 +2336,26 @@ function buildGuestSponsorAnalyticsResponse(
     summary.sponsor_approval_required_count += 1;
 
     const sponsorName =
-      item.sponsor_email || item.sponsor_name || item.sponsor_phone || "missing sponsor";
-    const sponsor =
-      sponsors.get(sponsorName) ||
-      {
-        name: sponsorName,
-        pending_count: 0,
-        approved_count: 0,
-        rejected_count: 0,
-        completed_count: 0,
-        older_than_30_minutes_count: 0,
-        older_than_4_hours_count: 0,
-        older_than_24_hours_count: 0,
-        avg_approval_minutes: 0,
-        max_approval_minutes: 0,
-        latest_submitted_at: "",
-        latest_approved_at: "",
-        approval_total_minutes: 0,
-        approval_samples: 0,
-      };
+      item.sponsor_email ||
+      item.sponsor_name ||
+      item.sponsor_phone ||
+      "missing sponsor";
+    const sponsor = sponsors.get(sponsorName) || {
+      name: sponsorName,
+      pending_count: 0,
+      approved_count: 0,
+      rejected_count: 0,
+      completed_count: 0,
+      older_than_30_minutes_count: 0,
+      older_than_4_hours_count: 0,
+      older_than_24_hours_count: 0,
+      avg_approval_minutes: 0,
+      max_approval_minutes: 0,
+      latest_submitted_at: "",
+      latest_approved_at: "",
+      approval_total_minutes: 0,
+      approval_samples: 0,
+    };
     sponsors.set(sponsorName, sponsor);
     sponsorSet.add(sponsorName);
     if (item.company) {
@@ -2155,15 +2363,34 @@ function buildGuestSponsorAnalyticsResponse(
       companySet.add(item.company);
     }
 
-    if (!summary.latest_submitted_at || item.created_at > summary.latest_submitted_at)
+    if (
+      !summary.latest_submitted_at ||
+      item.created_at > summary.latest_submitted_at
+    )
       summary.latest_submitted_at = item.created_at;
-    if (item.created_at && (!sponsor.latest_submitted_at || item.created_at > sponsor.latest_submitted_at))
+    if (
+      item.created_at &&
+      (!sponsor.latest_submitted_at ||
+        item.created_at > sponsor.latest_submitted_at)
+    )
       sponsor.latest_submitted_at = item.created_at;
-    if (item.approved_at && (!summary.latest_approved_at || item.approved_at > summary.latest_approved_at))
+    if (
+      item.approved_at &&
+      (!summary.latest_approved_at ||
+        item.approved_at > summary.latest_approved_at)
+    )
       summary.latest_approved_at = item.approved_at;
-    if (item.approved_at && (!sponsor.latest_approved_at || item.approved_at > sponsor.latest_approved_at))
+    if (
+      item.approved_at &&
+      (!sponsor.latest_approved_at ||
+        item.approved_at > sponsor.latest_approved_at)
+    )
       sponsor.latest_approved_at = item.approved_at;
-    if (item.rejected_at && (!summary.latest_rejected_at || item.rejected_at > summary.latest_rejected_at))
+    if (
+      item.rejected_at &&
+      (!summary.latest_rejected_at ||
+        item.rejected_at > summary.latest_rejected_at)
+    )
       summary.latest_rejected_at = item.rejected_at;
 
     const bucket = summary.buckets[Math.min(index, summary.buckets.length - 1)];
@@ -2222,7 +2449,11 @@ function buildGuestSponsorAnalyticsResponse(
     if (item.created_at && item.approved_at) {
       const createdAt = Date.parse(item.created_at);
       const approvedAt = Date.parse(item.approved_at);
-      if (!Number.isNaN(createdAt) && !Number.isNaN(approvedAt) && approvedAt > createdAt) {
+      if (
+        !Number.isNaN(createdAt) &&
+        !Number.isNaN(approvedAt) &&
+        approvedAt > createdAt
+      ) {
         const approvalMinutes = Math.floor((approvedAt - createdAt) / 60000);
         approvalTotalMinutes += approvalMinutes;
         approvalSamples += 1;
@@ -2261,7 +2492,8 @@ function buildGuestSponsorAnalyticsResponse(
           : 0,
     }))
     .sort((a, b) => {
-      if (b.pending_count !== a.pending_count) return b.pending_count - a.pending_count;
+      if (b.pending_count !== a.pending_count)
+        return b.pending_count - a.pending_count;
       if (b.older_than_24_hours_count !== a.older_than_24_hours_count)
         return b.older_than_24_hours_count - a.older_than_24_hours_count;
       return a.name.localeCompare(b.name);
@@ -3079,7 +3311,8 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({
         json: {
           runtime:
-            state.systemStatus.telemetry.guest_delivery_failures_exports.runtime,
+            state.systemStatus.telemetry.guest_delivery_failures_exports
+              .runtime,
           exports: [
             {
               name: "aegisnas-guest-delivery-failures-20260505-115630Z.json",
@@ -3839,18 +4072,41 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
+    if (path === "/system/guest-invite-analytics" && method === "GET") {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        json: buildGuestInviteAnalyticsResponse(
+          state.guestRegistrations,
+          status,
+        ),
+      });
+      return;
+    }
+    if (path === "/system/guest-invite-analytics/export" && method === "GET") {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildGuestInviteAnalyticsResponse(state.guestRegistrations, status),
+        ),
+      });
+      return;
+    }
     if (path === "/system/guest-sponsor-analytics" && method === "GET") {
       const url = new URL(route.request().url());
       const status = url.searchParams.get("status") || "";
       await route.fulfill({
-        json: buildGuestSponsorAnalyticsResponse(state.guestRegistrations, status),
+        json: buildGuestSponsorAnalyticsResponse(
+          state.guestRegistrations,
+          status,
+        ),
       });
       return;
     }
-    if (
-      path === "/system/guest-sponsor-analytics/export" &&
-      method === "GET"
-    ) {
+    if (path === "/system/guest-sponsor-analytics/export" && method === "GET") {
       const url = new URL(route.request().url());
       const status = url.searchParams.get("status") || "";
       await route.fulfill({
@@ -3866,14 +4122,14 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       const url = new URL(route.request().url());
       const status = url.searchParams.get("status") || "";
       await route.fulfill({
-        json: buildGuestDeliveryFailuresResponse(state.guestRegistrations, status),
+        json: buildGuestDeliveryFailuresResponse(
+          state.guestRegistrations,
+          status,
+        ),
       });
       return;
     }
-    if (
-      path === "/system/guest-delivery-failures/export" &&
-      method === "GET"
-    ) {
+    if (path === "/system/guest-delivery-failures/export" && method === "GET") {
       const url = new URL(route.request().url());
       const status = url.searchParams.get("status") || "";
       await route.fulfill({

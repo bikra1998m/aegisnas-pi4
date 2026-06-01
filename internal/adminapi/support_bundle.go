@@ -276,6 +276,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/session-history.json", requestPath: "/api/v1/system/session-history", label: "Session and accounting history", handler: HandleListSessionHistory},
 		{archivePath: "api/session-analytics.json", requestPath: "/api/v1/system/session-analytics", label: "Session activity analytics", handler: HandleGetSessionAnalytics},
 		{archivePath: "api/guest-lifecycle.json", requestPath: "/api/v1/system/guest-lifecycle", label: "Guest lifecycle report", handler: HandleGetGuestLifecycle},
+		{archivePath: "api/guest-invite-analytics.json", requestPath: "/api/v1/system/guest-invite-analytics", label: "Guest invite analytics", handler: HandleGetGuestInviteAnalytics},
 		{archivePath: "api/guest-delivery-analytics.json", requestPath: "/api/v1/system/guest-delivery-analytics", label: "Guest delivery analytics", handler: HandleGetGuestDeliveryAnalytics},
 		{archivePath: "api/guest-delivery-failures.json", requestPath: "/api/v1/system/guest-delivery-failures", label: "Guest delivery failures", handler: HandleGetGuestDeliveryFailures},
 		{archivePath: "api/guest-sponsor-analytics.json", requestPath: "/api/v1/system/guest-sponsor-analytics", label: "Guest sponsor analytics", handler: HandleGetGuestSponsorAnalytics},

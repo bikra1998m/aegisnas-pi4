@@ -35,7 +35,13 @@ test.describe("guest workflow admin path", () => {
       page.getByRole("heading", { name: "Sponsor delivery analytics" }),
     ).toBeVisible();
     await expect(
+      page.getByRole("heading", { name: "Invite throughput and completion" }),
+    ).toBeVisible();
+    await expect(
       page.getByRole("heading", { name: "Delivery failure hotspots" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Invite delivery highlights" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Sponsor approval backlog" }),

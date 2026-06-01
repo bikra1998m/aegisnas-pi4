@@ -54,6 +54,7 @@ type DiagnosticsNetwork struct {
 
 type DiagnosticsGuest struct {
 	Summary           db.GuestLifecycleSummary                `json:"summary"`
+	InviteAnalytics   db.GuestInviteAnalyticsSummary          `json:"invite_analytics"`
 	DeliveryAnalytics db.GuestDeliveryAnalyticsSummary        `json:"delivery_analytics"`
 	DeliveryFailures  db.GuestDeliveryFailureAnalyticsSummary `json:"delivery_failures"`
 	SponsorAnalytics  db.GuestSponsorApprovalSummary          `json:"sponsor_analytics"`
@@ -188,6 +189,13 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load guest lifecycle summary: %w", err)
 	}
+	guestInviteAnalytics, err := db.GetGuestInviteAnalytics(db.GuestLifecycleQuery{
+		Window:      24 * time.Hour,
+		BucketCount: 24,
+	})
+	if err != nil {
+		return DiagnosticsReport{}, fmt.Errorf("load guest invite analytics: %w", err)
+	}
 	guestDeliveryAnalytics, err := db.GetGuestDeliveryAnalytics(db.GuestLifecycleQuery{
 		Window:      24 * time.Hour,
 		BucketCount: 24,
@@ -259,6 +267,7 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 		Sessions: sessionStats,
 		Guest: DiagnosticsGuest{
 			Summary:           guestSummary,
+			InviteAnalytics:   guestInviteAnalytics,
 			DeliveryAnalytics: guestDeliveryAnalytics,
 			DeliveryFailures:  guestDeliveryFailures,
 			SponsorAnalytics:  guestSponsorAnalytics,
@@ -333,6 +342,12 @@ func diagnosticsReportCSV(report DiagnosticsReport) ([]byte, error) {
 		{"guest_unique_sponsors_window", strconv.Itoa(report.Guest.Summary.UniqueSponsorsWindow)},
 		{"guest_avg_approval_minutes", fmt.Sprint(report.Guest.Summary.AvgApprovalMinutes)},
 		{"guest_avg_completion_minutes", fmt.Sprint(report.Guest.Summary.AvgCompletionMinutes)},
+		{"guest_invite_tracked_records_count", strconv.Itoa(report.Guest.InviteAnalytics.TrackedInviteRecordsCount)},
+		{"guest_invite_sent_count", strconv.Itoa(report.Guest.InviteAnalytics.InviteSentCount)},
+		{"guest_invite_failed_count", strconv.Itoa(report.Guest.InviteAnalytics.InviteFailedCount)},
+		{"guest_invite_completed_after_invite_count", strconv.Itoa(report.Guest.InviteAnalytics.CompletedAfterInviteCount)},
+		{"guest_invite_avg_approval_to_invite_minutes", strconv.FormatInt(report.Guest.InviteAnalytics.AvgApprovalToInviteMinutes, 10)},
+		{"guest_invite_avg_invite_to_completion_minutes", strconv.FormatInt(report.Guest.InviteAnalytics.AvgInviteToCompletionMinutes, 10)},
 		{"guest_delivery_pending_sponsor_approval_count", strconv.Itoa(report.Guest.DeliveryAnalytics.PendingSponsorApprovalCount)},
 		{"guest_delivery_pending_invite_queue_count", strconv.Itoa(report.Guest.DeliveryAnalytics.PendingInviteQueueCount)},
 		{"guest_delivery_approval_sent_count", strconv.Itoa(report.Guest.DeliveryAnalytics.ApprovalDeliverySentCount)},

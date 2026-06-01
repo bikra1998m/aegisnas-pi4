@@ -157,6 +157,9 @@ And export variants at:
 /api/v1/system/guest-delivery-analytics
 /api/v1/system/guest-delivery-analytics/export?format=json
 /api/v1/system/guest-delivery-analytics/export?format=csv
+/api/v1/system/guest-invite-analytics
+/api/v1/system/guest-invite-analytics/export?format=json
+/api/v1/system/guest-invite-analytics/export?format=csv
 /api/v1/system/guest-delivery-failures
 /api/v1/system/guest-delivery-failures/export?format=json
 /api/v1/system/guest-delivery-failures/export?format=csv
@@ -174,6 +177,8 @@ And export variants at:
 ```
 
 Use the delivery analytics endpoints when you want the sponsor-approval backlog, approval and invite delivery failure mix, top sponsors, and approval-to-completion timing without exporting the full registration history.
+
+Use the invite analytics endpoints when you want queued, sent, and failed invite throughput, approval-to-invite timing, and completion-after-invite movement without paging through the raw guest request table.
 
 Use the delivery failure endpoints when you want top approval or invite error reasons, queued-invite age, and sponsor or company hotspots without paging through the raw registration table.
 
