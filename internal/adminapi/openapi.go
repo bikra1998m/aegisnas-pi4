@@ -268,6 +268,36 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/guest-sponsor-analytics", "get", securedOperationWithParameters("Summarize sponsor approval backlog and response timing", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("status", "Optional guest status filter.", false),
+		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 24.", false),
+		queryStringParameter("bucket_count", "Optional trend bucket count. Defaults to 24 and caps at 96.", false),
+	}, map[string]any{
+		"200": responseJSON("Sponsor approval analytics with backlog aging, top sponsors, approval timing, and bucketed sponsor-response trends."),
+	}))
+	addOperation(paths, "/api/v1/system/guest-sponsor-analytics/export", "get", securedOperationWithParameters("Export sponsor approval analytics", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("format", "Optional export format. Defaults to csv.", []string{"json", "csv"}, false),
+		queryStringParameter("status", "Optional guest status filter.", false),
+		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 24.", false),
+		queryStringParameter("bucket_count", "Optional trend bucket count. Defaults to 24 and caps at 96.", false),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Sponsor approval analytics export in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/guest-delivery-analytics-exports", "get", securedOperation("List scheduled guest delivery analytics exports", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Scheduled guest delivery analytics export runtime status and recent artifact list."),
 	}))

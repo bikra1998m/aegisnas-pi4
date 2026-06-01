@@ -142,6 +142,69 @@ type GuestDeliveryAnalyticsReport = {
   summary: GuestDeliveryAnalyticsSummary;
 };
 
+type GuestSponsorAnalyticsSponsor = {
+  name: string;
+  pending_count: number;
+  approved_count: number;
+  rejected_count: number;
+  completed_count: number;
+  older_than_30_minutes_count: number;
+  older_than_4_hours_count: number;
+  older_than_24_hours_count: number;
+  avg_approval_minutes: number;
+  max_approval_minutes: number;
+  latest_submitted_at?: string;
+  latest_approved_at?: string;
+};
+
+type GuestSponsorAnalyticsBucket = {
+  start: string;
+  end: string;
+  submitted_count: number;
+  pending_sponsor_approval_count: number;
+  pending_older_than_30_minutes_count: number;
+  pending_older_than_4_hours_count: number;
+  pending_older_than_24_hours_count: number;
+  approved_count: number;
+  rejected_count: number;
+  completed_count: number;
+};
+
+type GuestSponsorAnalyticsSummary = {
+  window_hours: number;
+  bucket_count: number;
+  bucket_minutes: number;
+  total_records: number;
+  sponsor_approval_required_count: number;
+  pending_sponsor_approval_count: number;
+  pending_older_than_30_minutes_count: number;
+  pending_older_than_4_hours_count: number;
+  pending_older_than_24_hours_count: number;
+  approved_with_sponsor_count: number;
+  rejected_with_sponsor_count: number;
+  completed_with_sponsor_count: number;
+  unique_sponsors_window: number;
+  unique_companies_window: number;
+  avg_approval_minutes: number;
+  max_approval_minutes: number;
+  avg_pending_approval_minutes: number;
+  max_pending_approval_minutes: number;
+  latest_submitted_at?: string;
+  latest_approved_at?: string;
+  latest_rejected_at?: string;
+  sponsors: GuestSponsorAnalyticsSponsor[];
+  companies: GuestLifecycleCount[];
+  buckets: GuestSponsorAnalyticsBucket[];
+};
+
+type GuestSponsorAnalyticsReport = {
+  generated_at: string;
+  status?: string;
+  window_hours: number;
+  bucket_count: number;
+  summary: GuestSponsorAnalyticsSummary;
+};
+
 const statusOptions = [
   { value: "", label: "All statuses" },
   { value: "pending", label: "Pending" },
@@ -210,9 +273,12 @@ export default function GuestRegistrations() {
   const [report, setReport] = useState<GuestLifecycleReport | null>(null);
   const [deliveryReport, setDeliveryReport] =
     useState<GuestDeliveryAnalyticsReport | null>(null);
+  const [sponsorReport, setSponsorReport] =
+    useState<GuestSponsorAnalyticsReport | null>(null);
   const [selectedStatus, setSelectedStatus] = useState("");
   const [loadingLifecycle, setLoadingLifecycle] = useState(true);
   const [loadingDelivery, setLoadingDelivery] = useState(true);
+  const [loadingSponsor, setLoadingSponsor] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busyAction, setBusyAction] = useState("");
@@ -265,12 +331,34 @@ export default function GuestRegistrations() {
     }
   };
 
+  const fetchSponsorReport = async () => {
+    try {
+      const suffix = buildQuerySuffix();
+      const sponsorResponse = await api.get<GuestSponsorAnalyticsReport>(
+        `/system/guest-sponsor-analytics${suffix}`,
+      );
+      setSponsorReport(sponsorResponse.data);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load guest sponsor analytics.",
+      );
+    } finally {
+      setLoadingSponsor(false);
+    }
+  };
+
   const fetchReports = async (showMessage = false) => {
     setError("");
     setLoadingLifecycle(true);
     setLoadingDelivery(true);
-    void fetchDeliveryReport();
-    await fetchLifecycleReport(showMessage);
+    setLoadingSponsor(true);
+    await Promise.allSettled([
+      fetchLifecycleReport(showMessage),
+      fetchDeliveryReport(),
+      fetchSponsorReport(),
+    ]);
   };
 
   useEffect(() => {
@@ -289,7 +377,11 @@ export default function GuestRegistrations() {
     try {
       await api.post(`/guest-registrations/${id}/approve`);
       setMessage("Guest request approved.");
-      await Promise.allSettled([fetchLifecycleReport(), fetchDeliveryReport()]);
+      await Promise.allSettled([
+        fetchLifecycleReport(),
+        fetchDeliveryReport(),
+        fetchSponsorReport(),
+      ]);
     } catch (err: any) {
       setError(
         err.response?.data || err.message || "Could not approve guest request.",
@@ -308,7 +400,11 @@ export default function GuestRegistrations() {
     try {
       await api.post(`/guest-registrations/${id}/reject`, { reason });
       setMessage("Guest request rejected.");
-      await Promise.allSettled([fetchLifecycleReport(), fetchDeliveryReport()]);
+      await Promise.allSettled([
+        fetchLifecycleReport(),
+        fetchDeliveryReport(),
+        fetchSponsorReport(),
+      ]);
     } catch (err: any) {
       setError(
         err.response?.data || err.message || "Could not reject guest request.",
@@ -319,7 +415,7 @@ export default function GuestRegistrations() {
   };
 
   const downloadExport = async (
-    reportKind: "lifecycle" | "delivery",
+    reportKind: "lifecycle" | "delivery" | "sponsor",
     format: "json" | "csv",
   ) => {
     setBusyAction(`export-${reportKind}-${format}`);
@@ -331,7 +427,9 @@ export default function GuestRegistrations() {
       const endpoint =
         reportKind === "lifecycle"
           ? "/system/guest-lifecycle/export"
-          : "/system/guest-delivery-analytics/export";
+          : reportKind === "delivery"
+            ? "/system/guest-delivery-analytics/export"
+            : "/system/guest-sponsor-analytics/export";
       const response = await api.get(`${endpoint}?${params.toString()}`, {
         responseType: "blob",
       });
@@ -346,13 +444,25 @@ export default function GuestRegistrations() {
       );
       link.download =
         filenameMatch?.[1] ||
-        `aegisnas-guest-${reportKind === "lifecycle" ? "lifecycle" : "delivery-analytics"}.${format}`;
+        `aegisnas-guest-${
+          reportKind === "lifecycle"
+            ? "lifecycle"
+            : reportKind === "delivery"
+              ? "delivery-analytics"
+              : "sponsor-analytics"
+        }.${format}`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
       setMessage(
-        `Guest ${reportKind === "lifecycle" ? "lifecycle" : "delivery analytics"} ${format.toUpperCase()} export downloaded.`,
+        `Guest ${
+          reportKind === "lifecycle"
+            ? "lifecycle"
+            : reportKind === "delivery"
+              ? "delivery analytics"
+              : "sponsor analytics"
+        } ${format.toUpperCase()} export downloaded.`,
       );
     } catch (err: any) {
       setError(
@@ -368,6 +478,7 @@ export default function GuestRegistrations() {
   const records = report?.history || [];
   const summary = report?.summary;
   const deliverySummary = deliveryReport?.summary;
+  const sponsorSummary = sponsorReport?.summary;
   const recentBuckets = useMemo(
     () => (summary?.buckets || []).slice(-6),
     [summary],
@@ -375,6 +486,10 @@ export default function GuestRegistrations() {
   const recentDeliveryBuckets = useMemo(
     () => (deliverySummary?.buckets || []).slice(-6),
     [deliverySummary],
+  );
+  const recentSponsorBuckets = useMemo(
+    () => (sponsorSummary?.buckets || []).slice(-6),
+    [sponsorSummary],
   );
 
   return (
@@ -428,6 +543,22 @@ export default function GuestRegistrations() {
             className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Delivery CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadExport("sponsor", "json")}
+            disabled={busyAction === "export-sponsor-json"}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Sponsor JSON
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadExport("sponsor", "csv")}
+            disabled={busyAction === "export-sponsor-csv"}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Sponsor CSV
           </button>
         </div>
       </div>
@@ -813,6 +944,230 @@ export default function GuestRegistrations() {
                         </div>
                       ) : null}
                     </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">
+                Sponsor approval backlog
+              </h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Aging pending approvals and recent sponsor-response movement.
+              </p>
+              {!sponsorSummary ? (
+                <div className="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
+                  {loadingSponsor
+                    ? "Loading guest sponsor analytics..."
+                    : "Guest sponsor analytics are not available yet."}
+                </div>
+              ) : (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        {[
+                          "Bucket",
+                          "Submitted",
+                          "Waiting sponsor",
+                          ">30m",
+                          ">4h",
+                          ">24h",
+                          "Approved",
+                          "Rejected",
+                          "Completed",
+                        ].map((label) => (
+                          <th
+                            key={label}
+                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600"
+                          >
+                            {label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {recentSponsorBuckets.length === 0 ? (
+                        <tr>
+                          <td className="px-3 py-4 text-slate-500" colSpan={9}>
+                            No sponsor-approval buckets recorded yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        recentSponsorBuckets.map((bucket) => (
+                          <tr key={`${bucket.start}-${bucket.end}`}>
+                            <td className="px-3 py-3 text-slate-700">
+                              {formatTimestamp(bucket.start)}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.submitted_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.pending_sponsor_approval_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.pending_older_than_30_minutes_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.pending_older_than_4_hours_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.pending_older_than_24_hours_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.approved_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.rejected_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.completed_count}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">
+                Sponsor approval highlights
+              </h3>
+              {!sponsorSummary ? (
+                <div className="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
+                  {loadingSponsor
+                    ? "Loading guest sponsor analytics..."
+                    : "Guest sponsor analytics are not available yet."}
+                </div>
+              ) : (
+                <>
+                  <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Backlog aging
+                      </div>
+                      <div className="mt-1">
+                        {sponsorSummary.pending_sponsor_approval_count} waiting
+                        for sponsor action
+                      </div>
+                      <div>
+                        {sponsorSummary.pending_older_than_30_minutes_count}{" "}
+                        older than 30 minutes
+                      </div>
+                      <div>
+                        {sponsorSummary.pending_older_than_4_hours_count} older
+                        than 4 hours
+                      </div>
+                      <div>
+                        {sponsorSummary.pending_older_than_24_hours_count}{" "}
+                        older than 24 hours
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Timing window
+                      </div>
+                      <div className="mt-1">
+                        {sponsorSummary.avg_approval_minutes} minute average to
+                        approval
+                      </div>
+                      <div>
+                        {sponsorSummary.max_approval_minutes} minute slowest
+                        approval
+                      </div>
+                      <div>
+                        {sponsorSummary.avg_pending_approval_minutes} minute
+                        average waiting time
+                      </div>
+                      <div>
+                        {sponsorSummary.max_pending_approval_minutes} minute
+                        oldest pending request
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Latest milestones
+                      </div>
+                      <div className="mt-1">
+                        Submitted:{" "}
+                        {formatTimestamp(sponsorSummary.latest_submitted_at)}
+                      </div>
+                      <div>
+                        Approved:{" "}
+                        {formatTimestamp(sponsorSummary.latest_approved_at)}
+                      </div>
+                      <div>
+                        Rejected:{" "}
+                        {formatTimestamp(sponsorSummary.latest_rejected_at)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Coverage
+                      </div>
+                      <div className="mt-1">
+                        {sponsorSummary.sponsor_approval_required_count} sponsor
+                        approvals required
+                      </div>
+                      <div>
+                        {sponsorSummary.approved_with_sponsor_count} approved
+                      </div>
+                      <div>
+                        {sponsorSummary.rejected_with_sponsor_count} rejected
+                      </div>
+                      <div>
+                        {sponsorSummary.completed_with_sponsor_count} completed
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <div className="text-sm font-medium text-slate-900">
+                        Top sponsor queues
+                      </div>
+                      {sponsorSummary.sponsors.length === 0 ? (
+                        <div className="mt-2 text-sm text-slate-500">
+                          No sponsor queues recorded yet.
+                        </div>
+                      ) : (
+                        <div className="mt-2 space-y-3">
+                          {sponsorSummary.sponsors
+                            .slice(0, 4)
+                            .map((sponsor) => (
+                              <div
+                                key={sponsor.name}
+                                className="rounded-md border border-slate-200 px-3 py-3"
+                              >
+                                <div className="text-sm font-medium text-slate-900">
+                                  {sponsor.name}
+                                </div>
+                                <div className="mt-1 text-xs text-slate-600">
+                                  {sponsor.pending_count} pending,{" "}
+                                  {sponsor.older_than_4_hours_count} older than
+                                  4h, {sponsor.older_than_24_hours_count} older
+                                  than 24h
+                                </div>
+                                <div className="mt-1 text-xs text-slate-600">
+                                  Avg approval {sponsor.avg_approval_minutes}m,
+                                  slowest {sponsor.max_approval_minutes}m
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                    <MixList
+                      title="Companies"
+                      items={sponsorSummary.companies}
+                      empty="No sponsor-company activity recorded yet."
+                    />
                   </div>
                 </>
               )}

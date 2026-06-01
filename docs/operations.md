@@ -145,6 +145,8 @@ For guest lifecycle summary, delivery-state visibility, and JSON or CSV handoff 
 
 For sponsor-approval backlog, invite-delivery failures, and approval-to-completion timing without leaving the guest workflow page, use `Guest Requests` or `GET /api/v1/system/guest-delivery-analytics`.
 
+For sponsor-by-sponsor backlog aging, slow approval response hotspots, and pending approvals that have been waiting for 30 minutes, 4 hours, or 24 hours, use `Guest Requests` or `GET /api/v1/system/guest-sponsor-analytics`.
+
 For recurring guest delivery analytics snapshots without depending on a manual export step, enable scheduled guest delivery analytics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/guest-delivery-analytics-exports`.
 
 For recurring guest lifecycle capture without depending on a manual export step, enable scheduled guest lifecycle exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/guest-lifecycle-exports`.

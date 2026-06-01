@@ -157,6 +157,9 @@ And export variants at:
 /api/v1/system/guest-delivery-analytics
 /api/v1/system/guest-delivery-analytics/export?format=json
 /api/v1/system/guest-delivery-analytics/export?format=csv
+/api/v1/system/guest-sponsor-analytics
+/api/v1/system/guest-sponsor-analytics/export?format=json
+/api/v1/system/guest-sponsor-analytics/export?format=csv
 /api/v1/system/guest-delivery-analytics-exports
 /api/v1/system/guest-delivery-analytics-exports/download?name=<artifact>
 /api/v1/system/guest-lifecycle-exports
@@ -164,6 +167,8 @@ And export variants at:
 ```
 
 Use the delivery analytics endpoints when you want the sponsor-approval backlog, approval and invite delivery failure mix, top sponsors, and approval-to-completion timing without exporting the full registration history.
+
+Use the sponsor analytics endpoints when you want aging sponsor backlog, slow-response hotspots, sponsor-by-sponsor pending queues, and approval timing without leaving the guest operations workflow.
 
 Optional query parameters:
 

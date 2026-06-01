@@ -23,10 +23,16 @@ test.describe("guest workflow admin path", () => {
       page.getByRole("button", { name: "Delivery JSON" }),
     ).toBeVisible();
     await expect(
+      page.getByRole("button", { name: "Sponsor JSON" }),
+    ).toBeVisible();
+    await expect(
       page.getByRole("heading", { name: "Recent lifecycle trend" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Sponsor delivery analytics" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Sponsor approval backlog" }),
     ).toBeVisible();
 
     const aliceRow = page.locator("tr", { hasText: "Alice Guest" });

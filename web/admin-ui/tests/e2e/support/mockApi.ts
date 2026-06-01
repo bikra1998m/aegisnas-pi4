@@ -1590,6 +1590,300 @@ function buildGuestDeliveryAnalyticsResponse(
   };
 }
 
+function buildGuestSponsorAnalyticsResponse(
+  records: GuestRecord[],
+  statusFilter = "",
+) {
+  const history = statusFilter
+    ? records.filter((item) => item.status === statusFilter)
+    : records;
+  const now = new Date("2026-05-05T12:15:00Z").getTime();
+  const sponsors = new Map<
+    string,
+    {
+      name: string;
+      pending_count: number;
+      approved_count: number;
+      rejected_count: number;
+      completed_count: number;
+      older_than_30_minutes_count: number;
+      older_than_4_hours_count: number;
+      older_than_24_hours_count: number;
+      avg_approval_minutes: number;
+      max_approval_minutes: number;
+      latest_submitted_at?: string;
+      latest_approved_at?: string;
+      approval_total_minutes: number;
+      approval_samples: number;
+    }
+  >();
+  const companies = new Map<string, number>();
+  const sponsorSet = new Set<string>();
+  const companySet = new Set<string>();
+  const summary = {
+    window_hours: 24,
+    bucket_count: 24,
+    bucket_minutes: 60,
+    total_records: history.length,
+    sponsor_approval_required_count: 0,
+    pending_sponsor_approval_count: 0,
+    pending_older_than_30_minutes_count: 0,
+    pending_older_than_4_hours_count: 0,
+    pending_older_than_24_hours_count: 0,
+    approved_with_sponsor_count: 0,
+    rejected_with_sponsor_count: 0,
+    completed_with_sponsor_count: 0,
+    unique_sponsors_window: 0,
+    unique_companies_window: 0,
+    avg_approval_minutes: 0,
+    max_approval_minutes: 0,
+    avg_pending_approval_minutes: 0,
+    max_pending_approval_minutes: 0,
+    latest_submitted_at: "",
+    latest_approved_at: "",
+    latest_rejected_at: "",
+    sponsors: [] as any[],
+    companies: [] as { name: string; count: number }[],
+    buckets: [
+      {
+        start: "2026-05-05T08:00:00Z",
+        end: "2026-05-05T09:00:00Z",
+        submitted_count: 0,
+        pending_sponsor_approval_count: 0,
+        pending_older_than_30_minutes_count: 0,
+        pending_older_than_4_hours_count: 0,
+        pending_older_than_24_hours_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T09:00:00Z",
+        end: "2026-05-05T10:00:00Z",
+        submitted_count: 0,
+        pending_sponsor_approval_count: 0,
+        pending_older_than_30_minutes_count: 0,
+        pending_older_than_4_hours_count: 0,
+        pending_older_than_24_hours_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T10:00:00Z",
+        end: "2026-05-05T11:00:00Z",
+        submitted_count: 0,
+        pending_sponsor_approval_count: 0,
+        pending_older_than_30_minutes_count: 0,
+        pending_older_than_4_hours_count: 0,
+        pending_older_than_24_hours_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T11:00:00Z",
+        end: "2026-05-05T12:00:00Z",
+        submitted_count: 0,
+        pending_sponsor_approval_count: 0,
+        pending_older_than_30_minutes_count: 0,
+        pending_older_than_4_hours_count: 0,
+        pending_older_than_24_hours_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T12:00:00Z",
+        end: "2026-05-05T13:00:00Z",
+        submitted_count: 0,
+        pending_sponsor_approval_count: 0,
+        pending_older_than_30_minutes_count: 0,
+        pending_older_than_4_hours_count: 0,
+        pending_older_than_24_hours_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T13:00:00Z",
+        end: "2026-05-05T14:00:00Z",
+        submitted_count: 0,
+        pending_sponsor_approval_count: 0,
+        pending_older_than_30_minutes_count: 0,
+        pending_older_than_4_hours_count: 0,
+        pending_older_than_24_hours_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        completed_count: 0,
+      },
+    ],
+  };
+  let pendingTotalMinutes = 0;
+  let pendingSamples = 0;
+  let approvalTotalMinutes = 0;
+  let approvalSamples = 0;
+
+  history.forEach((item, index) => {
+    const requiresSponsor =
+      !!item.approval_delivery_status &&
+      item.approval_delivery_status !== "not_required";
+    if (!requiresSponsor) {
+      return;
+    }
+    summary.sponsor_approval_required_count += 1;
+
+    const sponsorName =
+      item.sponsor_email || item.sponsor_name || item.sponsor_phone || "missing sponsor";
+    const sponsor =
+      sponsors.get(sponsorName) ||
+      {
+        name: sponsorName,
+        pending_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        completed_count: 0,
+        older_than_30_minutes_count: 0,
+        older_than_4_hours_count: 0,
+        older_than_24_hours_count: 0,
+        avg_approval_minutes: 0,
+        max_approval_minutes: 0,
+        latest_submitted_at: "",
+        latest_approved_at: "",
+        approval_total_minutes: 0,
+        approval_samples: 0,
+      };
+    sponsors.set(sponsorName, sponsor);
+    sponsorSet.add(sponsorName);
+    if (item.company) {
+      companies.set(item.company, (companies.get(item.company) || 0) + 1);
+      companySet.add(item.company);
+    }
+
+    if (!summary.latest_submitted_at || item.created_at > summary.latest_submitted_at)
+      summary.latest_submitted_at = item.created_at;
+    if (item.created_at && (!sponsor.latest_submitted_at || item.created_at > sponsor.latest_submitted_at))
+      sponsor.latest_submitted_at = item.created_at;
+    if (item.approved_at && (!summary.latest_approved_at || item.approved_at > summary.latest_approved_at))
+      summary.latest_approved_at = item.approved_at;
+    if (item.approved_at && (!sponsor.latest_approved_at || item.approved_at > sponsor.latest_approved_at))
+      sponsor.latest_approved_at = item.approved_at;
+    if (item.rejected_at && (!summary.latest_rejected_at || item.rejected_at > summary.latest_rejected_at))
+      summary.latest_rejected_at = item.rejected_at;
+
+    const bucket = summary.buckets[Math.min(index, summary.buckets.length - 1)];
+    bucket.submitted_count += 1;
+
+    if (item.status === "pending") {
+      summary.pending_sponsor_approval_count += 1;
+      sponsor.pending_count += 1;
+      bucket.pending_sponsor_approval_count += 1;
+      const createdAt = Date.parse(item.created_at);
+      if (!Number.isNaN(createdAt)) {
+        const pendingMinutes = Math.max(
+          0,
+          Math.floor((now - createdAt) / 60000),
+        );
+        pendingTotalMinutes += pendingMinutes;
+        pendingSamples += 1;
+        summary.max_pending_approval_minutes = Math.max(
+          summary.max_pending_approval_minutes,
+          pendingMinutes,
+        );
+        if (pendingMinutes >= 30) {
+          summary.pending_older_than_30_minutes_count += 1;
+          sponsor.older_than_30_minutes_count += 1;
+          bucket.pending_older_than_30_minutes_count += 1;
+        }
+        if (pendingMinutes >= 240) {
+          summary.pending_older_than_4_hours_count += 1;
+          sponsor.older_than_4_hours_count += 1;
+          bucket.pending_older_than_4_hours_count += 1;
+        }
+        if (pendingMinutes >= 1440) {
+          summary.pending_older_than_24_hours_count += 1;
+          sponsor.older_than_24_hours_count += 1;
+          bucket.pending_older_than_24_hours_count += 1;
+        }
+      }
+    }
+
+    if (item.status === "approved") {
+      summary.approved_with_sponsor_count += 1;
+      sponsor.approved_count += 1;
+      bucket.approved_count += 1;
+    }
+    if (item.status === "rejected") {
+      summary.rejected_with_sponsor_count += 1;
+      sponsor.rejected_count += 1;
+      bucket.rejected_count += 1;
+    }
+    if (item.status === "completed") {
+      summary.completed_with_sponsor_count += 1;
+      sponsor.completed_count += 1;
+      bucket.completed_count += 1;
+    }
+
+    if (item.created_at && item.approved_at) {
+      const createdAt = Date.parse(item.created_at);
+      const approvedAt = Date.parse(item.approved_at);
+      if (!Number.isNaN(createdAt) && !Number.isNaN(approvedAt) && approvedAt > createdAt) {
+        const approvalMinutes = Math.floor((approvedAt - createdAt) / 60000);
+        approvalTotalMinutes += approvalMinutes;
+        approvalSamples += 1;
+        summary.max_approval_minutes = Math.max(
+          summary.max_approval_minutes,
+          approvalMinutes,
+        );
+        sponsor.approval_total_minutes += approvalMinutes;
+        sponsor.approval_samples += 1;
+        sponsor.max_approval_minutes = Math.max(
+          sponsor.max_approval_minutes,
+          approvalMinutes,
+        );
+      }
+    }
+  });
+
+  summary.unique_sponsors_window = sponsorSet.size;
+  summary.unique_companies_window = companySet.size;
+  if (approvalSamples > 0) {
+    summary.avg_approval_minutes = Math.floor(
+      approvalTotalMinutes / approvalSamples,
+    );
+  }
+  if (pendingSamples > 0) {
+    summary.avg_pending_approval_minutes = Math.floor(
+      pendingTotalMinutes / pendingSamples,
+    );
+  }
+  summary.sponsors = Array.from(sponsors.values())
+    .map((item) => ({
+      ...item,
+      avg_approval_minutes:
+        item.approval_samples > 0
+          ? Math.floor(item.approval_total_minutes / item.approval_samples)
+          : 0,
+    }))
+    .sort((a, b) => {
+      if (b.pending_count !== a.pending_count) return b.pending_count - a.pending_count;
+      if (b.older_than_24_hours_count !== a.older_than_24_hours_count)
+        return b.older_than_24_hours_count - a.older_than_24_hours_count;
+      return a.name.localeCompare(b.name);
+    });
+  summary.companies = Array.from(companies.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  return {
+    generated_at: "2026-05-05T12:15:00Z",
+    status: statusFilter,
+    window_hours: summary.window_hours,
+    bucket_count: summary.bucket_count,
+    summary,
+  };
+}
+
 export async function seedAuthenticatedSession(
   page: Page,
   token = "token-super",
@@ -3060,6 +3354,29 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(
           buildGuestDeliveryAnalyticsResponse(state.guestRegistrations, status),
+        ),
+      });
+      return;
+    }
+    if (path === "/system/guest-sponsor-analytics" && method === "GET") {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        json: buildGuestSponsorAnalyticsResponse(state.guestRegistrations, status),
+      });
+      return;
+    }
+    if (
+      path === "/system/guest-sponsor-analytics/export" &&
+      method === "GET"
+    ) {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildGuestSponsorAnalyticsResponse(state.guestRegistrations, status),
         ),
       });
       return;

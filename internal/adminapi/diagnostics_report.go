@@ -55,6 +55,7 @@ type DiagnosticsNetwork struct {
 type DiagnosticsGuest struct {
 	Summary           db.GuestLifecycleSummary         `json:"summary"`
 	DeliveryAnalytics db.GuestDeliveryAnalyticsSummary `json:"delivery_analytics"`
+	SponsorAnalytics  db.GuestSponsorApprovalSummary   `json:"sponsor_analytics"`
 	Runtime           *db.RuntimeStatus                `json:"runtime,omitempty"`
 }
 
@@ -193,6 +194,13 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load guest delivery analytics: %w", err)
 	}
+	guestSponsorAnalytics, err := db.GetGuestSponsorApprovalAnalytics(db.GuestLifecycleQuery{
+		Window:      24 * time.Hour,
+		BucketCount: 24,
+	})
+	if err != nil {
+		return DiagnosticsReport{}, fmt.Errorf("load guest sponsor analytics: %w", err)
+	}
 	readiness, err := assessDiagnosticsUpgradeReadinessFn(cfg, config.Path())
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load upgrade readiness: %w", err)
@@ -244,6 +252,7 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 		Guest: DiagnosticsGuest{
 			Summary:           guestSummary,
 			DeliveryAnalytics: guestDeliveryAnalytics,
+			SponsorAnalytics:  guestSponsorAnalytics,
 			Runtime:           runtimeStatusPointer(runtimeMap, "guest_workflows"),
 		},
 		Audit: auditStats,
@@ -321,6 +330,11 @@ func diagnosticsReportCSV(report DiagnosticsReport) ([]byte, error) {
 		{"guest_delivery_invite_sent_count", strconv.Itoa(report.Guest.DeliveryAnalytics.InviteSentCount)},
 		{"guest_delivery_max_approval_minutes", fmt.Sprint(report.Guest.DeliveryAnalytics.MaxApprovalMinutes)},
 		{"guest_delivery_avg_approval_to_completion_minutes", fmt.Sprint(report.Guest.DeliveryAnalytics.AvgApprovalToCompletionMinutes)},
+		{"guest_sponsor_pending_count", strconv.Itoa(report.Guest.SponsorAnalytics.PendingSponsorApprovalCount)},
+		{"guest_sponsor_pending_older_than_4_hours_count", strconv.Itoa(report.Guest.SponsorAnalytics.PendingOlderThan4HoursCount)},
+		{"guest_sponsor_pending_older_than_24_hours_count", strconv.Itoa(report.Guest.SponsorAnalytics.PendingOlderThan24HoursCount)},
+		{"guest_sponsor_avg_approval_minutes", strconv.FormatInt(report.Guest.SponsorAnalytics.AvgApprovalMinutes, 10)},
+		{"guest_sponsor_avg_pending_approval_minutes", strconv.FormatInt(report.Guest.SponsorAnalytics.AvgPendingApprovalMinutes, 10)},
 		{"audit_total_records", strconv.Itoa(report.Audit.TotalRecords)},
 		{"audit_unique_users", strconv.Itoa(report.Audit.UniqueUsers)},
 		{"audit_export_actions", strconv.Itoa(report.Audit.ExportActionCount)},
