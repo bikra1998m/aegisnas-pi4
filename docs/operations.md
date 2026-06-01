@@ -109,6 +109,7 @@ Current day-two operator workflows include:
 
 - approve or reject guest self-registration requests from `Guest Requests`
 - review guest lifecycle counts, delivery failures, and recent request trends from `Guest Requests`
+- review sponsor backlog, invite failures, and approval timing from `Guest Requests`
 - review device inventory and certificate bundles from `Devices`
 - review or update delegated-admin mappings from `Admin Access`
 - terminate live sessions from `Sessions`
@@ -141,6 +142,8 @@ For a durable record of operator-visible admin actions, exports, guest approvals
 For recurring audit capture without relying on manual export timing, enable scheduled audit exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/audit-exports`.
 
 For guest lifecycle summary, delivery-state visibility, and JSON or CSV handoff artifacts without leaving the approval console, use `Guest Requests` or `GET /api/v1/system/guest-lifecycle`.
+
+For sponsor-approval backlog, invite-delivery failures, and approval-to-completion timing without leaving the guest workflow page, use `Guest Requests` or `GET /api/v1/system/guest-delivery-analytics`.
 
 For recurring guest lifecycle capture without depending on a manual export step, enable scheduled guest lifecycle exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/guest-lifecycle-exports`.
 

@@ -53,8 +53,9 @@ type DiagnosticsNetwork struct {
 }
 
 type DiagnosticsGuest struct {
-	Summary db.GuestLifecycleSummary `json:"summary"`
-	Runtime *db.RuntimeStatus        `json:"runtime,omitempty"`
+	Summary           db.GuestLifecycleSummary         `json:"summary"`
+	DeliveryAnalytics db.GuestDeliveryAnalyticsSummary `json:"delivery_analytics"`
+	Runtime           *db.RuntimeStatus                `json:"runtime,omitempty"`
 }
 
 type DiagnosticsHA struct {
@@ -185,6 +186,13 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load guest lifecycle summary: %w", err)
 	}
+	guestDeliveryAnalytics, err := db.GetGuestDeliveryAnalytics(db.GuestLifecycleQuery{
+		Window:      24 * time.Hour,
+		BucketCount: 24,
+	})
+	if err != nil {
+		return DiagnosticsReport{}, fmt.Errorf("load guest delivery analytics: %w", err)
+	}
 	readiness, err := assessDiagnosticsUpgradeReadinessFn(cfg, config.Path())
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load upgrade readiness: %w", err)
@@ -234,8 +242,9 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 		},
 		Sessions: sessionStats,
 		Guest: DiagnosticsGuest{
-			Summary: guestSummary,
-			Runtime: runtimeStatusPointer(runtimeMap, "guest_workflows"),
+			Summary:           guestSummary,
+			DeliveryAnalytics: guestDeliveryAnalytics,
+			Runtime:           runtimeStatusPointer(runtimeMap, "guest_workflows"),
 		},
 		Audit: auditStats,
 		Network: DiagnosticsNetwork{
@@ -306,6 +315,12 @@ func diagnosticsReportCSV(report DiagnosticsReport) ([]byte, error) {
 		{"guest_unique_sponsors_window", strconv.Itoa(report.Guest.Summary.UniqueSponsorsWindow)},
 		{"guest_avg_approval_minutes", fmt.Sprint(report.Guest.Summary.AvgApprovalMinutes)},
 		{"guest_avg_completion_minutes", fmt.Sprint(report.Guest.Summary.AvgCompletionMinutes)},
+		{"guest_delivery_pending_sponsor_approval_count", strconv.Itoa(report.Guest.DeliveryAnalytics.PendingSponsorApprovalCount)},
+		{"guest_delivery_pending_invite_queue_count", strconv.Itoa(report.Guest.DeliveryAnalytics.PendingInviteQueueCount)},
+		{"guest_delivery_approval_sent_count", strconv.Itoa(report.Guest.DeliveryAnalytics.ApprovalDeliverySentCount)},
+		{"guest_delivery_invite_sent_count", strconv.Itoa(report.Guest.DeliveryAnalytics.InviteSentCount)},
+		{"guest_delivery_max_approval_minutes", fmt.Sprint(report.Guest.DeliveryAnalytics.MaxApprovalMinutes)},
+		{"guest_delivery_avg_approval_to_completion_minutes", fmt.Sprint(report.Guest.DeliveryAnalytics.AvgApprovalToCompletionMinutes)},
 		{"audit_total_records", strconv.Itoa(report.Audit.TotalRecords)},
 		{"audit_unique_users", strconv.Itoa(report.Audit.UniqueUsers)},
 		{"audit_export_actions", strconv.Itoa(report.Audit.ExportActionCount)},

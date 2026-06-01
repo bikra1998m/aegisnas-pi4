@@ -84,6 +84,64 @@ type GuestLifecycleReport = {
   summary: GuestLifecycleSummary;
 };
 
+type GuestDeliveryAnalyticsBucket = {
+  start: string;
+  end: string;
+  submitted_count: number;
+  pending_sponsor_approval_count: number;
+  approval_delivery_failed_count: number;
+  approved_count: number;
+  rejected_count: number;
+  invite_queued_count: number;
+  invite_sent_count: number;
+  invite_failed_count: number;
+  completed_count: number;
+};
+
+type GuestDeliveryAnalyticsSummary = {
+  window_hours: number;
+  bucket_count: number;
+  bucket_minutes: number;
+  total_records: number;
+  sponsor_approval_required_count: number;
+  pending_sponsor_approval_count: number;
+  pending_invite_queue_count: number;
+  approval_delivery_pending_count: number;
+  approval_delivery_sent_count: number;
+  approval_delivery_failed_count: number;
+  invite_queued_count: number;
+  invite_sent_count: number;
+  invite_failed_count: number;
+  approved_count: number;
+  rejected_count: number;
+  completed_count: number;
+  unique_guests_window: number;
+  unique_sponsors_window: number;
+  unique_companies_window: number;
+  avg_approval_minutes: number;
+  max_approval_minutes: number;
+  avg_approval_to_completion_minutes: number;
+  max_approval_to_completion_minutes: number;
+  latest_submitted_at?: string;
+  latest_approved_at?: string;
+  latest_rejected_at?: string;
+  latest_completed_at?: string;
+  sponsors: GuestLifecycleCount[];
+  companies: GuestLifecycleCount[];
+  roles: GuestLifecycleCount[];
+  approval_delivery_statuses: GuestLifecycleCount[];
+  invite_delivery_statuses: GuestLifecycleCount[];
+  buckets: GuestDeliveryAnalyticsBucket[];
+};
+
+type GuestDeliveryAnalyticsReport = {
+  generated_at: string;
+  status?: string;
+  window_hours: number;
+  bucket_count: number;
+  summary: GuestDeliveryAnalyticsSummary;
+};
+
 const statusOptions = [
   { value: "", label: "All statuses" },
   { value: "pending", label: "Pending" },
@@ -117,27 +175,66 @@ function formatTimestamp(value?: string) {
   return date.toLocaleString();
 }
 
+function MixList({
+  title,
+  items,
+  empty,
+}: {
+  title: string;
+  items: GuestLifecycleCount[];
+  empty: string;
+}) {
+  return (
+    <div>
+      <div className="text-sm font-medium text-slate-900">{title}</div>
+      {items.length === 0 ? (
+        <div className="mt-2 text-sm text-slate-500">{empty}</div>
+      ) : (
+        <div className="mt-2 space-y-2">
+          {items.slice(0, 5).map((item) => (
+            <div
+              key={`${title}-${item.name}`}
+              className="flex items-center justify-between gap-3 text-sm text-slate-700"
+            >
+              <span className="truncate">{item.name}</span>
+              <span className="font-medium text-slate-900">{item.count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function GuestRegistrations() {
   const [report, setReport] = useState<GuestLifecycleReport | null>(null);
+  const [deliveryReport, setDeliveryReport] =
+    useState<GuestDeliveryAnalyticsReport | null>(null);
   const [selectedStatus, setSelectedStatus] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loadingLifecycle, setLoadingLifecycle] = useState(true);
+  const [loadingDelivery, setLoadingDelivery] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busyAction, setBusyAction] = useState("");
 
-  const fetchReport = async (showMessage = false) => {
+  const buildQuerySuffix = () => {
+    const params = new URLSearchParams();
+    if (selectedStatus) {
+      params.set("status", selectedStatus);
+    }
+    params.set("limit", "200");
+    return params.toString() ? `?${params.toString()}` : "";
+  };
+
+  const fetchLifecycleReport = async (showMessage = false) => {
     try {
-      setError("");
-      const params = new URLSearchParams();
-      if (selectedStatus) {
-        params.set("status", selectedStatus);
-      }
-      params.set("limit", "200");
-      const suffix = params.toString() ? `?${params.toString()}` : "";
-      const { data } = await api.get(`/system/guest-lifecycle${suffix}`);
-      setReport(data);
+      const suffix = buildQuerySuffix();
+      const lifecycleResponse = await api.get<GuestLifecycleReport>(
+        `/system/guest-lifecycle${suffix}`,
+      );
+      setReport(lifecycleResponse.data);
       if (showMessage) {
-        setMessage("Guest lifecycle report refreshed.");
+        setMessage("Guest reports refreshed.");
       }
     } catch (err: any) {
       setError(
@@ -146,15 +243,40 @@ export default function GuestRegistrations() {
           "Could not load guest lifecycle report.",
       );
     } finally {
-      setLoading(false);
+      setLoadingLifecycle(false);
     }
   };
 
+  const fetchDeliveryReport = async () => {
+    try {
+      const suffix = buildQuerySuffix();
+      const deliveryResponse = await api.get<GuestDeliveryAnalyticsReport>(
+        `/system/guest-delivery-analytics${suffix}`,
+      );
+      setDeliveryReport(deliveryResponse.data);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load guest delivery analytics.",
+      );
+    } finally {
+      setLoadingDelivery(false);
+    }
+  };
+
+  const fetchReports = async (showMessage = false) => {
+    setError("");
+    setLoadingLifecycle(true);
+    setLoadingDelivery(true);
+    void fetchDeliveryReport();
+    await fetchLifecycleReport(showMessage);
+  };
+
   useEffect(() => {
-    setLoading(true);
-    fetchReport();
+    void fetchReports();
     const interval = window.setInterval(() => {
-      fetchReport();
+      void fetchReports();
     }, 10000);
     return () => window.clearInterval(interval);
   }, [selectedStatus]);
@@ -167,7 +289,7 @@ export default function GuestRegistrations() {
     try {
       await api.post(`/guest-registrations/${id}/approve`);
       setMessage("Guest request approved.");
-      await fetchReport();
+      await Promise.allSettled([fetchLifecycleReport(), fetchDeliveryReport()]);
     } catch (err: any) {
       setError(
         err.response?.data || err.message || "Could not approve guest request.",
@@ -186,7 +308,7 @@ export default function GuestRegistrations() {
     try {
       await api.post(`/guest-registrations/${id}/reject`, { reason });
       setMessage("Guest request rejected.");
-      await fetchReport();
+      await Promise.allSettled([fetchLifecycleReport(), fetchDeliveryReport()]);
     } catch (err: any) {
       setError(
         err.response?.data || err.message || "Could not reject guest request.",
@@ -196,17 +318,23 @@ export default function GuestRegistrations() {
     }
   };
 
-  const downloadExport = async (format: "json" | "csv") => {
-    setBusyAction(`export-${format}`);
+  const downloadExport = async (
+    reportKind: "lifecycle" | "delivery",
+    format: "json" | "csv",
+  ) => {
+    setBusyAction(`export-${reportKind}-${format}`);
     try {
       const params = new URLSearchParams({ format });
       if (selectedStatus) {
         params.set("status", selectedStatus);
       }
-      const response = await api.get(
-        `/system/guest-lifecycle/export?${params.toString()}`,
-        { responseType: "blob" },
-      );
+      const endpoint =
+        reportKind === "lifecycle"
+          ? "/system/guest-lifecycle/export"
+          : "/system/guest-delivery-analytics/export";
+      const response = await api.get(`${endpoint}?${params.toString()}`, {
+        responseType: "blob",
+      });
       const blob = new Blob([response.data], {
         type: format === "json" ? "application/json" : "text/csv;charset=utf-8",
       });
@@ -217,17 +345,20 @@ export default function GuestRegistrations() {
         response.headers["content-disposition"] || "",
       );
       link.download =
-        filenameMatch?.[1] || `aegisnas-guest-lifecycle.${format}`;
+        filenameMatch?.[1] ||
+        `aegisnas-guest-${reportKind === "lifecycle" ? "lifecycle" : "delivery-analytics"}.${format}`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      setMessage(`Guest lifecycle ${format.toUpperCase()} export downloaded.`);
+      setMessage(
+        `Guest ${reportKind === "lifecycle" ? "lifecycle" : "delivery analytics"} ${format.toUpperCase()} export downloaded.`,
+      );
     } catch (err: any) {
       setError(
         err.response?.data ||
           err.message ||
-          "Could not export guest lifecycle report.",
+          "Could not export guest workflow report.",
       );
     } finally {
       setBusyAction("");
@@ -236,9 +367,14 @@ export default function GuestRegistrations() {
 
   const records = report?.history || [];
   const summary = report?.summary;
+  const deliverySummary = deliveryReport?.summary;
   const recentBuckets = useMemo(
     () => (summary?.buckets || []).slice(-6),
     [summary],
+  );
+  const recentDeliveryBuckets = useMemo(
+    () => (deliverySummary?.buckets || []).slice(-6),
+    [deliverySummary],
   );
 
   return (
@@ -256,26 +392,42 @@ export default function GuestRegistrations() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => fetchReport(true)}
+            onClick={() => void fetchReports(true)}
             className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900"
           >
             Refresh
           </button>
           <button
             type="button"
-            onClick={() => downloadExport("json")}
-            disabled={busyAction === "export-json"}
+            onClick={() => void downloadExport("lifecycle", "json")}
+            disabled={busyAction === "export-lifecycle-json"}
             className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Export JSON
+            Lifecycle JSON
           </button>
           <button
             type="button"
-            onClick={() => downloadExport("csv")}
-            disabled={busyAction === "export-csv"}
+            onClick={() => void downloadExport("lifecycle", "csv")}
+            disabled={busyAction === "export-lifecycle-csv"}
             className="rounded-md bg-sky-700 px-3 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Export CSV
+            Lifecycle CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadExport("delivery", "json")}
+            disabled={busyAction === "export-delivery-json"}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Delivery JSON
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadExport("delivery", "csv")}
+            disabled={busyAction === "export-delivery-csv"}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Delivery CSV
           </button>
         </div>
       </div>
@@ -326,7 +478,7 @@ export default function GuestRegistrations() {
 
       {!summary ? (
         <div className="rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
-          {loading
+          {loadingLifecycle
             ? "Loading guest lifecycle report..."
             : "Guest lifecycle data is not available yet."}
         </div>
@@ -436,58 +588,234 @@ export default function GuestRegistrations() {
               <h3 className="text-base font-semibold text-slate-900">
                 Delivery and timing
               </h3>
-              <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
-                <div>
-                  <div className="font-medium text-slate-900">
-                    Approval delivery
-                  </div>
-                  <div className="mt-1">
-                    {summary.approval_delivery_sent_count} sent
-                  </div>
-                  <div>{summary.approval_delivery_pending_count} pending</div>
-                  <div>{summary.approval_delivery_failed_count} failed</div>
+              {!deliverySummary ? (
+                <div className="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
+                  {loadingDelivery
+                    ? "Loading guest delivery analytics..."
+                    : "Guest delivery analytics are not available yet."}
                 </div>
-                <div>
-                  <div className="font-medium text-slate-900">
-                    Invite delivery
-                  </div>
-                  <div className="mt-1">
-                    {summary.invite_queued_count} queued
-                  </div>
-                  <div>{summary.invite_sent_count} sent</div>
-                  <div>{summary.invite_failed_count} failed</div>
-                </div>
-                <div>
-                  <div className="font-medium text-slate-900">
-                    Recent milestones
-                  </div>
-                  <div className="mt-1">
-                    Submitted: {formatTimestamp(summary.latest_submitted_at)}
+              ) : (
+                <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                  <div>
+                    <div className="font-medium text-slate-900">
+                      Sponsor backlog
+                    </div>
+                    <div className="mt-1">
+                      {deliverySummary.pending_sponsor_approval_count} waiting
+                      for sponsor action
+                    </div>
+                    <div>
+                      {deliverySummary.approval_delivery_pending_count} delivery
+                      attempts pending
+                    </div>
+                    <div>
+                      {deliverySummary.approval_delivery_failed_count} delivery
+                      failures
+                    </div>
                   </div>
                   <div>
-                    Approved: {formatTimestamp(summary.latest_approved_at)}
+                    <div className="font-medium text-slate-900">
+                      Invite delivery
+                    </div>
+                    <div className="mt-1">
+                      {deliverySummary.pending_invite_queue_count} still queued
+                    </div>
+                    <div>{deliverySummary.invite_sent_count} sent</div>
+                    <div>{deliverySummary.invite_failed_count} failed</div>
                   </div>
                   <div>
-                    Rejected: {formatTimestamp(summary.latest_rejected_at)}
+                    <div className="font-medium text-slate-900">
+                      Recent milestones
+                    </div>
+                    <div className="mt-1">
+                      Submitted:{" "}
+                      {formatTimestamp(deliverySummary.latest_submitted_at)}
+                    </div>
+                    <div>
+                      Approved:{" "}
+                      {formatTimestamp(deliverySummary.latest_approved_at)}
+                    </div>
+                    <div>
+                      Rejected:{" "}
+                      {formatTimestamp(deliverySummary.latest_rejected_at)}
+                    </div>
+                    <div>
+                      Completed:{" "}
+                      {formatTimestamp(deliverySummary.latest_completed_at)}
+                    </div>
                   </div>
                   <div>
-                    Completed: {formatTimestamp(summary.latest_completed_at)}
+                    <div className="font-medium text-slate-900">
+                      Timing window
+                    </div>
+                    <div className="mt-1">
+                      {deliverySummary.avg_approval_minutes} minute average to
+                      approval
+                    </div>
+                    <div>
+                      {deliverySummary.max_approval_minutes} minute slowest
+                      approval
+                    </div>
+                    <div>
+                      {deliverySummary.avg_approval_to_completion_minutes}{" "}
+                      minute average from approval to completion
+                    </div>
+                    <div>
+                      {deliverySummary.max_approval_to_completion_minutes}{" "}
+                      minute slowest approval-to-completion
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <div className="font-medium text-slate-900">
-                    Window uniqueness
-                  </div>
-                  <div className="mt-1">
-                    {summary.unique_guests_window} guests
-                  </div>
-                  <div>{summary.unique_sponsors_window} sponsors</div>
-                  <div>{summary.unique_companies_window} companies</div>
-                  <div>
-                    {summary.avg_approval_minutes} minute average to approval
-                  </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">
+                Sponsor delivery analytics
+              </h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Recent request flow for sponsor approvals and invite delivery.
+              </p>
+              {!deliverySummary ? (
+                <div className="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
+                  {loadingDelivery
+                    ? "Loading guest delivery analytics..."
+                    : "Guest delivery analytics are not available yet."}
                 </div>
-              </div>
+              ) : (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        {[
+                          "Bucket",
+                          "Submitted",
+                          "Waiting sponsor",
+                          "Approval failed",
+                          "Approved",
+                          "Invite sent",
+                          "Invite failed",
+                          "Completed",
+                        ].map((label) => (
+                          <th
+                            key={label}
+                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600"
+                          >
+                            {label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {recentDeliveryBuckets.length === 0 ? (
+                        <tr>
+                          <td className="px-3 py-4 text-slate-500" colSpan={8}>
+                            No delivery buckets recorded yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        recentDeliveryBuckets.map((bucket) => (
+                          <tr key={`${bucket.start}-${bucket.end}`}>
+                            <td className="px-3 py-3 text-slate-700">
+                              {formatTimestamp(bucket.start)}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.submitted_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.pending_sponsor_approval_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.approval_delivery_failed_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.approved_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.invite_sent_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.invite_failed_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.completed_count}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">
+                Workflow mix
+              </h3>
+              {!deliverySummary ? (
+                <div className="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
+                  {loadingDelivery
+                    ? "Loading guest delivery analytics..."
+                    : "Guest delivery analytics are not available yet."}
+                </div>
+              ) : (
+                <>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <MixList
+                      title="Sponsors"
+                      items={deliverySummary.sponsors}
+                      empty="No sponsor activity recorded yet."
+                    />
+                    <MixList
+                      title="Companies"
+                      items={deliverySummary.companies}
+                      empty="No company activity recorded yet."
+                    />
+                    <MixList
+                      title="Approval delivery states"
+                      items={deliverySummary.approval_delivery_statuses}
+                      empty="No approval delivery states recorded yet."
+                    />
+                    <MixList
+                      title="Invite delivery states"
+                      items={deliverySummary.invite_delivery_statuses}
+                      empty="No invite delivery states recorded yet."
+                    />
+                  </div>
+                  <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Unique activity
+                      </div>
+                      <div className="mt-1">
+                        {deliverySummary.unique_guests_window} guests
+                      </div>
+                      <div>
+                        {deliverySummary.unique_sponsors_window} sponsors
+                      </div>
+                      <div>
+                        {deliverySummary.unique_companies_window} companies
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">Role mix</div>
+                      {deliverySummary.roles.slice(0, 3).map((item) => (
+                        <div key={`role-${item.name}`} className="mt-1">
+                          {item.name}: {item.count}
+                        </div>
+                      ))}
+                      {deliverySummary.roles.length === 0 ? (
+                        <div className="mt-1 text-slate-500">
+                          No role mix recorded yet.
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -514,7 +842,7 @@ export default function GuestRegistrations() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 text-sm">
-                {loading ? (
+                {loadingLifecycle ? (
                   <tr>
                     <td className="px-5 py-6 text-slate-500" colSpan={7}>
                       Loading...

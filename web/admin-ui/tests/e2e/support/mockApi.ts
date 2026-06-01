@@ -1303,6 +1303,264 @@ function buildGuestLifecycleResponse(
   };
 }
 
+function buildGuestDeliveryAnalyticsResponse(
+  records: GuestRecord[],
+  statusFilter = "",
+) {
+  const history = statusFilter
+    ? records.filter((item) => item.status === statusFilter)
+    : records;
+  const sponsors = new Map<string, number>();
+  const companies = new Map<string, number>();
+  const roles = new Map<string, number>();
+  const approvalStatuses = new Map<string, number>();
+  const inviteStatuses = new Map<string, number>();
+  const summary = {
+    window_hours: 24,
+    bucket_count: 24,
+    bucket_minutes: 60,
+    total_records: history.length,
+    sponsor_approval_required_count: 0,
+    pending_sponsor_approval_count: 0,
+    pending_invite_queue_count: 0,
+    approval_delivery_pending_count: 0,
+    approval_delivery_sent_count: 0,
+    approval_delivery_failed_count: 0,
+    invite_queued_count: 0,
+    invite_sent_count: 0,
+    invite_failed_count: 0,
+    approved_count: 0,
+    rejected_count: 0,
+    completed_count: 0,
+    unique_guests_window: 0,
+    unique_sponsors_window: 0,
+    unique_companies_window: 0,
+    avg_approval_minutes: 15,
+    max_approval_minutes: 20,
+    avg_approval_to_completion_minutes: 30,
+    max_approval_to_completion_minutes: 30,
+    latest_submitted_at: "",
+    latest_approved_at: "",
+    latest_rejected_at: "",
+    latest_completed_at: "",
+    sponsors: [] as { name: string; count: number }[],
+    companies: [] as { name: string; count: number }[],
+    roles: [] as { name: string; count: number }[],
+    approval_delivery_statuses: [] as { name: string; count: number }[],
+    invite_delivery_statuses: [] as { name: string; count: number }[],
+    buckets: [
+      {
+        start: "2026-05-05T08:00:00Z",
+        end: "2026-05-05T09:00:00Z",
+        submitted_count: 0,
+        pending_sponsor_approval_count: 0,
+        approval_delivery_failed_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        invite_queued_count: 0,
+        invite_sent_count: 0,
+        invite_failed_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T09:00:00Z",
+        end: "2026-05-05T10:00:00Z",
+        submitted_count: 0,
+        pending_sponsor_approval_count: 0,
+        approval_delivery_failed_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        invite_queued_count: 0,
+        invite_sent_count: 0,
+        invite_failed_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T10:00:00Z",
+        end: "2026-05-05T11:00:00Z",
+        submitted_count: 0,
+        pending_sponsor_approval_count: 0,
+        approval_delivery_failed_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        invite_queued_count: 0,
+        invite_sent_count: 0,
+        invite_failed_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T11:00:00Z",
+        end: "2026-05-05T12:00:00Z",
+        submitted_count: 0,
+        pending_sponsor_approval_count: 0,
+        approval_delivery_failed_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        invite_queued_count: 0,
+        invite_sent_count: 0,
+        invite_failed_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T12:00:00Z",
+        end: "2026-05-05T13:00:00Z",
+        submitted_count: 0,
+        pending_sponsor_approval_count: 0,
+        approval_delivery_failed_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        invite_queued_count: 0,
+        invite_sent_count: 0,
+        invite_failed_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T13:00:00Z",
+        end: "2026-05-05T14:00:00Z",
+        submitted_count: 0,
+        pending_sponsor_approval_count: 0,
+        approval_delivery_failed_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        invite_queued_count: 0,
+        invite_sent_count: 0,
+        invite_failed_count: 0,
+        completed_count: 0,
+      },
+    ],
+  };
+  const guestSet = new Set<string>();
+  const sponsorSet = new Set<string>();
+  const companySet = new Set<string>();
+
+  history.forEach((item, index) => {
+    if (item.status === "approved") summary.approved_count += 1;
+    if (item.status === "rejected") summary.rejected_count += 1;
+    if (item.status === "completed") summary.completed_count += 1;
+
+    if (
+      item.approval_delivery_status &&
+      item.approval_delivery_status !== "not_required"
+    ) {
+      summary.sponsor_approval_required_count += 1;
+      if (item.status === "pending") {
+        summary.pending_sponsor_approval_count += 1;
+      }
+    }
+    if (item.approval_delivery_status === "pending")
+      summary.approval_delivery_pending_count += 1;
+    if (item.approval_delivery_status === "sent")
+      summary.approval_delivery_sent_count += 1;
+    if (item.approval_delivery_status === "failed")
+      summary.approval_delivery_failed_count += 1;
+
+    if (item.invite_delivery_status === "queued") {
+      summary.invite_queued_count += 1;
+      summary.pending_invite_queue_count += 1;
+    }
+    if (item.invite_delivery_status === "sent") summary.invite_sent_count += 1;
+    if (item.invite_delivery_status === "failed")
+      summary.invite_failed_count += 1;
+
+    guestSet.add(item.email || item.full_name || item.id);
+    if (item.sponsor_email || item.sponsor_name) {
+      const label = item.sponsor_email || item.sponsor_name || item.id;
+      sponsorSet.add(label);
+      sponsors.set(label, (sponsors.get(label) || 0) + 1);
+    }
+    if (item.company) {
+      companySet.add(item.company);
+      companies.set(item.company, (companies.get(item.company) || 0) + 1);
+    }
+    if (item.role) {
+      roles.set(item.role, (roles.get(item.role) || 0) + 1);
+    }
+
+    const approvalStatus = item.approval_delivery_status || "unknown";
+    approvalStatuses.set(
+      approvalStatus,
+      (approvalStatuses.get(approvalStatus) || 0) + 1,
+    );
+    const inviteStatus = item.invite_delivery_status || "unknown";
+    inviteStatuses.set(
+      inviteStatus,
+      (inviteStatuses.get(inviteStatus) || 0) + 1,
+    );
+
+    if (
+      !summary.latest_submitted_at ||
+      item.created_at > summary.latest_submitted_at
+    )
+      summary.latest_submitted_at = item.created_at;
+    if (
+      item.approved_at &&
+      (!summary.latest_approved_at ||
+        item.approved_at > summary.latest_approved_at)
+    )
+      summary.latest_approved_at = item.approved_at;
+    if (
+      item.rejected_at &&
+      (!summary.latest_rejected_at ||
+        item.rejected_at > summary.latest_rejected_at)
+    )
+      summary.latest_rejected_at = item.rejected_at;
+    if (
+      item.completed_at &&
+      (!summary.latest_completed_at ||
+        item.completed_at > summary.latest_completed_at)
+    )
+      summary.latest_completed_at = item.completed_at;
+
+    const bucket = summary.buckets[Math.min(index, summary.buckets.length - 1)];
+    bucket.submitted_count += 1;
+    if (
+      item.status === "pending" &&
+      item.approval_delivery_status &&
+      item.approval_delivery_status !== "not_required"
+    ) {
+      bucket.pending_sponsor_approval_count += 1;
+    }
+    if (item.approval_delivery_status === "failed") {
+      bucket.approval_delivery_failed_count += 1;
+    }
+    if (item.status === "approved") bucket.approved_count += 1;
+    if (item.status === "rejected") bucket.rejected_count += 1;
+    if (item.invite_delivery_status === "queued")
+      bucket.invite_queued_count += 1;
+    if (item.invite_delivery_status === "sent") bucket.invite_sent_count += 1;
+    if (item.invite_delivery_status === "failed")
+      bucket.invite_failed_count += 1;
+    if (item.status === "completed") bucket.completed_count += 1;
+  });
+
+  summary.unique_guests_window = guestSet.size;
+  summary.unique_sponsors_window = sponsorSet.size;
+  summary.unique_companies_window = companySet.size;
+  summary.sponsors = Array.from(sponsors.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.companies = Array.from(companies.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.roles = Array.from(roles.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.approval_delivery_statuses = Array.from(approvalStatuses.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.invite_delivery_statuses = Array.from(inviteStatuses.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  return {
+    generated_at: "2026-05-05T12:15:00Z",
+    status: statusFilter,
+    window_hours: summary.window_hours,
+    bucket_count: summary.bucket_count,
+    summary,
+  };
+}
+
 export async function seedAuthenticatedSession(
   page: Page,
   token = "token-super",
@@ -2701,6 +2959,44 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       const status = url.searchParams.get("status") || "";
       await route.fulfill({
         json: buildGuestLifecycleResponse(state.guestRegistrations, status),
+      });
+      return;
+    }
+    if (path === "/system/guest-lifecycle/export" && method === "GET") {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildGuestLifecycleResponse(state.guestRegistrations, status),
+        ),
+      });
+      return;
+    }
+    if (path === "/system/guest-delivery-analytics" && method === "GET") {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        json: buildGuestDeliveryAnalyticsResponse(
+          state.guestRegistrations,
+          status,
+        ),
+      });
+      return;
+    }
+    if (
+      path === "/system/guest-delivery-analytics/export" &&
+      method === "GET"
+    ) {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildGuestDeliveryAnalyticsResponse(state.guestRegistrations, status),
+        ),
       });
       return;
     }

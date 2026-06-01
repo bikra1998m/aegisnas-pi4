@@ -17,9 +17,17 @@ test.describe("guest workflow admin path", () => {
       page.getByRole("heading", { name: "Guest Registrations" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Export JSON" }),
+      page.getByRole("button", { name: "Lifecycle JSON" }),
     ).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Recent lifecycle trend" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Delivery JSON" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Recent lifecycle trend" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Sponsor delivery analytics" }),
+    ).toBeVisible();
 
     const aliceRow = page.locator("tr", { hasText: "Alice Guest" });
     await aliceRow.getByRole("button", { name: "Approve" }).click();

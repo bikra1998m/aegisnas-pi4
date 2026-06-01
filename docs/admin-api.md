@@ -154,9 +154,14 @@ And export variants at:
 ```text
 /api/v1/system/guest-lifecycle/export?format=json
 /api/v1/system/guest-lifecycle/export?format=csv
+/api/v1/system/guest-delivery-analytics
+/api/v1/system/guest-delivery-analytics/export?format=json
+/api/v1/system/guest-delivery-analytics/export?format=csv
 /api/v1/system/guest-lifecycle-exports
 /api/v1/system/guest-lifecycle-exports/download?name=<artifact>
 ```
+
+Use the delivery analytics endpoints when you want the sponsor-approval backlog, approval and invite delivery failure mix, top sponsors, and approval-to-completion timing without exporting the full registration history.
 
 Optional query parameters:
 
