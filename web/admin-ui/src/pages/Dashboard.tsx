@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import api from '../api/client';
+import { useEffect, useState } from "react";
+import api from "../api/client";
 
 type ServiceStatus = {
   key: string;
@@ -34,7 +34,7 @@ type UpstreamServerStatus = {
 type DeploymentCapability = {
   key: string;
   label: string;
-  state: 'enabled' | 'available' | 'warned' | 'degraded' | 'blocked';
+  state: "enabled" | "available" | "warned" | "degraded" | "blocked";
   active: boolean;
   summary: string;
   recommendation?: string;
@@ -74,7 +74,12 @@ type SystemStatus = {
     upstream_enabled: boolean;
     realm: string;
     pool_strategy: string;
-    configured_servers: Array<{ name: string; address: string; auth_port: number; acct_port: number }>;
+    configured_servers: Array<{
+      name: string;
+      address: string;
+      auth_port: number;
+      acct_port: number;
+    }>;
     server_statuses: UpstreamServerStatus[];
     enabled_radius_clients: number;
     broker_auth: RuntimeStatus;
@@ -256,6 +261,14 @@ type SystemStatus = {
       retention_count: number;
       runtime: RuntimeStatus;
     };
+    guest_delivery_analytics_exports: {
+      enabled: boolean;
+      directory: string;
+      format: string;
+      interval_minutes: number;
+      retention_count: number;
+      runtime: RuntimeStatus;
+    };
     integration_exports: {
       enabled: boolean;
       directory: string;
@@ -333,28 +346,28 @@ type SystemStatus = {
 };
 
 const statusTone: Record<string, string> = {
-  ok: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  degraded: 'border-amber-200 bg-amber-50 text-amber-800',
-  down: 'border-red-200 bg-red-50 text-red-800',
-  disabled: 'border-gray-200 bg-gray-100 text-gray-700',
-  unknown: 'border-slate-200 bg-slate-100 text-slate-700',
+  ok: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  degraded: "border-amber-200 bg-amber-50 text-amber-800",
+  down: "border-red-200 bg-red-50 text-red-800",
+  disabled: "border-gray-200 bg-gray-100 text-gray-700",
+  unknown: "border-slate-200 bg-slate-100 text-slate-700",
 };
 
 const cardTone: Record<string, string> = {
-  sky: 'bg-sky-100 text-sky-700',
-  emerald: 'bg-emerald-100 text-emerald-700',
-  amber: 'bg-amber-100 text-amber-700',
-  rose: 'bg-rose-100 text-rose-700',
-  violet: 'bg-violet-100 text-violet-700',
-  indigo: 'bg-indigo-100 text-indigo-700',
+  sky: "bg-sky-100 text-sky-700",
+  emerald: "bg-emerald-100 text-emerald-700",
+  amber: "bg-amber-100 text-amber-700",
+  rose: "bg-rose-100 text-rose-700",
+  violet: "bg-violet-100 text-violet-700",
+  indigo: "bg-indigo-100 text-indigo-700",
 };
 
-const capabilityTone: Record<DeploymentCapability['state'], string> = {
-  enabled: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  available: 'border-sky-200 bg-sky-50 text-sky-800',
-  warned: 'border-amber-200 bg-amber-50 text-amber-800',
-  degraded: 'border-orange-200 bg-orange-50 text-orange-800',
-  blocked: 'border-red-200 bg-red-50 text-red-800',
+const capabilityTone: Record<DeploymentCapability["state"], string> = {
+  enabled: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  available: "border-sky-200 bg-sky-50 text-sky-800",
+  warned: "border-amber-200 bg-amber-50 text-amber-800",
+  degraded: "border-orange-200 bg-orange-50 text-orange-800",
+  blocked: "border-red-200 bg-red-50 text-red-800",
 };
 
 function MetricCard({
@@ -371,7 +384,11 @@ function MetricCard({
   return (
     <div className="rounded-lg bg-white p-6 shadow">
       <div className="flex items-center">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-md font-bold ${cardTone[tone]}`}>{mark}</div>
+        <div
+          className={`flex h-10 w-10 items-center justify-center rounded-md font-bold ${cardTone[tone]}`}
+        >
+          {mark}
+        </div>
         <div className="ml-4">
           <p className="text-sm text-gray-500">{label}</p>
           <p className="text-2xl font-bold text-gray-900">{value}</p>
@@ -383,21 +400,29 @@ function MetricCard({
 
 function StatusBadge({ status }: { status: string }) {
   const tone = statusTone[status] || statusTone.unknown;
-  return <span className={`rounded-md border px-2 py-1 text-xs font-semibold uppercase ${tone}`}>{status}</span>;
+  return (
+    <span
+      className={`rounded-md border px-2 py-1 text-xs font-semibold uppercase ${tone}`}
+    >
+      {status}
+    </span>
+  );
 }
 
 export default function Dashboard() {
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const loadStatus = async () => {
     try {
-      const { data } = await api.get('/system/status');
+      const { data } = await api.get("/system/status");
       setSystemStatus(data);
-      setError('');
+      setError("");
     } catch (err: any) {
-      setError(err.response?.data || err.message || 'Could not load appliance status.');
+      setError(
+        err.response?.data || err.message || "Could not load appliance status.",
+      );
     } finally {
       setLoading(false);
     }
@@ -414,7 +439,11 @@ export default function Dashboard() {
   }
 
   if (!systemStatus) {
-    return <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error || 'Appliance status is unavailable.'}</div>;
+    return (
+      <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        {error || "Appliance status is unavailable."}
+      </div>
+    );
   }
 
   const services = systemStatus.services ?? [];
@@ -423,38 +452,82 @@ export default function Dashboard() {
   const configuredServers = systemStatus.radius?.configured_servers ?? [];
   const radiusServerStatuses = systemStatus.radius?.server_statuses ?? [];
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
-  const serviceProblems = services.filter((service) => !['ok', 'disabled'].includes(service.status));
-  const sessionMethods = Object.entries(systemStatus.summary?.session_methods || {});
+  const serviceProblems = services.filter(
+    (service) => !["ok", "disabled"].includes(service.status),
+  );
+  const sessionMethods = Object.entries(
+    systemStatus.summary?.session_methods || {},
+  );
   const networkObservability = systemStatus.network_observability;
   const highAvailabilityStatus =
-    systemStatus.high_availability.replication_runtime?.status === 'degraded'
-      ? 'degraded'
-      : systemStatus.high_availability.replication_runtime?.status === 'pending' &&
-          !systemStatus.high_availability.runtime?.status
-        ? 'pending'
-        : systemStatus.high_availability.runtime?.status || (systemStatus.high_availability.enabled ? 'unknown' : 'disabled');
+    systemStatus.high_availability.replication_runtime?.status === "degraded"
+      ? "degraded"
+      : systemStatus.high_availability.replication_runtime?.status ===
+            "pending" && !systemStatus.high_availability.runtime?.status
+        ? "pending"
+        : systemStatus.high_availability.runtime?.status ||
+          (systemStatus.high_availability.enabled ? "unknown" : "disabled");
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-          <p className="mt-1 text-sm text-gray-600">Live appliance health, access posture, and service readiness.</p>
+          <p className="mt-1 text-sm text-gray-600">
+            Live appliance health, access posture, and service readiness.
+          </p>
         </div>
-        <button onClick={loadStatus} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700">
+        <button
+          onClick={loadStatus}
+          className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
+        >
           Refresh
         </button>
       </div>
 
-      {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{String(error)}</div>}
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {String(error)}
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <MetricCard label="Users" value={systemStatus.summary.users} mark="US" tone="sky" />
-        <MetricCard label="Active Sessions" value={systemStatus.summary.active_sessions} mark="SE" tone="emerald" />
-        <MetricCard label="Quarantined Sessions" value={systemStatus.summary.quarantined_sessions} mark="QN" tone="rose" />
-        <MetricCard label="Shaped Sessions" value={systemStatus.summary.shaped_sessions} mark="BW" tone="indigo" />
-        <MetricCard label="Pending Changes" value={systemStatus.summary.pending_changes} mark="CH" tone="violet" />
-        <MetricCard label="Unacknowledged Alerts" value={systemStatus.summary.unacknowledged_alerts} mark="AL" tone="amber" />
+        <MetricCard
+          label="Users"
+          value={systemStatus.summary.users}
+          mark="US"
+          tone="sky"
+        />
+        <MetricCard
+          label="Active Sessions"
+          value={systemStatus.summary.active_sessions}
+          mark="SE"
+          tone="emerald"
+        />
+        <MetricCard
+          label="Quarantined Sessions"
+          value={systemStatus.summary.quarantined_sessions}
+          mark="QN"
+          tone="rose"
+        />
+        <MetricCard
+          label="Shaped Sessions"
+          value={systemStatus.summary.shaped_sessions}
+          mark="BW"
+          tone="indigo"
+        />
+        <MetricCard
+          label="Pending Changes"
+          value={systemStatus.summary.pending_changes}
+          mark="CH"
+          tone="violet"
+        />
+        <MetricCard
+          label="Unacknowledged Alerts"
+          value={systemStatus.summary.unacknowledged_alerts}
+          mark="AL"
+          tone="amber"
+        />
         <MetricCard
           label="Healthy Services"
           value={`${systemStatus.summary.healthy_services}/${systemStatus.summary.total_services}`}
@@ -467,19 +540,36 @@ export default function Dashboard() {
         <section className="rounded-lg bg-white p-6 shadow">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Service Health</h3>
-              <p className="mt-1 text-sm text-gray-600">Go services, core Linux services, and publish path readiness.</p>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Service Health
+              </h3>
+              <p className="mt-1 text-sm text-gray-600">
+                Go services, core Linux services, and publish path readiness.
+              </p>
             </div>
-            <div className="text-sm text-gray-500">{systemStatus.generated_at}</div>
+            <div className="text-sm text-gray-500">
+              {systemStatus.generated_at}
+            </div>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {services.map((service) => (
-              <div key={service.key} className="rounded-md border border-gray-200 px-4 py-3">
+              <div
+                key={service.key}
+                className="rounded-md border border-gray-200 px-4 py-3"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">{service.label}</div>
-                    <div className="mt-1 text-sm text-gray-600">{service.message || 'No status message.'}</div>
-                    {service.port ? <div className="mt-1 text-xs text-gray-500">Port {service.port}</div> : null}
+                    <div className="font-medium text-gray-900">
+                      {service.label}
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {service.message || "No status message."}
+                    </div>
+                    {service.port ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Port {service.port}
+                      </div>
+                    ) : null}
                   </div>
                   <StatusBadge status={service.status} />
                 </div>
@@ -490,45 +580,76 @@ export default function Dashboard() {
 
         <div className="space-y-6">
           <section className="rounded-lg bg-white p-6 shadow">
-            <h3 className="text-lg font-semibold text-gray-900">Deployment Profile</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Deployment Profile
+            </h3>
             <div className="mt-4 rounded-md border border-gray-200 px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="font-medium text-gray-900">{systemStatus.deployment.label}</div>
-                  <div className="mt-1 text-sm text-gray-600">{systemStatus.deployment.summary}</div>
+                  <div className="font-medium text-gray-900">
+                    {systemStatus.deployment.label}
+                  </div>
+                  <div className="mt-1 text-sm text-gray-600">
+                    {systemStatus.deployment.summary}
+                  </div>
                 </div>
-                <StatusBadge status={deploymentWarnings.length === 0 ? 'ok' : 'degraded'} />
+                <StatusBadge
+                  status={deploymentWarnings.length === 0 ? "ok" : "degraded"}
+                />
               </div>
               <div className="mt-3 text-sm text-gray-600">
-                {systemStatus.deployment.form} form, {systemStatus.deployment.hardware.cpu_cores || 'unknown'} cores,{' '}
-                {systemStatus.deployment.hardware.memory_mb || 'unknown'} MB RAM.
+                {systemStatus.deployment.form} form,{" "}
+                {systemStatus.deployment.hardware.cpu_cores || "unknown"} cores,{" "}
+                {systemStatus.deployment.hardware.memory_mb || "unknown"} MB
+                RAM.
               </div>
               <div className="mt-1 text-xs text-gray-500">
-                Recommended floor: {systemStatus.deployment.recommended_min_cores} cores and {systemStatus.deployment.recommended_min_memory} MB RAM.
+                Recommended floor:{" "}
+                {systemStatus.deployment.recommended_min_cores} cores and{" "}
+                {systemStatus.deployment.recommended_min_memory} MB RAM.
               </div>
             </div>
             <div className="mt-4 grid gap-3">
               {deploymentCapabilities.map((capability) => (
-                <div key={capability.key} className="rounded-md border border-gray-200 px-4 py-3">
+                <div
+                  key={capability.key}
+                  className="rounded-md border border-gray-200 px-4 py-3"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="font-medium text-gray-900">{capability.label}</div>
-                      <div className="mt-1 text-sm text-gray-600">{capability.summary}</div>
+                      <div className="font-medium text-gray-900">
+                        {capability.label}
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {capability.summary}
+                      </div>
                     </div>
-                    <span className={`rounded-md border px-2 py-1 text-xs font-semibold uppercase ${capabilityTone[capability.state]}`}>{capability.state}</span>
+                    <span
+                      className={`rounded-md border px-2 py-1 text-xs font-semibold uppercase ${capabilityTone[capability.state]}`}
+                    >
+                      {capability.state}
+                    </span>
                   </div>
-                  {capability.recommendation ? <div className="mt-2 text-xs text-gray-500">{capability.recommendation}</div> : null}
+                  {capability.recommendation ? (
+                    <div className="mt-2 text-xs text-gray-500">
+                      {capability.recommendation}
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>
             <div className="mt-4 space-y-2">
               {deploymentWarnings.length === 0 ? (
                 <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600">
-                  Hardware and feature choices look aligned with the selected profile.
+                  Hardware and feature choices look aligned with the selected
+                  profile.
                 </div>
               ) : (
                 deploymentWarnings.map((warning, index) => (
-                  <div key={`deployment-warning-${index}`} className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  <div
+                    key={`deployment-warning-${index}`}
+                    className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+                  >
                     {warning}
                   </div>
                 ))
@@ -537,35 +658,64 @@ export default function Dashboard() {
           </section>
 
           <section className="rounded-lg bg-white p-6 shadow">
-            <h3 className="text-lg font-semibold text-gray-900">Upstream AAA</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Upstream AAA
+            </h3>
             <div className="mt-4 grid gap-3">
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">{systemStatus.radius.upstream_enabled ? 'Upstream AAA Enabled' : 'Upstream AAA Disabled'}</div>
+                    <div className="font-medium text-gray-900">
+                      {systemStatus.radius.upstream_enabled
+                        ? "Upstream AAA Enabled"
+                        : "Upstream AAA Disabled"}
+                    </div>
                     <div className="mt-1 text-sm text-gray-600">
-                      Realm {systemStatus.radius.realm || 'not set'} with {systemStatus.radius.pool_strategy || 'no'} pool strategy.
+                      Realm {systemStatus.radius.realm || "not set"} with{" "}
+                      {systemStatus.radius.pool_strategy || "no"} pool strategy.
                     </div>
                   </div>
-                  <StatusBadge status={systemStatus.radius.upstream_enabled ? 'ok' : 'disabled'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.radius.upstream_enabled ? "ok" : "disabled"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Broker Auth Path</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.radius.broker_auth?.message || 'No broker auth activity recorded yet.'}</div>
+                    <div className="font-medium text-gray-900">
+                      Broker Auth Path
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.radius.broker_auth?.message ||
+                        "No broker auth activity recorded yet."}
+                    </div>
                   </div>
-                  <StatusBadge status={systemStatus.radius.broker_auth?.status || 'unknown'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.radius.broker_auth?.status || "unknown"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Broker Accounting Path</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.radius.broker_accounting?.message || 'No broker accounting activity recorded yet.'}</div>
+                    <div className="font-medium text-gray-900">
+                      Broker Accounting Path
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.radius.broker_accounting?.message ||
+                        "No broker accounting activity recorded yet."}
+                    </div>
                   </div>
-                  <StatusBadge status={systemStatus.radius.broker_accounting?.status || 'unknown'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.radius.broker_accounting?.status || "unknown"
+                    }
+                  />
                 </div>
               </div>
             </div>
@@ -581,21 +731,29 @@ export default function Dashboard() {
                 </div>
               ) : (
                 radiusServerStatuses.map((server) => (
-                  <div key={`${server.name}-${server.address}-${server.auth_port}`} className="rounded-md border border-gray-200 px-4 py-3">
+                  <div
+                    key={`${server.name}-${server.address}-${server.auth_port}`}
+                    className="rounded-md border border-gray-200 px-4 py-3"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="font-medium text-gray-900">{server.name}</div>
-                        <div className="mt-1 text-sm text-gray-600">
-                          {server.address}:{server.auth_port} auth, {server.acct_port} acct
+                        <div className="font-medium text-gray-900">
+                          {server.name}
                         </div>
-                        <div className="mt-1 text-sm text-gray-600">{server.message || 'No per-server probe message.'}</div>
+                        <div className="mt-1 text-sm text-gray-600">
+                          {server.address}:{server.auth_port} auth,{" "}
+                          {server.acct_port} acct
+                        </div>
+                        <div className="mt-1 text-sm text-gray-600">
+                          {server.message || "No per-server probe message."}
+                        </div>
                         <div className="mt-1 text-xs text-gray-500">
                           {server.supports_status_server
-                            ? `Status-Server probe${server.latency_ms ? ` ${server.latency_ms} ms` : ''}${server.response_code ? `, ${server.response_code}` : ''}`
-                            : 'Per-server active probe disabled by config'}
+                            ? `Status-Server probe${server.latency_ms ? ` ${server.latency_ms} ms` : ""}${server.response_code ? `, ${server.response_code}` : ""}`
+                            : "Per-server active probe disabled by config"}
                         </div>
                       </div>
-                      <StatusBadge status={server.status || 'unknown'} />
+                      <StatusBadge status={server.status || "unknown"} />
                     </div>
                   </div>
                 ))
@@ -609,29 +767,42 @@ export default function Dashboard() {
           </section>
 
           <section className="rounded-lg bg-white p-6 shadow">
-            <h3 className="text-lg font-semibold text-gray-900">Wireless And Sessions</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Wireless And Sessions
+            </h3>
             <div className="mt-4 space-y-3">
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">{systemStatus.wireless.enabled ? 'Wireless Enabled' : 'Wireless Disabled'}</div>
+                    <div className="font-medium text-gray-900">
+                      {systemStatus.wireless.enabled
+                        ? "Wireless Enabled"
+                        : "Wireless Disabled"}
+                    </div>
                     <div className="mt-1 text-sm text-gray-600">
                       {systemStatus.wireless.enabled
-                        ? `${systemStatus.wireless.interface || 'radio unset'} on channel ${systemStatus.wireless.channel} with ${systemStatus.wireless.ssid_count} SSIDs.`
-                        : 'Use an external AP or enable the radio in Access Settings.'}
+                        ? `${systemStatus.wireless.interface || "radio unset"} on channel ${systemStatus.wireless.channel} with ${systemStatus.wireless.ssid_count} SSIDs.`
+                        : "Use an external AP or enable the radio in Access Settings."}
                     </div>
                   </div>
-                  <StatusBadge status={systemStatus.wireless.enabled ? 'ok' : 'disabled'} />
+                  <StatusBadge
+                    status={systemStatus.wireless.enabled ? "ok" : "disabled"}
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="font-medium text-gray-900">SSID Auth Modes</div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {wirelessAuthModes.length === 0 ? (
-                    <span className="text-sm text-gray-500">No SSIDs configured yet.</span>
+                    <span className="text-sm text-gray-500">
+                      No SSIDs configured yet.
+                    </span>
                   ) : (
                     wirelessAuthModes.map((mode) => (
-                      <span key={mode} className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
+                      <span
+                        key={mode}
+                        className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700"
+                      >
                         {mode}
                       </span>
                     ))
@@ -642,10 +813,15 @@ export default function Dashboard() {
                 <div className="font-medium text-gray-900">Session Mix</div>
                 <div className="mt-2 space-y-2">
                   {sessionMethods.length === 0 ? (
-                    <div className="text-sm text-gray-500">No active sessions yet.</div>
+                    <div className="text-sm text-gray-500">
+                      No active sessions yet.
+                    </div>
                   ) : (
                     sessionMethods.map(([method, count]) => (
-                      <div key={method} className="flex items-center justify-between text-sm text-gray-700">
+                      <div
+                        key={method}
+                        className="flex items-center justify-between text-sm text-gray-700"
+                      >
                         <span>{method}</span>
                         <span className="font-semibold">{count}</span>
                       </div>
@@ -656,22 +832,36 @@ export default function Dashboard() {
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Runtime Bandwidth Enforcement</div>
+                    <div className="font-medium text-gray-900">
+                      Runtime Bandwidth Enforcement
+                    </div>
                     <div className="mt-1 text-sm text-gray-600">
                       {systemStatus.enforcement.shaping_enabled
-                        ? `${systemStatus.enforcement.shaping_interface || 'downstream interface unset'} is shaping ${systemStatus.enforcement.shaped_sessions} active sessions.`
-                        : 'Runtime shaping is disabled until a downstream interface is configured.'}
+                        ? `${systemStatus.enforcement.shaping_interface || "downstream interface unset"} is shaping ${systemStatus.enforcement.shaped_sessions} active sessions.`
+                        : "Runtime shaping is disabled until a downstream interface is configured."}
                     </div>
-                    <div className="mt-1 text-xs text-gray-500">{systemStatus.enforcement.shaper?.message || 'No shaping status recorded yet.'}</div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {systemStatus.enforcement.shaper?.message ||
+                        "No shaping status recorded yet."}
+                    </div>
                   </div>
-                  <StatusBadge status={systemStatus.enforcement.shaper?.status || (systemStatus.enforcement.shaping_enabled ? 'unknown' : 'disabled')} />
+                  <StatusBadge
+                    status={
+                      systemStatus.enforcement.shaper?.status ||
+                      (systemStatus.enforcement.shaping_enabled
+                        ? "unknown"
+                        : "disabled")
+                    }
+                  />
                 </div>
               </div>
             </div>
           </section>
 
           <section className="rounded-lg bg-white p-6 shadow">
-            <h3 className="text-lg font-semibold text-gray-900">External Integrations</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              External Integrations
+            </h3>
             <div className="mt-4 space-y-3">
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
@@ -679,18 +869,33 @@ export default function Dashboard() {
                     <div className="font-medium text-gray-900">Admin SSO</div>
                     <div className="mt-1 text-sm text-gray-600">
                       {systemStatus.integrations.admin_sso.enabled
-                        ? `${systemStatus.integrations.admin_sso.provider || 'Provider unset'} admin sign-in is configured.`
-                        : 'Token login remains available until you enable admin SSO.'}
+                        ? `${systemStatus.integrations.admin_sso.provider || "Provider unset"} admin sign-in is configured.`
+                        : "Token login remains available until you enable admin SSO."}
                     </div>
-                    <div className="mt-1 text-xs text-gray-500">{systemStatus.integrations.admin_sso.session?.message || 'No admin SSO runtime status recorded yet.'}</div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {systemStatus.integrations.admin_sso.session?.message ||
+                        "No admin SSO runtime status recorded yet."}
+                    </div>
                     {systemStatus.integrations.admin_sso.redirect_url ? (
-                      <div className="mt-1 text-xs text-gray-500 break-all">{systemStatus.integrations.admin_sso.redirect_url}</div>
+                      <div className="mt-1 text-xs text-gray-500 break-all">
+                        {systemStatus.integrations.admin_sso.redirect_url}
+                      </div>
                     ) : null}
                     {systemStatus.integrations.admin_sso.session?.updated_at ? (
-                      <div className="mt-1 text-xs text-gray-500">Updated {systemStatus.integrations.admin_sso.session.updated_at}</div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        Updated{" "}
+                        {systemStatus.integrations.admin_sso.session.updated_at}
+                      </div>
                     ) : null}
                   </div>
-                  <StatusBadge status={systemStatus.integrations.admin_sso.session?.status || (systemStatus.integrations.admin_sso.enabled ? 'unknown' : 'disabled')} />
+                  <StatusBadge
+                    status={
+                      systemStatus.integrations.admin_sso.session?.status ||
+                      (systemStatus.integrations.admin_sso.enabled
+                        ? "unknown"
+                        : "disabled")
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
@@ -699,331 +904,628 @@ export default function Dashboard() {
                     <div className="font-medium text-gray-900">SIEM Export</div>
                     <div className="mt-1 text-sm text-gray-600">
                       {systemStatus.integrations.siem.enabled
-                        ? `${systemStatus.integrations.siem.provider || 'Provider unset'} batch size ${systemStatus.integrations.siem.batch_size || 0}.`
-                        : 'Configure webhook, Splunk HEC, or Elastic export when you need external event delivery.'}
+                        ? `${systemStatus.integrations.siem.provider || "Provider unset"} batch size ${systemStatus.integrations.siem.batch_size || 0}.`
+                        : "Configure webhook, Splunk HEC, or Elastic export when you need external event delivery."}
                     </div>
-                    <div className="mt-1 text-xs text-gray-500">{systemStatus.integrations.siem.export?.message || 'No SIEM runtime status recorded yet.'}</div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {systemStatus.integrations.siem.export?.message ||
+                        "No SIEM runtime status recorded yet."}
+                    </div>
                     {systemStatus.integrations.siem.endpoint ? (
-                      <div className="mt-1 text-xs text-gray-500 break-all">{systemStatus.integrations.siem.endpoint}</div>
-                    ) : null}
-                    {systemStatus.integrations.siem.export?.updated_at ? (
-                      <div className="mt-1 text-xs text-gray-500">Updated {systemStatus.integrations.siem.export.updated_at}</div>
-                    ) : null}
-                  </div>
-                  <StatusBadge status={systemStatus.integrations.siem.export?.status || (systemStatus.integrations.siem.enabled ? 'unknown' : 'disabled')} />
-                </div>
-              </div>
-              <div className="rounded-md border border-gray-200 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-medium text-gray-900">Controller Automation</div>
-                    <div className="mt-1 text-sm text-gray-600">
-                      {systemStatus.integrations.controller.enabled
-                        ? `${systemStatus.integrations.controller.platform || 'Platform unset'} sync mode ${systemStatus.integrations.controller.sync_mode || 'unset'}${systemStatus.integrations.controller.site ? ` for ${systemStatus.integrations.controller.site}` : ''}.`
-                        : 'Enable this only when AegisNAS is feeding an external AP or controller estate.'}
-                    </div>
-                    <div className="mt-1 text-xs text-gray-500">{systemStatus.integrations.controller.sync?.message || 'No controller runtime status recorded yet.'}</div>
-                    {systemStatus.integrations.controller.endpoint ? (
-                      <div className="mt-1 text-xs text-gray-500 break-all">{systemStatus.integrations.controller.endpoint}</div>
-                    ) : null}
-                    {systemStatus.integrations.controller.sync?.updated_at ? (
-                      <div className="mt-1 text-xs text-gray-500">Updated {systemStatus.integrations.controller.sync.updated_at}</div>
-                    ) : null}
-                  </div>
-                  <StatusBadge status={systemStatus.integrations.controller.sync?.status || (systemStatus.integrations.controller.enabled ? 'unknown' : 'disabled')} />
-                </div>
-              </div>
-              <div className="rounded-md border border-gray-200 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-medium text-gray-900">High Availability</div>
-                    <div className="mt-1 text-sm text-gray-600">
-                      {systemStatus.high_availability.enabled
-                        ? `${systemStatus.high_availability.role || 'standby'} role watching ${systemStatus.high_availability.peer_api_url || 'peer unset'} with VIP ${systemStatus.high_availability.virtual_ip || 'unset'}.`
-                        : 'Enterprise HA peer monitoring is disabled on this node.'}
-                    </div>
-                    {systemStatus.high_availability.runtime?.details?.effective_role ? (
-                      <div className="mt-1 text-xs text-gray-500">
-                        Effective role {String(systemStatus.high_availability.runtime.details.effective_role)}
-                        {systemStatus.high_availability.runtime?.details?.vip_assigned ? ', VIP currently assigned locally.' : ', VIP not assigned locally.'}
+                      <div className="mt-1 text-xs text-gray-500 break-all">
+                        {systemStatus.integrations.siem.endpoint}
                       </div>
                     ) : null}
-                    {systemStatus.high_availability.runtime?.details?.lease_holder ? (
+                    {systemStatus.integrations.siem.export?.updated_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Lease holder {String(systemStatus.high_availability.runtime.details.lease_holder)}
-                        {systemStatus.high_availability.runtime?.details?.lease_expires_at
+                        Updated{" "}
+                        {systemStatus.integrations.siem.export.updated_at}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    status={
+                      systemStatus.integrations.siem.export?.status ||
+                      (systemStatus.integrations.siem.enabled
+                        ? "unknown"
+                        : "disabled")
+                    }
+                  />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      Controller Automation
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.integrations.controller.enabled
+                        ? `${systemStatus.integrations.controller.platform || "Platform unset"} sync mode ${systemStatus.integrations.controller.sync_mode || "unset"}${systemStatus.integrations.controller.site ? ` for ${systemStatus.integrations.controller.site}` : ""}.`
+                        : "Enable this only when AegisNAS is feeding an external AP or controller estate."}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {systemStatus.integrations.controller.sync?.message ||
+                        "No controller runtime status recorded yet."}
+                    </div>
+                    {systemStatus.integrations.controller.endpoint ? (
+                      <div className="mt-1 text-xs text-gray-500 break-all">
+                        {systemStatus.integrations.controller.endpoint}
+                      </div>
+                    ) : null}
+                    {systemStatus.integrations.controller.sync?.updated_at ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Updated{" "}
+                        {systemStatus.integrations.controller.sync.updated_at}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    status={
+                      systemStatus.integrations.controller.sync?.status ||
+                      (systemStatus.integrations.controller.enabled
+                        ? "unknown"
+                        : "disabled")
+                    }
+                  />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      High Availability
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.high_availability.enabled
+                        ? `${systemStatus.high_availability.role || "standby"} role watching ${systemStatus.high_availability.peer_api_url || "peer unset"} with VIP ${systemStatus.high_availability.virtual_ip || "unset"}.`
+                        : "Enterprise HA peer monitoring is disabled on this node."}
+                    </div>
+                    {systemStatus.high_availability.runtime?.details
+                      ?.effective_role ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Effective role{" "}
+                        {String(
+                          systemStatus.high_availability.runtime.details
+                            .effective_role,
+                        )}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.vip_assigned
+                          ? ", VIP currently assigned locally."
+                          : ", VIP not assigned locally."}
+                      </div>
+                    ) : null}
+                    {systemStatus.high_availability.runtime?.details
+                      ?.lease_holder ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Lease holder{" "}
+                        {String(
+                          systemStatus.high_availability.runtime.details
+                            .lease_holder,
+                        )}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.lease_expires_at
                           ? ` until ${String(systemStatus.high_availability.runtime.details.lease_expires_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
                     {systemStatus.high_availability.preempt ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Preempt {String(systemStatus.high_availability.runtime?.details?.preempt_status || 'enabled')}
-                        {systemStatus.high_availability.runtime?.details?.preempt_holdoff_remaining_seconds !== undefined
+                        Preempt{" "}
+                        {String(
+                          systemStatus.high_availability.runtime?.details
+                            ?.preempt_status || "enabled",
+                        )}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.preempt_holdoff_remaining_seconds !== undefined
                           ? `, holdoff remaining ${String(systemStatus.high_availability.runtime.details.preempt_holdoff_remaining_seconds)}s`
-                          : systemStatus.high_availability.preempt_holdoff_seconds
+                          : systemStatus.high_availability
+                                .preempt_holdoff_seconds
                             ? `, configured holdoff ${String(systemStatus.high_availability.preempt_holdoff_seconds)}s`
-                            : ''}
-                        {systemStatus.high_availability.runtime?.details?.preempt_ready_at
+                            : ""}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.preempt_ready_at
                           ? `, ready at ${String(systemStatus.high_availability.runtime.details.preempt_ready_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
-                    {systemStatus.high_availability.runtime?.details?.vip_announcement_status ? (
+                    {systemStatus.high_availability.runtime?.details
+                      ?.vip_announcement_status ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        VIP announcement {String(systemStatus.high_availability.runtime.details.vip_announcement_status)}
-                        {systemStatus.high_availability.runtime?.details?.vip_announcement_at
+                        VIP announcement{" "}
+                        {String(
+                          systemStatus.high_availability.runtime.details
+                            .vip_announcement_status,
+                        )}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.vip_announcement_at
                           ? ` at ${String(systemStatus.high_availability.runtime.details.vip_announcement_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
-                    {systemStatus.high_availability.runtime?.details?.vip_announcement_error ? (
+                    {systemStatus.high_availability.runtime?.details
+                      ?.vip_announcement_error ? (
                       <div className="mt-1 text-xs text-gray-500 break-all">
-                        {String(systemStatus.high_availability.runtime.details.vip_announcement_error)}
+                        {String(
+                          systemStatus.high_availability.runtime.details
+                            .vip_announcement_error,
+                        )}
                       </div>
                     ) : null}
                     <div className="mt-1 text-xs text-gray-500">
-                      {systemStatus.high_availability.replication_runtime?.message ||
+                      {systemStatus.high_availability.replication_runtime
+                        ?.message ||
                         `Shared replication every ${systemStatus.high_availability.replication_interval_seconds || 300}s with stale threshold ${systemStatus.high_availability.replication_stale_after_seconds || 900}s.`}
                     </div>
                     <div className="mt-1 text-xs text-gray-500">
-                      Split-brain protection {systemStatus.high_availability.split_brain_protection_enabled ? 'enabled' : 'disabled'}
-                      {systemStatus.high_availability.runtime?.details?.fencing_status
+                      Split-brain protection{" "}
+                      {systemStatus.high_availability
+                        .split_brain_protection_enabled
+                        ? "enabled"
+                        : "disabled"}
+                      {systemStatus.high_availability.runtime?.details
+                        ?.fencing_status
                         ? `, status ${String(systemStatus.high_availability.runtime.details.fencing_status)}`
-                        : ''}
+                        : ""}
                       .
                     </div>
-                    {(systemStatus.high_availability.witness_api_url || systemStatus.high_availability.witness_urls?.length) ? (
+                    {systemStatus.high_availability.witness_api_url ||
+                    systemStatus.high_availability.witness_urls?.length ? (
                       <div className="mt-1 text-xs text-gray-500 break-all">
-                        Witness {systemStatus.high_availability.runtime?.details?.witness_status
-                          ? String(systemStatus.high_availability.runtime.details.witness_status)
-                          : 'configured'}
-                        {systemStatus.high_availability.runtime?.details?.witness_allow_count !== undefined &&
-                        systemStatus.high_availability.runtime?.details?.witness_total_count !== undefined
+                        Witness{" "}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.witness_status
+                          ? String(
+                              systemStatus.high_availability.runtime.details
+                                .witness_status,
+                            )
+                          : "configured"}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.witness_allow_count !== undefined &&
+                        systemStatus.high_availability.runtime?.details
+                          ?.witness_total_count !== undefined
                           ? `, approvals ${String(systemStatus.high_availability.runtime.details.witness_allow_count)}/${String(systemStatus.high_availability.runtime.details.witness_total_count)}`
-                          : ''}
-                        {systemStatus.high_availability.runtime?.details?.witness_allow_weight !== undefined &&
-                        systemStatus.high_availability.runtime?.details?.witness_total_weight !== undefined
+                          : ""}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.witness_allow_weight !== undefined &&
+                        systemStatus.high_availability.runtime?.details
+                          ?.witness_total_weight !== undefined
                           ? `, weight ${String(systemStatus.high_availability.runtime.details.witness_allow_weight)}/${String(systemStatus.high_availability.runtime.details.witness_total_weight)}`
-                          : ''}
-                        {systemStatus.high_availability.runtime?.details?.witness_allow_group_count !== undefined &&
-                        systemStatus.high_availability.runtime?.details?.witness_total_group_count !== undefined
+                          : ""}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.witness_allow_group_count !== undefined &&
+                        systemStatus.high_availability.runtime?.details
+                          ?.witness_total_group_count !== undefined
                           ? `, groups ${String(systemStatus.high_availability.runtime.details.witness_allow_group_count)}/${String(systemStatus.high_availability.runtime.details.witness_total_group_count)}`
-                          : ''}
-                        {systemStatus.high_availability.runtime?.details?.witness_allow_source_count !== undefined &&
-                        systemStatus.high_availability.witness_required_sources?.length
+                          : ""}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.witness_allow_source_count !== undefined &&
+                        systemStatus.high_availability.witness_required_sources
+                          ?.length
                           ? `, sources ${String(systemStatus.high_availability.runtime.details.witness_allow_source_count)}/${String(systemStatus.high_availability.witness_required_sources.length)}`
-                          : ''}
+                          : ""}
                         {systemStatus.high_availability.witness_urls?.length
                           ? `, quorum ${systemStatus.high_availability.witness_quorum}`
-                          : ''}
-                        {systemStatus.high_availability.witness_weight_threshold > 0
+                          : ""}
+                        {systemStatus.high_availability
+                          .witness_weight_threshold > 0
                           ? `, weight threshold ${systemStatus.high_availability.witness_weight_threshold}`
-                          : ''}
-                        {systemStatus.high_availability.witness_min_distinct_groups > 0
+                          : ""}
+                        {systemStatus.high_availability
+                          .witness_min_distinct_groups > 0
                           ? `, distinct groups ${systemStatus.high_availability.witness_min_distinct_groups}`
-                          : ''}
-                        {systemStatus.high_availability.witness_required_groups?.length
-                          ? `, required groups ${systemStatus.high_availability.witness_required_groups.join(', ')}`
-                          : ''}
+                          : ""}
+                        {systemStatus.high_availability.witness_required_groups
+                          ?.length
+                          ? `, required groups ${systemStatus.high_availability.witness_required_groups.join(", ")}`
+                          : ""}
                         {systemStatus.high_availability.witness_policy_mode
                           ? `, policy ${systemStatus.high_availability.witness_policy_mode}`
-                          : ''}
-                        {Object.keys(systemStatus.high_availability.witness_policy_mode_by_tier || {}).length > 0
-                          ? `, tier policy ${Object.entries(systemStatus.high_availability.witness_policy_mode_by_tier)
+                          : ""}
+                        {Object.keys(
+                          systemStatus.high_availability
+                            .witness_policy_mode_by_tier || {},
+                        ).length > 0
+                          ? `, tier policy ${Object.entries(
+                              systemStatus.high_availability
+                                .witness_policy_mode_by_tier,
+                            )
                               .map(([tier, mode]) => `${tier}=${mode}`)
-                              .join(', ')}`
-                          : ''}
-                        {systemStatus.high_availability.witness_failure_tolerance > 0
+                              .join(", ")}`
+                          : ""}
+                        {systemStatus.high_availability
+                          .witness_failure_tolerance > 0
                           ? `, failure budget ${systemStatus.high_availability.witness_failure_tolerance}`
-                          : ''}
-                        {systemStatus.high_availability.witness_failure_weight_tolerance > 0
+                          : ""}
+                        {systemStatus.high_availability
+                          .witness_failure_weight_tolerance > 0
                           ? `, failure weight budget ${systemStatus.high_availability.witness_failure_weight_tolerance}`
-                          : ''}
-                        {systemStatus.high_availability.witness_required_sources?.length
-                          ? `, required sources ${systemStatus.high_availability.witness_required_sources.join(', ')}`
-                          : ''}
-                        {systemStatus.high_availability.witness_required_urls?.length
-                          ? `, required urls ${systemStatus.high_availability.witness_required_urls.join(', ')}`
-                          : ''}
-                        {Object.keys(systemStatus.high_availability.witness_required_sources_by_tier || {}).length > 0
-                          ? `, tier sources ${Object.entries(systemStatus.high_availability.witness_required_sources_by_tier)
-                              .map(([tier, sources]) => `${tier}=${(sources || []).join(',')}`)
-                              .join(', ')}`
-                          : ''}
-                        {Object.keys(systemStatus.high_availability.witness_required_urls_by_tier || {}).length > 0
-                          ? `, tier urls ${Object.entries(systemStatus.high_availability.witness_required_urls_by_tier)
-                              .map(([tier, urls]) => `${tier}=${(urls || []).join(',')}`)
-                              .join(', ')}`
-                          : ''}
-                        {Object.keys(systemStatus.high_availability.witness_required_groups_by_tier || {}).length > 0
-                          ? `, tier groups ${Object.entries(systemStatus.high_availability.witness_required_groups_by_tier)
-                              .map(([tier, groups]) => `${tier}=${(groups || []).join(',')}`)
-                              .join(', ')}`
-                          : ''}
-                        {Object.keys(systemStatus.high_availability.witness_min_distinct_groups_by_tier || {}).length > 0
-                          ? `, tier group diversity ${Object.entries(systemStatus.high_availability.witness_min_distinct_groups_by_tier)
+                          : ""}
+                        {systemStatus.high_availability.witness_required_sources
+                          ?.length
+                          ? `, required sources ${systemStatus.high_availability.witness_required_sources.join(", ")}`
+                          : ""}
+                        {systemStatus.high_availability.witness_required_urls
+                          ?.length
+                          ? `, required urls ${systemStatus.high_availability.witness_required_urls.join(", ")}`
+                          : ""}
+                        {Object.keys(
+                          systemStatus.high_availability
+                            .witness_required_sources_by_tier || {},
+                        ).length > 0
+                          ? `, tier sources ${Object.entries(
+                              systemStatus.high_availability
+                                .witness_required_sources_by_tier,
+                            )
+                              .map(
+                                ([tier, sources]) =>
+                                  `${tier}=${(sources || []).join(",")}`,
+                              )
+                              .join(", ")}`
+                          : ""}
+                        {Object.keys(
+                          systemStatus.high_availability
+                            .witness_required_urls_by_tier || {},
+                        ).length > 0
+                          ? `, tier urls ${Object.entries(
+                              systemStatus.high_availability
+                                .witness_required_urls_by_tier,
+                            )
+                              .map(
+                                ([tier, urls]) =>
+                                  `${tier}=${(urls || []).join(",")}`,
+                              )
+                              .join(", ")}`
+                          : ""}
+                        {Object.keys(
+                          systemStatus.high_availability
+                            .witness_required_groups_by_tier || {},
+                        ).length > 0
+                          ? `, tier groups ${Object.entries(
+                              systemStatus.high_availability
+                                .witness_required_groups_by_tier,
+                            )
+                              .map(
+                                ([tier, groups]) =>
+                                  `${tier}=${(groups || []).join(",")}`,
+                              )
+                              .join(", ")}`
+                          : ""}
+                        {Object.keys(
+                          systemStatus.high_availability
+                            .witness_min_distinct_groups_by_tier || {},
+                        ).length > 0
+                          ? `, tier group diversity ${Object.entries(
+                              systemStatus.high_availability
+                                .witness_min_distinct_groups_by_tier,
+                            )
                               .map(([tier, count]) => `${tier}=${count}`)
-                              .join(', ')}`
-                          : ''}
-                        {Object.keys(systemStatus.high_availability.witness_min_distinct_sources_by_tier || {}).length > 0
-                          ? `, tier source diversity ${Object.entries(systemStatus.high_availability.witness_min_distinct_sources_by_tier)
+                              .join(", ")}`
+                          : ""}
+                        {Object.keys(
+                          systemStatus.high_availability
+                            .witness_min_distinct_sources_by_tier || {},
+                        ).length > 0
+                          ? `, tier source diversity ${Object.entries(
+                              systemStatus.high_availability
+                                .witness_min_distinct_sources_by_tier,
+                            )
                               .map(([tier, count]) => `${tier}=${count}`)
-                              .join(', ')}`
-                          : ''}
-                        {systemStatus.high_availability.runtime?.details?.witness_allow_promotion !== undefined
+                              .join(", ")}`
+                          : ""}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.witness_allow_promotion !== undefined
                           ? `, allow promotion ${String(systemStatus.high_availability.runtime.details.witness_allow_promotion)}`
-                          : ''}
-                        {systemStatus.high_availability.runtime?.details?.witness_auth_status
+                          : ""}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.witness_auth_status
                           ? `, auth ${String(systemStatus.high_availability.runtime.details.witness_auth_status)}`
                           : systemStatus.high_availability.witness_token_env
-                            ? ', auth configured'
-                            : ''}
-                        {systemStatus.high_availability.runtime?.details?.witness_signature_status
+                            ? ", auth configured"
+                            : ""}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.witness_signature_status
                           ? `, signature ${String(systemStatus.high_availability.runtime.details.witness_signature_status)}`
-                          : systemStatus.high_availability.witness_signing_key_env
-                            ? ', signature configured'
-                            : ''}
-                        {systemStatus.high_availability.runtime?.details?.witness_observed_age_seconds !== undefined
+                          : systemStatus.high_availability
+                                .witness_signing_key_env
+                            ? ", signature configured"
+                            : ""}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.witness_observed_age_seconds !== undefined
                           ? `, observed age ${String(systemStatus.high_availability.runtime.details.witness_observed_age_seconds)}s`
-                          : ''}
+                          : ""}
                         {systemStatus.high_availability.witness_required_node
                           ? `, required node ${systemStatus.high_availability.witness_required_node}`
-                          : ''}
-                        {Object.keys(systemStatus.high_availability.witness_required_node_by_tier || {}).length > 0
-                          ? `, tier node ${Object.entries(systemStatus.high_availability.witness_required_node_by_tier)
+                          : ""}
+                        {Object.keys(
+                          systemStatus.high_availability
+                            .witness_required_node_by_tier || {},
+                        ).length > 0
+                          ? `, tier node ${Object.entries(
+                              systemStatus.high_availability
+                                .witness_required_node_by_tier,
+                            )
                               .map(([tier, node]) => `${tier}=${node}`)
-                              .join(', ')}`
-                          : ''}
-                        {systemStatus.high_availability.witness_signature_required_tiers?.length
-                          ? `, tier signature ${systemStatus.high_availability.witness_signature_required_tiers.join(', ')}`
-                          : ''}
-                        {systemStatus.high_availability.witness_replay_required_tiers?.length
-                          ? `, tier replay ${systemStatus.high_availability.witness_replay_required_tiers.join(', ')}`
-                          : ''}
-                        {systemStatus.high_availability.witness_max_age_seconds > 0
+                              .join(", ")}`
+                          : ""}
+                        {systemStatus.high_availability
+                          .witness_signature_required_tiers?.length
+                          ? `, tier signature ${systemStatus.high_availability.witness_signature_required_tiers.join(", ")}`
+                          : ""}
+                        {systemStatus.high_availability
+                          .witness_replay_required_tiers?.length
+                          ? `, tier replay ${systemStatus.high_availability.witness_replay_required_tiers.join(", ")}`
+                          : ""}
+                        {systemStatus.high_availability
+                          .witness_max_age_seconds > 0
                           ? `, max age ${systemStatus.high_availability.witness_max_age_seconds}s`
-                          : ''}
-                        {Object.keys(systemStatus.high_availability.witness_max_age_by_tier || {}).length > 0
-                          ? `, tier max age ${Object.entries(systemStatus.high_availability.witness_max_age_by_tier)
+                          : ""}
+                        {Object.keys(
+                          systemStatus.high_availability
+                            .witness_max_age_by_tier || {},
+                        ).length > 0
+                          ? `, tier max age ${Object.entries(
+                              systemStatus.high_availability
+                                .witness_max_age_by_tier,
+                            )
                               .map(([tier, seconds]) => `${tier}=${seconds}`)
-                              .join(', ')}`
-                          : ''}
-                        {systemStatus.high_availability.runtime?.details?.witness_replay_status
+                              .join(", ")}`
+                          : ""}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.witness_replay_status
                           ? `, replay ${String(systemStatus.high_availability.runtime.details.witness_replay_status)}`
-                          : systemStatus.high_availability.witness_replay_protection_enabled
-                            ? ', replay configured'
-                            : ''}
-                        : {(systemStatus.high_availability.witness_urls?.length ? systemStatus.high_availability.witness_urls.join(', ') : systemStatus.high_availability.witness_api_url)}
+                          : systemStatus.high_availability
+                                .witness_replay_protection_enabled
+                            ? ", replay configured"
+                            : ""}
+                        :{" "}
+                        {systemStatus.high_availability.witness_urls?.length
+                          ? systemStatus.high_availability.witness_urls.join(
+                              ", ",
+                            )
+                          : systemStatus.high_availability.witness_api_url}
                       </div>
                     ) : null}
-                    {Object.keys(systemStatus.high_availability.witness_source_confidence || {}).length > 0 ||
-                    Object.keys(systemStatus.high_availability.witness_min_approvals_by_tier || {}).length > 0 ||
-                    Object.keys(systemStatus.high_availability.witness_min_weight_by_tier || {}).length > 0 ||
-                    Object.keys(systemStatus.high_availability.witness_failure_tolerance_by_tier || {}).length > 0 ||
-                    Object.keys(systemStatus.high_availability.witness_failure_weight_tolerance_by_tier || {}).length > 0 ||
-                    systemStatus.high_availability.witness_blocking_tiers?.length ? (
+                    {Object.keys(
+                      systemStatus.high_availability
+                        .witness_source_confidence || {},
+                    ).length > 0 ||
+                    Object.keys(
+                      systemStatus.high_availability
+                        .witness_min_approvals_by_tier || {},
+                    ).length > 0 ||
+                    Object.keys(
+                      systemStatus.high_availability
+                        .witness_min_weight_by_tier || {},
+                    ).length > 0 ||
+                    Object.keys(
+                      systemStatus.high_availability
+                        .witness_failure_tolerance_by_tier || {},
+                    ).length > 0 ||
+                    Object.keys(
+                      systemStatus.high_availability
+                        .witness_failure_weight_tolerance_by_tier || {},
+                    ).length > 0 ||
+                    systemStatus.high_availability.witness_blocking_tiers
+                      ?.length ? (
                       <div className="mt-1 text-xs text-gray-500 break-all">
-                        {Object.keys(systemStatus.high_availability.witness_source_confidence || {}).length > 0
-                          ? `Confidence ${Object.entries(systemStatus.high_availability.witness_source_confidence)
+                        {Object.keys(
+                          systemStatus.high_availability
+                            .witness_source_confidence || {},
+                        ).length > 0
+                          ? `Confidence ${Object.entries(
+                              systemStatus.high_availability
+                                .witness_source_confidence,
+                            )
                               .map(([source, tier]) => `${source}=${tier}`)
-                              .join(', ')}`
-                          : 'Confidence standard'}
-                        {Object.keys(systemStatus.high_availability.witness_min_approvals_by_tier || {}).length > 0
-                          ? `, tier minimums ${Object.entries(systemStatus.high_availability.witness_min_approvals_by_tier)
+                              .join(", ")}`
+                          : "Confidence standard"}
+                        {Object.keys(
+                          systemStatus.high_availability
+                            .witness_min_approvals_by_tier || {},
+                        ).length > 0
+                          ? `, tier minimums ${Object.entries(
+                              systemStatus.high_availability
+                                .witness_min_approvals_by_tier,
+                            )
                               .map(([tier, count]) => `${tier}=${count}`)
-                              .join(', ')}`
-                          : ''}
-                        {Object.keys(systemStatus.high_availability.witness_min_weight_by_tier || {}).length > 0
-                          ? `, tier weights ${Object.entries(systemStatus.high_availability.witness_min_weight_by_tier)
+                              .join(", ")}`
+                          : ""}
+                        {Object.keys(
+                          systemStatus.high_availability
+                            .witness_min_weight_by_tier || {},
+                        ).length > 0
+                          ? `, tier weights ${Object.entries(
+                              systemStatus.high_availability
+                                .witness_min_weight_by_tier,
+                            )
                               .map(([tier, count]) => `${tier}=${count}`)
-                              .join(', ')}`
-                          : ''}
-                        {Object.keys(systemStatus.high_availability.witness_failure_tolerance_by_tier || {}).length > 0
-                          ? `, tier failure budgets ${Object.entries(systemStatus.high_availability.witness_failure_tolerance_by_tier)
+                              .join(", ")}`
+                          : ""}
+                        {Object.keys(
+                          systemStatus.high_availability
+                            .witness_failure_tolerance_by_tier || {},
+                        ).length > 0
+                          ? `, tier failure budgets ${Object.entries(
+                              systemStatus.high_availability
+                                .witness_failure_tolerance_by_tier,
+                            )
                               .map(([tier, budget]) => `${tier}=${budget}`)
-                              .join(', ')}`
-                          : ''}
-                        {Object.keys(systemStatus.high_availability.witness_failure_weight_tolerance_by_tier || {}).length > 0
-                          ? `, tier weight budgets ${Object.entries(systemStatus.high_availability.witness_failure_weight_tolerance_by_tier)
+                              .join(", ")}`
+                          : ""}
+                        {Object.keys(
+                          systemStatus.high_availability
+                            .witness_failure_weight_tolerance_by_tier || {},
+                        ).length > 0
+                          ? `, tier weight budgets ${Object.entries(
+                              systemStatus.high_availability
+                                .witness_failure_weight_tolerance_by_tier,
+                            )
                               .map(([tier, budget]) => `${tier}=${budget}`)
-                              .join(', ')}`
-                          : ''}
-                        {systemStatus.high_availability.witness_blocking_tiers?.length
-                          ? `, blocking tiers ${systemStatus.high_availability.witness_blocking_tiers.join(', ')}`
-                          : ''}
+                              .join(", ")}`
+                          : ""}
+                        {systemStatus.high_availability.witness_blocking_tiers
+                          ?.length
+                          ? `, blocking tiers ${systemStatus.high_availability.witness_blocking_tiers.join(", ")}`
+                          : ""}
                         .
                       </div>
                     ) : null}
-                    {systemStatus.high_availability.runtime?.details?.peer_shared_heartbeat_present ? (
+                    {systemStatus.high_availability.runtime?.details
+                      ?.peer_shared_heartbeat_present ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Peer shared heartbeat age{' '}
-                        {systemStatus.high_availability.runtime?.details?.peer_shared_heartbeat_age_seconds !== undefined
+                        Peer shared heartbeat age{" "}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.peer_shared_heartbeat_age_seconds !== undefined
                           ? `${String(systemStatus.high_availability.runtime.details.peer_shared_heartbeat_age_seconds)}s`
-                          : 'unknown'}
-                        {systemStatus.high_availability.runtime?.details?.peer_shared_heartbeat_stale ? ', marked stale.' : ', marked fresh.'}
+                          : "unknown"}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.peer_shared_heartbeat_stale
+                          ? ", marked stale."
+                          : ", marked fresh."}
                       </div>
                     ) : null}
-                    {systemStatus.high_availability.auto_stage_shared_package ? (
+                    {systemStatus.high_availability
+                      .auto_stage_shared_package ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Auto-stage {String(systemStatus.high_availability.replication_runtime?.details?.auto_stage_status || 'enabled')}
-                        {systemStatus.high_availability.replication_runtime?.details?.auto_stage_stage_id
+                        Auto-stage{" "}
+                        {String(
+                          systemStatus.high_availability.replication_runtime
+                            ?.details?.auto_stage_status || "enabled",
+                        )}
+                        {systemStatus.high_availability.replication_runtime
+                          ?.details?.auto_stage_stage_id
                           ? ` with staged package ${String(systemStatus.high_availability.replication_runtime.details.auto_stage_stage_id)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
-                    {systemStatus.high_availability.auto_activate_on_failover ? (
+                    {systemStatus.high_availability
+                      .auto_activate_on_failover ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Auto-activate on failover {String(systemStatus.high_availability.runtime?.details?.auto_activate_status || 'enabled')}
-                        {systemStatus.high_availability.runtime?.details?.auto_activate_stage_id
+                        Auto-activate on failover{" "}
+                        {String(
+                          systemStatus.high_availability.runtime?.details
+                            ?.auto_activate_status || "enabled",
+                        )}
+                        {systemStatus.high_availability.runtime?.details
+                          ?.auto_activate_stage_id
                           ? ` using staged package ${String(systemStatus.high_availability.runtime.details.auto_activate_stage_id)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
-                    {systemStatus.high_availability.post_failover_recovery?.message ? (
+                    {systemStatus.high_availability.post_failover_recovery
+                      ?.message ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Post-failover recovery {String(systemStatus.high_availability.post_failover_recovery.status || 'unknown')}: {systemStatus.high_availability.post_failover_recovery.message}
+                        Post-failover recovery{" "}
+                        {String(
+                          systemStatus.high_availability.post_failover_recovery
+                            .status || "unknown",
+                        )}
+                        :{" "}
+                        {
+                          systemStatus.high_availability.post_failover_recovery
+                            .message
+                        }
                       </div>
                     ) : null}
-                    {systemStatus.high_availability.post_failover_recovery?.details?.validated_at ? (
+                    {systemStatus.high_availability.post_failover_recovery
+                      ?.details?.validated_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Validated {String(systemStatus.high_availability.post_failover_recovery.details.validated_at)}.
+                        Validated{" "}
+                        {String(
+                          systemStatus.high_availability.post_failover_recovery
+                            .details.validated_at,
+                        )}
+                        .
                       </div>
                     ) : null}
-                    {systemStatus.high_availability.post_failover_recovery?.details?.rolled_back_at ? (
+                    {systemStatus.high_availability.post_failover_recovery
+                      ?.details?.rolled_back_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Rolled back {String(systemStatus.high_availability.post_failover_recovery.details.rolled_back_at)}.
+                        Rolled back{" "}
+                        {String(
+                          systemStatus.high_availability.post_failover_recovery
+                            .details.rolled_back_at,
+                        )}
+                        .
                       </div>
                     ) : null}
-                    {systemStatus.high_availability.replication_runtime?.details?.latest_source_node ? (
+                    {systemStatus.high_availability.replication_runtime?.details
+                      ?.latest_source_node ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Latest shared package from {String(systemStatus.high_availability.replication_runtime.details.latest_source_node)}
-                        {systemStatus.high_availability.replication_runtime?.details?.latest_age_seconds !== undefined
+                        Latest shared package from{" "}
+                        {String(
+                          systemStatus.high_availability.replication_runtime
+                            .details.latest_source_node,
+                        )}
+                        {systemStatus.high_availability.replication_runtime
+                          ?.details?.latest_age_seconds !== undefined
                           ? `, age ${String(systemStatus.high_availability.replication_runtime.details.latest_age_seconds)}s`
-                          : ''}
-                        {systemStatus.high_availability.replication_runtime?.details?.stale ? ', marked stale.' : ', marked fresh.'}
+                          : ""}
+                        {systemStatus.high_availability.replication_runtime
+                          ?.details?.stale
+                          ? ", marked stale."
+                          : ", marked fresh."}
                       </div>
                     ) : null}
                     <div className="mt-1 text-xs text-gray-500">
-                      Promotions {systemStatus.high_availability.history_stats?.failover_promotions ?? 0}, peer failures {systemStatus.high_availability.history_stats?.peer_failures ?? 0}, VIP announcements {systemStatus.high_availability.history_stats?.vip_announcements ?? 0}, replication publishes {systemStatus.high_availability.history_stats?.replication_publishes ?? 0}.
+                      Promotions{" "}
+                      {systemStatus.high_availability.history_stats
+                        ?.failover_promotions ?? 0}
+                      , peer failures{" "}
+                      {systemStatus.high_availability.history_stats
+                        ?.peer_failures ?? 0}
+                      , VIP announcements{" "}
+                      {systemStatus.high_availability.history_stats
+                        ?.vip_announcements ?? 0}
+                      , replication publishes{" "}
+                      {systemStatus.high_availability.history_stats
+                        ?.replication_publishes ?? 0}
+                      .
                     </div>
-                    {systemStatus.high_availability.history_stats?.last_event_at ? (
-                      <div className="mt-1 text-xs text-gray-500">HA history last updated {systemStatus.high_availability.history_stats.last_event_at}</div>
+                    {systemStatus.high_availability.history_stats
+                      ?.last_event_at ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        HA history last updated{" "}
+                        {
+                          systemStatus.high_availability.history_stats
+                            .last_event_at
+                        }
+                      </div>
                     ) : null}
-                    <div className="mt-1 text-xs text-gray-500">{systemStatus.high_availability.runtime?.message || 'No HA runtime status recorded yet.'}</div>
-                    {systemStatus.high_availability.runtime?.details?.peer_health_url ? (
-                      <div className="mt-1 text-xs text-gray-500 break-all">{String(systemStatus.high_availability.runtime.details.peer_health_url)}</div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {systemStatus.high_availability.runtime?.message ||
+                        "No HA runtime status recorded yet."}
+                    </div>
+                    {systemStatus.high_availability.runtime?.details
+                      ?.peer_health_url ? (
+                      <div className="mt-1 text-xs text-gray-500 break-all">
+                        {String(
+                          systemStatus.high_availability.runtime.details
+                            .peer_health_url,
+                        )}
+                      </div>
                     ) : null}
-                    {systemStatus.high_availability.replication_runtime?.updated_at ? (
-                      <div className="mt-1 text-xs text-gray-500">Replication updated {systemStatus.high_availability.replication_runtime.updated_at}</div>
+                    {systemStatus.high_availability.replication_runtime
+                      ?.updated_at ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Replication updated{" "}
+                        {
+                          systemStatus.high_availability.replication_runtime
+                            .updated_at
+                        }
+                      </div>
                     ) : null}
                     {systemStatus.high_availability.runtime?.updated_at ? (
-                      <div className="mt-1 text-xs text-gray-500">Updated {systemStatus.high_availability.runtime.updated_at}</div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        Updated{" "}
+                        {systemStatus.high_availability.runtime.updated_at}
+                      </div>
                     ) : null}
                   </div>
                   <StatusBadge status={highAvailabilityStatus} />
@@ -1033,303 +1535,828 @@ export default function Dashboard() {
           </section>
 
           <section className="rounded-lg bg-white p-6 shadow">
-            <h3 className="text-lg font-semibold text-gray-900">Edge Network Observability</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Edge Network Observability
+            </h3>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <div className="rounded-md border border-gray-200 px-4 py-3">
-                <div className="font-medium text-gray-900">Apply And Rollback Counters</div>
+                <div className="font-medium text-gray-900">
+                  Apply And Rollback Counters
+                </div>
                 <div className="mt-2 grid gap-2 text-sm text-gray-700">
-                  <div className="flex items-center justify-between"><span>Apply successes</span><span className="font-semibold">{networkObservability.apply_stats.apply_success_count}</span></div>
-                  <div className="flex items-center justify-between"><span>Apply failures</span><span className="font-semibold">{networkObservability.apply_stats.apply_failure_count}</span></div>
-                  <div className="flex items-center justify-between"><span>Pending confirmations</span><span className="font-semibold">{networkObservability.apply_stats.pending_confirmation_count}</span></div>
-                  <div className="flex items-center justify-between"><span>Manual rollbacks</span><span className="font-semibold">{networkObservability.apply_stats.rollback_count}</span></div>
-                  <div className="flex items-center justify-between"><span>Auto-rollbacks</span><span className="font-semibold">{networkObservability.apply_stats.auto_rollback_count}</span></div>
+                  <div className="flex items-center justify-between">
+                    <span>Apply successes</span>
+                    <span className="font-semibold">
+                      {networkObservability.apply_stats.apply_success_count}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Apply failures</span>
+                    <span className="font-semibold">
+                      {networkObservability.apply_stats.apply_failure_count}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Pending confirmations</span>
+                    <span className="font-semibold">
+                      {
+                        networkObservability.apply_stats
+                          .pending_confirmation_count
+                      }
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Manual rollbacks</span>
+                    <span className="font-semibold">
+                      {networkObservability.apply_stats.rollback_count}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Auto-rollbacks</span>
+                    <span className="font-semibold">
+                      {networkObservability.apply_stats.auto_rollback_count}
+                    </span>
+                  </div>
                 </div>
                 <div className="mt-3 text-xs text-gray-500">
-                  Last apply {networkObservability.apply_stats.last_applied_at || 'not recorded'}.
-                  {networkObservability.apply_stats.last_failure_at ? ` Last failure ${networkObservability.apply_stats.last_failure_at}.` : ''}
+                  Last apply{" "}
+                  {networkObservability.apply_stats.last_applied_at ||
+                    "not recorded"}
+                  .
+                  {networkObservability.apply_stats.last_failure_at
+                    ? ` Last failure ${networkObservability.apply_stats.last_failure_at}.`
+                    : ""}
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
-                <div className="font-medium text-gray-900">DHCP Lease Trend</div>
+                <div className="font-medium text-gray-900">
+                  DHCP Lease Trend
+                </div>
                 <div className="mt-2 grid gap-2 text-sm text-gray-700">
-                  <div className="flex items-center justify-between"><span>Window</span><span className="font-semibold">{networkObservability.lease_trends.window_hours}h</span></div>
-                  <div className="flex items-center justify-between"><span>Unique MACs</span><span className="font-semibold">{networkObservability.lease_trends.unique_macs_window}</span></div>
-                  <div className="flex items-center justify-between"><span>Active observations</span><span className="font-semibold">{networkObservability.lease_trends.active_observations_window}</span></div>
-                  <div className="flex items-center justify-between"><span>Expired observations</span><span className="font-semibold">{networkObservability.lease_trends.expired_observations_window}</span></div>
-                  <div className="flex items-center justify-between"><span>Peak concurrent leases</span><span className="font-semibold">{networkObservability.lease_trends.peak_concurrent_leases_window}</span></div>
+                  <div className="flex items-center justify-between">
+                    <span>Window</span>
+                    <span className="font-semibold">
+                      {networkObservability.lease_trends.window_hours}h
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Unique MACs</span>
+                    <span className="font-semibold">
+                      {networkObservability.lease_trends.unique_macs_window}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Active observations</span>
+                    <span className="font-semibold">
+                      {
+                        networkObservability.lease_trends
+                          .active_observations_window
+                      }
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Expired observations</span>
+                    <span className="font-semibold">
+                      {
+                        networkObservability.lease_trends
+                          .expired_observations_window
+                      }
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Peak concurrent leases</span>
+                    <span className="font-semibold">
+                      {
+                        networkObservability.lease_trends
+                          .peak_concurrent_leases_window
+                      }
+                    </span>
+                  </div>
                 </div>
                 <div className="mt-3 text-xs text-gray-500">
-                  Latest lease observation {networkObservability.lease_trends.latest_observed_at || 'not recorded'}.
+                  Latest lease observation{" "}
+                  {networkObservability.lease_trends.latest_observed_at ||
+                    "not recorded"}
+                  .
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Management-Loss Safety Timer</div>
-                    <div className="mt-1 text-sm text-gray-600">{networkObservability.recovery?.message || 'No risky edge-network recovery window is active.'}</div>
+                    <div className="font-medium text-gray-900">
+                      Management-Loss Safety Timer
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {networkObservability.recovery?.message ||
+                        "No risky edge-network recovery window is active."}
+                    </div>
                     {networkObservability.recovery?.deadline ? (
-                      <div className="mt-2 text-xs text-gray-500">Deadline {String(networkObservability.recovery.deadline)}</div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Deadline{" "}
+                        {String(networkObservability.recovery.deadline)}
+                      </div>
                     ) : null}
                   </div>
-                  <StatusBadge status={networkObservability.recovery?.status || 'disabled'} />
+                  <StatusBadge
+                    status={networkObservability.recovery?.status || "disabled"}
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Controller Runtime Counters</div>
-                    <div className="mt-1 text-sm text-gray-600">{networkObservability.controller_sync?.message || 'No controller runtime status recorded yet.'}</div>
+                    <div className="font-medium text-gray-900">
+                      Controller Runtime Counters
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {networkObservability.controller_sync?.message ||
+                        "No controller runtime status recorded yet."}
+                    </div>
                     <div className="mt-2 text-xs text-gray-500">
-                      Syncs {networkObservability.controller_sync?.details?.sync_count ?? 0}, successes {networkObservability.controller_sync?.details?.success_count ?? 0}, failures {networkObservability.controller_sync?.details?.failure_count ?? 0}, last duration {networkObservability.controller_sync?.details?.last_duration_ms ?? 0} ms, adapter {String(networkObservability.controller_sync?.details?.adapter || 'unknown')}, auth {String(networkObservability.controller_sync?.details?.auth_scheme || 'unknown')}.
+                      Syncs{" "}
+                      {networkObservability.controller_sync?.details
+                        ?.sync_count ?? 0}
+                      , successes{" "}
+                      {networkObservability.controller_sync?.details
+                        ?.success_count ?? 0}
+                      , failures{" "}
+                      {networkObservability.controller_sync?.details
+                        ?.failure_count ?? 0}
+                      , last duration{" "}
+                      {networkObservability.controller_sync?.details
+                        ?.last_duration_ms ?? 0}{" "}
+                      ms, adapter{" "}
+                      {String(
+                        networkObservability.controller_sync?.details
+                          ?.adapter || "unknown",
+                      )}
+                      , auth{" "}
+                      {String(
+                        networkObservability.controller_sync?.details
+                          ?.auth_scheme || "unknown",
+                      )}
+                      .
                     </div>
                   </div>
-                  <StatusBadge status={networkObservability.controller_sync?.status || 'disabled'} />
+                  <StatusBadge
+                    status={
+                      networkObservability.controller_sync?.status || "disabled"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">MDM And Posture Runtime</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.profiling?.mdm_sync?.message || 'No MDM runtime status recorded yet.'}</div>
+                    <div className="font-medium text-gray-900">
+                      MDM And Posture Runtime
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.profiling?.mdm_sync?.message ||
+                        "No MDM runtime status recorded yet."}
+                    </div>
                     <div className="mt-2 text-xs text-gray-500">
-                      Provider {systemStatus.profiling?.mdm_provider || 'unset'}, total {systemStatus.profiling?.mdm_sync?.details?.total_records ?? 0}, compliant {systemStatus.profiling?.mdm_sync?.details?.compliant_records ?? 0}, non-compliant {systemStatus.profiling?.mdm_sync?.details?.non_compliant_records ?? 0}, remediation {systemStatus.profiling?.posture_checks?.details?.remediation_records ?? 0}.
+                      Provider {systemStatus.profiling?.mdm_provider || "unset"}
+                      , total{" "}
+                      {systemStatus.profiling?.mdm_sync?.details
+                        ?.total_records ?? 0}
+                      , compliant{" "}
+                      {systemStatus.profiling?.mdm_sync?.details
+                        ?.compliant_records ?? 0}
+                      , non-compliant{" "}
+                      {systemStatus.profiling?.mdm_sync?.details
+                        ?.non_compliant_records ?? 0}
+                      , remediation{" "}
+                      {systemStatus.profiling?.posture_checks?.details
+                        ?.remediation_records ?? 0}
+                      .
                     </div>
                   </div>
-                  <StatusBadge status={systemStatus.profiling?.mdm_sync?.status || 'disabled'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.profiling?.mdm_sync?.status || "disabled"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Scheduled Support Bundle Exports</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.telemetry?.support_bundle_exports?.runtime?.message || 'No scheduled support bundle export runtime status recorded yet.'}</div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      ZIP bundle every {systemStatus.telemetry?.support_bundle_exports?.interval_minutes || 0} minutes, retain {systemStatus.telemetry?.support_bundle_exports?.retention_count || 0}, directory {systemStatus.telemetry?.support_bundle_exports?.directory || 'unset'}.
+                    <div className="font-medium text-gray-900">
+                      Scheduled Support Bundle Exports
                     </div>
-                    {systemStatus.telemetry?.support_bundle_exports?.runtime?.details?.last_export_at ? (
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.telemetry?.support_bundle_exports?.runtime
+                        ?.message ||
+                        "No scheduled support bundle export runtime status recorded yet."}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      ZIP bundle every{" "}
+                      {systemStatus.telemetry?.support_bundle_exports
+                        ?.interval_minutes || 0}{" "}
+                      minutes, retain{" "}
+                      {systemStatus.telemetry?.support_bundle_exports
+                        ?.retention_count || 0}
+                      , directory{" "}
+                      {systemStatus.telemetry?.support_bundle_exports
+                        ?.directory || "unset"}
+                      .
+                    </div>
+                    {systemStatus.telemetry?.support_bundle_exports?.runtime
+                      ?.details?.last_export_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Last export {String(systemStatus.telemetry.support_bundle_exports.runtime.details.last_export_at)}
-                        {systemStatus.telemetry?.support_bundle_exports?.runtime?.details?.next_due_at
+                        Last export{" "}
+                        {String(
+                          systemStatus.telemetry.support_bundle_exports.runtime
+                            .details.last_export_at,
+                        )}
+                        {systemStatus.telemetry?.support_bundle_exports?.runtime
+                          ?.details?.next_due_at
                           ? `, next due ${String(systemStatus.telemetry.support_bundle_exports.runtime.details.next_due_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
                   </div>
-                  <StatusBadge status={systemStatus.telemetry?.support_bundle_exports?.runtime?.status || 'disabled'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.telemetry?.support_bundle_exports?.runtime
+                        ?.status || "disabled"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Scheduled Diagnostics Exports</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.telemetry?.diagnostics_exports?.runtime?.message || 'No scheduled diagnostics export runtime status recorded yet.'}</div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Format {systemStatus.telemetry?.diagnostics_exports?.format || 'json'}, every {systemStatus.telemetry?.diagnostics_exports?.interval_minutes || 0} minutes, retain {systemStatus.telemetry?.diagnostics_exports?.retention_count || 0}, directory {systemStatus.telemetry?.diagnostics_exports?.directory || 'unset'}.
+                    <div className="font-medium text-gray-900">
+                      Scheduled Diagnostics Exports
                     </div>
-                    {systemStatus.telemetry?.diagnostics_exports?.runtime?.details?.last_export_at ? (
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.telemetry?.diagnostics_exports?.runtime
+                        ?.message ||
+                        "No scheduled diagnostics export runtime status recorded yet."}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Format{" "}
+                      {systemStatus.telemetry?.diagnostics_exports?.format ||
+                        "json"}
+                      , every{" "}
+                      {systemStatus.telemetry?.diagnostics_exports
+                        ?.interval_minutes || 0}{" "}
+                      minutes, retain{" "}
+                      {systemStatus.telemetry?.diagnostics_exports
+                        ?.retention_count || 0}
+                      , directory{" "}
+                      {systemStatus.telemetry?.diagnostics_exports?.directory ||
+                        "unset"}
+                      .
+                    </div>
+                    {systemStatus.telemetry?.diagnostics_exports?.runtime
+                      ?.details?.last_export_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Last export {String(systemStatus.telemetry.diagnostics_exports.runtime.details.last_export_at)}
-                        {systemStatus.telemetry?.diagnostics_exports?.runtime?.details?.next_due_at
+                        Last export{" "}
+                        {String(
+                          systemStatus.telemetry.diagnostics_exports.runtime
+                            .details.last_export_at,
+                        )}
+                        {systemStatus.telemetry?.diagnostics_exports?.runtime
+                          ?.details?.next_due_at
                           ? `, next due ${String(systemStatus.telemetry.diagnostics_exports.runtime.details.next_due_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
                   </div>
-                  <StatusBadge status={systemStatus.telemetry?.diagnostics_exports?.runtime?.status || 'disabled'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.telemetry?.diagnostics_exports?.runtime
+                        ?.status || "disabled"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Scheduled Audit Exports</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.telemetry?.audit_exports?.runtime?.message || 'No scheduled audit export runtime status recorded yet.'}</div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Format {systemStatus.telemetry?.audit_exports?.format || 'json'}, every {systemStatus.telemetry?.audit_exports?.interval_minutes || 0} minutes, retain {systemStatus.telemetry?.audit_exports?.retention_count || 0}, directory {systemStatus.telemetry?.audit_exports?.directory || 'unset'}.
+                    <div className="font-medium text-gray-900">
+                      Scheduled Audit Exports
                     </div>
-                    {systemStatus.telemetry?.audit_exports?.runtime?.details?.last_export_at ? (
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.telemetry?.audit_exports?.runtime
+                        ?.message ||
+                        "No scheduled audit export runtime status recorded yet."}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Format{" "}
+                      {systemStatus.telemetry?.audit_exports?.format || "json"},
+                      every{" "}
+                      {systemStatus.telemetry?.audit_exports
+                        ?.interval_minutes || 0}{" "}
+                      minutes, retain{" "}
+                      {systemStatus.telemetry?.audit_exports?.retention_count ||
+                        0}
+                      , directory{" "}
+                      {systemStatus.telemetry?.audit_exports?.directory ||
+                        "unset"}
+                      .
+                    </div>
+                    {systemStatus.telemetry?.audit_exports?.runtime?.details
+                      ?.last_export_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Last export {String(systemStatus.telemetry.audit_exports.runtime.details.last_export_at)}
-                        {systemStatus.telemetry?.audit_exports?.runtime?.details?.next_due_at
+                        Last export{" "}
+                        {String(
+                          systemStatus.telemetry.audit_exports.runtime.details
+                            .last_export_at,
+                        )}
+                        {systemStatus.telemetry?.audit_exports?.runtime?.details
+                          ?.next_due_at
                           ? `, next due ${String(systemStatus.telemetry.audit_exports.runtime.details.next_due_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
                   </div>
-                  <StatusBadge status={systemStatus.telemetry?.audit_exports?.runtime?.status || 'disabled'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.telemetry?.audit_exports?.runtime?.status ||
+                      "disabled"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Scheduled Session Exports</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.telemetry?.session_exports?.runtime?.message || 'No scheduled session export runtime status recorded yet.'}</div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Format {systemStatus.telemetry?.session_exports?.format || 'json'}, every {systemStatus.telemetry?.session_exports?.interval_minutes || 0} minutes, retain {systemStatus.telemetry?.session_exports?.retention_count || 0}, directory {systemStatus.telemetry?.session_exports?.directory || 'unset'}.
+                    <div className="font-medium text-gray-900">
+                      Scheduled Session Exports
                     </div>
-                    {systemStatus.telemetry?.session_exports?.runtime?.details?.last_export_at ? (
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.telemetry?.session_exports?.runtime
+                        ?.message ||
+                        "No scheduled session export runtime status recorded yet."}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Format{" "}
+                      {systemStatus.telemetry?.session_exports?.format ||
+                        "json"}
+                      , every{" "}
+                      {systemStatus.telemetry?.session_exports
+                        ?.interval_minutes || 0}{" "}
+                      minutes, retain{" "}
+                      {systemStatus.telemetry?.session_exports
+                        ?.retention_count || 0}
+                      , directory{" "}
+                      {systemStatus.telemetry?.session_exports?.directory ||
+                        "unset"}
+                      .
+                    </div>
+                    {systemStatus.telemetry?.session_exports?.runtime?.details
+                      ?.last_export_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Last export {String(systemStatus.telemetry.session_exports.runtime.details.last_export_at)}
-                        {systemStatus.telemetry?.session_exports?.runtime?.details?.next_due_at
+                        Last export{" "}
+                        {String(
+                          systemStatus.telemetry.session_exports.runtime.details
+                            .last_export_at,
+                        )}
+                        {systemStatus.telemetry?.session_exports?.runtime
+                          ?.details?.next_due_at
                           ? `, next due ${String(systemStatus.telemetry.session_exports.runtime.details.next_due_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
                   </div>
-                  <StatusBadge status={systemStatus.telemetry?.session_exports?.runtime?.status || 'disabled'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.telemetry?.session_exports?.runtime
+                        ?.status || "disabled"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Scheduled Session Analytics Exports</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.telemetry?.session_analytics_exports?.runtime?.message || 'No scheduled session analytics export runtime status recorded yet.'}</div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Format {systemStatus.telemetry?.session_analytics_exports?.format || 'json'}, every {systemStatus.telemetry?.session_analytics_exports?.interval_minutes || 0} minutes, retain {systemStatus.telemetry?.session_analytics_exports?.retention_count || 0}, directory {systemStatus.telemetry?.session_analytics_exports?.directory || 'unset'}.
+                    <div className="font-medium text-gray-900">
+                      Scheduled Session Analytics Exports
                     </div>
-                    {systemStatus.telemetry?.session_analytics_exports?.runtime?.details?.last_export_at ? (
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.telemetry?.session_analytics_exports
+                        ?.runtime?.message ||
+                        "No scheduled session analytics export runtime status recorded yet."}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Format{" "}
+                      {systemStatus.telemetry?.session_analytics_exports
+                        ?.format || "json"}
+                      , every{" "}
+                      {systemStatus.telemetry?.session_analytics_exports
+                        ?.interval_minutes || 0}{" "}
+                      minutes, retain{" "}
+                      {systemStatus.telemetry?.session_analytics_exports
+                        ?.retention_count || 0}
+                      , directory{" "}
+                      {systemStatus.telemetry?.session_analytics_exports
+                        ?.directory || "unset"}
+                      .
+                    </div>
+                    {systemStatus.telemetry?.session_analytics_exports?.runtime
+                      ?.details?.last_export_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Last export {String(systemStatus.telemetry.session_analytics_exports.runtime.details.last_export_at)}
-                        {systemStatus.telemetry?.session_analytics_exports?.runtime?.details?.next_due_at
+                        Last export{" "}
+                        {String(
+                          systemStatus.telemetry.session_analytics_exports
+                            .runtime.details.last_export_at,
+                        )}
+                        {systemStatus.telemetry?.session_analytics_exports
+                          ?.runtime?.details?.next_due_at
                           ? `, next due ${String(systemStatus.telemetry.session_analytics_exports.runtime.details.next_due_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
                   </div>
-                  <StatusBadge status={systemStatus.telemetry?.session_analytics_exports?.runtime?.status || 'disabled'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.telemetry?.session_analytics_exports?.runtime
+                        ?.status || "disabled"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Scheduled Guest Lifecycle Exports</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.telemetry?.guest_lifecycle_exports?.runtime?.message || 'No scheduled guest lifecycle export runtime status recorded yet.'}</div>
+                    <div className="font-medium text-gray-900">
+                      Scheduled Guest Lifecycle Exports
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.telemetry?.guest_lifecycle_exports?.runtime
+                        ?.message ||
+                        "No scheduled guest lifecycle export runtime status recorded yet."}
+                    </div>
                     <div className="mt-2 text-xs text-gray-500">
-                      Format {systemStatus.telemetry?.guest_lifecycle_exports?.format || 'json'}, every {systemStatus.telemetry?.guest_lifecycle_exports?.interval_minutes || 0} minutes, retain {systemStatus.telemetry?.guest_lifecycle_exports?.retention_count || 0}, directory {systemStatus.telemetry?.guest_lifecycle_exports?.directory || 'unset'}.
+                      Format{" "}
+                      {systemStatus.telemetry?.guest_lifecycle_exports
+                        ?.format || "json"}
+                      , every{" "}
+                      {systemStatus.telemetry?.guest_lifecycle_exports
+                        ?.interval_minutes || 0}{" "}
+                      minutes, retain{" "}
+                      {systemStatus.telemetry?.guest_lifecycle_exports
+                        ?.retention_count || 0}
+                      , directory{" "}
+                      {systemStatus.telemetry?.guest_lifecycle_exports
+                        ?.directory || "unset"}
+                      .
                     </div>
                     <div className="mt-1 text-xs text-gray-500">
-                      Window {String(systemStatus.telemetry?.guest_lifecycle_exports?.runtime?.details?.window_hours || 24)} hours with {String(systemStatus.telemetry?.guest_lifecycle_exports?.runtime?.details?.bucket_count || 24)} buckets.
+                      Window{" "}
+                      {String(
+                        systemStatus.telemetry?.guest_lifecycle_exports?.runtime
+                          ?.details?.window_hours || 24,
+                      )}{" "}
+                      hours with{" "}
+                      {String(
+                        systemStatus.telemetry?.guest_lifecycle_exports?.runtime
+                          ?.details?.bucket_count || 24,
+                      )}{" "}
+                      buckets.
                     </div>
-                    {systemStatus.telemetry?.guest_lifecycle_exports?.runtime?.details?.last_export_at ? (
+                    {systemStatus.telemetry?.guest_lifecycle_exports?.runtime
+                      ?.details?.last_export_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Last export {String(systemStatus.telemetry.guest_lifecycle_exports.runtime.details.last_export_at)}
-                        {systemStatus.telemetry?.guest_lifecycle_exports?.runtime?.details?.next_due_at
+                        Last export{" "}
+                        {String(
+                          systemStatus.telemetry.guest_lifecycle_exports.runtime
+                            .details.last_export_at,
+                        )}
+                        {systemStatus.telemetry?.guest_lifecycle_exports
+                          ?.runtime?.details?.next_due_at
                           ? `, next due ${String(systemStatus.telemetry.guest_lifecycle_exports.runtime.details.next_due_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
                   </div>
-                  <StatusBadge status={systemStatus.telemetry?.guest_lifecycle_exports?.runtime?.status || 'disabled'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.telemetry?.guest_lifecycle_exports?.runtime
+                        ?.status || "disabled"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Scheduled Integration Exports</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.telemetry?.integration_exports?.runtime?.message || 'No scheduled integration export runtime status recorded yet.'}</div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Format {systemStatus.telemetry?.integration_exports?.format || 'json'}, every {systemStatus.telemetry?.integration_exports?.interval_minutes || 0} minutes, retain {systemStatus.telemetry?.integration_exports?.retention_count || 0}, directory {systemStatus.telemetry?.integration_exports?.directory || 'unset'}.
+                    <div className="font-medium text-gray-900">
+                      Scheduled Guest Delivery Analytics Exports
                     </div>
-                    {systemStatus.telemetry?.integration_exports?.runtime?.details?.last_export_at ? (
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.telemetry?.guest_delivery_analytics_exports
+                        ?.runtime?.message ||
+                        "No scheduled guest delivery analytics export runtime status recorded yet."}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Format{" "}
+                      {systemStatus.telemetry?.guest_delivery_analytics_exports
+                        ?.format || "json"}
+                      , every{" "}
+                      {systemStatus.telemetry?.guest_delivery_analytics_exports
+                        ?.interval_minutes || 0}{" "}
+                      minutes, retain{" "}
+                      {systemStatus.telemetry?.guest_delivery_analytics_exports
+                        ?.retention_count || 0}
+                      , directory{" "}
+                      {systemStatus.telemetry?.guest_delivery_analytics_exports
+                        ?.directory || "unset"}
+                      .
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      Window{" "}
+                      {String(
+                        systemStatus.telemetry?.guest_delivery_analytics_exports
+                          ?.runtime?.details?.window_hours || 24,
+                      )}{" "}
+                      hours with{" "}
+                      {String(
+                        systemStatus.telemetry?.guest_delivery_analytics_exports
+                          ?.runtime?.details?.bucket_count || 24,
+                      )}{" "}
+                      buckets.
+                    </div>
+                    {systemStatus.telemetry?.guest_delivery_analytics_exports
+                      ?.runtime?.details?.last_export_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Last export {String(systemStatus.telemetry.integration_exports.runtime.details.last_export_at)}
-                        {systemStatus.telemetry?.integration_exports?.runtime?.details?.next_due_at
+                        Last export{" "}
+                        {String(
+                          systemStatus.telemetry
+                            .guest_delivery_analytics_exports.runtime.details
+                            .last_export_at,
+                        )}
+                        {systemStatus.telemetry
+                          ?.guest_delivery_analytics_exports?.runtime?.details
+                          ?.next_due_at
+                          ? `, next due ${String(systemStatus.telemetry.guest_delivery_analytics_exports.runtime.details.next_due_at)}`
+                          : ""}
+                        .
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    status={
+                      systemStatus.telemetry?.guest_delivery_analytics_exports
+                        ?.runtime?.status || "disabled"
+                    }
+                  />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      Scheduled Integration Exports
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.telemetry?.integration_exports?.runtime
+                        ?.message ||
+                        "No scheduled integration export runtime status recorded yet."}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Format{" "}
+                      {systemStatus.telemetry?.integration_exports?.format ||
+                        "json"}
+                      , every{" "}
+                      {systemStatus.telemetry?.integration_exports
+                        ?.interval_minutes || 0}{" "}
+                      minutes, retain{" "}
+                      {systemStatus.telemetry?.integration_exports
+                        ?.retention_count || 0}
+                      , directory{" "}
+                      {systemStatus.telemetry?.integration_exports?.directory ||
+                        "unset"}
+                      .
+                    </div>
+                    {systemStatus.telemetry?.integration_exports?.runtime
+                      ?.details?.last_export_at ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Last export{" "}
+                        {String(
+                          systemStatus.telemetry.integration_exports.runtime
+                            .details.last_export_at,
+                        )}
+                        {systemStatus.telemetry?.integration_exports?.runtime
+                          ?.details?.next_due_at
                           ? `, next due ${String(systemStatus.telemetry.integration_exports.runtime.details.next_due_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
                   </div>
-                  <StatusBadge status={systemStatus.telemetry?.integration_exports?.runtime?.status || 'disabled'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.telemetry?.integration_exports?.runtime
+                        ?.status || "disabled"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Scheduled HA Exports</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.telemetry?.ha_exports?.runtime?.message || 'No scheduled HA export runtime status recorded yet.'}</div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Format {systemStatus.telemetry?.ha_exports?.format || 'json'}, every {systemStatus.telemetry?.ha_exports?.interval_minutes || 0} minutes, retain {systemStatus.telemetry?.ha_exports?.retention_count || 0}, directory {systemStatus.telemetry?.ha_exports?.directory || 'unset'}.
+                    <div className="font-medium text-gray-900">
+                      Scheduled HA Exports
                     </div>
-                    {systemStatus.telemetry?.ha_exports?.runtime?.details?.last_export_at ? (
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.telemetry?.ha_exports?.runtime?.message ||
+                        "No scheduled HA export runtime status recorded yet."}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Format{" "}
+                      {systemStatus.telemetry?.ha_exports?.format || "json"},
+                      every{" "}
+                      {systemStatus.telemetry?.ha_exports?.interval_minutes ||
+                        0}{" "}
+                      minutes, retain{" "}
+                      {systemStatus.telemetry?.ha_exports?.retention_count || 0}
+                      , directory{" "}
+                      {systemStatus.telemetry?.ha_exports?.directory || "unset"}
+                      .
+                    </div>
+                    {systemStatus.telemetry?.ha_exports?.runtime?.details
+                      ?.last_export_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Last export {String(systemStatus.telemetry.ha_exports.runtime.details.last_export_at)}
-                        {systemStatus.telemetry?.ha_exports?.runtime?.details?.next_due_at
+                        Last export{" "}
+                        {String(
+                          systemStatus.telemetry.ha_exports.runtime.details
+                            .last_export_at,
+                        )}
+                        {systemStatus.telemetry?.ha_exports?.runtime?.details
+                          ?.next_due_at
                           ? `, next due ${String(systemStatus.telemetry.ha_exports.runtime.details.next_due_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
                   </div>
-                  <StatusBadge status={systemStatus.telemetry?.ha_exports?.runtime?.status || 'disabled'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.telemetry?.ha_exports?.runtime?.status ||
+                      "disabled"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Scheduled Network Exports</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.telemetry?.network_exports?.runtime?.message || 'No scheduled network export runtime status recorded yet.'}</div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Format {systemStatus.telemetry?.network_exports?.format || 'json'}, every {systemStatus.telemetry?.network_exports?.interval_minutes || 0} minutes, retain {systemStatus.telemetry?.network_exports?.retention_count || 0}, directory {systemStatus.telemetry?.network_exports?.directory || 'unset'}.
+                    <div className="font-medium text-gray-900">
+                      Scheduled Network Exports
                     </div>
-                    {systemStatus.telemetry?.network_exports?.runtime?.details?.last_export_at ? (
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.telemetry?.network_exports?.runtime
+                        ?.message ||
+                        "No scheduled network export runtime status recorded yet."}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Format{" "}
+                      {systemStatus.telemetry?.network_exports?.format ||
+                        "json"}
+                      , every{" "}
+                      {systemStatus.telemetry?.network_exports
+                        ?.interval_minutes || 0}{" "}
+                      minutes, retain{" "}
+                      {systemStatus.telemetry?.network_exports
+                        ?.retention_count || 0}
+                      , directory{" "}
+                      {systemStatus.telemetry?.network_exports?.directory ||
+                        "unset"}
+                      .
+                    </div>
+                    {systemStatus.telemetry?.network_exports?.runtime?.details
+                      ?.last_export_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Last export {String(systemStatus.telemetry.network_exports.runtime.details.last_export_at)}
-                        {systemStatus.telemetry?.network_exports?.runtime?.details?.next_due_at
+                        Last export{" "}
+                        {String(
+                          systemStatus.telemetry.network_exports.runtime.details
+                            .last_export_at,
+                        )}
+                        {systemStatus.telemetry?.network_exports?.runtime
+                          ?.details?.next_due_at
                           ? `, next due ${String(systemStatus.telemetry.network_exports.runtime.details.next_due_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
                   </div>
-                  <StatusBadge status={systemStatus.telemetry?.network_exports?.runtime?.status || 'disabled'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.telemetry?.network_exports?.runtime
+                        ?.status || "disabled"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Scheduled Upstream AAA Exports</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.telemetry?.upstream_aaa_exports?.runtime?.message || 'No scheduled upstream AAA export runtime status recorded yet.'}</div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Format {systemStatus.telemetry?.upstream_aaa_exports?.format || 'json'}, every {systemStatus.telemetry?.upstream_aaa_exports?.interval_minutes || 0} minutes, retain {systemStatus.telemetry?.upstream_aaa_exports?.retention_count || 0}, directory {systemStatus.telemetry?.upstream_aaa_exports?.directory || 'unset'}.
+                    <div className="font-medium text-gray-900">
+                      Scheduled Upstream AAA Exports
                     </div>
-                    {systemStatus.telemetry?.upstream_aaa_exports?.runtime?.details?.last_export_at ? (
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.telemetry?.upstream_aaa_exports?.runtime
+                        ?.message ||
+                        "No scheduled upstream AAA export runtime status recorded yet."}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Format{" "}
+                      {systemStatus.telemetry?.upstream_aaa_exports?.format ||
+                        "json"}
+                      , every{" "}
+                      {systemStatus.telemetry?.upstream_aaa_exports
+                        ?.interval_minutes || 0}{" "}
+                      minutes, retain{" "}
+                      {systemStatus.telemetry?.upstream_aaa_exports
+                        ?.retention_count || 0}
+                      , directory{" "}
+                      {systemStatus.telemetry?.upstream_aaa_exports
+                        ?.directory || "unset"}
+                      .
+                    </div>
+                    {systemStatus.telemetry?.upstream_aaa_exports?.runtime
+                      ?.details?.last_export_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Last export {String(systemStatus.telemetry.upstream_aaa_exports.runtime.details.last_export_at)}
-                        {systemStatus.telemetry?.upstream_aaa_exports?.runtime?.details?.next_due_at
+                        Last export{" "}
+                        {String(
+                          systemStatus.telemetry.upstream_aaa_exports.runtime
+                            .details.last_export_at,
+                        )}
+                        {systemStatus.telemetry?.upstream_aaa_exports?.runtime
+                          ?.details?.next_due_at
                           ? `, next due ${String(systemStatus.telemetry.upstream_aaa_exports.runtime.details.next_due_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
                   </div>
-                  <StatusBadge status={systemStatus.telemetry?.upstream_aaa_exports?.runtime?.status || 'disabled'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.telemetry?.upstream_aaa_exports?.runtime
+                        ?.status || "disabled"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-medium text-gray-900">Scheduled Upgrade Readiness Exports</div>
-                    <div className="mt-1 text-sm text-gray-600">{systemStatus.telemetry?.upgrade_readiness_exports?.runtime?.message || 'No scheduled upgrade readiness export runtime status recorded yet.'}</div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Format {systemStatus.telemetry?.upgrade_readiness_exports?.format || 'json'}, every {systemStatus.telemetry?.upgrade_readiness_exports?.interval_minutes || 0} minutes, retain {systemStatus.telemetry?.upgrade_readiness_exports?.retention_count || 0}, directory {systemStatus.telemetry?.upgrade_readiness_exports?.directory || 'unset'}.
+                    <div className="font-medium text-gray-900">
+                      Scheduled Upgrade Readiness Exports
                     </div>
-                    {systemStatus.telemetry?.upgrade_readiness_exports?.runtime?.details?.last_export_at ? (
+                    <div className="mt-1 text-sm text-gray-600">
+                      {systemStatus.telemetry?.upgrade_readiness_exports
+                        ?.runtime?.message ||
+                        "No scheduled upgrade readiness export runtime status recorded yet."}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Format{" "}
+                      {systemStatus.telemetry?.upgrade_readiness_exports
+                        ?.format || "json"}
+                      , every{" "}
+                      {systemStatus.telemetry?.upgrade_readiness_exports
+                        ?.interval_minutes || 0}{" "}
+                      minutes, retain{" "}
+                      {systemStatus.telemetry?.upgrade_readiness_exports
+                        ?.retention_count || 0}
+                      , directory{" "}
+                      {systemStatus.telemetry?.upgrade_readiness_exports
+                        ?.directory || "unset"}
+                      .
+                    </div>
+                    {systemStatus.telemetry?.upgrade_readiness_exports?.runtime
+                      ?.details?.last_export_at ? (
                       <div className="mt-1 text-xs text-gray-500">
-                        Last export {String(systemStatus.telemetry.upgrade_readiness_exports.runtime.details.last_export_at)}
-                        {systemStatus.telemetry?.upgrade_readiness_exports?.runtime?.details?.next_due_at
+                        Last export{" "}
+                        {String(
+                          systemStatus.telemetry.upgrade_readiness_exports
+                            .runtime.details.last_export_at,
+                        )}
+                        {systemStatus.telemetry?.upgrade_readiness_exports
+                          ?.runtime?.details?.next_due_at
                           ? `, next due ${String(systemStatus.telemetry.upgrade_readiness_exports.runtime.details.next_due_at)}`
-                          : ''}
+                          : ""}
                         .
                       </div>
                     ) : null}
                   </div>
-                  <StatusBadge status={systemStatus.telemetry?.upgrade_readiness_exports?.runtime?.status || 'disabled'} />
+                  <StatusBadge
+                    status={
+                      systemStatus.telemetry?.upgrade_readiness_exports?.runtime
+                        ?.status || "disabled"
+                    }
+                  />
                 </div>
               </div>
             </div>
@@ -1342,14 +2369,18 @@ export default function Dashboard() {
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="rounded-md border border-gray-200 px-4 py-3 text-sm text-gray-700">
             {serviceProblems.length === 0
-              ? 'All required services are healthy or intentionally disabled.'
+              ? "All required services are healthy or intentionally disabled."
               : `${serviceProblems.length} services need attention. Check the status cards above before changing auth or Wi-Fi policy.`}
           </div>
           <div className="rounded-md border border-gray-200 px-4 py-3 text-sm text-gray-700">
-            Quarantined sessions are enforced immediately on the gateway path when a session is mapped into quarantine role, Filter-Id, or VLAN 99.
+            Quarantined sessions are enforced immediately on the gateway path
+            when a session is mapped into quarantine role, Filter-Id, or VLAN
+            99.
           </div>
           <div className="rounded-md border border-gray-200 px-4 py-3 text-sm text-gray-700">
-            Bandwidth profile changes now rebuild live shaping, and VLAN reassignment requests trigger reauthentication so clients re-enter the correct segment cleanly.
+            Bandwidth profile changes now rebuild live shaping, and VLAN
+            reassignment requests trigger reauthentication so clients re-enter
+            the correct segment cleanly.
           </div>
         </div>
       </section>

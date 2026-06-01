@@ -467,6 +467,22 @@ type GuestLifecycleExportArtifact = {
   created_at: string;
 };
 
+type GuestDeliveryAnalyticsExportRuntime = {
+  component: string;
+  status: string;
+  message: string;
+  updated_at: string;
+  details?: Record<string, any>;
+};
+
+type GuestDeliveryAnalyticsExportArtifact = {
+  name: string;
+  path: string;
+  format: string;
+  size_bytes: number;
+  created_at: string;
+};
+
 type IntegrationExportRuntime = {
   component: string;
   status: string;
@@ -624,6 +640,14 @@ export default function Backups() {
     useState<GuestLifecycleExportRuntime | null>(null);
   const [guestLifecycleExportArtifacts, setGuestLifecycleExportArtifacts] =
     useState<GuestLifecycleExportArtifact[]>([]);
+  const [
+    guestDeliveryAnalyticsExportRuntime,
+    setGuestDeliveryAnalyticsExportRuntime,
+  ] = useState<GuestDeliveryAnalyticsExportRuntime | null>(null);
+  const [
+    guestDeliveryAnalyticsExportArtifacts,
+    setGuestDeliveryAnalyticsExportArtifacts,
+  ] = useState<GuestDeliveryAnalyticsExportArtifact[]>([]);
   const [integrationExportRuntime, setIntegrationExportRuntime] =
     useState<IntegrationExportRuntime | null>(null);
   const [integrationExportArtifacts, setIntegrationExportArtifacts] = useState<
@@ -677,6 +701,10 @@ export default function Backups() {
     useState(false);
   const [loadingGuestLifecycleExports, setLoadingGuestLifecycleExports] =
     useState(false);
+  const [
+    loadingGuestDeliveryAnalyticsExports,
+    setLoadingGuestDeliveryAnalyticsExports,
+  ] = useState(false);
   const [loadingIntegrationExports, setLoadingIntegrationExports] =
     useState(false);
   const [loadingHAExports, setLoadingHAExports] = useState(false);
@@ -978,6 +1006,32 @@ export default function Backups() {
     }
   };
 
+  const loadGuestDeliveryAnalyticsExports = async (announce = false) => {
+    if (announce) {
+      setError("");
+      setMessage("");
+    }
+    setLoadingGuestDeliveryAnalyticsExports(true);
+    try {
+      const { data } = await api.get(
+        "/system/guest-delivery-analytics-exports",
+      );
+      setGuestDeliveryAnalyticsExportRuntime(data.runtime || null);
+      setGuestDeliveryAnalyticsExportArtifacts(data.exports || []);
+      if (announce) {
+        setMessage("Scheduled guest delivery analytics exports refreshed.");
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load scheduled guest delivery analytics exports.",
+      );
+    } finally {
+      setLoadingGuestDeliveryAnalyticsExports(false);
+    }
+  };
+
   const loadIntegrationExports = async (announce = false) => {
     if (announce) {
       setError("");
@@ -1136,6 +1190,7 @@ export default function Backups() {
     void loadSessionExports(false);
     void loadSessionAnalyticsExports(false);
     void loadGuestLifecycleExports(false);
+    void loadGuestDeliveryAnalyticsExports(false);
     void loadIntegrationExports(false);
     void loadHAExports(false);
     void loadNetworkExports(false);
@@ -1465,12 +1520,48 @@ export default function Backups() {
       link.download = filenameMatch?.[1] || artifact.name;
       link.click();
       URL.revokeObjectURL(url);
-      setMessage(`Scheduled guest lifecycle export ${artifact.name} downloaded.`);
+      setMessage(
+        `Scheduled guest lifecycle export ${artifact.name} downloaded.`,
+      );
     } catch (err: any) {
       setError(
         err.response?.data ||
           err.message ||
           "Could not download scheduled guest lifecycle export.",
+      );
+    } finally {
+      setBusyAction("");
+    }
+  };
+
+  const downloadScheduledGuestDeliveryAnalyticsExport = async (
+    artifact: GuestDeliveryAnalyticsExportArtifact,
+  ) => {
+    setError("");
+    setMessage("");
+    setBusyAction(`scheduled-guest-delivery-analytics-${artifact.name}`);
+    try {
+      const response = await api.get(
+        `/system/guest-delivery-analytics-exports/download?name=${encodeURIComponent(artifact.name)}`,
+        { responseType: "blob" },
+      );
+      const { data, headers } = response;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement("a");
+      link.href = url;
+      const disposition = `${headers?.["content-disposition"] || ""}`;
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      link.download = filenameMatch?.[1] || artifact.name;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(
+        `Scheduled guest delivery analytics export ${artifact.name} downloaded.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not download scheduled guest delivery analytics export.",
       );
     } finally {
       setBusyAction("");
@@ -2852,6 +2943,168 @@ export default function Backups() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="font-medium text-slate-900">
+                    Scheduled Guest Delivery Analytics Exports
+                  </div>
+                  <div className="mt-1">
+                    Keep sponsor backlog, invite delivery failures, and approval
+                    timing summaries on disk so operator reviews do not depend
+                    on a live pull during a rough moment.
+                  </div>
+                </div>
+                <button
+                  onClick={() => void loadGuestDeliveryAnalyticsExports(true)}
+                  disabled={
+                    loadingGuestDeliveryAnalyticsExports || busyAction !== ""
+                  }
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {loadingGuestDeliveryAnalyticsExports
+                    ? "Refreshing..."
+                    : "Refresh Scheduled Guest Delivery Analytics Exports"}
+                </button>
+              </div>
+              {guestDeliveryAnalyticsExportRuntime ? (
+                <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  <div>
+                    <span className="font-medium text-slate-900">Runtime:</span>{" "}
+                    {guestDeliveryAnalyticsExportRuntime.status} /{" "}
+                    {guestDeliveryAnalyticsExportRuntime.message}
+                  </div>
+                  <div className="mt-1">
+                    Format{" "}
+                    {String(
+                      guestDeliveryAnalyticsExportRuntime.details?.format ||
+                        "json",
+                    )}
+                    , every{" "}
+                    {String(
+                      guestDeliveryAnalyticsExportRuntime.details
+                        ?.interval_minutes || 0,
+                    )}{" "}
+                    minutes, retain{" "}
+                    {String(
+                      guestDeliveryAnalyticsExportRuntime.details
+                        ?.retention_count || 0,
+                    )}
+                    , directory{" "}
+                    {String(
+                      guestDeliveryAnalyticsExportRuntime.details?.directory ||
+                        "unset",
+                    )}
+                    .
+                  </div>
+                  <div className="mt-1">
+                    Window{" "}
+                    {String(
+                      guestDeliveryAnalyticsExportRuntime.details
+                        ?.window_hours || 24,
+                    )}{" "}
+                    hours with{" "}
+                    {String(
+                      guestDeliveryAnalyticsExportRuntime.details
+                        ?.bucket_count || 24,
+                    )}{" "}
+                    buckets, limit{" "}
+                    {String(
+                      guestDeliveryAnalyticsExportRuntime.details?.limit ||
+                        5000,
+                    )}
+                    .
+                  </div>
+                  {guestDeliveryAnalyticsExportRuntime.details
+                    ?.last_export_at ? (
+                    <div className="mt-1">
+                      Last export{" "}
+                      {String(
+                        guestDeliveryAnalyticsExportRuntime.details
+                          .last_export_at,
+                      )}
+                      {guestDeliveryAnalyticsExportRuntime.details?.next_due_at
+                        ? `, next due ${String(guestDeliveryAnalyticsExportRuntime.details.next_due_at)}`
+                        : ""}
+                      .
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-3 rounded-md border border-dashed border-gray-300 px-3 py-4 text-xs text-gray-500">
+                  No scheduled guest delivery analytics export runtime has been
+                  recorded yet.
+                </div>
+              )}
+              {guestDeliveryAnalyticsExportArtifacts.length === 0 ? (
+                <div className="mt-3 text-xs text-gray-500">
+                  No scheduled guest delivery analytics export artifacts are
+                  present yet.
+                </div>
+              ) : (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Created
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Name
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Format
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Size
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Path
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {guestDeliveryAnalyticsExportArtifacts.map((artifact) => (
+                        <tr key={artifact.name}>
+                          <td className="px-3 py-2 text-gray-600">
+                            {artifact.created_at}
+                          </td>
+                          <td className="px-3 py-2 font-medium text-gray-900">
+                            {artifact.name}
+                          </td>
+                          <td className="px-3 py-2 text-gray-700">
+                            {artifact.format}
+                          </td>
+                          <td className="px-3 py-2 text-gray-700">
+                            {artifact.size_bytes} bytes
+                          </td>
+                          <td className="px-3 py-2 text-gray-500 break-all">
+                            {artifact.path}
+                          </td>
+                          <td className="px-3 py-2">
+                            <button
+                              onClick={() =>
+                                void downloadScheduledGuestDeliveryAnalyticsExport(
+                                  artifact,
+                                )
+                              }
+                              disabled={busyAction !== ""}
+                              className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Download
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium text-slate-900">
                     Scheduled Diagnostics Exports
                   </div>
                   <div className="mt-1">
@@ -3408,7 +3661,8 @@ export default function Backups() {
                     )}
                     , every{" "}
                     {String(
-                      guestLifecycleExportRuntime.details?.interval_minutes || 0,
+                      guestLifecycleExportRuntime.details?.interval_minutes ||
+                        0,
                     )}{" "}
                     minutes, retain{" "}
                     {String(
@@ -3430,15 +3684,15 @@ export default function Backups() {
                       guestLifecycleExportRuntime.details?.bucket_count || 24,
                     )}{" "}
                     buckets, limit{" "}
-                    {String(
-                      guestLifecycleExportRuntime.details?.limit || 5000,
-                    )}
+                    {String(guestLifecycleExportRuntime.details?.limit || 5000)}
                     .
                   </div>
                   {guestLifecycleExportRuntime.details?.last_export_at ? (
                     <div className="mt-1">
                       Last export{" "}
-                      {String(guestLifecycleExportRuntime.details.last_export_at)}
+                      {String(
+                        guestLifecycleExportRuntime.details.last_export_at,
+                      )}
                       {guestLifecycleExportRuntime.details?.next_due_at
                         ? `, next due ${String(guestLifecycleExportRuntime.details.next_due_at)}`
                         : ""}

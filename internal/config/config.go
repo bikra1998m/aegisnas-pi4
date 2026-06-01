@@ -284,20 +284,21 @@ type PolicyConfig struct {
 }
 
 type TelemetryConfig struct {
-	Enabled                 bool                      `mapstructure:"enabled"`
-	PrometheusPort          int                       `mapstructure:"prometheus_port"`
-	LeaseHistoryPollSeconds int                       `mapstructure:"lease_history_poll_seconds"`
-	SupportBundleExports    SupportBundleExportConfig `mapstructure:"support_bundle_exports"`
-	DiagnosticsExports      DiagnosticsExportConfig   `mapstructure:"diagnostics_exports"`
-	AuditExports            DiagnosticsExportConfig   `mapstructure:"audit_exports"`
-	SessionExports          DiagnosticsExportConfig   `mapstructure:"session_exports"`
-	SessionAnalyticsExports DiagnosticsExportConfig   `mapstructure:"session_analytics_exports"`
-	GuestLifecycleExports   DiagnosticsExportConfig   `mapstructure:"guest_lifecycle_exports"`
-	IntegrationExports      DiagnosticsExportConfig   `mapstructure:"integration_exports"`
-	HAExports               DiagnosticsExportConfig   `mapstructure:"ha_exports"`
-	NetworkExports          DiagnosticsExportConfig   `mapstructure:"network_exports"`
-	UpstreamAAAExports      DiagnosticsExportConfig   `mapstructure:"upstream_aaa_exports"`
-	UpgradeReadinessExports DiagnosticsExportConfig   `mapstructure:"upgrade_readiness_exports"`
+	Enabled                       bool                      `mapstructure:"enabled"`
+	PrometheusPort                int                       `mapstructure:"prometheus_port"`
+	LeaseHistoryPollSeconds       int                       `mapstructure:"lease_history_poll_seconds"`
+	SupportBundleExports          SupportBundleExportConfig `mapstructure:"support_bundle_exports"`
+	DiagnosticsExports            DiagnosticsExportConfig   `mapstructure:"diagnostics_exports"`
+	AuditExports                  DiagnosticsExportConfig   `mapstructure:"audit_exports"`
+	SessionExports                DiagnosticsExportConfig   `mapstructure:"session_exports"`
+	SessionAnalyticsExports       DiagnosticsExportConfig   `mapstructure:"session_analytics_exports"`
+	GuestLifecycleExports         DiagnosticsExportConfig   `mapstructure:"guest_lifecycle_exports"`
+	GuestDeliveryAnalyticsExports DiagnosticsExportConfig   `mapstructure:"guest_delivery_analytics_exports"`
+	IntegrationExports            DiagnosticsExportConfig   `mapstructure:"integration_exports"`
+	HAExports                     DiagnosticsExportConfig   `mapstructure:"ha_exports"`
+	NetworkExports                DiagnosticsExportConfig   `mapstructure:"network_exports"`
+	UpstreamAAAExports            DiagnosticsExportConfig   `mapstructure:"upstream_aaa_exports"`
+	UpgradeReadinessExports       DiagnosticsExportConfig   `mapstructure:"upgrade_readiness_exports"`
 }
 
 type SupportBundleExportConfig struct {
@@ -1095,6 +1096,11 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("telemetry.guest_lifecycle_exports.format %q is invalid", c.Telemetry.GuestLifecycleExports.Format)
 	}
+	switch strings.ToLower(strings.TrimSpace(c.Telemetry.GuestDeliveryAnalyticsExports.Format)) {
+	case "", "json", "csv", "both":
+	default:
+		return fmt.Errorf("telemetry.guest_delivery_analytics_exports.format %q is invalid", c.Telemetry.GuestDeliveryAnalyticsExports.Format)
+	}
 	switch strings.ToLower(strings.TrimSpace(c.Telemetry.IntegrationExports.Format)) {
 	case "", "json", "csv", "both":
 	default:
@@ -1135,6 +1141,9 @@ func (c *Config) Validate() error {
 	if c.Telemetry.GuestLifecycleExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.guest_lifecycle_exports.interval_minutes %d out of range", c.Telemetry.GuestLifecycleExports.IntervalMinutes)
 	}
+	if c.Telemetry.GuestDeliveryAnalyticsExports.IntervalMinutes < 0 {
+		return fmt.Errorf("telemetry.guest_delivery_analytics_exports.interval_minutes %d out of range", c.Telemetry.GuestDeliveryAnalyticsExports.IntervalMinutes)
+	}
 	if c.Telemetry.IntegrationExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.integration_exports.interval_minutes %d out of range", c.Telemetry.IntegrationExports.IntervalMinutes)
 	}
@@ -1164,6 +1173,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Telemetry.GuestLifecycleExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.guest_lifecycle_exports.retention_count %d out of range", c.Telemetry.GuestLifecycleExports.RetentionCount)
+	}
+	if c.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount < 0 {
+		return fmt.Errorf("telemetry.guest_delivery_analytics_exports.retention_count %d out of range", c.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount)
 	}
 	if c.Telemetry.IntegrationExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.integration_exports.retention_count %d out of range", c.Telemetry.IntegrationExports.RetentionCount)
@@ -1262,6 +1274,20 @@ func (c *Config) Validate() error {
 		}
 		if c.Telemetry.GuestLifecycleExports.RetentionCount <= 0 {
 			return errors.New("telemetry.guest_lifecycle_exports.enabled requires a positive telemetry.guest_lifecycle_exports.retention_count")
+		}
+	}
+	if c.Telemetry.GuestDeliveryAnalyticsExports.Enabled {
+		if !c.Telemetry.Enabled {
+			return errors.New("telemetry.guest_delivery_analytics_exports.enabled requires telemetry.enabled")
+		}
+		if strings.TrimSpace(c.Telemetry.GuestDeliveryAnalyticsExports.Directory) == "" {
+			return errors.New("telemetry.guest_delivery_analytics_exports.enabled requires telemetry.guest_delivery_analytics_exports.directory")
+		}
+		if c.Telemetry.GuestDeliveryAnalyticsExports.IntervalMinutes <= 0 {
+			return errors.New("telemetry.guest_delivery_analytics_exports.enabled requires a positive telemetry.guest_delivery_analytics_exports.interval_minutes")
+		}
+		if c.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount <= 0 {
+			return errors.New("telemetry.guest_delivery_analytics_exports.enabled requires a positive telemetry.guest_delivery_analytics_exports.retention_count")
 		}
 	}
 	if c.Telemetry.IntegrationExports.Enabled {

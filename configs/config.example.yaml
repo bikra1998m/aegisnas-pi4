@@ -235,6 +235,12 @@ telemetry:
     format: json # json, csv, or both.
     interval_minutes: 60
     retention_count: 21
+  guest_delivery_analytics_exports:
+    enabled: false
+    directory: /var/lib/aegisnas/guest-delivery-analytics-exports
+    format: json # json, csv, or both.
+    interval_minutes: 60
+    retention_count: 21
   integration_exports:
     enabled: false
     directory: /var/lib/aegisnas/integration-exports

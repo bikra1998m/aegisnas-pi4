@@ -1713,6 +1713,13 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 					IntervalMinutes: 30,
 					RetentionCount:  21,
 				},
+				GuestDeliveryAnalyticsExports: DiagnosticsExportConfig{
+					Enabled:         true,
+					Directory:       "/var/lib/aegisnas/guest-delivery-analytics-exports",
+					Format:          "json",
+					IntervalMinutes: 30,
+					RetentionCount:  21,
+				},
 				IntegrationExports: DiagnosticsExportConfig{
 					Enabled:         true,
 					Directory:       "/var/lib/aegisnas/integration-exports",
@@ -1891,6 +1898,32 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badGuestLifecycleRetention.Telemetry.GuestLifecycleExports.RetentionCount = 0
 	assert.ErrorContains(t, badGuestLifecycleRetention.Validate(), "telemetry.guest_lifecycle_exports.enabled requires a positive telemetry.guest_lifecycle_exports.retention_count")
 
+	badGuestDeliveryFormat := base()
+	badGuestDeliveryFormat.Telemetry.GuestDeliveryAnalyticsExports.Format = "xml"
+	assert.ErrorContains(t, badGuestDeliveryFormat.Validate(), `telemetry.guest_delivery_analytics_exports.format "xml" is invalid`)
+
+	badGuestDeliveryDisabledTelemetry := base()
+	badGuestDeliveryDisabledTelemetry.Telemetry.Enabled = false
+	badGuestDeliveryDisabledTelemetry.Telemetry.SupportBundleExports.Enabled = false
+	badGuestDeliveryDisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
+	badGuestDeliveryDisabledTelemetry.Telemetry.AuditExports.Enabled = false
+	badGuestDeliveryDisabledTelemetry.Telemetry.SessionExports.Enabled = false
+	badGuestDeliveryDisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
+	badGuestDeliveryDisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
+	assert.ErrorContains(t, badGuestDeliveryDisabledTelemetry.Validate(), "telemetry.guest_delivery_analytics_exports.enabled requires telemetry.enabled")
+
+	badGuestDeliveryDirectory := base()
+	badGuestDeliveryDirectory.Telemetry.GuestDeliveryAnalyticsExports.Directory = ""
+	assert.ErrorContains(t, badGuestDeliveryDirectory.Validate(), "telemetry.guest_delivery_analytics_exports.enabled requires telemetry.guest_delivery_analytics_exports.directory")
+
+	badGuestDeliveryInterval := base()
+	badGuestDeliveryInterval.Telemetry.GuestDeliveryAnalyticsExports.IntervalMinutes = 0
+	assert.ErrorContains(t, badGuestDeliveryInterval.Validate(), "telemetry.guest_delivery_analytics_exports.enabled requires a positive telemetry.guest_delivery_analytics_exports.interval_minutes")
+
+	badGuestDeliveryRetention := base()
+	badGuestDeliveryRetention.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount = 0
+	assert.ErrorContains(t, badGuestDeliveryRetention.Validate(), "telemetry.guest_delivery_analytics_exports.enabled requires a positive telemetry.guest_delivery_analytics_exports.retention_count")
+
 	badIntegrationFormat := base()
 	badIntegrationFormat.Telemetry.IntegrationExports.Format = "xml"
 	assert.ErrorContains(t, badIntegrationFormat.Validate(), `telemetry.integration_exports.format "xml" is invalid`)
@@ -1903,6 +1936,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badIntegrationDisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badIntegrationDisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badIntegrationDisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
+	badIntegrationDisabledTelemetry.Telemetry.GuestDeliveryAnalyticsExports.Enabled = false
 	assert.ErrorContains(t, badIntegrationDisabledTelemetry.Validate(), "telemetry.integration_exports.enabled requires telemetry.enabled")
 
 	badIntegrationDirectory := base()
@@ -1929,6 +1963,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badHADisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badHADisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badHADisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
+	badHADisabledTelemetry.Telemetry.GuestDeliveryAnalyticsExports.Enabled = false
 	badHADisabledTelemetry.Telemetry.IntegrationExports.Enabled = false
 	assert.ErrorContains(t, badHADisabledTelemetry.Validate(), "telemetry.ha_exports.enabled requires telemetry.enabled")
 
@@ -1956,6 +1991,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badNetworkDisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badNetworkDisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badNetworkDisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
+	badNetworkDisabledTelemetry.Telemetry.GuestDeliveryAnalyticsExports.Enabled = false
 	badNetworkDisabledTelemetry.Telemetry.IntegrationExports.Enabled = false
 	badNetworkDisabledTelemetry.Telemetry.HAExports.Enabled = false
 	assert.ErrorContains(t, badNetworkDisabledTelemetry.Validate(), "telemetry.network_exports.enabled requires telemetry.enabled")
@@ -1984,6 +2020,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badUpstreamAAADisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badUpstreamAAADisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badUpstreamAAADisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
+	badUpstreamAAADisabledTelemetry.Telemetry.GuestDeliveryAnalyticsExports.Enabled = false
 	badUpstreamAAADisabledTelemetry.Telemetry.IntegrationExports.Enabled = false
 	badUpstreamAAADisabledTelemetry.Telemetry.HAExports.Enabled = false
 	badUpstreamAAADisabledTelemetry.Telemetry.NetworkExports.Enabled = false
@@ -2013,6 +2050,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badUpgradeReadinessDisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badUpgradeReadinessDisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badUpgradeReadinessDisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
+	badUpgradeReadinessDisabledTelemetry.Telemetry.GuestDeliveryAnalyticsExports.Enabled = false
 	badUpgradeReadinessDisabledTelemetry.Telemetry.IntegrationExports.Enabled = false
 	badUpgradeReadinessDisabledTelemetry.Telemetry.HAExports.Enabled = false
 	badUpgradeReadinessDisabledTelemetry.Telemetry.NetworkExports.Enabled = false

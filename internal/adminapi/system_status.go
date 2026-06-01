@@ -324,6 +324,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"retention_count":  cfg.Telemetry.GuestLifecycleExports.RetentionCount,
 			"runtime":          runtimeMap[guestLifecycleExportsComponent],
 		},
+		"guest_delivery_analytics_exports": map[string]any{
+			"enabled":          cfg.Telemetry.GuestDeliveryAnalyticsExports.Enabled,
+			"directory":        cfg.Telemetry.GuestDeliveryAnalyticsExports.Directory,
+			"format":           cfg.Telemetry.GuestDeliveryAnalyticsExports.Format,
+			"interval_minutes": cfg.Telemetry.GuestDeliveryAnalyticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount,
+			"runtime":          runtimeMap[guestDeliveryAnalyticsExportsComponent],
+		},
 		"integration_exports": map[string]any{
 			"enabled":          cfg.Telemetry.IntegrationExports.Enabled,
 			"directory":        cfg.Telemetry.IntegrationExports.Directory,
@@ -412,6 +420,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.GuestLifecycleExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.GuestLifecycleExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled guest lifecycle exports are not running."},
+		}
+		telemetryStatus["guest_delivery_analytics_exports"] = map[string]any{
+			"enabled":          cfg.Telemetry.GuestDeliveryAnalyticsExports.Enabled,
+			"directory":        cfg.Telemetry.GuestDeliveryAnalyticsExports.Directory,
+			"format":           cfg.Telemetry.GuestDeliveryAnalyticsExports.Format,
+			"interval_minutes": cfg.Telemetry.GuestDeliveryAnalyticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled guest delivery analytics exports are not running."},
 		}
 		telemetryStatus["integration_exports"] = map[string]any{
 			"enabled":          cfg.Telemetry.IntegrationExports.Enabled,
@@ -510,6 +526,16 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.GuestLifecycleExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.GuestLifecycleExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled guest lifecycle exports are disabled in config."},
+		}
+	}
+	if cfg.Telemetry.Enabled && !cfg.Telemetry.GuestDeliveryAnalyticsExports.Enabled {
+		telemetryStatus["guest_delivery_analytics_exports"] = map[string]any{
+			"enabled":          false,
+			"directory":        cfg.Telemetry.GuestDeliveryAnalyticsExports.Directory,
+			"format":           cfg.Telemetry.GuestDeliveryAnalyticsExports.Format,
+			"interval_minutes": cfg.Telemetry.GuestDeliveryAnalyticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled guest delivery analytics exports are disabled in config."},
 		}
 	}
 	if cfg.Telemetry.Enabled && !cfg.Telemetry.IntegrationExports.Enabled {
