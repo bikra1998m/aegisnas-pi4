@@ -53,10 +53,11 @@ type DiagnosticsNetwork struct {
 }
 
 type DiagnosticsGuest struct {
-	Summary           db.GuestLifecycleSummary         `json:"summary"`
-	DeliveryAnalytics db.GuestDeliveryAnalyticsSummary `json:"delivery_analytics"`
-	SponsorAnalytics  db.GuestSponsorApprovalSummary   `json:"sponsor_analytics"`
-	Runtime           *db.RuntimeStatus                `json:"runtime,omitempty"`
+	Summary           db.GuestLifecycleSummary                `json:"summary"`
+	DeliveryAnalytics db.GuestDeliveryAnalyticsSummary        `json:"delivery_analytics"`
+	DeliveryFailures  db.GuestDeliveryFailureAnalyticsSummary `json:"delivery_failures"`
+	SponsorAnalytics  db.GuestSponsorApprovalSummary          `json:"sponsor_analytics"`
+	Runtime           *db.RuntimeStatus                       `json:"runtime,omitempty"`
 }
 
 type DiagnosticsHA struct {
@@ -194,6 +195,13 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load guest delivery analytics: %w", err)
 	}
+	guestDeliveryFailures, err := db.GetGuestDeliveryFailureAnalytics(db.GuestLifecycleQuery{
+		Window:      24 * time.Hour,
+		BucketCount: 24,
+	})
+	if err != nil {
+		return DiagnosticsReport{}, fmt.Errorf("load guest delivery failure analytics: %w", err)
+	}
 	guestSponsorAnalytics, err := db.GetGuestSponsorApprovalAnalytics(db.GuestLifecycleQuery{
 		Window:      24 * time.Hour,
 		BucketCount: 24,
@@ -252,6 +260,7 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 		Guest: DiagnosticsGuest{
 			Summary:           guestSummary,
 			DeliveryAnalytics: guestDeliveryAnalytics,
+			DeliveryFailures:  guestDeliveryFailures,
 			SponsorAnalytics:  guestSponsorAnalytics,
 			Runtime:           runtimeStatusPointer(runtimeMap, "guest_workflows"),
 		},
@@ -330,6 +339,10 @@ func diagnosticsReportCSV(report DiagnosticsReport) ([]byte, error) {
 		{"guest_delivery_invite_sent_count", strconv.Itoa(report.Guest.DeliveryAnalytics.InviteSentCount)},
 		{"guest_delivery_max_approval_minutes", fmt.Sprint(report.Guest.DeliveryAnalytics.MaxApprovalMinutes)},
 		{"guest_delivery_avg_approval_to_completion_minutes", fmt.Sprint(report.Guest.DeliveryAnalytics.AvgApprovalToCompletionMinutes)},
+		{"guest_delivery_failure_total_count", strconv.Itoa(report.Guest.DeliveryFailures.TotalFailureCount)},
+		{"guest_delivery_failure_issue_records_count", strconv.Itoa(report.Guest.DeliveryFailures.DeliveryIssueRecordsCount)},
+		{"guest_delivery_failure_pending_invite_queue_count", strconv.Itoa(report.Guest.DeliveryFailures.PendingInviteQueueCount)},
+		{"guest_delivery_failure_avg_pending_invite_queue_minutes", strconv.FormatInt(report.Guest.DeliveryFailures.AvgPendingInviteQueueMinutes, 10)},
 		{"guest_sponsor_pending_count", strconv.Itoa(report.Guest.SponsorAnalytics.PendingSponsorApprovalCount)},
 		{"guest_sponsor_pending_older_than_4_hours_count", strconv.Itoa(report.Guest.SponsorAnalytics.PendingOlderThan4HoursCount)},
 		{"guest_sponsor_pending_older_than_24_hours_count", strconv.Itoa(report.Guest.SponsorAnalytics.PendingOlderThan24HoursCount)},

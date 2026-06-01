@@ -142,6 +142,59 @@ type GuestDeliveryAnalyticsReport = {
   summary: GuestDeliveryAnalyticsSummary;
 };
 
+type GuestDeliveryFailureCounterparty = {
+  name: string;
+  delivery_issue_records_count: number;
+  approval_delivery_failed_count: number;
+  invite_failed_count: number;
+  pending_invite_queue_count: number;
+  total_failure_count: number;
+  avg_pending_invite_queue_minutes: number;
+  max_pending_invite_queue_minutes: number;
+  latest_issue_at?: string;
+};
+
+type GuestDeliveryFailureBucket = {
+  start: string;
+  end: string;
+  approval_delivery_failed_count: number;
+  invite_failed_count: number;
+  pending_invite_queue_count: number;
+  total_failure_count: number;
+};
+
+type GuestDeliveryFailureSummary = {
+  window_hours: number;
+  bucket_count: number;
+  bucket_minutes: number;
+  total_records: number;
+  delivery_issue_records_count: number;
+  approval_delivery_failed_count: number;
+  invite_failed_count: number;
+  pending_invite_queue_count: number;
+  total_failure_count: number;
+  unique_sponsors_window: number;
+  unique_companies_window: number;
+  avg_pending_invite_queue_minutes: number;
+  max_pending_invite_queue_minutes: number;
+  latest_approval_failure_at?: string;
+  latest_invite_failure_at?: string;
+  latest_queued_invite_at?: string;
+  approval_errors: GuestLifecycleCount[];
+  invite_errors: GuestLifecycleCount[];
+  sponsors: GuestDeliveryFailureCounterparty[];
+  companies: GuestDeliveryFailureCounterparty[];
+  buckets: GuestDeliveryFailureBucket[];
+};
+
+type GuestDeliveryFailureReport = {
+  generated_at: string;
+  status?: string;
+  window_hours: number;
+  bucket_count: number;
+  summary: GuestDeliveryFailureSummary;
+};
+
 type GuestSponsorAnalyticsSponsor = {
   name: string;
   pending_count: number;
@@ -273,11 +326,14 @@ export default function GuestRegistrations() {
   const [report, setReport] = useState<GuestLifecycleReport | null>(null);
   const [deliveryReport, setDeliveryReport] =
     useState<GuestDeliveryAnalyticsReport | null>(null);
+  const [failureReport, setFailureReport] =
+    useState<GuestDeliveryFailureReport | null>(null);
   const [sponsorReport, setSponsorReport] =
     useState<GuestSponsorAnalyticsReport | null>(null);
   const [selectedStatus, setSelectedStatus] = useState("");
   const [loadingLifecycle, setLoadingLifecycle] = useState(true);
   const [loadingDelivery, setLoadingDelivery] = useState(true);
+  const [loadingFailures, setLoadingFailures] = useState(true);
   const [loadingSponsor, setLoadingSponsor] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -349,14 +405,34 @@ export default function GuestRegistrations() {
     }
   };
 
+  const fetchFailureReport = async () => {
+    try {
+      const suffix = buildQuerySuffix();
+      const failureResponse = await api.get<GuestDeliveryFailureReport>(
+        `/system/guest-delivery-failures${suffix}`,
+      );
+      setFailureReport(failureResponse.data);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load guest delivery failure analytics.",
+      );
+    } finally {
+      setLoadingFailures(false);
+    }
+  };
+
   const fetchReports = async (showMessage = false) => {
     setError("");
     setLoadingLifecycle(true);
     setLoadingDelivery(true);
+    setLoadingFailures(true);
     setLoadingSponsor(true);
     await Promise.allSettled([
       fetchLifecycleReport(showMessage),
       fetchDeliveryReport(),
+      fetchFailureReport(),
       fetchSponsorReport(),
     ]);
   };
@@ -380,6 +456,7 @@ export default function GuestRegistrations() {
       await Promise.allSettled([
         fetchLifecycleReport(),
         fetchDeliveryReport(),
+        fetchFailureReport(),
         fetchSponsorReport(),
       ]);
     } catch (err: any) {
@@ -403,6 +480,7 @@ export default function GuestRegistrations() {
       await Promise.allSettled([
         fetchLifecycleReport(),
         fetchDeliveryReport(),
+        fetchFailureReport(),
         fetchSponsorReport(),
       ]);
     } catch (err: any) {
@@ -415,7 +493,7 @@ export default function GuestRegistrations() {
   };
 
   const downloadExport = async (
-    reportKind: "lifecycle" | "delivery" | "sponsor",
+    reportKind: "lifecycle" | "delivery" | "failures" | "sponsor",
     format: "json" | "csv",
   ) => {
     setBusyAction(`export-${reportKind}-${format}`);
@@ -429,6 +507,8 @@ export default function GuestRegistrations() {
           ? "/system/guest-lifecycle/export"
           : reportKind === "delivery"
             ? "/system/guest-delivery-analytics/export"
+            : reportKind === "failures"
+              ? "/system/guest-delivery-failures/export"
             : "/system/guest-sponsor-analytics/export";
       const response = await api.get(`${endpoint}?${params.toString()}`, {
         responseType: "blob",
@@ -449,6 +529,8 @@ export default function GuestRegistrations() {
             ? "lifecycle"
             : reportKind === "delivery"
               ? "delivery-analytics"
+              : reportKind === "failures"
+                ? "delivery-failures"
               : "sponsor-analytics"
         }.${format}`;
       document.body.appendChild(link);
@@ -461,6 +543,8 @@ export default function GuestRegistrations() {
             ? "lifecycle"
             : reportKind === "delivery"
               ? "delivery analytics"
+              : reportKind === "failures"
+                ? "delivery failures"
               : "sponsor analytics"
         } ${format.toUpperCase()} export downloaded.`,
       );
@@ -478,6 +562,7 @@ export default function GuestRegistrations() {
   const records = report?.history || [];
   const summary = report?.summary;
   const deliverySummary = deliveryReport?.summary;
+  const failureSummary = failureReport?.summary;
   const sponsorSummary = sponsorReport?.summary;
   const recentBuckets = useMemo(
     () => (summary?.buckets || []).slice(-6),
@@ -486,6 +571,10 @@ export default function GuestRegistrations() {
   const recentDeliveryBuckets = useMemo(
     () => (deliverySummary?.buckets || []).slice(-6),
     [deliverySummary],
+  );
+  const recentFailureBuckets = useMemo(
+    () => (failureSummary?.buckets || []).slice(-6),
+    [failureSummary],
   );
   const recentSponsorBuckets = useMemo(
     () => (sponsorSummary?.buckets || []).slice(-6),
@@ -543,6 +632,22 @@ export default function GuestRegistrations() {
             className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Delivery CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadExport("failures", "json")}
+            disabled={busyAction === "export-failures-json"}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Failures JSON
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadExport("failures", "csv")}
+            disabled={busyAction === "export-failures-csv"}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Failures CSV
           </button>
           <button
             type="button"
@@ -1168,6 +1273,209 @@ export default function GuestRegistrations() {
                       items={sponsorSummary.companies}
                       empty="No sponsor-company activity recorded yet."
                     />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">
+                Delivery failure hotspots
+              </h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Recent approval or invite failures and queue pressure across the
+                selected window.
+              </p>
+              {!failureSummary ? (
+                <div className="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
+                  {loadingFailures
+                    ? "Loading guest delivery failure analytics..."
+                    : "Guest delivery failure analytics are not available yet."}
+                </div>
+              ) : (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        {[
+                          "Bucket",
+                          "Approval failed",
+                          "Invite failed",
+                          "Queued",
+                          "Total failures",
+                        ].map((label) => (
+                          <th
+                            key={label}
+                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600"
+                          >
+                            {label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {recentFailureBuckets.length === 0 ? (
+                        <tr>
+                          <td className="px-3 py-4 text-slate-500" colSpan={5}>
+                            No delivery-failure buckets recorded yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        recentFailureBuckets.map((bucket) => (
+                          <tr key={`${bucket.start}-${bucket.end}`}>
+                            <td className="px-3 py-3 text-slate-700">
+                              {formatTimestamp(bucket.start)}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.approval_delivery_failed_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.invite_failed_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.pending_invite_queue_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.total_failure_count}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">
+                Failure reasons and queues
+              </h3>
+              {!failureSummary ? (
+                <div className="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
+                  {loadingFailures
+                    ? "Loading guest delivery failure analytics..."
+                    : "Guest delivery failure analytics are not available yet."}
+                </div>
+              ) : (
+                <>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <MixList
+                      title="Approval failure reasons"
+                      items={failureSummary.approval_errors}
+                      empty="No approval delivery failures recorded yet."
+                    />
+                    <MixList
+                      title="Invite failure reasons"
+                      items={failureSummary.invite_errors}
+                      empty="No invite delivery failures recorded yet."
+                    />
+                  </div>
+                  <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Queue pressure
+                      </div>
+                      <div className="mt-1">
+                        {failureSummary.pending_invite_queue_count} invites are
+                        still queued
+                      </div>
+                      <div>
+                        {failureSummary.avg_pending_invite_queue_minutes} minute
+                        average queue age
+                      </div>
+                      <div>
+                        {failureSummary.max_pending_invite_queue_minutes} minute
+                        oldest queued invite
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Latest issue anchors
+                      </div>
+                      <div className="mt-1">
+                        Approval failure:{" "}
+                        {formatTimestamp(
+                          failureSummary.latest_approval_failure_at,
+                        )}
+                      </div>
+                      <div>
+                        Invite failure:{" "}
+                        {formatTimestamp(failureSummary.latest_invite_failure_at)}
+                      </div>
+                      <div>
+                        Invite queued:{" "}
+                        {formatTimestamp(failureSummary.latest_queued_invite_at)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <div className="text-sm font-medium text-slate-900">
+                        Top sponsor hotspots
+                      </div>
+                      {failureSummary.sponsors.length === 0 ? (
+                        <div className="mt-2 text-sm text-slate-500">
+                          No sponsor delivery hotspots recorded yet.
+                        </div>
+                      ) : (
+                        <div className="mt-2 space-y-3">
+                          {failureSummary.sponsors.slice(0, 3).map((item) => (
+                            <div
+                              key={item.name}
+                              className="rounded-md border border-slate-200 px-3 py-3"
+                            >
+                              <div className="text-sm font-medium text-slate-900">
+                                {item.name}
+                              </div>
+                              <div className="mt-1 text-xs text-slate-600">
+                                {item.total_failure_count} failures,{" "}
+                                {item.pending_invite_queue_count} queued invites
+                              </div>
+                              <div className="mt-1 text-xs text-slate-600">
+                                Avg queue {item.avg_pending_invite_queue_minutes}
+                                m, oldest {item.max_pending_invite_queue_minutes}
+                                m
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-slate-900">
+                        Top company hotspots
+                      </div>
+                      {failureSummary.companies.length === 0 ? (
+                        <div className="mt-2 text-sm text-slate-500">
+                          No company delivery hotspots recorded yet.
+                        </div>
+                      ) : (
+                        <div className="mt-2 space-y-3">
+                          {failureSummary.companies.slice(0, 3).map((item) => (
+                            <div
+                              key={item.name}
+                              className="rounded-md border border-slate-200 px-3 py-3"
+                            >
+                              <div className="text-sm font-medium text-slate-900">
+                                {item.name}
+                              </div>
+                              <div className="mt-1 text-xs text-slate-600">
+                                {item.total_failure_count} failures,{" "}
+                                {item.delivery_issue_records_count} affected
+                                records
+                              </div>
+                              <div className="mt-1 text-xs text-slate-600">
+                                Invite failed {item.invite_failed_count}, queue{" "}
+                                {item.pending_invite_queue_count}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </>
               )}

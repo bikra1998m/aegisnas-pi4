@@ -134,6 +134,12 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "Export guest delivery analytics", guestDeliveryGet["summary"])
 
+	guestDeliveryFailuresPath, ok := paths["/api/v1/system/guest-delivery-failures/export"].(map[string]any)
+	require.True(t, ok)
+	guestDeliveryFailuresGet, ok := guestDeliveryFailuresPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Export guest delivery failure analytics", guestDeliveryFailuresGet["summary"])
+
 	guestSponsorPath, ok := paths["/api/v1/system/guest-sponsor-analytics/export"].(map[string]any)
 	require.True(t, ok)
 	guestSponsorGet, ok := guestSponsorPath["get"].(map[string]any)

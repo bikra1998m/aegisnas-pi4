@@ -1619,6 +1619,343 @@ function buildGuestDeliveryAnalyticsResponse(
   };
 }
 
+function buildGuestDeliveryFailuresResponse(
+  records: GuestRecord[],
+  statusFilter = "",
+) {
+  const history = statusFilter
+    ? records.filter((item) => item.status === statusFilter)
+    : records;
+  const now = new Date("2026-05-05T12:15:00Z").getTime();
+  const approvalErrors = new Map<string, number>();
+  const inviteErrors = new Map<string, number>();
+  const sponsors = new Map<
+    string,
+    {
+      name: string;
+      delivery_issue_records_count: number;
+      approval_delivery_failed_count: number;
+      invite_failed_count: number;
+      pending_invite_queue_count: number;
+      total_failure_count: number;
+      avg_pending_invite_queue_minutes: number;
+      max_pending_invite_queue_minutes: number;
+      latest_issue_at?: string;
+      queue_total_minutes: number;
+      queue_samples: number;
+    }
+  >();
+  const companies = new Map<
+    string,
+    {
+      name: string;
+      delivery_issue_records_count: number;
+      approval_delivery_failed_count: number;
+      invite_failed_count: number;
+      pending_invite_queue_count: number;
+      total_failure_count: number;
+      avg_pending_invite_queue_minutes: number;
+      max_pending_invite_queue_minutes: number;
+      latest_issue_at?: string;
+      queue_total_minutes: number;
+      queue_samples: number;
+    }
+  >();
+  const sponsorSet = new Set<string>();
+  const companySet = new Set<string>();
+  const summary = {
+    window_hours: 24,
+    bucket_count: 6,
+    bucket_minutes: 60,
+    total_records: history.length,
+    delivery_issue_records_count: 0,
+    approval_delivery_failed_count: 0,
+    invite_failed_count: 0,
+    pending_invite_queue_count: 0,
+    total_failure_count: 0,
+    unique_sponsors_window: 0,
+    unique_companies_window: 0,
+    avg_pending_invite_queue_minutes: 0,
+    max_pending_invite_queue_minutes: 0,
+    latest_approval_failure_at: "",
+    latest_invite_failure_at: "",
+    latest_queued_invite_at: "",
+    approval_errors: [] as { name: string; count: number }[],
+    invite_errors: [] as { name: string; count: number }[],
+    sponsors: [] as any[],
+    companies: [] as any[],
+    buckets: [
+      {
+        start: "2026-05-05T08:00:00Z",
+        end: "2026-05-05T09:00:00Z",
+        approval_delivery_failed_count: 0,
+        invite_failed_count: 0,
+        pending_invite_queue_count: 0,
+        total_failure_count: 0,
+      },
+      {
+        start: "2026-05-05T09:00:00Z",
+        end: "2026-05-05T10:00:00Z",
+        approval_delivery_failed_count: 0,
+        invite_failed_count: 0,
+        pending_invite_queue_count: 0,
+        total_failure_count: 0,
+      },
+      {
+        start: "2026-05-05T10:00:00Z",
+        end: "2026-05-05T11:00:00Z",
+        approval_delivery_failed_count: 0,
+        invite_failed_count: 0,
+        pending_invite_queue_count: 0,
+        total_failure_count: 0,
+      },
+      {
+        start: "2026-05-05T11:00:00Z",
+        end: "2026-05-05T12:00:00Z",
+        approval_delivery_failed_count: 0,
+        invite_failed_count: 0,
+        pending_invite_queue_count: 0,
+        total_failure_count: 0,
+      },
+      {
+        start: "2026-05-05T12:00:00Z",
+        end: "2026-05-05T13:00:00Z",
+        approval_delivery_failed_count: 0,
+        invite_failed_count: 0,
+        pending_invite_queue_count: 0,
+        total_failure_count: 0,
+      },
+      {
+        start: "2026-05-05T13:00:00Z",
+        end: "2026-05-05T14:00:00Z",
+        approval_delivery_failed_count: 0,
+        invite_failed_count: 0,
+        pending_invite_queue_count: 0,
+        total_failure_count: 0,
+      },
+    ],
+  };
+  let queueTotalMinutes = 0;
+  let queueSamples = 0;
+
+  history.forEach((item, index) => {
+    const sponsorName =
+      item.sponsor_email || item.sponsor_name || item.sponsor_phone || "";
+    const companyName = item.company || "";
+    const sponsor =
+      sponsorName === ""
+        ? null
+        : sponsors.get(sponsorName) ||
+          {
+            name: sponsorName,
+            delivery_issue_records_count: 0,
+            approval_delivery_failed_count: 0,
+            invite_failed_count: 0,
+            pending_invite_queue_count: 0,
+            total_failure_count: 0,
+            avg_pending_invite_queue_minutes: 0,
+            max_pending_invite_queue_minutes: 0,
+            latest_issue_at: "",
+            queue_total_minutes: 0,
+            queue_samples: 0,
+          };
+    if (sponsorName !== "") {
+      sponsors.set(sponsorName, sponsor!);
+    }
+    const company =
+      companyName === ""
+        ? null
+        : companies.get(companyName) ||
+          {
+            name: companyName,
+            delivery_issue_records_count: 0,
+            approval_delivery_failed_count: 0,
+            invite_failed_count: 0,
+            pending_invite_queue_count: 0,
+            total_failure_count: 0,
+            avg_pending_invite_queue_minutes: 0,
+            max_pending_invite_queue_minutes: 0,
+            latest_issue_at: "",
+            queue_total_minutes: 0,
+            queue_samples: 0,
+          };
+    if (companyName !== "") {
+      companies.set(companyName, company!);
+    }
+
+    let issueRecord = false;
+    const bucket = summary.buckets[Math.min(index, summary.buckets.length - 1)];
+    const createdAt = item.created_at ? Date.parse(item.created_at) : Number.NaN;
+    const approvedAt = item.approved_at
+      ? Date.parse(item.approved_at)
+      : Number.NaN;
+    const updatedAt = item.updated_at ? Date.parse(item.updated_at) : Number.NaN;
+    const inviteAnchor = !Number.isNaN(approvedAt)
+      ? approvedAt
+      : createdAt;
+
+    const latestStamp = (current: string, next?: string) =>
+      !next ? current : !current || next > current ? next : current;
+
+    const issueAtText = !Number.isNaN(updatedAt)
+      ? new Date(updatedAt).toISOString()
+      : item.created_at || "";
+
+    if (item.approval_delivery_status === "failed") {
+      issueRecord = true;
+      summary.approval_delivery_failed_count += 1;
+      summary.total_failure_count += 1;
+      bucket.approval_delivery_failed_count += 1;
+      bucket.total_failure_count += 1;
+      const errorName = item.approval_delivery_error || "unspecified";
+      approvalErrors.set(errorName, (approvalErrors.get(errorName) || 0) + 1);
+      summary.latest_approval_failure_at = latestStamp(
+        summary.latest_approval_failure_at,
+        issueAtText,
+      );
+      if (sponsor) {
+        sponsor.approval_delivery_failed_count += 1;
+        sponsor.total_failure_count += 1;
+        sponsor.latest_issue_at = latestStamp(sponsor.latest_issue_at || "", issueAtText);
+        sponsorSet.add(sponsor.name);
+      }
+      if (company) {
+        company.approval_delivery_failed_count += 1;
+        company.total_failure_count += 1;
+        company.latest_issue_at = latestStamp(company.latest_issue_at || "", issueAtText);
+        companySet.add(company.name);
+      }
+    }
+
+    if (item.invite_delivery_status === "failed") {
+      issueRecord = true;
+      summary.invite_failed_count += 1;
+      summary.total_failure_count += 1;
+      bucket.invite_failed_count += 1;
+      bucket.total_failure_count += 1;
+      const errorName = item.invite_delivery_error || "unspecified";
+      inviteErrors.set(errorName, (inviteErrors.get(errorName) || 0) + 1);
+      summary.latest_invite_failure_at = latestStamp(
+        summary.latest_invite_failure_at,
+        issueAtText,
+      );
+      if (sponsor) {
+        sponsor.invite_failed_count += 1;
+        sponsor.total_failure_count += 1;
+        sponsor.latest_issue_at = latestStamp(sponsor.latest_issue_at || "", issueAtText);
+        sponsorSet.add(sponsor.name);
+      }
+      if (company) {
+        company.invite_failed_count += 1;
+        company.total_failure_count += 1;
+        company.latest_issue_at = latestStamp(company.latest_issue_at || "", issueAtText);
+        companySet.add(company.name);
+      }
+    }
+
+    if (item.invite_delivery_status === "queued") {
+      issueRecord = true;
+      summary.pending_invite_queue_count += 1;
+      bucket.pending_invite_queue_count += 1;
+      const queuedAtText =
+        !Number.isNaN(inviteAnchor) && inviteAnchor > 0
+          ? new Date(inviteAnchor).toISOString()
+          : item.created_at || "";
+      summary.latest_queued_invite_at = latestStamp(
+        summary.latest_queued_invite_at,
+        queuedAtText,
+      );
+      if (!Number.isNaN(inviteAnchor) && inviteAnchor > 0) {
+        const queueMinutes = Math.max(0, Math.floor((now - inviteAnchor) / 60000));
+        queueTotalMinutes += queueMinutes;
+        queueSamples += 1;
+        summary.max_pending_invite_queue_minutes = Math.max(
+          summary.max_pending_invite_queue_minutes,
+          queueMinutes,
+        );
+        if (sponsor) {
+          sponsor.pending_invite_queue_count += 1;
+          sponsor.queue_total_minutes += queueMinutes;
+          sponsor.queue_samples += 1;
+          sponsor.max_pending_invite_queue_minutes = Math.max(
+            sponsor.max_pending_invite_queue_minutes,
+            queueMinutes,
+          );
+          sponsor.latest_issue_at = latestStamp(sponsor.latest_issue_at || "", queuedAtText);
+          sponsorSet.add(sponsor.name);
+        }
+        if (company) {
+          company.pending_invite_queue_count += 1;
+          company.queue_total_minutes += queueMinutes;
+          company.queue_samples += 1;
+          company.max_pending_invite_queue_minutes = Math.max(
+            company.max_pending_invite_queue_minutes,
+            queueMinutes,
+          );
+          company.latest_issue_at = latestStamp(company.latest_issue_at || "", queuedAtText);
+          companySet.add(company.name);
+        }
+      }
+    }
+
+    if (issueRecord) {
+      summary.delivery_issue_records_count += 1;
+      if (sponsor) sponsor.delivery_issue_records_count += 1;
+      if (company) company.delivery_issue_records_count += 1;
+    }
+  });
+
+  summary.unique_sponsors_window = sponsorSet.size;
+  summary.unique_companies_window = companySet.size;
+  if (queueSamples > 0) {
+    summary.avg_pending_invite_queue_minutes = Math.floor(
+      queueTotalMinutes / queueSamples,
+    );
+  }
+  summary.approval_errors = Array.from(approvalErrors.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.invite_errors = Array.from(inviteErrors.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.sponsors = Array.from(sponsors.values())
+    .map((item) => ({
+      ...item,
+      avg_pending_invite_queue_minutes:
+        item.queue_samples > 0
+          ? Math.floor(item.queue_total_minutes / item.queue_samples)
+          : 0,
+    }))
+    .sort(
+      (a, b) =>
+        b.total_failure_count - a.total_failure_count ||
+        b.pending_invite_queue_count - a.pending_invite_queue_count ||
+        a.name.localeCompare(b.name),
+    );
+  summary.companies = Array.from(companies.values())
+    .map((item) => ({
+      ...item,
+      avg_pending_invite_queue_minutes:
+        item.queue_samples > 0
+          ? Math.floor(item.queue_total_minutes / item.queue_samples)
+          : 0,
+    }))
+    .sort(
+      (a, b) =>
+        b.total_failure_count - a.total_failure_count ||
+        b.pending_invite_queue_count - a.pending_invite_queue_count ||
+        a.name.localeCompare(b.name),
+    );
+
+  return {
+    generated_at: "2026-05-05T12:15:00Z",
+    status: statusFilter,
+    window_hours: summary.window_hours,
+    bucket_count: summary.bucket_count,
+    summary,
+  };
+}
+
 function buildGuestSponsorAnalyticsResponse(
   records: GuestRecord[],
   statusFilter = "",
@@ -2110,6 +2447,23 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         approval_delivery_status: "sent",
         invite_delivery_status: "queued",
         created_at: "2026-05-05T12:05:00Z",
+      },
+      {
+        id: "guest-3",
+        full_name: "Carla Declined",
+        company: "Visitors Inc",
+        email: "carla@example.test",
+        sponsor_name: "Jordan Sponsor",
+        sponsor_email: "jordan@example.test",
+        status: "rejected",
+        role: "guest-standard",
+        approval_delivery_status: "failed",
+        approval_delivery_error: "smtp bounce",
+        invite_delivery_status: "failed",
+        invite_delivery_error: "smtp timeout",
+        created_at: "2026-05-05T10:45:00Z",
+        updated_at: "2026-05-05T11:15:00Z",
+        rejected_at: "2026-05-05T11:15:00Z",
       },
     ],
     integrationHistory: [
@@ -3441,6 +3795,29 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(
           buildGuestSponsorAnalyticsResponse(state.guestRegistrations, status),
+        ),
+      });
+      return;
+    }
+    if (path === "/system/guest-delivery-failures" && method === "GET") {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        json: buildGuestDeliveryFailuresResponse(state.guestRegistrations, status),
+      });
+      return;
+    }
+    if (
+      path === "/system/guest-delivery-failures/export" &&
+      method === "GET"
+    ) {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildGuestDeliveryFailuresResponse(state.guestRegistrations, status),
         ),
       });
       return;

@@ -23,6 +23,9 @@ test.describe("guest workflow admin path", () => {
       page.getByRole("button", { name: "Delivery JSON" }),
     ).toBeVisible();
     await expect(
+      page.getByRole("button", { name: "Failures JSON" }),
+    ).toBeVisible();
+    await expect(
       page.getByRole("button", { name: "Sponsor JSON" }),
     ).toBeVisible();
     await expect(
@@ -30,6 +33,9 @@ test.describe("guest workflow admin path", () => {
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Sponsor delivery analytics" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Delivery failure hotspots" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Sponsor approval backlog" }),

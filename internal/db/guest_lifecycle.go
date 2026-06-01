@@ -70,8 +70,11 @@ type guestLifecycleRow struct {
 	SponsorPhone           string
 	Role                   string
 	ApprovalDeliveryStatus string
+	ApprovalDeliveryError  string
 	InviteDeliveryStatus   string
+	InviteDeliveryError    string
 	CreatedAt              string
+	UpdatedAt              string
 	ApprovedAt             string
 	RejectedAt             string
 	CompletedAt            string
@@ -267,8 +270,11 @@ func listGuestLifecycleRows(query GuestLifecycleQuery) ([]guestLifecycleRow, err
 		COALESCE(sponsor_phone, ''),
 		COALESCE(role, ''),
 		COALESCE(approval_delivery_status, ''),
+		COALESCE(approval_delivery_error, ''),
 		COALESCE(invite_delivery_status, ''),
+		COALESCE(invite_delivery_error, ''),
 		COALESCE(CAST(created_at AS TEXT), ''),
+		COALESCE(CAST(updated_at AS TEXT), ''),
 		COALESCE(CAST(approved_at AS TEXT), ''),
 		COALESCE(CAST(rejected_at AS TEXT), ''),
 		COALESCE(CAST(completed_at AS TEXT), '')
@@ -300,8 +306,11 @@ func listGuestLifecycleRows(query GuestLifecycleQuery) ([]guestLifecycleRow, err
 			&item.SponsorPhone,
 			&item.Role,
 			&item.ApprovalDeliveryStatus,
+			&item.ApprovalDeliveryError,
 			&item.InviteDeliveryStatus,
+			&item.InviteDeliveryError,
 			&item.CreatedAt,
+			&item.UpdatedAt,
 			&item.ApprovedAt,
 			&item.RejectedAt,
 			&item.CompletedAt,

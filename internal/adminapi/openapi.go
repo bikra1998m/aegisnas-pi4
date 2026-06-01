@@ -268,6 +268,36 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/guest-delivery-failures", "get", securedOperationWithParameters("Summarize guest delivery failures and queue hotspots", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("status", "Optional guest status filter.", false),
+		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 24.", false),
+		queryStringParameter("bucket_count", "Optional trend bucket count. Defaults to 24 and caps at 96.", false),
+	}, map[string]any{
+		"200": responseJSON("Guest delivery failure analytics with top approval and invite errors, queue age, and sponsor or company hotspots."),
+	}))
+	addOperation(paths, "/api/v1/system/guest-delivery-failures/export", "get", securedOperationWithParameters("Export guest delivery failure analytics", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("format", "Optional export format. Defaults to csv.", []string{"json", "csv"}, false),
+		queryStringParameter("status", "Optional guest status filter.", false),
+		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 24.", false),
+		queryStringParameter("bucket_count", "Optional trend bucket count. Defaults to 24 and caps at 96.", false),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Guest delivery failure analytics export in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/guest-sponsor-analytics", "get", securedOperationWithParameters("Summarize sponsor approval backlog and response timing", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("status", "Optional guest status filter.", false),
 		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 24.", false),
