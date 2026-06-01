@@ -287,6 +287,13 @@ const defaultSettings: JsonMap = {
       interval_minutes: 60,
       retention_count: 21,
     },
+    guest_delivery_failures_exports: {
+      enabled: false,
+      directory: "/var/lib/aegisnas/guest-delivery-failures-exports",
+      format: "json",
+      interval_minutes: 60,
+      retention_count: 21,
+    },
     guest_sponsor_analytics_exports: {
       enabled: false,
       directory: "/var/lib/aegisnas/guest-sponsor-analytics-exports",
@@ -4460,6 +4467,85 @@ export default function AccessSettings() {
                 [
                   "telemetry",
                   "guest_delivery_analytics_exports",
+                  "retention_count",
+                ],
+                Number(value),
+              )
+            }
+          />
+          <ToggleField
+            label="Scheduled Guest Delivery Failure Exports"
+            checked={Boolean(
+              settings.telemetry?.guest_delivery_failures_exports?.enabled,
+            )}
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "guest_delivery_failures_exports", "enabled"],
+                value,
+              )
+            }
+          />
+          <TextField
+            label="Guest Delivery Failure Export Directory"
+            value={
+              settings.telemetry?.guest_delivery_failures_exports?.directory ||
+              "/var/lib/aegisnas/guest-delivery-failures-exports"
+            }
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "guest_delivery_failures_exports", "directory"],
+                value,
+              )
+            }
+          />
+          <SelectField
+            label="Guest Delivery Failure Export Format"
+            value={
+              settings.telemetry?.guest_delivery_failures_exports?.format ||
+              "json"
+            }
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "guest_delivery_failures_exports", "format"],
+                value,
+              )
+            }
+            options={[
+              { value: "json", label: "JSON" },
+              { value: "csv", label: "CSV" },
+              { value: "both", label: "JSON + CSV" },
+            ]}
+          />
+          <TextField
+            label="Guest Delivery Failure Export Interval Minutes"
+            type="number"
+            value={
+              settings.telemetry?.guest_delivery_failures_exports
+                ?.interval_minutes || 60
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "guest_delivery_failures_exports",
+                  "interval_minutes",
+                ],
+                Number(value),
+              )
+            }
+          />
+          <TextField
+            label="Guest Delivery Failure Export Retention"
+            type="number"
+            value={
+              settings.telemetry?.guest_delivery_failures_exports
+                ?.retention_count || 21
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "guest_delivery_failures_exports",
                   "retention_count",
                 ],
                 Number(value),

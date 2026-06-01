@@ -294,6 +294,7 @@ type TelemetryConfig struct {
 	SessionAnalyticsExports       DiagnosticsExportConfig   `mapstructure:"session_analytics_exports"`
 	GuestLifecycleExports         DiagnosticsExportConfig   `mapstructure:"guest_lifecycle_exports"`
 	GuestDeliveryAnalyticsExports DiagnosticsExportConfig   `mapstructure:"guest_delivery_analytics_exports"`
+	GuestDeliveryFailuresExports  DiagnosticsExportConfig   `mapstructure:"guest_delivery_failures_exports"`
 	GuestSponsorAnalyticsExports  DiagnosticsExportConfig   `mapstructure:"guest_sponsor_analytics_exports"`
 	IntegrationExports            DiagnosticsExportConfig   `mapstructure:"integration_exports"`
 	HAExports                     DiagnosticsExportConfig   `mapstructure:"ha_exports"`
@@ -1102,6 +1103,11 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("telemetry.guest_delivery_analytics_exports.format %q is invalid", c.Telemetry.GuestDeliveryAnalyticsExports.Format)
 	}
+	switch strings.ToLower(strings.TrimSpace(c.Telemetry.GuestDeliveryFailuresExports.Format)) {
+	case "", "json", "csv", "both":
+	default:
+		return fmt.Errorf("telemetry.guest_delivery_failures_exports.format %q is invalid", c.Telemetry.GuestDeliveryFailuresExports.Format)
+	}
 	switch strings.ToLower(strings.TrimSpace(c.Telemetry.GuestSponsorAnalyticsExports.Format)) {
 	case "", "json", "csv", "both":
 	default:
@@ -1150,6 +1156,9 @@ func (c *Config) Validate() error {
 	if c.Telemetry.GuestDeliveryAnalyticsExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.guest_delivery_analytics_exports.interval_minutes %d out of range", c.Telemetry.GuestDeliveryAnalyticsExports.IntervalMinutes)
 	}
+	if c.Telemetry.GuestDeliveryFailuresExports.IntervalMinutes < 0 {
+		return fmt.Errorf("telemetry.guest_delivery_failures_exports.interval_minutes %d out of range", c.Telemetry.GuestDeliveryFailuresExports.IntervalMinutes)
+	}
 	if c.Telemetry.GuestSponsorAnalyticsExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.guest_sponsor_analytics_exports.interval_minutes %d out of range", c.Telemetry.GuestSponsorAnalyticsExports.IntervalMinutes)
 	}
@@ -1185,6 +1194,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.guest_delivery_analytics_exports.retention_count %d out of range", c.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount)
+	}
+	if c.Telemetry.GuestDeliveryFailuresExports.RetentionCount < 0 {
+		return fmt.Errorf("telemetry.guest_delivery_failures_exports.retention_count %d out of range", c.Telemetry.GuestDeliveryFailuresExports.RetentionCount)
 	}
 	if c.Telemetry.GuestSponsorAnalyticsExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.guest_sponsor_analytics_exports.retention_count %d out of range", c.Telemetry.GuestSponsorAnalyticsExports.RetentionCount)
@@ -1300,6 +1312,20 @@ func (c *Config) Validate() error {
 		}
 		if c.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount <= 0 {
 			return errors.New("telemetry.guest_delivery_analytics_exports.enabled requires a positive telemetry.guest_delivery_analytics_exports.retention_count")
+		}
+	}
+	if c.Telemetry.GuestDeliveryFailuresExports.Enabled {
+		if !c.Telemetry.Enabled {
+			return errors.New("telemetry.guest_delivery_failures_exports.enabled requires telemetry.enabled")
+		}
+		if strings.TrimSpace(c.Telemetry.GuestDeliveryFailuresExports.Directory) == "" {
+			return errors.New("telemetry.guest_delivery_failures_exports.enabled requires telemetry.guest_delivery_failures_exports.directory")
+		}
+		if c.Telemetry.GuestDeliveryFailuresExports.IntervalMinutes <= 0 {
+			return errors.New("telemetry.guest_delivery_failures_exports.enabled requires a positive telemetry.guest_delivery_failures_exports.interval_minutes")
+		}
+		if c.Telemetry.GuestDeliveryFailuresExports.RetentionCount <= 0 {
+			return errors.New("telemetry.guest_delivery_failures_exports.enabled requires a positive telemetry.guest_delivery_failures_exports.retention_count")
 		}
 	}
 	if c.Telemetry.GuestSponsorAnalyticsExports.Enabled {

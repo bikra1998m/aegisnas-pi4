@@ -151,6 +151,8 @@ For recurring guest delivery analytics snapshots without depending on a manual e
 
 For top approval or invite error reasons, queued-invite age, and sponsor or company delivery hotspots, use `Guest Requests` or `GET /api/v1/system/guest-delivery-failures`.
 
+For recurring guest delivery failure hotspot snapshots without relying on a live analytics pull during an incident, enable scheduled guest delivery failure exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/guest-delivery-failures-exports`.
+
 For recurring sponsor backlog and approval-response snapshots without relying on a live analytics pull, enable scheduled guest sponsor analytics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/guest-sponsor-analytics-exports`.
 
 For recurring guest lifecycle capture without depending on a manual export step, enable scheduled guest lifecycle exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/guest-lifecycle-exports`.

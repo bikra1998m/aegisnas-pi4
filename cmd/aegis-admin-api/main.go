@@ -85,6 +85,9 @@ var runCmd = &cobra.Command{
 		if err := adminapi.StartGuestDeliveryAnalyticsExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start guest delivery analytics export scheduler: %w", err)
 		}
+		if err := adminapi.StartGuestDeliveryFailuresExportScheduler(cfg, logger); err != nil {
+			return fmt.Errorf("start guest delivery failures export scheduler: %w", err)
+		}
 		if err := adminapi.StartGuestSponsorAnalyticsExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start guest sponsor analytics export scheduler: %w", err)
 		}
@@ -183,6 +186,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/guest-sponsor-analytics/export", adminapi.HandleExportGuestSponsorAnalytics)
 			r.Get("/system/guest-delivery-analytics-exports", adminapi.HandleListGuestDeliveryAnalyticsExports)
 			r.Get("/system/guest-delivery-analytics-exports/download", adminapi.HandleDownloadGuestDeliveryAnalyticsExport)
+			r.Get("/system/guest-delivery-failures-exports", adminapi.HandleListGuestDeliveryFailuresExports)
+			r.Get("/system/guest-delivery-failures-exports/download", adminapi.HandleDownloadGuestDeliveryFailuresExport)
 			r.Get("/system/guest-sponsor-analytics-exports", adminapi.HandleListGuestSponsorAnalyticsExports)
 			r.Get("/system/guest-sponsor-analytics-exports/download", adminapi.HandleDownloadGuestSponsorAnalyticsExport)
 			r.Get("/system/guest-lifecycle-exports", adminapi.HandleListGuestLifecycleExports)

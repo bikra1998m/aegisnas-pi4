@@ -185,6 +185,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      guest_delivery_failures_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/guest-delivery-failures-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+      },
       guest_sponsor_analytics_exports: {
         enabled: true,
         directory: "/var/lib/aegisnas/guest-sponsor-analytics-exports",
@@ -954,6 +961,28 @@ function createSystemStatus() {
             limit: 5000,
             last_export_at: "2026-05-05T11:56:00Z",
             next_due_at: "2026-05-05T12:56:00Z",
+          },
+        },
+      },
+      guest_delivery_failures_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/guest-delivery-failures-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: "ok",
+          message: "Scheduled guest delivery failure exports are healthy.",
+          details: {
+            format: "json",
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: "/var/lib/aegisnas/guest-delivery-failures-exports",
+            window_hours: 24,
+            bucket_count: 24,
+            limit: 5000,
+            last_export_at: "2026-05-05T11:56:30Z",
+            next_due_at: "2026-05-05T12:56:30Z",
           },
         },
       },
@@ -3039,6 +3068,40 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(
           buildGuestDeliveryAnalyticsResponse(state.guestRegistrations, ""),
+        ),
+      });
+      return;
+    }
+    if (
+      path === "/system/guest-delivery-failures-exports" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          runtime:
+            state.systemStatus.telemetry.guest_delivery_failures_exports.runtime,
+          exports: [
+            {
+              name: "aegisnas-guest-delivery-failures-20260505-115630Z.json",
+              path: "/var/lib/aegisnas/guest-delivery-failures-exports/aegisnas-guest-delivery-failures-20260505-115630Z.json",
+              format: "json",
+              size_bytes: 1510,
+              created_at: "2026-05-05T11:56:30Z",
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/guest-delivery-failures-exports/download" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildGuestDeliveryFailuresResponse(state.guestRegistrations, ""),
         ),
       });
       return;
