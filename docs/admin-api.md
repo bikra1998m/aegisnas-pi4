@@ -162,6 +162,8 @@ And export variants at:
 /api/v1/system/guest-sponsor-analytics/export?format=csv
 /api/v1/system/guest-delivery-analytics-exports
 /api/v1/system/guest-delivery-analytics-exports/download?name=<artifact>
+/api/v1/system/guest-sponsor-analytics-exports
+/api/v1/system/guest-sponsor-analytics-exports/download?name=<artifact>
 /api/v1/system/guest-lifecycle-exports
 /api/v1/system/guest-lifecycle-exports/download?name=<artifact>
 ```

@@ -294,6 +294,7 @@ type TelemetryConfig struct {
 	SessionAnalyticsExports       DiagnosticsExportConfig   `mapstructure:"session_analytics_exports"`
 	GuestLifecycleExports         DiagnosticsExportConfig   `mapstructure:"guest_lifecycle_exports"`
 	GuestDeliveryAnalyticsExports DiagnosticsExportConfig   `mapstructure:"guest_delivery_analytics_exports"`
+	GuestSponsorAnalyticsExports  DiagnosticsExportConfig   `mapstructure:"guest_sponsor_analytics_exports"`
 	IntegrationExports            DiagnosticsExportConfig   `mapstructure:"integration_exports"`
 	HAExports                     DiagnosticsExportConfig   `mapstructure:"ha_exports"`
 	NetworkExports                DiagnosticsExportConfig   `mapstructure:"network_exports"`
@@ -1101,6 +1102,11 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("telemetry.guest_delivery_analytics_exports.format %q is invalid", c.Telemetry.GuestDeliveryAnalyticsExports.Format)
 	}
+	switch strings.ToLower(strings.TrimSpace(c.Telemetry.GuestSponsorAnalyticsExports.Format)) {
+	case "", "json", "csv", "both":
+	default:
+		return fmt.Errorf("telemetry.guest_sponsor_analytics_exports.format %q is invalid", c.Telemetry.GuestSponsorAnalyticsExports.Format)
+	}
 	switch strings.ToLower(strings.TrimSpace(c.Telemetry.IntegrationExports.Format)) {
 	case "", "json", "csv", "both":
 	default:
@@ -1144,6 +1150,9 @@ func (c *Config) Validate() error {
 	if c.Telemetry.GuestDeliveryAnalyticsExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.guest_delivery_analytics_exports.interval_minutes %d out of range", c.Telemetry.GuestDeliveryAnalyticsExports.IntervalMinutes)
 	}
+	if c.Telemetry.GuestSponsorAnalyticsExports.IntervalMinutes < 0 {
+		return fmt.Errorf("telemetry.guest_sponsor_analytics_exports.interval_minutes %d out of range", c.Telemetry.GuestSponsorAnalyticsExports.IntervalMinutes)
+	}
 	if c.Telemetry.IntegrationExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.integration_exports.interval_minutes %d out of range", c.Telemetry.IntegrationExports.IntervalMinutes)
 	}
@@ -1176,6 +1185,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.guest_delivery_analytics_exports.retention_count %d out of range", c.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount)
+	}
+	if c.Telemetry.GuestSponsorAnalyticsExports.RetentionCount < 0 {
+		return fmt.Errorf("telemetry.guest_sponsor_analytics_exports.retention_count %d out of range", c.Telemetry.GuestSponsorAnalyticsExports.RetentionCount)
 	}
 	if c.Telemetry.IntegrationExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.integration_exports.retention_count %d out of range", c.Telemetry.IntegrationExports.RetentionCount)
@@ -1288,6 +1300,20 @@ func (c *Config) Validate() error {
 		}
 		if c.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount <= 0 {
 			return errors.New("telemetry.guest_delivery_analytics_exports.enabled requires a positive telemetry.guest_delivery_analytics_exports.retention_count")
+		}
+	}
+	if c.Telemetry.GuestSponsorAnalyticsExports.Enabled {
+		if !c.Telemetry.Enabled {
+			return errors.New("telemetry.guest_sponsor_analytics_exports.enabled requires telemetry.enabled")
+		}
+		if strings.TrimSpace(c.Telemetry.GuestSponsorAnalyticsExports.Directory) == "" {
+			return errors.New("telemetry.guest_sponsor_analytics_exports.enabled requires telemetry.guest_sponsor_analytics_exports.directory")
+		}
+		if c.Telemetry.GuestSponsorAnalyticsExports.IntervalMinutes <= 0 {
+			return errors.New("telemetry.guest_sponsor_analytics_exports.enabled requires a positive telemetry.guest_sponsor_analytics_exports.interval_minutes")
+		}
+		if c.Telemetry.GuestSponsorAnalyticsExports.RetentionCount <= 0 {
+			return errors.New("telemetry.guest_sponsor_analytics_exports.enabled requires a positive telemetry.guest_sponsor_analytics_exports.retention_count")
 		}
 	}
 	if c.Telemetry.IntegrationExports.Enabled {

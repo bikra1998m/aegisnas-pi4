@@ -287,6 +287,13 @@ const defaultSettings: JsonMap = {
       interval_minutes: 60,
       retention_count: 21,
     },
+    guest_sponsor_analytics_exports: {
+      enabled: false,
+      directory: "/var/lib/aegisnas/guest-sponsor-analytics-exports",
+      format: "json",
+      interval_minutes: 60,
+      retention_count: 21,
+    },
     integration_exports: {
       enabled: false,
       directory: "/var/lib/aegisnas/integration-exports",
@@ -4453,6 +4460,85 @@ export default function AccessSettings() {
                 [
                   "telemetry",
                   "guest_delivery_analytics_exports",
+                  "retention_count",
+                ],
+                Number(value),
+              )
+            }
+          />
+          <ToggleField
+            label="Scheduled Guest Sponsor Analytics Exports"
+            checked={Boolean(
+              settings.telemetry?.guest_sponsor_analytics_exports?.enabled,
+            )}
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "guest_sponsor_analytics_exports", "enabled"],
+                value,
+              )
+            }
+          />
+          <TextField
+            label="Guest Sponsor Analytics Export Directory"
+            value={
+              settings.telemetry?.guest_sponsor_analytics_exports?.directory ||
+              "/var/lib/aegisnas/guest-sponsor-analytics-exports"
+            }
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "guest_sponsor_analytics_exports", "directory"],
+                value,
+              )
+            }
+          />
+          <SelectField
+            label="Guest Sponsor Analytics Export Format"
+            value={
+              settings.telemetry?.guest_sponsor_analytics_exports?.format ||
+              "json"
+            }
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "guest_sponsor_analytics_exports", "format"],
+                value,
+              )
+            }
+            options={[
+              { value: "json", label: "JSON" },
+              { value: "csv", label: "CSV" },
+              { value: "both", label: "JSON + CSV" },
+            ]}
+          />
+          <TextField
+            label="Guest Sponsor Analytics Export Interval Minutes"
+            type="number"
+            value={
+              settings.telemetry?.guest_sponsor_analytics_exports
+                ?.interval_minutes || 60
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "guest_sponsor_analytics_exports",
+                  "interval_minutes",
+                ],
+                Number(value),
+              )
+            }
+          />
+          <TextField
+            label="Guest Sponsor Analytics Export Retention"
+            type="number"
+            value={
+              settings.telemetry?.guest_sponsor_analytics_exports
+                ?.retention_count || 21
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "guest_sponsor_analytics_exports",
                   "retention_count",
                 ],
                 Number(value),
