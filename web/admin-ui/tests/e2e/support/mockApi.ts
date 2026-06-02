@@ -185,6 +185,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      guest_conversion_analytics_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/guest-conversion-analytics-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+      },
       guest_delivery_analytics_exports: {
         enabled: true,
         directory: "/var/lib/aegisnas/guest-delivery-analytics-exports",
@@ -968,6 +975,28 @@ function createSystemStatus() {
             limit: 5000,
             last_export_at: "2026-05-05T11:55:30Z",
             next_due_at: "2026-05-05T12:55:30Z",
+          },
+        },
+      },
+      guest_conversion_analytics_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/guest-conversion-analytics-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: "ok",
+          message: "Scheduled guest conversion analytics exports are healthy.",
+          details: {
+            format: "json",
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: "/var/lib/aegisnas/guest-conversion-analytics-exports",
+            window_hours: 24,
+            bucket_count: 24,
+            limit: 5000,
+            last_export_at: "2026-05-05T11:55:45Z",
+            next_due_at: "2026-05-05T12:55:45Z",
           },
         },
       },
@@ -3512,6 +3541,28 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
     if (
+      path === "/system/guest-conversion-analytics-exports" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          runtime:
+            state.systemStatus.telemetry.guest_conversion_analytics_exports
+              .runtime,
+          exports: [
+            {
+              name: "aegisnas-guest-conversion-analytics-20260505-115545Z.json",
+              path: "/var/lib/aegisnas/guest-conversion-analytics-exports/aegisnas-guest-conversion-analytics-20260505-115545Z.json",
+              format: "json",
+              size_bytes: 1290,
+              created_at: "2026-05-05T11:55:45Z",
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (
       path === "/system/guest-invite-analytics-exports/download" &&
       method === "GET"
     ) {
@@ -3520,6 +3571,19 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(
           buildGuestInviteAnalyticsResponse(state.guestRegistrations, ""),
+        ),
+      });
+      return;
+    }
+    if (
+      path === "/system/guest-conversion-analytics-exports/download" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildGuestConversionAnalyticsResponse(state.guestRegistrations, ""),
         ),
       });
       return;

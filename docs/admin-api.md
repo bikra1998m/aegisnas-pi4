@@ -160,6 +160,8 @@ And export variants at:
 /api/v1/system/guest-conversion-analytics
 /api/v1/system/guest-conversion-analytics/export?format=json
 /api/v1/system/guest-conversion-analytics/export?format=csv
+/api/v1/system/guest-conversion-analytics-exports
+/api/v1/system/guest-conversion-analytics-exports/download?name=<artifact>
 /api/v1/system/guest-invite-analytics
 /api/v1/system/guest-invite-analytics/export?format=json
 /api/v1/system/guest-invite-analytics/export?format=csv

@@ -275,6 +275,14 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/guest-conversion-analytics-exports", "get", securedOperation("List scheduled guest conversion analytics exports", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled guest conversion analytics export artifacts and runtime state."),
+	}))
+	addOperation(paths, "/api/v1/system/guest-conversion-analytics-exports/download", "get", securedOperationWithParameters("Download scheduled guest conversion analytics export", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "Scheduled guest conversion analytics export artifact filename.", true),
+	}, map[string]any{
+		"200": responseBinary("application/octet-stream", "Scheduled guest conversion analytics export content."),
+	}))
 	addOperation(paths, "/api/v1/system/guest-invite-analytics", "get", securedOperationWithParameters("Summarize guest invite throughput and completion timing", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("status", "Optional guest status filter.", false),
 		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 24.", false),
