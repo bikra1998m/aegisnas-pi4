@@ -1863,6 +1863,214 @@ function buildGuestInviteAnalyticsResponse(
   };
 }
 
+function buildGuestConversionAnalyticsResponse(
+  records: GuestRecord[],
+  statusFilter = "",
+) {
+  const history = statusFilter
+    ? records.filter((item) => item.status === statusFilter)
+    : records;
+  const roles = new Map<string, number>();
+  const sponsors = new Map<string, number>();
+  const companies = new Map<string, number>();
+  const guestSet = new Set<string>();
+  const sponsorSet = new Set<string>();
+  const companySet = new Set<string>();
+  const summary = {
+    window_hours: 24,
+    bucket_count: 24,
+    bucket_minutes: 60,
+    total_records: history.length,
+    open_pending_count: 0,
+    sponsor_approval_required_count: 0,
+    approved_stage_count: 0,
+    rejected_stage_count: 0,
+    invite_queued_count: 0,
+    invite_sent_count: 0,
+    invite_failed_count: 0,
+    completed_stage_count: 0,
+    approved_without_successful_invite_count: 0,
+    invited_not_completed_count: 0,
+    completed_after_invite_count: 0,
+    unique_guests_window: 0,
+    unique_sponsors_window: 0,
+    unique_companies_window: 0,
+    approval_rate_percent: 0,
+    invite_send_rate_percent: 0,
+    invite_completion_rate_percent: 0,
+    end_to_end_completion_rate_percent: 0,
+    avg_submit_to_approval_minutes: 18,
+    max_submit_to_approval_minutes: 35,
+    avg_submit_to_invite_minutes: 26,
+    max_submit_to_invite_minutes: 45,
+    avg_submit_to_completion_minutes: 40,
+    max_submit_to_completion_minutes: 75,
+    latest_submitted_at: "",
+    latest_approved_at: "",
+    latest_invite_sent_at: "",
+    latest_completed_at: "",
+    roles: [] as { name: string; count: number }[],
+    sponsors: [] as { name: string; count: number }[],
+    companies: [] as { name: string; count: number }[],
+    buckets: [
+      {
+        start: "2026-05-05T08:00:00Z",
+        end: "2026-05-05T09:00:00Z",
+        submitted_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        invite_sent_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T09:00:00Z",
+        end: "2026-05-05T10:00:00Z",
+        submitted_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        invite_sent_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T10:00:00Z",
+        end: "2026-05-05T11:00:00Z",
+        submitted_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        invite_sent_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T11:00:00Z",
+        end: "2026-05-05T12:00:00Z",
+        submitted_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        invite_sent_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T12:00:00Z",
+        end: "2026-05-05T13:00:00Z",
+        submitted_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        invite_sent_count: 0,
+        completed_count: 0,
+      },
+      {
+        start: "2026-05-05T13:00:00Z",
+        end: "2026-05-05T14:00:00Z",
+        submitted_count: 0,
+        approved_count: 0,
+        rejected_count: 0,
+        invite_sent_count: 0,
+        completed_count: 0,
+      },
+    ],
+  };
+
+  history.forEach((item, index) => {
+    const bucket = summary.buckets[Math.min(index, summary.buckets.length - 1)];
+    const inviteStatus = item.invite_delivery_status || "unknown";
+    const role = item.role || "unassigned";
+    roles.set(role, (roles.get(role) || 0) + 1);
+    guestSet.add(item.email || item.full_name || item.id);
+    if (item.sponsor_email || item.sponsor_name) {
+      const sponsor = item.sponsor_email || item.sponsor_name || item.id;
+      sponsors.set(sponsor, (sponsors.get(sponsor) || 0) + 1);
+      sponsorSet.add(sponsor);
+    }
+    if (item.company) {
+      companies.set(item.company, (companies.get(item.company) || 0) + 1);
+      companySet.add(item.company);
+    }
+
+    summary.latest_submitted_at = item.created_at || summary.latest_submitted_at;
+    bucket.submitted_count += 1;
+
+    if (item.approval_delivery_status === "pending" || item.approval_delivery_status === "sent" || item.approval_delivery_status === "failed") {
+      summary.sponsor_approval_required_count += 1;
+    }
+    if (item.status === "pending") {
+      summary.open_pending_count += 1;
+    }
+    if (item.approved_at || item.status === "approved" || item.status === "completed") {
+      summary.approved_stage_count += 1;
+      summary.latest_approved_at = item.approved_at || summary.latest_approved_at;
+      bucket.approved_count += 1;
+    }
+    if (item.rejected_at || item.status === "rejected") {
+      summary.rejected_stage_count += 1;
+      bucket.rejected_count += 1;
+    }
+    if (item.completed_at || item.status === "completed") {
+      summary.completed_stage_count += 1;
+      summary.latest_completed_at = item.completed_at || summary.latest_completed_at;
+      bucket.completed_count += 1;
+    }
+    if (inviteStatus === "queued") {
+      summary.invite_queued_count += 1;
+    }
+    if (inviteStatus === "sent") {
+      summary.invite_sent_count += 1;
+      summary.latest_invite_sent_at =
+        item.completed_at || item.approved_at || item.created_at || "";
+      bucket.invite_sent_count += 1;
+    }
+    if (inviteStatus === "failed") {
+      summary.invite_failed_count += 1;
+    }
+    if (
+      (item.approved_at || item.status === "approved" || item.status === "completed") &&
+      inviteStatus !== "sent" &&
+      item.status !== "rejected" &&
+      item.status !== "completed"
+    ) {
+      summary.approved_without_successful_invite_count += 1;
+    }
+    if (inviteStatus === "sent" && item.status !== "completed") {
+      summary.invited_not_completed_count += 1;
+    }
+    if (inviteStatus === "sent" && item.status === "completed") {
+      summary.completed_after_invite_count += 1;
+    }
+  });
+
+  summary.unique_guests_window = guestSet.size;
+  summary.unique_sponsors_window = sponsorSet.size;
+  summary.unique_companies_window = companySet.size;
+  summary.approval_rate_percent = summary.total_records
+    ? Math.round((summary.approved_stage_count * 100) / summary.total_records)
+    : 0;
+  summary.invite_send_rate_percent = summary.approved_stage_count
+    ? Math.round((summary.invite_sent_count * 100) / summary.approved_stage_count)
+    : 0;
+  summary.invite_completion_rate_percent = summary.invite_sent_count
+    ? Math.round((summary.completed_after_invite_count * 100) / summary.invite_sent_count)
+    : 0;
+  summary.end_to_end_completion_rate_percent = summary.total_records
+    ? Math.round((summary.completed_stage_count * 100) / summary.total_records)
+    : 0;
+  summary.roles = Array.from(roles.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.sponsors = Array.from(sponsors.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.companies = Array.from(companies.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  return {
+    generated_at: "2026-05-05T12:15:00Z",
+    status: statusFilter,
+    window_hours: summary.window_hours,
+    bucket_count: summary.bucket_count,
+    summary,
+  };
+}
+
 function buildGuestDeliveryFailuresResponse(
   records: GuestRecord[],
   statusFilter = "",
@@ -4151,6 +4359,35 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(
           buildGuestInviteAnalyticsResponse(state.guestRegistrations, status),
+        ),
+      });
+      return;
+    }
+    if (path === "/system/guest-conversion-analytics" && method === "GET") {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        json: buildGuestConversionAnalyticsResponse(
+          state.guestRegistrations,
+          status,
+        ),
+      });
+      return;
+    }
+    if (
+      path === "/system/guest-conversion-analytics/export" &&
+      method === "GET"
+    ) {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildGuestConversionAnalyticsResponse(
+            state.guestRegistrations,
+            status,
+          ),
         ),
       });
       return;

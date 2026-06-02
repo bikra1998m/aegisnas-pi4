@@ -189,6 +189,63 @@ type GuestInviteAnalyticsReport = {
   summary: GuestInviteAnalyticsSummary;
 };
 
+type GuestConversionAnalyticsBucket = {
+  start: string;
+  end: string;
+  submitted_count: number;
+  approved_count: number;
+  rejected_count: number;
+  invite_sent_count: number;
+  completed_count: number;
+};
+
+type GuestConversionAnalyticsSummary = {
+  window_hours: number;
+  bucket_count: number;
+  bucket_minutes: number;
+  total_records: number;
+  open_pending_count: number;
+  sponsor_approval_required_count: number;
+  approved_stage_count: number;
+  rejected_stage_count: number;
+  invite_queued_count: number;
+  invite_sent_count: number;
+  invite_failed_count: number;
+  completed_stage_count: number;
+  approved_without_successful_invite_count: number;
+  invited_not_completed_count: number;
+  completed_after_invite_count: number;
+  unique_guests_window: number;
+  unique_sponsors_window: number;
+  unique_companies_window: number;
+  approval_rate_percent: number;
+  invite_send_rate_percent: number;
+  invite_completion_rate_percent: number;
+  end_to_end_completion_rate_percent: number;
+  avg_submit_to_approval_minutes: number;
+  max_submit_to_approval_minutes: number;
+  avg_submit_to_invite_minutes: number;
+  max_submit_to_invite_minutes: number;
+  avg_submit_to_completion_minutes: number;
+  max_submit_to_completion_minutes: number;
+  latest_submitted_at?: string;
+  latest_approved_at?: string;
+  latest_invite_sent_at?: string;
+  latest_completed_at?: string;
+  roles: GuestLifecycleCount[];
+  sponsors: GuestLifecycleCount[];
+  companies: GuestLifecycleCount[];
+  buckets: GuestConversionAnalyticsBucket[];
+};
+
+type GuestConversionAnalyticsReport = {
+  generated_at: string;
+  status?: string;
+  window_hours: number;
+  bucket_count: number;
+  summary: GuestConversionAnalyticsSummary;
+};
+
 type GuestDeliveryFailureCounterparty = {
   name: string;
   delivery_issue_records_count: number;
@@ -375,6 +432,8 @@ export default function GuestRegistrations() {
     useState<GuestDeliveryAnalyticsReport | null>(null);
   const [inviteReport, setInviteReport] =
     useState<GuestInviteAnalyticsReport | null>(null);
+  const [conversionReport, setConversionReport] =
+    useState<GuestConversionAnalyticsReport | null>(null);
   const [failureReport, setFailureReport] =
     useState<GuestDeliveryFailureReport | null>(null);
   const [sponsorReport, setSponsorReport] =
@@ -383,6 +442,7 @@ export default function GuestRegistrations() {
   const [loadingLifecycle, setLoadingLifecycle] = useState(true);
   const [loadingDelivery, setLoadingDelivery] = useState(true);
   const [loadingInvite, setLoadingInvite] = useState(true);
+  const [loadingConversion, setLoadingConversion] = useState(true);
   const [loadingFailures, setLoadingFailures] = useState(true);
   const [loadingSponsor, setLoadingSponsor] = useState(true);
   const [error, setError] = useState("");
@@ -455,6 +515,24 @@ export default function GuestRegistrations() {
     }
   };
 
+  const fetchConversionReport = async () => {
+    try {
+      const suffix = buildQuerySuffix();
+      const conversionResponse = await api.get<GuestConversionAnalyticsReport>(
+        `/system/guest-conversion-analytics${suffix}`,
+      );
+      setConversionReport(conversionResponse.data);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load guest conversion analytics.",
+      );
+    } finally {
+      setLoadingConversion(false);
+    }
+  };
+
   const fetchSponsorReport = async () => {
     try {
       const suffix = buildQuerySuffix();
@@ -496,12 +574,14 @@ export default function GuestRegistrations() {
     setLoadingLifecycle(true);
     setLoadingDelivery(true);
     setLoadingInvite(true);
+    setLoadingConversion(true);
     setLoadingFailures(true);
     setLoadingSponsor(true);
     await Promise.allSettled([
       fetchLifecycleReport(showMessage),
       fetchDeliveryReport(),
       fetchInviteReport(),
+      fetchConversionReport(),
       fetchFailureReport(),
       fetchSponsorReport(),
     ]);
@@ -527,6 +607,7 @@ export default function GuestRegistrations() {
         fetchLifecycleReport(),
         fetchDeliveryReport(),
         fetchInviteReport(),
+        fetchConversionReport(),
         fetchFailureReport(),
         fetchSponsorReport(),
       ]);
@@ -552,6 +633,7 @@ export default function GuestRegistrations() {
         fetchLifecycleReport(),
         fetchDeliveryReport(),
         fetchInviteReport(),
+        fetchConversionReport(),
         fetchFailureReport(),
         fetchSponsorReport(),
       ]);
@@ -565,7 +647,13 @@ export default function GuestRegistrations() {
   };
 
   const downloadExport = async (
-    reportKind: "lifecycle" | "delivery" | "invite" | "failures" | "sponsor",
+    reportKind:
+      | "lifecycle"
+      | "delivery"
+      | "invite"
+      | "conversion"
+      | "failures"
+      | "sponsor",
     format: "json" | "csv",
   ) => {
     setBusyAction(`export-${reportKind}-${format}`);
@@ -581,6 +669,8 @@ export default function GuestRegistrations() {
             ? "/system/guest-delivery-analytics/export"
             : reportKind === "invite"
               ? "/system/guest-invite-analytics/export"
+              : reportKind === "conversion"
+                ? "/system/guest-conversion-analytics/export"
               : reportKind === "failures"
                 ? "/system/guest-delivery-failures/export"
                 : "/system/guest-sponsor-analytics/export";
@@ -605,6 +695,8 @@ export default function GuestRegistrations() {
               ? "delivery-analytics"
               : reportKind === "invite"
                 ? "invite-analytics"
+                : reportKind === "conversion"
+                  ? "conversion-analytics"
                 : reportKind === "failures"
                   ? "delivery-failures"
                   : "sponsor-analytics"
@@ -621,6 +713,8 @@ export default function GuestRegistrations() {
               ? "delivery analytics"
               : reportKind === "invite"
                 ? "invite analytics"
+                : reportKind === "conversion"
+                  ? "conversion analytics"
                 : reportKind === "failures"
                   ? "delivery failures"
                   : "sponsor analytics"
@@ -641,6 +735,7 @@ export default function GuestRegistrations() {
   const summary = report?.summary;
   const deliverySummary = deliveryReport?.summary;
   const inviteSummary = inviteReport?.summary;
+  const conversionSummary = conversionReport?.summary;
   const failureSummary = failureReport?.summary;
   const sponsorSummary = sponsorReport?.summary;
   const recentBuckets = useMemo(
@@ -654,6 +749,10 @@ export default function GuestRegistrations() {
   const recentInviteBuckets = useMemo(
     () => (inviteSummary?.buckets || []).slice(-6),
     [inviteSummary],
+  );
+  const recentConversionBuckets = useMemo(
+    () => (conversionSummary?.buckets || []).slice(-6),
+    [conversionSummary],
   );
   const recentFailureBuckets = useMemo(
     () => (failureSummary?.buckets || []).slice(-6),
@@ -731,6 +830,22 @@ export default function GuestRegistrations() {
             className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Invite CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadExport("conversion", "json")}
+            disabled={busyAction === "export-conversion-json"}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Conversion JSON
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadExport("conversion", "csv")}
+            disabled={busyAction === "export-conversion-csv"}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Conversion CSV
           </button>
           <button
             type="button"
@@ -1001,6 +1116,201 @@ export default function GuestRegistrations() {
                     </div>
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">
+                Conversion funnel
+              </h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Submission, approval, invite, and completion movement across the
+                current guest window.
+              </p>
+              {!conversionSummary ? (
+                <div className="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
+                  {loadingConversion
+                    ? "Loading guest conversion analytics..."
+                    : "Guest conversion analytics are not available yet."}
+                </div>
+              ) : (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        {[
+                          "Bucket",
+                          "Submitted",
+                          "Approved",
+                          "Rejected",
+                          "Invited",
+                          "Completed",
+                        ].map((label) => (
+                          <th
+                            key={label}
+                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600"
+                          >
+                            {label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {recentConversionBuckets.length === 0 ? (
+                        <tr>
+                          <td className="px-3 py-4 text-slate-500" colSpan={6}>
+                            No conversion buckets recorded yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        recentConversionBuckets.map((bucket) => (
+                          <tr key={`${bucket.start}-${bucket.end}`}>
+                            <td className="px-3 py-3 text-slate-700">
+                              {formatTimestamp(bucket.start)}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.submitted_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.approved_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.rejected_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.invite_sent_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.completed_count}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">
+                Conversion highlights
+              </h3>
+              {!conversionSummary ? (
+                <div className="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
+                  {loadingConversion
+                    ? "Loading guest conversion analytics..."
+                    : "Guest conversion analytics are not available yet."}
+                </div>
+              ) : (
+                <>
+                  <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Funnel coverage
+                      </div>
+                      <div className="mt-1">
+                        {conversionSummary.total_records} submitted
+                      </div>
+                      <div>
+                        {conversionSummary.approved_stage_count} reached
+                        approval
+                      </div>
+                      <div>
+                        {conversionSummary.invite_sent_count} received invites
+                      </div>
+                      <div>
+                        {conversionSummary.completed_stage_count} completed
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Drop-off points
+                      </div>
+                      <div className="mt-1">
+                        {conversionSummary.open_pending_count} still pending
+                      </div>
+                      <div>
+                        {
+                          conversionSummary
+                            .approved_without_successful_invite_count
+                        }{" "}
+                        approved without a successful invite
+                      </div>
+                      <div>
+                        {conversionSummary.invited_not_completed_count} invited
+                        but not completed
+                      </div>
+                      <div>
+                        {conversionSummary.rejected_stage_count} rejected
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Conversion rates
+                      </div>
+                      <div className="mt-1">
+                        {conversionSummary.approval_rate_percent}% approval
+                        reach
+                      </div>
+                      <div>
+                        {conversionSummary.invite_send_rate_percent}% invite
+                        send rate
+                      </div>
+                      <div>
+                        {conversionSummary.invite_completion_rate_percent}%
+                        invite completion rate
+                      </div>
+                      <div>
+                        {conversionSummary.end_to_end_completion_rate_percent}%
+                        end-to-end completion
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Timing window
+                      </div>
+                      <div className="mt-1">
+                        {conversionSummary.avg_submit_to_approval_minutes}
+                        m average submit-to-approval
+                      </div>
+                      <div>
+                        {conversionSummary.avg_submit_to_invite_minutes}m
+                        average submit-to-invite
+                      </div>
+                      <div>
+                        {conversionSummary.avg_submit_to_completion_minutes}m
+                        average submit-to-completion
+                      </div>
+                      <div>
+                        Latest completion:{" "}
+                        {formatTimestamp(
+                          conversionSummary.latest_completed_at,
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                    <MixList
+                      title="Roles"
+                      items={conversionSummary.roles}
+                      empty="No role conversion activity recorded yet."
+                    />
+                    <MixList
+                      title="Sponsors"
+                      items={conversionSummary.sponsors}
+                      empty="No sponsor conversion activity recorded yet."
+                    />
+                    <MixList
+                      title="Companies"
+                      items={conversionSummary.companies}
+                      empty="No company conversion activity recorded yet."
+                    />
+                  </div>
+                </>
               )}
             </div>
           </div>

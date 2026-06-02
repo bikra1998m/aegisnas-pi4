@@ -145,6 +145,8 @@ For guest lifecycle summary, delivery-state visibility, and JSON or CSV handoff 
 
 For sponsor-approval backlog, invite-delivery failures, and approval-to-completion timing without leaving the guest workflow page, use `Guest Requests` or `GET /api/v1/system/guest-delivery-analytics`.
 
+For funnel reach, submit-to-approval / invite / completion timing, and the biggest drop-off points between approval, invite delivery, and successful onboarding, use `Guest Requests` or `GET /api/v1/system/guest-conversion-analytics`.
+
 For queued, sent, and failed invite throughput plus approval-to-invite and invite-to-completion timing without leaving the guest workflow page, use `Guest Requests` or `GET /api/v1/system/guest-invite-analytics`.
 
 For recurring invite-throughput snapshots without relying on a live guest analytics pull, enable scheduled guest invite analytics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/guest-invite-analytics-exports`.

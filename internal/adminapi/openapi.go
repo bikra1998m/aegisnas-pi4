@@ -245,6 +245,36 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Guest delivery analytics with sponsor backlog, delivery-state mixes, timing metrics, and bucketed approval/invite trends."),
 	}))
+	addOperation(paths, "/api/v1/system/guest-conversion-analytics", "get", securedOperationWithParameters("Summarize guest conversion funnel and drop-off points", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("status", "Optional guest status filter.", false),
+		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 24.", false),
+		queryStringParameter("bucket_count", "Optional trend bucket count. Defaults to 24 and caps at 96.", false),
+	}, map[string]any{
+		"200": responseJSON("Guest conversion analytics with submit, approval, invite, completion, and drop-off timing metrics."),
+	}))
+	addOperation(paths, "/api/v1/system/guest-conversion-analytics/export", "get", securedOperationWithParameters("Export guest conversion analytics", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("format", "Optional export format. Defaults to csv.", []string{"json", "csv"}, false),
+		queryStringParameter("status", "Optional guest status filter.", false),
+		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 24.", false),
+		queryStringParameter("bucket_count", "Optional trend bucket count. Defaults to 24 and caps at 96.", false),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Guest conversion analytics export in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/guest-invite-analytics", "get", securedOperationWithParameters("Summarize guest invite throughput and completion timing", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("status", "Optional guest status filter.", false),
 		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 24.", false),
