@@ -138,6 +138,11 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	guestRejectionGet, ok := guestRejectionPath["get"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "Export guest rejection analytics", guestRejectionGet["summary"])
+	guestRejectionScheduledPath, ok := paths["/api/v1/system/guest-rejection-analytics-exports/download"].(map[string]any)
+	require.True(t, ok)
+	guestRejectionScheduledGet, ok := guestRejectionScheduledPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Download scheduled guest rejection analytics export", guestRejectionScheduledGet["summary"])
 
 	guestInvitePath, ok := paths["/api/v1/system/guest-invite-analytics/export"].(map[string]any)
 	require.True(t, ok)

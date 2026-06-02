@@ -192,6 +192,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      guest_rejection_analytics_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/guest-rejection-analytics-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+      },
       guest_delivery_analytics_exports: {
         enabled: true,
         directory: "/var/lib/aegisnas/guest-delivery-analytics-exports",
@@ -997,6 +1004,28 @@ function createSystemStatus() {
             limit: 5000,
             last_export_at: "2026-05-05T11:55:45Z",
             next_due_at: "2026-05-05T12:55:45Z",
+          },
+        },
+      },
+      guest_rejection_analytics_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/guest-rejection-analytics-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: "ok",
+          message: "Scheduled guest rejection analytics exports are healthy.",
+          details: {
+            format: "json",
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: "/var/lib/aegisnas/guest-rejection-analytics-exports",
+            window_hours: 24,
+            bucket_count: 24,
+            limit: 5000,
+            last_export_at: "2026-05-05T11:55:50Z",
+            next_due_at: "2026-05-05T12:55:50Z",
           },
         },
       },
@@ -3745,6 +3774,28 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
     if (
+      path === "/system/guest-rejection-analytics-exports" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          runtime:
+            state.systemStatus.telemetry.guest_rejection_analytics_exports
+              .runtime,
+          exports: [
+            {
+              name: "aegisnas-guest-rejection-analytics-20260505-115550Z.json",
+              path: "/var/lib/aegisnas/guest-rejection-analytics-exports/aegisnas-guest-rejection-analytics-20260505-115550Z.json",
+              format: "json",
+              size_bytes: 1360,
+              created_at: "2026-05-05T11:55:50Z",
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (
       path === "/system/guest-invite-analytics-exports/download" &&
       method === "GET"
     ) {
@@ -3766,6 +3817,19 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(
           buildGuestConversionAnalyticsResponse(state.guestRegistrations, ""),
+        ),
+      });
+      return;
+    }
+    if (
+      path === "/system/guest-rejection-analytics-exports/download" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildGuestRejectionAnalyticsResponse(state.guestRegistrations, ""),
         ),
       });
       return;

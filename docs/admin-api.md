@@ -160,6 +160,8 @@ And export variants at:
 /api/v1/system/guest-rejection-analytics
 /api/v1/system/guest-rejection-analytics/export?format=json
 /api/v1/system/guest-rejection-analytics/export?format=csv
+/api/v1/system/guest-rejection-analytics-exports
+/api/v1/system/guest-rejection-analytics-exports/download?name=<artifact>
 /api/v1/system/guest-conversion-analytics
 /api/v1/system/guest-conversion-analytics/export?format=json
 /api/v1/system/guest-conversion-analytics/export?format=csv
@@ -188,7 +190,7 @@ And export variants at:
 
 Use the delivery analytics endpoints when you want the sponsor-approval backlog, approval and invite delivery failure mix, top sponsors, and approval-to-completion timing without exporting the full registration history.
 
-Use the rejection analytics endpoints when you want the top rejection reasons, sponsor versus non-sponsor rejection mix, after-approval reversals, and submit-to-rejection timing without scanning the raw request table by hand.
+Use the rejection analytics endpoints when you want the top rejection reasons, sponsor versus non-sponsor rejection mix, after-approval reversals, and submit-to-rejection timing without scanning the raw request table by hand. Enable the scheduled rejection export path when you want recurring snapshots in `Backups` without depending on a live guest analytics pull.
 
 Use the guest conversion analytics endpoints when you want funnel reach, submit-to-approval / invite / completion timing, and the main drop-off points between approval, invite delivery, and successful completion.
 

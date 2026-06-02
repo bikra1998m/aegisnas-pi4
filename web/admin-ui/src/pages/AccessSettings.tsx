@@ -294,6 +294,13 @@ const defaultSettings: JsonMap = {
       interval_minutes: 60,
       retention_count: 21,
     },
+    guest_rejection_analytics_exports: {
+      enabled: false,
+      directory: "/var/lib/aegisnas/guest-rejection-analytics-exports",
+      format: "json",
+      interval_minutes: 60,
+      retention_count: 21,
+    },
     guest_delivery_analytics_exports: {
       enabled: false,
       directory: "/var/lib/aegisnas/guest-delivery-analytics-exports",
@@ -4561,6 +4568,85 @@ export default function AccessSettings() {
                 [
                   "telemetry",
                   "guest_conversion_analytics_exports",
+                  "retention_count",
+                ],
+                Number(value),
+              )
+            }
+          />
+          <ToggleField
+            label="Scheduled Guest Rejection Analytics Exports"
+            checked={Boolean(
+              settings.telemetry?.guest_rejection_analytics_exports?.enabled,
+            )}
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "guest_rejection_analytics_exports", "enabled"],
+                value,
+              )
+            }
+          />
+          <TextField
+            label="Guest Rejection Analytics Export Directory"
+            value={
+              settings.telemetry?.guest_rejection_analytics_exports
+                ?.directory || "/var/lib/aegisnas/guest-rejection-analytics-exports"
+            }
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "guest_rejection_analytics_exports", "directory"],
+                value,
+              )
+            }
+          />
+          <SelectField
+            label="Guest Rejection Analytics Export Format"
+            value={
+              settings.telemetry?.guest_rejection_analytics_exports?.format ||
+              "json"
+            }
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "guest_rejection_analytics_exports", "format"],
+                value,
+              )
+            }
+            options={[
+              { value: "json", label: "JSON" },
+              { value: "csv", label: "CSV" },
+              { value: "both", label: "JSON + CSV" },
+            ]}
+          />
+          <TextField
+            label="Guest Rejection Analytics Export Interval Minutes"
+            type="number"
+            value={
+              settings.telemetry?.guest_rejection_analytics_exports
+                ?.interval_minutes || 60
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "guest_rejection_analytics_exports",
+                  "interval_minutes",
+                ],
+                Number(value),
+              )
+            }
+          />
+          <TextField
+            label="Guest Rejection Analytics Export Retention"
+            type="number"
+            value={
+              settings.telemetry?.guest_rejection_analytics_exports
+                ?.retention_count || 21
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "guest_rejection_analytics_exports",
                   "retention_count",
                 ],
                 Number(value),

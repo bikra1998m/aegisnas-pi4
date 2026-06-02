@@ -515,6 +515,22 @@ type GuestConversionAnalyticsExportArtifact = {
   created_at: string;
 };
 
+type GuestRejectionAnalyticsExportRuntime = {
+  component: string;
+  status: string;
+  message: string;
+  updated_at: string;
+  details?: Record<string, any>;
+};
+
+type GuestRejectionAnalyticsExportArtifact = {
+  name: string;
+  path: string;
+  format: string;
+  size_bytes: number;
+  created_at: string;
+};
+
 type GuestDeliveryFailuresExportRuntime = {
   component: string;
   status: string;
@@ -721,6 +737,14 @@ export default function Backups() {
     setGuestConversionAnalyticsExportArtifacts,
   ] = useState<GuestConversionAnalyticsExportArtifact[]>([]);
   const [
+    guestRejectionAnalyticsExportRuntime,
+    setGuestRejectionAnalyticsExportRuntime,
+  ] = useState<GuestRejectionAnalyticsExportRuntime | null>(null);
+  const [
+    guestRejectionAnalyticsExportArtifacts,
+    setGuestRejectionAnalyticsExportArtifacts,
+  ] = useState<GuestRejectionAnalyticsExportArtifact[]>([]);
+  const [
     guestDeliveryAnalyticsExportRuntime,
     setGuestDeliveryAnalyticsExportRuntime,
   ] = useState<GuestDeliveryAnalyticsExportRuntime | null>(null);
@@ -804,6 +828,10 @@ export default function Backups() {
   const [
     loadingGuestConversionAnalyticsExports,
     setLoadingGuestConversionAnalyticsExports,
+  ] = useState(false);
+  const [
+    loadingGuestRejectionAnalyticsExports,
+    setLoadingGuestRejectionAnalyticsExports,
   ] = useState(false);
   const [
     loadingGuestDeliveryAnalyticsExports,
@@ -1166,6 +1194,30 @@ export default function Backups() {
     }
   };
 
+  const loadGuestRejectionAnalyticsExports = async (announce = false) => {
+    if (announce) {
+      setError("");
+      setMessage("");
+    }
+    setLoadingGuestRejectionAnalyticsExports(true);
+    try {
+      const { data } = await api.get("/system/guest-rejection-analytics-exports");
+      setGuestRejectionAnalyticsExportRuntime(data.runtime || null);
+      setGuestRejectionAnalyticsExportArtifacts(data.exports || []);
+      if (announce) {
+        setMessage("Scheduled guest rejection analytics exports refreshed.");
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load scheduled guest rejection analytics exports.",
+      );
+    } finally {
+      setLoadingGuestRejectionAnalyticsExports(false);
+    }
+  };
+
   const loadGuestDeliveryAnalyticsExports = async (announce = false) => {
     if (announce) {
       setError("");
@@ -1400,6 +1452,7 @@ export default function Backups() {
     void loadGuestLifecycleExports(false);
     void loadGuestInviteAnalyticsExports(false);
     void loadGuestConversionAnalyticsExports(false);
+    void loadGuestRejectionAnalyticsExports(false);
     void loadGuestDeliveryAnalyticsExports(false);
     void loadGuestDeliveryFailuresExports(false);
     void loadGuestSponsorAnalyticsExports(false);
@@ -1808,6 +1861,40 @@ export default function Backups() {
         err.response?.data ||
           err.message ||
           "Could not download scheduled guest conversion analytics export.",
+      );
+    } finally {
+      setBusyAction("");
+    }
+  };
+
+  const downloadScheduledGuestRejectionAnalyticsExport = async (
+    artifact: GuestRejectionAnalyticsExportArtifact,
+  ) => {
+    setError("");
+    setMessage("");
+    setBusyAction(`scheduled-guest-rejection-analytics-${artifact.name}`);
+    try {
+      const response = await api.get(
+        `/system/guest-rejection-analytics-exports/download?name=${encodeURIComponent(artifact.name)}`,
+        { responseType: "blob" },
+      );
+      const { data, headers } = response;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement("a");
+      link.href = url;
+      const disposition = `${headers?.["content-disposition"] || ""}`;
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      link.download = filenameMatch?.[1] || artifact.name;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(
+        `Scheduled guest rejection analytics export ${artifact.name} downloaded.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not download scheduled guest rejection analytics export.",
       );
     } finally {
       setBusyAction("");
@@ -4764,6 +4851,167 @@ export default function Backups() {
                           </tr>
                         ),
                       )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium text-slate-900">
+                    Scheduled Guest Rejection Analytics Exports
+                  </div>
+                  <div className="mt-1">
+                    Keep rejection reasons, sponsor-vs-unsponsored mix, and
+                    after-approval reversals on disk so guest workflow reviews
+                    have a recurring export trail ready.
+                  </div>
+                </div>
+                <button
+                  onClick={() => void loadGuestRejectionAnalyticsExports(true)}
+                  disabled={
+                    loadingGuestRejectionAnalyticsExports || busyAction !== ""
+                  }
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {loadingGuestRejectionAnalyticsExports
+                    ? "Refreshing..."
+                    : "Refresh Scheduled Guest Rejection Analytics Exports"}
+                </button>
+              </div>
+              {guestRejectionAnalyticsExportRuntime ? (
+                <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  <div>
+                    <span className="font-medium text-slate-900">Runtime:</span>{" "}
+                    {guestRejectionAnalyticsExportRuntime.status} /{" "}
+                    {guestRejectionAnalyticsExportRuntime.message}
+                  </div>
+                  <div className="mt-1">
+                    Format{" "}
+                    {String(
+                      guestRejectionAnalyticsExportRuntime.details?.format ||
+                        "json",
+                    )}
+                    , every{" "}
+                    {String(
+                      guestRejectionAnalyticsExportRuntime.details
+                        ?.interval_minutes || 0,
+                    )}{" "}
+                    minutes, retain{" "}
+                    {String(
+                      guestRejectionAnalyticsExportRuntime.details
+                        ?.retention_count || 0,
+                    )}
+                    , directory{" "}
+                    {String(
+                      guestRejectionAnalyticsExportRuntime.details?.directory ||
+                        "unset",
+                    )}
+                    .
+                  </div>
+                  <div className="mt-1">
+                    Window{" "}
+                    {String(
+                      guestRejectionAnalyticsExportRuntime.details
+                        ?.window_hours || 24,
+                    )}{" "}
+                    hours,{" "}
+                    {String(
+                      guestRejectionAnalyticsExportRuntime.details
+                        ?.bucket_count || 24,
+                    )}{" "}
+                    buckets, limit{" "}
+                    {String(
+                      guestRejectionAnalyticsExportRuntime.details?.limit ||
+                        5000,
+                    )}
+                    .
+                  </div>
+                  {guestRejectionAnalyticsExportRuntime.details?.last_export_at ? (
+                    <div className="mt-1">
+                      Last export{" "}
+                      {String(
+                        guestRejectionAnalyticsExportRuntime.details
+                          .last_export_at,
+                      )}
+                      {guestRejectionAnalyticsExportRuntime.details?.next_due_at
+                        ? `, next due ${String(guestRejectionAnalyticsExportRuntime.details.next_due_at)}`
+                        : ""}
+                      .
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-3 rounded-md border border-dashed border-gray-300 px-3 py-4 text-xs text-gray-500">
+                  No scheduled guest rejection analytics export runtime has
+                  been recorded yet.
+                </div>
+              )}
+              {guestRejectionAnalyticsExportArtifacts.length === 0 ? (
+                <div className="mt-3 text-xs text-gray-500">
+                  No scheduled guest rejection analytics export artifacts are
+                  present yet.
+                </div>
+              ) : (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Created
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Name
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Format
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Size
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Path
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {guestRejectionAnalyticsExportArtifacts.map((artifact) => (
+                        <tr key={artifact.name}>
+                          <td className="px-3 py-2 text-gray-600">
+                            {artifact.created_at}
+                          </td>
+                          <td className="px-3 py-2 font-medium text-gray-900">
+                            {artifact.name}
+                          </td>
+                          <td className="px-3 py-2 text-gray-700">
+                            {artifact.format}
+                          </td>
+                          <td className="px-3 py-2 text-gray-700">
+                            {artifact.size_bytes} bytes
+                          </td>
+                          <td className="px-3 py-2 text-gray-500 break-all">
+                            {artifact.path}
+                          </td>
+                          <td className="px-3 py-2">
+                            <button
+                              onClick={() =>
+                                void downloadScheduledGuestRejectionAnalyticsExport(
+                                  artifact,
+                                )
+                              }
+                              disabled={busyAction !== ""}
+                              className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Download
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

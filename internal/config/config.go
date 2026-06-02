@@ -295,6 +295,7 @@ type TelemetryConfig struct {
 	GuestLifecycleExports           DiagnosticsExportConfig   `mapstructure:"guest_lifecycle_exports"`
 	GuestInviteAnalyticsExports     DiagnosticsExportConfig   `mapstructure:"guest_invite_analytics_exports"`
 	GuestConversionAnalyticsExports DiagnosticsExportConfig   `mapstructure:"guest_conversion_analytics_exports"`
+	GuestRejectionAnalyticsExports  DiagnosticsExportConfig   `mapstructure:"guest_rejection_analytics_exports"`
 	GuestDeliveryAnalyticsExports   DiagnosticsExportConfig   `mapstructure:"guest_delivery_analytics_exports"`
 	GuestDeliveryFailuresExports    DiagnosticsExportConfig   `mapstructure:"guest_delivery_failures_exports"`
 	GuestSponsorAnalyticsExports    DiagnosticsExportConfig   `mapstructure:"guest_sponsor_analytics_exports"`
@@ -1110,6 +1111,11 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("telemetry.guest_conversion_analytics_exports.format %q is invalid", c.Telemetry.GuestConversionAnalyticsExports.Format)
 	}
+	switch strings.ToLower(strings.TrimSpace(c.Telemetry.GuestRejectionAnalyticsExports.Format)) {
+	case "", "json", "csv", "both":
+	default:
+		return fmt.Errorf("telemetry.guest_rejection_analytics_exports.format %q is invalid", c.Telemetry.GuestRejectionAnalyticsExports.Format)
+	}
 	switch strings.ToLower(strings.TrimSpace(c.Telemetry.GuestDeliveryAnalyticsExports.Format)) {
 	case "", "json", "csv", "both":
 	default:
@@ -1171,6 +1177,9 @@ func (c *Config) Validate() error {
 	if c.Telemetry.GuestConversionAnalyticsExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.guest_conversion_analytics_exports.interval_minutes %d out of range", c.Telemetry.GuestConversionAnalyticsExports.IntervalMinutes)
 	}
+	if c.Telemetry.GuestRejectionAnalyticsExports.IntervalMinutes < 0 {
+		return fmt.Errorf("telemetry.guest_rejection_analytics_exports.interval_minutes %d out of range", c.Telemetry.GuestRejectionAnalyticsExports.IntervalMinutes)
+	}
 	if c.Telemetry.GuestDeliveryAnalyticsExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.guest_delivery_analytics_exports.interval_minutes %d out of range", c.Telemetry.GuestDeliveryAnalyticsExports.IntervalMinutes)
 	}
@@ -1215,6 +1224,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Telemetry.GuestConversionAnalyticsExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.guest_conversion_analytics_exports.retention_count %d out of range", c.Telemetry.GuestConversionAnalyticsExports.RetentionCount)
+	}
+	if c.Telemetry.GuestRejectionAnalyticsExports.RetentionCount < 0 {
+		return fmt.Errorf("telemetry.guest_rejection_analytics_exports.retention_count %d out of range", c.Telemetry.GuestRejectionAnalyticsExports.RetentionCount)
 	}
 	if c.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.guest_delivery_analytics_exports.retention_count %d out of range", c.Telemetry.GuestDeliveryAnalyticsExports.RetentionCount)
@@ -1350,6 +1362,20 @@ func (c *Config) Validate() error {
 		}
 		if c.Telemetry.GuestConversionAnalyticsExports.RetentionCount <= 0 {
 			return errors.New("telemetry.guest_conversion_analytics_exports.enabled requires a positive telemetry.guest_conversion_analytics_exports.retention_count")
+		}
+	}
+	if c.Telemetry.GuestRejectionAnalyticsExports.Enabled {
+		if !c.Telemetry.Enabled {
+			return errors.New("telemetry.guest_rejection_analytics_exports.enabled requires telemetry.enabled")
+		}
+		if strings.TrimSpace(c.Telemetry.GuestRejectionAnalyticsExports.Directory) == "" {
+			return errors.New("telemetry.guest_rejection_analytics_exports.enabled requires telemetry.guest_rejection_analytics_exports.directory")
+		}
+		if c.Telemetry.GuestRejectionAnalyticsExports.IntervalMinutes <= 0 {
+			return errors.New("telemetry.guest_rejection_analytics_exports.enabled requires a positive telemetry.guest_rejection_analytics_exports.interval_minutes")
+		}
+		if c.Telemetry.GuestRejectionAnalyticsExports.RetentionCount <= 0 {
+			return errors.New("telemetry.guest_rejection_analytics_exports.enabled requires a positive telemetry.guest_rejection_analytics_exports.retention_count")
 		}
 	}
 	if c.Telemetry.GuestDeliveryAnalyticsExports.Enabled {

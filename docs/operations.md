@@ -147,6 +147,8 @@ For sponsor-approval backlog, invite-delivery failures, and approval-to-completi
 
 For top rejection reasons, sponsor versus non-sponsor rejection mix, and submit-to-rejection timing without scanning the raw request list, use `Guest Requests` or `GET /api/v1/system/guest-rejection-analytics`.
 
+For recurring rejection snapshots without relying on a live guest analytics pull, enable scheduled guest rejection analytics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/guest-rejection-analytics-exports`.
+
 For funnel reach, submit-to-approval / invite / completion timing, and the biggest drop-off points between approval, invite delivery, and successful onboarding, use `Guest Requests` or `GET /api/v1/system/guest-conversion-analytics`.
 
 For recurring funnel snapshots without relying on a live guest analytics pull, enable scheduled guest conversion analytics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/guest-conversion-analytics-exports`.
