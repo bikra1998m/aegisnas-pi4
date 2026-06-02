@@ -54,12 +54,13 @@ type DiagnosticsNetwork struct {
 
 type DiagnosticsGuest struct {
 	Summary             db.GuestLifecycleSummary                `json:"summary"`
-	ConversionAnalytics db.GuestConversionSummary              `json:"conversion_analytics"`
-	InviteAnalytics     db.GuestInviteAnalyticsSummary         `json:"invite_analytics"`
-	DeliveryAnalytics   db.GuestDeliveryAnalyticsSummary       `json:"delivery_analytics"`
+	RejectionAnalytics  db.GuestRejectionAnalyticsSummary       `json:"rejection_analytics"`
+	ConversionAnalytics db.GuestConversionSummary               `json:"conversion_analytics"`
+	InviteAnalytics     db.GuestInviteAnalyticsSummary          `json:"invite_analytics"`
+	DeliveryAnalytics   db.GuestDeliveryAnalyticsSummary        `json:"delivery_analytics"`
 	DeliveryFailures    db.GuestDeliveryFailureAnalyticsSummary `json:"delivery_failures"`
-	SponsorAnalytics    db.GuestSponsorApprovalSummary         `json:"sponsor_analytics"`
-	Runtime             *db.RuntimeStatus                      `json:"runtime,omitempty"`
+	SponsorAnalytics    db.GuestSponsorApprovalSummary          `json:"sponsor_analytics"`
+	Runtime             *db.RuntimeStatus                       `json:"runtime,omitempty"`
 }
 
 type DiagnosticsHA struct {
@@ -190,6 +191,13 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 	if err != nil {
 		return DiagnosticsReport{}, fmt.Errorf("load guest lifecycle summary: %w", err)
 	}
+	guestRejectionAnalytics, err := db.GetGuestRejectionAnalytics(db.GuestLifecycleQuery{
+		Window:      24 * time.Hour,
+		BucketCount: 24,
+	})
+	if err != nil {
+		return DiagnosticsReport{}, fmt.Errorf("load guest rejection analytics: %w", err)
+	}
 	guestConversionAnalytics, err := db.GetGuestConversionAnalytics(db.GuestLifecycleQuery{
 		Window:      24 * time.Hour,
 		BucketCount: 24,
@@ -275,6 +283,7 @@ func buildDiagnosticsReport(ctx context.Context) (DiagnosticsReport, error) {
 		Sessions: sessionStats,
 		Guest: DiagnosticsGuest{
 			Summary:             guestSummary,
+			RejectionAnalytics:  guestRejectionAnalytics,
 			ConversionAnalytics: guestConversionAnalytics,
 			InviteAnalytics:     guestInviteAnalytics,
 			DeliveryAnalytics:   guestDeliveryAnalytics,
@@ -357,6 +366,10 @@ func diagnosticsReportCSV(report DiagnosticsReport) ([]byte, error) {
 		{"guest_conversion_approval_rate_percent", strconv.Itoa(report.Guest.ConversionAnalytics.ApprovalRatePercent)},
 		{"guest_conversion_invite_send_rate_percent", strconv.Itoa(report.Guest.ConversionAnalytics.InviteSendRatePercent)},
 		{"guest_conversion_end_to_end_completion_rate_percent", strconv.Itoa(report.Guest.ConversionAnalytics.EndToEndCompletionRatePercent)},
+		{"guest_rejection_count", strconv.Itoa(report.Guest.RejectionAnalytics.RejectedCount)},
+		{"guest_rejection_after_approval_count", strconv.Itoa(report.Guest.RejectionAnalytics.RejectedAfterApprovalCount)},
+		{"guest_rejection_unique_reasons_window", strconv.Itoa(report.Guest.RejectionAnalytics.UniqueRejectionReasonsWindow)},
+		{"guest_rejection_avg_submit_to_rejection_minutes", strconv.FormatInt(report.Guest.RejectionAnalytics.AvgSubmitToRejectionMinutes, 10)},
 		{"guest_invite_tracked_records_count", strconv.Itoa(report.Guest.InviteAnalytics.TrackedInviteRecordsCount)},
 		{"guest_invite_sent_count", strconv.Itoa(report.Guest.InviteAnalytics.InviteSentCount)},
 		{"guest_invite_failed_count", strconv.Itoa(report.Guest.InviteAnalytics.InviteFailedCount)},

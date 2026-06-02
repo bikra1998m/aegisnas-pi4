@@ -246,6 +246,46 @@ type GuestConversionAnalyticsReport = {
   summary: GuestConversionAnalyticsSummary;
 };
 
+type GuestRejectionAnalyticsBucket = {
+  start: string;
+  end: string;
+  rejected_count: number;
+  rejected_with_sponsor_count: number;
+  rejected_without_sponsor_count: number;
+  rejected_after_approval_count: number;
+};
+
+type GuestRejectionAnalyticsSummary = {
+  window_hours: number;
+  bucket_count: number;
+  bucket_minutes: number;
+  total_records: number;
+  rejected_count: number;
+  rejected_with_sponsor_count: number;
+  rejected_without_sponsor_count: number;
+  rejected_after_approval_count: number;
+  rejected_before_approval_count: number;
+  unique_rejection_reasons_window: number;
+  unique_sponsors_window: number;
+  unique_companies_window: number;
+  avg_submit_to_rejection_minutes: number;
+  max_submit_to_rejection_minutes: number;
+  latest_rejected_at?: string;
+  rejection_reasons: GuestLifecycleCount[];
+  sponsors: GuestLifecycleCount[];
+  companies: GuestLifecycleCount[];
+  roles: GuestLifecycleCount[];
+  buckets: GuestRejectionAnalyticsBucket[];
+};
+
+type GuestRejectionAnalyticsReport = {
+  generated_at: string;
+  status?: string;
+  window_hours: number;
+  bucket_count: number;
+  summary: GuestRejectionAnalyticsSummary;
+};
+
 type GuestDeliveryFailureCounterparty = {
   name: string;
   delivery_issue_records_count: number;
@@ -434,6 +474,8 @@ export default function GuestRegistrations() {
     useState<GuestInviteAnalyticsReport | null>(null);
   const [conversionReport, setConversionReport] =
     useState<GuestConversionAnalyticsReport | null>(null);
+  const [rejectionReport, setRejectionReport] =
+    useState<GuestRejectionAnalyticsReport | null>(null);
   const [failureReport, setFailureReport] =
     useState<GuestDeliveryFailureReport | null>(null);
   const [sponsorReport, setSponsorReport] =
@@ -443,6 +485,7 @@ export default function GuestRegistrations() {
   const [loadingDelivery, setLoadingDelivery] = useState(true);
   const [loadingInvite, setLoadingInvite] = useState(true);
   const [loadingConversion, setLoadingConversion] = useState(true);
+  const [loadingRejection, setLoadingRejection] = useState(true);
   const [loadingFailures, setLoadingFailures] = useState(true);
   const [loadingSponsor, setLoadingSponsor] = useState(true);
   const [error, setError] = useState("");
@@ -551,6 +594,24 @@ export default function GuestRegistrations() {
     }
   };
 
+  const fetchRejectionReport = async () => {
+    try {
+      const suffix = buildQuerySuffix();
+      const rejectionResponse = await api.get<GuestRejectionAnalyticsReport>(
+        `/system/guest-rejection-analytics${suffix}`,
+      );
+      setRejectionReport(rejectionResponse.data);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load guest rejection analytics.",
+      );
+    } finally {
+      setLoadingRejection(false);
+    }
+  };
+
   const fetchFailureReport = async () => {
     try {
       const suffix = buildQuerySuffix();
@@ -575,6 +636,7 @@ export default function GuestRegistrations() {
     setLoadingDelivery(true);
     setLoadingInvite(true);
     setLoadingConversion(true);
+    setLoadingRejection(true);
     setLoadingFailures(true);
     setLoadingSponsor(true);
     await Promise.allSettled([
@@ -582,6 +644,7 @@ export default function GuestRegistrations() {
       fetchDeliveryReport(),
       fetchInviteReport(),
       fetchConversionReport(),
+      fetchRejectionReport(),
       fetchFailureReport(),
       fetchSponsorReport(),
     ]);
@@ -608,6 +671,7 @@ export default function GuestRegistrations() {
         fetchDeliveryReport(),
         fetchInviteReport(),
         fetchConversionReport(),
+        fetchRejectionReport(),
         fetchFailureReport(),
         fetchSponsorReport(),
       ]);
@@ -634,6 +698,7 @@ export default function GuestRegistrations() {
         fetchDeliveryReport(),
         fetchInviteReport(),
         fetchConversionReport(),
+        fetchRejectionReport(),
         fetchFailureReport(),
         fetchSponsorReport(),
       ]);
@@ -650,6 +715,7 @@ export default function GuestRegistrations() {
     reportKind:
       | "lifecycle"
       | "delivery"
+      | "rejection"
       | "invite"
       | "conversion"
       | "failures"
@@ -667,6 +733,8 @@ export default function GuestRegistrations() {
           ? "/system/guest-lifecycle/export"
           : reportKind === "delivery"
             ? "/system/guest-delivery-analytics/export"
+            : reportKind === "rejection"
+              ? "/system/guest-rejection-analytics/export"
             : reportKind === "invite"
               ? "/system/guest-invite-analytics/export"
               : reportKind === "conversion"
@@ -693,6 +761,8 @@ export default function GuestRegistrations() {
             ? "lifecycle"
             : reportKind === "delivery"
               ? "delivery-analytics"
+              : reportKind === "rejection"
+                ? "rejection-analytics"
               : reportKind === "invite"
                 ? "invite-analytics"
                 : reportKind === "conversion"
@@ -711,6 +781,8 @@ export default function GuestRegistrations() {
             ? "lifecycle"
             : reportKind === "delivery"
               ? "delivery analytics"
+              : reportKind === "rejection"
+                ? "rejection analytics"
               : reportKind === "invite"
                 ? "invite analytics"
                 : reportKind === "conversion"
@@ -736,6 +808,7 @@ export default function GuestRegistrations() {
   const deliverySummary = deliveryReport?.summary;
   const inviteSummary = inviteReport?.summary;
   const conversionSummary = conversionReport?.summary;
+  const rejectionSummary = rejectionReport?.summary;
   const failureSummary = failureReport?.summary;
   const sponsorSummary = sponsorReport?.summary;
   const recentBuckets = useMemo(
@@ -753,6 +826,10 @@ export default function GuestRegistrations() {
   const recentConversionBuckets = useMemo(
     () => (conversionSummary?.buckets || []).slice(-6),
     [conversionSummary],
+  );
+  const recentRejectionBuckets = useMemo(
+    () => (rejectionSummary?.buckets || []).slice(-6),
+    [rejectionSummary],
   );
   const recentFailureBuckets = useMemo(
     () => (failureSummary?.buckets || []).slice(-6),
@@ -814,6 +891,22 @@ export default function GuestRegistrations() {
             className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Delivery CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadExport("rejection", "json")}
+            disabled={busyAction === "export-rejection-json"}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Rejection JSON
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadExport("rejection", "csv")}
+            disabled={busyAction === "export-rejection-csv"}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Rejection CSV
           </button>
           <button
             type="button"
@@ -1865,6 +1958,181 @@ export default function GuestRegistrations() {
                       title="Companies"
                       items={sponsorSummary.companies}
                       empty="No sponsor-company activity recorded yet."
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">
+                Rejection patterns
+              </h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Recent rejection movement, sponsor involvement, and post-approval
+                reversals across the selected window.
+              </p>
+              {!rejectionSummary ? (
+                <div className="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
+                  {loadingRejection
+                    ? "Loading guest rejection analytics..."
+                    : "Guest rejection analytics are not available yet."}
+                </div>
+              ) : (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        {[
+                          "Bucket",
+                          "Rejected",
+                          "With sponsor",
+                          "Without sponsor",
+                          "After approval",
+                        ].map((label) => (
+                          <th
+                            key={label}
+                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600"
+                          >
+                            {label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {recentRejectionBuckets.length === 0 ? (
+                        <tr>
+                          <td className="px-3 py-4 text-slate-500" colSpan={5}>
+                            No rejection buckets recorded yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        recentRejectionBuckets.map((bucket) => (
+                          <tr key={`${bucket.start}-${bucket.end}`}>
+                            <td className="px-3 py-3 text-slate-700">
+                              {formatTimestamp(bucket.start)}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.rejected_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.rejected_with_sponsor_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.rejected_without_sponsor_count}
+                            </td>
+                            <td className="px-3 py-3 text-slate-900">
+                              {bucket.rejected_after_approval_count}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">
+                Rejection highlights
+              </h3>
+              {!rejectionSummary ? (
+                <div className="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">
+                  {loadingRejection
+                    ? "Loading guest rejection analytics..."
+                    : "Guest rejection analytics are not available yet."}
+                </div>
+              ) : (
+                <>
+                  <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Rejection mix
+                      </div>
+                      <div className="mt-1">
+                        {rejectionSummary.rejected_count} total rejections
+                      </div>
+                      <div>
+                        {rejectionSummary.rejected_with_sponsor_count} with
+                        sponsor involvement
+                      </div>
+                      <div>
+                        {rejectionSummary.rejected_without_sponsor_count} without
+                        sponsor involvement
+                      </div>
+                      <div>
+                        {rejectionSummary.rejected_after_approval_count} after
+                        approval
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Timing window
+                      </div>
+                      <div className="mt-1">
+                        {rejectionSummary.avg_submit_to_rejection_minutes} minute
+                        average submit-to-rejection
+                      </div>
+                      <div>
+                        {rejectionSummary.max_submit_to_rejection_minutes} minute
+                        slowest submit-to-rejection
+                      </div>
+                      <div>
+                        {rejectionSummary.unique_rejection_reasons_window} unique
+                        rejection reasons
+                      </div>
+                      <div>
+                        Latest rejection:{" "}
+                        {formatTimestamp(rejectionSummary.latest_rejected_at)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">Coverage</div>
+                      <div className="mt-1">
+                        {rejectionSummary.unique_sponsors_window} sponsors
+                      </div>
+                      <div>
+                        {rejectionSummary.unique_companies_window} companies
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        Stage split
+                      </div>
+                      <div className="mt-1">
+                        {rejectionSummary.rejected_before_approval_count} before
+                        approval
+                      </div>
+                      <div>
+                        {rejectionSummary.rejected_after_approval_count} after
+                        approval
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <MixList
+                      title="Rejection reasons"
+                      items={rejectionSummary.rejection_reasons}
+                      empty="No rejection reasons recorded yet."
+                    />
+                    <MixList
+                      title="Roles"
+                      items={rejectionSummary.roles}
+                      empty="No rejected role mix recorded yet."
+                    />
+                    <MixList
+                      title="Sponsors"
+                      items={rejectionSummary.sponsors}
+                      empty="No sponsor rejection activity recorded yet."
+                    />
+                    <MixList
+                      title="Companies"
+                      items={rejectionSummary.companies}
+                      empty="No company rejection activity recorded yet."
                     />
                   </div>
                 </>

@@ -194,6 +194,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/guest-conversion-analytics-exports/download", adminapi.HandleDownloadGuestConversionAnalyticsExport)
 			r.Get("/system/guest-delivery-analytics", adminapi.HandleGetGuestDeliveryAnalytics)
 			r.Get("/system/guest-delivery-analytics/export", adminapi.HandleExportGuestDeliveryAnalytics)
+			r.Get("/system/guest-rejection-analytics", adminapi.HandleGetGuestRejectionAnalytics)
+			r.Get("/system/guest-rejection-analytics/export", adminapi.HandleExportGuestRejectionAnalytics)
 			r.Get("/system/guest-delivery-failures", adminapi.HandleGetGuestDeliveryFailures)
 			r.Get("/system/guest-delivery-failures/export", adminapi.HandleExportGuestDeliveryFailures)
 			r.Get("/system/guest-sponsor-analytics", adminapi.HandleGetGuestSponsorAnalytics)

@@ -2100,6 +2100,187 @@ function buildGuestConversionAnalyticsResponse(
   };
 }
 
+function buildGuestRejectionAnalyticsResponse(
+  records: GuestRecord[],
+  statusFilter = "",
+) {
+  const history = statusFilter
+    ? records.filter((item) => item.status === statusFilter)
+    : records;
+  const reasons = new Map<string, number>();
+  const sponsors = new Map<string, number>();
+  const companies = new Map<string, number>();
+  const roles = new Map<string, number>();
+  const sponsorSet = new Set<string>();
+  const companySet = new Set<string>();
+  const reasonSet = new Set<string>();
+  const summary = {
+    window_hours: 24,
+    bucket_count: 6,
+    bucket_minutes: 60,
+    total_records: history.length,
+    rejected_count: 0,
+    rejected_with_sponsor_count: 0,
+    rejected_without_sponsor_count: 0,
+    rejected_after_approval_count: 0,
+    rejected_before_approval_count: 0,
+    unique_rejection_reasons_window: 0,
+    unique_sponsors_window: 0,
+    unique_companies_window: 0,
+    avg_submit_to_rejection_minutes: 0,
+    max_submit_to_rejection_minutes: 0,
+    latest_rejected_at: "",
+    rejection_reasons: [] as { name: string; count: number }[],
+    sponsors: [] as { name: string; count: number }[],
+    companies: [] as { name: string; count: number }[],
+    roles: [] as { name: string; count: number }[],
+    buckets: [
+      {
+        start: "2026-05-05T08:00:00Z",
+        end: "2026-05-05T09:00:00Z",
+        rejected_count: 0,
+        rejected_with_sponsor_count: 0,
+        rejected_without_sponsor_count: 0,
+        rejected_after_approval_count: 0,
+      },
+      {
+        start: "2026-05-05T09:00:00Z",
+        end: "2026-05-05T10:00:00Z",
+        rejected_count: 0,
+        rejected_with_sponsor_count: 0,
+        rejected_without_sponsor_count: 0,
+        rejected_after_approval_count: 0,
+      },
+      {
+        start: "2026-05-05T10:00:00Z",
+        end: "2026-05-05T11:00:00Z",
+        rejected_count: 0,
+        rejected_with_sponsor_count: 0,
+        rejected_without_sponsor_count: 0,
+        rejected_after_approval_count: 0,
+      },
+      {
+        start: "2026-05-05T11:00:00Z",
+        end: "2026-05-05T12:00:00Z",
+        rejected_count: 0,
+        rejected_with_sponsor_count: 0,
+        rejected_without_sponsor_count: 0,
+        rejected_after_approval_count: 0,
+      },
+      {
+        start: "2026-05-05T12:00:00Z",
+        end: "2026-05-05T13:00:00Z",
+        rejected_count: 0,
+        rejected_with_sponsor_count: 0,
+        rejected_without_sponsor_count: 0,
+        rejected_after_approval_count: 0,
+      },
+      {
+        start: "2026-05-05T13:00:00Z",
+        end: "2026-05-05T14:00:00Z",
+        rejected_count: 0,
+        rejected_with_sponsor_count: 0,
+        rejected_without_sponsor_count: 0,
+        rejected_after_approval_count: 0,
+      },
+    ],
+  };
+  let rejectionTotalMinutes = 0;
+  let rejectionSamples = 0;
+
+  history.forEach((item, index) => {
+    if (item.status !== "rejected" && !item.rejected_at) {
+      return;
+    }
+
+    summary.rejected_count += 1;
+    const bucket = summary.buckets[Math.min(index, summary.buckets.length - 1)];
+    bucket.rejected_count += 1;
+
+    const reason = item.rejection_reason || "unspecified";
+    reasons.set(reason, (reasons.get(reason) || 0) + 1);
+    reasonSet.add(reason);
+
+    const role = item.role || "unassigned";
+    roles.set(role, (roles.get(role) || 0) + 1);
+
+    const sponsor = item.sponsor_email || item.sponsor_name || "";
+    if (sponsor !== "") {
+      summary.rejected_with_sponsor_count += 1;
+      bucket.rejected_with_sponsor_count += 1;
+      sponsors.set(sponsor, (sponsors.get(sponsor) || 0) + 1);
+      sponsorSet.add(sponsor);
+    } else {
+      summary.rejected_without_sponsor_count += 1;
+      bucket.rejected_without_sponsor_count += 1;
+    }
+
+    if (item.company) {
+      companies.set(item.company, (companies.get(item.company) || 0) + 1);
+      companySet.add(item.company);
+    }
+
+    const createdAt = item.created_at ? Date.parse(item.created_at) : Number.NaN;
+    const approvedAt = item.approved_at ? Date.parse(item.approved_at) : Number.NaN;
+    const rejectedAt = item.rejected_at
+      ? Date.parse(item.rejected_at)
+      : item.created_at
+        ? Date.parse(item.created_at)
+        : Number.NaN;
+
+    if (!Number.isNaN(approvedAt) && !Number.isNaN(rejectedAt) && rejectedAt > approvedAt) {
+      summary.rejected_after_approval_count += 1;
+      bucket.rejected_after_approval_count += 1;
+    } else {
+      summary.rejected_before_approval_count += 1;
+    }
+
+    if (!Number.isNaN(createdAt) && !Number.isNaN(rejectedAt) && rejectedAt >= createdAt) {
+      const minutes = Math.floor((rejectedAt - createdAt) / 60000);
+      rejectionTotalMinutes += minutes;
+      rejectionSamples += 1;
+      summary.max_submit_to_rejection_minutes = Math.max(
+        summary.max_submit_to_rejection_minutes,
+        minutes,
+      );
+    }
+
+    const rejectedAtText = item.rejected_at || item.updated_at || item.created_at || "";
+    if (
+      rejectedAtText &&
+      (!summary.latest_rejected_at || rejectedAtText > summary.latest_rejected_at)
+    ) {
+      summary.latest_rejected_at = rejectedAtText;
+    }
+  });
+
+  summary.unique_rejection_reasons_window = reasonSet.size;
+  summary.unique_sponsors_window = sponsorSet.size;
+  summary.unique_companies_window = companySet.size;
+  summary.avg_submit_to_rejection_minutes =
+    rejectionSamples > 0 ? Math.floor(rejectionTotalMinutes / rejectionSamples) : 0;
+  summary.rejection_reasons = Array.from(reasons.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.sponsors = Array.from(sponsors.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.companies = Array.from(companies.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  summary.roles = Array.from(roles.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  return {
+    generated_at: "2026-05-05T12:15:00Z",
+    status: statusFilter,
+    window_hours: summary.window_hours,
+    bucket_count: summary.bucket_count,
+    summary,
+  };
+}
+
 function buildGuestDeliveryFailuresResponse(
   records: GuestRecord[],
   statusFilter = "",
@@ -2988,6 +3169,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         approval_delivery_error: "smtp bounce",
         invite_delivery_status: "failed",
         invite_delivery_error: "smtp timeout",
+        rejection_reason: "Missing sponsor clearance",
         created_at: "2026-05-05T10:45:00Z",
         updated_at: "2026-05-05T11:15:00Z",
         rejected_at: "2026-05-05T11:15:00Z",
@@ -4400,6 +4582,32 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(
           buildGuestDeliveryAnalyticsResponse(state.guestRegistrations, status),
+        ),
+      });
+      return;
+    }
+    if (path === "/system/guest-rejection-analytics" && method === "GET") {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        json: buildGuestRejectionAnalyticsResponse(
+          state.guestRegistrations,
+          status,
+        ),
+      });
+      return;
+    }
+    if (
+      path === "/system/guest-rejection-analytics/export" &&
+      method === "GET"
+    ) {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") || "";
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildGuestRejectionAnalyticsResponse(state.guestRegistrations, status),
         ),
       });
       return;
