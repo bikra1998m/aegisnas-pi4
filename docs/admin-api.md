@@ -277,6 +277,35 @@ Use this analytics view when you want:
 - auth-method, role, and VLAN mix snapshots for operator review
 - ended-session traffic and duration summaries that are safer to reason about than cumulative active-session bytes
 
+## Voucher Analytics Endpoints
+
+The appliance also serves voucher inventory and usage analytics at:
+
+```text
+/api/v1/system/voucher-analytics
+/api/v1/system/voucher-analytics/export?format=json
+/api/v1/system/voucher-analytics/export?format=csv
+```
+
+Optional query parameters:
+
+- `window_hours=<n>`
+- `bucket_count=<n>`
+
+Use this analytics view when you want:
+
+- active, exhausted, expired, and unused voucher counts in one place
+- remaining-use and utilization snapshots without scanning raw codes by hand
+- role mix and voucher-state mix for operator review
+- bucketed voucher creation and expiry pressure trends from the same page where operators create vouchers
+
+From the admin UI:
+
+1. sign in
+2. open `Vouchers`
+3. review the summary, role mix, and state mix
+4. export `JSON` or `CSV` when you need a handoff-ready snapshot
+
 From the admin UI:
 
 1. sign in

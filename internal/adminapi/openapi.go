@@ -206,6 +206,34 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/voucher-analytics", "get", securedOperationWithParameters("Summarize voucher inventory, usage, and expiry trends", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 720.", false),
+		queryStringParameter("bucket_count", "Optional trend bucket count. Defaults to 30 and caps at 90.", false),
+	}, map[string]any{
+		"200": responseJSON("Voucher activity summary with active, exhausted, expired, utilization, role, state, and bucketed creation counters."),
+	}))
+	addOperation(paths, "/api/v1/system/voucher-analytics/export", "get", securedOperationWithParameters("Export voucher inventory and usage analytics", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("format", "Optional export format. Defaults to csv.", []string{"json", "csv"}, false),
+		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 720.", false),
+		queryStringParameter("bucket_count", "Optional trend bucket count. Defaults to 30 and caps at 90.", false),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Voucher analytics export in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/guest-lifecycle", "get", securedOperationWithParameters("Summarize guest access lifecycle activity", "Guest", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("status", "Optional guest status filter.", false),
 		queryStringParameter("limit", "Optional guest history row limit. Defaults to 200.", false),

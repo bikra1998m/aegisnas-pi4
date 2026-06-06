@@ -39,6 +39,126 @@ type MockOptions = {
   guestRegistrations?: GuestRecord[];
 };
 
+function createVouchers() {
+  return [
+    {
+      id: 1,
+      code: "V-001",
+      role: "guest-basic",
+      duration_minutes: 1440,
+      usage_limit: 1,
+      used_count: 0,
+      expires_at: "2026-06-04T12:00:00Z",
+    },
+    {
+      id: 2,
+      code: "V-002",
+      role: "guest-basic",
+      duration_minutes: 720,
+      usage_limit: 5,
+      used_count: 2,
+      expires_at: "2026-06-03T12:00:00Z",
+    },
+    {
+      id: 3,
+      code: "V-003",
+      role: "guest-vip",
+      duration_minutes: 60,
+      usage_limit: 2,
+      used_count: 2,
+      expires_at: "2026-06-03T12:00:00Z",
+    },
+    {
+      id: 4,
+      code: "V-004",
+      role: "guest-basic",
+      duration_minutes: 1440,
+      usage_limit: 1,
+      used_count: 0,
+      expires_at: "2026-06-01T08:00:00Z",
+    },
+    {
+      id: 5,
+      code: "V-005",
+      role: "guest-standard",
+      duration_minutes: 30,
+      usage_limit: 3,
+      used_count: 3,
+      expires_at: "2026-06-02T11:00:00Z",
+    },
+  ];
+}
+
+function buildVoucherAnalyticsResponse() {
+  return {
+    generated_at: "2026-06-02T12:00:00Z",
+    window_hours: 720,
+    bucket_count: 30,
+    summary: {
+      window_hours: 720,
+      bucket_count: 30,
+      bucket_minutes: 1440,
+      total_vouchers: 5,
+      created_in_window_count: 5,
+      active_count: 2,
+      exhausted_count: 1,
+      expired_count: 2,
+      expired_unused_count: 1,
+      unused_count: 2,
+      partially_used_count: 1,
+      fully_used_count: 2,
+      expiring_24_hours_count: 2,
+      expiring_7_days_count: 2,
+      total_issued_uses: 12,
+      total_used_uses: 7,
+      active_remaining_uses: 4,
+      utilization_percent: 58,
+      avg_duration_minutes: 738,
+      max_duration_minutes: 1440,
+      latest_created_at: "2026-06-02T09:00:00Z",
+      roles: [
+        { name: "guest-basic", count: 3 },
+        { name: "guest-standard", count: 1 },
+        { name: "guest-vip", count: 1 },
+      ],
+      states: [
+        { name: "active", count: 2 },
+        { name: "expired", count: 2 },
+        { name: "exhausted", count: 1 },
+      ],
+      buckets: [
+        {
+          start: "2026-05-03T12:00:00Z",
+          end: "2026-05-04T12:00:00Z",
+          created_count: 0,
+          active_count: 0,
+          exhausted_count: 0,
+          expired_count: 0,
+          unused_count: 0,
+        },
+        {
+          start: "2026-05-31T12:00:00Z",
+          end: "2026-06-01T12:00:00Z",
+          created_count: 2,
+          active_count: 0,
+          exhausted_count: 1,
+          expired_count: 1,
+          unused_count: 1,
+        },
+        {
+          start: "2026-06-01T12:00:00Z",
+          end: "2026-06-02T12:00:00Z",
+          created_count: 3,
+          active_count: 2,
+          exhausted_count: 0,
+          expired_count: 1,
+          unused_count: 1,
+        },
+      ],
+    },
+  };
+}
+
 const SUPER_ADMIN: AuthIdentity = {
   subject: "admin-1",
   display_name: "Aegis Admin",
@@ -2044,18 +2164,28 @@ function buildGuestConversionAnalyticsResponse(
       companySet.add(item.company);
     }
 
-    summary.latest_submitted_at = item.created_at || summary.latest_submitted_at;
+    summary.latest_submitted_at =
+      item.created_at || summary.latest_submitted_at;
     bucket.submitted_count += 1;
 
-    if (item.approval_delivery_status === "pending" || item.approval_delivery_status === "sent" || item.approval_delivery_status === "failed") {
+    if (
+      item.approval_delivery_status === "pending" ||
+      item.approval_delivery_status === "sent" ||
+      item.approval_delivery_status === "failed"
+    ) {
       summary.sponsor_approval_required_count += 1;
     }
     if (item.status === "pending") {
       summary.open_pending_count += 1;
     }
-    if (item.approved_at || item.status === "approved" || item.status === "completed") {
+    if (
+      item.approved_at ||
+      item.status === "approved" ||
+      item.status === "completed"
+    ) {
       summary.approved_stage_count += 1;
-      summary.latest_approved_at = item.approved_at || summary.latest_approved_at;
+      summary.latest_approved_at =
+        item.approved_at || summary.latest_approved_at;
       bucket.approved_count += 1;
     }
     if (item.rejected_at || item.status === "rejected") {
@@ -2064,7 +2194,8 @@ function buildGuestConversionAnalyticsResponse(
     }
     if (item.completed_at || item.status === "completed") {
       summary.completed_stage_count += 1;
-      summary.latest_completed_at = item.completed_at || summary.latest_completed_at;
+      summary.latest_completed_at =
+        item.completed_at || summary.latest_completed_at;
       bucket.completed_count += 1;
     }
     if (inviteStatus === "queued") {
@@ -2080,7 +2211,9 @@ function buildGuestConversionAnalyticsResponse(
       summary.invite_failed_count += 1;
     }
     if (
-      (item.approved_at || item.status === "approved" || item.status === "completed") &&
+      (item.approved_at ||
+        item.status === "approved" ||
+        item.status === "completed") &&
       inviteStatus !== "sent" &&
       item.status !== "rejected" &&
       item.status !== "completed"
@@ -2102,10 +2235,15 @@ function buildGuestConversionAnalyticsResponse(
     ? Math.round((summary.approved_stage_count * 100) / summary.total_records)
     : 0;
   summary.invite_send_rate_percent = summary.approved_stage_count
-    ? Math.round((summary.invite_sent_count * 100) / summary.approved_stage_count)
+    ? Math.round(
+        (summary.invite_sent_count * 100) / summary.approved_stage_count,
+      )
     : 0;
   summary.invite_completion_rate_percent = summary.invite_sent_count
-    ? Math.round((summary.completed_after_invite_count * 100) / summary.invite_sent_count)
+    ? Math.round(
+        (summary.completed_after_invite_count * 100) /
+          summary.invite_sent_count,
+      )
     : 0;
   summary.end_to_end_completion_rate_percent = summary.total_records
     ? Math.round((summary.completed_stage_count * 100) / summary.total_records)
@@ -2249,22 +2387,34 @@ function buildGuestRejectionAnalyticsResponse(
       companySet.add(item.company);
     }
 
-    const createdAt = item.created_at ? Date.parse(item.created_at) : Number.NaN;
-    const approvedAt = item.approved_at ? Date.parse(item.approved_at) : Number.NaN;
+    const createdAt = item.created_at
+      ? Date.parse(item.created_at)
+      : Number.NaN;
+    const approvedAt = item.approved_at
+      ? Date.parse(item.approved_at)
+      : Number.NaN;
     const rejectedAt = item.rejected_at
       ? Date.parse(item.rejected_at)
       : item.created_at
         ? Date.parse(item.created_at)
         : Number.NaN;
 
-    if (!Number.isNaN(approvedAt) && !Number.isNaN(rejectedAt) && rejectedAt > approvedAt) {
+    if (
+      !Number.isNaN(approvedAt) &&
+      !Number.isNaN(rejectedAt) &&
+      rejectedAt > approvedAt
+    ) {
       summary.rejected_after_approval_count += 1;
       bucket.rejected_after_approval_count += 1;
     } else {
       summary.rejected_before_approval_count += 1;
     }
 
-    if (!Number.isNaN(createdAt) && !Number.isNaN(rejectedAt) && rejectedAt >= createdAt) {
+    if (
+      !Number.isNaN(createdAt) &&
+      !Number.isNaN(rejectedAt) &&
+      rejectedAt >= createdAt
+    ) {
       const minutes = Math.floor((rejectedAt - createdAt) / 60000);
       rejectionTotalMinutes += minutes;
       rejectionSamples += 1;
@@ -2274,10 +2424,12 @@ function buildGuestRejectionAnalyticsResponse(
       );
     }
 
-    const rejectedAtText = item.rejected_at || item.updated_at || item.created_at || "";
+    const rejectedAtText =
+      item.rejected_at || item.updated_at || item.created_at || "";
     if (
       rejectedAtText &&
-      (!summary.latest_rejected_at || rejectedAtText > summary.latest_rejected_at)
+      (!summary.latest_rejected_at ||
+        rejectedAtText > summary.latest_rejected_at)
     ) {
       summary.latest_rejected_at = rejectedAtText;
     }
@@ -2287,7 +2439,9 @@ function buildGuestRejectionAnalyticsResponse(
   summary.unique_sponsors_window = sponsorSet.size;
   summary.unique_companies_window = companySet.size;
   summary.avg_submit_to_rejection_minutes =
-    rejectionSamples > 0 ? Math.floor(rejectionTotalMinutes / rejectionSamples) : 0;
+    rejectionSamples > 0
+      ? Math.floor(rejectionTotalMinutes / rejectionSamples)
+      : 0;
   summary.rejection_reasons = Array.from(reasons.entries())
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
@@ -3078,6 +3232,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         ip_address: "192.168.50.10",
       },
     ],
+    vouchers: createVouchers(),
     sessionHistory: [
       {
         id: "sess-001",
@@ -3730,6 +3885,30 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             },
           ],
         },
+      });
+      return;
+    }
+    if (path === "/vouchers" && method === "GET") {
+      await route.fulfill({ json: state.vouchers });
+      return;
+    }
+    if (path === "/system/voucher-analytics" && method === "GET") {
+      await route.fulfill({ json: buildVoucherAnalyticsResponse() });
+      return;
+    }
+    if (path === "/system/voucher-analytics/export" && method === "GET") {
+      const url = new URL(route.request().url());
+      const format = url.searchParams.get("format") || "json";
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "content-type":
+            format === "csv" ? "text/csv; charset=utf-8" : "application/json",
+        },
+        body:
+          format === "csv"
+            ? "section,name,bucket_start,bucket_end,count,value\nsummary,total_vouchers,,,,5\nsummary,utilization_percent,,,,58\nrole,guest-basic,,,3,\nstate,active,,,2,\n"
+            : JSON.stringify(buildVoucherAnalyticsResponse()),
       });
       return;
     }
@@ -4671,7 +4850,10 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         status: 200,
         headers: { "content-type": "application/json" },
         body: JSON.stringify(
-          buildGuestRejectionAnalyticsResponse(state.guestRegistrations, status),
+          buildGuestRejectionAnalyticsResponse(
+            state.guestRegistrations,
+            status,
+          ),
         ),
       });
       return;
