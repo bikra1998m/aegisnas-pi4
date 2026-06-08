@@ -181,6 +181,8 @@ For voucher utilization, expiry pressure, and remaining-use visibility without s
 
 For voucher redemption behavior, first-use delay, repeat-use patterns, and voucher-session traffic without manually correlating vouchers against raw accounting rows, use `Vouchers` or `GET /api/v1/system/voucher-redemption-analytics`.
 
+For upcoming voucher expiry pressure, unused vouchers at risk, and remaining finite-use capacity that will age out inside a selected horizon, use `Vouchers` or `GET /api/v1/system/voucher-expiry-analytics`.
+
 For recurring voucher inventory, utilization, and expiry snapshots without relying on a manual export step, enable scheduled voucher analytics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/voucher-analytics-exports`.
 
 For recurring voucher redemption behavior snapshots without manually exporting first-use delay and repeat-use trends each time, enable scheduled voucher redemption analytics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/voucher-redemption-analytics-exports`.

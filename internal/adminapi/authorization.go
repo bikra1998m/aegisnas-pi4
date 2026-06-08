@@ -173,6 +173,10 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/voucher-redemption-analytics-exports"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/voucher-expiry-analytics/export"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/voucher-expiry-analytics"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/voucher-redemption-analytics/export"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/voucher-redemption-analytics"):

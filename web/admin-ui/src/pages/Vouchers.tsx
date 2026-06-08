@@ -96,6 +96,52 @@ type VoucherRedemptionPayload = {
   summary: VoucherRedemptionSummary;
 };
 
+type VoucherExpiryBucket = {
+  start: string;
+  end: string;
+  expiring_count: number;
+  unused_expiring_count: number;
+  active_expiring_count: number;
+  exhausted_expiring_count: number;
+  remaining_uses: number;
+};
+
+type VoucherExpirySummary = {
+  window_hours: number;
+  bucket_count: number;
+  bucket_minutes: number;
+  total_vouchers: number;
+  active_with_expiry_count: number;
+  no_expiry_count: number;
+  expired_count: number;
+  expired_unused_count: number;
+  expired_used_count: number;
+  expiring_24_hours_count: number;
+  expiring_7_days_count: number;
+  expiring_in_window_count: number;
+  unused_expiring_in_window_count: number;
+  active_expiring_in_window_count: number;
+  exhausted_expiring_in_window_count: number;
+  total_remaining_uses_expiring_in_window: number;
+  avg_hours_until_expiry: number;
+  max_hours_until_expiry: number;
+  avg_expired_hours_ago: number;
+  max_expired_hours_ago: number;
+  soonest_expiry_at?: string;
+  latest_expiry_in_window_at?: string;
+  roles: VoucherAnalyticsCount[];
+  unused_roles: VoucherAnalyticsCount[];
+  states: VoucherAnalyticsCount[];
+  buckets: VoucherExpiryBucket[];
+};
+
+type VoucherExpiryPayload = {
+  generated_at: string;
+  window_hours: number;
+  bucket_count: number;
+  summary: VoucherExpirySummary;
+};
+
 function formatTimestamp(value?: string) {
   if (!value) {
     return "Not recorded";
@@ -200,12 +246,16 @@ export default function Vouchers() {
   );
   const [redemption, setRedemption] =
     useState<VoucherRedemptionSummary | null>(null);
+  const [expiry, setExpiry] = useState<VoucherExpirySummary | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
   const [loadingRedemption, setLoadingRedemption] = useState(true);
+  const [loadingExpiry, setLoadingExpiry] = useState(true);
   const [analyticsError, setAnalyticsError] = useState("");
   const [analyticsMessage, setAnalyticsMessage] = useState("");
   const [redemptionError, setRedemptionError] = useState("");
   const [redemptionMessage, setRedemptionMessage] = useState("");
+  const [expiryError, setExpiryError] = useState("");
+  const [expiryMessage, setExpiryMessage] = useState("");
   const [busyAction, setBusyAction] = useState("");
   const [windowHours, setWindowHours] = useState(24 * 30);
 
@@ -265,8 +315,37 @@ export default function Vouchers() {
     }
   };
 
+  const fetchExpiry = async (announce = false) => {
+    if (announce) {
+      setExpiryError("");
+      setExpiryMessage("");
+    }
+    setLoadingExpiry(true);
+    try {
+      const { data } = await api.get<VoucherExpiryPayload>(
+        `/system/voucher-expiry-analytics?window_hours=${windowHours}&bucket_count=${bucketCount}`,
+      );
+      setExpiry(data.summary || null);
+      if (announce) {
+        setExpiryMessage("Voucher expiry analytics refreshed.");
+      }
+    } catch (err: any) {
+      setExpiryError(
+        err.response?.data ||
+          err.message ||
+          "Could not load voucher expiry analytics.",
+      );
+    } finally {
+      setLoadingExpiry(false);
+    }
+  };
+
   const refreshAll = async (announce = false) => {
-    await Promise.all([fetchAnalytics(announce), fetchRedemption(announce)]);
+    await Promise.all([
+      fetchAnalytics(announce),
+      fetchRedemption(announce),
+      fetchExpiry(announce),
+    ]);
   };
 
   useEffect(() => {
@@ -349,6 +428,40 @@ export default function Vouchers() {
     }
   };
 
+  const exportExpiryAnalytics = async (format: "json" | "csv") => {
+    setExpiryError("");
+    setExpiryMessage("");
+    setBusyAction(`export-expiry-${format}`);
+    try {
+      const response = await api.get(
+        `/system/voucher-expiry-analytics/export?format=${format}&window_hours=${windowHours}&bucket_count=${bucketCount}`,
+        {
+          responseType: "blob",
+        },
+      );
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download =
+        format === "json"
+          ? "aegisnas-voucher-expiry-analytics.json"
+          : "aegisnas-voucher-expiry-analytics.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+      setExpiryMessage(
+        `Voucher expiry analytics exported as ${format.toUpperCase()}.`,
+      );
+    } catch (err: any) {
+      setExpiryError(
+        err.response?.data ||
+          err.message ||
+          "Could not export voucher expiry analytics.",
+      );
+    } finally {
+      setBusyAction("");
+    }
+  };
+
   const topContent = (
     <div className="space-y-6">
       <section className="rounded-lg bg-white p-6 shadow">
@@ -378,10 +491,15 @@ export default function Vouchers() {
             <div className="flex flex-wrap gap-3 self-end">
               <button
                 onClick={() => void refreshAll(true)}
-                disabled={loadingAnalytics || loadingRedemption || busyAction !== ""}
+                disabled={
+                  loadingAnalytics ||
+                  loadingRedemption ||
+                  loadingExpiry ||
+                  busyAction !== ""
+                }
                 className="rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-black disabled:opacity-50"
               >
-                {loadingAnalytics || loadingRedemption
+                {loadingAnalytics || loadingRedemption || loadingExpiry
                   ? "Refreshing Analytics..."
                   : "Refresh Analytics"}
               </button>
@@ -478,6 +596,188 @@ export default function Vouchers() {
                 items={analytics.states}
                 empty="No voucher state distribution is available yet."
               />
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Voucher Expiry Horizon
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Look ahead at upcoming expirations, unused vouchers at risk, and
+              how much remaining finite-use capacity is about to age out.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => void exportExpiryAnalytics("json")}
+              disabled={busyAction !== ""}
+              className="rounded-md bg-emerald-700 px-4 py-2 text-white hover:bg-emerald-800 disabled:opacity-50"
+            >
+              Export Expiry JSON
+            </button>
+            <button
+              onClick={() => void exportExpiryAnalytics("csv")}
+              disabled={busyAction !== ""}
+              className="rounded-md bg-indigo-700 px-4 py-2 text-white hover:bg-indigo-800 disabled:opacity-50"
+            >
+              Export Expiry CSV
+            </button>
+          </div>
+        </div>
+
+        {expiryMessage && (
+          <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            {expiryMessage}
+          </div>
+        )}
+        {expiryError && (
+          <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {String(expiryError)}
+          </div>
+        )}
+
+        {loadingExpiry ? (
+          <div className="mt-4 rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">
+            Loading voucher expiry analytics...
+          </div>
+        ) : !expiry ? (
+          <div className="mt-4 rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">
+            No voucher expiry analytics available yet.
+          </div>
+        ) : (
+          <>
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                label="Expiring In Window"
+                value={expiry.expiring_in_window_count}
+                hint="Future voucher expirations inside the selected horizon."
+              />
+              <StatCard
+                label="Expiring In 24h"
+                value={expiry.expiring_24_hours_count}
+                hint="Vouchers that will expire in the next day."
+              />
+              <StatCard
+                label="Expiring In 7d"
+                value={expiry.expiring_7_days_count}
+                hint="Vouchers due to expire inside the next week."
+              />
+              <StatCard
+                label="Unused At Risk"
+                value={expiry.unused_expiring_in_window_count}
+                hint="Still-unused vouchers that will expire inside the selected horizon."
+              />
+              <StatCard
+                label="Active At Risk"
+                value={expiry.active_expiring_in_window_count}
+                hint="Usable vouchers with future expiry inside the selected horizon."
+              />
+              <StatCard
+                label="Exhausted At Risk"
+                value={expiry.exhausted_expiring_in_window_count}
+                hint="Already-fully-used vouchers that still carry a future expiry timestamp."
+              />
+              <StatCard
+                label="Remaining Uses At Risk"
+                value={expiry.total_remaining_uses_expiring_in_window}
+                hint="Finite-use capacity that will disappear when these vouchers expire."
+              />
+              <StatCard
+                label="No Expiry"
+                value={expiry.no_expiry_count}
+                hint="Vouchers that never expire unless manually removed."
+              />
+              <StatCard
+                label="Expired Unused"
+                value={expiry.expired_unused_count}
+                hint="Already-expired vouchers that were never redeemed at all."
+              />
+              <StatCard
+                label="Soonest Expiry"
+                value={formatTimestamp(expiry.soonest_expiry_at)}
+                hint="Earliest voucher expiry inside the selected horizon."
+              />
+              <StatCard
+                label="Average Time To Expiry"
+                value={formatDurationMinutes(expiry.avg_hours_until_expiry * 60)}
+                hint="Average wait until vouchers in this horizon expire."
+              />
+              <StatCard
+                label="Average Expired Age"
+                value={formatDurationMinutes(expiry.avg_expired_hours_ago * 60)}
+                hint="Average age of vouchers that already expired."
+              />
+            </div>
+
+            <div className="mt-6 grid gap-6 xl:grid-cols-2">
+              <MixList
+                title="Expiring Role Mix"
+                items={expiry.roles}
+                empty="No upcoming voucher expiry role mix is available yet."
+              />
+              <MixList
+                title="Unused At-Risk Roles"
+                items={expiry.unused_roles}
+                empty="No unused at-risk voucher roles are present right now."
+              />
+            </div>
+
+            <div className="mt-6 overflow-x-auto rounded-md border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {[
+                      "Bucket",
+                      "Expiring",
+                      "Unused",
+                      "Active",
+                      "Exhausted",
+                      "Remaining Uses",
+                    ].map((label) => (
+                      <th
+                        key={label}
+                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600"
+                      >
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {expiry.buckets.map((bucket) => (
+                    <tr key={`${bucket.start}-${bucket.end}`}>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        <div className="font-medium text-gray-900">
+                          {formatTimestamp(bucket.start)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          to {formatTimestamp(bucket.end)}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {bucket.expiring_count}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {bucket.unused_expiring_count}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {bucket.active_expiring_count}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {bucket.exhausted_expiring_count}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {bucket.remaining_uses}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </>
         )}

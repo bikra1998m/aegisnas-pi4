@@ -302,6 +302,9 @@ The appliance also serves voucher inventory and usage analytics at:
 /api/v1/system/voucher-redemption-analytics
 /api/v1/system/voucher-redemption-analytics/export?format=json
 /api/v1/system/voucher-redemption-analytics/export?format=csv
+/api/v1/system/voucher-expiry-analytics
+/api/v1/system/voucher-expiry-analytics/export?format=json
+/api/v1/system/voucher-expiry-analytics/export?format=csv
 /api/v1/system/voucher-analytics-exports
 /api/v1/system/voucher-analytics-exports/download?name=<artifact>
 ```
@@ -326,14 +329,23 @@ Use the voucher redemption analytics endpoints when you want:
 - repeat-use versus one-time-use behavior across the current voucher set
 - bucketed voucher session starts, first redemptions, and completed-session traffic without pivoting over raw accounting rows
 
+Use the voucher expiry analytics endpoints when you want:
+
+- a forward-looking view of vouchers expiring inside the selected horizon
+- unused vouchers that are about to expire without ever being redeemed
+- remaining finite-use capacity that will age out with upcoming expirations
+- role hotspots for expiring inventory and unused at-risk vouchers
+- bucketed upcoming expiry pressure instead of only historical voucher creation counts
+
 From the admin UI:
 
 1. sign in
 2. open `Vouchers`
 3. review the inventory summary, role mix, and state mix
-4. review the redemption summary and trend when you need first-use and reuse behavior
-5. export `JSON` or `CSV` when you need a handoff-ready snapshot
-6. review scheduled voucher analytics export runtime and artifacts when recurring export is enabled
+4. review the expiry horizon when you need upcoming expiration pressure and unused-at-risk visibility
+5. review the redemption summary and trend when you need first-use and reuse behavior
+6. export `JSON` or `CSV` when you need a handoff-ready snapshot
+7. review scheduled voucher analytics export runtime and artifacts when recurring export is enabled
 
 From the admin UI:
 

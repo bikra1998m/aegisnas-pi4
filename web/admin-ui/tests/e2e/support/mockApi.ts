@@ -216,6 +216,85 @@ function buildVoucherRedemptionAnalyticsResponse() {
   };
 }
 
+function buildVoucherExpiryAnalyticsResponse() {
+  return {
+    generated_at: "2026-06-02T12:00:00Z",
+    window_hours: 720,
+    bucket_count: 30,
+    summary: {
+      window_hours: 720,
+      bucket_count: 30,
+      bucket_minutes: 1440,
+      total_vouchers: 5,
+      active_with_expiry_count: 3,
+      no_expiry_count: 1,
+      expired_count: 1,
+      expired_unused_count: 1,
+      expired_used_count: 0,
+      expiring_24_hours_count: 1,
+      expiring_7_days_count: 3,
+      expiring_in_window_count: 4,
+      unused_expiring_in_window_count: 2,
+      active_expiring_in_window_count: 3,
+      exhausted_expiring_in_window_count: 1,
+      total_remaining_uses_expiring_in_window: 4,
+      avg_hours_until_expiry: 87,
+      max_hours_until_expiry: 168,
+      avg_expired_hours_ago: 6,
+      max_expired_hours_ago: 6,
+      soonest_expiry_at: "2026-06-02T18:00:00Z",
+      latest_expiry_in_window_at: "2026-06-09T12:00:00Z",
+      roles: [
+        { name: "guest-basic", count: 3 },
+        { name: "guest-vip", count: 1 },
+      ],
+      unused_roles: [{ name: "guest-basic", count: 2 }],
+      states: [
+        { name: "active", count: 3 },
+        { name: "exhausted", count: 1 },
+      ],
+      buckets: [
+        {
+          start: "2026-06-02T12:00:00Z",
+          end: "2026-06-03T12:00:00Z",
+          expiring_count: 1,
+          unused_expiring_count: 1,
+          active_expiring_count: 1,
+          exhausted_expiring_count: 0,
+          remaining_uses: 1,
+        },
+        {
+          start: "2026-06-03T12:00:00Z",
+          end: "2026-06-04T12:00:00Z",
+          expiring_count: 1,
+          unused_expiring_count: 0,
+          active_expiring_count: 1,
+          exhausted_expiring_count: 0,
+          remaining_uses: 3,
+        },
+        {
+          start: "2026-06-04T12:00:00Z",
+          end: "2026-06-05T12:00:00Z",
+          expiring_count: 1,
+          unused_expiring_count: 0,
+          active_expiring_count: 0,
+          exhausted_expiring_count: 1,
+          remaining_uses: 0,
+        },
+        {
+          start: "2026-06-08T12:00:00Z",
+          end: "2026-06-09T12:00:00Z",
+          expiring_count: 1,
+          unused_expiring_count: 1,
+          active_expiring_count: 1,
+          exhausted_expiring_count: 0,
+          remaining_uses: 0,
+        },
+      ],
+    },
+  };
+}
+
 const SUPER_ADMIN: AuthIdentity = {
   subject: "admin-1",
   display_name: "Aegis Admin",
@@ -4029,6 +4108,10 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({ json: buildVoucherRedemptionAnalyticsResponse() });
       return;
     }
+    if (path === "/system/voucher-expiry-analytics" && method === "GET") {
+      await route.fulfill({ json: buildVoucherExpiryAnalyticsResponse() });
+      return;
+    }
     if (
       path === "/system/voucher-redemption-analytics/export" &&
       method === "GET"
@@ -4045,6 +4128,25 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           format === "csv"
             ? "section,name,bucket_start,bucket_end,count,value\nsummary,redeemed_voucher_count,,,,3\nsummary,avg_sessions_per_redeemed_voucher,,,,,1.33\nrole,guest-basic,,,2,\nbucket,first_redeemed_count,2026-05-31T12:00:00Z,2026-06-01T12:00:00Z,1,\n"
             : JSON.stringify(buildVoucherRedemptionAnalyticsResponse()),
+      });
+      return;
+    }
+    if (
+      path === "/system/voucher-expiry-analytics/export" &&
+      method === "GET"
+    ) {
+      const url = new URL(route.request().url());
+      const format = url.searchParams.get("format") || "json";
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "content-type":
+            format === "csv" ? "text/csv; charset=utf-8" : "application/json",
+        },
+        body:
+          format === "csv"
+            ? "section,name,bucket_start,bucket_end,count,value\nsummary,expiring_in_window_count,,,,4\nsummary,unused_expiring_in_window_count,,,,2\nrole,guest-basic,,,3,\nunused_role,guest-basic,,,2,\nbucket,expiring_count,2026-06-02T12:00:00Z,2026-06-03T12:00:00Z,1,\n"
+            : JSON.stringify(buildVoucherExpiryAnalyticsResponse()),
       });
       return;
     }

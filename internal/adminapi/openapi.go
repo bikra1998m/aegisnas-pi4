@@ -262,6 +262,34 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/voucher-expiry-analytics", "get", securedOperationWithParameters("Summarize voucher expiry pressure and at-risk vouchers", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("window_hours", "Optional forward-looking expiry horizon in hours. Defaults to 720.", false),
+		queryStringParameter("bucket_count", "Optional expiry bucket count. Defaults to 30 and caps at 90.", false),
+	}, map[string]any{
+		"200": responseJSON("Voucher expiry pressure, at-risk unused vouchers, operational state mix, and upcoming expiry buckets."),
+	}))
+	addOperation(paths, "/api/v1/system/voucher-expiry-analytics/export", "get", securedOperationWithParameters("Export voucher expiry analytics", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("format", "Optional export format. Defaults to csv.", []string{"json", "csv"}, false),
+		queryStringParameter("window_hours", "Optional forward-looking expiry horizon in hours. Defaults to 720.", false),
+		queryStringParameter("bucket_count", "Optional expiry bucket count. Defaults to 30 and caps at 90.", false),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Voucher expiry analytics export in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/voucher-redemption-analytics-exports", "get", securedOperation("List scheduled voucher redemption analytics exports", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Scheduled voucher redemption analytics export runtime status and recent artifact list."),
 	}))

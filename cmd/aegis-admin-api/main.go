@@ -195,6 +195,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/voucher-analytics/export", adminapi.HandleExportVoucherAnalytics)
 			r.Get("/system/voucher-redemption-analytics", adminapi.HandleGetVoucherRedemptionAnalytics)
 			r.Get("/system/voucher-redemption-analytics/export", adminapi.HandleExportVoucherRedemptionAnalytics)
+			r.Get("/system/voucher-expiry-analytics", adminapi.HandleGetVoucherExpiryAnalytics)
+			r.Get("/system/voucher-expiry-analytics/export", adminapi.HandleExportVoucherExpiryAnalytics)
 			r.Get("/system/voucher-analytics-exports", adminapi.HandleListVoucherAnalyticsExports)
 			r.Get("/system/voucher-analytics-exports/download", adminapi.HandleDownloadVoucherAnalyticsExport)
 			r.Get("/system/voucher-redemption-analytics-exports", adminapi.HandleListVoucherRedemptionAnalyticsExports)

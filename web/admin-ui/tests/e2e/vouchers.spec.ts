@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { installMockApi, seedAuthenticatedSession } from "./support/mockApi";
 
 test.describe("voucher analytics page", () => {
-  test("shows voucher inventory, redemption analytics, and export actions", async ({
+  test("shows voucher inventory, expiry, redemption analytics, and export actions", async ({
     page,
   }) => {
     await seedAuthenticatedSession(page);
@@ -15,8 +15,12 @@ test.describe("voucher analytics page", () => {
       page.getByRole("heading", { name: "Voucher Inventory Summary" }),
     ).toBeVisible();
     await expect(
+      page.getByRole("heading", { name: "Voucher Expiry Horizon" }),
+    ).toBeVisible();
+    await expect(
       page.getByRole("heading", { name: "Voucher Redemption Summary" }),
     ).toBeVisible();
+    await expect(page.getByText("Unused At Risk")).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Voucher Redemption Trend" }),
     ).toBeVisible();
@@ -42,9 +46,22 @@ test.describe("voucher analytics page", () => {
       page.getByRole("button", { name: "Export Redemption CSV" }),
     ).toBeVisible();
     await expect(
+      page.getByRole("button", { name: "Export Expiry JSON" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Export Expiry CSV" }),
+    ).toBeVisible();
+    await expect(
       page
         .locator("section")
         .filter({ has: page.getByRole("heading", { name: "Role Mix" }) })
+        .getByText("guest-basic", { exact: true })
+        .first(),
+    ).toBeVisible();
+    await expect(
+      page
+        .locator("section")
+        .filter({ has: page.getByRole("heading", { name: "Unused At-Risk Roles" }) })
         .getByText("guest-basic", { exact: true })
         .first(),
     ).toBeVisible();
