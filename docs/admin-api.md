@@ -103,6 +103,13 @@ When scheduled voucher analytics exports are enabled, the appliance also serves:
 /api/v1/system/voucher-analytics-exports/download?name=<artifact>
 ```
 
+When scheduled voucher redemption analytics exports are enabled, the appliance also serves:
+
+```text
+/api/v1/system/voucher-redemption-analytics-exports
+/api/v1/system/voucher-redemption-analytics-exports/download?name=<artifact>
+```
+
 When scheduled integration exports are enabled, the appliance also serves:
 
 ```text

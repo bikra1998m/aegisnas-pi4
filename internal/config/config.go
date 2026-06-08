@@ -293,6 +293,7 @@ type TelemetryConfig struct {
 	SessionExports                  DiagnosticsExportConfig   `mapstructure:"session_exports"`
 	SessionAnalyticsExports         DiagnosticsExportConfig   `mapstructure:"session_analytics_exports"`
 	VoucherAnalyticsExports         DiagnosticsExportConfig   `mapstructure:"voucher_analytics_exports"`
+	VoucherRedemptionAnalyticsExports DiagnosticsExportConfig `mapstructure:"voucher_redemption_analytics_exports"`
 	GuestLifecycleExports           DiagnosticsExportConfig   `mapstructure:"guest_lifecycle_exports"`
 	GuestInviteAnalyticsExports     DiagnosticsExportConfig   `mapstructure:"guest_invite_analytics_exports"`
 	GuestConversionAnalyticsExports DiagnosticsExportConfig   `mapstructure:"guest_conversion_analytics_exports"`
@@ -1102,6 +1103,11 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("telemetry.voucher_analytics_exports.format %q is invalid", c.Telemetry.VoucherAnalyticsExports.Format)
 	}
+	switch strings.ToLower(strings.TrimSpace(c.Telemetry.VoucherRedemptionAnalyticsExports.Format)) {
+	case "", "json", "csv", "both":
+	default:
+		return fmt.Errorf("telemetry.voucher_redemption_analytics_exports.format %q is invalid", c.Telemetry.VoucherRedemptionAnalyticsExports.Format)
+	}
 	switch strings.ToLower(strings.TrimSpace(c.Telemetry.GuestLifecycleExports.Format)) {
 	case "", "json", "csv", "both":
 	default:
@@ -1177,6 +1183,9 @@ func (c *Config) Validate() error {
 	if c.Telemetry.VoucherAnalyticsExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.voucher_analytics_exports.interval_minutes %d out of range", c.Telemetry.VoucherAnalyticsExports.IntervalMinutes)
 	}
+	if c.Telemetry.VoucherRedemptionAnalyticsExports.IntervalMinutes < 0 {
+		return fmt.Errorf("telemetry.voucher_redemption_analytics_exports.interval_minutes %d out of range", c.Telemetry.VoucherRedemptionAnalyticsExports.IntervalMinutes)
+	}
 	if c.Telemetry.GuestLifecycleExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.guest_lifecycle_exports.interval_minutes %d out of range", c.Telemetry.GuestLifecycleExports.IntervalMinutes)
 	}
@@ -1227,6 +1236,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Telemetry.VoucherAnalyticsExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.voucher_analytics_exports.retention_count %d out of range", c.Telemetry.VoucherAnalyticsExports.RetentionCount)
+	}
+	if c.Telemetry.VoucherRedemptionAnalyticsExports.RetentionCount < 0 {
+		return fmt.Errorf("telemetry.voucher_redemption_analytics_exports.retention_count %d out of range", c.Telemetry.VoucherRedemptionAnalyticsExports.RetentionCount)
 	}
 	if c.Telemetry.GuestLifecycleExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.guest_lifecycle_exports.retention_count %d out of range", c.Telemetry.GuestLifecycleExports.RetentionCount)
@@ -1346,6 +1358,20 @@ func (c *Config) Validate() error {
 		}
 		if c.Telemetry.VoucherAnalyticsExports.RetentionCount <= 0 {
 			return errors.New("telemetry.voucher_analytics_exports.enabled requires a positive telemetry.voucher_analytics_exports.retention_count")
+		}
+	}
+	if c.Telemetry.VoucherRedemptionAnalyticsExports.Enabled {
+		if !c.Telemetry.Enabled {
+			return errors.New("telemetry.voucher_redemption_analytics_exports.enabled requires telemetry.enabled")
+		}
+		if strings.TrimSpace(c.Telemetry.VoucherRedemptionAnalyticsExports.Directory) == "" {
+			return errors.New("telemetry.voucher_redemption_analytics_exports.enabled requires telemetry.voucher_redemption_analytics_exports.directory")
+		}
+		if c.Telemetry.VoucherRedemptionAnalyticsExports.IntervalMinutes <= 0 {
+			return errors.New("telemetry.voucher_redemption_analytics_exports.enabled requires a positive telemetry.voucher_redemption_analytics_exports.interval_minutes")
+		}
+		if c.Telemetry.VoucherRedemptionAnalyticsExports.RetentionCount <= 0 {
+			return errors.New("telemetry.voucher_redemption_analytics_exports.enabled requires a positive telemetry.voucher_redemption_analytics_exports.retention_count")
 		}
 	}
 	if c.Telemetry.GuestLifecycleExports.Enabled {

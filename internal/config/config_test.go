@@ -1713,6 +1713,13 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 					IntervalMinutes: 30,
 					RetentionCount:  21,
 				},
+				VoucherRedemptionAnalyticsExports: DiagnosticsExportConfig{
+					Enabled:         true,
+					Directory:       "/var/lib/aegisnas/voucher-redemption-analytics-exports",
+					Format:          "json",
+					IntervalMinutes: 30,
+					RetentionCount:  21,
+				},
 				GuestLifecycleExports: DiagnosticsExportConfig{
 					Enabled:         true,
 					Directory:       "/var/lib/aegisnas/guest-lifecycle-exports",
@@ -1926,6 +1933,32 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badVoucherAnalyticsRetention.Telemetry.VoucherAnalyticsExports.RetentionCount = 0
 	assert.ErrorContains(t, badVoucherAnalyticsRetention.Validate(), "telemetry.voucher_analytics_exports.enabled requires a positive telemetry.voucher_analytics_exports.retention_count")
 
+	badVoucherRedemptionAnalyticsFormat := base()
+	badVoucherRedemptionAnalyticsFormat.Telemetry.VoucherRedemptionAnalyticsExports.Format = "xml"
+	assert.ErrorContains(t, badVoucherRedemptionAnalyticsFormat.Validate(), `telemetry.voucher_redemption_analytics_exports.format "xml" is invalid`)
+
+	badVoucherRedemptionAnalyticsDisabledTelemetry := base()
+	badVoucherRedemptionAnalyticsDisabledTelemetry.Telemetry.Enabled = false
+	badVoucherRedemptionAnalyticsDisabledTelemetry.Telemetry.SupportBundleExports.Enabled = false
+	badVoucherRedemptionAnalyticsDisabledTelemetry.Telemetry.DiagnosticsExports.Enabled = false
+	badVoucherRedemptionAnalyticsDisabledTelemetry.Telemetry.AuditExports.Enabled = false
+	badVoucherRedemptionAnalyticsDisabledTelemetry.Telemetry.SessionExports.Enabled = false
+	badVoucherRedemptionAnalyticsDisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
+	badVoucherRedemptionAnalyticsDisabledTelemetry.Telemetry.VoucherAnalyticsExports.Enabled = false
+	assert.ErrorContains(t, badVoucherRedemptionAnalyticsDisabledTelemetry.Validate(), "telemetry.voucher_redemption_analytics_exports.enabled requires telemetry.enabled")
+
+	badVoucherRedemptionAnalyticsDirectory := base()
+	badVoucherRedemptionAnalyticsDirectory.Telemetry.VoucherRedemptionAnalyticsExports.Directory = ""
+	assert.ErrorContains(t, badVoucherRedemptionAnalyticsDirectory.Validate(), "telemetry.voucher_redemption_analytics_exports.enabled requires telemetry.voucher_redemption_analytics_exports.directory")
+
+	badVoucherRedemptionAnalyticsInterval := base()
+	badVoucherRedemptionAnalyticsInterval.Telemetry.VoucherRedemptionAnalyticsExports.IntervalMinutes = 0
+	assert.ErrorContains(t, badVoucherRedemptionAnalyticsInterval.Validate(), "telemetry.voucher_redemption_analytics_exports.enabled requires a positive telemetry.voucher_redemption_analytics_exports.interval_minutes")
+
+	badVoucherRedemptionAnalyticsRetention := base()
+	badVoucherRedemptionAnalyticsRetention.Telemetry.VoucherRedemptionAnalyticsExports.RetentionCount = 0
+	assert.ErrorContains(t, badVoucherRedemptionAnalyticsRetention.Validate(), "telemetry.voucher_redemption_analytics_exports.enabled requires a positive telemetry.voucher_redemption_analytics_exports.retention_count")
+
 	badGuestLifecycleFormat := base()
 	badGuestLifecycleFormat.Telemetry.GuestLifecycleExports.Format = "xml"
 	assert.ErrorContains(t, badGuestLifecycleFormat.Validate(), `telemetry.guest_lifecycle_exports.format "xml" is invalid`)
@@ -1938,6 +1971,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badGuestLifecycleDisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badGuestLifecycleDisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badGuestLifecycleDisabledTelemetry.Telemetry.VoucherAnalyticsExports.Enabled = false
+	badGuestLifecycleDisabledTelemetry.Telemetry.VoucherRedemptionAnalyticsExports.Enabled = false
 	assert.ErrorContains(t, badGuestLifecycleDisabledTelemetry.Validate(), "telemetry.guest_lifecycle_exports.enabled requires telemetry.enabled")
 
 	badGuestLifecycleDirectory := base()
@@ -1964,6 +1998,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badGuestDeliveryDisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badGuestDeliveryDisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badGuestDeliveryDisabledTelemetry.Telemetry.VoucherAnalyticsExports.Enabled = false
+	badGuestDeliveryDisabledTelemetry.Telemetry.VoucherRedemptionAnalyticsExports.Enabled = false
 	badGuestDeliveryDisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
 	badGuestDeliveryDisabledTelemetry.Telemetry.GuestRejectionAnalyticsExports.Enabled = false
 	assert.ErrorContains(t, badGuestDeliveryDisabledTelemetry.Validate(), "telemetry.guest_delivery_analytics_exports.enabled requires telemetry.enabled")
@@ -1992,6 +2027,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badGuestDeliveryFailuresDisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badGuestDeliveryFailuresDisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badGuestDeliveryFailuresDisabledTelemetry.Telemetry.VoucherAnalyticsExports.Enabled = false
+	badGuestDeliveryFailuresDisabledTelemetry.Telemetry.VoucherRedemptionAnalyticsExports.Enabled = false
 	badGuestDeliveryFailuresDisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
 	badGuestDeliveryFailuresDisabledTelemetry.Telemetry.GuestRejectionAnalyticsExports.Enabled = false
 	badGuestDeliveryFailuresDisabledTelemetry.Telemetry.GuestDeliveryAnalyticsExports.Enabled = false
@@ -2021,6 +2057,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badGuestSponsorDisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badGuestSponsorDisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badGuestSponsorDisabledTelemetry.Telemetry.VoucherAnalyticsExports.Enabled = false
+	badGuestSponsorDisabledTelemetry.Telemetry.VoucherRedemptionAnalyticsExports.Enabled = false
 	badGuestSponsorDisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
 	badGuestSponsorDisabledTelemetry.Telemetry.GuestRejectionAnalyticsExports.Enabled = false
 	badGuestSponsorDisabledTelemetry.Telemetry.GuestDeliveryAnalyticsExports.Enabled = false
@@ -2051,6 +2088,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badGuestRejectionDisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badGuestRejectionDisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badGuestRejectionDisabledTelemetry.Telemetry.VoucherAnalyticsExports.Enabled = false
+	badGuestRejectionDisabledTelemetry.Telemetry.VoucherRedemptionAnalyticsExports.Enabled = false
 	badGuestRejectionDisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
 	badGuestRejectionDisabledTelemetry.Telemetry.GuestDeliveryAnalyticsExports.Enabled = false
 	badGuestRejectionDisabledTelemetry.Telemetry.GuestDeliveryFailuresExports.Enabled = false
@@ -2081,6 +2119,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badIntegrationDisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badIntegrationDisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badIntegrationDisabledTelemetry.Telemetry.VoucherAnalyticsExports.Enabled = false
+	badIntegrationDisabledTelemetry.Telemetry.VoucherRedemptionAnalyticsExports.Enabled = false
 	badIntegrationDisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
 	badIntegrationDisabledTelemetry.Telemetry.GuestRejectionAnalyticsExports.Enabled = false
 	badIntegrationDisabledTelemetry.Telemetry.GuestDeliveryAnalyticsExports.Enabled = false
@@ -2112,6 +2151,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badHADisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badHADisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badHADisabledTelemetry.Telemetry.VoucherAnalyticsExports.Enabled = false
+	badHADisabledTelemetry.Telemetry.VoucherRedemptionAnalyticsExports.Enabled = false
 	badHADisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
 	badHADisabledTelemetry.Telemetry.GuestRejectionAnalyticsExports.Enabled = false
 	badHADisabledTelemetry.Telemetry.GuestDeliveryAnalyticsExports.Enabled = false
@@ -2144,6 +2184,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badNetworkDisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badNetworkDisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badNetworkDisabledTelemetry.Telemetry.VoucherAnalyticsExports.Enabled = false
+	badNetworkDisabledTelemetry.Telemetry.VoucherRedemptionAnalyticsExports.Enabled = false
 	badNetworkDisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
 	badNetworkDisabledTelemetry.Telemetry.GuestRejectionAnalyticsExports.Enabled = false
 	badNetworkDisabledTelemetry.Telemetry.GuestDeliveryAnalyticsExports.Enabled = false
@@ -2177,6 +2218,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badUpstreamAAADisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badUpstreamAAADisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badUpstreamAAADisabledTelemetry.Telemetry.VoucherAnalyticsExports.Enabled = false
+	badUpstreamAAADisabledTelemetry.Telemetry.VoucherRedemptionAnalyticsExports.Enabled = false
 	badUpstreamAAADisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
 	badUpstreamAAADisabledTelemetry.Telemetry.GuestRejectionAnalyticsExports.Enabled = false
 	badUpstreamAAADisabledTelemetry.Telemetry.GuestDeliveryAnalyticsExports.Enabled = false
@@ -2211,6 +2253,7 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badUpgradeReadinessDisabledTelemetry.Telemetry.SessionExports.Enabled = false
 	badUpgradeReadinessDisabledTelemetry.Telemetry.SessionAnalyticsExports.Enabled = false
 	badUpgradeReadinessDisabledTelemetry.Telemetry.VoucherAnalyticsExports.Enabled = false
+	badUpgradeReadinessDisabledTelemetry.Telemetry.VoucherRedemptionAnalyticsExports.Enabled = false
 	badUpgradeReadinessDisabledTelemetry.Telemetry.GuestLifecycleExports.Enabled = false
 	badUpgradeReadinessDisabledTelemetry.Telemetry.GuestRejectionAnalyticsExports.Enabled = false
 	badUpgradeReadinessDisabledTelemetry.Telemetry.GuestDeliveryAnalyticsExports.Enabled = false

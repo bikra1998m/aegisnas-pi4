@@ -262,6 +262,29 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/voucher-redemption-analytics-exports", "get", securedOperation("List scheduled voucher redemption analytics exports", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled voucher redemption analytics export runtime status and recent artifact list."),
+	}))
+	addOperation(paths, "/api/v1/system/voucher-redemption-analytics-exports/download", "get", securedOperationWithParameters("Download scheduled voucher redemption analytics export", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "Voucher redemption analytics export artifact filename.", true),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Scheduled voucher redemption analytics export artifact in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/voucher-analytics-exports", "get", securedOperation("List scheduled voucher analytics exports", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Scheduled voucher analytics export runtime status and recent artifact list."),
 	}))

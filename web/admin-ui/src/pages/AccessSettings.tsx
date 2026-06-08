@@ -280,6 +280,13 @@ const defaultSettings: JsonMap = {
       interval_minutes: 60,
       retention_count: 21,
     },
+    voucher_redemption_analytics_exports: {
+      enabled: false,
+      directory: "/var/lib/aegisnas/voucher-redemption-analytics-exports",
+      format: "json",
+      interval_minutes: 60,
+      retention_count: 21,
+    },
     guest_lifecycle_exports: {
       enabled: false,
       directory: "/var/lib/aegisnas/guest-lifecycle-exports",
@@ -4419,6 +4426,99 @@ export default function AccessSettings() {
             onChange={(value) =>
               updateField(
                 ["telemetry", "voucher_analytics_exports", "retention_count"],
+                Number(value),
+              )
+            }
+          />
+          <ToggleField
+            label="Scheduled Voucher Redemption Analytics Exports"
+            checked={Boolean(
+              settings.telemetry?.voucher_redemption_analytics_exports
+                ?.enabled,
+            )}
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "voucher_redemption_analytics_exports",
+                  "enabled",
+                ],
+                value,
+              )
+            }
+          />
+          <TextField
+            label="Voucher Redemption Analytics Export Directory"
+            value={
+              settings.telemetry?.voucher_redemption_analytics_exports
+                ?.directory ||
+              "/var/lib/aegisnas/voucher-redemption-analytics-exports"
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "voucher_redemption_analytics_exports",
+                  "directory",
+                ],
+                value,
+              )
+            }
+          />
+          <SelectField
+            label="Voucher Redemption Analytics Export Format"
+            value={
+              settings.telemetry?.voucher_redemption_analytics_exports
+                ?.format || "json"
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "voucher_redemption_analytics_exports",
+                  "format",
+                ],
+                value,
+              )
+            }
+            options={[
+              { value: "json", label: "JSON" },
+              { value: "csv", label: "CSV" },
+              { value: "both", label: "JSON + CSV" },
+            ]}
+          />
+          <TextField
+            label="Voucher Redemption Analytics Export Interval"
+            type="number"
+            value={
+              settings.telemetry?.voucher_redemption_analytics_exports
+                ?.interval_minutes || 60
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "voucher_redemption_analytics_exports",
+                  "interval_minutes",
+                ],
+                Number(value),
+              )
+            }
+          />
+          <TextField
+            label="Voucher Redemption Analytics Export Retention"
+            type="number"
+            value={
+              settings.telemetry?.voucher_redemption_analytics_exports
+                ?.retention_count || 21
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "voucher_redemption_analytics_exports",
+                  "retention_count",
+                ],
                 Number(value),
               )
             }
