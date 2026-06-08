@@ -159,6 +159,63 @@ function buildVoucherAnalyticsResponse() {
   };
 }
 
+function buildVoucherRedemptionAnalyticsResponse() {
+  return {
+    generated_at: "2026-06-02T12:00:00Z",
+    window_hours: 720,
+    bucket_count: 30,
+    summary: {
+      window_hours: 720,
+      bucket_count: 30,
+      bucket_minutes: 1440,
+      total_vouchers: 5,
+      redeemed_voucher_count: 3,
+      never_redeemed_count: 2,
+      redeemed_in_window_count: 3,
+      first_redeemed_in_window_count: 2,
+      redeemed_once_count: 2,
+      redeemed_repeat_count: 1,
+      session_start_count: 4,
+      ended_session_count: 3,
+      active_session_count: 1,
+      active_voucher_count: 1,
+      redeemed_within_24_hours_count: 2,
+      redeemed_within_7_days_count: 3,
+      avg_sessions_per_redeemed_voucher: 1.33,
+      avg_first_redemption_delay_minutes: 58,
+      max_first_redemption_delay_minutes: 180,
+      ended_traffic_total: 1625,
+      avg_ended_session_seconds: 1100,
+      max_ended_session_seconds: 1800,
+      latest_session_start_at: "2026-06-02T10:00:00Z",
+      roles: [
+        { name: "guest-basic", count: 2 },
+        { name: "guest-vip", count: 1 },
+      ],
+      buckets: [
+        {
+          start: "2026-05-31T12:00:00Z",
+          end: "2026-06-01T12:00:00Z",
+          session_start_count: 1,
+          unique_voucher_count: 1,
+          first_redeemed_count: 1,
+          ended_count: 1,
+          ended_traffic_total: 125,
+        },
+        {
+          start: "2026-06-01T12:00:00Z",
+          end: "2026-06-02T12:00:00Z",
+          session_start_count: 3,
+          unique_voucher_count: 3,
+          first_redeemed_count: 2,
+          ended_count: 2,
+          ended_traffic_total: 1500,
+        },
+      ],
+    },
+  };
+}
+
 const SUPER_ADMIN: AuthIdentity = {
   subject: "admin-1",
   display_name: "Aegis Admin",
@@ -3937,6 +3994,29 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           format === "csv"
             ? "section,name,bucket_start,bucket_end,count,value\nsummary,total_vouchers,,,,5\nsummary,utilization_percent,,,,58\nrole,guest-basic,,,3,\nstate,active,,,2,\n"
             : JSON.stringify(buildVoucherAnalyticsResponse()),
+      });
+      return;
+    }
+    if (path === "/system/voucher-redemption-analytics" && method === "GET") {
+      await route.fulfill({ json: buildVoucherRedemptionAnalyticsResponse() });
+      return;
+    }
+    if (
+      path === "/system/voucher-redemption-analytics/export" &&
+      method === "GET"
+    ) {
+      const url = new URL(route.request().url());
+      const format = url.searchParams.get("format") || "json";
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "content-type":
+            format === "csv" ? "text/csv; charset=utf-8" : "application/json",
+        },
+        body:
+          format === "csv"
+            ? "section,name,bucket_start,bucket_end,count,value\nsummary,redeemed_voucher_count,,,,3\nsummary,avg_sessions_per_redeemed_voucher,,,,,1.33\nrole,guest-basic,,,2,\nbucket,first_redeemed_count,2026-05-31T12:00:00Z,2026-06-01T12:00:00Z,1,\n"
+            : JSON.stringify(buildVoucherRedemptionAnalyticsResponse()),
       });
       return;
     }

@@ -234,6 +234,34 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/voucher-redemption-analytics", "get", securedOperationWithParameters("Summarize voucher redemption behavior and delay trends", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 720.", false),
+		queryStringParameter("bucket_count", "Optional trend bucket count. Defaults to 30 and caps at 90.", false),
+	}, map[string]any{
+		"200": responseJSON("Voucher redemption summary with unique redeemed vouchers, first-use delay, active voucher sessions, role mix, and bucketed redemption counters."),
+	}))
+	addOperation(paths, "/api/v1/system/voucher-redemption-analytics/export", "get", securedOperationWithParameters("Export voucher redemption analytics", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("format", "Optional export format. Defaults to csv.", []string{"json", "csv"}, false),
+		queryStringParameter("window_hours", "Optional analytics window in hours. Defaults to 720.", false),
+		queryStringParameter("bucket_count", "Optional trend bucket count. Defaults to 30 and caps at 90.", false),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Voucher redemption analytics export in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/voucher-analytics-exports", "get", securedOperation("List scheduled voucher analytics exports", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Scheduled voucher analytics export runtime status and recent artifact list."),
 	}))
