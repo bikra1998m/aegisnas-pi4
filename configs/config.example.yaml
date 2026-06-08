@@ -229,6 +229,12 @@ telemetry:
     format: json # json, csv, or both.
     interval_minutes: 60
     retention_count: 21
+  voucher_analytics_exports:
+    enabled: false
+    directory: /var/lib/aegisnas/voucher-analytics-exports
+    format: json # json, csv, or both.
+    interval_minutes: 60
+    retention_count: 21
   guest_lifecycle_exports:
     enabled: false
     directory: /var/lib/aegisnas/guest-lifecycle-exports

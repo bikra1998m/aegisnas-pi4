@@ -96,6 +96,13 @@ When scheduled session analytics exports are enabled, the appliance also serves:
 /api/v1/system/session-analytics-exports/download?name=<artifact>
 ```
 
+When scheduled voucher analytics exports are enabled, the appliance also serves:
+
+```text
+/api/v1/system/voucher-analytics-exports
+/api/v1/system/voucher-analytics-exports/download?name=<artifact>
+```
+
 When scheduled integration exports are enabled, the appliance also serves:
 
 ```text
@@ -285,6 +292,8 @@ The appliance also serves voucher inventory and usage analytics at:
 /api/v1/system/voucher-analytics
 /api/v1/system/voucher-analytics/export?format=json
 /api/v1/system/voucher-analytics/export?format=csv
+/api/v1/system/voucher-analytics-exports
+/api/v1/system/voucher-analytics-exports/download?name=<artifact>
 ```
 
 Optional query parameters:
@@ -298,6 +307,7 @@ Use this analytics view when you want:
 - remaining-use and utilization snapshots without scanning raw codes by hand
 - role mix and voucher-state mix for operator review
 - bucketed voucher creation and expiry pressure trends from the same page where operators create vouchers
+- recurring JSON or CSV voucher analytics artifacts without waiting for a manual export click
 
 From the admin UI:
 
@@ -305,6 +315,7 @@ From the admin UI:
 2. open `Vouchers`
 3. review the summary, role mix, and state mix
 4. export `JSON` or `CSV` when you need a handoff-ready snapshot
+5. review scheduled voucher analytics export runtime and artifacts when recurring export is enabled
 
 From the admin UI:
 

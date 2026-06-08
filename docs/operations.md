@@ -179,6 +179,8 @@ For recurring session trend snapshots without manually exporting analytics every
 
 For voucher utilization, expiry pressure, and remaining-use visibility without scanning raw voucher codes by hand, use `Vouchers` or `GET /api/v1/system/voucher-analytics`.
 
+For recurring voucher inventory, utilization, and expiry snapshots without relying on a manual export step, enable scheduled voucher analytics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/voucher-analytics-exports`.
+
 For recurring HA capture without manual export timing, enable scheduled HA exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/ha/exports`.
 
 For recurring network capture without manual export timing, enable scheduled network exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/network-exports`.

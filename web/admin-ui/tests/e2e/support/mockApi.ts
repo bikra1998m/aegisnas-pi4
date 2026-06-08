@@ -291,6 +291,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      voucher_analytics_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/voucher-analytics-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+      },
       guest_lifecycle_exports: {
         enabled: true,
         directory: "/var/lib/aegisnas/guest-lifecycle-exports",
@@ -1058,6 +1065,27 @@ function createSystemStatus() {
             bucket_count: 24,
             last_export_at: "2026-05-05T11:54:00Z",
             next_due_at: "2026-05-05T12:54:00Z",
+          },
+        },
+      },
+      voucher_analytics_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/voucher-analytics-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: "ok",
+          message: "Scheduled voucher analytics exports are healthy.",
+          details: {
+            format: "json",
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: "/var/lib/aegisnas/voucher-analytics-exports",
+            window_hours: 720,
+            bucket_count: 30,
+            last_export_at: "2026-05-05T11:54:30Z",
+            next_due_at: "2026-05-05T12:54:30Z",
           },
         },
       },
@@ -3909,6 +3937,39 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           format === "csv"
             ? "section,name,bucket_start,bucket_end,count,value\nsummary,total_vouchers,,,,5\nsummary,utilization_percent,,,,58\nrole,guest-basic,,,3,\nstate,active,,,2,\n"
             : JSON.stringify(buildVoucherAnalyticsResponse()),
+      });
+      return;
+    }
+    if (path === "/system/voucher-analytics-exports" && method === "GET") {
+      await route.fulfill({
+        json: {
+          runtime:
+            state.systemStatus.telemetry.voucher_analytics_exports.runtime,
+          exports: [
+            {
+              name: "aegisnas-voucher-analytics-20260505-115430Z.json",
+              path: "/var/lib/aegisnas/voucher-analytics-exports/aegisnas-voucher-analytics-20260505-115430Z.json",
+              format: "json",
+              size_bytes: 1080,
+              created_at: "2026-05-05T11:54:30Z",
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/voucher-analytics-exports/download" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "content-disposition":
+            'attachment; filename="aegisnas-voucher-analytics-20260505-115430Z.json"',
+        },
+        body: JSON.stringify(buildVoucherAnalyticsResponse()),
       });
       return;
     }
