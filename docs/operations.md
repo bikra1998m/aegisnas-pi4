@@ -187,6 +187,8 @@ For recurring voucher inventory, utilization, and expiry snapshots without relyi
 
 For recurring voucher redemption behavior snapshots without manually exporting first-use delay and repeat-use trends each time, enable scheduled voucher redemption analytics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/voucher-redemption-analytics-exports`.
 
+For recurring voucher expiry horizon snapshots without manually exporting at-risk unused inventory and remaining use capacity each time, enable scheduled voucher expiry analytics exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/voucher-expiry-analytics-exports`.
+
 For recurring HA capture without manual export timing, enable scheduled HA exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/ha/exports`.
 
 For recurring network capture without manual export timing, enable scheduled network exports in `Access Settings`, then review artifacts from `Backups` or `GET /api/v1/system/network-exports`.

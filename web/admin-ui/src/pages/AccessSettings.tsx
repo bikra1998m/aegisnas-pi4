@@ -287,6 +287,13 @@ const defaultSettings: JsonMap = {
       interval_minutes: 60,
       retention_count: 21,
     },
+    voucher_expiry_analytics_exports: {
+      enabled: false,
+      directory: "/var/lib/aegisnas/voucher-expiry-analytics-exports",
+      format: "json",
+      interval_minutes: 60,
+      retention_count: 21,
+    },
     guest_lifecycle_exports: {
       enabled: false,
       directory: "/var/lib/aegisnas/guest-lifecycle-exports",
@@ -4517,6 +4524,85 @@ export default function AccessSettings() {
                 [
                   "telemetry",
                   "voucher_redemption_analytics_exports",
+                  "retention_count",
+                ],
+                Number(value),
+              )
+            }
+          />
+          <ToggleField
+            label="Scheduled Voucher Expiry Analytics Exports"
+            checked={Boolean(
+              settings.telemetry?.voucher_expiry_analytics_exports?.enabled,
+            )}
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "voucher_expiry_analytics_exports", "enabled"],
+                value,
+              )
+            }
+          />
+          <TextField
+            label="Voucher Expiry Analytics Export Directory"
+            value={
+              settings.telemetry?.voucher_expiry_analytics_exports?.directory ||
+              "/var/lib/aegisnas/voucher-expiry-analytics-exports"
+            }
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "voucher_expiry_analytics_exports", "directory"],
+                value,
+              )
+            }
+          />
+          <SelectField
+            label="Voucher Expiry Analytics Export Format"
+            value={
+              settings.telemetry?.voucher_expiry_analytics_exports?.format ||
+              "json"
+            }
+            onChange={(value) =>
+              updateField(
+                ["telemetry", "voucher_expiry_analytics_exports", "format"],
+                value,
+              )
+            }
+            options={[
+              { value: "json", label: "JSON" },
+              { value: "csv", label: "CSV" },
+              { value: "both", label: "JSON + CSV" },
+            ]}
+          />
+          <TextField
+            label="Voucher Expiry Analytics Export Interval"
+            type="number"
+            value={
+              settings.telemetry?.voucher_expiry_analytics_exports
+                ?.interval_minutes || 60
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "voucher_expiry_analytics_exports",
+                  "interval_minutes",
+                ],
+                Number(value),
+              )
+            }
+          />
+          <TextField
+            label="Voucher Expiry Analytics Export Retention"
+            type="number"
+            value={
+              settings.telemetry?.voucher_expiry_analytics_exports
+                ?.retention_count || 21
+            }
+            onChange={(value) =>
+              updateField(
+                [
+                  "telemetry",
+                  "voucher_expiry_analytics_exports",
                   "retention_count",
                 ],
                 Number(value),

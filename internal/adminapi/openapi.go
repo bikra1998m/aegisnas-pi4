@@ -313,6 +313,20 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
+	addOperation(paths, "/api/v1/system/voucher-expiry-analytics-exports", "get", securedOperation("List scheduled voucher expiry analytics exports", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Scheduled voucher expiry analytics export runtime status and recent artifact list."),
+	}))
+	addOperation(paths, "/api/v1/system/voucher-expiry-analytics-exports/download", "get", securedOperationWithParameters("Download scheduled voucher expiry analytics export", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("name", "Voucher expiry analytics export artifact filename.", true),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Voucher expiry analytics export artifact.",
+			"content": map[string]any{
+				"application/json": map[string]any{},
+				"text/csv":         map[string]any{},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/voucher-analytics-exports", "get", securedOperation("List scheduled voucher analytics exports", "Vouchers", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Scheduled voucher analytics export runtime status and recent artifact list."),
 	}))

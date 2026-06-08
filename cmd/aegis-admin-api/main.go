@@ -85,6 +85,9 @@ var runCmd = &cobra.Command{
 		if err := adminapi.StartVoucherRedemptionAnalyticsExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start voucher redemption analytics export scheduler: %w", err)
 		}
+		if err := adminapi.StartVoucherExpiryAnalyticsExportScheduler(cfg, logger); err != nil {
+			return fmt.Errorf("start voucher expiry analytics export scheduler: %w", err)
+		}
 		if err := adminapi.StartGuestLifecycleExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start guest lifecycle export scheduler: %w", err)
 		}
@@ -201,6 +204,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/voucher-analytics-exports/download", adminapi.HandleDownloadVoucherAnalyticsExport)
 			r.Get("/system/voucher-redemption-analytics-exports", adminapi.HandleListVoucherRedemptionAnalyticsExports)
 			r.Get("/system/voucher-redemption-analytics-exports/download", adminapi.HandleDownloadVoucherRedemptionAnalyticsExport)
+			r.Get("/system/voucher-expiry-analytics-exports", adminapi.HandleListVoucherExpiryAnalyticsExports)
+			r.Get("/system/voucher-expiry-analytics-exports/download", adminapi.HandleDownloadVoucherExpiryAnalyticsExport)
 			r.Get("/system/guest-lifecycle", adminapi.HandleGetGuestLifecycle)
 			r.Get("/system/guest-lifecycle/export", adminapi.HandleExportGuestLifecycle)
 			r.Get("/system/guest-invite-analytics", adminapi.HandleGetGuestInviteAnalytics)

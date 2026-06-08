@@ -441,6 +441,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      voucher_expiry_analytics_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/voucher-expiry-analytics-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+      },
       guest_lifecycle_exports: {
         enabled: true,
         directory: "/var/lib/aegisnas/guest-lifecycle-exports",
@@ -1250,6 +1257,27 @@ function createSystemStatus() {
             bucket_count: 30,
             last_export_at: "2026-05-05T11:54:45Z",
             next_due_at: "2026-05-05T12:54:45Z",
+          },
+        },
+      },
+      voucher_expiry_analytics_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/voucher-expiry-analytics-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: "ok",
+          message: "Scheduled voucher expiry analytics exports are healthy.",
+          details: {
+            format: "json",
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: "/var/lib/aegisnas/voucher-expiry-analytics-exports",
+            window_hours: 720,
+            bucket_count: 30,
+            last_export_at: "2026-05-05T11:55:00Z",
+            next_due_at: "2026-05-05T12:55:00Z",
           },
         },
       },
@@ -4150,6 +4178,28 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
+    if (
+      path === "/system/voucher-expiry-analytics-exports" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          runtime:
+            state.systemStatus.telemetry.voucher_expiry_analytics_exports
+              .runtime,
+          exports: [
+            {
+              name: "aegisnas-voucher-expiry-analytics-20260505-115500Z.json",
+              path: "/var/lib/aegisnas/voucher-expiry-analytics-exports/aegisnas-voucher-expiry-analytics-20260505-115500Z.json",
+              format: "json",
+              size_bytes: 1140,
+              created_at: "2026-05-05T11:55:00Z",
+            },
+          ],
+        },
+      });
+      return;
+    }
     if (path === "/system/voucher-analytics-exports" && method === "GET") {
       await route.fulfill({
         json: {
@@ -4202,6 +4252,21 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             'attachment; filename="aegisnas-voucher-analytics-20260505-115430Z.json"',
         },
         body: JSON.stringify(buildVoucherAnalyticsResponse()),
+      });
+      return;
+    }
+    if (
+      path === "/system/voucher-expiry-analytics-exports/download" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "content-disposition":
+            'attachment; filename="aegisnas-voucher-expiry-analytics-20260505-115500Z.json"',
+        },
+        body: JSON.stringify(buildVoucherExpiryAnalyticsResponse()),
       });
       return;
     }

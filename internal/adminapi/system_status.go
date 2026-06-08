@@ -332,6 +332,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"retention_count":  cfg.Telemetry.VoucherRedemptionAnalyticsExports.RetentionCount,
 			"runtime":          runtimeMap[voucherRedemptionAnalyticsExportsComponent],
 		},
+		"voucher_expiry_analytics_exports": map[string]any{
+			"enabled":          cfg.Telemetry.VoucherExpiryAnalyticsExports.Enabled,
+			"directory":        cfg.Telemetry.VoucherExpiryAnalyticsExports.Directory,
+			"format":           cfg.Telemetry.VoucherExpiryAnalyticsExports.Format,
+			"interval_minutes": cfg.Telemetry.VoucherExpiryAnalyticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.VoucherExpiryAnalyticsExports.RetentionCount,
+			"runtime":          runtimeMap[voucherExpiryAnalyticsExportsComponent],
+		},
 		"guest_lifecycle_exports": map[string]any{
 			"enabled":          cfg.Telemetry.GuestLifecycleExports.Enabled,
 			"directory":        cfg.Telemetry.GuestLifecycleExports.Directory,
@@ -484,6 +492,14 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.VoucherRedemptionAnalyticsExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.VoucherRedemptionAnalyticsExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled voucher redemption analytics exports are not running."},
+		}
+		telemetryStatus["voucher_expiry_analytics_exports"] = map[string]any{
+			"enabled":          cfg.Telemetry.VoucherExpiryAnalyticsExports.Enabled,
+			"directory":        cfg.Telemetry.VoucherExpiryAnalyticsExports.Directory,
+			"format":           cfg.Telemetry.VoucherExpiryAnalyticsExports.Format,
+			"interval_minutes": cfg.Telemetry.VoucherExpiryAnalyticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.VoucherExpiryAnalyticsExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Telemetry is disabled, so scheduled voucher expiry analytics exports are not running."},
 		}
 		telemetryStatus["guest_lifecycle_exports"] = map[string]any{
 			"enabled":          cfg.Telemetry.GuestLifecycleExports.Enabled,
@@ -648,6 +664,16 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"interval_minutes": cfg.Telemetry.VoucherRedemptionAnalyticsExports.IntervalMinutes,
 			"retention_count":  cfg.Telemetry.VoucherRedemptionAnalyticsExports.RetentionCount,
 			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled voucher redemption analytics exports are disabled in config."},
+		}
+	}
+	if cfg.Telemetry.Enabled && !cfg.Telemetry.VoucherExpiryAnalyticsExports.Enabled {
+		telemetryStatus["voucher_expiry_analytics_exports"] = map[string]any{
+			"enabled":          false,
+			"directory":        cfg.Telemetry.VoucherExpiryAnalyticsExports.Directory,
+			"format":           cfg.Telemetry.VoucherExpiryAnalyticsExports.Format,
+			"interval_minutes": cfg.Telemetry.VoucherExpiryAnalyticsExports.IntervalMinutes,
+			"retention_count":  cfg.Telemetry.VoucherExpiryAnalyticsExports.RetentionCount,
+			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled voucher expiry analytics exports are disabled in config."},
 		}
 	}
 	if cfg.Telemetry.Enabled && !cfg.Telemetry.GuestLifecycleExports.Enabled {

@@ -284,28 +284,29 @@ type PolicyConfig struct {
 }
 
 type TelemetryConfig struct {
-	Enabled                         bool                      `mapstructure:"enabled"`
-	PrometheusPort                  int                       `mapstructure:"prometheus_port"`
-	LeaseHistoryPollSeconds         int                       `mapstructure:"lease_history_poll_seconds"`
-	SupportBundleExports            SupportBundleExportConfig `mapstructure:"support_bundle_exports"`
-	DiagnosticsExports              DiagnosticsExportConfig   `mapstructure:"diagnostics_exports"`
-	AuditExports                    DiagnosticsExportConfig   `mapstructure:"audit_exports"`
-	SessionExports                  DiagnosticsExportConfig   `mapstructure:"session_exports"`
-	SessionAnalyticsExports         DiagnosticsExportConfig   `mapstructure:"session_analytics_exports"`
-	VoucherAnalyticsExports         DiagnosticsExportConfig   `mapstructure:"voucher_analytics_exports"`
-	VoucherRedemptionAnalyticsExports DiagnosticsExportConfig `mapstructure:"voucher_redemption_analytics_exports"`
-	GuestLifecycleExports           DiagnosticsExportConfig   `mapstructure:"guest_lifecycle_exports"`
-	GuestInviteAnalyticsExports     DiagnosticsExportConfig   `mapstructure:"guest_invite_analytics_exports"`
-	GuestConversionAnalyticsExports DiagnosticsExportConfig   `mapstructure:"guest_conversion_analytics_exports"`
-	GuestRejectionAnalyticsExports  DiagnosticsExportConfig   `mapstructure:"guest_rejection_analytics_exports"`
-	GuestDeliveryAnalyticsExports   DiagnosticsExportConfig   `mapstructure:"guest_delivery_analytics_exports"`
-	GuestDeliveryFailuresExports    DiagnosticsExportConfig   `mapstructure:"guest_delivery_failures_exports"`
-	GuestSponsorAnalyticsExports    DiagnosticsExportConfig   `mapstructure:"guest_sponsor_analytics_exports"`
-	IntegrationExports              DiagnosticsExportConfig   `mapstructure:"integration_exports"`
-	HAExports                       DiagnosticsExportConfig   `mapstructure:"ha_exports"`
-	NetworkExports                  DiagnosticsExportConfig   `mapstructure:"network_exports"`
-	UpstreamAAAExports              DiagnosticsExportConfig   `mapstructure:"upstream_aaa_exports"`
-	UpgradeReadinessExports         DiagnosticsExportConfig   `mapstructure:"upgrade_readiness_exports"`
+	Enabled                           bool                      `mapstructure:"enabled"`
+	PrometheusPort                    int                       `mapstructure:"prometheus_port"`
+	LeaseHistoryPollSeconds           int                       `mapstructure:"lease_history_poll_seconds"`
+	SupportBundleExports              SupportBundleExportConfig `mapstructure:"support_bundle_exports"`
+	DiagnosticsExports                DiagnosticsExportConfig   `mapstructure:"diagnostics_exports"`
+	AuditExports                      DiagnosticsExportConfig   `mapstructure:"audit_exports"`
+	SessionExports                    DiagnosticsExportConfig   `mapstructure:"session_exports"`
+	SessionAnalyticsExports           DiagnosticsExportConfig   `mapstructure:"session_analytics_exports"`
+	VoucherAnalyticsExports           DiagnosticsExportConfig   `mapstructure:"voucher_analytics_exports"`
+	VoucherRedemptionAnalyticsExports DiagnosticsExportConfig   `mapstructure:"voucher_redemption_analytics_exports"`
+	VoucherExpiryAnalyticsExports     DiagnosticsExportConfig   `mapstructure:"voucher_expiry_analytics_exports"`
+	GuestLifecycleExports             DiagnosticsExportConfig   `mapstructure:"guest_lifecycle_exports"`
+	GuestInviteAnalyticsExports       DiagnosticsExportConfig   `mapstructure:"guest_invite_analytics_exports"`
+	GuestConversionAnalyticsExports   DiagnosticsExportConfig   `mapstructure:"guest_conversion_analytics_exports"`
+	GuestRejectionAnalyticsExports    DiagnosticsExportConfig   `mapstructure:"guest_rejection_analytics_exports"`
+	GuestDeliveryAnalyticsExports     DiagnosticsExportConfig   `mapstructure:"guest_delivery_analytics_exports"`
+	GuestDeliveryFailuresExports      DiagnosticsExportConfig   `mapstructure:"guest_delivery_failures_exports"`
+	GuestSponsorAnalyticsExports      DiagnosticsExportConfig   `mapstructure:"guest_sponsor_analytics_exports"`
+	IntegrationExports                DiagnosticsExportConfig   `mapstructure:"integration_exports"`
+	HAExports                         DiagnosticsExportConfig   `mapstructure:"ha_exports"`
+	NetworkExports                    DiagnosticsExportConfig   `mapstructure:"network_exports"`
+	UpstreamAAAExports                DiagnosticsExportConfig   `mapstructure:"upstream_aaa_exports"`
+	UpgradeReadinessExports           DiagnosticsExportConfig   `mapstructure:"upgrade_readiness_exports"`
 }
 
 type SupportBundleExportConfig struct {
@@ -1108,6 +1109,11 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("telemetry.voucher_redemption_analytics_exports.format %q is invalid", c.Telemetry.VoucherRedemptionAnalyticsExports.Format)
 	}
+	switch strings.ToLower(strings.TrimSpace(c.Telemetry.VoucherExpiryAnalyticsExports.Format)) {
+	case "", "json", "csv", "both":
+	default:
+		return fmt.Errorf("telemetry.voucher_expiry_analytics_exports.format %q is invalid", c.Telemetry.VoucherExpiryAnalyticsExports.Format)
+	}
 	switch strings.ToLower(strings.TrimSpace(c.Telemetry.GuestLifecycleExports.Format)) {
 	case "", "json", "csv", "both":
 	default:
@@ -1186,6 +1192,9 @@ func (c *Config) Validate() error {
 	if c.Telemetry.VoucherRedemptionAnalyticsExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.voucher_redemption_analytics_exports.interval_minutes %d out of range", c.Telemetry.VoucherRedemptionAnalyticsExports.IntervalMinutes)
 	}
+	if c.Telemetry.VoucherExpiryAnalyticsExports.IntervalMinutes < 0 {
+		return fmt.Errorf("telemetry.voucher_expiry_analytics_exports.interval_minutes %d out of range", c.Telemetry.VoucherExpiryAnalyticsExports.IntervalMinutes)
+	}
 	if c.Telemetry.GuestLifecycleExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.guest_lifecycle_exports.interval_minutes %d out of range", c.Telemetry.GuestLifecycleExports.IntervalMinutes)
 	}
@@ -1239,6 +1248,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Telemetry.VoucherRedemptionAnalyticsExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.voucher_redemption_analytics_exports.retention_count %d out of range", c.Telemetry.VoucherRedemptionAnalyticsExports.RetentionCount)
+	}
+	if c.Telemetry.VoucherExpiryAnalyticsExports.RetentionCount < 0 {
+		return fmt.Errorf("telemetry.voucher_expiry_analytics_exports.retention_count %d out of range", c.Telemetry.VoucherExpiryAnalyticsExports.RetentionCount)
 	}
 	if c.Telemetry.GuestLifecycleExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.guest_lifecycle_exports.retention_count %d out of range", c.Telemetry.GuestLifecycleExports.RetentionCount)
@@ -1372,6 +1384,20 @@ func (c *Config) Validate() error {
 		}
 		if c.Telemetry.VoucherRedemptionAnalyticsExports.RetentionCount <= 0 {
 			return errors.New("telemetry.voucher_redemption_analytics_exports.enabled requires a positive telemetry.voucher_redemption_analytics_exports.retention_count")
+		}
+	}
+	if c.Telemetry.VoucherExpiryAnalyticsExports.Enabled {
+		if !c.Telemetry.Enabled {
+			return errors.New("telemetry.voucher_expiry_analytics_exports.enabled requires telemetry.enabled")
+		}
+		if strings.TrimSpace(c.Telemetry.VoucherExpiryAnalyticsExports.Directory) == "" {
+			return errors.New("telemetry.voucher_expiry_analytics_exports.enabled requires telemetry.voucher_expiry_analytics_exports.directory")
+		}
+		if c.Telemetry.VoucherExpiryAnalyticsExports.IntervalMinutes <= 0 {
+			return errors.New("telemetry.voucher_expiry_analytics_exports.enabled requires a positive telemetry.voucher_expiry_analytics_exports.interval_minutes")
+		}
+		if c.Telemetry.VoucherExpiryAnalyticsExports.RetentionCount <= 0 {
+			return errors.New("telemetry.voucher_expiry_analytics_exports.enabled requires a positive telemetry.voucher_expiry_analytics_exports.retention_count")
 		}
 	}
 	if c.Telemetry.GuestLifecycleExports.Enabled {
