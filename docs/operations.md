@@ -179,6 +179,8 @@ For recurring session trend snapshots without manually exporting analytics every
 
 For voucher utilization, expiry pressure, and remaining-use visibility without scanning raw voucher codes by hand, use `Vouchers` or `GET /api/v1/system/voucher-analytics`.
 
+For stale voucher inventory, unused stock backlog, and age-band pressure without manually reviewing raw voucher timestamps, use `Vouchers` or `GET /api/v1/system/voucher-aging-analytics`.
+
 For voucher redemption behavior, first-use delay, repeat-use patterns, and voucher-session traffic without manually correlating vouchers against raw accounting rows, use `Vouchers` or `GET /api/v1/system/voucher-redemption-analytics`.
 
 For upcoming voucher expiry pressure, unused vouchers at risk, and remaining finite-use capacity that will age out inside a selected horizon, use `Vouchers` or `GET /api/v1/system/voucher-expiry-analytics`.

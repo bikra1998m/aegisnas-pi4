@@ -306,6 +306,9 @@ The appliance also serves voucher inventory and usage analytics at:
 /api/v1/system/voucher-analytics
 /api/v1/system/voucher-analytics/export?format=json
 /api/v1/system/voucher-analytics/export?format=csv
+/api/v1/system/voucher-aging-analytics
+/api/v1/system/voucher-aging-analytics/export?format=json
+/api/v1/system/voucher-aging-analytics/export?format=csv
 /api/v1/system/voucher-redemption-analytics
 /api/v1/system/voucher-redemption-analytics/export?format=json
 /api/v1/system/voucher-redemption-analytics/export?format=csv

@@ -275,6 +275,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/system-status.json", requestPath: "/api/v1/system/status", label: "System runtime status", handler: HandleGetSystemStatus},
 		{archivePath: "api/session-history.json", requestPath: "/api/v1/system/session-history", label: "Session and accounting history", handler: HandleListSessionHistory},
 		{archivePath: "api/session-analytics.json", requestPath: "/api/v1/system/session-analytics", label: "Session activity analytics", handler: HandleGetSessionAnalytics},
+		{archivePath: "api/voucher-aging-analytics.json", requestPath: "/api/v1/system/voucher-aging-analytics", label: "Voucher stock aging analytics", handler: HandleGetVoucherAgingAnalytics},
 		{archivePath: "api/voucher-expiry-analytics.json", requestPath: "/api/v1/system/voucher-expiry-analytics", label: "Voucher expiry analytics", handler: HandleGetVoucherExpiryAnalytics},
 		{archivePath: "api/voucher-redemption-analytics.json", requestPath: "/api/v1/system/voucher-redemption-analytics", label: "Voucher redemption analytics", handler: HandleGetVoucherRedemptionAnalytics},
 		{archivePath: "api/guest-lifecycle.json", requestPath: "/api/v1/system/guest-lifecycle", label: "Guest lifecycle report", handler: HandleGetGuestLifecycle},

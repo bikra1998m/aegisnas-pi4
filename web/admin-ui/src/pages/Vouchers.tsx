@@ -51,6 +51,52 @@ type VoucherAnalyticsPayload = {
   summary: VoucherAnalyticsSummary;
 };
 
+type VoucherAgingBucket = {
+  min_age_minutes: number;
+  max_age_minutes: number;
+  voucher_count: number;
+  unused_count: number;
+  active_count: number;
+  exhausted_count: number;
+  expired_count: number;
+  remaining_uses: number;
+};
+
+type VoucherAgingSummary = {
+  window_hours: number;
+  bucket_count: number;
+  bucket_minutes: number;
+  total_vouchers: number;
+  within_window_count: number;
+  older_than_window_count: number;
+  unused_within_window_count: number;
+  unused_older_than_window_count: number;
+  active_older_than_window_count: number;
+  exhausted_older_than_window_count: number;
+  expired_older_than_window_count: number;
+  remaining_uses_older_than_window: number;
+  unused_older_24_hours_count: number;
+  unused_older_7_days_count: number;
+  unused_older_30_days_count: number;
+  avg_age_minutes: number;
+  max_age_minutes: number;
+  avg_unused_age_minutes: number;
+  max_unused_age_minutes: number;
+  newest_created_at?: string;
+  oldest_created_at?: string;
+  oldest_unused_created_at?: string;
+  older_roles: VoucherAnalyticsCount[];
+  unused_older_roles: VoucherAnalyticsCount[];
+  buckets: VoucherAgingBucket[];
+};
+
+type VoucherAgingPayload = {
+  generated_at: string;
+  window_hours: number;
+  bucket_count: number;
+  summary: VoucherAgingSummary;
+};
+
 type VoucherRedemptionBucket = {
   start: string;
   end: string;
@@ -244,14 +290,18 @@ export default function Vouchers() {
   const [analytics, setAnalytics] = useState<VoucherAnalyticsSummary | null>(
     null,
   );
+  const [aging, setAging] = useState<VoucherAgingSummary | null>(null);
   const [redemption, setRedemption] =
     useState<VoucherRedemptionSummary | null>(null);
   const [expiry, setExpiry] = useState<VoucherExpirySummary | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+  const [loadingAging, setLoadingAging] = useState(true);
   const [loadingRedemption, setLoadingRedemption] = useState(true);
   const [loadingExpiry, setLoadingExpiry] = useState(true);
   const [analyticsError, setAnalyticsError] = useState("");
   const [analyticsMessage, setAnalyticsMessage] = useState("");
+  const [agingError, setAgingError] = useState("");
+  const [agingMessage, setAgingMessage] = useState("");
   const [redemptionError, setRedemptionError] = useState("");
   const [redemptionMessage, setRedemptionMessage] = useState("");
   const [expiryError, setExpiryError] = useState("");
@@ -287,6 +337,31 @@ export default function Vouchers() {
       );
     } finally {
       setLoadingAnalytics(false);
+    }
+  };
+
+  const fetchAging = async (announce = false) => {
+    if (announce) {
+      setAgingError("");
+      setAgingMessage("");
+    }
+    setLoadingAging(true);
+    try {
+      const { data } = await api.get<VoucherAgingPayload>(
+        `/system/voucher-aging-analytics?window_hours=${windowHours}&bucket_count=${bucketCount}`,
+      );
+      setAging(data.summary || null);
+      if (announce) {
+        setAgingMessage("Voucher aging analytics refreshed.");
+      }
+    } catch (err: any) {
+      setAgingError(
+        err.response?.data ||
+          err.message ||
+          "Could not load voucher aging analytics.",
+      );
+    } finally {
+      setLoadingAging(false);
     }
   };
 
@@ -343,6 +418,7 @@ export default function Vouchers() {
   const refreshAll = async (announce = false) => {
     await Promise.all([
       fetchAnalytics(announce),
+      fetchAging(announce),
       fetchRedemption(announce),
       fetchExpiry(announce),
     ]);
@@ -388,6 +464,40 @@ export default function Vouchers() {
         err.response?.data ||
           err.message ||
           "Could not export voucher analytics.",
+      );
+    } finally {
+      setBusyAction("");
+    }
+  };
+
+  const exportAgingAnalytics = async (format: "json" | "csv") => {
+    setAgingError("");
+    setAgingMessage("");
+    setBusyAction(`export-aging-${format}`);
+    try {
+      const response = await api.get(
+        `/system/voucher-aging-analytics/export?format=${format}&window_hours=${windowHours}&bucket_count=${bucketCount}`,
+        {
+          responseType: "blob",
+        },
+      );
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download =
+        format === "json"
+          ? "aegisnas-voucher-aging-analytics.json"
+          : "aegisnas-voucher-aging-analytics.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+      setAgingMessage(
+        `Voucher aging analytics exported as ${format.toUpperCase()}.`,
+      );
+    } catch (err: any) {
+      setAgingError(
+        err.response?.data ||
+          err.message ||
+          "Could not export voucher aging analytics.",
       );
     } finally {
       setBusyAction("");
@@ -493,13 +603,17 @@ export default function Vouchers() {
                 onClick={() => void refreshAll(true)}
                 disabled={
                   loadingAnalytics ||
+                  loadingAging ||
                   loadingRedemption ||
                   loadingExpiry ||
                   busyAction !== ""
                 }
                 className="rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-black disabled:opacity-50"
               >
-                {loadingAnalytics || loadingRedemption || loadingExpiry
+                {loadingAnalytics ||
+                loadingAging ||
+                loadingRedemption ||
+                loadingExpiry
                   ? "Refreshing Analytics..."
                   : "Refresh Analytics"}
               </button>
@@ -596,6 +710,195 @@ export default function Vouchers() {
                 items={analytics.states}
                 empty="No voucher state distribution is available yet."
               />
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Voucher Stock Aging
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              See which vouchers are getting stale, where unused stock is
+              lingering, and how much remaining finite-use capacity sits in
+              older inventory.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => void exportAgingAnalytics("json")}
+              disabled={busyAction !== ""}
+              className="rounded-md bg-emerald-700 px-4 py-2 text-white hover:bg-emerald-800 disabled:opacity-50"
+            >
+              Export Aging JSON
+            </button>
+            <button
+              onClick={() => void exportAgingAnalytics("csv")}
+              disabled={busyAction !== ""}
+              className="rounded-md bg-indigo-700 px-4 py-2 text-white hover:bg-indigo-800 disabled:opacity-50"
+            >
+              Export Aging CSV
+            </button>
+          </div>
+        </div>
+
+        {agingMessage && (
+          <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            {agingMessage}
+          </div>
+        )}
+        {agingError && (
+          <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {String(agingError)}
+          </div>
+        )}
+
+        {loadingAging ? (
+          <div className="mt-4 rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">
+            Loading voucher aging analytics...
+          </div>
+        ) : !aging ? (
+          <div className="mt-4 rounded-md border border-dashed border-gray-300 px-4 py-8 text-sm text-gray-500">
+            No voucher aging analytics available yet.
+          </div>
+        ) : (
+          <>
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                label="Older Than Horizon"
+                value={aging.older_than_window_count}
+                hint="Current vouchers older than the selected aging horizon."
+              />
+              <StatCard
+                label="Unused Older Than Horizon"
+                value={aging.unused_older_than_window_count}
+                hint="Stale vouchers that are still completely unused."
+              />
+              <StatCard
+                label="Unused Older 7 Days"
+                value={aging.unused_older_7_days_count}
+                hint="Unused vouchers that have sat around for at least a week."
+              />
+              <StatCard
+                label="Unused Older 30 Days"
+                value={aging.unused_older_30_days_count}
+                hint="Unused vouchers that have gone stale for at least a month."
+              />
+              <StatCard
+                label="Active Older Stock"
+                value={aging.active_older_than_window_count}
+                hint="Still-usable vouchers that are older than the selected horizon."
+              />
+              <StatCard
+                label="Expired Older Stock"
+                value={aging.expired_older_than_window_count}
+                hint="Older vouchers that have already expired and still remain in inventory."
+              />
+              <StatCard
+                label="Remaining Uses In Older Stock"
+                value={aging.remaining_uses_older_than_window}
+                hint="Finite-use capacity that is sitting in older inventory."
+              />
+              <StatCard
+                label="Average Voucher Age"
+                value={formatDurationMinutes(aging.avg_age_minutes)}
+                hint="Average age across all current vouchers."
+              />
+              <StatCard
+                label="Average Unused Age"
+                value={formatDurationMinutes(aging.avg_unused_age_minutes)}
+                hint="Average age of vouchers that have never been used."
+              />
+              <StatCard
+                label="Oldest Voucher"
+                value={formatTimestamp(aging.oldest_created_at)}
+                hint="Oldest voucher still present in the table."
+              />
+              <StatCard
+                label="Oldest Unused Voucher"
+                value={formatTimestamp(aging.oldest_unused_created_at)}
+                hint="Longest-waiting voucher that has still never been redeemed."
+              />
+              <StatCard
+                label="Newest Voucher"
+                value={formatTimestamp(aging.newest_created_at)}
+                hint="Most recently created voucher in inventory."
+              />
+            </div>
+
+            <div className="mt-6 grid gap-6 xl:grid-cols-2">
+              <MixList
+                title="Older Stock Roles"
+                items={aging.older_roles}
+                empty="No roles have voucher stock older than the selected horizon."
+              />
+              <MixList
+                title="Unused Older Stock Roles"
+                items={aging.unused_older_roles}
+                empty="No roles currently have unused vouchers older than the selected horizon."
+              />
+            </div>
+
+            <div className="mt-6 overflow-x-auto rounded-md border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {[
+                      "Age Band",
+                      "Vouchers",
+                      "Unused",
+                      "Active",
+                      "Exhausted",
+                      "Expired",
+                      "Remaining Uses",
+                    ].map((label) => (
+                      <th
+                        key={label}
+                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600"
+                      >
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {aging.buckets.map((bucket) => (
+                    <tr
+                      key={`${bucket.min_age_minutes}-${bucket.max_age_minutes}`}
+                    >
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        <div className="font-medium text-gray-900">
+                          {formatDurationMinutes(bucket.min_age_minutes)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          to {formatDurationMinutes(bucket.max_age_minutes)}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {bucket.voucher_count}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {bucket.unused_count}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {bucket.active_count}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {bucket.exhausted_count}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {bucket.expired_count}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {bucket.remaining_uses}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </>
         )}

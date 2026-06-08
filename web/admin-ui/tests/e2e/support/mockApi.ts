@@ -159,6 +159,72 @@ function buildVoucherAnalyticsResponse() {
   };
 }
 
+function buildVoucherAgingAnalyticsResponse() {
+  return {
+    generated_at: "2026-06-02T12:00:00Z",
+    window_hours: 720,
+    bucket_count: 30,
+    summary: {
+      window_hours: 720,
+      bucket_count: 30,
+      bucket_minutes: 1440,
+      total_vouchers: 5,
+      within_window_count: 4,
+      older_than_window_count: 1,
+      unused_within_window_count: 1,
+      unused_older_than_window_count: 1,
+      active_older_than_window_count: 0,
+      exhausted_older_than_window_count: 0,
+      expired_older_than_window_count: 1,
+      remaining_uses_older_than_window: 0,
+      unused_older_24_hours_count: 2,
+      unused_older_7_days_count: 1,
+      unused_older_30_days_count: 1,
+      avg_age_minutes: 9960,
+      max_age_minutes: 46080,
+      avg_unused_age_minutes: 24120,
+      max_unused_age_minutes: 46080,
+      newest_created_at: "2026-06-02T09:00:00Z",
+      oldest_created_at: "2026-05-01T12:00:00Z",
+      oldest_unused_created_at: "2026-05-01T12:00:00Z",
+      older_roles: [{ name: "guest-standard", count: 1 }],
+      unused_older_roles: [{ name: "guest-standard", count: 1 }],
+      buckets: [
+        {
+          min_age_minutes: 0,
+          max_age_minutes: 1440,
+          voucher_count: 1,
+          unused_count: 1,
+          active_count: 1,
+          exhausted_count: 0,
+          expired_count: 0,
+          remaining_uses: 1,
+        },
+        {
+          min_age_minutes: 1440,
+          max_age_minutes: 4320,
+          voucher_count: 1,
+          unused_count: 0,
+          active_count: 1,
+          exhausted_count: 0,
+          expired_count: 0,
+          remaining_uses: 3,
+        },
+        {
+          min_age_minutes: 4320,
+          max_age_minutes: 10080,
+          voucher_count: 2,
+          unused_count: 0,
+          active_count: 0,
+          exhausted_count: 1,
+          expired_count: 1,
+          remaining_uses: 0,
+        },
+      ],
+    },
+  };
+}
+
 function buildVoucherRedemptionAnalyticsResponse() {
   return {
     generated_at: "2026-06-02T12:00:00Z",
@@ -4116,6 +4182,10 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({ json: buildVoucherAnalyticsResponse() });
       return;
     }
+    if (path === "/system/voucher-aging-analytics" && method === "GET") {
+      await route.fulfill({ json: buildVoucherAgingAnalyticsResponse() });
+      return;
+    }
     if (path === "/system/voucher-analytics/export" && method === "GET") {
       const url = new URL(route.request().url());
       const format = url.searchParams.get("format") || "json";
@@ -4129,6 +4199,25 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           format === "csv"
             ? "section,name,bucket_start,bucket_end,count,value\nsummary,total_vouchers,,,,5\nsummary,utilization_percent,,,,58\nrole,guest-basic,,,3,\nstate,active,,,2,\n"
             : JSON.stringify(buildVoucherAnalyticsResponse()),
+      });
+      return;
+    }
+    if (
+      path === "/system/voucher-aging-analytics/export" &&
+      method === "GET"
+    ) {
+      const url = new URL(route.request().url());
+      const format = url.searchParams.get("format") || "json";
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "content-type":
+            format === "csv" ? "text/csv; charset=utf-8" : "application/json",
+        },
+        body:
+          format === "csv"
+            ? "section,name,bucket_min_age_minutes,bucket_max_age_minutes,count,value\nsummary,older_than_window_count,,,,1\nsummary,unused_older_than_window_count,,,,1\nolder_role,guest-standard,,,1,\nbucket,voucher_count,0,1440,1,\n"
+            : JSON.stringify(buildVoucherAgingAnalyticsResponse()),
       });
       return;
     }
