@@ -293,6 +293,7 @@ type TelemetryConfig struct {
 	SessionExports                    DiagnosticsExportConfig   `mapstructure:"session_exports"`
 	SessionAnalyticsExports           DiagnosticsExportConfig   `mapstructure:"session_analytics_exports"`
 	VoucherAnalyticsExports           DiagnosticsExportConfig   `mapstructure:"voucher_analytics_exports"`
+	VoucherAgingAnalyticsExports      DiagnosticsExportConfig   `mapstructure:"voucher_aging_analytics_exports"`
 	VoucherRedemptionAnalyticsExports DiagnosticsExportConfig   `mapstructure:"voucher_redemption_analytics_exports"`
 	VoucherExpiryAnalyticsExports     DiagnosticsExportConfig   `mapstructure:"voucher_expiry_analytics_exports"`
 	GuestLifecycleExports             DiagnosticsExportConfig   `mapstructure:"guest_lifecycle_exports"`
@@ -1104,6 +1105,11 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("telemetry.voucher_analytics_exports.format %q is invalid", c.Telemetry.VoucherAnalyticsExports.Format)
 	}
+	switch strings.ToLower(strings.TrimSpace(c.Telemetry.VoucherAgingAnalyticsExports.Format)) {
+	case "", "json", "csv", "both":
+	default:
+		return fmt.Errorf("telemetry.voucher_aging_analytics_exports.format %q is invalid", c.Telemetry.VoucherAgingAnalyticsExports.Format)
+	}
 	switch strings.ToLower(strings.TrimSpace(c.Telemetry.VoucherRedemptionAnalyticsExports.Format)) {
 	case "", "json", "csv", "both":
 	default:
@@ -1189,6 +1195,9 @@ func (c *Config) Validate() error {
 	if c.Telemetry.VoucherAnalyticsExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.voucher_analytics_exports.interval_minutes %d out of range", c.Telemetry.VoucherAnalyticsExports.IntervalMinutes)
 	}
+	if c.Telemetry.VoucherAgingAnalyticsExports.IntervalMinutes < 0 {
+		return fmt.Errorf("telemetry.voucher_aging_analytics_exports.interval_minutes %d out of range", c.Telemetry.VoucherAgingAnalyticsExports.IntervalMinutes)
+	}
 	if c.Telemetry.VoucherRedemptionAnalyticsExports.IntervalMinutes < 0 {
 		return fmt.Errorf("telemetry.voucher_redemption_analytics_exports.interval_minutes %d out of range", c.Telemetry.VoucherRedemptionAnalyticsExports.IntervalMinutes)
 	}
@@ -1245,6 +1254,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Telemetry.VoucherAnalyticsExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.voucher_analytics_exports.retention_count %d out of range", c.Telemetry.VoucherAnalyticsExports.RetentionCount)
+	}
+	if c.Telemetry.VoucherAgingAnalyticsExports.RetentionCount < 0 {
+		return fmt.Errorf("telemetry.voucher_aging_analytics_exports.retention_count %d out of range", c.Telemetry.VoucherAgingAnalyticsExports.RetentionCount)
 	}
 	if c.Telemetry.VoucherRedemptionAnalyticsExports.RetentionCount < 0 {
 		return fmt.Errorf("telemetry.voucher_redemption_analytics_exports.retention_count %d out of range", c.Telemetry.VoucherRedemptionAnalyticsExports.RetentionCount)
@@ -1370,6 +1382,20 @@ func (c *Config) Validate() error {
 		}
 		if c.Telemetry.VoucherAnalyticsExports.RetentionCount <= 0 {
 			return errors.New("telemetry.voucher_analytics_exports.enabled requires a positive telemetry.voucher_analytics_exports.retention_count")
+		}
+	}
+	if c.Telemetry.VoucherAgingAnalyticsExports.Enabled {
+		if !c.Telemetry.Enabled {
+			return errors.New("telemetry.voucher_aging_analytics_exports.enabled requires telemetry.enabled")
+		}
+		if strings.TrimSpace(c.Telemetry.VoucherAgingAnalyticsExports.Directory) == "" {
+			return errors.New("telemetry.voucher_aging_analytics_exports.enabled requires telemetry.voucher_aging_analytics_exports.directory")
+		}
+		if c.Telemetry.VoucherAgingAnalyticsExports.IntervalMinutes <= 0 {
+			return errors.New("telemetry.voucher_aging_analytics_exports.enabled requires a positive telemetry.voucher_aging_analytics_exports.interval_minutes")
+		}
+		if c.Telemetry.VoucherAgingAnalyticsExports.RetentionCount <= 0 {
+			return errors.New("telemetry.voucher_aging_analytics_exports.enabled requires a positive telemetry.voucher_aging_analytics_exports.retention_count")
 		}
 	}
 	if c.Telemetry.VoucherRedemptionAnalyticsExports.Enabled {

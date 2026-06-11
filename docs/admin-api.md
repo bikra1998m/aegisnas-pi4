@@ -103,6 +103,13 @@ When scheduled voucher analytics exports are enabled, the appliance also serves:
 /api/v1/system/voucher-analytics-exports/download?name=<artifact>
 ```
 
+When scheduled voucher aging analytics exports are enabled, the appliance also serves:
+
+```text
+/api/v1/system/voucher-aging-analytics-exports
+/api/v1/system/voucher-aging-analytics-exports/download?name=<artifact>
+```
+
 When scheduled voucher redemption analytics exports are enabled, the appliance also serves:
 
 ```text
@@ -319,6 +326,8 @@ The appliance also serves voucher inventory and usage analytics at:
 /api/v1/system/voucher-expiry-analytics-exports/download?name=<artifact>
 /api/v1/system/voucher-analytics-exports
 /api/v1/system/voucher-analytics-exports/download?name=<artifact>
+/api/v1/system/voucher-aging-analytics-exports
+/api/v1/system/voucher-aging-analytics-exports/download?name=<artifact>
 ```
 
 Optional query parameters:

@@ -82,6 +82,9 @@ var runCmd = &cobra.Command{
 		if err := adminapi.StartVoucherAnalyticsExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start voucher analytics export scheduler: %w", err)
 		}
+		if err := adminapi.StartVoucherAgingAnalyticsExportScheduler(cfg, logger); err != nil {
+			return fmt.Errorf("start voucher aging analytics export scheduler: %w", err)
+		}
 		if err := adminapi.StartVoucherRedemptionAnalyticsExportScheduler(cfg, logger); err != nil {
 			return fmt.Errorf("start voucher redemption analytics export scheduler: %w", err)
 		}
@@ -204,6 +207,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/voucher-expiry-analytics/export", adminapi.HandleExportVoucherExpiryAnalytics)
 			r.Get("/system/voucher-analytics-exports", adminapi.HandleListVoucherAnalyticsExports)
 			r.Get("/system/voucher-analytics-exports/download", adminapi.HandleDownloadVoucherAnalyticsExport)
+			r.Get("/system/voucher-aging-analytics-exports", adminapi.HandleListVoucherAgingAnalyticsExports)
+			r.Get("/system/voucher-aging-analytics-exports/download", adminapi.HandleDownloadVoucherAgingAnalyticsExport)
 			r.Get("/system/voucher-redemption-analytics-exports", adminapi.HandleListVoucherRedemptionAnalyticsExports)
 			r.Get("/system/voucher-redemption-analytics-exports/download", adminapi.HandleDownloadVoucherRedemptionAnalyticsExport)
 			r.Get("/system/voucher-expiry-analytics-exports", adminapi.HandleListVoucherExpiryAnalyticsExports)

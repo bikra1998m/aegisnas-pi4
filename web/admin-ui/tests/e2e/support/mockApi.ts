@@ -500,6 +500,13 @@ function createSettings() {
         interval_minutes: 60,
         retention_count: 21,
       },
+      voucher_aging_analytics_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/voucher-aging-analytics-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+      },
       voucher_redemption_analytics_exports: {
         enabled: true,
         directory: "/var/lib/aegisnas/voucher-redemption-analytics-exports",
@@ -1302,6 +1309,27 @@ function createSystemStatus() {
             bucket_count: 30,
             last_export_at: "2026-05-05T11:54:30Z",
             next_due_at: "2026-05-05T12:54:30Z",
+          },
+        },
+      },
+      voucher_aging_analytics_exports: {
+        enabled: true,
+        directory: "/var/lib/aegisnas/voucher-aging-analytics-exports",
+        format: "json",
+        interval_minutes: 60,
+        retention_count: 21,
+        runtime: {
+          status: "ok",
+          message: "Scheduled voucher aging analytics exports are healthy.",
+          details: {
+            format: "json",
+            interval_minutes: 60,
+            retention_count: 21,
+            directory: "/var/lib/aegisnas/voucher-aging-analytics-exports",
+            window_hours: 720,
+            bucket_count: 30,
+            last_export_at: "2026-05-05T11:54:40Z",
+            next_due_at: "2026-05-05T12:54:40Z",
           },
         },
       },
@@ -4308,6 +4336,28 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
     if (
+      path === "/system/voucher-aging-analytics-exports" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          runtime:
+            state.systemStatus.telemetry.voucher_aging_analytics_exports
+              .runtime,
+          exports: [
+            {
+              name: "aegisnas-voucher-aging-analytics-20260505-115440Z.json",
+              path: "/var/lib/aegisnas/voucher-aging-analytics-exports/aegisnas-voucher-aging-analytics-20260505-115440Z.json",
+              format: "json",
+              size_bytes: 1120,
+              created_at: "2026-05-05T11:54:40Z",
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (
       path === "/system/voucher-redemption-analytics-exports" &&
       method === "GET"
     ) {
@@ -4341,6 +4391,21 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             'attachment; filename="aegisnas-voucher-analytics-20260505-115430Z.json"',
         },
         body: JSON.stringify(buildVoucherAnalyticsResponse()),
+      });
+      return;
+    }
+    if (
+      path === "/system/voucher-aging-analytics-exports/download" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "content-disposition":
+            'attachment; filename="aegisnas-voucher-aging-analytics-20260505-115440Z.json"',
+        },
+        body: JSON.stringify(buildVoucherAgingAnalyticsResponse()),
       });
       return;
     }
