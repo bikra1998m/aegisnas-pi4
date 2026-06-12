@@ -135,7 +135,8 @@ radius:
     enabled: false
     name: "AegisNAS"
     id: 55555 # Lab placeholder from configs/aegisnas-vendor.dictionery. Replace with your IANA Private Enterprise Number before production use.
-    attributes: [] # Optional local overrides or extensions. Built-ins come from configs/aegisnas-vendor.dictionery.
+    compatibility_packs: ["standard", "mikrotik", "wispr"] # Add aegisnas, aruba, ruckus, fortinet, cisco, ubnt, or mist only after the NAS/controller side is prepared.
+    attributes: [] # Optional FreeRADIUS-style local overrides or extensions. Built-ins come from configs/aegisnas-vendor.dictionery.
   clients:
     - ip: 127.0.0.1
       secret: "replace-this-radius-secret"

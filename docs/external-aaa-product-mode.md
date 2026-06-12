@@ -223,6 +223,41 @@ To see the current built-in attributes, read the dictionary instead of copying t
 sed -n '1,220p' configs/aegisnas-vendor.dictionery
 ```
 
+To inspect the runtime catalog and semantic registry from an appliance:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/vendor-compatibility | jq '.summary, .semantics[] | select(.compatibility_state == "planned")'
+```
+
+The catalog layer reads FreeRADIUS-style `VENDOR`, `BEGIN-VENDOR`, `ATTRIBUTE`, and `VALUE` directives. The semantic layer is the product contract above that catalog. Vendor compatibility packs should map Cisco, Aruba, MikroTik, Ruckus, Fortinet, UniFi, Mist, Cambium, and site-specific VSAs into these AegisNAS semantic keys instead of hard-coding controller behavior directly in policy code.
+
+The current reply renderer has a conservative default pack set:
+
+```yaml
+radius:
+  vendor:
+    compatibility_packs:
+      - standard
+      - mikrotik
+      - wispr
+```
+
+Available pack keys include:
+
+- `standard`
+- `aegisnas`
+- `mikrotik`
+- `wispr`
+- `cisco`
+- `aruba`
+- `ruckus`
+- `fortinet`
+- `ubnt`
+- `mist`
+
+Only enable a vendor pack after the AP, switch, controller, or upstream policy system is prepared to consume those attributes. A FreeRADIUS dictionary lets AegisNAS name and render an attribute; it does not guarantee that a device will enforce that attribute.
+
 The `radius.vendor.attributes` list is only for local overrides or extra site-specific VSAs.
 
 Example upstream Access-Accept reply:

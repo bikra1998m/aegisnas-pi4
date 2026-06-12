@@ -210,6 +210,8 @@ This is where dictionary support becomes product behavior.
 | VLAN assignment | enabled | enabled | enabled | already present |
 | Timeout policy | enabled | enabled | enabled | already present |
 | Bandwidth profile mapping | available | enabled | enabled | already present |
+| Vendor dictionary catalog | enabled | enabled | enabled | read-only parser and semantic registry are low resource |
+| Vendor compatibility packs | enabled | enabled | enabled | metadata and conservative reply rendering are low resource |
 | Runtime shaping | warned | enabled | enabled | depends on downstream interface and hardware |
 | Quarantine enforcement | enabled | enabled | enabled | already present |
 | ACL-like policy language | blocked | available | enabled | major next-step feature |
@@ -218,6 +220,7 @@ This is where dictionary support becomes product behavior.
 Rules:
 
 - shaping should be `blocked` if no shaping interface exists
+- vendor dictionary parsing should stay read-only and cheap on lite hardware
 - ACL-like policy should not be presented as complete until device-side enforcement adapters exist
 
 ### 7. Identity And Enterprise Integrations

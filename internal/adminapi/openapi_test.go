@@ -40,6 +40,13 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read system runtime status", statusGet["summary"])
 	assert.Contains(t, statusGet["x-aegisnas-roles"], "read_only")
 
+	vendorCompatibilityPath, ok := paths["/api/v1/system/vendor-compatibility"].(map[string]any)
+	require.True(t, ok)
+	vendorCompatibilityGet, ok := vendorCompatibilityPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read vendor compatibility catalog", vendorCompatibilityGet["summary"])
+	assert.Contains(t, vendorCompatibilityGet["x-aegisnas-roles"], "read_only")
+
 	specPath, ok := paths["/api/v1/openapi.json"].(map[string]any)
 	require.True(t, ok)
 	specGet, ok := specPath["get"].(map[string]any)

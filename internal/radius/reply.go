@@ -5,19 +5,39 @@ import (
 	"fmt"
 	"strings"
 
+	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
+	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 )
 
 // ReplyAttributes contains RADIUS reply attributes for a user.
 type ReplyAttributes struct {
+	Role                  string
+	BandwidthProfile      string
+	FilterID              string
+	PolicyTag             string
 	SessionTimeout        int
 	IdleTimeout           int
+	VLAN                  int
 	TunnelType            string // "VLAN"
 	TunnelMediumType      string // "IEEE-802"
 	TunnelPrivateGroupID  string // VLAN ID as string
 	MikrotikRateLimit     string // MikroTik specific, but widely used
 	WISPrBandwidthMaxDown int
 	WISPrBandwidthMaxUp   int
+	HasQuarantine         bool
+	Quarantine            bool
+	PortalProfile         string
+	DeviceGroup           string
+	Tenant                string
+	InboundACL            string
+	OutboundACL           string
+}
+
+type ReplyAttributeItem struct {
+	Name   string
+	Value  string
+	Quoted bool
 }
 
 // GetReplyAttributes retrieves attributes based on user role.
@@ -42,8 +62,9 @@ func GetReplyAttributes(username, role string) (*ReplyAttributes, error) {
 		return nil, err
 	}
 
-	attrs := &ReplyAttributes{}
+	attrs := &ReplyAttributes{Role: strings.TrimSpace(role)}
 	if vlan.Valid {
+		attrs.VLAN = int(vlan.Int32)
 		attrs.TunnelType = "VLAN"
 		attrs.TunnelMediumType = "IEEE-802"
 		attrs.TunnelPrivateGroupID = fmt.Sprintf("%d", vlan.Int32)
@@ -55,6 +76,7 @@ func GetReplyAttributes(username, role string) (*ReplyAttributes, error) {
 		attrs.IdleTimeout = int(idleTO.Int32)
 	}
 	if bwProfile.Valid {
+		attrs.BandwidthProfile = strings.TrimSpace(bwProfile.String)
 		// Retrieve bandwidth profile details
 		var down, up int
 		err = db.DB.QueryRow(`SELECT download_rate_kbps, upload_rate_kbps FROM bandwidth_profiles WHERE name = ?`,
@@ -70,26 +92,181 @@ func GetReplyAttributes(username, role string) (*ReplyAttributes, error) {
 
 // RenderReplyAttributes generates the FreeRADIUS reply items.
 func RenderReplyAttributes(attrs *ReplyAttributes) string {
+	return RenderReplyAttributesForPacks(attrs, productconfigs.DefaultVendorCompatibilityPackKeys())
+}
+
+func RenderReplyAttributesForPacks(attrs *ReplyAttributes, packKeys []string) string {
+	items := BuildReplyAttributeItems(attrs, packKeys)
 	var sb strings.Builder
-	if attrs.SessionTimeout > 0 {
-		sb.WriteString(fmt.Sprintf("\tSession-Timeout = %d\n", attrs.SessionTimeout))
-	}
-	if attrs.IdleTimeout > 0 {
-		sb.WriteString(fmt.Sprintf("\tIdle-Timeout = %d\n", attrs.IdleTimeout))
-	}
-	if attrs.TunnelPrivateGroupID != "" {
-		sb.WriteString(fmt.Sprintf("\tTunnel-Type = %s\n", attrs.TunnelType))
-		sb.WriteString(fmt.Sprintf("\tTunnel-Medium-Type = %s\n", attrs.TunnelMediumType))
-		sb.WriteString(fmt.Sprintf("\tTunnel-Private-Group-Id = \"%s\"\n", attrs.TunnelPrivateGroupID))
-	}
-	if attrs.MikrotikRateLimit != "" {
-		sb.WriteString(fmt.Sprintf("\tMikrotik-Rate-Limit = \"%s\"\n", attrs.MikrotikRateLimit))
-	}
-	if attrs.WISPrBandwidthMaxDown > 0 {
-		sb.WriteString(fmt.Sprintf("\tWISPr-Bandwidth-Max-Down = %d\n", attrs.WISPrBandwidthMaxDown))
-	}
-	if attrs.WISPrBandwidthMaxUp > 0 {
-		sb.WriteString(fmt.Sprintf("\tWISPr-Bandwidth-Max-Up = %d\n", attrs.WISPrBandwidthMaxUp))
+	for _, item := range items {
+		if item.Quoted {
+			sb.WriteString(fmt.Sprintf("\t%s = \"%s\"\n", item.Name, escapeReplyValue(item.Value)))
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("\t%s = %s\n", item.Name, item.Value))
 	}
 	return sb.String()
+}
+
+func RenderReplyAttributesForVendorConfig(attrs *ReplyAttributes, vendor config.RadiusVendorConfig) string {
+	return RenderReplyAttributesForPacks(attrs, vendor.CompatibilityPacks)
+}
+
+func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []ReplyAttributeItem {
+	if attrs == nil {
+		return nil
+	}
+	packKeys = normalizeReplyPackKeys(packKeys)
+	items := make([]ReplyAttributeItem, 0, 16)
+	seen := map[string]struct{}{}
+	appendItem := func(name, value string, quoted bool) {
+		name = strings.TrimSpace(name)
+		value = strings.TrimSpace(value)
+		if name == "" || value == "" {
+			return
+		}
+		key := name + "\x00" + value
+		if _, exists := seen[key]; exists {
+			return
+		}
+		seen[key] = struct{}{}
+		items = append(items, ReplyAttributeItem{Name: name, Value: value, Quoted: quoted})
+	}
+	for _, packKey := range packKeys {
+		switch packKey {
+		case productconfigs.VendorPackStandard:
+			appendStandardReplyAttributes(attrs, appendItem)
+		case productconfigs.VendorPackAegisNAS:
+			appendAegisNASReplyAttributes(attrs, appendItem)
+		case productconfigs.VendorPackMikroTik:
+			appendItem("Mikrotik-Rate-Limit", attrs.MikrotikRateLimit, true)
+		case productconfigs.VendorPackWISPr:
+			if attrs.WISPrBandwidthMaxDown > 0 {
+				appendItem("WISPr-Bandwidth-Max-Down", fmt.Sprintf("%d", attrs.WISPrBandwidthMaxDown), false)
+			}
+			if attrs.WISPrBandwidthMaxUp > 0 {
+				appendItem("WISPr-Bandwidth-Max-Up", fmt.Sprintf("%d", attrs.WISPrBandwidthMaxUp), false)
+			}
+		case productconfigs.VendorPackCisco:
+			appendItem("Cisco-In-ACL", attrs.InboundACL, true)
+			appendItem("Cisco-Out-ACL", attrs.OutboundACL, true)
+		case productconfigs.VendorPackAruba:
+			appendItem("Aruba-User-Role", replyRole(attrs), true)
+			if vlan := replyVLAN(attrs); vlan > 0 {
+				appendItem("Aruba-User-Vlan", fmt.Sprintf("%d", vlan), false)
+			}
+		case productconfigs.VendorPackRuckus:
+			appendItem("Ruckus-User-Groups", replyRole(attrs), true)
+			if vlan := replyVLAN(attrs); vlan > 0 {
+				appendItem("Ruckus-VLAN-ID", fmt.Sprintf("%d", vlan), false)
+			}
+		case productconfigs.VendorPackFortinet:
+			appendItem("Fortinet-Group-Name", replyRole(attrs), true)
+			appendItem("Fortinet-Access-Profile", firstReplyValue(attrs.PolicyTag, attrs.FilterID), true)
+		case productconfigs.VendorPackUBNT:
+			if attrs.WISPrBandwidthMaxDown > 0 {
+				appendItem("UBNT-Data-Rate-DL", fmt.Sprintf("%d", attrs.WISPrBandwidthMaxDown*1000), false)
+			}
+			if attrs.WISPrBandwidthMaxUp > 0 {
+				appendItem("UBNT-Data-Rate-UL", fmt.Sprintf("%d", attrs.WISPrBandwidthMaxUp*1000), false)
+			}
+		}
+	}
+	return items
+}
+
+func appendStandardReplyAttributes(attrs *ReplyAttributes, appendItem func(string, string, bool)) {
+	if attrs.SessionTimeout > 0 {
+		appendItem("Session-Timeout", fmt.Sprintf("%d", attrs.SessionTimeout), false)
+	}
+	if attrs.IdleTimeout > 0 {
+		appendItem("Idle-Timeout", fmt.Sprintf("%d", attrs.IdleTimeout), false)
+	}
+	if attrs.FilterID != "" {
+		appendItem("Filter-Id", attrs.FilterID, true)
+	}
+	if vlan := replyVLAN(attrs); vlan > 0 {
+		tunnelType := firstReplyValue(attrs.TunnelType, "VLAN")
+		tunnelMedium := firstReplyValue(attrs.TunnelMediumType, "IEEE-802")
+		appendItem("Tunnel-Type", tunnelType, false)
+		appendItem("Tunnel-Medium-Type", tunnelMedium, false)
+		appendItem("Tunnel-Private-Group-Id", fmt.Sprintf("%d", vlan), true)
+	}
+}
+
+func appendAegisNASReplyAttributes(attrs *ReplyAttributes, appendItem func(string, string, bool)) {
+	appendItem("AegisNAS-Role", replyRole(attrs), true)
+	appendItem("AegisNAS-Bandwidth-Profile", attrs.BandwidthProfile, true)
+	if vlan := replyVLAN(attrs); vlan > 0 {
+		appendItem("AegisNAS-VLAN", fmt.Sprintf("%d", vlan), false)
+	}
+	if attrs.HasQuarantine {
+		if attrs.Quarantine {
+			appendItem("AegisNAS-Quarantine", "1", false)
+		} else {
+			appendItem("AegisNAS-Quarantine", "0", false)
+		}
+	}
+	appendItem("AegisNAS-Policy-Tag", firstReplyValue(attrs.PolicyTag, attrs.FilterID), true)
+	if attrs.SessionTimeout > 0 {
+		appendItem("AegisNAS-Session-Timeout", fmt.Sprintf("%d", attrs.SessionTimeout), false)
+	}
+	if attrs.IdleTimeout > 0 {
+		appendItem("AegisNAS-Idle-Timeout", fmt.Sprintf("%d", attrs.IdleTimeout), false)
+	}
+	appendItem("AegisNAS-Portal-Profile", attrs.PortalProfile, true)
+	appendItem("AegisNAS-Device-Group", attrs.DeviceGroup, true)
+	appendItem("AegisNAS-Tenant", attrs.Tenant, true)
+}
+
+func normalizeReplyPackKeys(packKeys []string) []string {
+	if len(packKeys) == 0 {
+		packKeys = productconfigs.DefaultVendorCompatibilityPackKeys()
+	}
+	out := make([]string, 0, len(packKeys))
+	seen := map[string]struct{}{}
+	for _, packKey := range packKeys {
+		key := productconfigs.NormalizeVendorCompatibilityPackKey(packKey)
+		if key == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, key)
+	}
+	return out
+}
+
+func replyRole(attrs *ReplyAttributes) string {
+	return firstReplyValue(attrs.Role, attrs.FilterID)
+}
+
+func replyVLAN(attrs *ReplyAttributes) int {
+	if attrs.VLAN > 0 {
+		return attrs.VLAN
+	}
+	if attrs.TunnelPrivateGroupID == "" {
+		return 0
+	}
+	var vlan int
+	if _, err := fmt.Sscanf(strings.TrimSpace(attrs.TunnelPrivateGroupID), "%d", &vlan); err != nil {
+		return 0
+	}
+	return vlan
+}
+
+func firstReplyValue(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func escapeReplyValue(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	return strings.ReplaceAll(value, `"`, `\"`)
 }

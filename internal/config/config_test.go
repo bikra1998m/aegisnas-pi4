@@ -294,6 +294,14 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	valid := base()
 	assert.NoError(t, valid.Validate())
 
+	validTextAttr := base()
+	validTextAttr.Radius.Vendor.Attributes = append(validTextAttr.Radius.Vendor.Attributes, RadiusVendorAttribute{Name: "AegisNAS-Operator-Note", Number: 99, Type: "text"})
+	assert.NoError(t, validTextAttr.Validate())
+
+	validPacks := base()
+	validPacks.Radius.Vendor.CompatibilityPacks = []string{"standard", "routeros", "unifi"}
+	assert.NoError(t, validPacks.Validate())
+
 	invalidID := base()
 	invalidID.Radius.Vendor.ID = 0
 	assert.ErrorContains(t, invalidID.Validate(), "radius.vendor.id")
@@ -305,6 +313,14 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	invalidType := base()
 	invalidType.Radius.Vendor.Attributes[0].Type = "blob"
 	assert.ErrorContains(t, invalidType.Validate(), "type")
+
+	invalidPack := base()
+	invalidPack.Radius.Vendor.CompatibilityPacks = []string{"standard", "made-up-vendor"}
+	assert.ErrorContains(t, invalidPack.Validate(), "compatibility_packs")
+
+	duplicatePack := base()
+	duplicatePack.Radius.Vendor.CompatibilityPacks = []string{"ubnt", "unifi"}
+	assert.ErrorContains(t, duplicatePack.Validate(), "duplicates")
 }
 
 func TestConfigValidationAIEngine(t *testing.T) {

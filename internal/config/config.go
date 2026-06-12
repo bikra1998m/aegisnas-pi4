@@ -219,10 +219,11 @@ type RadiusHomeServer struct {
 }
 
 type RadiusVendorConfig struct {
-	Enabled    bool                    `mapstructure:"enabled"`
-	Name       string                  `mapstructure:"name"`
-	ID         int                     `mapstructure:"id"`
-	Attributes []RadiusVendorAttribute `mapstructure:"attributes"`
+	Enabled            bool                    `mapstructure:"enabled"`
+	Name               string                  `mapstructure:"name"`
+	ID                 int                     `mapstructure:"id"`
+	CompatibilityPacks []string                `mapstructure:"compatibility_packs"`
+	Attributes         []RadiusVendorAttribute `mapstructure:"attributes"`
 }
 
 type RadiusVendorAttribute struct {
@@ -772,6 +773,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.vendor.enabled", false)
 	v.SetDefault("radius.vendor.name", productVendor.Name)
 	v.SetDefault("radius.vendor.id", productVendor.ID)
+	v.SetDefault("radius.vendor.compatibility_packs", productconfigs.DefaultVendorCompatibilityPackKeys())
 	v.SetDefault("portal.radius_auth", false)
 	v.SetDefault("portal.local_fallback", true)
 	v.SetDefault("policy.runtime_shaping_enabled", true)
@@ -2698,12 +2700,24 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("radius.vendor.attributes[%d].number %d duplicates %q", i, attr.Number, existing)
 			}
 			seenVendorAttrs[attr.Number] = name
-			switch strings.ToLower(strings.TrimSpace(attr.Type)) {
-			case "string", "integer", "ipaddr", "octets", "date":
-			default:
+			if !productconfigs.ValidVendorDictionaryAttributeType(attr.Type) {
 				return fmt.Errorf("radius.vendor.attributes[%d].type %q is invalid", i, attr.Type)
 			}
 		}
+	}
+	seenVendorPacks := map[string]struct{}{}
+	for i, pack := range c.Radius.Vendor.CompatibilityPacks {
+		key := productconfigs.NormalizeVendorCompatibilityPackKey(pack)
+		if key == "" {
+			return fmt.Errorf("radius.vendor.compatibility_packs[%d] cannot be empty", i)
+		}
+		if !productconfigs.ValidVendorCompatibilityPackKey(key) {
+			return fmt.Errorf("radius.vendor.compatibility_packs[%d] %q is unknown", i, pack)
+		}
+		if _, exists := seenVendorPacks[key]; exists {
+			return fmt.Errorf("radius.vendor.compatibility_packs[%d] %q duplicates an earlier pack", i, pack)
+		}
+		seenVendorPacks[key] = struct{}{}
 	}
 	switch c.Radius.EAP.DefaultType {
 	case "", "peap", "ttls", "tls":

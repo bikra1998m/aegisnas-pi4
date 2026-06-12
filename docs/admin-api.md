@@ -35,6 +35,29 @@ Or from the admin UI:
 2. open `Backups`
 3. select `Download OpenAPI JSON`
 
+## Vendor Compatibility Endpoint
+
+The appliance exposes the built-in AegisNAS vendor dictionary catalog and semantic registry at:
+
+```text
+/api/v1/system/vendor-compatibility
+```
+
+Examples:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/vendor-compatibility | jq '.summary'
+```
+
+Use this endpoint when you want to confirm:
+
+- the active AegisNAS product vendor ID and built-in VSA count
+- the active vendor compatibility packs from `radius.vendor.compatibility_packs`
+- which semantic policy keys already have product attributes
+- which vendor-compatibility areas are implemented versus planned
+- which pieces are intended for lite, branch, or enterprise appliances
+
 ## Support Bundle Endpoints
 
 The appliance also serves support bundle preview and live bundle download at:
@@ -657,6 +680,7 @@ Use the OpenAPI JSON for:
 - mapping scheduled HA exports into failover drill evidence and recovery handoffs
 - mapping scheduled upstream AAA exports into RADIUS fail-over and timeout investigations
 - mapping scheduled session analytics exports into recurring access-pattern and concurrency reviews
+- mapping vendor-compatibility reports into packet simulation, support, and controller-pack planning
 
 ## Operational Reminder
 
