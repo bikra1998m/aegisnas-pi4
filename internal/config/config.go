@@ -194,6 +194,7 @@ type RadiusClient struct {
 	IP        string `mapstructure:"ip"`
 	Secret    string `mapstructure:"secret"`
 	ShortName string `mapstructure:"shortname"`
+	NASType   string `mapstructure:"nas_type"`
 }
 
 type RadiusUpstreamConfig struct {

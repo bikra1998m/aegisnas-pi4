@@ -141,6 +141,7 @@ radius:
     - ip: 127.0.0.1
       secret: "replace-this-radius-secret"
       shortname: "localhost"
+      nas_type: "other"
   upstream:
     enabled: false
     realm: "aegis-upstream"

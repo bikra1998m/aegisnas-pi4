@@ -121,9 +121,11 @@ For each client, fill:
 - `Short Name`
 - `IP Address`
 - `Shared Secret`
-- `NAS Type`
+- `NAS Type / Vendor Profile`
 - `Description`
 - `Enabled`
+
+Use `other` for standards-based or unknown clients. Use a known profile such as `aruba`, `cisco`, `mikrotik`, `ruckus`, `fortinet`, or `ubnt` when that AP, controller, or switch should receive vendor-compatible reply attributes. `unifi` and `routeros` are accepted aliases for `ubnt` and `mikrotik`.
 
 Apply the pending changes after staging them.
 
@@ -469,6 +471,7 @@ Checklist:
   - idle timeout
   - AegisNAS vendor-specific attributes if product-mode mapping is used
 - [ ] The `RADIUS Clients` list in AegisNAS includes every AP, controller, or switch that will send RADIUS traffic to AegisNAS
+- [ ] Each `RADIUS Clients` entry has the intended `NAS Type / Vendor Profile` so generated FreeRADIUS `clients.conf` and reply attributes match the device vendor
 - [ ] `Access Settings -> FreeRADIUS And EAP` is configured with:
   - `NAS Identifier`
   - local shared secret

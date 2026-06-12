@@ -154,6 +154,7 @@ radius:
     enabled: true
     name: "AegisNAS"
     id: 55555 # Lab placeholder from configs/aegisnas-vendor.dictionery. Replace before production use.
+    compatibility_packs: ["standard", "mikrotik", "wispr"] # Global default for unprofiled NAS clients.
     attributes: [] # Optional local overrides or extensions. Built-ins come from the product dictionary.
   auth_port: 1812
   acct_port: 1813
@@ -161,6 +162,7 @@ radius:
     - ip: 127.0.0.1
       secret: "replace-this-radius-secret"
       shortname: "localhost"
+      nas_type: "other"
   upstream:
     enabled: true
     realm: "aegis-upstream"
@@ -312,6 +314,19 @@ The `radius.clients` list still defines which devices are allowed to send RADIUS
 
 The admin UI now exposes this as a dedicated `RADIUS Clients` page so operators can add APs and switches without editing YAML by hand.
 
+Set `nas_type` to the access-device profile that should receive vendor-compatible replies. AegisNAS writes the value into generated FreeRADIUS `clients.conf` as `nastype` and uses known profile names to choose reply attribute packs for that client.
+
+Common values:
+
+- `other` uses `radius.vendor.compatibility_packs`
+- `aruba` sends standards-based attributes plus Aruba role/VLAN replies
+- `cisco` sends standards-based attributes plus Cisco ACL replies when policy contains ACL values
+- `mikrotik` sends standards-based attributes plus MikroTik rate-limit replies
+- `ubnt` or `unifi` sends standards-based attributes plus UniFi/UBNT rate replies
+- `ruckus` and `fortinet` select their matching compatibility packs
+
+Unknown safe names are still written as `nastype` for FreeRADIUS/site scripts, but reply rendering falls back to the configured global compatibility packs.
+
 Example:
 
 ```yaml
@@ -320,9 +335,11 @@ radius:
     - ip: 10.20.0.2
       secret: "ap-secret-01"
       shortname: "ap-lobby-01"
+      nas_type: "aruba"
     - ip: 10.20.0.3
       secret: "ap-secret-02"
       shortname: "ap-lobby-02"
+      nas_type: "ubnt"
 ```
 
 ### 7. Validate The Appliance Config

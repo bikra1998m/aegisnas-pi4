@@ -95,6 +95,51 @@ func TestRenderReplyAttributesForVendorConfigUsesConfiguredPacks(t *testing.T) {
 	assert.NotContains(t, rendered, "Mikrotik-Rate-Limit")
 }
 
+func TestNormalizeClientNASType(t *testing.T) {
+	assert.Equal(t, "aruba", NormalizeClientNASType(" Aruba "))
+	assert.Equal(t, "ubnt", NormalizeClientNASType("unifi"))
+	assert.Equal(t, "mikrotik", NormalizeClientNASType("routeros"))
+	assert.Equal(t, "custom-ap", NormalizeClientNASType("Custom-AP"))
+	assert.Equal(t, "other", NormalizeClientNASType(""))
+	assert.Equal(t, "other", NormalizeClientNASType("bad\nprofile"))
+}
+
+func TestReplyCompatibilityPacksForClientUsesNASProfile(t *testing.T) {
+	packs := ReplyCompatibilityPacksForClient(config.RadiusVendorConfig{
+		CompatibilityPacks: []string{"standard", "mikrotik", "wispr", "aegisnas"},
+	}, config.RadiusClient{
+		NASType: "aruba",
+	})
+
+	assert.Equal(t, []string{"standard", "aruba", "aegisnas", "wispr"}, packs)
+
+	rendered := RenderReplyAttributesForClient(&ReplyAttributes{
+		Role:                  "guest",
+		VLAN:                  20,
+		MikrotikRateLimit:     "50000k/20000k",
+		WISPrBandwidthMaxDown: 50000,
+		WISPrBandwidthMaxUp:   20000,
+	}, config.RadiusVendorConfig{
+		CompatibilityPacks: []string{"standard", "mikrotik", "wispr", "aegisnas"},
+	}, config.RadiusClient{
+		NASType: "aruba",
+	})
+
+	assert.Contains(t, rendered, "\tAruba-User-Role = \"guest\"\n")
+	assert.Contains(t, rendered, "\tAruba-User-Vlan = 20\n")
+	assert.Contains(t, rendered, "\tAegisNAS-Role = \"guest\"\n")
+	assert.Contains(t, rendered, "\tWISPr-Bandwidth-Max-Down = 50000\n")
+	assert.NotContains(t, rendered, "Mikrotik-Rate-Limit")
+}
+
+func TestReplyCompatibilityPacksForUnknownNASUsesConfiguredPacks(t *testing.T) {
+	packs := ReplyCompatibilityPacksForNASType(config.RadiusVendorConfig{
+		CompatibilityPacks: []string{"standard", "mikrotik"},
+	}, "custom-ap")
+
+	assert.Equal(t, []string{"standard", "mikrotik"}, packs)
+}
+
 func countRenderedAttribute(rendered, name string) int {
 	count := 0
 	for _, line := range splitRenderedAttributes(rendered) {
