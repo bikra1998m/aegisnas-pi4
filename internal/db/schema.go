@@ -71,5 +71,55 @@ func MigrateHandle(handle *sql.DB) error {
 		}
 	}
 
+	if err := ensureRadiusClientCompatibilityColumns(handle); err != nil {
+		return fmt.Errorf("repair radius client schema: %w", err)
+	}
+
 	return nil
+}
+
+func ensureRadiusClientCompatibilityColumns(handle *sql.DB) error {
+	exists, err := tableExists(handle, "radius_clients")
+	if err != nil || !exists {
+		return err
+	}
+
+	hasNASType, err := tableHasColumn(handle, "radius_clients", "nas_type")
+	if err != nil || hasNASType {
+		return err
+	}
+	_, err = handle.Exec(`ALTER TABLE radius_clients ADD COLUMN nas_type TEXT DEFAULT 'other'`)
+	return err
+}
+
+func tableExists(handle *sql.DB, table string) (bool, error) {
+	var count int
+	err := handle.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table).Scan(&count)
+	return count > 0, err
+}
+
+func tableHasColumn(handle *sql.DB, table, column string) (bool, error) {
+	rows, err := handle.Query(fmt.Sprintf("PRAGMA table_info('%s')", strings.ReplaceAll(table, "'", "''")))
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			cid        int
+			name       string
+			columnType string
+			notNull    int
+			defaultVal sql.NullString
+			pk         int
+		)
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultVal, &pk); err != nil {
+			return false, err
+		}
+		if strings.EqualFold(name, column) {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
 }

@@ -342,6 +342,13 @@ radius:
       nas_type: "ubnt"
 ```
 
+The same profile can be set from the appliance CLI:
+
+```bash
+/opt/aegisnas/bin/aegis-radius client add ap-lobby-01 10.20.0.2 'ap-secret-01' --nas-type aruba
+/opt/aegisnas/bin/aegis-radius client list
+```
+
 ### 7. Validate The Appliance Config
 
 Run:

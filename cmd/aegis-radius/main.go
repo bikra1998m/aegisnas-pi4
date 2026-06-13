@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -14,9 +15,10 @@ import (
 )
 
 var (
-	cfgFile string
-	dryRun  bool
-	rootCmd = &cobra.Command{
+	cfgFile       string
+	dryRun        bool
+	clientNASType string
+	rootCmd       = &cobra.Command{
 		Use:   "aegis-radius",
 		Short: "AegisNAS RADIUS service – manages FreeRADIUS configuration",
 	}
@@ -47,8 +49,8 @@ var runCmd = &cobra.Command{
 		defer logging.Sync()
 		logger := logging.L()
 
-		if err := db.Init(cfg.Database.Path); err != nil {
-			return fmt.Errorf("init db: %w", err)
+		if err := initRadiusDB(cfg); err != nil {
+			return err
 		}
 		defer db.Close()
 
@@ -78,8 +80,8 @@ var genConfigCmd = &cobra.Command{
 			return err
 		}
 		// Initialize DB to read clients
-		if err := db.Init(cfg.Database.Path); err != nil {
-			return fmt.Errorf("init db: %w", err)
+		if err := initRadiusDB(cfg); err != nil {
+			return err
 		}
 		defer db.Close()
 
@@ -121,8 +123,8 @@ var applyConfigCmd = &cobra.Command{
 		}
 		defer logging.Sync()
 
-		if err := db.Init(cfg.Database.Path); err != nil {
-			return fmt.Errorf("init db: %w", err)
+		if err := initRadiusDB(cfg); err != nil {
+			return err
 		}
 		defer db.Close()
 
@@ -152,24 +154,11 @@ var clientListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := db.Init(cfg.Database.Path); err != nil {
+		if err := initRadiusDB(cfg); err != nil {
 			return err
 		}
 		defer db.Close()
-		rows, err := db.DB.Query(`SELECT id, shortname, ipaddr, enabled FROM radius_clients ORDER BY shortname`)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		fmt.Printf("%-4s %-20s %-15s %-7s\n", "ID", "ShortName", "IP", "Enabled")
-		for rows.Next() {
-			var id int
-			var name, ip string
-			var enabled bool
-			rows.Scan(&id, &name, &ip, &enabled)
-			fmt.Printf("%-4d %-20s %-15s %-7t\n", id, name, ip, enabled)
-		}
-		return nil
+		return listRadiusClients(cmd.OutOrStdout())
 	},
 }
 
@@ -182,15 +171,15 @@ var clientAddCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := db.Init(cfg.Database.Path); err != nil {
+		if err := initRadiusDB(cfg); err != nil {
 			return err
 		}
 		defer db.Close()
-		_, err = db.DB.Exec(`INSERT INTO radius_clients (shortname, ipaddr, secret) VALUES (?, ?, ?)`, args[0], args[1], args[2])
+		nasType, err := addRadiusClient(args[0], args[1], args[2], clientNASType)
 		if err != nil {
 			return err
 		}
-		fmt.Println("Client added successfully.")
+		fmt.Fprintf(cmd.OutOrStdout(), "Client added successfully with NAS type %q.\n", nasType)
 		return nil
 	},
 }
@@ -204,7 +193,7 @@ var clientRemoveCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := db.Init(cfg.Database.Path); err != nil {
+		if err := initRadiusDB(cfg); err != nil {
 			return err
 		}
 		defer db.Close()
@@ -230,7 +219,7 @@ var clientEnableCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := db.Init(cfg.Database.Path); err != nil {
+		if err := initRadiusDB(cfg); err != nil {
 			return err
 		}
 		defer db.Close()
@@ -256,7 +245,7 @@ var clientDisableCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := db.Init(cfg.Database.Path); err != nil {
+		if err := initRadiusDB(cfg); err != nil {
 			return err
 		}
 		defer db.Close()
@@ -275,6 +264,7 @@ var clientDisableCmd = &cobra.Command{
 
 func init() {
 	applyConfigCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print configuration without applying")
+	clientAddCmd.Flags().StringVar(&clientNASType, "nas-type", "other", "NAS type / vendor profile for this AP, switch, or controller")
 	rootCmd.AddCommand(runCmd, genConfigCmd, applyConfigCmd)
 
 	clientCmd.AddCommand(clientListCmd, clientAddCmd, clientRemoveCmd, clientEnableCmd, clientDisableCmd)
@@ -290,4 +280,46 @@ func loadAndValidateConfig() (*config.Config, error) {
 		return nil, fmt.Errorf("validate config: %w", err)
 	}
 	return cfg, nil
+}
+
+func initRadiusDB(cfg *config.Config) error {
+	if err := db.Init(cfg.Database.Path); err != nil {
+		return fmt.Errorf("init db: %w", err)
+	}
+	if err := db.Migrate(); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("migrate db: %w", err)
+	}
+	return nil
+}
+
+func listRadiusClients(w io.Writer) error {
+	rows, err := db.DB.Query(`SELECT id, shortname, ipaddr, COALESCE(NULLIF(TRIM(nas_type), ''), 'other'), enabled FROM radius_clients ORDER BY shortname`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	fmt.Fprintf(w, "%-4s %-20s %-15s %-14s %-7s\n", "ID", "ShortName", "IP", "NASType", "Enabled")
+	for rows.Next() {
+		var (
+			id      int
+			name    string
+			ip      string
+			nasType string
+			enabled bool
+		)
+		if err := rows.Scan(&id, &name, &ip, &nasType, &enabled); err != nil {
+			return err
+		}
+		fmt.Fprintf(w, "%-4d %-20s %-15s %-14s %-7t\n", id, name, ip, radius.NormalizeClientNASType(nasType), enabled)
+	}
+	return rows.Err()
+}
+
+func addRadiusClient(shortName, ip, secret, nasType string) (string, error) {
+	normalizedNASType := radius.NormalizeClientNASType(nasType)
+	_, err := db.DB.Exec(`INSERT INTO radius_clients (shortname, ipaddr, secret, nas_type) VALUES (?, ?, ?, ?)`,
+		shortName, ip, secret, normalizedNASType)
+	return normalizedNASType, err
 }

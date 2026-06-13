@@ -24,7 +24,7 @@ func TestMigrate(t *testing.T) {
 	var version int
 	err = DB.QueryRow("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1").Scan(&version)
 	assert.NoError(t, err)
-	assert.Equal(t, 9, version)
+	assert.Equal(t, LatestSchemaVersion(), version)
 
 	tables := []string{"local_users", "roles", "bandwidth_profiles", "sessions", "runtime_status", "guest_registrations", "device_inventory", "device_certificates", "admin_principals", "admin_sessions", "network_apply_history", "dhcp_lease_history", "ha_history", "integration_history"}
 	for _, tbl := range tables {
@@ -38,6 +38,54 @@ func TestMigrate(t *testing.T) {
 	err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('sessions') WHERE name='session_timeout'").Scan(&sessionTimeoutColumnCount)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, sessionTimeoutColumnCount)
+
+	var nasTypeColumnCount int
+	err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('radius_clients') WHERE name='nas_type'").Scan(&nasTypeColumnCount)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, nasTypeColumnCount)
+}
+
+func TestMigrateRepairsLegacyRadiusClientNASTypeColumn(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", "test-legacy-radius-clients-*.db")
+	require.NoError(t, err)
+	defer os.Remove(tmpfile.Name())
+	tmpfile.Close()
+
+	err = Init(tmpfile.Name())
+	require.NoError(t, err)
+	defer Close()
+
+	_, err = DB.Exec(`CREATE TABLE schema_version (
+		version INTEGER PRIMARY KEY,
+		applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
+	require.NoError(t, err)
+	_, err = DB.Exec("INSERT INTO schema_version (version) VALUES (?)", LatestSchemaVersion())
+	require.NoError(t, err)
+	_, err = DB.Exec(`CREATE TABLE radius_clients (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		shortname TEXT UNIQUE NOT NULL,
+		ipaddr TEXT NOT NULL,
+		secret TEXT NOT NULL,
+		enabled BOOLEAN DEFAULT 1
+	)`)
+	require.NoError(t, err)
+	_, err = DB.Exec(`INSERT INTO radius_clients (shortname, ipaddr, secret, enabled)
+		VALUES ('legacy-ap', '10.20.0.2', 'secret', 1)`)
+	require.NoError(t, err)
+
+	err = Migrate()
+	require.NoError(t, err)
+
+	var nasTypeColumnCount int
+	err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('radius_clients') WHERE name='nas_type'").Scan(&nasTypeColumnCount)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, nasTypeColumnCount)
+
+	var nasType string
+	err = DB.QueryRow("SELECT nas_type FROM radius_clients WHERE shortname = 'legacy-ap'").Scan(&nasType)
+	assert.NoError(t, err)
+	assert.Equal(t, "other", nasType)
 }
 
 func TestSeed(t *testing.T) {
