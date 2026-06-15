@@ -232,6 +232,13 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/vendor-compatibility | jq '.summary, .semantics[] | select(.compatibility_state == "planned")'
 ```
 
+To inspect deployed NAS profile coverage and fallback clients:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/vendor-compatibility | jq '.profile_summary, .client_profiles[] | {shortname, nas_type, effective_packs, warning}'
+```
+
 The catalog layer reads FreeRADIUS-style `VENDOR`, `BEGIN-VENDOR`, `ATTRIBUTE`, and `VALUE` directives. The semantic layer is the product contract above that catalog. Vendor compatibility packs should map Cisco, Aruba, MikroTik, Ruckus, Fortinet, UniFi, Mist, Cambium, and site-specific VSAs into these AegisNAS semantic keys instead of hard-coding controller behavior directly in policy code.
 
 The current reply renderer has a conservative default pack set:

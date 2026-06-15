@@ -1099,7 +1099,7 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"default": responseText("RADIUS apply error."),
 	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
-		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, and compatibility summary."),
+		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, compatibility summary, and deployed NAS profile coverage."),
 	}))
 
 	addCRUDOperations(paths, "/api/v1/vlans", "VLANs", "VLAN", []string{"super_admin"}, []string{"super_admin"})
