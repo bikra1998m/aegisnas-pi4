@@ -72,6 +72,7 @@ When `radius.upstream.enabled: true`:
   - session timeout
   - idle timeout
   - AegisNAS vendor-specific attributes when `radius.vendor.enabled: true`
+  - enabled compatibility-pack VSAs such as Aruba role/VLAN, Ruckus groups/VLAN, Fortinet profiles, Cisco/Juniper ACL names, UniFi/UBNT rate hints, Cambium rate/VLAN/quarantine, Meraki context, Extreme Netlogin, Huawei/H3C QoS, Palo Alto context, and TP-Link Omada hints
 - break-glass local admin auth remains available even when portal RADIUS auth is enabled
 - voucher logins remain local so guest access still has an offline path
 
@@ -304,6 +305,8 @@ Available pack keys include:
 Only enable a vendor pack after the AP, switch, controller, or upstream policy system is prepared to consume those attributes. A FreeRADIUS dictionary lets AegisNAS name and render an attribute; it does not guarantee that a device will enforce that attribute.
 
 The `radius.vendor.attributes` list is only for local overrides or extra site-specific VSAs.
+
+The same enabled compatibility packs are also used for inbound parsing of Vendor-Specific Attributes returned by an upstream AAA platform or seen in accounting context. Product AegisNAS VSAs win first; compatibility packs then fill any still-empty normalized fields such as role, VLAN, bandwidth rates, policy tag, portal profile, device group, tenant, device posture, accounting identity, quarantine, and ACL names.
 
 Example upstream Access-Accept reply:
 

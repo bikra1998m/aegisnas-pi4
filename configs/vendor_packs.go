@@ -247,7 +247,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			DefaultEnabled:   false,
 			HardwareProfiles: branchEnterprise,
 			Attributes: []VendorPackAttributeMapping{
-				{Semantic: VendorSemanticRole, Attribute: "Huawei-User-Group", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Huawei-User-Class", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticBandwidthProfile, Attribute: "Huawei-Qos-Profile-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Huawei-Output-Average-Rate", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Huawei-Input-Average-Rate", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},

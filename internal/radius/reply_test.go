@@ -123,7 +123,7 @@ func TestRenderReplyAttributesForExpandedVendorPacks(t *testing.T) {
 	assert.Contains(t, rendered, "\tJuniper-Local-User-Name = \"operator\"\n")
 	assert.Contains(t, rendered, "\tJuniper-Firewall-filter-name = \"acl-in\"\n")
 	assert.Contains(t, rendered, "\tJuniper-CWA-Redirect = \"https://portal.example.test/login\"\n")
-	assert.Contains(t, rendered, "\tHuawei-User-Group = \"operator\"\n")
+	assert.Contains(t, rendered, "\tHuawei-User-Class = \"operator\"\n")
 	assert.Contains(t, rendered, "\tHuawei-Qos-Profile-Name = \"branch-qos\"\n")
 	assert.Contains(t, rendered, "\tHuawei-Output-Average-Rate = 75000\n")
 	assert.Contains(t, rendered, "\tHuawei-Input-Average-Rate = 25000\n")

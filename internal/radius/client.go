@@ -28,34 +28,38 @@ type BrokerAuthRequest struct {
 }
 
 type BrokerAuthResult struct {
-	Accepted                bool
-	ReplyMessage            string
-	FilterID                string
-	Class                   string
-	VLAN                    int
-	HasVLAN                 bool
-	SessionTimeout          int
-	HasSessionTimeout       bool
-	IdleTimeout             int
-	HasIdleTimeout          bool
-	MikrotikRateLimit       string
-	WISPrBandwidthMaxDown   int
-	WISPrBandwidthMaxUp     int
-	VendorRole              string
-	VendorBandwidthProfile  string
-	VendorPolicyTag         string
-	VendorSessionAction     string
-	VendorPortalProfile     string
-	VendorDeviceGroup       string
-	VendorTenant            string
-	VendorVLAN              int
-	HasVendorVLAN           bool
-	VendorQuarantine        bool
-	HasVendorQuarantine     bool
-	VendorSessionTimeout    int
-	HasVendorSessionTimeout bool
-	VendorIdleTimeout       int
-	HasVendorIdleTimeout    bool
+	Accepted                 bool
+	ReplyMessage             string
+	FilterID                 string
+	Class                    string
+	VLAN                     int
+	HasVLAN                  bool
+	SessionTimeout           int
+	HasSessionTimeout        bool
+	IdleTimeout              int
+	HasIdleTimeout           bool
+	MikrotikRateLimit        string
+	WISPrBandwidthMaxDown    int
+	WISPrBandwidthMaxUp      int
+	VendorRole               string
+	VendorBandwidthProfile   string
+	VendorPolicyTag          string
+	VendorSessionAction      string
+	VendorPortalProfile      string
+	VendorDeviceGroup        string
+	VendorTenant             string
+	VendorDevicePosture      string
+	VendorAccountingIdentity string
+	VendorInboundACL         string
+	VendorOutboundACL        string
+	VendorVLAN               int
+	HasVendorVLAN            bool
+	VendorQuarantine         bool
+	HasVendorQuarantine      bool
+	VendorSessionTimeout     int
+	HasVendorSessionTimeout  bool
+	VendorIdleTimeout        int
+	HasVendorIdleTimeout     bool
 }
 
 func AuthenticatePAP(ctx context.Context, cfg *config.Config, req BrokerAuthRequest) (*BrokerAuthResult, error) {

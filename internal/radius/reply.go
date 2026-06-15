@@ -189,7 +189,7 @@ func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []Reply
 			appendItem("Juniper-Switching-Filter", firstReplyValue(attrs.InboundACL, attrs.OutboundACL), true)
 			appendURLItem(attrs, appendItem, "Juniper-CWA-Redirect", attrs.PortalProfile)
 		case productconfigs.VendorPackHuawei:
-			appendItem("Huawei-User-Group", replyRole(attrs), true)
+			appendItem("Huawei-User-Class", replyRole(attrs), true)
 			appendItem("Huawei-Qos-Profile-Name", attrs.BandwidthProfile, true)
 			appendItem("Huawei-Down-QOS-Profile-Name", attrs.BandwidthProfile, true)
 			appendRateKbpsItem(attrs, appendItem, "Huawei-Output-Average-Rate", attrs.WISPrBandwidthMaxDown)
