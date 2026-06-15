@@ -60,6 +60,23 @@ Use this endpoint when you want to confirm:
 - which vendor-compatibility areas are implemented versus planned
 - which pieces are intended for lite, branch, or enterprise appliances
 
+The API also provides a non-mutating reply preview endpoint:
+
+```text
+/api/v1/system/vendor-reply-preview
+```
+
+Example:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data '{"nas_type":"aruba","role":"guest","vlan":20,"download_kbps":50000,"upload_kbps":20000}' \
+  http://127.0.0.1:8083/api/v1/system/vendor-reply-preview | jq '.effective_packs, .attributes'
+```
+
+Use this before introducing a new AP, switch, or controller profile so you can verify the exact reply attributes and fallback warnings without changing live policy.
+
 ## Support Bundle Endpoints
 
 The appliance also serves support bundle preview and live bundle download at:

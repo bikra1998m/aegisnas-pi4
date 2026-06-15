@@ -1101,6 +1101,10 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, compatibility summary, and deployed NAS profile coverage."),
 	}))
+	addOperation(paths, "/api/v1/system/vendor-reply-preview", "post", securedOperationWithBody("Preview vendor reply attributes", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("NAS type, role, VLAN, bandwidth, timeout, and ACL values to preview."), map[string]any{
+		"200":     responseJSON("Effective compatibility packs and rendered RADIUS reply attributes."),
+		"default": responseText("Preview error."),
+	}))
 
 	addCRUDOperations(paths, "/api/v1/vlans", "VLANs", "VLAN", []string{"super_admin"}, []string{"super_admin"})
 	addCRUDOperations(paths, "/api/v1/users", "Users", "User", []string{"super_admin"}, []string{"super_admin"})
