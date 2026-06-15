@@ -21,7 +21,7 @@ export default function RadiusClients() {
         { name: 'shortname', label: 'Short Name', required: true },
         { name: 'ip', label: 'IP Address', required: true, placeholder: '10.20.0.2' },
         { name: 'secret', label: 'Shared Secret', type: 'password', required: true },
-        { name: 'nas_type', label: 'NAS Type / Vendor Profile', placeholder: 'other, aruba, cisco, mikrotik, ubnt' },
+        { name: 'nas_type', label: 'NAS Type / Vendor Profile', placeholder: 'other, aruba, cisco, juniper, cambium, tplink' },
         { name: 'description', label: 'Description', type: 'textarea' },
         { name: 'enabled', label: 'Enabled', type: 'checkbox', defaultValue: true },
       ]}

@@ -12,6 +12,15 @@ const (
 	VendorPackRuckus   = "ruckus"
 	VendorPackFortinet = "fortinet"
 	VendorPackUBNT     = "ubnt"
+	VendorPackCambium  = "cambium"
+	VendorPackMeraki   = "meraki"
+	VendorPackExtreme  = "extreme"
+	VendorPackJuniper  = "juniper"
+	VendorPackHuawei   = "huawei"
+	VendorPackH3C      = "h3c"
+	VendorPackPaloAlto = "paloalto"
+	VendorPackTPLink   = "tplink"
+	VendorPackMist     = "mist"
 )
 
 type VendorCompatibilityPack struct {
@@ -166,7 +175,140 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			Notes: []string{"UniFi/UBNT rate attributes are rendered from AegisNAS kbps values as bits per second."},
 		},
 		{
-			Key:              "mist",
+			Key:              VendorPackCambium,
+			Label:            "Cambium",
+			VendorName:       "Cambium",
+			VendorID:         17713,
+			DefaultEnabled:   false,
+			HardwareProfiles: allProfiles,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticVLAN, Attribute: "Cambium-ePMP-Data-VLAN-Id", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Cambium-ePMP-Max-Burst-Uplink-Rate", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Cambium-ePMP-Max-Burst-Downlink-Rate", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Cambium-Auth-Role", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticAccountingCounters, Attribute: "Cambium-Acct-Input-Octets", Direction: "accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingCounters, Attribute: "Cambium-Acct-Output-Octets", Direction: "accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Cambium-Walled-Garden-State", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+			},
+			Notes: []string{"Cambium role/user-level replies are numeric and need a site role-to-number template before automatic rendering."},
+		},
+		{
+			Key:              VendorPackMeraki,
+			Label:            "Cisco Meraki",
+			VendorName:       "Meraki",
+			VendorID:         29671,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Meraki-Device-Name", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTenant, Attribute: "Meraki-Network-Name", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Meraki-Ap-Name", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Meraki-Ap-Tags", Direction: "accounting", ValueType: "string", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticControllerPolicySync, Attribute: "controller.policy_sync", Direction: "controller_api", ValueType: "sync", CompatibilityState: "planned"},
+			},
+			Notes: []string{"Meraki's FreeRADIUS dictionary is mostly contextual/accounting; group-policy enforcement should use standards-based replies or controller templates."},
+		},
+		{
+			Key:              VendorPackExtreme,
+			Label:            "Extreme Networks",
+			VendorName:       "Extreme",
+			VendorID:         1916,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "Extreme-Security-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Extreme-Netlogin-Vlan", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Extreme-Netlogin-Vlan-Tag", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Extreme-Netlogin-Url", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Extreme-Netlogin-Extended-Vlan", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+			},
+		},
+		{
+			Key:              VendorPackJuniper,
+			Label:            "Juniper",
+			VendorName:       "Juniper",
+			VendorID:         2636,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "Juniper-Local-User-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticACL, Attribute: "Juniper-Firewall-filter-name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticACL, Attribute: "Juniper-Switching-Filter", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Juniper-CWA-Redirect", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Juniper-AV-Pair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticAccountingCounters, Attribute: "Juniper-Acct-Request-Reason", Direction: "accounting", ValueType: "integer", CompatibilityState: "implemented"},
+			},
+		},
+		{
+			Key:              VendorPackHuawei,
+			Label:            "Huawei",
+			VendorName:       "Huawei",
+			VendorID:         2011,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "Huawei-User-Group", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticBandwidthProfile, Attribute: "Huawei-Qos-Profile-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Huawei-Output-Average-Rate", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Huawei-Input-Average-Rate", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticACL, Attribute: "Huawei-Data-Filter", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Huawei-HTTP-Redirect-URL", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Huawei-AVpair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+			},
+			Notes: []string{"Huawei rate attributes are rendered from AegisNAS kbps values; validate unit expectations on the target controller or switch."},
+		},
+		{
+			Key:              VendorPackH3C,
+			Label:            "H3C / Comware",
+			VendorName:       "H3C",
+			VendorID:         25506,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "H3C-User-Role", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "H3C-User-Group", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "H3C-Output-Average-Rate", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticUploadBandwidth, Attribute: "H3C-Input-Average-Rate", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "H3C-Ita-Policy", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "H3C-Portal-URL", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "H3C-Av-Pair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+			},
+		},
+		{
+			Key:              VendorPackPaloAlto,
+			Label:            "Palo Alto Networks",
+			VendorName:       "PaloAlto",
+			VendorID:         25461,
+			DefaultEnabled:   false,
+			HardwareProfiles: enterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "PaloAlto-Admin-Role", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "PaloAlto-User-Group", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTenant, Attribute: "PaloAlto-Admin-Access-Domain", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "PaloAlto-Client-Hostname", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "PaloAlto-Client-OS", Direction: "accounting", ValueType: "string", CompatibilityState: "planned"},
+			},
+			Notes: []string{"Palo Alto attributes are primarily firewall/VPN administration and GlobalProtect context rather than wireless AP enforcement."},
+		},
+		{
+			Key:              VendorPackTPLink,
+			Label:            "TP-Link Omada",
+			VendorName:       "TPLink",
+			VendorID:         11863,
+			DefaultEnabled:   false,
+			HardwareProfiles: allProfiles,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticUploadBandwidth, Attribute: "TPLink-Recv-limit", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "TPLink-Xmit-limit", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "TPLink-Omada", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTenant, Attribute: "TPLink-Site", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "TPLink-Redirect-Url", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "TPLink-Portal-Access-Status", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+			},
+			Notes: []string{"TP-Link rate naming is device-oriented; validate receive/transmit direction on the target Omada controller before production use."},
+		},
+		{
+			Key:              VendorPackMist,
 			Label:            "Juniper Mist",
 			VendorName:       "Juniper",
 			DefaultEnabled:   false,
@@ -201,6 +343,22 @@ func NormalizeVendorCompatibilityPackKey(key string) string {
 		return VendorPackWISPr
 	case "ubiquiti", "unifi", "ubnt":
 		return VendorPackUBNT
+	case "canopy", "epmp":
+		return VendorPackCambium
+	case "cisco-meraki":
+		return VendorPackMeraki
+	case "extremenetworks", "extreme-networks":
+		return VendorPackExtreme
+	case "junos":
+		return VendorPackJuniper
+	case "huawei-3com", "comware":
+		return VendorPackH3C
+	case "palo-alto", "palo_alto", "pan":
+		return VendorPackPaloAlto
+	case "tp-link", "tp_link", "omada":
+		return VendorPackTPLink
+	case "juniper-mist":
+		return VendorPackMist
 	default:
 		return key
 	}

@@ -102,6 +102,18 @@ func TestAegisNASVendorCompatibilityPacks(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, VendorPackUBNT, ubnt.Key)
 
+	cambium, ok := VendorCompatibilityPackByKey("canopy")
+	require.True(t, ok)
+	assert.Equal(t, VendorPackCambium, cambium.Key)
+
+	juniper, ok := VendorCompatibilityPackByKey("junos")
+	require.True(t, ok)
+	assert.Equal(t, VendorPackJuniper, juniper.Key)
+
+	tplink, ok := VendorCompatibilityPackByKey("omada")
+	require.True(t, ok)
+	assert.Equal(t, VendorPackTPLink, tplink.Key)
+
 	assert.True(t, ValidVendorCompatibilityPackKey("routeros"))
 	assert.False(t, ValidVendorCompatibilityPackKey("unknown-vendor"))
 }

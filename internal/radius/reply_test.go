@@ -95,10 +95,59 @@ func TestRenderReplyAttributesForVendorConfigUsesConfiguredPacks(t *testing.T) {
 	assert.NotContains(t, rendered, "Mikrotik-Rate-Limit")
 }
 
+func TestRenderReplyAttributesForExpandedVendorPacks(t *testing.T) {
+	attrs := &ReplyAttributes{
+		Role:                  "operator",
+		BandwidthProfile:      "branch-qos",
+		FilterID:              "policy-a",
+		PolicyTag:             "internet-only",
+		VLAN:                  44,
+		WISPrBandwidthMaxDown: 75000,
+		WISPrBandwidthMaxUp:   25000,
+		PortalProfile:         "https://portal.example.test/login",
+		DeviceGroup:           "ap-group-a",
+		Tenant:                "tenant-a",
+		InboundACL:            "acl-in",
+		OutboundACL:           "acl-out",
+	}
+
+	rendered := RenderReplyAttributesForPacks(attrs, []string{"cambium", "extreme", "juniper", "huawei", "h3c", "paloalto", "tplink"})
+
+	assert.Contains(t, rendered, "\tCambium-ePMP-Data-VLAN-Id = 44\n")
+	assert.Contains(t, rendered, "\tCambium-ePMP-Max-Burst-Downlink-Rate = 75000\n")
+	assert.Contains(t, rendered, "\tCambium-ePMP-Max-Burst-Uplink-Rate = 25000\n")
+	assert.Contains(t, rendered, "\tExtreme-Security-Profile = \"operator\"\n")
+	assert.Contains(t, rendered, "\tExtreme-Netlogin-Vlan = \"44\"\n")
+	assert.Contains(t, rendered, "\tExtreme-Netlogin-Vlan-Tag = 44\n")
+	assert.Contains(t, rendered, "\tExtreme-Netlogin-Url = \"https://portal.example.test/login\"\n")
+	assert.Contains(t, rendered, "\tJuniper-Local-User-Name = \"operator\"\n")
+	assert.Contains(t, rendered, "\tJuniper-Firewall-filter-name = \"acl-in\"\n")
+	assert.Contains(t, rendered, "\tJuniper-CWA-Redirect = \"https://portal.example.test/login\"\n")
+	assert.Contains(t, rendered, "\tHuawei-User-Group = \"operator\"\n")
+	assert.Contains(t, rendered, "\tHuawei-Qos-Profile-Name = \"branch-qos\"\n")
+	assert.Contains(t, rendered, "\tHuawei-Output-Average-Rate = 75000\n")
+	assert.Contains(t, rendered, "\tHuawei-Input-Average-Rate = 25000\n")
+	assert.Contains(t, rendered, "\tHuawei-Data-Filter = \"acl-in\"\n")
+	assert.Contains(t, rendered, "\tH3C-User-Role = \"operator\"\n")
+	assert.Contains(t, rendered, "\tH3C-User-Group = \"ap-group-a\"\n")
+	assert.Contains(t, rendered, "\tH3C-Ita-Policy = \"internet-only\"\n")
+	assert.Contains(t, rendered, "\tPaloAlto-Admin-Role = \"operator\"\n")
+	assert.Contains(t, rendered, "\tPaloAlto-User-Group = \"ap-group-a\"\n")
+	assert.Contains(t, rendered, "\tPaloAlto-Admin-Access-Domain = \"tenant-a\"\n")
+	assert.Contains(t, rendered, "\tTPLink-Xmit-limit = 75000\n")
+	assert.Contains(t, rendered, "\tTPLink-Recv-limit = 25000\n")
+	assert.Contains(t, rendered, "\tTPLink-Omada = \"ap-group-a\"\n")
+	assert.Contains(t, rendered, "\tTPLink-Site = \"tenant-a\"\n")
+	assert.Contains(t, rendered, "\tTPLink-Redirect-Url = \"https://portal.example.test/login\"\n")
+}
+
 func TestNormalizeClientNASType(t *testing.T) {
 	assert.Equal(t, "aruba", NormalizeClientNASType(" Aruba "))
 	assert.Equal(t, "ubnt", NormalizeClientNASType("unifi"))
 	assert.Equal(t, "mikrotik", NormalizeClientNASType("routeros"))
+	assert.Equal(t, "cambium", NormalizeClientNASType("canopy"))
+	assert.Equal(t, "juniper", NormalizeClientNASType("junos"))
+	assert.Equal(t, "tplink", NormalizeClientNASType("omada"))
 	assert.Equal(t, "custom-ap", NormalizeClientNASType("Custom-AP"))
 	assert.Equal(t, "other", NormalizeClientNASType(""))
 	assert.Equal(t, "other", NormalizeClientNASType("bad\nprofile"))

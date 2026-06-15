@@ -126,7 +126,7 @@ For each client, fill:
 - `Description`
 - `Enabled`
 
-Use `other` for standards-based or unknown clients. Use a known profile such as `aruba`, `cisco`, `mikrotik`, `ruckus`, `fortinet`, or `ubnt` when that AP, controller, or switch should receive vendor-compatible reply attributes. `unifi` and `routeros` are accepted aliases for `ubnt` and `mikrotik`.
+Use `other` for standards-based or unknown clients. Use a known profile such as `aruba`, `cisco`, `mikrotik`, `ruckus`, `fortinet`, `ubnt`, `cambium`, `extreme`, `juniper`, `huawei`, `h3c`, `paloalto`, or `tplink` when that AP, controller, switch, firewall, or VPN gateway should receive vendor-compatible reply attributes. `unifi`, `routeros`, `canopy`, `junos`, and `omada` are accepted aliases.
 
 Apply the pending changes after staging them.
 

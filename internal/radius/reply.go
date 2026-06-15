@@ -170,6 +170,49 @@ func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []Reply
 			if attrs.WISPrBandwidthMaxUp > 0 {
 				appendItem("UBNT-Data-Rate-UL", fmt.Sprintf("%d", attrs.WISPrBandwidthMaxUp*1000), false)
 			}
+		case productconfigs.VendorPackCambium:
+			if vlan := replyVLAN(attrs); vlan > 0 {
+				appendItem("Cambium-ePMP-Data-VLAN-Id", fmt.Sprintf("%d", vlan), false)
+			}
+			appendRateKbpsItem(attrs, appendItem, "Cambium-ePMP-Max-Burst-Downlink-Rate", attrs.WISPrBandwidthMaxDown)
+			appendRateKbpsItem(attrs, appendItem, "Cambium-ePMP-Max-Burst-Uplink-Rate", attrs.WISPrBandwidthMaxUp)
+		case productconfigs.VendorPackExtreme:
+			appendItem("Extreme-Security-Profile", replyRole(attrs), true)
+			if vlan := replyVLAN(attrs); vlan > 0 {
+				appendItem("Extreme-Netlogin-Vlan", fmt.Sprintf("%d", vlan), true)
+				appendItem("Extreme-Netlogin-Vlan-Tag", fmt.Sprintf("%d", vlan), false)
+			}
+			appendURLItem(attrs, appendItem, "Extreme-Netlogin-Url", attrs.PortalProfile)
+		case productconfigs.VendorPackJuniper:
+			appendItem("Juniper-Local-User-Name", replyRole(attrs), true)
+			appendItem("Juniper-Firewall-filter-name", firstReplyValue(attrs.InboundACL, attrs.OutboundACL), true)
+			appendItem("Juniper-Switching-Filter", firstReplyValue(attrs.InboundACL, attrs.OutboundACL), true)
+			appendURLItem(attrs, appendItem, "Juniper-CWA-Redirect", attrs.PortalProfile)
+		case productconfigs.VendorPackHuawei:
+			appendItem("Huawei-User-Group", replyRole(attrs), true)
+			appendItem("Huawei-Qos-Profile-Name", attrs.BandwidthProfile, true)
+			appendItem("Huawei-Down-QOS-Profile-Name", attrs.BandwidthProfile, true)
+			appendRateKbpsItem(attrs, appendItem, "Huawei-Output-Average-Rate", attrs.WISPrBandwidthMaxDown)
+			appendRateKbpsItem(attrs, appendItem, "Huawei-Input-Average-Rate", attrs.WISPrBandwidthMaxUp)
+			appendItem("Huawei-Data-Filter", firstReplyValue(attrs.InboundACL, attrs.OutboundACL), true)
+			appendURLItem(attrs, appendItem, "Huawei-HTTP-Redirect-URL", attrs.PortalProfile)
+		case productconfigs.VendorPackH3C:
+			appendItem("H3C-User-Role", replyRole(attrs), true)
+			appendItem("H3C-User-Group", firstReplyValue(attrs.DeviceGroup, attrs.Role), true)
+			appendRateKbpsItem(attrs, appendItem, "H3C-Output-Average-Rate", attrs.WISPrBandwidthMaxDown)
+			appendRateKbpsItem(attrs, appendItem, "H3C-Input-Average-Rate", attrs.WISPrBandwidthMaxUp)
+			appendItem("H3C-Ita-Policy", firstReplyValue(attrs.PolicyTag, attrs.FilterID), true)
+			appendURLItem(attrs, appendItem, "H3C-Portal-URL", attrs.PortalProfile)
+		case productconfigs.VendorPackPaloAlto:
+			appendItem("PaloAlto-Admin-Role", replyRole(attrs), true)
+			appendItem("PaloAlto-User-Group", firstReplyValue(attrs.DeviceGroup, attrs.Role), true)
+			appendItem("PaloAlto-Admin-Access-Domain", attrs.Tenant, true)
+		case productconfigs.VendorPackTPLink:
+			appendRateKbpsItem(attrs, appendItem, "TPLink-Xmit-limit", attrs.WISPrBandwidthMaxDown)
+			appendRateKbpsItem(attrs, appendItem, "TPLink-Recv-limit", attrs.WISPrBandwidthMaxUp)
+			appendItem("TPLink-Omada", attrs.DeviceGroup, true)
+			appendItem("TPLink-Site", attrs.Tenant, true)
+			appendURLItem(attrs, appendItem, "TPLink-Redirect-Url", attrs.PortalProfile)
 		}
 	}
 	return items
@@ -264,6 +307,21 @@ func firstReplyValue(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func appendRateKbpsItem(attrs *ReplyAttributes, appendItem func(string, string, bool), name string, value int) {
+	if attrs == nil || value <= 0 {
+		return
+	}
+	appendItem(name, fmt.Sprintf("%d", value), false)
+}
+
+func appendURLItem(_ *ReplyAttributes, appendItem func(string, string, bool), name, value string) {
+	value = strings.TrimSpace(value)
+	if !strings.HasPrefix(strings.ToLower(value), "http://") && !strings.HasPrefix(strings.ToLower(value), "https://") {
+		return
+	}
+	appendItem(name, value, true)
 }
 
 func escapeReplyValue(value string) string {

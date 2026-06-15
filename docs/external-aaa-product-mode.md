@@ -255,7 +255,7 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/vendor-reply-preview | jq '.nas_type, .effective_packs, .attributes, .warnings'
 ```
 
-The catalog layer reads FreeRADIUS-style `VENDOR`, `BEGIN-VENDOR`, `ATTRIBUTE`, and `VALUE` directives. The semantic layer is the product contract above that catalog. The dictionary coverage matrix compares parsed dictionary attributes with the compatibility packs, then reports whether each pack is `standard-radius`, `dictionary-backed`, `partial-dictionary`, `dictionary-missing`, or `controller-api`. Vendor compatibility packs should map Cisco, Aruba, MikroTik, Ruckus, Fortinet, UniFi, Mist, Cambium, and site-specific VSAs into these AegisNAS semantic keys instead of hard-coding controller behavior directly in policy code.
+The catalog layer reads FreeRADIUS-style `VENDOR`, `BEGIN-VENDOR`, `ATTRIBUTE`, and `VALUE` directives. The semantic layer is the product contract above that catalog. The dictionary coverage matrix compares parsed dictionary attributes with the compatibility packs, then reports whether each pack is `standard-radius`, `dictionary-backed`, `partial-dictionary`, `dictionary-missing`, or `controller-api`. Vendor compatibility packs should map Cisco, Aruba, MikroTik, Ruckus, Fortinet, UniFi, Cambium, Extreme, Juniper, Huawei, H3C, Palo Alto, TP-Link, Meraki, Mist, and site-specific VSAs into these AegisNAS semantic keys instead of hard-coding controller behavior directly in policy code.
 
 The current reply renderer has a conservative default pack set:
 
@@ -291,6 +291,14 @@ Available pack keys include:
 - `ruckus`
 - `fortinet`
 - `ubnt`
+- `cambium`
+- `meraki`
+- `extreme`
+- `juniper`
+- `huawei`
+- `h3c`
+- `paloalto`
+- `tplink`
 - `mist`
 
 Only enable a vendor pack after the AP, switch, controller, or upstream policy system is prepared to consume those attributes. A FreeRADIUS dictionary lets AegisNAS name and render an attribute; it does not guarantee that a device will enforce that attribute.
@@ -359,6 +367,13 @@ Common values:
 - `mikrotik` sends standards-based attributes plus MikroTik rate-limit replies
 - `ubnt` or `unifi` sends standards-based attributes plus UniFi/UBNT rate replies
 - `ruckus` and `fortinet` select their matching compatibility packs
+- `cambium` sends standards-based attributes plus Cambium ePMP VLAN and burst-rate replies
+- `extreme` sends standards-based attributes plus Extreme Netlogin VLAN and security-profile replies
+- `juniper` or `junos` sends standards-based attributes plus Juniper local-user and filter replies
+- `huawei` and `h3c` send standards-based attributes plus role, QoS/rate, and policy replies for their dictionaries
+- `paloalto` sends standards-based attributes plus Palo Alto admin/user-group context for firewall or VPN use cases
+- `tplink` or `omada` sends standards-based attributes plus TP-Link Omada rate, site, and device-group replies
+- `meraki` is currently a dictionary/accounting context pack; use standards-based replies or controller templates for enforcement
 
 Unknown safe names are still written as `nastype` for FreeRADIUS/site scripts, but reply rendering falls back to the configured global compatibility packs.
 

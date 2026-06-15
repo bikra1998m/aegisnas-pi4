@@ -135,7 +135,7 @@ radius:
     enabled: false
     name: "AegisNAS"
     id: 55555 # Lab placeholder from configs/aegisnas-vendor.dictionery. Replace with your IANA Private Enterprise Number before production use.
-    compatibility_packs: ["standard", "mikrotik", "wispr"] # Add aegisnas, aruba, ruckus, fortinet, cisco, ubnt, or mist only after the NAS/controller side is prepared.
+    compatibility_packs: ["standard", "mikrotik", "wispr"] # Add aegisnas, aruba, ruckus, fortinet, cisco, ubnt, cambium, extreme, juniper, huawei, h3c, paloalto, tplink, meraki, or mist only after the NAS/controller side is prepared.
     dictionary_paths: [] # Optional FreeRADIUS dictionary files or directories to import for compatibility coverage, such as /etc/freeradius/3.0/dictionary or /usr/share/freeradius.
     attributes: [] # Optional FreeRADIUS-style local overrides or extensions. Built-ins come from configs/aegisnas-vendor.dictionery.
   clients:
