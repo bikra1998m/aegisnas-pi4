@@ -60,6 +60,42 @@ type VendorCompatibilityPayload = {
   notes?: string[];
 };
 
+type VendorReplyPreviewAttribute = {
+  name: string;
+  value: string;
+  quoted: boolean;
+};
+
+type VendorReplyPreviewPayload = {
+  nas_type: string;
+  known_pack: boolean;
+  uses_global_packs: boolean;
+  effective_packs: string[];
+  attributes: VendorReplyPreviewAttribute[];
+  freeradius: string;
+  warnings?: string[];
+};
+
+type VendorReplyPreviewForm = {
+  nas_type: string;
+  role: string;
+  vlan: string;
+  download_kbps: string;
+  upload_kbps: string;
+  session_timeout: string;
+  filter_id: string;
+};
+
+const defaultPreviewForm: VendorReplyPreviewForm = {
+  nas_type: 'aruba',
+  role: 'guest',
+  vlan: '20',
+  download_kbps: '50000',
+  upload_kbps: '20000',
+  session_timeout: '3600',
+  filter_id: '',
+};
+
 function StatCard({ label, value, hint }: { label: string; value: string | number; hint: string }) {
   return (
     <div className="rounded-md border border-gray-200 px-4 py-3">
@@ -86,11 +122,34 @@ function joinList(values?: string[]) {
   return values.join(', ');
 }
 
+function apiErrorMessage(err: any, fallback: string) {
+  const data = err.response?.data;
+  if (typeof data === 'string') {
+    return data;
+  }
+  if (data?.error) {
+    return String(data.error);
+  }
+  return err.message || fallback;
+}
+
+function numericValue(value: string) {
+  if (value.trim() === '') {
+    return 0;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export default function VendorCompatibility() {
   const [payload, setPayload] = useState<VendorCompatibilityPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [previewForm, setPreviewForm] = useState<VendorReplyPreviewForm>(defaultPreviewForm);
+  const [preview, setPreview] = useState<VendorReplyPreviewPayload | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState('');
 
   const fetchCompatibility = async (announce = false) => {
     if (announce) {
@@ -105,9 +164,38 @@ export default function VendorCompatibility() {
         setMessage('Vendor compatibility refreshed.');
       }
     } catch (err: any) {
-      setError(err.response?.data || err.message || 'Could not load vendor compatibility.');
+      setError(apiErrorMessage(err, 'Could not load vendor compatibility.'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updatePreviewField = (field: keyof VendorReplyPreviewForm, value: string) => {
+    setPreviewForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const runReplyPreview = async () => {
+    setPreviewLoading(true);
+    setPreviewError('');
+    setMessage('');
+    try {
+      const request = {
+        nas_type: previewForm.nas_type,
+        role: previewForm.role,
+        vlan: numericValue(previewForm.vlan),
+        download_kbps: numericValue(previewForm.download_kbps),
+        upload_kbps: numericValue(previewForm.upload_kbps),
+        session_timeout: numericValue(previewForm.session_timeout),
+        filter_id: previewForm.filter_id,
+        compatibility_packs: activePacks,
+      };
+      const { data } = await api.post<VendorReplyPreviewPayload>('/system/vendor-reply-preview', request);
+      setPreview(data);
+      setMessage('Reply preview generated.');
+    } catch (err: any) {
+      setPreviewError(apiErrorMessage(err, 'Could not preview reply attributes.'));
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
@@ -165,6 +253,149 @@ export default function VendorCompatibility() {
               <StatCard label="Implemented" value={payload.summary.implemented_count || 0} hint="Semantic capabilities ready now." />
               <StatCard label="Planned" value={payload.summary.planned_count || 0} hint="Compatibility capabilities still queued." />
             </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Reply Preview</h3>
+                <p className="mt-1 text-sm text-gray-600">Generate the RADIUS attributes a device profile will receive before testing on APs, controllers, or switches.</p>
+              </div>
+              {preview ? (
+                <StatusBadge tone={preview.known_pack ? 'green' : preview.uses_global_packs ? 'amber' : 'gray'}>
+                  {preview.known_pack ? 'Vendor pack' : preview.uses_global_packs ? 'Global fallback' : 'Custom'}
+                </StatusBadge>
+              ) : null}
+            </div>
+
+            <form onSubmit={(event) => { event.preventDefault(); void runReplyPreview(); }} className="rounded-md border border-gray-200 px-4 py-4">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <label className="block text-sm font-medium text-gray-700">
+                  NAS Type
+                  <input
+                    value={previewForm.nas_type}
+                    onChange={(event) => updatePreviewField('nas_type', event.target.value)}
+                    placeholder="aruba"
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Role
+                  <input
+                    value={previewForm.role}
+                    onChange={(event) => updatePreviewField('role', event.target.value)}
+                    placeholder="guest"
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-gray-700">
+                  VLAN
+                  <input
+                    type="number"
+                    value={previewForm.vlan}
+                    onChange={(event) => updatePreviewField('vlan', event.target.value)}
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Session Timeout
+                  <input
+                    type="number"
+                    value={previewForm.session_timeout}
+                    onChange={(event) => updatePreviewField('session_timeout', event.target.value)}
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Download Kbps
+                  <input
+                    type="number"
+                    value={previewForm.download_kbps}
+                    onChange={(event) => updatePreviewField('download_kbps', event.target.value)}
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Upload Kbps
+                  <input
+                    type="number"
+                    value={previewForm.upload_kbps}
+                    onChange={(event) => updatePreviewField('upload_kbps', event.target.value)}
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-gray-700 xl:col-span-2">
+                  Filter ID
+                  <input
+                    value={previewForm.filter_id}
+                    onChange={(event) => updatePreviewField('filter_id', event.target.value)}
+                    placeholder="optional vendor policy tag"
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                </label>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-gray-600">Uses the active reply packs unless the NAS type maps to a more specific vendor profile.</p>
+                <button
+                  type="submit"
+                  disabled={previewLoading}
+                  className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
+                >
+                  {previewLoading ? 'Generating...' : 'Preview Reply'}
+                </button>
+              </div>
+            </form>
+
+            {previewError && <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{previewError}</div>}
+
+            {preview ? (
+              <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                <div className="rounded-md border border-gray-200">
+                  <div className="border-b border-gray-200 px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge tone="gray">NAS Type: {preview.nas_type || 'other'}</StatusBadge>
+                      <StatusBadge tone="gray">Packs: {joinList(preview.effective_packs)}</StatusBadge>
+                    </div>
+                    {preview.warnings && preview.warnings.length > 0 ? (
+                      <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        {preview.warnings.map((warning) => <div key={warning}>{warning}</div>)}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          {['Attribute', 'Value', 'Quoted'].map((label) => (
+                            <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {(preview.attributes || []).length === 0 ? (
+                          <tr><td className="px-4 py-6 text-sm text-gray-500" colSpan={3}>No reply attributes produced.</td></tr>
+                        ) : (
+                          preview.attributes.map((attribute) => (
+                            <tr key={`${attribute.name}-${attribute.value}`}>
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900">{attribute.name}</td>
+                              <td className="px-4 py-3 text-sm text-gray-700">{attribute.value}</td>
+                              <td className="px-4 py-3 text-sm text-gray-700">{attribute.quoted ? 'Yes' : 'No'}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-gray-200">
+                  <div className="border-b border-gray-200 px-4 py-3">
+                    <h4 className="text-sm font-semibold text-gray-900">FreeRADIUS Reply</h4>
+                  </div>
+                  <pre className="max-h-80 overflow-auto whitespace-pre-wrap px-4 py-3 text-sm text-gray-800">{preview.freeradius || 'No FreeRADIUS reply text generated.'}</pre>
+                </div>
+              </div>
+            ) : null}
           </section>
 
           <section className="mt-6">
@@ -251,7 +482,7 @@ export default function VendorCompatibility() {
                         <span className="font-medium text-gray-900">{pack.label}</span>
                         <span className="text-xs uppercase text-gray-500">{pack.key}</span>
                       </div>
-                      <div className="mt-1 text-gray-600">{pack.vendor_name || 'Standards-based'} · {joinList(pack.hardware_profiles)}</div>
+                      <div className="mt-1 text-gray-600">{pack.vendor_name || 'Standards-based'} - {joinList(pack.hardware_profiles)}</div>
                     </div>
                   ))
                 )}

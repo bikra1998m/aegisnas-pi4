@@ -130,7 +130,7 @@ Use `other` for standards-based or unknown clients. Use a known profile such as 
 
 Apply the pending changes after staging them.
 
-Use `Vendor Compatibility` to confirm each client profile, effective reply pack, and fallback warning before testing a new AP or controller family.
+Use `Vendor Compatibility` to confirm each client profile, preview reply attributes, check the effective reply pack, and review fallback warnings before testing a new AP or controller family.
 
 ### 4. Configure Portal And Directory Settings
 
