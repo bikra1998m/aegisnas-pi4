@@ -45,6 +45,7 @@ func HandleGetVendorCompatibility(w http.ResponseWriter, r *http.Request) {
 	if cfg != nil && len(cfg.Radius.Vendor.CompatibilityPacks) > 0 {
 		report.ActivePacks = normalizeVendorCompatibilityPackKeys(cfg.Radius.Vendor.CompatibilityPacks)
 	}
+	report.DictionaryCoverage = productconfigs.BuildVendorDictionaryCoverageReport(report.Catalog, report.Packs, report.ActivePacks)
 	clientProfiles, profileSummary, err := loadVendorCompatibilityClientProfiles(cfg)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "vendor compatibility client profiles: " + err.Error()})

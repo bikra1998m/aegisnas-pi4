@@ -42,6 +42,14 @@ func TestHandleGetVendorCompatibility(t *testing.T) {
 	activePacks, ok := payload["active_packs"].([]any)
 	require.True(t, ok)
 	assert.Contains(t, activePacks, "standard")
+
+	coverage, ok := payload["dictionary_coverage"].(map[string]any)
+	require.True(t, ok)
+	assert.Greater(t, int(coverage["pack_count"].(float64)), 5)
+	assert.Greater(t, int(coverage["dictionary_matched_attribute_count"].(float64)), 0)
+	rows, ok := coverage["rows"].([]any)
+	require.True(t, ok)
+	assert.NotEmpty(t, rows)
 }
 
 func TestHandleGetVendorCompatibilityIncludesClientProfiles(t *testing.T) {

@@ -50,12 +50,42 @@ type VendorSemanticCapability = {
   hardware_scope: string;
 };
 
+type VendorDictionaryCoverageRow = {
+  pack_key: string;
+  pack_label: string;
+  active: boolean;
+  vendor_name?: string;
+  vendor_id?: number;
+  dictionary_vendor_found: boolean;
+  dictionary_attribute_count: number;
+  pack_attribute_count: number;
+  radius_attribute_count: number;
+  dictionary_matched_attribute_count: number;
+  missing_dictionary_attribute_count: number;
+  coverage_state: string;
+  hardware_profiles: string[];
+};
+
+type VendorDictionaryCoverage = {
+  catalog_vendor_count: number;
+  catalog_attribute_count: number;
+  pack_count: number;
+  active_pack_count: number;
+  dictionary_backed_pack_count: number;
+  partial_dictionary_pack_count: number;
+  missing_dictionary_vendor_count: number;
+  dictionary_matched_attribute_count: number;
+  missing_dictionary_attribute_count: number;
+  rows?: VendorDictionaryCoverageRow[];
+};
+
 type VendorCompatibilityPayload = {
   summary: VendorCompatibilitySummary;
   active_packs?: string[];
   packs?: VendorPack[];
   client_profiles?: VendorClientProfile[];
   profile_summary?: VendorProfileSummary;
+  dictionary_coverage?: VendorDictionaryCoverage;
   semantics?: VendorSemanticCapability[];
   notes?: string[];
 };
@@ -141,6 +171,36 @@ function numericValue(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function coverageTone(state: string): 'green' | 'amber' | 'gray' {
+  switch (state) {
+    case 'dictionary-backed':
+    case 'standard-radius':
+      return 'green';
+    case 'partial-dictionary':
+    case 'dictionary-missing':
+      return 'amber';
+    default:
+      return 'gray';
+  }
+}
+
+function coverageLabel(state: string) {
+  switch (state) {
+    case 'dictionary-backed':
+      return 'Dictionary backed';
+    case 'standard-radius':
+      return 'Standard RADIUS';
+    case 'partial-dictionary':
+      return 'Partial dictionary';
+    case 'dictionary-missing':
+      return 'Dictionary missing';
+    case 'controller-api':
+      return 'Controller API';
+    default:
+      return 'Metadata only';
+  }
+}
+
 export default function VendorCompatibility() {
   const [payload, setPayload] = useState<VendorCompatibilityPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -207,6 +267,8 @@ export default function VendorCompatibility() {
   const profileSummary = payload?.profile_summary;
   const activePacks = payload?.active_packs || [];
   const packs = payload?.packs || [];
+  const dictionaryCoverage = payload?.dictionary_coverage;
+  const coverageRows = dictionaryCoverage?.rows || [];
   const plannedSemantics = useMemo(
     () => (payload?.semantics || []).filter((item) => item.compatibility_state !== 'implemented'),
     [payload?.semantics],
@@ -396,6 +458,79 @@ export default function VendorCompatibility() {
                 </div>
               </div>
             ) : null}
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Dictionary Coverage</h3>
+                <p className="mt-1 text-sm text-gray-600">Check which compatibility packs are backed by the parsed FreeRADIUS catalog and which still need vendor dictionary or controller work.</p>
+              </div>
+              {dictionaryCoverage ? (
+                <StatusBadge tone={dictionaryCoverage.missing_dictionary_vendor_count > 0 ? 'amber' : 'green'}>
+                  {dictionaryCoverage.missing_dictionary_vendor_count} missing vendors
+                </StatusBadge>
+              ) : null}
+            </div>
+
+            {dictionaryCoverage ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="Catalog Vendors" value={dictionaryCoverage.catalog_vendor_count || 0} hint={`${dictionaryCoverage.catalog_attribute_count || 0} parsed attributes.`} />
+                  <StatCard label="Backed Packs" value={dictionaryCoverage.dictionary_backed_pack_count || 0} hint={`${dictionaryCoverage.partial_dictionary_pack_count || 0} partial packs.`} />
+                  <StatCard label="Matched Attrs" value={dictionaryCoverage.dictionary_matched_attribute_count || 0} hint="Attributes present in the parsed catalog." />
+                  <StatCard label="Missing Attrs" value={dictionaryCoverage.missing_dictionary_attribute_count || 0} hint="Mappings that need dictionary or adapter work." />
+                </div>
+
+                <div className="mt-4 overflow-x-auto rounded-md border border-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {['Pack', 'Coverage', 'Attributes', 'Hardware'].map((label) => (
+                          <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {coverageRows.length === 0 ? (
+                        <tr><td className="px-4 py-8 text-sm text-gray-500" colSpan={4}>No dictionary coverage rows available.</td></tr>
+                      ) : (
+                        coverageRows.map((row) => (
+                          <tr key={row.pack_key}>
+                            <td className="px-4 py-3 text-sm">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium text-gray-900">{row.pack_label || row.pack_key}</span>
+                                {row.active ? <StatusBadge tone="green">Active</StatusBadge> : <StatusBadge tone="gray">Available</StatusBadge>}
+                              </div>
+                              <div className="mt-1 text-xs text-gray-500">{row.pack_key}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <StatusBadge tone={coverageTone(row.coverage_state)}>{coverageLabel(row.coverage_state)}</StatusBadge>
+                              <div className="mt-2 text-gray-600">
+                                {row.vendor_name || 'Standards-based'}
+                                {row.vendor_id ? ` ID ${row.vendor_id}` : ''}
+                              </div>
+                              {row.vendor_name ? (
+                                <div className="text-xs text-gray-500">
+                                  {row.dictionary_vendor_found ? `${row.dictionary_attribute_count || 0} dictionary attributes` : 'vendor dictionary not parsed'}
+                                </div>
+                              ) : null}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              <div>{row.dictionary_matched_attribute_count || 0} matched of {row.radius_attribute_count || 0} RADIUS attributes</div>
+                              <div className="text-xs text-gray-500">{row.pack_attribute_count || 0} mapped capabilities, {row.missing_dictionary_attribute_count || 0} missing</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{joinList(row.hardware_profiles)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-4 text-sm text-gray-500">Dictionary coverage is unavailable.</div>
+            )}
           </section>
 
           <section className="mt-6">

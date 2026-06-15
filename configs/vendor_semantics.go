@@ -53,12 +53,13 @@ type VendorCompatibilitySummary struct {
 }
 
 type VendorCompatibilityReport struct {
-	Catalog     VendorDictionaryCatalog    `json:"catalog"`
-	Semantics   []VendorSemanticCapability `json:"semantics"`
-	Packs       []VendorCompatibilityPack  `json:"packs"`
-	ActivePacks []string                   `json:"active_packs,omitempty"`
-	Summary     VendorCompatibilitySummary `json:"summary"`
-	Notes       []string                   `json:"notes"`
+	Catalog            VendorDictionaryCatalog        `json:"catalog"`
+	Semantics          []VendorSemanticCapability     `json:"semantics"`
+	Packs              []VendorCompatibilityPack      `json:"packs"`
+	ActivePacks        []string                       `json:"active_packs,omitempty"`
+	DictionaryCoverage VendorDictionaryCoverageReport `json:"dictionary_coverage"`
+	Summary            VendorCompatibilitySummary     `json:"summary"`
+	Notes              []string                       `json:"notes"`
 }
 
 func AegisNASSemanticRegistry() []VendorSemanticCapability {
@@ -348,11 +349,12 @@ func AegisNASVendorCompatibilityReport() VendorCompatibilityReport {
 		}
 	}
 	return VendorCompatibilityReport{
-		Catalog:     catalog,
-		Semantics:   semantics,
-		Packs:       packs,
-		ActivePacks: DefaultVendorCompatibilityPackKeys(),
-		Summary:     summary,
+		Catalog:            catalog,
+		Semantics:          semantics,
+		Packs:              packs,
+		ActivePacks:        DefaultVendorCompatibilityPackKeys(),
+		DictionaryCoverage: BuildVendorDictionaryCoverageReport(catalog, packs, DefaultVendorCompatibilityPackKeys()),
+		Summary:            summary,
 		Notes: []string{
 			"FreeRADIUS dictionaries identify attributes; AegisNAS semantics define product behavior.",
 			"Compatibility packs should map vendor-specific attributes into these semantic keys instead of hard-coding vendor behavior.",

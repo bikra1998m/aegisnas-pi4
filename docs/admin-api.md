@@ -54,6 +54,7 @@ Use this endpoint when you want to confirm:
 
 - the active AegisNAS product vendor ID and built-in VSA count
 - the active vendor compatibility packs from `radius.vendor.compatibility_packs`
+- the parsed dictionary coverage matrix through `dictionary_coverage`
 - the deployed RADIUS client `nas_type` values and their effective reply packs through `client_profiles`
 - the current profile coverage, unknown profile list, and fallback count through `profile_summary`
 - which semantic policy keys already have product attributes
