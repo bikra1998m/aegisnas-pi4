@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -224,6 +225,7 @@ type RadiusVendorConfig struct {
 	Name               string                  `mapstructure:"name"`
 	ID                 int                     `mapstructure:"id"`
 	CompatibilityPacks []string                `mapstructure:"compatibility_packs"`
+	DictionaryPaths    []string                `mapstructure:"dictionary_paths"`
 	Attributes         []RadiusVendorAttribute `mapstructure:"attributes"`
 }
 
@@ -775,6 +777,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.vendor.name", productVendor.Name)
 	v.SetDefault("radius.vendor.id", productVendor.ID)
 	v.SetDefault("radius.vendor.compatibility_packs", productconfigs.DefaultVendorCompatibilityPackKeys())
+	v.SetDefault("radius.vendor.dictionary_paths", []string{})
 	v.SetDefault("portal.radius_auth", false)
 	v.SetDefault("portal.local_fallback", true)
 	v.SetDefault("policy.runtime_shaping_enabled", true)
@@ -2719,6 +2722,21 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("radius.vendor.compatibility_packs[%d] %q duplicates an earlier pack", i, pack)
 		}
 		seenVendorPacks[key] = struct{}{}
+	}
+	seenVendorDictionaryPaths := map[string]struct{}{}
+	for i, path := range c.Radius.Vendor.DictionaryPaths {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			return fmt.Errorf("radius.vendor.dictionary_paths[%d] cannot be empty", i)
+		}
+		if strings.ContainsRune(path, 0) {
+			return fmt.Errorf("radius.vendor.dictionary_paths[%d] contains an invalid NUL byte", i)
+		}
+		key := strings.ToLower(filepath.Clean(path))
+		if _, exists := seenVendorDictionaryPaths[key]; exists {
+			return fmt.Errorf("radius.vendor.dictionary_paths[%d] %q duplicates an earlier path", i, path)
+		}
+		seenVendorDictionaryPaths[key] = struct{}{}
 	}
 	switch c.Radius.EAP.DefaultType {
 	case "", "peap", "ttls", "tls":

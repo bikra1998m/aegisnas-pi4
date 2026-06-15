@@ -302,6 +302,10 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	validPacks.Radius.Vendor.CompatibilityPacks = []string{"standard", "routeros", "unifi"}
 	assert.NoError(t, validPacks.Validate())
 
+	validDictionaryPaths := base()
+	validDictionaryPaths.Radius.Vendor.DictionaryPaths = []string{"/etc/freeradius/3.0/dictionary", "/usr/share/freeradius"}
+	assert.NoError(t, validDictionaryPaths.Validate())
+
 	invalidID := base()
 	invalidID.Radius.Vendor.ID = 0
 	assert.ErrorContains(t, invalidID.Validate(), "radius.vendor.id")
@@ -321,6 +325,14 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	duplicatePack := base()
 	duplicatePack.Radius.Vendor.CompatibilityPacks = []string{"ubnt", "unifi"}
 	assert.ErrorContains(t, duplicatePack.Validate(), "duplicates")
+
+	blankDictionaryPath := base()
+	blankDictionaryPath.Radius.Vendor.DictionaryPaths = []string{" "}
+	assert.ErrorContains(t, blankDictionaryPath.Validate(), "dictionary_paths")
+
+	duplicateDictionaryPath := base()
+	duplicateDictionaryPath.Radius.Vendor.DictionaryPaths = []string{"/etc/freeradius/3.0/dictionary", "/etc/freeradius/3.0/../3.0/dictionary"}
+	assert.ErrorContains(t, duplicateDictionaryPath.Validate(), "duplicates")
 }
 
 func TestConfigValidationAIEngine(t *testing.T) {

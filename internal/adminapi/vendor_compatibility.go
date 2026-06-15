@@ -45,6 +45,16 @@ func HandleGetVendorCompatibility(w http.ResponseWriter, r *http.Request) {
 	if cfg != nil && len(cfg.Radius.Vendor.CompatibilityPacks) > 0 {
 		report.ActivePacks = normalizeVendorCompatibilityPackKeys(cfg.Radius.Vendor.CompatibilityPacks)
 	}
+	importPaths := vendorDictionaryImportPaths(cfg)
+	if len(importPaths) > 0 {
+		imported := productconfigs.LoadVendorDictionaryCatalog(importPaths)
+		report.Catalog = productconfigs.MergeVendorDictionaryCatalogs(
+			"built-in AegisNAS, "+imported.Source,
+			report.Catalog,
+			imported,
+		)
+		report.Notes = append(report.Notes, "FreeRADIUS dictionary import paths: "+strings.Join(importPaths, ", "))
+	}
 	report.DictionaryCoverage = productconfigs.BuildVendorDictionaryCoverageReport(report.Catalog, report.Packs, report.ActivePacks)
 	clientProfiles, profileSummary, err := loadVendorCompatibilityClientProfiles(cfg)
 	if err != nil {
@@ -56,6 +66,31 @@ func HandleGetVendorCompatibility(w http.ResponseWriter, r *http.Request) {
 		ClientProfiles:            clientProfiles,
 		ProfileSummary:            profileSummary,
 	})
+}
+
+func vendorDictionaryImportPaths(cfg *config.Config) []string {
+	if cfg != nil && len(cfg.Radius.Vendor.DictionaryPaths) > 0 {
+		return normalizeVendorDictionaryImportPaths(cfg.Radius.Vendor.DictionaryPaths)
+	}
+	return normalizeVendorDictionaryImportPaths(productconfigs.ExistingDefaultVendorDictionaryImportPaths())
+}
+
+func normalizeVendorDictionaryImportPaths(paths []string) []string {
+	out := make([]string, 0, len(paths))
+	seen := map[string]struct{}{}
+	for _, path := range paths {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		key := strings.ToLower(path)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, path)
+	}
+	return out
 }
 
 func normalizeVendorCompatibilityPackKeys(keys []string) []string {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 )
 
@@ -139,4 +140,16 @@ func TestHandleGetVendorCompatibilityIncludesClientProfiles(t *testing.T) {
 	assert.Contains(t, payload.ProfileSummary.UnknownProfiles, "custom-ap")
 	assert.Equal(t, 1, payload.ProfileSummary.GlobalFallbackClientCount)
 	assert.Equal(t, 1, payload.ProfileSummary.KnownVendorProfileClients)
+}
+
+func TestVendorDictionaryImportPathsUsesConfiguredPaths(t *testing.T) {
+	cfg := &config.Config{
+		Radius: config.RadiusConfig{
+			Vendor: config.RadiusVendorConfig{
+				DictionaryPaths: []string{" /tmp/freeradius/dictionary ", "/tmp/freeradius/dictionary"},
+			},
+		},
+	}
+
+	assert.Equal(t, []string{"/tmp/freeradius/dictionary"}, vendorDictionaryImportPaths(cfg))
 }

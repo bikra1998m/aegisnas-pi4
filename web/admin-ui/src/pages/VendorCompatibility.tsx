@@ -67,6 +67,7 @@ type VendorDictionaryCoverageRow = {
 };
 
 type VendorDictionaryCoverage = {
+  source?: string;
   catalog_vendor_count: number;
   catalog_attribute_count: number;
   pack_count: number;
@@ -483,6 +484,11 @@ export default function VendorCompatibility() {
                 </div>
 
                 <div className="mt-4 overflow-x-auto rounded-md border border-gray-200">
+                  {dictionaryCoverage.source ? (
+                    <div className="break-words border-b border-gray-200 px-4 py-3 text-sm text-gray-600">
+                      Source: {dictionaryCoverage.source}
+                    </div>
+                  ) : null}
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>

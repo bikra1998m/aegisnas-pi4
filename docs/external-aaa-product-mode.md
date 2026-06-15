@@ -268,6 +268,18 @@ radius:
       - wispr
 ```
 
+To compare compatibility packs against real FreeRADIUS vendor dictionaries, configure one or more import paths:
+
+```yaml
+radius:
+  vendor:
+    dictionary_paths:
+      - /etc/freeradius/3.0/dictionary
+      - /usr/share/freeradius
+```
+
+If no paths are configured, the admin API tries the standard appliance paths when they exist. Directory imports scan files named `dictionary`, `dictionary.*`, `*.dictionary`, or `*.dictionery`; file imports also expand local `$INCLUDE` lines.
+
 Available pack keys include:
 
 - `standard`
