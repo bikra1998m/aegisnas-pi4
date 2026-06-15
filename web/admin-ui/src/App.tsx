@@ -13,6 +13,7 @@ import Policies from './pages/Policies';
 import IdentitySources from './pages/IdentitySources';
 import PortalProfiles from './pages/PortalProfiles';
 import RadiusClients from './pages/RadiusClients';
+import VendorCompatibility from './pages/VendorCompatibility';
 import Sessions from './pages/Sessions';
 import Alerts from './pages/Alerts';
 import ConfigRevisions from './pages/ConfigRevisions';
@@ -46,6 +47,7 @@ function AppRoutes() {
         <Route path="/policies" element={<Policies />} />
         <Route path="/identity-sources" element={<IdentitySources />} />
         <Route path="/radius-clients" element={<RadiusClients />} />
+        <Route path="/vendor-compatibility" element={<VendorCompatibility />} />
         <Route path="/sessions" element={<Sessions />} />
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/config-revisions" element={<ConfigRevisions />} />

@@ -16,6 +16,7 @@ const navItems = [
   { to: '/policies', label: 'Policies', mark: 'PO', roles: ['super_admin'] },
   { to: '/identity-sources', label: 'Identity Sources', mark: 'ID', roles: ['super_admin'] },
   { to: '/radius-clients', label: 'RADIUS Clients', mark: 'RC', roles: ['super_admin'] },
+  { to: '/vendor-compatibility', label: 'Vendor Compatibility', mark: 'VC', roles: ['super_admin', 'ops_admin', 'read_only'] },
   { to: '/sessions', label: 'Sessions', mark: 'SE', roles: ['super_admin', 'ops_admin', 'guest_admin', 'read_only'] },
   { to: '/alerts', label: 'Alerts', mark: 'AL', roles: ['super_admin', 'ops_admin', 'read_only'] },
   { to: '/config-revisions', label: 'Revisions', mark: 'RV', roles: ['super_admin', 'ops_admin'] },

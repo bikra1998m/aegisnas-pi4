@@ -42,6 +42,7 @@ The admin UI now exposes the main manual control surfaces:
 - `Bandwidth Profiles`
 - `VLANs`
 - `Devices`
+- `Vendor Compatibility`
 - `Guest Requests`
 - `Sessions`
 - `Alerts`
@@ -128,6 +129,8 @@ For each client, fill:
 Use `other` for standards-based or unknown clients. Use a known profile such as `aruba`, `cisco`, `mikrotik`, `ruckus`, `fortinet`, or `ubnt` when that AP, controller, or switch should receive vendor-compatible reply attributes. `unifi` and `routeros` are accepted aliases for `ubnt` and `mikrotik`.
 
 Apply the pending changes after staging them.
+
+Use `Vendor Compatibility` to confirm each client profile, effective reply pack, and fallback warning before testing a new AP or controller family.
 
 ### 4. Configure Portal And Directory Settings
 
