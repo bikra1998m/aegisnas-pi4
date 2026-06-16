@@ -81,6 +81,16 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 Use this before introducing a new AP, switch, or controller profile so you can verify the exact reply attributes and fallback warnings without changing live policy.
 
+## Controller Adapter Catalog
+
+Controller-native integration readiness is available at:
+
+```text
+/api/v1/system/controller-adapters
+```
+
+The response lists the supported controller adapters, the selected platform's capabilities, required site or network identifier, token environment readiness, runtime sync status, and any setup warnings. Use it before enabling controller automation or when investigating drift, failed policy pushes, or controller API health.
+
 ## Support Bundle Endpoints
 
 The appliance also serves support bundle preview and live bundle download at:

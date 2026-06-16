@@ -75,6 +75,41 @@ func TestPushControllerStatePostsExpectedPayload(t *testing.T) {
 	assert.Equal(t, true, capabilities["drift_detection"])
 }
 
+func TestControllerAdapterCatalogDescribesNativeAdapters(t *testing.T) {
+	catalog := ControllerAdapterCatalog()
+	require.Len(t, catalog, 8)
+
+	byPlatform := map[string]ControllerAdapterDescriptor{}
+	for _, adapter := range catalog {
+		byPlatform[adapter.Platform] = adapter
+	}
+
+	generic := byPlatform["generic"]
+	assert.Equal(t, "Generic REST Controller", generic.Label)
+	assert.False(t, generic.RequiresSite)
+	assert.Equal(t, "{endpoint}", generic.EndpointTemplate)
+	assert.Equal(t, "contract", generic.OperationalState)
+	assert.True(t, generic.DriftDetection)
+	assert.False(t, generic.NativePolicyPush)
+
+	cisco := byPlatform["cisco"]
+	assert.Equal(t, "cisco-ise", cisco.Adapter)
+	assert.True(t, cisco.RequiresSite)
+	assert.True(t, cisco.NativePolicyPush)
+	assert.True(t, cisco.DynamicACL)
+	assert.True(t, cisco.DownloadableACL)
+	assert.Contains(t, cisco.SupportedSyncModes, "push-config")
+	assert.Contains(t, cisco.EndpointTemplate, "{site}")
+
+	mist := byPlatform["juniper-mist"]
+	assert.Equal(t, "token", mist.AuthScheme)
+	assert.True(t, mist.CloudInventory)
+
+	mikrotik := byPlatform["mikrotik"]
+	assert.Equal(t, "header-token", mikrotik.AuthScheme)
+	assert.True(t, mikrotik.AddressLists)
+}
+
 func TestPushControllerStateUsesJuniperMistAdapter(t *testing.T) {
 	const tokenEnv = "AEGIS_TEST_CONTROLLER_TOKEN_MIST"
 	t.Setenv(tokenEnv, "controller-secret")

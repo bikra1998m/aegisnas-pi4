@@ -195,6 +195,23 @@ type SystemStatus = {
       endpoint: string;
       sync_mode: string;
       site: string;
+      adapter?: string;
+      ready?: boolean;
+      site_required?: boolean;
+      readiness_warnings?: string[];
+      selected_adapter?: {
+        platform?: string;
+        label?: string;
+        adapter?: string;
+        operational_state?: string;
+        operational_guidance?: string;
+        native_policy_push?: boolean;
+        drift_detection?: boolean;
+        health_report?: boolean;
+        dynamic_acl?: boolean;
+        coa?: boolean;
+        supported_sync_modes?: string[];
+      };
       sync: RuntimeStatus;
     };
   };
@@ -1020,6 +1037,64 @@ export default function Dashboard() {
                       {systemStatus.integrations.controller.sync?.message ||
                         "No controller runtime status recorded yet."}
                     </div>
+                    {systemStatus.integrations.controller.selected_adapter ? (
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-gray-700">
+                          {systemStatus.integrations.controller.selected_adapter
+                            .label ||
+                            systemStatus.integrations.controller.adapter ||
+                            "Generic REST"}
+                        </span>
+                        {systemStatus.integrations.controller.enabled ? (
+                          <span
+                            className={`rounded-md border px-2 py-1 ${
+                              systemStatus.integrations.controller.ready
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                : "border-amber-200 bg-amber-50 text-amber-800"
+                            }`}
+                          >
+                            {systemStatus.integrations.controller.ready
+                              ? "Ready"
+                              : "Needs setup"}
+                          </span>
+                        ) : null}
+                        {systemStatus.integrations.controller.selected_adapter
+                          .native_policy_push ? (
+                          <span className="rounded-md border border-gray-200 px-2 py-1 text-gray-600">
+                            Native push
+                          </span>
+                        ) : null}
+                        {systemStatus.integrations.controller.selected_adapter
+                          .drift_detection ? (
+                          <span className="rounded-md border border-gray-200 px-2 py-1 text-gray-600">
+                            Drift watch
+                          </span>
+                        ) : null}
+                        {systemStatus.integrations.controller.selected_adapter
+                          .dynamic_acl ? (
+                          <span className="rounded-md border border-gray-200 px-2 py-1 text-gray-600">
+                            Dynamic ACL
+                          </span>
+                        ) : null}
+                        {systemStatus.integrations.controller.selected_adapter
+                          .coa ? (
+                          <span className="rounded-md border border-gray-200 px-2 py-1 text-gray-600">
+                            CoA
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {systemStatus.integrations.controller.enabled &&
+                    systemStatus.integrations.controller.readiness_warnings
+                      ?.length ? (
+                      <div className="mt-2 space-y-1 text-xs text-amber-700">
+                        {systemStatus.integrations.controller.readiness_warnings
+                          .slice(0, 3)
+                          .map((warning) => (
+                            <div key={warning}>Needs attention: {warning}</div>
+                          ))}
+                      </div>
+                    ) : null}
                     {systemStatus.integrations.controller.endpoint ? (
                       <div className="mt-1 text-xs text-gray-500 break-all">
                         {systemStatus.integrations.controller.endpoint}

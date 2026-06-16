@@ -190,6 +190,7 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Post("/auth/logout", adminapi.HandleLogout)
 			r.Get("/system/settings", adminapi.HandleGetSystemSettings)
 			r.Get("/system/status", adminapi.HandleGetSystemStatus)
+			r.Get("/system/controller-adapters", adminapi.HandleGetControllerAdapters)
 			r.Get("/system/vendor-compatibility", adminapi.HandleGetVendorCompatibility)
 			r.Post("/system/vendor-reply-preview", adminapi.HandlePreviewVendorReply)
 			r.Get("/system/dhcp-leases", adminapi.HandleListDHCPLeases)

@@ -49,8 +49,82 @@ type controllerSyncResult struct {
 	ResponseDetails    map[string]any
 }
 
+type ControllerAdapterDescriptor struct {
+	Platform            string   `json:"platform"`
+	Label               string   `json:"label"`
+	Adapter             string   `json:"adapter"`
+	AuthScheme          string   `json:"auth_scheme"`
+	RequiresSite        bool     `json:"requires_site"`
+	EndpointTemplate    string   `json:"endpoint_template"`
+	SupportedSyncModes  []string `json:"supported_sync_modes"`
+	NativePolicyPush    bool     `json:"native_policy_push"`
+	DriftDetection      bool     `json:"drift_detection"`
+	HealthReport        bool     `json:"health_report"`
+	DesiredStateHash    bool     `json:"desired_state_hash"`
+	RadiusProfiles      bool     `json:"radius_profiles"`
+	GuestPortal         bool     `json:"guest_portal"`
+	WirelessProfiles    bool     `json:"wireless_profiles"`
+	DynamicACL          bool     `json:"dynamic_acl"`
+	CoA                 bool     `json:"coa"`
+	DownloadableACL     bool     `json:"downloadable_acl,omitempty"`
+	UserRoles           bool     `json:"user_roles,omitempty"`
+	CloudInventory      bool     `json:"cloud_inventory,omitempty"`
+	ZonePolicy          bool     `json:"zone_policy,omitempty"`
+	PolicyProfiles      bool     `json:"policy_profiles,omitempty"`
+	AddressLists        bool     `json:"address_lists,omitempty"`
+	SiteProfiles        bool     `json:"site_profiles,omitempty"`
+	GuestHotspot        bool     `json:"guest_hotspot,omitempty"`
+	OperationalState    string   `json:"operational_state"`
+	OperationalGuidance string   `json:"operational_guidance"`
+}
+
 func ControllerComponent() string {
 	return controllerComponent
+}
+
+func ControllerAdapterCatalog() []ControllerAdapterDescriptor {
+	platforms := []string{"generic", "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi"}
+	out := make([]ControllerAdapterDescriptor, 0, len(platforms))
+	for _, platform := range platforms {
+		out = append(out, ControllerAdapterDescriptorForPlatform(platform))
+	}
+	return out
+}
+
+func ControllerAdapterDescriptorForPlatform(platform string) ControllerAdapterDescriptor {
+	platform = normalizeControllerPlatform(platform)
+	if platform == "" {
+		platform = "generic"
+	}
+	capabilities := controllerAdapterCapabilities(platform)
+	return ControllerAdapterDescriptor{
+		Platform:            platform,
+		Label:               controllerAdapterLabel(platform),
+		Adapter:             controllerAdapterName(platform),
+		AuthScheme:          controllerAuthScheme(platform),
+		RequiresSite:        controllerPlatformRequiresSite(platform),
+		EndpointTemplate:    controllerEndpointTemplate(platform),
+		SupportedSyncModes:  stringSliceCapability(capabilities["supported_sync_modes"]),
+		NativePolicyPush:    boolCapability(capabilities["native_policy_push"]),
+		DriftDetection:      boolCapability(capabilities["drift_detection"]),
+		HealthReport:        boolCapability(capabilities["health_report"]),
+		DesiredStateHash:    boolCapability(capabilities["desired_state_hash"]),
+		RadiusProfiles:      boolCapability(capabilities["radius_profiles"]),
+		GuestPortal:         boolCapability(capabilities["guest_portal"]),
+		WirelessProfiles:    boolCapability(capabilities["wireless_profiles"]),
+		DynamicACL:          boolCapability(capabilities["dynamic_acl"]),
+		CoA:                 boolCapability(capabilities["coa"]),
+		DownloadableACL:     boolCapability(capabilities["downloadable_acl"]),
+		UserRoles:           boolCapability(capabilities["user_roles"]),
+		CloudInventory:      boolCapability(capabilities["cloud_inventory"]),
+		ZonePolicy:          boolCapability(capabilities["zone_policy"]),
+		PolicyProfiles:      boolCapability(capabilities["policy_profiles"]),
+		AddressLists:        boolCapability(capabilities["address_lists"]),
+		SiteProfiles:        boolCapability(capabilities["site_profiles"]),
+		GuestHotspot:        boolCapability(capabilities["guest_hotspot"]),
+		OperationalState:    controllerAdapterOperationalState(platform),
+		OperationalGuidance: controllerAdapterOperationalGuidance(platform),
+	}
 }
 
 func StartControllerAutomation(ctx context.Context, cfg *config.Config, logger *zap.Logger) {
@@ -811,6 +885,113 @@ func controllerAdapterName(platform string) string {
 		return "unifi-network"
 	default:
 		return "generic-rest"
+	}
+}
+
+func controllerAdapterLabel(platform string) string {
+	switch normalizeControllerPlatform(platform) {
+	case "cisco":
+		return "Cisco ISE / Catalyst Center"
+	case "aruba":
+		return "Aruba Central / AOS"
+	case "juniper-mist":
+		return "Juniper Mist"
+	case "ruckus":
+		return "Ruckus SmartZone"
+	case "fortinet":
+		return "Fortinet FortiGate / FortiWLC"
+	case "mikrotik":
+		return "MikroTik RouterOS"
+	case "unifi":
+		return "Ubiquiti UniFi Network"
+	default:
+		return "Generic REST Controller"
+	}
+}
+
+func controllerAuthScheme(platform string) string {
+	switch normalizeControllerPlatform(platform) {
+	case "juniper-mist":
+		return "token"
+	case "mikrotik":
+		return "header-token"
+	default:
+		return "bearer"
+	}
+}
+
+func controllerEndpointTemplate(platform string) string {
+	switch normalizeControllerPlatform(platform) {
+	case "cisco":
+		return "{endpoint}/api/v1/aegisnas/sites/{site}/sync"
+	case "aruba":
+		return "{endpoint}/configuration/v1/aegisnas/sites/{site}/sync"
+	case "juniper-mist":
+		return "{endpoint}/api/v1/sites/{site}/aegisnas/sync"
+	case "ruckus":
+		return "{endpoint}/wsg/api/public/v11_1/aegisnas/sites/{site}/sync"
+	case "fortinet":
+		return "{endpoint}/api/v2/cmdb/aegisnas/sites/{site}/sync"
+	case "mikrotik":
+		return "{endpoint}/rest/aegisnas/sites/{site}/sync"
+	case "unifi":
+		return "{endpoint}/proxy/network/api/s/{site}/aegisnas/sync"
+	default:
+		return "{endpoint}"
+	}
+}
+
+func controllerAdapterOperationalState(platform string) string {
+	switch normalizeControllerPlatform(platform) {
+	case "generic":
+		return "contract"
+	case "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi":
+		return "native-adapter"
+	default:
+		return "unsupported"
+	}
+}
+
+func controllerAdapterOperationalGuidance(platform string) string {
+	switch normalizeControllerPlatform(platform) {
+	case "cisco":
+		return "Use for Cisco controller estates that can accept downloadable ACL, CoA, guest portal, and RADIUS profile sync payloads."
+	case "aruba":
+		return "Use for Aruba role, VLAN, filter-rule, guest portal, and CoA workflows after controller-side validation."
+	case "juniper-mist":
+		return "Use for Mist cloud inventory and WLAN policy sync; RADIUS replies remain standards-based unless site templates add more detail."
+	case "ruckus":
+		return "Use for SmartZone zone policy and CoA workflows; line ACLs usually require controller-side policy objects."
+	case "fortinet":
+		return "Use for Fortinet policy profile and controller health sync; validate FortiGate/FortiWLC profile names before push mode."
+	case "mikrotik":
+		return "Use for RouterOS hotspot and address-list hints; rule expansion belongs in RouterOS policy templates."
+	case "unifi":
+		return "Use for UniFi site profiles, guest hotspot, and external AP estate sync."
+	default:
+		return "Use when an external system implements the AegisNAS generic controller sync contract."
+	}
+}
+
+func boolCapability(value any) bool {
+	typed, _ := value.(bool)
+	return typed
+}
+
+func stringSliceCapability(value any) []string {
+	switch typed := value.(type) {
+	case []string:
+		return append([]string(nil), typed...)
+	case []any:
+		out := make([]string, 0, len(typed))
+		for _, value := range typed {
+			if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
+				out = append(out, strings.TrimSpace(text))
+			}
+		}
+		return out
+	default:
+		return nil
 	}
 }
 

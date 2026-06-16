@@ -167,6 +167,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		enforcementStatus["shaper"] = map[string]any{"status": "disabled", "message": "No downstream interface is configured for runtime shaping"}
 	}
 
+	controllerState := buildControllerAdapterConfiguredState(cfg)
 	integrationsStatus := map[string]any{
 		"admin_sso": map[string]any{
 			"enabled":      cfg.Integrations.AdminSSO.Enabled,
@@ -185,12 +186,17 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"export":     runtimeMap["siem_export"],
 		},
 		"controller": map[string]any{
-			"enabled":   cfg.Integrations.Controller.Enabled,
-			"platform":  cfg.Integrations.Controller.Platform,
-			"endpoint":  cfg.Integrations.Controller.Endpoint,
-			"sync_mode": cfg.Integrations.Controller.SyncMode,
-			"site":      cfg.Integrations.Controller.Site,
-			"sync":      runtimeMap["controller_automation"],
+			"enabled":            cfg.Integrations.Controller.Enabled,
+			"platform":           cfg.Integrations.Controller.Platform,
+			"endpoint":           cfg.Integrations.Controller.Endpoint,
+			"sync_mode":          cfg.Integrations.Controller.SyncMode,
+			"site":               cfg.Integrations.Controller.Site,
+			"adapter":            controllerState.Adapter,
+			"ready":              controllerState.Ready,
+			"site_required":      controllerState.SiteRequired,
+			"readiness_warnings": controllerState.ReadinessWarnings,
+			"selected_adapter":   controllerState.Selected,
+			"sync":               runtimeMap["controller_automation"],
 		},
 	}
 	if !cfg.Integrations.AdminSSO.Enabled {
@@ -233,21 +239,31 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	if !cfg.Integrations.Controller.Enabled {
 		integrationsStatus["controller"] = map[string]any{
-			"enabled":   false,
-			"platform":  cfg.Integrations.Controller.Platform,
-			"endpoint":  cfg.Integrations.Controller.Endpoint,
-			"sync_mode": cfg.Integrations.Controller.SyncMode,
-			"site":      cfg.Integrations.Controller.Site,
-			"sync":      map[string]any{"status": "disabled", "message": "Controller automation is disabled in config"},
+			"enabled":            false,
+			"platform":           cfg.Integrations.Controller.Platform,
+			"endpoint":           cfg.Integrations.Controller.Endpoint,
+			"sync_mode":          cfg.Integrations.Controller.SyncMode,
+			"site":               cfg.Integrations.Controller.Site,
+			"adapter":            controllerState.Adapter,
+			"ready":              controllerState.Ready,
+			"site_required":      controllerState.SiteRequired,
+			"readiness_warnings": controllerState.ReadinessWarnings,
+			"selected_adapter":   controllerState.Selected,
+			"sync":               map[string]any{"status": "disabled", "message": "Controller automation is disabled in config"},
 		}
 	} else if !cfg.Telemetry.Enabled {
 		integrationsStatus["controller"] = map[string]any{
-			"enabled":   true,
-			"platform":  cfg.Integrations.Controller.Platform,
-			"endpoint":  cfg.Integrations.Controller.Endpoint,
-			"sync_mode": cfg.Integrations.Controller.SyncMode,
-			"site":      cfg.Integrations.Controller.Site,
-			"sync":      map[string]any{"status": "degraded", "message": "Telemetry service is disabled, so controller automation is not running."},
+			"enabled":            true,
+			"platform":           cfg.Integrations.Controller.Platform,
+			"endpoint":           cfg.Integrations.Controller.Endpoint,
+			"sync_mode":          cfg.Integrations.Controller.SyncMode,
+			"site":               cfg.Integrations.Controller.Site,
+			"adapter":            controllerState.Adapter,
+			"ready":              controllerState.Ready,
+			"site_required":      controllerState.SiteRequired,
+			"readiness_warnings": controllerState.ReadinessWarnings,
+			"selected_adapter":   controllerState.Selected,
+			"sync":               map[string]any{"status": "degraded", "message": "Telemetry service is disabled, so controller automation is not running."},
 		}
 	}
 
