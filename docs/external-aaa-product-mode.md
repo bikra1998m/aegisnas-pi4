@@ -255,6 +255,27 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/vendor-compatibility | jq '.dictionary_coverage.rows[] | {pack_key, active, coverage_state, dictionary_matched_attribute_count, missing_dictionary_attribute_count}'
 ```
 
+To scan a FreeRADIUS dictionary tree from the appliance shell and generate the same compatibility matrix:
+
+```bash
+aegis-admin scan-radius-dictionaries \
+  --dictionary /etc/freeradius/3.0/dictionary \
+  --dictionary /usr/share/freeradius
+```
+
+For automation, export the full scanner report as JSON or the pack matrix as CSV:
+
+```bash
+aegis-admin scan-radius-dictionaries --json > vendor-dictionary-scan.json
+aegis-admin scan-radius-dictionaries --matrix-csv > vendor-dictionary-matrix.csv
+```
+
+The scanner reports:
+
+- supported attributes: AegisNAS semantic mappings already marked `implemented`
+- planned attributes: known vendor mappings that still need renderer, parser, controller, or hardware validation work
+- ignored attributes: parsed FreeRADIUS dictionary attributes that are not yet mapped into AegisNAS vendor-neutral semantics
+
 To preview the exact reply attributes for a profile before testing hardware:
 
 ```bash

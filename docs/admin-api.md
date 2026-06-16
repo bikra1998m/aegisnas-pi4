@@ -56,6 +56,7 @@ Use this endpoint when you want to confirm:
 - whether the product vendor ID still uses the lab placeholder and where `dictionary.aegisnas` should be installed
 - the active vendor compatibility packs from `radius.vendor.compatibility_packs`
 - the parsed dictionary coverage matrix through `dictionary_coverage`, including configured or auto-detected FreeRADIUS dictionary imports
+- the same coverage model is available from `aegis-admin scan-radius-dictionaries` for offline JSON/CSV scans of FreeRADIUS dictionary trees
 - the deployed RADIUS client `nas_type` values and their effective reply packs through `client_profiles`
 - the current profile coverage, unknown profile list, and fallback count through `profile_summary`
 - which semantic policy keys already have product attributes
