@@ -378,7 +378,7 @@ integrations:
     batch_size: 100
   controller:
     enabled: false
-    platform: "" # generic, cisco, aruba, juniper-mist, ruckus, fortinet, or mikrotik.
+    platform: "" # generic, cisco, aruba, juniper-mist, ruckus, fortinet, mikrotik, or unifi.
     endpoint: ""
     api_token_env: "AEGIS_CONTROLLER_API_TOKEN"
     sync_mode: "monitor" # monitor, push-config, or coa-only.

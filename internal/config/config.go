@@ -1829,7 +1829,7 @@ func (c *Config) Validate() error {
 		}
 	}
 	switch strings.ToLower(strings.TrimSpace(c.Integrations.Controller.Platform)) {
-	case "", "generic", "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik":
+	case "", "generic", "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi", "ubnt", "ubiquiti":
 	default:
 		return fmt.Errorf("integrations.controller.platform %q is invalid", c.Integrations.Controller.Platform)
 	}

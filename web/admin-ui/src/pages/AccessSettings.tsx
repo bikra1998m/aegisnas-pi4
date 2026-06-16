@@ -661,6 +661,7 @@ const controllerPlatformOptions: Option[] = [
   { value: "ruckus", label: "Ruckus" },
   { value: "fortinet", label: "Fortinet" },
   { value: "mikrotik", label: "MikroTik" },
+  { value: "unifi", label: "UniFi" },
 ];
 
 const controllerSyncOptions: Option[] = [

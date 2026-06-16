@@ -520,6 +520,8 @@ Use this history when you want:
 - exportable evidence for controller or MDM troubleshooting
 - recurring integration artifacts without relying on manual export timing
 
+Controller history details can include adapter name, request URL, desired-state hash, observed-state hash, drift flag and count, applied and failed item counts, controller health, compatibility score, and response warnings. These fields also flow into network observability so operators can see whether a controller accepted the latest AegisNAS policy or reported drift.
+
 From the admin UI:
 
 1. sign in

@@ -36,11 +36,15 @@ func TestHandleGetNetworkObservability(t *testing.T) {
 		ExpiresAt:        observedAt.Add(time.Hour).Format(time.RFC3339),
 		RemainingSeconds: 3600,
 	}}))
-	require.NoError(t, db.UpsertRuntimeStatus(integrations.ControllerComponent(), "ok", "Controller sync healthy.", map[string]any{
-		"sync_count":       3,
-		"success_count":    3,
-		"failure_count":    0,
-		"last_duration_ms": 150,
+	require.NoError(t, db.UpsertRuntimeStatus(integrations.ControllerComponent(), "degraded", "Controller sync completed with 2 drift item(s).", map[string]any{
+		"sync_count":          3,
+		"success_count":       3,
+		"failure_count":       0,
+		"last_duration_ms":    150,
+		"drift_detected":      true,
+		"drift_count":         2,
+		"controller_health":   "degraded",
+		"compatibility_score": 82,
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/network-observability", nil)
@@ -56,13 +60,18 @@ func TestHandleGetNetworkObservability(t *testing.T) {
 			UniqueMACsWindow int `json:"unique_macs_window"`
 		} `json:"lease_trends"`
 		ControllerSync struct {
-			Status string `json:"status"`
+			Status  string         `json:"status"`
+			Details map[string]any `json:"details"`
 		} `json:"controller_sync"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
 	assert.Equal(t, 1, payload.ApplyStats.ApplySuccessCount)
 	assert.Equal(t, 1, payload.LeaseTrends.UniqueMACsWindow)
-	assert.Equal(t, "ok", payload.ControllerSync.Status)
+	assert.Equal(t, "degraded", payload.ControllerSync.Status)
+	assert.Equal(t, true, payload.ControllerSync.Details["drift_detected"])
+	assert.Equal(t, float64(2), payload.ControllerSync.Details["drift_count"])
+	assert.Equal(t, "degraded", payload.ControllerSync.Details["controller_health"])
+	assert.Equal(t, float64(82), payload.ControllerSync.Details["compatibility_score"])
 }
 
 func TestHandleExportNetworkApplyHistoryCSV(t *testing.T) {

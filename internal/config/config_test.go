@@ -950,6 +950,11 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	valid := base()
 	assert.NoError(t, valid.Validate())
 
+	unifiController := base()
+	unifiController.Integrations.Controller.Platform = "unifi"
+	unifiController.Integrations.Controller.Site = "default"
+	assert.NoError(t, unifiController.Validate())
+
 	liteSSO := base()
 	liteSSO.Deployment.Profile = "lite"
 	liteSSO.Profiling.MDMSyncEnabled = false

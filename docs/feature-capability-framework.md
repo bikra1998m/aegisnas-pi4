@@ -551,6 +551,7 @@ Current runtime implementation after Phase 4:
 - multi-tenant governance now scopes guest workflow, device inventory, certificate download, and session operations by tenant-aware admin sessions
 - the telemetry service exports audit logs and alerts to `webhook`, `splunk-hec`, or `elastic`
 - controller automation now runs as a live background sync loop that pushes appliance state to the configured external controller endpoint
+- controller sync payloads include adapter capabilities and a desired-state hash; Cisco, Aruba, Juniper Mist, Ruckus, Fortinet, MikroTik, UniFi, and generic REST responses can report drift, applied or failed counts, health, compatibility score, and observed-state hash
 - export and controller runtime state are stored in `runtime_status`
 - failed deliveries or controller sync errors degrade only the affected integration path and do not block authentication, session handling, or portal traffic
 - the dashboard surfaces live admin SSO, SIEM export, and controller automation state, provider, endpoint or redirect target, and last runtime message for operators

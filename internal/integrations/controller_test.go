@@ -66,6 +66,13 @@ func TestPushControllerStatePostsExpectedPayload(t *testing.T) {
 	assert.Equal(t, 1, result.WarningCount)
 	assert.Equal(t, "branch-lab", payload["controller"].(map[string]any)["site"])
 	assert.Equal(t, "192.168.50.1", payload["portal"].(map[string]any)["listen_ip"])
+	assert.NotEmpty(t, result.DesiredStateHash)
+	assert.Len(t, result.DesiredStateHash, 64)
+	assert.Equal(t, result.DesiredStateHash, payload["desired_state_hash"])
+	capabilities := payload["adapter_capabilities"].(map[string]any)
+	assert.Equal(t, "generic", capabilities["platform"])
+	assert.Equal(t, "generic-rest", capabilities["adapter"])
+	assert.Equal(t, true, capabilities["drift_detection"])
 }
 
 func TestPushControllerStateUsesJuniperMistAdapter(t *testing.T) {
@@ -116,6 +123,55 @@ func TestPushControllerStateUsesJuniperMistAdapter(t *testing.T) {
 	assert.Equal(t, "branch-lab", result.ResponseDetails["response_scope"])
 }
 
+func TestPushControllerStateUsesUniFiAdapter(t *testing.T) {
+	const tokenEnv = "AEGIS_TEST_CONTROLLER_TOKEN_UNIFI"
+	t.Setenv(tokenEnv, "controller-secret")
+
+	var payload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/proxy/network/api/s/default/aegisnas/sync", r.URL.Path)
+		assert.Equal(t, "Bearer controller-secret", r.Header.Get("Authorization"))
+		assert.Equal(t, "unifi", r.Header.Get("X-AegisNAS-Controller-Platform"))
+		assert.Equal(t, "unifi-network", r.Header.Get("X-AegisNAS-Controller-Adapter"))
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(body, &payload))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"summary":"UniFi site staged.","site":"default"}`))
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{}
+	cfg.Portal.Enabled = true
+	cfg.Portal.ListenIP = "192.168.50.1"
+	cfg.Portal.Port = 8081
+	cfg.Radius.AuthPort = 1812
+	cfg.Radius.AcctPort = 1813
+	cfg.Radius.DynamicAuth.Enabled = true
+	cfg.Radius.DynamicAuth.Port = 3799
+	cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Guest", AuthMode: "wpa2-enterprise", VLAN: 20, PortalProfile: "guest"}}
+	cfg.Integrations.Controller.Enabled = true
+	cfg.Integrations.Controller.Platform = "unifi"
+	cfg.Integrations.Controller.Endpoint = server.URL
+	cfg.Integrations.Controller.APITokenEnv = tokenEnv
+	cfg.Integrations.Controller.SyncMode = "push-config"
+	cfg.Integrations.Controller.Site = "default"
+
+	result, err := pushControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "unifi-network", result.Adapter)
+	assert.Equal(t, "bearer", result.AuthScheme)
+	assert.Equal(t, "unifi-network", payload["adapter"])
+	assert.Equal(t, "default", payload["site"])
+	assert.NotEmpty(t, payload["desired_state_hash"])
+	capabilities := payload["adapter_capabilities"].(map[string]any)
+	assert.Equal(t, "unifi", capabilities["platform"])
+	assert.Equal(t, true, capabilities["site_profiles"])
+	assert.Equal(t, "default", result.ResponseDetails["response_scope"])
+}
+
 func TestPushControllerStateUsesCiscoAdapter(t *testing.T) {
 	const tokenEnv = "AEGIS_TEST_CONTROLLER_TOKEN_CISCO"
 	t.Setenv(tokenEnv, "controller-secret")
@@ -160,6 +216,49 @@ func TestPushControllerStateUsesCiscoAdapter(t *testing.T) {
 	ssids := payload["ssid_policies"].([]any)
 	require.Len(t, ssids, 1)
 	assert.Equal(t, "Guest", ssids[0].(map[string]any)["name"])
+}
+
+func TestPushControllerStateCapturesControllerDriftAndHealth(t *testing.T) {
+	const tokenEnv = "AEGIS_TEST_CONTROLLER_TOKEN_DRIFT"
+	t.Setenv(tokenEnv, "controller-secret")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{
+			"summary":"Controller accepted sync with drift.",
+			"drift":{"count":2,"items":["ssid:Guest","acl:guest"],"summary":"two objects changed"},
+			"applied_count":3,
+			"failed_count":1,
+			"controller_health":"degraded",
+			"compatibility_score":82,
+			"observed_state_hash":"observed-123"
+		}`))
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{}
+	cfg.Portal.ListenIP = "192.168.50.1"
+	cfg.Radius.AuthPort = 1812
+	cfg.Radius.AcctPort = 1813
+	cfg.Integrations.Controller.Enabled = true
+	cfg.Integrations.Controller.Platform = "generic"
+	cfg.Integrations.Controller.Endpoint = server.URL
+	cfg.Integrations.Controller.APITokenEnv = tokenEnv
+	cfg.Integrations.Controller.SyncMode = "push-config"
+
+	result, err := pushControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.DriftDetected)
+	assert.Equal(t, 2, result.DriftCount)
+	assert.Equal(t, 3, result.AppliedCount)
+	assert.Equal(t, 1, result.FailedCount)
+	assert.Equal(t, "degraded", result.ControllerHealth)
+	assert.Equal(t, 82, result.CompatibilityScore)
+	assert.Equal(t, "observed-123", result.ObservedStateHash)
+	assert.Equal(t, "two objects changed", result.ResponseDetails["drift_summary"])
+	assert.Equal(t, "degraded", controllerResultRuntimeStatus(result))
 }
 
 func TestPushControllerStateRequiresToken(t *testing.T) {
