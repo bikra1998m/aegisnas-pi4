@@ -106,6 +106,11 @@ func ensureDeviceInventoryProfilingColumns(handle *sql.DB) error {
 	}{
 		{"hostname", `ALTER TABLE device_inventory ADD COLUMN hostname TEXT`},
 		{"dhcp_client_id", `ALTER TABLE device_inventory ADD COLUMN dhcp_client_id TEXT`},
+		{"dhcp_fingerprint", `ALTER TABLE device_inventory ADD COLUMN dhcp_fingerprint TEXT`},
+		{"lldp_chassis_id", `ALTER TABLE device_inventory ADD COLUMN lldp_chassis_id TEXT`},
+		{"lldp_port_id", `ALTER TABLE device_inventory ADD COLUMN lldp_port_id TEXT`},
+		{"cdp_device_id", `ALTER TABLE device_inventory ADD COLUMN cdp_device_id TEXT`},
+		{"cdp_port_id", `ALTER TABLE device_inventory ADD COLUMN cdp_port_id TEXT`},
 		{"mac_oui", `ALTER TABLE device_inventory ADD COLUMN mac_oui TEXT`},
 		{"risk_score", `ALTER TABLE device_inventory ADD COLUMN risk_score INTEGER DEFAULT 0`},
 		{"risk_reasons_json", `ALTER TABLE device_inventory ADD COLUMN risk_reasons_json TEXT`},

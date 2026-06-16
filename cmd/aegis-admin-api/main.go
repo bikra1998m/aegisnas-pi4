@@ -317,6 +317,7 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 
 			// Devices
 			r.Get("/devices", adminapi.HandleListDevices)
+			r.Post("/devices/profile-observations", adminapi.HandleObserveDeviceProfile)
 			r.Get("/devices/{id}/certificate", adminapi.HandleDownloadDeviceCertificate)
 
 			// Admin principals

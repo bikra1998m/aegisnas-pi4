@@ -44,7 +44,7 @@ func TestMigrate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, nasTypeColumnCount)
 
-	for _, column := range []string{"hostname", "dhcp_client_id", "mac_oui", "risk_score", "risk_reasons_json"} {
+	for _, column := range []string{"hostname", "dhcp_client_id", "dhcp_fingerprint", "lldp_chassis_id", "lldp_port_id", "cdp_device_id", "cdp_port_id", "mac_oui", "risk_score", "risk_reasons_json"} {
 		var columnCount int
 		err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('device_inventory') WHERE name=?", column).Scan(&columnCount)
 		assert.NoError(t, err)

@@ -47,6 +47,11 @@ type Device struct {
 	Source                string   `json:"source"`
 	Hostname              string   `json:"hostname"`
 	DHCPClientID          string   `json:"dhcp_client_id"`
+	DHCPFingerprint       string   `json:"dhcp_fingerprint"`
+	LLDPChassisID         string   `json:"lldp_chassis_id"`
+	LLDPPortID            string   `json:"lldp_port_id"`
+	CDPDeviceID           string   `json:"cdp_device_id"`
+	CDPPortID             string   `json:"cdp_port_id"`
 	MACOUI                string   `json:"mac_oui"`
 	RiskScore             int      `json:"risk_score"`
 	RiskReasons           []string `json:"risk_reasons"`
@@ -136,6 +141,33 @@ type DHCPLeaseProfile struct {
 	RemainingSeconds int64
 }
 
+type DeviceProfileObservation struct {
+	MAC             string `json:"mac"`
+	IP              string `json:"ip,omitempty"`
+	Username        string `json:"username,omitempty"`
+	SessionID       string `json:"session_id,omitempty"`
+	UserAgent       string `json:"user_agent,omitempty"`
+	Source          string `json:"source,omitempty"`
+	Hostname        string `json:"hostname,omitempty"`
+	DHCPClientID    string `json:"dhcp_client_id,omitempty"`
+	DHCPFingerprint string `json:"dhcp_fingerprint,omitempty"`
+	LLDPChassisID   string `json:"lldp_chassis_id,omitempty"`
+	LLDPPortID      string `json:"lldp_port_id,omitempty"`
+	CDPDeviceID     string `json:"cdp_device_id,omitempty"`
+	CDPPortID       string `json:"cdp_port_id,omitempty"`
+}
+
+type DeviceProfileObservationResult struct {
+	Device                   *Device  `json:"device,omitempty"`
+	RiskScore                int      `json:"risk_score"`
+	RiskReasons              []string `json:"risk_reasons"`
+	AutoQuarantinedSessions  int64    `json:"auto_quarantined_sessions"`
+	ProfilePlatform          string   `json:"profile_platform,omitempty"`
+	ProfileDeviceType        string   `json:"profile_device_type,omitempty"`
+	ObservationStored        bool     `json:"observation_stored"`
+	ObservationIgnoredReason string   `json:"observation_ignored_reason,omitempty"`
+}
+
 type LeaseProfileStats struct {
 	Source                  string `json:"source"`
 	TotalRecords            int    `json:"total_records"`
@@ -193,6 +225,101 @@ func (s *Service) ObserveDevice(mac, ip, username, sessionID, userAgent, source 
 		updated_at = excluded.updated_at`,
 		mac, nullable(tenant), nullable(username), nullable(platform), nullable(deviceType), nullable(userAgent), nullable(source), complianceUnknown, nullable(ip), nullable(sessionID), now, now, now)
 	return err
+}
+
+func (s *Service) ObserveProfileSignals(observation DeviceProfileObservation) (*DeviceProfileObservationResult, error) {
+	result := &DeviceProfileObservationResult{}
+	if s == nil || s.cfg == nil {
+		result.ObservationIgnoredReason = "configuration is not loaded"
+		return result, nil
+	}
+	if !s.cfg.Onboarding.DeviceInventoryEnabled && !s.cfg.Profiling.MACInventoryEnabled && !s.cfg.Profiling.PassiveEnabled {
+		result.ObservationIgnoredReason = "device inventory and profiling are disabled"
+		return result, nil
+	}
+	mac := normalizeMAC(observation.MAC)
+	if mac == "" {
+		return nil, errors.New("device MAC is required")
+	}
+	observation.MAC = mac
+	observation.Username = strings.TrimSpace(observation.Username)
+	observation.IP = strings.TrimSpace(observation.IP)
+	observation.SessionID = strings.TrimSpace(observation.SessionID)
+	observation.UserAgent = strings.TrimSpace(observation.UserAgent)
+	observation.Source = firstNonEmptyString(observation.Source, "profile-observation")
+	observation.Hostname = strings.TrimSpace(observation.Hostname)
+	observation.DHCPClientID = strings.TrimSpace(observation.DHCPClientID)
+	observation.DHCPFingerprint = strings.TrimSpace(observation.DHCPFingerprint)
+	observation.LLDPChassisID = strings.TrimSpace(observation.LLDPChassisID)
+	observation.LLDPPortID = strings.TrimSpace(observation.LLDPPortID)
+	observation.CDPDeviceID = strings.TrimSpace(observation.CDPDeviceID)
+	observation.CDPPortID = strings.TrimSpace(observation.CDPPortID)
+
+	platform, deviceType := fingerprintProfileObservation(observation)
+	riskScore, riskReasons := profileObservationRisk(observation)
+	riskReasonsJSON, err := jsonMarshal(riskReasons)
+	if err != nil {
+		return nil, err
+	}
+	tenant := s.lookupTenant(observation.Username)
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err = db.DB.Exec(`INSERT INTO device_inventory (
+		mac, tenant, username, platform, device_type, user_agent, source, hostname, dhcp_client_id, dhcp_fingerprint,
+		lldp_chassis_id, lldp_port_id, cdp_device_id, cdp_port_id, mac_oui, risk_score, risk_reasons_json,
+		compliance_status, last_ip, last_session_id, first_seen, last_seen, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	ON CONFLICT(mac) DO UPDATE SET
+		tenant = COALESCE(excluded.tenant, device_inventory.tenant),
+		username = COALESCE(excluded.username, device_inventory.username),
+		platform = CASE WHEN excluded.platform <> '' AND (COALESCE(device_inventory.platform, '') = '' OR COALESCE(device_inventory.platform, '') = 'unknown') THEN excluded.platform ELSE device_inventory.platform END,
+		device_type = CASE WHEN excluded.device_type <> '' AND (COALESCE(device_inventory.device_type, '') = '' OR COALESCE(device_inventory.device_type, '') = 'unknown') THEN excluded.device_type ELSE device_inventory.device_type END,
+		user_agent = COALESCE(excluded.user_agent, device_inventory.user_agent),
+		source = COALESCE(excluded.source, device_inventory.source),
+		hostname = COALESCE(excluded.hostname, device_inventory.hostname),
+		dhcp_client_id = COALESCE(excluded.dhcp_client_id, device_inventory.dhcp_client_id),
+		dhcp_fingerprint = COALESCE(excluded.dhcp_fingerprint, device_inventory.dhcp_fingerprint),
+		lldp_chassis_id = COALESCE(excluded.lldp_chassis_id, device_inventory.lldp_chassis_id),
+		lldp_port_id = COALESCE(excluded.lldp_port_id, device_inventory.lldp_port_id),
+		cdp_device_id = COALESCE(excluded.cdp_device_id, device_inventory.cdp_device_id),
+		cdp_port_id = COALESCE(excluded.cdp_port_id, device_inventory.cdp_port_id),
+		mac_oui = COALESCE(excluded.mac_oui, device_inventory.mac_oui),
+		risk_score = excluded.risk_score,
+		risk_reasons_json = excluded.risk_reasons_json,
+		compliance_status = COALESCE(device_inventory.compliance_status, excluded.compliance_status),
+		last_ip = COALESCE(excluded.last_ip, device_inventory.last_ip),
+		last_session_id = COALESCE(excluded.last_session_id, device_inventory.last_session_id),
+		last_seen = excluded.last_seen,
+		updated_at = excluded.updated_at`,
+		mac, nullable(tenant), nullable(observation.Username), nullable(platform), nullable(deviceType), nullable(observation.UserAgent), nullable(observation.Source),
+		nullable(observation.Hostname), nullable(observation.DHCPClientID), nullable(observation.DHCPFingerprint),
+		nullable(observation.LLDPChassisID), nullable(observation.LLDPPortID), nullable(observation.CDPDeviceID), nullable(observation.CDPPortID),
+		nullable(macOUI(mac)), riskScore, string(riskReasonsJSON), complianceUnknown, nullable(observation.IP), nullable(observation.SessionID), now, now, now)
+	if err != nil {
+		return nil, err
+	}
+	if riskScore >= highRiskProfileThreshold && s.cfg.Profiling.PostureEnabled && s.cfg.Profiling.RemediationEnabled {
+		quarantined, err := s.quarantineHighRiskProfileSessions(map[string]struct{}{mac: {}})
+		if err != nil {
+			return nil, err
+		}
+		result.AutoQuarantinedSessions = quarantined
+		if quarantined > 0 {
+			if err := syncRuntimeEnforcement(s.cfg); err != nil {
+				return nil, err
+			}
+		}
+	}
+	device, err := s.GetDeviceByMAC(mac)
+	if err != nil {
+		return nil, err
+	}
+	result.Device = device
+	result.RiskScore = riskScore
+	result.RiskReasons = riskReasons
+	result.ProfilePlatform = platform
+	result.ProfileDeviceType = deviceType
+	result.ObservationStored = true
+	return result, nil
 }
 
 func (s *Service) ObserveDHCPLeaseProfiles(leases []DHCPLeaseProfile) (*LeaseProfileStats, error) {
@@ -362,7 +489,9 @@ func (s *Service) RegisterDevice(ctx context.Context, req RegisterRequest) (*Reg
 func (s *Service) GetDeviceByMAC(mac string) (*Device, error) {
 	row := db.DB.QueryRow(`SELECT id, mac, COALESCE(tenant, ''), COALESCE(username, ''), COALESCE(friendly_name, ''), COALESCE(ownership, ''),
 		COALESCE(platform, ''), COALESCE(device_type, ''), COALESCE(user_agent, ''), COALESCE(source, ''),
-		COALESCE(hostname, ''), COALESCE(dhcp_client_id, ''), COALESCE(mac_oui, ''), COALESCE(risk_score, 0), COALESCE(risk_reasons_json, '[]'),
+		COALESCE(hostname, ''), COALESCE(dhcp_client_id, ''), COALESCE(dhcp_fingerprint, ''),
+		COALESCE(lldp_chassis_id, ''), COALESCE(lldp_port_id, ''), COALESCE(cdp_device_id, ''), COALESCE(cdp_port_id, ''),
+		COALESCE(mac_oui, ''), COALESCE(risk_score, 0), COALESCE(risk_reasons_json, '[]'),
 		COALESCE(managed, 0), compliant, COALESCE(compliance_status, ''), COALESCE(remediation_state, ''),
 		COALESCE(mdm_provider, ''), COALESCE(mdm_device_id, ''),
 		COALESCE((SELECT id FROM device_certificates WHERE device_mac = device_inventory.mac AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1), ''),
@@ -379,7 +508,9 @@ func (s *Service) ListDevices(limit int, tenantScopes ...string) ([]Device, erro
 	}
 	query := `SELECT id, mac, COALESCE(tenant, ''), COALESCE(username, ''), COALESCE(friendly_name, ''), COALESCE(ownership, ''),
 		COALESCE(platform, ''), COALESCE(device_type, ''), COALESCE(user_agent, ''), COALESCE(source, ''),
-		COALESCE(hostname, ''), COALESCE(dhcp_client_id, ''), COALESCE(mac_oui, ''), COALESCE(risk_score, 0), COALESCE(risk_reasons_json, '[]'),
+		COALESCE(hostname, ''), COALESCE(dhcp_client_id, ''), COALESCE(dhcp_fingerprint, ''),
+		COALESCE(lldp_chassis_id, ''), COALESCE(lldp_port_id, ''), COALESCE(cdp_device_id, ''), COALESCE(cdp_port_id, ''),
+		COALESCE(mac_oui, ''), COALESCE(risk_score, 0), COALESCE(risk_reasons_json, '[]'),
 		COALESCE(managed, 0), compliant, COALESCE(compliance_status, ''), COALESCE(remediation_state, ''),
 		COALESCE(mdm_provider, ''), COALESCE(mdm_device_id, ''),
 		COALESCE((SELECT id FROM device_certificates WHERE device_mac = device_inventory.mac AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1), ''),
@@ -916,7 +1047,8 @@ func scanDevice(row scanner) (*Device, error) {
 	var compliant sql.NullBool
 	riskReasonsJSON := "[]"
 	if err := row.Scan(&device.ID, &device.MAC, &device.Tenant, &device.Username, &device.FriendlyName, &device.Ownership, &device.Platform, &device.DeviceType,
-		&device.UserAgent, &device.Source, &device.Hostname, &device.DHCPClientID, &device.MACOUI, &device.RiskScore, &riskReasonsJSON,
+		&device.UserAgent, &device.Source, &device.Hostname, &device.DHCPClientID, &device.DHCPFingerprint,
+		&device.LLDPChassisID, &device.LLDPPortID, &device.CDPDeviceID, &device.CDPPortID, &device.MACOUI, &device.RiskScore, &riskReasonsJSON,
 		&device.Managed, &compliant, &device.ComplianceStatus, &device.RemediationState,
 		&device.MDMProvider, &device.MDMDeviceID, &device.CertificateID, &device.CertificateSerial, &device.CertificateSubject, &device.CertificateValidUntil,
 		&device.LastIP, &device.LastSessionID, &device.FirstSeen, &device.LastSeen, &device.CreatedAt, &device.UpdatedAt); err != nil {
@@ -1056,7 +1188,7 @@ func fingerprintDHCPProfile(hostname, clientID string) (platform, deviceType str
 		platform = "ios"
 	case strings.Contains(value, "android"):
 		platform = "android"
-	case strings.Contains(value, "windows") || strings.Contains(value, "win-"):
+	case strings.Contains(value, "windows") || strings.Contains(value, "win-") || strings.Contains(value, "msft"):
 		platform = "windows"
 	case strings.Contains(value, "macbook") || strings.Contains(value, "imac") || strings.Contains(value, "macos"):
 		platform = "macos"
@@ -1076,7 +1208,7 @@ func fingerprintDHCPProfile(hostname, clientID string) (platform, deviceType str
 		deviceType = "camera"
 	case strings.Contains(value, "tv") || strings.Contains(value, "roku") || strings.Contains(value, "chromecast"):
 		deviceType = "media"
-	case strings.Contains(value, "laptop") || strings.Contains(value, "macbook") || strings.Contains(value, "windows") || strings.Contains(value, "ubuntu"):
+	case strings.Contains(value, "laptop") || strings.Contains(value, "macbook") || strings.Contains(value, "windows") || strings.Contains(value, "msft") || strings.Contains(value, "ubuntu"):
 		deviceType = "laptop"
 	default:
 		deviceType = "unknown"
@@ -1114,6 +1246,142 @@ func dhcpLeaseRisk(lease DHCPLeaseProfile) (int, []string) {
 		score = 100
 	}
 	return score, reasons
+}
+
+func fingerprintProfileObservation(observation DeviceProfileObservation) (platform, deviceType string) {
+	userAgentPlatform, userAgentType := fingerprintUserAgent(observation.UserAgent)
+	dhcpPlatform, dhcpType := fingerprintDHCPProfile(observation.Hostname, strings.TrimSpace(observation.DHCPClientID+" "+observation.DHCPFingerprint))
+	neighborPlatform := fingerprintNeighborPlatform(observation)
+
+	platform = firstNonEmptyString(userAgentPlatform, dhcpPlatform, neighborPlatform)
+	for _, candidate := range []string{userAgentType, dhcpType} {
+		if candidate != "" && candidate != "unknown" {
+			deviceType = candidate
+			break
+		}
+	}
+	if deviceType == "" && hasNeighborSignal(observation) {
+		deviceType = "network-equipment"
+	}
+	if deviceType == "" {
+		deviceType = "unknown"
+	}
+	return platform, deviceType
+}
+
+func profileObservationRisk(observation DeviceProfileObservation) (int, []string) {
+	score := 0
+	reasons := []string{}
+	if locallyAdministeredMAC(observation.MAC) {
+		score += 25
+		reasons = append(reasons, "locally_administered_mac")
+	}
+	identitySignals := 0
+	for _, value := range []string{
+		observation.Hostname,
+		observation.DHCPClientID,
+		observation.DHCPFingerprint,
+		observation.UserAgent,
+		observation.LLDPChassisID,
+		observation.CDPDeviceID,
+	} {
+		if strings.TrimSpace(value) != "" {
+			identitySignals++
+		}
+	}
+	if identitySignals == 0 {
+		score += 20
+		reasons = append(reasons, "low_identity_signal")
+	}
+	if strings.TrimSpace(observation.Hostname) == "" {
+		score += 5
+		reasons = append(reasons, "missing_hostname")
+	}
+	if strings.TrimSpace(observation.UserAgent) == "" {
+		score += 5
+		reasons = append(reasons, "missing_user_agent")
+	}
+	if strings.TrimSpace(observation.DHCPClientID) == "" && strings.TrimSpace(observation.DHCPFingerprint) == "" {
+		score += 5
+		reasons = append(reasons, "missing_dhcp_fingerprint")
+	}
+	userAgentPlatform, _ := fingerprintUserAgent(observation.UserAgent)
+	dhcpPlatform, _ := fingerprintDHCPProfile(observation.Hostname, strings.TrimSpace(observation.DHCPClientID+" "+observation.DHCPFingerprint))
+	if platformsConflict(userAgentPlatform, dhcpPlatform) {
+		score += 25
+		reasons = append(reasons, "profile_platform_mismatch")
+	}
+	if hasNeighborSignal(observation) && strings.TrimSpace(observation.Username) != "" {
+		score += 15
+		reasons = append(reasons, "infrastructure_neighbor_signal")
+	}
+	if score > 100 {
+		score = 100
+	}
+	return score, uniqueStrings(reasons)
+}
+
+func fingerprintNeighborPlatform(observation DeviceProfileObservation) string {
+	value := strings.ToLower(strings.Join([]string{
+		observation.LLDPChassisID,
+		observation.LLDPPortID,
+		observation.CDPDeviceID,
+		observation.CDPPortID,
+	}, " "))
+	switch {
+	case strings.Contains(value, "cisco") || strings.Contains(value, "catalyst") || strings.Contains(value, "meraki"):
+		return "cisco"
+	case strings.Contains(value, "aruba") || strings.Contains(value, "procurve"):
+		return "aruba"
+	case strings.Contains(value, "juniper") || strings.Contains(value, "mist"):
+		return "juniper"
+	case strings.Contains(value, "ruckus"):
+		return "ruckus"
+	case strings.Contains(value, "fortinet") || strings.Contains(value, "fortigate"):
+		return "fortinet"
+	case strings.Contains(value, "mikrotik") || strings.Contains(value, "routeros"):
+		return "mikrotik"
+	case strings.Contains(value, "ubiquiti") || strings.Contains(value, "unifi"):
+		return "unifi"
+	case strings.Contains(value, "huawei"):
+		return "huawei"
+	case strings.Contains(value, "h3c"):
+		return "h3c"
+	case strings.Contains(value, "extreme"):
+		return "extreme"
+	default:
+		return ""
+	}
+}
+
+func hasNeighborSignal(observation DeviceProfileObservation) bool {
+	return strings.TrimSpace(observation.LLDPChassisID) != "" ||
+		strings.TrimSpace(observation.LLDPPortID) != "" ||
+		strings.TrimSpace(observation.CDPDeviceID) != "" ||
+		strings.TrimSpace(observation.CDPPortID) != ""
+}
+
+func platformsConflict(a, b string) bool {
+	a = strings.TrimSpace(strings.ToLower(a))
+	b = strings.TrimSpace(strings.ToLower(b))
+	return a != "" && b != "" && a != b
+}
+
+func uniqueStrings(values []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 
 func macOUI(mac string) string {

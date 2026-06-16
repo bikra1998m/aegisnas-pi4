@@ -1112,6 +1112,10 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addCRUDOperations(paths, "/api/v1/vlans", "VLANs", "VLAN", []string{"super_admin"}, []string{"super_admin"})
 	addCRUDOperations(paths, "/api/v1/users", "Users", "User", []string{"super_admin"}, []string{"super_admin"})
 	addCollectionOnly(paths, "/api/v1/devices", "Devices", "Device inventory", []string{"read_only", "guest_admin", "ops_admin", "super_admin"})
+	addOperation(paths, "/api/v1/devices/profile-observations", "post", securedOperationWithBody("Record device profile observation", "Devices", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Device profile signals such as MAC, IP, user-agent, DHCP fingerprint, LLDP, and CDP fields."), map[string]any{
+		"200":     responseJSON("Stored profile observation, risk score, risk reasons, and auto-quarantine count."),
+		"default": responseText("Profile observation error."),
+	}))
 	addOperation(paths, "/api/v1/devices/{id}/certificate", "get", securedOperationWithParameters("Download device certificate bundle", "Devices", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{idParameter("id", "Device identifier.")}, map[string]any{
 		"200":     responseBinary("application/octet-stream", "Device certificate bundle."),
 		"default": responseText("Certificate export error."),

@@ -1,6 +1,7 @@
 package adminapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -17,6 +18,24 @@ func HandleListDevices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, devices)
+}
+
+func HandleObserveDeviceProfile(w http.ResponseWriter, r *http.Request) {
+	var observation onboarding.DeviceProfileObservation
+	if err := json.NewDecoder(r.Body).Decode(&observation); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	service := onboarding.New(config.Get(), nil)
+	result, err := service.ObserveProfileSignals(observation)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if result != nil && result.Device != nil {
+		audit(r, "observe_device_profile", result.Device.MAC, "updated")
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func HandleDownloadDeviceCertificate(w http.ResponseWriter, r *http.Request) {

@@ -612,6 +612,14 @@ Use this history when you want:
 
 When passive profiling is enabled, DHCP observations also update device inventory with hostname, DHCP client ID, MAC OUI, profile risk score, and risk reasons. If posture remediation is enabled, high-risk active sessions can be marked with `quarantine-profile-risk`.
 
+Operators and trusted collectors can also submit richer profile observations at:
+
+```text
+/api/v1/devices/profile-observations
+```
+
+The request can include MAC, IP, username, session ID, user-agent, hostname, DHCP fingerprint, LLDP chassis or port, and CDP device or port fields. AegisNAS stores those signals on the device inventory record, updates profile risk reasons, and can quarantine high-risk active sessions when posture remediation is enabled.
+
 From the admin UI:
 
 1. sign in

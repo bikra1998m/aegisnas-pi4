@@ -61,6 +61,14 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Preview vendor reply attributes", vendorReplyPreviewPost["summary"])
 	assert.Contains(t, vendorReplyPreviewPost["x-aegisnas-roles"], "read_only")
 
+	profileObservationPath, ok := paths["/api/v1/devices/profile-observations"].(map[string]any)
+	require.True(t, ok)
+	profileObservationPost, ok := profileObservationPath["post"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Record device profile observation", profileObservationPost["summary"])
+	assert.Contains(t, profileObservationPost["x-aegisnas-roles"], "ops_admin")
+	assert.NotContains(t, profileObservationPost["x-aegisnas-roles"], "guest_admin")
+
 	specPath, ok := paths["/api/v1/openapi.json"].(map[string]any)
 	require.True(t, ok)
 	specGet, ok := specPath["get"].(map[string]any)

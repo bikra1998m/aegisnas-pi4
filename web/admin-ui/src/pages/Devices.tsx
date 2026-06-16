@@ -79,8 +79,18 @@ export default function Devices() {
                   <td className="px-5 py-4 text-sm">
                     <div>{device.hostname || 'No hostname'}</div>
                     <div className="text-xs text-gray-500">
-                      {device.dhcp_client_id || device.mac_oui || 'No DHCP fingerprint'}
+                      {device.dhcp_fingerprint || device.dhcp_client_id || device.mac_oui || 'No DHCP fingerprint'}
                     </div>
+                    {device.lldp_chassis_id || device.lldp_port_id ? (
+                      <div className="text-xs text-gray-500">
+                        LLDP {device.lldp_chassis_id || 'unknown'} {device.lldp_port_id || ''}
+                      </div>
+                    ) : null}
+                    {device.cdp_device_id || device.cdp_port_id ? (
+                      <div className="text-xs text-gray-500">
+                        CDP {device.cdp_device_id || 'unknown'} {device.cdp_port_id || ''}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-5 py-4 text-sm">
                     <div className="font-medium text-gray-900">{device.risk_score ?? 0}</div>

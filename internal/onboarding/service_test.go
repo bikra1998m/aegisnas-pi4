@@ -384,6 +384,69 @@ func TestObserveDHCPLeaseProfilesRecordsRiskAndQuarantines(t *testing.T) {
 	assert.Equal(t, "quarantine-profile-risk", filterID)
 }
 
+func TestObserveProfileSignalsStoresFingerprintsAndQuarantines(t *testing.T) {
+	setupOnboardingDB(t)
+
+	originalSync := syncRuntimeEnforcement
+	syncRuntimeEnforcement = func(*config.Config) error { return nil }
+	t.Cleanup(func() {
+		syncRuntimeEnforcement = originalSync
+	})
+
+	_, err := db.DB.Exec(`INSERT INTO sessions (id, username, mac, ip, auth_method, role, start_time, last_activity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		"session-profile-risk", "guest1", "02:22:33:44:55:66", "192.168.50.66", "portal", "guest-basic", time.Now().UTC().Format(time.RFC3339), time.Now().UTC().Format(time.RFC3339))
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Onboarding: config.OnboardingConfig{
+			DeviceInventoryEnabled: true,
+		},
+		Profiling: config.ProfilingConfig{
+			MACInventoryEnabled: true,
+			PassiveEnabled:      true,
+			PostureEnabled:      true,
+			RemediationEnabled:  true,
+		},
+	}
+	service := New(cfg, nil)
+
+	result, err := service.ObserveProfileSignals(DeviceProfileObservation{
+		MAC:             "02:22:33:44:55:66",
+		IP:              "192.168.50.66",
+		Username:        "guest1",
+		SessionID:       "session-profile-risk",
+		UserAgent:       "Mozilla/5.0 (Linux; Android 14)",
+		Hostname:        "WIN-LAB",
+		DHCPFingerprint: "MSFT 5.0",
+		LLDPChassisID:   "Cisco-C9300",
+		LLDPPortID:      "Gi1/0/66",
+		CDPDeviceID:     "Cisco-C9300",
+		CDPPortID:       "Gi1/0/66",
+		Source:          "sensor-api",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.Device)
+	assert.True(t, result.ObservationStored)
+	assert.GreaterOrEqual(t, result.RiskScore, highRiskProfileThreshold)
+	assert.Equal(t, int64(1), result.AutoQuarantinedSessions)
+	assert.Equal(t, "android", result.ProfilePlatform)
+	assert.Equal(t, "phone", result.ProfileDeviceType)
+	assert.Equal(t, "MSFT 5.0", result.Device.DHCPFingerprint)
+	assert.Equal(t, "Cisco-C9300", result.Device.LLDPChassisID)
+	assert.Equal(t, "Gi1/0/66", result.Device.LLDPPortID)
+	assert.Equal(t, "Cisco-C9300", result.Device.CDPDeviceID)
+	assert.Equal(t, "Gi1/0/66", result.Device.CDPPortID)
+	assert.Contains(t, result.RiskReasons, "locally_administered_mac")
+	assert.Contains(t, result.RiskReasons, "profile_platform_mismatch")
+	assert.Contains(t, result.RiskReasons, "infrastructure_neighbor_signal")
+
+	var filterID string
+	err = db.DB.QueryRow(`SELECT COALESCE(filter_id, '') FROM sessions WHERE id = ?`, "session-profile-risk").Scan(&filterID)
+	require.NoError(t, err)
+	assert.Equal(t, "quarantine-profile-risk", filterID)
+}
+
 func setupOnboardingDB(t *testing.T) {
 	t.Helper()
 	tmpDir := t.TempDir()
