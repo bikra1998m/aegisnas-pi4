@@ -113,6 +113,51 @@ func TestApplyVendorCompatibilityAttributesParsesExpandedInboundVSAs(t *testing.
 	assert.Equal(t, "laptop-42", result.VendorAccountingIdentity)
 }
 
+func TestApplyVendorCompatibilityAttributesParsesAdditionalInboundVSAs(t *testing.T) {
+	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorInteger(packet, 26928, 1, 88))
+	require.NoError(t, addVendorString(packet, 26928, 8, "aerohive-policy"))
+	require.NoError(t, addVendorString(packet, 26928, 211, "https://aerohive.example.test/redirect"))
+	require.NoError(t, addVendorInteger(packet, 14179, 1, 1001))
+	require.NoError(t, addVendorString(packet, 14179, 11, "wlc-guest"))
+	require.NoError(t, addVendorInteger(packet, 3309, 1, 15000))
+	require.NoError(t, addVendorInteger(packet, 3309, 2, 60000))
+	require.NoError(t, addVendorString(packet, 35098, 3, "pica8-acl"))
+	require.NoError(t, addVendorString(packet, 30065, 17, "profiled-iot"))
+	require.NoError(t, addVendorInteger(packet, 30065, 20, 42))
+	require.NoError(t, addVendorInteger(packet, 8744, 1, 1))
+	require.NoError(t, addVendorString(packet, 58888, 1, "aa:bb:cc:dd:ee:ff"))
+
+	result := ParseBrokerPacketWithConfig(packet, &config.Config{
+		Radius: config.RadiusConfig{
+			Vendor: vendorConfigForPacks(
+				productconfigs.VendorPackAerohive,
+				productconfigs.VendorPackAirespace,
+				productconfigs.VendorPackNomadix,
+				productconfigs.VendorPackPica8,
+				productconfigs.VendorPackArista,
+				productconfigs.VendorPackColubris,
+				productconfigs.VendorPackOpenWiFi,
+			),
+		},
+	})
+
+	assert.Equal(t, "wlc-guest", result.VendorRole)
+	assert.True(t, result.HasVendorVLAN)
+	assert.Equal(t, 88, result.VendorVLAN)
+	assert.Equal(t, 60000, result.WISPrBandwidthMaxDown)
+	assert.Equal(t, 15000, result.WISPrBandwidthMaxUp)
+	assert.Equal(t, "aerohive-policy", result.VendorPolicyTag)
+	assert.Equal(t, "https://aerohive.example.test/redirect", result.VendorPortalProfile)
+	assert.Equal(t, "1001", result.VendorDeviceGroup)
+	assert.Equal(t, "42", result.VendorTenant)
+	assert.Equal(t, "profiled-iot", result.VendorDevicePosture)
+	assert.Equal(t, "pica8-acl", result.VendorInboundACL)
+	assert.True(t, result.HasVendorQuarantine)
+	assert.True(t, result.VendorQuarantine)
+	assert.Equal(t, "aa:bb:cc:dd:ee:ff", result.VendorAccountingIdentity)
+}
+
 func TestApplyVendorCompatibilityAttributesRequiresEnabledPack(t *testing.T) {
 	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
 	require.NoError(t, addVendorString(packet, 14823, 1, "admin"))

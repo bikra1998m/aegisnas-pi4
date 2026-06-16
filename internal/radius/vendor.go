@@ -36,6 +36,7 @@ const (
 	inboundVendorRateKbps inboundVendorValueKind = "rate_kbps"
 	inboundVendorRateBps  inboundVendorValueKind = "rate_bps"
 	inboundVendorBool     inboundVendorValueKind = "bool"
+	inboundVendorIntText  inboundVendorValueKind = "integer_text"
 )
 
 type inboundVendorMapping struct {
@@ -127,6 +128,71 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackTPLink, VendorID: 11863, Type: 6, Attribute: "TPLink-Site", Semantic: productconfigs.VendorSemanticTenant, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackTPLink, VendorID: 11863, Type: 7, Attribute: "TPLink-Omada", Semantic: productconfigs.VendorSemanticDeviceGroup, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackTPLink, VendorID: 11863, Type: 8, Attribute: "TPLink-Redirect-Url", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
+
+	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 1, Attribute: "Extreme-User-Vlan", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
+	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 8, Attribute: "Extreme-AVPair", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 211, Attribute: "Extreme-IDM-Redirect-URL", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
+
+	{PackKey: productconfigs.VendorPackAirespace, VendorID: 14179, Type: 1, Attribute: "Wlan-Id", Semantic: productconfigs.VendorSemanticDeviceGroup, Kind: inboundVendorIntText},
+	{PackKey: productconfigs.VendorPackAirespace, VendorID: 14179, Type: 6, Attribute: "ACL-Name", Semantic: productconfigs.VendorSemanticACL, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackAirespace, VendorID: 14179, Type: 7, Attribute: "Data-Bandwidth-Average-Contract", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackAirespace, VendorID: 14179, Type: 11, Attribute: "Guest-Role-Name", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackAirespace, VendorID: 14179, Type: 13, Attribute: "Data-Bandwidth-Average-Contract-Upstream", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
+
+	{PackKey: productconfigs.VendorPackHP, VendorID: 11, Type: 24, Attribute: "Captive-Portal-URL", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackHP, VendorID: 11, Type: 25, Attribute: "User-Role", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackHP, VendorID: 11, Type: 27, Attribute: "CPPM-Role", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackHP, VendorID: 11, Type: 46, Attribute: "Bandwidth-Max-Ingress", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackHP, VendorID: 11, Type: 48, Attribute: "Bandwidth-Max-Egress", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackHP, VendorID: 11, Type: 61, Attribute: "Ip-Filter-Raw", Semantic: productconfigs.VendorSemanticDynamicACL, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackHP, VendorID: 11, Type: 62, Attribute: "Access-Profile", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackHP, VendorID: 11, Type: 64, Attribute: "Egress-VLANID", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
+
+	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 1, Attribute: "Bw-Up", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 2, Attribute: "Bw-Down", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 3, Attribute: "URL-Redirection", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 11, Attribute: "Net-VLAN", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
+	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 14, Attribute: "Qos-Policy", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 27, Attribute: "Bw-Class-Name", Semantic: productconfigs.VendorSemanticBandwidthProfile, Kind: inboundVendorString},
+
+	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 4, Attribute: "Bandwidth-Max-Up", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 5, Attribute: "Bandwidth-Max-Down", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 6, Attribute: "Config", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 100, Attribute: "UAM-Allowed", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
+
+	{PackKey: productconfigs.VendorPackDLink, VendorID: 171, Type: 2, Attribute: "Ingress-Bandwidth-Assignment", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackDLink, VendorID: 171, Type: 3, Attribute: "Egress-Bandwidth-Assignment", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackDLink, VendorID: 171, Type: 11, Attribute: "VLAN-ID", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
+	{PackKey: productconfigs.VendorPackDLink, VendorID: 171, Type: 12, Attribute: "ACL-Profile", Semantic: productconfigs.VendorSemanticACL, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackDLink, VendorID: 171, Type: 13, Attribute: "ACL-Rule", Semantic: productconfigs.VendorSemanticDynamicACL, Kind: inboundVendorString},
+
+	{PackKey: productconfigs.VendorPackSonicWall, VendorID: 8741, Type: 3, Attribute: "User-Group", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
+
+	{PackKey: productconfigs.VendorPackArista, VendorID: 30065, Type: 3, Attribute: "User-Role", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackArista, VendorID: 30065, Type: 10, Attribute: "Captive-Portal", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackArista, VendorID: 30065, Type: 11, Attribute: "Segment-Id", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
+	{PackKey: productconfigs.VendorPackArista, VendorID: 30065, Type: 17, Attribute: "Device-Profiling", Semantic: productconfigs.VendorSemanticDevicePosture, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackArista, VendorID: 30065, Type: 20, Attribute: "Tenant-Id", Semantic: productconfigs.VendorSemanticTenant, Kind: inboundVendorIntText},
+	{PackKey: productconfigs.VendorPackArista, VendorID: 30065, Type: 21, Attribute: "Interface-Profile", Semantic: productconfigs.VendorSemanticDeviceGroup, Kind: inboundVendorString},
+
+	{PackKey: productconfigs.VendorPackPica8, VendorID: 35098, Type: 2, Attribute: "IP-Downloadable-ACL-Rule", Semantic: productconfigs.VendorSemanticDynamicACL, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackPica8, VendorID: 35098, Type: 3, Attribute: "IP-Downloadable-ACL-Name", Semantic: productconfigs.VendorSemanticACL, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackPica8, VendorID: 35098, Type: 4, Attribute: "Redirect-URL", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
+
+	{PackKey: productconfigs.VendorPackZTE, VendorID: 3902, Type: 27, Attribute: "PPPOE-URL", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackZTE, VendorID: 3902, Type: 82, Attribute: "QoS-Profile-Down", Semantic: productconfigs.VendorSemanticBandwidthProfile, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackZTE, VendorID: 3902, Type: 83, Attribute: "Rate-Ctrl-SCR-Down", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackZTE, VendorID: 3902, Type: 89, Attribute: "Rate-Ctrl-SCR-Up", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackZTE, VendorID: 3902, Type: 94, Attribute: "QOS-Profile-Up", Semantic: productconfigs.VendorSemanticBandwidthProfile, Kind: inboundVendorString},
+
+	{PackKey: productconfigs.VendorPackNokia, VendorID: 94, Type: 2, Attribute: "User-Profile", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
+
+	{PackKey: productconfigs.VendorPackMeru, VendorID: 15983, Type: 1, Attribute: "Access-Point-Id", Semantic: productconfigs.VendorSemanticDeviceGroup, Kind: inboundVendorIntText},
+	{PackKey: productconfigs.VendorPackMeru, VendorID: 15983, Type: 2, Attribute: "Access-Point-Name", Semantic: productconfigs.VendorSemanticAccountingIdentity, Kind: inboundVendorString},
+
+	{PackKey: productconfigs.VendorPackColubris, VendorID: 8744, Type: 1, Attribute: "Intercept", Semantic: productconfigs.VendorSemanticQuarantine, Kind: inboundVendorBool},
+
+	{PackKey: productconfigs.VendorPackOpenWiFi, VendorID: 58888, Type: 1, Attribute: "AP-MAC-Address", Semantic: productconfigs.VendorSemanticAccountingIdentity, Kind: inboundVendorString},
 }
 
 // EffectiveVendorAttributes returns the built-in AegisNAS VSA dictionary plus
@@ -362,6 +428,11 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 		if ok && !result.HasVendorQuarantine {
 			result.VendorQuarantine = value
 			result.HasVendorQuarantine = true
+		}
+	case inboundVendorIntText:
+		value, ok := lookupVendorInteger(packet, mapping.VendorID, mapping.Type)
+		if ok {
+			applyInboundVendorString(result, mapping, strconv.Itoa(int(value)))
 		}
 	}
 }
