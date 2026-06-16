@@ -222,6 +222,72 @@ func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []Reply
 			appendItem("TPLink-Omada", attrs.DeviceGroup, true)
 			appendItem("TPLink-Site", attrs.Tenant, true)
 			appendURLItem(attrs, appendItem, "TPLink-Redirect-Url", attrs.PortalProfile)
+		case productconfigs.VendorPackAerohive:
+			if vlan := replyVLAN(attrs); vlan > 0 {
+				appendItem("Extreme-User-Vlan", fmt.Sprintf("%d", vlan), false)
+			}
+			appendItem("Extreme-AVPair", firstReplyValue(attrs.PolicyTag, attrs.ACLPolicyName, attrs.FilterID), true)
+			appendURLItem(attrs, appendItem, "Extreme-IDM-Redirect-URL", attrs.PortalProfile)
+		case productconfigs.VendorPackAirespace:
+			appendItem("Guest-Role-Name", replyRole(attrs), true)
+			appendItem("ACL-Name", firstReplyValue(attrs.ACLPolicyName, attrs.InboundACL, attrs.OutboundACL), true)
+			appendRateKbpsItem(attrs, appendItem, "Data-Bandwidth-Average-Contract", attrs.WISPrBandwidthMaxDown)
+			appendRateKbpsItem(attrs, appendItem, "Data-Bandwidth-Average-Contract-Upstream", attrs.WISPrBandwidthMaxUp)
+		case productconfigs.VendorPackHP:
+			appendItem("User-Role", replyRole(attrs), true)
+			appendItem("Access-Profile", firstReplyValue(attrs.PolicyTag, attrs.FilterID, attrs.ACLPolicyName), true)
+			appendURLItem(attrs, appendItem, "Captive-Portal-URL", attrs.PortalProfile)
+			appendRateKbpsItem(attrs, appendItem, "Bandwidth-Max-Egress", attrs.WISPrBandwidthMaxDown)
+			appendRateKbpsItem(attrs, appendItem, "Bandwidth-Max-Ingress", attrs.WISPrBandwidthMaxUp)
+			for _, value := range renderNASFilterRules(attrs.ACLRules) {
+				appendItem("Ip-Filter-Raw", value, true)
+			}
+		case productconfigs.VendorPackNomadix:
+			appendRateKbpsItem(attrs, appendItem, "Bw-Down", attrs.WISPrBandwidthMaxDown)
+			appendRateKbpsItem(attrs, appendItem, "Bw-Up", attrs.WISPrBandwidthMaxUp)
+			appendURLItem(attrs, appendItem, "URL-Redirection", attrs.PortalProfile)
+			if vlan := replyVLAN(attrs); vlan > 0 {
+				appendItem("Net-VLAN", fmt.Sprintf("%d", vlan), false)
+			}
+			appendItem("Qos-Policy", firstReplyValue(attrs.PolicyTag, attrs.BandwidthProfile, attrs.FilterID), true)
+		case productconfigs.VendorPackChilliSpot:
+			appendRateKbpsItem(attrs, appendItem, "Bandwidth-Max-Down", attrs.WISPrBandwidthMaxDown)
+			appendRateKbpsItem(attrs, appendItem, "Bandwidth-Max-Up", attrs.WISPrBandwidthMaxUp)
+			appendItem("Config", firstReplyValue(attrs.PolicyTag, attrs.FilterID), true)
+			appendItem("UAM-Allowed", attrs.PortalProfile, true)
+		case productconfigs.VendorPackDLink:
+			appendRateKbpsItem(attrs, appendItem, "Egress-Bandwidth-Assignment", attrs.WISPrBandwidthMaxDown)
+			appendRateKbpsItem(attrs, appendItem, "Ingress-Bandwidth-Assignment", attrs.WISPrBandwidthMaxUp)
+			if vlan := replyVLAN(attrs); vlan > 0 {
+				appendItem("VLAN-ID", fmt.Sprintf("%d", vlan), true)
+			}
+			appendItem("ACL-Profile", attrs.ACLPolicyName, true)
+			for _, value := range renderNASFilterRules(attrs.ACLRules) {
+				appendItem("ACL-Rule", value, true)
+			}
+		case productconfigs.VendorPackSonicWall:
+			appendItem("User-Group", replyRole(attrs), true)
+		case productconfigs.VendorPackArista:
+			appendItem("User-Role", replyRole(attrs), true)
+			appendURLItem(attrs, appendItem, "Captive-Portal", attrs.PortalProfile)
+			if vlan := replyVLAN(attrs); vlan > 0 {
+				appendItem("Segment-Id", fmt.Sprintf("%d", vlan), true)
+			}
+			appendItem("Interface-Profile", attrs.DeviceGroup, true)
+		case productconfigs.VendorPackPica8:
+			appendItem("IP-Downloadable-ACL-Name", attrs.ACLPolicyName, true)
+			for _, value := range renderNASFilterRules(attrs.ACLRules) {
+				appendItem("IP-Downloadable-ACL-Rule", value, true)
+			}
+			appendURLItem(attrs, appendItem, "Redirect-URL", attrs.PortalProfile)
+		case productconfigs.VendorPackZTE:
+			appendItem("QoS-Profile-Down", attrs.BandwidthProfile, true)
+			appendItem("QOS-Profile-Up", attrs.BandwidthProfile, true)
+			appendRateKbpsItem(attrs, appendItem, "Rate-Ctrl-SCR-Down", attrs.WISPrBandwidthMaxDown)
+			appendRateKbpsItem(attrs, appendItem, "Rate-Ctrl-SCR-Up", attrs.WISPrBandwidthMaxUp)
+			appendURLItem(attrs, appendItem, "PPPOE-URL", attrs.PortalProfile)
+		case productconfigs.VendorPackNokia:
+			appendItem("User-Profile", replyRole(attrs), true)
 		}
 	}
 	return items

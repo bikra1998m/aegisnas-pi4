@@ -285,7 +285,7 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/vendor-reply-preview | jq '.nas_type, .effective_packs, .attributes, .warnings'
 ```
 
-The catalog layer reads FreeRADIUS-style `VENDOR`, `BEGIN-VENDOR`, `ATTRIBUTE`, and `VALUE` directives. The semantic layer is the product contract above that catalog. The dictionary coverage matrix compares parsed dictionary attributes with the compatibility packs, then reports whether each pack is `standard-radius`, `dictionary-backed`, `partial-dictionary`, `dictionary-missing`, or `controller-api`. Vendor compatibility packs should map Cisco, Aruba, MikroTik, Ruckus, Fortinet, UniFi, Cambium, Extreme, Juniper, Huawei, H3C, Palo Alto, TP-Link, Meraki, Mist, and site-specific VSAs into these AegisNAS semantic keys instead of hard-coding controller behavior directly in policy code.
+The catalog layer reads FreeRADIUS-style `VENDOR`, `BEGIN-VENDOR`, `ATTRIBUTE`, and `VALUE` directives. The semantic layer is the product contract above that catalog. The dictionary coverage matrix compares parsed dictionary attributes with the compatibility packs, then reports whether each pack is `standard-radius`, `dictionary-backed`, `partial-dictionary`, `dictionary-missing`, or `controller-api`. Vendor compatibility packs should map Cisco, Aruba, MikroTik, Ruckus, Fortinet, UniFi, Cambium, Extreme, Juniper, Huawei, H3C, Palo Alto, TP-Link, Aerohive, Airespace, HP, Nomadix, ChilliSpot, D-Link, SonicWall, Arista, Pica8, ZTE, Nokia, Meru, Colubris, OpenWiFi, Mist, and site-specific VSAs into these AegisNAS semantic keys instead of hard-coding controller behavior directly in policy code.
 
 The current reply renderer has a conservative default pack set:
 
@@ -329,6 +329,20 @@ Available pack keys include:
 - `h3c`
 - `paloalto`
 - `tplink`
+- `aerohive`
+- `airespace`
+- `hp`
+- `nomadix`
+- `chillispot`
+- `dlink`
+- `sonicwall`
+- `arista`
+- `pica8`
+- `zte`
+- `nokia`
+- `meru`
+- `colubris`
+- `openwifi`
 - `mist`
 
 Only enable a vendor pack after the AP, switch, controller, or upstream policy system is prepared to consume those attributes. A FreeRADIUS dictionary lets AegisNAS name and render an attribute; it does not guarantee that a device will enforce that attribute.

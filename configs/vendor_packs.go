@@ -3,24 +3,38 @@ package configs
 import "strings"
 
 const (
-	VendorPackStandard = "standard"
-	VendorPackAegisNAS = "aegisnas"
-	VendorPackMikroTik = "mikrotik"
-	VendorPackWISPr    = "wispr"
-	VendorPackCisco    = "cisco"
-	VendorPackAruba    = "aruba"
-	VendorPackRuckus   = "ruckus"
-	VendorPackFortinet = "fortinet"
-	VendorPackUBNT     = "ubnt"
-	VendorPackCambium  = "cambium"
-	VendorPackMeraki   = "meraki"
-	VendorPackExtreme  = "extreme"
-	VendorPackJuniper  = "juniper"
-	VendorPackHuawei   = "huawei"
-	VendorPackH3C      = "h3c"
-	VendorPackPaloAlto = "paloalto"
-	VendorPackTPLink   = "tplink"
-	VendorPackMist     = "mist"
+	VendorPackStandard   = "standard"
+	VendorPackAegisNAS   = "aegisnas"
+	VendorPackMikroTik   = "mikrotik"
+	VendorPackWISPr      = "wispr"
+	VendorPackCisco      = "cisco"
+	VendorPackAruba      = "aruba"
+	VendorPackRuckus     = "ruckus"
+	VendorPackFortinet   = "fortinet"
+	VendorPackUBNT       = "ubnt"
+	VendorPackCambium    = "cambium"
+	VendorPackMeraki     = "meraki"
+	VendorPackExtreme    = "extreme"
+	VendorPackJuniper    = "juniper"
+	VendorPackHuawei     = "huawei"
+	VendorPackH3C        = "h3c"
+	VendorPackPaloAlto   = "paloalto"
+	VendorPackTPLink     = "tplink"
+	VendorPackAerohive   = "aerohive"
+	VendorPackAirespace  = "airespace"
+	VendorPackHP         = "hp"
+	VendorPackNomadix    = "nomadix"
+	VendorPackChilliSpot = "chillispot"
+	VendorPackDLink      = "dlink"
+	VendorPackSonicWall  = "sonicwall"
+	VendorPackArista     = "arista"
+	VendorPackPica8      = "pica8"
+	VendorPackZTE        = "zte"
+	VendorPackNokia      = "nokia"
+	VendorPackMeru       = "meru"
+	VendorPackColubris   = "colubris"
+	VendorPackOpenWiFi   = "openwifi"
+	VendorPackMist       = "mist"
 )
 
 type VendorCompatibilityPack struct {
@@ -31,6 +45,7 @@ type VendorCompatibilityPack struct {
 	DefaultEnabled   bool                         `json:"default_enabled"`
 	HardwareProfiles []string                     `json:"hardware_profiles"`
 	Attributes       []VendorPackAttributeMapping `json:"attributes"`
+	FeatureTemplates []VendorPackFeatureTemplate  `json:"feature_templates,omitempty"`
 	Notes            []string                     `json:"notes,omitempty"`
 }
 
@@ -40,6 +55,14 @@ type VendorPackAttributeMapping struct {
 	Direction          string `json:"direction"`
 	ValueType          string `json:"value_type"`
 	CompatibilityState string `json:"compatibility_state"`
+}
+
+type VendorPackFeatureTemplate struct {
+	Feature            string   `json:"feature"`
+	Direction          string   `json:"direction"`
+	ValueType          string   `json:"value_type"`
+	CompatibilityState string   `json:"compatibility_state"`
+	Attributes         []string `json:"attributes"`
 }
 
 func DefaultVendorCompatibilityPackKeys() []string {
@@ -52,7 +75,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 	enterprise := []string{"enterprise", "custom"}
 	productIdentity := AegisNASVendorIdentity()
 
-	return []VendorCompatibilityPack{
+	return withVendorPackFeatureTemplates([]VendorCompatibilityPack{
 		{
 			Key:              VendorPackStandard,
 			Label:            "Standards-Based RADIUS",
@@ -313,6 +336,214 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			Notes: []string{"TP-Link rate naming is device-oriented; validate receive/transmit direction on the target Omada controller before production use."},
 		},
 		{
+			Key:              VendorPackAerohive,
+			Label:            "Aerohive / ExtremeCloud IQ",
+			VendorName:       "Aerohive",
+			VendorID:         26928,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticVLAN, Attribute: "Extreme-User-Vlan", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Extreme-AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Extreme-IDM-Redirect-URL", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Extreme-User-Profile-Attribute", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Extreme-Client-Monitor-Problem", Direction: "accounting", ValueType: "integer", CompatibilityState: "planned"},
+			},
+			Notes: []string{"Aerohive dictionaries use Extreme-prefixed attributes under the Aerohive vendor namespace; numeric user profile IDs need a site template before role rendering."},
+		},
+		{
+			Key:              VendorPackAirespace,
+			Label:            "Cisco Airespace / WLC",
+			VendorName:       "Airespace",
+			VendorID:         14179,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "Guest-Role-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticACL, Attribute: "ACL-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Data-Bandwidth-Average-Contract", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Data-Bandwidth-Average-Contract-Upstream", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Wlan-Id", Direction: "accounting", ValueType: "integer", CompatibilityState: "planned"},
+			},
+			Notes: []string{"Airespace bandwidth contracts should be validated against the target Cisco WLC generation before production use."},
+		},
+		{
+			Key:              VendorPackHP,
+			Label:            "HP / ArubaOS-Switch",
+			VendorName:       "HP",
+			VendorID:         11,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "User-Role", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Access-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Captive-Portal-URL", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Bandwidth-Max-Ingress", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Bandwidth-Max-Egress", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Ip-Filter-Raw", Direction: "outbound_reply", ValueType: "policy", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Egress-VLANID", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+			},
+			Notes: []string{"HP/ArubaOS-Switch VLAN encoding can be deployment-specific; keep standards-based tunnel VLANs enabled until switch-side validation is complete."},
+		},
+		{
+			Key:              VendorPackNomadix,
+			Label:            "Nomadix",
+			VendorName:       "Nomadix",
+			VendorID:         3309,
+			DefaultEnabled:   false,
+			HardwareProfiles: allProfiles,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Bw-Up", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Bw-Down", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "URL-Redirection", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Net-VLAN", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Qos-Policy", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticSessionAction, Attribute: "EndofSession", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+			},
+		},
+		{
+			Key:              VendorPackChilliSpot,
+			Label:            "ChilliSpot / CoovaChilli",
+			VendorName:       "ChilliSpot",
+			VendorID:         14559,
+			DefaultEnabled:   false,
+			HardwareProfiles: allProfiles,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Bandwidth-Max-Up", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Bandwidth-Max-Down", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Config", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "UAM-Allowed", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingCounters, Attribute: "Max-Total-Octets", Direction: "accounting", ValueType: "integer", CompatibilityState: "planned"},
+			},
+		},
+		{
+			Key:              VendorPackDLink,
+			Label:            "D-Link",
+			VendorName:       "Dlink",
+			VendorID:         171,
+			DefaultEnabled:   false,
+			HardwareProfiles: allProfiles,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Ingress-Bandwidth-Assignment", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Egress-Bandwidth-Assignment", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "VLAN-ID", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticACL, Attribute: "ACL-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "ACL-Rule", Direction: "outbound_reply", ValueType: "policy", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "User-Level", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+			},
+		},
+		{
+			Key:              VendorPackSonicWall,
+			Label:            "SonicWall",
+			VendorName:       "SonicWall",
+			VendorID:         8741,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "User-Group", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "User-Privilege", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+			},
+		},
+		{
+			Key:              VendorPackArista,
+			Label:            "Arista",
+			VendorName:       "Arista",
+			VendorID:         30065,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "User-Role", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "AVPair", Direction: "outbound_reply", ValueType: "policy", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Captive-Portal", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Segment-Id", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Interface-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Device-Profiling", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+			},
+		},
+		{
+			Key:              VendorPackPica8,
+			Label:            "Pica8",
+			VendorName:       "Pica8",
+			VendorID:         35098,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticDynamicACL, Attribute: "IP-Downloadable-ACL-Rule", Direction: "outbound_reply", ValueType: "policy", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticACL, Attribute: "IP-Downloadable-ACL-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Redirect-URL", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+			},
+		},
+		{
+			Key:              VendorPackZTE,
+			Label:            "ZTE",
+			VendorName:       "ZTE",
+			VendorID:         3902,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticBandwidthProfile, Attribute: "QoS-Profile-Down", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticBandwidthProfile, Attribute: "QOS-Profile-Up", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Rate-Ctrl-SCR-Down", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Rate-Ctrl-SCR-Up", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "PPPOE-URL", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "SW-Privilege", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+			},
+			Notes: []string{"ZTE broadband attributes are useful for access gateway mode; wireless enforcement should be validated against the deployed controller or BNG profile."},
+		},
+		{
+			Key:              VendorPackNokia,
+			Label:            "Nokia",
+			VendorName:       "Nokia",
+			VendorID:         94,
+			DefaultEnabled:   false,
+			HardwareProfiles: enterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "User-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Service-Name", Direction: "outbound_reply", ValueType: "octets", CompatibilityState: "planned"},
+			},
+			Notes: []string{"Nokia service attributes can use vendor-specific binary formats; AVPair and User-Profile are the safe initial mappings."},
+		},
+		{
+			Key:              VendorPackMeru,
+			Label:            "Meru",
+			VendorName:       "Meru",
+			VendorID:         15983,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "Access-Point-Name", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Access-Point-Id", Direction: "accounting", ValueType: "integer", CompatibilityState: "planned"},
+			},
+			Notes: []string{"Meru's public dictionary is mostly AP identity context; access enforcement should stay standards-based until a richer controller template is available."},
+		},
+		{
+			Key:              VendorPackColubris,
+			Label:            "Colubris / HP MSM",
+			VendorName:       "Colubris",
+			VendorID:         8744,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticPolicyTag, Attribute: "AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticQuarantine, Attribute: "Intercept", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+			},
+		},
+		{
+			Key:              VendorPackOpenWiFi,
+			Label:            "OpenWiFi",
+			VendorName:       "OpenWiFi",
+			VendorID:         58888,
+			DefaultEnabled:   false,
+			HardwareProfiles: allProfiles,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "AP-MAC-Address", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticControllerPolicySync, Attribute: "controller.policy_sync", Direction: "controller_api", ValueType: "sync", CompatibilityState: "planned"},
+			},
+			Notes: []string{"OpenWiFi enforcement should use standards-based RADIUS replies plus controller sync when an OpenWiFi controller adapter is configured."},
+		},
+		{
 			Key:              VendorPackMist,
 			Label:            "Juniper Mist",
 			VendorName:       "Juniper",
@@ -324,7 +555,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			},
 			Notes: []string{"Mist compatibility is controller-API oriented; RADIUS reply rendering stays standards-based until site policy templates are configured."},
 		},
-	}
+	})
 }
 
 func VendorCompatibilityPackByKey(key string) (VendorCompatibilityPack, bool) {
@@ -362,6 +593,28 @@ func NormalizeVendorCompatibilityPackKey(key string) string {
 		return VendorPackPaloAlto
 	case "tp-link", "tp_link", "omada":
 		return VendorPackTPLink
+	case "extremecloud", "extremecloudiq", "extreme-cloud-iq", "hive", "hivemanager":
+		return VendorPackAerohive
+	case "cisco-wlc", "wlc":
+		return VendorPackAirespace
+	case "hewlett-packard", "arubaos-switch", "procurve":
+		return VendorPackHP
+	case "coovachilli", "coova-chilli", "chilli":
+		return VendorPackChilliSpot
+	case "d-link", "d_link":
+		return VendorPackDLink
+	case "sonic-wall":
+		return VendorPackSonicWall
+	case "arista-eos", "eos":
+		return VendorPackArista
+	case "pica":
+		return VendorPackPica8
+	case "alcatel-lucent", "alu", "nokia-sr":
+		return VendorPackNokia
+	case "hp-msm":
+		return VendorPackColubris
+	case "open-wifi", "tip-openwifi":
+		return VendorPackOpenWiFi
 	case "juniper-mist":
 		return VendorPackMist
 	default:
@@ -372,4 +625,61 @@ func NormalizeVendorCompatibilityPackKey(key string) string {
 func ValidVendorCompatibilityPackKey(key string) bool {
 	_, ok := VendorCompatibilityPackByKey(key)
 	return ok
+}
+
+func withVendorPackFeatureTemplates(packs []VendorCompatibilityPack) []VendorCompatibilityPack {
+	for i := range packs {
+		if len(packs[i].FeatureTemplates) == 0 {
+			packs[i].FeatureTemplates = buildVendorPackFeatureTemplates(packs[i].Attributes)
+		}
+	}
+	return packs
+}
+
+func buildVendorPackFeatureTemplates(mappings []VendorPackAttributeMapping) []VendorPackFeatureTemplate {
+	indexes := map[string]int{}
+	templates := make([]VendorPackFeatureTemplate, 0, len(mappings))
+	for _, mapping := range mappings {
+		feature := strings.TrimSpace(mapping.Semantic)
+		if feature == "" {
+			continue
+		}
+		key := feature + "\x00" + strings.TrimSpace(mapping.Direction)
+		idx, ok := indexes[key]
+		if !ok {
+			templates = append(templates, VendorPackFeatureTemplate{
+				Feature:            feature,
+				Direction:          strings.TrimSpace(mapping.Direction),
+				ValueType:          strings.TrimSpace(mapping.ValueType),
+				CompatibilityState: strings.TrimSpace(mapping.CompatibilityState),
+			})
+			idx = len(templates) - 1
+			indexes[key] = idx
+		}
+		templates[idx].Attributes = append(templates[idx].Attributes, strings.TrimSpace(mapping.Attribute))
+		templates[idx].CompatibilityState = mergeVendorPackTemplateState(templates[idx].CompatibilityState, mapping.CompatibilityState)
+		if templates[idx].ValueType == "" {
+			templates[idx].ValueType = strings.TrimSpace(mapping.ValueType)
+		}
+	}
+	return templates
+}
+
+func mergeVendorPackTemplateState(current, next string) string {
+	current = strings.ToLower(strings.TrimSpace(current))
+	next = strings.ToLower(strings.TrimSpace(next))
+	switch {
+	case current == "":
+		return next
+	case next == "" || current == next:
+		return current
+	case current == "partial" || next == "partial":
+		return "partial"
+	case current == "implemented" && next == "planned":
+		return "partial"
+	case current == "planned" && next == "implemented":
+		return "partial"
+	default:
+		return next
+	}
 }

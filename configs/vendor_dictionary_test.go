@@ -127,8 +127,46 @@ func TestAegisNASVendorCompatibilityPacks(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, VendorPackTPLink, tplink.Key)
 
+	aerohive, ok := VendorCompatibilityPackByKey("extreme-cloud-iq")
+	require.True(t, ok)
+	assert.Equal(t, VendorPackAerohive, aerohive.Key)
+	assert.NotEmpty(t, aerohive.FeatureTemplates)
+	assert.True(t, vendorPackTemplateContains(aerohive.FeatureTemplates, VendorSemanticVLAN, "Extreme-User-Vlan"))
+
+	airespace, ok := VendorCompatibilityPackByKey("cisco-wlc")
+	require.True(t, ok)
+	assert.Equal(t, VendorPackAirespace, airespace.Key)
+
+	hp, ok := VendorCompatibilityPackByKey("procurve")
+	require.True(t, ok)
+	assert.Equal(t, VendorPackHP, hp.Key)
+	assert.True(t, vendorPackTemplateContains(hp.FeatureTemplates, VendorSemanticDynamicACL, "Ip-Filter-Raw"))
+
+	chilli, ok := VendorCompatibilityPackByKey("coovachilli")
+	require.True(t, ok)
+	assert.Equal(t, VendorPackChilliSpot, chilli.Key)
+
+	openwifi, ok := VendorCompatibilityPackByKey("open-wifi")
+	require.True(t, ok)
+	assert.Equal(t, VendorPackOpenWiFi, openwifi.Key)
+
 	assert.True(t, ValidVendorCompatibilityPackKey("routeros"))
+	assert.True(t, ValidVendorCompatibilityPackKey("arista-eos"))
 	assert.False(t, ValidVendorCompatibilityPackKey("unknown-vendor"))
+}
+
+func vendorPackTemplateContains(templates []VendorPackFeatureTemplate, feature, attribute string) bool {
+	for _, template := range templates {
+		if template.Feature != feature {
+			continue
+		}
+		for _, value := range template.Attributes {
+			if value == attribute {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func TestValidVendorDictionaryAttributeType(t *testing.T) {

@@ -174,6 +174,72 @@ func TestRenderReplyAttributesForExpandedVendorPacks(t *testing.T) {
 	assert.Contains(t, rendered, "\tTPLink-Redirect-Url = \"https://portal.example.test/login\"\n")
 }
 
+func TestRenderReplyAttributesForAdditionalVendorPacks(t *testing.T) {
+	attrs := &ReplyAttributes{
+		Role:                  "guest",
+		BandwidthProfile:      "guest-qos",
+		FilterID:              "filter-a",
+		PolicyTag:             "policy-a",
+		VLAN:                  77,
+		WISPrBandwidthMaxDown: 60000,
+		WISPrBandwidthMaxUp:   15000,
+		PortalProfile:         "https://portal.example.test/start",
+		DeviceGroup:           "edge-switches",
+		ACLPolicyName:         "guest-acl",
+		ACLRules: []ACLRule{
+			{Action: "permit", Direction: "in", Protocol: "tcp", Source: "any", Destination: "any", DestinationPort: "443"},
+		},
+	}
+
+	rendered := RenderReplyAttributesForPacks(attrs, []string{
+		"aerohive",
+		"airespace",
+		"hp",
+		"nomadix",
+		"chillispot",
+		"dlink",
+		"sonicwall",
+		"arista",
+		"pica8",
+		"zte",
+		"nokia",
+		"colubris",
+	})
+
+	assert.Contains(t, rendered, "\tExtreme-User-Vlan = 77\n")
+	assert.Contains(t, rendered, "\tExtreme-AVPair = \"policy-a\"\n")
+	assert.Contains(t, rendered, "\tExtreme-IDM-Redirect-URL = \"https://portal.example.test/start\"\n")
+	assert.Contains(t, rendered, "\tGuest-Role-Name = \"guest\"\n")
+	assert.Contains(t, rendered, "\tACL-Name = \"guest-acl\"\n")
+	assert.Contains(t, rendered, "\tData-Bandwidth-Average-Contract = 60000\n")
+	assert.Contains(t, rendered, "\tData-Bandwidth-Average-Contract-Upstream = 15000\n")
+	assert.Contains(t, rendered, "\tUser-Role = \"guest\"\n")
+	assert.Contains(t, rendered, "\tCaptive-Portal-URL = \"https://portal.example.test/start\"\n")
+	assert.Contains(t, rendered, "\tIp-Filter-Raw = \"permit in tcp from any to any 443\"\n")
+	assert.Contains(t, rendered, "\tBw-Down = 60000\n")
+	assert.Contains(t, rendered, "\tBw-Up = 15000\n")
+	assert.Contains(t, rendered, "\tURL-Redirection = \"https://portal.example.test/start\"\n")
+	assert.Contains(t, rendered, "\tNet-VLAN = 77\n")
+	assert.Contains(t, rendered, "\tBandwidth-Max-Down = 60000\n")
+	assert.Contains(t, rendered, "\tBandwidth-Max-Up = 15000\n")
+	assert.Contains(t, rendered, "\tUAM-Allowed = \"https://portal.example.test/start\"\n")
+	assert.Contains(t, rendered, "\tVLAN-ID = \"77\"\n")
+	assert.Contains(t, rendered, "\tACL-Profile = \"guest-acl\"\n")
+	assert.Contains(t, rendered, "\tACL-Rule = \"permit in tcp from any to any 443\"\n")
+	assert.Contains(t, rendered, "\tUser-Group = \"guest\"\n")
+	assert.Contains(t, rendered, "\tSegment-Id = \"77\"\n")
+	assert.Contains(t, rendered, "\tInterface-Profile = \"edge-switches\"\n")
+	assert.Contains(t, rendered, "\tIP-Downloadable-ACL-Name = \"guest-acl\"\n")
+	assert.Contains(t, rendered, "\tIP-Downloadable-ACL-Rule = \"permit in tcp from any to any 443\"\n")
+	assert.Contains(t, rendered, "\tRedirect-URL = \"https://portal.example.test/start\"\n")
+	assert.Contains(t, rendered, "\tQoS-Profile-Down = \"guest-qos\"\n")
+	assert.Contains(t, rendered, "\tQOS-Profile-Up = \"guest-qos\"\n")
+	assert.Contains(t, rendered, "\tRate-Ctrl-SCR-Down = 60000\n")
+	assert.Contains(t, rendered, "\tRate-Ctrl-SCR-Up = 15000\n")
+	assert.Contains(t, rendered, "\tPPPOE-URL = \"https://portal.example.test/start\"\n")
+	assert.Contains(t, rendered, "\tUser-Profile = \"guest\"\n")
+}
+
 func TestNormalizeClientNASType(t *testing.T) {
 	assert.Equal(t, "aruba", NormalizeClientNASType(" Aruba "))
 	assert.Equal(t, "ubnt", NormalizeClientNASType("unifi"))
