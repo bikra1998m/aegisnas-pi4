@@ -40,6 +40,31 @@ export default function Devices() {
     window.URL.revokeObjectURL(url);
   };
 
+  const renewCertificate = async (device: any) => {
+    if (!device.certificate_id) return;
+    try {
+      setError('');
+      await api.post(`/devices/certificates/${device.certificate_id}/renew`);
+      await fetchDevices();
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not renew certificate.');
+    }
+  };
+
+  const revokeCertificate = async (device: any) => {
+    if (!device.certificate_id) return;
+    if (!window.confirm(`Revoke certificate for ${device.mac}?`)) return;
+    try {
+      setError('');
+      await api.post(`/devices/certificates/${device.certificate_id}/revoke`, {
+        reason: 'operator-requested',
+      });
+      await fetchDevices();
+    } catch (err: any) {
+      setError(err.response?.data || err.message || 'Could not revoke certificate.');
+    }
+  };
+
   return (
     <div>
       <div className="mb-6">
@@ -108,9 +133,17 @@ export default function Devices() {
                   <td className="px-5 py-4 text-sm text-gray-600">{device.last_seen || device.created_at}</td>
                   <td className="px-5 py-4 text-sm">
                     {device.certificate_id ? (
-                      <button onClick={() => downloadCertificate(device)} className="text-sky-700 hover:text-sky-900">
-                        Download certificate
-                      </button>
+                      <div className="flex flex-col items-start gap-1">
+                        <button onClick={() => downloadCertificate(device)} className="text-sky-700 hover:text-sky-900">
+                          Download certificate
+                        </button>
+                        <button onClick={() => renewCertificate(device)} className="text-emerald-700 hover:text-emerald-900">
+                          Renew certificate
+                        </button>
+                        <button onClick={() => revokeCertificate(device)} className="text-red-700 hover:text-red-900">
+                          Revoke certificate
+                        </button>
+                      </div>
                     ) : (
                       <span className="text-gray-500">No certificate</span>
                     )}

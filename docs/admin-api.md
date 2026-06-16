@@ -620,6 +620,18 @@ Operators and trusted collectors can also submit richer profile observations at:
 
 The request can include MAC, IP, username, session ID, user-agent, hostname, DHCP fingerprint, LLDP chassis or port, and CDP device or port fields. AegisNAS stores those signals on the device inventory record, updates profile risk reasons, and can quarantine high-risk active sessions when posture remediation is enabled.
 
+Device certificate lifecycle operations are available at:
+
+```text
+/api/v1/devices/certificates
+/api/v1/devices/certificates/{id}/status
+/api/v1/devices/certificates/{id}/revoke
+/api/v1/devices/certificates/{id}/renew
+/api/v1/devices/certificates/crl
+```
+
+Use these to inspect active, expired, and revoked certificates, revoke lost-device certificates, renew a device certificate, and download an internal-CA CRL. Revoke and renew require an ops or super admin session.
+
 From the admin UI:
 
 1. sign in

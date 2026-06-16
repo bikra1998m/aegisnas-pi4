@@ -318,6 +318,11 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			// Devices
 			r.Get("/devices", adminapi.HandleListDevices)
 			r.Post("/devices/profile-observations", adminapi.HandleObserveDeviceProfile)
+			r.Get("/devices/certificates", adminapi.HandleListDeviceCertificates)
+			r.Get("/devices/certificates/crl", adminapi.HandleDownloadDeviceCRL)
+			r.Get("/devices/certificates/{id}/status", adminapi.HandleGetDeviceCertificateStatus)
+			r.Post("/devices/certificates/{id}/revoke", adminapi.HandleRevokeDeviceCertificate)
+			r.Post("/devices/certificates/{id}/renew", adminapi.HandleRenewDeviceCertificate)
 			r.Get("/devices/{id}/certificate", adminapi.HandleDownloadDeviceCertificate)
 
 			// Admin principals

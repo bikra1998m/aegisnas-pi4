@@ -69,6 +69,21 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Contains(t, profileObservationPost["x-aegisnas-roles"], "ops_admin")
 	assert.NotContains(t, profileObservationPost["x-aegisnas-roles"], "guest_admin")
 
+	certificateRevokePath, ok := paths["/api/v1/devices/certificates/{id}/revoke"].(map[string]any)
+	require.True(t, ok)
+	certificateRevokePost, ok := certificateRevokePath["post"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Revoke device certificate", certificateRevokePost["summary"])
+	assert.Contains(t, certificateRevokePost["x-aegisnas-roles"], "ops_admin")
+	assert.NotContains(t, certificateRevokePost["x-aegisnas-roles"], "guest_admin")
+
+	certificateCRLPath, ok := paths["/api/v1/devices/certificates/crl"].(map[string]any)
+	require.True(t, ok)
+	certificateCRLGet, ok := certificateCRLPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Download device certificate revocation list", certificateCRLGet["summary"])
+	assert.Contains(t, certificateCRLGet["x-aegisnas-roles"], "read_only")
+
 	specPath, ok := paths["/api/v1/openapi.json"].(map[string]any)
 	require.True(t, ok)
 	specGet, ok := specPath["get"].(map[string]any)

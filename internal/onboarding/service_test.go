@@ -129,6 +129,72 @@ func TestRegisterDeviceExternalCAEnrollment(t *testing.T) {
 	assert.Equal(t, 1, count)
 }
 
+func TestCertificateLifecycleRevokesRenewsAndBuildsCRL(t *testing.T) {
+	setupOnboardingDB(t)
+	caCertPath, caKeyPath := writeTestInternalCA(t, t.TempDir())
+
+	cfg := &config.Config{
+		Database: config.DatabaseConfig{Path: dbPathFromTest(t)},
+		Onboarding: config.OnboardingConfig{
+			DeviceInventoryEnabled:       true,
+			CertificateEnrollmentEnabled: true,
+			CAMode:                       "internal",
+			CACertPath:                   caCertPath,
+			CAKeyPath:                    caKeyPath,
+		},
+	}
+	service := New(cfg, nil)
+
+	result, err := service.RegisterDevice(context.Background(), RegisterRequest{
+		MAC:          "aa:bb:cc:dd:ee:77",
+		Username:     "guest1",
+		LastIP:       "192.168.50.77",
+		FriendlyName: "Guest Laptop",
+		Ownership:    "byod",
+		Platform:     "windows",
+		Source:       "portal-onboarding",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result.Certificate)
+
+	activeStatus, err := service.CertificateStatus(result.Certificate.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "active", activeStatus.Status)
+	assert.False(t, activeStatus.Revoked)
+
+	revokedStatus, err := service.RevokeCertificate(result.Certificate.ID, "lost-device")
+	require.NoError(t, err)
+	assert.Equal(t, "revoked", revokedStatus.Status)
+	assert.True(t, revokedStatus.Revoked)
+	assert.Equal(t, "lost-device", revokedStatus.RevokeReason)
+
+	device, err := service.GetDeviceByMAC("aa:bb:cc:dd:ee:77")
+	require.NoError(t, err)
+	assert.Empty(t, device.CertificateID)
+	assert.Empty(t, device.CertificateSerial)
+
+	crlPEM, err := service.BuildCertificateRevocationList()
+	require.NoError(t, err)
+	block, _ := pemDecode(crlPEM)
+	require.NotNil(t, block)
+	assert.Equal(t, "X509 CRL", block.Type)
+	crl, err := x509.ParseRevocationList(block.Bytes)
+	require.NoError(t, err)
+	serial, ok := parseCertificateSerial(result.Certificate.Serial)
+	require.True(t, ok)
+	assert.True(t, crlContainsSerial(crl, serial))
+
+	renewed, err := service.RenewCertificate(context.Background(), result.Certificate.ID)
+	require.NoError(t, err)
+	require.NotNil(t, renewed.Certificate)
+	assert.NotEqual(t, result.Certificate.ID, renewed.Certificate.ID)
+
+	device, err = service.GetDeviceByMAC("aa:bb:cc:dd:ee:77")
+	require.NoError(t, err)
+	assert.Equal(t, renewed.Certificate.ID, device.CertificateID)
+	assert.Equal(t, renewed.Certificate.Serial, device.CertificateSerial)
+}
+
 func TestSyncFromMDMAndComplianceWebhookUseBearerTokens(t *testing.T) {
 	setupOnboardingDB(t)
 	t.Setenv("AEGIS_MDM_API_TOKEN", "mdm-secret")
@@ -462,6 +528,40 @@ func setupOnboardingDB(t *testing.T) {
 func dbPathFromTest(t *testing.T) string {
 	t.Helper()
 	return os.Getenv("AEGIS_TEST_DB_PATH")
+}
+
+func writeTestInternalCA(t *testing.T, dir string) (string, string) {
+	t.Helper()
+	caKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	caTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(2001),
+		Subject: pkix.Name{
+			CommonName:   "AegisNAS Internal Test CA",
+			Organization: []string{"AegisNAS Tests"},
+		},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+	}
+	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	require.NoError(t, err)
+	certPath := filepath.Join(dir, "ca.crt")
+	keyPath := filepath.Join(dir, "ca.key")
+	require.NoError(t, os.WriteFile(certPath, []byte(encodePEM("CERTIFICATE", caDER)), 0600))
+	require.NoError(t, os.WriteFile(keyPath, []byte(encodePEM("RSA PRIVATE KEY", x509.MarshalPKCS1PrivateKey(caKey))), 0600))
+	return certPath, keyPath
+}
+
+func crlContainsSerial(crl *x509.RevocationList, serial *big.Int) bool {
+	for _, entry := range crl.RevokedCertificateEntries {
+		if entry.SerialNumber.Cmp(serial) == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func pemDecode(data []byte) (*pem.Block, []byte) {

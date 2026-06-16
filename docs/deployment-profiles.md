@@ -323,7 +323,7 @@ The current profile-aware implementation changes behavior in these concrete ways
 - runtime shaping can be disabled cleanly
 - guest workflow, onboarding, and profiling capability states are previewed before save
 - guest self-registration and sponsor approval also run end to end through the captive portal and Guest Requests admin view once the workflow is enabled
-- onboarding now supports internal and external CA enrollment paths
+- onboarding now supports internal and external CA enrollment paths plus certificate inventory, revoke, renew, and internal-CA CRL operations
 - MDM and compliance posture inputs can use environment-backed bearer tokens
 - passive DHCP profiling feeds device inventory with hostname, DHCP client ID, MAC OUI, profile risk score, and risk reasons; trusted collectors can add user-agent, DHCP fingerprint, LLDP, and CDP observations through `/api/v1/devices/profile-observations`; high-risk active sessions can be moved into `quarantine-profile-risk` when posture remediation is enabled
 - impossible onboarding and profiling combinations are rejected during validation

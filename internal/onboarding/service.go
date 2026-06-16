@@ -74,17 +74,30 @@ type Device struct {
 }
 
 type DeviceCertificate struct {
-	ID         string `json:"id"`
-	DeviceMAC  string `json:"device_mac"`
-	Username   string `json:"username"`
-	CommonName string `json:"common_name"`
-	Serial     string `json:"serial_number"`
-	CertPath   string `json:"cert_path"`
-	KeyPath    string `json:"key_path"`
-	CAPath     string `json:"ca_path"`
-	CreatedAt  string `json:"created_at"`
-	ExpiresAt  string `json:"expires_at"`
-	RevokedAt  string `json:"revoked_at"`
+	ID           string `json:"id"`
+	DeviceMAC    string `json:"device_mac"`
+	Username     string `json:"username"`
+	CommonName   string `json:"common_name"`
+	Serial       string `json:"serial_number"`
+	CertPath     string `json:"cert_path"`
+	KeyPath      string `json:"key_path"`
+	CAPath       string `json:"ca_path"`
+	CreatedAt    string `json:"created_at"`
+	ExpiresAt    string `json:"expires_at"`
+	RevokedAt    string `json:"revoked_at"`
+	RevokeReason string `json:"revoke_reason"`
+	Status       string `json:"status"`
+}
+
+type CertificateLifecycleStatus struct {
+	Certificate     DeviceCertificate `json:"certificate"`
+	Status          string            `json:"status"`
+	Revoked         bool              `json:"revoked"`
+	Expired         bool              `json:"expired"`
+	ExpiresAt       string            `json:"expires_at,omitempty"`
+	RevokedAt       string            `json:"revoked_at,omitempty"`
+	RevokeReason    string            `json:"revoke_reason,omitempty"`
+	DaysUntilExpiry int               `json:"days_until_expiry"`
 }
 
 type RegisterRequest struct {
@@ -546,7 +559,7 @@ func (s *Service) ListDevices(limit int, tenantScopes ...string) ([]Device, erro
 
 func (s *Service) ListCertificates() ([]DeviceCertificate, error) {
 	rows, err := db.DB.Query(`SELECT id, device_mac, COALESCE(username, ''), common_name, serial_number, cert_path, key_path, ca_path,
-		COALESCE(created_at, ''), COALESCE(expires_at, ''), COALESCE(revoked_at, '')
+		COALESCE(created_at, ''), COALESCE(expires_at, ''), COALESCE(revoked_at, ''), COALESCE(revoke_reason, '')
 		FROM device_certificates ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -554,25 +567,32 @@ func (s *Service) ListCertificates() ([]DeviceCertificate, error) {
 	defer rows.Close()
 	var items []DeviceCertificate
 	for rows.Next() {
-		var item DeviceCertificate
-		if err := rows.Scan(&item.ID, &item.DeviceMAC, &item.Username, &item.CommonName, &item.Serial, &item.CertPath, &item.KeyPath, &item.CAPath, &item.CreatedAt, &item.ExpiresAt, &item.RevokedAt); err != nil {
+		item, err := scanCertificate(rows)
+		if err != nil {
 			return nil, err
 		}
-		items = append(items, item)
+		items = append(items, *item)
 	}
 	return items, rows.Err()
 }
 
-func (s *Service) LoadCertificateBundle(certificateID string) (*DeviceCertificate, string, string, string, error) {
-	var item DeviceCertificate
-	err := db.DB.QueryRow(`SELECT id, device_mac, COALESCE(username, ''), common_name, serial_number, cert_path, key_path, ca_path,
-		COALESCE(created_at, ''), COALESCE(expires_at, ''), COALESCE(revoked_at, '')
-		FROM device_certificates WHERE id = ?`, certificateID).
-		Scan(&item.ID, &item.DeviceMAC, &item.Username, &item.CommonName, &item.Serial, &item.CertPath, &item.KeyPath, &item.CAPath, &item.CreatedAt, &item.ExpiresAt, &item.RevokedAt)
+func (s *Service) GetCertificate(certificateID string) (*DeviceCertificate, error) {
+	row := db.DB.QueryRow(`SELECT id, device_mac, COALESCE(username, ''), common_name, serial_number, cert_path, key_path, ca_path,
+		COALESCE(created_at, ''), COALESCE(expires_at, ''), COALESCE(revoked_at, ''), COALESCE(revoke_reason, '')
+		FROM device_certificates WHERE id = ?`, strings.TrimSpace(certificateID))
+	cert, err := scanCertificate(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, "", "", "", errors.New("certificate not found")
+			return nil, errors.New("certificate not found")
 		}
+		return nil, err
+	}
+	return cert, nil
+}
+
+func (s *Service) LoadCertificateBundle(certificateID string) (*DeviceCertificate, string, string, string, error) {
+	item, err := s.GetCertificate(certificateID)
+	if err != nil {
 		return nil, "", "", "", err
 	}
 	certPEM, err := os.ReadFile(item.CertPath)
@@ -590,7 +610,147 @@ func (s *Service) LoadCertificateBundle(certificateID string) (*DeviceCertificat
 			return nil, "", "", "", err
 		}
 	}
-	return &item, string(certPEM), string(keyPEM), string(caPEM), nil
+	return item, string(certPEM), string(keyPEM), string(caPEM), nil
+}
+
+func (s *Service) CertificateStatus(certificateID string) (*CertificateLifecycleStatus, error) {
+	item, err := s.GetCertificate(certificateID)
+	if err != nil {
+		return nil, err
+	}
+	return certificateLifecycleStatus(*item), nil
+}
+
+func (s *Service) RevokeCertificate(certificateID, reason string) (*CertificateLifecycleStatus, error) {
+	item, err := s.GetCertificate(certificateID)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(reason) == "" {
+		reason = "operator-requested"
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	if strings.TrimSpace(item.RevokedAt) == "" {
+		if _, err := db.DB.Exec(`UPDATE device_certificates SET revoked_at = ?, revoke_reason = ? WHERE id = ?`, now, reason, item.ID); err != nil {
+			return nil, err
+		}
+		item.RevokedAt = now
+		item.RevokeReason = reason
+	}
+	if _, err := db.DB.Exec(`UPDATE device_inventory
+		SET certificate_serial = NULL, certificate_subject = NULL, certificate_valid_until = NULL, updated_at = ?
+		WHERE mac = ? AND COALESCE(certificate_serial, '') = ?`, now, item.DeviceMAC, item.Serial); err != nil {
+		return nil, err
+	}
+	return certificateLifecycleStatus(*item), nil
+}
+
+func (s *Service) RenewCertificate(ctx context.Context, certificateID string) (*RegisterResult, error) {
+	item, err := s.GetCertificate(certificateID)
+	if err != nil {
+		return nil, err
+	}
+	if s.cfg == nil || !s.cfg.Onboarding.CertificateEnrollmentEnabled {
+		return nil, errors.New("certificate enrollment is disabled")
+	}
+	device, err := s.GetDeviceByMAC(item.DeviceMAC)
+	if err != nil {
+		return nil, err
+	}
+	result, err := s.RegisterDevice(ctx, RegisterRequest{
+		MAC:          device.MAC,
+		Username:     firstNonEmptyString(item.Username, device.Username),
+		LastIP:       device.LastIP,
+		SessionID:    device.LastSessionID,
+		FriendlyName: device.FriendlyName,
+		Ownership:    device.Ownership,
+		Platform:     device.Platform,
+		UserAgent:    device.UserAgent,
+		Source:       "certificate-renewal",
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.Certificate == nil {
+		return nil, errors.New("certificate renewal did not issue a replacement certificate")
+	}
+	if _, err := s.RevokeCertificate(item.ID, "renewed"); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *Service) BuildCertificateRevocationList() ([]byte, error) {
+	if s == nil || s.cfg == nil {
+		return nil, errors.New("configuration is required")
+	}
+	if !strings.EqualFold(strings.TrimSpace(s.cfg.Onboarding.CAMode), "internal") {
+		return nil, errors.New("certificate revocation list requires internal CA mode")
+	}
+	caCertPath := strings.TrimSpace(s.cfg.Onboarding.CACertPath)
+	caKeyPath := strings.TrimSpace(s.cfg.Onboarding.CAKeyPath)
+	if caCertPath == "" || caKeyPath == "" {
+		return nil, errors.New("internal CA paths are required for certificate revocation list generation")
+	}
+	caCertPEM, err := os.ReadFile(caCertPath)
+	if err != nil {
+		return nil, err
+	}
+	caKeyPEM, err := os.ReadFile(caKeyPath)
+	if err != nil {
+		return nil, err
+	}
+	caCert, err := parseCertificatePEM(caCertPEM)
+	if err != nil {
+		return nil, err
+	}
+	caKey, err := parsePrivateKeyPEM(caKeyPEM)
+	if err != nil {
+		return nil, err
+	}
+	revoked, err := s.revokedCertificateEntries()
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+	crlDER, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
+		Number:                    big.NewInt(now.Unix()),
+		ThisUpdate:                now,
+		NextUpdate:                now.Add(24 * time.Hour),
+		RevokedCertificateEntries: revoked,
+	}, caCert, caKey)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(encodePEM("X509 CRL", crlDER)), nil
+}
+
+func (s *Service) revokedCertificateEntries() ([]x509.RevocationListEntry, error) {
+	rows, err := db.DB.Query(`SELECT serial_number, COALESCE(revoked_at, '') FROM device_certificates WHERE revoked_at IS NOT NULL AND revoked_at <> ''`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	entries := []x509.RevocationListEntry{}
+	for rows.Next() {
+		var serialText, revokedAtText string
+		if err := rows.Scan(&serialText, &revokedAtText); err != nil {
+			return nil, err
+		}
+		serial, ok := parseCertificateSerial(serialText)
+		if !ok {
+			continue
+		}
+		revokedAt, err := parseCertificateTime(revokedAtText)
+		if err != nil {
+			revokedAt = time.Now().UTC()
+		}
+		entries = append(entries, x509.RevocationListEntry{
+			SerialNumber:   serial,
+			RevocationTime: revokedAt,
+		})
+	}
+	return entries, rows.Err()
 }
 
 func (s *Service) ApplyCompliance(records []ComplianceRecord, source, provider string) (*ComplianceSyncStats, error) {
@@ -1042,6 +1202,45 @@ type scanner interface {
 	Scan(dest ...any) error
 }
 
+func scanCertificate(row scanner) (*DeviceCertificate, error) {
+	item := &DeviceCertificate{}
+	if err := row.Scan(&item.ID, &item.DeviceMAC, &item.Username, &item.CommonName, &item.Serial, &item.CertPath, &item.KeyPath, &item.CAPath, &item.CreatedAt, &item.ExpiresAt, &item.RevokedAt, &item.RevokeReason); err != nil {
+		return nil, err
+	}
+	status := certificateLifecycleStatus(*item)
+	item.Status = status.Status
+	return item, nil
+}
+
+func certificateLifecycleStatus(item DeviceCertificate) *CertificateLifecycleStatus {
+	revoked := strings.TrimSpace(item.RevokedAt) != ""
+	expired := false
+	daysUntilExpiry := 0
+	if expiresAt, err := parseCertificateTime(item.ExpiresAt); err == nil {
+		now := time.Now().UTC()
+		expired = expiresAt.Before(now)
+		daysUntilExpiry = int(time.Until(expiresAt).Hours() / 24)
+	}
+	status := "active"
+	switch {
+	case revoked:
+		status = "revoked"
+	case expired:
+		status = "expired"
+	}
+	item.Status = status
+	return &CertificateLifecycleStatus{
+		Certificate:     item,
+		Status:          status,
+		Revoked:         revoked,
+		Expired:         expired,
+		ExpiresAt:       item.ExpiresAt,
+		RevokedAt:       item.RevokedAt,
+		RevokeReason:    item.RevokeReason,
+		DaysUntilExpiry: daysUntilExpiry,
+	}
+}
+
 func scanDevice(row scanner) (*Device, error) {
 	device := &Device{}
 	var compliant sql.NullBool
@@ -1092,6 +1291,34 @@ func nullIfEmpty(value string) any {
 		return nil
 	}
 	return strings.TrimSpace(value)
+}
+
+func parseCertificateTime(value string) (time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, errors.New("certificate time is empty")
+	}
+	if parsed, err := time.Parse(time.RFC3339, value); err == nil {
+		return parsed.UTC(), nil
+	}
+	if parsed, err := time.Parse("2006-01-02 15:04:05", value); err == nil {
+		return parsed.UTC(), nil
+	}
+	return time.Time{}, fmt.Errorf("invalid certificate time %q", value)
+}
+
+func parseCertificateSerial(value string) (*big.Int, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, false
+	}
+	if serial, ok := new(big.Int).SetString(value, 16); ok {
+		return serial, true
+	}
+	if serial, ok := new(big.Int).SetString(value, 10); ok {
+		return serial, true
+	}
+	return nil, false
 }
 
 func (s *Service) lookupTenant(username string) string {

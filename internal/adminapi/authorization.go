@@ -329,6 +329,10 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return identity.Role == adminRoleOpsAdmin
 	case strings.HasPrefix(path, "/api/v1/guest-registrations"):
 		return readonly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/devices/certificates/") && method == http.MethodPost:
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/devices/certificates"):
+		return readonly || identity.Role == adminRoleOpsAdmin
 	case strings.HasPrefix(path, "/api/v1/devices/profile-observations"):
 		return method == http.MethodPost && identity.Role == adminRoleOpsAdmin
 	case strings.HasPrefix(path, "/api/v1/devices"):

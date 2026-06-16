@@ -1116,6 +1116,25 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Stored profile observation, risk score, risk reasons, and auto-quarantine count."),
 		"default": responseText("Profile observation error."),
 	}))
+	addOperation(paths, "/api/v1/devices/certificates", "get", securedOperation("List device certificates", "Devices", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Device certificate inventory with active, expired, and revoked lifecycle status."),
+	}))
+	addOperation(paths, "/api/v1/devices/certificates/crl", "get", securedOperation("Download device certificate revocation list", "Devices", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200":     responseBinary("application/pkix-crl", "Internal CA certificate revocation list."),
+		"default": responseText("CRL generation error."),
+	}))
+	addOperation(paths, "/api/v1/devices/certificates/{id}/status", "get", securedOperationWithParameters("Read device certificate lifecycle status", "Devices", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{idParameter("id", "Certificate identifier.")}, map[string]any{
+		"200":     responseJSON("Certificate lifecycle status."),
+		"default": responseText("Certificate lookup error."),
+	}))
+	addOperation(paths, "/api/v1/devices/certificates/{id}/revoke", "post", securedOperationWithParametersAndBody("Revoke device certificate", "Devices", []string{"ops_admin", "super_admin"}, []map[string]any{idParameter("id", "Certificate identifier.")}, genericJSONObjectRequest("Revocation reason."), map[string]any{
+		"200":     responseJSON("Updated certificate lifecycle status."),
+		"default": responseText("Certificate revocation error."),
+	}))
+	addOperation(paths, "/api/v1/devices/certificates/{id}/renew", "post", securedOperationWithParameters("Renew device certificate", "Devices", []string{"ops_admin", "super_admin"}, []map[string]any{idParameter("id", "Certificate identifier.")}, map[string]any{
+		"200":     responseJSON("Renewed device registration and replacement certificate bundle metadata."),
+		"default": responseText("Certificate renewal error."),
+	}))
 	addOperation(paths, "/api/v1/devices/{id}/certificate", "get", securedOperationWithParameters("Download device certificate bundle", "Devices", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{idParameter("id", "Device identifier.")}, map[string]any{
 		"200":     responseBinary("application/octet-stream", "Device certificate bundle."),
 		"default": responseText("Certificate export error."),
