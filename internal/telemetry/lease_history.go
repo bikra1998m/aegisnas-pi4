@@ -9,6 +9,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/dnsmasq"
+	"github.com/yourorg/aegisnas-pi4/internal/onboarding"
 	"go.uber.org/zap"
 )
 
@@ -20,6 +21,7 @@ const (
 var (
 	parseLeasesFileFn   = dnsmasq.ParseLeasesFile
 	storeLeaseHistoryFn = db.StoreDHCPLeaseObservations
+	profileLeasesFn     = profileLeaseObservations
 	nowFn               = time.Now
 )
 
@@ -67,9 +69,36 @@ func runLeaseHistoryCollection(cfg *config.Config, logger *zap.Logger) {
 		logger.Debug("dhcp lease history collector found no leases")
 		return
 	}
-	if err := storeLeaseHistoryFn(currentTime.UTC(), leaseObservationsFromCurrent(leases)); err != nil {
+	observations := leaseObservationsFromCurrent(leases)
+	if err := storeLeaseHistoryFn(currentTime.UTC(), observations); err != nil {
 		logger.Warn("failed to store dhcp lease history", zap.Error(err))
 		return
+	}
+	if stats, err := profileLeasesFn(cfg, observations); err != nil {
+		logger.Warn("failed to update passive device profiles from dhcp leases", zap.Error(err))
+		_ = db.UpsertRuntimeStatus("device_inventory", "degraded", "Passive DHCP profiling failed.", map[string]any{
+			"source": "dhcp-lease",
+			"error":  err.Error(),
+		})
+	} else if stats != nil && stats.TotalRecords > 0 {
+		status := "ok"
+		message := fmt.Sprintf("Passive DHCP profiling updated %d device record(s).", stats.TotalRecords)
+		if stats.HighRiskRecords > 0 {
+			status = "degraded"
+			message = fmt.Sprintf("Passive DHCP profiling found %d high-risk device record(s).", stats.HighRiskRecords)
+		}
+		_ = db.UpsertRuntimeStatus("device_inventory", status, message, map[string]any{
+			"source":                    stats.Source,
+			"total_records":             stats.TotalRecords,
+			"active_records":            stats.ActiveRecords,
+			"expired_records":           stats.ExpiredRecords,
+			"reservation_records":       stats.ReservationRecords,
+			"hostname_records":          stats.HostnameRecords,
+			"client_id_records":         stats.ClientIDRecords,
+			"locally_administered_macs": stats.LocallyAdministeredMACs,
+			"high_risk_records":         stats.HighRiskRecords,
+			"auto_quarantined_sessions": stats.AutoQuarantinedSessions,
+		})
 	}
 	logger.Debug("dhcp lease history collector stored lease observations", zap.Int("count", len(leases)))
 }
@@ -101,6 +130,29 @@ func leaseObservationsFromCurrent(leases []dnsmasq.Lease) []db.DHCPLeaseObservat
 		})
 	}
 	return out
+}
+
+func profileLeaseObservations(cfg *config.Config, observations []db.DHCPLeaseObservation) (*onboarding.LeaseProfileStats, error) {
+	if cfg == nil || len(observations) == 0 {
+		return nil, nil
+	}
+	if !cfg.Onboarding.DeviceInventoryEnabled && !cfg.Profiling.MACInventoryEnabled && !cfg.Profiling.PassiveEnabled {
+		return nil, nil
+	}
+	profiles := make([]onboarding.DHCPLeaseProfile, 0, len(observations))
+	for _, observation := range observations {
+		profiles = append(profiles, onboarding.DHCPLeaseProfile{
+			MAC:              observation.MAC,
+			IP:               observation.IP,
+			Hostname:         observation.Hostname,
+			ClientID:         observation.ClientID,
+			Reservation:      observation.Reservation,
+			Expired:          observation.Expired,
+			ExpiresAt:        observation.ExpiresAt,
+			RemainingSeconds: observation.RemainingSeconds,
+		})
+	}
+	return onboarding.New(cfg, nil).ObserveDHCPLeaseProfiles(profiles)
 }
 
 func normalizeReservationMAC(value string) string {

@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,38 +28,44 @@ import (
 )
 
 const (
-	complianceUnknown      = "unknown"
-	complianceCompliant    = "compliant"
-	complianceNonCompliant = "non_compliant"
+	complianceUnknown        = "unknown"
+	complianceCompliant      = "compliant"
+	complianceNonCompliant   = "non_compliant"
+	highRiskProfileThreshold = 50
 )
 
 type Device struct {
-	ID                    int    `json:"id"`
-	MAC                   string `json:"mac"`
-	Tenant                string `json:"tenant"`
-	Username              string `json:"username"`
-	FriendlyName          string `json:"friendly_name"`
-	Ownership             string `json:"ownership"`
-	Platform              string `json:"platform"`
-	DeviceType            string `json:"device_type"`
-	UserAgent             string `json:"user_agent"`
-	Source                string `json:"source"`
-	Managed               bool   `json:"managed"`
-	Compliant             *bool  `json:"compliant,omitempty"`
-	ComplianceStatus      string `json:"compliance_status"`
-	RemediationState      string `json:"remediation_state"`
-	MDMProvider           string `json:"mdm_provider"`
-	MDMDeviceID           string `json:"mdm_device_id"`
-	CertificateID         string `json:"certificate_id"`
-	CertificateSerial     string `json:"certificate_serial"`
-	CertificateSubject    string `json:"certificate_subject"`
-	CertificateValidUntil string `json:"certificate_valid_until"`
-	LastIP                string `json:"last_ip"`
-	LastSessionID         string `json:"last_session_id"`
-	FirstSeen             string `json:"first_seen"`
-	LastSeen              string `json:"last_seen"`
-	CreatedAt             string `json:"created_at"`
-	UpdatedAt             string `json:"updated_at"`
+	ID                    int      `json:"id"`
+	MAC                   string   `json:"mac"`
+	Tenant                string   `json:"tenant"`
+	Username              string   `json:"username"`
+	FriendlyName          string   `json:"friendly_name"`
+	Ownership             string   `json:"ownership"`
+	Platform              string   `json:"platform"`
+	DeviceType            string   `json:"device_type"`
+	UserAgent             string   `json:"user_agent"`
+	Source                string   `json:"source"`
+	Hostname              string   `json:"hostname"`
+	DHCPClientID          string   `json:"dhcp_client_id"`
+	MACOUI                string   `json:"mac_oui"`
+	RiskScore             int      `json:"risk_score"`
+	RiskReasons           []string `json:"risk_reasons"`
+	Managed               bool     `json:"managed"`
+	Compliant             *bool    `json:"compliant,omitempty"`
+	ComplianceStatus      string   `json:"compliance_status"`
+	RemediationState      string   `json:"remediation_state"`
+	MDMProvider           string   `json:"mdm_provider"`
+	MDMDeviceID           string   `json:"mdm_device_id"`
+	CertificateID         string   `json:"certificate_id"`
+	CertificateSerial     string   `json:"certificate_serial"`
+	CertificateSubject    string   `json:"certificate_subject"`
+	CertificateValidUntil string   `json:"certificate_valid_until"`
+	LastIP                string   `json:"last_ip"`
+	LastSessionID         string   `json:"last_session_id"`
+	FirstSeen             string   `json:"first_seen"`
+	LastSeen              string   `json:"last_seen"`
+	CreatedAt             string   `json:"created_at"`
+	UpdatedAt             string   `json:"updated_at"`
 }
 
 type DeviceCertificate struct {
@@ -118,6 +125,30 @@ type ComplianceSyncStats struct {
 	RemediationRecords  int    `json:"remediation_records"`
 }
 
+type DHCPLeaseProfile struct {
+	MAC              string
+	IP               string
+	Hostname         string
+	ClientID         string
+	Reservation      bool
+	Expired          bool
+	ExpiresAt        string
+	RemainingSeconds int64
+}
+
+type LeaseProfileStats struct {
+	Source                  string `json:"source"`
+	TotalRecords            int    `json:"total_records"`
+	ActiveRecords           int    `json:"active_records"`
+	ExpiredRecords          int    `json:"expired_records"`
+	ReservationRecords      int    `json:"reservation_records"`
+	HostnameRecords         int    `json:"hostname_records"`
+	ClientIDRecords         int    `json:"client_id_records"`
+	LocallyAdministeredMACs int    `json:"locally_administered_macs"`
+	HighRiskRecords         int    `json:"high_risk_records"`
+	AutoQuarantinedSessions int64  `json:"auto_quarantined_sessions"`
+}
+
 type Service struct {
 	cfg    *config.Config
 	logger *zap.Logger
@@ -162,6 +193,100 @@ func (s *Service) ObserveDevice(mac, ip, username, sessionID, userAgent, source 
 		updated_at = excluded.updated_at`,
 		mac, nullable(tenant), nullable(username), nullable(platform), nullable(deviceType), nullable(userAgent), nullable(source), complianceUnknown, nullable(ip), nullable(sessionID), now, now, now)
 	return err
+}
+
+func (s *Service) ObserveDHCPLeaseProfiles(leases []DHCPLeaseProfile) (*LeaseProfileStats, error) {
+	stats := &LeaseProfileStats{Source: "dhcp-lease"}
+	if s == nil || s.cfg == nil || len(leases) == 0 {
+		return stats, nil
+	}
+	if !s.cfg.Onboarding.DeviceInventoryEnabled && !s.cfg.Profiling.MACInventoryEnabled && !s.cfg.Profiling.PassiveEnabled {
+		return stats, nil
+	}
+	tx, err := db.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	highRiskMACs := map[string]struct{}{}
+	now := time.Now().UTC().Format(time.RFC3339)
+	for _, lease := range leases {
+		mac := normalizeMAC(lease.MAC)
+		if mac == "" {
+			continue
+		}
+		stats.TotalRecords++
+		if lease.Expired {
+			stats.ExpiredRecords++
+		} else {
+			stats.ActiveRecords++
+		}
+		if lease.Reservation {
+			stats.ReservationRecords++
+		}
+		hostname := strings.TrimSpace(lease.Hostname)
+		if hostname != "" {
+			stats.HostnameRecords++
+		}
+		clientID := strings.TrimSpace(lease.ClientID)
+		if clientID != "" {
+			stats.ClientIDRecords++
+		}
+		if locallyAdministeredMAC(mac) {
+			stats.LocallyAdministeredMACs++
+		}
+		platform, deviceType := fingerprintDHCPProfile(hostname, clientID)
+		riskScore, riskReasons := dhcpLeaseRisk(lease)
+		if riskScore >= highRiskProfileThreshold {
+			stats.HighRiskRecords++
+			highRiskMACs[mac] = struct{}{}
+		}
+		riskReasonsJSON, err := jsonMarshal(riskReasons)
+		if err != nil {
+			return nil, err
+		}
+		_, err = tx.Exec(`INSERT INTO device_inventory (
+			mac, friendly_name, platform, device_type, source, hostname, dhcp_client_id, mac_oui, risk_score, risk_reasons_json,
+			compliance_status, last_ip, first_seen, last_seen, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(mac) DO UPDATE SET
+			friendly_name = CASE WHEN COALESCE(device_inventory.friendly_name, '') = '' THEN excluded.friendly_name ELSE device_inventory.friendly_name END,
+			platform = CASE WHEN COALESCE(device_inventory.platform, '') = '' THEN excluded.platform ELSE device_inventory.platform END,
+			device_type = CASE WHEN COALESCE(device_inventory.device_type, '') = '' OR device_inventory.device_type = 'unknown' THEN excluded.device_type ELSE device_inventory.device_type END,
+			source = CASE WHEN excluded.source <> '' THEN excluded.source ELSE device_inventory.source END,
+			hostname = COALESCE(excluded.hostname, device_inventory.hostname),
+			dhcp_client_id = COALESCE(excluded.dhcp_client_id, device_inventory.dhcp_client_id),
+			mac_oui = COALESCE(excluded.mac_oui, device_inventory.mac_oui),
+			risk_score = excluded.risk_score,
+			risk_reasons_json = excluded.risk_reasons_json,
+			compliance_status = COALESCE(device_inventory.compliance_status, excluded.compliance_status),
+			last_ip = COALESCE(excluded.last_ip, device_inventory.last_ip),
+			last_seen = excluded.last_seen,
+			updated_at = excluded.updated_at`,
+			mac, nullable(hostname), nullable(platform), nullable(deviceType), "dhcp-lease",
+			nullable(hostname), nullable(clientID), nullable(macOUI(mac)), riskScore, string(riskReasonsJSON),
+			complianceUnknown, nullable(lease.IP), now, now, now)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	if s.cfg.Profiling.PostureEnabled && s.cfg.Profiling.RemediationEnabled && len(highRiskMACs) > 0 {
+		quarantined, err := s.quarantineHighRiskProfileSessions(highRiskMACs)
+		if err != nil {
+			return nil, err
+		}
+		stats.AutoQuarantinedSessions = quarantined
+		if quarantined > 0 {
+			if err := syncRuntimeEnforcement(s.cfg); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return stats, nil
 }
 
 func (s *Service) RegisterDevice(ctx context.Context, req RegisterRequest) (*RegisterResult, error) {
@@ -237,6 +362,7 @@ func (s *Service) RegisterDevice(ctx context.Context, req RegisterRequest) (*Reg
 func (s *Service) GetDeviceByMAC(mac string) (*Device, error) {
 	row := db.DB.QueryRow(`SELECT id, mac, COALESCE(tenant, ''), COALESCE(username, ''), COALESCE(friendly_name, ''), COALESCE(ownership, ''),
 		COALESCE(platform, ''), COALESCE(device_type, ''), COALESCE(user_agent, ''), COALESCE(source, ''),
+		COALESCE(hostname, ''), COALESCE(dhcp_client_id, ''), COALESCE(mac_oui, ''), COALESCE(risk_score, 0), COALESCE(risk_reasons_json, '[]'),
 		COALESCE(managed, 0), compliant, COALESCE(compliance_status, ''), COALESCE(remediation_state, ''),
 		COALESCE(mdm_provider, ''), COALESCE(mdm_device_id, ''),
 		COALESCE((SELECT id FROM device_certificates WHERE device_mac = device_inventory.mac AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1), ''),
@@ -253,6 +379,7 @@ func (s *Service) ListDevices(limit int, tenantScopes ...string) ([]Device, erro
 	}
 	query := `SELECT id, mac, COALESCE(tenant, ''), COALESCE(username, ''), COALESCE(friendly_name, ''), COALESCE(ownership, ''),
 		COALESCE(platform, ''), COALESCE(device_type, ''), COALESCE(user_agent, ''), COALESCE(source, ''),
+		COALESCE(hostname, ''), COALESCE(dhcp_client_id, ''), COALESCE(mac_oui, ''), COALESCE(risk_score, 0), COALESCE(risk_reasons_json, '[]'),
 		COALESCE(managed, 0), compliant, COALESCE(compliance_status, ''), COALESCE(remediation_state, ''),
 		COALESCE(mdm_provider, ''), COALESCE(mdm_device_id, ''),
 		COALESCE((SELECT id FROM device_certificates WHERE device_mac = device_inventory.mac AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1), ''),
@@ -787,8 +914,10 @@ type scanner interface {
 func scanDevice(row scanner) (*Device, error) {
 	device := &Device{}
 	var compliant sql.NullBool
+	riskReasonsJSON := "[]"
 	if err := row.Scan(&device.ID, &device.MAC, &device.Tenant, &device.Username, &device.FriendlyName, &device.Ownership, &device.Platform, &device.DeviceType,
-		&device.UserAgent, &device.Source, &device.Managed, &compliant, &device.ComplianceStatus, &device.RemediationState,
+		&device.UserAgent, &device.Source, &device.Hostname, &device.DHCPClientID, &device.MACOUI, &device.RiskScore, &riskReasonsJSON,
+		&device.Managed, &compliant, &device.ComplianceStatus, &device.RemediationState,
 		&device.MDMProvider, &device.MDMDeviceID, &device.CertificateID, &device.CertificateSerial, &device.CertificateSubject, &device.CertificateValidUntil,
 		&device.LastIP, &device.LastSessionID, &device.FirstSeen, &device.LastSeen, &device.CreatedAt, &device.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -799,6 +928,9 @@ func scanDevice(row scanner) (*Device, error) {
 	if compliant.Valid {
 		value := compliant.Bool
 		device.Compliant = &value
+	}
+	if err := json.Unmarshal([]byte(riskReasonsJSON), &device.RiskReasons); err != nil {
+		device.RiskReasons = nil
 	}
 	return device, nil
 }
@@ -917,8 +1049,117 @@ func fingerprintUserAgent(ua string) (platform, deviceType string) {
 	return platform, deviceType
 }
 
+func fingerprintDHCPProfile(hostname, clientID string) (platform, deviceType string) {
+	value := strings.ToLower(strings.TrimSpace(hostname + " " + clientID))
+	switch {
+	case strings.Contains(value, "iphone") || strings.Contains(value, "ipad"):
+		platform = "ios"
+	case strings.Contains(value, "android"):
+		platform = "android"
+	case strings.Contains(value, "windows") || strings.Contains(value, "win-"):
+		platform = "windows"
+	case strings.Contains(value, "macbook") || strings.Contains(value, "imac") || strings.Contains(value, "macos"):
+		platform = "macos"
+	case strings.Contains(value, "chromebook") || strings.Contains(value, "chromeos"):
+		platform = "chromeos"
+	case strings.Contains(value, "linux") || strings.Contains(value, "ubuntu") || strings.Contains(value, "raspberry"):
+		platform = "linux"
+	}
+	switch {
+	case strings.Contains(value, "iphone") || strings.Contains(value, "android"):
+		deviceType = "phone"
+	case strings.Contains(value, "ipad") || strings.Contains(value, "tablet"):
+		deviceType = "tablet"
+	case strings.Contains(value, "printer"):
+		deviceType = "printer"
+	case strings.Contains(value, "camera"):
+		deviceType = "camera"
+	case strings.Contains(value, "tv") || strings.Contains(value, "roku") || strings.Contains(value, "chromecast"):
+		deviceType = "media"
+	case strings.Contains(value, "laptop") || strings.Contains(value, "macbook") || strings.Contains(value, "windows") || strings.Contains(value, "ubuntu"):
+		deviceType = "laptop"
+	default:
+		deviceType = "unknown"
+	}
+	return platform, deviceType
+}
+
+func dhcpLeaseRisk(lease DHCPLeaseProfile) (int, []string) {
+	score := 0
+	reasons := []string{}
+	if lease.Expired {
+		score += 30
+		reasons = append(reasons, "lease_expired")
+	} else if lease.RemainingSeconds > 0 && lease.RemainingSeconds < 300 {
+		score += 10
+		reasons = append(reasons, "lease_expiring_soon")
+	}
+	if !lease.Reservation {
+		score += 5
+		reasons = append(reasons, "dynamic_lease")
+	}
+	if strings.TrimSpace(lease.Hostname) == "" {
+		score += 10
+		reasons = append(reasons, "missing_hostname")
+	}
+	if strings.TrimSpace(lease.ClientID) == "" {
+		score += 5
+		reasons = append(reasons, "missing_dhcp_client_id")
+	}
+	if locallyAdministeredMAC(lease.MAC) {
+		score += 25
+		reasons = append(reasons, "locally_administered_mac")
+	}
+	if score > 100 {
+		score = 100
+	}
+	return score, reasons
+}
+
+func macOUI(mac string) string {
+	parts := strings.Split(normalizeMAC(mac), ":")
+	if len(parts) < 3 {
+		return ""
+	}
+	return strings.Join(parts[:3], ":")
+}
+
+func locallyAdministeredMAC(mac string) bool {
+	parts := strings.Split(normalizeMAC(mac), ":")
+	if len(parts) == 0 || len(parts[0]) == 0 {
+		return false
+	}
+	firstOctet, err := strconv.ParseUint(parts[0], 16, 8)
+	if err != nil {
+		return false
+	}
+	return firstOctet&0x02 != 0
+}
+
+func (s *Service) quarantineHighRiskProfileSessions(highRiskMACs map[string]struct{}) (int64, error) {
+	if len(highRiskMACs) == 0 {
+		return 0, nil
+	}
+	var total int64
+	now := time.Now()
+	for mac := range highRiskMACs {
+		result, err := db.DB.Exec(`UPDATE sessions
+			SET filter_id = ?, last_activity = ?
+			WHERE end_time IS NULL
+				AND LOWER(COALESCE(mac, '')) = ?
+				AND COALESCE(filter_id, '') <> ?`,
+			"quarantine-profile-risk", now, normalizeMAC(mac), "quarantine-profile-risk")
+		if err != nil {
+			return total, err
+		}
+		affected, _ := result.RowsAffected()
+		total += affected
+	}
+	return total, nil
+}
+
 func (s *Service) activeDevices() ([]map[string]any, error) {
-	rows, err := db.DB.Query(`SELECT COALESCE(mac, ''), COALESCE(username, ''), COALESCE(last_ip, ''), COALESCE(platform, ''), COALESCE(device_type, '') FROM device_inventory`)
+	rows, err := db.DB.Query(`SELECT COALESCE(mac, ''), COALESCE(username, ''), COALESCE(last_ip, ''), COALESCE(platform, ''), COALESCE(device_type, ''), COALESCE(risk_score, 0), COALESCE(compliance_status, '') FROM device_inventory`)
 	if err != nil {
 		return nil, err
 	}
@@ -926,15 +1167,19 @@ func (s *Service) activeDevices() ([]map[string]any, error) {
 	var devices []map[string]any
 	for rows.Next() {
 		var mac, username, ip, platform, deviceType string
-		if err := rows.Scan(&mac, &username, &ip, &platform, &deviceType); err != nil {
+		var riskScore int
+		var complianceStatus string
+		if err := rows.Scan(&mac, &username, &ip, &platform, &deviceType, &riskScore, &complianceStatus); err != nil {
 			return nil, err
 		}
 		devices = append(devices, map[string]any{
-			"mac":         mac,
-			"username":    username,
-			"ip":          ip,
-			"platform":    platform,
-			"device_type": deviceType,
+			"mac":               mac,
+			"username":          username,
+			"ip":                ip,
+			"platform":          platform,
+			"device_type":       deviceType,
+			"risk_score":        riskScore,
+			"compliance_status": complianceStatus,
 		})
 	}
 	return devices, rows.Err()

@@ -329,6 +329,61 @@ func TestSyncFromMDMJamfAdapter(t *testing.T) {
 	assert.Equal(t, "non_compliant", device.ComplianceStatus)
 }
 
+func TestObserveDHCPLeaseProfilesRecordsRiskAndQuarantines(t *testing.T) {
+	setupOnboardingDB(t)
+
+	originalSync := syncRuntimeEnforcement
+	syncRuntimeEnforcement = func(*config.Config) error { return nil }
+	t.Cleanup(func() {
+		syncRuntimeEnforcement = originalSync
+	})
+
+	_, err := db.DB.Exec(`INSERT INTO sessions (id, username, mac, ip, auth_method, role, start_time, last_activity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		"session-risk", "guest1", "02:11:22:33:44:55", "192.168.50.55", "portal", "guest-basic", time.Now().UTC().Format(time.RFC3339), time.Now().UTC().Format(time.RFC3339))
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Onboarding: config.OnboardingConfig{
+			DeviceInventoryEnabled: true,
+		},
+		Profiling: config.ProfilingConfig{
+			MACInventoryEnabled: true,
+			PassiveEnabled:      true,
+			PostureEnabled:      true,
+			RemediationEnabled:  true,
+		},
+	}
+	service := New(cfg, nil)
+
+	stats, err := service.ObserveDHCPLeaseProfiles([]DHCPLeaseProfile{{
+		MAC:              "02:11:22:33:44:55",
+		IP:               "192.168.50.55",
+		Expired:          true,
+		RemainingSeconds: -60,
+	}})
+	require.NoError(t, err)
+	require.NotNil(t, stats)
+	assert.Equal(t, 1, stats.TotalRecords)
+	assert.Equal(t, 1, stats.ExpiredRecords)
+	assert.Equal(t, 1, stats.LocallyAdministeredMACs)
+	assert.Equal(t, 1, stats.HighRiskRecords)
+	assert.Equal(t, int64(1), stats.AutoQuarantinedSessions)
+
+	device, err := service.GetDeviceByMAC("02:11:22:33:44:55")
+	require.NoError(t, err)
+	assert.Equal(t, "02:11:22", device.MACOUI)
+	assert.Equal(t, "dhcp-lease", device.Source)
+	assert.Equal(t, "192.168.50.55", device.LastIP)
+	assert.GreaterOrEqual(t, device.RiskScore, highRiskProfileThreshold)
+	assert.Contains(t, device.RiskReasons, "locally_administered_mac")
+	assert.Contains(t, device.RiskReasons, "lease_expired")
+
+	var filterID string
+	err = db.DB.QueryRow(`SELECT COALESCE(filter_id, '') FROM sessions WHERE id = ?`, "session-risk").Scan(&filterID)
+	require.NoError(t, err)
+	assert.Equal(t, "quarantine-profile-risk", filterID)
+}
+
 func setupOnboardingDB(t *testing.T) {
 	t.Helper()
 	tmpDir := t.TempDir()

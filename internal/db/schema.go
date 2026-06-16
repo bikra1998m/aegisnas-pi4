@@ -74,6 +74,9 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureRadiusClientCompatibilityColumns(handle); err != nil {
 		return fmt.Errorf("repair radius client schema: %w", err)
 	}
+	if err := ensureDeviceInventoryProfilingColumns(handle); err != nil {
+		return fmt.Errorf("repair device inventory schema: %w", err)
+	}
 
 	return nil
 }
@@ -90,6 +93,36 @@ func ensureRadiusClientCompatibilityColumns(handle *sql.DB) error {
 	}
 	_, err = handle.Exec(`ALTER TABLE radius_clients ADD COLUMN nas_type TEXT DEFAULT 'other'`)
 	return err
+}
+
+func ensureDeviceInventoryProfilingColumns(handle *sql.DB) error {
+	exists, err := tableExists(handle, "device_inventory")
+	if err != nil || !exists {
+		return err
+	}
+	columns := []struct {
+		name string
+		sql  string
+	}{
+		{"hostname", `ALTER TABLE device_inventory ADD COLUMN hostname TEXT`},
+		{"dhcp_client_id", `ALTER TABLE device_inventory ADD COLUMN dhcp_client_id TEXT`},
+		{"mac_oui", `ALTER TABLE device_inventory ADD COLUMN mac_oui TEXT`},
+		{"risk_score", `ALTER TABLE device_inventory ADD COLUMN risk_score INTEGER DEFAULT 0`},
+		{"risk_reasons_json", `ALTER TABLE device_inventory ADD COLUMN risk_reasons_json TEXT`},
+	}
+	for _, column := range columns {
+		hasColumn, err := tableHasColumn(handle, "device_inventory", column.name)
+		if err != nil {
+			return err
+		}
+		if hasColumn {
+			continue
+		}
+		if _, err := handle.Exec(column.sql); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func tableExists(handle *sql.DB, table string) (bool, error) {

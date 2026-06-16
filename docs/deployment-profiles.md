@@ -325,6 +325,7 @@ The current profile-aware implementation changes behavior in these concrete ways
 - guest self-registration and sponsor approval also run end to end through the captive portal and Guest Requests admin view once the workflow is enabled
 - onboarding now supports internal and external CA enrollment paths
 - MDM and compliance posture inputs can use environment-backed bearer tokens
+- passive DHCP profiling feeds device inventory with hostname, DHCP client ID, MAC OUI, profile risk score, and risk reasons; high-risk active sessions can be moved into `quarantine-profile-risk` when posture remediation is enabled
 - impossible onboarding and profiling combinations are rejected during validation
 - integration and governance capability states are previewed before save
 - impossible controller, SSO, SIEM, delegated-admin, and multi-tenant combinations are rejected during validation

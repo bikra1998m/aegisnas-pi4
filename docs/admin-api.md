@@ -597,6 +597,8 @@ Use this history when you want:
 - recurring DHCP lease evidence for client troubleshooting
 - exportable network change artifacts without relying on a manual export step
 
+When passive profiling is enabled, DHCP observations also update device inventory with hostname, DHCP client ID, MAC OUI, profile risk score, and risk reasons. If posture remediation is enabled, high-risk active sessions can be marked with `quarantine-profile-risk`.
+
 From the admin UI:
 
 1. sign in

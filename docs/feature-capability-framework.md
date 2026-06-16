@@ -492,7 +492,8 @@ Phase 3 validation rules:
 Current runtime implementation after Phase 3:
 
 - the portal now exposes a live onboarding flow with device registration and certificate download
-- device inventory is populated from portal observation and explicit onboarding registration
+- device inventory is populated from portal observation, explicit onboarding registration, and passive DHCP lease profiling
+- passive DHCP profiling records hostname, DHCP client ID, MAC OUI, profile risk score, and risk reasons; remediation can quarantine high-risk active sessions with `quarantine-profile-risk`
 - internal CA mode issues client certificates and stores bundle metadata in the appliance database
 - the admin UI now exposes a `Devices` page for inventory and certificate retrieval
 - telemetry runs live MDM or compliance-webhook posture synchronization when those integrations are enabled

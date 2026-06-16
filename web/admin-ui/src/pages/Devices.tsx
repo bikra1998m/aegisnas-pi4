@@ -51,16 +51,16 @@ export default function Devices() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              {['Device', 'User', 'Platform', 'Compliance', 'Managed', 'Last Seen', 'Actions'].map((label) => (
+              {['Device', 'User', 'Platform', 'Profile', 'Risk', 'Compliance', 'Managed', 'Last Seen', 'Actions'].map((label) => (
                 <th key={label} className="px-5 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {loading ? (
-              <tr><td className="px-5 py-6 text-gray-500" colSpan={7}>Loading...</td></tr>
+              <tr><td className="px-5 py-6 text-gray-500" colSpan={9}>Loading...</td></tr>
             ) : devices.length === 0 ? (
-              <tr><td className="px-5 py-6 text-gray-500" colSpan={7}>No devices found.</td></tr>
+              <tr><td className="px-5 py-6 text-gray-500" colSpan={9}>No devices found.</td></tr>
             ) : (
               devices.map((device) => (
                 <tr key={device.id}>
@@ -75,6 +75,20 @@ export default function Devices() {
                   <td className="px-5 py-4 text-sm">
                     <div>{device.platform || 'Unknown'}</div>
                     <div className="text-xs text-gray-500">{device.device_type || 'Unknown type'}</div>
+                  </td>
+                  <td className="px-5 py-4 text-sm">
+                    <div>{device.hostname || 'No hostname'}</div>
+                    <div className="text-xs text-gray-500">
+                      {device.dhcp_client_id || device.mac_oui || 'No DHCP fingerprint'}
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-sm">
+                    <div className="font-medium text-gray-900">{device.risk_score ?? 0}</div>
+                    <div className="text-xs text-gray-500">
+                      {Array.isArray(device.risk_reasons) && device.risk_reasons.length > 0
+                        ? device.risk_reasons.join(', ')
+                        : 'No risk reasons'}
+                    </div>
                   </td>
                   <td className="px-5 py-4 text-sm">
                     <div className="font-medium text-gray-900">{device.compliance_status || 'unknown'}</div>
