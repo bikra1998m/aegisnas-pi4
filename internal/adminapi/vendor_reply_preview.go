@@ -37,14 +37,16 @@ type vendorReplyPreviewRequest struct {
 }
 
 type vendorReplyPreviewResponse struct {
-	NASType         string                              `json:"nas_type"`
-	KnownPack       bool                                `json:"known_pack"`
-	UsesGlobalPacks bool                                `json:"uses_global_packs"`
-	EffectivePacks  []string                            `json:"effective_packs"`
-	Attributes      []vendorReplyPreviewAttributeItem   `json:"attributes"`
-	FreeRADIUS      string                              `json:"freeradius"`
-	Warnings        []string                            `json:"warnings,omitempty"`
-	Semantics       []vendorReplyPreviewSemanticMapping `json:"semantics,omitempty"`
+	NASType            string                              `json:"nas_type"`
+	KnownPack          bool                                `json:"known_pack"`
+	UsesGlobalPacks    bool                                `json:"uses_global_packs"`
+	EffectivePacks     []string                            `json:"effective_packs"`
+	Attributes         []vendorReplyPreviewAttributeItem   `json:"attributes"`
+	FreeRADIUS         string                              `json:"freeradius"`
+	NormalizedACLRules []radius.ACLRule                    `json:"normalized_acl_rules,omitempty"`
+	ACLExports         []radius.ACLVendorExport            `json:"acl_exports,omitempty"`
+	Warnings           []string                            `json:"warnings,omitempty"`
+	Semantics          []vendorReplyPreviewSemanticMapping `json:"semantics,omitempty"`
 }
 
 type vendorReplyPreviewAttributeItem struct {
@@ -83,17 +85,20 @@ func HandlePreviewVendorReply(w http.ResponseWriter, r *http.Request) {
 	effectivePacks := radius.ReplyCompatibilityPacksForNASType(vendor, nasType)
 	attrs := vendorReplyPreviewAttributes(req)
 	items := radius.BuildReplyAttributeItems(attrs, effectivePacks)
+	normalizedACLRules, _ := radius.NormalizeACLRules(attrs.ACLRules)
 
 	warnings := vendorReplyPreviewWarnings(req, nasType, effectivePacks)
 	writeJSON(w, http.StatusOK, vendorReplyPreviewResponse{
-		NASType:         nasType,
-		KnownPack:       productconfigs.ValidVendorCompatibilityPackKey(nasType),
-		UsesGlobalPacks: nasType == "other" || !productconfigs.ValidVendorCompatibilityPackKey(nasType),
-		EffectivePacks:  effectivePacks,
-		Attributes:      vendorReplyPreviewItems(items),
-		FreeRADIUS:      radius.RenderReplyAttributesForPacks(attrs, effectivePacks),
-		Warnings:        warnings,
-		Semantics:       vendorReplyPreviewSemantics(effectivePacks),
+		NASType:            nasType,
+		KnownPack:          productconfigs.ValidVendorCompatibilityPackKey(nasType),
+		UsesGlobalPacks:    nasType == "other" || !productconfigs.ValidVendorCompatibilityPackKey(nasType),
+		EffectivePacks:     effectivePacks,
+		Attributes:         vendorReplyPreviewItems(items),
+		FreeRADIUS:         radius.RenderReplyAttributesForPacks(attrs, effectivePacks),
+		NormalizedACLRules: normalizedACLRules,
+		ACLExports:         radius.BuildACLVendorExports(attrs.ACLPolicyName, attrs.InboundACL, attrs.OutboundACL, attrs.ACLRules, effectivePacks),
+		Warnings:           warnings,
+		Semantics:          vendorReplyPreviewSemantics(effectivePacks),
 	})
 }
 

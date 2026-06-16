@@ -104,6 +104,26 @@ type VendorReplyPreviewAttribute = {
   quoted: boolean;
 };
 
+type ACLVendorExport = {
+  pack_key: string;
+  pack_label: string;
+  export_mode: string;
+  attributes: VendorReplyPreviewAttribute[];
+  freeradius: string;
+  warnings?: string[];
+};
+
+type NormalizedACLRule = {
+  action: string;
+  direction: string;
+  protocol: string;
+  source: string;
+  source_port?: string;
+  destination: string;
+  destination_port?: string;
+  log?: boolean;
+};
+
 type VendorReplyPreviewPayload = {
   nas_type: string;
   known_pack: boolean;
@@ -111,6 +131,8 @@ type VendorReplyPreviewPayload = {
   effective_packs: string[];
   attributes: VendorReplyPreviewAttribute[];
   freeradius: string;
+  normalized_acl_rules?: NormalizedACLRule[];
+  acl_exports?: ACLVendorExport[];
   warnings?: string[];
 };
 
@@ -238,6 +260,19 @@ function coverageLabel(state: string) {
       return 'Controller API';
     default:
       return 'Metadata only';
+  }
+}
+
+function aclExportModeLabel(mode: string) {
+  switch (mode) {
+    case 'rules':
+      return 'Line rules';
+    case 'profile':
+      return 'Profile hint';
+    case 'mixed':
+      return 'Profile + rules';
+    default:
+      return mode || 'ACL intent';
   }
 }
 
@@ -551,7 +586,7 @@ export default function VendorCompatibility() {
               <div className="mt-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900">ACL Rules</h4>
+                    <h4 className="text-sm font-semibold text-gray-900">Vendor-Neutral ACL Intent</h4>
                     <p className="mt-1 text-sm text-gray-600">Use single-token addresses such as any, 10.0.0.0/24, or 2001:db8::/64.</p>
                   </div>
                   <button
@@ -719,6 +754,58 @@ export default function VendorCompatibility() {
                     <h4 className="text-sm font-semibold text-gray-900">FreeRADIUS Reply</h4>
                   </div>
                   <pre className="max-h-80 overflow-auto whitespace-pre-wrap px-4 py-3 text-sm text-gray-800">{preview.freeradius || 'No FreeRADIUS reply text generated.'}</pre>
+                </div>
+
+                <div className="rounded-md border border-gray-200 xl:col-span-2">
+                  <div className="border-b border-gray-200 px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h4 className="text-sm font-semibold text-gray-900">ACL Vendor Export</h4>
+                      <StatusBadge tone="gray">{(preview.normalized_acl_rules || []).length} normalized rules</StatusBadge>
+                    </div>
+                  </div>
+                  {(preview.acl_exports || []).length === 0 ? (
+                    <div className="px-4 py-6 text-sm text-gray-500">No ACL export attributes produced.</div>
+                  ) : (
+                    <div className="divide-y divide-gray-200">
+                      {(preview.acl_exports || []).map((aclExport) => (
+                        <div key={aclExport.pack_key} className="px-4 py-4">
+                          <div className="mb-3 flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-900">{aclExport.pack_label || aclExport.pack_key}</span>
+                            <StatusBadge tone={aclExport.export_mode === 'rules' ? 'green' : aclExport.export_mode === 'mixed' ? 'amber' : 'gray'}>
+                              {aclExportModeLabel(aclExport.export_mode)}
+                            </StatusBadge>
+                          </div>
+                          {aclExport.warnings && aclExport.warnings.length > 0 ? (
+                            <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                              {aclExport.warnings.map((warning) => <div key={warning}>{warning}</div>)}
+                            </div>
+                          ) : null}
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  {['Attribute', 'Value'].map((label) => (
+                                    <th key={label} className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200">
+                                {(aclExport.attributes || []).map((attribute) => (
+                                  <tr key={`${aclExport.pack_key}-${attribute.name}-${attribute.value}`}>
+                                    <td className="px-3 py-2 text-sm font-medium text-gray-900">{attribute.name}</td>
+                                    <td className="break-words px-3 py-2 text-sm text-gray-700">{attribute.value}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          {aclExport.freeradius ? (
+                            <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-gray-950 px-3 py-2 text-sm text-gray-100">{aclExport.freeradius}</pre>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : null}

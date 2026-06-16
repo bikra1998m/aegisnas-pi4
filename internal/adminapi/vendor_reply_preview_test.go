@@ -39,6 +39,20 @@ func TestHandlePreviewVendorReplyForKnownNASProfile(t *testing.T) {
 			Name  string `json:"name"`
 			Value string `json:"value"`
 		} `json:"attributes"`
+		NormalizedACLRules []struct {
+			Action          string `json:"action"`
+			Direction       string `json:"direction"`
+			Protocol        string `json:"protocol"`
+			DestinationPort string `json:"destination_port"`
+		} `json:"normalized_acl_rules"`
+		ACLExports []struct {
+			PackKey    string `json:"pack_key"`
+			ExportMode string `json:"export_mode"`
+			Attributes []struct {
+				Name  string `json:"name"`
+				Value string `json:"value"`
+			} `json:"attributes"`
+		} `json:"acl_exports"`
 		FreeRADIUS string `json:"freeradius"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
@@ -55,6 +69,12 @@ func TestHandlePreviewVendorReplyForKnownNASProfile(t *testing.T) {
 	assertPreviewAttribute(t, payload.Attributes, "Aruba-User-Vlan", "20")
 	assertPreviewAttribute(t, payload.Attributes, "AegisNAS-Role", "guest")
 	assertPreviewAttribute(t, payload.Attributes, "Aruba-NAS-Filter-Rule", "permit in tcp from any to any 443")
+	require.Len(t, payload.NormalizedACLRules, 1)
+	assert.Equal(t, "permit", payload.NormalizedACLRules[0].Action)
+	assert.Equal(t, "443", payload.NormalizedACLRules[0].DestinationPort)
+	assertACLExportAttribute(t, payload.ACLExports, "standard", "NAS-Filter-Rule", "permit in tcp from any to any 443")
+	assertACLExportAttribute(t, payload.ACLExports, "aruba", "Aruba-NAS-Filter-Rule", "permit in tcp from any to any 443")
+	assertACLExportAttribute(t, payload.ACLExports, "aegisnas", "AegisNAS-ACL-Rule", "permit in tcp from any to any 443")
 }
 
 func TestHandlePreviewVendorReplyForCustomNASProfileUsesGlobalPacks(t *testing.T) {
@@ -122,4 +142,27 @@ func assertPreviewAttribute(t *testing.T, attrs []struct {
 		}
 	}
 	t.Fatalf("attribute %s=%s not found in %#v", name, value, attrs)
+}
+
+func assertACLExportAttribute(t *testing.T, exports []struct {
+	PackKey    string `json:"pack_key"`
+	ExportMode string `json:"export_mode"`
+	Attributes []struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	} `json:"attributes"`
+}, packKey, name, value string) {
+	t.Helper()
+	for _, export := range exports {
+		if export.PackKey != packKey {
+			continue
+		}
+		for _, attr := range export.Attributes {
+			if attr.Name == name && attr.Value == value {
+				return
+			}
+		}
+		t.Fatalf("attribute %s=%s not found in ACL export %#v", name, value, export)
+	}
+	t.Fatalf("ACL export %s not found in %#v", packKey, exports)
 }

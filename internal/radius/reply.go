@@ -99,6 +99,10 @@ func RenderReplyAttributes(attrs *ReplyAttributes) string {
 
 func RenderReplyAttributesForPacks(attrs *ReplyAttributes, packKeys []string) string {
 	items := BuildReplyAttributeItems(attrs, packKeys)
+	return renderReplyAttributeItems(items)
+}
+
+func renderReplyAttributeItems(items []ReplyAttributeItem) string {
 	var sb strings.Builder
 	for _, item := range items {
 		if item.Quoted {

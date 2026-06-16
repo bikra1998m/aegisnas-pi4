@@ -285,6 +285,8 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/vendor-reply-preview | jq '.nas_type, .effective_packs, .attributes, .warnings'
 ```
 
+Dynamic ACL intent uses the same preview endpoint. Submit `acl_policy_name`, optional named inbound/outbound ACLs, and `acl_rules`; the response includes `normalized_acl_rules` and `acl_exports` for each effective pack. Rule-based exports include standard `NAS-Filter-Rule`, Cisco `Cisco-AVPair` downloadable ACL lines, Aruba filter rules, AegisNAS product ACL rules, and vendors such as D-Link/Pica8/HP where line rules are represented directly. Profile-style exports such as MikroTik address lists, Fortinet access profiles, and Ruckus user groups return profile hints with warnings when line rules still need controller-side policy.
+
 The catalog layer reads FreeRADIUS-style `VENDOR`, `BEGIN-VENDOR`, `ATTRIBUTE`, and `VALUE` directives. The semantic layer is the product contract above that catalog. The dictionary coverage matrix compares parsed dictionary attributes with the compatibility packs, then reports whether each pack is `standard-radius`, `dictionary-backed`, `partial-dictionary`, `dictionary-missing`, or `controller-api`. Vendor compatibility packs should map Cisco, Aruba, MikroTik, Ruckus, Fortinet, UniFi, Cambium, Extreme, Juniper, Huawei, H3C, Palo Alto, TP-Link, Aerohive, Airespace, HP, Nomadix, ChilliSpot, D-Link, SonicWall, Arista, Pica8, ZTE, Nokia, Meru, Colubris, OpenWiFi, Mist, and site-specific VSAs into these AegisNAS semantic keys instead of hard-coding controller behavior directly in policy code.
 
 The current reply renderer has a conservative default pack set:

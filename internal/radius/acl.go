@@ -3,6 +3,8 @@ package radius
 import (
 	"fmt"
 	"strings"
+
+	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 )
 
 type ACLRule struct {
@@ -17,13 +19,135 @@ type ACLRule struct {
 	Log             bool   `json:"log,omitempty"`
 }
 
+type ACLVendorExport struct {
+	PackKey    string               `json:"pack_key"`
+	PackLabel  string               `json:"pack_label"`
+	ExportMode string               `json:"export_mode"`
+	Attributes []ReplyAttributeItem `json:"attributes"`
+	FreeRADIUS string               `json:"freeradius"`
+	Warnings   []string             `json:"warnings,omitempty"`
+}
+
 func ValidateACLRules(rules []ACLRule) error {
+	_, err := NormalizeACLRules(rules)
+	return err
+}
+
+func NormalizeACLRules(rules []ACLRule) ([]ACLRule, error) {
+	out := make([]ACLRule, 0, len(rules))
 	for idx, rule := range rules {
-		if _, ok := normalizeACLRule(rule); !ok {
-			return fmt.Errorf("acl_rules[%d] is invalid", idx)
+		normalized, ok := normalizeACLRule(rule)
+		if !ok {
+			return nil, fmt.Errorf("acl_rules[%d] is invalid", idx)
+		}
+		out = append(out, normalized)
+	}
+	return out, nil
+}
+
+func BuildACLVendorExports(policyName, inboundACL, outboundACL string, rules []ACLRule, packKeys []string) []ACLVendorExport {
+	normalizedRules, err := NormalizeACLRules(rules)
+	if err != nil {
+		return nil
+	}
+	policyName = strings.TrimSpace(policyName)
+	inboundACL = strings.TrimSpace(inboundACL)
+	outboundACL = strings.TrimSpace(outboundACL)
+
+	var out []ACLVendorExport
+	for _, packKey := range normalizeReplyPackKeys(packKeys) {
+		export := buildACLVendorExport(policyName, inboundACL, outboundACL, normalizedRules, packKey)
+		if len(export.Attributes) == 0 && len(export.Warnings) == 0 {
+			continue
+		}
+		out = append(out, export)
+	}
+	return out
+}
+
+func buildACLVendorExport(policyName, inboundACL, outboundACL string, rules []ACLRule, packKey string) ACLVendorExport {
+	pack, _ := productconfigs.VendorCompatibilityPackByKey(packKey)
+	export := ACLVendorExport{
+		PackKey:    packKey,
+		PackLabel:  pack.Label,
+		ExportMode: "rules",
+	}
+	if export.PackLabel == "" {
+		export.PackLabel = packKey
+	}
+	appendItem := func(name, value string, quoted bool) {
+		name = strings.TrimSpace(name)
+		value = strings.TrimSpace(value)
+		if name == "" || value == "" {
+			return
+		}
+		export.Attributes = append(export.Attributes, ReplyAttributeItem{Name: name, Value: value, Quoted: quoted})
+	}
+	appendRuleItems := func(attribute string, values []string) {
+		for _, value := range values {
+			appendItem(attribute, value, true)
 		}
 	}
-	return nil
+	profileName := firstReplyValue(policyName, inboundACL, outboundACL)
+
+	switch packKey {
+	case productconfigs.VendorPackStandard:
+		appendRuleItems("NAS-Filter-Rule", renderNASFilterRules(rules))
+	case productconfigs.VendorPackAegisNAS:
+		appendItem("AegisNAS-ACL-Name", policyName, true)
+		appendRuleItems("AegisNAS-ACL-Rule", renderNASFilterRules(rules))
+	case productconfigs.VendorPackCisco:
+		appendItem("Cisco-In-ACL", inboundACL, true)
+		appendItem("Cisco-Out-ACL", outboundACL, true)
+		appendRuleItems("Cisco-AVPair", renderCiscoAVPairACLRules(rules))
+	case productconfigs.VendorPackAruba:
+		appendRuleItems("Aruba-NAS-Filter-Rule", renderNASFilterRules(rules))
+	case productconfigs.VendorPackMikroTik:
+		export.ExportMode = "profile"
+		appendItem("Mikrotik-Address-List", profileName, true)
+		if len(rules) > 0 {
+			export.Warnings = append(export.Warnings, "MikroTik export uses an address-list/profile hint; line rules require RouterOS-side policy.")
+		}
+	case productconfigs.VendorPackFortinet:
+		export.ExportMode = "profile"
+		appendItem("Fortinet-Access-Profile", profileName, true)
+		if len(rules) > 0 {
+			export.Warnings = append(export.Warnings, "Fortinet export uses an access profile name; line rules require FortiGate/FortiWLC policy.")
+		}
+	case productconfigs.VendorPackRuckus:
+		export.ExportMode = "profile"
+		appendItem("Ruckus-User-Groups", profileName, true)
+		if len(rules) > 0 {
+			export.Warnings = append(export.Warnings, "Ruckus export uses a user group/profile hint; line rules require controller-side policy.")
+		}
+	case productconfigs.VendorPackJuniper:
+		export.ExportMode = "profile"
+		appendItem("Juniper-Firewall-filter-name", firstReplyValue(inboundACL, outboundACL, policyName), true)
+		appendItem("Juniper-Switching-Filter", firstReplyValue(inboundACL, outboundACL, policyName), true)
+	case productconfigs.VendorPackHuawei:
+		export.ExportMode = "profile"
+		appendItem("Huawei-Data-Filter", profileName, true)
+	case productconfigs.VendorPackH3C:
+		export.ExportMode = "profile"
+		appendItem("H3C-Ita-Policy", profileName, true)
+	case productconfigs.VendorPackDLink:
+		export.ExportMode = "mixed"
+		appendItem("ACL-Profile", policyName, true)
+		appendRuleItems("ACL-Rule", renderNASFilterRules(rules))
+	case productconfigs.VendorPackPica8:
+		export.ExportMode = "mixed"
+		appendItem("IP-Downloadable-ACL-Name", policyName, true)
+		appendRuleItems("IP-Downloadable-ACL-Rule", renderNASFilterRules(rules))
+	case productconfigs.VendorPackHP:
+		appendRuleItems("Ip-Filter-Raw", renderNASFilterRules(rules))
+	case productconfigs.VendorPackColubris:
+		export.ExportMode = "profile"
+		appendItem("AVPair", profileName, true)
+		export.Warnings = append(export.Warnings, "Colubris AVPair is a generic vendor-scoped attribute; validate the profile format before enabling.")
+	}
+
+	export.FreeRADIUS = renderReplyAttributeItems(export.Attributes)
+	return export
 }
 
 func renderNASFilterRules(rules []ACLRule) []string {
