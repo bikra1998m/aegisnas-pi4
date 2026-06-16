@@ -115,7 +115,24 @@ type VendorReplyPreviewForm = {
   upload_kbps: string;
   session_timeout: string;
   filter_id: string;
+  acl_policy_name: string;
+  inbound_acl: string;
+  outbound_acl: string;
+  acl_rules: ACLRuleForm[];
 };
+
+type ACLRuleForm = {
+  action: string;
+  direction: string;
+  protocol: string;
+  source: string;
+  source_port: string;
+  destination: string;
+  destination_port: string;
+  log: boolean;
+};
+
+type VendorReplyPreviewTextField = Exclude<keyof VendorReplyPreviewForm, 'acl_rules'>;
 
 const defaultPreviewForm: VendorReplyPreviewForm = {
   nas_type: 'aruba',
@@ -125,6 +142,21 @@ const defaultPreviewForm: VendorReplyPreviewForm = {
   upload_kbps: '20000',
   session_timeout: '3600',
   filter_id: '',
+  acl_policy_name: 'guest-internet',
+  inbound_acl: '',
+  outbound_acl: '',
+  acl_rules: [
+    {
+      action: 'permit',
+      direction: 'in',
+      protocol: 'tcp',
+      source: 'any',
+      source_port: '',
+      destination: 'any',
+      destination_port: '443',
+      log: false,
+    },
+  ],
 };
 
 function StatCard({ label, value, hint }: { label: string; value: string | number; hint: string }) {
@@ -231,8 +263,43 @@ export default function VendorCompatibility() {
     }
   };
 
-  const updatePreviewField = (field: keyof VendorReplyPreviewForm, value: string) => {
+  const updatePreviewField = (field: VendorReplyPreviewTextField, value: string) => {
     setPreviewForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateACLRuleField = (index: number, field: keyof ACLRuleForm, value: string | boolean) => {
+    setPreviewForm((current) => ({
+      ...current,
+      acl_rules: current.acl_rules.map((rule, ruleIndex) => (
+        ruleIndex === index ? { ...rule, [field]: value } : rule
+      )),
+    }));
+  };
+
+  const addACLRule = () => {
+    setPreviewForm((current) => ({
+      ...current,
+      acl_rules: [
+        ...current.acl_rules,
+        {
+          action: 'permit',
+          direction: 'in',
+          protocol: 'ip',
+          source: 'any',
+          source_port: '',
+          destination: 'any',
+          destination_port: '',
+          log: false,
+        },
+      ],
+    }));
+  };
+
+  const removeACLRule = (index: number) => {
+    setPreviewForm((current) => ({
+      ...current,
+      acl_rules: current.acl_rules.filter((_, ruleIndex) => ruleIndex !== index),
+    }));
   };
 
   const runReplyPreview = async () => {
@@ -248,6 +315,21 @@ export default function VendorCompatibility() {
         upload_kbps: numericValue(previewForm.upload_kbps),
         session_timeout: numericValue(previewForm.session_timeout),
         filter_id: previewForm.filter_id,
+        acl_policy_name: previewForm.acl_policy_name,
+        inbound_acl: previewForm.inbound_acl,
+        outbound_acl: previewForm.outbound_acl,
+        acl_rules: previewForm.acl_rules
+          .filter((rule) => [rule.action, rule.direction, rule.protocol, rule.source, rule.source_port, rule.destination, rule.destination_port].some((value) => String(value).trim() !== ''))
+          .map((rule) => ({
+            action: rule.action,
+            direction: rule.direction,
+            protocol: rule.protocol,
+            source: rule.source,
+            source_port: rule.source_port,
+            destination: rule.destination,
+            destination_port: rule.destination_port,
+            log: rule.log,
+          })),
         compatibility_packs: activePacks,
       };
       const { data } = await api.post<VendorReplyPreviewPayload>('/system/vendor-reply-preview', request);
@@ -396,6 +478,145 @@ export default function VendorCompatibility() {
                     className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                   />
                 </label>
+                <label className="block text-sm font-medium text-gray-700">
+                  ACL Policy
+                  <input
+                    value={previewForm.acl_policy_name}
+                    onChange={(event) => updatePreviewField('acl_policy_name', event.target.value)}
+                    placeholder="guest-internet"
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Inbound ACL
+                  <input
+                    value={previewForm.inbound_acl}
+                    onChange={(event) => updatePreviewField('inbound_acl', event.target.value)}
+                    placeholder="optional named ACL"
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Outbound ACL
+                  <input
+                    value={previewForm.outbound_acl}
+                    onChange={(event) => updatePreviewField('outbound_acl', event.target.value)}
+                    placeholder="optional named ACL"
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                </label>
+              </div>
+              <div className="mt-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900">ACL Rules</h4>
+                    <p className="mt-1 text-sm text-gray-600">Use single-token addresses such as any, 10.0.0.0/24, or 2001:db8::/64.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addACLRule}
+                    className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Add Rule
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {previewForm.acl_rules.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">No ACL rules selected.</div>
+                  ) : (
+                    previewForm.acl_rules.map((rule, index) => (
+                      <div key={`acl-rule-${index}`} className="rounded-md border border-gray-200 px-3 py-3">
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                          <label className="block text-xs font-semibold uppercase text-gray-600">
+                            Action
+                            <select
+                              value={rule.action}
+                              onChange={(event) => updateACLRuleField(index, 'action', event.target.value)}
+                              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-medium normal-case text-gray-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                            >
+                              <option value="permit">permit</option>
+                              <option value="deny">deny</option>
+                            </select>
+                          </label>
+                          <label className="block text-xs font-semibold uppercase text-gray-600">
+                            Direction
+                            <select
+                              value={rule.direction}
+                              onChange={(event) => updateACLRuleField(index, 'direction', event.target.value)}
+                              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-medium normal-case text-gray-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                            >
+                              <option value="in">in</option>
+                              <option value="out">out</option>
+                            </select>
+                          </label>
+                          <label className="block text-xs font-semibold uppercase text-gray-600">
+                            Protocol
+                            <input
+                              value={rule.protocol}
+                              onChange={(event) => updateACLRuleField(index, 'protocol', event.target.value)}
+                              placeholder="tcp"
+                              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm normal-case text-gray-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                            />
+                          </label>
+                          <label className="block text-xs font-semibold uppercase text-gray-600">
+                            Source
+                            <input
+                              value={rule.source}
+                              onChange={(event) => updateACLRuleField(index, 'source', event.target.value)}
+                              placeholder="any"
+                              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm normal-case text-gray-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                            />
+                          </label>
+                          <label className="block text-xs font-semibold uppercase text-gray-600">
+                            Source Port
+                            <input
+                              value={rule.source_port}
+                              onChange={(event) => updateACLRuleField(index, 'source_port', event.target.value)}
+                              placeholder="optional"
+                              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm normal-case text-gray-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                            />
+                          </label>
+                          <label className="block text-xs font-semibold uppercase text-gray-600">
+                            Destination
+                            <input
+                              value={rule.destination}
+                              onChange={(event) => updateACLRuleField(index, 'destination', event.target.value)}
+                              placeholder="any"
+                              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm normal-case text-gray-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                            />
+                          </label>
+                          <label className="block text-xs font-semibold uppercase text-gray-600">
+                            Destination Port
+                            <input
+                              value={rule.destination_port}
+                              onChange={(event) => updateACLRuleField(index, 'destination_port', event.target.value)}
+                              placeholder="443"
+                              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm normal-case text-gray-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                            />
+                          </label>
+                          <div className="flex items-end justify-between gap-3">
+                            <label className="flex items-center gap-2 pb-2 text-sm font-medium text-gray-700">
+                              <input
+                                type="checkbox"
+                                checked={rule.log}
+                                onChange={(event) => updateACLRuleField(index, 'log', event.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300 text-sky-700 focus:ring-sky-600"
+                              />
+                              Log
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => removeACLRule(index)}
+                              className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-gray-600">Uses the active reply packs unless the NAS type maps to a more specific vendor profile.</p>

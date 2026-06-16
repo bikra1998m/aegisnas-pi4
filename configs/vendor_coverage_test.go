@@ -21,6 +21,8 @@ ATTRIBUTE AegisNAS-Idle-Timeout 7 integer
 ATTRIBUTE AegisNAS-Portal-Profile 9 string
 ATTRIBUTE AegisNAS-Device-Group 10 string
 ATTRIBUTE AegisNAS-Tenant 11 string
+ATTRIBUTE AegisNAS-ACL-Name 12 string
+ATTRIBUTE AegisNAS-ACL-Rule 13 string
 END-VENDOR AegisNAS
 
 VENDOR Cisco 9
@@ -34,7 +36,7 @@ END-VENDOR Cisco
 	require.NotEmpty(t, report.Rows)
 	assert.Equal(t, "combined-fixture", report.Source)
 	assert.Equal(t, 2, report.CatalogVendorCount)
-	assert.Equal(t, 12, report.CatalogAttributeCount)
+	assert.Equal(t, 14, report.CatalogAttributeCount)
 	assert.Equal(t, 3, report.ActivePackCount)
 	assert.Greater(t, report.DictionaryMatchedAttributeCount, 0)
 	assert.Greater(t, report.MissingDictionaryAttributeCount, 0)

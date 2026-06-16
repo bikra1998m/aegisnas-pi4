@@ -29,7 +29,7 @@ func TestHandleGetVendorCompatibility(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "AegisNAS", summary["product_vendor_name"])
 	assert.EqualValues(t, 55555, summary["product_vendor_id"])
-	assert.EqualValues(t, 11, summary["product_attribute_count"])
+	assert.EqualValues(t, 13, summary["product_attribute_count"])
 	assert.Greater(t, int(summary["pack_count"].(float64)), 5)
 
 	semantics, ok := payload["semantics"].([]any)

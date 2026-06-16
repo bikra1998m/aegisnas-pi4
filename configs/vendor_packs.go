@@ -64,6 +64,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticVLAN, Attribute: "Tunnel-Private-Group-Id", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticSessionTimeout, Attribute: "Session-Timeout", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticIdleTimeout, Attribute: "Idle-Timeout", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticACL, Attribute: "NAS-Filter-Rule", Direction: "outbound_reply", ValueType: "policy", CompatibilityState: "implemented"},
 			},
 		},
 		{
@@ -84,6 +85,8 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticPortalProfile, Attribute: "AegisNAS-Portal-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDeviceGroup, Attribute: "AegisNAS-Device-Group", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticTenant, Attribute: "AegisNAS-Tenant", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticACL, Attribute: "AegisNAS-ACL-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "AegisNAS-ACL-Rule", Direction: "outbound_reply", ValueType: "policy", CompatibilityState: "implemented"},
 			},
 			Notes: []string{"Replace vendor ID 55555 with an assigned Private Enterprise Number before production use."},
 		},
@@ -96,6 +99,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			HardwareProfiles: allProfiles,
 			Attributes: []VendorPackAttributeMapping{
 				{Semantic: VendorSemanticBandwidthProfile, Attribute: "Mikrotik-Rate-Limit", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Mikrotik-Address-List", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 			},
 		},
 		{
@@ -120,9 +124,9 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			Attributes: []VendorPackAttributeMapping{
 				{Semantic: VendorSemanticACL, Attribute: "Cisco-In-ACL", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticACL, Attribute: "Cisco-Out-ACL", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDynamicACL, Attribute: "Cisco-AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Cisco-AVPair", Direction: "outbound_reply", ValueType: "policy", CompatibilityState: "implemented"},
 			},
-			Notes: []string{"Cisco downloadable ACL and controller-specific AVPair semantics require site-specific templates."},
+			Notes: []string{"Cisco dynamic ACL rendering emits one Cisco-AVPair per ACL rule using ip:inacl/ip:outacl numbering."},
 		},
 		{
 			Key:              VendorPackAruba,
@@ -134,7 +138,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			Attributes: []VendorPackAttributeMapping{
 				{Semantic: VendorSemanticRole, Attribute: "Aruba-User-Role", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticVLAN, Attribute: "Aruba-User-Vlan", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticACL, Attribute: "Aruba-NAS-Filter-Rule", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticACL, Attribute: "Aruba-NAS-Filter-Rule", Direction: "outbound_reply", ValueType: "policy", CompatibilityState: "implemented"},
 			},
 		},
 		{

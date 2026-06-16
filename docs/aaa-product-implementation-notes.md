@@ -220,7 +220,7 @@ The full suite passed after fixing one SQLite locking issue in timeout enforceme
 
 - storage NAS features are still a separate product layer
 - CoA currently updates local session policy state, not device-specific shaping engines
-- `Filter-Id` is mapped into role and bandwidth selection, not a separate ACL rule language
+- vendor-neutral ACL rule preview/rendering is present, but reusable ACL policy storage and device smoke testing are still separate work
 
 ## Best Next Steps
 

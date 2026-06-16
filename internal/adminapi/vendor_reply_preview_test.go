@@ -18,7 +18,11 @@ func TestHandlePreviewVendorReplyForKnownNASProfile(t *testing.T) {
 		"role": "guest",
 		"vlan": 20,
 		"download_kbps": 50000,
-		"upload_kbps": 20000
+		"upload_kbps": 20000,
+		"acl_policy_name": "guest-internet",
+		"acl_rules": [
+			{"action": "permit", "direction": "in", "protocol": "tcp", "source": "any", "destination": "any", "destination_port": "443"}
+		]
 	}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/system/vendor-reply-preview", bytes.NewBufferString(body))
 	rec := httptest.NewRecorder()
@@ -44,10 +48,13 @@ func TestHandlePreviewVendorReplyForKnownNASProfile(t *testing.T) {
 	assert.False(t, payload.UsesGlobalPacks)
 	assert.Equal(t, []string{"standard", "aruba", "aegisnas", "wispr"}, payload.EffectivePacks)
 	assert.Contains(t, payload.FreeRADIUS, "Aruba-User-Role = \"guest\"")
+	assert.Contains(t, payload.FreeRADIUS, "Aruba-NAS-Filter-Rule = \"permit in tcp from any to any 443\"")
+	assert.Contains(t, payload.FreeRADIUS, "AegisNAS-ACL-Rule = \"permit in tcp from any to any 443\"")
 	assert.NotContains(t, payload.FreeRADIUS, "Mikrotik-Rate-Limit")
 	assertPreviewAttribute(t, payload.Attributes, "Aruba-User-Role", "guest")
 	assertPreviewAttribute(t, payload.Attributes, "Aruba-User-Vlan", "20")
 	assertPreviewAttribute(t, payload.Attributes, "AegisNAS-Role", "guest")
+	assertPreviewAttribute(t, payload.Attributes, "Aruba-NAS-Filter-Rule", "permit in tcp from any to any 443")
 }
 
 func TestHandlePreviewVendorReplyForCustomNASProfileUsesGlobalPacks(t *testing.T) {
@@ -90,6 +97,18 @@ func TestHandlePreviewVendorReplyRejectsInvalidRequest(t *testing.T) {
 
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Contains(t, rec.Body.String(), "vlan cannot be negative")
+}
+
+func TestHandlePreviewVendorReplyRejectsInvalidACLRule(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/system/vendor-reply-preview", bytes.NewBufferString(`{
+		"acl_rules": [{"action": "permit", "direction": "in", "protocol": "tcp", "source": "any", "destination": "any\""}]
+	}`))
+	rec := httptest.NewRecorder()
+
+	HandlePreviewVendorReply(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Contains(t, rec.Body.String(), "acl_rules[0] is invalid")
 }
 
 func assertPreviewAttribute(t *testing.T, attrs []struct {

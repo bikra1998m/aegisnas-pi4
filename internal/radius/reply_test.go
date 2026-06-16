@@ -49,8 +49,12 @@ func TestRenderReplyAttributesForVendorPacks(t *testing.T) {
 		PortalProfile:         "guest-portal",
 		DeviceGroup:           "iot",
 		Tenant:                "tenant-a",
+		ACLPolicyName:         "guest-internet",
 		InboundACL:            "acl-in",
 		OutboundACL:           "acl-out",
+		ACLRules: []ACLRule{
+			{Action: "permit", Direction: "in", Protocol: "tcp", Source: "any", Destination: "any", DestinationPort: "443"},
+		},
 	}
 
 	items := BuildReplyAttributeItems(attrs, []string{"standard", "aegisnas", "aruba", "ruckus", "fortinet", "cisco", "ubnt", "unknown"})
@@ -69,17 +73,46 @@ func TestRenderReplyAttributesForVendorPacks(t *testing.T) {
 	assert.Contains(t, rendered, "\tAegisNAS-Portal-Profile = \"guest-portal\"\n")
 	assert.Contains(t, rendered, "\tAegisNAS-Device-Group = \"iot\"\n")
 	assert.Contains(t, rendered, "\tAegisNAS-Tenant = \"tenant-a\"\n")
+	assert.Contains(t, rendered, "\tAegisNAS-ACL-Name = \"guest-internet\"\n")
+	assert.Contains(t, rendered, "\tAegisNAS-ACL-Rule = \"permit in tcp from any to any 443\"\n")
 	assert.Contains(t, rendered, "\tAruba-User-Role = \"guest \\\"premium\\\"\"\n")
 	assert.Contains(t, rendered, "\tAruba-User-Vlan = 20\n")
+	assert.Contains(t, rendered, "\tAruba-NAS-Filter-Rule = \"permit in tcp from any to any 443\"\n")
 	assert.Contains(t, rendered, "\tRuckus-User-Groups = \"guest \\\"premium\\\"\"\n")
 	assert.Contains(t, rendered, "\tRuckus-VLAN-ID = 20\n")
 	assert.Contains(t, rendered, "\tFortinet-Group-Name = \"guest \\\"premium\\\"\"\n")
 	assert.Contains(t, rendered, "\tFortinet-Access-Profile = \"guest-acl\"\n")
 	assert.Contains(t, rendered, "\tCisco-In-ACL = \"acl-in\"\n")
 	assert.Contains(t, rendered, "\tCisco-Out-ACL = \"acl-out\"\n")
+	assert.Contains(t, rendered, "\tCisco-AVPair = \"ip:inacl#1=permit tcp any any eq 443\"\n")
 	assert.Contains(t, rendered, "\tUBNT-Data-Rate-DL = 50000000\n")
 	assert.Contains(t, rendered, "\tUBNT-Data-Rate-UL = 20000000\n")
 	assert.Equal(t, 1, countRenderedAttribute(rendered, "Aruba-User-Role"))
+}
+
+func TestRenderReplyAttributesForDynamicACLRules(t *testing.T) {
+	attrs := &ReplyAttributes{
+		Role:          "guest",
+		ACLPolicyName: "guest-internet",
+		ACLRules: []ACLRule{
+			{Action: "permit", Direction: "in", Protocol: "tcp", Source: "any", Destination: "any", DestinationPort: "443", Log: true},
+			{Action: "deny", Direction: "out", Protocol: "udp", Source: "any", Destination: "10.0.0.0/24", DestinationPort: "53"},
+		},
+	}
+
+	rendered := RenderReplyAttributesForPacks(attrs, []string{"standard", "aegisnas", "mikrotik", "cisco", "aruba", "fortinet", "juniper", "huawei"})
+
+	assert.Contains(t, rendered, "\tNAS-Filter-Rule = \"permit in tcp from any to any 443 log\"\n")
+	assert.Contains(t, rendered, "\tNAS-Filter-Rule = \"deny out udp from any to 10.0.0.0/24 53\"\n")
+	assert.Contains(t, rendered, "\tAegisNAS-ACL-Name = \"guest-internet\"\n")
+	assert.Contains(t, rendered, "\tAegisNAS-ACL-Rule = \"permit in tcp from any to any 443 log\"\n")
+	assert.Contains(t, rendered, "\tMikrotik-Address-List = \"guest-internet\"\n")
+	assert.Contains(t, rendered, "\tCisco-AVPair = \"ip:inacl#1=permit tcp any any eq 443 log\"\n")
+	assert.Contains(t, rendered, "\tCisco-AVPair = \"ip:outacl#1=deny udp any 10.0.0.0/24 eq 53\"\n")
+	assert.Contains(t, rendered, "\tAruba-NAS-Filter-Rule = \"permit in tcp from any to any 443 log\"\n")
+	assert.Contains(t, rendered, "\tFortinet-Access-Profile = \"guest-internet\"\n")
+	assert.Contains(t, rendered, "\tJuniper-Firewall-filter-name = \"guest-internet\"\n")
+	assert.Contains(t, rendered, "\tHuawei-Data-Filter = \"guest-internet\"\n")
 }
 
 func TestRenderReplyAttributesForVendorConfigUsesConfiguredPacks(t *testing.T) {

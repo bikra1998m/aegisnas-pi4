@@ -64,6 +64,7 @@ When `radius.upstream.enabled: true`:
 - the session service listens on `radius.dynamic_auth.port` for dynamic authorization
 - the dashboard probes each upstream AAA home server directly with `Status-Server` when that mode is enabled
 - the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
+- the vendor reply preview can render vendor-neutral ACL intent into `NAS-Filter-Rule`, Cisco `Cisco-AVPair`, Aruba filter rules, MikroTik address-list hints, and AegisNAS ACL VSAs
 - upstream reply attributes are mapped into local session state:
   - VLAN assignment
   - role mapping
@@ -79,8 +80,8 @@ When `radius.upstream.enabled: true`:
 What this pass still does not change:
 
 - storage NAS services such as Samba, NFS, RAID, ZFS, and share management are still separate workstreams
-- `Filter-Id` is mapped into local role and bandwidth policy, but not yet into a separate firewall ACL language
-- `CoA-Request` can now trigger immediate gateway quarantine enforcement, immediate timeout expiry, live bandwidth profile reshaping, and VLAN-change reauthentication, but device-specific ACL semantics remain future work
+- reusable ACL policies are not yet persisted as first-class database objects
+- `CoA-Request` can now trigger immediate gateway quarantine enforcement, immediate timeout expiry, live bandwidth profile reshaping, and VLAN-change reauthentication, but live controller/device ACL push still needs per-vendor smoke testing
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 
@@ -317,6 +318,17 @@ AegisNAS-VLAN := 20
 AegisNAS-Session-Timeout := 3600
 AegisNAS-Idle-Timeout := 600
 ```
+
+Example vendor-neutral ACL preview request:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data '{"nas_type":"cisco","role":"guest","acl_policy_name":"guest-internet","acl_rules":[{"action":"permit","direction":"in","protocol":"tcp","source":"any","destination":"any","destination_port":"443"},{"action":"deny","direction":"out","protocol":"udp","source":"any","destination":"10.0.0.0/24","destination_port":"53"}]}' \
+  http://127.0.0.1:8083/api/v1/system/vendor-reply-preview | jq '.attributes'
+```
+
+The same `acl_rules` payload renders as standards-based `NAS-Filter-Rule`, Cisco `Cisco-AVPair` `ip:inacl`/`ip:outacl` entries, Aruba `Aruba-NAS-Filter-Rule`, MikroTik `Mikrotik-Address-List` when an ACL policy name is present, and AegisNAS `AegisNAS-ACL-Name` / `AegisNAS-ACL-Rule` VSAs when those packs are active.
 
 Example CoA policy update:
 

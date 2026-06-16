@@ -11,27 +11,29 @@ import (
 )
 
 type vendorReplyPreviewRequest struct {
-	NASType               string   `json:"nas_type"`
-	CompatibilityPacks    []string `json:"compatibility_packs"`
-	Role                  string   `json:"role"`
-	BandwidthProfile      string   `json:"bandwidth_profile"`
-	FilterID              string   `json:"filter_id"`
-	PolicyTag             string   `json:"policy_tag"`
-	SessionTimeout        int      `json:"session_timeout"`
-	IdleTimeout           int      `json:"idle_timeout"`
-	VLAN                  int      `json:"vlan"`
-	DownloadKbps          int      `json:"download_kbps"`
-	UploadKbps            int      `json:"upload_kbps"`
-	MikrotikRateLimit     string   `json:"mikrotik_rate_limit"`
-	WISPrBandwidthMaxDown int      `json:"wispr_bandwidth_max_down"`
-	WISPrBandwidthMaxUp   int      `json:"wispr_bandwidth_max_up"`
-	HasQuarantine         bool     `json:"has_quarantine"`
-	Quarantine            bool     `json:"quarantine"`
-	PortalProfile         string   `json:"portal_profile"`
-	DeviceGroup           string   `json:"device_group"`
-	Tenant                string   `json:"tenant"`
-	InboundACL            string   `json:"inbound_acl"`
-	OutboundACL           string   `json:"outbound_acl"`
+	NASType               string           `json:"nas_type"`
+	CompatibilityPacks    []string         `json:"compatibility_packs"`
+	Role                  string           `json:"role"`
+	BandwidthProfile      string           `json:"bandwidth_profile"`
+	FilterID              string           `json:"filter_id"`
+	PolicyTag             string           `json:"policy_tag"`
+	SessionTimeout        int              `json:"session_timeout"`
+	IdleTimeout           int              `json:"idle_timeout"`
+	VLAN                  int              `json:"vlan"`
+	DownloadKbps          int              `json:"download_kbps"`
+	UploadKbps            int              `json:"upload_kbps"`
+	MikrotikRateLimit     string           `json:"mikrotik_rate_limit"`
+	WISPrBandwidthMaxDown int              `json:"wispr_bandwidth_max_down"`
+	WISPrBandwidthMaxUp   int              `json:"wispr_bandwidth_max_up"`
+	HasQuarantine         bool             `json:"has_quarantine"`
+	Quarantine            bool             `json:"quarantine"`
+	PortalProfile         string           `json:"portal_profile"`
+	DeviceGroup           string           `json:"device_group"`
+	Tenant                string           `json:"tenant"`
+	ACLPolicyName         string           `json:"acl_policy_name"`
+	InboundACL            string           `json:"inbound_acl"`
+	OutboundACL           string           `json:"outbound_acl"`
+	ACLRules              []radius.ACLRule `json:"acl_rules"`
 }
 
 type vendorReplyPreviewResponse struct {
@@ -120,6 +122,11 @@ func validateVendorReplyPreviewRequest(req vendorReplyPreviewRequest) error {
 		return errVendorReplyPreview("wispr_bandwidth_max_down cannot be negative")
 	case req.WISPrBandwidthMaxUp < 0:
 		return errVendorReplyPreview("wispr_bandwidth_max_up cannot be negative")
+	case len(req.ACLRules) > 64:
+		return errVendorReplyPreview("acl_rules cannot contain more than 64 rules")
+	}
+	if err := radius.ValidateACLRules(req.ACLRules); err != nil {
+		return errVendorReplyPreview(err.Error())
 	}
 	return nil
 }
@@ -147,8 +154,10 @@ func vendorReplyPreviewAttributes(req vendorReplyPreviewRequest) *radius.ReplyAt
 		PortalProfile:         strings.TrimSpace(req.PortalProfile),
 		DeviceGroup:           strings.TrimSpace(req.DeviceGroup),
 		Tenant:                strings.TrimSpace(req.Tenant),
+		ACLPolicyName:         strings.TrimSpace(req.ACLPolicyName),
 		InboundACL:            strings.TrimSpace(req.InboundACL),
 		OutboundACL:           strings.TrimSpace(req.OutboundACL),
+		ACLRules:              append([]radius.ACLRule(nil), req.ACLRules...),
 	}
 	if attrs.VLAN > 0 {
 		attrs.TunnelType = "VLAN"

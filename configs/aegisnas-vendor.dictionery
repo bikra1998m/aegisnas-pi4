@@ -16,4 +16,6 @@ ATTRIBUTE AegisNAS-Session-Action 8 string
 ATTRIBUTE AegisNAS-Portal-Profile 9 string
 ATTRIBUTE AegisNAS-Device-Group 10 string
 ATTRIBUTE AegisNAS-Tenant 11 string
+ATTRIBUTE AegisNAS-ACL-Name 12 string
+ATTRIBUTE AegisNAS-ACL-Rule 13 string
 END-VENDOR AegisNAS

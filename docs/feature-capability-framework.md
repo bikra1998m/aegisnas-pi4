@@ -214,14 +214,14 @@ This is where dictionary support becomes product behavior.
 | Vendor compatibility packs | enabled | enabled | enabled | metadata and conservative reply rendering are low resource |
 | Runtime shaping | warned | enabled | enabled | depends on downstream interface and hardware |
 | Quarantine enforcement | enabled | enabled | enabled | already present |
-| ACL-like policy language | blocked | available | enabled | major next-step feature |
+| ACL-like policy language | available | available | enabled | reply preview and vendor renderers are present; persistence is next |
 | Vendor-aware enforcement adapters | blocked | available | enabled | needed for stronger multivendor parity |
 
 Rules:
 
 - shaping should be `blocked` if no shaping interface exists
 - vendor dictionary parsing should stay read-only and cheap on lite hardware
-- ACL-like policy should not be presented as complete until device-side enforcement adapters exist
+- ACL-like policy should be presented as preview/rendering-ready until persisted policies and device-side enforcement adapters are certified
 
 ### 7. Identity And Enterprise Integrations
 

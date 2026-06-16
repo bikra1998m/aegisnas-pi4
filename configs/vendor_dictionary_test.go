@@ -12,9 +12,10 @@ func TestAegisNASVendorDictionary(t *testing.T) {
 
 	assert.Equal(t, "AegisNAS", dict.Name)
 	assert.Equal(t, 55555, dict.ID)
-	require.Len(t, dict.Attributes, 11)
+	require.Len(t, dict.Attributes, 13)
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Role", Number: 1, Type: "string"}, dict.Attributes[0])
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Tenant", Number: 11, Type: "string"}, dict.Attributes[10])
+	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-ACL-Rule", Number: 13, Type: "string"}, dict.Attributes[12])
 }
 
 func TestParseVendorDictionaryCatalog(t *testing.T) {
@@ -67,7 +68,7 @@ func TestAegisNASVendorCompatibilityReport(t *testing.T) {
 
 	assert.Equal(t, "AegisNAS", report.Summary.ProductVendorName)
 	assert.Equal(t, 55555, report.Summary.ProductVendorID)
-	assert.Equal(t, 11, report.Summary.ProductAttributeCount)
+	assert.Equal(t, 13, report.Summary.ProductAttributeCount)
 	assert.Greater(t, report.Summary.SemanticCount, report.Summary.ProductAttributeCount)
 	assert.Greater(t, report.Summary.PackCount, 5)
 	assert.Greater(t, report.Summary.ImplementedCount, 0)
@@ -82,7 +83,7 @@ func TestAegisNASVendorCompatibilityReport(t *testing.T) {
 	for _, semantic := range report.Semantics {
 		if semantic.Key == VendorSemanticDynamicACL {
 			foundACL = true
-			assert.Equal(t, "planned", semantic.CompatibilityState)
+			assert.Equal(t, "implemented", semantic.CompatibilityState)
 			assert.Equal(t, "enterprise first", semantic.HardwareScope)
 		}
 	}

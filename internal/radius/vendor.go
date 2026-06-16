@@ -24,6 +24,8 @@ const (
 	AegisNASVendorAttrPortalProfile    byte = 9
 	AegisNASVendorAttrDeviceGroup      byte = 10
 	AegisNASVendorAttrTenant           byte = 11
+	AegisNASVendorAttrACLName          byte = 12
+	AegisNASVendorAttrACLRule          byte = 13
 )
 
 type inboundVendorValueKind string
@@ -263,6 +265,12 @@ func ApplyVendorAttributes(result *BrokerAuthResult, packet *layehradius.Packet,
 		}
 		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTenant)); ok {
 			result.VendorTenant = value
+		}
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrACLName)); ok {
+			setStringIfEmpty(&result.VendorInboundACL, value)
+		}
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrACLRule)); ok {
+			setStringIfEmpty(&result.VendorInboundACL, value)
 		}
 	}
 
