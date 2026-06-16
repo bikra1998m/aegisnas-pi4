@@ -42,14 +42,21 @@ type VendorSemanticCapability struct {
 }
 
 type VendorCompatibilitySummary struct {
-	ProductVendorID       int      `json:"product_vendor_id"`
-	ProductVendorName     string   `json:"product_vendor_name"`
-	ProductAttributeCount int      `json:"product_attribute_count"`
-	SemanticCount         int      `json:"semantic_count"`
-	PackCount             int      `json:"pack_count"`
-	ImplementedCount      int      `json:"implemented_count"`
-	PlannedCount          int      `json:"planned_count"`
-	HardwareProfiles      []string `json:"hardware_profiles"`
+	ProductVendorID                    int      `json:"product_vendor_id"`
+	ProductVendorName                  string   `json:"product_vendor_name"`
+	ProductVendorIDSource              string   `json:"product_vendor_id_source"`
+	ProductVendorIDPlaceholder         bool     `json:"product_vendor_id_placeholder"`
+	ProductVendorDictionaryFilename    string   `json:"product_vendor_dictionary_filename"`
+	ProductVendorDictionaryInstallPath string   `json:"product_vendor_dictionary_install_path"`
+	ProductVendorDictionaryInclude     string   `json:"product_vendor_dictionary_include"`
+	ProductVendorPENRegistryURL        string   `json:"product_vendor_pen_registry_url"`
+	ProductVendorPENApplyURL           string   `json:"product_vendor_pen_apply_url"`
+	ProductAttributeCount              int      `json:"product_attribute_count"`
+	SemanticCount                      int      `json:"semantic_count"`
+	PackCount                          int      `json:"pack_count"`
+	ImplementedCount                   int      `json:"implemented_count"`
+	PlannedCount                       int      `json:"planned_count"`
+	HardwareProfiles                   []string `json:"hardware_profiles"`
 }
 
 type VendorCompatibilityReport struct {
@@ -332,12 +339,22 @@ func AegisNASVendorCompatibilityReport() VendorCompatibilityReport {
 	catalog := AegisNASVendorDictionaryCatalog()
 	semantics := AegisNASSemanticRegistry()
 	packs := AegisNASVendorCompatibilityPacks()
+	identity := AegisNASVendorIdentity()
 	summary := VendorCompatibilitySummary{
-		SemanticCount:    len(semantics),
-		PackCount:        len(packs),
-		HardwareProfiles: []string{"lite", "branch", "enterprise", "custom"},
+		ProductVendorName:                  identity.Name,
+		ProductVendorID:                    identity.ID,
+		ProductVendorIDSource:              identity.IDSource,
+		ProductVendorIDPlaceholder:         identity.Placeholder,
+		ProductVendorDictionaryFilename:    identity.DictionaryFilename,
+		ProductVendorDictionaryInstallPath: identity.InstallPath,
+		ProductVendorDictionaryInclude:     identity.IncludeLine,
+		ProductVendorPENRegistryURL:        identity.RegistryURL,
+		ProductVendorPENApplyURL:           identity.ApplyURL,
+		SemanticCount:                      len(semantics),
+		PackCount:                          len(packs),
+		HardwareProfiles:                   []string{"lite", "branch", "enterprise", "custom"},
 	}
-	if vendor, ok := catalog.VendorByName("AegisNAS"); ok {
+	if vendor, ok := catalog.VendorByName(identity.Name); ok {
 		summary.ProductVendorID = vendor.ID
 		summary.ProductVendorName = vendor.Name
 		summary.ProductAttributeCount = len(vendor.Attributes)
@@ -350,7 +367,7 @@ func AegisNASVendorCompatibilityReport() VendorCompatibilityReport {
 			summary.PlannedCount++
 		}
 	}
-	return VendorCompatibilityReport{
+	report := VendorCompatibilityReport{
 		Catalog:            catalog,
 		Semantics:          semantics,
 		Packs:              packs,
@@ -363,4 +380,8 @@ func AegisNASVendorCompatibilityReport() VendorCompatibilityReport {
 			"Lite hardware should prefer local parsing, standards-based replies, short retention, and external AP or switch enforcement.",
 		},
 	}
+	if len(identity.Warnings) > 0 {
+		report.Notes = append(report.Notes, identity.Warnings...)
+	}
+	return report
 }

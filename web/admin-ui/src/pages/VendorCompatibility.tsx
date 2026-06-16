@@ -4,6 +4,13 @@ import api from '../api/client';
 type VendorCompatibilitySummary = {
   product_vendor_id: number;
   product_vendor_name: string;
+  product_vendor_id_source?: string;
+  product_vendor_id_placeholder?: boolean;
+  product_vendor_dictionary_filename?: string;
+  product_vendor_dictionary_install_path?: string;
+  product_vendor_dictionary_include?: string;
+  product_vendor_pen_registry_url?: string;
+  product_vendor_pen_apply_url?: string;
   product_attribute_count: number;
   semantic_count: number;
   pack_count: number;
@@ -389,7 +396,11 @@ export default function VendorCompatibility() {
         <>
           <section>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <StatCard label="Vendor" value={payload.summary.product_vendor_name || 'AegisNAS'} hint={`ID ${payload.summary.product_vendor_id || 0}`} />
+              <StatCard
+                label="Vendor"
+                value={payload.summary.product_vendor_name || 'AegisNAS'}
+                hint={`ID ${payload.summary.product_vendor_id || 0}${payload.summary.product_vendor_id_placeholder ? ' placeholder' : ''}`}
+              />
               <StatCard label="Product VSAs" value={payload.summary.product_attribute_count || 0} hint="Built-in dictionary attributes." />
               <StatCard label="Active Packs" value={activePacks.length} hint={joinList(activePacks)} />
               <StatCard label="Client Profiles" value={profileSummary?.enabled_clients || 0} hint={`${profileSummary?.total_clients || 0} registered clients.`} />
@@ -397,6 +408,37 @@ export default function VendorCompatibility() {
               <StatCard label="Global Fallback" value={profileSummary?.global_fallback_client_count || 0} hint="Clients using default compatibility packs." />
               <StatCard label="Implemented" value={payload.summary.implemented_count || 0} hint="Semantic capabilities ready now." />
               <StatCard label="Planned" value={payload.summary.planned_count || 0} hint="Compatibility capabilities still queued." />
+            </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="rounded-lg bg-white p-5 shadow">
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Product Vendor Identity</h3>
+                  <p className="mt-1 text-sm text-gray-600">Use the assigned PEN before enabling AegisNAS product VSAs outside a lab.</p>
+                </div>
+                <StatusBadge tone={payload.summary.product_vendor_id_placeholder ? 'amber' : 'green'}>
+                  {payload.summary.product_vendor_id_placeholder ? 'Placeholder ID' : 'Assigned ID'}
+                </StatusBadge>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <StatCard
+                  label="ID Source"
+                  value={payload.summary.product_vendor_id_source || 'unknown'}
+                  hint={payload.summary.product_vendor_id_placeholder ? 'Set AEGISNAS_VENDOR_ID after IANA assignment.' : 'Ready for production dictionary generation.'}
+                />
+                <StatCard
+                  label="Dictionary"
+                  value={payload.summary.product_vendor_dictionary_filename || 'dictionary.aegisnas'}
+                  hint={payload.summary.product_vendor_dictionary_include || '$INCLUDE dictionary.aegisnas'}
+                />
+                <StatCard
+                  label="Install Path"
+                  value={payload.summary.product_vendor_dictionary_install_path || '/etc/freeradius/3.0/dictionary.aegisnas'}
+                  hint="FreeRADIUS local dictionary include target."
+                />
+              </div>
             </div>
           </section>
 

@@ -155,7 +155,7 @@ radius:
   vendor:
     enabled: true
     name: "AegisNAS"
-    id: 55555 # Lab placeholder from configs/aegisnas-vendor.dictionery. Replace before production use.
+    id: 55555 # Lab placeholder from configs/dictionary.aegisnas. Replace before production use.
     compatibility_packs: ["standard", "mikrotik", "wispr"] # Global default for unprofiled NAS clients.
     attributes: [] # Optional local overrides or extensions. Built-ins come from the product dictionary.
   auth_port: 1812
@@ -200,7 +200,8 @@ Notes:
 - use `status_check: none` when the upstream vendor does not answer `Status-Server`
 - `strip_realm: false` preserves the original username format sent by the access device
 - `radius.vendor.id` must be your own IANA Private Enterprise Number for production; keep `55555` only for lab testing
-- `aegis-radius apply-config` writes `/etc/freeradius/3.0/aegisnas-vendor.dictionery` and includes it from the local FreeRADIUS `dictionary`
+- IANA PEN registration is free and first-come-first-served. Request the assignment from <https://www.iana.org/assignments/enterprise-numbers/assignment/apply/>, then set `AEGISNAS_VENDOR_ID=<assigned-pen>` or update `radius.vendor.id`.
+- `aegis-radius apply-config` writes `/etc/freeradius/3.0/dictionary.aegisnas` and includes it from the local FreeRADIUS `dictionary`
 
 ### 4. Configure AegisNAS Vendor Attributes
 
@@ -208,23 +209,29 @@ AegisNAS can behave like a vendor NAS by publishing its own FreeRADIUS product d
 
 The portable product dictionary template is:
 
-- [aegisnas-vendor.dictionery](F:/random_project/Pookie/aegisnas-pi4/configs/aegisnas-vendor.dictionery)
+- [dictionary.aegisnas](F:/random_project/Pookie/aegisnas-pi4/configs/dictionary.aegisnas)
 
 On an appliance, `aegis-radius apply-config` writes:
 
 - `/etc/freeradius/3.0/dictionary`
-- `/etc/freeradius/3.0/aegisnas-vendor.dictionery`
+- `/etc/freeradius/3.0/dictionary.aegisnas`
 
 The generated `dictionary` file contains:
 
 ```text
-$INCLUDE aegisnas-vendor.dictionery
+$INCLUDE dictionary.aegisnas
 ```
 
 To see the current built-in attributes, read the dictionary instead of copying the list into YAML:
 
 ```bash
-sed -n '1,220p' configs/aegisnas-vendor.dictionery
+sed -n '1,220p' configs/dictionary.aegisnas
+```
+
+For package or VM installs, the helper below writes the dictionary and include line. It refuses the placeholder ID unless `--allow-placeholder` is provided for a lab:
+
+```bash
+sudo AEGISNAS_VENDOR_ID=<assigned-pen> bash scripts/install-aegisnas-freeradius-dictionary.sh
 ```
 
 To inspect the runtime catalog and semantic registry from an appliance:
@@ -432,7 +439,7 @@ You should now see:
 
 - `clients.conf`
 - `dictionary`
-- `aegisnas-vendor.dictionery`
+- `dictionary.aegisnas`
 - `eap.conf`
 - `mods-enabled/ldap`
 - `mods-enabled/sql`
@@ -465,7 +472,7 @@ Verify the rendered proxy file exists:
 sudo ls -l /etc/freeradius/3.0/proxy.conf
 sudo sed -n '1,220p' /etc/freeradius/3.0/proxy.conf
 sudo sed -n '1,220p' /etc/freeradius/3.0/dictionary
-sudo sed -n '1,220p' /etc/freeradius/3.0/aegisnas-vendor.dictionery
+sudo sed -n '1,220p' /etc/freeradius/3.0/dictionary.aegisnas
 ```
 
 ### 10. Test Authentication

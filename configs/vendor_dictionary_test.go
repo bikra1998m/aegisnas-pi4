@@ -18,6 +18,15 @@ func TestAegisNASVendorDictionary(t *testing.T) {
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-ACL-Rule", Number: 13, Type: "string"}, dict.Attributes[12])
 }
 
+func TestAegisNASVendorDictionaryUsesEnvironmentVendorID(t *testing.T) {
+	t.Setenv(AegisNASVendorIDEnv, "424242")
+
+	dict := AegisNASVendorDictionary()
+	assert.Equal(t, "AegisNAS", dict.Name)
+	assert.Equal(t, 424242, dict.ID)
+	assert.Contains(t, AegisNASVendorDictionaryText(), "VENDOR AegisNAS 424242")
+}
+
 func TestParseVendorDictionaryCatalog(t *testing.T) {
 	catalog := ParseVendorDictionaryCatalog("fixture", `
 VENDOR ExampleVendor 4242 format=1,1
@@ -68,6 +77,9 @@ func TestAegisNASVendorCompatibilityReport(t *testing.T) {
 
 	assert.Equal(t, "AegisNAS", report.Summary.ProductVendorName)
 	assert.Equal(t, 55555, report.Summary.ProductVendorID)
+	assert.True(t, report.Summary.ProductVendorIDPlaceholder)
+	assert.Equal(t, "dictionary.aegisnas", report.Summary.ProductVendorDictionaryFilename)
+	assert.Equal(t, "$INCLUDE dictionary.aegisnas", report.Summary.ProductVendorDictionaryInclude)
 	assert.Equal(t, 13, report.Summary.ProductAttributeCount)
 	assert.Greater(t, report.Summary.SemanticCount, report.Summary.ProductAttributeCount)
 	assert.Greater(t, report.Summary.PackCount, 5)

@@ -50,6 +50,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 	allProfiles := []string{"lite", "branch", "enterprise", "custom"}
 	branchEnterprise := []string{"branch", "enterprise", "custom"}
 	enterprise := []string{"enterprise", "custom"}
+	productIdentity := AegisNASVendorIdentity()
 
 	return []VendorCompatibilityPack{
 		{
@@ -70,8 +71,8 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 		{
 			Key:              VendorPackAegisNAS,
 			Label:            "AegisNAS Product VSA",
-			VendorName:       "AegisNAS",
-			VendorID:         55555,
+			VendorName:       productIdentity.Name,
+			VendorID:         productIdentity.ID,
 			DefaultEnabled:   false,
 			HardwareProfiles: allProfiles,
 			Attributes: []VendorPackAttributeMapping{
@@ -88,7 +89,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticACL, Attribute: "AegisNAS-ACL-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDynamicACL, Attribute: "AegisNAS-ACL-Rule", Direction: "outbound_reply", ValueType: "policy", CompatibilityState: "implemented"},
 			},
-			Notes: []string{"Replace vendor ID 55555 with an assigned Private Enterprise Number before production use."},
+			Notes: productIdentity.Warnings,
 		},
 		{
 			Key:              VendorPackMikroTik,

@@ -1,0 +1,26 @@
+# AegisNAS product vendor dictionary.
+# Install path: /etc/freeradius/3.0/dictionary.aegisnas
+# Include from the local FreeRADIUS dictionary with:
+# $INCLUDE dictionary.aegisnas
+#
+# Vendor ID defaults to lab placeholder 55555 in source control.
+# Request an IANA Private Enterprise Number before production VSA use, then
+# set AEGISNAS_VENDOR_ID to generate the production dictionary.
+
+VENDOR AegisNAS 55555
+
+BEGIN-VENDOR AegisNAS
+ATTRIBUTE AegisNAS-Role 1 string
+ATTRIBUTE AegisNAS-Bandwidth-Profile 2 string
+ATTRIBUTE AegisNAS-VLAN 3 integer
+ATTRIBUTE AegisNAS-Quarantine 4 integer
+ATTRIBUTE AegisNAS-Policy-Tag 5 string
+ATTRIBUTE AegisNAS-Session-Timeout 6 integer
+ATTRIBUTE AegisNAS-Idle-Timeout 7 integer
+ATTRIBUTE AegisNAS-Session-Action 8 string
+ATTRIBUTE AegisNAS-Portal-Profile 9 string
+ATTRIBUTE AegisNAS-Device-Group 10 string
+ATTRIBUTE AegisNAS-Tenant 11 string
+ATTRIBUTE AegisNAS-ACL-Name 12 string
+ATTRIBUTE AegisNAS-ACL-Rule 13 string
+END-VENDOR AegisNAS

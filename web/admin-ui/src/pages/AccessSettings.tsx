@@ -7355,7 +7355,7 @@ export default function AccessSettings() {
               </h4>
               <p className="mt-1 text-sm text-gray-600">
                 Built-in attributes come from
-                configs/aegisnas-vendor.dictionery. Add rows here only for local
+                configs/dictionary.aegisnas. Add rows here only for local
                 overrides or extensions.
               </p>
             </div>

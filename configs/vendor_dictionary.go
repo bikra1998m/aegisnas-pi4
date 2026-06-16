@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-//go:embed aegisnas-vendor.dictionery
-var AegisNASVendorDictionaryText string
+//go:embed dictionary.aegisnas
+var aegisNASVendorDictionaryTemplate string
 
 type VendorDictionary struct {
 	Name       string                      `json:"name"`
@@ -44,15 +44,21 @@ type VendorDictionaryCatalog struct {
 }
 
 func AegisNASVendorDictionary() VendorDictionary {
-	dict, ok := ParseVendorDictionary(AegisNASVendorDictionaryText)
+	dict, ok := ParseVendorDictionary(AegisNASVendorDictionaryText())
 	if ok {
 		return dict
 	}
-	return VendorDictionary{Name: "AegisNAS", ID: 55555}
+	identity := AegisNASVendorIdentity()
+	return VendorDictionary{Name: identity.Name, ID: identity.ID}
 }
 
 func AegisNASVendorDictionaryCatalog() VendorDictionaryCatalog {
-	return ParseVendorDictionaryCatalog("configs/aegisnas-vendor.dictionery", AegisNASVendorDictionaryText)
+	return ParseVendorDictionaryCatalog("configs/"+AegisNASVendorDictionaryFilename, AegisNASVendorDictionaryText())
+}
+
+func AegisNASVendorDictionaryText() string {
+	identity := AegisNASVendorIdentity()
+	return strings.Replace(aegisNASVendorDictionaryTemplate, "VENDOR AegisNAS 55555", "VENDOR "+identity.Name+" "+strconv.Itoa(identity.ID), 1)
 }
 
 func ParseVendorDictionary(text string) (VendorDictionary, bool) {

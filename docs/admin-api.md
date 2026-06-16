@@ -53,6 +53,7 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 Use this endpoint when you want to confirm:
 
 - the active AegisNAS product vendor ID and built-in VSA count
+- whether the product vendor ID still uses the lab placeholder and where `dictionary.aegisnas` should be installed
 - the active vendor compatibility packs from `radius.vendor.compatibility_packs`
 - the parsed dictionary coverage matrix through `dictionary_coverage`, including configured or auto-detected FreeRADIUS dictionary imports
 - the deployed RADIUS client `nas_type` values and their effective reply packs through `client_profiles`

@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance install-radius-dictionary
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -53,3 +53,6 @@ seed: admin
 
 validate-config: admin
 	./bin/aegis-admin validate-config --config configs/config.yaml
+
+install-radius-dictionary:
+	bash scripts/install-aegisnas-freeradius-dictionary.sh

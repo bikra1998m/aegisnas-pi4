@@ -853,7 +853,7 @@ Then confirm the session ended in the admin UI.
 Confirm the AegisNAS vendor dictionary was installed:
 
 ```bash
-sudo sed -n '1,220p' /etc/freeradius/3.0/aegisnas-vendor.dictionery
+sudo sed -n '1,220p' /etc/freeradius/3.0/dictionary.aegisnas
 sudo grep -n 'AegisNAS' /etc/freeradius/3.0/dictionary
 ```
 
@@ -868,7 +868,7 @@ ATTRIBUTE AegisNAS-Bandwidth-Profile ...
 Production note:
 
 - `55555` is a lab placeholder.
-- Replace it with your real IANA Private Enterprise Number before production.
+- Replace it with your real IANA Private Enterprise Number before production by setting `AEGISNAS_VENDOR_ID` or `radius.vendor.id`.
 
 ## 21. External AAA Test
 

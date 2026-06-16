@@ -29,6 +29,9 @@ func TestHandleGetVendorCompatibility(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "AegisNAS", summary["product_vendor_name"])
 	assert.EqualValues(t, 55555, summary["product_vendor_id"])
+	assert.Equal(t, true, summary["product_vendor_id_placeholder"])
+	assert.Equal(t, "dictionary.aegisnas", summary["product_vendor_dictionary_filename"])
+	assert.Equal(t, "$INCLUDE dictionary.aegisnas", summary["product_vendor_dictionary_include"])
 	assert.EqualValues(t, 13, summary["product_attribute_count"])
 	assert.Greater(t, int(summary["pack_count"].(float64)), 5)
 
