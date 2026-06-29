@@ -242,11 +242,24 @@ type DynamicAuthConfig struct {
 }
 
 type RadiusEAPConfig struct {
-	DefaultType   string `mapstructure:"default_type"`
-	PEAPInner     string `mapstructure:"peap_inner"`
-	TTLSInner     string `mapstructure:"ttls_inner"`
-	TLSMinVersion string `mapstructure:"tls_min_version"`
-	TLSMaxVersion string `mapstructure:"tls_max_version"`
+	DefaultType          string              `mapstructure:"default_type"`
+	PEAPInner            string              `mapstructure:"peap_inner"`
+	TTLSInner            string              `mapstructure:"ttls_inner"`
+	TLSMinVersion        string              `mapstructure:"tls_min_version"`
+	TLSMaxVersion        string              `mapstructure:"tls_max_version"`
+	CheckCRL             bool                `mapstructure:"check_crl"`
+	CheckAllCRL          bool                `mapstructure:"check_all_crl"`
+	CAPathReloadInterval int                 `mapstructure:"ca_path_reload_interval"`
+	OCSP                 RadiusEAPOCSPConfig `mapstructure:"ocsp"`
+}
+
+type RadiusEAPOCSPConfig struct {
+	Enabled         bool   `mapstructure:"enabled"`
+	OverrideCertURL bool   `mapstructure:"override_cert_url"`
+	URL             string `mapstructure:"url"`
+	UseNonce        bool   `mapstructure:"use_nonce"`
+	TimeoutSeconds  int    `mapstructure:"timeout_seconds"`
+	SoftFail        bool   `mapstructure:"soft_fail"`
 }
 
 type PortalConfig struct {
@@ -763,6 +776,15 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.eap.ttls_inner", "mschapv2")
 	v.SetDefault("radius.eap.tls_min_version", "1.2")
 	v.SetDefault("radius.eap.tls_max_version", "1.3")
+	v.SetDefault("radius.eap.check_crl", false)
+	v.SetDefault("radius.eap.check_all_crl", false)
+	v.SetDefault("radius.eap.ca_path_reload_interval", 3600)
+	v.SetDefault("radius.eap.ocsp.enabled", false)
+	v.SetDefault("radius.eap.ocsp.override_cert_url", false)
+	v.SetDefault("radius.eap.ocsp.url", "")
+	v.SetDefault("radius.eap.ocsp.use_nonce", true)
+	v.SetDefault("radius.eap.ocsp.timeout_seconds", 5)
+	v.SetDefault("radius.eap.ocsp.soft_fail", false)
 	v.SetDefault("radius.upstream.enabled", false)
 	v.SetDefault("radius.upstream.realm", "aegis-upstream")
 	v.SetDefault("radius.upstream.pool_strategy", "fail-over")
@@ -2766,6 +2788,36 @@ func (c *Config) Validate() error {
 	case "", "1.2", "1.3":
 	default:
 		return fmt.Errorf("radius.eap.tls_max_version %q is invalid", c.Radius.EAP.TLSMaxVersion)
+	}
+	if c.Radius.EAP.CheckAllCRL && !c.Radius.EAP.CheckCRL {
+		return errors.New("radius.eap.check_all_crl requires radius.eap.check_crl")
+	}
+	if c.Radius.EAP.CAPathReloadInterval < 0 {
+		return fmt.Errorf("radius.eap.ca_path_reload_interval %d cannot be negative", c.Radius.EAP.CAPathReloadInterval)
+	}
+	if c.Radius.EAP.CheckCRL && c.Radius.EAP.CAPathReloadInterval < 1 {
+		return errors.New("radius.eap.check_crl requires a positive radius.eap.ca_path_reload_interval")
+	}
+	if c.Radius.EAP.OCSP.TimeoutSeconds < 0 || c.Radius.EAP.OCSP.TimeoutSeconds > 60 {
+		return fmt.Errorf("radius.eap.ocsp.timeout_seconds %d must be between 0 and 60", c.Radius.EAP.OCSP.TimeoutSeconds)
+	}
+	if c.Radius.EAP.OCSP.OverrideCertURL && !c.Radius.EAP.OCSP.Enabled {
+		return errors.New("radius.eap.ocsp.override_cert_url requires radius.eap.ocsp.enabled")
+	}
+	if c.Radius.EAP.OCSP.OverrideCertURL && strings.TrimSpace(c.Radius.EAP.OCSP.URL) == "" {
+		return errors.New("radius.eap.ocsp.override_cert_url requires radius.eap.ocsp.url")
+	}
+	if ocspURL := strings.TrimSpace(c.Radius.EAP.OCSP.URL); ocspURL != "" {
+		if strings.ContainsAny(ocspURL, "\"\r\n") {
+			return fmt.Errorf("radius.eap.ocsp.url %q contains invalid characters", c.Radius.EAP.OCSP.URL)
+		}
+		parsed, err := url.Parse(ocspURL)
+		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+			return fmt.Errorf("radius.eap.ocsp.url %q must be a valid http or https URL", c.Radius.EAP.OCSP.URL)
+		}
+	}
+	if c.Onboarding.EAPTLSEnabled && !c.Radius.EAP.CheckCRL && !c.Radius.EAP.OCSP.Enabled {
+		return errors.New("onboarding.eap_tls_enabled requires radius.eap.check_crl or radius.eap.ocsp.enabled")
 	}
 
 	for i, cl := range c.Radius.Clients {

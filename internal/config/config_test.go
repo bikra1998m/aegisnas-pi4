@@ -52,6 +52,9 @@ radius:
 	assert.True(t, cfg.Telemetry.Enabled)
 	assert.Equal(t, "lite", EffectiveAIMode(cfg))
 	assert.Equal(t, "local", EffectiveAIProvider(cfg))
+	assert.Equal(t, 3600, cfg.Radius.EAP.CAPathReloadInterval)
+	assert.True(t, cfg.Radius.EAP.OCSP.UseNonce)
+	assert.Equal(t, 5, cfg.Radius.EAP.OCSP.TimeoutSeconds)
 
 	err = cfg.Validate()
 	assert.NoError(t, err)
@@ -890,7 +893,9 @@ func TestConfigValidationOnboardingAndProfiling(t *testing.T) {
 				AcctPort:              1813,
 				RequestTimeoutSeconds: 5,
 				EAP: RadiusEAPConfig{
-					DefaultType: "tls",
+					DefaultType:          "tls",
+					CheckCRL:             true,
+					CAPathReloadInterval: 3600,
 				},
 			},
 			Deployment: DeploymentConfig{
@@ -969,6 +974,19 @@ func TestConfigValidationOnboardingAndProfiling(t *testing.T) {
 	badTLS := base()
 	badTLS.Radius.EAP.DefaultType = "peap"
 	assert.ErrorContains(t, badTLS.Validate(), "requires radius.eap.default_type to be tls")
+
+	noRevocation := base()
+	noRevocation.Radius.EAP.CheckCRL = false
+	assert.ErrorContains(t, noRevocation.Validate(), "requires radius.eap.check_crl or radius.eap.ocsp.enabled")
+
+	badCRLChain := base()
+	badCRLChain.Radius.EAP.CheckCRL = false
+	badCRLChain.Radius.EAP.CheckAllCRL = true
+	assert.ErrorContains(t, badCRLChain.Validate(), "check_all_crl requires radius.eap.check_crl")
+
+	badOCSPURL := base()
+	badOCSPURL.Radius.EAP.OCSP = RadiusEAPOCSPConfig{Enabled: true, OverrideCertURL: true, URL: "not-a-url", UseNonce: true, TimeoutSeconds: 5}
+	assert.ErrorContains(t, badOCSPURL.Validate(), "must be a valid http or https URL")
 
 	badPolling := base()
 	badPolling.Profiling.PollIntervalSeconds = 10

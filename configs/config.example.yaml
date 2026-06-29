@@ -129,6 +129,16 @@ radius:
     ttls_inner: mschapv2
     tls_min_version: "1.2"
     tls_max_version: "1.3"
+    check_crl: false # Enable for EAP-TLS after placing CA certificates and CRLs in cert_dir and running c_rehash.
+    check_all_crl: false # Check intermediate CA revocation too; requires check_crl.
+    ca_path_reload_interval: 3600 # Reload hashed CA/CRL files so renewed CRLs take effect.
+    ocsp:
+      enabled: false
+      override_cert_url: false # Use the certificate AIA responder unless an explicit URL is required.
+      url: ""
+      use_nonce: true
+      timeout_seconds: 5
+      soft_fail: false # Keep false for strict production revocation enforcement.
   dynamic_auth:
     enabled: true
     port: 3799

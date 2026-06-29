@@ -2,6 +2,7 @@ package radius
 
 import (
 	"bytes"
+	"strings"
 	"text/template"
 
 	"github.com/yourorg/aegisnas-pi4/internal/config"
@@ -27,11 +28,31 @@ eap {
 		fragment_size = 1024
 		include_length = yes
 		auto_chain = yes
-		check_crl = no
+		check_crl = {{ .CheckCRL }}
+		check_all_crl = {{ .CheckAllCRL }}
+{{ if .CheckCRL }}
+		ca_path = {{ .CertDir }}
+		ca_path_reload_interval = {{ .CAPathReloadInterval }}
+{{ end }}
 		cipher_list = "DEFAULT"
 		ecdh_curve = "prime256v1"
 		tls_min_version = "{{ .TLSMinVersion }}"
 		tls_max_version = "{{ .TLSMaxVersion }}"
+
+		verify {
+			skip_if_ocsp_ok = no
+		}
+
+		ocsp {
+			enable = {{ .OCSPEnabled }}
+			override_cert_url = {{ .OCSPOverrideCertURL }}
+{{ if .OCSPURL }}
+			url = "{{ .OCSPURL }}"
+{{ end }}
+			use_nonce = {{ .OCSPUseNonce }}
+			timeout = {{ .OCSPTimeoutSeconds }}
+			softfail = {{ .OCSPSoftFail }}
+		}
 	}
 
 	peap {
@@ -63,24 +84,49 @@ eap {
 }
 `
 	data := struct {
-		MaxSessions   int
-		CertDir       string
-		DefaultType   string
-		PEAPInner     string
-		TTLSInner     string
-		TLSMinVersion string
-		TLSMaxVersion string
+		MaxSessions          int
+		CertDir              string
+		DefaultType          string
+		PEAPInner            string
+		TTLSInner            string
+		TLSMinVersion        string
+		TLSMaxVersion        string
+		CheckCRL             string
+		CheckAllCRL          string
+		CAPathReloadInterval int
+		OCSPEnabled          string
+		OCSPOverrideCertURL  string
+		OCSPURL              string
+		OCSPUseNonce         string
+		OCSPTimeoutSeconds   int
+		OCSPSoftFail         string
 	}{
-		MaxSessions:   cfg.Radius.MaxSessions,
-		CertDir:       certDir,
-		DefaultType:   cfg.Radius.EAP.DefaultType,
-		PEAPInner:     cfg.Radius.EAP.PEAPInner,
-		TTLSInner:     cfg.Radius.EAP.TTLSInner,
-		TLSMinVersion: cfg.Radius.EAP.TLSMinVersion,
-		TLSMaxVersion: cfg.Radius.EAP.TLSMaxVersion,
+		MaxSessions:          cfg.Radius.MaxSessions,
+		CertDir:              certDir,
+		DefaultType:          cfg.Radius.EAP.DefaultType,
+		PEAPInner:            cfg.Radius.EAP.PEAPInner,
+		TTLSInner:            cfg.Radius.EAP.TTLSInner,
+		TLSMinVersion:        cfg.Radius.EAP.TLSMinVersion,
+		TLSMaxVersion:        cfg.Radius.EAP.TLSMaxVersion,
+		CheckCRL:             radiusYesNo(cfg.Radius.EAP.CheckCRL),
+		CheckAllCRL:          radiusYesNo(cfg.Radius.EAP.CheckAllCRL),
+		CAPathReloadInterval: cfg.Radius.EAP.CAPathReloadInterval,
+		OCSPEnabled:          radiusYesNo(cfg.Radius.EAP.OCSP.Enabled),
+		OCSPOverrideCertURL:  radiusYesNo(cfg.Radius.EAP.OCSP.OverrideCertURL),
+		OCSPURL:              strings.TrimSpace(cfg.Radius.EAP.OCSP.URL),
+		OCSPUseNonce:         radiusYesNo(cfg.Radius.EAP.OCSP.UseNonce),
+		OCSPTimeoutSeconds:   cfg.Radius.EAP.OCSP.TimeoutSeconds,
+		OCSPSoftFail:         radiusYesNo(cfg.Radius.EAP.OCSP.SoftFail),
 	}
 	var buf bytes.Buffer
 	t := template.Must(template.New("eap").Parse(tmpl))
 	err := t.Execute(&buf, data)
 	return buf.String(), err
+}
+
+func radiusYesNo(value bool) string {
+	if value {
+		return "yes"
+	}
+	return "no"
 }

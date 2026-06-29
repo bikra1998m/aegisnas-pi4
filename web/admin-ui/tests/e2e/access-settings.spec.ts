@@ -8,6 +8,11 @@ test.describe('Access Settings edge-network flow', () => {
 
     await page.goto('/access-settings');
     await expect(page.getByRole('heading', { name: 'Access Settings' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'EAP-TLS Certificate Revocation' })).toBeVisible();
+    const checkClientCRL = page.getByLabel('Check Client CRL');
+    await expect(checkClientCRL).not.toBeChecked();
+    await checkClientCRL.check();
+    await expect(checkClientCRL).toBeChecked();
 
     await page.getByLabel('Local DNS Domain').fill('lab.aegis.test');
     await page.getByRole('button', { name: 'Save Settings' }).click();

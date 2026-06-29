@@ -811,6 +811,17 @@ function createSettings() {
         ttls_inner: "mschapv2",
         tls_min_version: "1.2",
         tls_max_version: "1.3",
+        check_crl: false,
+        check_all_crl: false,
+        ca_path_reload_interval: 3600,
+        ocsp: {
+          enabled: false,
+          override_cert_url: false,
+          url: "",
+          use_nonce: true,
+          timeout_seconds: 5,
+          soft_fail: false,
+        },
       },
       upstream: {
         enabled: true,

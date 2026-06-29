@@ -612,9 +612,17 @@ func evaluateEAPTLSOnboardingCapability(cfg *Config) FeatureCapability {
 		capability.State = CapabilityBlocked
 		capability.Summary = "EAP-TLS onboarding requires radius.eap.default_type to be tls."
 		capability.Dependencies = []string{"radius.eap.default_type"}
+	case cfg.Onboarding.EAPTLSEnabled && !cfg.Radius.EAP.CheckCRL && !cfg.Radius.EAP.OCSP.Enabled:
+		capability.State = CapabilityBlocked
+		capability.Summary = "EAP-TLS onboarding requires CRL or OCSP certificate revocation checks."
+		capability.Dependencies = []string{"radius.eap.check_crl", "radius.eap.ocsp.enabled"}
 	case cfg.Onboarding.EAPTLSEnabled && (veryLowMemory(cfg) || lowCPU(cfg)):
 		capability.State = CapabilityBlocked
 		capability.Summary = "EAP-TLS onboarding is active on hardware too constrained for certificate-heavy production auth."
+	case cfg.Onboarding.EAPTLSEnabled && cfg.Radius.EAP.OCSP.Enabled && cfg.Radius.EAP.OCSP.SoftFail && !cfg.Radius.EAP.CheckCRL:
+		capability.State = CapabilityWarned
+		capability.Summary = "EAP-TLS onboarding uses OCSP soft-fail without CRL fallback."
+		capability.Recommendation = "Disable OCSP soft-fail or enable CRL checking before production sign-off."
 	case cfg.Onboarding.EAPTLSEnabled:
 		capability.State = CapabilityEnabled
 		capability.Summary = "EAP-TLS onboarding is active."

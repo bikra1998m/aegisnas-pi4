@@ -179,6 +179,17 @@ Then choose the EAP defaults:
 - `TLS Min`
 - `TLS Max`
 
+For EAP-TLS production enrollment, configure certificate revocation in the same section:
+
+- enable `Check Client CRL` after placing CA certificates and CRLs in `Cert Directory` and running `c_rehash`
+- enable `Check Full CRL Chain` when intermediate CA revocation must be enforced
+- keep a positive `CA/CRL Reload` interval so renewed CRLs are loaded
+- enable `OCSP` when issued certificates contain a responder URL, or set an explicit responder URL with `Override Certificate OCSP URL`
+- keep `OCSP Nonce` enabled when the responder supports it
+- keep `OCSP Soft Fail` disabled unless CRL checking provides a deliberate fallback
+
+AegisNAS rejects an EAP-TLS onboarding configuration that enables neither CRL nor OCSP checking.
+
 If your upstream platform or controller will send CoA or disconnect messages:
 
 - enable `Dynamic Authorization`

@@ -587,6 +587,17 @@ const defaultSettings: JsonMap = {
       ttls_inner: "mschapv2",
       tls_min_version: "1.2",
       tls_max_version: "1.3",
+      check_crl: false,
+      check_all_crl: false,
+      ca_path_reload_interval: 3600,
+      ocsp: {
+        enabled: false,
+        override_cert_url: false,
+        url: "",
+        use_nonce: true,
+        timeout_seconds: 5,
+        soft_fail: false,
+      },
     },
     upstream: {
       enabled: false,
@@ -7446,6 +7457,99 @@ export default function AccessSettings() {
               updateField(["radius", "dynamic_auth", "port"], Number(value))
             }
           />
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <h4 className="font-semibold text-gray-900">
+            EAP-TLS Certificate Revocation
+          </h4>
+          <p className="mt-1 text-sm text-gray-600">
+            EAP-TLS onboarding requires CRL or OCSP validation. Keep OCSP
+            soft-fail disabled unless CRL checking provides a fallback.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Check Client CRL"
+              checked={Boolean(settings.radius?.eap?.check_crl)}
+              onChange={(checked) =>
+                updateField(["radius", "eap", "check_crl"], checked)
+              }
+            />
+            <ToggleField
+              label="Check Full CRL Chain"
+              checked={Boolean(settings.radius?.eap?.check_all_crl)}
+              onChange={(checked) =>
+                updateField(["radius", "eap", "check_all_crl"], checked)
+              }
+            />
+            <TextField
+              label="CA/CRL Reload (s)"
+              type="number"
+              value={settings.radius?.eap?.ca_path_reload_interval ?? 3600}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "ca_path_reload_interval"],
+                  Number(value),
+                )
+              }
+            />
+            <ToggleField
+              label="Enable OCSP"
+              checked={Boolean(settings.radius?.eap?.ocsp?.enabled)}
+              onChange={(checked) =>
+                updateField(["radius", "eap", "ocsp", "enabled"], checked)
+              }
+            />
+            <ToggleField
+              label="Override Certificate OCSP URL"
+              checked={Boolean(
+                settings.radius?.eap?.ocsp?.override_cert_url,
+              )}
+              onChange={(checked) =>
+                updateField(
+                  ["radius", "eap", "ocsp", "override_cert_url"],
+                  checked,
+                )
+              }
+            />
+            <TextField
+              label="OCSP Responder URL"
+              value={settings.radius?.eap?.ocsp?.url || ""}
+              onChange={(value) =>
+                updateField(["radius", "eap", "ocsp", "url"], value)
+              }
+            />
+            <ToggleField
+              label="OCSP Nonce"
+              checked={settings.radius?.eap?.ocsp?.use_nonce !== false}
+              onChange={(checked) =>
+                updateField(
+                  ["radius", "eap", "ocsp", "use_nonce"],
+                  checked,
+                )
+              }
+            />
+            <TextField
+              label="OCSP Timeout (s)"
+              type="number"
+              value={settings.radius?.eap?.ocsp?.timeout_seconds ?? 5}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "ocsp", "timeout_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <ToggleField
+              label="OCSP Soft Fail"
+              checked={Boolean(settings.radius?.eap?.ocsp?.soft_fail)}
+              onChange={(checked) =>
+                updateField(
+                  ["radius", "eap", "ocsp", "soft_fail"],
+                  checked,
+                )
+              }
+            />
+          </div>
         </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

@@ -512,7 +512,7 @@ Phase 3 validation rules:
 - lite blocks device inventory, onboarding portal, passive profiling, and EAP-TLS onboarding
 - onboarding portal requires `portal.enabled`, an identity path, device inventory, and a declared CA mode
 - certificate enrollment is enterprise-only and requires full CA configuration
-- EAP-TLS onboarding requires certificate enrollment plus `radius.eap.default_type: tls`
+- EAP-TLS onboarding requires certificate enrollment, `radius.eap.default_type: tls`, and CRL or OCSP revocation enforcement
 - passive profiling requires MAC inventory and a poll interval of at least 30 seconds
 - posture checks are enterprise-only and require MAC inventory plus an MDM endpoint or compliance webhook
 

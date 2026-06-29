@@ -232,6 +232,14 @@ portal:
 radius:
   eap:
     default_type: tls
+    check_crl: true
+    check_all_crl: true
+    ca_path_reload_interval: 3600
+    ocsp:
+      enabled: false
+      use_nonce: true
+      timeout_seconds: 5
+      soft_fail: false
 
 onboarding:
   device_inventory_enabled: true
@@ -303,6 +311,19 @@ portal:
     email_from: access@example.com
     smtp_server: smtp.example.com
     smtp_port: 587
+
+radius:
+  eap:
+    default_type: tls
+    check_crl: false
+    ca_path_reload_interval: 3600
+    ocsp:
+      enabled: true
+      override_cert_url: true
+      url: https://ca.example.com/ocsp
+      use_nonce: true
+      timeout_seconds: 5
+      soft_fail: false
 
 onboarding:
   device_inventory_enabled: true
