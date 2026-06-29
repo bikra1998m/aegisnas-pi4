@@ -258,6 +258,8 @@ For edge network operations, use the dashboard or:
 
 Network observability combines apply history, rollback counters, DHCP lease trends, and controller sync health. Vendor observability adds per-vendor auth success and failure counters, VSA parse failures, unsupported attributes, CoA and disconnect outcomes, and a NAS compatibility score. Treat the catalog coverage matrix as the expected capability map, then use the runtime counters to spot mismatched AP profiles, unsupported vendor attributes, broken CoA behavior, or controllers that stopped accepting policy.
 
+For controller changes, preview the operation from the dashboard or `GET /api/v1/system/controller-sync/preview`. Run `pull` first and resolve reported hash drift before a push. A push is locked until the operator enters `PUSH CONTROLLER POLICY`; its result, target adapter, hashes, drift count, applied or failed count, and controller health are written to integration history. Keep scheduled mode at `monitor` or `pull-config` until the selected controller has passed the certification lab against real hardware.
+
 ## Backup And Restore
 
 Use the CLI for full appliance backup and the admin UI for config-only JSON backup. See [Backup and Restore Procedures](backup-restore.md).

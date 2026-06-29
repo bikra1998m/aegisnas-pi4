@@ -155,6 +155,28 @@ Controller-native integration readiness is available at:
 
 The response lists the supported controller adapters, the selected platform's capabilities, required site or network identifier, token environment readiness, runtime sync status, and any setup warnings. Use it before enabling controller automation or when investigating drift, failed policy pushes, or controller API health.
 
+Controller policy operations are available at:
+
+```text
+GET  /api/v1/system/controller-sync/preview?operation=pull
+GET  /api/v1/system/controller-sync/preview?operation=push
+POST /api/v1/system/controller-sync
+```
+
+`pull` performs a read-only state request and compares the reported observed-state hash with the AegisNAS desired-state hash. `push` sends the generated policy payload and requires `confirmation` to equal `PUSH CONTROLLER POLICY`. Manual operations update `controller_automation` runtime counters and durable integration history. Operators can run the same preview, pull, drift check, and confirmed push from the Controller Automation section of the dashboard.
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  'http://127.0.0.1:8083/api/v1/system/controller-sync/preview?operation=pull' | jq '.preview'
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data '{"operation":"pull"}' \
+  http://127.0.0.1:8083/api/v1/system/controller-sync | jq '.status, .result'
+```
+
+Configured `monitor` and `pull-config` modes use the read-only pull path in the background scheduler. Treat a vendor adapter as production-authoritative only after its endpoint contract, returned hashes, and policy enforcement have passed the hardware certification runbook.
+
 ## Support Bundle Endpoints
 
 The appliance also serves support bundle preview and live bundle download at:

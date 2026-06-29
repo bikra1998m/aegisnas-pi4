@@ -1860,7 +1860,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("integrations.controller.platform %q is invalid", c.Integrations.Controller.Platform)
 	}
 	switch strings.ToLower(strings.TrimSpace(c.Integrations.Controller.SyncMode)) {
-	case "", "monitor", "push-config", "coa-only":
+	case "", "monitor", "pull-config", "push-config", "coa-only":
 	default:
 		return fmt.Errorf("integrations.controller.sync_mode %q is invalid", c.Integrations.Controller.SyncMode)
 	}

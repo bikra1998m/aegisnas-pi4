@@ -1101,6 +1101,16 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/controller-adapters", "get", securedOperation("Read controller adapter catalog", "Integrations", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Controller adapter capabilities, selected adapter readiness, and runtime sync status."),
 	}))
+	addOperation(paths, "/api/v1/system/controller-sync/preview", "get", securedOperationWithParameters("Preview controller policy synchronization", "Integrations", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("operation", "Controller operation: pull or push.", false),
+	}, map[string]any{
+		"200":     responseJSON("Sanitized controller operation preview."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/controller-sync", "post", securedOperationWithBody("Run controller policy synchronization", "Integrations", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Controller operation and push confirmation."), map[string]any{
+		"200":     responseJSON("Controller synchronization result."),
+		"default": responseText("Controller synchronization error."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))

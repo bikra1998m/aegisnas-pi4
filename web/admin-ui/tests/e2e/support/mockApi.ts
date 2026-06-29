@@ -3827,10 +3827,55 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
-    if (path === "/system/production-readiness" && method === "GET") {
-      await route.fulfill({ json: state.productionReadiness });
-      return;
-    }
+	if (path === "/system/production-readiness" && method === "GET") {
+		await route.fulfill({ json: state.productionReadiness });
+		return;
+	}
+
+	if (path === "/system/controller-sync/preview" && method === "GET") {
+		const operation = url.searchParams.get("operation") === "push" ? "push" : "pull";
+		await route.fulfill({
+			json: {
+				preview: {
+					operation,
+					adapter: "generic-rest",
+					method: operation === "push" ? "POST" : "GET",
+					target_url:
+						operation === "push"
+							? "https://controller.example.test/api/sync"
+							: "https://controller.example.test/api/state",
+					desired_state_hash: "desired-controller-state",
+				},
+				push_confirmation: "PUSH CONTROLLER POLICY",
+			},
+		});
+		return;
+	}
+
+	if (path === "/system/controller-sync" && method === "POST") {
+		const body = parseBody(route);
+		const operation = body.operation === "push" ? "push" : "pull";
+		await route.fulfill({
+			json: {
+				status: operation === "pull" ? "degraded" : "ok",
+				message:
+					operation === "pull"
+						? "Controller pull completed with detected policy drift."
+						: "Controller push completed successfully.",
+				result: {
+					operation,
+					drift_detected: operation === "pull",
+					drift_count: operation === "pull" ? 2 : 0,
+					applied_count: operation === "push" ? 3 : 0,
+					failed_count: 0,
+					desired_state_hash: "desired-controller-state",
+					observed_state_hash:
+						operation === "pull" ? "observed-controller-state" : "desired-controller-state",
+				},
+			},
+		});
+		return;
+	}
 
     if (path === "/staged-changes" && method === "GET") {
       await route.fulfill({ json: [] });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/client";
+import { useAuth } from "../contexts/AuthContext";
 
 type ServiceStatus = {
   key: string;
@@ -17,6 +18,24 @@ type RuntimeStatus = {
   message?: string;
   details?: Record<string, any>;
   updated_at?: string;
+};
+
+type ControllerSyncPreview = {
+  operation: "pull" | "push";
+  adapter: string;
+  method: string;
+  target_url: string;
+  desired_state_hash: string;
+};
+
+type ControllerSyncResult = {
+  operation: string;
+  drift_detected: boolean;
+  drift_count: number;
+  applied_count: number;
+  failed_count: number;
+  desired_state_hash?: string;
+  observed_state_hash?: string;
 };
 
 type VendorObservability = {
@@ -599,11 +618,20 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function Dashboard() {
-  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+	const { identity } = useAuth();
+	const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [productionReadiness, setProductionReadiness] =
     useState<ProductionReadinessReport | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+	const [error, setError] = useState("");
+	const [controllerBusy, setControllerBusy] = useState("");
+	const [controllerConfirmation, setControllerConfirmation] = useState("");
+	const [controllerPreview, setControllerPreview] =
+		useState<ControllerSyncPreview | null>(null);
+	const [controllerResult, setControllerResult] =
+		useState<ControllerSyncResult | null>(null);
+	const [controllerMessage, setControllerMessage] = useState("");
+	const [controllerError, setControllerError] = useState("");
 
   const loadStatus = async (includeReadiness = true) => {
     try {
@@ -625,7 +653,50 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+	};
+
+	const previewControllerSync = async (operation: "pull" | "push") => {
+		setControllerBusy(`preview-${operation}`);
+		setControllerError("");
+		try {
+			const { data } = await api.get("/system/controller-sync/preview", {
+				params: { operation },
+			});
+			setControllerPreview(data.preview);
+			setControllerMessage(
+				`${operation === "pull" ? "Read-only pull" : "Policy push"} preview is ready.`,
+			);
+		} catch (err: any) {
+			setControllerError(
+				err.response?.data || err.message || "Could not preview controller synchronization.",
+			);
+		} finally {
+			setControllerBusy("");
+		}
+	};
+
+	const runControllerSync = async (operation: "pull" | "push") => {
+		setControllerBusy(operation);
+		setControllerError("");
+		try {
+			const { data } = await api.post("/system/controller-sync", {
+				operation,
+				confirmation: operation === "push" ? controllerConfirmation : "",
+			});
+			setControllerResult(data.result || null);
+			setControllerMessage(data.message || `Controller ${operation} completed.`);
+			await loadStatus(false);
+		} catch (err: any) {
+			setControllerError(
+				err.response?.data?.message ||
+					err.response?.data ||
+					err.message ||
+					"Controller synchronization failed.",
+			);
+		} finally {
+			setControllerBusy("");
+		}
+	};
 
   useEffect(() => {
     loadStatus();
@@ -669,14 +740,16 @@ export default function Dashboard() {
   const readinessIssues =
     productionReadiness?.checks?.filter((check) => check.status !== "passed") ||
     [];
-  const highAvailabilityStatus =
+	const highAvailabilityStatus =
     systemStatus.high_availability.replication_runtime?.status === "degraded"
       ? "degraded"
       : systemStatus.high_availability.replication_runtime?.status ===
             "pending" && !systemStatus.high_availability.runtime?.status
         ? "pending"
         : systemStatus.high_availability.runtime?.status ||
-          (systemStatus.high_availability.enabled ? "unknown" : "disabled");
+		  (systemStatus.high_availability.enabled ? "unknown" : "disabled");
+	const canRunControllerSync =
+		identity?.role === "super_admin" || identity?.role === "ops_admin";
 
   return (
     <div className="space-y-6">
@@ -1379,13 +1452,89 @@ export default function Dashboard() {
                         {systemStatus.integrations.controller.endpoint}
                       </div>
                     ) : null}
-                    {systemStatus.integrations.controller.sync?.updated_at ? (
+					{systemStatus.integrations.controller.sync?.updated_at ? (
                       <div className="mt-1 text-xs text-gray-500">
                         Updated{" "}
                         {systemStatus.integrations.controller.sync.updated_at}
                       </div>
-                    ) : null}
-                  </div>
+					) : null}
+					{systemStatus.integrations.controller.enabled ? (
+						<div className="mt-4 border-t border-gray-200 pt-4">
+							<div className="flex flex-wrap gap-2">
+								<button
+									type="button"
+									onClick={() => previewControllerSync("pull")}
+									disabled={Boolean(controllerBusy)}
+									className="rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 disabled:opacity-50"
+								>
+									Preview Pull
+								</button>
+								<button
+									type="button"
+									onClick={() => runControllerSync("pull")}
+									disabled={
+										Boolean(controllerBusy) ||
+										!canRunControllerSync ||
+										systemStatus.integrations.controller.ready === false
+									}
+									className="rounded-md bg-sky-700 px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
+								>
+									{controllerBusy === "pull" ? "Checking..." : "Pull And Check Drift"}
+								</button>
+								<button
+									type="button"
+									onClick={() => previewControllerSync("push")}
+									disabled={Boolean(controllerBusy)}
+									className="rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 disabled:opacity-50"
+								>
+									Preview Push
+								</button>
+							</div>
+							{canRunControllerSync ? (
+								<div className="mt-3 flex flex-wrap items-end gap-2">
+									<label className="min-w-64 flex-1 text-xs font-medium text-gray-700">
+										Push confirmation phrase
+										<input
+											value={controllerConfirmation}
+											onChange={(event) => setControllerConfirmation(event.target.value)}
+											placeholder="PUSH CONTROLLER POLICY"
+											className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+										/>
+									</label>
+									<button
+										type="button"
+										onClick={() => runControllerSync("push")}
+										disabled={
+											Boolean(controllerBusy) ||
+											controllerConfirmation !== "PUSH CONTROLLER POLICY" ||
+											systemStatus.integrations.controller.ready === false
+										}
+										className="rounded-md bg-red-700 px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
+									>
+										{controllerBusy === "push" ? "Pushing..." : "Push Controller Policy"}
+									</button>
+								</div>
+							) : null}
+							{controllerPreview ? (
+								<div className="mt-3 text-xs text-gray-600 break-all">
+									{controllerPreview.method} {controllerPreview.target_url}
+									<br />Desired state {controllerPreview.desired_state_hash}
+								</div>
+							) : null}
+							{controllerMessage ? (
+								<div className="mt-3 text-xs text-emerald-700">{controllerMessage}</div>
+							) : null}
+							{controllerResult?.drift_detected ? (
+								<div className="mt-2 text-xs text-amber-700">
+									Detected {controllerResult.drift_count} controller drift item(s).
+								</div>
+							) : null}
+							{controllerError ? (
+								<div className="mt-3 text-xs text-red-700">{String(controllerError)}</div>
+							) : null}
+						</div>
+					) : null}
+				  </div>
                   <StatusBadge
                     status={
                       systemStatus.integrations.controller.sync?.status ||

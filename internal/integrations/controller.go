@@ -49,6 +49,35 @@ type controllerSyncResult struct {
 	ResponseDetails    map[string]any
 }
 
+type ControllerSyncPreview struct {
+	Operation        string         `json:"operation"`
+	Adapter          string         `json:"adapter"`
+	Method           string         `json:"method"`
+	TargetURL        string         `json:"target_url"`
+	AuthScheme       string         `json:"auth_scheme"`
+	DesiredStateHash string         `json:"desired_state_hash"`
+	Payload          map[string]any `json:"payload,omitempty"`
+}
+
+type ControllerOperationResult struct {
+	Operation          string         `json:"operation"`
+	Adapter            string         `json:"adapter"`
+	TargetURL          string         `json:"target_url"`
+	AuthScheme         string         `json:"auth_scheme"`
+	ResponseStatus     string         `json:"response_status,omitempty"`
+	ResponseSummary    string         `json:"response_summary,omitempty"`
+	WarningCount       int            `json:"warning_count"`
+	DriftDetected      bool           `json:"drift_detected"`
+	DriftCount         int            `json:"drift_count"`
+	AppliedCount       int            `json:"applied_count"`
+	FailedCount        int            `json:"failed_count"`
+	ControllerHealth   string         `json:"controller_health,omitempty"`
+	CompatibilityScore int            `json:"compatibility_score,omitempty"`
+	ObservedStateHash  string         `json:"observed_state_hash,omitempty"`
+	DesiredStateHash   string         `json:"desired_state_hash,omitempty"`
+	Details            map[string]any `json:"details,omitempty"`
+}
+
 type ControllerAdapterDescriptor struct {
 	Platform            string   `json:"platform"`
 	Label               string   `json:"label"`
@@ -140,7 +169,7 @@ func StartControllerAutomation(ctx context.Context, cfg *config.Config, logger *
 		startedAt := time.Now().UTC()
 		lastStatus, _ := db.GetRuntimeStatus(controllerComponent)
 		syncCount, successCount, failureCount := controllerStatusCounters(lastStatus)
-		result, err := pushControllerState(ctx, cfg)
+		result, err := syncControllerState(ctx, cfg)
 		details := map[string]any{
 			"platform":         cfg.Integrations.Controller.Platform,
 			"endpoint":         cfg.Integrations.Controller.Endpoint,
@@ -196,19 +225,88 @@ func StartControllerAutomation(ctx context.Context, cfg *config.Config, logger *
 }
 
 func pushControllerState(ctx context.Context, cfg *config.Config) (*controllerSyncResult, error) {
+	return executeControllerState(ctx, cfg, "push")
+}
+
+func pullControllerState(ctx context.Context, cfg *config.Config) (*controllerSyncResult, error) {
+	return executeControllerState(ctx, cfg, "pull")
+}
+
+func syncControllerState(ctx context.Context, cfg *config.Config) (*controllerSyncResult, error) {
+	if cfg != nil && controllerSyncModePulls(cfg.Integrations.Controller.SyncMode) {
+		return pullControllerState(ctx, cfg)
+	}
+	return pushControllerState(ctx, cfg)
+}
+
+func controllerSyncModePulls(mode string) bool {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "monitor", "pull-config":
+		return true
+	default:
+		return false
+	}
+}
+
+func BuildControllerSyncPreview(cfg *config.Config, operation string) (*ControllerSyncPreview, error) {
+	operation, err := normalizeControllerOperation(operation)
+	if err != nil {
+		return nil, err
+	}
+	request, err := buildControllerOperationRequest(cfg, "redacted", operation)
+	if err != nil {
+		return nil, err
+	}
+	return &ControllerSyncPreview{
+		Operation:        operation,
+		Adapter:          request.Adapter,
+		Method:           request.Method,
+		TargetURL:        request.URL,
+		AuthScheme:       request.AuthScheme,
+		DesiredStateHash: firstNonEmptyString(request.Payload["desired_state_hash"]),
+		Payload:          request.Payload,
+	}, nil
+}
+
+func ExecuteControllerOperation(ctx context.Context, cfg *config.Config, operation string) (*ControllerOperationResult, error) {
+	operation, err := normalizeControllerOperation(operation)
+	if err != nil {
+		return nil, err
+	}
+	result, executeErr := executeControllerState(ctx, cfg, operation)
+	if result == nil {
+		return nil, executeErr
+	}
+	return &ControllerOperationResult{
+		Operation: operation, Adapter: result.Adapter, TargetURL: result.TargetURL, AuthScheme: result.AuthScheme,
+		ResponseStatus: result.ResponseStatus, ResponseSummary: result.ResponseSummary, WarningCount: result.WarningCount,
+		DriftDetected: result.DriftDetected, DriftCount: result.DriftCount, AppliedCount: result.AppliedCount,
+		FailedCount: result.FailedCount, ControllerHealth: result.ControllerHealth, CompatibilityScore: result.CompatibilityScore,
+		ObservedStateHash: result.ObservedStateHash, DesiredStateHash: result.DesiredStateHash, Details: result.ResponseDetails,
+	}, executeErr
+}
+
+func executeControllerState(ctx context.Context, cfg *config.Config, operation string) (*controllerSyncResult, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("controller config is required")
+	}
 	token := controllerToken(cfg)
 	if token == "" {
 		return nil, fmt.Errorf("controller API token env %q is empty", strings.TrimSpace(cfg.Integrations.Controller.APITokenEnv))
 	}
-	request, err := buildControllerRequest(cfg, token)
+	request, err := buildControllerOperationRequest(cfg, token, operation)
 	if err != nil {
 		return nil, err
 	}
-	payload, err := json.Marshal(request.Payload)
-	if err != nil {
-		return nil, err
+	var requestBody io.Reader
+	if request.Method != http.MethodGet && request.Method != http.MethodHead {
+		payload, err := json.Marshal(request.Payload)
+		if err != nil {
+			return nil, err
+		}
+		requestBody = bytes.NewReader(payload)
 	}
-	req, err := http.NewRequestWithContext(ctx, request.Method, request.URL, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, request.Method, request.URL, requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -250,6 +348,12 @@ func pushControllerState(ctx context.Context, cfg *config.Config) (*controllerSy
 		ResponseDetails:  responseDetails,
 	}
 	applyControllerResponseDetails(result, responseDetails)
+	if result.ObservedStateHash != "" && result.DesiredStateHash != "" && !strings.EqualFold(result.ObservedStateHash, result.DesiredStateHash) {
+		result.DriftDetected = true
+		if result.DriftCount == 0 {
+			result.DriftCount = 1
+		}
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		if summary != "" {
 			return result, fmt.Errorf("controller endpoint returned %s: %s", resp.Status, summary)
@@ -260,19 +364,34 @@ func pushControllerState(ctx context.Context, cfg *config.Config) (*controllerSy
 }
 
 func buildControllerRequest(cfg *config.Config, token string) (*controllerRequest, error) {
+	return buildControllerOperationRequest(cfg, token, "push")
+}
+
+func buildControllerOperationRequest(cfg *config.Config, token, operation string) (*controllerRequest, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("controller config is required")
 	}
+	operation, err := normalizeControllerOperation(operation)
+	if err != nil {
+		return nil, err
+	}
 	platform := normalizeControllerPlatform(cfg.Integrations.Controller.Platform)
-	targetURL, err := controllerEndpointForPlatform(cfg, platform)
+	targetURL, err := controllerOperationEndpoint(cfg, platform, operation)
 	if err != nil {
 		return nil, err
 	}
 
+	syncMode := strings.TrimSpace(cfg.Integrations.Controller.SyncMode)
+	method := http.MethodPost
+	if operation == "pull" {
+		syncMode = "pull-config"
+		method = http.MethodGet
+	}
 	headers := map[string]string{
-		"X-AegisNAS-Controller-Platform": platform,
-		"X-AegisNAS-Sync-Mode":           strings.TrimSpace(cfg.Integrations.Controller.SyncMode),
-		"X-AegisNAS-Controller-Adapter":  controllerAdapterName(platform),
+		"X-AegisNAS-Controller-Platform":  platform,
+		"X-AegisNAS-Sync-Mode":            syncMode,
+		"X-AegisNAS-Controller-Adapter":   controllerAdapterName(platform),
+		"X-AegisNAS-Controller-Operation": operation,
 	}
 	authScheme := "bearer"
 	switch platform {
@@ -288,15 +407,38 @@ func buildControllerRequest(cfg *config.Config, token string) (*controllerReques
 
 	payload := buildControllerPayloadForPlatform(cfg, platform)
 	attachControllerPayloadMetadata(payload, platform)
+	headers["X-AegisNAS-Desired-State-Hash"] = firstNonEmptyString(payload["desired_state_hash"])
 
 	return &controllerRequest{
 		Adapter:    controllerAdapterName(platform),
-		Method:     http.MethodPost,
+		Method:     method,
 		URL:        targetURL,
 		AuthScheme: authScheme,
 		Headers:    headers,
 		Payload:    payload,
 	}, nil
+}
+
+func normalizeControllerOperation(operation string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(operation)) {
+	case "", "push", "push-config":
+		return "push", nil
+	case "pull", "pull-config", "monitor", "check":
+		return "pull", nil
+	default:
+		return "", fmt.Errorf("controller operation %q is invalid", strings.TrimSpace(operation))
+	}
+}
+
+func controllerOperationEndpoint(cfg *config.Config, platform, operation string) (string, error) {
+	targetURL, err := controllerEndpointForPlatform(cfg, platform)
+	if err != nil || operation != "pull" || normalizeControllerPlatform(platform) == "generic" {
+		return targetURL, err
+	}
+	if strings.HasSuffix(targetURL, "/sync") {
+		return strings.TrimSuffix(targetURL, "/sync") + "/state", nil
+	}
+	return strings.TrimRight(targetURL, "/") + "/state", nil
 }
 
 func controllerEndpointForPlatform(cfg *config.Config, platform string) (string, error) {
@@ -547,6 +689,12 @@ func parseControllerResponse(body []byte) (string, int, map[string]any) {
 	if observedHash := firstNonEmptyString(payload["observed_state_hash"], payload["observed_hash"]); observedHash != "" {
 		details["observed_state_hash"] = observedHash
 	}
+	if observedState, ok := payload["observed_state"].(map[string]any); ok {
+		details["observed_state"] = observedState
+		if _, exists := details["observed_state_hash"]; !exists {
+			details["observed_state_hash"] = controllerDesiredStateHash(observedState)
+		}
+	}
 	appendControllerDriftDetails(details, payload)
 	if siteID := firstNonEmptyString(payload["site"], payload["site_id"], payload["network"], payload["zone"]); siteID != "" {
 		details["response_scope"] = siteID
@@ -623,7 +771,7 @@ func controllerAdapterCapabilities(platform string) map[string]any {
 		"dynamic_acl":          false,
 		"coa":                  false,
 		"native_policy_push":   normalized != "" && normalized != "generic",
-		"supported_sync_modes": []string{"monitor", "push-config", "coa-only"},
+		"supported_sync_modes": []string{"monitor", "pull-config", "push-config", "coa-only"},
 	}
 	switch normalized {
 	case "cisco":

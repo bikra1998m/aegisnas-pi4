@@ -296,6 +296,71 @@ func TestPushControllerStateCapturesControllerDriftAndHealth(t *testing.T) {
 	assert.Equal(t, "degraded", controllerResultRuntimeStatus(result))
 }
 
+func TestControllerPullPreviewAndExecutionDetectHashDrift(t *testing.T) {
+	const tokenEnv = "AEGIS_TEST_CONTROLLER_PULL_TOKEN"
+	t.Setenv(tokenEnv, "pull-secret")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/api/v1/aegisnas/sites/branch-lab/state", r.URL.Path)
+		assert.Equal(t, "pull-config", r.Header.Get("X-AegisNAS-Sync-Mode"))
+		assert.Equal(t, "pull", r.Header.Get("X-AegisNAS-Controller-Operation"))
+		assert.Equal(t, "cisco-ise", r.Header.Get("X-AegisNAS-Controller-Adapter"))
+		assert.Equal(t, "Bearer pull-secret", r.Header.Get("Authorization"))
+		assert.NotEmpty(t, r.Header.Get("X-AegisNAS-Desired-State-Hash"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"summary":"Controller state loaded.","observed_state_hash":"outdated-state","controller_health":"healthy"}`))
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{}
+	cfg.Integrations.Controller.Enabled = true
+	cfg.Integrations.Controller.Platform = "cisco"
+	cfg.Integrations.Controller.Endpoint = server.URL
+	cfg.Integrations.Controller.APITokenEnv = tokenEnv
+	cfg.Integrations.Controller.SyncMode = "monitor"
+	cfg.Integrations.Controller.Site = "branch-lab"
+
+	preview, err := BuildControllerSyncPreview(cfg, "pull")
+	require.NoError(t, err)
+	assert.Equal(t, "pull", preview.Operation)
+	assert.Equal(t, http.MethodGet, preview.Method)
+	assert.Equal(t, server.URL+"/api/v1/aegisnas/sites/branch-lab/state", preview.TargetURL)
+	assert.NotEmpty(t, preview.DesiredStateHash)
+	assert.NotEmpty(t, preview.Payload)
+
+	result, err := ExecuteControllerOperation(context.Background(), cfg, "pull")
+	require.NoError(t, err)
+	assert.Equal(t, "pull", result.Operation)
+	assert.Equal(t, "cisco-ise", result.Adapter)
+	assert.Equal(t, "healthy", result.ControllerHealth)
+	assert.Equal(t, "outdated-state", result.ObservedStateHash)
+	assert.NotEmpty(t, result.DesiredStateHash)
+	assert.True(t, result.DriftDetected)
+	assert.Equal(t, 1, result.DriftCount)
+}
+
+func TestSyncControllerStateUsesPullForMonitorMode(t *testing.T) {
+	const tokenEnv = "AEGIS_TEST_CONTROLLER_MONITOR_TOKEN"
+	t.Setenv(tokenEnv, "monitor-secret")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "pull", r.Header.Get("X-AegisNAS-Controller-Operation"))
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{}
+	cfg.Integrations.Controller.Platform = "generic"
+	cfg.Integrations.Controller.Endpoint = server.URL
+	cfg.Integrations.Controller.APITokenEnv = tokenEnv
+	cfg.Integrations.Controller.SyncMode = "monitor"
+
+	_, err := syncControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+}
+
 func TestPushControllerStateRequiresToken(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Integrations.Controller.Endpoint = "https://example.invalid"

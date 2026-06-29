@@ -80,6 +80,19 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read controller adapter catalog", controllerAdaptersGet["summary"])
 	assert.Contains(t, controllerAdaptersGet["x-aegisnas-roles"], "read_only")
 
+	controllerSyncPreviewPath, ok := paths["/api/v1/system/controller-sync/preview"].(map[string]any)
+	require.True(t, ok)
+	controllerSyncPreviewGet, ok := controllerSyncPreviewPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Preview controller policy synchronization", controllerSyncPreviewGet["summary"])
+
+	controllerSyncPath, ok := paths["/api/v1/system/controller-sync"].(map[string]any)
+	require.True(t, ok)
+	controllerSyncPost, ok := controllerSyncPath["post"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Run controller policy synchronization", controllerSyncPost["summary"])
+	assert.Contains(t, controllerSyncPost["x-aegisnas-roles"], "ops_admin")
+
 	vendorReplyPreviewPath, ok := paths["/api/v1/system/vendor-reply-preview"].(map[string]any)
 	require.True(t, ok)
 	vendorReplyPreviewPost, ok := vendorReplyPreviewPath["post"].(map[string]any)
