@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance install-radius-dictionary scan-radius-dictionaries
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification install-radius-dictionary scan-radius-dictionaries
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -28,6 +28,11 @@ ai-lite:
 
 test-acceptance:
 	cd test/acceptance && ./run.sh
+
+test-vendor-certification:
+	bash -n scripts/vendor-certification-lab.sh
+	bash scripts/vendor-certification-lab.sh --self-test
+	go test ./internal/radius -run TestVendorPackCertificationMatrix -count=1
 				
 build:
 	go build ./...

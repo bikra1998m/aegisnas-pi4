@@ -588,6 +588,8 @@ Current runtime implementation after Phase 4:
 
 This phase now delivers real runtime integrations for the declared production paths while still being honest about product boundaries. The controller runtime is a vendor-neutral sync contract rather than a promise of one-to-one feature parity with every vendor controller API.
 
+Release certification uses `scripts/vendor-certification-lab.sh` one pack at a time. Its required gates cover product vendor identity, runtime catalog presence, reply rendering, and optional live RADIUS, packet capture, device, controller, upgrade, and rollback evidence. CI validates the harness itself; real hardware evidence remains a release-lab responsibility.
+
 ### Phase 5
 
 Add automatic hardware scaling modes:

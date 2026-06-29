@@ -82,6 +82,7 @@ What this pass still does not change:
 - storage NAS services such as Samba, NFS, RAID, ZFS, and share management are still separate workstreams
 - reusable ACL policies are not yet persisted as first-class database objects
 - `CoA-Request` can now trigger immediate gateway quarantine enforcement, immediate timeout expiry, live bandwidth profile reshaping, and VLAN-change reauthentication, but live controller/device ACL push still needs per-vendor smoke testing
+- `scripts/vendor-certification-lab.sh` provides the repeatable per-pack API, RADIUS, packet-capture, real-device, controller, upgrade, and rollback evidence workflow for that smoke testing
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 

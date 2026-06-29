@@ -260,6 +260,8 @@ Network observability combines apply history, rollback counters, DHCP lease tren
 
 For controller changes, preview the operation from the dashboard or `GET /api/v1/system/controller-sync/preview`. Run `pull` first and resolve reported hash drift before a push. A push is locked until the operator enters `PUSH CONTROLLER POLICY`; its result, target adapter, hashes, drift count, applied or failed count, and controller health are written to integration history. Keep scheduled mode at `monitor` or `pull-config` until the selected controller has passed the certification lab against real hardware.
 
+Run `scripts/vendor-certification-lab.sh` for each supported production vendor and archive its `summary.json`, API payloads, RADIUS results, packet capture, controller evidence, and optional upgrade/rollback artifacts. The full procedure and safety gates are in [vendor-certification-lab.md](vendor-certification-lab.md).
+
 ## Backup And Restore
 
 Use the CLI for full appliance backup and the admin UI for config-only JSON backup. See [Backup and Restore Procedures](backup-restore.md).

@@ -220,7 +220,7 @@ The full suite passed after fixing one SQLite locking issue in timeout enforceme
 
 - storage NAS features are still a separate product layer
 - CoA currently updates local session policy state, not device-specific shaping engines
-- vendor-neutral ACL rule preview/rendering is present, but reusable ACL policy storage and device smoke testing are still separate work
+- vendor-neutral ACL preview/rendering and reusable staged ACL policy storage are present; device enforcement is proven separately with `scripts/vendor-certification-lab.sh`
 
 ## Best Next Steps
 
