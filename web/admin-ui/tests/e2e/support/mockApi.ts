@@ -888,7 +888,46 @@ function createDeploymentPreview() {
   };
 }
 
+function createProductionReadiness() {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    status: "blocked",
+    ready: false,
+    score: 75,
+    message: "Production readiness is blocked by 1 required check(s).",
+    deployment_profile: "branch",
+    deployment_form: "virtual",
+    blocking_count: 1,
+    warning_count: 1,
+    degraded_count: 0,
+    passing_count: 6,
+    checks: [
+      {
+        key: "vendor_identity",
+        category: "vendor",
+        label: "AegisNAS Vendor Identity",
+        status: "blocked",
+        summary:
+          "AegisNAS product VSAs are enabled with the lab placeholder vendor ID 55555.",
+        recommendation:
+          "Request an IANA Private Enterprise Number before production VSA use.",
+      },
+      {
+        key: "product_dictionary",
+        category: "vendor",
+        label: "Product Dictionary Install",
+        status: "warned",
+        summary:
+          "AegisNAS product dictionary was not detected in the FreeRADIUS dictionary imports.",
+        recommendation:
+          "Install dictionary.aegisnas before hardware smoke tests.",
+      },
+    ],
+  };
+}
+
 function createSystemStatus() {
+  const productionReadiness = createProductionReadiness();
   return {
     generated_at: "2026-05-05T12:00:00Z",
     summary: {
@@ -920,6 +959,16 @@ function createSystemStatus() {
         port: 8080,
       },
     ],
+    production_readiness: {
+      status: productionReadiness.status,
+      ready: productionReadiness.ready,
+      score: productionReadiness.score,
+      message: productionReadiness.message,
+      blocking_count: productionReadiness.blocking_count,
+      warning_count: productionReadiness.warning_count,
+      degraded_count: productionReadiness.degraded_count,
+      passing_count: productionReadiness.passing_count,
+    },
     deployment: createDeploymentPreview(),
     radius: {
       upstream_enabled: true,
@@ -3470,6 +3519,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
     settings: createSettings(),
     deploymentPreview: createDeploymentPreview(),
     systemStatus: createSystemStatus(),
+    productionReadiness: createProductionReadiness(),
     identity: options.identity || SUPER_ADMIN,
     authOptions: options.authOptions || {
       token_login: true,
@@ -3743,6 +3793,11 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
 
     if (path === "/system/status" && method === "GET") {
       await route.fulfill({ json: state.systemStatus });
+      return;
+    }
+
+    if (path === "/system/production-readiness" && method === "GET") {
+      await route.fulfill({ json: state.productionReadiness });
       return;
     }
 

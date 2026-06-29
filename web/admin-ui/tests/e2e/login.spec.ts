@@ -15,6 +15,9 @@ test.describe('admin authentication', () => {
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
     await expect(page.getByText('Live appliance health, access posture, and service readiness.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Production Readiness' })).toBeVisible();
+    await expect(page.getByText('Production readiness is blocked by 1 required check(s).')).toBeVisible();
+    await expect(page.getByText('AegisNAS Vendor Identity')).toBeVisible();
   });
 
   test('completes the admin SSO redirect flow', async ({ page }) => {

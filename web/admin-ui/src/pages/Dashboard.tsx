@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../api/client";
 
 type ServiceStatus = {
@@ -76,6 +77,31 @@ type DeploymentCapability = {
   recommendation?: string;
 };
 
+type ProductionReadinessSummary = {
+  status: "ready" | "warned" | "degraded" | "blocked";
+  ready: boolean;
+  score: number;
+  message: string;
+  blocking_count: number;
+  warning_count: number;
+  degraded_count: number;
+  passing_count: number;
+};
+
+type ProductionReadinessCheck = {
+  key: string;
+  category: string;
+  label: string;
+  status: "passed" | "warned" | "degraded" | "blocked";
+  summary: string;
+  recommendation?: string;
+  dependencies?: string[];
+};
+
+type ProductionReadinessReport = ProductionReadinessSummary & {
+  checks?: ProductionReadinessCheck[];
+};
+
 type SystemStatus = {
   generated_at: string;
   summary: {
@@ -90,6 +116,7 @@ type SystemStatus = {
     session_methods: Record<string, number>;
   };
   services: ServiceStatus[];
+  production_readiness?: ProductionReadinessSummary;
   deployment: {
     profile: string;
     form: string;
@@ -505,8 +532,11 @@ type SystemStatus = {
 
 const statusTone: Record<string, string> = {
   ok: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  ready: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  passed: "border-emerald-200 bg-emerald-50 text-emerald-800",
   degraded: "border-amber-200 bg-amber-50 text-amber-800",
   down: "border-red-200 bg-red-50 text-red-800",
+  blocked: "border-red-200 bg-red-50 text-red-800",
   disabled: "border-gray-200 bg-gray-100 text-gray-700",
   unknown: "border-slate-200 bg-slate-100 text-slate-700",
   warned: "border-amber-200 bg-amber-50 text-amber-800",
@@ -570,13 +600,23 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function Dashboard() {
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [productionReadiness, setProductionReadiness] =
+    useState<ProductionReadinessReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadStatus = async () => {
+  const loadStatus = async (includeReadiness = true) => {
     try {
-      const { data } = await api.get("/system/status");
-      setSystemStatus(data);
+      const [statusResponse, readinessResponse] = await Promise.all([
+        api.get("/system/status"),
+        includeReadiness
+          ? api.get("/system/production-readiness").catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      setSystemStatus(statusResponse.data);
+      if (includeReadiness) {
+        setProductionReadiness(readinessResponse?.data || null);
+      }
       setError("");
     } catch (err: any) {
       setError(
@@ -589,7 +629,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadStatus();
-    const timer = window.setInterval(loadStatus, 15000);
+    const timer = window.setInterval(() => loadStatus(false), 15000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -624,6 +664,11 @@ export default function Dashboard() {
   );
   const networkObservability = systemStatus.network_observability;
   const vendorObservability = networkObservability?.vendor_observability;
+  const readinessSummary =
+    productionReadiness || systemStatus.production_readiness;
+  const readinessIssues =
+    productionReadiness?.checks?.filter((check) => check.status !== "passed") ||
+    [];
   const highAvailabilityStatus =
     systemStatus.high_availability.replication_runtime?.status === "degraded"
       ? "degraded"
@@ -643,7 +688,7 @@ export default function Dashboard() {
           </p>
         </div>
         <button
-          onClick={loadStatus}
+          onClick={() => loadStatus(true)}
           className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
         >
           Refresh
@@ -655,6 +700,124 @@ export default function Dashboard() {
           {String(error)}
         </div>
       )}
+
+      {readinessSummary ? (
+        <section
+          className={`rounded-lg border bg-white p-6 shadow-sm ${
+            readinessSummary.status === "blocked"
+              ? "border-red-300"
+              : readinessSummary.status === "ready"
+                ? "border-emerald-300"
+                : "border-amber-300"
+          }`}
+          aria-labelledby="production-readiness-heading"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h3
+                id="production-readiness-heading"
+                className="text-lg font-semibold text-gray-900"
+              >
+                Production Readiness
+              </h3>
+              <p className="mt-1 text-sm text-gray-600">
+                {readinessSummary.message}
+              </p>
+            </div>
+            <StatusBadge status={readinessSummary.status} />
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-5">
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                Score
+              </div>
+              <div className="mt-1 text-2xl font-bold text-gray-900">
+                {readinessSummary.score}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                Blocked
+              </div>
+              <div className="mt-1 text-2xl font-bold text-red-700">
+                {readinessSummary.blocking_count}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                Degraded
+              </div>
+              <div className="mt-1 text-2xl font-bold text-amber-700">
+                {readinessSummary.degraded_count}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                Warnings
+              </div>
+              <div className="mt-1 text-2xl font-bold text-amber-700">
+                {readinessSummary.warning_count}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                Passed
+              </div>
+              <div className="mt-1 text-2xl font-bold text-emerald-700">
+                {readinessSummary.passing_count}
+              </div>
+            </div>
+          </div>
+
+          {readinessIssues.length ? (
+            <div className="mt-5 border-t border-gray-200">
+              {readinessIssues.slice(0, 4).map((check) => (
+                <div
+                  key={check.key}
+                  className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 py-4 last:border-b-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-gray-900">
+                      {check.label}
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {check.summary}
+                    </div>
+                    {check.recommendation ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {check.recommendation}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge status={check.status} />
+                </div>
+              ))}
+              {readinessIssues.length > 4 ? (
+                <div className="pb-3 text-xs text-gray-500">
+                  {readinessIssues.length - 4} more readiness issue(s) are
+                  available from the production readiness API.
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              to="/access-settings"
+              className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white"
+            >
+              Open Access Settings
+            </Link>
+            <Link
+              to="/vendor-compatibility"
+              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
+            >
+              Vendor Compatibility
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <MetricCard
