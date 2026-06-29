@@ -49,7 +49,7 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 	form := EffectiveDeploymentForm(cfg.Deployment.Form)
 	preset := deploymentPresetFor(profile, form)
 
-	return []FeatureCapability{
+	capabilities := []FeatureCapability{
 		evaluateLocalWirelessCapability(cfg, preset),
 		evaluateRuntimeShapingCapability(cfg, preset),
 		evaluateAIModeCapability(cfg),
@@ -72,6 +72,73 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 		evaluateDelegatedAdminCapability(cfg),
 		evaluateMultiTenantCapability(cfg),
 	}
+	return applyHardwareScalingGates(cfg, capabilities)
+}
+
+func applyHardwareScalingGates(cfg *Config, capabilities []FeatureCapability) []FeatureCapability {
+	if cfg == nil || len(capabilities) == 0 {
+		return capabilities
+	}
+	actions := EvaluateHardwareScalingPlan(cfg).GatingActions
+	if len(actions) == 0 {
+		return capabilities
+	}
+	actionByKey := map[string]HardwareScalingAction{}
+	for _, action := range actions {
+		if !action.Active {
+			continue
+		}
+		actionByKey[action.Key] = action
+	}
+	for i := range capabilities {
+		action, ok := actionByKey[capabilities[i].Key]
+		if !ok || !capabilities[i].Active {
+			continue
+		}
+		switch action.State {
+		case "gate":
+			capabilities[i].State = CapabilityBlocked
+			capabilities[i].Summary = action.Summary
+			capabilities[i].Recommendation = action.Recommendation
+			capabilities[i].Dependencies = appendUniqueStrings(capabilities[i].Dependencies, action.ConfigPaths...)
+		case "warn":
+			if capabilities[i].State == CapabilityEnabled || capabilities[i].State == CapabilityAvailable {
+				capabilities[i].State = CapabilityWarned
+				capabilities[i].Summary = action.Summary
+				capabilities[i].Recommendation = action.Recommendation
+				capabilities[i].Dependencies = appendUniqueStrings(capabilities[i].Dependencies, action.ConfigPaths...)
+			}
+		}
+	}
+	return capabilities
+}
+
+func appendUniqueStrings(base []string, values ...string) []string {
+	seen := make(map[string]struct{}, len(base)+len(values))
+	out := make([]string, 0, len(base)+len(values))
+	for _, value := range base {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 
 func evaluateLocalWirelessCapability(cfg *Config, preset deploymentPreset) FeatureCapability {
@@ -908,5 +975,5 @@ func lowCPU(cfg *Config) bool {
 }
 
 func hasEnterpriseHeadroom(cfg *Config) bool {
-	return cfg != nil && cfg.Deployment.Hardware.MemoryMB >= 8192 && cfg.Deployment.Hardware.CPUCores >= 4
+	return cfg != nil && cfg.Deployment.Hardware.MemoryMB >= 8192 && cfg.Deployment.Hardware.CPUCores >= 4 && storageMeets(cfg.Deployment.Hardware.StorageGB, 64)
 }

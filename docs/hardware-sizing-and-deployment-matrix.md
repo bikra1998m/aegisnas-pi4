@@ -47,6 +47,26 @@ The main things that change hardware needs are:
 | Tier 3 | High-capacity edge appliance | 8+ cores, 16-32 GB RAM, 240+ GB SSD, 2-4 server-grade NICs | many APs, heavier EAP, larger policy load | best fit when shaping, AAA proxying, and multi-SSID policy all run together |
 | Tier 4 | Central VM appliance | 4-8 vCPU, 8-16 GB RAM, 120+ GB SSD, 2 vNICs | central AAA, lab core, virtual edge gateway | strong option for VMware, Hyper-V, Proxmox, or KVM |
 
+## Configured Scaling Modes
+
+The product also uses declared hardware hints to choose an operational scaling mode. Set these in YAML or Access Settings:
+
+```yaml
+deployment:
+  hardware:
+    memory_mb: 4096
+    cpu_cores: 2
+    storage_gb: 32
+```
+
+| Scaling mode | Selection rule | Best match |
+| --- | --- | --- |
+| `lite` | below branch floor, or unknown CPU/RAM | Tier 0, constrained Tier 1 |
+| `branch` | 2 cores, 4096 MB RAM, and unknown or at least 32 GB storage | Tier 1, Tier 2, smaller Tier 4 |
+| `enterprise` | 4 cores, 8192 MB RAM, and unknown or at least 64 GB storage | Tier 3, larger Tier 4 |
+
+The scaling mode does not replace the selected deployment profile. It protects the appliance when the selected profile is too ambitious for the declared box by shortening retention targets and gating heavyweight features such as posture, MDM sync, HA failover, multi-tenant governance, certificate enrollment, and controller automation. Declare `storage_gb` on production systems so long-retention guidance reflects real disk headroom.
+
 ## Detailed Product Tiers
 
 ### Tier 0: Lab VM

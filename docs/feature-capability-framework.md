@@ -68,6 +68,7 @@ The feature evaluator should use the following inputs.
   - `virtual`
 - `deployment.hardware.memory_mb`
 - `deployment.hardware.cpu_cores`
+- `deployment.hardware.storage_gb`
 - `deployment.hardware.prefer_external_ap`
 - `deployment.hardware.wireless_passthrough`
 
@@ -97,8 +98,9 @@ The current codebase now has a working form of this model through:
 - deployment form
 - hardware hints
 - dashboard mismatch warnings
+- automatic Lite, Branch, and Enterprise scaling derived from CPU, RAM, and storage hints
 - profile-driven defaults for AI, telemetry, shaping, and RADIUS scale
-- Access Settings capability preview for phases 1 through 4
+- Access Settings capability preview for phases 1 through 5
 - runtime status surfacing for SSO, SIEM export, and controller automation
 
 That work lives primarily in:
@@ -109,6 +111,30 @@ That work lives primarily in:
 - `web/admin-ui/src/pages/Dashboard.tsx`
 
 This framework explains the product behavior that now exists in the repo and the boundaries that still matter for deployment.
+
+## Automatic Scaling Plan
+
+The runtime derives `deployment.scaling` from declared CPU, memory, and storage:
+
+| Scaling mode | Selection rule | Retention target | Feature posture |
+| --- | --- | --- | --- |
+| `lite` | below branch floor, or missing CPU/RAM | 24h analytics, 6h profiling, 900s lease-history polling | gate shaping, onboarding, posture, controller automation, SSO, HA, and tenant governance when active |
+| `branch` | 2 cores, 4096 MB RAM, and unknown or at least 32 GB storage | 168h analytics, 24h profiling, 300s lease-history polling | allow branch workflows, gate enterprise certificate, posture, HA, and multi-tenant controls |
+| `enterprise` | 4 cores, 8192 MB RAM, and unknown or at least 64 GB storage | 720h analytics, 168h profiling, 60s lease-history polling | allow the full feature set subject to per-integration validation |
+
+The scaling plan includes:
+
+- `mode`
+- `selected_profile`
+- `recommended_profile`
+- `can_run_selected`
+- `recommended_retention`
+- `recommended_limits`
+- `gating_actions`
+
+Capability evaluation applies active `gating_actions` after normal dependency checks. That means an otherwise valid feature can still be returned as `blocked` or `warned` when the declared hardware is too small for the selected profile.
+
+Unknown storage does not force a downgrade during upgrade from older configs, but `storage_known` stays false so operators can finish sizing before relying on long retention.
 
 ## Feature Groups
 
@@ -331,6 +357,7 @@ The UI should prefer:
 - disable and explain when impossible
 - warn and allow when risky but still usable
 - degrade automatically when the product can reduce resource cost safely
+- show the hardware scaling mode and active gates next to deployment profile status
 
 ## Config Validation Behavior
 
@@ -559,6 +586,25 @@ Current runtime implementation after Phase 4:
 - the dashboard surfaces live admin SSO, SIEM export, and controller automation state, provider, endpoint or redirect target, and last runtime message for operators
 
 This phase now delivers real runtime integrations for the declared production paths while still being honest about product boundaries. The controller runtime is a vendor-neutral sync contract rather than a promise of one-to-one feature parity with every vendor controller API.
+
+### Phase 5
+
+Add automatic hardware scaling modes:
+
+- `deployment.hardware.storage_gb`
+- CPU/RAM/storage-based `lite`, `branch`, and `enterprise` mode selection
+- recommended retention, RADIUS session, recommendation, AP model, and controller sync limits
+- active hardware gates applied to feature capability results
+- dashboard and Access Settings visibility for scaling mode and active gates
+
+Phase 5 capability preview now evaluates hardware scaling after normal feature dependency checks, so selected enterprise features are blocked on branch hardware even when their external dependencies are otherwise present.
+
+Phase 5 validation rules:
+
+- negative `deployment.hardware.storage_gb` is rejected
+- selected profiles above the declared hardware scaling mode return warnings
+- enterprise-only posture, MDM, HA, and multi-tenant controls are gated on branch hardware
+- heavyweight branch and enterprise workflows are gated on lite hardware
 
 ## Product Positioning Outcome
 

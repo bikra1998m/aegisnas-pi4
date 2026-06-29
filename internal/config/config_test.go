@@ -107,6 +107,26 @@ func TestConfigValidation(t *testing.T) {
 			wantErr: "deployment.form",
 		},
 		{
+			name: "negative deployment storage",
+			cfg: &Config{
+				Mode: "two-nic",
+				Deployment: DeploymentConfig{
+					Hardware: DeploymentHardwareConfig{StorageGB: -1},
+				},
+				WAN:       InterfaceConfig{Name: "eth0"},
+				LAN:       InterfaceConfig{Name: "eth1"},
+				Database:  DatabaseConfig{Path: "/tmp/aegis.db"},
+				Health:    HealthConfig{Port: 8080},
+				Telemetry: TelemetryConfig{Enabled: true, PrometheusPort: 9090},
+				Radius: RadiusConfig{
+					AuthPort:              1812,
+					AcctPort:              1813,
+					RequestTimeoutSeconds: 5,
+				},
+			},
+			wantErr: "deployment.hardware.storage_gb",
+		},
+		{
 			name: "two-nic missing wan",
 			cfg: &Config{
 				Mode: "two-nic",
@@ -427,6 +447,7 @@ portal:
 			"hardware": map[string]any{
 				"memory_mb":            1024,
 				"cpu_cores":            4,
+				"storage_gb":           8,
 				"prefer_external_ap":   true,
 				"wireless_passthrough": true,
 			},
@@ -465,6 +486,7 @@ portal:
 	assert.Equal(t, "Guest", next.Wireless.SSIDs[0].Name)
 	assert.Equal(t, "lite", next.Deployment.Profile)
 	assert.Equal(t, "virtual", next.Deployment.Form)
+	assert.Equal(t, 8, next.Deployment.Hardware.StorageGB)
 	assert.False(t, next.Telemetry.Enabled)
 	assert.False(t, next.Policy.RuntimeShapingEnabled)
 	assert.True(t, next.Deployment.Hardware.WirelessPassthrough)
@@ -476,6 +498,7 @@ portal:
 	assert.True(t, reloaded.Portal.RadiusAuth)
 	assert.Equal(t, "lite", reloaded.Deployment.Profile)
 	assert.Equal(t, "virtual", reloaded.Deployment.Form)
+	assert.Equal(t, 8, reloaded.Deployment.Hardware.StorageGB)
 	assert.False(t, reloaded.Telemetry.Enabled)
 	assert.False(t, reloaded.Policy.RuntimeShapingEnabled)
 	assert.True(t, reloaded.Deployment.Hardware.WirelessPassthrough)
@@ -489,6 +512,7 @@ func TestDeploymentSummary(t *testing.T) {
 			Hardware: DeploymentHardwareConfig{
 				MemoryMB:            1024,
 				CPUCores:            2,
+				StorageGB:           8,
 				PreferExternalAP:    true,
 				WirelessPassthrough: false,
 			},
@@ -519,6 +543,11 @@ func TestDeploymentSummary(t *testing.T) {
 	assert.Equal(t, "virtual", summary["form"])
 	assert.NotEmpty(t, summary["service_plan"])
 	assert.NotEmpty(t, summary["capabilities"])
+	scaling, ok := summary["scaling"].(HardwareScalingPlan)
+	require.True(t, ok)
+	assert.Equal(t, "lite", scaling.Mode)
+	assert.True(t, scaling.CanRunSelected)
+	assert.Equal(t, 24, scaling.RecommendedRetention.AnalyticsRetentionHours)
 }
 
 func TestConfigValidationVirtualWirelessRequiresPassthrough(t *testing.T) {
@@ -697,6 +726,81 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	assert.Equal(t, CapabilityBlocked, byKey["high_availability_failover"].State)
 	assert.Equal(t, CapabilityWarned, byKey["admin_sso"].State)
 	assert.Equal(t, CapabilityWarned, byKey["delegated_admin_rbac"].State)
+	assert.Equal(t, CapabilityBlocked, byKey["multi_tenant_governance"].State)
+}
+
+func TestHardwareScalingPlanGatesEnterpriseFeaturesOnBranchHardware(t *testing.T) {
+	cfg := &Config{
+		Mode: "two-nic",
+		Deployment: DeploymentConfig{
+			Profile: "enterprise",
+			Form:    "virtual",
+			Hardware: DeploymentHardwareConfig{
+				MemoryMB:         4096,
+				CPUCores:         2,
+				StorageGB:        32,
+				PreferExternalAP: true,
+			},
+		},
+		WAN:      InterfaceConfig{Name: "eth0"},
+		LAN:      InterfaceConfig{Name: "eth1"},
+		Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+		Health:   HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{
+			Enabled:        true,
+			PrometheusPort: 9090,
+		},
+		Radius: RadiusConfig{
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+		},
+		Profiling: ProfilingConfig{
+			MACInventoryEnabled: true,
+			PostureEnabled:      true,
+			MDMSyncEnabled:      true,
+			MDMProvider:         "generic",
+			MDMEndpoint:         "https://mdm.example.com/api",
+			MDMCacheHours:       12,
+		},
+		HighAvailability: HighAvailabilityConfig{
+			Enabled:                  true,
+			Role:                     "active",
+			PeerAPIURL:               "https://standby.example.com:8083",
+			VirtualIP:                "192.168.50.2",
+			HeartbeatIntervalSeconds: 5,
+			FailoverTimeoutSeconds:   20,
+		},
+		Governance: GovernanceConfig{
+			MultiTenantEnabled: true,
+			TenantClaim:        "tenant",
+		},
+	}
+
+	plan := EvaluateHardwareScalingPlan(cfg)
+	assert.Equal(t, "branch", plan.RecommendedProfile)
+	assert.Equal(t, "branch", plan.Mode)
+	assert.False(t, plan.CanRunSelected)
+	assert.Contains(t, plan.Summary, "above")
+
+	actions := map[string]HardwareScalingAction{}
+	for _, action := range plan.GatingActions {
+		actions[action.Key] = action
+	}
+	assert.Equal(t, "gate", actions["posture_checks"].State)
+	assert.True(t, actions["posture_checks"].Active)
+	assert.Equal(t, "gate", actions["high_availability_failover"].State)
+	assert.True(t, actions["high_availability_failover"].Active)
+
+	capabilities := EvaluateFeatureCapabilities(cfg)
+	byKey := make(map[string]FeatureCapability, len(capabilities))
+	for _, capability := range capabilities {
+		byKey[capability.Key] = capability
+	}
+	assert.Equal(t, CapabilityBlocked, byKey["posture_checks"].State)
+	assert.Contains(t, byKey["posture_checks"].Summary, "enterprise hardware")
+	assert.Equal(t, CapabilityBlocked, byKey["mdm_uem_integration"].State)
+	assert.Equal(t, CapabilityBlocked, byKey["high_availability_failover"].State)
 	assert.Equal(t, CapabilityBlocked, byKey["multi_tenant_governance"].State)
 }
 

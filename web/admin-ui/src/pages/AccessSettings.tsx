@@ -23,8 +23,40 @@ type DeploymentPreview = {
   hardware: {
     memory_mb: number;
     cpu_cores: number;
+    storage_gb?: number;
     prefer_external_ap: boolean;
     wireless_passthrough: boolean;
+  };
+  scaling?: {
+    mode: string;
+    selected_profile: string;
+    recommended_profile: string;
+    hardware_known: boolean;
+    storage_known: boolean;
+    can_run_selected: boolean;
+    summary: string;
+    reason: string;
+    resource_summary: string;
+    recommended_retention?: {
+      analytics_retention_hours: number;
+      profiling_retention_hours: number;
+      lease_history_poll_seconds: number;
+      description: string;
+    };
+    recommended_limits?: {
+      radius_max_sessions: number;
+      recommendation_limit: number;
+      controller_sync_mode: string;
+      preferred_ap_model: string;
+    };
+    gating_actions?: Array<{
+      key: string;
+      label: string;
+      state: string;
+      active: boolean;
+      summary: string;
+      recommendation?: string;
+    }>;
   };
   warnings: string[];
   capabilities: DeploymentCapability[];
@@ -197,6 +229,7 @@ const defaultSettings: JsonMap = {
     hardware: {
       memory_mb: 4096,
       cpu_cores: 2,
+      storage_gb: 32,
       prefer_external_ap: false,
       wireless_passthrough: false,
     },
@@ -1445,6 +1478,11 @@ export default function AccessSettings() {
   const staticLeases = settings.dhcp?.static_leases || [];
   const deploymentCapabilities = deploymentPreview?.capabilities || [];
   const deploymentWarnings = deploymentPreview?.warnings || [];
+  const activeScalingActions =
+    deploymentPreview?.scaling?.gating_actions?.filter(
+      (action) => action.active && action.state !== "allow",
+    ) ||
+    [];
   const rollbackOptions: Option[] =
     networkBackups.length === 0
       ? [{ value: "", label: "No rollback snapshots yet" }]
@@ -1655,6 +1693,17 @@ export default function AccessSettings() {
               )
             }
           />
+          <TextField
+            label="Storage GB"
+            type="number"
+            value={settings.deployment?.hardware?.storage_gb || 0}
+            onChange={(value) =>
+              updateField(
+                ["deployment", "hardware", "storage_gb"],
+                Number(value),
+              )
+            }
+          />
           <ToggleField
             label="Prefer External AP"
             checked={Boolean(settings.deployment?.hardware?.prefer_external_ap)}
@@ -1708,12 +1757,63 @@ export default function AccessSettings() {
           {deploymentPreview?.hardware?.memory_mb ??
             settings.deployment?.hardware?.memory_mb ??
             "unknown"}{" "}
-          MB RAM.
+          MB RAM,{" "}
+          {deploymentPreview?.hardware?.storage_gb ??
+            settings.deployment?.hardware?.storage_gb ??
+            "unknown"}{" "}
+          GB storage.
           {deploymentPreview ? (
             <span className="block mt-1 text-xs text-gray-500">
               Recommended floor: {deploymentPreview.recommended_min_cores} cores
               and {deploymentPreview.recommended_min_memory} MB RAM.
             </span>
+          ) : null}
+          {deploymentPreview?.scaling ? (
+            <div className="mt-3 rounded-md border border-gray-200 bg-white px-3 py-2">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="font-medium text-gray-900">
+                  Scaling mode: {deploymentPreview.scaling.mode}
+                </span>
+                <span
+                  className={`rounded-md border px-2 py-1 text-xs font-semibold uppercase ${
+                    deploymentPreview.scaling.can_run_selected
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : "border-amber-200 bg-amber-50 text-amber-800"
+                  }`}
+                >
+                  {deploymentPreview.scaling.can_run_selected
+                    ? "fits"
+                    : "gated"}
+                </span>
+              </div>
+              <div className="mt-1 text-xs text-gray-600">
+                {deploymentPreview.scaling.reason ||
+                  deploymentPreview.scaling.summary}
+              </div>
+              {deploymentPreview.scaling.recommended_limits ? (
+                <div className="mt-1 text-xs text-gray-500">
+                  Target limits:{" "}
+                  {deploymentPreview.scaling.recommended_limits
+                    .radius_max_sessions}{" "}
+                  RADIUS sessions,{" "}
+                  {deploymentPreview.scaling.recommended_limits
+                    .recommendation_limit}{" "}
+                  AI recommendations, controller sync{" "}
+                  {
+                    deploymentPreview.scaling.recommended_limits
+                      .controller_sync_mode
+                  }
+                  .
+                </div>
+              ) : null}
+              {activeScalingActions.length ? (
+                <div className="mt-2 space-y-1 text-xs text-amber-700">
+                  {activeScalingActions.slice(0, 3).map((action) => (
+                    <div key={action.key}>{action.summary}</div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           ) : null}
         </div>
         <div className="mt-6">

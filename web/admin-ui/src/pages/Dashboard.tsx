@@ -64,8 +64,40 @@ type SystemStatus = {
     hardware: {
       memory_mb: number;
       cpu_cores: number;
+      storage_gb?: number;
       prefer_external_ap: boolean;
       wireless_passthrough: boolean;
+    };
+    scaling?: {
+      mode: string;
+      selected_profile: string;
+      recommended_profile: string;
+      hardware_known: boolean;
+      storage_known: boolean;
+      can_run_selected: boolean;
+      summary: string;
+      reason: string;
+      resource_summary: string;
+      recommended_retention?: {
+        analytics_retention_hours: number;
+        profiling_retention_hours: number;
+        lease_history_poll_seconds: number;
+        description: string;
+      };
+      recommended_limits?: {
+        radius_max_sessions: number;
+        recommendation_limit: number;
+        controller_sync_mode: string;
+        preferred_ap_model: string;
+      };
+      gating_actions?: Array<{
+        key: string;
+        label: string;
+        state: string;
+        active: boolean;
+        summary: string;
+        recommendation?: string;
+      }>;
     };
     warnings: string[];
     capabilities: DeploymentCapability[];
@@ -538,6 +570,11 @@ export default function Dashboard() {
   const services = systemStatus.services ?? [];
   const deploymentWarnings = systemStatus.deployment?.warnings ?? [];
   const deploymentCapabilities = systemStatus.deployment?.capabilities ?? [];
+  const scaling = systemStatus.deployment?.scaling;
+  const activeScalingActions =
+    scaling?.gating_actions?.filter(
+      (action) => action.active && action.state !== "allow",
+    ) ?? [];
   const configuredServers = systemStatus.radius?.configured_servers ?? [];
   const radiusServerStatuses = systemStatus.radius?.server_statuses ?? [];
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
@@ -690,13 +727,53 @@ export default function Dashboard() {
                 {systemStatus.deployment.form} form,{" "}
                 {systemStatus.deployment.hardware.cpu_cores || "unknown"} cores,{" "}
                 {systemStatus.deployment.hardware.memory_mb || "unknown"} MB
-                RAM.
+                RAM,{" "}
+                {systemStatus.deployment.hardware.storage_gb || "unknown"} GB
+                storage.
               </div>
               <div className="mt-1 text-xs text-gray-500">
                 Recommended floor:{" "}
                 {systemStatus.deployment.recommended_min_cores} cores and{" "}
                 {systemStatus.deployment.recommended_min_memory} MB RAM.
               </div>
+              {scaling ? (
+                <div className="mt-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-gray-900">
+                      Scaling mode: {scaling.mode || "unknown"}
+                    </span>
+                    <span
+                      className={`rounded-md border px-2 py-1 text-xs font-semibold uppercase ${
+                        scaling.can_run_selected
+                          ? statusTone.ok
+                          : statusTone.degraded
+                      }`}
+                    >
+                      {scaling.can_run_selected ? "fits" : "gated"}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-gray-600">
+                    {scaling.reason || scaling.summary}
+                  </div>
+                  {scaling.recommended_retention ? (
+                    <div className="mt-1 text-xs text-gray-500">
+                      Retention target:{" "}
+                      {scaling.recommended_retention.analytics_retention_hours}h
+                      analytics,{" "}
+                      {scaling.recommended_retention.profiling_retention_hours}h
+                      profiling, lease poll every{" "}
+                      {scaling.recommended_retention.lease_history_poll_seconds}s.
+                    </div>
+                  ) : null}
+                  {activeScalingActions.length ? (
+                    <div className="mt-2 space-y-1 text-xs text-amber-700">
+                      {activeScalingActions.slice(0, 3).map((action) => (
+                        <div key={action.key}>{action.summary}</div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
             <div className="mt-4 grid gap-3">
               {deploymentCapabilities.map((capability) => (

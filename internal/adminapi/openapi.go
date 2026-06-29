@@ -49,7 +49,7 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}))
 
 	addOperation(paths, "/api/v1/system/status", "get", securedOperation("Read system runtime status", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
-		"200": responseJSON("Service health, integration state, HA state, and runtime counters."),
+		"200": responseJSON("Service health, integration state, HA state, runtime counters, and deployment scaling status."),
 	}))
 	addOperation(paths, "/api/v1/system/settings", "get", securedOperation("Read effective system settings", "System", []string{"super_admin"}, map[string]any{
 		"200": responseJSON("Current system settings payload."),
@@ -59,7 +59,7 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"default": responseText("Validation or persistence error."),
 	}))
 	addOperation(paths, "/api/v1/system/settings/evaluate", "post", securedOperationWithBody("Evaluate draft system settings", "System", []string{"super_admin"}, genericJSONObjectRequest("Draft settings payload to evaluate without saving."), map[string]any{
-		"200":     responseJSON("Capability and validation preview for the draft settings."),
+		"200":     responseJSON("Capability, hardware scaling, and validation preview for the draft settings."),
 		"default": responseText("Draft evaluation error."),
 	}))
 	addOperation(paths, "/api/v1/system/settings/export", "get", securedOperation("Export system settings", "System", []string{"super_admin"}, map[string]any{

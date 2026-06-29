@@ -127,7 +127,7 @@ The virtual form assumes external APs are usually the safer model. If local wire
 1. Open `Access Settings`
 2. choose the profile
 3. choose `Physical Appliance` or `Virtual Appliance`
-4. enter memory and CPU hints for the target box
+4. enter memory, CPU, and storage hints for the target box
 5. click `Apply Profile Defaults`
 6. review the feature toggles and save
 
@@ -156,6 +156,22 @@ Notable production-facing runtime that now sits behind those fields includes:
 - SIEM export and controller automation
 - delegated admin and tenant-aware governance
 
+## Automatic Hardware Scaling
+
+AegisNAS now derives a scaling plan from `deployment.hardware.memory_mb`, `deployment.hardware.cpu_cores`, and `deployment.hardware.storage_gb`.
+
+The plan appears in `/api/v1/system/status`, `/api/v1/system/settings/evaluate`, the dashboard, and the Access Settings preview as `deployment.scaling`.
+
+Scaling modes:
+
+| Mode | Selection rule | Operational behavior |
+| --- | --- | --- |
+| `lite` | below branch floor, or unknown CPU/RAM | keeps retention short and gates heavyweight automation |
+| `branch` | 2 CPU cores, 4096 MB RAM, and unknown or at least 32 GB storage | allows normal branch automation and moderate history |
+| `enterprise` | 4 CPU cores, 8192 MB RAM, and unknown or at least 64 GB storage | allows enterprise-only posture, HA, tenant, and certificate workflows when dependencies are configured |
+
+When the selected profile is above the hardware scaling mode, AegisNAS keeps the selected profile visible but returns warnings and capability gates for features that should not run on that hardware. Declare storage for production boxes so retention guidance is based on real disk headroom. This lets one image run from low-spec lab devices up to larger enterprise appliances without pretending every target can safely run every feature.
+
 ## How To Use It In YAML
 
 Example low-power edge appliance:
@@ -167,6 +183,7 @@ deployment:
   hardware:
     memory_mb: 1024
     cpu_cores: 4
+    storage_gb: 8
     prefer_external_ap: true
 
 telemetry:
@@ -190,6 +207,7 @@ deployment:
   hardware:
     memory_mb: 8192
     cpu_cores: 4
+    storage_gb: 32
     prefer_external_ap: true
 
 wireless:
@@ -205,6 +223,7 @@ deployment:
   hardware:
     memory_mb: 16384
     cpu_cores: 8
+    storage_gb: 64
 
 portal:
   enabled: true
@@ -271,6 +290,7 @@ deployment:
   hardware:
     memory_mb: 16384
     cpu_cores: 8
+    storage_gb: 64
     prefer_external_ap: true
 
 portal:
@@ -331,7 +351,7 @@ The current profile-aware implementation changes behavior in these concrete ways
 - impossible controller, SSO, SIEM, delegated-admin, and multi-tenant combinations are rejected during validation
 - admin SSO runs end to end with OIDC or SAML plus break-glass token fallback
 - SIEM export, controller automation, delegated admin, and tenant-aware scoping all have live runtime support
-- the dashboard shows profile, hardware hints, and mismatch warnings
+- the dashboard shows profile, CPU/RAM/storage hints, scaling mode, retention targets, and mismatch warnings
 - the admin UI can apply profile defaults directly into the live config editor
 
 The profile system does not try to magically make every hardware target run every feature. Instead, it gives the operator a safe way to scale the product down or up while keeping one codebase and one admin workflow.

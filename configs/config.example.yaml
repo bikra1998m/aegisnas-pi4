@@ -6,6 +6,7 @@ deployment:
   hardware:
     memory_mb: 4096
     cpu_cores: 2
+    storage_gb: 32
     prefer_external_ap: false
     wireless_passthrough: false
 

@@ -48,6 +48,7 @@ type DeploymentConfig struct {
 type DeploymentHardwareConfig struct {
 	MemoryMB            int  `mapstructure:"memory_mb"`
 	CPUCores            int  `mapstructure:"cpu_cores"`
+	StorageGB           int  `mapstructure:"storage_gb"`
 	PreferExternalAP    bool `mapstructure:"prefer_external_ap"`
 	WirelessPassthrough bool `mapstructure:"wireless_passthrough"`
 }
@@ -849,6 +850,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Deployment.Hardware.CPUCores < 0 {
 		return fmt.Errorf("deployment.hardware.cpu_cores %d cannot be negative", c.Deployment.Hardware.CPUCores)
+	}
+	if c.Deployment.Hardware.StorageGB < 0 {
+		return fmt.Errorf("deployment.hardware.storage_gb %d cannot be negative", c.Deployment.Hardware.StorageGB)
 	}
 	if c.Deployment.Hardware.WirelessPassthrough && EffectiveDeploymentForm(c.Deployment.Form) != "virtual" {
 		return errors.New("deployment.hardware.wireless_passthrough is only valid for virtual deployments")

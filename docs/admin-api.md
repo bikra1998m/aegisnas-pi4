@@ -35,6 +35,17 @@ Or from the admin UI:
 2. open `Backups`
 3. select `Download OpenAPI JSON`
 
+## Deployment Scaling Status
+
+System status and draft settings evaluation include the deployment profile, hardware hints, capability states, and automatic scaling plan:
+
+```text
+/api/v1/system/status
+/api/v1/system/settings/evaluate
+```
+
+The `deployment.scaling` object reports the effective Lite, Branch, or Enterprise hardware mode, whether the selected profile fits the declared hardware, recommended retention and limits, and active gating actions. Use it before enabling heavyweight features on low-spec hardware.
+
 ## Vendor Compatibility Endpoint
 
 The appliance exposes the built-in AegisNAS vendor dictionary catalog and semantic registry at:
