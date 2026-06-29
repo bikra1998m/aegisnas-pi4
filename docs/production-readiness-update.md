@@ -171,6 +171,14 @@ The current product standard assumes:
 - at least one backup and restore drill is performed before production sign-off
 - at least one login-path acceptance run is captured with the debug bundle workflow
 
+Operators can now verify those assumptions through the live production readiness endpoint:
+
+```text
+/api/v1/system/production-readiness
+```
+
+The report returns an explicit `ready`, `warned`, `degraded`, or `blocked` status with checks for configuration validation, hardware scaling, AegisNAS vendor identity, placeholder PEN use, product dictionary detection, vendor pack coverage, NAS profile coverage, active feature gates, controller readiness, and live vendor runtime evidence.
+
 ## Remaining Product Boundaries
 
 This document is intentionally honest about what "ready" means.

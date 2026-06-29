@@ -47,6 +47,13 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read vendor compatibility catalog", vendorCompatibilityGet["summary"])
 	assert.Contains(t, vendorCompatibilityGet["x-aegisnas-roles"], "read_only")
 
+	productionReadinessPath, ok := paths["/api/v1/system/production-readiness"].(map[string]any)
+	require.True(t, ok)
+	productionReadinessGet, ok := productionReadinessPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read production readiness report", productionReadinessGet["summary"])
+	assert.Contains(t, productionReadinessGet["x-aegisnas-roles"], "read_only")
+
 	vendorObservabilityPath, ok := paths["/api/v1/system/vendor-observability"].(map[string]any)
 	require.True(t, ok)
 	vendorObservabilityGet, ok := vendorObservabilityPath["get"].(map[string]any)

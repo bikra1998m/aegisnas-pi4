@@ -854,6 +854,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"runtime":          map[string]any{"status": "disabled", "message": "Scheduled upgrade readiness exports are disabled in config."},
 		}
 	}
+	productionReadiness := buildProductionReadinessReport(cfg)
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"generated_at": time.Now().UTC().Format(time.RFC3339),
@@ -868,11 +869,12 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"total_services":        len(services),
 			"session_methods":       authMethods,
 		},
-		"services":    services,
-		"deployment":  config.DeploymentSummary(cfg),
-		"radius":      radiusStatus,
-		"wireless":    wirelessStatus,
-		"enforcement": enforcementStatus,
+		"services":             services,
+		"deployment":           config.DeploymentSummary(cfg),
+		"production_readiness": productionReadinessSummaryFromReport(productionReadiness),
+		"radius":               radiusStatus,
+		"wireless":             wirelessStatus,
+		"enforcement":          enforcementStatus,
 		"high_availability": map[string]any{
 			"enabled":                                  cfg.HighAvailability.Enabled,
 			"role":                                     cfg.HighAvailability.Role,

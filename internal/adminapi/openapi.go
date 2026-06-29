@@ -1104,6 +1104,9 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))
+	addOperation(paths, "/api/v1/system/production-readiness", "get", securedOperation("Read production readiness report", "Operations", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Production deployment readiness checks covering config validation, hardware scaling, vendor identity, NAS profile coverage, feature gates, controller readiness, and vendor runtime evidence."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-observability", "get", securedOperationWithParameters("Read vendor observability counters", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("limit", "Optional vendor row limit. Defaults to 100 and caps at 5000.", false),
 	}, map[string]any{

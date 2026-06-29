@@ -46,6 +46,23 @@ System status and draft settings evaluation include the deployment profile, hard
 
 The `deployment.scaling` object reports the effective Lite, Branch, or Enterprise hardware mode, whether the selected profile fits the declared hardware, recommended retention and limits, and active gating actions. Use it before enabling heavyweight features on low-spec hardware.
 
+## Production Readiness Endpoint
+
+Before production sign-off, run the deployment readiness report:
+
+```text
+/api/v1/system/production-readiness
+```
+
+Example:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/production-readiness | jq '.status, .checks[] | select(.status != "passed")'
+```
+
+The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, product dictionary detection, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
+
 ## Vendor Compatibility Endpoint
 
 The appliance exposes the built-in AegisNAS vendor dictionary catalog and semantic registry at:
