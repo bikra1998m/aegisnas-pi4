@@ -129,6 +129,7 @@ func AuthenticatePAP(ctx context.Context, cfg *config.Config, req BrokerAuthRequ
 			"upstream_enabled": cfg.Radius.Upstream.Enabled,
 			"realm":            cfg.Radius.Upstream.Realm,
 		})
+		RecordVendorAuthTransportFailure(cfg, err.Error())
 		return nil, err
 	}
 
@@ -149,6 +150,7 @@ func AuthenticatePAP(ctx context.Context, cfg *config.Config, req BrokerAuthRequ
 		"realm":            cfg.Radius.Upstream.Realm,
 		"response_code":    response.Code.String(),
 	})
+	RecordVendorAuthResult(cfg, result, response)
 	return result, nil
 }
 

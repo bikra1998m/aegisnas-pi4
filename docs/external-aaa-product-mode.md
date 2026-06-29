@@ -289,6 +289,15 @@ Dynamic ACL intent uses the same preview endpoint. Submit `acl_policy_name`, opt
 
 The catalog layer reads FreeRADIUS-style `VENDOR`, `BEGIN-VENDOR`, `ATTRIBUTE`, and `VALUE` directives. The semantic layer is the product contract above that catalog. The dictionary coverage matrix compares parsed dictionary attributes with the compatibility packs, then reports whether each pack is `standard-radius`, `dictionary-backed`, `partial-dictionary`, `dictionary-missing`, or `controller-api`. Vendor compatibility packs should map Cisco, Aruba, MikroTik, Ruckus, Fortinet, UniFi, Cambium, Extreme, Juniper, Huawei, H3C, Palo Alto, TP-Link, Aerohive, Airespace, HP, Nomadix, ChilliSpot, D-Link, SonicWall, Arista, Pica8, ZTE, Nokia, Meru, Colubris, OpenWiFi, Mist, and site-specific VSAs into these AegisNAS semantic keys instead of hard-coding controller behavior directly in policy code.
 
+Runtime observability closes the loop between dictionary coverage and real NAS behavior:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/vendor-observability | jq '.summary, .vendors[] | select(.unsupported_attribute_count > 0)'
+```
+
+Use the compatibility matrix to decide what should be supported, then use vendor observability to track auth outcomes, parsed VSAs, unsupported attributes, CoA or disconnect failures, and the per-vendor NAS compatibility score after live AP, switch, or controller tests.
+
 The current reply renderer has a conservative default pack set:
 
 ```yaml

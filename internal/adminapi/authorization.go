@@ -131,6 +131,10 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/vendor-compatibility"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/vendor-observability/export"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/vendor-observability"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/vendor-reply-preview"):
 		return method == http.MethodPost
 	case strings.HasPrefix(path, "/api/v1/system/dhcp-leases"):

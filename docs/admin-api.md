@@ -92,6 +92,27 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 Use this before introducing a new AP, switch, or controller profile so you can verify the exact reply attributes and fallback warnings without changing live policy.
 
+## Vendor Observability Endpoint
+
+Runtime vendor compatibility evidence is available at:
+
+```text
+/api/v1/system/vendor-observability
+/api/v1/system/vendor-observability/export?format=csv
+/api/v1/system/vendor-observability/export?format=json
+```
+
+Example:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/vendor-observability | jq '.summary'
+```
+
+Use the catalog and reply preview endpoints to confirm what AegisNAS intends to support. Use vendor observability to confirm what the live RADIUS and dynamic-authorization paths are seeing: auth success and failure counts, parsed VSAs, VSA parse failures, unsupported attributes, CoA and disconnect outcomes, last event message, and the computed NAS compatibility score per vendor and NAS type.
+
+The same summary is included in `/api/v1/system/status` under `radius.vendor_observability` and in `/api/v1/system/network-observability` under `vendor_observability`, so dashboards and support bundles can show static coverage next to runtime failures.
+
 ## Controller Adapter Catalog
 
 Controller-native integration readiness is available at:

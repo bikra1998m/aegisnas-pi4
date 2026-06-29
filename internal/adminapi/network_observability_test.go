@@ -46,6 +46,13 @@ func TestHandleGetNetworkObservability(t *testing.T) {
 		"controller_health":   "degraded",
 		"compatibility_score": 82,
 	}))
+	require.NoError(t, db.RecordVendorObservability(db.VendorObservabilityDelta{
+		VendorKey:                 "aruba",
+		NASType:                   "aruba-ap",
+		AuthSuccessDelta:          5,
+		UnsupportedAttributeDelta: 1,
+		Message:                   "unsupported Aruba VSA type 99",
+	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/network-observability", nil)
 	rec := httptest.NewRecorder()
@@ -63,6 +70,13 @@ func TestHandleGetNetworkObservability(t *testing.T) {
 			Status  string         `json:"status"`
 			Details map[string]any `json:"details"`
 		} `json:"controller_sync"`
+		VendorObservability struct {
+			Status  string `json:"status"`
+			Summary struct {
+				TotalVendors              int `json:"total_vendors"`
+				UnsupportedAttributeCount int `json:"unsupported_attribute_count"`
+			} `json:"summary"`
+		} `json:"vendor_observability"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
 	assert.Equal(t, 1, payload.ApplyStats.ApplySuccessCount)
@@ -72,6 +86,9 @@ func TestHandleGetNetworkObservability(t *testing.T) {
 	assert.Equal(t, float64(2), payload.ControllerSync.Details["drift_count"])
 	assert.Equal(t, "degraded", payload.ControllerSync.Details["controller_health"])
 	assert.Equal(t, float64(82), payload.ControllerSync.Details["compatibility_score"])
+	assert.Equal(t, "warned", payload.VendorObservability.Status)
+	assert.Equal(t, 1, payload.VendorObservability.Summary.TotalVendors)
+	assert.Equal(t, 1, payload.VendorObservability.Summary.UnsupportedAttributeCount)
 }
 
 func TestHandleExportNetworkApplyHistoryCSV(t *testing.T) {

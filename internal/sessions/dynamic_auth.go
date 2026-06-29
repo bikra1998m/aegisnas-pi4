@@ -74,40 +74,48 @@ func (s *DynamicAuthServer) handle(w layehradius.ResponseWriter, r *layehradius.
 		ok, err := s.mgr.TerminateByCriteria(sessionID, username, mac, "disconnect-request")
 		if err != nil {
 			s.writeNAK(w, r, layehradius.CodeDisconnectNAK, "disconnect failed")
+			aegisradius.RecordVendorDynamicAuth(s.cfg, r.Packet, "disconnect", false, "disconnect failed")
 			s.logger.Warn("coa disconnect failed", zap.Error(err))
 			return
 		}
 		if !ok {
 			s.writeNAK(w, r, layehradius.CodeDisconnectNAK, "session not found")
+			aegisradius.RecordVendorDynamicAuth(s.cfg, r.Packet, "disconnect", false, "session not found")
 			return
 		}
 		reply := r.Response(layehradius.CodeDisconnectACK)
 		_ = rfc2865.ReplyMessage_SetString(reply, "session terminated")
 		_ = w.Write(reply)
+		aegisradius.RecordVendorDynamicAuth(s.cfg, r.Packet, "disconnect", true, "session terminated")
 
 	case layehradius.CodeCoARequest:
 		update, err := s.policyUpdateFromPacket(r.Packet)
 		if err != nil {
 			s.writeNAK(w, r, layehradius.CodeCoANAK, "invalid policy update")
+			aegisradius.RecordVendorDynamicAuth(s.cfg, r.Packet, "coa", false, "invalid policy update")
 			s.logger.Warn("coa policy decode failed", zap.Error(err))
 			return
 		}
 		ok, err := s.mgr.ReclassifyByCriteria(sessionID, username, mac, update)
 		if err != nil {
 			s.writeNAK(w, r, layehradius.CodeCoANAK, "reclassify failed")
+			aegisradius.RecordVendorDynamicAuth(s.cfg, r.Packet, "coa", false, "reclassify failed")
 			s.logger.Warn("coa reclassify failed", zap.Error(err))
 			return
 		}
 		if !ok {
 			s.writeNAK(w, r, layehradius.CodeCoANAK, "session not found")
+			aegisradius.RecordVendorDynamicAuth(s.cfg, r.Packet, "coa", false, "session not found")
 			return
 		}
 		reply := r.Response(layehradius.CodeCoAACK)
 		_ = rfc2865.ReplyMessage_SetString(reply, "session updated")
 		_ = w.Write(reply)
+		aegisradius.RecordVendorDynamicAuth(s.cfg, r.Packet, "coa", true, "session updated")
 
 	default:
 		s.writeNAK(w, r, layehradius.CodeCoANAK, "unsupported code")
+		aegisradius.RecordVendorDynamicAuth(s.cfg, r.Packet, "coa", false, "unsupported dynamic authorization code")
 	}
 }
 

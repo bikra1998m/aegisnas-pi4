@@ -247,6 +247,17 @@ When integrations are enabled, operators should verify:
 
 Those states are surfaced in the dashboard and reflected in alerts when delivery or sync degrades.
 
+## Network And Vendor Observability
+
+For edge network operations, use the dashboard or:
+
+```text
+/api/v1/system/network-observability
+/api/v1/system/vendor-observability
+```
+
+Network observability combines apply history, rollback counters, DHCP lease trends, and controller sync health. Vendor observability adds per-vendor auth success and failure counters, VSA parse failures, unsupported attributes, CoA and disconnect outcomes, and a NAS compatibility score. Treat the catalog coverage matrix as the expected capability map, then use the runtime counters to spot mismatched AP profiles, unsupported vendor attributes, broken CoA behavior, or controllers that stopped accepting policy.
+
 ## Backup And Restore
 
 Use the CLI for full appliance backup and the admin UI for config-only JSON backup. See [Backup and Restore Procedures](backup-restore.md).

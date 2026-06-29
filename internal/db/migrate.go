@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 10
+	return 11
 }
 
 func Migrate() error {
@@ -458,4 +458,26 @@ CREATE TABLE IF NOT EXISTS upstream_aaa_history (
 CREATE INDEX IF NOT EXISTS idx_upstream_aaa_history_checked_at ON upstream_aaa_history(checked_at);
 CREATE INDEX IF NOT EXISTS idx_upstream_aaa_history_server_name ON upstream_aaa_history(server_name);
 CREATE INDEX IF NOT EXISTS idx_upstream_aaa_history_status ON upstream_aaa_history(status);
+`
+
+const schemaV11 = `
+CREATE TABLE IF NOT EXISTS vendor_observability (
+	vendor_key TEXT NOT NULL,
+	nas_type TEXT NOT NULL DEFAULT 'global',
+	auth_success_count INTEGER DEFAULT 0,
+	auth_failure_count INTEGER DEFAULT 0,
+	vsa_parsed_count INTEGER DEFAULT 0,
+	vsa_parse_failure_count INTEGER DEFAULT 0,
+	unsupported_attribute_count INTEGER DEFAULT 0,
+	coa_success_count INTEGER DEFAULT 0,
+	coa_failure_count INTEGER DEFAULT 0,
+	disconnect_success_count INTEGER DEFAULT 0,
+	disconnect_failure_count INTEGER DEFAULT 0,
+	last_message TEXT,
+	last_event_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (vendor_key, nas_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_vendor_observability_last_event ON vendor_observability(last_event_at);
+CREATE INDEX IF NOT EXISTS idx_vendor_observability_score_inputs ON vendor_observability(auth_failure_count, vsa_parse_failure_count, unsupported_attribute_count, coa_failure_count, disconnect_failure_count);
 `

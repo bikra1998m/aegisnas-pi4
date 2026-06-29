@@ -31,6 +31,16 @@ func HandleGetNetworkObservability(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	vendorSummary, err := db.GetVendorObservabilitySummary()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	vendorRows, err := db.ListVendorObservability(8)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	recoveryState, err := CurrentNetworkRecoveryState()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -42,7 +52,13 @@ func HandleGetNetworkObservability(w http.ResponseWriter, r *http.Request) {
 		"apply_stats":     applyStats,
 		"lease_trends":    leaseTrends,
 		"controller_sync": controllerStatus,
-		"recovery":        recoveryState,
+		"vendor_observability": map[string]any{
+			"summary": vendorSummary,
+			"vendors": vendorRows,
+			"status":  vendorObservabilityStatus(vendorSummary),
+			"message": vendorObservabilityMessage(vendorSummary),
+		},
+		"recovery": recoveryState,
 	})
 }
 

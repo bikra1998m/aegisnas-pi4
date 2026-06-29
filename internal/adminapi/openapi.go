@@ -1104,6 +1104,31 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))
+	addOperation(paths, "/api/v1/system/vendor-observability", "get", securedOperationWithParameters("Read vendor observability counters", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional vendor row limit. Defaults to 100 and caps at 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("Per-vendor auth, VSA parse, unsupported attribute, CoA, disconnect, and compatibility score counters."),
+	}))
+	addOperation(paths, "/api/v1/system/vendor-observability/export", "get", securedOperationWithParameters("Export vendor observability counters", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("format", "Optional export format. Defaults to csv.", []string{"json", "csv"}, false),
+	}, map[string]any{
+		"200": map[string]any{
+			"description": "Vendor observability export in JSON or CSV form.",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+				"text/csv": map[string]any{
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
+		},
+	}))
 	addOperation(paths, "/api/v1/system/vendor-reply-preview", "post", securedOperationWithBody("Preview vendor reply attributes", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("NAS type, role, VLAN, bandwidth, timeout, ACL names, and ACL rule intent to preview."), map[string]any{
 		"200":     responseJSON("Effective compatibility packs and rendered RADIUS reply attributes."),
 		"default": responseText("Preview error."),

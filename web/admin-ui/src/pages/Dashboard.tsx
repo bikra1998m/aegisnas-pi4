@@ -18,6 +18,42 @@ type RuntimeStatus = {
   updated_at?: string;
 };
 
+type VendorObservability = {
+  status?: string;
+  message?: string;
+  summary?: {
+    total_vendors: number;
+    auth_success_count: number;
+    auth_failure_count: number;
+    vsa_parsed_count: number;
+    vsa_parse_failure_count: number;
+    unsupported_attribute_count: number;
+    coa_success_count: number;
+    coa_failure_count: number;
+    disconnect_success_count: number;
+    disconnect_failure_count: number;
+    compatibility_score: number;
+    worst_vendor_key?: string;
+    last_event_at?: string;
+  };
+  vendors?: Array<{
+    vendor_key: string;
+    nas_type: string;
+    auth_success_count: number;
+    auth_failure_count: number;
+    vsa_parsed_count: number;
+    vsa_parse_failure_count: number;
+    unsupported_attribute_count: number;
+    coa_success_count: number;
+    coa_failure_count: number;
+    disconnect_success_count: number;
+    disconnect_failure_count: number;
+    compatibility_score: number;
+    last_message?: string;
+    last_event_at?: string;
+  }>;
+};
+
 type UpstreamServerStatus = {
   name: string;
   address: string;
@@ -463,6 +499,7 @@ type SystemStatus = {
       message?: string;
     } | null;
     controller_sync?: RuntimeStatus;
+    vendor_observability?: VendorObservability;
   };
 };
 
@@ -472,6 +509,7 @@ const statusTone: Record<string, string> = {
   down: "border-red-200 bg-red-50 text-red-800",
   disabled: "border-gray-200 bg-gray-100 text-gray-700",
   unknown: "border-slate-200 bg-slate-100 text-slate-700",
+  warned: "border-amber-200 bg-amber-50 text-amber-800",
 };
 
 const cardTone: Record<string, string> = {
@@ -585,6 +623,7 @@ export default function Dashboard() {
     systemStatus.summary?.session_methods || {},
   );
   const networkObservability = systemStatus.network_observability;
+  const vendorObservability = networkObservability?.vendor_observability;
   const highAvailabilityStatus =
     systemStatus.high_availability.replication_runtime?.status === "degraded"
       ? "degraded"
@@ -1926,6 +1965,56 @@ export default function Dashboard() {
                     status={
                       networkObservability.controller_sync?.status || "disabled"
                     }
+                  />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      Vendor Observability
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {vendorObservability?.message ||
+                        "No vendor counters have been recorded yet."}
+                    </div>
+                    <div className="mt-2 grid gap-1 text-xs text-gray-500">
+                      <div>
+                        Score{" "}
+                        {vendorObservability?.summary?.compatibility_score ??
+                          100}
+                        , auth failures{" "}
+                        {vendorObservability?.summary?.auth_failure_count ?? 0}
+                        , unsupported attributes{" "}
+                        {vendorObservability?.summary
+                          ?.unsupported_attribute_count ?? 0}
+                        , VSA parse failures{" "}
+                        {vendorObservability?.summary
+                          ?.vsa_parse_failure_count ?? 0}
+                        .
+                      </div>
+                      {vendorObservability?.vendors?.length ? (
+                        <div className="space-y-1">
+                          {vendorObservability.vendors
+                            .slice(0, 3)
+                            .map((vendor) => (
+                              <div
+                                key={`${vendor.vendor_key}-${vendor.nas_type}`}
+                              >
+                                {vendor.vendor_key}/{vendor.nas_type}: score{" "}
+                                {vendor.compatibility_score}, auth{" "}
+                                {vendor.auth_success_count}/
+                                {vendor.auth_failure_count}, CoA{" "}
+                                {vendor.coa_success_count}/
+                                {vendor.coa_failure_count}
+                              </div>
+                            ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  <StatusBadge
+                    status={vendorObservability?.status || "unknown"}
                   />
                 </div>
               </div>

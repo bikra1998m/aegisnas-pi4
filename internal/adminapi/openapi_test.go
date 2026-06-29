@@ -47,6 +47,20 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read vendor compatibility catalog", vendorCompatibilityGet["summary"])
 	assert.Contains(t, vendorCompatibilityGet["x-aegisnas-roles"], "read_only")
 
+	vendorObservabilityPath, ok := paths["/api/v1/system/vendor-observability"].(map[string]any)
+	require.True(t, ok)
+	vendorObservabilityGet, ok := vendorObservabilityPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read vendor observability counters", vendorObservabilityGet["summary"])
+	assert.Contains(t, vendorObservabilityGet["x-aegisnas-roles"], "read_only")
+
+	vendorObservabilityExportPath, ok := paths["/api/v1/system/vendor-observability/export"].(map[string]any)
+	require.True(t, ok)
+	vendorObservabilityExportGet, ok := vendorObservabilityExportPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Export vendor observability counters", vendorObservabilityExportGet["summary"])
+	assert.Contains(t, vendorObservabilityExportGet["x-aegisnas-roles"], "read_only")
+
 	controllerAdaptersPath, ok := paths["/api/v1/system/controller-adapters"].(map[string]any)
 	require.True(t, ok)
 	controllerAdaptersGet, ok := controllerAdaptersPath["get"].(map[string]any)

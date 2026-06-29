@@ -55,6 +55,16 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	vendorObservabilitySummary, err := db.GetVendorObservabilitySummary()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	vendorObservabilityRows, err := db.ListVendorObservability(8)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	recoveryState, err := CurrentNetworkRecoveryState()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -136,6 +146,12 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broker_accounting":       runtimeMap["radius_broker_accounting"],
 		"dynamic_authorization":   cfg.Radius.DynamicAuth,
 		"request_timeout_seconds": cfg.Radius.RequestTimeoutSeconds,
+		"vendor_observability": map[string]any{
+			"summary": vendorObservabilitySummary,
+			"vendors": vendorObservabilityRows,
+			"status":  vendorObservabilityStatus(vendorObservabilitySummary),
+			"message": vendorObservabilityMessage(vendorObservabilitySummary),
+		},
 	}
 	if probeErr != nil {
 		radiusStatus["probe_error"] = probeErr.Error()
@@ -920,6 +936,12 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"lease_trends":    leaseTrends,
 			"recovery":        recoveryState,
 			"controller_sync": runtimeMap["controller_automation"],
+			"vendor_observability": map[string]any{
+				"summary": vendorObservabilitySummary,
+				"vendors": vendorObservabilityRows,
+				"status":  vendorObservabilityStatus(vendorObservabilitySummary),
+				"message": vendorObservabilityMessage(vendorObservabilitySummary),
+			},
 		},
 	})
 }
