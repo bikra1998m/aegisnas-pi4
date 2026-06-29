@@ -40,6 +40,7 @@ type vendorReplyPreviewResponse struct {
 	NASType            string                              `json:"nas_type"`
 	KnownPack          bool                                `json:"known_pack"`
 	UsesGlobalPacks    bool                                `json:"uses_global_packs"`
+	ACLPolicyLoaded    bool                                `json:"acl_policy_loaded"`
 	EffectivePacks     []string                            `json:"effective_packs"`
 	Attributes         []vendorReplyPreviewAttributeItem   `json:"attributes"`
 	FreeRADIUS         string                              `json:"freeradius"`
@@ -67,6 +68,11 @@ func HandlePreviewVendorReply(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+	aclPolicyLoaded, err := hydrateVendorReplyACLPolicy(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	if err := validateVendorReplyPreviewRequest(req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -88,10 +94,14 @@ func HandlePreviewVendorReply(w http.ResponseWriter, r *http.Request) {
 	normalizedACLRules, _ := radius.NormalizeACLRules(attrs.ACLRules)
 
 	warnings := vendorReplyPreviewWarnings(req, nasType, effectivePacks)
+	if strings.TrimSpace(req.ACLPolicyName) != "" && !aclPolicyLoaded && req.InboundACL == "" && req.OutboundACL == "" && len(req.ACLRules) == 0 {
+		warnings = append(warnings, "ACL policy was not found; only the policy name can be rendered")
+	}
 	writeJSON(w, http.StatusOK, vendorReplyPreviewResponse{
 		NASType:            nasType,
 		KnownPack:          productconfigs.ValidVendorCompatibilityPackKey(nasType),
 		UsesGlobalPacks:    nasType == "other" || !productconfigs.ValidVendorCompatibilityPackKey(nasType),
+		ACLPolicyLoaded:    aclPolicyLoaded,
 		EffectivePacks:     effectivePacks,
 		Attributes:         vendorReplyPreviewItems(items),
 		FreeRADIUS:         radius.RenderReplyAttributesForPacks(attrs, effectivePacks),
@@ -100,6 +110,26 @@ func HandlePreviewVendorReply(w http.ResponseWriter, r *http.Request) {
 		Warnings:           warnings,
 		Semantics:          vendorReplyPreviewSemantics(effectivePacks),
 	})
+}
+
+func hydrateVendorReplyACLPolicy(req *vendorReplyPreviewRequest) (bool, error) {
+	if strings.TrimSpace(req.ACLPolicyName) == "" || len(req.ACLRules) > 0 {
+		return false, nil
+	}
+	policy, found, err := loadACLPolicy(req.ACLPolicyName)
+	if err != nil || !found {
+		return found, err
+	}
+	if strings.TrimSpace(req.InboundACL) == "" {
+		req.InboundACL = policy.InboundACL
+	}
+	if strings.TrimSpace(req.OutboundACL) == "" {
+		req.OutboundACL = policy.OutboundACL
+	}
+	if len(req.ACLRules) == 0 {
+		req.ACLRules = append([]radius.ACLRule(nil), policy.Rules...)
+	}
+	return true, nil
 }
 
 func validateVendorReplyPreviewRequest(req vendorReplyPreviewRequest) error {

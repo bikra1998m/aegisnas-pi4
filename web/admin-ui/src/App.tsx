@@ -10,6 +10,7 @@ import Vouchers from './pages/Vouchers';
 import Roles from './pages/Roles';
 import BandwidthProfiles from './pages/BandwidthProfiles';
 import Policies from './pages/Policies';
+import ACLPolicies from './pages/ACLPolicies';
 import IdentitySources from './pages/IdentitySources';
 import PortalProfiles from './pages/PortalProfiles';
 import RadiusClients from './pages/RadiusClients';
@@ -44,7 +45,8 @@ function AppRoutes() {
         <Route path="/vouchers" element={<Vouchers />} />
         <Route path="/roles" element={<Roles />} />
         <Route path="/bandwidth-profiles" element={<BandwidthProfiles />} />
-        <Route path="/policies" element={<Policies />} />
+		<Route path="/policies" element={<Policies />} />
+		<Route path="/acl-policies" element={<ACLPolicies />} />
         <Route path="/identity-sources" element={<IdentitySources />} />
         <Route path="/radius-clients" element={<RadiusClients />} />
         <Route path="/vendor-compatibility" element={<VendorCompatibility />} />

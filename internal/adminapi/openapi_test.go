@@ -32,6 +32,11 @@ func TestHandleGetOpenAPI(t *testing.T) {
 
 	paths, ok := payload["paths"].(map[string]any)
 	require.True(t, ok)
+	aclPoliciesPath, ok := paths["/api/v1/acl-policies"].(map[string]any)
+	require.True(t, ok)
+	aclPoliciesGet, ok := aclPoliciesPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "List ACL policies", aclPoliciesGet["summary"])
 
 	statusPath, ok := paths["/api/v1/system/status"].(map[string]any)
 	require.True(t, ok)

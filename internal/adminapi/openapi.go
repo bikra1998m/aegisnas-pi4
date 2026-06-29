@@ -1184,6 +1184,7 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addCRUDOperations(paths, "/api/v1/vouchers", "Vouchers", "Voucher", []string{"super_admin"}, []string{"super_admin"})
 	addCRUDOperations(paths, "/api/v1/roles", "Roles", "Role", []string{"super_admin"}, []string{"super_admin"})
 	addCRUDOperations(paths, "/api/v1/policies", "Policies", "Policy", []string{"super_admin"}, []string{"super_admin"})
+	addCRUDOperations(paths, "/api/v1/acl-policies", "ACL Policies", "ACL policy", []string{"super_admin"}, []string{"super_admin"})
 	addCRUDOperations(paths, "/api/v1/identity-sources", "Identity Sources", "Identity source", []string{"super_admin"}, []string{"super_admin"})
 	addCRUDOperations(paths, "/api/v1/portal-profiles", "Portal Profiles", "Portal profile", []string{"super_admin"}, []string{"super_admin"})
 	addCRUDOperations(paths, "/api/v1/bandwidth-profiles", "Bandwidth Profiles", "Bandwidth profile", []string{"super_admin"}, []string{"super_admin"})
@@ -1242,7 +1243,7 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			{"name": "System"}, {"name": "Upgrade"}, {"name": "Network"}, {"name": "Integrations"}, {"name": "HA"},
 			{"name": "Wireless"}, {"name": "RADIUS"}, {"name": "VLANs"}, {"name": "Users"},
 			{"name": "Devices"}, {"name": "Admin Access"}, {"name": "Guest"}, {"name": "Vouchers"},
-			{"name": "Roles"}, {"name": "Policies"}, {"name": "Identity Sources"},
+			{"name": "Roles"}, {"name": "Policies"}, {"name": "ACL Policies"}, {"name": "Identity Sources"},
 			{"name": "Portal Profiles"}, {"name": "Bandwidth Profiles"}, {"name": "RADIUS Clients"},
 			{"name": "Sessions"}, {"name": "Alerts"}, {"name": "Config Revisions"},
 			{"name": "Backups"}, {"name": "AI"}, {"name": "Workflow"},
@@ -1290,7 +1291,7 @@ func buildOpenAPIServers(r *http.Request, cfg *config.Config) []map[string]any {
 }
 
 func addCRUDOperations(paths map[string]any, basePath, tag, resourceLabel string, readRoles, writeRoles []string) {
-	addOperation(paths, basePath, "get", securedOperation("List "+resourceLabel+"s", tag, readRoles, map[string]any{
+	addOperation(paths, basePath, "get", securedOperation("List "+pluralResourceLabel(resourceLabel), tag, readRoles, map[string]any{
 		"200": responseJSON("Collection response."),
 	}))
 	addOperation(paths, basePath, "post", securedOperationWithBody("Create "+resourceLabel, tag, writeRoles, genericJSONObjectRequest(resourceLabel+" payload to create."), map[string]any{
@@ -1305,6 +1306,16 @@ func addCRUDOperations(paths map[string]any, basePath, tag, resourceLabel string
 		"200":     responseJSON("Delete result."),
 		"default": responseText("Delete error."),
 	}))
+}
+
+func pluralResourceLabel(label string) string {
+	if len(label) > 1 && strings.HasSuffix(strings.ToLower(label), "y") {
+		previous := strings.ToLower(label[len(label)-2 : len(label)-1])
+		if !strings.Contains("aeiou", previous) {
+			return label[:len(label)-1] + "ies"
+		}
+	}
+	return label + "s"
 }
 
 func addCollectionOnly(paths map[string]any, basePath, tag, summary string, roles []string) {

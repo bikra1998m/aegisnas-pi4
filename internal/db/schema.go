@@ -57,7 +57,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{8, schemaV8},
 		{9, schemaV9},
 		{10, schemaV10},
-		{LatestSchemaVersion(), schemaV11},
+		{11, schemaV11},
+		{LatestSchemaVersion(), schemaV12},
 	}
 
 	for _, m := range migrations {

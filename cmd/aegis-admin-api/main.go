@@ -355,6 +355,12 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Put("/policies/{id}", adminapi.HandleUpdatePolicy)
 			r.Delete("/policies/{id}", adminapi.HandleDeletePolicy)
 
+			// Vendor-neutral ACL policies
+			r.Get("/acl-policies", adminapi.HandleListACLPolicies)
+			r.Post("/acl-policies", adminapi.HandleCreateACLPolicy)
+			r.Put("/acl-policies/{id}", adminapi.HandleUpdateACLPolicy)
+			r.Delete("/acl-policies/{id}", adminapi.HandleDeleteACLPolicy)
+
 			// Identity Sources
 			r.Get("/identity-sources", adminapi.HandleListIdentitySources)
 			r.Post("/identity-sources", adminapi.HandleCreateIdentitySource)

@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 11
+	return 12
 }
 
 func Migrate() error {
@@ -480,4 +480,20 @@ CREATE TABLE IF NOT EXISTS vendor_observability (
 
 CREATE INDEX IF NOT EXISTS idx_vendor_observability_last_event ON vendor_observability(last_event_at);
 CREATE INDEX IF NOT EXISTS idx_vendor_observability_score_inputs ON vendor_observability(auth_failure_count, vsa_parse_failure_count, unsupported_attribute_count, coa_failure_count, disconnect_failure_count);
+`
+
+const schemaV12 = `
+CREATE TABLE IF NOT EXISTS acl_policies (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	name TEXT UNIQUE NOT NULL,
+	description TEXT,
+	inbound_acl TEXT,
+	outbound_acl TEXT,
+	rules_json TEXT NOT NULL DEFAULT '[]',
+	enabled BOOLEAN DEFAULT 1,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_acl_policies_enabled_name ON acl_policies(enabled, name);
 `

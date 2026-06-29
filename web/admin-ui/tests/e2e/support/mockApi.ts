@@ -3607,7 +3607,27 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         ip_address: "192.168.50.10",
       },
     ],
-    vouchers: createVouchers(),
+	vouchers: createVouchers(),
+	aclPolicies: [
+		{
+			id: 1,
+			name: "guest-internet",
+			description: "Permit guest web access.",
+			enabled: true,
+			inbound_acl: "guest-in",
+			outbound_acl: "guest-out",
+			rules: [
+				{
+					action: "permit",
+					direction: "in",
+					protocol: "tcp",
+					source: "any",
+					destination: "any",
+					destination_port: "443",
+				},
+			],
+		},
+	],
     sessionHistory: [
       {
         id: "sess-001",
@@ -3827,10 +3847,18 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
-    if (path === "/roles" && method === "GET") {
+	if (path === "/roles" && method === "GET") {
       await route.fulfill({ json: [{ id: 1, name: "guest-basic" }] });
-      return;
-    }
+		return;
+	}
+	if (path === "/acl-policies" && method === "GET") {
+		await route.fulfill({ json: state.aclPolicies });
+		return;
+	}
+	if (path === "/acl-policies" && method === "POST") {
+		await route.fulfill({ status: 202, json: { status: "staged" } });
+		return;
+	}
     if (path === "/portal-profiles" && method === "GET") {
       await route.fulfill({ json: [{ id: 1, name: "default-guest" }] });
       return;

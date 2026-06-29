@@ -109,6 +109,21 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 Use this before introducing a new AP, switch, or controller profile so you can verify the exact reply attributes and fallback warnings without changing live policy.
 
+## ACL Policy Library
+
+Vendor-neutral dynamic ACL policies use the standard staged configuration workflow:
+
+```text
+GET    /api/v1/acl-policies
+POST   /api/v1/acl-policies
+PUT    /api/v1/acl-policies/{id}
+DELETE /api/v1/acl-policies/{id}
+POST   /api/v1/validate
+POST   /api/v1/apply
+```
+
+Each policy stores a stable name, optional vendor inbound/outbound ACL names, and up to 64 normalized rules. ACL policy changes are included in config revision snapshots and rollback. A vendor reply preview containing only `acl_policy_name` loads an enabled applied policy and reports `acl_policy_loaded: true`; explicit `acl_rules` remain available for one-off previews.
+
 ## Vendor Observability Endpoint
 
 Runtime vendor compatibility evidence is available at:

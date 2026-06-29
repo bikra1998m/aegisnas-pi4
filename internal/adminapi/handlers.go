@@ -28,6 +28,7 @@ var configurableTables = []string{
 	"bandwidth_profiles",
 	"portal_profiles",
 	"policy_rules",
+	"acl_policies",
 	"identity_sources",
 	"radius_clients",
 }
@@ -208,6 +209,10 @@ func decodeSnapshot(data []byte) (*configSnapshot, error) {
 	}
 	for _, table := range configurableTables {
 		if _, ok := snapshot.Tables[table]; !ok {
+			if table == "acl_policies" {
+				snapshot.Tables[table] = []map[string]any{}
+				continue
+			}
 			return nil, fmt.Errorf("config snapshot missing %s", table)
 		}
 	}
@@ -411,6 +416,27 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 		case "delete":
 			_, err := tx.Exec(`DELETE FROM policy_rules WHERE id = ?`, change.ResourceID)
 			return err
+		}
+	case "acl_policy":
+		if change.Operation == "delete" {
+			_, err := tx.Exec(`DELETE FROM acl_policies WHERE id = ?`, change.ResourceID)
+			return err
+		}
+		policy, err := parseACLPolicyPayload(data)
+		if err != nil {
+			return err
+		}
+		switch change.Operation {
+		case "create":
+			_, err := tx.Exec(`INSERT INTO acl_policies (name, description, inbound_acl, outbound_acl, rules_json, enabled)
+				VALUES (?, ?, ?, ?, ?, ?)`, policy.Name, policy.Description, nullIfEmpty(policy.InboundACL), nullIfEmpty(policy.OutboundACL), policy.RulesJSON, policy.Enabled)
+			return err
+		case "update":
+			return updateByID(tx, "acl_policies", change.ResourceID, []fieldValue{
+				{"name", policy.Name}, {"description", policy.Description}, {"inbound_acl", nullIfEmpty(policy.InboundACL)},
+				{"outbound_acl", nullIfEmpty(policy.OutboundACL)}, {"rules_json", policy.RulesJSON}, {"enabled", policy.Enabled},
+				{"updated_at", time.Now().UTC()},
+			})
 		}
 	case "identity_source":
 		configJSON, err := jsonField(data["config"], "{}")
