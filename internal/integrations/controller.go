@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -290,6 +291,9 @@ func executeControllerState(ctx context.Context, cfg *config.Config, operation s
 	if cfg == nil {
 		return nil, fmt.Errorf("controller config is required")
 	}
+	if normalizeControllerPlatform(cfg.Integrations.Controller.Platform) == "cisco" {
+		return executeCiscoISEOperation(ctx, cfg, operation)
+	}
 	token := controllerToken(cfg)
 	if token == "" {
 		return nil, fmt.Errorf("controller API token env %q is empty", strings.TrimSpace(cfg.Integrations.Controller.APITokenEnv))
@@ -395,6 +399,9 @@ func buildControllerOperationRequest(cfg *config.Config, token, operation string
 	}
 	authScheme := "bearer"
 	switch platform {
+	case "cisco":
+		headers["Authorization"] = "Basic " + base64.StdEncoding.EncodeToString([]byte(token))
+		authScheme = "basic"
 	case "juniper-mist":
 		headers["Authorization"] = "Token " + token
 		authScheme = "token"
@@ -431,6 +438,13 @@ func normalizeControllerOperation(operation string) (string, error) {
 }
 
 func controllerOperationEndpoint(cfg *config.Config, platform, operation string) (string, error) {
+	if normalizeControllerPlatform(platform) == "cisco" {
+		base := strings.TrimRight(strings.TrimSpace(cfg.Integrations.Controller.Endpoint), "/")
+		if base == "" {
+			return "", fmt.Errorf("controller endpoint is empty")
+		}
+		return base + ciscoISEDACLCollection, nil
+	}
 	targetURL, err := controllerEndpointForPlatform(cfg, platform)
 	if err != nil || operation != "pull" || normalizeControllerPlatform(platform) == "generic" {
 		return targetURL, err
@@ -515,19 +529,7 @@ func buildGenericControllerPayload(cfg *config.Config) map[string]any {
 }
 
 func buildCiscoControllerPayload(cfg *config.Config) map[string]any {
-	return map[string]any{
-		"generated_at":       time.Now().UTC().Format(time.RFC3339),
-		"adapter":            "cisco-ise",
-		"site":               strings.TrimSpace(cfg.Integrations.Controller.Site),
-		"sync_mode":          cfg.Integrations.Controller.SyncMode,
-		"deployment_profile": cfg.Deployment.Profile,
-		"aaa": map[string]any{
-			"radius_servers": []map[string]any{buildControllerRadiusSection(cfg)},
-			"dynamic_auth":   buildControllerDynamicAuthSection(cfg),
-		},
-		"guest_portal":  buildControllerPortalSection(cfg),
-		"ssid_policies": buildControllerSSIDProfiles(cfg),
-	}
+	return buildCiscoISEPreviewPayload(cfg)
 }
 
 func buildArubaControllerPayload(cfg *config.Config) map[string]any {
@@ -758,6 +760,7 @@ func attachControllerPayloadMetadata(payload map[string]any, platform string) {
 
 func controllerAdapterCapabilities(platform string) map[string]any {
 	normalized := normalizeControllerPlatform(platform)
+	contractPayload := normalized != "cisco"
 	capabilities := map[string]any{
 		"platform":             normalized,
 		"adapter":              controllerAdapterName(normalized),
@@ -765,19 +768,19 @@ func controllerAdapterCapabilities(platform string) map[string]any {
 		"drift_detection":      true,
 		"health_report":        true,
 		"desired_state_hash":   true,
-		"radius_profiles":      true,
-		"guest_portal":         true,
-		"wireless_profiles":    true,
+		"radius_profiles":      contractPayload,
+		"guest_portal":         contractPayload,
+		"wireless_profiles":    contractPayload,
 		"dynamic_acl":          false,
 		"coa":                  false,
-		"native_policy_push":   normalized != "" && normalized != "generic",
+		"native_policy_push":   normalized == "cisco",
 		"supported_sync_modes": []string{"monitor", "pull-config", "push-config", "coa-only"},
 	}
 	switch normalized {
 	case "cisco":
 		capabilities["dynamic_acl"] = true
-		capabilities["coa"] = true
 		capabilities["downloadable_acl"] = true
+		capabilities["user_roles"] = true
 	case "aruba":
 		capabilities["dynamic_acl"] = true
 		capabilities["coa"] = true
@@ -1018,7 +1021,7 @@ func controllerPlatformRequiresSite(platform string) bool {
 func controllerAdapterName(platform string) string {
 	switch normalizeControllerPlatform(platform) {
 	case "cisco":
-		return "cisco-ise"
+		return "cisco-ise-ers"
 	case "aruba":
 		return "aruba-central"
 	case "juniper-mist":
@@ -1039,7 +1042,7 @@ func controllerAdapterName(platform string) string {
 func controllerAdapterLabel(platform string) string {
 	switch normalizeControllerPlatform(platform) {
 	case "cisco":
-		return "Cisco ISE / Catalyst Center"
+		return "Cisco ISE ERS"
 	case "aruba":
 		return "Aruba Central / AOS"
 	case "juniper-mist":
@@ -1059,6 +1062,8 @@ func controllerAdapterLabel(platform string) string {
 
 func controllerAuthScheme(platform string) string {
 	switch normalizeControllerPlatform(platform) {
+	case "cisco":
+		return "basic"
 	case "juniper-mist":
 		return "token"
 	case "mikrotik":
@@ -1071,7 +1076,7 @@ func controllerAuthScheme(platform string) string {
 func controllerEndpointTemplate(platform string) string {
 	switch normalizeControllerPlatform(platform) {
 	case "cisco":
-		return "{endpoint}/api/v1/aegisnas/sites/{site}/sync"
+		return "{endpoint}/ers/config/downloadableacl and /ers/config/authorizationprofile"
 	case "aruba":
 		return "{endpoint}/configuration/v1/aegisnas/sites/{site}/sync"
 	case "juniper-mist":
@@ -1093,8 +1098,10 @@ func controllerAdapterOperationalState(platform string) string {
 	switch normalizeControllerPlatform(platform) {
 	case "generic":
 		return "contract"
-	case "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi":
+	case "cisco":
 		return "native-adapter"
+	case "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi":
+		return "contract"
 	default:
 		return "unsupported"
 	}
@@ -1103,7 +1110,7 @@ func controllerAdapterOperationalState(platform string) string {
 func controllerAdapterOperationalGuidance(platform string) string {
 	switch normalizeControllerPlatform(platform) {
 	case "cisco":
-		return "Use for Cisco controller estates that can accept downloadable ACL, CoA, guest portal, and RADIUS profile sync payloads."
+		return "Uses Cisco ISE ERS Basic authentication to inspect and reconcile downloadable ACL and authorization profile resources."
 	case "aruba":
 		return "Use for Aruba role, VLAN, filter-rule, guest portal, and CoA workflows after controller-side validation."
 	case "juniper-mist":

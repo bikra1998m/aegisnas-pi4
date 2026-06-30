@@ -426,14 +426,20 @@ func addProductionControllerCheck(report *productionReadinessReport, cfg *config
 		})
 		return
 	}
+	dependencies := []string{"integrations.controller.endpoint", "integrations.controller.api_token_env", "integrations.controller.site"}
+	recommendation := "Set endpoint, API token environment variable, and any required site or network identifier."
+	if state.Normalized == "cisco" {
+		dependencies = []string{"integrations.controller.endpoint", "integrations.controller.api_username_env", "integrations.controller.api_password_env", "integrations.controller.site"}
+		recommendation = "Set the Cisco ISE endpoint, API username/password environment variables, and site identifier."
+	}
 	addProductionCheck(report, productionReadinessCheck{
 		Key:            "controller_readiness",
 		Category:       "integrations",
 		Label:          "Controller Readiness",
 		Status:         "blocked",
 		Summary:        "Controller automation is enabled but not ready: " + strings.Join(state.ReadinessWarnings, "; "),
-		Recommendation: "Set endpoint, API token environment variable, and any required site or network identifier.",
-		Dependencies:   []string{"integrations.controller.endpoint", "integrations.controller.api_token_env", "integrations.controller.site"},
+		Recommendation: recommendation,
+		Dependencies:   dependencies,
 	})
 }
 

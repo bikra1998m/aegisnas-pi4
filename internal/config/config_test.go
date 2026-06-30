@@ -1077,6 +1077,27 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	unifiController.Integrations.Controller.Site = "default"
 	assert.NoError(t, unifiController.Validate())
 
+	ciscoController := base()
+	ciscoController.Integrations.Controller.Platform = "cisco"
+	ciscoController.Integrations.Controller.APITokenEnv = ""
+	ciscoController.Integrations.Controller.APIUsernameEnv = "AEGIS_CISCO_ISE_USERNAME"
+	ciscoController.Integrations.Controller.APIPasswordEnv = "AEGIS_CISCO_ISE_PASSWORD"
+	assert.NoError(t, ciscoController.Validate())
+
+	missingCiscoPassword := base()
+	missingCiscoPassword.Integrations.Controller.Platform = "cisco"
+	missingCiscoPassword.Integrations.Controller.APITokenEnv = ""
+	missingCiscoPassword.Integrations.Controller.APIUsernameEnv = "AEGIS_CISCO_ISE_USERNAME"
+	assert.ErrorContains(t, missingCiscoPassword.Validate(), "api_username_env, api_password_env")
+
+	insecureCisco := base()
+	insecureCisco.Integrations.Controller.Platform = "cisco"
+	insecureCisco.Integrations.Controller.Endpoint = "http://ise.example.test:9060"
+	insecureCisco.Integrations.Controller.APITokenEnv = ""
+	insecureCisco.Integrations.Controller.APIUsernameEnv = "AEGIS_CISCO_ISE_USERNAME"
+	insecureCisco.Integrations.Controller.APIPasswordEnv = "AEGIS_CISCO_ISE_PASSWORD"
+	assert.ErrorContains(t, insecureCisco.Validate(), "must use https for Cisco ISE ERS")
+
 	liteSSO := base()
 	liteSSO.Deployment.Profile = "lite"
 	liteSSO.Profiling.MDMSyncEnabled = false

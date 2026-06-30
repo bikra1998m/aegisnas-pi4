@@ -106,6 +106,28 @@ func TestBuildControllerAdapterConfiguredStateReportsWarnings(t *testing.T) {
 	assert.Contains(t, state.ReadinessWarnings, "selected controller platform requires a site, zone, or network identifier")
 }
 
+func TestBuildControllerAdapterConfiguredStateUsesCiscoBasicCredentials(t *testing.T) {
+	const usernameEnv = "AEGIS_TEST_ISE_USERNAME"
+	const passwordEnv = "AEGIS_TEST_ISE_PASSWORD"
+	t.Setenv(usernameEnv, "ers-admin")
+	t.Setenv(passwordEnv, "secret")
+
+	state := buildControllerAdapterConfiguredState(&config.Config{
+		Integrations: config.IntegrationsConfig{
+			Controller: config.ControllerConfig{
+				Enabled: true, Platform: "cisco", Endpoint: "https://ise.example.test:9060",
+				APIUsernameEnv: usernameEnv, APIPasswordEnv: passwordEnv, SyncMode: "monitor", Site: "branch-lab",
+			},
+		},
+	})
+
+	assert.True(t, state.UsernamePresent)
+	assert.True(t, state.PasswordPresent)
+	assert.True(t, state.Ready)
+	assert.Equal(t, "basic", state.Selected.AuthScheme)
+	assert.Equal(t, "cisco-ise-ers", state.Adapter)
+}
+
 func controllerAdapterPayloadContains(adapters []struct {
 	Platform           string   `json:"platform"`
 	Adapter            string   `json:"adapter"`

@@ -793,8 +793,11 @@ func evaluateControllerAutomationCapability(cfg *Config) FeatureCapability {
 		capability.Summary = "Controller automation is blocked on the lite profile."
 	case cfg.Integrations.Controller.Enabled && !controllerConfigured(cfg):
 		capability.State = CapabilityBlocked
-		capability.Summary = "Controller automation requires platform, endpoint, API token env, and sync mode."
+		capability.Summary = "Controller automation requires platform, endpoint, credentials, and sync mode."
 		capability.Dependencies = []string{"integrations.controller.platform", "integrations.controller.endpoint", "integrations.controller.api_token_env", "integrations.controller.sync_mode"}
+		if strings.EqualFold(strings.TrimSpace(cfg.Integrations.Controller.Platform), "cisco") {
+			capability.Dependencies = []string{"integrations.controller.platform", "integrations.controller.endpoint", "integrations.controller.api_username_env", "integrations.controller.api_password_env", "integrations.controller.sync_mode"}
+		}
 	case cfg.Integrations.Controller.Enabled && cfg.Wireless.Enabled:
 		capability.State = CapabilityBlocked
 		capability.Summary = "Controller automation requires the external AP model, not local wireless ownership."

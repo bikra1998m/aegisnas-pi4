@@ -479,6 +479,8 @@ const defaultSettings: JsonMap = {
       platform: "",
       endpoint: "",
       api_token_env: "AEGIS_CONTROLLER_API_TOKEN",
+      api_username_env: "",
+      api_password_env: "",
       sync_mode: "monitor",
       site: "",
     },
@@ -6080,6 +6082,28 @@ export default function AccessSettings() {
                 )
               }
               placeholder="AEGIS_CONTROLLER_API_TOKEN"
+            />
+            <TextField
+              label="Controller API Username Env"
+              value={settings.integrations?.controller?.api_username_env || ""}
+              onChange={(value) =>
+                updateField(
+                  ["integrations", "controller", "api_username_env"],
+                  value,
+                )
+              }
+              placeholder="AEGIS_CISCO_ISE_USERNAME"
+            />
+            <TextField
+              label="Controller API Password Env"
+              value={settings.integrations?.controller?.api_password_env || ""}
+              onChange={(value) =>
+                updateField(
+                  ["integrations", "controller", "api_password_env"],
+                  value,
+                )
+              }
+              placeholder="AEGIS_CISCO_ISE_PASSWORD"
             />
             <SelectField
               label="Controller Sync Mode"

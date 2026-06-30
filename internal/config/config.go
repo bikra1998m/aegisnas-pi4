@@ -409,12 +409,14 @@ type SIEMConfig struct {
 }
 
 type ControllerConfig struct {
-	Enabled     bool   `mapstructure:"enabled"`
-	Platform    string `mapstructure:"platform"`
-	Endpoint    string `mapstructure:"endpoint"`
-	APITokenEnv string `mapstructure:"api_token_env"`
-	SyncMode    string `mapstructure:"sync_mode"`
-	Site        string `mapstructure:"site"`
+	Enabled        bool   `mapstructure:"enabled"`
+	Platform       string `mapstructure:"platform"`
+	Endpoint       string `mapstructure:"endpoint"`
+	APITokenEnv    string `mapstructure:"api_token_env"`
+	APIUsernameEnv string `mapstructure:"api_username_env"`
+	APIPasswordEnv string `mapstructure:"api_password_env"`
+	SyncMode       string `mapstructure:"sync_mode"`
+	Site           string `mapstructure:"site"`
 }
 
 type GovernanceConfig struct {
@@ -1874,7 +1876,16 @@ func (c *Config) Validate() error {
 			return errors.New("integrations.controller.enabled is not supported on the lite deployment profile")
 		}
 		if !controllerConfigured(c) {
+			if strings.EqualFold(strings.TrimSpace(c.Integrations.Controller.Platform), "cisco") {
+				return errors.New("integrations.controller.enabled with platform=cisco requires endpoint, api_username_env, api_password_env, and sync_mode")
+			}
 			return errors.New("integrations.controller.enabled requires platform, endpoint, api_token_env, and sync_mode")
+		}
+		if strings.EqualFold(strings.TrimSpace(c.Integrations.Controller.Platform), "cisco") {
+			parsed, _ := url.Parse(c.Integrations.Controller.Endpoint)
+			if parsed == nil || parsed.Scheme != "https" {
+				return errors.New("integrations.controller.endpoint must use https for Cisco ISE ERS")
+			}
 		}
 		if controllerPlatformRequiresSite(c.Integrations.Controller.Platform) && strings.TrimSpace(c.Integrations.Controller.Site) == "" {
 			return fmt.Errorf("integrations.controller.site is required for platform %q", strings.TrimSpace(c.Integrations.Controller.Platform))
@@ -3063,10 +3074,14 @@ func controllerConfigured(c *Config) bool {
 	if c == nil {
 		return false
 	}
-	return strings.TrimSpace(c.Integrations.Controller.Platform) != "" &&
-		strings.TrimSpace(c.Integrations.Controller.Endpoint) != "" &&
-		strings.TrimSpace(c.Integrations.Controller.APITokenEnv) != "" &&
-		strings.TrimSpace(c.Integrations.Controller.SyncMode) != ""
+	controller := c.Integrations.Controller
+	if strings.TrimSpace(controller.Platform) == "" || strings.TrimSpace(controller.Endpoint) == "" || strings.TrimSpace(controller.SyncMode) == "" {
+		return false
+	}
+	if strings.EqualFold(strings.TrimSpace(controller.Platform), "cisco") {
+		return strings.TrimSpace(controller.APIUsernameEnv) != "" && strings.TrimSpace(controller.APIPasswordEnv) != ""
+	}
+	return strings.TrimSpace(controller.APITokenEnv) != ""
 }
 
 func controllerPlatformRequiresSite(platform string) bool {

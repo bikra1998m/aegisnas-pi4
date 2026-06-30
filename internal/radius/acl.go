@@ -216,6 +216,26 @@ func renderCiscoACLRule(rule ACLRule) string {
 	return strings.Join(parts, " ")
 }
 
+// RenderCiscoDownloadableACL renders inbound vendor-neutral rules as Cisco ISE
+// downloadable ACL lines. Outbound rules require a separate network-device
+// policy and are intentionally omitted from the session DACL.
+func RenderCiscoDownloadableACL(rules []ACLRule) ([]string, int, error) {
+	normalized, err := NormalizeACLRules(rules)
+	if err != nil {
+		return nil, 0, err
+	}
+	lines := make([]string, 0, len(normalized))
+	omittedOutbound := 0
+	for _, rule := range normalized {
+		if rule.Direction == "out" {
+			omittedOutbound++
+			continue
+		}
+		lines = append(lines, renderCiscoACLRule(rule))
+	}
+	return lines, omittedOutbound, nil
+}
+
 func ciscoACLPort(port string) []string {
 	if port == "" || strings.EqualFold(port, "any") {
 		return nil

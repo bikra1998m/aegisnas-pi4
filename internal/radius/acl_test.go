@@ -88,6 +88,17 @@ func TestValidateACLRulesRejectsUnsafeTokens(t *testing.T) {
 	assert.Contains(t, err.Error(), "acl_rules[0]")
 }
 
+func TestRenderCiscoDownloadableACLOmitsOutboundRules(t *testing.T) {
+	lines, omitted, err := RenderCiscoDownloadableACL([]ACLRule{
+		{Action: "permit", Direction: "in", Protocol: "tcp", Source: "any", Destination: "any", DestinationPort: "443"},
+		{Action: "deny", Direction: "out", Protocol: "udp", Source: "any", Destination: "10.0.0.0/24", DestinationPort: "53"},
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"permit tcp any any eq 443"}, lines)
+	assert.Equal(t, 1, omitted)
+}
+
 func aclExportsByPack(exports []ACLVendorExport) map[string]ACLVendorExport {
 	out := map[string]ACLVendorExport{}
 	for _, export := range exports {

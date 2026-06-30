@@ -289,6 +289,22 @@ governance:
 
 Controller automation supports the generic REST contract plus Cisco, Aruba, Juniper Mist, Ruckus, Fortinet, MikroTik, and UniFi adapters. Each sync includes adapter capability metadata and a desired-state hash so controller responses can report drift, applied counts, failed counts, health, compatibility score, and observed-state hash into integration history and network observability. Operators can check `/api/v1/system/controller-adapters` or the dashboard before enabling automation to confirm the selected adapter, token environment, site or network identifier, native push support, drift detection, dynamic ACL support, and CoA readiness.
 
+Cisco ISE uses the native ERS API rather than the generic contract. Configure the ISE base URL plus Basic-auth credential environment names:
+
+```yaml
+integrations:
+  controller:
+    enabled: true
+    platform: cisco
+    endpoint: https://ise-pan.example.com:9060
+    api_username_env: AEGIS_CISCO_ISE_USERNAME
+    api_password_env: AEGIS_CISCO_ISE_PASSWORD
+    sync_mode: monitor
+    site: branch-west
+```
+
+Pull mode reads `/ers/config/downloadableacl` and `/ers/config/authorizationprofile`, compares each managed object with the desired ACL and role state, and reports object-level drift. Confirmed push mode performs filtered lookup followed by create or update, carries an ERS CSRF token when the server supplies one, and never deletes controller objects. Aruba, Mist, Ruckus, Fortinet, MikroTik, and UniFi remain explicit AegisNAS contract adapters until their native resource clients pass provider and hardware certification; the adapter catalog reports that distinction.
+
 Example enterprise onboarding target with external CA and SAML admin access:
 
 ```yaml

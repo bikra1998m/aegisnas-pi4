@@ -93,17 +93,24 @@ func TestControllerAdapterCatalogDescribesNativeAdapters(t *testing.T) {
 	assert.False(t, generic.NativePolicyPush)
 
 	cisco := byPlatform["cisco"]
-	assert.Equal(t, "cisco-ise", cisco.Adapter)
+	assert.Equal(t, "cisco-ise-ers", cisco.Adapter)
+	assert.Equal(t, "basic", cisco.AuthScheme)
 	assert.True(t, cisco.RequiresSite)
 	assert.True(t, cisco.NativePolicyPush)
 	assert.True(t, cisco.DynamicACL)
 	assert.True(t, cisco.DownloadableACL)
+	assert.True(t, cisco.UserRoles)
+	assert.False(t, cisco.CoA)
+	assert.False(t, cisco.GuestPortal)
+	assert.False(t, cisco.WirelessProfiles)
 	assert.Contains(t, cisco.SupportedSyncModes, "push-config")
-	assert.Contains(t, cisco.EndpointTemplate, "{site}")
+	assert.Contains(t, cisco.EndpointTemplate, "/ers/config/downloadableacl")
+	assert.Equal(t, "native-adapter", cisco.OperationalState)
 
 	mist := byPlatform["juniper-mist"]
 	assert.Equal(t, "token", mist.AuthScheme)
 	assert.True(t, mist.CloudInventory)
+	assert.Equal(t, "contract", mist.OperationalState)
 
 	mikrotik := byPlatform["mikrotik"]
 	assert.Equal(t, "header-token", mikrotik.AuthScheme)
@@ -208,49 +215,92 @@ func TestPushControllerStateUsesUniFiAdapter(t *testing.T) {
 }
 
 func TestPushControllerStateUsesCiscoAdapter(t *testing.T) {
-	const tokenEnv = "AEGIS_TEST_CONTROLLER_TOKEN_CISCO"
-	t.Setenv(tokenEnv, "controller-secret")
+	const usernameEnv = "AEGIS_TEST_CISCO_USERNAME"
+	const passwordEnv = "AEGIS_TEST_CISCO_PASSWORD"
+	t.Setenv(usernameEnv, "ers-admin")
+	t.Setenv(passwordEnv, "controller-secret")
 
-	var payload map[string]any
+	previousDB := db.DB
+	tmpfile, err := os.CreateTemp("", "controller-cisco-*.db")
+	require.NoError(t, err)
+	require.NoError(t, tmpfile.Close())
+	require.NoError(t, db.Init(tmpfile.Name()))
+	require.NoError(t, db.Migrate())
+	t.Cleanup(func() {
+		_ = db.Close()
+		db.DB = previousDB
+		_ = os.Remove(tmpfile.Name())
+	})
+	_, err = db.DB.Exec(`INSERT INTO acl_policies (name, description, rules_json, enabled) VALUES
+		('guest-internet', 'Guest web access', '[{"action":"permit","direction":"in","protocol":"tcp","source":"any","destination":"any","destination_port":"443"}]', 1)`)
+	require.NoError(t, err)
+	_, err = db.DB.Exec(`INSERT INTO roles (name, description, vlan, acl_policy_name) VALUES ('guest', 'Guest role', 30, 'guest-internet')`)
+	require.NoError(t, err)
+
+	writes := map[string]map[string]any{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v1/aegisnas/sites/branch-lab/sync", r.URL.Path)
-		assert.Equal(t, "Bearer controller-secret", r.Header.Get("Authorization"))
-		assert.Equal(t, "cisco-ise", r.Header.Get("X-AegisNAS-Controller-Adapter"))
-		body, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
-		require.NoError(t, json.Unmarshal(body, &payload))
-		w.WriteHeader(http.StatusAccepted)
+		username, password, ok := r.BasicAuth()
+		assert.True(t, ok)
+		assert.Equal(t, "ers-admin", username)
+		assert.Equal(t, "controller-secret", password)
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet && r.Header.Get("X-CSRF-TOKEN") == "Fetch" {
+			w.Header().Set("X-CSRF-TOKEN", "csrf-123")
+		}
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == ciscoISEDACLCollection:
+			assert.Contains(t, r.URL.Query().Get("filter"), "aegisnas-branch-lab-guest-internet")
+			_, _ = w.Write([]byte(`{"SearchResult":{"total":1,"resources":[{"id":"dacl-1","name":"aegisnas-branch-lab-guest-internet"}]}}`))
+		case r.Method == http.MethodGet && r.URL.Path == ciscoISEDACLCollection+"/dacl-1":
+			_, _ = w.Write([]byte(`{"DownloadableAcl":{"name":"aegisnas-branch-lab-guest-internet","description":"old","dacl":"deny ip any any","daclType":"IPV4"}}`))
+		case r.Method == http.MethodPut && r.URL.Path == ciscoISEDACLCollection+"/dacl-1":
+			assert.Equal(t, "csrf-123", r.Header.Get("X-CSRF-TOKEN"))
+			var payload map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			writes["dacl"] = payload
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodGet && r.URL.Path == ciscoISEAuthzCollection:
+			_, _ = w.Write([]byte(`{"SearchResult":{"total":0,"resources":[]}}`))
+		case r.Method == http.MethodPost && r.URL.Path == ciscoISEAuthzCollection:
+			assert.Equal(t, "csrf-123", r.Header.Get("X-CSRF-TOKEN"))
+			var payload map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			writes["profile"] = payload
+			w.WriteHeader(http.StatusCreated)
+		default:
+			http.Error(w, "unexpected request", http.StatusNotFound)
+		}
 	}))
 	defer server.Close()
 
 	cfg := &config.Config{}
-	cfg.Deployment.Profile = "branch"
-	cfg.Portal.Enabled = true
-	cfg.Portal.ListenIP = "192.168.50.1"
-	cfg.Radius.AuthPort = 1812
-	cfg.Radius.AcctPort = 1813
-	cfg.Radius.DynamicAuth.Enabled = true
-	cfg.Radius.DynamicAuth.Port = 3799
-	cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Guest", AuthMode: "captive-portal", VLAN: 30}}
 	cfg.Integrations.Controller.Enabled = true
 	cfg.Integrations.Controller.Platform = "cisco"
 	cfg.Integrations.Controller.Endpoint = server.URL
-	cfg.Integrations.Controller.APITokenEnv = tokenEnv
+	cfg.Integrations.Controller.APIUsernameEnv = usernameEnv
+	cfg.Integrations.Controller.APIPasswordEnv = passwordEnv
 	cfg.Integrations.Controller.SyncMode = "push-config"
 	cfg.Integrations.Controller.Site = "branch-lab"
+
+	pullResult, err := pullControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	require.NotNil(t, pullResult)
+	assert.True(t, pullResult.DriftDetected)
+	assert.Equal(t, 2, pullResult.DriftCount)
+	assert.Zero(t, pullResult.AppliedCount)
+	assert.Empty(t, writes)
 
 	result, err := pushControllerState(context.Background(), cfg)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	assert.Equal(t, "cisco-ise", result.Adapter)
-	assert.Equal(t, "branch-lab", payload["site"])
-	aaa := payload["aaa"].(map[string]any)
-	servers := aaa["radius_servers"].([]any)
-	require.Len(t, servers, 1)
-	assert.Equal(t, float64(1812), servers[0].(map[string]any)["auth_port"])
-	ssids := payload["ssid_policies"].([]any)
-	require.Len(t, ssids, 1)
-	assert.Equal(t, "Guest", ssids[0].(map[string]any)["name"])
+	assert.Equal(t, "cisco-ise-ers", result.Adapter)
+	assert.Equal(t, "basic", result.AuthScheme)
+	assert.Equal(t, 2, result.AppliedCount)
+	assert.False(t, result.DriftDetected)
+	assert.Equal(t, "permit tcp any any eq 443", writes["dacl"]["DownloadableAcl"].(map[string]any)["dacl"])
+	profile := writes["profile"]["AuthorizationProfile"].(map[string]any)
+	assert.Equal(t, "aegisnas-branch-lab-guest-internet", profile["daclName"])
+	assert.Equal(t, "30", profile["vlan"].(map[string]any)["nameID"])
 }
 
 func TestPushControllerStateCapturesControllerDriftAndHealth(t *testing.T) {
@@ -302,10 +352,10 @@ func TestControllerPullPreviewAndExecutionDetectHashDrift(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
-		assert.Equal(t, "/api/v1/aegisnas/sites/branch-lab/state", r.URL.Path)
+		assert.Equal(t, "/", r.URL.Path)
 		assert.Equal(t, "pull-config", r.Header.Get("X-AegisNAS-Sync-Mode"))
 		assert.Equal(t, "pull", r.Header.Get("X-AegisNAS-Controller-Operation"))
-		assert.Equal(t, "cisco-ise", r.Header.Get("X-AegisNAS-Controller-Adapter"))
+		assert.Equal(t, "generic-rest", r.Header.Get("X-AegisNAS-Controller-Adapter"))
 		assert.Equal(t, "Bearer pull-secret", r.Header.Get("Authorization"))
 		assert.NotEmpty(t, r.Header.Get("X-AegisNAS-Desired-State-Hash"))
 		w.Header().Set("Content-Type", "application/json")
@@ -315,7 +365,7 @@ func TestControllerPullPreviewAndExecutionDetectHashDrift(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Integrations.Controller.Enabled = true
-	cfg.Integrations.Controller.Platform = "cisco"
+	cfg.Integrations.Controller.Platform = "generic"
 	cfg.Integrations.Controller.Endpoint = server.URL
 	cfg.Integrations.Controller.APITokenEnv = tokenEnv
 	cfg.Integrations.Controller.SyncMode = "monitor"
@@ -325,14 +375,14 @@ func TestControllerPullPreviewAndExecutionDetectHashDrift(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "pull", preview.Operation)
 	assert.Equal(t, http.MethodGet, preview.Method)
-	assert.Equal(t, server.URL+"/api/v1/aegisnas/sites/branch-lab/state", preview.TargetURL)
+	assert.Equal(t, server.URL, preview.TargetURL)
 	assert.NotEmpty(t, preview.DesiredStateHash)
 	assert.NotEmpty(t, preview.Payload)
 
 	result, err := ExecuteControllerOperation(context.Background(), cfg, "pull")
 	require.NoError(t, err)
 	assert.Equal(t, "pull", result.Operation)
-	assert.Equal(t, "cisco-ise", result.Adapter)
+	assert.Equal(t, "generic-rest", result.Adapter)
 	assert.Equal(t, "healthy", result.ControllerHealth)
 	assert.Equal(t, "outdated-state", result.ObservedStateHash)
 	assert.NotEmpty(t, result.DesiredStateHash)

@@ -30,6 +30,10 @@ type controllerAdapterConfiguredState struct {
 	TokenEnv          string                                   `json:"token_env,omitempty"`
 	TokenEnvSet       bool                                     `json:"token_env_set"`
 	TokenPresent      bool                                     `json:"token_present"`
+	UsernameEnv       string                                   `json:"username_env,omitempty"`
+	UsernamePresent   bool                                     `json:"username_present"`
+	PasswordEnv       string                                   `json:"password_env,omitempty"`
+	PasswordPresent   bool                                     `json:"password_present"`
 	Ready             bool                                     `json:"ready"`
 	ReadinessWarnings []string                                 `json:"readiness_warnings,omitempty"`
 	Selected          integrations.ControllerAdapterDescriptor `json:"selected"`
@@ -56,21 +60,27 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 		platform = "generic"
 	}
 	tokenEnv := strings.TrimSpace(controller.APITokenEnv)
+	usernameEnv := strings.TrimSpace(controller.APIUsernameEnv)
+	passwordEnv := strings.TrimSpace(controller.APIPasswordEnv)
 	descriptor := integrations.ControllerAdapterDescriptorForPlatform(platform)
 	state := controllerAdapterConfiguredState{
-		Enabled:      controller.Enabled,
-		Platform:     strings.TrimSpace(controller.Platform),
-		Normalized:   platform,
-		Adapter:      descriptor.Adapter,
-		SyncMode:     strings.TrimSpace(controller.SyncMode),
-		Endpoint:     strings.TrimSpace(controller.Endpoint),
-		Site:         strings.TrimSpace(controller.Site),
-		TokenEnv:     tokenEnv,
-		SiteRequired: descriptor.RequiresSite,
-		EndpointSet:  strings.TrimSpace(controller.Endpoint) != "",
-		TokenEnvSet:  tokenEnv != "",
-		TokenPresent: tokenEnv != "" && strings.TrimSpace(os.Getenv(tokenEnv)) != "",
-		Selected:     descriptor,
+		Enabled:         controller.Enabled,
+		Platform:        strings.TrimSpace(controller.Platform),
+		Normalized:      platform,
+		Adapter:         descriptor.Adapter,
+		SyncMode:        strings.TrimSpace(controller.SyncMode),
+		Endpoint:        strings.TrimSpace(controller.Endpoint),
+		Site:            strings.TrimSpace(controller.Site),
+		TokenEnv:        tokenEnv,
+		UsernameEnv:     usernameEnv,
+		PasswordEnv:     passwordEnv,
+		SiteRequired:    descriptor.RequiresSite,
+		EndpointSet:     strings.TrimSpace(controller.Endpoint) != "",
+		TokenEnvSet:     tokenEnv != "",
+		TokenPresent:    tokenEnv != "" && strings.TrimSpace(os.Getenv(tokenEnv)) != "",
+		UsernamePresent: usernameEnv != "" && strings.TrimSpace(os.Getenv(usernameEnv)) != "",
+		PasswordPresent: passwordEnv != "" && strings.TrimSpace(os.Getenv(passwordEnv)) != "",
+		Selected:        descriptor,
 	}
 	state.SiteConfigured = !state.SiteRequired || state.Site != ""
 	if state.SyncMode == "" {
@@ -83,7 +93,13 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 		if !state.EndpointSet {
 			state.ReadinessWarnings = append(state.ReadinessWarnings, "controller endpoint is not configured")
 		}
-		if !state.TokenEnvSet {
+		if platform == "cisco" {
+			if usernameEnv == "" || passwordEnv == "" {
+				state.ReadinessWarnings = append(state.ReadinessWarnings, "Cisco ISE requires API username and password environment variables")
+			} else if !state.UsernamePresent || !state.PasswordPresent {
+				state.ReadinessWarnings = append(state.ReadinessWarnings, "Cisco ISE API credential environment variables are configured but not both present")
+			}
+		} else if !state.TokenEnvSet {
 			state.ReadinessWarnings = append(state.ReadinessWarnings, "controller API token environment variable is not configured")
 		} else if !state.TokenPresent {
 			state.ReadinessWarnings = append(state.ReadinessWarnings, "controller API token environment variable is configured but not present in the process environment")
@@ -92,7 +108,11 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 			state.ReadinessWarnings = append(state.ReadinessWarnings, "selected controller platform requires a site, zone, or network identifier")
 		}
 	}
-	state.Ready = state.EndpointSet && state.TokenEnvSet && state.TokenPresent && state.SiteConfigured
+	credentialsReady := state.TokenEnvSet && state.TokenPresent
+	if platform == "cisco" {
+		credentialsReady = state.UsernamePresent && state.PasswordPresent
+	}
+	state.Ready = state.EndpointSet && credentialsReady && state.SiteConfigured
 	if !state.Enabled {
 		state.Ready = false
 	}

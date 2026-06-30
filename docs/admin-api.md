@@ -157,7 +157,7 @@ Controller-native integration readiness is available at:
 /api/v1/system/controller-adapters
 ```
 
-The response lists the supported controller adapters, the selected platform's capabilities, required site or network identifier, token environment readiness, runtime sync status, and any setup warnings. Use it before enabling controller automation or when investigating drift, failed policy pushes, or controller API health.
+The response lists the supported controller adapters, whether each adapter is native or contract-based, the selected platform's capabilities, required site or network identifier, credential environment readiness, runtime sync status, and setup warnings. Cisco readiness checks `api_username_env` and `api_password_env`; token-based adapters check `api_token_env`.
 
 Controller policy operations are available at:
 
@@ -167,7 +167,7 @@ GET  /api/v1/system/controller-sync/preview?operation=push
 POST /api/v1/system/controller-sync
 ```
 
-`pull` performs a read-only state request and compares the reported observed-state hash with the AegisNAS desired-state hash. `push` sends the generated policy payload and requires `confirmation` to equal `PUSH CONTROLLER POLICY`. Manual operations update `controller_automation` runtime counters and durable integration history. Operators can run the same preview, pull, drift check, and confirmed push from the Controller Automation section of the dashboard.
+`pull` performs a read-only state request and compares observed controller resources with AegisNAS desired state. `push` requires `confirmation` to equal `PUSH CONTROLLER POLICY`. The Cisco native adapter reconciles ERS downloadable ACL and authorization profile resources with lookup-before-create/update behavior; other adapters currently use their declared AegisNAS contract endpoint. Manual operations update `controller_automation` runtime counters and durable integration history.
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
