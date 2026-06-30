@@ -275,9 +275,11 @@ integrations:
   controller:
     enabled: true
     platform: aruba
-    endpoint: https://controller.example.com/api
+    endpoint: https://apigw-prod2.central.arubanetworks.com
     api_token_env: AEGIS_CONTROLLER_API_TOKEN
+    radius_profile: aegisnas-radius
     sync_mode: monitor
+    site: branch-west
 
 governance:
   delegated_admin_enabled: true
@@ -303,7 +305,11 @@ integrations:
     site: branch-west
 ```
 
-Pull mode reads `/ers/config/downloadableacl` and `/ers/config/authorizationprofile`, compares each managed object with the desired ACL and role state, and reports object-level drift. Confirmed push mode performs filtered lookup followed by create or update, carries an ERS CSRF token when the server supplies one, and never deletes controller objects. Aruba, Mist, Ruckus, Fortinet, MikroTik, and UniFi remain explicit AegisNAS contract adapters until their native resource clients pass provider and hardware certification; the adapter catalog reports that distinction.
+Pull mode reads `/ers/config/downloadableacl` and `/ers/config/authorizationprofile`, compares each managed object with the desired ACL and role state, and reports object-level drift. Confirmed push mode performs filtered lookup followed by create or update, carries an ERS CSRF token when the server supplies one, and never deletes controller objects.
+
+The Aruba adapter targets the Classic Aruba Central Configuration API. Set `site` to the Central group and `radius_profile` to an existing Central RADIUS server profile. For each configured `wpa2-enterprise` or `wpa3-enterprise` SSID, pull mode reads `/configuration/v2/wlan/{group}/{wlan}` and reports field-level drift; confirmed push mode creates missing WLANs with POST and updates changed WLANs with PUT. Requests use the bearer token named by `api_token_env`, retry one `429` response using `Retry-After`, and never delete WLANs. Open, personal, and captive-portal SSIDs are reported as unsupported warnings. This adapter does not yet mutate Central RADIUS profiles, guest portals, roles, ACLs, or CoA resources.
+
+Mist, Ruckus, Fortinet, MikroTik, and UniFi remain explicit AegisNAS contract adapters until their native resource clients pass provider and hardware certification. Cisco ISE and Aruba Central are native but still require real-controller certification before production authority.
 
 Example enterprise onboarding target with external CA and SAML admin access:
 

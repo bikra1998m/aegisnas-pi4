@@ -95,7 +95,7 @@ func TestBuildControllerAdapterConfiguredStateReportsWarnings(t *testing.T) {
 	})
 
 	assert.Equal(t, "aruba", state.Normalized)
-	assert.Equal(t, "aruba-central", state.Adapter)
+	assert.Equal(t, "aruba-central-classic", state.Adapter)
 	assert.True(t, state.SiteRequired)
 	assert.False(t, state.SiteConfigured)
 	assert.False(t, state.EndpointSet)
@@ -104,6 +104,31 @@ func TestBuildControllerAdapterConfiguredStateReportsWarnings(t *testing.T) {
 	assert.Contains(t, state.ReadinessWarnings, "controller endpoint is not configured")
 	assert.Contains(t, state.ReadinessWarnings, "controller API token environment variable is configured but not present in the process environment")
 	assert.Contains(t, state.ReadinessWarnings, "selected controller platform requires a site, zone, or network identifier")
+}
+
+func TestBuildControllerAdapterConfiguredStateRequiresArubaRadiusProfile(t *testing.T) {
+	const tokenEnv = "AEGIS_TEST_ARUBA_READY_TOKEN"
+	t.Setenv(tokenEnv, "secret")
+	cfg := &config.Config{
+		Integrations: config.IntegrationsConfig{
+			Controller: config.ControllerConfig{
+				Enabled: true, Platform: "aruba", Endpoint: "https://central.example.test",
+				APITokenEnv: tokenEnv, SyncMode: "monitor", Site: "branch-lab",
+			},
+		},
+	}
+	cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+
+	state := buildControllerAdapterConfiguredState(cfg)
+	assert.True(t, state.RadiusProfileRequired)
+	assert.False(t, state.RadiusProfileConfigured)
+	assert.False(t, state.Ready)
+	assert.Contains(t, state.ReadinessWarnings, "Aruba Central enterprise WLAN sync requires an existing controller RADIUS profile")
+
+	cfg.Integrations.Controller.RadiusProfile = "aegisnas-radius"
+	state = buildControllerAdapterConfiguredState(cfg)
+	assert.True(t, state.RadiusProfileConfigured)
+	assert.True(t, state.Ready)
 }
 
 func TestBuildControllerAdapterConfiguredStateUsesCiscoBasicCredentials(t *testing.T) {

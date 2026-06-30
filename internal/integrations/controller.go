@@ -291,8 +291,11 @@ func executeControllerState(ctx context.Context, cfg *config.Config, operation s
 	if cfg == nil {
 		return nil, fmt.Errorf("controller config is required")
 	}
-	if normalizeControllerPlatform(cfg.Integrations.Controller.Platform) == "cisco" {
+	switch normalizeControllerPlatform(cfg.Integrations.Controller.Platform) {
+	case "cisco":
 		return executeCiscoISEOperation(ctx, cfg, operation)
+	case "aruba":
+		return executeArubaCentralOperation(ctx, cfg, operation)
 	}
 	token := controllerToken(cfg)
 	if token == "" {
@@ -438,12 +441,15 @@ func normalizeControllerOperation(operation string) (string, error) {
 }
 
 func controllerOperationEndpoint(cfg *config.Config, platform, operation string) (string, error) {
-	if normalizeControllerPlatform(platform) == "cisco" {
+	switch normalizeControllerPlatform(platform) {
+	case "cisco":
 		base := strings.TrimRight(strings.TrimSpace(cfg.Integrations.Controller.Endpoint), "/")
 		if base == "" {
 			return "", fmt.Errorf("controller endpoint is empty")
 		}
 		return base + ciscoISEDACLCollection, nil
+	case "aruba":
+		return arubaCentralTargetURL(cfg)
 	}
 	targetURL, err := controllerEndpointForPlatform(cfg, platform)
 	if err != nil || operation != "pull" || normalizeControllerPlatform(platform) == "generic" {
@@ -533,16 +539,7 @@ func buildCiscoControllerPayload(cfg *config.Config) map[string]any {
 }
 
 func buildArubaControllerPayload(cfg *config.Config) map[string]any {
-	return map[string]any{
-		"generated_at":       time.Now().UTC().Format(time.RFC3339),
-		"adapter":            "aruba-central",
-		"site":               strings.TrimSpace(cfg.Integrations.Controller.Site),
-		"sync_mode":          cfg.Integrations.Controller.SyncMode,
-		"deployment_profile": cfg.Deployment.Profile,
-		"aaa_profiles":       []map[string]any{buildControllerRadiusSection(cfg)},
-		"guest":              buildControllerPortalSection(cfg),
-		"wireless_networks":  buildControllerSSIDProfiles(cfg),
-	}
+	return buildArubaCentralPreviewPayload(cfg)
 }
 
 func buildMistControllerPayload(cfg *config.Config) map[string]any {
@@ -760,7 +757,11 @@ func attachControllerPayloadMetadata(payload map[string]any, platform string) {
 
 func controllerAdapterCapabilities(platform string) map[string]any {
 	normalized := normalizeControllerPlatform(platform)
-	contractPayload := normalized != "cisco"
+	contractPayload := normalized != "cisco" && normalized != "aruba"
+	supportedSyncModes := []string{"monitor", "pull-config", "push-config", "coa-only"}
+	if normalized == "cisco" || normalized == "aruba" {
+		supportedSyncModes = []string{"monitor", "pull-config", "push-config"}
+	}
 	capabilities := map[string]any{
 		"platform":             normalized,
 		"adapter":              controllerAdapterName(normalized),
@@ -773,8 +774,8 @@ func controllerAdapterCapabilities(platform string) map[string]any {
 		"wireless_profiles":    contractPayload,
 		"dynamic_acl":          false,
 		"coa":                  false,
-		"native_policy_push":   normalized == "cisco",
-		"supported_sync_modes": []string{"monitor", "pull-config", "push-config", "coa-only"},
+		"native_policy_push":   normalized == "cisco" || normalized == "aruba",
+		"supported_sync_modes": supportedSyncModes,
 	}
 	switch normalized {
 	case "cisco":
@@ -782,9 +783,7 @@ func controllerAdapterCapabilities(platform string) map[string]any {
 		capabilities["downloadable_acl"] = true
 		capabilities["user_roles"] = true
 	case "aruba":
-		capabilities["dynamic_acl"] = true
-		capabilities["coa"] = true
-		capabilities["user_roles"] = true
+		capabilities["wireless_profiles"] = true
 	case "juniper-mist":
 		capabilities["coa"] = true
 		capabilities["cloud_inventory"] = true
@@ -1023,7 +1022,7 @@ func controllerAdapterName(platform string) string {
 	case "cisco":
 		return "cisco-ise-ers"
 	case "aruba":
-		return "aruba-central"
+		return "aruba-central-classic"
 	case "juniper-mist":
 		return "juniper-mist"
 	case "ruckus":
@@ -1044,7 +1043,7 @@ func controllerAdapterLabel(platform string) string {
 	case "cisco":
 		return "Cisco ISE ERS"
 	case "aruba":
-		return "Aruba Central / AOS"
+		return "HPE Aruba Networking Central Classic"
 	case "juniper-mist":
 		return "Juniper Mist"
 	case "ruckus":
@@ -1078,7 +1077,7 @@ func controllerEndpointTemplate(platform string) string {
 	case "cisco":
 		return "{endpoint}/ers/config/downloadableacl and /ers/config/authorizationprofile"
 	case "aruba":
-		return "{endpoint}/configuration/v1/aegisnas/sites/{site}/sync"
+		return "{endpoint}/configuration/v2/wlan/{group}/{wlan}"
 	case "juniper-mist":
 		return "{endpoint}/api/v1/sites/{site}/aegisnas/sync"
 	case "ruckus":
@@ -1098,9 +1097,9 @@ func controllerAdapterOperationalState(platform string) string {
 	switch normalizeControllerPlatform(platform) {
 	case "generic":
 		return "contract"
-	case "cisco":
+	case "cisco", "aruba":
 		return "native-adapter"
-	case "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi":
+	case "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi":
 		return "contract"
 	default:
 		return "unsupported"
@@ -1112,7 +1111,7 @@ func controllerAdapterOperationalGuidance(platform string) string {
 	case "cisco":
 		return "Uses Cisco ISE ERS Basic authentication to inspect and reconcile downloadable ACL and authorization profile resources."
 	case "aruba":
-		return "Use for Aruba role, VLAN, filter-rule, guest portal, and CoA workflows after controller-side validation."
+		return "Uses Aruba Central Classic Configuration v2 bearer APIs to inspect and reconcile enterprise WLANs against an existing Central RADIUS profile; guest, role, ACL, and CoA resources are not yet mutated."
 	case "juniper-mist":
 		return "Use for Mist cloud inventory and WLAN policy sync; RADIUS replies remain standards-based unless site templates add more detail."
 	case "ruckus":

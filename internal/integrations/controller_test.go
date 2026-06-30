@@ -107,6 +107,19 @@ func TestControllerAdapterCatalogDescribesNativeAdapters(t *testing.T) {
 	assert.Contains(t, cisco.EndpointTemplate, "/ers/config/downloadableacl")
 	assert.Equal(t, "native-adapter", cisco.OperationalState)
 
+	aruba := byPlatform["aruba"]
+	assert.Equal(t, "aruba-central-classic", aruba.Adapter)
+	assert.Equal(t, "bearer", aruba.AuthScheme)
+	assert.True(t, aruba.NativePolicyPush)
+	assert.True(t, aruba.WirelessProfiles)
+	assert.False(t, aruba.RadiusProfiles)
+	assert.False(t, aruba.GuestPortal)
+	assert.False(t, aruba.DynamicACL)
+	assert.False(t, aruba.CoA)
+	assert.NotContains(t, aruba.SupportedSyncModes, "coa-only")
+	assert.Contains(t, aruba.EndpointTemplate, "/configuration/v2/wlan/")
+	assert.Equal(t, "native-adapter", aruba.OperationalState)
+
 	mist := byPlatform["juniper-mist"]
 	assert.Equal(t, "token", mist.AuthScheme)
 	assert.True(t, mist.CloudInventory)
@@ -115,6 +128,106 @@ func TestControllerAdapterCatalogDescribesNativeAdapters(t *testing.T) {
 	mikrotik := byPlatform["mikrotik"]
 	assert.Equal(t, "header-token", mikrotik.AuthScheme)
 	assert.True(t, mikrotik.AddressLists)
+}
+
+func TestArubaCentralNativeWLANReconciliation(t *testing.T) {
+	const tokenEnv = "AEGIS_TEST_ARUBA_TOKEN"
+	t.Setenv(tokenEnv, "central-secret")
+
+	state := map[string]map[string]any{
+		"Corp": {
+			"name": "Corp", "essid": "Corp", "type": "employee", "opmode": "wpa2-aes",
+			"vlan": "10", "hide_ssid": false, "auth_server1": "old-radius",
+			"accounting_server1": "old-radius", "radius_accounting": true,
+			"radius_accounting_mode": "user-authentication", "download_role": true,
+		},
+	}
+	writes := map[string]string{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer central-secret", r.Header.Get("Authorization"))
+		assert.Equal(t, "application/json", r.Header.Get("Accept"))
+		prefix := "/configuration/v2/wlan/branch-lab/"
+		require.True(t, strings.HasPrefix(r.URL.Path, prefix), r.URL.Path)
+		name := strings.TrimPrefix(r.URL.Path, prefix)
+		w.Header().Set("Content-Type", "application/json")
+		switch r.Method {
+		case http.MethodGet:
+			wlan, ok := state[name]
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = w.Write([]byte(`{"message":"WLAN not found"}`))
+				return
+			}
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"wlan": wlan}))
+		case http.MethodPost, http.MethodPut:
+			var payload map[string]map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			state[name] = payload["wlan"]
+			writes[name] = r.Method
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"message":"success"}`))
+		default:
+			http.Error(w, "unexpected request", http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{}
+	cfg.Integrations.Controller.Enabled = true
+	cfg.Integrations.Controller.Platform = "aruba"
+	cfg.Integrations.Controller.Endpoint = server.URL
+	cfg.Integrations.Controller.APITokenEnv = tokenEnv
+	cfg.Integrations.Controller.RadiusProfile = "aegisnas-radius"
+	cfg.Integrations.Controller.SyncMode = "push-config"
+	cfg.Integrations.Controller.Site = "branch-lab"
+	cfg.Wireless.SSIDs = []config.SSIDConfig{
+		{Name: "Corp", AuthMode: "wpa2-enterprise", VLAN: 20},
+		{Name: "Staff", AuthMode: "wpa3-enterprise", VLAN: 30, Hidden: true},
+		{Name: "Guest", AuthMode: "captive-portal", VLAN: 40},
+	}
+
+	pullResult, err := pullControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "aruba-central-classic", pullResult.Adapter)
+	assert.True(t, pullResult.DriftDetected)
+	assert.Equal(t, 2, pullResult.DriftCount)
+	assert.Zero(t, pullResult.AppliedCount)
+	assert.Equal(t, 1, pullResult.WarningCount)
+	assert.Empty(t, writes)
+
+	pushResult, err := pushControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.Equal(t, 2, pushResult.AppliedCount)
+	assert.False(t, pushResult.DriftDetected)
+	assert.Equal(t, "healthy", pushResult.ControllerHealth)
+	assert.Equal(t, http.MethodPut, writes["Corp"])
+	assert.Equal(t, http.MethodPost, writes["Staff"])
+	assert.Equal(t, "20", state["Corp"]["vlan"])
+	assert.Equal(t, "aegisnas-radius", state["Corp"]["auth_server1"])
+	assert.Equal(t, "wpa3-aes-ccm-128", state["Staff"]["opmode"])
+	assert.Equal(t, true, state["Staff"]["hide_ssid"])
+	assert.Equal(t, true, pushResult.ResponseDetails["native_api"])
+}
+
+func TestArubaCentralRetriesRateLimitedRequest(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if requests == 1 {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		_, _ = w.Write([]byte(`{"wlan":{"name":"Corp"}}`))
+	}))
+	defer server.Close()
+
+	client := &arubaCentralClient{baseURL: server.URL, token: "token", http: server.Client()}
+	body, status, err := client.doJSON(context.Background(), http.MethodGet, "/wlan", nil)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, status)
+	assert.Contains(t, string(body), "Corp")
+	assert.Equal(t, 2, requests)
 }
 
 func TestPushControllerStateUsesJuniperMistAdapter(t *testing.T) {

@@ -579,14 +579,14 @@ Current runtime implementation after Phase 4:
 - multi-tenant governance now scopes guest workflow, device inventory, certificate download, and session operations by tenant-aware admin sessions
 - the telemetry service exports audit logs and alerts to `webhook`, `splunk-hec`, or `elastic`
 - controller automation now runs as a live background loop; `monitor` and `pull-config` read controller state while `push-config` sends appliance policy to the configured endpoint
-- controller sync payloads include adapter capabilities and a desired-state hash; Cisco, Aruba, Juniper Mist, Ruckus, Fortinet, MikroTik, UniFi, and generic REST responses can report drift, applied or failed counts, health, compatibility score, and observed-state hash
+- controller sync payloads include adapter capabilities and a desired-state hash; Cisco ISE ERS and Aruba Central Classic have native read/reconcile clients, while Juniper Mist, Ruckus, Fortinet, MikroTik, UniFi, and generic REST use declared sync contracts
 - the admin API and dashboard expose the controller adapter catalog, selected adapter readiness, token environment presence, site or network requirements, and setup warnings
 - operators can preview pull or push requests, run a read-only drift check, and execute a confirmation-locked push; manual results feed runtime counters and durable integration history
 - export and controller runtime state are stored in `runtime_status`
 - failed deliveries or controller sync errors degrade only the affected integration path and do not block authentication, session handling, or portal traffic
 - the dashboard surfaces live admin SSO, SIEM export, and controller automation state, provider, endpoint or redirect target, and last runtime message for operators
 
-This phase now delivers real runtime integrations for the declared production paths while still being honest about product boundaries. The controller runtime is a vendor-neutral sync contract rather than a promise of one-to-one feature parity with every vendor controller API.
+This phase now delivers real runtime integrations for the declared production paths while still being honest about product boundaries. Cisco ISE and Aruba Central execute provider-native resource operations; the remaining controller adapters are vendor-neutral sync contracts rather than promises of one-to-one feature parity with every vendor controller API.
 
 Release certification uses `scripts/vendor-certification-lab.sh` one pack at a time. Its required gates cover product vendor identity, runtime catalog presence, reply rendering, and optional live RADIUS, packet capture, device, controller, upgrade, and rollback evidence. CI validates the harness itself; real hardware evidence remains a release-lab responsibility.
 

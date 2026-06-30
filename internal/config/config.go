@@ -415,6 +415,7 @@ type ControllerConfig struct {
 	APITokenEnv    string `mapstructure:"api_token_env"`
 	APIUsernameEnv string `mapstructure:"api_username_env"`
 	APIPasswordEnv string `mapstructure:"api_password_env"`
+	RadiusProfile  string `mapstructure:"radius_profile"`
 	SyncMode       string `mapstructure:"sync_mode"`
 	Site           string `mapstructure:"site"`
 }
@@ -1872,20 +1873,34 @@ func (c *Config) Validate() error {
 		}
 	}
 	if c.Integrations.Controller.Enabled {
+		controllerPlatform := strings.ToLower(strings.TrimSpace(c.Integrations.Controller.Platform))
+		controllerSyncMode := strings.ToLower(strings.TrimSpace(c.Integrations.Controller.SyncMode))
 		if profile == "lite" {
 			return errors.New("integrations.controller.enabled is not supported on the lite deployment profile")
 		}
 		if !controllerConfigured(c) {
-			if strings.EqualFold(strings.TrimSpace(c.Integrations.Controller.Platform), "cisco") {
+			if controllerPlatform == "cisco" {
 				return errors.New("integrations.controller.enabled with platform=cisco requires endpoint, api_username_env, api_password_env, and sync_mode")
 			}
 			return errors.New("integrations.controller.enabled requires platform, endpoint, api_token_env, and sync_mode")
 		}
-		if strings.EqualFold(strings.TrimSpace(c.Integrations.Controller.Platform), "cisco") {
+		if controllerPlatform == "cisco" {
 			parsed, _ := url.Parse(c.Integrations.Controller.Endpoint)
 			if parsed == nil || parsed.Scheme != "https" {
 				return errors.New("integrations.controller.endpoint must use https for Cisco ISE ERS")
 			}
+		}
+		if controllerPlatform == "aruba" {
+			parsed, _ := url.Parse(c.Integrations.Controller.Endpoint)
+			if parsed == nil || parsed.Scheme != "https" {
+				return errors.New("integrations.controller.endpoint must use https for Aruba Central")
+			}
+			if controllerHasEnterpriseSSIDs(c) && strings.TrimSpace(c.Integrations.Controller.RadiusProfile) == "" {
+				return errors.New("integrations.controller.radius_profile is required for Aruba Central enterprise WLAN sync")
+			}
+		}
+		if (controllerPlatform == "cisco" || controllerPlatform == "aruba") && controllerSyncMode == "coa-only" {
+			return fmt.Errorf("integrations.controller.sync_mode %q is not supported by the %s native adapter", c.Integrations.Controller.SyncMode, controllerPlatform)
 		}
 		if controllerPlatformRequiresSite(c.Integrations.Controller.Platform) && strings.TrimSpace(c.Integrations.Controller.Site) == "" {
 			return fmt.Errorf("integrations.controller.site is required for platform %q", strings.TrimSpace(c.Integrations.Controller.Platform))
@@ -3091,6 +3106,19 @@ func controllerPlatformRequiresSite(platform string) bool {
 	default:
 		return true
 	}
+}
+
+func controllerHasEnterpriseSSIDs(c *Config) bool {
+	if c == nil {
+		return false
+	}
+	for _, ssid := range c.Wireless.SSIDs {
+		switch strings.ToLower(strings.TrimSpace(ssid.AuthMode)) {
+		case "wpa2-enterprise", "wpa3-enterprise":
+			return true
+		}
+	}
+	return false
 }
 
 func delegatedAdminIdentityReady(c *Config) bool {

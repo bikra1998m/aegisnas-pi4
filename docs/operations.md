@@ -260,6 +260,8 @@ Network observability combines apply history, rollback counters, DHCP lease tren
 
 For controller changes, preview the operation from the dashboard or `GET /api/v1/system/controller-sync/preview`. Run `pull` first and resolve reported hash drift before a push. A push is locked until the operator enters `PUSH CONTROLLER POLICY`; its result, target adapter, hashes, drift count, applied or failed count, and controller health are written to integration history. Keep scheduled mode at `monitor` or `pull-config` until the selected controller has passed the certification lab against real hardware.
 
+For Aruba Central, verify that `site` names the Classic Central group and `radius_profile` names an existing RADIUS server profile before the first pull. The native adapter manages only WPA2/WPA3 Enterprise WLAN objects. A warning for a personal, open, captive-portal, client-limit, isolation, portal, or bandwidth setting means that field was left untouched in Central and needs a separate controller-side workflow.
+
 Run `scripts/vendor-certification-lab.sh` for each supported production vendor and archive its `summary.json`, API payloads, RADIUS results, packet capture, controller evidence, and optional upgrade/rollback artifacts. The full procedure and safety gates are in [vendor-certification-lab.md](vendor-certification-lab.md).
 
 ## Backup And Restore

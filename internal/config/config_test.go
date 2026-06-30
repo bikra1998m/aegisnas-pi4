@@ -1072,6 +1072,23 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	valid := base()
 	assert.NoError(t, valid.Validate())
 
+	arubaEnterprise := base()
+	arubaEnterprise.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	arubaEnterprise.Integrations.Controller.RadiusProfile = "aegisnas-radius"
+	assert.NoError(t, arubaEnterprise.Validate())
+
+	missingArubaRadiusProfile := base()
+	missingArubaRadiusProfile.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	assert.ErrorContains(t, missingArubaRadiusProfile.Validate(), "radius_profile is required for Aruba Central enterprise WLAN sync")
+
+	insecureAruba := base()
+	insecureAruba.Integrations.Controller.Endpoint = "http://central.example.test"
+	assert.ErrorContains(t, insecureAruba.Validate(), "must use https for Aruba Central")
+
+	arubaCoAOnly := base()
+	arubaCoAOnly.Integrations.Controller.SyncMode = "coa-only"
+	assert.ErrorContains(t, arubaCoAOnly.Validate(), "not supported by the aruba native adapter")
+
 	unifiController := base()
 	unifiController.Integrations.Controller.Platform = "unifi"
 	unifiController.Integrations.Controller.Site = "default"
@@ -1083,6 +1100,14 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	ciscoController.Integrations.Controller.APIUsernameEnv = "AEGIS_CISCO_ISE_USERNAME"
 	ciscoController.Integrations.Controller.APIPasswordEnv = "AEGIS_CISCO_ISE_PASSWORD"
 	assert.NoError(t, ciscoController.Validate())
+
+	ciscoCoAOnly := base()
+	ciscoCoAOnly.Integrations.Controller.Platform = "cisco"
+	ciscoCoAOnly.Integrations.Controller.APITokenEnv = ""
+	ciscoCoAOnly.Integrations.Controller.APIUsernameEnv = "AEGIS_CISCO_ISE_USERNAME"
+	ciscoCoAOnly.Integrations.Controller.APIPasswordEnv = "AEGIS_CISCO_ISE_PASSWORD"
+	ciscoCoAOnly.Integrations.Controller.SyncMode = "coa-only"
+	assert.ErrorContains(t, ciscoCoAOnly.Validate(), "not supported by the cisco native adapter")
 
 	missingCiscoPassword := base()
 	missingCiscoPassword.Integrations.Controller.Platform = "cisco"

@@ -17,26 +17,29 @@ type controllerAdaptersResponse struct {
 }
 
 type controllerAdapterConfiguredState struct {
-	Enabled           bool                                     `json:"enabled"`
-	Platform          string                                   `json:"platform"`
-	Normalized        string                                   `json:"normalized_platform"`
-	Adapter           string                                   `json:"adapter"`
-	SyncMode          string                                   `json:"sync_mode"`
-	Endpoint          string                                   `json:"endpoint,omitempty"`
-	Site              string                                   `json:"site,omitempty"`
-	SiteRequired      bool                                     `json:"site_required"`
-	SiteConfigured    bool                                     `json:"site_configured"`
-	EndpointSet       bool                                     `json:"endpoint_set"`
-	TokenEnv          string                                   `json:"token_env,omitempty"`
-	TokenEnvSet       bool                                     `json:"token_env_set"`
-	TokenPresent      bool                                     `json:"token_present"`
-	UsernameEnv       string                                   `json:"username_env,omitempty"`
-	UsernamePresent   bool                                     `json:"username_present"`
-	PasswordEnv       string                                   `json:"password_env,omitempty"`
-	PasswordPresent   bool                                     `json:"password_present"`
-	Ready             bool                                     `json:"ready"`
-	ReadinessWarnings []string                                 `json:"readiness_warnings,omitempty"`
-	Selected          integrations.ControllerAdapterDescriptor `json:"selected"`
+	Enabled                 bool                                     `json:"enabled"`
+	Platform                string                                   `json:"platform"`
+	Normalized              string                                   `json:"normalized_platform"`
+	Adapter                 string                                   `json:"adapter"`
+	SyncMode                string                                   `json:"sync_mode"`
+	Endpoint                string                                   `json:"endpoint,omitempty"`
+	Site                    string                                   `json:"site,omitempty"`
+	SiteRequired            bool                                     `json:"site_required"`
+	SiteConfigured          bool                                     `json:"site_configured"`
+	EndpointSet             bool                                     `json:"endpoint_set"`
+	TokenEnv                string                                   `json:"token_env,omitempty"`
+	TokenEnvSet             bool                                     `json:"token_env_set"`
+	TokenPresent            bool                                     `json:"token_present"`
+	UsernameEnv             string                                   `json:"username_env,omitempty"`
+	UsernamePresent         bool                                     `json:"username_present"`
+	PasswordEnv             string                                   `json:"password_env,omitempty"`
+	PasswordPresent         bool                                     `json:"password_present"`
+	RadiusProfile           string                                   `json:"radius_profile,omitempty"`
+	RadiusProfileRequired   bool                                     `json:"radius_profile_required"`
+	RadiusProfileConfigured bool                                     `json:"radius_profile_configured"`
+	Ready                   bool                                     `json:"ready"`
+	ReadinessWarnings       []string                                 `json:"readiness_warnings,omitempty"`
+	Selected                integrations.ControllerAdapterDescriptor `json:"selected"`
 }
 
 func HandleGetControllerAdapters(w http.ResponseWriter, r *http.Request) {
@@ -74,6 +77,7 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 		TokenEnv:        tokenEnv,
 		UsernameEnv:     usernameEnv,
 		PasswordEnv:     passwordEnv,
+		RadiusProfile:   strings.TrimSpace(controller.RadiusProfile),
 		SiteRequired:    descriptor.RequiresSite,
 		EndpointSet:     strings.TrimSpace(controller.Endpoint) != "",
 		TokenEnvSet:     tokenEnv != "",
@@ -82,6 +86,8 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 		PasswordPresent: passwordEnv != "" && strings.TrimSpace(os.Getenv(passwordEnv)) != "",
 		Selected:        descriptor,
 	}
+	state.RadiusProfileRequired = platform == "aruba" && controllerConfigHasEnterpriseSSIDs(cfg)
+	state.RadiusProfileConfigured = !state.RadiusProfileRequired || state.RadiusProfile != ""
 	state.SiteConfigured = !state.SiteRequired || state.Site != ""
 	if state.SyncMode == "" {
 		state.SyncMode = "monitor"
@@ -107,16 +113,32 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 		if !state.SiteConfigured {
 			state.ReadinessWarnings = append(state.ReadinessWarnings, "selected controller platform requires a site, zone, or network identifier")
 		}
+		if !state.RadiusProfileConfigured {
+			state.ReadinessWarnings = append(state.ReadinessWarnings, "Aruba Central enterprise WLAN sync requires an existing controller RADIUS profile")
+		}
 	}
 	credentialsReady := state.TokenEnvSet && state.TokenPresent
 	if platform == "cisco" {
 		credentialsReady = state.UsernamePresent && state.PasswordPresent
 	}
-	state.Ready = state.EndpointSet && credentialsReady && state.SiteConfigured
+	state.Ready = state.EndpointSet && credentialsReady && state.SiteConfigured && state.RadiusProfileConfigured
 	if !state.Enabled {
 		state.Ready = false
 	}
 	return state
+}
+
+func controllerConfigHasEnterpriseSSIDs(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+	for _, ssid := range cfg.Wireless.SSIDs {
+		switch strings.ToLower(strings.TrimSpace(ssid.AuthMode)) {
+		case "wpa2-enterprise", "wpa3-enterprise":
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeControllerPlatformForAdmin(platform string) string {

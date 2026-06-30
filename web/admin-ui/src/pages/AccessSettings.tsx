@@ -481,6 +481,7 @@ const defaultSettings: JsonMap = {
       api_token_env: "AEGIS_CONTROLLER_API_TOKEN",
       api_username_env: "",
       api_password_env: "",
+      radius_profile: "",
       sync_mode: "monitor",
       site: "",
     },
@@ -6104,6 +6105,17 @@ export default function AccessSettings() {
                 )
               }
               placeholder="AEGIS_CISCO_ISE_PASSWORD"
+            />
+            <TextField
+              label="Controller RADIUS Profile"
+              value={settings.integrations?.controller?.radius_profile || ""}
+              onChange={(value) =>
+                updateField(
+                  ["integrations", "controller", "radius_profile"],
+                  value,
+                )
+              }
+              placeholder="aegisnas-radius"
             />
             <SelectField
               label="Controller Sync Mode"

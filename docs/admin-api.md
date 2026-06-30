@@ -157,7 +157,7 @@ Controller-native integration readiness is available at:
 /api/v1/system/controller-adapters
 ```
 
-The response lists the supported controller adapters, whether each adapter is native or contract-based, the selected platform's capabilities, required site or network identifier, credential environment readiness, runtime sync status, and setup warnings. Cisco readiness checks `api_username_env` and `api_password_env`; token-based adapters check `api_token_env`.
+The response lists the supported controller adapters, whether each adapter is native or contract-based, the selected platform's capabilities, required site or network identifier, credential environment readiness, runtime sync status, and setup warnings. Cisco readiness checks `api_username_env` and `api_password_env`; token-based adapters check `api_token_env`. Aruba readiness also requires `radius_profile` when enterprise WLANs are configured.
 
 Controller policy operations are available at:
 
@@ -167,7 +167,7 @@ GET  /api/v1/system/controller-sync/preview?operation=push
 POST /api/v1/system/controller-sync
 ```
 
-`pull` performs a read-only state request and compares observed controller resources with AegisNAS desired state. `push` requires `confirmation` to equal `PUSH CONTROLLER POLICY`. The Cisco native adapter reconciles ERS downloadable ACL and authorization profile resources with lookup-before-create/update behavior; other adapters currently use their declared AegisNAS contract endpoint. Manual operations update `controller_automation` runtime counters and durable integration history.
+`pull` performs a read-only state request and compares observed controller resources with AegisNAS desired state. `push` requires `confirmation` to equal `PUSH CONTROLLER POLICY`. The Cisco native adapter reconciles ERS downloadable ACL and authorization profile resources with lookup-before-create/update behavior. The Aruba Central Classic native adapter reconciles enterprise WLAN resources through `/configuration/v2/wlan/{group}/{wlan}`, references a pre-existing Central RADIUS profile, and reports unsupported SSID modes as warnings. Mist, Ruckus, Fortinet, MikroTik, and UniFi use their declared AegisNAS contract endpoints. Manual operations update `controller_automation` runtime counters and durable integration history.
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \

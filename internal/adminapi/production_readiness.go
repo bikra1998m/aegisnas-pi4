@@ -431,6 +431,9 @@ func addProductionControllerCheck(report *productionReadinessReport, cfg *config
 	if state.Normalized == "cisco" {
 		dependencies = []string{"integrations.controller.endpoint", "integrations.controller.api_username_env", "integrations.controller.api_password_env", "integrations.controller.site"}
 		recommendation = "Set the Cisco ISE endpoint, API username/password environment variables, and site identifier."
+	} else if state.Normalized == "aruba" {
+		dependencies = []string{"integrations.controller.endpoint", "integrations.controller.api_token_env", "integrations.controller.site", "integrations.controller.radius_profile"}
+		recommendation = "Set the Aruba Central endpoint, API token environment variable, group identifier, and existing RADIUS profile name."
 	}
 	addProductionCheck(report, productionReadinessCheck{
 		Key:            "controller_readiness",
