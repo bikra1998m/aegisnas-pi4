@@ -58,7 +58,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{9, schemaV9},
 		{10, schemaV10},
 		{11, schemaV11},
-		{LatestSchemaVersion(), schemaV12},
+		{12, schemaV12},
+		{LatestSchemaVersion(), schemaV13},
 	}
 
 	for _, m := range migrations {
@@ -79,7 +80,42 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureDeviceInventoryProfilingColumns(handle); err != nil {
 		return fmt.Errorf("repair device inventory schema: %w", err)
 	}
+	if err := ensureACLPolicyBindingColumns(handle); err != nil {
+		return fmt.Errorf("repair ACL policy binding schema: %w", err)
+	}
 
+	return nil
+}
+
+func ensureACLPolicyBindingColumns(handle *sql.DB) error {
+	columns := []struct {
+		table string
+		name  string
+		sql   string
+	}{
+		{"roles", "acl_policy_name", `ALTER TABLE roles ADD COLUMN acl_policy_name TEXT`},
+		{"policy_rules", "acl_policy_name", `ALTER TABLE policy_rules ADD COLUMN acl_policy_name TEXT`},
+		{"sessions", "acl_policy_name", `ALTER TABLE sessions ADD COLUMN acl_policy_name TEXT`},
+	}
+	for _, column := range columns {
+		exists, err := tableExists(handle, column.table)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			continue
+		}
+		hasColumn, err := tableHasColumn(handle, column.table, column.name)
+		if err != nil {
+			return err
+		}
+		if hasColumn {
+			continue
+		}
+		if _, err := handle.Exec(column.sql); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

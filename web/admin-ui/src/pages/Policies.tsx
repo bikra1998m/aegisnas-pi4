@@ -15,6 +15,7 @@ export default function Policies() {
         { key: 'match_conditions', label: 'Match', render: (item) => <code>{compactJSON(item.match_conditions)}</code> },
         { key: 'action', label: 'Action' },
         { key: 'vlan', label: 'VLAN' },
+        { key: 'acl_policy_name', label: 'ACL Policy' },
       ]}
       fields={[
         { name: 'name', label: 'Name', required: true },
@@ -28,6 +29,7 @@ export default function Policies() {
         { name: 'session_timeout', label: 'Session Timeout Seconds', type: 'number' },
         { name: 'idle_timeout', label: 'Idle Timeout Seconds', type: 'number' },
         { name: 'portal_profile', label: 'Portal Profile' },
+        { name: 'acl_policy_name', label: 'ACL Policy Name' },
         { name: 'quarantine', label: 'Quarantine', type: 'checkbox' },
       ]}
     />

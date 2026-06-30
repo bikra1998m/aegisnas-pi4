@@ -162,3 +162,20 @@ func TestManager_ReclassifyByCriteriaVLANChangeRequiresReauth(t *testing.T) {
 
 	requireSessionStopped(t, "coa-vlan", "VLAN reassignment requested")
 }
+
+func TestManager_ReclassifyByCriteriaPersistsACLPolicy(t *testing.T) {
+	setupTestDB(t)
+
+	mgr, err := NewManager(&config.Config{}, zap.NewNop())
+	require.NoError(t, err)
+	_, err = db.DB.Exec(`INSERT INTO sessions (id, username, start_time, last_activity) VALUES ('coa-acl', 'user', ?, ?)`, time.Now(), time.Now())
+	require.NoError(t, err)
+
+	ok, err := mgr.ReclassifyByCriteria("coa-acl", "", "", PolicyUpdate{ACLPolicyName: "guest-internet"})
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	session, err := mgr.GetActiveSession("coa-acl")
+	require.NoError(t, err)
+	assert.Equal(t, "guest-internet", session.ACLPolicyName)
+}

@@ -32,6 +32,8 @@ func TestEngine_Evaluate(t *testing.T) {
 	}
 	var vlan int = 20
 	rule.VLAN = &vlan
+	aclPolicyName := "guest-internet"
+	rule.ACLPolicyName = &aclPolicyName
 
 	match, err := engine.matches(req, rule)
 	require.NoError(t, err)
@@ -40,6 +42,7 @@ func TestEngine_Evaluate(t *testing.T) {
 	dec := ruleToDecision(&rule)
 	assert.True(t, dec.Allow)
 	assert.Equal(t, 20, *dec.VLAN)
+	assert.Equal(t, "guest-internet", *dec.ACLPolicyName)
 }
 
 func TestMatches_MultipleConditions(t *testing.T) {

@@ -318,6 +318,7 @@ func (s *Server) populateAuthenticatedClient(client *portal.Client, authResult *
 	client.Role = firstNonEmpty(authResult.Role, s.cfg.Policy.DefaultRole)
 	client.BandwidthProfile = authResult.BandwidthProfile
 	client.FilterID = authResult.FilterID
+	client.ACLPolicyName = authResult.ACLPolicyName
 	client.RadiusClass = authResult.RadiusClass
 	client.CalledStationID = s.cfg.Radius.NASIdentifier
 	client.NASIdentifier = s.cfg.Radius.NASIdentifier
@@ -336,6 +337,9 @@ func (s *Server) populateAuthenticatedClient(client *portal.Client, authResult *
 	}
 	if client.BandwidthProfile == "" {
 		client.BandwidthProfile = roleProfile.BandwidthProfile
+	}
+	if client.ACLPolicyName == "" {
+		client.ACLPolicyName = roleProfile.ACLPolicyName
 	}
 	if client.SessionTimeout == 0 {
 		client.SessionTimeout = roleProfile.SessionTimeout
@@ -377,6 +381,9 @@ func (s *Server) populateAuthenticatedClient(client *portal.Client, authResult *
 		if decision.IdleTimeout != nil {
 			client.IdleTimeout = *decision.IdleTimeout
 		}
+		if decision.ACLPolicyName != nil {
+			client.ACLPolicyName = *decision.ACLPolicyName
+		}
 	}
 
 	return nil
@@ -413,6 +420,7 @@ func (s *Server) establishAuthenticatedSession(clientIP, mac string, authResult 
 type roleProfile struct {
 	VLAN             int
 	BandwidthProfile string
+	ACLPolicyName    string
 	SessionTimeout   int
 	IdleTimeout      int
 }
@@ -426,9 +434,10 @@ func lookupRoleProfile(role string) (roleProfile, error) {
 		bandwidth sqlNullString
 		sessionTO sqlNullInt
 		idleTO    sqlNullInt
+		aclPolicy sqlNullString
 	)
-	err := db.DB.QueryRow(`SELECT vlan, bandwidth_profile, session_timeout, idle_timeout FROM roles WHERE name = ?`, role).
-		Scan(&vlan, &bandwidth, &sessionTO, &idleTO)
+	err := db.DB.QueryRow(`SELECT vlan, bandwidth_profile, session_timeout, idle_timeout, acl_policy_name FROM roles WHERE name = ?`, role).
+		Scan(&vlan, &bandwidth, &sessionTO, &idleTO, &aclPolicy)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no rows") {
 			return roleProfile{}, nil
@@ -447,6 +456,9 @@ func lookupRoleProfile(role string) (roleProfile, error) {
 	}
 	if idleTO.Valid {
 		profile.IdleTimeout = idleTO.Int
+	}
+	if aclPolicy.Valid {
+		profile.ACLPolicyName = strings.TrimSpace(aclPolicy.String)
 	}
 	return profile, nil
 }

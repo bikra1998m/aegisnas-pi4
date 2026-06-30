@@ -136,6 +136,7 @@ func (s *DynamicAuthServer) policyUpdateFromPacket(packet *layehradius.Packet) (
 		VLAN:             policy.VLAN,
 		BandwidthProfile: policy.BandwidthProfile,
 		FilterID:         policy.FilterID,
+		ACLPolicyName:    policy.ACLPolicyName,
 		RadiusClass:      policy.RadiusClass,
 		SessionTimeout:   policy.SessionTimeout,
 		IdleTimeout:      policy.IdleTimeout,

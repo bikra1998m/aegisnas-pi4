@@ -1,7 +1,6 @@
 package adminapi
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -154,26 +153,16 @@ func HandleDeleteACLPolicy(w http.ResponseWriter, r *http.Request) {
 }
 
 func loadACLPolicy(name string) (aclPolicyData, bool, error) {
-	if db.DB == nil || strings.TrimSpace(name) == "" {
-		return aclPolicyData{}, false, nil
+	stored, found, err := radius.LoadACLPolicy(name)
+	if err != nil || !found {
+		return aclPolicyData{}, found, err
 	}
-	var policy aclPolicyData
-	err := db.DB.QueryRow(`SELECT name, COALESCE(description, ''), COALESCE(inbound_acl, ''), COALESCE(outbound_acl, ''), rules_json, enabled
-		FROM acl_policies WHERE name = ? AND enabled = 1`, strings.TrimSpace(name)).Scan(
-		&policy.Name, &policy.Description, &policy.InboundACL, &policy.OutboundACL, &policy.RulesJSON, &policy.Enabled,
-	)
-	if err == sql.ErrNoRows {
-		return aclPolicyData{}, false, nil
-	}
+	rulesJSON, err := json.Marshal(stored.Rules)
 	if err != nil {
 		return aclPolicyData{}, false, err
 	}
-	if err := json.Unmarshal([]byte(policy.RulesJSON), &policy.Rules); err != nil {
-		return aclPolicyData{}, false, fmt.Errorf("decode ACL policy %q: %w", name, err)
-	}
-	policy.Rules, err = radius.NormalizeACLRules(policy.Rules)
-	if err != nil {
-		return aclPolicyData{}, false, fmt.Errorf("ACL policy %q: %w", name, err)
-	}
-	return policy, true, nil
+	return aclPolicyData{
+		Name: stored.Name, Description: stored.Description, InboundACL: stored.InboundACL,
+		OutboundACL: stored.OutboundACL, Rules: stored.Rules, RulesJSON: string(rulesJSON), Enabled: true,
+	}, true, nil
 }

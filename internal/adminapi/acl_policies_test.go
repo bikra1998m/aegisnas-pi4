@@ -3,6 +3,7 @@ package adminapi
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -127,4 +128,52 @@ func TestDecodeSnapshotAcceptsPreACLPolicyRevision(t *testing.T) {
 	snapshot, err := decodeSnapshot(data)
 	require.NoError(t, err)
 	assert.Empty(t, snapshot.Tables["acl_policies"])
+}
+
+func TestACLPolicyBindingsValidateAndProtectReferences(t *testing.T) {
+	prepareACLPolicyTestDB(t)
+
+	result, err := db.DB.Exec(`INSERT INTO acl_policies (name, rules_json, enabled) VALUES ('corp-access', '[]', 1)`)
+	require.NoError(t, err)
+	aclID, err := result.LastInsertId()
+	require.NoError(t, err)
+
+	tx, err := db.DB.Begin()
+	require.NoError(t, err)
+	roleData, err := json.Marshal(map[string]any{
+		"name": "corp", "description": "", "acl_policy_name": "corp-access", "priority": 10,
+	})
+	require.NoError(t, err)
+	require.NoError(t, applyChange(tx, stagedChange{ResourceType: "role", Operation: "create", Data: string(roleData)}))
+	require.NoError(t, tx.Commit())
+
+	var boundACL string
+	require.NoError(t, db.DB.QueryRow(`SELECT acl_policy_name FROM roles WHERE name = 'corp'`).Scan(&boundACL))
+	assert.Equal(t, "corp-access", boundACL)
+
+	tx, err = db.DB.Begin()
+	require.NoError(t, err)
+	disabledData, err := json.Marshal(map[string]any{
+		"name": "corp-access", "description": "", "enabled": false, "rules": []any{},
+	})
+	require.NoError(t, err)
+	err = applyChange(tx, stagedChange{ResourceType: "acl_policy", ResourceID: fmt.Sprint(aclID), Operation: "update", Data: string(disabledData)})
+	assert.ErrorContains(t, err, "cannot be renamed or disabled")
+	require.NoError(t, tx.Rollback())
+
+	tx, err = db.DB.Begin()
+	require.NoError(t, err)
+	err = applyChange(tx, stagedChange{ResourceType: "acl_policy", ResourceID: fmt.Sprint(aclID), Operation: "delete", Data: `{}`})
+	assert.ErrorContains(t, err, "still assigned")
+	require.NoError(t, tx.Rollback())
+
+	tx, err = db.DB.Begin()
+	require.NoError(t, err)
+	missingData, err := json.Marshal(map[string]any{
+		"name": "broken", "description": "", "acl_policy_name": "missing", "priority": 1,
+	})
+	require.NoError(t, err)
+	err = applyChange(tx, stagedChange{ResourceType: "role", Operation: "create", Data: string(missingData)})
+	assert.ErrorContains(t, err, "does not exist or is disabled")
+	require.NoError(t, tx.Rollback())
 }

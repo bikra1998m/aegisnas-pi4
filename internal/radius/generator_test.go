@@ -187,3 +187,49 @@ func TestGeneratorFallsBackWhenDBClientNASTypeColumnMissing(t *testing.T) {
 	assert.Contains(t, fullCfg.ClientsConf, "client legacy-ap")
 	assert.Contains(t, fullCfg.ClientsConf, "nastype = other")
 }
+
+func TestGeneratorRendersLocalUserWithRoleACLPolicy(t *testing.T) {
+	previousDB := db.DB
+	tmpDB, err := os.CreateTemp("", "aegis-radius-acl-*.db")
+	require.NoError(t, err)
+	require.NoError(t, tmpDB.Close())
+	defer os.Remove(tmpDB.Name())
+
+	require.NoError(t, db.Init(tmpDB.Name()))
+	t.Cleanup(func() {
+		_ = db.Close()
+		db.DB = previousDB
+	})
+	require.NoError(t, db.Migrate())
+	require.NoError(t, db.Seed())
+
+	_, err = db.DB.Exec(`INSERT INTO acl_policies (name, inbound_acl, outbound_acl, rules_json, enabled)
+		VALUES ('guest-internet', 'guest-in', 'guest-out', '[{"action":"permit","direction":"in","protocol":"tcp","source":"any","destination":"any","destination_port":"443"}]', 1)`)
+	require.NoError(t, err)
+	_, err = db.DB.Exec(`UPDATE roles SET acl_policy_name = 'guest-internet' WHERE name = 'guest-basic'`)
+	require.NoError(t, err)
+	_, err = db.DB.Exec(`INSERT INTO local_users (username, password_hash, role) VALUES ('alice', '$2a$10$testhash', 'guest-basic')`)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Radius: config.RadiusConfig{
+			Secret:   "testing123",
+			AuthPort: 1812,
+			AcctPort: 1813,
+			Vendor: config.RadiusVendorConfig{
+				CompatibilityPacks: []string{"standard", "cisco", "aegisnas"},
+			},
+		},
+		Database: config.DatabaseConfig{Path: tmpDB.Name()},
+	}
+
+	fullCfg, err := NewGenerator(cfg).Generate()
+	require.NoError(t, err)
+	assert.Contains(t, fullCfg.Users, `"alice" Crypt-Password := "$2a$10$testhash"`)
+	assert.Contains(t, fullCfg.Users, `Filter-Id := "guest-basic",`)
+	assert.Contains(t, fullCfg.Users, `Cisco-In-ACL := "guest-in",`)
+	assert.Contains(t, fullCfg.Users, `Cisco-Out-ACL := "guest-out",`)
+	assert.Contains(t, fullCfg.Users, `Cisco-AVPair := "ip:inacl#1=permit tcp any any eq 443",`)
+	assert.Contains(t, fullCfg.Users, `AegisNAS-ACL-Name := "guest-internet",`)
+	assert.NotContains(t, fullCfg.Users, `DEFAULT\tGroup`)
+}

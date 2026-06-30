@@ -49,14 +49,16 @@ func GetReplyAttributes(username, role string) (*ReplyAttributes, error) {
 	}
 
 	var (
-		vlan      sql.NullInt32
-		bwProfile sql.NullString
-		sessionTO sql.NullInt32
-		idleTO    sql.NullInt32
+		vlan          sql.NullInt32
+		bwProfile     sql.NullString
+		sessionTO     sql.NullInt32
+		idleTO        sql.NullInt32
+		portalProfile sql.NullString
+		aclPolicyName sql.NullString
 	)
 
-	err := db.DB.QueryRow(`SELECT vlan, bandwidth_profile, session_timeout, idle_timeout
-		FROM roles WHERE name = ?`, role).Scan(&vlan, &bwProfile, &sessionTO, &idleTO)
+	err := db.DB.QueryRow(`SELECT vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name
+		FROM roles WHERE name = ?`, role).Scan(&vlan, &bwProfile, &sessionTO, &idleTO, &portalProfile, &aclPolicyName)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("role %s not found", role)
@@ -77,6 +79,9 @@ func GetReplyAttributes(username, role string) (*ReplyAttributes, error) {
 	if idleTO.Valid {
 		attrs.IdleTimeout = int(idleTO.Int32)
 	}
+	if portalProfile.Valid {
+		attrs.PortalProfile = strings.TrimSpace(portalProfile.String)
+	}
 	if bwProfile.Valid {
 		attrs.BandwidthProfile = strings.TrimSpace(bwProfile.String)
 		// Retrieve bandwidth profile details
@@ -87,6 +92,15 @@ func GetReplyAttributes(username, role string) (*ReplyAttributes, error) {
 			attrs.MikrotikRateLimit = fmt.Sprintf("%dk/%dk", down, up)
 			attrs.WISPrBandwidthMaxDown = down
 			attrs.WISPrBandwidthMaxUp = up
+		}
+	}
+	if aclPolicyName.Valid && strings.TrimSpace(aclPolicyName.String) != "" {
+		loaded, err := ApplyStoredACLPolicy(attrs, aclPolicyName.String)
+		if err != nil {
+			return nil, err
+		}
+		if !loaded {
+			return nil, fmt.Errorf("ACL policy %s assigned to role %s is missing or disabled", aclPolicyName.String, role)
 		}
 	}
 	return attrs, nil
@@ -306,6 +320,8 @@ func appendStandardReplyAttributes(attrs *ReplyAttributes, appendItem func(strin
 	}
 	if attrs.FilterID != "" {
 		appendItem("Filter-Id", attrs.FilterID, true)
+	} else if attrs.Role != "" {
+		appendItem("Filter-Id", attrs.Role, true)
 	}
 	if vlan := replyVLAN(attrs); vlan > 0 {
 		tunnelType := firstReplyValue(attrs.TunnelType, "VLAN")

@@ -41,6 +41,7 @@ type ActiveSession struct {
 	AuthMethod       string    `json:"auth_method"`
 	IdentitySource   string    `json:"identity_source,omitempty"`
 	FilterID         string    `json:"filter_id,omitempty"`
+	ACLPolicyName    string    `json:"acl_policy_name,omitempty"`
 	RadiusClass      string    `json:"radius_class,omitempty"`
 	CalledStationID  string    `json:"called_station_id,omitempty"`
 	NASIdentifier    string    `json:"nas_identifier,omitempty"`
@@ -61,6 +62,7 @@ type PolicyUpdate struct {
 	VLAN             int
 	BandwidthProfile string
 	FilterID         string
+	ACLPolicyName    string
 	RadiusClass      string
 	SessionTimeout   int
 	IdleTimeout      int
@@ -296,6 +298,9 @@ func (m *Manager) ReclassifyByCriteria(sessionID, username, mac string, update P
 	if update.FilterID == "" {
 		update.FilterID = session.FilterID
 	}
+	if update.ACLPolicyName == "" {
+		update.ACLPolicyName = session.ACLPolicyName
+	}
 	if update.RadiusClass == "" {
 		update.RadiusClass = session.RadiusClass
 	}
@@ -307,10 +312,10 @@ func (m *Manager) ReclassifyByCriteria(sessionID, username, mac string, update P
 	}
 
 	_, err = m.db.Exec(`UPDATE sessions
-		SET role = ?, vlan = ?, bandwidth_profile = ?, filter_id = ?, radius_class = ?, session_timeout = ?, idle_timeout = ?, last_activity = ?
+		SET role = ?, vlan = ?, bandwidth_profile = ?, filter_id = ?, acl_policy_name = ?, radius_class = ?, session_timeout = ?, idle_timeout = ?, last_activity = ?
 		WHERE id = ? AND end_time IS NULL`,
 		nullIfEmptyString(update.Role), nullIfZeroInt(update.VLAN), nullIfEmptyString(update.BandwidthProfile),
-		nullIfEmptyString(update.FilterID), nullIfEmptyString(update.RadiusClass),
+		nullIfEmptyString(update.FilterID), nullIfEmptyString(update.ACLPolicyName), nullIfEmptyString(update.RadiusClass),
 		nullIfZeroInt(update.SessionTimeout), nullIfZeroInt(update.IdleTimeout), time.Now(), session.ID)
 	if err != nil {
 		return false, err
@@ -334,10 +339,10 @@ func (m *Manager) GetActiveSession(sessionID string) (*ActiveSession, error) {
 	var startTimeRaw any
 	var lastActivity any
 	var sessionTimeout, idleTimeout sql.NullInt32
-	err := m.db.QueryRow(`SELECT id, COALESCE(username, ''), COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(auth_method, ''), COALESCE(identity_source, ''), COALESCE(filter_id, ''), COALESCE(radius_class, ''), COALESCE(called_station_id, ''), COALESCE(nas_identifier, ''),
+	err := m.db.QueryRow(`SELECT id, COALESCE(username, ''), COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(auth_method, ''), COALESCE(identity_source, ''), COALESCE(filter_id, ''), COALESCE(acl_policy_name, ''), COALESCE(radius_class, ''), COALESCE(called_station_id, ''), COALESCE(nas_identifier, ''),
 		COALESCE(vlan, 0), COALESCE(role, ''), COALESCE(bandwidth_profile, ''), start_time, last_activity, COALESCE(bytes_in, 0), COALESCE(bytes_out, 0), session_timeout, idle_timeout
 		FROM sessions WHERE id = ? AND end_time IS NULL`, sessionID).Scan(
-		&s.ID, &s.Username, &s.MAC, &s.IP, &s.AuthMethod, &s.IdentitySource, &s.FilterID, &s.RadiusClass, &s.CalledStationID, &s.NASIdentifier,
+		&s.ID, &s.Username, &s.MAC, &s.IP, &s.AuthMethod, &s.IdentitySource, &s.FilterID, &s.ACLPolicyName, &s.RadiusClass, &s.CalledStationID, &s.NASIdentifier,
 		&s.VLAN, &s.Role, &s.BandwidthProfile,
 		&startTimeRaw, &lastActivity, &s.BytesIn, &s.BytesOut, &sessionTimeout, &idleTimeout)
 	if err != nil {
@@ -602,10 +607,10 @@ func (m *Manager) findActiveSession(sessionID, username, mac string) (*ActiveSes
 		value string
 		query string
 	}{
-		{sessionID, `SELECT id, COALESCE(username, ''), COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(auth_method, ''), COALESCE(identity_source, ''), COALESCE(filter_id, ''), COALESCE(radius_class, ''), COALESCE(called_station_id, ''), COALESCE(nas_identifier, ''), COALESCE(vlan, 0), COALESCE(role, ''), COALESCE(bandwidth_profile, ''), start_time, last_activity, COALESCE(bytes_in, 0), COALESCE(bytes_out, 0), session_timeout, idle_timeout FROM sessions WHERE id = ? AND end_time IS NULL LIMIT 1`},
-		{sessionID, `SELECT id, COALESCE(username, ''), COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(auth_method, ''), COALESCE(identity_source, ''), COALESCE(filter_id, ''), COALESCE(radius_class, ''), COALESCE(called_station_id, ''), COALESCE(nas_identifier, ''), COALESCE(vlan, 0), COALESCE(role, ''), COALESCE(bandwidth_profile, ''), start_time, last_activity, COALESCE(bytes_in, 0), COALESCE(bytes_out, 0), session_timeout, idle_timeout FROM sessions WHERE radius_session_id = ? AND end_time IS NULL LIMIT 1`},
-		{username, `SELECT id, COALESCE(username, ''), COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(auth_method, ''), COALESCE(identity_source, ''), COALESCE(filter_id, ''), COALESCE(radius_class, ''), COALESCE(called_station_id, ''), COALESCE(nas_identifier, ''), COALESCE(vlan, 0), COALESCE(role, ''), COALESCE(bandwidth_profile, ''), start_time, last_activity, COALESCE(bytes_in, 0), COALESCE(bytes_out, 0), session_timeout, idle_timeout FROM sessions WHERE username = ? AND end_time IS NULL ORDER BY start_time DESC LIMIT 1`},
-		{mac, `SELECT id, COALESCE(username, ''), COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(auth_method, ''), COALESCE(identity_source, ''), COALESCE(filter_id, ''), COALESCE(radius_class, ''), COALESCE(called_station_id, ''), COALESCE(nas_identifier, ''), COALESCE(vlan, 0), COALESCE(role, ''), COALESCE(bandwidth_profile, ''), start_time, last_activity, COALESCE(bytes_in, 0), COALESCE(bytes_out, 0), session_timeout, idle_timeout FROM sessions WHERE mac = ? AND end_time IS NULL ORDER BY start_time DESC LIMIT 1`},
+		{sessionID, `SELECT id, COALESCE(username, ''), COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(auth_method, ''), COALESCE(identity_source, ''), COALESCE(filter_id, ''), COALESCE(acl_policy_name, ''), COALESCE(radius_class, ''), COALESCE(called_station_id, ''), COALESCE(nas_identifier, ''), COALESCE(vlan, 0), COALESCE(role, ''), COALESCE(bandwidth_profile, ''), start_time, last_activity, COALESCE(bytes_in, 0), COALESCE(bytes_out, 0), session_timeout, idle_timeout FROM sessions WHERE id = ? AND end_time IS NULL LIMIT 1`},
+		{sessionID, `SELECT id, COALESCE(username, ''), COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(auth_method, ''), COALESCE(identity_source, ''), COALESCE(filter_id, ''), COALESCE(acl_policy_name, ''), COALESCE(radius_class, ''), COALESCE(called_station_id, ''), COALESCE(nas_identifier, ''), COALESCE(vlan, 0), COALESCE(role, ''), COALESCE(bandwidth_profile, ''), start_time, last_activity, COALESCE(bytes_in, 0), COALESCE(bytes_out, 0), session_timeout, idle_timeout FROM sessions WHERE radius_session_id = ? AND end_time IS NULL LIMIT 1`},
+		{username, `SELECT id, COALESCE(username, ''), COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(auth_method, ''), COALESCE(identity_source, ''), COALESCE(filter_id, ''), COALESCE(acl_policy_name, ''), COALESCE(radius_class, ''), COALESCE(called_station_id, ''), COALESCE(nas_identifier, ''), COALESCE(vlan, 0), COALESCE(role, ''), COALESCE(bandwidth_profile, ''), start_time, last_activity, COALESCE(bytes_in, 0), COALESCE(bytes_out, 0), session_timeout, idle_timeout FROM sessions WHERE username = ? AND end_time IS NULL ORDER BY start_time DESC LIMIT 1`},
+		{mac, `SELECT id, COALESCE(username, ''), COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(auth_method, ''), COALESCE(identity_source, ''), COALESCE(filter_id, ''), COALESCE(acl_policy_name, ''), COALESCE(radius_class, ''), COALESCE(called_station_id, ''), COALESCE(nas_identifier, ''), COALESCE(vlan, 0), COALESCE(role, ''), COALESCE(bandwidth_profile, ''), start_time, last_activity, COALESCE(bytes_in, 0), COALESCE(bytes_out, 0), session_timeout, idle_timeout FROM sessions WHERE mac = ? AND end_time IS NULL ORDER BY start_time DESC LIMIT 1`},
 	}
 
 	for _, candidate := range candidates {
@@ -620,7 +625,7 @@ func (m *Manager) findActiveSession(sessionID, username, mac string) (*ActiveSes
 			idleTO       sql.NullInt32
 		)
 		err := m.db.QueryRow(candidate.query, candidate.value).Scan(
-			&s.ID, &s.Username, &s.MAC, &s.IP, &s.AuthMethod, &s.IdentitySource, &s.FilterID, &s.RadiusClass, &s.CalledStationID, &s.NASIdentifier,
+			&s.ID, &s.Username, &s.MAC, &s.IP, &s.AuthMethod, &s.IdentitySource, &s.FilterID, &s.ACLPolicyName, &s.RadiusClass, &s.CalledStationID, &s.NASIdentifier,
 			&s.VLAN, &s.Role, &s.BandwidthProfile,
 			&startTimeRaw, &lastActivity, &s.BytesIn, &s.BytesOut, &sessionTO, &idleTO)
 		if err == nil {

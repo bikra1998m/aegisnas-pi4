@@ -17,6 +17,7 @@ type SessionPolicy struct {
 	IdentitySource   string
 	BandwidthProfile string
 	FilterID         string
+	ACLPolicyName    string
 	RadiusClass      string
 	VLAN             int
 	SessionTimeout   int
@@ -55,6 +56,7 @@ func ResolveSessionPolicy(defaultRole string, auth *BrokerAuthResult) (*SessionP
 	if auth.HasVendorQuarantine && auth.VendorQuarantine && policy.FilterID == "" {
 		policy.FilterID = "quarantine"
 	}
+	policy.ACLPolicyName = resolveInboundACLPolicyName(auth.VendorInboundACL, auth.VendorOutboundACL)
 	policy.BandwidthProfile = strings.TrimSpace(auth.VendorBandwidthProfile)
 
 	var identityDefaultRole string
@@ -114,6 +116,9 @@ func ResolveSessionPolicy(defaultRole string, auth *BrokerAuthResult) (*SessionP
 	if rolePolicy.BandwidthProfile != "" && policy.BandwidthProfile == "" {
 		policy.BandwidthProfile = rolePolicy.BandwidthProfile
 	}
+	if policy.ACLPolicyName == "" {
+		policy.ACLPolicyName = rolePolicy.ACLPolicyName
+	}
 	policy.VLAN = rolePolicy.VLAN
 	policy.SessionTimeout = rolePolicy.SessionTimeout
 	policy.IdleTimeout = rolePolicy.IdleTimeout
@@ -149,6 +154,7 @@ func ResolveSessionPolicy(defaultRole string, auth *BrokerAuthResult) (*SessionP
 type rolePolicy struct {
 	VLAN             int
 	BandwidthProfile string
+	ACLPolicyName    string
 	SessionTimeout   int
 	IdleTimeout      int
 }
@@ -162,9 +168,10 @@ func lookupRolePolicy(role string) (rolePolicy, error) {
 		bw        sql.NullString
 		sessionTO sql.NullInt32
 		idleTO    sql.NullInt32
+		aclPolicy sql.NullString
 	)
-	err := db.DB.QueryRow(`SELECT vlan, bandwidth_profile, session_timeout, idle_timeout FROM roles WHERE name = ?`, role).
-		Scan(&vlan, &bw, &sessionTO, &idleTO)
+	err := db.DB.QueryRow(`SELECT vlan, bandwidth_profile, session_timeout, idle_timeout, acl_policy_name FROM roles WHERE name = ?`, role).
+		Scan(&vlan, &bw, &sessionTO, &idleTO, &aclPolicy)
 	if err != nil {
 		return rolePolicy{}, err
 	}
@@ -181,7 +188,26 @@ func lookupRolePolicy(role string) (rolePolicy, error) {
 	if idleTO.Valid {
 		out.IdleTimeout = int(idleTO.Int32)
 	}
+	if aclPolicy.Valid {
+		out.ACLPolicyName = strings.TrimSpace(aclPolicy.String)
+	}
 	return out, nil
+}
+
+func resolveInboundACLPolicyName(inboundACL, outboundACL string) string {
+	inboundACL = strings.TrimSpace(inboundACL)
+	outboundACL = strings.TrimSpace(outboundACL)
+	if db.DB != nil && (inboundACL != "" || outboundACL != "") {
+		var name string
+		err := db.DB.QueryRow(`SELECT name FROM acl_policies
+			WHERE enabled = 1 AND (name IN (?, ?) OR inbound_acl IN (?, ?) OR outbound_acl IN (?, ?))
+			ORDER BY CASE WHEN name IN (?, ?) THEN 0 ELSE 1 END, name LIMIT 1`,
+			inboundACL, outboundACL, inboundACL, outboundACL, inboundACL, outboundACL, inboundACL, outboundACL).Scan(&name)
+		if err == nil {
+			return strings.TrimSpace(name)
+		}
+	}
+	return firstReplyValue(inboundACL, outboundACL)
 }
 
 func loadRadiusIdentityConfigs() ([]radiusIdentityConfig, error) {

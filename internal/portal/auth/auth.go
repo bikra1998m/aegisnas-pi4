@@ -28,6 +28,7 @@ type Result struct {
 	AuthMethod       string
 	ReplyMessage     string
 	FilterID         string
+	ACLPolicyName    string
 	RadiusClass      string
 	BandwidthProfile string
 	VLAN             int
@@ -146,6 +147,7 @@ func AuthenticateUser(ctx context.Context, req LoginRequest) (*Result, error) {
 				AuthMethod:       "radius-pap",
 				ReplyMessage:     brokerResult.ReplyMessage,
 				FilterID:         policy.FilterID,
+				ACLPolicyName:    policy.ACLPolicyName,
 				RadiusClass:      policy.RadiusClass,
 				BandwidthProfile: policy.BandwidthProfile,
 				VLAN:             policy.VLAN,

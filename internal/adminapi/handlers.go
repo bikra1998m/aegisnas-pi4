@@ -374,17 +374,21 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 			return err
 		}
 	case "role":
+		if err := validateACLPolicyReference(tx, stringValue(data, "acl_policy_name")); err != nil {
+			return err
+		}
 		fields := []fieldValue{
 			{"name", data["name"]}, {"description", data["description"]}, {"vlan", nullIfEmpty(data["vlan"])},
 			{"bandwidth_profile", nullIfEmpty(data["bandwidth_profile"])}, {"session_timeout", nullIfEmpty(data["session_timeout"])},
 			{"idle_timeout", nullIfEmpty(data["idle_timeout"])}, {"portal_profile", nullIfEmpty(data["portal_profile"])},
+			{"acl_policy_name", nullIfEmpty(data["acl_policy_name"])},
 			{"priority", data["priority"]},
 		}
 		switch change.Operation {
 		case "create":
-			_, err := tx.Exec(`INSERT INTO roles (name, description, vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, priority)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, data["name"], data["description"], nullIfEmpty(data["vlan"]), nullIfEmpty(data["bandwidth_profile"]),
-				nullIfEmpty(data["session_timeout"]), nullIfEmpty(data["idle_timeout"]), nullIfEmpty(data["portal_profile"]), data["priority"])
+			_, err := tx.Exec(`INSERT INTO roles (name, description, vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, priority)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, data["name"], data["description"], nullIfEmpty(data["vlan"]), nullIfEmpty(data["bandwidth_profile"]),
+				nullIfEmpty(data["session_timeout"]), nullIfEmpty(data["idle_timeout"]), nullIfEmpty(data["portal_profile"]), nullIfEmpty(data["acl_policy_name"]), data["priority"])
 			return err
 		case "update":
 			return updateByID(tx, "roles", change.ResourceID, fields)
@@ -393,6 +397,9 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 			return err
 		}
 	case "policy":
+		if err := validateACLPolicyReference(tx, stringValue(data, "acl_policy_name")); err != nil {
+			return err
+		}
 		matchJSON, err := jsonField(data["match_conditions"], "{}")
 		if err != nil {
 			return fmt.Errorf("match_conditions: %w", err)
@@ -402,14 +409,15 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 			{"enabled", data["enabled"]}, {"match_conditions", matchJSON}, {"action", data["action"]},
 			{"vlan", nullIfEmpty(data["vlan"])}, {"bandwidth_profile", nullIfEmpty(data["bandwidth_profile"])},
 			{"session_timeout", nullIfEmpty(data["session_timeout"])}, {"idle_timeout", nullIfEmpty(data["idle_timeout"])},
-			{"portal_profile", nullIfEmpty(data["portal_profile"])}, {"quarantine", data["quarantine"]},
+			{"portal_profile", nullIfEmpty(data["portal_profile"])}, {"acl_policy_name", nullIfEmpty(data["acl_policy_name"])},
+			{"quarantine", data["quarantine"]},
 		}
 		switch change.Operation {
 		case "create":
-			_, err := tx.Exec(`INSERT INTO policy_rules (name, description, priority, enabled, match_conditions, action, vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, quarantine)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, data["name"], data["description"], data["priority"], data["enabled"], matchJSON, data["action"],
+			_, err := tx.Exec(`INSERT INTO policy_rules (name, description, priority, enabled, match_conditions, action, vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, data["name"], data["description"], data["priority"], data["enabled"], matchJSON, data["action"],
 				nullIfEmpty(data["vlan"]), nullIfEmpty(data["bandwidth_profile"]), nullIfEmpty(data["session_timeout"]), nullIfEmpty(data["idle_timeout"]),
-				nullIfEmpty(data["portal_profile"]), data["quarantine"])
+				nullIfEmpty(data["portal_profile"]), nullIfEmpty(data["acl_policy_name"]), data["quarantine"])
 			return err
 		case "update":
 			return updateByID(tx, "policy_rules", change.ResourceID, fields)
@@ -419,6 +427,9 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 		}
 	case "acl_policy":
 		if change.Operation == "delete" {
+			if err := validateACLPolicyDelete(tx, change.ResourceID); err != nil {
+				return err
+			}
 			_, err := tx.Exec(`DELETE FROM acl_policies WHERE id = ?`, change.ResourceID)
 			return err
 		}
@@ -432,6 +443,9 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 				VALUES (?, ?, ?, ?, ?, ?)`, policy.Name, policy.Description, nullIfEmpty(policy.InboundACL), nullIfEmpty(policy.OutboundACL), policy.RulesJSON, policy.Enabled)
 			return err
 		case "update":
+			if err := validateACLPolicyMutation(tx, change.ResourceID, policy.Name, policy.Enabled); err != nil {
+				return err
+			}
 			return updateByID(tx, "acl_policies", change.ResourceID, []fieldValue{
 				{"name", policy.Name}, {"description", policy.Description}, {"inbound_acl", nullIfEmpty(policy.InboundACL)},
 				{"outbound_acl", nullIfEmpty(policy.OutboundACL)}, {"rules_json", policy.RulesJSON}, {"enabled", policy.Enabled},
@@ -510,6 +524,58 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 		return fmt.Errorf("unsupported resource type %q", change.ResourceType)
 	}
 	return fmt.Errorf("unsupported operation %q for %s", change.Operation, change.ResourceType)
+}
+
+func validateACLPolicyReference(tx *sql.Tx, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	var count int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM acl_policies WHERE name = ? AND enabled = 1`, name).Scan(&count); err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf("ACL policy %q does not exist or is disabled", name)
+	}
+	return nil
+}
+
+func validateACLPolicyDelete(tx *sql.Tx, resourceID string) error {
+	var name string
+	if err := tx.QueryRow(`SELECT name FROM acl_policies WHERE id = ?`, resourceID).Scan(&name); err != nil {
+		return err
+	}
+	var references int
+	if err := tx.QueryRow(`SELECT
+		(SELECT COUNT(*) FROM roles WHERE acl_policy_name = ?) +
+		(SELECT COUNT(*) FROM policy_rules WHERE acl_policy_name = ?)`, name, name).Scan(&references); err != nil {
+		return err
+	}
+	if references > 0 {
+		return fmt.Errorf("ACL policy %q is still assigned to %d role or policy rule(s)", name, references)
+	}
+	return nil
+}
+
+func validateACLPolicyMutation(tx *sql.Tx, resourceID, newName string, enabled bool) error {
+	var currentName string
+	if err := tx.QueryRow(`SELECT name FROM acl_policies WHERE id = ?`, resourceID).Scan(&currentName); err != nil {
+		return err
+	}
+	if enabled && strings.TrimSpace(newName) == currentName {
+		return nil
+	}
+	var references int
+	if err := tx.QueryRow(`SELECT
+		(SELECT COUNT(*) FROM roles WHERE acl_policy_name = ?) +
+		(SELECT COUNT(*) FROM policy_rules WHERE acl_policy_name = ?)`, currentName, currentName).Scan(&references); err != nil {
+		return err
+	}
+	if references > 0 {
+		return fmt.Errorf("ACL policy %q cannot be renamed or disabled while assigned to %d role or policy rule(s)", currentName, references)
+	}
+	return nil
 }
 
 func pendingChanges(tx *sql.Tx) ([]stagedChange, error) {
@@ -647,7 +713,7 @@ func HandleDeleteVoucher(w http.ResponseWriter, r *http.Request) {
 // ---------- Role Handlers ----------
 
 func HandleListRoles(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.DB.Query(`SELECT id, name, COALESCE(description, ''), vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, priority FROM roles ORDER BY priority DESC, name`)
+	rows, err := db.DB.Query(`SELECT id, name, COALESCE(description, ''), vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, priority FROM roles ORDER BY priority DESC, name`)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -658,8 +724,8 @@ func HandleListRoles(w http.ResponseWriter, r *http.Request) {
 		var id, priority int
 		var name, desc string
 		var vlan, sessionTimeout, idleTimeout sql.NullInt64
-		var bandwidthProfile, portalProfile sql.NullString
-		if err := rows.Scan(&id, &name, &desc, &vlan, &bandwidthProfile, &sessionTimeout, &idleTimeout, &portalProfile, &priority); err != nil {
+		var bandwidthProfile, portalProfile, aclPolicyName sql.NullString
+		if err := rows.Scan(&id, &name, &desc, &vlan, &bandwidthProfile, &sessionTimeout, &idleTimeout, &portalProfile, &aclPolicyName, &priority); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -679,6 +745,9 @@ func HandleListRoles(w http.ResponseWriter, r *http.Request) {
 		if portalProfile.Valid {
 			role["portal_profile"] = portalProfile.String
 		}
+		if aclPolicyName.Valid {
+			role["acl_policy_name"] = aclPolicyName.String
+		}
 		roles = append(roles, role)
 	}
 	writeJSON(w, http.StatusOK, roles)
@@ -697,7 +766,7 @@ func HandleDeleteRole(w http.ResponseWriter, r *http.Request) {
 // ---------- Policy Handlers ----------
 
 func HandleListPolicies(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.DB.Query(`SELECT id, name, COALESCE(description, ''), priority, enabled, match_conditions, action, vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, quarantine FROM policy_rules ORDER BY priority DESC, name`)
+	rows, err := db.DB.Query(`SELECT id, name, COALESCE(description, ''), priority, enabled, match_conditions, action, vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine FROM policy_rules ORDER BY priority DESC, name`)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -709,8 +778,8 @@ func HandleListPolicies(w http.ResponseWriter, r *http.Request) {
 		var name, desc, matchCond, action string
 		var enabled, quarantine bool
 		var vlan, sessionTimeout, idleTimeout sql.NullInt64
-		var bandwidthProfile, portalProfile sql.NullString
-		if err := rows.Scan(&id, &name, &desc, &priority, &enabled, &matchCond, &action, &vlan, &bandwidthProfile, &sessionTimeout, &idleTimeout, &portalProfile, &quarantine); err != nil {
+		var bandwidthProfile, portalProfile, aclPolicyName sql.NullString
+		if err := rows.Scan(&id, &name, &desc, &priority, &enabled, &matchCond, &action, &vlan, &bandwidthProfile, &sessionTimeout, &idleTimeout, &portalProfile, &aclPolicyName, &quarantine); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -732,6 +801,9 @@ func HandleListPolicies(w http.ResponseWriter, r *http.Request) {
 		}
 		if portalProfile.Valid {
 			policy["portal_profile"] = portalProfile.String
+		}
+		if aclPolicyName.Valid {
+			policy["acl_policy_name"] = aclPolicyName.String
 		}
 		policies = append(policies, policy)
 	}

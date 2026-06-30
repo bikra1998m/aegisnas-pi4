@@ -10,6 +10,7 @@ export default function Roles() {
         { key: 'name', label: 'Name' },
         { key: 'vlan', label: 'VLAN' },
         { key: 'bandwidth_profile', label: 'Bandwidth' },
+        { key: 'acl_policy_name', label: 'ACL Policy' },
         { key: 'session_timeout', label: 'Session Timeout' },
         { key: 'idle_timeout', label: 'Idle Timeout' },
         { key: 'priority', label: 'Priority' },
@@ -22,6 +23,7 @@ export default function Roles() {
         { name: 'session_timeout', label: 'Session Timeout Seconds', type: 'number' },
         { name: 'idle_timeout', label: 'Idle Timeout Seconds', type: 'number' },
         { name: 'portal_profile', label: 'Portal Profile' },
+        { name: 'acl_policy_name', label: 'ACL Policy Name' },
         { name: 'priority', label: 'Priority', type: 'number', defaultValue: 0 },
       ]}
     />

@@ -37,6 +37,7 @@ type Client struct {
 	Role             string
 	BandwidthProfile string
 	FilterID         string
+	ACLPolicyName    string
 	RadiusClass      string
 	CalledStationID  string
 	NASIdentifier    string
@@ -228,9 +229,9 @@ func (sm *StateMachine) persistSession(client *Client) error {
 	}
 	_, err := db.DB.Exec(`INSERT INTO sessions (
 			id, username, mac, ip, auth_method, vlan, role, bandwidth_profile,
-			start_time, last_activity, radius_session_id, identity_source, filter_id,
+			start_time, last_activity, radius_session_id, identity_source, filter_id, acl_policy_name,
 			radius_class, session_timeout, idle_timeout, called_station_id, nas_identifier
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			username = excluded.username,
 			mac = excluded.mac,
@@ -243,6 +244,7 @@ func (sm *StateMachine) persistSession(client *Client) error {
 			radius_session_id = excluded.radius_session_id,
 			identity_source = excluded.identity_source,
 			filter_id = excluded.filter_id,
+			acl_policy_name = excluded.acl_policy_name,
 			radius_class = excluded.radius_class,
 			session_timeout = excluded.session_timeout,
 			idle_timeout = excluded.idle_timeout,
@@ -250,7 +252,7 @@ func (sm *StateMachine) persistSession(client *Client) error {
 			nas_identifier = excluded.nas_identifier`,
 		client.SessionID, client.Username, client.MAC, client.IP, client.AuthMethod, client.VLAN, client.Role,
 		nullIfEmpty(client.BandwidthProfile), startTime, lastActivity, client.SessionID, client.IdentitySource,
-		nullIfEmpty(client.FilterID), nullIfEmpty(client.RadiusClass), nullIfZero(client.SessionTimeout),
+		nullIfEmpty(client.FilterID), nullIfEmpty(client.ACLPolicyName), nullIfEmpty(client.RadiusClass), nullIfZero(client.SessionTimeout),
 		nullIfZero(client.IdleTimeout), nullIfEmpty(client.CalledStationID), nullIfEmpty(client.NASIdentifier))
 	return err
 }
@@ -261,7 +263,7 @@ func (sm *StateMachine) LoadSessionsFromDB() error {
 		return nil
 	}
 	rows, err := db.DB.Query(`SELECT id, username, mac, ip, auth_method, vlan, role, bandwidth_profile,
-		identity_source, filter_id, radius_class, session_timeout, idle_timeout,
+		identity_source, filter_id, acl_policy_name, radius_class, session_timeout, idle_timeout,
 		called_station_id, nas_identifier, start_time, last_activity
 		FROM sessions WHERE end_time IS NULL`)
 	if err != nil {
@@ -281,6 +283,7 @@ func (sm *StateMachine) LoadSessionsFromDB() error {
 			bandwidth       sql.NullString
 			identitySource  sql.NullString
 			filterID        sql.NullString
+			aclPolicyName   sql.NullString
 			radiusClass     sql.NullString
 			sessionTimeout  sql.NullInt32
 			idleTimeout     sql.NullInt32
@@ -290,7 +293,7 @@ func (sm *StateMachine) LoadSessionsFromDB() error {
 			lastActivity    sql.NullString
 		)
 		if err := rows.Scan(&c.SessionID, &c.Username, &c.MAC, &c.IP, &authMethod, &vlan, &role, &bandwidth,
-			&identitySource, &filterID, &radiusClass, &sessionTimeout, &idleTimeout,
+			&identitySource, &filterID, &aclPolicyName, &radiusClass, &sessionTimeout, &idleTimeout,
 			&calledStationID, &nasIdentifier, &startTime, &lastActivity); err != nil {
 			sm.logger.Error("scan session row", zap.Error(err))
 			continue
@@ -318,6 +321,9 @@ func (sm *StateMachine) LoadSessionsFromDB() error {
 		}
 		if filterID.Valid {
 			c.FilterID = filterID.String
+		}
+		if aclPolicyName.Valid {
+			c.ACLPolicyName = aclPolicyName.String
 		}
 		if radiusClass.Valid {
 			c.RadiusClass = radiusClass.String
@@ -366,6 +372,7 @@ func (sm *StateMachine) ensureSessionStillActive(mac string, client *Client) boo
 	current.Role = ""
 	current.BandwidthProfile = ""
 	current.FilterID = ""
+	current.ACLPolicyName = ""
 	current.RadiusClass = ""
 	current.CalledStationID = ""
 	current.NASIdentifier = ""

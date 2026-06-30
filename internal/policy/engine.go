@@ -85,7 +85,7 @@ func (e *Engine) Evaluate(req *Request) (*Decision, error) {
 
 func (e *Engine) loadRules() ([]Rule, error) {
 	rows, err := db.DB.Query(`SELECT id, name, description, priority, enabled, match_conditions, action,
-		vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, quarantine
+		vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine
 		FROM policy_rules WHERE enabled = 1 ORDER BY priority DESC`)
 	if err != nil {
 		return nil, err
@@ -96,11 +96,11 @@ func (e *Engine) loadRules() ([]Rule, error) {
 	for rows.Next() {
 		var r Rule
 		var vlan sql.NullInt32
-		var description, bwProfile, portalProfile sql.NullString
+		var description, bwProfile, portalProfile, aclPolicyName sql.NullString
 		var sessionTO, idleTO sql.NullInt32
 		var matchConditions string
 		err := rows.Scan(&r.ID, &r.Name, &description, &r.Priority, &r.Enabled, &matchConditions, &r.Action,
-			&vlan, &bwProfile, &sessionTO, &idleTO, &portalProfile, &r.Quarantine)
+			&vlan, &bwProfile, &sessionTO, &idleTO, &portalProfile, &aclPolicyName, &r.Quarantine)
 		if err != nil {
 			return nil, err
 		}
@@ -127,6 +127,10 @@ func (e *Engine) loadRules() ([]Rule, error) {
 		if portalProfile.Valid {
 			p := portalProfile.String
 			r.PortalProfile = &p
+		}
+		if aclPolicyName.Valid {
+			p := aclPolicyName.String
+			r.ACLPolicyName = &p
 		}
 		rules = append(rules, r)
 	}
@@ -246,6 +250,7 @@ func ruleToDecision(rule *Rule) *Decision {
 		SessionTimeout:   rule.SessionTimeout,
 		IdleTimeout:      rule.IdleTimeout,
 		PortalProfile:    rule.PortalProfile,
+		ACLPolicyName:    rule.ACLPolicyName,
 		MatchedRule:      rule.Name,
 	}
 	if rule.Action == "deny" {

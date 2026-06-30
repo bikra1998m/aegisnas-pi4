@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 12
+	return 13
 }
 
 func Migrate() error {
@@ -496,4 +496,14 @@ CREATE TABLE IF NOT EXISTS acl_policies (
 );
 
 CREATE INDEX IF NOT EXISTS idx_acl_policies_enabled_name ON acl_policies(enabled, name);
+`
+
+const schemaV13 = `
+ALTER TABLE roles ADD COLUMN acl_policy_name TEXT;
+ALTER TABLE policy_rules ADD COLUMN acl_policy_name TEXT;
+ALTER TABLE sessions ADD COLUMN acl_policy_name TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_roles_acl_policy_name ON roles(acl_policy_name);
+CREATE INDEX IF NOT EXISTS idx_policy_rules_acl_policy_name ON policy_rules(acl_policy_name);
+CREATE INDEX IF NOT EXISTS idx_sessions_acl_policy_name ON sessions(acl_policy_name);
 `

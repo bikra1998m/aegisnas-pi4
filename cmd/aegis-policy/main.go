@@ -90,7 +90,7 @@ var runCmd = &cobra.Command{
 		// Rule management endpoints
 		r.Get("/api/v1/rules", func(w http.ResponseWriter, r *http.Request) {
 			rows, err := db.DB.Query(`SELECT id, name, description, priority, enabled, match_conditions, action,
-				vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, quarantine
+				vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine
 				FROM policy_rules ORDER BY priority DESC`)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -101,11 +101,11 @@ var runCmd = &cobra.Command{
 			for rows.Next() {
 				var rl policy.Rule
 				var vlan sql.NullInt32
-				var desc, bw, portal sql.NullString
+				var desc, bw, portal, aclPolicyName sql.NullString
 				var st, it sql.NullInt32
 				var matchConditions string
 				err := rows.Scan(&rl.ID, &rl.Name, &desc, &rl.Priority, &rl.Enabled, &matchConditions, &rl.Action,
-					&vlan, &bw, &st, &it, &portal, &rl.Quarantine)
+					&vlan, &bw, &st, &it, &portal, &aclPolicyName, &rl.Quarantine)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
@@ -133,6 +133,10 @@ var runCmd = &cobra.Command{
 				if portal.Valid {
 					p := portal.String
 					rl.PortalProfile = &p
+				}
+				if aclPolicyName.Valid {
+					p := aclPolicyName.String
+					rl.ACLPolicyName = &p
 				}
 				rules = append(rules, rl)
 			}

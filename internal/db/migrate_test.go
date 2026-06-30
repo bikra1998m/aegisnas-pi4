@@ -44,6 +44,20 @@ func TestMigrate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, nasTypeColumnCount)
 
+	for _, binding := range []struct {
+		table  string
+		column string
+	}{
+		{"roles", "acl_policy_name"},
+		{"policy_rules", "acl_policy_name"},
+		{"sessions", "acl_policy_name"},
+	} {
+		var columnCount int
+		err = DB.QueryRow("SELECT count(*) FROM pragma_table_info(?) WHERE name=?", binding.table, binding.column).Scan(&columnCount)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, columnCount, "%s.%s should exist", binding.table, binding.column)
+	}
+
 	for _, column := range []string{"hostname", "dhcp_client_id", "dhcp_fingerprint", "lldp_chassis_id", "lldp_port_id", "cdp_device_id", "cdp_port_id", "mac_oui", "risk_score", "risk_reasons_json"} {
 		var columnCount int
 		err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('device_inventory') WHERE name=?", column).Scan(&columnCount)

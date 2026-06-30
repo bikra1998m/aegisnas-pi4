@@ -124,6 +124,10 @@ POST   /api/v1/apply
 
 Each policy stores a stable name, optional vendor inbound/outbound ACL names, and up to 64 normalized rules. ACL policy changes are included in config revision snapshots and rollback. A vendor reply preview containing only `acl_policy_name` loads an enabled applied policy and reports `acl_policy_loaded: true`; explicit `acl_rules` remain available for one-off previews.
 
+Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
+
+After committing a role, user, or ACL binding through `/api/v1/apply`, run `POST /api/v1/system/radius-apply` (the **Apply RADIUS Config** action in Access Settings). This regenerates the local-user entries in `mods-config/files/authorize` and the legacy `users` path, validates the complete FreeRADIUS configuration, and restarts FreeRADIUS. Database-backed portal decisions and CoA updates do not require this regeneration. Local bcrypt credentials support PAP and EAP-TTLS/PAP; CHAP and PEAP-MSCHAPv2 require a compatible cleartext or NT password verifier, while EAP-TLS uses certificates.
+
 ## Vendor Observability Endpoint
 
 Runtime vendor compatibility evidence is available at:
