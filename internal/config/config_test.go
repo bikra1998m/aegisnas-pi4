@@ -1194,6 +1194,31 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	unifiController.Integrations.Controller.Site = "default"
 	assert.NoError(t, unifiController.Validate())
 
+	unifiEnterprise := base()
+	unifiEnterprise.Integrations.Controller.Platform = "unifi"
+	unifiEnterprise.Integrations.Controller.Site = "00000000-0000-0000-0000-000000000001"
+	unifiEnterprise.Integrations.Controller.RadiusProfile = "aegis-radius"
+	unifiEnterprise.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	assert.NoError(t, unifiEnterprise.Validate())
+
+	missingUniFiProfile := base()
+	missingUniFiProfile.Integrations.Controller.Platform = "unifi"
+	missingUniFiProfile.Integrations.Controller.Site = "00000000-0000-0000-0000-000000000001"
+	missingUniFiProfile.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	assert.ErrorContains(t, missingUniFiProfile.Validate(), "radius_profile is required for UniFi enterprise WiFi sync")
+
+	insecureUniFi := base()
+	insecureUniFi.Integrations.Controller.Platform = "unifi"
+	insecureUniFi.Integrations.Controller.Site = "00000000-0000-0000-0000-000000000001"
+	insecureUniFi.Integrations.Controller.Endpoint = "http://unifi.test/proxy/network/integration"
+	assert.ErrorContains(t, insecureUniFi.Validate(), "must use https for UniFi Network")
+
+	unifiCoAOnly := base()
+	unifiCoAOnly.Integrations.Controller.Platform = "unifi"
+	unifiCoAOnly.Integrations.Controller.Site = "00000000-0000-0000-0000-000000000001"
+	unifiCoAOnly.Integrations.Controller.SyncMode = "coa-only"
+	assert.ErrorContains(t, unifiCoAOnly.Validate(), "not supported by the unifi native adapter")
+
 	ciscoController := base()
 	ciscoController.Integrations.Controller.Platform = "cisco"
 	ciscoController.Integrations.Controller.APITokenEnv = ""

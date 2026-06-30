@@ -161,6 +161,18 @@ func TestControllerAdapterCatalogDescribesNativeAdapters(t *testing.T) {
 	assert.NotContains(t, fortinet.SupportedSyncModes, "coa-only")
 	assert.Contains(t, fortinet.EndpointTemplate, "/wireless-controller/vap/")
 	assert.Equal(t, "native-adapter", fortinet.OperationalState)
+
+	unifi := byPlatform["unifi"]
+	assert.Equal(t, "api-key", unifi.AuthScheme)
+	assert.True(t, unifi.NativePolicyPush)
+	assert.True(t, unifi.WirelessProfiles)
+	assert.False(t, unifi.RadiusProfiles)
+	assert.False(t, unifi.GuestPortal)
+	assert.False(t, unifi.SiteProfiles)
+	assert.False(t, unifi.CoA)
+	assert.NotContains(t, unifi.SupportedSyncModes, "coa-only")
+	assert.Contains(t, unifi.EndpointTemplate, "/v1/sites/{siteId}/wifi/broadcasts")
+	assert.Equal(t, "native-adapter", unifi.OperationalState)
 }
 
 func TestArubaCentralNativeWLANReconciliation(t *testing.T) {
@@ -703,53 +715,132 @@ func TestMikroTikNativeWiFiReconciliation(t *testing.T) {
 	assert.Equal(t, "80", state[mikroTikConfigurationCollection][0]["max-clients"])
 }
 
-func TestPushControllerStateUsesUniFiAdapter(t *testing.T) {
+func TestUniFiNativeWiFiReconciliation(t *testing.T) {
 	const tokenEnv = "AEGIS_TEST_CONTROLLER_TOKEN_UNIFI"
-	t.Setenv(tokenEnv, "controller-secret")
+	t.Setenv(tokenEnv, "unifi-api-key")
 
-	var payload map[string]any
+	site := "00000000-0000-0000-0000-000000000001"
+	collection := unifiWiFiCollectionPath(site)
+	state := map[string]map[string]any{
+		"Corp": {
+			"id": "wifi-1", "metadata": map[string]any{"origin": "USER_DEFINED"},
+			"type": "STANDARD", "name": "Corp", "enabled": true,
+			"network": map[string]any{"type": "SPECIFIC", "networkId": "network-10"},
+			"securityConfiguration": map[string]any{
+				"type": "WPA2_ENTERPRISE", "radiusConfiguration": map[string]any{
+					"profileId": "radius-1", "nasId": map[string]any{"type": "DERIVED", "source": "DEVICE_MAC_ADDRESS"},
+				}, "coaEnabled": true, "pmfMode": "OPTIONAL", "fastRoamingEnabled": true,
+			},
+			"multicastToUnicastConversionEnabled": false, "clientIsolationEnabled": false,
+			"hideName": false, "uapsdEnabled": true, "bandSteeringEnabled": true,
+		},
+	}
+	writes := map[string]string{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/proxy/network/api/s/default/aegisnas/sync", r.URL.Path)
-		assert.Equal(t, "Bearer controller-secret", r.Header.Get("Authorization"))
-		assert.Equal(t, "unifi", r.Header.Get("X-AegisNAS-Controller-Platform"))
-		assert.Equal(t, "unifi-network", r.Header.Get("X-AegisNAS-Controller-Adapter"))
-		body, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
-		require.NoError(t, json.Unmarshal(body, &payload))
+		assert.Equal(t, "unifi-api-key", r.Header.Get("X-API-Key"))
+		assert.Empty(t, r.Header.Get("Authorization"))
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusAccepted)
-		_, _ = w.Write([]byte(`{"summary":"UniFi site staged.","site":"default"}`))
+		page := func(data []map[string]any) {
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
+				"offset": 0, "limit": 100, "count": len(data), "totalCount": len(data), "data": data,
+			}))
+		}
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == unifiRadiusCollectionPath(site):
+			page([]map[string]any{{"id": "radius-1", "name": "aegis-radius", "metadata": map[string]any{"origin": "USER_DEFINED"}}})
+		case r.Method == http.MethodGet && r.URL.Path == unifiNetworkCollectionPath(site):
+			page([]map[string]any{
+				{"id": "network-20", "name": "Corp VLAN", "vlanId": 20},
+				{"id": "network-30", "name": "Staff VLAN", "vlanId": 30},
+			})
+		case r.Method == http.MethodGet && r.URL.Path == collection:
+			overviews := make([]map[string]any, 0, len(state))
+			for _, detail := range state {
+				overviews = append(overviews, map[string]any{"id": detail["id"], "name": detail["name"]})
+			}
+			page(overviews)
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, collection+"/"):
+			id := strings.TrimPrefix(r.URL.Path, collection+"/")
+			for _, detail := range state {
+				if detail["id"] == id {
+					require.NoError(t, json.NewEncoder(w).Encode(detail))
+					return
+				}
+			}
+			http.Error(w, "not found", http.StatusNotFound)
+		case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, collection+"/"):
+			var payload map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			assert.NotContains(t, payload, "id")
+			assert.NotContains(t, payload, "metadata")
+			name := firstNonEmptyString(payload["name"])
+			writes[name] = r.Method
+			payload["id"] = strings.TrimPrefix(r.URL.Path, collection+"/")
+			payload["metadata"] = map[string]any{"origin": "USER_DEFINED"}
+			state[name] = payload
+			require.NoError(t, json.NewEncoder(w).Encode(payload))
+		case r.Method == http.MethodPost && r.URL.Path == collection:
+			var payload map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			name := firstNonEmptyString(payload["name"])
+			writes[name] = r.Method
+			payload["id"] = "wifi-2"
+			payload["metadata"] = map[string]any{"origin": "USER_DEFINED"}
+			state[name] = payload
+			w.WriteHeader(http.StatusCreated)
+			require.NoError(t, json.NewEncoder(w).Encode(payload))
+		default:
+			http.Error(w, "unexpected "+r.Method+" "+r.URL.Path, http.StatusNotFound)
+		}
 	}))
 	defer server.Close()
 
 	cfg := &config.Config{}
-	cfg.Portal.Enabled = true
-	cfg.Portal.ListenIP = "192.168.50.1"
-	cfg.Portal.Port = 8081
-	cfg.Radius.AuthPort = 1812
-	cfg.Radius.AcctPort = 1813
 	cfg.Radius.DynamicAuth.Enabled = true
-	cfg.Radius.DynamicAuth.Port = 3799
-	cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Guest", AuthMode: "wpa2-enterprise", VLAN: 20, PortalProfile: "guest"}}
+	cfg.Wireless.SSIDs = []config.SSIDConfig{
+		{Name: "Corp", AuthMode: "wpa2-enterprise", VLAN: 20},
+		{Name: "Staff", AuthMode: "wpa3-enterprise", VLAN: 30, Hidden: true, ClientIsolation: true},
+	}
 	cfg.Integrations.Controller.Enabled = true
 	cfg.Integrations.Controller.Platform = "unifi"
 	cfg.Integrations.Controller.Endpoint = server.URL
 	cfg.Integrations.Controller.APITokenEnv = tokenEnv
+	cfg.Integrations.Controller.RadiusProfile = "aegis-radius"
 	cfg.Integrations.Controller.SyncMode = "push-config"
-	cfg.Integrations.Controller.Site = "default"
+	cfg.Integrations.Controller.Site = site
+
+	preview, err := BuildControllerSyncPreview(cfg, "pull")
+	require.NoError(t, err)
+	assert.Equal(t, "api-key", preview.AuthScheme)
+	assert.Equal(t, server.URL+collection, preview.TargetURL)
+	encodedPreview, err := json.Marshal(preview.Payload)
+	require.NoError(t, err)
+	assert.Contains(t, string(encodedPreview), "aegis-radius")
+	assert.NotContains(t, string(encodedPreview), "unifi-api-key")
+
+	pullResult, err := pullControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.True(t, pullResult.DriftDetected)
+	assert.Equal(t, 2, pullResult.DriftCount)
+	assert.Empty(t, writes)
 
 	result, err := pushControllerState(context.Background(), cfg)
 	require.NoError(t, err)
-	require.NotNil(t, result)
 	assert.Equal(t, "unifi-network", result.Adapter)
-	assert.Equal(t, "bearer", result.AuthScheme)
-	assert.Equal(t, "unifi-network", payload["adapter"])
-	assert.Equal(t, "default", payload["site"])
-	assert.NotEmpty(t, payload["desired_state_hash"])
-	capabilities := payload["adapter_capabilities"].(map[string]any)
-	assert.Equal(t, "unifi", capabilities["platform"])
-	assert.Equal(t, true, capabilities["site_profiles"])
-	assert.Equal(t, "default", result.ResponseDetails["response_scope"])
+	assert.Equal(t, "api-key", result.AuthScheme)
+	assert.Equal(t, 2, result.AppliedCount)
+	assert.False(t, result.DriftDetected)
+	assert.Equal(t, http.MethodPut, writes["Corp"])
+	assert.Equal(t, http.MethodPost, writes["Staff"])
+	assert.Equal(t, true, state["Corp"]["bandSteeringEnabled"])
+	corpSecurity := state["Corp"]["securityConfiguration"].(map[string]any)
+	assert.Equal(t, true, corpSecurity["fastRoamingEnabled"])
+	assert.Equal(t, "radius-1", corpSecurity["radiusConfiguration"].(map[string]any)["profileId"])
+	staffSecurity := state["Staff"]["securityConfiguration"].(map[string]any)
+	assert.Equal(t, "WPA3_ENTERPRISE", staffSecurity["type"])
+	assert.Equal(t, "DEFAULT", staffSecurity["securityMode"])
+	assert.Equal(t, "DEVICE_MAC_ADDRESS", staffSecurity["radiusConfiguration"].(map[string]any)["nasId"].(map[string]any)["source"])
+	assert.Equal(t, "network-30", state["Staff"]["network"].(map[string]any)["networkId"])
 }
 
 func TestPushControllerStateUsesCiscoAdapter(t *testing.T) {

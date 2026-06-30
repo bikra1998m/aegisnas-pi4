@@ -304,6 +304,8 @@ func executeControllerState(ctx context.Context, cfg *config.Config, operation s
 		return executeFortiGateOperation(ctx, cfg, operation)
 	case "mikrotik":
 		return executeMikroTikOperation(ctx, cfg, operation)
+	case "unifi":
+		return executeUniFiOperation(ctx, cfg, operation)
 	}
 	token := controllerToken(cfg)
 	if token == "" {
@@ -416,6 +418,9 @@ func buildControllerOperationRequest(cfg *config.Config, token, operation string
 	case "juniper-mist":
 		headers["Authorization"] = "Token " + token
 		authScheme = "token"
+	case "unifi":
+		headers["X-API-Key"] = token
+		authScheme = "api-key"
 	default:
 		headers["Authorization"] = "Bearer " + token
 	}
@@ -463,6 +468,8 @@ func controllerOperationEndpoint(cfg *config.Config, platform, operation string)
 		return fortiGateTargetURL(cfg)
 	case "mikrotik":
 		return mikroTikTargetURL(cfg)
+	case "unifi":
+		return unifiTargetURL(cfg)
 	}
 	targetURL, err := controllerEndpointForPlatform(cfg, platform)
 	if err != nil || operation != "pull" || normalizeControllerPlatform(platform) == "generic" {
@@ -572,15 +579,7 @@ func buildMikroTikControllerPayload(cfg *config.Config) map[string]any {
 }
 
 func buildUniFiControllerPayload(cfg *config.Config) map[string]any {
-	return map[string]any{
-		"generated_at":      time.Now().UTC().Format(time.RFC3339),
-		"adapter":           "unifi-network",
-		"site":              strings.TrimSpace(cfg.Integrations.Controller.Site),
-		"sync_mode":         cfg.Integrations.Controller.SyncMode,
-		"radius_profile":    buildControllerRadiusSection(cfg),
-		"guest_portal":      buildControllerPortalSection(cfg),
-		"wireless_networks": buildControllerSSIDProfiles(cfg),
-	}
+	return buildUniFiPreviewPayload(cfg)
 }
 
 func buildControllerPortalSection(cfg *config.Config) map[string]any {
@@ -738,9 +737,10 @@ func attachControllerPayloadMetadata(payload map[string]any, platform string) {
 
 func controllerAdapterCapabilities(platform string) map[string]any {
 	normalized := normalizeControllerPlatform(platform)
-	contractPayload := normalized != "cisco" && normalized != "aruba" && normalized != "juniper-mist" && normalized != "ruckus" && normalized != "fortinet" && normalized != "mikrotik"
+	nativeAdapter := normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" || normalized == "ruckus" || normalized == "fortinet" || normalized == "mikrotik" || normalized == "unifi"
+	contractPayload := normalized == "generic"
 	supportedSyncModes := []string{"monitor", "pull-config", "push-config", "coa-only"}
-	if normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" || normalized == "ruckus" || normalized == "fortinet" || normalized == "mikrotik" {
+	if nativeAdapter {
 		supportedSyncModes = []string{"monitor", "pull-config", "push-config"}
 	}
 	capabilities := map[string]any{
@@ -755,7 +755,7 @@ func controllerAdapterCapabilities(platform string) map[string]any {
 		"wireless_profiles":    contractPayload,
 		"dynamic_acl":          false,
 		"coa":                  false,
-		"native_policy_push":   normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" || normalized == "ruckus" || normalized == "fortinet" || normalized == "mikrotik",
+		"native_policy_push":   nativeAdapter,
 		"supported_sync_modes": supportedSyncModes,
 	}
 	switch normalized {
@@ -775,8 +775,7 @@ func controllerAdapterCapabilities(platform string) map[string]any {
 		capabilities["radius_profiles"] = true
 		capabilities["wireless_profiles"] = true
 	case "unifi":
-		capabilities["site_profiles"] = true
-		capabilities["guest_hotspot"] = true
+		capabilities["wireless_profiles"] = true
 	}
 	return capabilities
 }
@@ -1047,6 +1046,8 @@ func controllerAuthScheme(platform string) string {
 		return "session"
 	case "mikrotik":
 		return "basic"
+	case "unifi":
+		return "api-key"
 	default:
 		return "bearer"
 	}
@@ -1067,7 +1068,7 @@ func controllerEndpointTemplate(platform string) string {
 	case "mikrotik":
 		return "{endpoint}/rest/radius and /rest/interface/wifi/{security,datapath,configuration}"
 	case "unifi":
-		return "{endpoint}/proxy/network/api/s/{site}/aegisnas/sync"
+		return "{endpoint}/v1/sites/{siteId}/wifi/broadcasts"
 	default:
 		return "{endpoint}"
 	}
@@ -1077,10 +1078,8 @@ func controllerAdapterOperationalState(platform string) string {
 	switch normalizeControllerPlatform(platform) {
 	case "generic":
 		return "contract"
-	case "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik":
+	case "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi":
 		return "native-adapter"
-	case "unifi":
-		return "contract"
 	default:
 		return "unsupported"
 	}
@@ -1101,7 +1100,7 @@ func controllerAdapterOperationalGuidance(platform string) string {
 	case "mikrotik":
 		return "Uses RouterOS v7 REST Basic authentication to reconcile managed RADIUS, WiFi security, datapath, and configuration profiles; radio-specific CAPsMAN provisioning remains an explicit operator step."
 	case "unifi":
-		return "Use for UniFi site profiles, guest hotspot, and external AP estate sync."
+		return "Uses the official UniFi Network integration API with X-API-Key authentication to reconcile site WiFi broadcasts against existing RADIUS profiles and VLAN networks."
 	default:
 		return "Use when an external system implements the AegisNAS generic controller sync contract."
 	}

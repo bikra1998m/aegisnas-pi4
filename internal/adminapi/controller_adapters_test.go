@@ -22,6 +22,7 @@ func TestHandleGetControllerAdapters(t *testing.T) {
 	cfg.Integrations.Controller.Platform = "ubnt"
 	cfg.Integrations.Controller.Endpoint = "https://unifi.example.test"
 	cfg.Integrations.Controller.APITokenEnv = tokenEnv
+	cfg.Integrations.Controller.RadiusProfile = "aegis-radius"
 	cfg.Integrations.Controller.SyncMode = "push-config"
 	cfg.Integrations.Controller.Site = "default"
 	require.NoError(t, db.UpsertRuntimeStatus(integrations.ControllerComponent(), "ok", "Controller sync healthy.", map[string]any{
@@ -54,8 +55,9 @@ func TestHandleGetControllerAdapters(t *testing.T) {
 			SiteRequired   bool   `json:"site_required"`
 			SiteConfigured bool   `json:"site_configured"`
 			Selected       struct {
-				Platform     string `json:"platform"`
-				SiteProfiles bool   `json:"site_profiles"`
+				Platform         string `json:"platform"`
+				SiteProfiles     bool   `json:"site_profiles"`
+				WirelessProfiles bool   `json:"wireless_profiles"`
 			} `json:"selected"`
 		} `json:"configured"`
 		Runtime struct {
@@ -76,7 +78,8 @@ func TestHandleGetControllerAdapters(t *testing.T) {
 	assert.True(t, payload.Configured.TokenPresent)
 	assert.True(t, payload.Configured.SiteRequired)
 	assert.True(t, payload.Configured.SiteConfigured)
-	assert.True(t, payload.Configured.Selected.SiteProfiles)
+	assert.False(t, payload.Configured.Selected.SiteProfiles)
+	assert.True(t, payload.Configured.Selected.WirelessProfiles)
 	assert.Equal(t, "ok", payload.Runtime.Status)
 	assert.Equal(t, "Controller sync healthy.", payload.Runtime.Message)
 	assert.Equal(t, "unifi-network", payload.Runtime.Details["adapter"])
@@ -242,6 +245,32 @@ func TestBuildControllerAdapterConfiguredStateRequiresFortiGateRadiusProfile(t *
 	state = buildControllerAdapterConfiguredState(cfg)
 	assert.True(t, state.RadiusProfileConfigured)
 	assert.True(t, state.Ready)
+}
+
+func TestBuildControllerAdapterConfiguredStateRequiresUniFiRadiusProfile(t *testing.T) {
+	const tokenEnv = "AEGIS_TEST_UNIFI_READY_TOKEN"
+	t.Setenv(tokenEnv, "api-key")
+	cfg := &config.Config{
+		Integrations: config.IntegrationsConfig{
+			Controller: config.ControllerConfig{
+				Enabled: true, Platform: "unifi", Endpoint: "https://console.test/proxy/network/integration",
+				APITokenEnv: tokenEnv, SyncMode: "monitor", Site: "00000000-0000-0000-0000-000000000001",
+			},
+		},
+	}
+	cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Corp", AuthMode: "wpa3-enterprise"}}
+
+	state := buildControllerAdapterConfiguredState(cfg)
+	assert.True(t, state.RadiusProfileRequired)
+	assert.False(t, state.RadiusProfileConfigured)
+	assert.False(t, state.Ready)
+	assert.Contains(t, state.ReadinessWarnings, "UniFi enterprise WiFi sync requires an existing RADIUS profile name")
+
+	cfg.Integrations.Controller.RadiusProfile = "aegis-radius"
+	state = buildControllerAdapterConfiguredState(cfg)
+	assert.True(t, state.RadiusProfileConfigured)
+	assert.True(t, state.Ready)
+	assert.Equal(t, "api-key", state.Selected.AuthScheme)
 }
 
 func TestBuildControllerAdapterConfiguredStateUsesCiscoBasicCredentials(t *testing.T) {

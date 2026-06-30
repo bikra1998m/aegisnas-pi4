@@ -377,7 +377,23 @@ integrations:
 
 Pull mode lists `/rest/radius` and the RouterOS 7.13+ `/rest/interface/wifi/security`, `/datapath`, and `/configuration` collections. Confirmed push creates missing AegisNAS-managed records with PUT and updates changed records by `.id` with PATCH. Managed fields cover RADIUS authentication/accounting, WPA2/WPA3 Enterprise security, management-frame protection, SSID visibility, static VLAN, client isolation, and client limits. The adapter does not delete records or create CAPsMAN provisioning rules because radio bands, bridge VLAN handling, and `wifi-qcom` versus `wifi-qcom-ac` behavior must be validated on the target hardware. RADIUS secrets are excluded from drift comparisons, so rotate them through a controlled RouterOS credential procedure.
 
-UniFi remains an explicit AegisNAS contract adapter until its native resource client passes provider and hardware certification. All native adapters still require real-controller certification before production authority.
+UniFi uses the official Network integration API with `X-API-Key` authentication. Set `endpoint` to the integration API base, not the legacy `/api/s/{site}` path. For a local console this is normally `https://console.example.com/proxy/network/integration`; the cloud Connector base ending in `/proxy/network/integration` is also supported. Set `site` to the API site ID and `radius_profile` to an existing profile name:
+
+```yaml
+integrations:
+  controller:
+    enabled: true
+    platform: unifi
+    endpoint: https://console.example.com/proxy/network/integration
+    api_token_env: AEGIS_UNIFI_API_KEY
+    radius_profile: aegis-radius
+    sync_mode: monitor
+    site: 00000000-0000-0000-0000-000000000001
+```
+
+Pull mode resolves the named RADIUS profile, maps configured VLAN IDs to existing site networks, pages through `/v1/sites/{siteId}/wifi/broadcasts`, and reads full details for matching broadcasts. Confirmed push creates missing WPA2/WPA3 Enterprise broadcasts and uses read-modify-write PUT for existing broadcasts so unmanaged optional fields are preserved. The adapter never deletes broadcasts or creates RADIUS profiles and VLAN networks. Captive portal, bandwidth, identity-source, client-limit, and explicit dynamic-VLAN controls remain outside this native slice and produce warnings.
+
+All native adapters require real-controller and access-point certification before production authority.
 
 Example enterprise onboarding target with external CA and SAML admin access:
 

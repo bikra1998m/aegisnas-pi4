@@ -94,7 +94,7 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 		Selected:        descriptor,
 	}
 	state.RadiusSecretPresent = state.RadiusSecretEnv != "" && os.Getenv(state.RadiusSecretEnv) != ""
-	state.RadiusProfileRequired = (platform == "aruba" || platform == "ruckus" || platform == "fortinet") && controllerConfigHasEnterpriseSSIDs(cfg)
+	state.RadiusProfileRequired = (platform == "aruba" || platform == "ruckus" || platform == "fortinet" || platform == "unifi") && controllerConfigHasEnterpriseSSIDs(cfg)
 	state.RadiusProfileConfigured = !state.RadiusProfileRequired || state.RadiusProfile != ""
 	state.RadiusServerRequired = (platform == "juniper-mist" || platform == "mikrotik") && controllerConfigHasEnterpriseSSIDs(cfg)
 	state.RadiusServerConfigured = !state.RadiusServerRequired || (state.RadiusServer != "" && state.RadiusSecretEnv != "" && state.RadiusSecretPresent)
@@ -128,6 +128,8 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 				state.ReadinessWarnings = append(state.ReadinessWarnings, "Ruckus SmartZone enterprise WLAN sync requires an existing authentication service name")
 			} else if platform == "fortinet" {
 				state.ReadinessWarnings = append(state.ReadinessWarnings, "FortiGate enterprise VAP sync requires an existing RADIUS profile name")
+			} else if platform == "unifi" {
+				state.ReadinessWarnings = append(state.ReadinessWarnings, "UniFi enterprise WiFi sync requires an existing RADIUS profile name")
 			} else {
 				state.ReadinessWarnings = append(state.ReadinessWarnings, "Aruba Central enterprise WLAN sync requires an existing controller RADIUS profile")
 			}
