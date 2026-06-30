@@ -300,6 +300,8 @@ func executeControllerState(ctx context.Context, cfg *config.Config, operation s
 		return executeMistOperation(ctx, cfg, operation)
 	case "ruckus":
 		return executeRuckusSmartZoneOperation(ctx, cfg, operation)
+	case "fortinet":
+		return executeFortiGateOperation(ctx, cfg, operation)
 	}
 	token := controllerToken(cfg)
 	if token == "" {
@@ -458,6 +460,8 @@ func controllerOperationEndpoint(cfg *config.Config, platform, operation string)
 		return mistTargetURL(cfg)
 	case "ruckus":
 		return ruckusSmartZoneTargetURL(cfg)
+	case "fortinet":
+		return fortiGateTargetURL(cfg)
 	}
 	targetURL, err := controllerEndpointForPlatform(cfg, platform)
 	if err != nil || operation != "pull" || normalizeControllerPlatform(platform) == "generic" {
@@ -559,15 +563,7 @@ func buildRuckusControllerPayload(cfg *config.Config) map[string]any {
 }
 
 func buildFortinetControllerPayload(cfg *config.Config) map[string]any {
-	return map[string]any{
-		"generated_at":   time.Now().UTC().Format(time.RFC3339),
-		"adapter":        "fortinet-fortigate",
-		"scope":          strings.TrimSpace(cfg.Integrations.Controller.Site),
-		"sync_mode":      cfg.Integrations.Controller.SyncMode,
-		"radius_servers": []map[string]any{buildControllerRadiusSection(cfg)},
-		"captive_portal": buildControllerPortalSection(cfg),
-		"wireless_vaps":  buildControllerSSIDProfiles(cfg),
-	}
+	return buildFortiGatePreviewPayload(cfg)
 }
 
 func buildMikroTikControllerPayload(cfg *config.Config) map[string]any {
@@ -749,9 +745,9 @@ func attachControllerPayloadMetadata(payload map[string]any, platform string) {
 
 func controllerAdapterCapabilities(platform string) map[string]any {
 	normalized := normalizeControllerPlatform(platform)
-	contractPayload := normalized != "cisco" && normalized != "aruba" && normalized != "juniper-mist" && normalized != "ruckus"
+	contractPayload := normalized != "cisco" && normalized != "aruba" && normalized != "juniper-mist" && normalized != "ruckus" && normalized != "fortinet"
 	supportedSyncModes := []string{"monitor", "pull-config", "push-config", "coa-only"}
-	if normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" || normalized == "ruckus" {
+	if normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" || normalized == "ruckus" || normalized == "fortinet" {
 		supportedSyncModes = []string{"monitor", "pull-config", "push-config"}
 	}
 	capabilities := map[string]any{
@@ -766,7 +762,7 @@ func controllerAdapterCapabilities(platform string) map[string]any {
 		"wireless_profiles":    contractPayload,
 		"dynamic_acl":          false,
 		"coa":                  false,
-		"native_policy_push":   normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" || normalized == "ruckus",
+		"native_policy_push":   normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" || normalized == "ruckus" || normalized == "fortinet",
 		"supported_sync_modes": supportedSyncModes,
 	}
 	switch normalized {
@@ -781,8 +777,7 @@ func controllerAdapterCapabilities(platform string) map[string]any {
 	case "ruckus":
 		capabilities["wireless_profiles"] = true
 	case "fortinet":
-		capabilities["coa"] = true
-		capabilities["policy_profiles"] = true
+		capabilities["wireless_profiles"] = true
 	case "mikrotik":
 		capabilities["dynamic_acl"] = true
 		capabilities["address_lists"] = true
@@ -1075,7 +1070,7 @@ func controllerEndpointTemplate(platform string) string {
 	case "ruckus":
 		return "{endpoint}/wsg/api/public/v13_1/rkszones/{zone_id}/wlans"
 	case "fortinet":
-		return "{endpoint}/api/v2/cmdb/aegisnas/sites/{site}/sync"
+		return "{endpoint}/api/v2/cmdb/wireless-controller/vap/{name}?vdom={vdom}"
 	case "mikrotik":
 		return "{endpoint}/rest/aegisnas/sites/{site}/sync"
 	case "unifi":
@@ -1089,9 +1084,9 @@ func controllerAdapterOperationalState(platform string) string {
 	switch normalizeControllerPlatform(platform) {
 	case "generic":
 		return "contract"
-	case "cisco", "aruba", "juniper-mist", "ruckus":
+	case "cisco", "aruba", "juniper-mist", "ruckus", "fortinet":
 		return "native-adapter"
-	case "fortinet", "mikrotik", "unifi":
+	case "mikrotik", "unifi":
 		return "contract"
 	default:
 		return "unsupported"
@@ -1109,7 +1104,7 @@ func controllerAdapterOperationalGuidance(platform string) string {
 	case "ruckus":
 		return "Uses SmartZone Public API v13_1 session authentication to inspect and reconcile zone-scoped WPA2/WPA3 Enterprise WLANs against an existing authentication service."
 	case "fortinet":
-		return "Use for Fortinet policy profile and controller health sync; validate FortiGate/FortiWLC profile names before push mode."
+		return "Uses the FortiOS CMDB bearer API to inspect and reconcile FortiAP enterprise VAPs against an existing FortiGate RADIUS profile."
 	case "mikrotik":
 		return "Use for RouterOS hotspot and address-list hints; rule expansion belongs in RouterOS policy templates."
 	case "unifi":

@@ -157,7 +157,7 @@ Controller-native integration readiness is available at:
 /api/v1/system/controller-adapters
 ```
 
-The response lists the supported controller adapters, whether each adapter is native or contract-based, the selected platform's capabilities, required site or network identifier, credential environment readiness, runtime sync status, and setup warnings. Cisco and Ruckus readiness check `api_username_env` and `api_password_env`; token-based adapters check `api_token_env`. Aruba readiness also requires `radius_profile` when enterprise WLANs are configured. Ruckus uses that field as the existing SmartZone authentication service name. Mist enterprise WLAN readiness requires `radius_server`, `radius_secret_env`, and the named secret in the process environment.
+The response lists the supported controller adapters, whether each adapter is native or contract-based, the selected platform's capabilities, required site or network identifier, credential environment readiness, runtime sync status, and setup warnings. Cisco and Ruckus readiness check `api_username_env` and `api_password_env`; token-based adapters check `api_token_env`. Aruba and FortiGate use `radius_profile` as an existing controller RADIUS profile; Ruckus uses it as the existing SmartZone authentication service name. Mist enterprise WLAN readiness requires `radius_server`, `radius_secret_env`, and the named secret in the process environment.
 
 Controller policy operations are available at:
 
@@ -167,7 +167,7 @@ GET  /api/v1/system/controller-sync/preview?operation=push
 POST /api/v1/system/controller-sync
 ```
 
-`pull` performs a read-only state request and compares observed controller resources with AegisNAS desired state. `push` requires `confirmation` to equal `PUSH CONTROLLER POLICY`. The Cisco native adapter reconciles ERS downloadable ACL and authorization profile resources with lookup-before-create/update behavior. The Aruba Central Classic native adapter reconciles enterprise WLAN resources through `/configuration/v2/wlan/{group}/{wlan}` and references a pre-existing Central RADIUS profile. The Juniper Mist native adapter pages through `/api/v1/sites/{site_id}/wlans` and creates or updates WPA2/WPA3 Enterprise WLANs by SSID. The Ruckus native adapter uses SmartZone v13_1 sessions and zone-scoped standard 802.1X WLAN resources. Fortinet, MikroTik, and UniFi use their declared AegisNAS contract endpoints. Manual operations update `controller_automation` runtime counters and durable integration history.
+`pull` performs a read-only state request and compares observed controller resources with AegisNAS desired state. `push` requires `confirmation` to equal `PUSH CONTROLLER POLICY`. The Cisco native adapter reconciles ERS downloadable ACL and authorization profile resources with lookup-before-create/update behavior. The Aruba Central Classic native adapter reconciles enterprise WLAN resources through `/configuration/v2/wlan/{group}/{wlan}` and references a pre-existing Central RADIUS profile. The Juniper Mist native adapter pages through `/api/v1/sites/{site_id}/wlans` and creates or updates WPA2/WPA3 Enterprise WLANs by SSID. The Ruckus native adapter uses SmartZone v13_1 sessions and zone-scoped standard 802.1X WLAN resources. The FortiGate native adapter reconciles VDOM-scoped FortiAP VAP objects through the FortiOS CMDB API. MikroTik and UniFi use their declared AegisNAS contract endpoints. Manual operations update `controller_automation` runtime counters and durable integration history.
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \

@@ -1133,6 +1133,22 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	insecureRuckus.Integrations.Controller.APIPasswordEnv = "AEGIS_RUCKUS_PASSWORD"
 	assert.ErrorContains(t, insecureRuckus.Validate(), "must use https for Ruckus SmartZone")
 
+	fortinetController := base()
+	fortinetController.Integrations.Controller.Platform = "fortinet"
+	fortinetController.Integrations.Controller.RadiusProfile = "aegis-radius"
+	fortinetController.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa3-enterprise"}}
+	assert.NoError(t, fortinetController.Validate())
+
+	missingFortinetProfile := base()
+	missingFortinetProfile.Integrations.Controller.Platform = "fortinet"
+	missingFortinetProfile.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	assert.ErrorContains(t, missingFortinetProfile.Validate(), "radius_profile is required for FortiGate")
+
+	insecureFortinet := base()
+	insecureFortinet.Integrations.Controller.Platform = "fortinet"
+	insecureFortinet.Integrations.Controller.Endpoint = "http://fortigate.test"
+	assert.ErrorContains(t, insecureFortinet.Validate(), "must use https for FortiGate")
+
 	unifiController := base()
 	unifiController.Integrations.Controller.Platform = "unifi"
 	unifiController.Integrations.Controller.Site = "default"

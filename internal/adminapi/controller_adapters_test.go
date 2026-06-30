@@ -185,6 +185,31 @@ func TestBuildControllerAdapterConfiguredStateUsesRuckusSessionCredentials(t *te
 	assert.Equal(t, "session", state.Selected.AuthScheme)
 }
 
+func TestBuildControllerAdapterConfiguredStateRequiresFortiGateRadiusProfile(t *testing.T) {
+	const tokenEnv = "AEGIS_TEST_FORTIGATE_READY_TOKEN"
+	t.Setenv(tokenEnv, "secret")
+	cfg := &config.Config{
+		Integrations: config.IntegrationsConfig{
+			Controller: config.ControllerConfig{
+				Enabled: true, Platform: "fortinet", Endpoint: "https://fortigate.test",
+				APITokenEnv: tokenEnv, SyncMode: "monitor", Site: "root",
+			},
+		},
+	}
+	cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+
+	state := buildControllerAdapterConfiguredState(cfg)
+	assert.True(t, state.RadiusProfileRequired)
+	assert.False(t, state.RadiusProfileConfigured)
+	assert.False(t, state.Ready)
+	assert.Contains(t, state.ReadinessWarnings, "FortiGate enterprise VAP sync requires an existing RADIUS profile name")
+
+	cfg.Integrations.Controller.RadiusProfile = "aegis-radius"
+	state = buildControllerAdapterConfiguredState(cfg)
+	assert.True(t, state.RadiusProfileConfigured)
+	assert.True(t, state.Ready)
+}
+
 func TestBuildControllerAdapterConfiguredStateUsesCiscoBasicCredentials(t *testing.T) {
 	const usernameEnv = "AEGIS_TEST_ISE_USERNAME"
 	const passwordEnv = "AEGIS_TEST_ISE_PASSWORD"

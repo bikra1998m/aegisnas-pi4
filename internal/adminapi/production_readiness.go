@@ -440,6 +440,9 @@ func addProductionControllerCheck(report *productionReadinessReport, cfg *config
 	} else if state.Normalized == "ruckus" {
 		dependencies = []string{"integrations.controller.endpoint", "integrations.controller.api_username_env", "integrations.controller.api_password_env", "integrations.controller.site", "integrations.controller.radius_profile"}
 		recommendation = "Set the SmartZone endpoint, API username/password environment variables, zone ID, and existing authentication service name."
+	} else if state.Normalized == "fortinet" {
+		dependencies = []string{"integrations.controller.endpoint", "integrations.controller.api_token_env", "integrations.controller.site", "integrations.controller.radius_profile"}
+		recommendation = "Set the FortiGate endpoint, REST API token environment variable, VDOM, and existing RADIUS profile name."
 	}
 	addProductionCheck(report, productionReadinessCheck{
 		Key:            "controller_readiness",

@@ -142,6 +142,16 @@ func TestControllerAdapterCatalogDescribesNativeAdapters(t *testing.T) {
 	assert.NotContains(t, ruckus.SupportedSyncModes, "coa-only")
 	assert.Contains(t, ruckus.EndpointTemplate, "/v13_1/rkszones/")
 	assert.Equal(t, "native-adapter", ruckus.OperationalState)
+
+	fortinet := byPlatform["fortinet"]
+	assert.Equal(t, "bearer", fortinet.AuthScheme)
+	assert.True(t, fortinet.NativePolicyPush)
+	assert.True(t, fortinet.WirelessProfiles)
+	assert.False(t, fortinet.PolicyProfiles)
+	assert.False(t, fortinet.CoA)
+	assert.NotContains(t, fortinet.SupportedSyncModes, "coa-only")
+	assert.Contains(t, fortinet.EndpointTemplate, "/wireless-controller/vap/")
+	assert.Equal(t, "native-adapter", fortinet.OperationalState)
 }
 
 func TestArubaCentralNativeWLANReconciliation(t *testing.T) {
@@ -479,6 +489,84 @@ func TestRuckusSmartZoneNativeWLANReconciliation(t *testing.T) {
 	assert.Equal(t, true, state["Staff"]["advancedOptions"].(map[string]any)["hideSsidEnabled"])
 	assert.Equal(t, 2, logins)
 	assert.Equal(t, 2, logouts)
+}
+
+func TestFortiGateNativeVAPReconciliation(t *testing.T) {
+	const tokenEnv = "AEGIS_TEST_FORTIGATE_TOKEN"
+	t.Setenv(tokenEnv, "fortigate-secret")
+
+	state := map[string]map[string]any{
+		"Corp": {
+			"name": "Corp", "ssid": "Corp", "security": "wpa2-only-enterprise",
+			"auth": "radius", "radius-server": "aegis-radius", "broadcast-ssid": "enable",
+			"dynamic-vlan": "disable", "intra-vap-privacy": "disable", "max-clients": float64(0), "vlanid": float64(10),
+		},
+	}
+	writes := map[string]string{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer fortigate-secret", r.Header.Get("Authorization"))
+		assert.Equal(t, "root", r.URL.Query().Get("vdom"))
+		collection := fortiGateVAPCollection
+		w.Header().Set("Content-Type", "application/json")
+		name := strings.TrimPrefix(r.URL.Path, collection+"/")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == collection+"/Corp":
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"status": "success", "results": state["Corp"]}))
+		case r.Method == http.MethodGet && r.URL.Path == collection+"/Staff":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"status":"error","message":"not found"}`))
+		case r.Method == http.MethodPut && r.URL.Path == collection+"/Corp":
+			var payload map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			state["Corp"] = payload
+			writes["Corp"] = r.Method
+			_, _ = w.Write([]byte(`{"status":"success","http_status":200}`))
+		case r.Method == http.MethodPost && r.URL.Path == collection:
+			var payload map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			state[payload["name"].(string)] = payload
+			writes[payload["name"].(string)] = r.Method
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"status":"success","http_status":201}`))
+		default:
+			http.Error(w, "unexpected "+r.Method+" "+name, http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{}
+	cfg.Wireless.SSIDs = []config.SSIDConfig{
+		{Name: "Corp", AuthMode: "wpa2-enterprise", VLAN: 20},
+		{Name: "Staff", AuthMode: "wpa3-enterprise", VLAN: 30, DynamicVLAN: true, Hidden: true, ClientIsolation: true, MaxClients: 80},
+		{Name: "Guest", AuthMode: "captive-portal"},
+	}
+	cfg.Integrations.Controller.Enabled = true
+	cfg.Integrations.Controller.Platform = "fortinet"
+	cfg.Integrations.Controller.Endpoint = server.URL
+	cfg.Integrations.Controller.APITokenEnv = tokenEnv
+	cfg.Integrations.Controller.RadiusProfile = "aegis-radius"
+	cfg.Integrations.Controller.SyncMode = "push-config"
+	cfg.Integrations.Controller.Site = "root"
+
+	pullResult, err := pullControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.True(t, pullResult.DriftDetected)
+	assert.Equal(t, 2, pullResult.DriftCount)
+	assert.Equal(t, 1, pullResult.WarningCount)
+	assert.Empty(t, writes)
+
+	pushResult, err := pushControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "fortinet-fortigate", pushResult.Adapter)
+	assert.Equal(t, "bearer", pushResult.AuthScheme)
+	assert.Equal(t, 2, pushResult.AppliedCount)
+	assert.False(t, pushResult.DriftDetected)
+	assert.Equal(t, http.MethodPut, writes["Corp"])
+	assert.Equal(t, http.MethodPost, writes["Staff"])
+	assert.Equal(t, float64(20), state["Corp"]["vlanid"])
+	assert.Equal(t, "wpa3-only-enterprise", state["Staff"]["security"])
+	assert.Equal(t, "enable", state["Staff"]["dynamic-vlan"])
+	assert.Equal(t, "disable", state["Staff"]["broadcast-ssid"])
 }
 
 func TestPushControllerStateUsesUniFiAdapter(t *testing.T) {

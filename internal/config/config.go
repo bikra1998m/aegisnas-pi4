@@ -1919,7 +1919,16 @@ func (c *Config) Validate() error {
 				return errors.New("integrations.controller.radius_profile is required for Ruckus SmartZone enterprise WLAN sync")
 			}
 		}
-		if (controllerPlatform == "cisco" || controllerPlatform == "aruba" || controllerPlatform == "juniper-mist" || controllerPlatform == "ruckus") && controllerSyncMode == "coa-only" {
+		if controllerPlatform == "fortinet" {
+			parsed, _ := url.Parse(c.Integrations.Controller.Endpoint)
+			if parsed == nil || parsed.Scheme != "https" {
+				return errors.New("integrations.controller.endpoint must use https for FortiGate")
+			}
+			if controllerHasEnterpriseSSIDs(c) && strings.TrimSpace(c.Integrations.Controller.RadiusProfile) == "" {
+				return errors.New("integrations.controller.radius_profile is required for FortiGate enterprise VAP sync")
+			}
+		}
+		if (controllerPlatform == "cisco" || controllerPlatform == "aruba" || controllerPlatform == "juniper-mist" || controllerPlatform == "ruckus" || controllerPlatform == "fortinet") && controllerSyncMode == "coa-only" {
 			return fmt.Errorf("integrations.controller.sync_mode %q is not supported by the %s native adapter", c.Integrations.Controller.SyncMode, controllerPlatform)
 		}
 		if controllerPlatformRequiresSite(c.Integrations.Controller.Platform) && strings.TrimSpace(c.Integrations.Controller.Site) == "" {

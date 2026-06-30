@@ -343,7 +343,23 @@ integrations:
 
 Each operation logs in through `/wsg/api/public/v13_1/session`, pages through the zone WLAN inventory, reads full WLAN details, and logs out. Confirmed push creates missing `standard8021X` WLANs and applies changed fields with PATCH, never PUT or DELETE. The native fields cover WPA2/WPA3 Enterprise encryption, authentication-service reference, local breakout, static or AAA-overridden VLAN, SSID visibility, client isolation, and per-radio client limits. Guest, portal, bandwidth, identity-source, accounting-profile, ACL, and CoA automation are outside this slice.
 
-Fortinet, MikroTik, and UniFi remain explicit AegisNAS contract adapters until their native resource clients pass provider and hardware certification. Cisco ISE, Aruba Central, Juniper Mist, and Ruckus SmartZone are native but still require real-controller certification before production authority.
+FortiGate uses the FortiOS CMDB API with a scoped REST API administrator token. Set `site` to the VDOM and `radius_profile` to an existing FortiGate RADIUS profile:
+
+```yaml
+integrations:
+  controller:
+    enabled: true
+    platform: fortinet
+    endpoint: https://fortigate.example.com
+    api_token_env: AEGIS_FORTIGATE_API_TOKEN
+    radius_profile: aegisnas-radius
+    sync_mode: monitor
+    site: root
+```
+
+Pull mode reads each managed object from `/api/v2/cmdb/wireless-controller/vap/{name}?vdom={vdom}`. Confirmed push creates missing VAPs through the collection and updates existing VAPs by name. Managed fields cover WPA2/WPA3 Enterprise security, RADIUS profile selection, static and dynamic VLAN settings, broadcast visibility, intra-VAP isolation, and client limits. The adapter never deletes VAPs and does not mutate firewall policy, NAC profiles, captive portals, RADIUS server objects, or FortiGate user groups.
+
+MikroTik and UniFi remain explicit AegisNAS contract adapters until their native resource clients pass provider and hardware certification. Cisco ISE, Aruba Central, Juniper Mist, Ruckus SmartZone, and FortiGate are native but still require real-controller certification before production authority.
 
 Example enterprise onboarding target with external CA and SAML admin access:
 
