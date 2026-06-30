@@ -294,7 +294,7 @@ func (c *arubaCentralClient) doJSON(ctx context.Context, method, path string, pa
 			return nil, resp.StatusCode, readErr
 		}
 		if resp.StatusCode == http.StatusTooManyRequests && attempt == 0 {
-			if err := waitForArubaCentralRetry(ctx, resp.Header.Get("Retry-After")); err != nil {
+			if err := waitForControllerRetry(ctx, resp.Header.Get("Retry-After"), 2*time.Second); err != nil {
 				return body, resp.StatusCode, err
 			}
 			continue
@@ -305,29 +305,6 @@ func (c *arubaCentralClient) doJSON(ctx context.Context, method, path string, pa
 		return body, resp.StatusCode, nil
 	}
 	return nil, http.StatusTooManyRequests, fmt.Errorf("Aruba Central request remained rate limited")
-}
-
-func waitForArubaCentralRetry(ctx context.Context, value string) error {
-	delay := time.Second
-	if seconds, err := strconv.Atoi(strings.TrimSpace(value)); err == nil && seconds >= 0 {
-		delay = time.Duration(seconds) * time.Second
-	} else if retryAt, err := http.ParseTime(value); err == nil {
-		delay = time.Until(retryAt)
-	}
-	if delay < 0 {
-		delay = 0
-	}
-	if delay > 2*time.Second {
-		delay = 2 * time.Second
-	}
-	timer := time.NewTimer(delay)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
 }
 
 func arubaCentralCompatibilityScore(warnings, failures int) int {

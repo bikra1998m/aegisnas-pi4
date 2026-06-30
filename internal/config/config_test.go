@@ -1089,6 +1089,25 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	arubaCoAOnly.Integrations.Controller.SyncMode = "coa-only"
 	assert.ErrorContains(t, arubaCoAOnly.Validate(), "not supported by the aruba native adapter")
 
+	mistEnterprise := base()
+	mistEnterprise.Integrations.Controller.Platform = "juniper-mist"
+	mistEnterprise.Integrations.Controller.Site = "site-123"
+	mistEnterprise.Integrations.Controller.RadiusServer = "192.0.2.10"
+	mistEnterprise.Integrations.Controller.RadiusSecretEnv = "AEGIS_MIST_RADIUS_SECRET"
+	mistEnterprise.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	assert.NoError(t, mistEnterprise.Validate())
+
+	missingMistRadius := base()
+	missingMistRadius.Integrations.Controller.Platform = "juniper-mist"
+	missingMistRadius.Integrations.Controller.Site = "site-123"
+	missingMistRadius.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	assert.ErrorContains(t, missingMistRadius.Validate(), "radius_server and radius_secret_env are required for Juniper Mist")
+
+	insecureMist := base()
+	insecureMist.Integrations.Controller.Platform = "juniper-mist"
+	insecureMist.Integrations.Controller.Endpoint = "http://api.mist.test"
+	assert.ErrorContains(t, insecureMist.Validate(), "must use https for Juniper Mist")
+
 	unifiController := base()
 	unifiController.Integrations.Controller.Platform = "unifi"
 	unifiController.Integrations.Controller.Site = "default"

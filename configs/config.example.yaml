@@ -395,6 +395,8 @@ integrations:
     api_username_env: "" # Cisco ISE ERS username env, for example AEGIS_CISCO_ISE_USERNAME.
     api_password_env: "" # Cisco ISE ERS password env, for example AEGIS_CISCO_ISE_PASSWORD.
     radius_profile: "" # Existing Aruba Central RADIUS server profile referenced by enterprise WLANs.
+    radius_server: "" # Juniper Mist RADIUS hostname or IP used by managed enterprise WLANs.
+    radius_secret_env: "" # Environment variable containing the Juniper Mist RADIUS shared secret.
     sync_mode: "monitor" # monitor and pull-config are read-only; push-config mutates controller policy; coa-only limits automation to session changes.
     site: "" # Required for vendor-native adapters. Use the controller site, zone, or network identifier.
 

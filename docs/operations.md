@@ -262,6 +262,8 @@ For controller changes, preview the operation from the dashboard or `GET /api/v1
 
 For Aruba Central, verify that `site` names the Classic Central group and `radius_profile` names an existing RADIUS server profile before the first pull. The native adapter manages only WPA2/WPA3 Enterprise WLAN objects. A warning for a personal, open, captive-portal, client-limit, isolation, portal, or bandwidth setting means that field was left untouched in Central and needs a separate controller-side workflow.
 
+For Juniper Mist, use the regional `api.*.mist.com` endpoint and the site UUID, not the display name. Keep the API token and RADIUS shared secret in separate environment variables. Pull first to verify the site and paginated WLAN inventory; then inspect the redacted preview before push. The adapter never deletes WLANs and leaves guest portal, WxLAN policy, inventory, and non-enterprise security modes untouched.
+
 Run `scripts/vendor-certification-lab.sh` for each supported production vendor and archive its `summary.json`, API payloads, RADIUS results, packet capture, controller evidence, and optional upgrade/rollback artifacts. The full procedure and safety gates are in [vendor-certification-lab.md](vendor-certification-lab.md).
 
 ## Backup And Restore

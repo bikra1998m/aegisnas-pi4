@@ -309,7 +309,24 @@ Pull mode reads `/ers/config/downloadableacl` and `/ers/config/authorizationprof
 
 The Aruba adapter targets the Classic Aruba Central Configuration API. Set `site` to the Central group and `radius_profile` to an existing Central RADIUS server profile. For each configured `wpa2-enterprise` or `wpa3-enterprise` SSID, pull mode reads `/configuration/v2/wlan/{group}/{wlan}` and reports field-level drift; confirmed push mode creates missing WLANs with POST and updates changed WLANs with PUT. Requests use the bearer token named by `api_token_env`, retry one `429` response using `Retry-After`, and never delete WLANs. Open, personal, and captive-portal SSIDs are reported as unsupported warnings. This adapter does not yet mutate Central RADIUS profiles, guest portals, roles, ACLs, or CoA resources.
 
-Mist, Ruckus, Fortinet, MikroTik, and UniFi remain explicit AegisNAS contract adapters until their native resource clients pass provider and hardware certification. Cisco ISE and Aruba Central are native but still require real-controller certification before production authority.
+Juniper Mist uses the site WLAN API and Token authentication. Configure the regional API host, Mist site UUID, RADIUS server, and a RADIUS shared-secret environment variable:
+
+```yaml
+integrations:
+  controller:
+    enabled: true
+    platform: juniper-mist
+    endpoint: https://api.mist.com
+    api_token_env: AEGIS_MIST_API_TOKEN
+    radius_server: 192.0.2.10
+    radius_secret_env: AEGIS_MIST_RADIUS_SECRET
+    sync_mode: monitor
+    site: 000000ab-00ab-00ab-00ab-0000000000ab
+```
+
+Pull mode pages through `/api/v1/sites/{site_id}/wlans` and compares WLANs by SSID. Confirmed push updates an existing WLAN by generated ID or creates a missing site WLAN. Managed fields cover WPA2/WPA3 Enterprise security, RADIUS authentication and accounting, optional CoA, static or standard dynamic VLANs, SSID visibility, isolation, and client limits. Secrets are read only at execution time and previews use `redacted`. Personal, open, captive-portal, bandwidth, and identity-source policy remain outside this native slice and produce warnings rather than speculative API writes.
+
+Ruckus, Fortinet, MikroTik, and UniFi remain explicit AegisNAS contract adapters until their native resource clients pass provider and hardware certification. Cisco ISE, Aruba Central, and Juniper Mist are native but still require real-controller certification before production authority.
 
 Example enterprise onboarding target with external CA and SAML admin access:
 

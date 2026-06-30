@@ -122,8 +122,12 @@ func TestControllerAdapterCatalogDescribesNativeAdapters(t *testing.T) {
 
 	mist := byPlatform["juniper-mist"]
 	assert.Equal(t, "token", mist.AuthScheme)
-	assert.True(t, mist.CloudInventory)
-	assert.Equal(t, "contract", mist.OperationalState)
+	assert.True(t, mist.NativePolicyPush)
+	assert.True(t, mist.WirelessProfiles)
+	assert.False(t, mist.CloudInventory)
+	assert.False(t, mist.CoA)
+	assert.NotContains(t, mist.SupportedSyncModes, "coa-only")
+	assert.Equal(t, "native-adapter", mist.OperationalState)
 
 	mikrotik := byPlatform["mikrotik"]
 	assert.Equal(t, "header-token", mikrotik.AuthScheme)
@@ -230,52 +234,130 @@ func TestArubaCentralRetriesRateLimitedRequest(t *testing.T) {
 	assert.Equal(t, 2, requests)
 }
 
-func TestPushControllerStateUsesJuniperMistAdapter(t *testing.T) {
+func TestJuniperMistNativeWLANReconciliation(t *testing.T) {
 	const tokenEnv = "AEGIS_TEST_CONTROLLER_TOKEN_MIST"
+	const secretEnv = "AEGIS_TEST_MIST_RADIUS_SECRET"
 	t.Setenv(tokenEnv, "controller-secret")
+	t.Setenv(secretEnv, "radius-secret")
 
-	var payload map[string]any
+	state := map[string]map[string]any{
+		"Corp": {
+			"id": "wlan-1", "ssid": "Corp", "enabled": true, "hide_ssid": false,
+			"auth":         map[string]any{"type": "eap", "pairwise": []any{"wpa2-ccmp"}},
+			"auth_servers": []any{map[string]any{"host": "192.0.2.10", "port": float64(1812), "secret": "radius-secret"}},
+			"acct_servers": []any{map[string]any{"host": "192.0.2.10", "port": float64(1813), "secret": "radius-secret"}},
+			"isolation":    false, "max_num_clients": float64(0), "vlan_enabled": true, "vlan_id": float64(10),
+			"coa_servers": []any{map[string]any{"ip": "192.0.2.10", "port": float64(3799), "secret": "radius-secret", "enabled": true}},
+		},
+	}
+	writes := map[string]string{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v1/sites/branch-lab/aegisnas/sync", r.URL.Path)
 		assert.Equal(t, "Token controller-secret", r.Header.Get("Authorization"))
-		assert.Equal(t, "juniper-mist", r.Header.Get("X-AegisNAS-Controller-Platform"))
-		assert.Equal(t, "juniper-mist", r.Header.Get("X-AegisNAS-Controller-Adapter"))
-		body, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
-		require.NoError(t, json.Unmarshal(body, &payload))
+		assert.Equal(t, "application/json, application/vnd.api+json", r.Header.Get("Accept"))
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusAccepted)
-		_, _ = w.Write([]byte(`{"summary":"Mist site staged.","site_id":"branch-lab"}`))
+		collection := "/api/v1/sites/site-123/wlans"
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == collection:
+			assert.Equal(t, "100", r.URL.Query().Get("limit"))
+			items := make([]map[string]any, 0, len(state))
+			for _, wlan := range state {
+				items = append(items, wlan)
+			}
+			require.NoError(t, json.NewEncoder(w).Encode(items))
+		case r.Method == http.MethodPut && r.URL.Path == collection+"/wlan-1":
+			var payload map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			payload["id"] = "wlan-1"
+			state["Corp"] = payload
+			writes["Corp"] = r.Method
+			require.NoError(t, json.NewEncoder(w).Encode(payload))
+		case r.Method == http.MethodPost && r.URL.Path == collection:
+			var payload map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			payload["id"] = "wlan-2"
+			state["Staff"] = payload
+			writes["Staff"] = r.Method
+			require.NoError(t, json.NewEncoder(w).Encode(payload))
+		default:
+			http.Error(w, "unexpected request", http.StatusNotFound)
+		}
 	}))
 	defer server.Close()
 
 	cfg := &config.Config{}
-	cfg.Portal.Enabled = true
-	cfg.Portal.ListenIP = "192.168.50.1"
-	cfg.Portal.Port = 8081
 	cfg.Radius.AuthPort = 1812
 	cfg.Radius.AcctPort = 1813
 	cfg.Radius.DynamicAuth.Enabled = true
 	cfg.Radius.DynamicAuth.Port = 3799
-	cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Guest", AuthMode: "wpa2-enterprise", VLAN: 20, PortalProfile: "guest"}}
+	cfg.Wireless.SSIDs = []config.SSIDConfig{
+		{Name: "Corp", AuthMode: "wpa2-enterprise", VLAN: 20},
+		{Name: "Staff", AuthMode: "wpa3-enterprise", VLAN: 30, DynamicVLAN: true, Hidden: true, ClientIsolation: true, MaxClients: 120},
+		{Name: "Guest", AuthMode: "captive-portal", VLAN: 40},
+	}
 	cfg.Integrations.Controller.Enabled = true
 	cfg.Integrations.Controller.Platform = "juniper-mist"
 	cfg.Integrations.Controller.Endpoint = server.URL
 	cfg.Integrations.Controller.APITokenEnv = tokenEnv
+	cfg.Integrations.Controller.RadiusServer = "192.0.2.10"
+	cfg.Integrations.Controller.RadiusSecretEnv = secretEnv
 	cfg.Integrations.Controller.SyncMode = "push-config"
-	cfg.Integrations.Controller.Site = "branch-lab"
+	cfg.Integrations.Controller.Site = "site-123"
+
+	preview, err := BuildControllerSyncPreview(cfg, "push")
+	require.NoError(t, err)
+	previewJSON, err := json.Marshal(preview)
+	require.NoError(t, err)
+	assert.Contains(t, string(previewJSON), "redacted")
+	assert.NotContains(t, string(previewJSON), "radius-secret")
+
+	pullResult, err := pullControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.True(t, pullResult.DriftDetected)
+	assert.Equal(t, 2, pullResult.DriftCount)
+	assert.Equal(t, 1, pullResult.WarningCount)
+	assert.Empty(t, writes)
 
 	result, err := pushControllerState(context.Background(), cfg)
 	require.NoError(t, err)
-	require.NotNil(t, result)
 	assert.Equal(t, "juniper-mist", result.Adapter)
 	assert.Equal(t, "token", result.AuthScheme)
-	assert.Equal(t, "branch-lab", payload["site_id"])
-	assert.Equal(t, float64(1812), payload["radius_config"].(map[string]any)["auth_port"])
-	wlans := payload["wlan_overrides"].([]any)
-	require.Len(t, wlans, 1)
-	assert.Equal(t, "Guest", wlans[0].(map[string]any)["name"])
-	assert.Equal(t, "branch-lab", result.ResponseDetails["response_scope"])
+	assert.Equal(t, 2, result.AppliedCount)
+	assert.False(t, result.DriftDetected)
+	assert.Equal(t, http.MethodPut, writes["Corp"])
+	assert.Equal(t, http.MethodPost, writes["Staff"])
+	assert.Equal(t, float64(20), state["Corp"]["vlan_id"])
+	staffAuth := state["Staff"]["auth"].(map[string]any)
+	assert.Equal(t, "wpa3", staffAuth["pairwise"].([]any)[0])
+	assert.Equal(t, true, state["Staff"]["isolation"])
+	assert.Equal(t, float64(120), state["Staff"]["max_num_clients"])
+	assert.Equal(t, "radius-secret", state["Staff"]["auth_servers"].([]any)[0].(map[string]any)["secret"])
+}
+
+func TestJuniperMistClientRedactsSecretsFromErrors(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"token":"api-secret","radius":"radius-secret"}`))
+	}))
+	defer server.Close()
+
+	client := &mistClient{baseURL: server.URL, token: "api-secret", secret: "radius-secret", http: server.Client()}
+	_, _, err := client.doJSON(context.Background(), http.MethodPost, "/wlans", map[string]any{"secret": "radius-secret"})
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "api-secret")
+	assert.NotContains(t, err.Error(), "radius-secret")
+	assert.Contains(t, err.Error(), "[redacted]")
+}
+
+func TestMistCredentialsDoNotRequireRadiusSecretWithoutEnterpriseWLANs(t *testing.T) {
+	const tokenEnv = "AEGIS_TEST_MIST_HEALTH_TOKEN"
+	t.Setenv(tokenEnv, "api-secret")
+	cfg := &config.Config{}
+	cfg.Integrations.Controller.APITokenEnv = tokenEnv
+
+	token, secret, err := mistCredentials(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "api-secret", token)
+	assert.Empty(t, secret)
 }
 
 func TestPushControllerStateUsesUniFiAdapter(t *testing.T) {

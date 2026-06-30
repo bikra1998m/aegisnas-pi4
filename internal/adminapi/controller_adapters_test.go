@@ -131,6 +131,35 @@ func TestBuildControllerAdapterConfiguredStateRequiresArubaRadiusProfile(t *test
 	assert.True(t, state.Ready)
 }
 
+func TestBuildControllerAdapterConfiguredStateRequiresMistRadiusSecret(t *testing.T) {
+	const tokenEnv = "AEGIS_TEST_MIST_READY_TOKEN"
+	const secretEnv = "AEGIS_TEST_MIST_READY_SECRET"
+	t.Setenv(tokenEnv, "secret")
+	cfg := &config.Config{
+		Integrations: config.IntegrationsConfig{
+			Controller: config.ControllerConfig{
+				Enabled: true, Platform: "juniper-mist", Endpoint: "https://api.mist.test",
+				APITokenEnv: tokenEnv, RadiusServer: "192.0.2.10", RadiusSecretEnv: secretEnv,
+				SyncMode: "monitor", Site: "site-123",
+			},
+		},
+	}
+	cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Corp", AuthMode: "wpa3-enterprise"}}
+
+	state := buildControllerAdapterConfiguredState(cfg)
+	assert.True(t, state.RadiusServerRequired)
+	assert.False(t, state.RadiusSecretPresent)
+	assert.False(t, state.RadiusServerConfigured)
+	assert.False(t, state.Ready)
+	assert.Contains(t, state.ReadinessWarnings, "Juniper Mist enterprise WLAN sync requires a RADIUS server and a present shared-secret environment variable")
+
+	t.Setenv(secretEnv, "radius-secret")
+	state = buildControllerAdapterConfiguredState(cfg)
+	assert.True(t, state.RadiusSecretPresent)
+	assert.True(t, state.RadiusServerConfigured)
+	assert.True(t, state.Ready)
+}
+
 func TestBuildControllerAdapterConfiguredStateUsesCiscoBasicCredentials(t *testing.T) {
 	const usernameEnv = "AEGIS_TEST_ISE_USERNAME"
 	const passwordEnv = "AEGIS_TEST_ISE_PASSWORD"

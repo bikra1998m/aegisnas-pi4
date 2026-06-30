@@ -37,6 +37,11 @@ type controllerAdapterConfiguredState struct {
 	RadiusProfile           string                                   `json:"radius_profile,omitempty"`
 	RadiusProfileRequired   bool                                     `json:"radius_profile_required"`
 	RadiusProfileConfigured bool                                     `json:"radius_profile_configured"`
+	RadiusServer            string                                   `json:"radius_server,omitempty"`
+	RadiusSecretEnv         string                                   `json:"radius_secret_env,omitempty"`
+	RadiusSecretPresent     bool                                     `json:"radius_secret_present"`
+	RadiusServerRequired    bool                                     `json:"radius_server_required"`
+	RadiusServerConfigured  bool                                     `json:"radius_server_configured"`
 	Ready                   bool                                     `json:"ready"`
 	ReadinessWarnings       []string                                 `json:"readiness_warnings,omitempty"`
 	Selected                integrations.ControllerAdapterDescriptor `json:"selected"`
@@ -78,6 +83,8 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 		UsernameEnv:     usernameEnv,
 		PasswordEnv:     passwordEnv,
 		RadiusProfile:   strings.TrimSpace(controller.RadiusProfile),
+		RadiusServer:    strings.TrimSpace(controller.RadiusServer),
+		RadiusSecretEnv: strings.TrimSpace(controller.RadiusSecretEnv),
 		SiteRequired:    descriptor.RequiresSite,
 		EndpointSet:     strings.TrimSpace(controller.Endpoint) != "",
 		TokenEnvSet:     tokenEnv != "",
@@ -86,8 +93,11 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 		PasswordPresent: passwordEnv != "" && strings.TrimSpace(os.Getenv(passwordEnv)) != "",
 		Selected:        descriptor,
 	}
+	state.RadiusSecretPresent = state.RadiusSecretEnv != "" && os.Getenv(state.RadiusSecretEnv) != ""
 	state.RadiusProfileRequired = platform == "aruba" && controllerConfigHasEnterpriseSSIDs(cfg)
 	state.RadiusProfileConfigured = !state.RadiusProfileRequired || state.RadiusProfile != ""
+	state.RadiusServerRequired = platform == "juniper-mist" && controllerConfigHasEnterpriseSSIDs(cfg)
+	state.RadiusServerConfigured = !state.RadiusServerRequired || (state.RadiusServer != "" && state.RadiusSecretEnv != "" && state.RadiusSecretPresent)
 	state.SiteConfigured = !state.SiteRequired || state.Site != ""
 	if state.SyncMode == "" {
 		state.SyncMode = "monitor"
@@ -116,12 +126,15 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 		if !state.RadiusProfileConfigured {
 			state.ReadinessWarnings = append(state.ReadinessWarnings, "Aruba Central enterprise WLAN sync requires an existing controller RADIUS profile")
 		}
+		if !state.RadiusServerConfigured {
+			state.ReadinessWarnings = append(state.ReadinessWarnings, "Juniper Mist enterprise WLAN sync requires a RADIUS server and a present shared-secret environment variable")
+		}
 	}
 	credentialsReady := state.TokenEnvSet && state.TokenPresent
 	if platform == "cisco" {
 		credentialsReady = state.UsernamePresent && state.PasswordPresent
 	}
-	state.Ready = state.EndpointSet && credentialsReady && state.SiteConfigured && state.RadiusProfileConfigured
+	state.Ready = state.EndpointSet && credentialsReady && state.SiteConfigured && state.RadiusProfileConfigured && state.RadiusServerConfigured
 	if !state.Enabled {
 		state.Ready = false
 	}

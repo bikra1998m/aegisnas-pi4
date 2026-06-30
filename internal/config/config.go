@@ -409,15 +409,17 @@ type SIEMConfig struct {
 }
 
 type ControllerConfig struct {
-	Enabled        bool   `mapstructure:"enabled"`
-	Platform       string `mapstructure:"platform"`
-	Endpoint       string `mapstructure:"endpoint"`
-	APITokenEnv    string `mapstructure:"api_token_env"`
-	APIUsernameEnv string `mapstructure:"api_username_env"`
-	APIPasswordEnv string `mapstructure:"api_password_env"`
-	RadiusProfile  string `mapstructure:"radius_profile"`
-	SyncMode       string `mapstructure:"sync_mode"`
-	Site           string `mapstructure:"site"`
+	Enabled         bool   `mapstructure:"enabled"`
+	Platform        string `mapstructure:"platform"`
+	Endpoint        string `mapstructure:"endpoint"`
+	APITokenEnv     string `mapstructure:"api_token_env"`
+	APIUsernameEnv  string `mapstructure:"api_username_env"`
+	APIPasswordEnv  string `mapstructure:"api_password_env"`
+	RadiusProfile   string `mapstructure:"radius_profile"`
+	RadiusServer    string `mapstructure:"radius_server"`
+	RadiusSecretEnv string `mapstructure:"radius_secret_env"`
+	SyncMode        string `mapstructure:"sync_mode"`
+	Site            string `mapstructure:"site"`
 }
 
 type GovernanceConfig struct {
@@ -1899,7 +1901,16 @@ func (c *Config) Validate() error {
 				return errors.New("integrations.controller.radius_profile is required for Aruba Central enterprise WLAN sync")
 			}
 		}
-		if (controllerPlatform == "cisco" || controllerPlatform == "aruba") && controllerSyncMode == "coa-only" {
+		if controllerPlatform == "juniper-mist" {
+			parsed, _ := url.Parse(c.Integrations.Controller.Endpoint)
+			if parsed == nil || parsed.Scheme != "https" {
+				return errors.New("integrations.controller.endpoint must use https for Juniper Mist")
+			}
+			if controllerHasEnterpriseSSIDs(c) && (strings.TrimSpace(c.Integrations.Controller.RadiusServer) == "" || strings.TrimSpace(c.Integrations.Controller.RadiusSecretEnv) == "") {
+				return errors.New("integrations.controller.radius_server and radius_secret_env are required for Juniper Mist enterprise WLAN sync")
+			}
+		}
+		if (controllerPlatform == "cisco" || controllerPlatform == "aruba" || controllerPlatform == "juniper-mist") && controllerSyncMode == "coa-only" {
 			return fmt.Errorf("integrations.controller.sync_mode %q is not supported by the %s native adapter", c.Integrations.Controller.SyncMode, controllerPlatform)
 		}
 		if controllerPlatformRequiresSite(c.Integrations.Controller.Platform) && strings.TrimSpace(c.Integrations.Controller.Site) == "" {

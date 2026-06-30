@@ -296,6 +296,8 @@ func executeControllerState(ctx context.Context, cfg *config.Config, operation s
 		return executeCiscoISEOperation(ctx, cfg, operation)
 	case "aruba":
 		return executeArubaCentralOperation(ctx, cfg, operation)
+	case "juniper-mist":
+		return executeMistOperation(ctx, cfg, operation)
 	}
 	token := controllerToken(cfg)
 	if token == "" {
@@ -450,6 +452,8 @@ func controllerOperationEndpoint(cfg *config.Config, platform, operation string)
 		return base + ciscoISEDACLCollection, nil
 	case "aruba":
 		return arubaCentralTargetURL(cfg)
+	case "juniper-mist":
+		return mistTargetURL(cfg)
 	}
 	targetURL, err := controllerEndpointForPlatform(cfg, platform)
 	if err != nil || operation != "pull" || normalizeControllerPlatform(platform) == "generic" {
@@ -543,15 +547,7 @@ func buildArubaControllerPayload(cfg *config.Config) map[string]any {
 }
 
 func buildMistControllerPayload(cfg *config.Config) map[string]any {
-	return map[string]any{
-		"generated_at":   time.Now().UTC().Format(time.RFC3339),
-		"adapter":        "juniper-mist",
-		"site_id":        strings.TrimSpace(cfg.Integrations.Controller.Site),
-		"sync_mode":      cfg.Integrations.Controller.SyncMode,
-		"radius_config":  buildControllerRadiusSection(cfg),
-		"portal_config":  buildControllerPortalSection(cfg),
-		"wlan_overrides": buildControllerSSIDProfiles(cfg),
-	}
+	return buildMistPreviewPayload(cfg)
 }
 
 func buildRuckusControllerPayload(cfg *config.Config) map[string]any {
@@ -757,9 +753,9 @@ func attachControllerPayloadMetadata(payload map[string]any, platform string) {
 
 func controllerAdapterCapabilities(platform string) map[string]any {
 	normalized := normalizeControllerPlatform(platform)
-	contractPayload := normalized != "cisco" && normalized != "aruba"
+	contractPayload := normalized != "cisco" && normalized != "aruba" && normalized != "juniper-mist"
 	supportedSyncModes := []string{"monitor", "pull-config", "push-config", "coa-only"}
-	if normalized == "cisco" || normalized == "aruba" {
+	if normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" {
 		supportedSyncModes = []string{"monitor", "pull-config", "push-config"}
 	}
 	capabilities := map[string]any{
@@ -774,7 +770,7 @@ func controllerAdapterCapabilities(platform string) map[string]any {
 		"wireless_profiles":    contractPayload,
 		"dynamic_acl":          false,
 		"coa":                  false,
-		"native_policy_push":   normalized == "cisco" || normalized == "aruba",
+		"native_policy_push":   normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist",
 		"supported_sync_modes": supportedSyncModes,
 	}
 	switch normalized {
@@ -785,8 +781,7 @@ func controllerAdapterCapabilities(platform string) map[string]any {
 	case "aruba":
 		capabilities["wireless_profiles"] = true
 	case "juniper-mist":
-		capabilities["coa"] = true
-		capabilities["cloud_inventory"] = true
+		capabilities["wireless_profiles"] = true
 	case "ruckus":
 		capabilities["coa"] = true
 		capabilities["zone_policy"] = true
@@ -1079,7 +1074,7 @@ func controllerEndpointTemplate(platform string) string {
 	case "aruba":
 		return "{endpoint}/configuration/v2/wlan/{group}/{wlan}"
 	case "juniper-mist":
-		return "{endpoint}/api/v1/sites/{site}/aegisnas/sync"
+		return "{endpoint}/api/v1/sites/{site_id}/wlans"
 	case "ruckus":
 		return "{endpoint}/wsg/api/public/v11_1/aegisnas/sites/{site}/sync"
 	case "fortinet":
@@ -1097,9 +1092,9 @@ func controllerAdapterOperationalState(platform string) string {
 	switch normalizeControllerPlatform(platform) {
 	case "generic":
 		return "contract"
-	case "cisco", "aruba":
+	case "cisco", "aruba", "juniper-mist":
 		return "native-adapter"
-	case "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi":
+	case "ruckus", "fortinet", "mikrotik", "unifi":
 		return "contract"
 	default:
 		return "unsupported"
@@ -1113,7 +1108,7 @@ func controllerAdapterOperationalGuidance(platform string) string {
 	case "aruba":
 		return "Uses Aruba Central Classic Configuration v2 bearer APIs to inspect and reconcile enterprise WLANs against an existing Central RADIUS profile; guest, role, ACL, and CoA resources are not yet mutated."
 	case "juniper-mist":
-		return "Use for Mist cloud inventory and WLAN policy sync; RADIUS replies remain standards-based unless site templates add more detail."
+		return "Uses the Mist site WLAN API with Token authentication to inspect and reconcile WPA2/WPA3 Enterprise WLANs, including RADIUS, accounting, CoA, VLAN, isolation, and client-limit fields."
 	case "ruckus":
 		return "Use for SmartZone zone policy and CoA workflows; line ACLs usually require controller-side policy objects."
 	case "fortinet":
@@ -1164,6 +1159,29 @@ func controllerToken(cfg *config.Config) string {
 		return ""
 	}
 	return strings.TrimSpace(os.Getenv(strings.TrimSpace(cfg.Integrations.Controller.APITokenEnv)))
+}
+
+func waitForControllerRetry(ctx context.Context, value string, maxDelay time.Duration) error {
+	delay := time.Second
+	if seconds, err := strconv.Atoi(strings.TrimSpace(value)); err == nil && seconds >= 0 {
+		delay = time.Duration(seconds) * time.Second
+	} else if retryAt, err := http.ParseTime(value); err == nil {
+		delay = time.Until(retryAt)
+	}
+	if delay < 0 {
+		delay = 0
+	}
+	if maxDelay > 0 && delay > maxDelay {
+		delay = maxDelay
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func controllerStatusCounters(status *db.RuntimeStatus) (int64, int64, int64) {

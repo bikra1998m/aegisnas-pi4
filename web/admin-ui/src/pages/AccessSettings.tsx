@@ -482,6 +482,8 @@ const defaultSettings: JsonMap = {
       api_username_env: "",
       api_password_env: "",
       radius_profile: "",
+      radius_server: "",
+      radius_secret_env: "",
       sync_mode: "monitor",
       site: "",
     },
@@ -6116,6 +6118,28 @@ export default function AccessSettings() {
                 )
               }
               placeholder="aegisnas-radius"
+            />
+            <TextField
+              label="Controller RADIUS Server"
+              value={settings.integrations?.controller?.radius_server || ""}
+              onChange={(value) =>
+                updateField(
+                  ["integrations", "controller", "radius_server"],
+                  value,
+                )
+              }
+              placeholder="192.0.2.10"
+            />
+            <TextField
+              label="Controller RADIUS Secret Env"
+              value={settings.integrations?.controller?.radius_secret_env || ""}
+              onChange={(value) =>
+                updateField(
+                  ["integrations", "controller", "radius_secret_env"],
+                  value,
+                )
+              }
+              placeholder="AEGIS_MIST_RADIUS_SECRET"
             />
             <SelectField
               label="Controller Sync Mode"
