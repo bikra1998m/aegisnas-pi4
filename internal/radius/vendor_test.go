@@ -158,6 +158,48 @@ func TestApplyVendorCompatibilityAttributesParsesAdditionalInboundVSAs(t *testin
 	assert.Equal(t, "aa:bb:cc:dd:ee:ff", result.VendorAccountingIdentity)
 }
 
+func TestApplyVendorCompatibilityAttributesParsesAccountingContext(t *testing.T) {
+	tests := []struct {
+		name      string
+		pack      string
+		vendorID  uint32
+		typeID    byte
+		value     any
+		assertion func(*testing.T, *BrokerAuthResult)
+	}{
+		{name: "meraki tags", pack: productconfigs.VendorPackMeraki, vendorID: 29671, typeID: 4, value: "iot,camera", assertion: func(t *testing.T, result *BrokerAuthResult) {
+			assert.Equal(t, "iot,camera", result.VendorDevicePosture)
+		}},
+		{name: "palo alto os", pack: productconfigs.VendorPackPaloAlto, vendorID: 25461, typeID: 8, value: "Windows 11", assertion: func(t *testing.T, result *BrokerAuthResult) {
+			assert.Equal(t, "Windows 11", result.VendorDevicePosture)
+		}},
+		{name: "airespace wlan", pack: productconfigs.VendorPackAirespace, vendorID: 14179, typeID: 1, value: uint32(1001), assertion: func(t *testing.T, result *BrokerAuthResult) {
+			assert.Equal(t, "1001", result.VendorDeviceGroup)
+		}},
+		{name: "arista profiling", pack: productconfigs.VendorPackArista, vendorID: 30065, typeID: 17, value: "profiled-iot", assertion: func(t *testing.T, result *BrokerAuthResult) {
+			assert.Equal(t, "profiled-iot", result.VendorDevicePosture)
+		}},
+		{name: "meru ap id", pack: productconfigs.VendorPackMeru, vendorID: 15983, typeID: 1, value: uint32(42), assertion: func(t *testing.T, result *BrokerAuthResult) {
+			assert.Equal(t, "42", result.VendorDeviceGroup)
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			packet := layehradius.New(layehradius.CodeAccountingRequest, []byte("secret"))
+			switch value := tc.value.(type) {
+			case string:
+				require.NoError(t, addVendorString(packet, tc.vendorID, tc.typeID, value))
+			case uint32:
+				require.NoError(t, addVendorInteger(packet, tc.vendorID, tc.typeID, value))
+			default:
+				t.Fatalf("unsupported test value %T", tc.value)
+			}
+			result := ParseBrokerPacketWithConfig(packet, &config.Config{Radius: config.RadiusConfig{Vendor: vendorConfigForPacks(tc.pack)}})
+			tc.assertion(t, result)
+		})
+	}
+}
+
 func TestApplyVendorCompatibilityAttributesRequiresEnabledPack(t *testing.T) {
 	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
 	require.NoError(t, addVendorString(packet, 14823, 1, "admin"))

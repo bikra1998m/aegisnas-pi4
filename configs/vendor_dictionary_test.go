@@ -150,9 +150,36 @@ func TestAegisNASVendorCompatibilityPacks(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, VendorPackOpenWiFi, openwifi.Key)
 
+	for _, item := range []struct {
+		pack      string
+		attribute string
+	}{
+		{VendorPackMeraki, "Meraki-Ap-Tags"},
+		{VendorPackPaloAlto, "PaloAlto-Client-OS"},
+		{VendorPackAirespace, "Wlan-Id"},
+		{VendorPackHP, "Egress-VLANID"},
+		{VendorPackArista, "Device-Profiling"},
+		{VendorPackMeru, "Access-Point-Id"},
+		{VendorPackColubris, "Intercept"},
+		{VendorPackMist, "controller.policy_sync"},
+	} {
+		pack, found := VendorCompatibilityPackByKey(item.pack)
+		require.True(t, found)
+		assert.Equal(t, "implemented", vendorPackMappingState(pack, item.attribute), "%s %s", item.pack, item.attribute)
+	}
+
 	assert.True(t, ValidVendorCompatibilityPackKey("routeros"))
 	assert.True(t, ValidVendorCompatibilityPackKey("arista-eos"))
 	assert.False(t, ValidVendorCompatibilityPackKey("unknown-vendor"))
+}
+
+func vendorPackMappingState(pack VendorCompatibilityPack, attribute string) string {
+	for _, mapping := range pack.Attributes {
+		if mapping.Attribute == attribute {
+			return mapping.CompatibilityState
+		}
+	}
+	return ""
 }
 
 func vendorPackTemplateContains(templates []VendorPackFeatureTemplate, feature, attribute string) bool {

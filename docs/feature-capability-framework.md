@@ -240,8 +240,8 @@ This is where dictionary support becomes product behavior.
 | Vendor compatibility packs | enabled | enabled | enabled | metadata and conservative reply rendering are low resource |
 | Runtime shaping | warned | enabled | enabled | depends on downstream interface and hardware |
 | Quarantine enforcement | enabled | enabled | enabled | already present |
-| ACL-like policy language | available | available | enabled | reply preview and vendor renderers are present; persistence is next |
-| Vendor-aware enforcement adapters | blocked | available | enabled | needed for stronger multivendor parity |
+| ACL-like policy language | available | available | enabled | persisted policies feed live decisions, RADIUS replies, and controller reconciliation |
+| Vendor-aware enforcement adapters | available | enabled | enabled | conservative RADIUS mappings and native controller clients are selected per NAS profile |
 
 Rules:
 

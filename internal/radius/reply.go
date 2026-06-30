@@ -203,6 +203,7 @@ func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []Reply
 			}
 			appendRateKbpsItem(attrs, appendItem, "Cambium-ePMP-Max-Burst-Downlink-Rate", attrs.WISPrBandwidthMaxDown)
 			appendRateKbpsItem(attrs, appendItem, "Cambium-ePMP-Max-Burst-Uplink-Rate", attrs.WISPrBandwidthMaxUp)
+			appendBooleanIntegerItem(attrs.HasQuarantine, attrs.Quarantine, appendItem, "Cambium-Walled-Garden-State")
 		case productconfigs.VendorPackExtreme:
 			appendItem("Extreme-Security-Profile", replyRole(attrs), true)
 			if vlan := replyVLAN(attrs); vlan > 0 {
@@ -260,6 +261,9 @@ func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []Reply
 			for _, value := range renderNASFilterRules(attrs.ACLRules) {
 				appendItem("Ip-Filter-Raw", value, true)
 			}
+			if vlan := replyVLAN(attrs); vlan > 0 {
+				appendItem("Egress-VLANID", fmt.Sprintf("%d", vlan), false)
+			}
 		case productconfigs.VendorPackNomadix:
 			appendRateKbpsItem(attrs, appendItem, "Bw-Down", attrs.WISPrBandwidthMaxDown)
 			appendRateKbpsItem(attrs, appendItem, "Bw-Up", attrs.WISPrBandwidthMaxUp)
@@ -298,6 +302,7 @@ func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []Reply
 				appendItem("IP-Downloadable-ACL-Rule", value, true)
 			}
 			appendURLItem(attrs, appendItem, "Redirect-URL", attrs.PortalProfile)
+			appendItem("AVPair", attrs.PolicyTag, true)
 		case productconfigs.VendorPackZTE:
 			appendItem("QoS-Profile-Down", attrs.BandwidthProfile, true)
 			appendItem("QOS-Profile-Up", attrs.BandwidthProfile, true)
@@ -306,6 +311,10 @@ func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []Reply
 			appendURLItem(attrs, appendItem, "PPPOE-URL", attrs.PortalProfile)
 		case productconfigs.VendorPackNokia:
 			appendItem("User-Profile", replyRole(attrs), true)
+			appendItem("AVPair", attrs.PolicyTag, true)
+		case productconfigs.VendorPackColubris:
+			appendItem("AVPair", firstReplyValue(attrs.PolicyTag, attrs.ACLPolicyName, attrs.FilterID), true)
+			appendBooleanIntegerItem(attrs.HasQuarantine, attrs.Quarantine, appendItem, "Intercept")
 		}
 	}
 	return items
@@ -424,6 +433,17 @@ func appendURLItem(_ *ReplyAttributes, appendItem func(string, string, bool), na
 		return
 	}
 	appendItem(name, value, true)
+}
+
+func appendBooleanIntegerItem(present, value bool, appendItem func(string, string, bool), name string) {
+	if !present {
+		return
+	}
+	if value {
+		appendItem(name, "1", false)
+		return
+	}
+	appendItem(name, "0", false)
 }
 
 func escapeReplyValue(value string) string {

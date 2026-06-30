@@ -142,6 +142,8 @@ func TestRenderReplyAttributesForExpandedVendorPacks(t *testing.T) {
 		Tenant:                "tenant-a",
 		InboundACL:            "acl-in",
 		OutboundACL:           "acl-out",
+		HasQuarantine:         true,
+		Quarantine:            true,
 	}
 
 	rendered := RenderReplyAttributesForPacks(attrs, []string{"cambium", "extreme", "juniper", "huawei", "h3c", "paloalto", "tplink"})
@@ -149,6 +151,7 @@ func TestRenderReplyAttributesForExpandedVendorPacks(t *testing.T) {
 	assert.Contains(t, rendered, "\tCambium-ePMP-Data-VLAN-Id = 44\n")
 	assert.Contains(t, rendered, "\tCambium-ePMP-Max-Burst-Downlink-Rate = 75000\n")
 	assert.Contains(t, rendered, "\tCambium-ePMP-Max-Burst-Uplink-Rate = 25000\n")
+	assert.Contains(t, rendered, "\tCambium-Walled-Garden-State = 1\n")
 	assert.Contains(t, rendered, "\tExtreme-Security-Profile = \"operator\"\n")
 	assert.Contains(t, rendered, "\tExtreme-Netlogin-Vlan = \"44\"\n")
 	assert.Contains(t, rendered, "\tExtreme-Netlogin-Vlan-Tag = 44\n")
@@ -186,6 +189,8 @@ func TestRenderReplyAttributesForAdditionalVendorPacks(t *testing.T) {
 		PortalProfile:         "https://portal.example.test/start",
 		DeviceGroup:           "edge-switches",
 		ACLPolicyName:         "guest-acl",
+		HasQuarantine:         true,
+		Quarantine:            true,
 		ACLRules: []ACLRule{
 			{Action: "permit", Direction: "in", Protocol: "tcp", Source: "any", Destination: "any", DestinationPort: "443"},
 		},
@@ -216,6 +221,7 @@ func TestRenderReplyAttributesForAdditionalVendorPacks(t *testing.T) {
 	assert.Contains(t, rendered, "\tUser-Role = \"guest\"\n")
 	assert.Contains(t, rendered, "\tCaptive-Portal-URL = \"https://portal.example.test/start\"\n")
 	assert.Contains(t, rendered, "\tIp-Filter-Raw = \"permit in tcp from any to any 443\"\n")
+	assert.Contains(t, rendered, "\tEgress-VLANID = 77\n")
 	assert.Contains(t, rendered, "\tBw-Down = 60000\n")
 	assert.Contains(t, rendered, "\tBw-Up = 15000\n")
 	assert.Contains(t, rendered, "\tURL-Redirection = \"https://portal.example.test/start\"\n")
@@ -232,12 +238,14 @@ func TestRenderReplyAttributesForAdditionalVendorPacks(t *testing.T) {
 	assert.Contains(t, rendered, "\tIP-Downloadable-ACL-Name = \"guest-acl\"\n")
 	assert.Contains(t, rendered, "\tIP-Downloadable-ACL-Rule = \"permit in tcp from any to any 443\"\n")
 	assert.Contains(t, rendered, "\tRedirect-URL = \"https://portal.example.test/start\"\n")
+	assert.Contains(t, rendered, "\tAVPair = \"policy-a\"\n")
 	assert.Contains(t, rendered, "\tQoS-Profile-Down = \"guest-qos\"\n")
 	assert.Contains(t, rendered, "\tQOS-Profile-Up = \"guest-qos\"\n")
 	assert.Contains(t, rendered, "\tRate-Ctrl-SCR-Down = 60000\n")
 	assert.Contains(t, rendered, "\tRate-Ctrl-SCR-Up = 15000\n")
 	assert.Contains(t, rendered, "\tPPPOE-URL = \"https://portal.example.test/start\"\n")
 	assert.Contains(t, rendered, "\tUser-Profile = \"guest\"\n")
+	assert.Contains(t, rendered, "\tIntercept = 1\n")
 }
 
 func TestNormalizeClientNASType(t *testing.T) {
