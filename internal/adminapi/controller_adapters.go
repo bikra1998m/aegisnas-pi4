@@ -94,7 +94,7 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 		Selected:        descriptor,
 	}
 	state.RadiusSecretPresent = state.RadiusSecretEnv != "" && os.Getenv(state.RadiusSecretEnv) != ""
-	state.RadiusProfileRequired = platform == "aruba" && controllerConfigHasEnterpriseSSIDs(cfg)
+	state.RadiusProfileRequired = (platform == "aruba" || platform == "ruckus") && controllerConfigHasEnterpriseSSIDs(cfg)
 	state.RadiusProfileConfigured = !state.RadiusProfileRequired || state.RadiusProfile != ""
 	state.RadiusServerRequired = platform == "juniper-mist" && controllerConfigHasEnterpriseSSIDs(cfg)
 	state.RadiusServerConfigured = !state.RadiusServerRequired || (state.RadiusServer != "" && state.RadiusSecretEnv != "" && state.RadiusSecretPresent)
@@ -109,11 +109,11 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 		if !state.EndpointSet {
 			state.ReadinessWarnings = append(state.ReadinessWarnings, "controller endpoint is not configured")
 		}
-		if platform == "cisco" {
+		if platform == "cisco" || platform == "ruckus" {
 			if usernameEnv == "" || passwordEnv == "" {
-				state.ReadinessWarnings = append(state.ReadinessWarnings, "Cisco ISE requires API username and password environment variables")
+				state.ReadinessWarnings = append(state.ReadinessWarnings, descriptor.Label+" requires API username and password environment variables")
 			} else if !state.UsernamePresent || !state.PasswordPresent {
-				state.ReadinessWarnings = append(state.ReadinessWarnings, "Cisco ISE API credential environment variables are configured but not both present")
+				state.ReadinessWarnings = append(state.ReadinessWarnings, descriptor.Label+" API credential environment variables are configured but not both present")
 			}
 		} else if !state.TokenEnvSet {
 			state.ReadinessWarnings = append(state.ReadinessWarnings, "controller API token environment variable is not configured")
@@ -124,14 +124,18 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 			state.ReadinessWarnings = append(state.ReadinessWarnings, "selected controller platform requires a site, zone, or network identifier")
 		}
 		if !state.RadiusProfileConfigured {
-			state.ReadinessWarnings = append(state.ReadinessWarnings, "Aruba Central enterprise WLAN sync requires an existing controller RADIUS profile")
+			if platform == "ruckus" {
+				state.ReadinessWarnings = append(state.ReadinessWarnings, "Ruckus SmartZone enterprise WLAN sync requires an existing authentication service name")
+			} else {
+				state.ReadinessWarnings = append(state.ReadinessWarnings, "Aruba Central enterprise WLAN sync requires an existing controller RADIUS profile")
+			}
 		}
 		if !state.RadiusServerConfigured {
 			state.ReadinessWarnings = append(state.ReadinessWarnings, "Juniper Mist enterprise WLAN sync requires a RADIUS server and a present shared-secret environment variable")
 		}
 	}
 	credentialsReady := state.TokenEnvSet && state.TokenPresent
-	if platform == "cisco" {
+	if platform == "cisco" || platform == "ruckus" {
 		credentialsReady = state.UsernamePresent && state.PasswordPresent
 	}
 	state.Ready = state.EndpointSet && credentialsReady && state.SiteConfigured && state.RadiusProfileConfigured && state.RadiusServerConfigured

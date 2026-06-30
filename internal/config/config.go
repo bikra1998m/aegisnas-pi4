@@ -1881,8 +1881,8 @@ func (c *Config) Validate() error {
 			return errors.New("integrations.controller.enabled is not supported on the lite deployment profile")
 		}
 		if !controllerConfigured(c) {
-			if controllerPlatform == "cisco" {
-				return errors.New("integrations.controller.enabled with platform=cisco requires endpoint, api_username_env, api_password_env, and sync_mode")
+			if controllerPlatform == "cisco" || controllerPlatform == "ruckus" {
+				return fmt.Errorf("integrations.controller.enabled with platform=%s requires endpoint, api_username_env, api_password_env, and sync_mode", controllerPlatform)
 			}
 			return errors.New("integrations.controller.enabled requires platform, endpoint, api_token_env, and sync_mode")
 		}
@@ -1910,7 +1910,16 @@ func (c *Config) Validate() error {
 				return errors.New("integrations.controller.radius_server and radius_secret_env are required for Juniper Mist enterprise WLAN sync")
 			}
 		}
-		if (controllerPlatform == "cisco" || controllerPlatform == "aruba" || controllerPlatform == "juniper-mist") && controllerSyncMode == "coa-only" {
+		if controllerPlatform == "ruckus" {
+			parsed, _ := url.Parse(c.Integrations.Controller.Endpoint)
+			if parsed == nil || parsed.Scheme != "https" {
+				return errors.New("integrations.controller.endpoint must use https for Ruckus SmartZone")
+			}
+			if controllerHasEnterpriseSSIDs(c) && strings.TrimSpace(c.Integrations.Controller.RadiusProfile) == "" {
+				return errors.New("integrations.controller.radius_profile is required for Ruckus SmartZone enterprise WLAN sync")
+			}
+		}
+		if (controllerPlatform == "cisco" || controllerPlatform == "aruba" || controllerPlatform == "juniper-mist" || controllerPlatform == "ruckus") && controllerSyncMode == "coa-only" {
 			return fmt.Errorf("integrations.controller.sync_mode %q is not supported by the %s native adapter", c.Integrations.Controller.SyncMode, controllerPlatform)
 		}
 		if controllerPlatformRequiresSite(c.Integrations.Controller.Platform) && strings.TrimSpace(c.Integrations.Controller.Site) == "" {
@@ -3104,7 +3113,7 @@ func controllerConfigured(c *Config) bool {
 	if strings.TrimSpace(controller.Platform) == "" || strings.TrimSpace(controller.Endpoint) == "" || strings.TrimSpace(controller.SyncMode) == "" {
 		return false
 	}
-	if strings.EqualFold(strings.TrimSpace(controller.Platform), "cisco") {
+	if strings.EqualFold(strings.TrimSpace(controller.Platform), "cisco") || strings.EqualFold(strings.TrimSpace(controller.Platform), "ruckus") {
 		return strings.TrimSpace(controller.APIUsernameEnv) != "" && strings.TrimSpace(controller.APIPasswordEnv) != ""
 	}
 	return strings.TrimSpace(controller.APITokenEnv) != ""

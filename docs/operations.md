@@ -264,6 +264,8 @@ For Aruba Central, verify that `site` names the Classic Central group and `radiu
 
 For Juniper Mist, use the regional `api.*.mist.com` endpoint and the site UUID, not the display name. Keep the API token and RADIUS shared secret in separate environment variables. Pull first to verify the site and paginated WLAN inventory; then inspect the redacted preview before push. The adapter never deletes WLANs and leaves guest portal, WxLAN policy, inventory, and non-enterprise security modes untouched.
 
+For Ruckus SmartZone, verify API v13_1 availability, the zone UUID, and the existing authentication service name. A pull performs session login, paginated WLAN inventory, per-WLAN detail reads, and logout without mutation. Push creates only standard 802.1X WLANs and uses partial PATCH for existing WLANs. It never deletes WLANs or replaces an entire controller object.
+
 Run `scripts/vendor-certification-lab.sh` for each supported production vendor and archive its `summary.json`, API payloads, RADIUS results, packet capture, controller evidence, and optional upgrade/rollback artifacts. The full procedure and safety gates are in [vendor-certification-lab.md](vendor-certification-lab.md).
 
 ## Backup And Restore

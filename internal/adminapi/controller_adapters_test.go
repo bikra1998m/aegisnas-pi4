@@ -160,6 +160,31 @@ func TestBuildControllerAdapterConfiguredStateRequiresMistRadiusSecret(t *testin
 	assert.True(t, state.Ready)
 }
 
+func TestBuildControllerAdapterConfiguredStateUsesRuckusSessionCredentials(t *testing.T) {
+	const usernameEnv = "AEGIS_TEST_RUCKUS_READY_USERNAME"
+	const passwordEnv = "AEGIS_TEST_RUCKUS_READY_PASSWORD"
+	t.Setenv(usernameEnv, "api-admin")
+	t.Setenv(passwordEnv, "secret")
+	cfg := &config.Config{
+		Integrations: config.IntegrationsConfig{
+			Controller: config.ControllerConfig{
+				Enabled: true, Platform: "ruckus", Endpoint: "https://smartzone.test",
+				APIUsernameEnv: usernameEnv, APIPasswordEnv: passwordEnv, RadiusProfile: "aegis-radius",
+				SyncMode: "monitor", Site: "zone-123",
+			},
+		},
+	}
+	cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+
+	state := buildControllerAdapterConfiguredState(cfg)
+	assert.True(t, state.UsernamePresent)
+	assert.True(t, state.PasswordPresent)
+	assert.True(t, state.RadiusProfileRequired)
+	assert.True(t, state.RadiusProfileConfigured)
+	assert.True(t, state.Ready)
+	assert.Equal(t, "session", state.Selected.AuthScheme)
+}
+
 func TestBuildControllerAdapterConfiguredStateUsesCiscoBasicCredentials(t *testing.T) {
 	const usernameEnv = "AEGIS_TEST_ISE_USERNAME"
 	const passwordEnv = "AEGIS_TEST_ISE_PASSWORD"

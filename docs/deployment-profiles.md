@@ -326,7 +326,24 @@ integrations:
 
 Pull mode pages through `/api/v1/sites/{site_id}/wlans` and compares WLANs by SSID. Confirmed push updates an existing WLAN by generated ID or creates a missing site WLAN. Managed fields cover WPA2/WPA3 Enterprise security, RADIUS authentication and accounting, optional CoA, static or standard dynamic VLANs, SSID visibility, isolation, and client limits. Secrets are read only at execution time and previews use `redacted`. Personal, open, captive-portal, bandwidth, and identity-source policy remain outside this native slice and produce warnings rather than speculative API writes.
 
-Ruckus, Fortinet, MikroTik, and UniFi remain explicit AegisNAS contract adapters until their native resource clients pass provider and hardware certification. Cisco ISE, Aruba Central, and Juniper Mist are native but still require real-controller certification before production authority.
+Ruckus SmartZone uses Public API v13_1 with controller session authentication. Set `site` to the Ruckus zone ID, `radius_profile` to an existing zone authentication service name, and provide controller credentials through environment variables:
+
+```yaml
+integrations:
+  controller:
+    enabled: true
+    platform: ruckus
+    endpoint: https://smartzone.example.com
+    api_username_env: AEGIS_RUCKUS_USERNAME
+    api_password_env: AEGIS_RUCKUS_PASSWORD
+    radius_profile: aegisnas-radius
+    sync_mode: monitor
+    site: 21a18b1c-e260-48c8-866c-69e66c81368e
+```
+
+Each operation logs in through `/wsg/api/public/v13_1/session`, pages through the zone WLAN inventory, reads full WLAN details, and logs out. Confirmed push creates missing `standard8021X` WLANs and applies changed fields with PATCH, never PUT or DELETE. The native fields cover WPA2/WPA3 Enterprise encryption, authentication-service reference, local breakout, static or AAA-overridden VLAN, SSID visibility, client isolation, and per-radio client limits. Guest, portal, bandwidth, identity-source, accounting-profile, ACL, and CoA automation are outside this slice.
+
+Fortinet, MikroTik, and UniFi remain explicit AegisNAS contract adapters until their native resource clients pass provider and hardware certification. Cisco ISE, Aruba Central, Juniper Mist, and Ruckus SmartZone are native but still require real-controller certification before production authority.
 
 Example enterprise onboarding target with external CA and SAML admin access:
 

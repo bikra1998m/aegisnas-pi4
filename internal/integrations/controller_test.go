@@ -132,6 +132,16 @@ func TestControllerAdapterCatalogDescribesNativeAdapters(t *testing.T) {
 	mikrotik := byPlatform["mikrotik"]
 	assert.Equal(t, "header-token", mikrotik.AuthScheme)
 	assert.True(t, mikrotik.AddressLists)
+
+	ruckus := byPlatform["ruckus"]
+	assert.Equal(t, "session", ruckus.AuthScheme)
+	assert.True(t, ruckus.NativePolicyPush)
+	assert.True(t, ruckus.WirelessProfiles)
+	assert.False(t, ruckus.ZonePolicy)
+	assert.False(t, ruckus.CoA)
+	assert.NotContains(t, ruckus.SupportedSyncModes, "coa-only")
+	assert.Contains(t, ruckus.EndpointTemplate, "/v13_1/rkszones/")
+	assert.Equal(t, "native-adapter", ruckus.OperationalState)
 }
 
 func TestArubaCentralNativeWLANReconciliation(t *testing.T) {
@@ -358,6 +368,117 @@ func TestMistCredentialsDoNotRequireRadiusSecretWithoutEnterpriseWLANs(t *testin
 	require.NoError(t, err)
 	assert.Equal(t, "api-secret", token)
 	assert.Empty(t, secret)
+}
+
+func TestRuckusSmartZoneNativeWLANReconciliation(t *testing.T) {
+	const usernameEnv = "AEGIS_TEST_RUCKUS_USERNAME"
+	const passwordEnv = "AEGIS_TEST_RUCKUS_PASSWORD"
+	t.Setenv(usernameEnv, "api-admin")
+	t.Setenv(passwordEnv, "controller-secret")
+
+	state := map[string]map[string]any{
+		"Corp": {
+			"id": "wlan-1", "name": "Corp", "ssid": "Corp", "description": "Managed by AegisNAS",
+			"accessTunnelType":     "APLBO",
+			"encryption":           map[string]any{"method": "WPA2", "algorithm": "AES", "mfp": "disabled"},
+			"authServiceOrProfile": map[string]any{"throughController": false, "name": "aegis-radius"},
+			"advancedOptions": map[string]any{
+				"hideSsidEnabled": false, "clientIsolationEnabled": false,
+				"clientIsolationUnicastEnabled": false, "clientIsolationMulticastEnabled": false,
+			},
+			"vlan": map[string]any{"accessVlan": float64(10), "aaaVlanOverride": false},
+		},
+	}
+	writes := map[string]string{}
+	logins := 0
+	logouts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		base := "/wsg/api/public/v13_1"
+		collection := base + "/rkszones/zone-123/wlans"
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodPost && r.URL.Path == base+"/session" {
+			var payload map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			assert.Equal(t, "api-admin", payload["username"])
+			assert.Equal(t, "controller-secret", payload["password"])
+			http.SetCookie(w, &http.Cookie{Name: "JSESSIONID", Value: "session-123", Path: "/"})
+			logins++
+			_, _ = w.Write([]byte(`{"controllerVersion":"7.1.1"}`))
+			return
+		}
+		cookie, err := r.Cookie("JSESSIONID")
+		require.NoError(t, err)
+		assert.Equal(t, "session-123", cookie.Value)
+		switch {
+		case r.Method == http.MethodDelete && r.URL.Path == base+"/session":
+			logouts++
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodGet && r.URL.Path == collection:
+			assert.Equal(t, "0", r.URL.Query().Get("index"))
+			assert.Equal(t, "1000", r.URL.Query().Get("listSize"))
+			items := make([]map[string]any, 0, len(state))
+			for _, wlan := range state {
+				items = append(items, map[string]any{"id": wlan["id"], "name": wlan["name"], "ssid": wlan["ssid"]})
+			}
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"totalCount": len(items), "hasMore": false, "firstIndex": 0, "list": items}))
+		case r.Method == http.MethodGet && r.URL.Path == collection+"/wlan-1":
+			require.NoError(t, json.NewEncoder(w).Encode(state["Corp"]))
+		case r.Method == http.MethodPatch && r.URL.Path == collection+"/wlan-1":
+			var payload map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			payload["id"] = "wlan-1"
+			state["Corp"] = payload
+			writes["Corp"] = r.Method
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodPost && r.URL.Path == collection+"/standard8021X":
+			var payload map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			payload["id"] = "wlan-2"
+			state["Staff"] = payload
+			writes["Staff"] = r.Method
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"id":"wlan-2"}`))
+		default:
+			http.Error(w, "unexpected request", http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{}
+	cfg.Wireless.SSIDs = []config.SSIDConfig{
+		{Name: "Corp", AuthMode: "wpa2-enterprise", VLAN: 20},
+		{Name: "Staff", AuthMode: "wpa3-enterprise", VLAN: 30, DynamicVLAN: true, Hidden: true, ClientIsolation: true, MaxClients: 64},
+		{Name: "Guest", AuthMode: "captive-portal"},
+	}
+	cfg.Integrations.Controller.Enabled = true
+	cfg.Integrations.Controller.Platform = "ruckus"
+	cfg.Integrations.Controller.Endpoint = server.URL
+	cfg.Integrations.Controller.APIUsernameEnv = usernameEnv
+	cfg.Integrations.Controller.APIPasswordEnv = passwordEnv
+	cfg.Integrations.Controller.RadiusProfile = "aegis-radius"
+	cfg.Integrations.Controller.SyncMode = "push-config"
+	cfg.Integrations.Controller.Site = "zone-123"
+
+	pullResult, err := pullControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.True(t, pullResult.DriftDetected)
+	assert.Equal(t, 2, pullResult.DriftCount)
+	assert.Equal(t, 1, pullResult.WarningCount)
+	assert.Empty(t, writes)
+
+	pushResult, err := pushControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "ruckus-smartzone", pushResult.Adapter)
+	assert.Equal(t, "session", pushResult.AuthScheme)
+	assert.Equal(t, 2, pushResult.AppliedCount)
+	assert.False(t, pushResult.DriftDetected)
+	assert.Equal(t, http.MethodPatch, writes["Corp"])
+	assert.Equal(t, http.MethodPost, writes["Staff"])
+	assert.Equal(t, float64(20), state["Corp"]["vlan"].(map[string]any)["accessVlan"])
+	assert.Equal(t, "WPA3", state["Staff"]["encryption"].(map[string]any)["method"])
+	assert.Equal(t, true, state["Staff"]["advancedOptions"].(map[string]any)["hideSsidEnabled"])
+	assert.Equal(t, 2, logins)
+	assert.Equal(t, 2, logouts)
 }
 
 func TestPushControllerStateUsesUniFiAdapter(t *testing.T) {

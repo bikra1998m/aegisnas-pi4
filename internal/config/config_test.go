@@ -1108,6 +1108,31 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	insecureMist.Integrations.Controller.Endpoint = "http://api.mist.test"
 	assert.ErrorContains(t, insecureMist.Validate(), "must use https for Juniper Mist")
 
+	ruckusController := base()
+	ruckusController.Integrations.Controller.Platform = "ruckus"
+	ruckusController.Integrations.Controller.APITokenEnv = ""
+	ruckusController.Integrations.Controller.APIUsernameEnv = "AEGIS_RUCKUS_USERNAME"
+	ruckusController.Integrations.Controller.APIPasswordEnv = "AEGIS_RUCKUS_PASSWORD"
+	ruckusController.Integrations.Controller.RadiusProfile = "aegis-radius"
+	ruckusController.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	assert.NoError(t, ruckusController.Validate())
+
+	missingRuckusProfile := base()
+	missingRuckusProfile.Integrations.Controller.Platform = "ruckus"
+	missingRuckusProfile.Integrations.Controller.APITokenEnv = ""
+	missingRuckusProfile.Integrations.Controller.APIUsernameEnv = "AEGIS_RUCKUS_USERNAME"
+	missingRuckusProfile.Integrations.Controller.APIPasswordEnv = "AEGIS_RUCKUS_PASSWORD"
+	missingRuckusProfile.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	assert.ErrorContains(t, missingRuckusProfile.Validate(), "radius_profile is required for Ruckus SmartZone")
+
+	insecureRuckus := base()
+	insecureRuckus.Integrations.Controller.Platform = "ruckus"
+	insecureRuckus.Integrations.Controller.Endpoint = "http://smartzone.test"
+	insecureRuckus.Integrations.Controller.APITokenEnv = ""
+	insecureRuckus.Integrations.Controller.APIUsernameEnv = "AEGIS_RUCKUS_USERNAME"
+	insecureRuckus.Integrations.Controller.APIPasswordEnv = "AEGIS_RUCKUS_PASSWORD"
+	assert.ErrorContains(t, insecureRuckus.Validate(), "must use https for Ruckus SmartZone")
+
 	unifiController := base()
 	unifiController.Integrations.Controller.Platform = "unifi"
 	unifiController.Integrations.Controller.Site = "default"

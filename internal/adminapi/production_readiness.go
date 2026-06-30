@@ -437,6 +437,9 @@ func addProductionControllerCheck(report *productionReadinessReport, cfg *config
 	} else if state.Normalized == "juniper-mist" {
 		dependencies = []string{"integrations.controller.endpoint", "integrations.controller.api_token_env", "integrations.controller.site", "integrations.controller.radius_server", "integrations.controller.radius_secret_env"}
 		recommendation = "Set the Mist regional API endpoint, API token environment variable, site ID, RADIUS server, and RADIUS shared-secret environment variable."
+	} else if state.Normalized == "ruckus" {
+		dependencies = []string{"integrations.controller.endpoint", "integrations.controller.api_username_env", "integrations.controller.api_password_env", "integrations.controller.site", "integrations.controller.radius_profile"}
+		recommendation = "Set the SmartZone endpoint, API username/password environment variables, zone ID, and existing authentication service name."
 	}
 	addProductionCheck(report, productionReadinessCheck{
 		Key:            "controller_readiness",
