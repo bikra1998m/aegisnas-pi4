@@ -268,6 +268,8 @@ For Ruckus SmartZone, verify API v13_1 availability, the zone UUID, and the exis
 
 For FortiGate, use a least-privilege REST API administrator restricted to the AegisNAS management source and the target VDOM. Verify the existing RADIUS profile before pull. The native adapter manages only FortiAP enterprise VAP objects and never sends the API token in a query parameter.
 
+For MikroTik, use RouterOS 7.13 or newer with HTTPS REST enabled and a dedicated account. Pull first to inspect managed RADIUS and WiFi profile drift. A push never deletes records and intentionally does not assign profiles to radios or create CAPsMAN provisioning rules. Validate bridge VLAN filtering, radio package compatibility, and provisioning on a lab router before enabling scheduled push. Rotate the RADIUS shared secret through a controlled RouterOS procedure because masked secrets cannot be compared reliably through REST.
+
 Run `scripts/vendor-certification-lab.sh` for each supported production vendor and archive its `summary.json`, API payloads, RADIUS results, packet capture, controller evidence, and optional upgrade/rollback artifacts. The full procedure and safety gates are in [vendor-certification-lab.md](vendor-certification-lab.md).
 
 ## Backup And Restore

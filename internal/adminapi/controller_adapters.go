@@ -96,7 +96,7 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 	state.RadiusSecretPresent = state.RadiusSecretEnv != "" && os.Getenv(state.RadiusSecretEnv) != ""
 	state.RadiusProfileRequired = (platform == "aruba" || platform == "ruckus" || platform == "fortinet") && controllerConfigHasEnterpriseSSIDs(cfg)
 	state.RadiusProfileConfigured = !state.RadiusProfileRequired || state.RadiusProfile != ""
-	state.RadiusServerRequired = platform == "juniper-mist" && controllerConfigHasEnterpriseSSIDs(cfg)
+	state.RadiusServerRequired = (platform == "juniper-mist" || platform == "mikrotik") && controllerConfigHasEnterpriseSSIDs(cfg)
 	state.RadiusServerConfigured = !state.RadiusServerRequired || (state.RadiusServer != "" && state.RadiusSecretEnv != "" && state.RadiusSecretPresent)
 	state.SiteConfigured = !state.SiteRequired || state.Site != ""
 	if state.SyncMode == "" {
@@ -109,7 +109,7 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 		if !state.EndpointSet {
 			state.ReadinessWarnings = append(state.ReadinessWarnings, "controller endpoint is not configured")
 		}
-		if platform == "cisco" || platform == "ruckus" {
+		if platform == "cisco" || platform == "ruckus" || platform == "mikrotik" {
 			if usernameEnv == "" || passwordEnv == "" {
 				state.ReadinessWarnings = append(state.ReadinessWarnings, descriptor.Label+" requires API username and password environment variables")
 			} else if !state.UsernamePresent || !state.PasswordPresent {
@@ -133,11 +133,15 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 			}
 		}
 		if !state.RadiusServerConfigured {
-			state.ReadinessWarnings = append(state.ReadinessWarnings, "Juniper Mist enterprise WLAN sync requires a RADIUS server and a present shared-secret environment variable")
+			if platform == "mikrotik" {
+				state.ReadinessWarnings = append(state.ReadinessWarnings, "MikroTik enterprise WiFi sync requires a RADIUS server and a present shared-secret environment variable")
+			} else {
+				state.ReadinessWarnings = append(state.ReadinessWarnings, "Juniper Mist enterprise WLAN sync requires a RADIUS server and a present shared-secret environment variable")
+			}
 		}
 	}
 	credentialsReady := state.TokenEnvSet && state.TokenPresent
-	if platform == "cisco" || platform == "ruckus" {
+	if platform == "cisco" || platform == "ruckus" || platform == "mikrotik" {
 		credentialsReady = state.UsernamePresent && state.PasswordPresent
 	}
 	state.Ready = state.EndpointSet && credentialsReady && state.SiteConfigured && state.RadiusProfileConfigured && state.RadiusServerConfigured

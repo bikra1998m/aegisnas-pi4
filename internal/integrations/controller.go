@@ -302,6 +302,8 @@ func executeControllerState(ctx context.Context, cfg *config.Config, operation s
 		return executeRuckusSmartZoneOperation(ctx, cfg, operation)
 	case "fortinet":
 		return executeFortiGateOperation(ctx, cfg, operation)
+	case "mikrotik":
+		return executeMikroTikOperation(ctx, cfg, operation)
 	}
 	token := controllerToken(cfg)
 	if token == "" {
@@ -408,15 +410,12 @@ func buildControllerOperationRequest(cfg *config.Config, token, operation string
 	}
 	authScheme := "bearer"
 	switch platform {
-	case "cisco":
+	case "cisco", "mikrotik":
 		headers["Authorization"] = "Basic " + base64.StdEncoding.EncodeToString([]byte(token))
 		authScheme = "basic"
 	case "juniper-mist":
 		headers["Authorization"] = "Token " + token
 		authScheme = "token"
-	case "mikrotik":
-		headers["X-MikroTik-API-Token"] = token
-		authScheme = "header-token"
 	default:
 		headers["Authorization"] = "Bearer " + token
 	}
@@ -462,6 +461,8 @@ func controllerOperationEndpoint(cfg *config.Config, platform, operation string)
 		return ruckusSmartZoneTargetURL(cfg)
 	case "fortinet":
 		return fortiGateTargetURL(cfg)
+	case "mikrotik":
+		return mikroTikTargetURL(cfg)
 	}
 	targetURL, err := controllerEndpointForPlatform(cfg, platform)
 	if err != nil || operation != "pull" || normalizeControllerPlatform(platform) == "generic" {
@@ -567,15 +568,7 @@ func buildFortinetControllerPayload(cfg *config.Config) map[string]any {
 }
 
 func buildMikroTikControllerPayload(cfg *config.Config) map[string]any {
-	return map[string]any{
-		"generated_at":      time.Now().UTC().Format(time.RFC3339),
-		"adapter":           "mikrotik-hotspot",
-		"router_site":       strings.TrimSpace(cfg.Integrations.Controller.Site),
-		"sync_mode":         cfg.Integrations.Controller.SyncMode,
-		"radius_profile":    buildControllerRadiusSection(cfg),
-		"hotspot_portal":    buildControllerPortalSection(cfg),
-		"wireless_profiles": buildControllerSSIDProfiles(cfg),
-	}
+	return buildMikroTikPreviewPayload(cfg)
 }
 
 func buildUniFiControllerPayload(cfg *config.Config) map[string]any {
@@ -745,9 +738,9 @@ func attachControllerPayloadMetadata(payload map[string]any, platform string) {
 
 func controllerAdapterCapabilities(platform string) map[string]any {
 	normalized := normalizeControllerPlatform(platform)
-	contractPayload := normalized != "cisco" && normalized != "aruba" && normalized != "juniper-mist" && normalized != "ruckus" && normalized != "fortinet"
+	contractPayload := normalized != "cisco" && normalized != "aruba" && normalized != "juniper-mist" && normalized != "ruckus" && normalized != "fortinet" && normalized != "mikrotik"
 	supportedSyncModes := []string{"monitor", "pull-config", "push-config", "coa-only"}
-	if normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" || normalized == "ruckus" || normalized == "fortinet" {
+	if normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" || normalized == "ruckus" || normalized == "fortinet" || normalized == "mikrotik" {
 		supportedSyncModes = []string{"monitor", "pull-config", "push-config"}
 	}
 	capabilities := map[string]any{
@@ -762,7 +755,7 @@ func controllerAdapterCapabilities(platform string) map[string]any {
 		"wireless_profiles":    contractPayload,
 		"dynamic_acl":          false,
 		"coa":                  false,
-		"native_policy_push":   normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" || normalized == "ruckus" || normalized == "fortinet",
+		"native_policy_push":   normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" || normalized == "ruckus" || normalized == "fortinet" || normalized == "mikrotik",
 		"supported_sync_modes": supportedSyncModes,
 	}
 	switch normalized {
@@ -779,8 +772,8 @@ func controllerAdapterCapabilities(platform string) map[string]any {
 	case "fortinet":
 		capabilities["wireless_profiles"] = true
 	case "mikrotik":
-		capabilities["dynamic_acl"] = true
-		capabilities["address_lists"] = true
+		capabilities["radius_profiles"] = true
+		capabilities["wireless_profiles"] = true
 	case "unifi":
 		capabilities["site_profiles"] = true
 		capabilities["guest_hotspot"] = true
@@ -1015,7 +1008,7 @@ func controllerAdapterName(platform string) string {
 	case "fortinet":
 		return "fortinet-fortigate"
 	case "mikrotik":
-		return "mikrotik-hotspot"
+		return "mikrotik-routeros"
 	case "unifi":
 		return "unifi-network"
 	default:
@@ -1053,7 +1046,7 @@ func controllerAuthScheme(platform string) string {
 	case "ruckus":
 		return "session"
 	case "mikrotik":
-		return "header-token"
+		return "basic"
 	default:
 		return "bearer"
 	}
@@ -1072,7 +1065,7 @@ func controllerEndpointTemplate(platform string) string {
 	case "fortinet":
 		return "{endpoint}/api/v2/cmdb/wireless-controller/vap/{name}?vdom={vdom}"
 	case "mikrotik":
-		return "{endpoint}/rest/aegisnas/sites/{site}/sync"
+		return "{endpoint}/rest/radius and /rest/interface/wifi/{security,datapath,configuration}"
 	case "unifi":
 		return "{endpoint}/proxy/network/api/s/{site}/aegisnas/sync"
 	default:
@@ -1084,9 +1077,9 @@ func controllerAdapterOperationalState(platform string) string {
 	switch normalizeControllerPlatform(platform) {
 	case "generic":
 		return "contract"
-	case "cisco", "aruba", "juniper-mist", "ruckus", "fortinet":
+	case "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik":
 		return "native-adapter"
-	case "mikrotik", "unifi":
+	case "unifi":
 		return "contract"
 	default:
 		return "unsupported"
@@ -1106,7 +1099,7 @@ func controllerAdapterOperationalGuidance(platform string) string {
 	case "fortinet":
 		return "Uses the FortiOS CMDB bearer API to inspect and reconcile FortiAP enterprise VAPs against an existing FortiGate RADIUS profile."
 	case "mikrotik":
-		return "Use for RouterOS hotspot and address-list hints; rule expansion belongs in RouterOS policy templates."
+		return "Uses RouterOS v7 REST Basic authentication to reconcile managed RADIUS, WiFi security, datapath, and configuration profiles; radio-specific CAPsMAN provisioning remains an explicit operator step."
 	case "unifi":
 		return "Use for UniFi site profiles, guest hotspot, and external AP estate sync."
 	default:

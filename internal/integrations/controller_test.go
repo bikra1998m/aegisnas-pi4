@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -130,8 +131,16 @@ func TestControllerAdapterCatalogDescribesNativeAdapters(t *testing.T) {
 	assert.Equal(t, "native-adapter", mist.OperationalState)
 
 	mikrotik := byPlatform["mikrotik"]
-	assert.Equal(t, "header-token", mikrotik.AuthScheme)
-	assert.True(t, mikrotik.AddressLists)
+	assert.Equal(t, "basic", mikrotik.AuthScheme)
+	assert.Equal(t, "mikrotik-routeros", mikrotik.Adapter)
+	assert.True(t, mikrotik.NativePolicyPush)
+	assert.True(t, mikrotik.RadiusProfiles)
+	assert.True(t, mikrotik.WirelessProfiles)
+	assert.False(t, mikrotik.AddressLists)
+	assert.False(t, mikrotik.DynamicACL)
+	assert.NotContains(t, mikrotik.SupportedSyncModes, "coa-only")
+	assert.Contains(t, mikrotik.EndpointTemplate, "/rest/interface/wifi/")
+	assert.Equal(t, "native-adapter", mikrotik.OperationalState)
 
 	ruckus := byPlatform["ruckus"]
 	assert.Equal(t, "session", ruckus.AuthScheme)
@@ -567,6 +576,131 @@ func TestFortiGateNativeVAPReconciliation(t *testing.T) {
 	assert.Equal(t, "wpa3-only-enterprise", state["Staff"]["security"])
 	assert.Equal(t, "enable", state["Staff"]["dynamic-vlan"])
 	assert.Equal(t, "disable", state["Staff"]["broadcast-ssid"])
+}
+
+func TestMikroTikNativeWiFiReconciliation(t *testing.T) {
+	const usernameEnv = "AEGIS_TEST_MIKROTIK_USERNAME"
+	const passwordEnv = "AEGIS_TEST_MIKROTIK_PASSWORD"
+	const radiusSecretEnv = "AEGIS_TEST_MIKROTIK_RADIUS_SECRET"
+	t.Setenv(usernameEnv, "aegis-api")
+	t.Setenv(passwordEnv, "router-password")
+	t.Setenv(radiusSecretEnv, "radius-secret")
+
+	base := mikroTikManagedName("branch-lab", "Corp")
+	securityName := base + "-sec"
+	datapathName := base + "-dp"
+	configurationName := base + "-cfg"
+	state := map[string][]map[string]any{
+		mikroTikRadiusCollection: {{
+			".id": "*1", "address": "192.0.2.10", "service": "wireless",
+			"authentication-port": "1812", "accounting-port": "1813", "comment": "aegisnas:branch-lab:radius",
+		}},
+		mikroTikSecurityCollection: {{
+			".id": "*2", "name": securityName, "authentication-types": "wpa2-eap",
+			"eap-accounting": "yes", "management-protection": "allowed", "comment": "aegisnas:branch-lab:Corp",
+		}},
+		mikroTikDatapathCollection:      {},
+		mikroTikConfigurationCollection: {},
+	}
+	writes := map[string]string{}
+	nextID := 10
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, password, ok := r.BasicAuth()
+		assert.True(t, ok)
+		assert.Equal(t, "aegis-api", username)
+		assert.Equal(t, "router-password", password)
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet {
+			records, exists := state[r.URL.Path]
+			require.True(t, exists, r.URL.Path)
+			require.NoError(t, json.NewEncoder(w).Encode(records))
+			return
+		}
+		if r.Method == http.MethodPut {
+			records, exists := state[r.URL.Path]
+			require.True(t, exists, r.URL.Path)
+			var payload map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			payload[".id"] = "*" + strconv.Itoa(nextID)
+			nextID++
+			state[r.URL.Path] = append(records, payload)
+			writes[firstNonEmptyString(payload["name"], payload["comment"])] = r.Method
+			w.WriteHeader(http.StatusCreated)
+			require.NoError(t, json.NewEncoder(w).Encode(payload))
+			return
+		}
+		if r.Method == http.MethodPatch {
+			for collection, records := range state {
+				prefix := collection + "/"
+				if !strings.HasPrefix(r.URL.Path, prefix) {
+					continue
+				}
+				id := strings.TrimPrefix(r.URL.Path, prefix)
+				for index, record := range records {
+					if firstNonEmptyString(record[".id"]) != id {
+						continue
+					}
+					var payload map[string]any
+					require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+					payload[".id"] = id
+					state[collection][index] = payload
+					writes[firstNonEmptyString(payload["name"], payload["comment"])] = r.Method
+					require.NoError(t, json.NewEncoder(w).Encode(payload))
+					return
+				}
+			}
+		}
+		http.Error(w, "unexpected "+r.Method+" "+r.URL.Path, http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{}
+	cfg.Radius.AuthPort = 1812
+	cfg.Radius.AcctPort = 1813
+	cfg.Wireless.SSIDs = []config.SSIDConfig{{
+		Name: "Corp", AuthMode: "wpa3-enterprise", VLAN: 20, Hidden: true, ClientIsolation: true, MaxClients: 80,
+	}}
+	cfg.Integrations.Controller.Enabled = true
+	cfg.Integrations.Controller.Platform = "mikrotik"
+	cfg.Integrations.Controller.Endpoint = server.URL
+	cfg.Integrations.Controller.APIUsernameEnv = usernameEnv
+	cfg.Integrations.Controller.APIPasswordEnv = passwordEnv
+	cfg.Integrations.Controller.RadiusServer = "192.0.2.10"
+	cfg.Integrations.Controller.RadiusSecretEnv = radiusSecretEnv
+	cfg.Integrations.Controller.SyncMode = "push-config"
+	cfg.Integrations.Controller.Site = "branch-lab"
+
+	preview, err := BuildControllerSyncPreview(cfg, "push")
+	require.NoError(t, err)
+	encodedPreview, err := json.Marshal(preview.Payload)
+	require.NoError(t, err)
+	assert.Contains(t, string(encodedPreview), "redacted")
+	assert.NotContains(t, string(encodedPreview), "radius-secret")
+	assert.Equal(t, "basic", preview.AuthScheme)
+	assert.Equal(t, server.URL+mikroTikConfigurationCollection, preview.TargetURL)
+
+	pullResult, err := pullControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.True(t, pullResult.DriftDetected)
+	assert.Equal(t, 3, pullResult.DriftCount)
+	assert.Equal(t, 1, pullResult.WarningCount)
+	assert.Empty(t, writes)
+
+	pushResult, err := pushControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "mikrotik-routeros", pushResult.Adapter)
+	assert.Equal(t, "basic", pushResult.AuthScheme)
+	assert.Equal(t, 3, pushResult.AppliedCount)
+	assert.False(t, pushResult.DriftDetected)
+	assert.Equal(t, http.MethodPatch, writes[securityName])
+	assert.Equal(t, http.MethodPut, writes[datapathName])
+	assert.Equal(t, http.MethodPut, writes[configurationName])
+	assert.Equal(t, "wpa3-eap", state[mikroTikSecurityCollection][0]["authentication-types"])
+	assert.Equal(t, "required", state[mikroTikSecurityCollection][0]["management-protection"])
+	assert.Equal(t, "20", state[mikroTikDatapathCollection][0]["vlan-id"])
+	assert.Equal(t, "yes", state[mikroTikDatapathCollection][0]["client-isolation"])
+	assert.Equal(t, "yes", state[mikroTikConfigurationCollection][0]["hide-ssid"])
+	assert.Equal(t, "80", state[mikroTikConfigurationCollection][0]["max-clients"])
 }
 
 func TestPushControllerStateUsesUniFiAdapter(t *testing.T) {

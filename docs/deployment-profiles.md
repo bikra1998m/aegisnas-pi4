@@ -359,7 +359,25 @@ integrations:
 
 Pull mode reads each managed object from `/api/v2/cmdb/wireless-controller/vap/{name}?vdom={vdom}`. Confirmed push creates missing VAPs through the collection and updates existing VAPs by name. Managed fields cover WPA2/WPA3 Enterprise security, RADIUS profile selection, static and dynamic VLAN settings, broadcast visibility, intra-VAP isolation, and client limits. The adapter never deletes VAPs and does not mutate firewall policy, NAC profiles, captive portals, RADIUS server objects, or FortiGate user groups.
 
-MikroTik and UniFi remain explicit AegisNAS contract adapters until their native resource clients pass provider and hardware certification. Cisco ISE, Aruba Central, Juniper Mist, Ruckus SmartZone, and FortiGate are native but still require real-controller certification before production authority.
+MikroTik uses the RouterOS v7 REST API with Basic authentication. Configure a dedicated least-privilege RouterOS account, a managed-site label, and the RADIUS endpoint and secret environment variable:
+
+```yaml
+integrations:
+  controller:
+    enabled: true
+    platform: mikrotik
+    endpoint: https://router.example.com
+    api_username_env: AEGIS_MIKROTIK_USERNAME
+    api_password_env: AEGIS_MIKROTIK_PASSWORD
+    radius_server: 192.0.2.10
+    radius_secret_env: AEGIS_MIKROTIK_RADIUS_SECRET
+    sync_mode: monitor
+    site: branch-west
+```
+
+Pull mode lists `/rest/radius` and the RouterOS 7.13+ `/rest/interface/wifi/security`, `/datapath`, and `/configuration` collections. Confirmed push creates missing AegisNAS-managed records with PUT and updates changed records by `.id` with PATCH. Managed fields cover RADIUS authentication/accounting, WPA2/WPA3 Enterprise security, management-frame protection, SSID visibility, static VLAN, client isolation, and client limits. The adapter does not delete records or create CAPsMAN provisioning rules because radio bands, bridge VLAN handling, and `wifi-qcom` versus `wifi-qcom-ac` behavior must be validated on the target hardware. RADIUS secrets are excluded from drift comparisons, so rotate them through a controlled RouterOS credential procedure.
+
+UniFi remains an explicit AegisNAS contract adapter until its native resource client passes provider and hardware certification. All native adapters still require real-controller certification before production authority.
 
 Example enterprise onboarding target with external CA and SAML admin access:
 

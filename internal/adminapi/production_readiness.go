@@ -443,6 +443,9 @@ func addProductionControllerCheck(report *productionReadinessReport, cfg *config
 	} else if state.Normalized == "fortinet" {
 		dependencies = []string{"integrations.controller.endpoint", "integrations.controller.api_token_env", "integrations.controller.site", "integrations.controller.radius_profile"}
 		recommendation = "Set the FortiGate endpoint, REST API token environment variable, VDOM, and existing RADIUS profile name."
+	} else if state.Normalized == "mikrotik" {
+		dependencies = []string{"integrations.controller.endpoint", "integrations.controller.api_username_env", "integrations.controller.api_password_env", "integrations.controller.site", "integrations.controller.radius_server", "integrations.controller.radius_secret_env"}
+		recommendation = "Set the RouterOS HTTPS endpoint, API username/password environment variables, managed-site label, RADIUS server, and RADIUS shared-secret environment variable."
 	}
 	addProductionCheck(report, productionReadinessCheck{
 		Key:            "controller_readiness",

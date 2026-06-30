@@ -1881,7 +1881,7 @@ func (c *Config) Validate() error {
 			return errors.New("integrations.controller.enabled is not supported on the lite deployment profile")
 		}
 		if !controllerConfigured(c) {
-			if controllerPlatform == "cisco" || controllerPlatform == "ruckus" {
+			if controllerPlatform == "cisco" || controllerPlatform == "ruckus" || controllerPlatform == "mikrotik" {
 				return fmt.Errorf("integrations.controller.enabled with platform=%s requires endpoint, api_username_env, api_password_env, and sync_mode", controllerPlatform)
 			}
 			return errors.New("integrations.controller.enabled requires platform, endpoint, api_token_env, and sync_mode")
@@ -1928,7 +1928,16 @@ func (c *Config) Validate() error {
 				return errors.New("integrations.controller.radius_profile is required for FortiGate enterprise VAP sync")
 			}
 		}
-		if (controllerPlatform == "cisco" || controllerPlatform == "aruba" || controllerPlatform == "juniper-mist" || controllerPlatform == "ruckus" || controllerPlatform == "fortinet") && controllerSyncMode == "coa-only" {
+		if controllerPlatform == "mikrotik" {
+			parsed, _ := url.Parse(c.Integrations.Controller.Endpoint)
+			if parsed == nil || parsed.Scheme != "https" {
+				return errors.New("integrations.controller.endpoint must use https for MikroTik RouterOS")
+			}
+			if controllerHasEnterpriseSSIDs(c) && (strings.TrimSpace(c.Integrations.Controller.RadiusServer) == "" || strings.TrimSpace(c.Integrations.Controller.RadiusSecretEnv) == "") {
+				return errors.New("integrations.controller.radius_server and radius_secret_env are required for MikroTik enterprise WiFi sync")
+			}
+		}
+		if (controllerPlatform == "cisco" || controllerPlatform == "aruba" || controllerPlatform == "juniper-mist" || controllerPlatform == "ruckus" || controllerPlatform == "fortinet" || controllerPlatform == "mikrotik") && controllerSyncMode == "coa-only" {
 			return fmt.Errorf("integrations.controller.sync_mode %q is not supported by the %s native adapter", c.Integrations.Controller.SyncMode, controllerPlatform)
 		}
 		if controllerPlatformRequiresSite(c.Integrations.Controller.Platform) && strings.TrimSpace(c.Integrations.Controller.Site) == "" {
@@ -3122,7 +3131,7 @@ func controllerConfigured(c *Config) bool {
 	if strings.TrimSpace(controller.Platform) == "" || strings.TrimSpace(controller.Endpoint) == "" || strings.TrimSpace(controller.SyncMode) == "" {
 		return false
 	}
-	if strings.EqualFold(strings.TrimSpace(controller.Platform), "cisco") || strings.EqualFold(strings.TrimSpace(controller.Platform), "ruckus") {
+	if strings.EqualFold(strings.TrimSpace(controller.Platform), "cisco") || strings.EqualFold(strings.TrimSpace(controller.Platform), "ruckus") || strings.EqualFold(strings.TrimSpace(controller.Platform), "mikrotik") {
 		return strings.TrimSpace(controller.APIUsernameEnv) != "" && strings.TrimSpace(controller.APIPasswordEnv) != ""
 	}
 	return strings.TrimSpace(controller.APITokenEnv) != ""

@@ -1149,6 +1149,46 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	insecureFortinet.Integrations.Controller.Endpoint = "http://fortigate.test"
 	assert.ErrorContains(t, insecureFortinet.Validate(), "must use https for FortiGate")
 
+	mikroTikController := base()
+	mikroTikController.Integrations.Controller.Platform = "mikrotik"
+	mikroTikController.Integrations.Controller.APITokenEnv = ""
+	mikroTikController.Integrations.Controller.APIUsernameEnv = "AEGIS_MIKROTIK_USERNAME"
+	mikroTikController.Integrations.Controller.APIPasswordEnv = "AEGIS_MIKROTIK_PASSWORD"
+	mikroTikController.Integrations.Controller.RadiusServer = "192.0.2.10"
+	mikroTikController.Integrations.Controller.RadiusSecretEnv = "AEGIS_MIKROTIK_RADIUS_SECRET"
+	mikroTikController.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa3-enterprise"}}
+	assert.NoError(t, mikroTikController.Validate())
+
+	missingMikroTikRadius := base()
+	missingMikroTikRadius.Integrations.Controller.Platform = "mikrotik"
+	missingMikroTikRadius.Integrations.Controller.APITokenEnv = ""
+	missingMikroTikRadius.Integrations.Controller.APIUsernameEnv = "AEGIS_MIKROTIK_USERNAME"
+	missingMikroTikRadius.Integrations.Controller.APIPasswordEnv = "AEGIS_MIKROTIK_PASSWORD"
+	missingMikroTikRadius.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	assert.ErrorContains(t, missingMikroTikRadius.Validate(), "radius_server and radius_secret_env are required for MikroTik")
+
+	insecureMikroTik := base()
+	insecureMikroTik.Integrations.Controller.Platform = "mikrotik"
+	insecureMikroTik.Integrations.Controller.APITokenEnv = ""
+	insecureMikroTik.Integrations.Controller.APIUsernameEnv = "AEGIS_MIKROTIK_USERNAME"
+	insecureMikroTik.Integrations.Controller.APIPasswordEnv = "AEGIS_MIKROTIK_PASSWORD"
+	insecureMikroTik.Integrations.Controller.RadiusServer = "192.0.2.10"
+	insecureMikroTik.Integrations.Controller.RadiusSecretEnv = "AEGIS_MIKROTIK_RADIUS_SECRET"
+	insecureMikroTik.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa3-enterprise"}}
+	insecureMikroTik.Integrations.Controller.Endpoint = "http://routeros.test"
+	assert.ErrorContains(t, insecureMikroTik.Validate(), "must use https for MikroTik RouterOS")
+
+	mikroTikCoAOnly := base()
+	mikroTikCoAOnly.Integrations.Controller.Platform = "mikrotik"
+	mikroTikCoAOnly.Integrations.Controller.APITokenEnv = ""
+	mikroTikCoAOnly.Integrations.Controller.APIUsernameEnv = "AEGIS_MIKROTIK_USERNAME"
+	mikroTikCoAOnly.Integrations.Controller.APIPasswordEnv = "AEGIS_MIKROTIK_PASSWORD"
+	mikroTikCoAOnly.Integrations.Controller.RadiusServer = "192.0.2.10"
+	mikroTikCoAOnly.Integrations.Controller.RadiusSecretEnv = "AEGIS_MIKROTIK_RADIUS_SECRET"
+	mikroTikCoAOnly.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa3-enterprise"}}
+	mikroTikCoAOnly.Integrations.Controller.SyncMode = "coa-only"
+	assert.ErrorContains(t, mikroTikCoAOnly.Validate(), "not supported by the mikrotik native adapter")
+
 	unifiController := base()
 	unifiController.Integrations.Controller.Platform = "unifi"
 	unifiController.Integrations.Controller.Site = "default"

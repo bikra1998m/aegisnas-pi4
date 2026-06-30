@@ -185,6 +185,40 @@ func TestBuildControllerAdapterConfiguredStateUsesRuckusSessionCredentials(t *te
 	assert.Equal(t, "session", state.Selected.AuthScheme)
 }
 
+func TestBuildControllerAdapterConfiguredStateRequiresMikroTikCredentialsAndRadiusSecret(t *testing.T) {
+	const usernameEnv = "AEGIS_TEST_MIKROTIK_READY_USERNAME"
+	const passwordEnv = "AEGIS_TEST_MIKROTIK_READY_PASSWORD"
+	const secretEnv = "AEGIS_TEST_MIKROTIK_READY_RADIUS_SECRET"
+	t.Setenv(usernameEnv, "aegis-api")
+	t.Setenv(passwordEnv, "router-password")
+	cfg := &config.Config{
+		Integrations: config.IntegrationsConfig{
+			Controller: config.ControllerConfig{
+				Enabled: true, Platform: "mikrotik", Endpoint: "https://routeros.test",
+				APIUsernameEnv: usernameEnv, APIPasswordEnv: passwordEnv,
+				RadiusServer: "192.0.2.10", RadiusSecretEnv: secretEnv,
+				SyncMode: "monitor", Site: "branch-lab",
+			},
+		},
+	}
+	cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Corp", AuthMode: "wpa3-enterprise"}}
+
+	state := buildControllerAdapterConfiguredState(cfg)
+	assert.True(t, state.UsernamePresent)
+	assert.True(t, state.PasswordPresent)
+	assert.True(t, state.RadiusServerRequired)
+	assert.False(t, state.RadiusServerConfigured)
+	assert.False(t, state.Ready)
+	assert.Contains(t, state.ReadinessWarnings, "MikroTik enterprise WiFi sync requires a RADIUS server and a present shared-secret environment variable")
+
+	t.Setenv(secretEnv, "radius-secret")
+	state = buildControllerAdapterConfiguredState(cfg)
+	assert.True(t, state.RadiusServerConfigured)
+	assert.True(t, state.Ready)
+	assert.Equal(t, "basic", state.Selected.AuthScheme)
+	assert.Equal(t, "mikrotik-routeros", state.Adapter)
+}
+
 func TestBuildControllerAdapterConfiguredStateRequiresFortiGateRadiusProfile(t *testing.T) {
 	const tokenEnv = "AEGIS_TEST_FORTIGATE_READY_TOKEN"
 	t.Setenv(tokenEnv, "secret")
