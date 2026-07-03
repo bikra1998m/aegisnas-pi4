@@ -129,10 +129,22 @@ func renderReplyAttributeItems(items []ReplyAttributeItem) string {
 }
 
 func RenderReplyAttributesForVendorConfig(attrs *ReplyAttributes, vendor config.RadiusVendorConfig) string {
-	return RenderReplyAttributesForPacks(attrs, vendor.CompatibilityPacks)
+	return RenderReplyAttributesForVendorConfigAndPacks(attrs, vendor.CompatibilityPacks, vendor)
 }
 
 func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []ReplyAttributeItem {
+	return buildReplyAttributeItems(attrs, packKeys, nil)
+}
+
+func BuildReplyAttributeItemsForVendorConfig(attrs *ReplyAttributes, packKeys []string, vendor config.RadiusVendorConfig) []ReplyAttributeItem {
+	return buildReplyAttributeItems(attrs, packKeys, vendor.RoleMappings)
+}
+
+func RenderReplyAttributesForVendorConfigAndPacks(attrs *ReplyAttributes, packKeys []string, vendor config.RadiusVendorConfig) string {
+	return renderReplyAttributeItems(BuildReplyAttributeItemsForVendorConfig(attrs, packKeys, vendor))
+}
+
+func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, roleMappings []config.RadiusVendorRoleMapping) []ReplyAttributeItem {
 	if attrs == nil {
 		return nil
 	}
@@ -204,6 +216,7 @@ func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []Reply
 			appendRateKbpsItem(attrs, appendItem, "Cambium-ePMP-Max-Burst-Downlink-Rate", attrs.WISPrBandwidthMaxDown)
 			appendRateKbpsItem(attrs, appendItem, "Cambium-ePMP-Max-Burst-Uplink-Rate", attrs.WISPrBandwidthMaxUp)
 			appendBooleanIntegerItem(attrs.HasQuarantine, attrs.Quarantine, appendItem, "Cambium-Walled-Garden-State")
+			appendNumericRoleItem(attrs, packKey, roleMappings, appendItem, "Cambium-Auth-Role")
 		case productconfigs.VendorPackExtreme:
 			appendItem("Extreme-Security-Profile", replyRole(attrs), true)
 			if vlan := replyVLAN(attrs); vlan > 0 {
@@ -247,6 +260,7 @@ func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []Reply
 			}
 			appendItem("Extreme-AVPair", firstReplyValue(attrs.PolicyTag, attrs.ACLPolicyName, attrs.FilterID), true)
 			appendURLItem(attrs, appendItem, "Extreme-IDM-Redirect-URL", attrs.PortalProfile)
+			appendNumericRoleItem(attrs, packKey, roleMappings, appendItem, "Extreme-User-Profile-Attribute")
 		case productconfigs.VendorPackAirespace:
 			appendItem("Guest-Role-Name", replyRole(attrs), true)
 			appendItem("ACL-Name", firstReplyValue(attrs.ACLPolicyName, attrs.InboundACL, attrs.OutboundACL), true)
@@ -287,8 +301,10 @@ func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []Reply
 			for _, value := range renderNASFilterRules(attrs.ACLRules) {
 				appendItem("ACL-Rule", value, true)
 			}
+			appendNumericRoleItem(attrs, packKey, roleMappings, appendItem, "User-Level")
 		case productconfigs.VendorPackSonicWall:
 			appendItem("User-Group", replyRole(attrs), true)
+			appendNumericRoleItem(attrs, packKey, roleMappings, appendItem, "User-Privilege")
 		case productconfigs.VendorPackArista:
 			appendItem("User-Role", replyRole(attrs), true)
 			appendURLItem(attrs, appendItem, "Captive-Portal", attrs.PortalProfile)
@@ -309,6 +325,7 @@ func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []Reply
 			appendRateKbpsItem(attrs, appendItem, "Rate-Ctrl-SCR-Down", attrs.WISPrBandwidthMaxDown)
 			appendRateKbpsItem(attrs, appendItem, "Rate-Ctrl-SCR-Up", attrs.WISPrBandwidthMaxUp)
 			appendURLItem(attrs, appendItem, "PPPOE-URL", attrs.PortalProfile)
+			appendNumericRoleItem(attrs, packKey, roleMappings, appendItem, "SW-Privilege")
 		case productconfigs.VendorPackNokia:
 			appendItem("User-Profile", replyRole(attrs), true)
 			appendItem("AVPair", attrs.PolicyTag, true)
@@ -444,6 +461,32 @@ func appendBooleanIntegerItem(present, value bool, appendItem func(string, strin
 		return
 	}
 	appendItem(name, "0", false)
+}
+
+func appendNumericRoleItem(attrs *ReplyAttributes, packKey string, mappings []config.RadiusVendorRoleMapping, appendItem func(string, string, bool), attribute string) {
+	if attrs == nil {
+		return
+	}
+	value, ok := numericVendorRoleValue(mappings, packKey, replyRole(attrs))
+	if !ok {
+		return
+	}
+	appendItem(attribute, fmt.Sprintf("%d", value), false)
+}
+
+func numericVendorRoleValue(mappings []config.RadiusVendorRoleMapping, packKey, role string) (int, bool) {
+	packKey = productconfigs.NormalizeVendorCompatibilityPackKey(packKey)
+	role = strings.TrimSpace(role)
+	if role == "" {
+		return 0, false
+	}
+	for _, mapping := range mappings {
+		if productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack) != packKey || !strings.EqualFold(strings.TrimSpace(mapping.Role), role) {
+			continue
+		}
+		return mapping.Value, true
+	}
+	return 0, false
 }
 
 func escapeReplyValue(value string) string {

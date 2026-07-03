@@ -294,7 +294,7 @@ func (g *Generator) renderUsers() (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("build RADIUS reply for %s: %w", user.username, err)
 		}
-		items := BuildReplyAttributeItems(attrs, g.cfg.Radius.Vendor.CompatibilityPacks)
+		items := BuildReplyAttributeItemsForVendorConfig(attrs, g.cfg.Radius.Vendor.CompatibilityPacks, g.cfg.Radius.Vendor)
 		fmt.Fprintf(&out, "\"%s\" Crypt-Password := \"%s\"\n", escapeReplyValue(user.username), escapeReplyValue(user.passwordHash))
 		for index, item := range items {
 			if strings.ContainsAny(item.Name+item.Value, "\r\n") {

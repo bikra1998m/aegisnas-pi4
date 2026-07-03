@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
+	"github.com/yourorg/aegisnas-pi4/internal/config"
 )
 
 func TestVendorPackCertificationMatrixRendersDeclaredOutboundAttributes(t *testing.T) {
@@ -39,7 +40,14 @@ func TestVendorPackCertificationMatrixRendersDeclaredOutboundAttributes(t *testi
 	for _, pack := range productconfigs.AegisNASVendorCompatibilityPacks() {
 		pack := pack
 		t.Run(pack.Key, func(t *testing.T) {
-			items := BuildReplyAttributeItems(attrs, []string{pack.Key})
+			vendor := config.RadiusVendorConfig{RoleMappings: []config.RadiusVendorRoleMapping{
+				{Pack: productconfigs.VendorPackCambium, Role: attrs.Role, Value: 2},
+				{Pack: productconfigs.VendorPackAerohive, Role: attrs.Role, Value: 101},
+				{Pack: productconfigs.VendorPackDLink, Role: attrs.Role, Value: 5},
+				{Pack: productconfigs.VendorPackSonicWall, Role: attrs.Role, Value: 7},
+				{Pack: productconfigs.VendorPackZTE, Role: attrs.Role, Value: 15},
+			}}
+			items := BuildReplyAttributeItemsForVendorConfig(attrs, []string{pack.Key}, vendor)
 			actual := make(map[string]struct{}, len(items))
 			for _, item := range items {
 				actual[item.Name] = struct{}{}

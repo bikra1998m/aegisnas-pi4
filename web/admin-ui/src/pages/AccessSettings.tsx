@@ -584,6 +584,7 @@ const defaultSettings: JsonMap = {
       name: "AegisNAS",
       id: 55555,
       dictionary_paths: [],
+      role_mappings: [],
       attributes: [],
     },
     eap: {
@@ -717,6 +718,14 @@ const controllerSyncOptions: Option[] = [
   { value: "monitor", label: "Monitor Only" },
   { value: "push-config", label: "Push Config" },
   { value: "coa-only", label: "CoA Only" },
+];
+
+const numericVendorRolePackOptions: Option[] = [
+  { value: "cambium", label: "Cambium" },
+  { value: "aerohive", label: "Aerohive / ExtremeCloud IQ" },
+  { value: "dlink", label: "D-Link" },
+  { value: "sonicwall", label: "SonicWall" },
+  { value: "zte", label: "ZTE" },
 ];
 
 const mdmProviderOptions: Option[] = [
@@ -1483,6 +1492,7 @@ export default function AccessSettings() {
   const upstreamServers = settings.radius?.upstream?.servers || [];
   const vendorAttributes = settings.radius?.vendor?.attributes || [];
   const vendorDictionaryPaths = settings.radius?.vendor?.dictionary_paths || [];
+  const vendorRoleMappings = settings.radius?.vendor?.role_mappings || [];
   const ssids = settings.wireless?.ssids || [];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
@@ -7723,6 +7733,115 @@ export default function AccessSettings() {
                           updateField(
                             ["radius", "vendor", "dictionary_paths"],
                             vendorDictionaryPaths.filter(
+                              (_: unknown, itemIndex: number) =>
+                                itemIndex !== index,
+                            ),
+                          )
+                        }
+                        className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="mb-4 border-t border-gray-100 pt-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h5 className="text-sm font-semibold text-gray-900">
+                  Numeric Vendor Roles
+                </h5>
+                <p className="mt-1 text-sm text-gray-600">
+                  Use values certified for the target dictionary and device
+                  profile.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  updateField(
+                    ["radius", "vendor", "role_mappings"],
+                    [
+                      ...vendorRoleMappings,
+                      { pack: "cambium", role: "", value: 0 },
+                    ],
+                  )
+                }
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+              >
+                Add Role Mapping
+              </button>
+            </div>
+            {vendorRoleMappings.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                No numeric vendor roles configured.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {vendorRoleMappings.map((mapping: JsonMap, index: number) => (
+                  <div
+                    key={`vendor-role-mapping-${index}`}
+                    className="grid gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-4"
+                  >
+                    <SelectField
+                      label="Vendor Pack"
+                      value={mapping.pack || "cambium"}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "radius",
+                            "vendor",
+                            "role_mappings",
+                            String(index),
+                            "pack",
+                          ],
+                          value,
+                        )
+                      }
+                      options={numericVendorRolePackOptions}
+                    />
+                    <TextField
+                      label="Local Role"
+                      value={mapping.role || ""}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "radius",
+                            "vendor",
+                            "role_mappings",
+                            String(index),
+                            "role",
+                          ],
+                          value,
+                        )
+                      }
+                      placeholder="network-admin"
+                    />
+                    <TextField
+                      label="Vendor Value"
+                      type="number"
+                      value={mapping.value ?? 0}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "radius",
+                            "vendor",
+                            "role_mappings",
+                            String(index),
+                            "value",
+                          ],
+                          Number(value),
+                        )
+                      }
+                    />
+                    <div className="flex items-end">
+                      <button
+                        onClick={() =>
+                          updateField(
+                            ["radius", "vendor", "role_mappings"],
+                            vendorRoleMappings.filter(
                               (_: unknown, itemIndex: number) =>
                                 itemIndex !== index,
                             ),

@@ -90,7 +90,7 @@ func HandlePreviewVendorReply(w http.ResponseWriter, r *http.Request) {
 	nasType := radius.NormalizeClientNASType(req.NASType)
 	effectivePacks := radius.ReplyCompatibilityPacksForNASType(vendor, nasType)
 	attrs := vendorReplyPreviewAttributes(req)
-	items := radius.BuildReplyAttributeItems(attrs, effectivePacks)
+	items := radius.BuildReplyAttributeItemsForVendorConfig(attrs, effectivePacks, vendor)
 	normalizedACLRules, _ := radius.NormalizeACLRules(attrs.ACLRules)
 
 	warnings := vendorReplyPreviewWarnings(req, nasType, effectivePacks)
@@ -104,7 +104,7 @@ func HandlePreviewVendorReply(w http.ResponseWriter, r *http.Request) {
 		ACLPolicyLoaded:    aclPolicyLoaded,
 		EffectivePacks:     effectivePacks,
 		Attributes:         vendorReplyPreviewItems(items),
-		FreeRADIUS:         radius.RenderReplyAttributesForPacks(attrs, effectivePacks),
+		FreeRADIUS:         radius.RenderReplyAttributesForVendorConfigAndPacks(attrs, effectivePacks, vendor),
 		NormalizedACLRules: normalizedACLRules,
 		ACLExports:         radius.BuildACLVendorExports(attrs.ACLPolicyName, attrs.InboundACL, attrs.OutboundACL, attrs.ACLRules, effectivePacks),
 		Warnings:           warnings,

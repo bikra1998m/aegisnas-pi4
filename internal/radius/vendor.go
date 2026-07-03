@@ -31,12 +31,13 @@ const (
 type inboundVendorValueKind string
 
 const (
-	inboundVendorString   inboundVendorValueKind = "string"
-	inboundVendorVLAN     inboundVendorValueKind = "vlan"
-	inboundVendorRateKbps inboundVendorValueKind = "rate_kbps"
-	inboundVendorRateBps  inboundVendorValueKind = "rate_bps"
-	inboundVendorBool     inboundVendorValueKind = "bool"
-	inboundVendorIntText  inboundVendorValueKind = "integer_text"
+	inboundVendorString     inboundVendorValueKind = "string"
+	inboundVendorVLAN       inboundVendorValueKind = "vlan"
+	inboundVendorRateKbps   inboundVendorValueKind = "rate_kbps"
+	inboundVendorRateBps    inboundVendorValueKind = "rate_bps"
+	inboundVendorBool       inboundVendorValueKind = "bool"
+	inboundVendorIntText    inboundVendorValueKind = "integer_text"
+	inboundVendorMappedRole inboundVendorValueKind = "mapped_role"
 )
 
 type inboundVendorMapping struct {
@@ -82,6 +83,7 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackUBNT, VendorID: 41112, Type: 3, Attribute: "UBNT-Data-Rate-UL", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateBps},
 
 	{PackKey: productconfigs.VendorPackCambium, VendorID: 17713, Type: 21, Attribute: "Cambium-ePMP-Data-VLAN-Id", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
+	{PackKey: productconfigs.VendorPackCambium, VendorID: 17713, Type: 1, Attribute: "Cambium-Auth-Role", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorMappedRole},
 	{PackKey: productconfigs.VendorPackCambium, VendorID: 17713, Type: 26, Attribute: "Cambium-ePMP-Max-Burst-Uplink-Rate", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
 	{PackKey: productconfigs.VendorPackCambium, VendorID: 17713, Type: 27, Attribute: "Cambium-ePMP-Max-Burst-Downlink-Rate", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
 	{PackKey: productconfigs.VendorPackCambium, VendorID: 17713, Type: 160, Attribute: "Cambium-Walled-Garden-State", Semantic: productconfigs.VendorSemanticQuarantine, Kind: inboundVendorBool},
@@ -130,6 +132,7 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackTPLink, VendorID: 11863, Type: 8, Attribute: "TPLink-Redirect-Url", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
 
 	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 1, Attribute: "Extreme-User-Vlan", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
+	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 6, Attribute: "Extreme-User-Profile-Attribute", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorMappedRole},
 	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 8, Attribute: "Extreme-AVPair", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 211, Attribute: "Extreme-IDM-Redirect-URL", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
 
@@ -161,12 +164,14 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 100, Attribute: "UAM-Allowed", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
 
 	{PackKey: productconfigs.VendorPackDLink, VendorID: 171, Type: 2, Attribute: "Ingress-Bandwidth-Assignment", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackDLink, VendorID: 171, Type: 1, Attribute: "User-Level", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorMappedRole},
 	{PackKey: productconfigs.VendorPackDLink, VendorID: 171, Type: 3, Attribute: "Egress-Bandwidth-Assignment", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
 	{PackKey: productconfigs.VendorPackDLink, VendorID: 171, Type: 11, Attribute: "VLAN-ID", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
 	{PackKey: productconfigs.VendorPackDLink, VendorID: 171, Type: 12, Attribute: "ACL-Profile", Semantic: productconfigs.VendorSemanticACL, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackDLink, VendorID: 171, Type: 13, Attribute: "ACL-Rule", Semantic: productconfigs.VendorSemanticDynamicACL, Kind: inboundVendorString},
 
 	{PackKey: productconfigs.VendorPackSonicWall, VendorID: 8741, Type: 3, Attribute: "User-Group", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackSonicWall, VendorID: 8741, Type: 1, Attribute: "User-Privilege", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorMappedRole},
 
 	{PackKey: productconfigs.VendorPackArista, VendorID: 30065, Type: 3, Attribute: "User-Role", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackArista, VendorID: 30065, Type: 10, Attribute: "Captive-Portal", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
@@ -180,6 +185,7 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackPica8, VendorID: 35098, Type: 4, Attribute: "Redirect-URL", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
 
 	{PackKey: productconfigs.VendorPackZTE, VendorID: 3902, Type: 27, Attribute: "PPPOE-URL", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackZTE, VendorID: 3902, Type: 104, Attribute: "SW-Privilege", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorMappedRole},
 	{PackKey: productconfigs.VendorPackZTE, VendorID: 3902, Type: 82, Attribute: "QoS-Profile-Down", Semantic: productconfigs.VendorSemanticBandwidthProfile, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackZTE, VendorID: 3902, Type: 83, Attribute: "Rate-Ctrl-SCR-Down", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
 	{PackKey: productconfigs.VendorPackZTE, VendorID: 3902, Type: 89, Attribute: "Rate-Ctrl-SCR-Up", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
@@ -340,7 +346,7 @@ func ApplyVendorAttributes(result *BrokerAuthResult, packet *layehradius.Packet,
 		}
 	}
 
-	applyVendorCompatibilityAttributes(result, packet, vendor.CompatibilityPacks)
+	applyVendorCompatibilityAttributes(result, packet, vendor)
 }
 
 func AddVendorAccountingAttributes(packet *layehradius.Packet, vendor config.RadiusVendorConfig, rec *AccountingRecord) error {
@@ -383,20 +389,20 @@ func AddVendorAccountingAttributes(packet *layehradius.Packet, vendor config.Rad
 	return nil
 }
 
-func applyVendorCompatibilityAttributes(result *BrokerAuthResult, packet *layehradius.Packet, packKeys []string) {
+func applyVendorCompatibilityAttributes(result *BrokerAuthResult, packet *layehradius.Packet, vendor config.RadiusVendorConfig) {
 	activePacks := map[string]struct{}{}
-	for _, key := range normalizeReplyPackKeys(packKeys) {
+	for _, key := range normalizeReplyPackKeys(vendor.CompatibilityPacks) {
 		activePacks[key] = struct{}{}
 	}
 	for _, mapping := range inboundVendorMappings {
 		if _, ok := activePacks[mapping.PackKey]; !ok {
 			continue
 		}
-		applyInboundVendorMapping(result, packet, mapping)
+		applyInboundVendorMapping(result, packet, mapping, vendor.RoleMappings)
 	}
 }
 
-func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Packet, mapping inboundVendorMapping) {
+func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Packet, mapping inboundVendorMapping, roleMappings []config.RadiusVendorRoleMapping) {
 	switch mapping.Kind {
 	case inboundVendorString:
 		value, ok := lookupVendorString(packet, mapping.VendorID, mapping.Type)
@@ -434,7 +440,29 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 		if ok {
 			applyInboundVendorString(result, mapping, strconv.Itoa(int(value)))
 		}
+	case inboundVendorMappedRole:
+		value, ok := lookupVendorInteger(packet, mapping.VendorID, mapping.Type)
+		if !ok {
+			return
+		}
+		if role, found := numericVendorRoleName(roleMappings, mapping.PackKey, value); found {
+			setStringIfEmpty(&result.VendorRole, role)
+		}
 	}
+}
+
+func numericVendorRoleName(mappings []config.RadiusVendorRoleMapping, packKey string, value uint32) (string, bool) {
+	packKey = productconfigs.NormalizeVendorCompatibilityPackKey(packKey)
+	for _, mapping := range mappings {
+		if productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack) != packKey || mapping.Value < 0 || uint64(mapping.Value) != uint64(value) {
+			continue
+		}
+		role := strings.TrimSpace(mapping.Role)
+		if role != "" {
+			return role, true
+		}
+	}
+	return "", false
 }
 
 func applyInboundVendorString(result *BrokerAuthResult, mapping inboundVendorMapping, value string) {

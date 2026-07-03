@@ -329,6 +329,13 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	validDictionaryPaths.Radius.Vendor.DictionaryPaths = []string{"/etc/freeradius/3.0/dictionary", "/usr/share/freeradius"}
 	assert.NoError(t, validDictionaryPaths.Validate())
 
+	validRoleMappings := base()
+	validRoleMappings.Radius.Vendor.RoleMappings = []RadiusVendorRoleMapping{
+		{Pack: "canopy", Role: "network-admin", Value: 2},
+		{Pack: "sonicwall", Role: "guest", Value: 7},
+	}
+	assert.NoError(t, validRoleMappings.Validate())
+
 	invalidID := base()
 	invalidID.Radius.Vendor.ID = 0
 	assert.ErrorContains(t, invalidID.Validate(), "radius.vendor.id")
@@ -356,6 +363,24 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	duplicateDictionaryPath := base()
 	duplicateDictionaryPath.Radius.Vendor.DictionaryPaths = []string{"/etc/freeradius/3.0/dictionary", "/etc/freeradius/3.0/../3.0/dictionary"}
 	assert.ErrorContains(t, duplicateDictionaryPath.Validate(), "duplicates")
+
+	invalidRolePack := base()
+	invalidRolePack.Radius.Vendor.RoleMappings = []RadiusVendorRoleMapping{{Pack: "aruba", Role: "admin", Value: 1}}
+	assert.ErrorContains(t, invalidRolePack.Validate(), "does not support numeric role mappings")
+
+	duplicateRoleValue := base()
+	duplicateRoleValue.Radius.Vendor.RoleMappings = []RadiusVendorRoleMapping{
+		{Pack: "dlink", Role: "operator", Value: 4},
+		{Pack: "dlink", Role: "admin", Value: 4},
+	}
+	assert.ErrorContains(t, duplicateRoleValue.Validate(), "duplicates value")
+
+	duplicateRole := base()
+	duplicateRole.Radius.Vendor.RoleMappings = []RadiusVendorRoleMapping{
+		{Pack: "zte", Role: "Operator", Value: 10},
+		{Pack: "zte", Role: "operator", Value: 11},
+	}
+	assert.ErrorContains(t, duplicateRole.Validate(), "duplicates role")
 }
 
 func TestConfigValidationAIEngine(t *testing.T) {

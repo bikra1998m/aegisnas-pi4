@@ -326,6 +326,23 @@ radius:
 
 If no paths are configured, the admin API tries the standard appliance paths when they exist. Directory imports scan files named `dictionary`, `dictionary.*`, `*.dictionary`, or `*.dictionery`; file imports also expand local `$INCLUDE` lines.
 
+Numeric role and privilege attributes require an explicit reversible mapping. Use only values certified for the target dictionary and device profile:
+
+```yaml
+radius:
+  vendor:
+    compatibility_packs: [standard, dlink, sonicwall]
+    role_mappings:
+      - pack: dlink
+        role: network-admin
+        value: 5
+      - pack: sonicwall
+        role: guest
+        value: 7
+```
+
+Mappings are supported for `cambium`, `aerohive`, `dlink`, `sonicwall`, and `zte`. Role names and numeric values must each be unique within a pack. AegisNAS omits the numeric reply when no mapping exists and ignores an inbound numeric role that cannot be reversed, avoiding accidental privilege assignment.
+
 Available pack keys include:
 
 - `standard`

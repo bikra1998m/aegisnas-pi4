@@ -248,6 +248,27 @@ func TestRenderReplyAttributesForAdditionalVendorPacks(t *testing.T) {
 	assert.Contains(t, rendered, "\tIntercept = 1\n")
 }
 
+func TestRenderReplyAttributesUsesNumericRoleMappings(t *testing.T) {
+	attrs := &ReplyAttributes{Role: "network-admin"}
+	vendor := config.RadiusVendorConfig{RoleMappings: []config.RadiusVendorRoleMapping{
+		{Pack: "cambium", Role: "network-admin", Value: 2},
+		{Pack: "aerohive", Role: "network-admin", Value: 101},
+		{Pack: "dlink", Role: "network-admin", Value: 5},
+		{Pack: "sonicwall", Role: "network-admin", Value: 7},
+		{Pack: "zte", Role: "network-admin", Value: 15},
+	}}
+	packs := []string{"cambium", "aerohive", "dlink", "sonicwall", "zte"}
+
+	rendered := RenderReplyAttributesForVendorConfigAndPacks(attrs, packs, vendor)
+
+	assert.Contains(t, rendered, "\tCambium-Auth-Role = 2\n")
+	assert.Contains(t, rendered, "\tExtreme-User-Profile-Attribute = 101\n")
+	assert.Contains(t, rendered, "\tUser-Level = 5\n")
+	assert.Contains(t, rendered, "\tUser-Privilege = 7\n")
+	assert.Contains(t, rendered, "\tSW-Privilege = 15\n")
+	assert.NotContains(t, RenderReplyAttributesForPacks(attrs, packs), "Cambium-Auth-Role")
+}
+
 func TestNormalizeClientNASType(t *testing.T) {
 	assert.Equal(t, "aruba", NormalizeClientNASType(" Aruba "))
 	assert.Equal(t, "ubnt", NormalizeClientNASType("unifi"))

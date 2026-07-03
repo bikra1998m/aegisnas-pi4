@@ -213,7 +213,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticVLAN, Attribute: "Cambium-ePMP-Data-VLAN-Id", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Cambium-ePMP-Max-Burst-Uplink-Rate", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Cambium-ePMP-Max-Burst-Downlink-Rate", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticRole, Attribute: "Cambium-Auth-Role", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticRole, Attribute: "Cambium-Auth-Role", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticAccountingCounters, Attribute: "Cambium-Acct-Input-Octets", Direction: "accounting", ValueType: "integer", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticAccountingCounters, Attribute: "Cambium-Acct-Output-Octets", Direction: "accounting", ValueType: "integer", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticQuarantine, Attribute: "Cambium-Walled-Garden-State", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
@@ -346,7 +346,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticVLAN, Attribute: "Extreme-User-Vlan", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticPolicyTag, Attribute: "Extreme-AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticPortalProfile, Attribute: "Extreme-IDM-Redirect-URL", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticRole, Attribute: "Extreme-User-Profile-Attribute", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticRole, Attribute: "Extreme-User-Profile-Attribute", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDevicePosture, Attribute: "Extreme-Client-Monitor-Problem", Direction: "accounting", ValueType: "integer", CompatibilityState: "planned"},
 			},
 			Notes: []string{"Aerohive dictionaries use Extreme-prefixed attributes under the Aerohive vendor namespace; numeric user profile IDs need a site template before role rendering."},
@@ -429,7 +429,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticVLAN, Attribute: "VLAN-ID", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticACL, Attribute: "ACL-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDynamicACL, Attribute: "ACL-Rule", Direction: "outbound_reply", ValueType: "policy", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticRole, Attribute: "User-Level", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticRole, Attribute: "User-Level", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
 			},
 		},
 		{
@@ -441,7 +441,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			HardwareProfiles: branchEnterprise,
 			Attributes: []VendorPackAttributeMapping{
 				{Semantic: VendorSemanticRole, Attribute: "User-Group", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticRole, Attribute: "User-Privilege", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticRole, Attribute: "User-Privilege", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
 			},
 		},
 		{
@@ -487,7 +487,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Rate-Ctrl-SCR-Down", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Rate-Ctrl-SCR-Up", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticPortalProfile, Attribute: "PPPOE-URL", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticRole, Attribute: "SW-Privilege", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticRole, Attribute: "SW-Privilege", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
 			},
 			Notes: []string{"ZTE broadband attributes are useful for access gateway mode; wireless enforcement should be validated against the deployed controller or BNG profile."},
 		},
@@ -566,6 +566,15 @@ func VendorCompatibilityPackByKey(key string) (VendorCompatibilityPack, bool) {
 		}
 	}
 	return VendorCompatibilityPack{}, false
+}
+
+func VendorPackSupportsNumericRoleMapping(key string) bool {
+	switch NormalizeVendorCompatibilityPackKey(key) {
+	case VendorPackCambium, VendorPackAerohive, VendorPackDLink, VendorPackSonicWall, VendorPackZTE:
+		return true
+	default:
+		return false
+	}
 }
 
 func NormalizeVendorCompatibilityPackKey(key string) string {

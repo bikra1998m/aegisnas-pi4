@@ -200,6 +200,33 @@ func TestApplyVendorCompatibilityAttributesParsesAccountingContext(t *testing.T)
 	}
 }
 
+func TestApplyVendorCompatibilityAttributesReversesNumericRoleMappings(t *testing.T) {
+	tests := []struct {
+		pack     string
+		vendorID uint32
+		typeID   byte
+		value    uint32
+	}{
+		{pack: productconfigs.VendorPackCambium, vendorID: 17713, typeID: 1, value: 2},
+		{pack: productconfigs.VendorPackAerohive, vendorID: 26928, typeID: 6, value: 101},
+		{pack: productconfigs.VendorPackDLink, vendorID: 171, typeID: 1, value: 5},
+		{pack: productconfigs.VendorPackSonicWall, vendorID: 8741, typeID: 1, value: 7},
+		{pack: productconfigs.VendorPackZTE, vendorID: 3902, typeID: 104, value: 15},
+	}
+	for _, tc := range tests {
+		t.Run(tc.pack, func(t *testing.T) {
+			packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+			require.NoError(t, addVendorInteger(packet, tc.vendorID, tc.typeID, tc.value))
+			vendor := vendorConfigForPacks(tc.pack)
+			vendor.RoleMappings = []config.RadiusVendorRoleMapping{{Pack: tc.pack, Role: "network-admin", Value: int(tc.value)}}
+
+			result := ParseBrokerPacketWithConfig(packet, &config.Config{Radius: config.RadiusConfig{Vendor: vendor}})
+
+			assert.Equal(t, "network-admin", result.VendorRole)
+		})
+	}
+}
+
 func TestApplyVendorCompatibilityAttributesRequiresEnabledPack(t *testing.T) {
 	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
 	require.NoError(t, addVendorString(packet, 14823, 1, "admin"))

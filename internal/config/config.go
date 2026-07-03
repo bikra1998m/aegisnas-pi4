@@ -222,12 +222,19 @@ type RadiusHomeServer struct {
 }
 
 type RadiusVendorConfig struct {
-	Enabled            bool                    `mapstructure:"enabled"`
-	Name               string                  `mapstructure:"name"`
-	ID                 int                     `mapstructure:"id"`
-	CompatibilityPacks []string                `mapstructure:"compatibility_packs"`
-	DictionaryPaths    []string                `mapstructure:"dictionary_paths"`
-	Attributes         []RadiusVendorAttribute `mapstructure:"attributes"`
+	Enabled            bool                      `mapstructure:"enabled"`
+	Name               string                    `mapstructure:"name"`
+	ID                 int                       `mapstructure:"id"`
+	CompatibilityPacks []string                  `mapstructure:"compatibility_packs"`
+	DictionaryPaths    []string                  `mapstructure:"dictionary_paths"`
+	RoleMappings       []RadiusVendorRoleMapping `mapstructure:"role_mappings"`
+	Attributes         []RadiusVendorAttribute   `mapstructure:"attributes"`
+}
+
+type RadiusVendorRoleMapping struct {
+	Pack  string `mapstructure:"pack"`
+	Role  string `mapstructure:"role"`
+	Value int    `mapstructure:"value"`
 }
 
 type RadiusVendorAttribute struct {
@@ -2821,6 +2828,34 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("radius.vendor.compatibility_packs[%d] %q duplicates an earlier pack", i, pack)
 		}
 		seenVendorPacks[key] = struct{}{}
+	}
+	seenVendorRoles := map[string]struct{}{}
+	seenVendorRoleValues := map[string]struct{}{}
+	for i, mapping := range c.Radius.Vendor.RoleMappings {
+		pack := productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack)
+		role := strings.TrimSpace(mapping.Role)
+		if !productconfigs.VendorPackSupportsNumericRoleMapping(pack) {
+			return fmt.Errorf("radius.vendor.role_mappings[%d].pack %q does not support numeric role mappings", i, mapping.Pack)
+		}
+		if role == "" {
+			return fmt.Errorf("radius.vendor.role_mappings[%d].role cannot be empty", i)
+		}
+		if len(role) > 253 || strings.ContainsAny(role, "\r\n\x00") {
+			return fmt.Errorf("radius.vendor.role_mappings[%d].role is invalid", i)
+		}
+		if mapping.Value < 0 || uint64(mapping.Value) > uint64(^uint32(0)) {
+			return fmt.Errorf("radius.vendor.role_mappings[%d].value %d is outside the uint32 range", i, mapping.Value)
+		}
+		roleKey := pack + "\x00" + strings.ToLower(role)
+		if _, exists := seenVendorRoles[roleKey]; exists {
+			return fmt.Errorf("radius.vendor.role_mappings[%d] duplicates role %q for pack %q", i, role, pack)
+		}
+		valueKey := fmt.Sprintf("%s\x00%d", pack, mapping.Value)
+		if _, exists := seenVendorRoleValues[valueKey]; exists {
+			return fmt.Errorf("radius.vendor.role_mappings[%d] duplicates value %d for pack %q", i, mapping.Value, pack)
+		}
+		seenVendorRoles[roleKey] = struct{}{}
+		seenVendorRoleValues[valueKey] = struct{}{}
 	}
 	seenVendorDictionaryPaths := map[string]struct{}{}
 	for i, path := range c.Radius.Vendor.DictionaryPaths {
