@@ -192,6 +192,16 @@ func TestApplyVendorCompatibilityAttributesIgnoresUnknownNomadixSessionAction(t 
 	assert.Empty(t, result.VendorSessionAction)
 }
 
+func TestApplyVendorCompatibilityAttributesParsesChilliSpotQuota(t *testing.T) {
+	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorInteger(packet, 14559, 3, 1_073_741_824))
+
+	result := ParseBrokerPacketWithConfig(packet, &config.Config{Radius: config.RadiusConfig{Vendor: vendorConfigForPacks(productconfigs.VendorPackChilliSpot)}})
+
+	assert.True(t, result.HasVendorMaxTotalOctets)
+	assert.Equal(t, uint64(1_073_741_824), result.VendorMaxTotalOctets)
+}
+
 func TestParseExtremeExtendedVLANRejectsUnsafeValues(t *testing.T) {
 	for _, value := range []string{"", "U20;T20", "U20;U30", "T0", "T4095", "*20", "Udata", "T1;T2;T3;T4;T5;T6;T7;T8;T9;T10;T11"} {
 		t.Run(value, func(t *testing.T) {

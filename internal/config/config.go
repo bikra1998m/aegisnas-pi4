@@ -232,6 +232,7 @@ type RadiusVendorConfig struct {
 	AVPairMappings        []RadiusVendorAVPairMapping        `mapstructure:"avpair_mappings"`
 	PortalStatusMappings  []RadiusVendorPortalStatusMapping  `mapstructure:"portal_status_mappings"`
 	SessionActionMappings []RadiusVendorSessionActionMapping `mapstructure:"session_action_mappings"`
+	QuotaMappings         []RadiusVendorQuotaMapping         `mapstructure:"quota_mappings"`
 	Attributes            []RadiusVendorAttribute            `mapstructure:"attributes"`
 }
 
@@ -265,6 +266,12 @@ type RadiusVendorSessionActionMapping struct {
 	Role   string `mapstructure:"role"`
 	Action string `mapstructure:"action"`
 	Value  int    `mapstructure:"value"`
+}
+
+type RadiusVendorQuotaMapping struct {
+	Pack           string `mapstructure:"pack"`
+	Role           string `mapstructure:"role"`
+	MaxTotalOctets int64  `mapstructure:"max_total_octets"`
 }
 
 type RadiusVendorAttribute struct {
@@ -3022,6 +3029,25 @@ func (c *Config) Validate() error {
 		}
 		seenSessionActionRoles[roleKey] = struct{}{}
 		seenSessionActionValues[valueKey] = action
+	}
+	seenQuotaRoles := map[string]struct{}{}
+	for i, mapping := range c.Radius.Vendor.QuotaMappings {
+		pack := productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack)
+		role := strings.TrimSpace(mapping.Role)
+		if !productconfigs.VendorPackSupportsQuotaMapping(pack) {
+			return fmt.Errorf("radius.vendor.quota_mappings[%d].pack %q does not support quota mappings", i, mapping.Pack)
+		}
+		if role == "" || len(role) > 253 || strings.ContainsAny(role, "\r\n\x00") {
+			return fmt.Errorf("radius.vendor.quota_mappings[%d].role is invalid", i)
+		}
+		if mapping.MaxTotalOctets < 1 || uint64(mapping.MaxTotalOctets) > uint64(^uint32(0)) {
+			return fmt.Errorf("radius.vendor.quota_mappings[%d].max_total_octets %d is outside the uint32 range 1-4294967295", i, mapping.MaxTotalOctets)
+		}
+		roleKey := pack + "\x00" + strings.ToLower(role)
+		if _, exists := seenQuotaRoles[roleKey]; exists {
+			return fmt.Errorf("radius.vendor.quota_mappings[%d] duplicates role %q for pack %q", i, role, pack)
+		}
+		seenQuotaRoles[roleKey] = struct{}{}
 	}
 	seenVendorDictionaryPaths := map[string]struct{}{}
 	for i, path := range c.Radius.Vendor.DictionaryPaths {

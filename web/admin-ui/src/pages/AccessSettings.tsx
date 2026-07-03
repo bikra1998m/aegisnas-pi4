@@ -589,6 +589,7 @@ const defaultSettings: JsonMap = {
       avpair_mappings: [],
       portal_status_mappings: [],
       session_action_mappings: [],
+      quota_mappings: [],
       attributes: [],
     },
     eap: {
@@ -756,6 +757,10 @@ const sessionActionOptions: Option[] = [
   { value: "reauth", label: "Reauthenticate" },
   { value: "disconnect", label: "Disconnect" },
   { value: "quarantine", label: "Quarantine" },
+];
+
+const quotaPackOptions: Option[] = [
+  { value: "chillispot", label: "ChilliSpot / CoovaChilli" },
 ];
 
 const mdmProviderOptions: Option[] = [
@@ -1530,6 +1535,7 @@ export default function AccessSettings() {
     settings.radius?.vendor?.portal_status_mappings || [];
   const vendorSessionActionMappings =
     settings.radius?.vendor?.session_action_mappings || [];
+  const vendorQuotaMappings = settings.radius?.vendor?.quota_mappings || [];
   const ssids = settings.wireless?.ssids || [];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
@@ -8395,6 +8401,120 @@ export default function AccessSettings() {
                                 "session_action_mappings",
                               ],
                               vendorSessionActionMappings.filter(
+                                (_: unknown, itemIndex: number) =>
+                                  itemIndex !== index,
+                              ),
+                            )
+                          }
+                          className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
+            )}
+          </div>
+          <div className="mb-4 border-t border-gray-100 pt-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h5 className="text-sm font-semibold text-gray-900">
+                  ChilliSpot Data Quotas
+                </h5>
+                <p className="mt-1 text-sm text-gray-600">
+                  Limit combined input and output bytes for each local role.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  updateField(
+                    ["radius", "vendor", "quota_mappings"],
+                    [
+                      ...vendorQuotaMappings,
+                      {
+                        pack: "chillispot",
+                        role: "",
+                        max_total_octets: 1073741824,
+                      },
+                    ],
+                  )
+                }
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+              >
+                Add Data Quota
+              </button>
+            </div>
+            {vendorQuotaMappings.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                No ChilliSpot data quotas configured.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {vendorQuotaMappings.map(
+                  (mapping: JsonMap, index: number) => (
+                    <div
+                      key={`vendor-quota-${index}`}
+                      className="grid gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-4"
+                    >
+                      <SelectField
+                        label="Vendor Pack"
+                        value={mapping.pack || "chillispot"}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "quota_mappings",
+                              String(index),
+                              "pack",
+                            ],
+                            value,
+                          )
+                        }
+                        options={quotaPackOptions}
+                      />
+                      <TextField
+                        label="Local Role"
+                        value={mapping.role || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "quota_mappings",
+                              String(index),
+                              "role",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="guest-1g"
+                      />
+                      <TextField
+                        label="Maximum Total Octets"
+                        type="number"
+                        value={mapping.max_total_octets ?? 1073741824}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "quota_mappings",
+                              String(index),
+                              "max_total_octets",
+                            ],
+                            Number(value),
+                          )
+                        }
+                      />
+                      <div className="flex items-end">
+                        <button
+                          onClick={() =>
+                            updateField(
+                              ["radius", "vendor", "quota_mappings"],
+                              vendorQuotaMappings.filter(
                                 (_: unknown, itemIndex: number) =>
                                   itemIndex !== index,
                               ),

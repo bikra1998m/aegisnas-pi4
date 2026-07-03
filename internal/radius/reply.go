@@ -295,10 +295,11 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendItem("Nomadix-Qos-Policy", firstReplyValue(attrs.PolicyTag, attrs.BandwidthProfile, attrs.FilterID), true)
 			appendNumericSessionActionItem(attrs, packKey, vendor.SessionActionMappings, appendItem, "Nomadix-EndofSession")
 		case productconfigs.VendorPackChilliSpot:
-			appendRateKbpsItem(attrs, appendItem, "Bandwidth-Max-Down", attrs.WISPrBandwidthMaxDown)
-			appendRateKbpsItem(attrs, appendItem, "Bandwidth-Max-Up", attrs.WISPrBandwidthMaxUp)
-			appendItem("Config", firstReplyValue(attrs.PolicyTag, attrs.FilterID), true)
-			appendItem("UAM-Allowed", attrs.PortalProfile, true)
+			appendRateKbpsItem(attrs, appendItem, "ChilliSpot-Bandwidth-Max-Down", attrs.WISPrBandwidthMaxDown)
+			appendRateKbpsItem(attrs, appendItem, "ChilliSpot-Bandwidth-Max-Up", attrs.WISPrBandwidthMaxUp)
+			appendItem("ChilliSpot-Config", firstReplyValue(attrs.PolicyTag, attrs.FilterID), true)
+			appendItem("ChilliSpot-UAM-Allowed", attrs.PortalProfile, true)
+			appendQuotaItem(attrs, packKey, vendor.QuotaMappings, appendItem, "ChilliSpot-Max-Total-Octets")
 		case productconfigs.VendorPackDLink:
 			appendRateKbpsItem(attrs, appendItem, "Egress-Bandwidth-Assignment", attrs.WISPrBandwidthMaxDown)
 			appendRateKbpsItem(attrs, appendItem, "Ingress-Bandwidth-Assignment", attrs.WISPrBandwidthMaxUp)
@@ -546,6 +547,20 @@ func numericVendorSessionActionValue(mappings []config.RadiusVendorSessionAction
 		}
 	}
 	return 0, false
+}
+
+func appendQuotaItem(attrs *ReplyAttributes, packKey string, mappings []config.RadiusVendorQuotaMapping, appendItem func(string, string, bool), attribute string) {
+	if attrs == nil {
+		return
+	}
+	packKey = productconfigs.NormalizeVendorCompatibilityPackKey(packKey)
+	role := replyRole(attrs)
+	for _, mapping := range mappings {
+		if productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack) == packKey && strings.EqualFold(strings.TrimSpace(mapping.Role), role) && mapping.MaxTotalOctets > 0 {
+			appendItem(attribute, strconv.FormatInt(mapping.MaxTotalOctets, 10), false)
+			return
+		}
+	}
 }
 
 func extremeExtendedVLANValue(mappings []config.RadiusVendorExtendedVLANMapping, role string) (string, bool) {

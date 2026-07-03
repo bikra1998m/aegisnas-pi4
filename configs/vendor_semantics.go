@@ -9,6 +9,7 @@ const (
 	VendorSemanticSessionTimeout        = "session.timeout_seconds"
 	VendorSemanticIdleTimeout           = "session.idle_timeout_seconds"
 	VendorSemanticSessionAction         = "session.action"
+	VendorSemanticDataQuota             = "session.max_total_octets"
 	VendorSemanticPortalProfile         = "guest.portal_profile"
 	VendorSemanticDeviceGroup           = "device.group"
 	VendorSemanticTenant                = "governance.tenant"
@@ -161,6 +162,16 @@ func AegisNASSemanticRegistry() []VendorSemanticCapability {
 			Directions:         []string{"inbound", "outbound"},
 			ProductAttribute:   "AegisNAS-Session-Action",
 			ProductNumber:      8,
+			HardwareScope:      "all profiles",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticDataQuota,
+			Label:              "Session Data Quota",
+			Description:        "Limits the combined input and output octets authorized for a session.",
+			ValueType:          "integer",
+			Directions:         []string{"inbound", "outbound", "accounting"},
+			StandardAttributes: []string{"ChilliSpot-Max-Total-Octets"},
 			HardwareScope:      "all profiles",
 			CompatibilityState: "implemented",
 		},

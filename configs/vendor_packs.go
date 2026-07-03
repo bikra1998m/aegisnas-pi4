@@ -410,12 +410,13 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			DefaultEnabled:   false,
 			HardwareProfiles: allProfiles,
 			Attributes: []VendorPackAttributeMapping{
-				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Bandwidth-Max-Up", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Bandwidth-Max-Down", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticPolicyTag, Attribute: "Config", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticPortalProfile, Attribute: "UAM-Allowed", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticAccountingCounters, Attribute: "Max-Total-Octets", Direction: "accounting", ValueType: "integer", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticUploadBandwidth, Attribute: "ChilliSpot-Bandwidth-Max-Up", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "ChilliSpot-Bandwidth-Max-Down", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "ChilliSpot-Config", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "ChilliSpot-UAM-Allowed", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDataQuota, Attribute: "ChilliSpot-Max-Total-Octets", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
 			},
+			Notes: []string{"ChilliSpot quota values are combined input and output authorization limits and are configured per local role."},
 		},
 		{
 			Key:              VendorPackDLink,
@@ -603,6 +604,10 @@ func VendorPackSupportsPortalStatusMapping(key string) bool {
 
 func VendorPackSupportsSessionActionMapping(key string) bool {
 	return NormalizeVendorCompatibilityPackKey(key) == VendorPackNomadix
+}
+
+func VendorPackSupportsQuotaMapping(key string) bool {
+	return NormalizeVendorCompatibilityPackKey(key) == VendorPackChilliSpot
 }
 
 func NormalizeVendorCompatibilityPackKey(key string) string {

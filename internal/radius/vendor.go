@@ -42,6 +42,7 @@ const (
 	inboundVendorAVPairs      inboundVendorValueKind = "avpairs"
 	inboundVendorMappedPortal inboundVendorValueKind = "mapped_portal_status"
 	inboundVendorMappedAction inboundVendorValueKind = "mapped_session_action"
+	inboundVendorQuota        inboundVendorValueKind = "data_quota"
 )
 
 type inboundVendorMapping struct {
@@ -169,10 +170,11 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 14, Attribute: "Nomadix-Qos-Policy", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 27, Attribute: "Nomadix-Bw-Class-Name", Semantic: productconfigs.VendorSemanticBandwidthProfile, Kind: inboundVendorString},
 
-	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 4, Attribute: "Bandwidth-Max-Up", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
-	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 5, Attribute: "Bandwidth-Max-Down", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
-	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 6, Attribute: "Config", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
-	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 100, Attribute: "UAM-Allowed", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 3, Attribute: "ChilliSpot-Max-Total-Octets", Semantic: productconfigs.VendorSemanticDataQuota, Kind: inboundVendorQuota},
+	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 4, Attribute: "ChilliSpot-Bandwidth-Max-Up", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 5, Attribute: "ChilliSpot-Bandwidth-Max-Down", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 6, Attribute: "ChilliSpot-Config", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 100, Attribute: "ChilliSpot-UAM-Allowed", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
 
 	{PackKey: productconfigs.VendorPackDLink, VendorID: 171, Type: 2, Attribute: "Ingress-Bandwidth-Assignment", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
 	{PackKey: productconfigs.VendorPackDLink, VendorID: 171, Type: 1, Attribute: "User-Level", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorMappedRole},
@@ -493,6 +495,12 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 		}
 		if action, found := numericVendorSessionAction(vendor.SessionActionMappings, mapping.PackKey, value); found {
 			setStringIfEmpty(&result.VendorSessionAction, action)
+		}
+	case inboundVendorQuota:
+		value, ok := lookupVendorInteger(packet, mapping.VendorID, mapping.Type)
+		if ok && value > 0 {
+			result.VendorMaxTotalOctets = uint64(value)
+			result.HasVendorMaxTotalOctets = true
 		}
 	}
 }

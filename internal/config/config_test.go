@@ -365,6 +365,13 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	}
 	assert.NoError(t, validSessionActions.Validate())
 
+	validQuotas := base()
+	validQuotas.Radius.Vendor.QuotaMappings = []RadiusVendorQuotaMapping{
+		{Pack: "chillispot", Role: "guest-1g", MaxTotalOctets: 1_073_741_824},
+		{Pack: "coovachilli", Role: "guest-4g", MaxTotalOctets: 4_294_967_295},
+	}
+	assert.NoError(t, validQuotas.Validate())
+
 	invalidID := base()
 	invalidID.Radius.Vendor.ID = 0
 	assert.ErrorContains(t, invalidID.Validate(), "radius.vendor.id")
@@ -497,6 +504,21 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 		{Pack: "nomadix", Role: "quarantine", Action: "quarantine", Value: 1},
 	}
 	assert.ErrorContains(t, conflictingSessionActionValue.Validate(), "maps value")
+
+	invalidQuotaPack := base()
+	invalidQuotaPack.Radius.Vendor.QuotaMappings = []RadiusVendorQuotaMapping{{Pack: "nomadix", Role: "guest", MaxTotalOctets: 1024}}
+	assert.ErrorContains(t, invalidQuotaPack.Validate(), "does not support quota mappings")
+
+	invalidQuotaValue := base()
+	invalidQuotaValue.Radius.Vendor.QuotaMappings = []RadiusVendorQuotaMapping{{Pack: "chillispot", Role: "guest", MaxTotalOctets: 0}}
+	assert.ErrorContains(t, invalidQuotaValue.Validate(), "uint32 range")
+
+	duplicateQuotaRole := base()
+	duplicateQuotaRole.Radius.Vendor.QuotaMappings = []RadiusVendorQuotaMapping{
+		{Pack: "chillispot", Role: "Guest", MaxTotalOctets: 1024},
+		{Pack: "chillispot", Role: "guest", MaxTotalOctets: 2048},
+	}
+	assert.ErrorContains(t, duplicateQuotaRole.Validate(), "duplicates role")
 }
 
 func TestConfigValidationAIEngine(t *testing.T) {

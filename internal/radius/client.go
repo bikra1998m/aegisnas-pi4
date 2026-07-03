@@ -56,6 +56,8 @@ type BrokerAuthResult struct {
 	VendorVLAN               int
 	HasVendorVLAN            bool
 	VendorTaggedVLANs        []int
+	VendorMaxTotalOctets     uint64
+	HasVendorMaxTotalOctets  bool
 	VendorQuarantine         bool
 	HasVendorQuarantine      bool
 	VendorSessionTimeout     int

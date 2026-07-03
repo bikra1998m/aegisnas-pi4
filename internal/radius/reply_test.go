@@ -227,9 +227,9 @@ func TestRenderReplyAttributesForAdditionalVendorPacks(t *testing.T) {
 	assert.Contains(t, rendered, "\tNomadix-Bw-Up = 15000\n")
 	assert.Contains(t, rendered, "\tNomadix-URL-Redirection = \"https://portal.example.test/start\"\n")
 	assert.Contains(t, rendered, "\tNomadix-Net-VLAN = 77\n")
-	assert.Contains(t, rendered, "\tBandwidth-Max-Down = 60000\n")
-	assert.Contains(t, rendered, "\tBandwidth-Max-Up = 15000\n")
-	assert.Contains(t, rendered, "\tUAM-Allowed = \"https://portal.example.test/start\"\n")
+	assert.Contains(t, rendered, "\tChilliSpot-Bandwidth-Max-Down = 60000\n")
+	assert.Contains(t, rendered, "\tChilliSpot-Bandwidth-Max-Up = 15000\n")
+	assert.Contains(t, rendered, "\tChilliSpot-UAM-Allowed = \"https://portal.example.test/start\"\n")
 	assert.Contains(t, rendered, "\tVLAN-ID = \"77\"\n")
 	assert.Contains(t, rendered, "\tACL-Profile = \"guest-acl\"\n")
 	assert.Contains(t, rendered, "\tACL-Rule = \"permit in tcp from any to any 443\"\n")
@@ -342,6 +342,18 @@ func TestRenderReplyAttributesUsesNomadixSessionActionMapping(t *testing.T) {
 
 	assert.Contains(t, rendered, "\tNomadix-EndofSession = 7\n")
 	assert.NotContains(t, RenderReplyAttributesForPacks(attrs, []string{"nomadix"}), "Nomadix-EndofSession")
+}
+
+func TestRenderReplyAttributesUsesChilliSpotQuotaMapping(t *testing.T) {
+	attrs := &ReplyAttributes{Role: "guest-1g"}
+	vendor := config.RadiusVendorConfig{QuotaMappings: []config.RadiusVendorQuotaMapping{
+		{Pack: "chillispot", Role: attrs.Role, MaxTotalOctets: 1_073_741_824},
+	}}
+
+	rendered := RenderReplyAttributesForVendorConfigAndPacks(attrs, []string{"chillispot"}, vendor)
+
+	assert.Contains(t, rendered, "\tChilliSpot-Max-Total-Octets = 1073741824\n")
+	assert.NotContains(t, RenderReplyAttributesForPacks(attrs, []string{"chillispot"}), "ChilliSpot-Max-Total-Octets")
 }
 
 func TestNormalizeClientNASType(t *testing.T) {

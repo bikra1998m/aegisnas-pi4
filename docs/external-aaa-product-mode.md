@@ -401,6 +401,19 @@ radius:
 
 Supported actions are `allow`, `reauth`, `disconnect`, and `quarantine`. A role has one outbound mapping. Multiple roles may share a value only when it maps to the same action; conflicting reverse meanings are rejected. Unknown inbound values are ignored. The Nomadix pack uses the official FreeRADIUS names, including `Nomadix-Bw-Up`, `Nomadix-Bw-Down`, `Nomadix-URL-Redirection`, `Nomadix-Net-VLAN`, and `Nomadix-Qos-Policy`.
 
+ChilliSpot combined input and output quotas use `ChilliSpot-Max-Total-Octets`, integer attribute 3. Configure the byte limit by local role:
+
+```yaml
+radius:
+  vendor:
+    quota_mappings:
+      - pack: chillispot
+        role: guest-1g
+        max_total_octets: 1073741824
+```
+
+Values must be between 1 and 4,294,967,295 bytes. The limit is an outbound authorization quota, not an accounting counter. Inbound values are retained as normalized quota intent. The ChilliSpot pack now uses the official prefixed names for bandwidth, configuration, portal allowlist, and quota attributes.
+
 Available pack keys include:
 
 - `standard`

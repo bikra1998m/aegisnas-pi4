@@ -60,6 +60,9 @@ func TestVendorPackCertificationMatrixRendersDeclaredOutboundAttributes(t *testi
 				SessionActionMappings: []config.RadiusVendorSessionActionMapping{
 					{Pack: productconfigs.VendorPackNomadix, Role: attrs.Role, Action: "disconnect", Value: 1},
 				},
+				QuotaMappings: []config.RadiusVendorQuotaMapping{
+					{Pack: productconfigs.VendorPackChilliSpot, Role: attrs.Role, MaxTotalOctets: 1_073_741_824},
+				},
 			}
 			items := BuildReplyAttributeItemsForVendorConfig(attrs, []string{pack.Key}, vendor)
 			actual := make(map[string]struct{}, len(items))
