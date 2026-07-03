@@ -179,6 +179,9 @@ func TestApplyVendorCompatibilityAttributesParsesAccountingContext(t *testing.T)
 		{name: "arista profiling", pack: productconfigs.VendorPackArista, vendorID: 30065, typeID: 17, value: "profiled-iot", assertion: func(t *testing.T, result *BrokerAuthResult) {
 			assert.Equal(t, "profiled-iot", result.VendorDevicePosture)
 		}},
+		{name: "aerohive client monitor problem", pack: productconfigs.VendorPackAerohive, vendorID: 26928, typeID: 210, value: uint32(17), assertion: func(t *testing.T, result *BrokerAuthResult) {
+			assert.Equal(t, "17", result.VendorDevicePosture)
+		}},
 		{name: "meru ap id", pack: productconfigs.VendorPackMeru, vendorID: 15983, typeID: 1, value: uint32(42), assertion: func(t *testing.T, result *BrokerAuthResult) {
 			assert.Equal(t, "42", result.VendorDeviceGroup)
 		}},

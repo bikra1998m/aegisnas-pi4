@@ -347,9 +347,9 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticPolicyTag, Attribute: "Extreme-AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticPortalProfile, Attribute: "Extreme-IDM-Redirect-URL", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticRole, Attribute: "Extreme-User-Profile-Attribute", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDevicePosture, Attribute: "Extreme-Client-Monitor-Problem", Direction: "accounting", ValueType: "integer", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Extreme-Client-Monitor-Problem", Direction: "accounting", ValueType: "integer", CompatibilityState: "implemented"},
 			},
-			Notes: []string{"Aerohive dictionaries use Extreme-prefixed attributes under the Aerohive vendor namespace; numeric user profile IDs need a site template before role rendering."},
+			Notes: []string{"Aerohive dictionaries use Extreme-prefixed attributes under the Aerohive vendor namespace; numeric user profile IDs need a site template before role rendering. Client monitor problem codes are retained as their decimal dictionary value for posture processing."},
 		},
 		{
 			Key:              VendorPackAirespace,

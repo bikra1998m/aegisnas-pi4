@@ -134,6 +134,7 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 1, Attribute: "Extreme-User-Vlan", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
 	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 6, Attribute: "Extreme-User-Profile-Attribute", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorMappedRole},
 	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 8, Attribute: "Extreme-AVPair", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 210, Attribute: "Extreme-Client-Monitor-Problem", Semantic: productconfigs.VendorSemanticDevicePosture, Kind: inboundVendorIntText},
 	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 211, Attribute: "Extreme-IDM-Redirect-URL", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
 
 	{PackKey: productconfigs.VendorPackAirespace, VendorID: 14179, Type: 1, Attribute: "Wlan-Id", Semantic: productconfigs.VendorSemanticDeviceGroup, Kind: inboundVendorIntText},
