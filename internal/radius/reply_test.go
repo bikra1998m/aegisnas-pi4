@@ -1,6 +1,7 @@
 package radius
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -283,6 +284,39 @@ func TestRenderReplyAttributesUsesExtremeExtendedVLANMapping(t *testing.T) {
 	assert.Contains(t, rendered, "\tExtreme-Netlogin-Extended-Vlan = \"U20;T30;T40\"\n")
 	assert.NotContains(t, rendered, "Extreme-Netlogin-Vlan =")
 	assert.NotContains(t, rendered, "Extreme-Netlogin-Vlan-Tag")
+}
+
+func TestRenderReplyAttributesUsesVendorAVPairMappings(t *testing.T) {
+	attrs := &ReplyAttributes{
+		Role: "guest", VLAN: 30, ACLPolicyName: "guest-policy", InboundACL: "guest-in",
+		OutboundACL: "guest-out", PolicyTag: "internet", DeviceGroup: "branch", Tenant: "tenant-a",
+	}
+	vendor := config.RadiusVendorConfig{AVPairMappings: []config.RadiusVendorAVPairMapping{
+		{Pack: "juniper", Role: "guest", Values: []string{"firewall=${inbound_acl}", "vlan=${vlan}"}},
+		{Pack: "huawei", Role: "guest", Values: []string{"policy=${acl_policy}"}},
+		{Pack: "h3c", Role: "guest", Values: []string{"group=${device_group};tag=${policy_tag}"}},
+		{Pack: "arista", Role: "guest", Values: []string{"shell:roles=${role}", "tenant=${tenant}"}},
+	}}
+
+	rendered := RenderReplyAttributesForVendorConfigAndPacks(attrs, []string{"juniper", "huawei", "h3c", "arista"}, vendor)
+
+	assert.Contains(t, rendered, "\tJuniper-AV-Pair = \"firewall=guest-in\"\n")
+	assert.Contains(t, rendered, "\tJuniper-AV-Pair = \"vlan=30\"\n")
+	assert.Contains(t, rendered, "\tHuawei-AVpair = \"policy=guest-policy\"\n")
+	assert.Contains(t, rendered, "\tH3C-Av-Pair = \"group=branch;tag=internet\"\n")
+	assert.Contains(t, rendered, "\tArista-AVPair = \"shell:roles=guest\"\n")
+	assert.Contains(t, rendered, "\tArista-AVPair = \"tenant=tenant-a\"\n")
+}
+
+func TestRenderReplyAttributesOmitsOversizedExpandedAVPair(t *testing.T) {
+	role := strings.Repeat("r", 241)
+	vendor := config.RadiusVendorConfig{AVPairMappings: []config.RadiusVendorAVPairMapping{
+		{Pack: "arista", Role: role, Values: []string{"${role}"}},
+	}}
+
+	rendered := RenderReplyAttributesForVendorConfigAndPacks(&ReplyAttributes{Role: role}, []string{"arista"}, vendor)
+
+	assert.NotContains(t, rendered, "Arista-AVPair")
 }
 
 func TestNormalizeClientNASType(t *testing.T) {

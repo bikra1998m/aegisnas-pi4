@@ -39,6 +39,7 @@ const (
 	inboundVendorIntText      inboundVendorValueKind = "integer_text"
 	inboundVendorMappedRole   inboundVendorValueKind = "mapped_role"
 	inboundVendorExtendedVLAN inboundVendorValueKind = "extended_vlan"
+	inboundVendorAVPairs      inboundVendorValueKind = "avpairs"
 )
 
 type inboundVendorMapping struct {
@@ -105,6 +106,7 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackJuniper, VendorID: 2636, Type: 46, Attribute: "Juniper-Local-Group-Name", Semantic: productconfigs.VendorSemanticDeviceGroup, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackJuniper, VendorID: 2636, Type: 48, Attribute: "Juniper-Switching-Filter", Semantic: productconfigs.VendorSemanticACL, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackJuniper, VendorID: 2636, Type: 50, Attribute: "Juniper-CWA-Redirect", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackJuniper, VendorID: 2636, Type: 52, Attribute: "Juniper-AV-Pair", Semantic: productconfigs.VendorSemanticDynamicACL, Kind: inboundVendorAVPairs},
 
 	{PackKey: productconfigs.VendorPackHuawei, VendorID: 2011, Type: 5, Attribute: "Huawei-Output-Average-Rate", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
 	{PackKey: productconfigs.VendorPackHuawei, VendorID: 2011, Type: 2, Attribute: "Huawei-Input-Average-Rate", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
@@ -113,6 +115,7 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackHuawei, VendorID: 2011, Type: 82, Attribute: "Huawei-Data-Filter", Semantic: productconfigs.VendorSemanticACL, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackHuawei, VendorID: 2011, Type: 140, Attribute: "Huawei-HTTP-Redirect-URL", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackHuawei, VendorID: 2011, Type: 182, Attribute: "Huawei-Down-QOS-Profile-Name", Semantic: productconfigs.VendorSemanticBandwidthProfile, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackHuawei, VendorID: 2011, Type: 188, Attribute: "Huawei-AVpair", Semantic: productconfigs.VendorSemanticDynamicACL, Kind: inboundVendorAVPairs},
 
 	{PackKey: productconfigs.VendorPackH3C, VendorID: 25506, Type: 5, Attribute: "H3C-Output-Average-Rate", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
 	{PackKey: productconfigs.VendorPackH3C, VendorID: 25506, Type: 2, Attribute: "H3C-Input-Average-Rate", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
@@ -120,6 +123,7 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackH3C, VendorID: 25506, Type: 140, Attribute: "H3C-User-Group", Semantic: productconfigs.VendorSemanticDeviceGroup, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackH3C, VendorID: 25506, Type: 155, Attribute: "H3C-User-Role", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackH3C, VendorID: 25506, Type: 216, Attribute: "H3C-Ita-Policy", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackH3C, VendorID: 25506, Type: 210, Attribute: "H3C-Av-Pair", Semantic: productconfigs.VendorSemanticDynamicACL, Kind: inboundVendorAVPairs},
 
 	{PackKey: productconfigs.VendorPackPaloAlto, VendorID: 25461, Type: 1, Attribute: "PaloAlto-Admin-Role", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackPaloAlto, VendorID: 25461, Type: 2, Attribute: "PaloAlto-Admin-Access-Domain", Semantic: productconfigs.VendorSemanticTenant, Kind: inboundVendorString},
@@ -182,6 +186,7 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackArista, VendorID: 30065, Type: 17, Attribute: "Device-Profiling", Semantic: productconfigs.VendorSemanticDevicePosture, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackArista, VendorID: 30065, Type: 20, Attribute: "Tenant-Id", Semantic: productconfigs.VendorSemanticTenant, Kind: inboundVendorIntText},
 	{PackKey: productconfigs.VendorPackArista, VendorID: 30065, Type: 21, Attribute: "Interface-Profile", Semantic: productconfigs.VendorSemanticDeviceGroup, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackArista, VendorID: 30065, Type: 1, Attribute: "Arista-AVPair", Semantic: productconfigs.VendorSemanticDynamicACL, Kind: inboundVendorAVPairs},
 
 	{PackKey: productconfigs.VendorPackPica8, VendorID: 35098, Type: 2, Attribute: "IP-Downloadable-ACL-Rule", Semantic: productconfigs.VendorSemanticDynamicACL, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackPica8, VendorID: 35098, Type: 3, Attribute: "IP-Downloadable-ACL-Name", Semantic: productconfigs.VendorSemanticACL, Kind: inboundVendorString},
@@ -465,7 +470,24 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			result.HasVendorVLAN = true
 		}
 		result.VendorTaggedVLANs = append([]int(nil), tagged...)
+	case inboundVendorAVPairs:
+		for _, value := range lookupVendorStrings(packet, mapping.VendorID, mapping.Type) {
+			appendUniqueVendorAVPair(result, value)
+		}
 	}
+}
+
+func appendUniqueVendorAVPair(result *BrokerAuthResult, value string) {
+	value = strings.TrimSpace(value)
+	if result == nil || value == "" || len(value) > 240 || len(result.VendorAVPairs) >= 16 {
+		return
+	}
+	for _, existing := range result.VendorAVPairs {
+		if existing == value {
+			return
+		}
+	}
+	result.VendorAVPairs = append(result.VendorAVPairs, value)
 }
 
 func parseExtremeExtendedVLAN(value string) (int, bool, []int, bool) {
@@ -611,6 +633,33 @@ func lookupVendorString(packet *layehradius.Packet, vendorID uint32, typ byte) (
 	}
 	value := strings.TrimSpace(layehradius.String(attr))
 	return value, value != ""
+}
+
+func lookupVendorStrings(packet *layehradius.Packet, vendorID uint32, typ byte) []string {
+	if packet == nil {
+		return nil
+	}
+	values := make([]string, 0, 2)
+	for _, avp := range packet.Attributes {
+		if avp.Type != rfc2865.VendorSpecific_Type {
+			continue
+		}
+		gotVendorID, vsa, err := layehradius.VendorSpecific(avp.Attribute)
+		if err != nil || gotVendorID != vendorID {
+			continue
+		}
+		for len(vsa) >= 3 {
+			vsaType, vsaLen := vsa[0], int(vsa[1])
+			if vsaLen > len(vsa) || vsaLen < 3 {
+				break
+			}
+			if vsaType == typ {
+				values = append(values, string(vsa[2:vsaLen]))
+			}
+			vsa = vsa[vsaLen:]
+		}
+	}
+	return values
 }
 
 func lookupVendorInteger(packet *layehradius.Packet, vendorID uint32, typ byte) (uint32, bool) {

@@ -358,6 +358,22 @@ radius:
 
 AegisNAS validates VLAN IDs, rejects duplicates, and enforces Extreme's ten-VLAN limit. The example renders `Extreme-Netlogin-Extended-Vlan = "U20;T30;T40"`. When a matching mapping exists, the extended VSA replaces the lower-priority Extreme VLAN name and VLAN tag attributes. Inbound numeric VSA 211 assignments are parsed back into one untagged VLAN and the tagged VLAN list; name and wildcard forms remain untouched because they cannot be mapped safely into numeric policy intent.
 
+Juniper, Huawei, H3C, and Arista AVPair strings vary by device family and firmware. Configure only values validated against the target device:
+
+```yaml
+radius:
+  vendor:
+    avpair_mappings:
+      - pack: juniper
+        role: guest
+        values: ["firewall=${inbound_acl}", "vlan=${vlan}"]
+      - pack: arista
+        role: network-admin
+        values: ["shell:roles=${role}"]
+```
+
+Supported placeholders are `${role}`, `${acl_policy}`, `${inbound_acl}`, `${outbound_acl}`, `${vlan}`, `${policy_tag}`, `${device_group}`, and `${tenant}`. Each role can emit up to 16 values. Unknown placeholders, duplicate values, control characters, and oversized values are rejected. Inbound AVPairs are retained as separate opaque broker context and are not automatically trusted as executable ACL intent.
+
 Available pack keys include:
 
 - `standard`

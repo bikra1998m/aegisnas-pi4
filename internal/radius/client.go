@@ -52,6 +52,7 @@ type BrokerAuthResult struct {
 	VendorAccountingIdentity string
 	VendorInboundACL         string
 	VendorOutboundACL        string
+	VendorAVPairs            []string
 	VendorVLAN               int
 	HasVendorVLAN            bool
 	VendorTaggedVLANs        []int

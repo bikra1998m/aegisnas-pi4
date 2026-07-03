@@ -48,6 +48,12 @@ func TestVendorPackCertificationMatrixRendersDeclaredOutboundAttributes(t *testi
 					{Pack: productconfigs.VendorPackSonicWall, Role: attrs.Role, Value: 7},
 					{Pack: productconfigs.VendorPackZTE, Role: attrs.Role, Value: 15},
 				},
+				AVPairMappings: []config.RadiusVendorAVPairMapping{
+					{Pack: productconfigs.VendorPackJuniper, Role: attrs.Role, Values: []string{"acl=${acl_policy}"}},
+					{Pack: productconfigs.VendorPackHuawei, Role: attrs.Role, Values: []string{"acl=${acl_policy}"}},
+					{Pack: productconfigs.VendorPackH3C, Role: attrs.Role, Values: []string{"acl=${acl_policy}"}},
+					{Pack: productconfigs.VendorPackArista, Role: attrs.Role, Values: []string{"acl=${acl_policy}"}},
+				},
 			}
 			items := BuildReplyAttributeItemsForVendorConfig(attrs, []string{pack.Key}, vendor)
 			actual := make(map[string]struct{}, len(items))

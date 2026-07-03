@@ -263,7 +263,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticACL, Attribute: "Juniper-Firewall-filter-name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticACL, Attribute: "Juniper-Switching-Filter", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticPortalProfile, Attribute: "Juniper-CWA-Redirect", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDynamicACL, Attribute: "Juniper-AV-Pair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Juniper-AV-Pair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticAccountingCounters, Attribute: "Juniper-Acct-Request-Reason", Direction: "accounting", ValueType: "integer", CompatibilityState: "implemented"},
 			},
 		},
@@ -281,7 +281,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Huawei-Input-Average-Rate", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticACL, Attribute: "Huawei-Data-Filter", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticPortalProfile, Attribute: "Huawei-HTTP-Redirect-URL", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDynamicACL, Attribute: "Huawei-AVpair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Huawei-AVpair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 			},
 			Notes: []string{"Huawei rate attributes are rendered from AegisNAS kbps values; validate unit expectations on the target controller or switch."},
 		},
@@ -299,7 +299,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticUploadBandwidth, Attribute: "H3C-Input-Average-Rate", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticPolicyTag, Attribute: "H3C-Ita-Policy", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticPortalProfile, Attribute: "H3C-Portal-URL", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDynamicACL, Attribute: "H3C-Av-Pair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "H3C-Av-Pair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 			},
 		},
 		{
@@ -453,7 +453,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			HardwareProfiles: branchEnterprise,
 			Attributes: []VendorPackAttributeMapping{
 				{Semantic: VendorSemanticRole, Attribute: "User-Role", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDynamicACL, Attribute: "AVPair", Direction: "outbound_reply", ValueType: "policy", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Arista-AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticPortalProfile, Attribute: "Captive-Portal", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticVLAN, Attribute: "Segment-Id", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDeviceGroup, Attribute: "Interface-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
@@ -579,6 +579,21 @@ func VendorPackSupportsNumericRoleMapping(key string) bool {
 
 func VendorPackSupportsExtendedVLANMapping(key string) bool {
 	return NormalizeVendorCompatibilityPackKey(key) == VendorPackExtreme
+}
+
+func VendorPackAVPairAttribute(key string) (string, bool) {
+	switch NormalizeVendorCompatibilityPackKey(key) {
+	case VendorPackJuniper:
+		return "Juniper-AV-Pair", true
+	case VendorPackHuawei:
+		return "Huawei-AVpair", true
+	case VendorPackH3C:
+		return "H3C-Av-Pair", true
+	case VendorPackArista:
+		return "Arista-AVPair", true
+	default:
+		return "", false
+	}
 }
 
 func NormalizeVendorCompatibilityPackKey(key string) string {

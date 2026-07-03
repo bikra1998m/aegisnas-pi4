@@ -343,6 +343,13 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	}
 	assert.NoError(t, validExtendedVLANs.Validate())
 
+	validAVPairs := base()
+	validAVPairs.Radius.Vendor.AVPairMappings = []RadiusVendorAVPairMapping{
+		{Pack: "juniper", Role: "guest", Values: []string{"firewall=${inbound_acl}", "vlan=${vlan}"}},
+		{Pack: "arista", Role: "operator", Values: []string{"shell:roles=${role}"}},
+	}
+	assert.NoError(t, validAVPairs.Validate())
+
 	invalidID := base()
 	invalidID.Radius.Vendor.ID = 0
 	assert.ErrorContains(t, invalidID.Validate(), "radius.vendor.id")
@@ -408,6 +415,29 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	tooManyExtendedVLANs := base()
 	tooManyExtendedVLANs.Radius.Vendor.ExtendedVLANMappings = []RadiusVendorExtendedVLANMapping{{Pack: "extreme", Role: "trunk", TaggedVLANs: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}}}
 	assert.ErrorContains(t, tooManyExtendedVLANs.Validate(), "more than 10 VLANs")
+
+	invalidAVPairPack := base()
+	invalidAVPairPack.Radius.Vendor.AVPairMappings = []RadiusVendorAVPairMapping{{Pack: "cisco", Role: "guest", Values: []string{"acl=guest"}}}
+	assert.ErrorContains(t, invalidAVPairPack.Validate(), "does not support AVPair mappings")
+
+	emptyAVPairs := base()
+	emptyAVPairs.Radius.Vendor.AVPairMappings = []RadiusVendorAVPairMapping{{Pack: "huawei", Role: "guest"}}
+	assert.ErrorContains(t, emptyAVPairs.Validate(), "between 1 and 16")
+
+	unsupportedAVPairToken := base()
+	unsupportedAVPairToken.Radius.Vendor.AVPairMappings = []RadiusVendorAVPairMapping{{Pack: "h3c", Role: "guest", Values: []string{"secret=${password}"}}}
+	assert.ErrorContains(t, unsupportedAVPairToken.Validate(), "unsupported template token")
+
+	duplicateAVPairRole := base()
+	duplicateAVPairRole.Radius.Vendor.AVPairMappings = []RadiusVendorAVPairMapping{
+		{Pack: "arista", Role: "Operator", Values: []string{"one"}},
+		{Pack: "arista", Role: "operator", Values: []string{"two"}},
+	}
+	assert.ErrorContains(t, duplicateAVPairRole.Validate(), "duplicates role")
+
+	duplicateAVPairValue := base()
+	duplicateAVPairValue.Radius.Vendor.AVPairMappings = []RadiusVendorAVPairMapping{{Pack: "juniper", Role: "guest", Values: []string{"one", "one"}}}
+	assert.ErrorContains(t, duplicateAVPairValue.Validate(), "duplicates an earlier value")
 }
 
 func TestConfigValidationAIEngine(t *testing.T) {

@@ -586,6 +586,7 @@ const defaultSettings: JsonMap = {
       dictionary_paths: [],
       role_mappings: [],
       extended_vlan_mappings: [],
+      avpair_mappings: [],
       attributes: [],
     },
     eap: {
@@ -731,6 +732,13 @@ const numericVendorRolePackOptions: Option[] = [
 
 const extendedVLANPackOptions: Option[] = [
   { value: "extreme", label: "Extreme Networks" },
+];
+
+const avPairPackOptions: Option[] = [
+  { value: "juniper", label: "Juniper" },
+  { value: "huawei", label: "Huawei" },
+  { value: "h3c", label: "H3C" },
+  { value: "arista", label: "Arista" },
 ];
 
 const mdmProviderOptions: Option[] = [
@@ -1500,6 +1508,7 @@ export default function AccessSettings() {
   const vendorRoleMappings = settings.radius?.vendor?.role_mappings || [];
   const vendorExtendedVLANMappings =
     settings.radius?.vendor?.extended_vlan_mappings || [];
+  const vendorAVPairMappings = settings.radius?.vendor?.avpair_mappings || [];
   const ssids = settings.wireless?.ssids || [];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
@@ -7989,6 +7998,128 @@ export default function AccessSettings() {
                                 "extended_vlan_mappings",
                               ],
                               vendorExtendedVLANMappings.filter(
+                                (_: unknown, itemIndex: number) =>
+                                  itemIndex !== index,
+                              ),
+                            )
+                          }
+                          className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
+            )}
+          </div>
+          <div className="mb-4 border-t border-gray-100 pt-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h5 className="text-sm font-semibold text-gray-900">
+                  Vendor AVPair Templates
+                </h5>
+                <p className="mt-1 text-sm text-gray-600">
+                  Add one certified value per line for each local role.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  updateField(
+                    ["radius", "vendor", "avpair_mappings"],
+                    [
+                      ...vendorAVPairMappings,
+                      { pack: "juniper", role: "", values: [] },
+                    ],
+                  )
+                }
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+              >
+                Add AVPair Mapping
+              </button>
+            </div>
+            <p className="mb-3 text-xs text-gray-500">
+              Placeholders: ${"{role}"}, ${"{acl_policy}"}, ${"{inbound_acl}"},
+              ${"{outbound_acl}"}, ${"{vlan}"}, ${"{policy_tag}"},
+              ${"{device_group}"}, ${"{tenant}"}
+            </p>
+            {vendorAVPairMappings.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                No vendor AVPair templates configured.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {vendorAVPairMappings.map(
+                  (mapping: JsonMap, index: number) => (
+                    <div
+                      key={`vendor-avpair-${index}`}
+                      className="grid gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-[1fr_1fr_2fr_auto]"
+                    >
+                      <SelectField
+                        label="Vendor Pack"
+                        value={mapping.pack || "juniper"}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "avpair_mappings",
+                              String(index),
+                              "pack",
+                            ],
+                            value,
+                          )
+                        }
+                        options={avPairPackOptions}
+                      />
+                      <TextField
+                        label="Local Role"
+                        value={mapping.role || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "avpair_mappings",
+                              String(index),
+                              "role",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="network-admin"
+                      />
+                      <label className="text-sm text-gray-700">
+                        <span className="mb-1 block">AVPair Values</span>
+                        <textarea
+                          rows={3}
+                          value={(mapping.values || []).join("\n")}
+                          onChange={(event) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vendor",
+                                "avpair_mappings",
+                                String(index),
+                                "values",
+                              ],
+                              event.target.value
+                                .split("\n")
+                                .map((item) => item.trim())
+                                .filter(Boolean),
+                            )
+                          }
+                          placeholder="shell:roles=${role}"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm"
+                        />
+                      </label>
+                      <div className="flex items-end">
+                        <button
+                          onClick={() =>
+                            updateField(
+                              ["radius", "vendor", "avpair_mappings"],
+                              vendorAVPairMappings.filter(
                                 (_: unknown, itemIndex: number) =>
                                   itemIndex !== index,
                               ),

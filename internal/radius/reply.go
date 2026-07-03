@@ -3,6 +3,7 @@ package radius
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
@@ -133,18 +134,18 @@ func RenderReplyAttributesForVendorConfig(attrs *ReplyAttributes, vendor config.
 }
 
 func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []ReplyAttributeItem {
-	return buildReplyAttributeItems(attrs, packKeys, nil, nil)
+	return buildReplyAttributeItems(attrs, packKeys, nil, nil, nil)
 }
 
 func BuildReplyAttributeItemsForVendorConfig(attrs *ReplyAttributes, packKeys []string, vendor config.RadiusVendorConfig) []ReplyAttributeItem {
-	return buildReplyAttributeItems(attrs, packKeys, vendor.RoleMappings, vendor.ExtendedVLANMappings)
+	return buildReplyAttributeItems(attrs, packKeys, vendor.RoleMappings, vendor.ExtendedVLANMappings, vendor.AVPairMappings)
 }
 
 func RenderReplyAttributesForVendorConfigAndPacks(attrs *ReplyAttributes, packKeys []string, vendor config.RadiusVendorConfig) string {
 	return renderReplyAttributeItems(BuildReplyAttributeItemsForVendorConfig(attrs, packKeys, vendor))
 }
 
-func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, roleMappings []config.RadiusVendorRoleMapping, extendedVLANMappings []config.RadiusVendorExtendedVLANMapping) []ReplyAttributeItem {
+func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, roleMappings []config.RadiusVendorRoleMapping, extendedVLANMappings []config.RadiusVendorExtendedVLANMapping, avPairMappings []config.RadiusVendorAVPairMapping) []ReplyAttributeItem {
 	if attrs == nil {
 		return nil
 	}
@@ -231,6 +232,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, roleMap
 			appendItem("Juniper-Firewall-filter-name", firstReplyValue(attrs.InboundACL, attrs.OutboundACL, attrs.ACLPolicyName), true)
 			appendItem("Juniper-Switching-Filter", firstReplyValue(attrs.InboundACL, attrs.OutboundACL, attrs.ACLPolicyName), true)
 			appendURLItem(attrs, appendItem, "Juniper-CWA-Redirect", attrs.PortalProfile)
+			appendVendorAVPairItems(attrs, packKey, avPairMappings, appendItem)
 		case productconfigs.VendorPackHuawei:
 			appendItem("Huawei-User-Class", replyRole(attrs), true)
 			appendItem("Huawei-Qos-Profile-Name", attrs.BandwidthProfile, true)
@@ -239,6 +241,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, roleMap
 			appendRateKbpsItem(attrs, appendItem, "Huawei-Input-Average-Rate", attrs.WISPrBandwidthMaxUp)
 			appendItem("Huawei-Data-Filter", firstReplyValue(attrs.InboundACL, attrs.OutboundACL, attrs.ACLPolicyName), true)
 			appendURLItem(attrs, appendItem, "Huawei-HTTP-Redirect-URL", attrs.PortalProfile)
+			appendVendorAVPairItems(attrs, packKey, avPairMappings, appendItem)
 		case productconfigs.VendorPackH3C:
 			appendItem("H3C-User-Role", replyRole(attrs), true)
 			appendItem("H3C-User-Group", firstReplyValue(attrs.DeviceGroup, attrs.Role), true)
@@ -246,6 +249,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, roleMap
 			appendRateKbpsItem(attrs, appendItem, "H3C-Input-Average-Rate", attrs.WISPrBandwidthMaxUp)
 			appendItem("H3C-Ita-Policy", firstReplyValue(attrs.PolicyTag, attrs.FilterID), true)
 			appendURLItem(attrs, appendItem, "H3C-Portal-URL", attrs.PortalProfile)
+			appendVendorAVPairItems(attrs, packKey, avPairMappings, appendItem)
 		case productconfigs.VendorPackPaloAlto:
 			appendItem("PaloAlto-Admin-Role", replyRole(attrs), true)
 			appendItem("PaloAlto-User-Group", firstReplyValue(attrs.DeviceGroup, attrs.Role), true)
@@ -314,6 +318,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, roleMap
 				appendItem("Segment-Id", fmt.Sprintf("%d", vlan), true)
 			}
 			appendItem("Interface-Profile", attrs.DeviceGroup, true)
+			appendVendorAVPairItems(attrs, packKey, avPairMappings, appendItem)
 		case productconfigs.VendorPackPica8:
 			appendItem("IP-Downloadable-ACL-Name", attrs.ACLPolicyName, true)
 			for _, value := range renderNASFilterRules(attrs.ACLRules) {
@@ -512,6 +517,43 @@ func extremeExtendedVLANValue(mappings []config.RadiusVendorExtendedVLANMapping,
 		}
 	}
 	return "", false
+}
+
+func appendVendorAVPairItems(attrs *ReplyAttributes, packKey string, mappings []config.RadiusVendorAVPairMapping, appendItem func(string, string, bool)) {
+	attribute, supported := productconfigs.VendorPackAVPairAttribute(packKey)
+	if !supported || attrs == nil {
+		return
+	}
+	role := replyRole(attrs)
+	for _, mapping := range mappings {
+		if productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack) != productconfigs.NormalizeVendorCompatibilityPackKey(packKey) || !strings.EqualFold(strings.TrimSpace(mapping.Role), role) {
+			continue
+		}
+		for _, value := range mapping.Values {
+			expanded := expandVendorAVPairTemplate(value, attrs)
+			if expanded == "" || len(expanded) > 240 || strings.ContainsAny(expanded, "\r\n\x00") {
+				continue
+			}
+			appendItem(attribute, expanded, true)
+		}
+		return
+	}
+}
+
+func expandVendorAVPairTemplate(value string, attrs *ReplyAttributes) string {
+	if attrs == nil {
+		return strings.TrimSpace(value)
+	}
+	return strings.NewReplacer(
+		"${role}", replyRole(attrs),
+		"${acl_policy}", strings.TrimSpace(attrs.ACLPolicyName),
+		"${inbound_acl}", strings.TrimSpace(attrs.InboundACL),
+		"${outbound_acl}", strings.TrimSpace(attrs.OutboundACL),
+		"${vlan}", strconv.Itoa(replyVLAN(attrs)),
+		"${policy_tag}", strings.TrimSpace(attrs.PolicyTag),
+		"${device_group}", strings.TrimSpace(attrs.DeviceGroup),
+		"${tenant}", strings.TrimSpace(attrs.Tenant),
+	).Replace(strings.TrimSpace(value))
 }
 
 func escapeReplyValue(value string) string {

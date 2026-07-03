@@ -125,6 +125,25 @@ func TestApplyVendorCompatibilityAttributesParsesExtremeExtendedVLAN(t *testing.
 	assert.Equal(t, []int{30, 40}, result.VendorTaggedVLANs)
 }
 
+func TestApplyVendorCompatibilityAttributesPreservesAVPairs(t *testing.T) {
+	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorString(packet, 2636, 52, "juniper-one"))
+	require.NoError(t, addVendorString(packet, 2636, 52, "juniper-two"))
+	require.NoError(t, addVendorString(packet, 2011, 188, "huawei-one"))
+	require.NoError(t, addVendorString(packet, 25506, 210, "h3c-one"))
+	require.NoError(t, addVendorString(packet, 30065, 1, "arista-one"))
+
+	result := ParseBrokerPacketWithConfig(packet, &config.Config{Radius: config.RadiusConfig{Vendor: vendorConfigForPacks(
+		productconfigs.VendorPackJuniper,
+		productconfigs.VendorPackHuawei,
+		productconfigs.VendorPackH3C,
+		productconfigs.VendorPackArista,
+	)}})
+
+	assert.Equal(t, []string{"juniper-one", "juniper-two", "huawei-one", "h3c-one", "arista-one"}, result.VendorAVPairs)
+	assert.Empty(t, result.VendorInboundACL)
+}
+
 func TestParseExtremeExtendedVLANRejectsUnsafeValues(t *testing.T) {
 	for _, value := range []string{"", "U20;T20", "U20;U30", "T0", "T4095", "*20", "Udata", "T1;T2;T3;T4;T5;T6;T7;T8;T9;T10;T11"} {
 		t.Run(value, func(t *testing.T) {

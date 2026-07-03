@@ -229,6 +229,7 @@ type RadiusVendorConfig struct {
 	DictionaryPaths      []string                          `mapstructure:"dictionary_paths"`
 	RoleMappings         []RadiusVendorRoleMapping         `mapstructure:"role_mappings"`
 	ExtendedVLANMappings []RadiusVendorExtendedVLANMapping `mapstructure:"extended_vlan_mappings"`
+	AVPairMappings       []RadiusVendorAVPairMapping       `mapstructure:"avpair_mappings"`
 	Attributes           []RadiusVendorAttribute           `mapstructure:"attributes"`
 }
 
@@ -243,6 +244,12 @@ type RadiusVendorExtendedVLANMapping struct {
 	Role         string `mapstructure:"role"`
 	UntaggedVLAN int    `mapstructure:"untagged_vlan"`
 	TaggedVLANs  []int  `mapstructure:"tagged_vlans"`
+}
+
+type RadiusVendorAVPairMapping struct {
+	Pack   string   `mapstructure:"pack"`
+	Role   string   `mapstructure:"role"`
+	Values []string `mapstructure:"values"`
 }
 
 type RadiusVendorAttribute struct {
@@ -2909,6 +2916,42 @@ func (c *Config) Validate() error {
 			seenVLANs[vlan] = struct{}{}
 		}
 	}
+	seenAVPairRoles := map[string]struct{}{}
+	for i, mapping := range c.Radius.Vendor.AVPairMappings {
+		pack := productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack)
+		role := strings.TrimSpace(mapping.Role)
+		if _, supported := productconfigs.VendorPackAVPairAttribute(pack); !supported {
+			return fmt.Errorf("radius.vendor.avpair_mappings[%d].pack %q does not support AVPair mappings", i, mapping.Pack)
+		}
+		if role == "" {
+			return fmt.Errorf("radius.vendor.avpair_mappings[%d].role cannot be empty", i)
+		}
+		if len(role) > 253 || strings.ContainsAny(role, "\r\n\x00") {
+			return fmt.Errorf("radius.vendor.avpair_mappings[%d].role is invalid", i)
+		}
+		roleKey := pack + "\x00" + strings.ToLower(role)
+		if _, exists := seenAVPairRoles[roleKey]; exists {
+			return fmt.Errorf("radius.vendor.avpair_mappings[%d] duplicates role %q for pack %q", i, role, pack)
+		}
+		seenAVPairRoles[roleKey] = struct{}{}
+		if len(mapping.Values) == 0 || len(mapping.Values) > 16 {
+			return fmt.Errorf("radius.vendor.avpair_mappings[%d].values must contain between 1 and 16 entries", i)
+		}
+		seenValues := map[string]struct{}{}
+		for valueIndex, value := range mapping.Values {
+			value = strings.TrimSpace(value)
+			if value == "" || len(value) > 240 || strings.ContainsAny(value, "\r\n\x00") {
+				return fmt.Errorf("radius.vendor.avpair_mappings[%d].values[%d] is invalid", i, valueIndex)
+			}
+			if unsupported := unsupportedAVPairTemplateToken(value); unsupported != "" {
+				return fmt.Errorf("radius.vendor.avpair_mappings[%d].values[%d] uses unsupported template token %q", i, valueIndex, unsupported)
+			}
+			if _, exists := seenValues[value]; exists {
+				return fmt.Errorf("radius.vendor.avpair_mappings[%d].values[%d] duplicates an earlier value", i, valueIndex)
+			}
+			seenValues[value] = struct{}{}
+		}
+	}
 	seenVendorDictionaryPaths := map[string]struct{}{}
 	for i, path := range c.Radius.Vendor.DictionaryPaths {
 		path = strings.TrimSpace(path)
@@ -3310,4 +3353,27 @@ func validRadiusDictionaryName(value string) bool {
 		}
 	}
 	return true
+}
+
+func unsupportedAVPairTemplateToken(value string) string {
+	allowed := map[string]struct{}{
+		"role": {}, "acl_policy": {}, "inbound_acl": {}, "outbound_acl": {},
+		"vlan": {}, "policy_tag": {}, "device_group": {}, "tenant": {},
+	}
+	for {
+		start := strings.Index(value, "${")
+		if start < 0 {
+			return ""
+		}
+		endOffset := strings.IndexByte(value[start+2:], '}')
+		if endOffset < 0 {
+			return value[start:]
+		}
+		end := start + 2 + endOffset
+		token := value[start+2 : end]
+		if _, ok := allowed[token]; !ok {
+			return value[start : end+1]
+		}
+		value = value[end+1:]
+	}
 }
