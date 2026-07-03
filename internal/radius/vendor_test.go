@@ -168,6 +168,30 @@ func TestApplyVendorCompatibilityAttributesIgnoresUnknownTPLinkPortalStatus(t *t
 	assert.Empty(t, result.VendorPortalProfile)
 }
 
+func TestApplyVendorCompatibilityAttributesReversesNomadixSessionAction(t *testing.T) {
+	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorInteger(packet, 3309, 9, 7))
+	vendor := vendorConfigForPacks(productconfigs.VendorPackNomadix)
+	vendor.SessionActionMappings = []config.RadiusVendorSessionActionMapping{
+		{Pack: "nomadix", Role: "expired-guest", Action: "disconnect", Value: 7},
+	}
+
+	result := ParseBrokerPacketWithConfig(packet, &config.Config{Radius: config.RadiusConfig{Vendor: vendor}})
+
+	assert.Equal(t, "disconnect", result.VendorSessionAction)
+}
+
+func TestApplyVendorCompatibilityAttributesIgnoresUnknownNomadixSessionAction(t *testing.T) {
+	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorInteger(packet, 3309, 9, 99))
+	vendor := vendorConfigForPacks(productconfigs.VendorPackNomadix)
+	vendor.SessionActionMappings = []config.RadiusVendorSessionActionMapping{{Pack: "nomadix", Role: "guest", Action: "disconnect", Value: 7}}
+
+	result := ParseBrokerPacketWithConfig(packet, &config.Config{Radius: config.RadiusConfig{Vendor: vendor}})
+
+	assert.Empty(t, result.VendorSessionAction)
+}
+
 func TestParseExtremeExtendedVLANRejectsUnsafeValues(t *testing.T) {
 	for _, value := range []string{"", "U20;T20", "U20;U30", "T0", "T4095", "*20", "Udata", "T1;T2;T3;T4;T5;T6;T7;T8;T9;T10;T11"} {
 		t.Run(value, func(t *testing.T) {

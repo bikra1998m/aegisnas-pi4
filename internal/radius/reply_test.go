@@ -223,10 +223,10 @@ func TestRenderReplyAttributesForAdditionalVendorPacks(t *testing.T) {
 	assert.Contains(t, rendered, "\tCaptive-Portal-URL = \"https://portal.example.test/start\"\n")
 	assert.Contains(t, rendered, "\tIp-Filter-Raw = \"permit in tcp from any to any 443\"\n")
 	assert.Contains(t, rendered, "\tEgress-VLANID = 77\n")
-	assert.Contains(t, rendered, "\tBw-Down = 60000\n")
-	assert.Contains(t, rendered, "\tBw-Up = 15000\n")
-	assert.Contains(t, rendered, "\tURL-Redirection = \"https://portal.example.test/start\"\n")
-	assert.Contains(t, rendered, "\tNet-VLAN = 77\n")
+	assert.Contains(t, rendered, "\tNomadix-Bw-Down = 60000\n")
+	assert.Contains(t, rendered, "\tNomadix-Bw-Up = 15000\n")
+	assert.Contains(t, rendered, "\tNomadix-URL-Redirection = \"https://portal.example.test/start\"\n")
+	assert.Contains(t, rendered, "\tNomadix-Net-VLAN = 77\n")
 	assert.Contains(t, rendered, "\tBandwidth-Max-Down = 60000\n")
 	assert.Contains(t, rendered, "\tBandwidth-Max-Up = 15000\n")
 	assert.Contains(t, rendered, "\tUAM-Allowed = \"https://portal.example.test/start\"\n")
@@ -330,6 +330,18 @@ func TestRenderReplyAttributesUsesTPLinkPortalStatusMapping(t *testing.T) {
 	assert.Contains(t, rendered, "\tTPLink-Redirect-Url = \"https://portal.example.test/guest\"\n")
 	assert.Contains(t, rendered, "\tTPLink-Portal-Access-Status = 7\n")
 	assert.NotContains(t, RenderReplyAttributesForPacks(attrs, []string{"tplink"}), "TPLink-Portal-Access-Status")
+}
+
+func TestRenderReplyAttributesUsesNomadixSessionActionMapping(t *testing.T) {
+	attrs := &ReplyAttributes{Role: "expired-guest"}
+	vendor := config.RadiusVendorConfig{SessionActionMappings: []config.RadiusVendorSessionActionMapping{
+		{Pack: "nomadix", Role: attrs.Role, Action: "disconnect", Value: 7},
+	}}
+
+	rendered := RenderReplyAttributesForVendorConfigAndPacks(attrs, []string{"nomadix"}, vendor)
+
+	assert.Contains(t, rendered, "\tNomadix-EndofSession = 7\n")
+	assert.NotContains(t, RenderReplyAttributesForPacks(attrs, []string{"nomadix"}), "Nomadix-EndofSession")
 }
 
 func TestNormalizeClientNASType(t *testing.T) {

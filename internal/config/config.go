@@ -222,16 +222,17 @@ type RadiusHomeServer struct {
 }
 
 type RadiusVendorConfig struct {
-	Enabled              bool                              `mapstructure:"enabled"`
-	Name                 string                            `mapstructure:"name"`
-	ID                   int                               `mapstructure:"id"`
-	CompatibilityPacks   []string                          `mapstructure:"compatibility_packs"`
-	DictionaryPaths      []string                          `mapstructure:"dictionary_paths"`
-	RoleMappings         []RadiusVendorRoleMapping         `mapstructure:"role_mappings"`
-	ExtendedVLANMappings []RadiusVendorExtendedVLANMapping `mapstructure:"extended_vlan_mappings"`
-	AVPairMappings       []RadiusVendorAVPairMapping       `mapstructure:"avpair_mappings"`
-	PortalStatusMappings []RadiusVendorPortalStatusMapping `mapstructure:"portal_status_mappings"`
-	Attributes           []RadiusVendorAttribute           `mapstructure:"attributes"`
+	Enabled               bool                               `mapstructure:"enabled"`
+	Name                  string                             `mapstructure:"name"`
+	ID                    int                                `mapstructure:"id"`
+	CompatibilityPacks    []string                           `mapstructure:"compatibility_packs"`
+	DictionaryPaths       []string                           `mapstructure:"dictionary_paths"`
+	RoleMappings          []RadiusVendorRoleMapping          `mapstructure:"role_mappings"`
+	ExtendedVLANMappings  []RadiusVendorExtendedVLANMapping  `mapstructure:"extended_vlan_mappings"`
+	AVPairMappings        []RadiusVendorAVPairMapping        `mapstructure:"avpair_mappings"`
+	PortalStatusMappings  []RadiusVendorPortalStatusMapping  `mapstructure:"portal_status_mappings"`
+	SessionActionMappings []RadiusVendorSessionActionMapping `mapstructure:"session_action_mappings"`
+	Attributes            []RadiusVendorAttribute            `mapstructure:"attributes"`
 }
 
 type RadiusVendorRoleMapping struct {
@@ -257,6 +258,13 @@ type RadiusVendorPortalStatusMapping struct {
 	Pack          string `mapstructure:"pack"`
 	PortalProfile string `mapstructure:"portal_profile"`
 	Value         int    `mapstructure:"value"`
+}
+
+type RadiusVendorSessionActionMapping struct {
+	Pack   string `mapstructure:"pack"`
+	Role   string `mapstructure:"role"`
+	Action string `mapstructure:"action"`
+	Value  int    `mapstructure:"value"`
 }
 
 type RadiusVendorAttribute struct {
@@ -2983,6 +2991,37 @@ func (c *Config) Validate() error {
 		}
 		seenPortalProfiles[profileKey] = struct{}{}
 		seenPortalValues[valueKey] = struct{}{}
+	}
+	seenSessionActionRoles := map[string]struct{}{}
+	seenSessionActionValues := map[string]string{}
+	for i, mapping := range c.Radius.Vendor.SessionActionMappings {
+		pack := productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack)
+		role := strings.TrimSpace(mapping.Role)
+		action := strings.ToLower(strings.TrimSpace(mapping.Action))
+		if !productconfigs.VendorPackSupportsSessionActionMapping(pack) {
+			return fmt.Errorf("radius.vendor.session_action_mappings[%d].pack %q does not support session action mappings", i, mapping.Pack)
+		}
+		if role == "" || len(role) > 253 || strings.ContainsAny(role, "\r\n\x00") {
+			return fmt.Errorf("radius.vendor.session_action_mappings[%d].role is invalid", i)
+		}
+		switch action {
+		case "allow", "reauth", "disconnect", "quarantine":
+		default:
+			return fmt.Errorf("radius.vendor.session_action_mappings[%d].action %q is invalid", i, mapping.Action)
+		}
+		if mapping.Value < 0 || uint64(mapping.Value) > uint64(^uint32(0)) {
+			return fmt.Errorf("radius.vendor.session_action_mappings[%d].value %d is outside the uint32 range", i, mapping.Value)
+		}
+		roleKey := pack + "\x00" + strings.ToLower(role)
+		if _, exists := seenSessionActionRoles[roleKey]; exists {
+			return fmt.Errorf("radius.vendor.session_action_mappings[%d] duplicates role %q for pack %q", i, role, pack)
+		}
+		valueKey := fmt.Sprintf("%s\x00%d", pack, mapping.Value)
+		if existingAction, exists := seenSessionActionValues[valueKey]; exists && existingAction != action {
+			return fmt.Errorf("radius.vendor.session_action_mappings[%d] maps value %d to both %q and %q for pack %q", i, mapping.Value, existingAction, action, pack)
+		}
+		seenSessionActionRoles[roleKey] = struct{}{}
+		seenSessionActionValues[valueKey] = action
 	}
 	seenVendorDictionaryPaths := map[string]struct{}{}
 	for i, path := range c.Radius.Vendor.DictionaryPaths {

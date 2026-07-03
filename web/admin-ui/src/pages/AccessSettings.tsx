@@ -588,6 +588,7 @@ const defaultSettings: JsonMap = {
       extended_vlan_mappings: [],
       avpair_mappings: [],
       portal_status_mappings: [],
+      session_action_mappings: [],
       attributes: [],
     },
     eap: {
@@ -744,6 +745,17 @@ const avPairPackOptions: Option[] = [
 
 const portalStatusPackOptions: Option[] = [
   { value: "tplink", label: "TP-Link Omada" },
+];
+
+const sessionActionPackOptions: Option[] = [
+  { value: "nomadix", label: "Nomadix" },
+];
+
+const sessionActionOptions: Option[] = [
+  { value: "allow", label: "Allow" },
+  { value: "reauth", label: "Reauthenticate" },
+  { value: "disconnect", label: "Disconnect" },
+  { value: "quarantine", label: "Quarantine" },
 ];
 
 const mdmProviderOptions: Option[] = [
@@ -1516,6 +1528,8 @@ export default function AccessSettings() {
   const vendorAVPairMappings = settings.radius?.vendor?.avpair_mappings || [];
   const vendorPortalStatusMappings =
     settings.radius?.vendor?.portal_status_mappings || [];
+  const vendorSessionActionMappings =
+    settings.radius?.vendor?.session_action_mappings || [];
   const ssids = settings.wireless?.ssids || [];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
@@ -8245,6 +8259,142 @@ export default function AccessSettings() {
                                 "portal_status_mappings",
                               ],
                               vendorPortalStatusMappings.filter(
+                                (_: unknown, itemIndex: number) =>
+                                  itemIndex !== index,
+                              ),
+                            )
+                          }
+                          className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
+            )}
+          </div>
+          <div className="mb-4 border-t border-gray-100 pt-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h5 className="text-sm font-semibold text-gray-900">
+                  Nomadix Session Actions
+                </h5>
+                <p className="mt-1 text-sm text-gray-600">
+                  Bind certified EndofSession values to local roles and actions.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  updateField(
+                    ["radius", "vendor", "session_action_mappings"],
+                    [
+                      ...vendorSessionActionMappings,
+                      {
+                        pack: "nomadix",
+                        role: "",
+                        action: "disconnect",
+                        value: 0,
+                      },
+                    ],
+                  )
+                }
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+              >
+                Add Session Action
+              </button>
+            </div>
+            {vendorSessionActionMappings.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                No Nomadix session action mappings configured.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {vendorSessionActionMappings.map(
+                  (mapping: JsonMap, index: number) => (
+                    <div
+                      key={`vendor-session-action-${index}`}
+                      className="grid gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-5"
+                    >
+                      <SelectField
+                        label="Vendor Pack"
+                        value={mapping.pack || "nomadix"}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "session_action_mappings",
+                              String(index),
+                              "pack",
+                            ],
+                            value,
+                          )
+                        }
+                        options={sessionActionPackOptions}
+                      />
+                      <TextField
+                        label="Local Role"
+                        value={mapping.role || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "session_action_mappings",
+                              String(index),
+                              "role",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="expired-guest"
+                      />
+                      <SelectField
+                        label="Local Action"
+                        value={mapping.action || "disconnect"}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "session_action_mappings",
+                              String(index),
+                              "action",
+                            ],
+                            value,
+                          )
+                        }
+                        options={sessionActionOptions}
+                      />
+                      <TextField
+                        label="Vendor Value"
+                        type="number"
+                        value={mapping.value ?? 0}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "session_action_mappings",
+                              String(index),
+                              "value",
+                            ],
+                            Number(value),
+                          )
+                        }
+                      />
+                      <div className="flex items-end">
+                        <button
+                          onClick={() =>
+                            updateField(
+                              [
+                                "radius",
+                                "vendor",
+                                "session_action_mappings",
+                              ],
+                              vendorSessionActionMappings.filter(
                                 (_: unknown, itemIndex: number) =>
                                   itemIndex !== index,
                               ),

@@ -41,6 +41,7 @@ const (
 	inboundVendorExtendedVLAN inboundVendorValueKind = "extended_vlan"
 	inboundVendorAVPairs      inboundVendorValueKind = "avpairs"
 	inboundVendorMappedPortal inboundVendorValueKind = "mapped_portal_status"
+	inboundVendorMappedAction inboundVendorValueKind = "mapped_session_action"
 )
 
 type inboundVendorMapping struct {
@@ -160,12 +161,13 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackHP, VendorID: 11, Type: 62, Attribute: "Access-Profile", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackHP, VendorID: 11, Type: 64, Attribute: "Egress-VLANID", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
 
-	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 1, Attribute: "Bw-Up", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
-	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 2, Attribute: "Bw-Down", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
-	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 3, Attribute: "URL-Redirection", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
-	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 11, Attribute: "Net-VLAN", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
-	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 14, Attribute: "Qos-Policy", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
-	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 27, Attribute: "Bw-Class-Name", Semantic: productconfigs.VendorSemanticBandwidthProfile, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 1, Attribute: "Nomadix-Bw-Up", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 2, Attribute: "Nomadix-Bw-Down", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
+	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 3, Attribute: "Nomadix-URL-Redirection", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 9, Attribute: "Nomadix-EndofSession", Semantic: productconfigs.VendorSemanticSessionAction, Kind: inboundVendorMappedAction},
+	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 11, Attribute: "Nomadix-Net-VLAN", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
+	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 14, Attribute: "Nomadix-Qos-Policy", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackNomadix, VendorID: 3309, Type: 27, Attribute: "Nomadix-Bw-Class-Name", Semantic: productconfigs.VendorSemanticBandwidthProfile, Kind: inboundVendorString},
 
 	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 4, Attribute: "Bandwidth-Max-Up", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
 	{PackKey: productconfigs.VendorPackChilliSpot, VendorID: 14559, Type: 5, Attribute: "Bandwidth-Max-Down", Semantic: productconfigs.VendorSemanticDownloadBandwidth, Kind: inboundVendorRateKbps},
@@ -484,7 +486,29 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 		if profile, found := numericVendorPortalProfile(vendor.PortalStatusMappings, mapping.PackKey, value); found {
 			setStringIfEmpty(&result.VendorPortalProfile, profile)
 		}
+	case inboundVendorMappedAction:
+		value, ok := lookupVendorInteger(packet, mapping.VendorID, mapping.Type)
+		if !ok {
+			return
+		}
+		if action, found := numericVendorSessionAction(vendor.SessionActionMappings, mapping.PackKey, value); found {
+			setStringIfEmpty(&result.VendorSessionAction, action)
+		}
 	}
+}
+
+func numericVendorSessionAction(mappings []config.RadiusVendorSessionActionMapping, packKey string, value uint32) (string, bool) {
+	packKey = productconfigs.NormalizeVendorCompatibilityPackKey(packKey)
+	for _, mapping := range mappings {
+		if productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack) != packKey || mapping.Value < 0 || uint64(mapping.Value) != uint64(value) {
+			continue
+		}
+		action := strings.ToLower(strings.TrimSpace(mapping.Action))
+		if action != "" {
+			return action, true
+		}
+	}
+	return "", false
 }
 
 func numericVendorPortalProfile(mappings []config.RadiusVendorPortalStatusMapping, packKey string, value uint32) (string, bool) {

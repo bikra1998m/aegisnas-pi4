@@ -357,6 +357,14 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	}
 	assert.NoError(t, validPortalStatuses.Validate())
 
+	validSessionActions := base()
+	validSessionActions.Radius.Vendor.SessionActionMappings = []RadiusVendorSessionActionMapping{
+		{Pack: "nomadix", Role: "guest", Action: "disconnect", Value: 7},
+		{Pack: "nomadix", Role: "expired-guest", Action: "disconnect", Value: 7},
+		{Pack: "nomadix", Role: "quarantine", Action: "quarantine", Value: 9},
+	}
+	assert.NoError(t, validSessionActions.Validate())
+
 	invalidID := base()
 	invalidID.Radius.Vendor.ID = 0
 	assert.ErrorContains(t, invalidID.Validate(), "radius.vendor.id")
@@ -467,6 +475,28 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 		{Pack: "tplink", PortalProfile: "guest", Value: 2},
 	}
 	assert.ErrorContains(t, duplicatePortalStatusProfile.Validate(), "duplicates portal profile")
+
+	invalidSessionActionPack := base()
+	invalidSessionActionPack.Radius.Vendor.SessionActionMappings = []RadiusVendorSessionActionMapping{{Pack: "tplink", Role: "guest", Action: "disconnect", Value: 1}}
+	assert.ErrorContains(t, invalidSessionActionPack.Validate(), "does not support session action mappings")
+
+	invalidSessionAction := base()
+	invalidSessionAction.Radius.Vendor.SessionActionMappings = []RadiusVendorSessionActionMapping{{Pack: "nomadix", Role: "guest", Action: "expire", Value: 1}}
+	assert.ErrorContains(t, invalidSessionAction.Validate(), "action")
+
+	duplicateSessionActionRole := base()
+	duplicateSessionActionRole.Radius.Vendor.SessionActionMappings = []RadiusVendorSessionActionMapping{
+		{Pack: "nomadix", Role: "Guest", Action: "disconnect", Value: 1},
+		{Pack: "nomadix", Role: "guest", Action: "disconnect", Value: 1},
+	}
+	assert.ErrorContains(t, duplicateSessionActionRole.Validate(), "duplicates role")
+
+	conflictingSessionActionValue := base()
+	conflictingSessionActionValue.Radius.Vendor.SessionActionMappings = []RadiusVendorSessionActionMapping{
+		{Pack: "nomadix", Role: "guest", Action: "disconnect", Value: 1},
+		{Pack: "nomadix", Role: "quarantine", Action: "quarantine", Value: 1},
+	}
+	assert.ErrorContains(t, conflictingSessionActionValue.Validate(), "maps value")
 }
 
 func TestConfigValidationAIEngine(t *testing.T) {

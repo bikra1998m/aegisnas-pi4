@@ -57,6 +57,9 @@ func TestVendorPackCertificationMatrixRendersDeclaredOutboundAttributes(t *testi
 				PortalStatusMappings: []config.RadiusVendorPortalStatusMapping{
 					{Pack: productconfigs.VendorPackTPLink, PortalProfile: attrs.PortalProfile, Value: 1},
 				},
+				SessionActionMappings: []config.RadiusVendorSessionActionMapping{
+					{Pack: productconfigs.VendorPackNomadix, Role: attrs.Role, Action: "disconnect", Value: 1},
+				},
 			}
 			items := BuildReplyAttributeItemsForVendorConfig(attrs, []string{pack.Key}, vendor)
 			actual := make(map[string]struct{}, len(items))

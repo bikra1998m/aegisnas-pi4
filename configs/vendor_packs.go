@@ -393,13 +393,14 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			DefaultEnabled:   false,
 			HardwareProfiles: allProfiles,
 			Attributes: []VendorPackAttributeMapping{
-				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Bw-Up", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Bw-Down", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticPortalProfile, Attribute: "URL-Redirection", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticVLAN, Attribute: "Net-VLAN", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticPolicyTag, Attribute: "Qos-Policy", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticSessionAction, Attribute: "EndofSession", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticUploadBandwidth, Attribute: "Nomadix-Bw-Up", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Nomadix-Bw-Down", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Nomadix-URL-Redirection", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Nomadix-Net-VLAN", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Nomadix-Qos-Policy", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticSessionAction, Attribute: "Nomadix-EndofSession", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
 			},
+			Notes: []string{"Nomadix EndofSession integer meanings are firmware-specific and require an operator-certified reversible role/action mapping."},
 		},
 		{
 			Key:              VendorPackChilliSpot,
@@ -598,6 +599,10 @@ func VendorPackAVPairAttribute(key string) (string, bool) {
 
 func VendorPackSupportsPortalStatusMapping(key string) bool {
 	return NormalizeVendorCompatibilityPackKey(key) == VendorPackTPLink
+}
+
+func VendorPackSupportsSessionActionMapping(key string) bool {
+	return NormalizeVendorCompatibilityPackKey(key) == VendorPackNomadix
 }
 
 func NormalizeVendorCompatibilityPackKey(key string) string {

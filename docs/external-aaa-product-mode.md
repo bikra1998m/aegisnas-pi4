@@ -387,6 +387,20 @@ radius:
 
 When that portal URL is selected, AegisNAS emits the configured integer alongside the redirect URL. Inbound status values are reversed to the local portal profile only when an exact mapping exists. Profile names and integer values must each be unique, preventing ambiguous authorization state.
 
+The Nomadix dictionary defines `Nomadix-EndofSession` as integer attribute 9 without portable units or labels. Bind a value certified against the target Nomadix firmware to a local role and AegisNAS session action:
+
+```yaml
+radius:
+  vendor:
+    session_action_mappings:
+      - pack: nomadix
+        role: expired-guest
+        action: disconnect
+        value: 1
+```
+
+Supported actions are `allow`, `reauth`, `disconnect`, and `quarantine`. A role has one outbound mapping. Multiple roles may share a value only when it maps to the same action; conflicting reverse meanings are rejected. Unknown inbound values are ignored. The Nomadix pack uses the official FreeRADIUS names, including `Nomadix-Bw-Up`, `Nomadix-Bw-Down`, `Nomadix-URL-Redirection`, `Nomadix-Net-VLAN`, and `Nomadix-Qos-Policy`.
+
 Available pack keys include:
 
 - `standard`
