@@ -343,6 +343,21 @@ radius:
 
 Mappings are supported for `cambium`, `aerohive`, `dlink`, `sonicwall`, and `zte`. Role names and numeric values must each be unique within a pack. AegisNAS omits the numeric reply when no mapping exists and ignores an inbound numeric role that cannot be reversed, avoiding accidental privilege assignment.
 
+Extreme Switch Engine VSA 211 supports one untagged VLAN and multiple tagged VLANs in a single atomic assignment. Configure the IDs per local role:
+
+```yaml
+radius:
+  vendor:
+    compatibility_packs: [standard, extreme]
+    extended_vlan_mappings:
+      - pack: extreme
+        role: voice-device
+        untagged_vlan: 20
+        tagged_vlans: [30, 40]
+```
+
+AegisNAS validates VLAN IDs, rejects duplicates, and enforces Extreme's ten-VLAN limit. The example renders `Extreme-Netlogin-Extended-Vlan = "U20;T30;T40"`. When a matching mapping exists, the extended VSA replaces the lower-priority Extreme VLAN name and VLAN tag attributes. Inbound numeric VSA 211 assignments are parsed back into one untagged VLAN and the tagged VLAN list; name and wildcard forms remain untouched because they cannot be mapped safely into numeric policy intent.
+
 Available pack keys include:
 
 - `standard`

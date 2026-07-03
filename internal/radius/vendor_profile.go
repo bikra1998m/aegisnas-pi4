@@ -56,7 +56,7 @@ func ReplyCompatibilityPacksForNASType(vendor config.RadiusVendorConfig, nasType
 }
 
 func RenderReplyAttributesForClient(attrs *ReplyAttributes, vendor config.RadiusVendorConfig, client config.RadiusClient) string {
-	return RenderReplyAttributesForPacks(attrs, ReplyCompatibilityPacksForClient(vendor, client))
+	return RenderReplyAttributesForVendorConfigAndPacks(attrs, ReplyCompatibilityPacksForClient(vendor, client), vendor)
 }
 
 func replyPackContains(packs []string, key string) bool {

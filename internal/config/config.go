@@ -222,19 +222,27 @@ type RadiusHomeServer struct {
 }
 
 type RadiusVendorConfig struct {
-	Enabled            bool                      `mapstructure:"enabled"`
-	Name               string                    `mapstructure:"name"`
-	ID                 int                       `mapstructure:"id"`
-	CompatibilityPacks []string                  `mapstructure:"compatibility_packs"`
-	DictionaryPaths    []string                  `mapstructure:"dictionary_paths"`
-	RoleMappings       []RadiusVendorRoleMapping `mapstructure:"role_mappings"`
-	Attributes         []RadiusVendorAttribute   `mapstructure:"attributes"`
+	Enabled              bool                              `mapstructure:"enabled"`
+	Name                 string                            `mapstructure:"name"`
+	ID                   int                               `mapstructure:"id"`
+	CompatibilityPacks   []string                          `mapstructure:"compatibility_packs"`
+	DictionaryPaths      []string                          `mapstructure:"dictionary_paths"`
+	RoleMappings         []RadiusVendorRoleMapping         `mapstructure:"role_mappings"`
+	ExtendedVLANMappings []RadiusVendorExtendedVLANMapping `mapstructure:"extended_vlan_mappings"`
+	Attributes           []RadiusVendorAttribute           `mapstructure:"attributes"`
 }
 
 type RadiusVendorRoleMapping struct {
 	Pack  string `mapstructure:"pack"`
 	Role  string `mapstructure:"role"`
 	Value int    `mapstructure:"value"`
+}
+
+type RadiusVendorExtendedVLANMapping struct {
+	Pack         string `mapstructure:"pack"`
+	Role         string `mapstructure:"role"`
+	UntaggedVLAN int    `mapstructure:"untagged_vlan"`
+	TaggedVLANs  []int  `mapstructure:"tagged_vlans"`
 }
 
 type RadiusVendorAttribute struct {
@@ -2856,6 +2864,50 @@ func (c *Config) Validate() error {
 		}
 		seenVendorRoles[roleKey] = struct{}{}
 		seenVendorRoleValues[valueKey] = struct{}{}
+	}
+	seenExtendedVLANRoles := map[string]struct{}{}
+	for i, mapping := range c.Radius.Vendor.ExtendedVLANMappings {
+		pack := productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack)
+		role := strings.TrimSpace(mapping.Role)
+		if !productconfigs.VendorPackSupportsExtendedVLANMapping(pack) {
+			return fmt.Errorf("radius.vendor.extended_vlan_mappings[%d].pack %q does not support extended VLAN mappings", i, mapping.Pack)
+		}
+		if role == "" {
+			return fmt.Errorf("radius.vendor.extended_vlan_mappings[%d].role cannot be empty", i)
+		}
+		if len(role) > 253 || strings.ContainsAny(role, "\r\n\x00") {
+			return fmt.Errorf("radius.vendor.extended_vlan_mappings[%d].role is invalid", i)
+		}
+		roleKey := pack + "\x00" + strings.ToLower(role)
+		if _, exists := seenExtendedVLANRoles[roleKey]; exists {
+			return fmt.Errorf("radius.vendor.extended_vlan_mappings[%d] duplicates role %q for pack %q", i, role, pack)
+		}
+		seenExtendedVLANRoles[roleKey] = struct{}{}
+
+		vlanCount := len(mapping.TaggedVLANs)
+		seenVLANs := map[int]struct{}{}
+		if mapping.UntaggedVLAN != 0 {
+			if mapping.UntaggedVLAN < 1 || mapping.UntaggedVLAN > 4094 {
+				return fmt.Errorf("radius.vendor.extended_vlan_mappings[%d].untagged_vlan %d is outside the VLAN range 1-4094", i, mapping.UntaggedVLAN)
+			}
+			seenVLANs[mapping.UntaggedVLAN] = struct{}{}
+			vlanCount++
+		}
+		if vlanCount == 0 {
+			return fmt.Errorf("radius.vendor.extended_vlan_mappings[%d] must include an untagged or tagged VLAN", i)
+		}
+		if vlanCount > 10 {
+			return fmt.Errorf("radius.vendor.extended_vlan_mappings[%d] cannot include more than 10 VLANs", i)
+		}
+		for taggedIndex, vlan := range mapping.TaggedVLANs {
+			if vlan < 1 || vlan > 4094 {
+				return fmt.Errorf("radius.vendor.extended_vlan_mappings[%d].tagged_vlans[%d] %d is outside the VLAN range 1-4094", i, taggedIndex, vlan)
+			}
+			if _, exists := seenVLANs[vlan]; exists {
+				return fmt.Errorf("radius.vendor.extended_vlan_mappings[%d] duplicates VLAN %d", i, vlan)
+			}
+			seenVLANs[vlan] = struct{}{}
+		}
 	}
 	seenVendorDictionaryPaths := map[string]struct{}{}
 	for i, path := range c.Radius.Vendor.DictionaryPaths {

@@ -133,18 +133,18 @@ func RenderReplyAttributesForVendorConfig(attrs *ReplyAttributes, vendor config.
 }
 
 func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []ReplyAttributeItem {
-	return buildReplyAttributeItems(attrs, packKeys, nil)
+	return buildReplyAttributeItems(attrs, packKeys, nil, nil)
 }
 
 func BuildReplyAttributeItemsForVendorConfig(attrs *ReplyAttributes, packKeys []string, vendor config.RadiusVendorConfig) []ReplyAttributeItem {
-	return buildReplyAttributeItems(attrs, packKeys, vendor.RoleMappings)
+	return buildReplyAttributeItems(attrs, packKeys, vendor.RoleMappings, vendor.ExtendedVLANMappings)
 }
 
 func RenderReplyAttributesForVendorConfigAndPacks(attrs *ReplyAttributes, packKeys []string, vendor config.RadiusVendorConfig) string {
 	return renderReplyAttributeItems(BuildReplyAttributeItemsForVendorConfig(attrs, packKeys, vendor))
 }
 
-func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, roleMappings []config.RadiusVendorRoleMapping) []ReplyAttributeItem {
+func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, roleMappings []config.RadiusVendorRoleMapping, extendedVLANMappings []config.RadiusVendorExtendedVLANMapping) []ReplyAttributeItem {
 	if attrs == nil {
 		return nil
 	}
@@ -219,7 +219,9 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, roleMap
 			appendNumericRoleItem(attrs, packKey, roleMappings, appendItem, "Cambium-Auth-Role")
 		case productconfigs.VendorPackExtreme:
 			appendItem("Extreme-Security-Profile", replyRole(attrs), true)
-			if vlan := replyVLAN(attrs); vlan > 0 {
+			if extendedVLAN, ok := extremeExtendedVLANValue(extendedVLANMappings, replyRole(attrs)); ok {
+				appendItem("Extreme-Netlogin-Extended-Vlan", extendedVLAN, true)
+			} else if vlan := replyVLAN(attrs); vlan > 0 {
 				appendItem("Extreme-Netlogin-Vlan", fmt.Sprintf("%d", vlan), true)
 				appendItem("Extreme-Netlogin-Vlan-Tag", fmt.Sprintf("%d", vlan), false)
 			}
@@ -487,6 +489,29 @@ func numericVendorRoleValue(mappings []config.RadiusVendorRoleMapping, packKey, 
 		return mapping.Value, true
 	}
 	return 0, false
+}
+
+func extremeExtendedVLANValue(mappings []config.RadiusVendorExtendedVLANMapping, role string) (string, bool) {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		return "", false
+	}
+	for _, mapping := range mappings {
+		if productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack) != productconfigs.VendorPackExtreme || !strings.EqualFold(strings.TrimSpace(mapping.Role), role) {
+			continue
+		}
+		parts := make([]string, 0, len(mapping.TaggedVLANs)+1)
+		if mapping.UntaggedVLAN > 0 {
+			parts = append(parts, fmt.Sprintf("U%d", mapping.UntaggedVLAN))
+		}
+		for _, vlan := range mapping.TaggedVLANs {
+			parts = append(parts, fmt.Sprintf("T%d", vlan))
+		}
+		if len(parts) > 0 {
+			return strings.Join(parts, ";"), true
+		}
+	}
+	return "", false
 }
 
 func escapeReplyValue(value string) string {

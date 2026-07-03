@@ -113,6 +113,27 @@ func TestApplyVendorCompatibilityAttributesParsesExpandedInboundVSAs(t *testing.
 	assert.Equal(t, "laptop-42", result.VendorAccountingIdentity)
 }
 
+func TestApplyVendorCompatibilityAttributesParsesExtremeExtendedVLAN(t *testing.T) {
+	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorString(packet, 1916, 203, "10"))
+	require.NoError(t, addVendorString(packet, 1916, 211, "U20;T30;T40;"))
+
+	result := ParseBrokerPacketWithConfig(packet, &config.Config{Radius: config.RadiusConfig{Vendor: vendorConfigForPacks(productconfigs.VendorPackExtreme)}})
+
+	assert.True(t, result.HasVendorVLAN)
+	assert.Equal(t, 20, result.VendorVLAN)
+	assert.Equal(t, []int{30, 40}, result.VendorTaggedVLANs)
+}
+
+func TestParseExtremeExtendedVLANRejectsUnsafeValues(t *testing.T) {
+	for _, value := range []string{"", "U20;T20", "U20;U30", "T0", "T4095", "*20", "Udata", "T1;T2;T3;T4;T5;T6;T7;T8;T9;T10;T11"} {
+		t.Run(value, func(t *testing.T) {
+			_, _, _, ok := parseExtremeExtendedVLAN(value)
+			assert.False(t, ok)
+		})
+	}
+}
+
 func TestApplyVendorCompatibilityAttributesParsesAdditionalInboundVSAs(t *testing.T) {
 	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
 	require.NoError(t, addVendorInteger(packet, 26928, 1, 88))

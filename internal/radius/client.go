@@ -54,6 +54,7 @@ type BrokerAuthResult struct {
 	VendorOutboundACL        string
 	VendorVLAN               int
 	HasVendorVLAN            bool
+	VendorTaggedVLANs        []int
 	VendorQuarantine         bool
 	HasVendorQuarantine      bool
 	VendorSessionTimeout     int

@@ -149,6 +149,7 @@ radius:
     compatibility_packs: ["standard", "mikrotik", "wispr"] # Add aegisnas, aruba, ruckus, fortinet, cisco, ubnt, cambium, extreme, juniper, huawei, h3c, paloalto, tplink, meraki, or mist only after the NAS/controller side is prepared.
     dictionary_paths: [] # Optional FreeRADIUS dictionary files or directories to import for compatibility coverage, such as /etc/freeradius/3.0/dictionary or /usr/share/freeradius.
     role_mappings: [] # Map local roles to certified uint32 values for cambium, aerohive, dlink, sonicwall, or zte; for example [{pack: dlink, role: admin, value: 5}].
+    extended_vlan_mappings: [] # Extreme VSA 211 mappings; for example [{pack: extreme, role: voice, untagged_vlan: 20, tagged_vlans: [30, 40]}].
     attributes: [] # Optional FreeRADIUS-style local overrides or extensions. Built-ins come from configs/dictionary.aegisnas.
   clients:
     - ip: 127.0.0.1

@@ -248,7 +248,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticVLAN, Attribute: "Extreme-Netlogin-Vlan", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticVLAN, Attribute: "Extreme-Netlogin-Vlan-Tag", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticPortalProfile, Attribute: "Extreme-Netlogin-Url", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDynamicACL, Attribute: "Extreme-Netlogin-Extended-Vlan", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Extreme-Netlogin-Extended-Vlan", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 			},
 		},
 		{
@@ -575,6 +575,10 @@ func VendorPackSupportsNumericRoleMapping(key string) bool {
 	default:
 		return false
 	}
+}
+
+func VendorPackSupportsExtendedVLANMapping(key string) bool {
+	return NormalizeVendorCompatibilityPackKey(key) == VendorPackExtreme
 }
 
 func NormalizeVendorCompatibilityPackKey(key string) string {

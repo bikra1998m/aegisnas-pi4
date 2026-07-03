@@ -585,6 +585,7 @@ const defaultSettings: JsonMap = {
       id: 55555,
       dictionary_paths: [],
       role_mappings: [],
+      extended_vlan_mappings: [],
       attributes: [],
     },
     eap: {
@@ -726,6 +727,10 @@ const numericVendorRolePackOptions: Option[] = [
   { value: "dlink", label: "D-Link" },
   { value: "sonicwall", label: "SonicWall" },
   { value: "zte", label: "ZTE" },
+];
+
+const extendedVLANPackOptions: Option[] = [
+  { value: "extreme", label: "Extreme Networks" },
 ];
 
 const mdmProviderOptions: Option[] = [
@@ -1493,6 +1498,8 @@ export default function AccessSettings() {
   const vendorAttributes = settings.radius?.vendor?.attributes || [];
   const vendorDictionaryPaths = settings.radius?.vendor?.dictionary_paths || [];
   const vendorRoleMappings = settings.radius?.vendor?.role_mappings || [];
+  const vendorExtendedVLANMappings =
+    settings.radius?.vendor?.extended_vlan_mappings || [];
   const ssids = settings.wireless?.ssids || [];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
@@ -7854,6 +7861,147 @@ export default function AccessSettings() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+          <div className="mb-4 border-t border-gray-100 pt-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h5 className="text-sm font-semibold text-gray-900">
+                  Extreme Extended VLANs
+                </h5>
+                <p className="mt-1 text-sm text-gray-600">
+                  Assign one optional untagged VLAN and up to ten total VLANs
+                  to a local role.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  updateField(
+                    ["radius", "vendor", "extended_vlan_mappings"],
+                    [
+                      ...vendorExtendedVLANMappings,
+                      {
+                        pack: "extreme",
+                        role: "",
+                        untagged_vlan: 0,
+                        tagged_vlans: [],
+                      },
+                    ],
+                  )
+                }
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+              >
+                Add VLAN Mapping
+              </button>
+            </div>
+            {vendorExtendedVLANMappings.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                No Extreme extended VLAN mappings configured.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {vendorExtendedVLANMappings.map(
+                  (mapping: JsonMap, index: number) => (
+                    <div
+                      key={`vendor-extended-vlan-${index}`}
+                      className="grid gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-5"
+                    >
+                      <SelectField
+                        label="Vendor Pack"
+                        value={mapping.pack || "extreme"}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "extended_vlan_mappings",
+                              String(index),
+                              "pack",
+                            ],
+                            value,
+                          )
+                        }
+                        options={extendedVLANPackOptions}
+                      />
+                      <TextField
+                        label="Local Role"
+                        value={mapping.role || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "extended_vlan_mappings",
+                              String(index),
+                              "role",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="voice-device"
+                      />
+                      <TextField
+                        label="Untagged VLAN"
+                        type="number"
+                        value={mapping.untagged_vlan ?? 0}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "extended_vlan_mappings",
+                              String(index),
+                              "untagged_vlan",
+                            ],
+                            Number(value),
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Tagged VLANs"
+                        value={(mapping.tagged_vlans || []).join(", ")}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "extended_vlan_mappings",
+                              String(index),
+                              "tagged_vlans",
+                            ],
+                            value
+                              .split(",")
+                              .map((item) => item.trim())
+                              .filter(Boolean)
+                              .map(Number),
+                          )
+                        }
+                        placeholder="30, 40"
+                      />
+                      <div className="flex items-end">
+                        <button
+                          onClick={() =>
+                            updateField(
+                              [
+                                "radius",
+                                "vendor",
+                                "extended_vlan_mappings",
+                              ],
+                              vendorExtendedVLANMappings.filter(
+                                (_: unknown, itemIndex: number) =>
+                                  itemIndex !== index,
+                              ),
+                            )
+                          }
+                          className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ),
+                )}
               </div>
             )}
           </div>

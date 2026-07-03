@@ -269,6 +269,22 @@ func TestRenderReplyAttributesUsesNumericRoleMappings(t *testing.T) {
 	assert.NotContains(t, RenderReplyAttributesForPacks(attrs, packs), "Cambium-Auth-Role")
 }
 
+func TestRenderReplyAttributesUsesExtremeExtendedVLANMapping(t *testing.T) {
+	attrs := &ReplyAttributes{Role: "voice-device", VLAN: 20}
+	vendor := config.RadiusVendorConfig{
+		CompatibilityPacks: []string{"standard", "extreme"},
+		ExtendedVLANMappings: []config.RadiusVendorExtendedVLANMapping{
+			{Pack: "extreme", Role: "voice-device", UntaggedVLAN: 20, TaggedVLANs: []int{30, 40}},
+		},
+	}
+
+	rendered := RenderReplyAttributesForVendorConfig(attrs, vendor)
+
+	assert.Contains(t, rendered, "\tExtreme-Netlogin-Extended-Vlan = \"U20;T30;T40\"\n")
+	assert.NotContains(t, rendered, "Extreme-Netlogin-Vlan =")
+	assert.NotContains(t, rendered, "Extreme-Netlogin-Vlan-Tag")
+}
+
 func TestNormalizeClientNASType(t *testing.T) {
 	assert.Equal(t, "aruba", NormalizeClientNASType(" Aruba "))
 	assert.Equal(t, "ubnt", NormalizeClientNASType("unifi"))
@@ -307,6 +323,18 @@ func TestReplyCompatibilityPacksForClientUsesNASProfile(t *testing.T) {
 	assert.Contains(t, rendered, "\tAegisNAS-Role = \"guest\"\n")
 	assert.Contains(t, rendered, "\tWISPr-Bandwidth-Max-Down = 50000\n")
 	assert.NotContains(t, rendered, "Mikrotik-Rate-Limit")
+}
+
+func TestRenderReplyAttributesForClientUsesVendorMappings(t *testing.T) {
+	vendor := config.RadiusVendorConfig{
+		CompatibilityPacks: []string{"standard", "extreme"},
+		ExtendedVLANMappings: []config.RadiusVendorExtendedVLANMapping{
+			{Pack: "extreme", Role: "trunk", TaggedVLANs: []int{100, 200}},
+		},
+	}
+	rendered := RenderReplyAttributesForClient(&ReplyAttributes{Role: "trunk"}, vendor, config.RadiusClient{NASType: "extreme"})
+
+	assert.Contains(t, rendered, "\tExtreme-Netlogin-Extended-Vlan = \"T100;T200\"\n")
 }
 
 func TestReplyCompatibilityPacksForUnknownNASUsesConfiguredPacks(t *testing.T) {

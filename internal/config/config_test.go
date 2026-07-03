@@ -336,6 +336,13 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	}
 	assert.NoError(t, validRoleMappings.Validate())
 
+	validExtendedVLANs := base()
+	validExtendedVLANs.Radius.Vendor.ExtendedVLANMappings = []RadiusVendorExtendedVLANMapping{
+		{Pack: "extreme", Role: "voice", UntaggedVLAN: 20, TaggedVLANs: []int{30, 40}},
+		{Pack: "extreme", Role: "trunk", TaggedVLANs: []int{100, 200}},
+	}
+	assert.NoError(t, validExtendedVLANs.Validate())
+
 	invalidID := base()
 	invalidID.Radius.Vendor.ID = 0
 	assert.ErrorContains(t, invalidID.Validate(), "radius.vendor.id")
@@ -381,6 +388,26 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 		{Pack: "zte", Role: "operator", Value: 11},
 	}
 	assert.ErrorContains(t, duplicateRole.Validate(), "duplicates role")
+
+	invalidExtendedVLANPack := base()
+	invalidExtendedVLANPack.Radius.Vendor.ExtendedVLANMappings = []RadiusVendorExtendedVLANMapping{{Pack: "aruba", Role: "voice", UntaggedVLAN: 20}}
+	assert.ErrorContains(t, invalidExtendedVLANPack.Validate(), "does not support extended VLAN mappings")
+
+	invalidExtendedVLAN := base()
+	invalidExtendedVLAN.Radius.Vendor.ExtendedVLANMappings = []RadiusVendorExtendedVLANMapping{{Pack: "extreme", Role: "voice", TaggedVLANs: []int{4095}}}
+	assert.ErrorContains(t, invalidExtendedVLAN.Validate(), "VLAN range")
+
+	duplicateExtendedVLAN := base()
+	duplicateExtendedVLAN.Radius.Vendor.ExtendedVLANMappings = []RadiusVendorExtendedVLANMapping{{Pack: "extreme", Role: "voice", UntaggedVLAN: 20, TaggedVLANs: []int{20}}}
+	assert.ErrorContains(t, duplicateExtendedVLAN.Validate(), "duplicates VLAN")
+
+	emptyExtendedVLAN := base()
+	emptyExtendedVLAN.Radius.Vendor.ExtendedVLANMappings = []RadiusVendorExtendedVLANMapping{{Pack: "extreme", Role: "voice"}}
+	assert.ErrorContains(t, emptyExtendedVLAN.Validate(), "must include")
+
+	tooManyExtendedVLANs := base()
+	tooManyExtendedVLANs.Radius.Vendor.ExtendedVLANMappings = []RadiusVendorExtendedVLANMapping{{Pack: "extreme", Role: "trunk", TaggedVLANs: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}}}
+	assert.ErrorContains(t, tooManyExtendedVLANs.Validate(), "more than 10 VLANs")
 }
 
 func TestConfigValidationAIEngine(t *testing.T) {

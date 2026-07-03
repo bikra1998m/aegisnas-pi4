@@ -40,17 +40,27 @@ func TestVendorPackCertificationMatrixRendersDeclaredOutboundAttributes(t *testi
 	for _, pack := range productconfigs.AegisNASVendorCompatibilityPacks() {
 		pack := pack
 		t.Run(pack.Key, func(t *testing.T) {
-			vendor := config.RadiusVendorConfig{RoleMappings: []config.RadiusVendorRoleMapping{
-				{Pack: productconfigs.VendorPackCambium, Role: attrs.Role, Value: 2},
-				{Pack: productconfigs.VendorPackAerohive, Role: attrs.Role, Value: 101},
-				{Pack: productconfigs.VendorPackDLink, Role: attrs.Role, Value: 5},
-				{Pack: productconfigs.VendorPackSonicWall, Role: attrs.Role, Value: 7},
-				{Pack: productconfigs.VendorPackZTE, Role: attrs.Role, Value: 15},
-			}}
+			vendor := config.RadiusVendorConfig{
+				RoleMappings: []config.RadiusVendorRoleMapping{
+					{Pack: productconfigs.VendorPackCambium, Role: attrs.Role, Value: 2},
+					{Pack: productconfigs.VendorPackAerohive, Role: attrs.Role, Value: 101},
+					{Pack: productconfigs.VendorPackDLink, Role: attrs.Role, Value: 5},
+					{Pack: productconfigs.VendorPackSonicWall, Role: attrs.Role, Value: 7},
+					{Pack: productconfigs.VendorPackZTE, Role: attrs.Role, Value: 15},
+				},
+			}
 			items := BuildReplyAttributeItemsForVendorConfig(attrs, []string{pack.Key}, vendor)
 			actual := make(map[string]struct{}, len(items))
 			for _, item := range items {
 				actual[item.Name] = struct{}{}
+			}
+			if pack.Key == productconfigs.VendorPackExtreme {
+				vendor.ExtendedVLANMappings = []config.RadiusVendorExtendedVLANMapping{
+					{Pack: productconfigs.VendorPackExtreme, Role: attrs.Role, UntaggedVLAN: 4094, TaggedVLANs: []int{100}},
+				}
+				for _, item := range BuildReplyAttributeItemsForVendorConfig(attrs, []string{pack.Key}, vendor) {
+					actual[item.Name] = struct{}{}
+				}
 			}
 
 			declared := 0

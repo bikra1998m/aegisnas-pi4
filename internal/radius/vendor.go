@@ -31,13 +31,14 @@ const (
 type inboundVendorValueKind string
 
 const (
-	inboundVendorString     inboundVendorValueKind = "string"
-	inboundVendorVLAN       inboundVendorValueKind = "vlan"
-	inboundVendorRateKbps   inboundVendorValueKind = "rate_kbps"
-	inboundVendorRateBps    inboundVendorValueKind = "rate_bps"
-	inboundVendorBool       inboundVendorValueKind = "bool"
-	inboundVendorIntText    inboundVendorValueKind = "integer_text"
-	inboundVendorMappedRole inboundVendorValueKind = "mapped_role"
+	inboundVendorString       inboundVendorValueKind = "string"
+	inboundVendorVLAN         inboundVendorValueKind = "vlan"
+	inboundVendorRateKbps     inboundVendorValueKind = "rate_kbps"
+	inboundVendorRateBps      inboundVendorValueKind = "rate_bps"
+	inboundVendorBool         inboundVendorValueKind = "bool"
+	inboundVendorIntText      inboundVendorValueKind = "integer_text"
+	inboundVendorMappedRole   inboundVendorValueKind = "mapped_role"
+	inboundVendorExtendedVLAN inboundVendorValueKind = "extended_vlan"
 )
 
 type inboundVendorMapping struct {
@@ -96,6 +97,7 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackExtreme, VendorID: 1916, Type: 203, Attribute: "Extreme-Netlogin-Vlan", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
 	{PackKey: productconfigs.VendorPackExtreme, VendorID: 1916, Type: 204, Attribute: "Extreme-Netlogin-Url", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackExtreme, VendorID: 1916, Type: 209, Attribute: "Extreme-Netlogin-Vlan-Tag", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
+	{PackKey: productconfigs.VendorPackExtreme, VendorID: 1916, Type: 211, Attribute: "Extreme-Netlogin-Extended-Vlan", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorExtendedVLAN},
 	{PackKey: productconfigs.VendorPackExtreme, VendorID: 1916, Type: 212, Attribute: "Extreme-Security-Profile", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
 
 	{PackKey: productconfigs.VendorPackJuniper, VendorID: 2636, Type: 1, Attribute: "Juniper-Local-User-Name", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
@@ -449,7 +451,65 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 		if role, found := numericVendorRoleName(roleMappings, mapping.PackKey, value); found {
 			setStringIfEmpty(&result.VendorRole, role)
 		}
+	case inboundVendorExtendedVLAN:
+		value, ok := lookupVendorString(packet, mapping.VendorID, mapping.Type)
+		if !ok {
+			return
+		}
+		untagged, hasUntagged, tagged, ok := parseExtremeExtendedVLAN(value)
+		if !ok {
+			return
+		}
+		if hasUntagged {
+			result.VendorVLAN = untagged
+			result.HasVendorVLAN = true
+		}
+		result.VendorTaggedVLANs = append([]int(nil), tagged...)
 	}
+}
+
+func parseExtremeExtendedVLAN(value string) (int, bool, []int, bool) {
+	parts := strings.Split(strings.TrimSpace(value), ";")
+	seen := map[int]struct{}{}
+	tagged := make([]int, 0, len(parts))
+	untagged := 0
+	hasUntagged := false
+	assignmentCount := 0
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		assignmentCount++
+		if assignmentCount > 10 || len(part) < 2 {
+			return 0, false, nil, false
+		}
+		kind := part[0]
+		if kind != 'U' && kind != 'u' && kind != 'T' && kind != 't' {
+			return 0, false, nil, false
+		}
+		vlan, err := strconv.Atoi(part[1:])
+		if err != nil || vlan < 1 || vlan > 4094 {
+			return 0, false, nil, false
+		}
+		if _, exists := seen[vlan]; exists {
+			return 0, false, nil, false
+		}
+		seen[vlan] = struct{}{}
+		if kind == 'U' || kind == 'u' {
+			if hasUntagged {
+				return 0, false, nil, false
+			}
+			untagged = vlan
+			hasUntagged = true
+			continue
+		}
+		tagged = append(tagged, vlan)
+	}
+	if assignmentCount == 0 {
+		return 0, false, nil, false
+	}
+	return untagged, hasUntagged, tagged, true
 }
 
 func numericVendorRoleName(mappings []config.RadiusVendorRoleMapping, packKey string, value uint32) (string, bool) {
