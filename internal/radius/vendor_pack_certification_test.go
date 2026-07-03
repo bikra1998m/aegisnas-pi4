@@ -54,6 +54,9 @@ func TestVendorPackCertificationMatrixRendersDeclaredOutboundAttributes(t *testi
 					{Pack: productconfigs.VendorPackH3C, Role: attrs.Role, Values: []string{"acl=${acl_policy}"}},
 					{Pack: productconfigs.VendorPackArista, Role: attrs.Role, Values: []string{"acl=${acl_policy}"}},
 				},
+				PortalStatusMappings: []config.RadiusVendorPortalStatusMapping{
+					{Pack: productconfigs.VendorPackTPLink, PortalProfile: attrs.PortalProfile, Value: 1},
+				},
 			}
 			items := BuildReplyAttributeItemsForVendorConfig(attrs, []string{pack.Key}, vendor)
 			actual := make(map[string]struct{}, len(items))

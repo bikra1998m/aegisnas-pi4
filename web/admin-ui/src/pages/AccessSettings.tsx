@@ -587,6 +587,7 @@ const defaultSettings: JsonMap = {
       role_mappings: [],
       extended_vlan_mappings: [],
       avpair_mappings: [],
+      portal_status_mappings: [],
       attributes: [],
     },
     eap: {
@@ -739,6 +740,10 @@ const avPairPackOptions: Option[] = [
   { value: "huawei", label: "Huawei" },
   { value: "h3c", label: "H3C" },
   { value: "arista", label: "Arista" },
+];
+
+const portalStatusPackOptions: Option[] = [
+  { value: "tplink", label: "TP-Link Omada" },
 ];
 
 const mdmProviderOptions: Option[] = [
@@ -1509,6 +1514,8 @@ export default function AccessSettings() {
   const vendorExtendedVLANMappings =
     settings.radius?.vendor?.extended_vlan_mappings || [];
   const vendorAVPairMappings = settings.radius?.vendor?.avpair_mappings || [];
+  const vendorPortalStatusMappings =
+    settings.radius?.vendor?.portal_status_mappings || [];
   const ssids = settings.wireless?.ssids || [];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
@@ -8120,6 +8127,124 @@ export default function AccessSettings() {
                             updateField(
                               ["radius", "vendor", "avpair_mappings"],
                               vendorAVPairMappings.filter(
+                                (_: unknown, itemIndex: number) =>
+                                  itemIndex !== index,
+                              ),
+                            )
+                          }
+                          className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
+            )}
+          </div>
+          <div className="mb-4 border-t border-gray-100 pt-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h5 className="text-sm font-semibold text-gray-900">
+                  TP-Link Portal Status
+                </h5>
+                <p className="mt-1 text-sm text-gray-600">
+                  Use integer values certified for the deployed Omada release.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  updateField(
+                    ["radius", "vendor", "portal_status_mappings"],
+                    [
+                      ...vendorPortalStatusMappings,
+                      {
+                        pack: "tplink",
+                        portal_profile: "",
+                        value: 0,
+                      },
+                    ],
+                  )
+                }
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+              >
+                Add Portal Status
+              </button>
+            </div>
+            {vendorPortalStatusMappings.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                No TP-Link portal status mappings configured.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {vendorPortalStatusMappings.map(
+                  (mapping: JsonMap, index: number) => (
+                    <div
+                      key={`vendor-portal-status-${index}`}
+                      className="grid gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-4"
+                    >
+                      <SelectField
+                        label="Vendor Pack"
+                        value={mapping.pack || "tplink"}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "portal_status_mappings",
+                              String(index),
+                              "pack",
+                            ],
+                            value,
+                          )
+                        }
+                        options={portalStatusPackOptions}
+                      />
+                      <TextField
+                        label="Portal Profile"
+                        value={mapping.portal_profile || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "portal_status_mappings",
+                              String(index),
+                              "portal_profile",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="https://portal.example.test/guest"
+                      />
+                      <TextField
+                        label="Vendor Value"
+                        type="number"
+                        value={mapping.value ?? 0}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "portal_status_mappings",
+                              String(index),
+                              "value",
+                            ],
+                            Number(value),
+                          )
+                        }
+                      />
+                      <div className="flex items-end">
+                        <button
+                          onClick={() =>
+                            updateField(
+                              [
+                                "radius",
+                                "vendor",
+                                "portal_status_mappings",
+                              ],
+                              vendorPortalStatusMappings.filter(
                                 (_: unknown, itemIndex: number) =>
                                   itemIndex !== index,
                               ),

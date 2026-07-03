@@ -86,6 +86,7 @@ Use this endpoint when you want to confirm:
 - reversible numeric role mappings from `radius.vendor.role_mappings` for Cambium, Aerohive, D-Link, SonicWall, and ZTE
 - validated Extreme tagged and untagged VLAN mappings from `radius.vendor.extended_vlan_mappings`
 - allowlisted, role-based Juniper, Huawei, H3C, and Arista AVPair templates from `radius.vendor.avpair_mappings`
+- reversible TP-Link portal profile values from `radius.vendor.portal_status_mappings`
 - the parsed dictionary coverage matrix through `dictionary_coverage`, including configured or auto-detected FreeRADIUS dictionary imports
 - the same coverage model is available from `aegis-admin scan-radius-dictionaries` for offline JSON/CSV scans of FreeRADIUS dictionary trees
 - reply preview responses include normalized ACL intent plus per-pack ACL exports for Cisco AVPair, Aruba/NAS filter rules, AegisNAS ACL rules, and profile-style vendor hints

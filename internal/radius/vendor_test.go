@@ -144,6 +144,30 @@ func TestApplyVendorCompatibilityAttributesPreservesAVPairs(t *testing.T) {
 	assert.Empty(t, result.VendorInboundACL)
 }
 
+func TestApplyVendorCompatibilityAttributesReversesTPLinkPortalStatus(t *testing.T) {
+	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorInteger(packet, 11863, 9, 7))
+	vendor := vendorConfigForPacks(productconfigs.VendorPackTPLink)
+	vendor.PortalStatusMappings = []config.RadiusVendorPortalStatusMapping{
+		{Pack: "tplink", PortalProfile: "guest-authorized", Value: 7},
+	}
+
+	result := ParseBrokerPacketWithConfig(packet, &config.Config{Radius: config.RadiusConfig{Vendor: vendor}})
+
+	assert.Equal(t, "guest-authorized", result.VendorPortalProfile)
+}
+
+func TestApplyVendorCompatibilityAttributesIgnoresUnknownTPLinkPortalStatus(t *testing.T) {
+	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorInteger(packet, 11863, 9, 99))
+	vendor := vendorConfigForPacks(productconfigs.VendorPackTPLink)
+	vendor.PortalStatusMappings = []config.RadiusVendorPortalStatusMapping{{Pack: "tplink", PortalProfile: "guest-authorized", Value: 7}}
+
+	result := ParseBrokerPacketWithConfig(packet, &config.Config{Radius: config.RadiusConfig{Vendor: vendor}})
+
+	assert.Empty(t, result.VendorPortalProfile)
+}
+
 func TestParseExtremeExtendedVLANRejectsUnsafeValues(t *testing.T) {
 	for _, value := range []string{"", "U20;T20", "U20;U30", "T0", "T4095", "*20", "Udata", "T1;T2;T3;T4;T5;T6;T7;T8;T9;T10;T11"} {
 		t.Run(value, func(t *testing.T) {

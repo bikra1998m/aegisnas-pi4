@@ -134,18 +134,18 @@ func RenderReplyAttributesForVendorConfig(attrs *ReplyAttributes, vendor config.
 }
 
 func BuildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string) []ReplyAttributeItem {
-	return buildReplyAttributeItems(attrs, packKeys, nil, nil, nil)
+	return buildReplyAttributeItems(attrs, packKeys, nil, nil, nil, nil)
 }
 
 func BuildReplyAttributeItemsForVendorConfig(attrs *ReplyAttributes, packKeys []string, vendor config.RadiusVendorConfig) []ReplyAttributeItem {
-	return buildReplyAttributeItems(attrs, packKeys, vendor.RoleMappings, vendor.ExtendedVLANMappings, vendor.AVPairMappings)
+	return buildReplyAttributeItems(attrs, packKeys, vendor.RoleMappings, vendor.ExtendedVLANMappings, vendor.AVPairMappings, vendor.PortalStatusMappings)
 }
 
 func RenderReplyAttributesForVendorConfigAndPacks(attrs *ReplyAttributes, packKeys []string, vendor config.RadiusVendorConfig) string {
 	return renderReplyAttributeItems(BuildReplyAttributeItemsForVendorConfig(attrs, packKeys, vendor))
 }
 
-func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, roleMappings []config.RadiusVendorRoleMapping, extendedVLANMappings []config.RadiusVendorExtendedVLANMapping, avPairMappings []config.RadiusVendorAVPairMapping) []ReplyAttributeItem {
+func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, roleMappings []config.RadiusVendorRoleMapping, extendedVLANMappings []config.RadiusVendorExtendedVLANMapping, avPairMappings []config.RadiusVendorAVPairMapping, portalStatusMappings []config.RadiusVendorPortalStatusMapping) []ReplyAttributeItem {
 	if attrs == nil {
 		return nil
 	}
@@ -260,6 +260,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, roleMap
 			appendItem("TPLink-Omada", attrs.DeviceGroup, true)
 			appendItem("TPLink-Site", attrs.Tenant, true)
 			appendURLItem(attrs, appendItem, "TPLink-Redirect-Url", attrs.PortalProfile)
+			appendNumericPortalStatusItem(attrs, packKey, portalStatusMappings, appendItem, "TPLink-Portal-Access-Status")
 		case productconfigs.VendorPackAerohive:
 			if vlan := replyVLAN(attrs); vlan > 0 {
 				appendItem("Extreme-User-Vlan", fmt.Sprintf("%d", vlan), false)
@@ -492,6 +493,31 @@ func numericVendorRoleValue(mappings []config.RadiusVendorRoleMapping, packKey, 
 			continue
 		}
 		return mapping.Value, true
+	}
+	return 0, false
+}
+
+func appendNumericPortalStatusItem(attrs *ReplyAttributes, packKey string, mappings []config.RadiusVendorPortalStatusMapping, appendItem func(string, string, bool), attribute string) {
+	if attrs == nil {
+		return
+	}
+	value, ok := numericVendorPortalStatusValue(mappings, packKey, attrs.PortalProfile)
+	if !ok {
+		return
+	}
+	appendItem(attribute, strconv.Itoa(value), false)
+}
+
+func numericVendorPortalStatusValue(mappings []config.RadiusVendorPortalStatusMapping, packKey, profile string) (int, bool) {
+	packKey = productconfigs.NormalizeVendorCompatibilityPackKey(packKey)
+	profile = strings.TrimSpace(profile)
+	if profile == "" {
+		return 0, false
+	}
+	for _, mapping := range mappings {
+		if productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack) == packKey && strings.EqualFold(strings.TrimSpace(mapping.PortalProfile), profile) {
+			return mapping.Value, true
+		}
 	}
 	return 0, false
 }

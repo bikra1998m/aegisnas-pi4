@@ -230,6 +230,7 @@ type RadiusVendorConfig struct {
 	RoleMappings         []RadiusVendorRoleMapping         `mapstructure:"role_mappings"`
 	ExtendedVLANMappings []RadiusVendorExtendedVLANMapping `mapstructure:"extended_vlan_mappings"`
 	AVPairMappings       []RadiusVendorAVPairMapping       `mapstructure:"avpair_mappings"`
+	PortalStatusMappings []RadiusVendorPortalStatusMapping `mapstructure:"portal_status_mappings"`
 	Attributes           []RadiusVendorAttribute           `mapstructure:"attributes"`
 }
 
@@ -250,6 +251,12 @@ type RadiusVendorAVPairMapping struct {
 	Pack   string   `mapstructure:"pack"`
 	Role   string   `mapstructure:"role"`
 	Values []string `mapstructure:"values"`
+}
+
+type RadiusVendorPortalStatusMapping struct {
+	Pack          string `mapstructure:"pack"`
+	PortalProfile string `mapstructure:"portal_profile"`
+	Value         int    `mapstructure:"value"`
 }
 
 type RadiusVendorAttribute struct {
@@ -2951,6 +2958,31 @@ func (c *Config) Validate() error {
 			}
 			seenValues[value] = struct{}{}
 		}
+	}
+	seenPortalProfiles := map[string]struct{}{}
+	seenPortalValues := map[string]struct{}{}
+	for i, mapping := range c.Radius.Vendor.PortalStatusMappings {
+		pack := productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack)
+		profile := strings.TrimSpace(mapping.PortalProfile)
+		if !productconfigs.VendorPackSupportsPortalStatusMapping(pack) {
+			return fmt.Errorf("radius.vendor.portal_status_mappings[%d].pack %q does not support portal status mappings", i, mapping.Pack)
+		}
+		if profile == "" || len(profile) > 1024 || strings.ContainsAny(profile, "\r\n\x00") {
+			return fmt.Errorf("radius.vendor.portal_status_mappings[%d].portal_profile is invalid", i)
+		}
+		if mapping.Value < 0 || uint64(mapping.Value) > uint64(^uint32(0)) {
+			return fmt.Errorf("radius.vendor.portal_status_mappings[%d].value %d is outside the uint32 range", i, mapping.Value)
+		}
+		profileKey := pack + "\x00" + strings.ToLower(profile)
+		if _, exists := seenPortalProfiles[profileKey]; exists {
+			return fmt.Errorf("radius.vendor.portal_status_mappings[%d] duplicates portal profile %q for pack %q", i, profile, pack)
+		}
+		valueKey := fmt.Sprintf("%s\x00%d", pack, mapping.Value)
+		if _, exists := seenPortalValues[valueKey]; exists {
+			return fmt.Errorf("radius.vendor.portal_status_mappings[%d] duplicates value %d for pack %q", i, mapping.Value, pack)
+		}
+		seenPortalProfiles[profileKey] = struct{}{}
+		seenPortalValues[valueKey] = struct{}{}
 	}
 	seenVendorDictionaryPaths := map[string]struct{}{}
 	for i, path := range c.Radius.Vendor.DictionaryPaths {

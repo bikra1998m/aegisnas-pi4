@@ -40,6 +40,7 @@ const (
 	inboundVendorMappedRole   inboundVendorValueKind = "mapped_role"
 	inboundVendorExtendedVLAN inboundVendorValueKind = "extended_vlan"
 	inboundVendorAVPairs      inboundVendorValueKind = "avpairs"
+	inboundVendorMappedPortal inboundVendorValueKind = "mapped_portal_status"
 )
 
 type inboundVendorMapping struct {
@@ -136,6 +137,7 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackTPLink, VendorID: 11863, Type: 6, Attribute: "TPLink-Site", Semantic: productconfigs.VendorSemanticTenant, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackTPLink, VendorID: 11863, Type: 7, Attribute: "TPLink-Omada", Semantic: productconfigs.VendorSemanticDeviceGroup, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackTPLink, VendorID: 11863, Type: 8, Attribute: "TPLink-Redirect-Url", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackTPLink, VendorID: 11863, Type: 9, Attribute: "TPLink-Portal-Access-Status", Semantic: productconfigs.VendorSemanticPortalProfile, Kind: inboundVendorMappedPortal},
 
 	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 1, Attribute: "Extreme-User-Vlan", Semantic: productconfigs.VendorSemanticVLAN, Kind: inboundVendorVLAN},
 	{PackKey: productconfigs.VendorPackAerohive, VendorID: 26928, Type: 6, Attribute: "Extreme-User-Profile-Attribute", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorMappedRole},
@@ -406,11 +408,11 @@ func applyVendorCompatibilityAttributes(result *BrokerAuthResult, packet *layehr
 		if _, ok := activePacks[mapping.PackKey]; !ok {
 			continue
 		}
-		applyInboundVendorMapping(result, packet, mapping, vendor.RoleMappings)
+		applyInboundVendorMapping(result, packet, mapping, vendor)
 	}
 }
 
-func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Packet, mapping inboundVendorMapping, roleMappings []config.RadiusVendorRoleMapping) {
+func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Packet, mapping inboundVendorMapping, vendor config.RadiusVendorConfig) {
 	switch mapping.Kind {
 	case inboundVendorString:
 		value, ok := lookupVendorString(packet, mapping.VendorID, mapping.Type)
@@ -453,7 +455,7 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 		if !ok {
 			return
 		}
-		if role, found := numericVendorRoleName(roleMappings, mapping.PackKey, value); found {
+		if role, found := numericVendorRoleName(vendor.RoleMappings, mapping.PackKey, value); found {
 			setStringIfEmpty(&result.VendorRole, role)
 		}
 	case inboundVendorExtendedVLAN:
@@ -474,7 +476,29 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 		for _, value := range lookupVendorStrings(packet, mapping.VendorID, mapping.Type) {
 			appendUniqueVendorAVPair(result, value)
 		}
+	case inboundVendorMappedPortal:
+		value, ok := lookupVendorInteger(packet, mapping.VendorID, mapping.Type)
+		if !ok {
+			return
+		}
+		if profile, found := numericVendorPortalProfile(vendor.PortalStatusMappings, mapping.PackKey, value); found {
+			setStringIfEmpty(&result.VendorPortalProfile, profile)
+		}
 	}
+}
+
+func numericVendorPortalProfile(mappings []config.RadiusVendorPortalStatusMapping, packKey string, value uint32) (string, bool) {
+	packKey = productconfigs.NormalizeVendorCompatibilityPackKey(packKey)
+	for _, mapping := range mappings {
+		if productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack) != packKey || mapping.Value < 0 || uint64(mapping.Value) != uint64(value) {
+			continue
+		}
+		profile := strings.TrimSpace(mapping.PortalProfile)
+		if profile != "" {
+			return profile, true
+		}
+	}
+	return "", false
 }
 
 func appendUniqueVendorAVPair(result *BrokerAuthResult, value string) {

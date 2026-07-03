@@ -350,6 +350,13 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	}
 	assert.NoError(t, validAVPairs.Validate())
 
+	validPortalStatuses := base()
+	validPortalStatuses.Radius.Vendor.PortalStatusMappings = []RadiusVendorPortalStatusMapping{
+		{Pack: "omada", PortalProfile: "https://portal.example.test/guest", Value: 1},
+		{Pack: "tplink", PortalProfile: "quarantine", Value: 7},
+	}
+	assert.NoError(t, validPortalStatuses.Validate())
+
 	invalidID := base()
 	invalidID.Radius.Vendor.ID = 0
 	assert.ErrorContains(t, invalidID.Validate(), "radius.vendor.id")
@@ -438,6 +445,28 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	duplicateAVPairValue := base()
 	duplicateAVPairValue.Radius.Vendor.AVPairMappings = []RadiusVendorAVPairMapping{{Pack: "juniper", Role: "guest", Values: []string{"one", "one"}}}
 	assert.ErrorContains(t, duplicateAVPairValue.Validate(), "duplicates an earlier value")
+
+	invalidPortalStatusPack := base()
+	invalidPortalStatusPack.Radius.Vendor.PortalStatusMappings = []RadiusVendorPortalStatusMapping{{Pack: "aruba", PortalProfile: "guest", Value: 1}}
+	assert.ErrorContains(t, invalidPortalStatusPack.Validate(), "does not support portal status mappings")
+
+	blankPortalStatusProfile := base()
+	blankPortalStatusProfile.Radius.Vendor.PortalStatusMappings = []RadiusVendorPortalStatusMapping{{Pack: "tplink", PortalProfile: " ", Value: 1}}
+	assert.ErrorContains(t, blankPortalStatusProfile.Validate(), "portal_profile is invalid")
+
+	duplicatePortalStatusValue := base()
+	duplicatePortalStatusValue.Radius.Vendor.PortalStatusMappings = []RadiusVendorPortalStatusMapping{
+		{Pack: "tplink", PortalProfile: "guest", Value: 1},
+		{Pack: "tplink", PortalProfile: "staff", Value: 1},
+	}
+	assert.ErrorContains(t, duplicatePortalStatusValue.Validate(), "duplicates value")
+
+	duplicatePortalStatusProfile := base()
+	duplicatePortalStatusProfile.Radius.Vendor.PortalStatusMappings = []RadiusVendorPortalStatusMapping{
+		{Pack: "tplink", PortalProfile: "Guest", Value: 1},
+		{Pack: "tplink", PortalProfile: "guest", Value: 2},
+	}
+	assert.ErrorContains(t, duplicatePortalStatusProfile.Validate(), "duplicates portal profile")
 }
 
 func TestConfigValidationAIEngine(t *testing.T) {

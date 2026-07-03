@@ -319,6 +319,19 @@ func TestRenderReplyAttributesOmitsOversizedExpandedAVPair(t *testing.T) {
 	assert.NotContains(t, rendered, "Arista-AVPair")
 }
 
+func TestRenderReplyAttributesUsesTPLinkPortalStatusMapping(t *testing.T) {
+	attrs := &ReplyAttributes{PortalProfile: "https://portal.example.test/guest"}
+	vendor := config.RadiusVendorConfig{PortalStatusMappings: []config.RadiusVendorPortalStatusMapping{
+		{Pack: "tplink", PortalProfile: attrs.PortalProfile, Value: 7},
+	}}
+
+	rendered := RenderReplyAttributesForVendorConfigAndPacks(attrs, []string{"tplink"}, vendor)
+
+	assert.Contains(t, rendered, "\tTPLink-Redirect-Url = \"https://portal.example.test/guest\"\n")
+	assert.Contains(t, rendered, "\tTPLink-Portal-Access-Status = 7\n")
+	assert.NotContains(t, RenderReplyAttributesForPacks(attrs, []string{"tplink"}), "TPLink-Portal-Access-Status")
+}
+
 func TestNormalizeClientNASType(t *testing.T) {
 	assert.Equal(t, "aruba", NormalizeClientNASType(" Aruba "))
 	assert.Equal(t, "ubnt", NormalizeClientNASType("unifi"))

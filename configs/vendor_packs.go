@@ -331,9 +331,9 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticDeviceGroup, Attribute: "TPLink-Omada", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticTenant, Attribute: "TPLink-Site", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticPortalProfile, Attribute: "TPLink-Redirect-Url", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticPortalProfile, Attribute: "TPLink-Portal-Access-Status", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "TPLink-Portal-Access-Status", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
 			},
-			Notes: []string{"TP-Link rate naming is device-oriented; validate receive/transmit direction on the target Omada controller before production use."},
+			Notes: []string{"TP-Link rate naming is device-oriented; validate receive/transmit direction on the target Omada controller before production use. Portal access status values require a reversible operator-certified profile mapping because the dictionary does not define portable integer labels."},
 		},
 		{
 			Key:              VendorPackAerohive,
@@ -594,6 +594,10 @@ func VendorPackAVPairAttribute(key string) (string, bool) {
 	default:
 		return "", false
 	}
+}
+
+func VendorPackSupportsPortalStatusMapping(key string) bool {
+	return NormalizeVendorCompatibilityPackKey(key) == VendorPackTPLink
 }
 
 func NormalizeVendorCompatibilityPackKey(key string) string {

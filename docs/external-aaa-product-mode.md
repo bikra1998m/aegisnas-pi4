@@ -374,6 +374,19 @@ radius:
 
 Supported placeholders are `${role}`, `${acl_policy}`, `${inbound_acl}`, `${outbound_acl}`, `${vlan}`, `${policy_tag}`, `${device_group}`, and `${tenant}`. Each role can emit up to 16 values. Unknown placeholders, duplicate values, control characters, and oversized values are rejected. Inbound AVPairs are retained as separate opaque broker context and are not automatically trusted as executable ACL intent.
 
+The FreeRADIUS TP-Link dictionary defines `TPLink-Portal-Access-Status` as integer attribute 9 without portable value labels. Map only values certified against the deployed Omada release:
+
+```yaml
+radius:
+  vendor:
+    portal_status_mappings:
+      - pack: tplink
+        portal_profile: https://portal.example.test/guest
+        value: 1
+```
+
+When that portal URL is selected, AegisNAS emits the configured integer alongside the redirect URL. Inbound status values are reversed to the local portal profile only when an exact mapping exists. Profile names and integer values must each be unique, preventing ambiguous authorization state.
+
 Available pack keys include:
 
 - `standard`
