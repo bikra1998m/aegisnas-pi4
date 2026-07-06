@@ -78,7 +78,7 @@ func TestPushControllerStatePostsExpectedPayload(t *testing.T) {
 
 func TestControllerAdapterCatalogDescribesNativeAdapters(t *testing.T) {
 	catalog := ControllerAdapterCatalog()
-	require.Len(t, catalog, 9)
+	require.Len(t, catalog, 10)
 
 	byPlatform := map[string]ControllerAdapterDescriptor{}
 	for _, adapter := range catalog {
@@ -185,6 +185,17 @@ func TestControllerAdapterCatalogDescribesNativeAdapters(t *testing.T) {
 	assert.NotContains(t, meraki.SupportedSyncModes, "coa-only")
 	assert.Contains(t, meraki.EndpointTemplate, "/networks/{networkId}/wireless/ssids/{number}")
 	assert.Equal(t, "native-adapter", meraki.OperationalState)
+
+	openwifi := byPlatform["openwifi"]
+	assert.Equal(t, "tip-openwifi-owgw", openwifi.Adapter)
+	assert.Equal(t, "api-key", openwifi.AuthScheme)
+	assert.True(t, openwifi.NativePolicyPush)
+	assert.True(t, openwifi.WirelessProfiles)
+	assert.False(t, openwifi.RadiusProfiles)
+	assert.False(t, openwifi.CoA)
+	assert.NotContains(t, openwifi.SupportedSyncModes, "coa-only")
+	assert.Contains(t, openwifi.EndpointTemplate, "/device/{serialNumber}/configure")
+	assert.Equal(t, "native-adapter", openwifi.OperationalState)
 }
 
 func TestArubaCentralNativeWLANReconciliation(t *testing.T) {
@@ -1004,6 +1015,189 @@ func TestMerakiClientRedactsCredentialsFromAPIError(t *testing.T) {
 	assert.NotContains(t, err.Error(), "meraki-api-key")
 	assert.NotContains(t, err.Error(), "radius-secret")
 	assert.Contains(t, err.Error(), "[redacted]")
+}
+
+func TestOpenWiFiNativeDeviceReconciliation(t *testing.T) {
+	const apiKeyEnv = "AEGIS_TEST_OPENWIFI_API_KEY"
+	const radiusSecretEnv = "AEGIS_TEST_OPENWIFI_RADIUS_SECRET"
+	t.Setenv(apiKeyEnv, "openwifi-api-key")
+	t.Setenv(radiusSecretEnv, "radius-secret")
+
+	venue := "00000000-0000-0000-0000-000000000123"
+	serial := "aabbccddeeff"
+	configuration := map[string]any{
+		"uuid": float64(17),
+		"unit": map[string]any{"location": "Branch Lab"},
+		"interfaces": []any{
+			map[string]any{
+				"name": "WAN100", "role": "upstream", "vlan": map[string]any{"id": float64(100)},
+				"ethernet": []any{map[string]any{"select-ports": []any{"WAN*"}}},
+				"ssids": []any{map[string]any{
+					"name": "Corp", "wifi-bands": []any{"2G", "5G"}, "bss-mode": "ap", "hidden-ssid": false,
+					"encryption": map[string]any{"proto": "wpa2", "ieee80211w": "optional", "key-caching": true},
+					"radius": map[string]any{
+						"nas-identifier": "branch-ap", "authentication": map[string]any{
+							"host": "192.0.2.20", "port": float64(1812), "secret": "old-secret",
+							"request-attribute": []any{map[string]any{"id": float64(32), "value": "branch-ap"}},
+						},
+						"accounting": map[string]any{"host": "192.0.2.20", "port": float64(1813), "secret": "old-secret", "interval": float64(300)},
+					},
+				}},
+			},
+		},
+	}
+	configurationJSON, err := json.Marshal(configuration)
+	require.NoError(t, err)
+
+	var submitted map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "openwifi-api-key", r.Header.Get("X-API-KEY"))
+		assert.Empty(t, r.Header.Get("Authorization"))
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == openWiFiDeviceCollection:
+			assert.Equal(t, "true", r.URL.Query().Get("deviceWithStatus"))
+			assert.Equal(t, "ap", r.URL.Query().Get("platform"))
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"devicesWithStatus": []any{
+				map[string]any{"serialNumber": serial, "venue": venue, "UUID": 44, "connected": true, "sanity": 100},
+				map[string]any{"serialNumber": "001122334455", "venue": "other-venue", "UUID": 45, "connected": true},
+			}}))
+		case r.Method == http.MethodGet && r.URL.Path == openWiFiDevicePath(serial):
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
+				"serialNumber": serial, "venue": venue, "UUID": 44, "configuration": string(configurationJSON),
+			}))
+		case r.Method == http.MethodPost && r.URL.Path == openWiFiConfigurePath(serial):
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&submitted))
+			assert.Equal(t, serial, submitted["serialNumber"])
+			assert.Equal(t, float64(44), submitted["UUID"])
+			var updated map[string]any
+			require.NoError(t, json.Unmarshal([]byte(submitted["configuration"].(string)), &updated))
+			assert.Equal(t, "Branch Lab", updated["unit"].(map[string]any)["location"])
+			iface := updated["interfaces"].([]any)[0].(map[string]any)
+			assert.Equal(t, "WAN*", iface["ethernet"].([]any)[0].(map[string]any)["select-ports"].([]any)[0])
+			ssid := iface["ssids"].([]any)[0].(map[string]any)
+			assert.Equal(t, []any{"2G", "5G"}, ssid["wifi-bands"])
+			assert.Equal(t, true, ssid["hidden-ssid"])
+			assert.Equal(t, "wpa3", ssid["encryption"].(map[string]any)["proto"])
+			assert.Equal(t, "required", ssid["encryption"].(map[string]any)["ieee80211w"])
+			assert.Equal(t, true, ssid["encryption"].(map[string]any)["key-caching"])
+			radius := ssid["radius"].(map[string]any)
+			assert.Equal(t, "branch-ap", radius["nas-identifier"])
+			auth := radius["authentication"].(map[string]any)
+			assert.Equal(t, "192.0.2.10", auth["host"])
+			assert.Equal(t, "radius-secret", auth["secret"])
+			assert.NotEmpty(t, auth["request-attribute"])
+			assert.Equal(t, float64(300), radius["accounting"].(map[string]any)["interval"])
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"UUID": "command-1", "status": "pending"}))
+		default:
+			http.Error(w, "unexpected "+r.Method+" "+r.URL.Path, http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{}
+	cfg.Radius.AuthPort = 1812
+	cfg.Radius.AcctPort = 1813
+	cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Corp", AuthMode: "wpa3-enterprise", VLAN: 100, DynamicVLAN: true, Hidden: true}}
+	cfg.Integrations.Controller.Platform = "openwifi"
+	cfg.Integrations.Controller.Endpoint = server.URL
+	cfg.Integrations.Controller.APITokenEnv = apiKeyEnv
+	cfg.Integrations.Controller.RadiusServer = "192.0.2.10"
+	cfg.Integrations.Controller.RadiusSecretEnv = radiusSecretEnv
+	cfg.Integrations.Controller.Site = venue
+
+	preview, err := BuildControllerSyncPreview(cfg, "pull")
+	require.NoError(t, err)
+	assert.Equal(t, "tip-openwifi-owgw", preview.Adapter)
+	assert.Equal(t, "api-key", preview.AuthScheme)
+	assert.Equal(t, server.URL+openWiFiDeviceListPath(1), preview.TargetURL)
+	previewJSON, err := json.Marshal(preview.Payload)
+	require.NoError(t, err)
+	assert.Contains(t, string(previewJSON), "redacted")
+	assert.NotContains(t, string(previewJSON), "radius-secret")
+	assert.NotContains(t, string(previewJSON), "openwifi-api-key")
+
+	pullResult, err := pullControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.True(t, pullResult.DriftDetected)
+	assert.Equal(t, 1, pullResult.DriftCount)
+	assert.Nil(t, submitted)
+
+	pushResult, err := pushControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "tip-openwifi-owgw", pushResult.Adapter)
+	assert.Equal(t, 1, pushResult.AppliedCount)
+	assert.False(t, pushResult.DriftDetected)
+	assert.NotNil(t, submitted)
+	assert.Equal(t, "venue", pushResult.ResponseDetails["selection_mode"])
+	assert.Equal(t, 1, pushResult.ResponseDetails["selected_device_count"])
+}
+
+func TestOpenWiFiPushRefusesMissingSSIDAndVLANRelocation(t *testing.T) {
+	const apiKeyEnv = "AEGIS_TEST_OPENWIFI_SAFE_API_KEY"
+	const radiusSecretEnv = "AEGIS_TEST_OPENWIFI_SAFE_RADIUS_SECRET"
+	t.Setenv(apiKeyEnv, "openwifi-api-key")
+	t.Setenv(radiusSecretEnv, "radius-secret")
+
+	for _, testCase := range []struct {
+		name          string
+		ssidName      string
+		interfaceVLAN int
+		driftItem     string
+	}{
+		{name: "missing SSID", ssidName: "Other", interfaceVLAN: 100, driftItem: ":missing"},
+		{name: "VLAN relocation", ssidName: "Corp", interfaceVLAN: 200, driftItem: ":vlan-placement"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			configuration, err := json.Marshal(map[string]any{
+				"uuid": 1, "interfaces": []any{map[string]any{
+					"name": "WAN", "role": "upstream", "vlan": map[string]any{"id": testCase.interfaceVLAN},
+					"ssids": []any{map[string]any{"name": testCase.ssidName}},
+				}},
+			})
+			require.NoError(t, err)
+			writeAttempted := false
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.Method == http.MethodGet && r.URL.Path == openWiFiDeviceCollection {
+					require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"devicesWithStatus": []any{
+						map[string]any{"serialNumber": "aabbccddeeff", "venue": "venue-1", "UUID": 1, "connected": true},
+					}}))
+					return
+				}
+				if r.Method == http.MethodGet && r.URL.Path == openWiFiDevicePath("aabbccddeeff") {
+					require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
+						"serialNumber": "aabbccddeeff", "venue": "venue-1", "UUID": 1, "configuration": string(configuration),
+					}))
+					return
+				}
+				writeAttempted = true
+				http.Error(w, "unexpected write", http.StatusBadRequest)
+			}))
+			defer server.Close()
+
+			cfg := &config.Config{}
+			cfg.Radius.AuthPort = 1812
+			cfg.Radius.AcctPort = 1813
+			cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise", VLAN: 100}}
+			cfg.Integrations.Controller.Platform = "openwifi"
+			cfg.Integrations.Controller.Endpoint = server.URL
+			cfg.Integrations.Controller.APITokenEnv = apiKeyEnv
+			cfg.Integrations.Controller.RadiusServer = "192.0.2.10"
+			cfg.Integrations.Controller.RadiusSecretEnv = radiusSecretEnv
+			cfg.Integrations.Controller.Site = "aabbccddeeff"
+
+			result, err := pushControllerState(context.Background(), cfg)
+			require.Error(t, err)
+			require.NotNil(t, result)
+			assert.Equal(t, 1, result.FailedCount)
+			assert.True(t, result.DriftDetected)
+			driftItems := result.ResponseDetails["drift_items"].([]string)
+			require.Len(t, driftItems, 1)
+			assert.Contains(t, driftItems[0], testCase.driftItem)
+			assert.False(t, writeAttempted)
+		})
+	}
 }
 
 func TestPushControllerStateUsesCiscoAdapter(t *testing.T) {

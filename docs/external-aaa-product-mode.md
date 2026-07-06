@@ -550,6 +550,7 @@ Common values:
 - `paloalto` sends standards-based attributes plus Palo Alto admin/user-group context for firewall or VPN use cases
 - `tplink` or `omada` sends standards-based attributes plus TP-Link Omada rate, site, and device-group replies
 - `meraki` sends standards-based RADIUS replies and exposes contextual Meraki accounting attributes; the native Dashboard adapter can reconcile existing same-name enterprise SSID slots
+- `openwifi` uses standards-based RADIUS enforcement; the native OWGW adapter can reconcile existing same-name enterprise SSIDs by AP serial number or venue UUID
 
 Unknown safe names are still written as `nastype` for FreeRADIUS/site scripts, but reply rendering falls back to the configured global compatibility packs.
 

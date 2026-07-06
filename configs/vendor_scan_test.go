@@ -25,7 +25,14 @@ ATTRIBUTE Mystery-Mode 1 string
 END-VENDOR Mystery
 `)
 
-	report := BuildVendorDictionaryScanReport(catalog, AegisNASVendorCompatibilityPacks(), []string{"cisco"})
+	packs := AegisNASVendorCompatibilityPacks()
+	for packIndex := range packs {
+		if packs[packIndex].Key == VendorPackCambium {
+			packs[packIndex].Attributes[0].CompatibilityState = "planned"
+			break
+		}
+	}
+	report := BuildVendorDictionaryScanReport(catalog, packs, []string{"cisco"})
 
 	assert.Equal(t, "scan-fixture", report.Source)
 	assert.Equal(t, 2, report.CatalogVendorCount)

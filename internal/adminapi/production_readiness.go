@@ -452,6 +452,9 @@ func addProductionControllerCheck(report *productionReadinessReport, cfg *config
 	} else if state.Normalized == "meraki" {
 		dependencies = []string{"integrations.controller.endpoint", "integrations.controller.api_token_env", "integrations.controller.site", "integrations.controller.radius_server", "integrations.controller.radius_secret_env"}
 		recommendation = "Set the Meraki Dashboard API v1 base URL, API key environment variable, network ID, RADIUS server, and RADIUS shared-secret environment variable."
+	} else if state.Normalized == "openwifi" {
+		dependencies = []string{"integrations.controller.endpoint", "integrations.controller.api_token_env", "integrations.controller.site", "integrations.controller.radius_server", "integrations.controller.radius_secret_env"}
+		recommendation = "Set the OpenWiFi Gateway API v1 base URL, API key environment variable, venue UUID or AP serial number, RADIUS server, and RADIUS shared-secret environment variable."
 	}
 	addProductionCheck(report, productionReadinessCheck{
 		Key:            "controller_readiness",

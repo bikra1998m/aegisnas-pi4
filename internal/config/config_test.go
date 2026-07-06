@@ -1429,6 +1429,32 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	merakiCoAOnly.Integrations.Controller.SyncMode = "coa-only"
 	assert.ErrorContains(t, merakiCoAOnly.Validate(), "not supported by the meraki native adapter")
 
+	openWiFiEnterprise := base()
+	openWiFiEnterprise.Integrations.Controller.Platform = "openwifi"
+	openWiFiEnterprise.Integrations.Controller.Site = "00000000-0000-0000-0000-000000000123"
+	openWiFiEnterprise.Integrations.Controller.RadiusServer = "192.0.2.10"
+	openWiFiEnterprise.Integrations.Controller.RadiusSecretEnv = "AEGIS_OPENWIFI_RADIUS_SECRET"
+	openWiFiEnterprise.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa3-enterprise"}}
+	assert.NoError(t, openWiFiEnterprise.Validate())
+
+	missingOpenWiFiRadius := base()
+	missingOpenWiFiRadius.Integrations.Controller.Platform = "openwifi"
+	missingOpenWiFiRadius.Integrations.Controller.Site = "aabbccddeeff"
+	missingOpenWiFiRadius.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	assert.ErrorContains(t, missingOpenWiFiRadius.Validate(), "radius_server and radius_secret_env are required for TIP OpenWiFi")
+
+	insecureOpenWiFi := base()
+	insecureOpenWiFi.Integrations.Controller.Platform = "openwifi"
+	insecureOpenWiFi.Integrations.Controller.Site = "aabbccddeeff"
+	insecureOpenWiFi.Integrations.Controller.Endpoint = "http://openwifi.test/api/v1"
+	assert.ErrorContains(t, insecureOpenWiFi.Validate(), "must use https for TIP OpenWiFi Gateway")
+
+	openWiFiCoAOnly := base()
+	openWiFiCoAOnly.Integrations.Controller.Platform = "openwifi"
+	openWiFiCoAOnly.Integrations.Controller.Site = "aabbccddeeff"
+	openWiFiCoAOnly.Integrations.Controller.SyncMode = "coa-only"
+	assert.ErrorContains(t, openWiFiCoAOnly.Validate(), "not supported by the openwifi native adapter")
+
 	ciscoController := base()
 	ciscoController.Integrations.Controller.Platform = "cisco"
 	ciscoController.Integrations.Controller.APITokenEnv = ""

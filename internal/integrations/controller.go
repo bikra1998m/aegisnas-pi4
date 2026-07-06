@@ -113,7 +113,7 @@ func ControllerComponent() string {
 }
 
 func ControllerAdapterCatalog() []ControllerAdapterDescriptor {
-	platforms := []string{"generic", "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi", "meraki"}
+	platforms := []string{"generic", "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi", "meraki", "openwifi"}
 	out := make([]ControllerAdapterDescriptor, 0, len(platforms))
 	for _, platform := range platforms {
 		out = append(out, ControllerAdapterDescriptorForPlatform(platform))
@@ -308,6 +308,8 @@ func executeControllerState(ctx context.Context, cfg *config.Config, operation s
 		return executeUniFiOperation(ctx, cfg, operation)
 	case "meraki":
 		return executeMerakiOperation(ctx, cfg, operation)
+	case "openwifi":
+		return executeOpenWiFiOperation(ctx, cfg, operation)
 	}
 	token := controllerToken(cfg)
 	if token == "" {
@@ -426,6 +428,9 @@ func buildControllerOperationRequest(cfg *config.Config, token, operation string
 	case "meraki":
 		headers["X-Cisco-Meraki-API-Key"] = token
 		authScheme = "api-key"
+	case "openwifi":
+		headers["X-API-KEY"] = token
+		authScheme = "api-key"
 	default:
 		headers["Authorization"] = "Bearer " + token
 	}
@@ -477,6 +482,8 @@ func controllerOperationEndpoint(cfg *config.Config, platform, operation string)
 		return unifiTargetURL(cfg)
 	case "meraki":
 		return merakiTargetURL(cfg)
+	case "openwifi":
+		return openWiFiTargetURL(cfg)
 	}
 	targetURL, err := controllerEndpointForPlatform(cfg, platform)
 	if err != nil || operation != "pull" || normalizeControllerPlatform(platform) == "generic" {
@@ -539,6 +546,8 @@ func buildControllerPayloadForPlatform(cfg *config.Config, platform string) map[
 		return buildUniFiControllerPayload(cfg)
 	case "meraki":
 		return buildMerakiControllerPayload(cfg)
+	case "openwifi":
+		return buildOpenWiFiControllerPayload(cfg)
 	default:
 		return buildGenericControllerPayload(cfg)
 	}
@@ -593,6 +602,10 @@ func buildUniFiControllerPayload(cfg *config.Config) map[string]any {
 
 func buildMerakiControllerPayload(cfg *config.Config) map[string]any {
 	return buildMerakiPreviewPayload(cfg)
+}
+
+func buildOpenWiFiControllerPayload(cfg *config.Config) map[string]any {
+	return buildOpenWiFiPreviewPayload(cfg)
 }
 
 func buildControllerPortalSection(cfg *config.Config) map[string]any {
@@ -750,7 +763,7 @@ func attachControllerPayloadMetadata(payload map[string]any, platform string) {
 
 func controllerAdapterCapabilities(platform string) map[string]any {
 	normalized := normalizeControllerPlatform(platform)
-	nativeAdapter := normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" || normalized == "ruckus" || normalized == "fortinet" || normalized == "mikrotik" || normalized == "unifi" || normalized == "meraki"
+	nativeAdapter := normalized == "cisco" || normalized == "aruba" || normalized == "juniper-mist" || normalized == "ruckus" || normalized == "fortinet" || normalized == "mikrotik" || normalized == "unifi" || normalized == "meraki" || normalized == "openwifi"
 	contractPayload := normalized == "generic"
 	supportedSyncModes := []string{"monitor", "pull-config", "push-config", "coa-only"}
 	if nativeAdapter {
@@ -790,6 +803,8 @@ func controllerAdapterCapabilities(platform string) map[string]any {
 	case "unifi":
 		capabilities["wireless_profiles"] = true
 	case "meraki":
+		capabilities["wireless_profiles"] = true
+	case "openwifi":
 		capabilities["wireless_profiles"] = true
 	}
 	return capabilities
@@ -995,6 +1010,8 @@ func normalizeControllerPlatform(platform string) string {
 	switch strings.ToLower(strings.TrimSpace(platform)) {
 	case "ubnt", "ubiquiti":
 		return "unifi"
+	case "open-wifi", "tip-openwifi":
+		return "openwifi"
 	default:
 		return strings.ToLower(strings.TrimSpace(platform))
 	}
@@ -1027,6 +1044,8 @@ func controllerAdapterName(platform string) string {
 		return "unifi-network"
 	case "meraki":
 		return "cisco-meraki-dashboard"
+	case "openwifi":
+		return "tip-openwifi-owgw"
 	default:
 		return "generic-rest"
 	}
@@ -1050,6 +1069,8 @@ func controllerAdapterLabel(platform string) string {
 		return "Ubiquiti UniFi Network"
 	case "meraki":
 		return "Cisco Meraki Dashboard"
+	case "openwifi":
+		return "TIP OpenWiFi Gateway"
 	default:
 		return "Generic REST Controller"
 	}
@@ -1065,7 +1086,7 @@ func controllerAuthScheme(platform string) string {
 		return "session"
 	case "mikrotik":
 		return "basic"
-	case "unifi", "meraki":
+	case "unifi", "meraki", "openwifi":
 		return "api-key"
 	default:
 		return "bearer"
@@ -1090,6 +1111,8 @@ func controllerEndpointTemplate(platform string) string {
 		return "{endpoint}/v1/sites/{siteId}/wifi/broadcasts"
 	case "meraki":
 		return "{endpoint}/networks/{networkId}/wireless/ssids/{number}"
+	case "openwifi":
+		return "{endpoint}/devices and /device/{serialNumber}/configure"
 	default:
 		return "{endpoint}"
 	}
@@ -1099,7 +1122,7 @@ func controllerAdapterOperationalState(platform string) string {
 	switch normalizeControllerPlatform(platform) {
 	case "generic":
 		return "contract"
-	case "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi", "meraki":
+	case "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi", "meraki", "openwifi":
 		return "native-adapter"
 	default:
 		return "unsupported"
@@ -1124,6 +1147,8 @@ func controllerAdapterOperationalGuidance(platform string) string {
 		return "Uses the official UniFi Network integration API with X-API-Key authentication to reconcile site WiFi broadcasts against existing RADIUS profiles and VLAN networks."
 	case "meraki":
 		return "Uses the Meraki Dashboard API with X-Cisco-Meraki-API-Key authentication to reconcile existing network SSID slots by exact name, including RADIUS, accounting, CoA, VLAN, visibility, and isolation fields."
+	case "openwifi":
+		return "Uses the OpenWiFi Gateway API with X-API-KEY authentication to inspect AP uCentral documents by serial number or venue and queue preserved configuration updates for existing same-name enterprise SSIDs."
 	default:
 		return "Use when an external system implements the AegisNAS generic controller sync contract."
 	}

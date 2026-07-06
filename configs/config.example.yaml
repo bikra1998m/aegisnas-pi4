@@ -396,7 +396,7 @@ integrations:
     batch_size: 100
   controller:
     enabled: false
-    platform: "" # generic, cisco, aruba, juniper-mist, ruckus, fortinet, mikrotik, unifi, or meraki.
+    platform: "" # generic, cisco, aruba, juniper-mist, ruckus, fortinet, mikrotik, unifi, meraki, or openwifi.
     endpoint: ""
     api_token_env: "AEGIS_CONTROLLER_API_TOKEN"
     api_username_env: "" # Cisco ISE, Ruckus SmartZone, or MikroTik RouterOS username environment variable.

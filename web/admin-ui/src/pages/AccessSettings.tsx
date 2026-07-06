@@ -719,6 +719,7 @@ const controllerPlatformOptions: Option[] = [
   { value: "mikrotik", label: "MikroTik" },
   { value: "unifi", label: "UniFi" },
   { value: "meraki", label: "Cisco Meraki" },
+  { value: "openwifi", label: "TIP OpenWiFi" },
 ];
 
 const controllerSyncOptions: Option[] = [

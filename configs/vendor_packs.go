@@ -541,9 +541,9 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			HardwareProfiles: allProfiles,
 			Attributes: []VendorPackAttributeMapping{
 				{Semantic: VendorSemanticAccountingIdentity, Attribute: "AP-MAC-Address", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticControllerPolicySync, Attribute: "controller.policy_sync", Direction: "controller_api", ValueType: "sync", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticControllerPolicySync, Attribute: "controller.policy_sync", Direction: "controller_api", ValueType: "sync", CompatibilityState: "implemented"},
 			},
-			Notes: []string{"OpenWiFi enforcement should use standards-based RADIUS replies plus controller sync when an OpenWiFi controller adapter is configured."},
+			Notes: []string{"OpenWiFi enforcement uses standards-based RADIUS replies; the native Gateway adapter reconciles existing same-name enterprise SSIDs in per-device uCentral configurations selected by AP serial number or venue UUID."},
 		},
 		{
 			Key:              VendorPackMist,

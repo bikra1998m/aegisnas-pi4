@@ -289,7 +289,7 @@ governance:
   tenant_claim: tenant
 ```
 
-Controller automation supports the generic REST contract plus Cisco, Aruba, Juniper Mist, Ruckus, Fortinet, MikroTik, UniFi, and Cisco Meraki adapters. Each sync includes adapter capability metadata and a desired-state hash so controller responses can report drift, applied counts, failed counts, health, compatibility score, and observed-state hash into integration history and network observability. Operators can check `/api/v1/system/controller-adapters` or the dashboard before enabling automation to confirm the selected adapter, token environment, site or network identifier, native push support, drift detection, dynamic ACL support, and CoA readiness.
+Controller automation supports the generic REST contract plus Cisco, Aruba, Juniper Mist, Ruckus, Fortinet, MikroTik, UniFi, Cisco Meraki, and TIP OpenWiFi adapters. Each sync includes adapter capability metadata and a desired-state hash so controller responses can report drift, applied counts, failed counts, health, compatibility score, and observed-state hash into integration history and network observability. Operators can check `/api/v1/system/controller-adapters` or the dashboard before enabling automation to confirm the selected adapter, token environment, site or network identifier, native push support, drift detection, dynamic ACL support, and CoA readiness.
 
 Cisco ISE uses the native ERS API rather than the generic contract. Configure the ISE base URL plus Basic-auth credential environment names:
 
@@ -409,6 +409,23 @@ integrations:
 ```
 
 Pull mode reads `/networks/{networkId}/wireless/ssids` and compares WPA2/WPA3 Enterprise SSIDs by exact name. Meraki exposes fixed numbered slots rather than create/delete operations, so confirmed push updates only an existing same-name slot and reports a missing name as a failed reconciliation. Managed fields cover RADIUS authentication and accounting, CoA, static or RADIUS-overridden VLANs, visibility, isolation, and WPA mode. Dashboard reads omit shared secrets; previews redact them and each push refreshes the secret on every matched slot. The adapter never renames, allocates, disables, or deletes unmatched slots. Client limits, captive portals, bandwidth profiles, and identity-source settings remain outside this native slice and produce warnings.
+
+TIP OpenWiFi uses the OWGW API v1 with `X-API-KEY` authentication. Set `endpoint` to the Gateway API base and set `site` to either one AP serial number without separators or a venue UUID:
+
+```yaml
+integrations:
+  controller:
+    enabled: true
+    platform: openwifi
+    endpoint: https://openwifi.example.com:16002/api/v1
+    api_token_env: AEGIS_OPENWIFI_API_KEY
+    radius_server: 192.0.2.10
+    radius_secret_env: AEGIS_OPENWIFI_RADIUS_SECRET
+    sync_mode: monitor
+    site: 00000000-0000-0000-0000-000000000123
+```
+
+Pull mode pages through `/devices?deviceWithStatus=true&platform=ap`, selects the exact serial or all APs in the venue, and parses each string-encoded uCentral configuration. Confirmed push uses `/device/{serialNumber}/configure` to queue a preserved full-document update only when an existing same-name WPA2/WPA3 Enterprise SSID differs. Managed fields cover enterprise encryption, protected management frames, hidden status, and RADIUS authentication and accounting. Existing radio bands, interface topology, request attributes, accounting intervals, metrics, and services are preserved. Static VLANs are parent-interface objects in uCentral, so AegisNAS verifies the existing interface VLAN and refuses relocation. Missing or ambiguous SSIDs are also refused because creating one safely requires explicit interface and radio placement. Dynamic VLAN requests rely on standard RADIUS tunnel attributes. Isolation, client limits, portal, bandwidth-profile, identity-source, and CoA configuration remain outside this native slice and produce warnings where applicable.
 
 All native adapters require real-controller and access-point certification before production authority.
 

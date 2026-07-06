@@ -274,6 +274,8 @@ For UniFi, generate a scoped API key from the console or Site Manager and point 
 
 For Cisco Meraki, use `https://api.meraki.com/api/v1` and a least-privilege Dashboard API key with network wireless SSID read/write access. Set `site` to the network ID and create each target SSID name in an available Dashboard slot before pull. Push updates only exact same-name slots and never allocates or renames a slot. Because Dashboard reads omit RADIUS secrets, every confirmed push refreshes the configured secret on matched SSIDs; inspect the redacted preview and archive integration history before rotating it. Keep scheduled mode at `monitor` until the target MR firmware and WPA/VLAN behavior pass the certification lab.
 
+For TIP OpenWiFi, point `endpoint` at the OWGW `/api/v1` base and use a scoped Gateway API key. Set `site` to an AP serial number or venue UUID. Pull first and resolve every missing, ambiguous, invalid-configuration, and VLAN-placement drift item. Push queues whole uCentral documents, but the adapter performs read-modify-write and changes only managed fields inside existing same-name enterprise SSIDs. It never creates an SSID, moves one between interfaces, changes interface VLANs, or overwrites unmanaged radio and service settings. Confirm the queued command and AP health in OWGW before enabling scheduled push.
+
 Run `scripts/vendor-certification-lab.sh` for each supported production vendor and archive its `summary.json`, API payloads, RADIUS results, packet capture, controller evidence, and optional upgrade/rollback artifacts. The full procedure and safety gates are in [vendor-certification-lab.md](vendor-certification-lab.md).
 
 ## Backup And Restore

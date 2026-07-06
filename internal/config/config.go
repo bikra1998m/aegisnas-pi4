@@ -1911,7 +1911,7 @@ func (c *Config) Validate() error {
 		}
 	}
 	switch strings.ToLower(strings.TrimSpace(c.Integrations.Controller.Platform)) {
-	case "", "generic", "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi", "ubnt", "ubiquiti", "meraki":
+	case "", "generic", "cisco", "aruba", "juniper-mist", "ruckus", "fortinet", "mikrotik", "unifi", "ubnt", "ubiquiti", "meraki", "openwifi", "open-wifi", "tip-openwifi":
 	default:
 		return fmt.Errorf("integrations.controller.platform %q is invalid", c.Integrations.Controller.Platform)
 	}
@@ -2006,7 +2006,16 @@ func (c *Config) Validate() error {
 				return errors.New("integrations.controller.radius_server and radius_secret_env are required for Cisco Meraki enterprise SSID sync")
 			}
 		}
-		if (controllerPlatform == "cisco" || controllerPlatform == "aruba" || controllerPlatform == "juniper-mist" || controllerPlatform == "ruckus" || controllerPlatform == "fortinet" || controllerPlatform == "mikrotik" || controllerPlatform == "unifi" || controllerPlatform == "meraki") && controllerSyncMode == "coa-only" {
+		if controllerPlatform == "openwifi" || controllerPlatform == "open-wifi" || controllerPlatform == "tip-openwifi" {
+			parsed, _ := url.Parse(c.Integrations.Controller.Endpoint)
+			if parsed == nil || parsed.Scheme != "https" {
+				return errors.New("integrations.controller.endpoint must use https for TIP OpenWiFi Gateway")
+			}
+			if controllerHasEnterpriseSSIDs(c) && (strings.TrimSpace(c.Integrations.Controller.RadiusServer) == "" || strings.TrimSpace(c.Integrations.Controller.RadiusSecretEnv) == "") {
+				return errors.New("integrations.controller.radius_server and radius_secret_env are required for TIP OpenWiFi enterprise SSID sync")
+			}
+		}
+		if (controllerPlatform == "cisco" || controllerPlatform == "aruba" || controllerPlatform == "juniper-mist" || controllerPlatform == "ruckus" || controllerPlatform == "fortinet" || controllerPlatform == "mikrotik" || controllerPlatform == "unifi" || controllerPlatform == "meraki" || controllerPlatform == "openwifi" || controllerPlatform == "open-wifi" || controllerPlatform == "tip-openwifi") && controllerSyncMode == "coa-only" {
 			return fmt.Errorf("integrations.controller.sync_mode %q is not supported by the %s native adapter", c.Integrations.Controller.SyncMode, controllerPlatform)
 		}
 		if controllerPlatformRequiresSite(c.Integrations.Controller.Platform) && strings.TrimSpace(c.Integrations.Controller.Site) == "" {
