@@ -1403,6 +1403,32 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	unifiCoAOnly.Integrations.Controller.SyncMode = "coa-only"
 	assert.ErrorContains(t, unifiCoAOnly.Validate(), "not supported by the unifi native adapter")
 
+	merakiEnterprise := base()
+	merakiEnterprise.Integrations.Controller.Platform = "meraki"
+	merakiEnterprise.Integrations.Controller.Site = "N_123456789"
+	merakiEnterprise.Integrations.Controller.RadiusServer = "192.0.2.10"
+	merakiEnterprise.Integrations.Controller.RadiusSecretEnv = "AEGIS_MERAKI_RADIUS_SECRET"
+	merakiEnterprise.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	assert.NoError(t, merakiEnterprise.Validate())
+
+	missingMerakiRadius := base()
+	missingMerakiRadius.Integrations.Controller.Platform = "meraki"
+	missingMerakiRadius.Integrations.Controller.Site = "N_123456789"
+	missingMerakiRadius.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	assert.ErrorContains(t, missingMerakiRadius.Validate(), "radius_server and radius_secret_env are required for Cisco Meraki")
+
+	insecureMeraki := base()
+	insecureMeraki.Integrations.Controller.Platform = "meraki"
+	insecureMeraki.Integrations.Controller.Site = "N_123456789"
+	insecureMeraki.Integrations.Controller.Endpoint = "http://api.meraki.test/api/v1"
+	assert.ErrorContains(t, insecureMeraki.Validate(), "must use https for Cisco Meraki Dashboard")
+
+	merakiCoAOnly := base()
+	merakiCoAOnly.Integrations.Controller.Platform = "meraki"
+	merakiCoAOnly.Integrations.Controller.Site = "N_123456789"
+	merakiCoAOnly.Integrations.Controller.SyncMode = "coa-only"
+	assert.ErrorContains(t, merakiCoAOnly.Validate(), "not supported by the meraki native adapter")
+
 	ciscoController := base()
 	ciscoController.Integrations.Controller.Platform = "cisco"
 	ciscoController.Integrations.Controller.APITokenEnv = ""

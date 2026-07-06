@@ -96,7 +96,7 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 	state.RadiusSecretPresent = state.RadiusSecretEnv != "" && os.Getenv(state.RadiusSecretEnv) != ""
 	state.RadiusProfileRequired = (platform == "aruba" || platform == "ruckus" || platform == "fortinet" || platform == "unifi") && controllerConfigHasEnterpriseSSIDs(cfg)
 	state.RadiusProfileConfigured = !state.RadiusProfileRequired || state.RadiusProfile != ""
-	state.RadiusServerRequired = (platform == "juniper-mist" || platform == "mikrotik") && controllerConfigHasEnterpriseSSIDs(cfg)
+	state.RadiusServerRequired = (platform == "juniper-mist" || platform == "mikrotik" || platform == "meraki") && controllerConfigHasEnterpriseSSIDs(cfg)
 	state.RadiusServerConfigured = !state.RadiusServerRequired || (state.RadiusServer != "" && state.RadiusSecretEnv != "" && state.RadiusSecretPresent)
 	state.SiteConfigured = !state.SiteRequired || state.Site != ""
 	if state.SyncMode == "" {
@@ -137,6 +137,8 @@ func buildControllerAdapterConfiguredState(cfg *config.Config) controllerAdapter
 		if !state.RadiusServerConfigured {
 			if platform == "mikrotik" {
 				state.ReadinessWarnings = append(state.ReadinessWarnings, "MikroTik enterprise WiFi sync requires a RADIUS server and a present shared-secret environment variable")
+			} else if platform == "meraki" {
+				state.ReadinessWarnings = append(state.ReadinessWarnings, "Cisco Meraki enterprise SSID sync requires a RADIUS server and a present shared-secret environment variable")
 			} else {
 				state.ReadinessWarnings = append(state.ReadinessWarnings, "Juniper Mist enterprise WLAN sync requires a RADIUS server and a present shared-secret environment variable")
 			}

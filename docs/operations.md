@@ -272,6 +272,8 @@ For MikroTik, use RouterOS 7.13 or newer with HTTPS REST enabled and a dedicated
 
 For UniFi, generate a scoped API key from the console or Site Manager and point `endpoint` at the official Network integration API base. Use the API site ID, not the legacy site name. Create the RADIUS profile and VLAN networks in UniFi before pull. Push performs full-object updates only after reading current detail, preserving unmanaged optional fields; it never deletes broadcasts, profiles, or networks. Keep scheduled mode read-only until the exact Network release and AP firmware pass the certification lab.
 
+For Cisco Meraki, use `https://api.meraki.com/api/v1` and a least-privilege Dashboard API key with network wireless SSID read/write access. Set `site` to the network ID and create each target SSID name in an available Dashboard slot before pull. Push updates only exact same-name slots and never allocates or renames a slot. Because Dashboard reads omit RADIUS secrets, every confirmed push refreshes the configured secret on matched SSIDs; inspect the redacted preview and archive integration history before rotating it. Keep scheduled mode at `monitor` until the target MR firmware and WPA/VLAN behavior pass the certification lab.
+
 Run `scripts/vendor-certification-lab.sh` for each supported production vendor and archive its `summary.json`, API payloads, RADIUS results, packet capture, controller evidence, and optional upgrade/rollback artifacts. The full procedure and safety gates are in [vendor-certification-lab.md](vendor-certification-lab.md).
 
 ## Backup And Restore

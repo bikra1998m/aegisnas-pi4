@@ -718,6 +718,7 @@ const controllerPlatformOptions: Option[] = [
   { value: "fortinet", label: "Fortinet" },
   { value: "mikrotik", label: "MikroTik" },
   { value: "unifi", label: "UniFi" },
+  { value: "meraki", label: "Cisco Meraki" },
 ];
 
 const controllerSyncOptions: Option[] = [

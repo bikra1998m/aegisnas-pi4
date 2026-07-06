@@ -449,6 +449,9 @@ func addProductionControllerCheck(report *productionReadinessReport, cfg *config
 	} else if state.Normalized == "unifi" {
 		dependencies = []string{"integrations.controller.endpoint", "integrations.controller.api_token_env", "integrations.controller.site", "integrations.controller.radius_profile"}
 		recommendation = "Set the UniFi Network integration API base URL, API key environment variable, site ID, and existing RADIUS profile name."
+	} else if state.Normalized == "meraki" {
+		dependencies = []string{"integrations.controller.endpoint", "integrations.controller.api_token_env", "integrations.controller.site", "integrations.controller.radius_server", "integrations.controller.radius_secret_env"}
+		recommendation = "Set the Meraki Dashboard API v1 base URL, API key environment variable, network ID, RADIUS server, and RADIUS shared-secret environment variable."
 	}
 	addProductionCheck(report, productionReadinessCheck{
 		Key:            "controller_readiness",

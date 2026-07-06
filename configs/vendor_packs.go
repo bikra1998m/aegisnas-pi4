@@ -232,9 +232,9 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticTenant, Attribute: "Meraki-Network-Name", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDeviceGroup, Attribute: "Meraki-Ap-Name", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDevicePosture, Attribute: "Meraki-Ap-Tags", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticControllerPolicySync, Attribute: "controller.policy_sync", Direction: "controller_api", ValueType: "sync", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticControllerPolicySync, Attribute: "controller.policy_sync", Direction: "controller_api", ValueType: "sync", CompatibilityState: "implemented"},
 			},
-			Notes: []string{"Meraki's FreeRADIUS dictionary is mostly contextual/accounting; group-policy enforcement should use standards-based replies or controller templates."},
+			Notes: []string{"Meraki's FreeRADIUS dictionary is mostly contextual/accounting; standards-based replies remain the RADIUS enforcement path, while the native Dashboard API adapter reconciles existing wireless SSID slots by exact name."},
 		},
 		{
 			Key:              VendorPackExtreme,

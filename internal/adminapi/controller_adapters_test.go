@@ -68,9 +68,10 @@ func TestHandleGetControllerAdapters(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
 
-	require.Len(t, payload.Adapters, 8)
+	require.Len(t, payload.Adapters, 9)
 	assert.True(t, controllerAdapterPayloadContains(payload.Adapters, "cisco"))
 	assert.True(t, controllerAdapterPayloadContains(payload.Adapters, "unifi"))
+	assert.True(t, controllerAdapterPayloadContains(payload.Adapters, "meraki"))
 	assert.Equal(t, "ubnt", payload.Configured.Platform)
 	assert.Equal(t, "unifi", payload.Configured.Normalized)
 	assert.Equal(t, "unifi-network", payload.Configured.Adapter)
@@ -271,6 +272,35 @@ func TestBuildControllerAdapterConfiguredStateRequiresUniFiRadiusProfile(t *test
 	assert.True(t, state.RadiusProfileConfigured)
 	assert.True(t, state.Ready)
 	assert.Equal(t, "api-key", state.Selected.AuthScheme)
+}
+
+func TestBuildControllerAdapterConfiguredStateRequiresMerakiRadiusSecret(t *testing.T) {
+	const tokenEnv = "AEGIS_TEST_MERAKI_READY_TOKEN"
+	const secretEnv = "AEGIS_TEST_MERAKI_READY_RADIUS_SECRET"
+	t.Setenv(tokenEnv, "api-key")
+	cfg := &config.Config{
+		Integrations: config.IntegrationsConfig{
+			Controller: config.ControllerConfig{
+				Enabled: true, Platform: "meraki", Endpoint: "https://api.meraki.com/api/v1",
+				APITokenEnv: tokenEnv, RadiusServer: "192.0.2.10", RadiusSecretEnv: secretEnv,
+				SyncMode: "monitor", Site: "N_123456789",
+			},
+		},
+	}
+	cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Corp", AuthMode: "wpa3-enterprise"}}
+
+	state := buildControllerAdapterConfiguredState(cfg)
+	assert.True(t, state.RadiusServerRequired)
+	assert.False(t, state.RadiusServerConfigured)
+	assert.False(t, state.Ready)
+	assert.Contains(t, state.ReadinessWarnings, "Cisco Meraki enterprise SSID sync requires a RADIUS server and a present shared-secret environment variable")
+
+	t.Setenv(secretEnv, "radius-secret")
+	state = buildControllerAdapterConfiguredState(cfg)
+	assert.True(t, state.RadiusServerConfigured)
+	assert.True(t, state.Ready)
+	assert.Equal(t, "api-key", state.Selected.AuthScheme)
+	assert.Equal(t, "cisco-meraki-dashboard", state.Adapter)
 }
 
 func TestBuildControllerAdapterConfiguredStateUsesCiscoBasicCredentials(t *testing.T) {

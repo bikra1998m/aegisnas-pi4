@@ -78,7 +78,7 @@ func TestPushControllerStatePostsExpectedPayload(t *testing.T) {
 
 func TestControllerAdapterCatalogDescribesNativeAdapters(t *testing.T) {
 	catalog := ControllerAdapterCatalog()
-	require.Len(t, catalog, 8)
+	require.Len(t, catalog, 9)
 
 	byPlatform := map[string]ControllerAdapterDescriptor{}
 	for _, adapter := range catalog {
@@ -173,6 +173,18 @@ func TestControllerAdapterCatalogDescribesNativeAdapters(t *testing.T) {
 	assert.NotContains(t, unifi.SupportedSyncModes, "coa-only")
 	assert.Contains(t, unifi.EndpointTemplate, "/v1/sites/{siteId}/wifi/broadcasts")
 	assert.Equal(t, "native-adapter", unifi.OperationalState)
+
+	meraki := byPlatform["meraki"]
+	assert.Equal(t, "cisco-meraki-dashboard", meraki.Adapter)
+	assert.Equal(t, "api-key", meraki.AuthScheme)
+	assert.True(t, meraki.NativePolicyPush)
+	assert.True(t, meraki.WirelessProfiles)
+	assert.False(t, meraki.RadiusProfiles)
+	assert.False(t, meraki.GuestPortal)
+	assert.False(t, meraki.CoA)
+	assert.NotContains(t, meraki.SupportedSyncModes, "coa-only")
+	assert.Contains(t, meraki.EndpointTemplate, "/networks/{networkId}/wireless/ssids/{number}")
+	assert.Equal(t, "native-adapter", meraki.OperationalState)
 }
 
 func TestArubaCentralNativeWLANReconciliation(t *testing.T) {
@@ -841,6 +853,157 @@ func TestUniFiNativeWiFiReconciliation(t *testing.T) {
 	assert.Equal(t, "DEFAULT", staffSecurity["securityMode"])
 	assert.Equal(t, "DEVICE_MAC_ADDRESS", staffSecurity["radiusConfiguration"].(map[string]any)["nasId"].(map[string]any)["source"])
 	assert.Equal(t, "network-30", state["Staff"]["network"].(map[string]any)["networkId"])
+}
+
+func TestMerakiNativeSSIDReconciliation(t *testing.T) {
+	const apiKeyEnv = "AEGIS_TEST_MERAKI_API_KEY"
+	const radiusSecretEnv = "AEGIS_TEST_MERAKI_RADIUS_SECRET"
+	t.Setenv(apiKeyEnv, "meraki-api-key")
+	t.Setenv(radiusSecretEnv, "radius-secret")
+
+	networkID := "N_123456789"
+	cfg := &config.Config{}
+	cfg.Radius.AuthPort = 1812
+	cfg.Radius.AcctPort = 1813
+	cfg.Radius.DynamicAuth.Enabled = true
+	cfg.Wireless.SSIDs = []config.SSIDConfig{
+		{Name: "Corp", AuthMode: "wpa2-enterprise", VLAN: 20, DynamicVLAN: true},
+		{Name: "Staff", AuthMode: "wpa3-enterprise", VLAN: 30, Hidden: true, ClientIsolation: true},
+	}
+	cfg.Integrations.Controller.Enabled = true
+	cfg.Integrations.Controller.Platform = "meraki"
+	cfg.Integrations.Controller.APITokenEnv = apiKeyEnv
+	cfg.Integrations.Controller.RadiusServer = "192.0.2.10"
+	cfg.Integrations.Controller.RadiusSecretEnv = radiusSecretEnv
+	cfg.Integrations.Controller.SyncMode = "push-config"
+	cfg.Integrations.Controller.Site = networkID
+
+	resources, _, err := loadMerakiSSIDResources(cfg, "radius-secret")
+	require.NoError(t, err)
+	state := map[int]map[string]any{}
+	for number, resource := range resources {
+		state[number] = merakiComparablePayload(resource.Payload)
+		state[number]["number"] = number
+	}
+	state[0]["authMode"] = "open"
+	state[0]["enabled"] = false
+
+	writes := map[int]map[string]any{}
+	collection := merakiSSIDCollectionPath(networkID)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "meraki-api-key", r.Header.Get("X-Cisco-Meraki-API-Key"))
+		assert.Empty(t, r.Header.Get("Authorization"))
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == collection:
+			items := make([]map[string]any, 0, len(state))
+			for number := 0; number < len(state); number++ {
+				items = append(items, state[number])
+			}
+			require.NoError(t, json.NewEncoder(w).Encode(items))
+		case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, collection+"/"):
+			number, parseErr := strconv.Atoi(strings.TrimPrefix(r.URL.Path, collection+"/"))
+			require.NoError(t, parseErr)
+			var payload map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			authServers := payload["radiusServers"].([]any)
+			assert.Equal(t, "radius-secret", authServers[0].(map[string]any)["secret"])
+			writes[number] = payload
+			state[number] = merakiComparablePayload(payload)
+			state[number]["number"] = number
+			require.NoError(t, json.NewEncoder(w).Encode(state[number]))
+		default:
+			http.Error(w, "unexpected "+r.Method+" "+r.URL.Path, http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	cfg.Integrations.Controller.Endpoint = server.URL
+
+	preview, err := BuildControllerSyncPreview(cfg, "pull")
+	require.NoError(t, err)
+	assert.Equal(t, "cisco-meraki-dashboard", preview.Adapter)
+	assert.Equal(t, "api-key", preview.AuthScheme)
+	assert.Equal(t, server.URL+collection, preview.TargetURL)
+	encodedPreview, err := json.Marshal(preview.Payload)
+	require.NoError(t, err)
+	assert.Contains(t, string(encodedPreview), "redacted")
+	assert.NotContains(t, string(encodedPreview), "radius-secret")
+	assert.NotContains(t, string(encodedPreview), "meraki-api-key")
+
+	pullResult, err := pullControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.True(t, pullResult.DriftDetected)
+	assert.Equal(t, 1, pullResult.DriftCount)
+	assert.Empty(t, writes)
+
+	pushResult, err := pushControllerState(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "cisco-meraki-dashboard", pushResult.Adapter)
+	assert.Equal(t, 2, pushResult.AppliedCount)
+	assert.False(t, pushResult.DriftDetected)
+	assert.Len(t, writes, 2)
+	assert.Equal(t, "8021x-radius", writes[0]["authMode"])
+	assert.Equal(t, true, writes[0]["radiusOverride"])
+	assert.Equal(t, true, writes[0]["radiusCoaEnabled"])
+	assert.Equal(t, "WPA3 only", writes[1]["wpaEncryptionMode"])
+	assert.Equal(t, true, writes[1]["lanIsolationEnabled"])
+	assert.Equal(t, false, writes[1]["visible"])
+	assert.Equal(t, 1, pushResult.ResponseDetails["write_only_secret_refresh_count"])
+}
+
+func TestMerakiPushRefusesToAllocateMissingSSIDSlot(t *testing.T) {
+	const apiKeyEnv = "AEGIS_TEST_MERAKI_MISSING_API_KEY"
+	const radiusSecretEnv = "AEGIS_TEST_MERAKI_MISSING_RADIUS_SECRET"
+	t.Setenv(apiKeyEnv, "meraki-api-key")
+	t.Setenv(radiusSecretEnv, "radius-secret")
+
+	writeAttempted := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet {
+			_, _ = w.Write([]byte(`[]`))
+			return
+		}
+		writeAttempted = true
+		http.Error(w, "unexpected write", http.StatusBadRequest)
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{}
+	cfg.Radius.AuthPort = 1812
+	cfg.Radius.AcctPort = 1813
+	cfg.Wireless.SSIDs = []config.SSIDConfig{{Name: "Corp", AuthMode: "wpa2-enterprise"}}
+	cfg.Integrations.Controller.Platform = "meraki"
+	cfg.Integrations.Controller.Endpoint = server.URL
+	cfg.Integrations.Controller.APITokenEnv = apiKeyEnv
+	cfg.Integrations.Controller.RadiusServer = "192.0.2.10"
+	cfg.Integrations.Controller.RadiusSecretEnv = radiusSecretEnv
+	cfg.Integrations.Controller.Site = "N_missing"
+
+	result, err := pushControllerState(context.Background(), cfg)
+	require.Error(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, 1, result.FailedCount)
+	assert.True(t, result.DriftDetected)
+	assert.Contains(t, result.ResponseDetails["drift_items"], "ssid:Corp:missing")
+	assert.False(t, writeAttempted)
+}
+
+func TestMerakiClientRedactsCredentialsFromAPIError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "rejected meraki-api-key and radius-secret", http.StatusBadRequest)
+	}))
+	defer server.Close()
+
+	client := &merakiClient{
+		baseURL: server.URL, apiKey: "meraki-api-key", radiusSecret: "radius-secret",
+		http: server.Client(),
+	}
+	_, _, err := client.doJSON(context.Background(), http.MethodPut, "/networks/N_1/wireless/ssids/0", map[string]any{"name": "Corp"})
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "meraki-api-key")
+	assert.NotContains(t, err.Error(), "radius-secret")
+	assert.Contains(t, err.Error(), "[redacted]")
 }
 
 func TestPushControllerStateUsesCiscoAdapter(t *testing.T) {

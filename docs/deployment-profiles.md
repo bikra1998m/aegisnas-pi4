@@ -289,7 +289,7 @@ governance:
   tenant_claim: tenant
 ```
 
-Controller automation supports the generic REST contract plus Cisco, Aruba, Juniper Mist, Ruckus, Fortinet, MikroTik, and UniFi adapters. Each sync includes adapter capability metadata and a desired-state hash so controller responses can report drift, applied counts, failed counts, health, compatibility score, and observed-state hash into integration history and network observability. Operators can check `/api/v1/system/controller-adapters` or the dashboard before enabling automation to confirm the selected adapter, token environment, site or network identifier, native push support, drift detection, dynamic ACL support, and CoA readiness.
+Controller automation supports the generic REST contract plus Cisco, Aruba, Juniper Mist, Ruckus, Fortinet, MikroTik, UniFi, and Cisco Meraki adapters. Each sync includes adapter capability metadata and a desired-state hash so controller responses can report drift, applied counts, failed counts, health, compatibility score, and observed-state hash into integration history and network observability. Operators can check `/api/v1/system/controller-adapters` or the dashboard before enabling automation to confirm the selected adapter, token environment, site or network identifier, native push support, drift detection, dynamic ACL support, and CoA readiness.
 
 Cisco ISE uses the native ERS API rather than the generic contract. Configure the ISE base URL plus Basic-auth credential environment names:
 
@@ -392,6 +392,23 @@ integrations:
 ```
 
 Pull mode resolves the named RADIUS profile, maps configured VLAN IDs to existing site networks, pages through `/v1/sites/{siteId}/wifi/broadcasts`, and reads full details for matching broadcasts. Confirmed push creates missing WPA2/WPA3 Enterprise broadcasts and uses read-modify-write PUT for existing broadcasts so unmanaged optional fields are preserved. The adapter never deletes broadcasts or creates RADIUS profiles and VLAN networks. Captive portal, bandwidth, identity-source, client-limit, and explicit dynamic-VLAN controls remain outside this native slice and produce warnings.
+
+Cisco Meraki uses the Dashboard API v1 with `X-Cisco-Meraki-API-Key` authentication. Set `site` to the Meraki network ID, not the organization ID or display name, and configure the RADIUS endpoint and shared-secret environment variable:
+
+```yaml
+integrations:
+  controller:
+    enabled: true
+    platform: meraki
+    endpoint: https://api.meraki.com/api/v1
+    api_token_env: AEGIS_MERAKI_API_KEY
+    radius_server: 192.0.2.10
+    radius_secret_env: AEGIS_MERAKI_RADIUS_SECRET
+    sync_mode: monitor
+    site: N_123456789
+```
+
+Pull mode reads `/networks/{networkId}/wireless/ssids` and compares WPA2/WPA3 Enterprise SSIDs by exact name. Meraki exposes fixed numbered slots rather than create/delete operations, so confirmed push updates only an existing same-name slot and reports a missing name as a failed reconciliation. Managed fields cover RADIUS authentication and accounting, CoA, static or RADIUS-overridden VLANs, visibility, isolation, and WPA mode. Dashboard reads omit shared secrets; previews redact them and each push refreshes the secret on every matched slot. The adapter never renames, allocates, disables, or deletes unmatched slots. Client limits, captive portals, bandwidth profiles, and identity-source settings remain outside this native slice and produce warnings.
 
 All native adapters require real-controller and access-point certification before production authority.
 
