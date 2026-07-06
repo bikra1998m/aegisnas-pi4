@@ -414,6 +414,19 @@ radius:
 
 Values must be between 1 and 4,294,967,295 bytes. The limit is an outbound authorization quota, not an accounting counter. Inbound values are retained as normalized quota intent. The ChilliSpot pack now uses the official prefixed names for bandwidth, configuration, portal allowlist, and quota attributes.
 
+Nokia `Nokia-Service-Name` is octet attribute 3 and uses swapped-nibble binary-coded decimal. Configure decimal digits by local role:
+
+```yaml
+radius:
+  vendor:
+    service_name_mappings:
+      - pack: nokia
+        role: mobile-data
+        service_name: "00123"
+```
+
+AegisNAS emits `Nokia-Service-Name = 0x0021f3`. Odd digit counts use an `F` high-nibble pad, exactly as defined by the FreeRADIUS Nokia dictionary. Values are limited to 480 decimal digits, leading zeroes are preserved, and malformed inbound BCD is ignored. The Nokia pack also uses the official `Nokia-User-Profile` and `Nokia-AVPair` names.
+
 Available pack keys include:
 
 - `standard`

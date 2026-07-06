@@ -154,6 +154,7 @@ radius:
     portal_status_mappings: [] # Reversible TP-Link profile values; for example [{pack: tplink, portal_profile: "https://portal.example.test/guest", value: 1}].
     session_action_mappings: [] # Reversible Nomadix role/action values; for example [{pack: nomadix, role: expired-guest, action: disconnect, value: 1}].
     quota_mappings: [] # ChilliSpot combined data limits by role; for example [{pack: chillispot, role: guest-1g, max_total_octets: 1073741824}].
+    service_name_mappings: [] # Nokia BCD service names by role; for example [{pack: nokia, role: mobile-data, service_name: "00123"}].
     attributes: [] # Optional FreeRADIUS-style local overrides or extensions. Built-ins come from configs/dictionary.aegisnas.
   clients:
     - ip: 127.0.0.1

@@ -233,6 +233,7 @@ type RadiusVendorConfig struct {
 	PortalStatusMappings  []RadiusVendorPortalStatusMapping  `mapstructure:"portal_status_mappings"`
 	SessionActionMappings []RadiusVendorSessionActionMapping `mapstructure:"session_action_mappings"`
 	QuotaMappings         []RadiusVendorQuotaMapping         `mapstructure:"quota_mappings"`
+	ServiceNameMappings   []RadiusVendorServiceNameMapping   `mapstructure:"service_name_mappings"`
 	Attributes            []RadiusVendorAttribute            `mapstructure:"attributes"`
 }
 
@@ -272,6 +273,12 @@ type RadiusVendorQuotaMapping struct {
 	Pack           string `mapstructure:"pack"`
 	Role           string `mapstructure:"role"`
 	MaxTotalOctets int64  `mapstructure:"max_total_octets"`
+}
+
+type RadiusVendorServiceNameMapping struct {
+	Pack        string `mapstructure:"pack"`
+	Role        string `mapstructure:"role"`
+	ServiceName string `mapstructure:"service_name"`
 }
 
 type RadiusVendorAttribute struct {
@@ -3048,6 +3055,31 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("radius.vendor.quota_mappings[%d] duplicates role %q for pack %q", i, role, pack)
 		}
 		seenQuotaRoles[roleKey] = struct{}{}
+	}
+	seenServiceNameRoles := map[string]struct{}{}
+	for i, mapping := range c.Radius.Vendor.ServiceNameMappings {
+		pack := productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack)
+		role := strings.TrimSpace(mapping.Role)
+		serviceName := strings.TrimSpace(mapping.ServiceName)
+		if !productconfigs.VendorPackSupportsServiceNameMapping(pack) {
+			return fmt.Errorf("radius.vendor.service_name_mappings[%d].pack %q does not support service name mappings", i, mapping.Pack)
+		}
+		if role == "" || len(role) > 253 || strings.ContainsAny(role, "\r\n\x00") {
+			return fmt.Errorf("radius.vendor.service_name_mappings[%d].role is invalid", i)
+		}
+		if serviceName == "" || len(serviceName) > 480 {
+			return fmt.Errorf("radius.vendor.service_name_mappings[%d].service_name must contain between 1 and 480 decimal digits", i)
+		}
+		for _, digit := range serviceName {
+			if digit < '0' || digit > '9' {
+				return fmt.Errorf("radius.vendor.service_name_mappings[%d].service_name must contain only decimal digits", i)
+			}
+		}
+		roleKey := pack + "\x00" + strings.ToLower(role)
+		if _, exists := seenServiceNameRoles[roleKey]; exists {
+			return fmt.Errorf("radius.vendor.service_name_mappings[%d] duplicates role %q for pack %q", i, role, pack)
+		}
+		seenServiceNameRoles[roleKey] = struct{}{}
 	}
 	seenVendorDictionaryPaths := map[string]struct{}{}
 	for i, path := range c.Radius.Vendor.DictionaryPaths {

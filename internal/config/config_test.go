@@ -372,6 +372,12 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	}
 	assert.NoError(t, validQuotas.Validate())
 
+	validServiceNames := base()
+	validServiceNames.Radius.Vendor.ServiceNameMappings = []RadiusVendorServiceNameMapping{
+		{Pack: "nokia", Role: "mobile-data", ServiceName: "00123"},
+	}
+	assert.NoError(t, validServiceNames.Validate())
+
 	invalidID := base()
 	invalidID.Radius.Vendor.ID = 0
 	assert.ErrorContains(t, invalidID.Validate(), "radius.vendor.id")
@@ -519,6 +525,21 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 		{Pack: "chillispot", Role: "guest", MaxTotalOctets: 2048},
 	}
 	assert.ErrorContains(t, duplicateQuotaRole.Validate(), "duplicates role")
+
+	invalidServiceNamePack := base()
+	invalidServiceNamePack.Radius.Vendor.ServiceNameMappings = []RadiusVendorServiceNameMapping{{Pack: "arista", Role: "mobile", ServiceName: "123"}}
+	assert.ErrorContains(t, invalidServiceNamePack.Validate(), "does not support service name mappings")
+
+	invalidServiceNameDigits := base()
+	invalidServiceNameDigits.Radius.Vendor.ServiceNameMappings = []RadiusVendorServiceNameMapping{{Pack: "nokia", Role: "mobile", ServiceName: "12A3"}}
+	assert.ErrorContains(t, invalidServiceNameDigits.Validate(), "only decimal digits")
+
+	duplicateServiceNameRole := base()
+	duplicateServiceNameRole.Radius.Vendor.ServiceNameMappings = []RadiusVendorServiceNameMapping{
+		{Pack: "nokia", Role: "Mobile", ServiceName: "123"},
+		{Pack: "nokia", Role: "mobile", ServiceName: "456"},
+	}
+	assert.ErrorContains(t, duplicateServiceNameRole.Validate(), "duplicates role")
 }
 
 func TestConfigValidationAIEngine(t *testing.T) {

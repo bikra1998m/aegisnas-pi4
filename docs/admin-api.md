@@ -89,6 +89,7 @@ Use this endpoint when you want to confirm:
 - reversible TP-Link portal profile values from `radius.vendor.portal_status_mappings`
 - reversible Nomadix role and session-action values from `radius.vendor.session_action_mappings`
 - per-role ChilliSpot combined data quotas from `radius.vendor.quota_mappings`
+- per-role Nokia decimal service names encoded as BCD from `radius.vendor.service_name_mappings`
 - the parsed dictionary coverage matrix through `dictionary_coverage`, including configured or auto-detected FreeRADIUS dictionary imports
 - the same coverage model is available from `aegis-admin scan-radius-dictionaries` for offline JSON/CSV scans of FreeRADIUS dictionary trees
 - reply preview responses include normalized ACL intent plus per-pack ACL exports for Cisco AVPair, Aruba/NAS filter rules, AegisNAS ACL rules, and profile-style vendor hints

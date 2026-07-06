@@ -501,11 +501,11 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			DefaultEnabled:   false,
 			HardwareProfiles: enterprise,
 			Attributes: []VendorPackAttributeMapping{
-				{Semantic: VendorSemanticRole, Attribute: "User-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticPolicyTag, Attribute: "AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDeviceGroup, Attribute: "Service-Name", Direction: "outbound_reply", ValueType: "octets", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticRole, Attribute: "Nokia-User-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Nokia-Service-Name", Direction: "outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
 			},
-			Notes: []string{"Nokia service attributes can use vendor-specific binary formats; AVPair and User-Profile are the safe initial mappings."},
+			Notes: []string{"Nokia Service-Name decimal digits are encoded as swapped-nibble BCD with an F pad nibble for odd lengths."},
 		},
 		{
 			Key:              VendorPackMeru,
@@ -608,6 +608,10 @@ func VendorPackSupportsSessionActionMapping(key string) bool {
 
 func VendorPackSupportsQuotaMapping(key string) bool {
 	return NormalizeVendorCompatibilityPackKey(key) == VendorPackChilliSpot
+}
+
+func VendorPackSupportsServiceNameMapping(key string) bool {
+	return NormalizeVendorCompatibilityPackKey(key) == VendorPackNokia
 }
 
 func NormalizeVendorCompatibilityPackKey(key string) string {

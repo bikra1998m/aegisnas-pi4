@@ -2,6 +2,7 @@ package radius
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -337,8 +338,9 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendURLItem(attrs, appendItem, "PPPOE-URL", attrs.PortalProfile)
 			appendNumericRoleItem(attrs, packKey, vendor.RoleMappings, appendItem, "SW-Privilege")
 		case productconfigs.VendorPackNokia:
-			appendItem("User-Profile", replyRole(attrs), true)
-			appendItem("AVPair", attrs.PolicyTag, true)
+			appendItem("Nokia-User-Profile", replyRole(attrs), true)
+			appendItem("Nokia-AVPair", attrs.PolicyTag, true)
+			appendNokiaServiceNameItem(attrs, packKey, vendor.ServiceNameMappings, appendItem)
 		case productconfigs.VendorPackColubris:
 			appendItem("AVPair", firstReplyValue(attrs.PolicyTag, attrs.ACLPolicyName, attrs.FilterID), true)
 			appendBooleanIntegerItem(attrs.HasQuarantine, attrs.Quarantine, appendItem, "Intercept")
@@ -561,6 +563,46 @@ func appendQuotaItem(attrs *ReplyAttributes, packKey string, mappings []config.R
 			return
 		}
 	}
+}
+
+func appendNokiaServiceNameItem(attrs *ReplyAttributes, packKey string, mappings []config.RadiusVendorServiceNameMapping, appendItem func(string, string, bool)) {
+	if attrs == nil || productconfigs.NormalizeVendorCompatibilityPackKey(packKey) != productconfigs.VendorPackNokia {
+		return
+	}
+	role := replyRole(attrs)
+	for _, mapping := range mappings {
+		if productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack) != productconfigs.VendorPackNokia || !strings.EqualFold(strings.TrimSpace(mapping.Role), role) {
+			continue
+		}
+		encoded, ok := encodeNokiaBCD(mapping.ServiceName)
+		if ok {
+			appendItem("Nokia-Service-Name", "0x"+hex.EncodeToString(encoded), false)
+		}
+		return
+	}
+}
+
+func encodeNokiaBCD(value string) ([]byte, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 480 {
+		return nil, false
+	}
+	encoded := make([]byte, (len(value)+1)/2)
+	for i := 0; i < len(value); i += 2 {
+		if value[i] < '0' || value[i] > '9' {
+			return nil, false
+		}
+		low := value[i] - '0'
+		high := byte(0x0f)
+		if i+1 < len(value) {
+			if value[i+1] < '0' || value[i+1] > '9' {
+				return nil, false
+			}
+			high = value[i+1] - '0'
+		}
+		encoded[i/2] = high<<4 | low
+	}
+	return encoded, true
 }
 
 func extremeExtendedVLANValue(mappings []config.RadiusVendorExtendedVLANMapping, role string) (string, bool) {

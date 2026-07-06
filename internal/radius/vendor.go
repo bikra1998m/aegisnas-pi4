@@ -43,6 +43,7 @@ const (
 	inboundVendorMappedPortal inboundVendorValueKind = "mapped_portal_status"
 	inboundVendorMappedAction inboundVendorValueKind = "mapped_session_action"
 	inboundVendorQuota        inboundVendorValueKind = "data_quota"
+	inboundVendorNokiaBCD     inboundVendorValueKind = "nokia_bcd"
 )
 
 type inboundVendorMapping struct {
@@ -205,7 +206,9 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackZTE, VendorID: 3902, Type: 89, Attribute: "Rate-Ctrl-SCR-Up", Semantic: productconfigs.VendorSemanticUploadBandwidth, Kind: inboundVendorRateKbps},
 	{PackKey: productconfigs.VendorPackZTE, VendorID: 3902, Type: 94, Attribute: "QOS-Profile-Up", Semantic: productconfigs.VendorSemanticBandwidthProfile, Kind: inboundVendorString},
 
-	{PackKey: productconfigs.VendorPackNokia, VendorID: 94, Type: 2, Attribute: "User-Profile", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackNokia, VendorID: 94, Type: 1, Attribute: "Nokia-AVPair", Semantic: productconfigs.VendorSemanticPolicyTag, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackNokia, VendorID: 94, Type: 2, Attribute: "Nokia-User-Profile", Semantic: productconfigs.VendorSemanticRole, Kind: inboundVendorString},
+	{PackKey: productconfigs.VendorPackNokia, VendorID: 94, Type: 3, Attribute: "Nokia-Service-Name", Semantic: productconfigs.VendorSemanticDeviceGroup, Kind: inboundVendorNokiaBCD},
 
 	{PackKey: productconfigs.VendorPackMeru, VendorID: 15983, Type: 1, Attribute: "Access-Point-Id", Semantic: productconfigs.VendorSemanticDeviceGroup, Kind: inboundVendorIntText},
 	{PackKey: productconfigs.VendorPackMeru, VendorID: 15983, Type: 2, Attribute: "Access-Point-Name", Semantic: productconfigs.VendorSemanticAccountingIdentity, Kind: inboundVendorString},
@@ -502,7 +505,39 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			result.VendorMaxTotalOctets = uint64(value)
 			result.HasVendorMaxTotalOctets = true
 		}
+	case inboundVendorNokiaBCD:
+		value, ok := lookupVendorAttribute(packet, mapping.VendorID, mapping.Type)
+		if !ok {
+			return
+		}
+		if decoded, valid := decodeNokiaBCD(value); valid {
+			setStringIfEmpty(&result.VendorDeviceGroup, decoded)
+		}
 	}
+}
+
+func decodeNokiaBCD(value []byte) (string, bool) {
+	if len(value) == 0 || len(value) > 240 {
+		return "", false
+	}
+	var decoded strings.Builder
+	decoded.Grow(len(value) * 2)
+	for i, octet := range value {
+		low := octet & 0x0f
+		high := octet >> 4
+		if low > 9 {
+			return "", false
+		}
+		decoded.WriteByte('0' + low)
+		switch {
+		case high <= 9:
+			decoded.WriteByte('0' + high)
+		case high == 0x0f && i == len(value)-1:
+		default:
+			return "", false
+		}
+	}
+	return decoded.String(), true
 }
 
 func numericVendorSessionAction(mappings []config.RadiusVendorSessionActionMapping, packKey string, value uint32) (string, bool) {

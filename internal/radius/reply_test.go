@@ -245,7 +245,7 @@ func TestRenderReplyAttributesForAdditionalVendorPacks(t *testing.T) {
 	assert.Contains(t, rendered, "\tRate-Ctrl-SCR-Down = 60000\n")
 	assert.Contains(t, rendered, "\tRate-Ctrl-SCR-Up = 15000\n")
 	assert.Contains(t, rendered, "\tPPPOE-URL = \"https://portal.example.test/start\"\n")
-	assert.Contains(t, rendered, "\tUser-Profile = \"guest\"\n")
+	assert.Contains(t, rendered, "\tNokia-User-Profile = \"guest\"\n")
 	assert.Contains(t, rendered, "\tIntercept = 1\n")
 }
 
@@ -354,6 +354,31 @@ func TestRenderReplyAttributesUsesChilliSpotQuotaMapping(t *testing.T) {
 
 	assert.Contains(t, rendered, "\tChilliSpot-Max-Total-Octets = 1073741824\n")
 	assert.NotContains(t, RenderReplyAttributesForPacks(attrs, []string{"chillispot"}), "ChilliSpot-Max-Total-Octets")
+}
+
+func TestRenderReplyAttributesUsesNokiaBCDServiceName(t *testing.T) {
+	attrs := &ReplyAttributes{Role: "mobile-data"}
+	vendor := config.RadiusVendorConfig{ServiceNameMappings: []config.RadiusVendorServiceNameMapping{
+		{Pack: "nokia", Role: attrs.Role, ServiceName: "00123"},
+	}}
+
+	rendered := RenderReplyAttributesForVendorConfigAndPacks(attrs, []string{"nokia"}, vendor)
+
+	assert.Contains(t, rendered, "\tNokia-Service-Name = 0x0021f3\n")
+	assert.NotContains(t, RenderReplyAttributesForPacks(attrs, []string{"nokia"}), "Nokia-Service-Name")
+}
+
+func TestEncodeNokiaBCD(t *testing.T) {
+	encoded, ok := encodeNokiaBCD("123")
+	require.True(t, ok)
+	assert.Equal(t, []byte{0x21, 0xf3}, encoded)
+
+	encoded, ok = encodeNokiaBCD("00123")
+	require.True(t, ok)
+	assert.Equal(t, []byte{0x00, 0x21, 0xf3}, encoded)
+
+	_, ok = encodeNokiaBCD("12A")
+	assert.False(t, ok)
 }
 
 func TestNormalizeClientNASType(t *testing.T) {

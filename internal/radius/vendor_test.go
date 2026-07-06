@@ -202,6 +202,22 @@ func TestApplyVendorCompatibilityAttributesParsesChilliSpotQuota(t *testing.T) {
 	assert.Equal(t, uint64(1_073_741_824), result.VendorMaxTotalOctets)
 }
 
+func TestApplyVendorCompatibilityAttributesDecodesNokiaServiceName(t *testing.T) {
+	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorAttribute(packet, 94, 3, layehradius.Attribute{0x00, 0x21, 0xf3}))
+
+	result := ParseBrokerPacketWithConfig(packet, &config.Config{Radius: config.RadiusConfig{Vendor: vendorConfigForPacks(productconfigs.VendorPackNokia)}})
+
+	assert.Equal(t, "00123", result.VendorDeviceGroup)
+}
+
+func TestDecodeNokiaBCDRejectsMalformedPayloads(t *testing.T) {
+	for _, value := range [][]byte{nil, {0xfa}, {0x2f}, {0xf1, 0x23}} {
+		_, ok := decodeNokiaBCD(value)
+		assert.False(t, ok)
+	}
+}
+
 func TestParseExtremeExtendedVLANRejectsUnsafeValues(t *testing.T) {
 	for _, value := range []string{"", "U20;T20", "U20;U30", "T0", "T4095", "*20", "Udata", "T1;T2;T3;T4;T5;T6;T7;T8;T9;T10;T11"} {
 		t.Run(value, func(t *testing.T) {

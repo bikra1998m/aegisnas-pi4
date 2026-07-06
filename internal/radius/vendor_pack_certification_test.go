@@ -63,6 +63,9 @@ func TestVendorPackCertificationMatrixRendersDeclaredOutboundAttributes(t *testi
 				QuotaMappings: []config.RadiusVendorQuotaMapping{
 					{Pack: productconfigs.VendorPackChilliSpot, Role: attrs.Role, MaxTotalOctets: 1_073_741_824},
 				},
+				ServiceNameMappings: []config.RadiusVendorServiceNameMapping{
+					{Pack: productconfigs.VendorPackNokia, Role: attrs.Role, ServiceName: "123"},
+				},
 			}
 			items := BuildReplyAttributeItemsForVendorConfig(attrs, []string{pack.Key}, vendor)
 			actual := make(map[string]struct{}, len(items))

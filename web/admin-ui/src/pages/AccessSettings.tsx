@@ -590,6 +590,7 @@ const defaultSettings: JsonMap = {
       portal_status_mappings: [],
       session_action_mappings: [],
       quota_mappings: [],
+      service_name_mappings: [],
       attributes: [],
     },
     eap: {
@@ -761,6 +762,10 @@ const sessionActionOptions: Option[] = [
 
 const quotaPackOptions: Option[] = [
   { value: "chillispot", label: "ChilliSpot / CoovaChilli" },
+];
+
+const serviceNamePackOptions: Option[] = [
+  { value: "nokia", label: "Nokia" },
 ];
 
 const mdmProviderOptions: Option[] = [
@@ -1536,6 +1541,8 @@ export default function AccessSettings() {
   const vendorSessionActionMappings =
     settings.radius?.vendor?.session_action_mappings || [];
   const vendorQuotaMappings = settings.radius?.vendor?.quota_mappings || [];
+  const vendorServiceNameMappings =
+    settings.radius?.vendor?.service_name_mappings || [];
   const ssids = settings.wireless?.ssids || [];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
@@ -8515,6 +8522,124 @@ export default function AccessSettings() {
                             updateField(
                               ["radius", "vendor", "quota_mappings"],
                               vendorQuotaMappings.filter(
+                                (_: unknown, itemIndex: number) =>
+                                  itemIndex !== index,
+                              ),
+                            )
+                          }
+                          className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
+            )}
+          </div>
+          <div className="mb-4 border-t border-gray-100 pt-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h5 className="text-sm font-semibold text-gray-900">
+                  Nokia Service Names
+                </h5>
+                <p className="mt-1 text-sm text-gray-600">
+                  Map local roles to decimal service names encoded as Nokia BCD.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  updateField(
+                    ["radius", "vendor", "service_name_mappings"],
+                    [
+                      ...vendorServiceNameMappings,
+                      {
+                        pack: "nokia",
+                        role: "",
+                        service_name: "",
+                      },
+                    ],
+                  )
+                }
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+              >
+                Add Service Name
+              </button>
+            </div>
+            {vendorServiceNameMappings.length === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                No Nokia service name mappings configured.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {vendorServiceNameMappings.map(
+                  (mapping: JsonMap, index: number) => (
+                    <div
+                      key={`vendor-service-name-${index}`}
+                      className="grid gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-4"
+                    >
+                      <SelectField
+                        label="Vendor Pack"
+                        value={mapping.pack || "nokia"}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "service_name_mappings",
+                              String(index),
+                              "pack",
+                            ],
+                            value,
+                          )
+                        }
+                        options={serviceNamePackOptions}
+                      />
+                      <TextField
+                        label="Local Role"
+                        value={mapping.role || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "service_name_mappings",
+                              String(index),
+                              "role",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="mobile-data"
+                      />
+                      <TextField
+                        label="Decimal Service Name"
+                        value={mapping.service_name || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vendor",
+                              "service_name_mappings",
+                              String(index),
+                              "service_name",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="00123"
+                      />
+                      <div className="flex items-end">
+                        <button
+                          onClick={() =>
+                            updateField(
+                              [
+                                "radius",
+                                "vendor",
+                                "service_name_mappings",
+                              ],
+                              vendorServiceNameMappings.filter(
                                 (_: unknown, itemIndex: number) =>
                                   itemIndex !== index,
                               ),
