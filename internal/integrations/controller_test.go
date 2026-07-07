@@ -1131,6 +1131,17 @@ func TestOpenWiFiNativeDeviceReconciliation(t *testing.T) {
 	assert.NotNil(t, submitted)
 	assert.Equal(t, "venue", pushResult.ResponseDetails["selection_mode"])
 	assert.Equal(t, 1, pushResult.ResponseDetails["selected_device_count"])
+	queued := pushResult.ResponseDetails["queued_commands"].([]map[string]any)
+	require.Len(t, queued, 1)
+	assert.Equal(t, serial, queued[0]["serial_number"])
+	assert.Equal(t, "command-1", queued[0]["command_uuid"])
+	assert.Equal(t, "pending", queued[0]["status"])
+}
+
+func TestOpenWiFiCommandReceiptRequiresCommandUUID(t *testing.T) {
+	_, err := openWiFiCommandReceipt([]byte(`{"status":"pending"}`), "aabbccddeeff")
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "returned no command UUID")
 }
 
 func TestOpenWiFiPushRefusesMissingSSIDAndVLANRelocation(t *testing.T) {

@@ -32,6 +32,8 @@ test-acceptance:
 test-vendor-certification:
 	bash -n scripts/vendor-certification-lab.sh
 	bash scripts/vendor-certification-lab.sh --self-test
+	bash -n scripts/openwifi-controller-smoke-test.sh
+	bash scripts/openwifi-controller-smoke-test.sh --self-test
 	go test ./internal/radius -run TestVendorPackCertificationMatrix -count=1
 				
 build:

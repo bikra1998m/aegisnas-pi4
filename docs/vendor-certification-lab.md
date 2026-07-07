@@ -85,6 +85,34 @@ bash scripts/vendor-certification-lab.sh \
 
 The admin API still enforces its own `PUSH CONTROLLER POLICY` confirmation. A successful HTTP response is not enough: the harness also fails when the controller reports failed items.
 
+## OpenWiFi Queue And AP Verification
+
+OpenWiFi configuration is asynchronous: OWGW returns a command UUID after accepting each device configuration. Use the dedicated harness to prove the complete chain. Its default mode is read-only and requires a clean pull:
+
+```bash
+export AEGIS_ADMIN_TOKEN='<admin-token>'
+export AEGIS_OPENWIFI_API_KEY='<scoped-owgw-api-key>'
+
+bash scripts/openwifi-controller-smoke-test.sh \
+  --gateway-url https://openwifi.example.com:16002/api/v1 \
+  --selector 00000000-0000-0000-0000-000000000123
+```
+
+`--selector` accepts an AP serial number without separators or a venue UUID. The harness pages OWGW inventory, reads every selected AP through `/device/{serialNumber}`, validates its uCentral `uuid`, and stores only redacted snapshots.
+
+For a controlled mutation drill, first stage and review an intentional, recoverable SSID difference. Then cross the additional gate:
+
+```bash
+AEGIS_CERTIFY_OPENWIFI_PUSH=YES \
+bash scripts/openwifi-controller-smoke-test.sh \
+  --gateway-url https://openwifi.example.com:16002/api/v1 \
+  --selector 00000000-0000-0000-0000-000000000123 \
+  --push \
+  --timeout-seconds 180
+```
+
+The push passes only when AegisNAS returns one safe command receipt per applied AP, every OWGW `/command/{commandUUID}` reaches a successful terminal state, and a later AegisNAS pull reports zero failures and no drift. The evidence directory includes redacted before/after AP documents, command receipts, previews, pull/push results, and `summary.json`. It never writes API keys, admin tokens, RADIUS secrets, private keys, or personal SSID keys.
+
 ## Upgrade And Rollback Evidence
 
 On a disposable Ubuntu VM:

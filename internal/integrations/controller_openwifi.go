@@ -136,6 +136,7 @@ func executeOpenWiFiOperation(ctx context.Context, cfg *config.Config, operation
 	desiredDevices := make([]map[string]any, 0, len(selected))
 	observedDevices := make([]map[string]any, 0, len(selected))
 	driftItems := make([]string, 0)
+	queuedCommands := make([]map[string]any, 0, len(selected))
 	disconnected := 0
 	for _, device := range selected {
 		if device.ConnectedKnown && !device.Connected {
@@ -229,10 +230,19 @@ func executeOpenWiFiOperation(ctx context.Context, cfg *config.Config, operation
 			"serialNumber": device.SerialNumber, "UUID": device.UUID,
 			"configuration": string(configuration), "when": 0,
 		}
-		if _, _, updateErr := client.doJSON(ctx, http.MethodPost, openWiFiConfigurePath(device.SerialNumber), payload); updateErr != nil {
+		body, _, updateErr := client.doJSON(ctx, http.MethodPost, openWiFiConfigurePath(device.SerialNumber), payload)
+		if updateErr != nil {
 			result.FailedCount++
 			continue
 		}
+		receipt, receiptErr := openWiFiCommandReceipt(body, device.SerialNumber)
+		if receiptErr != nil {
+			result.FailedCount++
+			warnings = append(warnings, receiptErr.Error())
+			result.WarningCount++
+			continue
+		}
+		queuedCommands = append(queuedCommands, receipt)
 		result.AppliedCount++
 	}
 
@@ -242,6 +252,9 @@ func executeOpenWiFiOperation(ctx context.Context, cfg *config.Config, operation
 	}
 	if len(warnings) > 0 {
 		result.ResponseDetails["response_warnings"] = warnings
+	}
+	if len(queuedCommands) > 0 {
+		result.ResponseDetails["queued_commands"] = queuedCommands
 	}
 	desiredState := map[string]any{"devices": desiredDevices}
 	observedState := map[string]any{"devices": observedDevices}
@@ -610,4 +623,20 @@ func openWiFiCompatibilityScore(warnings, failures int) int {
 		return 0
 	}
 	return score
+}
+
+func openWiFiCommandReceipt(body []byte, serialNumber string) (map[string]any, error) {
+	var response map[string]any
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("OpenWiFi Gateway accepted configuration for %s but returned an invalid command receipt: %w", serialNumber, err)
+	}
+	commandUUID := firstNonEmptyString(response["UUID"], response["uuid"])
+	if commandUUID == "" {
+		return nil, fmt.Errorf("OpenWiFi Gateway accepted configuration for %s but returned no command UUID", serialNumber)
+	}
+	receipt := map[string]any{"serial_number": serialNumber, "command_uuid": commandUUID}
+	if status := firstNonEmptyString(response["status"]); status != "" {
+		receipt["status"] = status
+	}
+	return receipt, nil
 }

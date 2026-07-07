@@ -404,7 +404,12 @@ run_controller_checks() {
   local preview="${OUTPUT_DIR}/controller-push-preview.json" result="${OUTPUT_DIR}/controller-push.json"
   if api_get "/system/controller-sync/preview?operation=push" "${preview}" && \
     api_post "/system/controller-sync" '{"operation":"push","confirmation":"PUSH CONTROLLER POLICY"}' "${result}" && \
-    jq -e '.status == "ok" and ((.result.failed_count // 0) == 0)' "${result}" >/dev/null; then
+    jq -e '.status == "ok" and ((.result.failed_count // 0) == 0)' "${result}" >/dev/null && \
+    { [[ "${PACK}" != "openwifi" ]] || jq -e '
+        (.result.applied_count // 0) > 0 and
+        ((.result.details.queued_commands // []) | length) == (.result.applied_count // 0) and
+        ((.result.details.queued_commands // []) | all((.serial_number // "") != "" and (.command_uuid // "") != ""))
+      ' "${result}" >/dev/null; }; then
     record_step "controller_push" "pass" "true" "Confirmed controller policy push completed." "controller-push.json"
   else
     record_step "controller_push" "fail" "true" "Controller policy push failed or reported failed items." "controller-push.json"
