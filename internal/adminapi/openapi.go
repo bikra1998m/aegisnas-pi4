@@ -1114,6 +1114,19 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))
+	addOperation(paths, "/api/v1/system/attribute-registry", "get", securedOperationWithParameters("Read the generated typed attribute registry", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("vendor", "Exact vendor namespace filter.", false),
+		queryStringParameter("pen", "Exact Private Enterprise Number filter.", false),
+		queryStringParameter("pack", "Normalized compatibility pack filter.", false),
+		queryStringParameter("semantic", "Exact vendor-neutral semantic filter.", false),
+		queryEnumParameter("status", "Dictionary status.", []string{"missing", "partial", "implemented"}, false),
+		queryStringParameter("search", "Case-insensitive attribute, vendor, semantic, capability, and functionality search.", false),
+		queryStringParameter("limit", "Page size from 1 to 500; defaults to 100.", false),
+		queryStringParameter("cursor", "Opaque cursor returned by the previous page.", false),
+	}, map[string]any{
+		"200": responseJSON("Pinned registry provenance, counts, filtered typed attributes, and the next cursor."),
+		"400": responseJSON("Invalid filter, limit, or cursor."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-identity", "get", securedOperationWithParameters("Read AegisNAS vendor identity lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("limit", "Migration history rows to return, from 1 to 500.", false),
 	}, map[string]any{

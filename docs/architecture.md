@@ -15,3 +15,7 @@ Services can run either as Ubuntu Core 24 snaps or as systemd-managed daemons on
 ## Vendor Identity Lifecycle
 
 The AegisNAS product VSA namespace is governed by the verified identity lifecycle documented in `vendor-identity.md`. Configuration, generated `dictionary.aegisnas`, packet processing, database evidence, production readiness, and the admin UI share one active PEN. Schema v15 stores assignment and migration evidence. Outbound packets use only the active PEN; inbound legacy decoding is bounded by an explicit deadline. Production readiness requires a matching active assignment record and fails closed for arbitrary non-placeholder IDs.
+
+## Typed Attribute Registry
+
+Third-party VSA metadata and executable inbound mappings are compiled into the immutable registry documented in `attribute-registry.md`. The packet path, scanner, readiness checks, API, UI, and generator consume the same schema and source hash. Dictionary presence is metadata; only explicitly annotated decoders execute, and only when their compatibility pack is active.

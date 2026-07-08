@@ -56,7 +56,10 @@ type inboundVendorMapping struct {
 	Kind      inboundVendorValueKind
 }
 
-var inboundVendorMappings = []inboundVendorMapping{
+// inboundPacketCompatibilityContract is an immutable regression oracle for
+// wire behavior that predates the generated registry. Runtime decoding uses
+// inboundVendorMappings, which is generated from the typed registry below.
+var inboundPacketCompatibilityContract = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackCisco, VendorID: 9, Type: 57, Attribute: "Cisco-In-ACL", Semantic: productconfigs.VendorSemanticACL, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackCisco, VendorID: 9, Type: 58, Attribute: "Cisco-Out-ACL", Semantic: productconfigs.VendorSemanticACL, Kind: inboundVendorString},
 	{PackKey: productconfigs.VendorPackCisco, VendorID: 9, Type: 1, Attribute: "Cisco-AVPair", Semantic: productconfigs.VendorSemanticDynamicACL, Kind: inboundVendorString},
@@ -217,6 +220,29 @@ var inboundVendorMappings = []inboundVendorMapping{
 	{PackKey: productconfigs.VendorPackColubris, VendorID: 8744, Type: 1, Attribute: "Intercept", Semantic: productconfigs.VendorSemanticQuarantine, Kind: inboundVendorBool},
 
 	{PackKey: productconfigs.VendorPackOpenWiFi, VendorID: 58888, Type: 1, Attribute: "AP-MAC-Address", Semantic: productconfigs.VendorSemanticAccountingIdentity, Kind: inboundVendorString},
+}
+
+var inboundVendorMappings = generatedInboundVendorMappings()
+
+func generatedInboundVendorMappings() []inboundVendorMapping {
+	registryMappings := productconfigs.MustBuiltInAttributeRegistry().RuntimeMappings()
+	out := make([]inboundVendorMapping, 0, len(registryMappings))
+	for _, mapping := range registryMappings {
+		kind := inboundVendorValueKind(mapping.Kind)
+		switch kind {
+		case inboundVendorString, inboundVendorVLAN, inboundVendorRateKbps, inboundVendorRateBps,
+			inboundVendorBool, inboundVendorIntText, inboundVendorMappedRole, inboundVendorExtendedVLAN,
+			inboundVendorAVPairs, inboundVendorMappedPortal, inboundVendorMappedAction, inboundVendorQuota,
+			inboundVendorNokiaBCD:
+		default:
+			panic(fmt.Sprintf("attribute registry contains unsupported decoder %q for %s", mapping.Kind, mapping.Attribute))
+		}
+		out = append(out, inboundVendorMapping{
+			PackKey: mapping.PackKey, VendorID: mapping.VendorID, Type: mapping.Type,
+			Attribute: mapping.Attribute, Semantic: mapping.Semantic, Kind: kind,
+		})
+	}
+	return out
 }
 
 // EffectiveVendorAttributes returns the built-in AegisNAS VSA dictionary plus

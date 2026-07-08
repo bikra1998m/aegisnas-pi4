@@ -174,6 +174,37 @@ type VendorCompatibilityPayload = {
   notes?: string[];
 };
 
+type AttributeRegistryEntry = {
+  key: string;
+  source: string;
+  vendor: string;
+  pen: number;
+  attribute: string;
+  number?: number;
+  oid?: string;
+  wire_type: string;
+  capability_family: string;
+  dictionary_status: string;
+  pack_key?: string;
+  semantic?: string;
+  directions?: string[];
+  decode_kind?: string;
+};
+
+type AttributeRegistryPayload = {
+  schema_version: number;
+  source_release: string;
+  source_file_count: number;
+  source_attribute_count: number;
+  source_sha256: string;
+  vendor_count: number;
+  attribute_count: number;
+  mapped_count: number;
+  filtered_count: number;
+  entries: AttributeRegistryEntry[];
+  next_cursor?: string;
+};
+
 type VendorReplyPreviewAttribute = {
   name: string;
   value: string;
@@ -368,6 +399,10 @@ export default function VendorCompatibility() {
   const [identityPreview, setIdentityPreview] = useState<VendorIdentityPreview | null>(null);
   const [identityForm, setIdentityForm] = useState({ pen: '', organization: '', legacyHours: '168' });
   const [rollbackConfirmations, setRollbackConfirmations] = useState<Record<string, string>>({});
+  const [attributeRegistry, setAttributeRegistry] = useState<AttributeRegistryPayload | null>(null);
+  const [attributeRegistryBusy, setAttributeRegistryBusy] = useState(false);
+  const [attributeRegistryError, setAttributeRegistryError] = useState('');
+  const [attributeRegistryFilters, setAttributeRegistryFilters] = useState({ search: '', vendor: '', status: '' });
 
   const canManageIdentity = identity?.role === 'super_admin';
 
@@ -455,6 +490,26 @@ export default function VendorCompatibility() {
     }
   };
 
+  const fetchAttributeRegistry = async (append = false) => {
+    setAttributeRegistryBusy(true);
+    setAttributeRegistryError('');
+    try {
+      const params = new URLSearchParams({ limit: '100' });
+      if (attributeRegistryFilters.search.trim()) params.set('search', attributeRegistryFilters.search.trim());
+      if (attributeRegistryFilters.vendor.trim()) params.set('vendor', attributeRegistryFilters.vendor.trim());
+      if (attributeRegistryFilters.status) params.set('status', attributeRegistryFilters.status);
+      if (append && attributeRegistry?.next_cursor) params.set('cursor', attributeRegistry.next_cursor);
+      const { data } = await api.get<AttributeRegistryPayload>(`/system/attribute-registry?${params.toString()}`);
+      setAttributeRegistry((current) => append && current
+        ? { ...data, entries: [...current.entries, ...data.entries] }
+        : data);
+    } catch (err: any) {
+      setAttributeRegistryError(apiErrorMessage(err, 'Could not load the generated attribute registry.'));
+    } finally {
+      setAttributeRegistryBusy(false);
+    }
+  };
+
   const updatePreviewField = (field: VendorReplyPreviewTextField, value: string) => {
     setPreviewForm((current) => ({ ...current, [field]: value }));
   };
@@ -537,6 +592,7 @@ export default function VendorCompatibility() {
   useEffect(() => {
     void fetchCompatibility(false);
     void fetchVendorIdentity();
+    void fetchAttributeRegistry(false);
   }, []);
 
   const clientProfiles = payload?.client_profiles || [];
@@ -567,7 +623,7 @@ export default function VendorCompatibility() {
           <p className="mt-1 text-sm text-gray-600">Confirm deployed NAS profiles, reply packs, and vendor dictionary coverage before changing access policy.</p>
         </div>
         <button
-          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); }}
+          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); }}
           disabled={loading}
           className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
@@ -706,6 +762,60 @@ export default function VendorCompatibility() {
                 </div>
               ) : null}
             </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Typed Attribute Registry</h3>
+                <p className="mt-1 text-sm text-gray-600">Trace wire identifiers, value types, policy semantics, packet decoders, and source provenance from one versioned contract.</p>
+              </div>
+              {attributeRegistry ? <StatusBadge tone="green">Schema {attributeRegistry.schema_version} / FreeRADIUS {attributeRegistry.source_release}</StatusBadge> : null}
+            </div>
+
+            <form className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]" onSubmit={(event) => { event.preventDefault(); void fetchAttributeRegistry(false); }}>
+              <label className="text-sm font-medium text-gray-700">Search
+                <input value={attributeRegistryFilters.search} onChange={(event) => setAttributeRegistryFilters((current) => ({ ...current, search: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" placeholder="Attribute, semantic, capability" />
+              </label>
+              <label className="text-sm font-medium text-gray-700">Vendor
+                <input value={attributeRegistryFilters.vendor} onChange={(event) => setAttributeRegistryFilters((current) => ({ ...current, vendor: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" placeholder="Aruba" />
+              </label>
+              <label className="text-sm font-medium text-gray-700">Status
+                <select value={attributeRegistryFilters.status} onChange={(event) => setAttributeRegistryFilters((current) => ({ ...current, status: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2">
+                  <option value="">All states</option><option value="partial">Partial</option><option value="missing">Missing</option><option value="implemented">Implemented</option>
+                </select>
+              </label>
+              <button type="submit" disabled={attributeRegistryBusy} className="self-end rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{attributeRegistryBusy ? 'Loading...' : 'Filter'}</button>
+            </form>
+
+            {attributeRegistryError ? <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{attributeRegistryError}</div> : null}
+            {attributeRegistry ? (
+              <>
+                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="Registry Vendors" value={attributeRegistry.vendor_count} hint={`${attributeRegistry.source_file_count} pinned dictionary files.`} />
+                  <StatCard label="Source Attributes" value={attributeRegistry.source_attribute_count} hint={`${attributeRegistry.attribute_count} effective entries.`} />
+                  <StatCard label="Mapped Attributes" value={attributeRegistry.mapped_count} hint="Mapped is not device certification." />
+                  <StatCard label="Filter Results" value={attributeRegistry.filtered_count} hint={`${attributeRegistry.entries.length} loaded.`} />
+                </div>
+                <div className="mt-4 overflow-x-auto rounded-md border border-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50"><tr>{['Vendor / Wire', 'Attribute', 'Type / Direction', 'Semantic / State'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {attributeRegistry.entries.map((entry) => (
+                        <tr key={entry.key}>
+                          <td className="px-4 py-3 text-sm"><div className="font-medium text-gray-900">{entry.vendor}</div><div className="text-xs text-gray-500">PEN {entry.pen} / {entry.number || entry.oid || '-'}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-800">{entry.attribute}<div className="text-xs text-gray-500">{entry.source}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{entry.wire_type}<div className="text-xs text-gray-500">{joinList(entry.directions)}{entry.decode_kind ? ` / ${entry.decode_kind}` : ''}</div></td>
+                          <td className="px-4 py-3 text-sm"><div>{entry.semantic || entry.capability_family}</div><div className="mt-1"><StatusBadge tone={entry.dictionary_status === 'missing' ? 'gray' : 'amber'}>{entry.dictionary_status}</StatusBadge></div></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {attributeRegistry.next_cursor ? <button type="button" disabled={attributeRegistryBusy} onClick={() => void fetchAttributeRegistry(true)} className="mt-3 rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 disabled:opacity-50">Load more</button> : null}
+                <p className="mt-2 break-all text-xs text-gray-500">Source SHA-256: {attributeRegistry.source_sha256}</p>
+              </>
+            ) : null}
           </section>
 
           <section className="mt-6">

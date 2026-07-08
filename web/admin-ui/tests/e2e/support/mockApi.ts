@@ -3918,6 +3918,16 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
+    if (path === "/system/attribute-registry" && method === "GET") {
+      const vendor = (url.searchParams.get("vendor") || "Aruba").trim();
+      const entries = [
+        { key: "freeradius:3.2.8:14823:aruba-user-role", source: "freeradius-3.2.8", vendor: "Aruba", pen: 14823, attribute: "Aruba-User-Role", number: 1, wire_type: "string", capability_family: "Authorization", dictionary_status: "partial", pack_key: "aruba", semantic: "access.role", directions: ["inbound", "outbound_reply"], decode_kind: "string" },
+        { key: "freeradius:3.2.8:14823:aruba-user-vlan", source: "freeradius-3.2.8", vendor: "Aruba", pen: 14823, attribute: "Aruba-User-Vlan", number: 2, wire_type: "integer", capability_family: "Dynamic VLAN", dictionary_status: "partial", pack_key: "aruba", semantic: "access.vlan", directions: ["inbound", "outbound_reply"], decode_kind: "vlan" },
+      ].filter((entry) => !vendor || entry.vendor.toLowerCase() === vendor.toLowerCase());
+      await route.fulfill({ json: { schema_version: 1, source_release: "3.2.8", source_file_count: 246, source_attribute_count: 7654, source_sha256: "6".repeat(64), vendor_count: 196, attribute_count: 7661, mapped_count: 148, filtered_count: entries.length, entries } });
+      return;
+    }
+
     if (path === "/system/vendor-identity" && method === "GET") {
       await route.fulfill({ json: state.vendorIdentity });
       return;

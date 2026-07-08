@@ -528,7 +528,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			DefaultEnabled:   false,
 			HardwareProfiles: branchEnterprise,
 			Attributes: []VendorPackAttributeMapping{
-				{Semantic: VendorSemanticPolicyTag, Attribute: "AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
 				{Semantic: VendorSemanticQuarantine, Attribute: "Intercept", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
 			},
 		},

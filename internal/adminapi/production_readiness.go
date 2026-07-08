@@ -100,6 +100,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionConfigCheck(&report, cfg)
 	addProductionScalingCheck(&report)
 	addProductionVendorIdentityCheck(&report)
+	addProductionAttributeRegistryCheck(&report)
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
@@ -110,6 +111,41 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 
 	finalizeProductionReadinessReport(&report)
 	return report
+}
+
+func addProductionAttributeRegistryCheck(report *productionReadinessReport) {
+	registry, err := productconfigs.BuiltInAttributeRegistry()
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "attribute_registry", Category: "radius", Label: "Typed Attribute Registry", Status: "blocked",
+			Summary:        "The generated RADIUS attribute registry could not be validated.",
+			Recommendation: "Regenerate the pinned registry, review the source diff, and rebuild the appliance.",
+			Dependencies:   []string{"configs/attribute_registry"},
+		})
+		return
+	}
+	if registry.SchemaVersion != productconfigs.AttributeRegistrySchemaVersion || registry.SourceAttributeCount != 7654 || registry.SourceFileCount != 246 {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "attribute_registry", Category: "radius", Label: "Typed Attribute Registry", Status: "blocked",
+			Summary:        fmt.Sprintf("Registry contract mismatch: schema %d, %d source files, %d source attributes.", registry.SchemaVersion, registry.SourceFileCount, registry.SourceAttributeCount),
+			Recommendation: "Review and approve the dictionary release diff before activating the new registry.",
+			Dependencies:   []string{"attribute registry source manifest"},
+		})
+		return
+	}
+	if err := registry.ValidateCompatibilityPacks(productconfigs.AegisNASVendorCompatibilityPacks()); err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "attribute_registry", Category: "radius", Label: "Typed Attribute Registry", Status: "blocked",
+			Summary:        "Compatibility pack metadata conflicts with the generated registry: " + err.Error(),
+			Recommendation: "Regenerate and review the typed registry and renderer pack declarations together.",
+			Dependencies:   []string{"configs/vendor_packs.go", "configs/attribute_registry"},
+		})
+		return
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "attribute_registry", Category: "radius", Label: "Typed Attribute Registry", Status: "passed",
+		Summary: fmt.Sprintf("FreeRADIUS %s registry schema %d validates %d source attributes with SHA-256 %s.", registry.SourceRelease, registry.SchemaVersion, registry.SourceAttributeCount, registry.SourceSHA256),
+	})
 }
 
 func addProductionRadSecCheck(report *productionReadinessReport, cfg *config.Config) {

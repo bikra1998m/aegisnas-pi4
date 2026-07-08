@@ -340,3 +340,7 @@ Before updating production devices:
 ## Product PEN Operations
 
 Treat a PEN change as a maintenance-window operation. Take a backup, verify HA health, use the Vendor Compatibility preview, update every peer dictionary, apply, verify `/api/v1/system/vendor-identity`, run `freeradius -XC`, and inspect a packet capture. `applying` means an interrupted operation and requires rollback recovery. Never clear migration records manually or extend `legacy_accept_until` without a documented peer dependency. Full procedure: `vendor-identity.md`.
+
+## Attribute Registry Operations
+
+Run `make test-attribute-registry` before packaging or upgrading. Compare `/api/v1/system/attribute-registry?limit=1` source hashes across HA nodes and reject mixed hashes. Upstream dictionary changes require a reviewed generated diff; installed dictionary paths may be scanned for deployment coverage but cannot mutate the embedded packet registry. Full procedure: `attribute-registry.md`.

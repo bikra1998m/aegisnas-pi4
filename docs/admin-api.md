@@ -852,6 +852,11 @@ For risky actions like:
 - HA activation
 
 use the matching runbook as well so you keep the preview, validation, backup, and rollback steps in place.
+
 ## Vendor Identity API
 
 `GET /api/v1/system/vendor-identity` returns the current PEN lifecycle, verified evidence, bounded legacy decode state, migration history, recovery warnings, and counters. `POST /api/v1/system/vendor-identity/migrations/preview`, `POST /api/v1/system/vendor-identity/migrations/apply`, and `POST /api/v1/system/vendor-identity/migrations/{id}/rollback` are `super_admin` operations. Preview verifies the fixed IANA registry and returns a one-time 15-minute confirmation token. See `vendor-identity.md` for schemas and failure behavior.
+
+## Attribute Registry API
+
+`GET /api/v1/system/attribute-registry` returns the generated typed registry with release/hash provenance and cursor pagination. Filters: `vendor`, `pen`, `pack`, `semantic`, `status`, `search`, `limit`, and `cursor`. See [attribute-registry.md](attribute-registry.md).

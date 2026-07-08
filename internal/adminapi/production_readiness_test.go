@@ -37,6 +37,7 @@ func TestHandleGetProductionReadinessReportsVendorBlockers(t *testing.T) {
 	assert.False(t, payload.Ready)
 	assert.True(t, payload.VendorIdentity.ConfiguredIDPlaceholder)
 	assert.Equal(t, "blocked", productionReadinessCheckStatus(payload.Checks, "vendor_identity"))
+	assert.Equal(t, "passed", productionReadinessCheckStatus(payload.Checks, "attribute_registry"))
 	assert.Equal(t, "blocked", productionReadinessCheckStatus(payload.Checks, "nas_profile_coverage"))
 	assert.GreaterOrEqual(t, payload.BlockingCount, 2)
 }

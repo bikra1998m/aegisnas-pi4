@@ -41,6 +41,8 @@ END-VENDOR Mystery
 	assert.Greater(t, report.Summary.PlannedAttributeCount, 0)
 	assert.Equal(t, 2, report.Summary.IgnoredAttributeCount)
 	assert.Equal(t, 2, report.Summary.IgnoredVendorCount)
+	assert.Equal(t, 148, report.Summary.RegistryMappedCount)
+	assert.Equal(t, 134, report.Summary.RegistryDecoderCount)
 	assert.True(t, scanMappingsContain(report.SupportedAttributes, VendorPackCisco, "Cisco-AVPair"))
 	assert.True(t, scanMappingsContain(report.SupportedAttributes, VendorPackCambium, "Cambium-Auth-Role"))
 	assert.True(t, scanIgnoredContain(report.IgnoredAttributes, "Cisco", "Cisco-Experimental", "no compatibility mapping for this vendor attribute"))

@@ -24,6 +24,8 @@ type VendorDictionaryScanSummary struct {
 	PlannedAttributeCount   int `json:"planned_attribute_count"`
 	IgnoredAttributeCount   int `json:"ignored_attribute_count"`
 	IgnoredVendorCount      int `json:"ignored_vendor_count"`
+	RegistryMappedCount     int `json:"registry_mapped_count"`
+	RegistryDecoderCount    int `json:"registry_decoder_count"`
 }
 
 type VendorDictionaryScannedMapping struct {
@@ -82,13 +84,22 @@ func BuildVendorDictionaryScanReport(catalog VendorDictionaryCatalog, packs []Ve
 		Coverage:              coverage,
 		Warnings:              append([]VendorDictionaryWarning(nil), catalog.Warnings...),
 		Notes: []string{
-			"supported_attributes are AegisNAS semantic mappings marked implemented; dictionary_attribute_found shows whether the parsed FreeRADIUS catalog contains that exact attribute.",
-			"planned_attributes are known compatibility mappings that still need rendering, parser, controller, or hardware-validation work.",
+			"supported_attributes are typed-registry semantic mappings marked implemented; dictionary_attribute_found shows whether the parsed deployment catalog contains that exact attribute.",
+			"planned_attributes include partial typed-registry mappings that still need policy, enforcement, UI, packet, or hardware-certification evidence.",
 			"ignored_attributes are parsed dictionary attributes that are not yet mapped into AegisNAS vendor-neutral semantics.",
+			"registry mapping is distinct from device certification and does not prove end-to-end feature behavior.",
 		},
 	}
 
+	registry := MustBuiltInAttributeRegistry()
 	mappedAttributes := mappedVendorDictionaryAttributes(packs)
+	for _, entry := range registry.Entries {
+		if entry.DictionaryStatus == "missing" || entry.PackKey == "" {
+			continue
+		}
+		mappedAttributes[vendorDictionaryAttributeKey(entry.Vendor, entry.Attribute)] = struct{}{}
+	}
+	appendRegistryScanMappings(&report, catalog, registry)
 	ignoredVendors := map[string]struct{}{}
 	for _, row := range coverage.Rows {
 		for _, attr := range row.Attributes {
@@ -140,8 +151,45 @@ func BuildVendorDictionaryScanReport(catalog VendorDictionaryCatalog, packs []Ve
 		PlannedAttributeCount:   len(report.PlannedAttributes),
 		IgnoredAttributeCount:   len(report.IgnoredAttributes),
 		IgnoredVendorCount:      len(ignoredVendors),
+		RegistryMappedCount:     registry.MappedCount,
+		RegistryDecoderCount:    len(registry.RuntimeMappings()),
 	}
 	return report
+}
+
+func appendRegistryScanMappings(report *VendorDictionaryScanReport, catalog VendorDictionaryCatalog, registry *AttributeRegistry) {
+	seen := map[string]struct{}{}
+	for _, mapping := range report.SupportedAttributes {
+		seen[vendorDictionaryAttributeKey(mapping.VendorName, mapping.Attribute)] = struct{}{}
+	}
+	for _, mapping := range report.PlannedAttributes {
+		seen[vendorDictionaryAttributeKey(mapping.VendorName, mapping.Attribute)] = struct{}{}
+	}
+	for _, entry := range registry.Entries {
+		if entry.DictionaryStatus == "missing" || entry.PackKey == "" {
+			continue
+		}
+		key := vendorDictionaryAttributeKey(entry.Vendor, entry.Attribute)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		_, found := catalog.Attribute(entry.Vendor, entry.Attribute)
+		mapping := VendorDictionaryScannedMapping{
+			PackKey: entry.PackKey, PackLabel: entry.Vendor, VendorName: entry.Vendor,
+			Semantic: entry.Semantic, Attribute: entry.Attribute,
+			Direction: strings.Join(entry.Directions, ","), ValueType: entry.WireType,
+			CompatibilityState: entry.DictionaryStatus, DictionaryAttributeFound: found,
+		}
+		if !found {
+			mapping.Warning = "attribute is mapped in the typed registry but absent from the parsed deployment catalog"
+		}
+		if entry.DictionaryStatus == "implemented" {
+			report.SupportedAttributes = append(report.SupportedAttributes, mapping)
+		} else {
+			report.PlannedAttributes = append(report.PlannedAttributes, mapping)
+		}
+	}
 }
 
 func mappedVendorDictionaryAttributes(packs []VendorCompatibilityPack) map[string]struct{} {

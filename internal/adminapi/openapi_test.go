@@ -64,6 +64,12 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	vendorIdentityPreviewPost, ok := vendorIdentityPreviewPath["post"].(map[string]any)
 	require.True(t, ok)
 	assert.Contains(t, vendorIdentityPreviewPost["x-aegisnas-roles"], "super_admin")
+	attributeRegistryPath, ok := paths["/api/v1/system/attribute-registry"].(map[string]any)
+	require.True(t, ok)
+	attributeRegistryGet, ok := attributeRegistryPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read the generated typed attribute registry", attributeRegistryGet["summary"])
+	assert.Contains(t, attributeRegistryGet["x-aegisnas-roles"], "read_only")
 
 	productionReadinessPath, ok := paths["/api/v1/system/production-readiness"].(map[string]any)
 	require.True(t, ok)

@@ -191,3 +191,7 @@ Before relying on this flow for a production upgrade:
 ## Vendor Identity Upgrade and Rollback
 
 Upgrade to schema v15 before migrating from the lab PEN. Backups must include the config and database together. The PEN apply workflow automatically restores the prior config/runtime when FreeRADIUS apply fails; an applied, failed, or interrupted record can be restored with `ROLLBACK <migration-id>`. Do not downgrade during an active legacy decode window without first proving old/new peer behavior and preserving the schema-v15 database. See `vendor-identity.md`.
+
+## Attribute Registry Upgrade
+
+Record the old and new `/api/v1/system/attribute-registry?limit=1` source hashes before rollout. Review every added, removed, renumbered, retyped, or remapped entry. Mixed hashes are not supported in one HA pair. Roll back the binary and generated registry together; NAS-0002 has no database downgrade because the registry is immutable build content.
