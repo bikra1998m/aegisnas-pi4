@@ -59,7 +59,9 @@ func MigrateHandle(handle *sql.DB) error {
 		{10, schemaV10},
 		{11, schemaV11},
 		{12, schemaV12},
-		{LatestSchemaVersion(), schemaV13},
+		{13, schemaV13},
+		{14, schemaV14},
+		{LatestSchemaVersion(), schemaV15},
 	}
 
 	for _, m := range migrations {
@@ -77,6 +79,9 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureRadiusClientCompatibilityColumns(handle); err != nil {
 		return fmt.Errorf("repair radius client schema: %w", err)
 	}
+	if err := ensureRadSecCompatibilityColumns(handle); err != nil {
+		return fmt.Errorf("repair RadSec schema: %w", err)
+	}
 	if err := ensureDeviceInventoryProfilingColumns(handle); err != nil {
 		return fmt.Errorf("repair device inventory schema: %w", err)
 	}
@@ -84,6 +89,52 @@ func MigrateHandle(handle *sql.DB) error {
 		return fmt.Errorf("repair ACL policy binding schema: %w", err)
 	}
 
+	return nil
+}
+
+func ensureRadSecCompatibilityColumns(handle *sql.DB) error {
+	tables := []struct {
+		name    string
+		columns []struct{ name, sql string }
+	}{
+		{"radius_clients", []struct{ name, sql string }{
+			{"transport", `ALTER TABLE radius_clients ADD COLUMN transport TEXT NOT NULL DEFAULT 'udp'`},
+			{"radsec_certificate_cn", `ALTER TABLE radius_clients ADD COLUMN radsec_certificate_cn TEXT`},
+			{"radsec_certificate_issuer", `ALTER TABLE radius_clients ADD COLUMN radsec_certificate_issuer TEXT`},
+			{"radsec_radius_v11", `ALTER TABLE radius_clients ADD COLUMN radsec_radius_v11 TEXT`},
+		}},
+		{"upstream_aaa_history", []struct{ name, sql string }{
+			{"transport", `ALTER TABLE upstream_aaa_history ADD COLUMN transport TEXT NOT NULL DEFAULT 'udp'`},
+			{"radsec_port", `ALTER TABLE upstream_aaa_history ADD COLUMN radsec_port INTEGER DEFAULT 0`},
+			{"tls_version", `ALTER TABLE upstream_aaa_history ADD COLUMN tls_version TEXT`},
+			{"tls_cipher_suite", `ALTER TABLE upstream_aaa_history ADD COLUMN tls_cipher_suite TEXT`},
+			{"tls_alpn", `ALTER TABLE upstream_aaa_history ADD COLUMN tls_alpn TEXT`},
+			{"peer_subject", `ALTER TABLE upstream_aaa_history ADD COLUMN peer_subject TEXT`},
+			{"peer_issuer", `ALTER TABLE upstream_aaa_history ADD COLUMN peer_issuer TEXT`},
+			{"peer_serial", `ALTER TABLE upstream_aaa_history ADD COLUMN peer_serial TEXT`},
+			{"peer_not_after", `ALTER TABLE upstream_aaa_history ADD COLUMN peer_not_after DATETIME`},
+		}},
+	}
+	for _, table := range tables {
+		exists, err := tableExists(handle, table.name)
+		if err != nil || !exists {
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		for _, column := range table.columns {
+			hasColumn, err := tableHasColumn(handle, table.name, column.name)
+			if err != nil {
+				return err
+			}
+			if !hasColumn {
+				if _, err := handle.Exec(column.sql); err != nil {
+					return err
+				}
+			}
+		}
+	}
 	return nil
 }
 

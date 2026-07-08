@@ -50,7 +50,7 @@ func AegisNASVendorIdentity() VendorIdentity {
 		ApplyURL:                 IANAPrivateEnterpriseNumberApplyURL,
 	}
 	if identity.Placeholder {
-		identity.Warnings = append(identity.Warnings, "AegisNAS is using the lab placeholder vendor ID; request an IANA Private Enterprise Number and set AEGISNAS_VENDOR_ID before production VSA use.")
+		identity.Warnings = append(identity.Warnings, "AegisNAS is using the lab placeholder vendor ID; request an IANA Private Enterprise Number and complete the verified vendor identity migration before production VSA use.")
 	}
 	return identity
 }

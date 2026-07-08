@@ -83,7 +83,7 @@ func HandleExportUpstreamAAAHistory(w http.ResponseWriter, r *http.Request) {
 func upstreamAAAHistoryCSV(history []db.UpstreamAAAHistoryRecord) ([]byte, error) {
 	var buffer bytes.Buffer
 	writer := csv.NewWriter(&buffer)
-	if err := writer.Write([]string{"id", "checked_at", "created_at", "server_name", "address", "auth_port", "acct_port", "status", "message", "response_code", "latency_ms", "supports_status_server"}); err != nil {
+	if err := writer.Write([]string{"id", "checked_at", "created_at", "server_name", "address", "auth_port", "acct_port", "status", "message", "response_code", "latency_ms", "supports_status_server", "transport", "radsec_port", "tls_version", "tls_cipher_suite", "tls_alpn", "peer_subject", "peer_issuer", "peer_serial", "peer_not_after"}); err != nil {
 		return nil, err
 	}
 	for _, item := range history {
@@ -100,6 +100,15 @@ func upstreamAAAHistoryCSV(history []db.UpstreamAAAHistoryRecord) ([]byte, error
 			item.ResponseCode,
 			fmt.Sprint(item.LatencyMs),
 			strconv.FormatBool(item.SupportsStatusServer),
+			item.Transport,
+			strconv.Itoa(item.RadSecPort),
+			item.TLSVersion,
+			item.TLSCipherSuite,
+			item.TLSALPN,
+			item.PeerSubject,
+			item.PeerIssuer,
+			item.PeerSerial,
+			item.PeerNotAfter,
 		}); err != nil {
 			return nil, err
 		}

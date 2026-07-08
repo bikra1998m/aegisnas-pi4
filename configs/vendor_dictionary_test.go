@@ -27,6 +27,14 @@ func TestAegisNASVendorDictionaryUsesEnvironmentVendorID(t *testing.T) {
 	assert.Contains(t, AegisNASVendorDictionaryText(), "VENDOR AegisNAS 424242")
 }
 
+func TestAegisNASVendorDictionaryCatalogForConfiguredIdentity(t *testing.T) {
+	catalog := AegisNASVendorDictionaryCatalogFor("AegisNAS", 424242)
+	vendor, ok := catalog.VendorByName("AegisNAS")
+	require.True(t, ok)
+	assert.Equal(t, 424242, vendor.ID)
+	assert.Len(t, vendor.Attributes, 13)
+}
+
 func TestParseVendorDictionaryCatalog(t *testing.T) {
 	catalog := ParseVendorDictionaryCatalog("fixture", `
 VENDOR ExampleVendor 4242 format=1,1

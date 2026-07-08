@@ -188,3 +188,6 @@ Before relying on this flow for a production upgrade:
 4. run `ubuntu-upgrade-rollback-rehearsal.sh`
 5. store the rollback package and support bundle off-device
 6. do at least one lab-only offline restore drill on a clone or disposable VM
+## Vendor Identity Upgrade and Rollback
+
+Upgrade to schema v15 before migrating from the lab PEN. Backups must include the config and database together. The PEN apply workflow automatically restores the prior config/runtime when FreeRADIUS apply fails; an applied, failed, or interrupted record can be restored with `ROLLBACK <migration-id>`. Do not downgrade during an active legacy decode window without first proving old/new peer behavior and preserving the schema-v15 database. See `vendor-identity.md`.

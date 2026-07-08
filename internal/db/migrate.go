@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 13
+	return 15
 }
 
 func Migrate() error {
@@ -506,4 +506,81 @@ ALTER TABLE sessions ADD COLUMN acl_policy_name TEXT;
 CREATE INDEX IF NOT EXISTS idx_roles_acl_policy_name ON roles(acl_policy_name);
 CREATE INDEX IF NOT EXISTS idx_policy_rules_acl_policy_name ON policy_rules(acl_policy_name);
 CREATE INDEX IF NOT EXISTS idx_sessions_acl_policy_name ON sessions(acl_policy_name);
+`
+
+const schemaV14 = `
+ALTER TABLE radius_clients ADD COLUMN transport TEXT NOT NULL DEFAULT 'udp';
+ALTER TABLE radius_clients ADD COLUMN radsec_certificate_cn TEXT;
+ALTER TABLE radius_clients ADD COLUMN radsec_certificate_issuer TEXT;
+ALTER TABLE radius_clients ADD COLUMN radsec_radius_v11 TEXT;
+
+ALTER TABLE upstream_aaa_history ADD COLUMN transport TEXT NOT NULL DEFAULT 'udp';
+ALTER TABLE upstream_aaa_history ADD COLUMN radsec_port INTEGER DEFAULT 0;
+ALTER TABLE upstream_aaa_history ADD COLUMN tls_version TEXT;
+ALTER TABLE upstream_aaa_history ADD COLUMN tls_cipher_suite TEXT;
+ALTER TABLE upstream_aaa_history ADD COLUMN tls_alpn TEXT;
+ALTER TABLE upstream_aaa_history ADD COLUMN peer_subject TEXT;
+ALTER TABLE upstream_aaa_history ADD COLUMN peer_issuer TEXT;
+ALTER TABLE upstream_aaa_history ADD COLUMN peer_serial TEXT;
+ALTER TABLE upstream_aaa_history ADD COLUMN peer_not_after DATETIME;
+
+CREATE INDEX IF NOT EXISTS idx_radius_clients_transport ON radius_clients(transport);
+CREATE INDEX IF NOT EXISTS idx_upstream_aaa_history_transport ON upstream_aaa_history(transport);
+`
+
+const schemaV15 = `
+CREATE TABLE IF NOT EXISTS vendor_identity_assignments (
+	pen INTEGER PRIMARY KEY,
+	vendor_name TEXT NOT NULL,
+	organization TEXT NOT NULL,
+	registry_url TEXT NOT NULL,
+	registry_last_updated TEXT NOT NULL,
+	registry_sha256 TEXT NOT NULL,
+	record_sha256 TEXT NOT NULL,
+	evidence_json TEXT NOT NULL,
+	active BOOLEAN NOT NULL DEFAULT 0,
+	verified_at DATETIME NOT NULL,
+	activated_at DATETIME,
+	retired_at DATETIME,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (pen > 0 AND pen < 4294967295),
+	CHECK (length(registry_sha256) = 64),
+	CHECK (length(record_sha256) = 64)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vendor_identity_one_active
+	ON vendor_identity_assignments(active) WHERE active = 1;
+CREATE INDEX IF NOT EXISTS idx_vendor_identity_assignment_verified
+	ON vendor_identity_assignments(verified_at DESC);
+
+CREATE TABLE IF NOT EXISTS vendor_identity_migrations (
+	id TEXT PRIMARY KEY,
+	status TEXT NOT NULL,
+	from_vendor_name TEXT NOT NULL,
+	from_pen INTEGER NOT NULL,
+	to_vendor_name TEXT NOT NULL,
+	to_pen INTEGER NOT NULL,
+	organization TEXT NOT NULL,
+	evidence_json TEXT NOT NULL,
+	before_json TEXT NOT NULL,
+	after_json TEXT NOT NULL,
+	config_checksum TEXT NOT NULL,
+	confirmation_sha256 TEXT NOT NULL,
+	expires_at DATETIME NOT NULL,
+	created_by TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	applied_at DATETIME,
+	rolled_back_at DATETIME,
+	failure TEXT,
+	CHECK (status IN ('previewed', 'applying', 'applied', 'failed', 'rolled_back')),
+	CHECK (from_pen > 0 AND from_pen < 4294967295),
+	CHECK (to_pen > 0 AND to_pen < 4294967295),
+	CHECK (length(config_checksum) = 64),
+	CHECK (length(confirmation_sha256) = 64)
+);
+
+CREATE INDEX IF NOT EXISTS idx_vendor_identity_migrations_created
+	ON vendor_identity_migrations(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_vendor_identity_migrations_status
+	ON vendor_identity_migrations(status, created_at DESC);
 `

@@ -2,6 +2,7 @@ package radius
 
 import (
 	"fmt"
+	"time"
 
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
@@ -98,7 +99,7 @@ func RecordVendorPacketObservability(cfg *config.Config, packet *layehradius.Pac
 type vendorPacketInspector struct {
 	knownTypesByVendorAndPack map[uint32]map[string]map[byte]struct{}
 	knownPacksByVendor        map[uint32][]string
-	productVendorID           uint32
+	productVendorIDs          map[uint32]struct{}
 	productTypes              map[byte]struct{}
 }
 
@@ -106,6 +107,7 @@ func newVendorPacketInspector(vendor config.RadiusVendorConfig) vendorPacketInsp
 	inspector := vendorPacketInspector{
 		knownTypesByVendorAndPack: map[uint32]map[string]map[byte]struct{}{},
 		knownPacksByVendor:        map[uint32][]string{},
+		productVendorIDs:          map[uint32]struct{}{},
 		productTypes:              map[byte]struct{}{},
 	}
 	active := activeVendorPackSet(vendor)
@@ -123,7 +125,9 @@ func newVendorPacketInspector(vendor config.RadiusVendorConfig) vendorPacketInsp
 		inspector.knownTypesByVendorAndPack[mapping.VendorID][mapping.PackKey][mapping.Type] = struct{}{}
 	}
 	if vendor.Enabled && vendor.ID > 0 {
-		inspector.productVendorID = uint32(vendor.ID)
+		for _, id := range ProductVendorInboundIDsAt(vendor, time.Now()) {
+			inspector.productVendorIDs[id] = struct{}{}
+		}
 		for _, attr := range EffectiveVendorAttributes(vendor) {
 			if attr.Number >= 1 && attr.Number <= 255 {
 				inspector.productTypes[byte(attr.Number)] = struct{}{}
@@ -134,7 +138,7 @@ func newVendorPacketInspector(vendor config.RadiusVendorConfig) vendorPacketInsp
 }
 
 func (i vendorPacketInspector) recordVendorSpecificAttributes(vendorID uint32, vsa layehradius.Attribute, nasType, message string) {
-	if i.productVendorID > 0 && vendorID == i.productVendorID {
+	if _, isProductVendor := i.productVendorIDs[vendorID]; isProductVendor {
 		i.recordProductAttributes(vsa, nasType, message)
 		return
 	}

@@ -11,7 +11,8 @@ export interface Column<T = any> {
 export interface Field {
   name: string;
   label: string;
-  type?: "text" | "number" | "password" | "textarea" | "checkbox" | "json";
+  type?: "text" | "number" | "password" | "textarea" | "checkbox" | "json" | "select";
+  options?: Array<{ value: string; label: string }>;
   required?: boolean;
   createOnly?: boolean;
   placeholder?: string;
@@ -291,6 +292,21 @@ export default function CrudPage({
                       }
                       className="ml-3 h-4 w-4"
                     />
+                  ) : field.type === "select" ? (
+                    <select
+                      value={form[field.name] as string}
+                      onChange={(event) =>
+                        setForm({ ...form, [field.name]: event.target.value })
+                      }
+                      className="mt-1 w-full rounded-md border px-3 py-2"
+                      required={field.required}
+                    >
+                      {(field.options || []).map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   ) : (
                     <input
                       type={field.type || "text"}

@@ -1,5 +1,9 @@
 # External AAA Product Mode
 
+For untrusted or cross-site networks, configure upstream servers with
+`transport: radsec` and follow [radsec.md](radsec.md). RadSec peers fail closed
+and never downgrade automatically to UDP.
+
 This guide documents the product mode where AegisNAS acts as a Network Access Server appliance in front of one or more external AAA systems.
 
 In this mode:
@@ -200,8 +204,9 @@ Notes:
 - use `status_check: status-server` only when the upstream platform supports it
 - use `status_check: none` when the upstream vendor does not answer `Status-Server`
 - `strip_realm: false` preserves the original username format sent by the access device
-- `radius.vendor.id` must be your own IANA Private Enterprise Number for production; keep `55555` only for lab testing
-- IANA PEN registration is free and first-come-first-served. Request the assignment from <https://www.iana.org/assignments/enterprise-numbers/assignment/apply/>, then set `AEGISNAS_VENDOR_ID=<assigned-pen>` or update `radius.vendor.id`.
+- `radius.vendor.id` must be your own verified IANA Private Enterprise Number for production; keep `55555` only for lab testing.
+- IANA PEN registration is free and first-come-first-served. Request the assignment from <https://www.iana.org/assignments/enterprise-numbers/assignment/apply/>, wait for the registry entry, then use the Vendor Compatibility preview/apply workflow. Direct settings updates to vendor identity fields are rejected.
+- During migration, outbound VSAs use the assigned PEN immediately. `radius.vendor.legacy_ids` are inbound-only and expire at `radius.vendor.legacy_accept_until`.
 - `aegis-radius apply-config` writes `/etc/freeradius/3.0/dictionary.aegisnas` and includes it from the local FreeRADIUS `dictionary`
 
 ### 4. Configure AegisNAS Vendor Attributes
@@ -232,7 +237,9 @@ sed -n '1,220p' configs/dictionary.aegisnas
 For package or VM installs, the helper below writes the dictionary and include line. It refuses the placeholder ID unless `--allow-placeholder` is provided for a lab:
 
 ```bash
-sudo AEGISNAS_VENDOR_ID=<assigned-pen> bash scripts/install-aegisnas-freeradius-dictionary.sh
+sudo bash scripts/install-aegisnas-freeradius-dictionary.sh \
+  --vendor-id <assigned-pen> \
+  --organization '<exact organization from IANA>'
 ```
 
 To inspect the runtime catalog and semantic registry from an appliance:

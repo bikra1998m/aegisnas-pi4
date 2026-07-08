@@ -699,3 +699,6 @@ Use these alongside this guide:
 - [External AAA Product Mode](external-aaa-product-mode.md)
 - [AAA Product Implementation Notes](aaa-product-implementation-notes.md)
 - [Wireless Access And UI Guide](wireless-access-ui-guide.md)
+## Production Vendor Identity
+
+The appliance may ship with lab PEN 55555, but product VSAs are not production-ready in that state. After IANA assignment, use the authenticated Vendor Identity preview/apply workflow; do not edit the PEN directly. The apply operation atomically updates config, installs the generated dictionary, validates FreeRADIUS, restarts it, and records evidence. Confirm `production_verified` before device certification. See `vendor-identity.md`.

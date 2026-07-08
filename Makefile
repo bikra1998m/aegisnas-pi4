@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification install-radius-dictionary scan-radius-dictionaries
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity install-radius-dictionary scan-radius-dictionaries
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -35,6 +35,12 @@ test-vendor-certification:
 	bash -n scripts/openwifi-controller-smoke-test.sh
 	bash scripts/openwifi-controller-smoke-test.sh --self-test
 	go test ./internal/radius -run TestVendorPackCertificationMatrix -count=1
+
+test-vendor-identity:
+	bash -n scripts/install-aegisnas-freeradius-dictionary.sh
+	bash -n scripts/vendor-identity-smoke-test.sh
+	go test ./internal/vendoridentity ./internal/config ./internal/db ./internal/radius ./internal/adminapi -run 'IANA|VendorIdentity|ProductVendorMigration' -count=1
+	cd web/admin-ui && npm run build
 				
 build:
 	go build ./...

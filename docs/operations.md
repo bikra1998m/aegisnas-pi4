@@ -1,5 +1,12 @@
 # Operations Guide
 
+## RadSec
+
+Use [radsec.md](radsec.md) for the RFC 6614 mTLS architecture, certificate
+requirements, RADIUS/1.1 capability gating, failure behavior, and deployment
+procedure. Run `scripts/radsec-smoke-test.sh` after installing credentials and
+before accepting production traffic.
+
 ## Service Management
 
 During development, run commands from the repository root.
@@ -330,3 +337,6 @@ Before updating production devices:
 11. When you want confidence over repeated cycles instead of a single drill, run `scripts/ha-soak-test.sh --cycles <n>` on the active node. Multi-cycle runs require `high_availability.preempt: true`.
 12. After both HA nodes are upgraded, run `scripts/ha-pair-upgrade-validate.sh` from the active node. Add `--peer-ssh <user@host>` when you want peer schema and service proof, not just peer API status.
 13. Create and inspect a fresh upgrade rollback package, then run `scripts/ubuntu-upgrade-rollback-rehearsal.sh` so the rollback path is proven before the real maintenance window.
+## Product PEN Operations
+
+Treat a PEN change as a maintenance-window operation. Take a backup, verify HA health, use the Vendor Compatibility preview, update every peer dictionary, apply, verify `/api/v1/system/vendor-identity`, run `freeradius -XC`, and inspect a packet capture. `applying` means an interrupted operation and requires rollback recovery. Never clear migration records manually or extend `legacy_accept_until` without a documented peer dependency. Full procedure: `vendor-identity.md`.

@@ -26,7 +26,7 @@ func TestMigrate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, LatestSchemaVersion(), version)
 
-	tables := []string{"local_users", "roles", "bandwidth_profiles", "sessions", "runtime_status", "guest_registrations", "device_inventory", "device_certificates", "admin_principals", "admin_sessions", "network_apply_history", "dhcp_lease_history", "ha_history", "integration_history", "upstream_aaa_history", "vendor_observability", "acl_policies"}
+	tables := []string{"local_users", "roles", "bandwidth_profiles", "sessions", "runtime_status", "guest_registrations", "device_inventory", "device_certificates", "admin_principals", "admin_sessions", "network_apply_history", "dhcp_lease_history", "ha_history", "integration_history", "upstream_aaa_history", "vendor_observability", "acl_policies", "vendor_identity_assignments", "vendor_identity_migrations"}
 	for _, tbl := range tables {
 		var count int
 		err = DB.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", tbl).Scan(&count)
@@ -43,6 +43,18 @@ func TestMigrate(t *testing.T) {
 	err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('radius_clients') WHERE name='nas_type'").Scan(&nasTypeColumnCount)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, nasTypeColumnCount)
+	for _, column := range []string{"transport", "radsec_certificate_cn", "radsec_certificate_issuer", "radsec_radius_v11"} {
+		var count int
+		err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('radius_clients') WHERE name=?", column).Scan(&count)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, count, "radius_clients.%s should exist", column)
+	}
+	for _, column := range []string{"transport", "radsec_port", "tls_version", "tls_cipher_suite", "tls_alpn", "peer_subject", "peer_issuer", "peer_serial", "peer_not_after"} {
+		var count int
+		err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('upstream_aaa_history') WHERE name=?", column).Scan(&count)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, count, "upstream_aaa_history.%s should exist", column)
+	}
 
 	for _, binding := range []struct {
 		table  string

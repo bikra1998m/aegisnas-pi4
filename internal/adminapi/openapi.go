@@ -1114,6 +1114,25 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))
+	addOperation(paths, "/api/v1/system/vendor-identity", "get", securedOperationWithParameters("Read AegisNAS vendor identity lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Migration history rows to return, from 1 to 500.", false),
+	}, map[string]any{
+		"200": responseJSON("Current PEN lifecycle, verified assignment evidence, legacy decode window, migration history, and counters."),
+	}))
+	addOperation(paths, "/api/v1/system/vendor-identity/migrations/preview", "post", securedOperationWithBody("Preview and verify a production PEN migration", "RADIUS", []string{"super_admin"}, genericJSONObjectRequest("Assigned PEN, exact IANA organization, and optional legacy acceptance hours."), map[string]any{
+		"200":     responseJSON("Verified migration preview and one-time confirmation token."),
+		"default": responseJSON("Stable vendor identity error response."),
+	}))
+	addOperation(paths, "/api/v1/system/vendor-identity/migrations/apply", "post", securedOperationWithBody("Apply a verified production PEN migration", "RADIUS", []string{"super_admin"}, genericJSONObjectRequest("Migration ID and one-time confirmation token."), map[string]any{
+		"200":     responseJSON("Applied identity and FreeRADIUS restart result."),
+		"default": responseJSON("Stable vendor identity error response."),
+	}))
+	addOperation(paths, "/api/v1/system/vendor-identity/migrations/{id}/rollback", "post", securedOperationWithParametersAndBody("Roll back a vendor identity migration", "RADIUS", []string{"super_admin"}, []map[string]any{
+		idParameter("id", "Vendor identity migration ID."),
+	}, genericJSONObjectRequest("Exact rollback confirmation text."), map[string]any{
+		"200":     responseJSON("Restored identity and FreeRADIUS restart result."),
+		"default": responseJSON("Stable vendor identity error response."),
+	}))
 	addOperation(paths, "/api/v1/system/production-readiness", "get", securedOperation("Read production readiness report", "Operations", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Production deployment readiness checks covering config validation, hardware scaling, vendor identity, NAS profile coverage, feature gates, controller readiness, and vendor runtime evidence."),
 	}))

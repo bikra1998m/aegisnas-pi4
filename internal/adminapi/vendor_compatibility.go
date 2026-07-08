@@ -45,6 +45,30 @@ func HandleGetVendorCompatibility(w http.ResponseWriter, r *http.Request) {
 	if cfg != nil && len(cfg.Radius.Vendor.CompatibilityPacks) > 0 {
 		report.ActivePacks = normalizeVendorCompatibilityPackKeys(cfg.Radius.Vendor.CompatibilityPacks)
 	}
+	if cfg != nil {
+		vendor := cfg.Radius.Vendor
+		report.Catalog = productconfigs.AegisNASVendorDictionaryCatalogFor(vendor.Name, vendor.ID)
+		for index := range report.Packs {
+			if report.Packs[index].Key == productconfigs.VendorPackAegisNAS {
+				report.Packs[index].VendorName = strings.TrimSpace(vendor.Name)
+				report.Packs[index].VendorID = vendor.ID
+			}
+		}
+		report.Summary.ProductVendorID = vendor.ID
+		report.Summary.ProductVendorName = strings.TrimSpace(vendor.Name)
+		report.Summary.ProductVendorIDPlaceholder = vendor.ID == productconfigs.AegisNASPlaceholderVendorID
+		report.Summary.ProductVendorIDSource = "config:radius.vendor.id"
+		report.Summary.ProductVendorIdentityMode = strings.ToLower(strings.TrimSpace(vendor.IdentityMode))
+		report.Summary.ProductVendorAssignedOrganization = strings.TrimSpace(vendor.AssignedOrganization)
+		report.Summary.ProductVendorAssignmentRecordSHA = strings.TrimSpace(vendor.AssignmentRecordSHA)
+		report.Summary.ProductVendorLegacyIDs = append([]int(nil), vendor.LegacyIDs...)
+		report.Summary.ProductVendorLegacyAcceptUntil = strings.TrimSpace(vendor.LegacyAcceptUntil)
+		if evidence, err := config.RadiusVendorAssignmentEvidence(vendor); err == nil && evidence.Validate(vendor.ID, vendor.AssignedOrganization) == nil && db.DB != nil {
+			if assignment, assignmentErr := db.ActiveVendorIdentityAssignment(db.DB); assignmentErr == nil && assignment != nil {
+				report.Summary.ProductVendorAssignmentVerified = assignment.PEN == uint32(vendor.ID) && assignment.RecordSHA256 == evidence.RecordSHA256
+			}
+		}
+	}
 	importPaths := vendorDictionaryImportPaths(cfg)
 	if len(importPaths) > 0 {
 		imported := productconfigs.LoadVendorDictionaryCatalog(importPaths)

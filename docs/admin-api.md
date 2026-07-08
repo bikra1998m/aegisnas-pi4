@@ -1,5 +1,10 @@
 # Admin API Guide
 
+RadSec upstream status and history include `transport`, `radsec_port`,
+`tls_version`, `tls_cipher_suite`, `tls_alpn`, `peer_subject`, `peer_issuer`,
+`peer_serial`, and `peer_not_after`. RADIUS-client list responses return
+`secret_set` and never return the shared secret. See [radsec.md](radsec.md).
+
 This guide is the operator and integration entry point for the AegisNAS admin API.
 
 Use it when you want to:
@@ -847,3 +852,6 @@ For risky actions like:
 - HA activation
 
 use the matching runbook as well so you keep the preview, validation, backup, and rollback steps in place.
+## Vendor Identity API
+
+`GET /api/v1/system/vendor-identity` returns the current PEN lifecycle, verified evidence, bounded legacy decode state, migration history, recovery warnings, and counters. `POST /api/v1/system/vendor-identity/migrations/preview`, `POST /api/v1/system/vendor-identity/migrations/apply`, and `POST /api/v1/system/vendor-identity/migrations/{id}/rollback` are `super_admin` operations. Preview verifies the fixed IANA registry and returns a one-time 15-minute confirmation token. See `vendor-identity.md` for schemas and failure behavior.

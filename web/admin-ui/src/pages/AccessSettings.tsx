@@ -579,6 +579,28 @@ const defaultSettings: JsonMap = {
     request_timeout_seconds: 5,
     interim_update_seconds: 300,
     dynamic_auth: { enabled: true, port: 3799 },
+    radsec: {
+      enabled: false,
+      listen_address: "0.0.0.0",
+      port: 2083,
+      certificate_file: "/etc/aegisnas/radsec/server.crt",
+      private_key_file: "/etc/aegisnas/radsec/server.key",
+      private_key_password_env: "",
+      ca_file: "/etc/aegisnas/radsec/ca.crt",
+      ca_path: "",
+      check_crl: true,
+      check_all_crl: true,
+      ca_path_reload_interval: 3600,
+      tls_min_version: "1.2",
+      tls_max_version: "1.3",
+      cipher_list: "DEFAULT@SECLEVEL=2",
+      radius_v11: "forbid",
+      max_connections: 64,
+      lifetime_seconds: 86400,
+      idle_timeout_seconds: 300,
+      probe_interval_seconds: 30,
+      certificate_expiry_warning_days: 30,
+    },
     vendor: {
       enabled: false,
       name: "AegisNAS",
@@ -8731,6 +8753,31 @@ export default function AccessSettings() {
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">
+        <h3 className="mb-4 text-lg font-semibold text-gray-900">RadSec</h3>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <ToggleField label="Inbound RadSec" checked={Boolean(settings.radius?.radsec?.enabled)} onChange={(value) => updateField(["radius", "radsec", "enabled"], value)} />
+          <TextField label="Listen Address" value={settings.radius?.radsec?.listen_address || "0.0.0.0"} onChange={(value) => updateField(["radius", "radsec", "listen_address"], value)} />
+          <TextField label="Port" type="number" value={settings.radius?.radsec?.port || 2083} onChange={(value) => updateField(["radius", "radsec", "port"], Number(value))} />
+          <SelectField label="RADIUS Version" value={settings.radius?.radsec?.radius_v11 || "forbid"} onChange={(value) => updateField(["radius", "radsec", "radius_v11"], value)} options={[{ value: "forbid", label: "RADIUS/1.0" }, { value: "allow", label: "Allow RADIUS/1.1" }, { value: "require", label: "Require RADIUS/1.1" }]} />
+          <TextField label="Server Certificate" value={settings.radius?.radsec?.certificate_file || ""} onChange={(value) => updateField(["radius", "radsec", "certificate_file"], value)} />
+          <TextField label="Server Private Key" value={settings.radius?.radsec?.private_key_file || ""} onChange={(value) => updateField(["radius", "radsec", "private_key_file"], value)} />
+          <TextField label="Key Password Environment" value={settings.radius?.radsec?.private_key_password_env || ""} onChange={(value) => updateField(["radius", "radsec", "private_key_password_env"], value)} />
+          <TextField label="Trusted CA File" value={settings.radius?.radsec?.ca_file || ""} onChange={(value) => updateField(["radius", "radsec", "ca_file"], value)} />
+          <TextField label="Trusted CA Path" value={settings.radius?.radsec?.ca_path || ""} onChange={(value) => updateField(["radius", "radsec", "ca_path"], value)} />
+          <SelectField label="TLS Minimum" value={settings.radius?.radsec?.tls_min_version || "1.2"} onChange={(value) => updateField(["radius", "radsec", "tls_min_version"], value)} options={[{ value: "1.2", label: "TLS 1.2" }, { value: "1.3", label: "TLS 1.3" }]} />
+          <SelectField label="TLS Maximum" value={settings.radius?.radsec?.tls_max_version || "1.3"} onChange={(value) => updateField(["radius", "radsec", "tls_max_version"], value)} options={[{ value: "1.2", label: "TLS 1.2" }, { value: "1.3", label: "TLS 1.3" }]} />
+          <TextField label="OpenSSL Cipher List" value={settings.radius?.radsec?.cipher_list || "DEFAULT@SECLEVEL=2"} onChange={(value) => updateField(["radius", "radsec", "cipher_list"], value)} />
+          <TextField label="Connection Limit" type="number" value={settings.radius?.radsec?.max_connections || 64} onChange={(value) => updateField(["radius", "radsec", "max_connections"], Number(value))} />
+          <TextField label="Connection Lifetime (s)" type="number" value={settings.radius?.radsec?.lifetime_seconds || 86400} onChange={(value) => updateField(["radius", "radsec", "lifetime_seconds"], Number(value))} />
+          <TextField label="Idle Timeout (s)" type="number" value={settings.radius?.radsec?.idle_timeout_seconds || 300} onChange={(value) => updateField(["radius", "radsec", "idle_timeout_seconds"], Number(value))} />
+          <TextField label="Probe Interval (s)" type="number" value={settings.radius?.radsec?.probe_interval_seconds || 30} onChange={(value) => updateField(["radius", "radsec", "probe_interval_seconds"], Number(value))} />
+          <TextField label="Certificate Warning (days)" type="number" value={settings.radius?.radsec?.certificate_expiry_warning_days || 30} onChange={(value) => updateField(["radius", "radsec", "certificate_expiry_warning_days"], Number(value))} />
+          <ToggleField label="CRL Validation" checked={Boolean(settings.radius?.radsec?.check_crl)} onChange={(value) => updateField(["radius", "radsec", "check_crl"], value)} />
+          <ToggleField label="Full Chain CRL Validation" checked={Boolean(settings.radius?.radsec?.check_all_crl)} onChange={(value) => updateField(["radius", "radsec", "check_all_crl"], value)} />
+        </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">
             Upstream AAA Servers
@@ -8744,9 +8791,28 @@ export default function AccessSettings() {
                   {
                     name: "",
                     address: "",
+                    transport: "udp",
                     auth_port: 1812,
                     acct_port: 1813,
                     secret: "",
+                    radsec: {
+                      port: 2083,
+                      server_name: "",
+                      certificate_file: "/etc/aegisnas/radsec/client.crt",
+                      private_key_file: "/etc/aegisnas/radsec/client.key",
+                      private_key_password_env: "",
+                      ca_file: "/etc/aegisnas/radsec/ca.crt",
+                      ca_path: "",
+                      check_crl: true,
+                      tls_min_version: "1.2",
+                      tls_max_version: "1.3",
+                      cipher_list: "DEFAULT@SECLEVEL=2",
+                      radius_v11: "forbid",
+                      max_connections: 16,
+                      max_requests: 0,
+                      lifetime_seconds: 86400,
+                      idle_timeout_seconds: 300,
+                    },
                   },
                 ],
               )
@@ -8915,6 +8981,13 @@ export default function AccessSettings() {
                       )
                     }
                   />
+                  <SelectField
+                    label="Transport"
+                    value={server.transport || "udp"}
+                    onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "transport"], value)}
+                    options={[{ value: "udp", label: "RADIUS / UDP" }, { value: "radsec", label: "RadSec / TLS" }]}
+                  />
+                  {server.transport !== "radsec" ? <>
                   <TextField
                     label="Auth Port"
                     type="number"
@@ -8966,6 +9039,19 @@ export default function AccessSettings() {
                       )
                     }
                   />
+                  </> : <>
+                    <TextField label="RadSec Port" type="number" value={server.radsec?.port || 2083} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "port"], Number(value))} />
+                    <TextField label="Verified Server Name" value={server.radsec?.server_name || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "server_name"], value)} />
+                    <TextField label="Client Certificate" value={server.radsec?.certificate_file || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "certificate_file"], value)} />
+                    <TextField label="Client Private Key" value={server.radsec?.private_key_file || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "private_key_file"], value)} />
+                    <TextField label="Key Password Environment" value={server.radsec?.private_key_password_env || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "private_key_password_env"], value)} />
+                    <TextField label="Trusted CA File" value={server.radsec?.ca_file || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "ca_file"], value)} />
+                    <TextField label="Trusted CA Path" value={server.radsec?.ca_path || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "ca_path"], value)} />
+                    <SelectField label="RADIUS Version" value={server.radsec?.radius_v11 || "forbid"} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "radius_v11"], value)} options={[{ value: "forbid", label: "RADIUS/1.0" }, { value: "allow", label: "Allow RADIUS/1.1" }, { value: "require", label: "Require RADIUS/1.1" }]} />
+                    <SelectField label="TLS Minimum" value={server.radsec?.tls_min_version || "1.2"} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "tls_min_version"], value)} options={[{ value: "1.2", label: "TLS 1.2" }, { value: "1.3", label: "TLS 1.3" }]} />
+                    <SelectField label="TLS Maximum" value={server.radsec?.tls_max_version || "1.3"} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "tls_max_version"], value)} options={[{ value: "1.2", label: "TLS 1.2" }, { value: "1.3", label: "TLS 1.3" }]} />
+                    <ToggleField label="CRL Validation" checked={Boolean(server.radsec?.check_crl)} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "check_crl"], value)} />
+                  </>}
                 </div>
               </div>
             ))

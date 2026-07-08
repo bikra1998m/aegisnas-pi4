@@ -5,7 +5,7 @@
 #
 # Vendor ID defaults to lab placeholder 55555 in source control.
 # Request an IANA Private Enterprise Number before production VSA use, then
-# set AEGISNAS_VENDOR_ID to generate the production dictionary.
+# use the verified Vendor Identity migration to generate the production dictionary.
 
 VENDOR AegisNAS 55555
 

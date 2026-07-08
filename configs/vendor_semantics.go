@@ -58,6 +58,12 @@ type VendorCompatibilitySummary struct {
 	ImplementedCount                   int      `json:"implemented_count"`
 	PlannedCount                       int      `json:"planned_count"`
 	HardwareProfiles                   []string `json:"hardware_profiles"`
+	ProductVendorIdentityMode          string   `json:"product_vendor_identity_mode,omitempty"`
+	ProductVendorAssignedOrganization  string   `json:"product_vendor_assigned_organization,omitempty"`
+	ProductVendorAssignmentVerified    bool     `json:"product_vendor_assignment_verified"`
+	ProductVendorAssignmentRecordSHA   string   `json:"product_vendor_assignment_record_sha256,omitempty"`
+	ProductVendorLegacyIDs             []int    `json:"product_vendor_legacy_ids,omitempty"`
+	ProductVendorLegacyAcceptUntil     string   `json:"product_vendor_legacy_accept_until,omitempty"`
 }
 
 type VendorCompatibilityReport struct {

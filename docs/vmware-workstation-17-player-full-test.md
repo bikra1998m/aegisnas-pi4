@@ -868,7 +868,7 @@ ATTRIBUTE AegisNAS-Bandwidth-Profile ...
 Production note:
 
 - `55555` is a lab placeholder.
-- Replace it with your real IANA Private Enterprise Number before production by setting `AEGISNAS_VENDOR_ID` or `radius.vendor.id`.
+- Replace it only through the verified Vendor Identity preview/apply workflow after IANA publishes the assigned PEN and exact organization. Direct settings mutation is rejected.
 
 ## 21. External AAA Test
 

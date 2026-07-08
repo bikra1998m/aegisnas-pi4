@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import api from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
 
 type VendorCompatibilitySummary = {
   product_vendor_id: number;
@@ -17,6 +18,81 @@ type VendorCompatibilitySummary = {
   implemented_count: number;
   planned_count: number;
   hardware_profiles: string[];
+  product_vendor_identity_mode?: string;
+  product_vendor_assigned_organization?: string;
+  product_vendor_assignment_verified?: boolean;
+  product_vendor_assignment_record_sha256?: string;
+  product_vendor_legacy_ids?: number[];
+  product_vendor_legacy_accept_until?: string;
+};
+
+type VendorIdentitySnapshot = {
+  name: string;
+  pen: number;
+  identity_mode: string;
+  assigned_organization?: string;
+  assignment_registry_url?: string;
+  registry_last_updated?: string;
+  assignment_verified_at?: string;
+  assignment_registry_sha256?: string;
+  assignment_record_sha256?: string;
+  legacy_pens?: number[];
+  legacy_accept_until?: string;
+};
+
+type VendorIdentityEvidence = {
+  pen: number;
+  organization: string;
+  registry_url: string;
+  registry_last_updated: string;
+  fetched_at: string;
+  registry_sha256: string;
+  record_sha256: string;
+};
+
+type VendorIdentityMigration = {
+  id: string;
+  status: string;
+  from_pen: number;
+  to_pen: number;
+  organization: string;
+  expires_at: string;
+  created_by?: string;
+  created_at: string;
+  applied_at?: string;
+  rolled_back_at?: string;
+  failure?: string;
+};
+
+type VendorIdentityStatus = {
+  status: string;
+  ready: boolean;
+  current: VendorIdentitySnapshot;
+  evidence?: VendorIdentityEvidence;
+  config_evidence_valid: boolean;
+  legacy_window_active: boolean;
+  migrations?: VendorIdentityMigration[];
+  metrics: {
+    previewed: number;
+    applying: number;
+    applied: number;
+    failed: number;
+    rolled_back: number;
+    last_event_at?: string;
+  };
+  warnings?: string[];
+};
+
+type VendorIdentityPreview = {
+  migration_id: string;
+  confirmation_token: string;
+  expires_at: string;
+  current: VendorIdentitySnapshot;
+  target: VendorIdentitySnapshot;
+  evidence: VendorIdentityEvidence;
+  active_sessions: number;
+  affected_systems: string[];
+  warnings: string[];
 };
 
 type VendorProfileSummary = {
@@ -220,7 +296,7 @@ function apiErrorMessage(err: any, fallback: string) {
     return data;
   }
   if (data?.error) {
-    return String(data.error);
+    return typeof data.error === 'object' && data.error.message ? String(data.error.message) : String(data.error);
   }
   return err.message || fallback;
 }
@@ -277,6 +353,7 @@ function aclExportModeLabel(mode: string) {
 }
 
 export default function VendorCompatibility() {
+  const { identity } = useAuth();
   const [payload, setPayload] = useState<VendorCompatibilityPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -285,6 +362,79 @@ export default function VendorCompatibility() {
   const [preview, setPreview] = useState<VendorReplyPreviewPayload | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState('');
+  const [identityStatus, setIdentityStatus] = useState<VendorIdentityStatus | null>(null);
+  const [identityBusy, setIdentityBusy] = useState(false);
+  const [identityError, setIdentityError] = useState('');
+  const [identityPreview, setIdentityPreview] = useState<VendorIdentityPreview | null>(null);
+  const [identityForm, setIdentityForm] = useState({ pen: '', organization: '', legacyHours: '168' });
+  const [rollbackConfirmations, setRollbackConfirmations] = useState<Record<string, string>>({});
+
+  const canManageIdentity = identity?.role === 'super_admin';
+
+  const fetchVendorIdentity = async () => {
+    try {
+      const { data } = await api.get<VendorIdentityStatus>('/system/vendor-identity?limit=25');
+      setIdentityStatus(data);
+    } catch (err: any) {
+      setIdentityError(apiErrorMessage(err, 'Could not load vendor identity status.'));
+    }
+  };
+
+  const previewIdentityMigration = async () => {
+    setIdentityBusy(true);
+    setIdentityError('');
+    setMessage('');
+    try {
+      const { data } = await api.post<VendorIdentityPreview>('/system/vendor-identity/migrations/preview', {
+        pen: Number(identityForm.pen),
+        expected_organization: identityForm.organization.trim(),
+        legacy_acceptance_hours: Number(identityForm.legacyHours),
+      });
+      setIdentityPreview(data);
+      setMessage('IANA assignment verified. Review the migration impact before applying.');
+      await fetchVendorIdentity();
+    } catch (err: any) {
+      setIdentityError(apiErrorMessage(err, 'Could not verify the PEN migration.'));
+    } finally {
+      setIdentityBusy(false);
+    }
+  };
+
+  const applyIdentityMigration = async () => {
+    if (!identityPreview) return;
+    setIdentityBusy(true);
+    setIdentityError('');
+    try {
+      await api.post('/system/vendor-identity/migrations/apply', {
+        migration_id: identityPreview.migration_id,
+        confirmation_token: identityPreview.confirmation_token,
+      });
+      setIdentityPreview(null);
+      setMessage('Production vendor identity applied and FreeRADIUS restarted.');
+      await Promise.all([fetchVendorIdentity(), fetchCompatibility(false)]);
+    } catch (err: any) {
+      setIdentityError(apiErrorMessage(err, 'Could not apply the PEN migration.'));
+    } finally {
+      setIdentityBusy(false);
+    }
+  };
+
+  const rollbackIdentityMigration = async (migrationID: string) => {
+    setIdentityBusy(true);
+    setIdentityError('');
+    try {
+      await api.post(`/system/vendor-identity/migrations/${migrationID}/rollback`, {
+        confirmation_text: rollbackConfirmations[migrationID] || '',
+      });
+      setMessage('Vendor identity migration rolled back and FreeRADIUS restarted.');
+      setRollbackConfirmations((current) => ({ ...current, [migrationID]: '' }));
+      await Promise.all([fetchVendorIdentity(), fetchCompatibility(false)]);
+    } catch (err: any) {
+      setIdentityError(apiErrorMessage(err, 'Could not roll back the PEN migration.'));
+    } finally {
+      setIdentityBusy(false);
+    }
+  };
 
   const fetchCompatibility = async (announce = false) => {
     if (announce) {
@@ -386,6 +536,7 @@ export default function VendorCompatibility() {
 
   useEffect(() => {
     void fetchCompatibility(false);
+    void fetchVendorIdentity();
   }, []);
 
   const clientProfiles = payload?.client_profiles || [];
@@ -416,7 +567,7 @@ export default function VendorCompatibility() {
           <p className="mt-1 text-sm text-gray-600">Confirm deployed NAS profiles, reply packs, and vendor dictionary coverage before changing access policy.</p>
         </div>
         <button
-          onClick={() => void fetchCompatibility(true)}
+          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); }}
           disabled={loading}
           className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
@@ -426,6 +577,7 @@ export default function VendorCompatibility() {
 
       {message && <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>}
       {error && <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{String(error)}</div>}
+      {identityError && <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{identityError}</div>}
 
       {payload ? (
         <>
@@ -453,15 +605,15 @@ export default function VendorCompatibility() {
                   <h3 className="text-lg font-semibold text-gray-900">Product Vendor Identity</h3>
                   <p className="mt-1 text-sm text-gray-600">Use the assigned PEN before enabling AegisNAS product VSAs outside a lab.</p>
                 </div>
-                <StatusBadge tone={payload.summary.product_vendor_id_placeholder ? 'amber' : 'green'}>
-                  {payload.summary.product_vendor_id_placeholder ? 'Placeholder ID' : 'Assigned ID'}
+                <StatusBadge tone={identityStatus?.ready ? 'green' : 'amber'}>
+                  {identityStatus?.ready ? 'Verified assignment' : payload.summary.product_vendor_id_placeholder ? 'Lab identity' : 'Verification required'}
                 </StatusBadge>
               </div>
               <div className="grid gap-3 md:grid-cols-3">
                 <StatCard
                   label="ID Source"
                   value={payload.summary.product_vendor_id_source || 'unknown'}
-                  hint={payload.summary.product_vendor_id_placeholder ? 'Set AEGISNAS_VENDOR_ID after IANA assignment.' : 'Ready for production dictionary generation.'}
+                  hint={identityStatus?.ready ? payload.summary.product_vendor_assigned_organization || 'Verified by IANA.' : 'Use the verified migration workflow before production activation.'}
                 />
                 <StatCard
                   label="Dictionary"
@@ -474,6 +626,85 @@ export default function VendorCompatibility() {
                   hint="FreeRADIUS local dictionary include target."
                 />
               </div>
+
+              {identityStatus ? (
+                <div className="mt-5 border-t border-gray-200 pt-5">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <StatCard label="Lifecycle" value={identityStatus.status.split('_').join(' ')} hint={identityStatus.ready ? 'Production identity is active.' : 'Production activation remains blocked.'} />
+                    <StatCard label="Legacy Decode" value={identityStatus.legacy_window_active ? 'Active' : 'Inactive'} hint={identityStatus.current.legacy_accept_until || 'No transition window.'} />
+                    <StatCard label="Migration Results" value={identityStatus.metrics.applied || 0} hint={`${identityStatus.metrics.failed || 0} failed, ${identityStatus.metrics.rolled_back || 0} rolled back.`} />
+                  </div>
+                  {(identityStatus.warnings || []).map((warning) => <p key={warning} className="mt-3 text-sm text-amber-800">{warning}</p>)}
+                </div>
+              ) : null}
+
+              {canManageIdentity ? (
+                <form onSubmit={(event) => { event.preventDefault(); void previewIdentityMigration(); }} className="mt-5 border-t border-gray-200 pt-5">
+                  <h4 className="font-semibold text-gray-900">Production PEN Migration</h4>
+                  <div className="mt-3 grid gap-4 md:grid-cols-3">
+                    <label className="text-sm font-medium text-gray-700">
+                      Assigned PEN
+                      <input type="number" min="1" max="4294967294" required value={identityForm.pen} onChange={(event) => setIdentityForm((current) => ({ ...current, pen: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                    </label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Exact IANA organization
+                      <input required maxLength={255} value={identityForm.organization} onChange={(event) => setIdentityForm((current) => ({ ...current, organization: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                    </label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Legacy decode hours
+                      <input type="number" min="0" max="720" required value={identityForm.legacyHours} onChange={(event) => setIdentityForm((current) => ({ ...current, legacyHours: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                    </label>
+                  </div>
+                  <button disabled={identityBusy} className="mt-4 rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+                    {identityBusy ? 'Verifying...' : 'Verify with IANA and Preview'}
+                  </button>
+                </form>
+              ) : null}
+
+              {identityPreview ? (
+                <div className="mt-5 border-t border-gray-200 pt-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Verified Migration Preview</h4>
+                      <p className="mt-1 text-sm text-gray-600">PEN {identityPreview.current.pen} to {identityPreview.target.pen} for {identityPreview.evidence.organization}</p>
+                      <p className="mt-1 text-sm text-gray-600">Registry updated {identityPreview.evidence.registry_last_updated}; confirmation expires {new Date(identityPreview.expires_at).toLocaleString()}.</p>
+                    </div>
+                    <StatusBadge tone="green">IANA matched</StatusBadge>
+                  </div>
+                  <p className="mt-3 text-sm text-gray-700">{identityPreview.active_sessions} active sessions; {identityPreview.affected_systems.length} platform surfaces will change.</p>
+                  {identityPreview.warnings.map((warning) => <p key={warning} className="mt-2 text-sm text-amber-800">{warning}</p>)}
+                  <div className="mt-4 flex gap-3">
+                    <button type="button" onClick={() => void applyIdentityMigration()} disabled={identityBusy} className="rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Apply Verified Migration</button>
+                    <button type="button" onClick={() => setIdentityPreview(null)} disabled={identityBusy} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700">Cancel</button>
+                  </div>
+                </div>
+              ) : null}
+
+              {(identityStatus?.migrations || []).length > 0 ? (
+                <div className="mt-5 overflow-x-auto border-t border-gray-200 pt-5">
+                  <h4 className="font-semibold text-gray-900">Migration History</h4>
+                  <table className="mt-3 min-w-full divide-y divide-gray-200 text-sm">
+                    <thead><tr className="text-left text-gray-500"><th className="py-2 pr-4">Created</th><th className="py-2 pr-4">Change</th><th className="py-2 pr-4">Status</th><th className="py-2">Recovery</th></tr></thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {(identityStatus?.migrations || []).map((migration) => (
+                        <tr key={migration.id}>
+                          <td className="py-3 pr-4">{new Date(migration.created_at).toLocaleString()}</td>
+                          <td className="py-3 pr-4">{migration.from_pen} to {migration.to_pen}<div className="text-xs text-gray-500">{migration.organization}</div></td>
+                          <td className="py-3 pr-4">{migration.status}{migration.failure ? <div className="max-w-md text-xs text-red-700">{migration.failure}</div> : null}</td>
+                          <td className="py-3">
+                            {canManageIdentity && ['applied', 'applying', 'failed'].includes(migration.status) ? (
+                              <div className="flex min-w-80 gap-2">
+                                <input aria-label={`Rollback confirmation ${migration.id}`} value={rollbackConfirmations[migration.id] || ''} onChange={(event) => setRollbackConfirmations((current) => ({ ...current, [migration.id]: event.target.value }))} placeholder={`ROLLBACK ${migration.id}`} className="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1" />
+                                <button type="button" disabled={identityBusy} onClick={() => void rollbackIdentityMigration(migration.id)} className="rounded-md border border-red-300 px-3 py-1 text-red-700 disabled:opacity-50">Rollback</button>
+                              </div>
+                            ) : 'None'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
             </div>
           </section>
 

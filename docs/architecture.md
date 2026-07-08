@@ -12,3 +12,6 @@ AegisNAS Pi4 is divided into operational planes so each service has a clear boun
 - Telemetry: health checks, system alerts, and Prometheus-oriented metrics hooks.
 
 Services can run either as Ubuntu Core 24 snaps or as systemd-managed daemons on Ubuntu Server 24.04 VMs. The AI engine is not in the authentication path; if it fails, core networking and AAA continue.
+## Vendor Identity Lifecycle
+
+The AegisNAS product VSA namespace is governed by the verified identity lifecycle documented in `vendor-identity.md`. Configuration, generated `dictionary.aegisnas`, packet processing, database evidence, production readiness, and the admin UI share one active PEN. Schema v15 stores assignment and migration evidence. Outbound packets use only the active PEN; inbound legacy decoding is bounded by an explicit deadline. Production readiness requires a matching active assignment record and fails closed for arbitrary non-placeholder IDs.

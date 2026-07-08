@@ -3772,6 +3772,16 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         created_at: "2026-05-05T11:59:00Z",
       },
     ],
+    vendorIdentity: {
+      status: "lab",
+      ready: false,
+      current: { name: "AegisNAS", pen: 55555, identity_mode: "lab" },
+      config_evidence_valid: false,
+      legacy_window_active: false,
+      migrations: [] as Record<string, any>[],
+      metrics: { previewed: 0, applying: 0, applied: 0, failed: 0, rolled_back: 0 },
+      warnings: ["The lab PEN must not be used for production vendor-specific attributes."],
+    } as any,
     networkRecovery: null as null | Record<string, any>,
   };
 
@@ -3877,6 +3887,76 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
 		return;
 	}
 
+    if (path === "/system/vendor-compatibility" && method === "GET") {
+      await route.fulfill({
+        json: {
+          summary: {
+            product_vendor_id: state.vendorIdentity.current.pen,
+            product_vendor_name: "AegisNAS",
+            product_vendor_id_source: "config:radius.vendor.id",
+            product_vendor_id_placeholder: state.vendorIdentity.current.pen === 55555,
+            product_vendor_dictionary_filename: "dictionary.aegisnas",
+            product_vendor_dictionary_install_path: "/etc/freeradius/3.0/dictionary.aegisnas",
+            product_vendor_dictionary_include: "$INCLUDE dictionary.aegisnas",
+            product_attribute_count: 13,
+            semantic_count: 29,
+            pack_count: 1,
+            implemented_count: 10,
+            planned_count: 19,
+            hardware_profiles: ["lite", "branch", "enterprise"],
+            product_vendor_assigned_organization: state.vendorIdentity.current.assigned_organization,
+          },
+          active_packs: ["aegisnas"],
+          packs: [],
+          client_profiles: [],
+          profile_summary: { total_clients: 0, enabled_clients: 0, profile_counts: {}, global_fallback_client_count: 0, known_vendor_profile_clients: 0 },
+          dictionary_coverage: { catalog_vendor_count: 1, catalog_attribute_count: 13, pack_count: 1, active_pack_count: 1, dictionary_backed_pack_count: 1, partial_dictionary_pack_count: 0, missing_dictionary_vendor_count: 0, dictionary_matched_attribute_count: 13, missing_dictionary_attribute_count: 0, rows: [] },
+          semantics: [],
+          notes: [],
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/vendor-identity" && method === "GET") {
+      await route.fulfill({ json: state.vendorIdentity });
+      return;
+    }
+
+    if (path === "/system/vendor-identity/migrations/preview" && method === "POST") {
+      const body = parseBody(route);
+      const migrationID = "identity-migration-1";
+      state.vendorIdentity.metrics.previewed = 1;
+      state.vendorIdentity.migrations = [{ id: migrationID, status: "previewed", from_pen: 55555, to_pen: body.pen, organization: body.expected_organization, expires_at: "2026-07-08T10:15:00Z", created_at: "2026-07-08T10:00:00Z" }];
+      await route.fulfill({
+        json: {
+          migration_id: migrationID,
+          confirmation_token: "one-time-confirmation",
+          expires_at: "2026-07-08T10:15:00Z",
+          current: state.vendorIdentity.current,
+          target: { name: "AegisNAS", pen: body.pen, identity_mode: "production", assigned_organization: body.expected_organization, legacy_pens: [55555], legacy_accept_until: "2026-07-15T10:00:00Z" },
+          evidence: { pen: body.pen, organization: body.expected_organization, registry_url: "https://www.iana.org/assignments/enterprise-numbers/enterprise-numbers.txt", registry_last_updated: "2026-07-06", fetched_at: "2026-07-08T10:00:00Z", registry_sha256: "a".repeat(64), record_sha256: "b".repeat(64) },
+          active_sessions: 3,
+          affected_systems: ["configuration", "dictionary", "packet codec"],
+          warnings: ["Update every peer and integration to the assigned PEN."],
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/vendor-identity/migrations/apply" && method === "POST") {
+      state.vendorIdentity.status = "production_verified";
+      state.vendorIdentity.ready = true;
+      state.vendorIdentity.config_evidence_valid = true;
+      state.vendorIdentity.legacy_window_active = true;
+      state.vendorIdentity.current = { name: "AegisNAS", pen: 424242, identity_mode: "production", assigned_organization: "AegisNAS Systems Ltd.", legacy_pens: [55555], legacy_accept_until: "2026-07-15T10:00:00Z" };
+      state.vendorIdentity.metrics.applied = 1;
+      state.vendorIdentity.warnings = [];
+      state.vendorIdentity.migrations[0] = { ...state.vendorIdentity.migrations[0], status: "applied", applied_at: "2026-07-08T10:01:00Z" };
+      await route.fulfill({ json: { status: "applied", migration_id: "identity-migration-1", radius_restarted: true } });
+      return;
+    }
+
     if (path === "/staged-changes" && method === "GET") {
       await route.fulfill({ json: [] });
       return;
@@ -3912,8 +3992,16 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({ json: [{ id: 1, name: "local-users" }] });
       return;
     }
-    if (path === "/bandwidth-profiles" && method === "GET") {
+	if (path === "/bandwidth-profiles" && method === "GET") {
       await route.fulfill({ json: [{ id: 1, name: "10m-down-5m-up" }] });
+      return;
+    }
+    if (path === "/radius-clients" && method === "GET") {
+      await route.fulfill({ json: [{ id: 1, shortname: "secure-nas", ip: "192.0.2.10", secret_set: true, nas_type: "cisco", transport: "radsec", radsec_certificate_cn: "secure-nas.example.test", radsec_radius_v11: "forbid", description: "Branch NAS", enabled: true }] });
+      return;
+    }
+    if (path === "/radius-clients" && method === "POST") {
+      await route.fulfill({ status: 202, json: { status: "staged" } });
       return;
     }
 

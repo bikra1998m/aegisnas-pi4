@@ -53,12 +53,28 @@ func AegisNASVendorDictionary() VendorDictionary {
 }
 
 func AegisNASVendorDictionaryCatalog() VendorDictionaryCatalog {
-	return ParseVendorDictionaryCatalog("configs/"+AegisNASVendorDictionaryFilename, AegisNASVendorDictionaryText())
+	identity := AegisNASVendorIdentity()
+	return AegisNASVendorDictionaryCatalogFor(identity.Name, identity.ID)
 }
 
 func AegisNASVendorDictionaryText() string {
 	identity := AegisNASVendorIdentity()
-	return strings.Replace(aegisNASVendorDictionaryTemplate, "VENDOR AegisNAS 55555", "VENDOR "+identity.Name+" "+strconv.Itoa(identity.ID), 1)
+	return AegisNASVendorDictionaryTextFor(identity.Name, identity.ID)
+}
+
+func AegisNASVendorDictionaryCatalogFor(name string, id int) VendorDictionaryCatalog {
+	return ParseVendorDictionaryCatalog("configs/"+AegisNASVendorDictionaryFilename, AegisNASVendorDictionaryTextFor(name, id))
+}
+
+func AegisNASVendorDictionaryTextFor(name string, id int) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = AegisNASVendorName
+	}
+	if id < 1 {
+		id = AegisNASPlaceholderVendorID
+	}
+	return strings.Replace(aegisNASVendorDictionaryTemplate, "VENDOR AegisNAS 55555", "VENDOR "+name+" "+strconv.Itoa(id), 1)
 }
 
 func ParseVendorDictionary(text string) (VendorDictionary, bool) {

@@ -74,6 +74,7 @@ var runCmd = &cobra.Command{
 		go telemetry.StartSIEMExporter(ctx, 30*time.Second, cfg, logger)
 		go telemetry.StartDHCPLeaseHistoryCollector(ctx, cfg, logger)
 		go telemetry.StartProfilingRuntime(ctx, cfg, logger)
+		go telemetry.StartUpstreamAAACollector(ctx, cfg, logger)
 		go integrations.StartControllerAutomation(ctx, cfg, logger)
 
 		r := chi.NewRouter()

@@ -8,9 +8,12 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/spf13/viper"
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
+	"github.com/yourorg/aegisnas-pi4/internal/vendoridentity"
 )
 
 type Config struct {
@@ -187,16 +190,46 @@ type RadiusConfig struct {
 	RequestTimeoutSeconds int                  `mapstructure:"request_timeout_seconds"`
 	InterimUpdateSeconds  int                  `mapstructure:"interim_update_seconds"`
 	DynamicAuth           DynamicAuthConfig    `mapstructure:"dynamic_auth"`
+	RadSec                RadiusRadSecConfig   `mapstructure:"radsec"`
 	EAP                   RadiusEAPConfig      `mapstructure:"eap"`
 	Upstream              RadiusUpstreamConfig `mapstructure:"upstream"`
 	Vendor                RadiusVendorConfig   `mapstructure:"vendor"`
 }
 
 type RadiusClient struct {
-	IP        string `mapstructure:"ip"`
-	Secret    string `mapstructure:"secret"`
-	ShortName string `mapstructure:"shortname"`
-	NASType   string `mapstructure:"nas_type"`
+	IP                      string `mapstructure:"ip"`
+	Secret                  string `mapstructure:"secret"`
+	ShortName               string `mapstructure:"shortname"`
+	NASType                 string `mapstructure:"nas_type"`
+	Transport               string `mapstructure:"transport"`
+	RadSecCertificateCN     string `mapstructure:"radsec_certificate_cn"`
+	RadSecCertificateIssuer string `mapstructure:"radsec_certificate_issuer"`
+	RadSecRadiusV11         string `mapstructure:"radsec_radius_v11"`
+}
+
+// RadiusRadSecConfig controls the inbound RFC 6614 listener. Client
+// certificates are mandatory whenever the listener is enabled.
+type RadiusRadSecConfig struct {
+	Enabled                      bool   `mapstructure:"enabled"`
+	ListenAddress                string `mapstructure:"listen_address"`
+	Port                         int    `mapstructure:"port"`
+	CertificateFile              string `mapstructure:"certificate_file"`
+	PrivateKeyFile               string `mapstructure:"private_key_file"`
+	PrivateKeyPasswordEnv        string `mapstructure:"private_key_password_env"`
+	CAFile                       string `mapstructure:"ca_file"`
+	CAPath                       string `mapstructure:"ca_path"`
+	CheckCRL                     bool   `mapstructure:"check_crl"`
+	CheckAllCRL                  bool   `mapstructure:"check_all_crl"`
+	CAPathReloadInterval         int    `mapstructure:"ca_path_reload_interval"`
+	TLSMinVersion                string `mapstructure:"tls_min_version"`
+	TLSMaxVersion                string `mapstructure:"tls_max_version"`
+	CipherList                   string `mapstructure:"cipher_list"`
+	RadiusV11                    string `mapstructure:"radius_v11"`
+	MaxConnections               int    `mapstructure:"max_connections"`
+	LifetimeSeconds              int    `mapstructure:"lifetime_seconds"`
+	IdleTimeoutSeconds           int    `mapstructure:"idle_timeout_seconds"`
+	ProbeIntervalSeconds         int    `mapstructure:"probe_interval_seconds"`
+	CertificateExpiryWarningDays int    `mapstructure:"certificate_expiry_warning_days"`
 }
 
 type RadiusUpstreamConfig struct {
@@ -214,17 +247,49 @@ type RadiusUpstreamConfig struct {
 }
 
 type RadiusHomeServer struct {
-	Name     string `mapstructure:"name"`
-	Address  string `mapstructure:"address"`
-	AuthPort int    `mapstructure:"auth_port"`
-	AcctPort int    `mapstructure:"acct_port"`
-	Secret   string `mapstructure:"secret"`
+	Name      string                 `mapstructure:"name"`
+	Address   string                 `mapstructure:"address"`
+	AuthPort  int                    `mapstructure:"auth_port"`
+	AcctPort  int                    `mapstructure:"acct_port"`
+	Secret    string                 `mapstructure:"secret"`
+	Transport string                 `mapstructure:"transport"`
+	RadSec    RadiusRadSecPeerConfig `mapstructure:"radsec"`
+}
+
+// RadiusRadSecPeerConfig contains outbound client identity, trust anchors, and
+// connection limits for one RadSec home server.
+type RadiusRadSecPeerConfig struct {
+	Port                  int    `mapstructure:"port"`
+	ServerName            string `mapstructure:"server_name"`
+	CertificateFile       string `mapstructure:"certificate_file"`
+	PrivateKeyFile        string `mapstructure:"private_key_file"`
+	PrivateKeyPasswordEnv string `mapstructure:"private_key_password_env"`
+	CAFile                string `mapstructure:"ca_file"`
+	CAPath                string `mapstructure:"ca_path"`
+	CheckCRL              bool   `mapstructure:"check_crl"`
+	TLSMinVersion         string `mapstructure:"tls_min_version"`
+	TLSMaxVersion         string `mapstructure:"tls_max_version"`
+	CipherList            string `mapstructure:"cipher_list"`
+	RadiusV11             string `mapstructure:"radius_v11"`
+	MaxConnections        int    `mapstructure:"max_connections"`
+	MaxRequests           int    `mapstructure:"max_requests"`
+	LifetimeSeconds       int    `mapstructure:"lifetime_seconds"`
+	IdleTimeoutSeconds    int    `mapstructure:"idle_timeout_seconds"`
 }
 
 type RadiusVendorConfig struct {
 	Enabled               bool                               `mapstructure:"enabled"`
 	Name                  string                             `mapstructure:"name"`
 	ID                    int                                `mapstructure:"id"`
+	IdentityMode          string                             `mapstructure:"identity_mode"`
+	AssignedOrganization  string                             `mapstructure:"assigned_organization"`
+	AssignmentRegistryURL string                             `mapstructure:"assignment_registry_url"`
+	RegistryLastUpdated   string                             `mapstructure:"registry_last_updated"`
+	AssignmentVerifiedAt  string                             `mapstructure:"assignment_verified_at"`
+	AssignmentRegistrySHA string                             `mapstructure:"assignment_registry_sha256"`
+	AssignmentRecordSHA   string                             `mapstructure:"assignment_record_sha256"`
+	LegacyIDs             []int                              `mapstructure:"legacy_ids"`
+	LegacyAcceptUntil     string                             `mapstructure:"legacy_accept_until"`
 	CompatibilityPacks    []string                           `mapstructure:"compatibility_packs"`
 	DictionaryPaths       []string                           `mapstructure:"dictionary_paths"`
 	RoleMappings          []RadiusVendorRoleMapping          `mapstructure:"role_mappings"`
@@ -704,6 +769,7 @@ type SSIDConfig struct {
 
 var globalConfig *Config
 var globalConfigPath string
+var globalConfigMu sync.RWMutex
 
 func Load(configPath string) (*Config, error) {
 	return load(configPath, true)
@@ -827,6 +893,18 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.interim_update_seconds", 300)
 	v.SetDefault("radius.dynamic_auth.enabled", true)
 	v.SetDefault("radius.dynamic_auth.port", 3799)
+	v.SetDefault("radius.radsec.enabled", false)
+	v.SetDefault("radius.radsec.listen_address", "0.0.0.0")
+	v.SetDefault("radius.radsec.port", 2083)
+	v.SetDefault("radius.radsec.tls_min_version", "1.2")
+	v.SetDefault("radius.radsec.tls_max_version", "1.3")
+	v.SetDefault("radius.radsec.cipher_list", "DEFAULT@SECLEVEL=2")
+	v.SetDefault("radius.radsec.radius_v11", "forbid")
+	v.SetDefault("radius.radsec.max_connections", 64)
+	v.SetDefault("radius.radsec.lifetime_seconds", 86400)
+	v.SetDefault("radius.radsec.idle_timeout_seconds", 300)
+	v.SetDefault("radius.radsec.probe_interval_seconds", 30)
+	v.SetDefault("radius.radsec.certificate_expiry_warning_days", 30)
 	v.SetDefault("radius.eap.default_type", "peap")
 	v.SetDefault("radius.eap.peap_inner", "mschapv2")
 	v.SetDefault("radius.eap.ttls_inner", "mschapv2")
@@ -855,6 +933,12 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.vendor.enabled", false)
 	v.SetDefault("radius.vendor.name", productVendor.Name)
 	v.SetDefault("radius.vendor.id", productVendor.ID)
+	if productVendor.ID == productconfigs.AegisNASPlaceholderVendorID {
+		v.SetDefault("radius.vendor.identity_mode", "lab")
+	} else {
+		v.SetDefault("radius.vendor.identity_mode", "unverified")
+	}
+	v.SetDefault("radius.vendor.legacy_ids", []int{})
 	v.SetDefault("radius.vendor.compatibility_packs", productconfigs.DefaultVendorCompatibilityPackKeys())
 	v.SetDefault("radius.vendor.dictionary_paths", []string{})
 	v.SetDefault("portal.radius_auth", false)
@@ -883,6 +967,8 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 		return nil, fmt.Errorf("config unmarshal error: %w", err)
 	}
 	if persistGlobal {
+		globalConfigMu.Lock()
+		defer globalConfigMu.Unlock()
 		globalConfig = &cfg
 		globalConfigPath = v.ConfigFileUsed()
 		if globalConfigPath == "" {
@@ -897,10 +983,14 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 }
 
 func Get() *Config {
+	globalConfigMu.RLock()
+	defer globalConfigMu.RUnlock()
 	return globalConfig
 }
 
 func Path() string {
+	globalConfigMu.RLock()
+	defer globalConfigMu.RUnlock()
 	return globalConfigPath
 }
 
@@ -2846,6 +2936,9 @@ func (c *Config) Validate() error {
 	if c.Radius.DynamicAuth.Enabled && (c.Radius.DynamicAuth.Port < 1 || c.Radius.DynamicAuth.Port > 65535) {
 		return fmt.Errorf("radius.dynamic_auth.port %d out of range", c.Radius.DynamicAuth.Port)
 	}
+	if err := validateRadSecConfig(c); err != nil {
+		return err
+	}
 	if c.Radius.Vendor.Enabled {
 		if strings.TrimSpace(c.Radius.Vendor.Name) == "" {
 			return errors.New("radius.vendor.name cannot be empty when vendor attributes are enabled")
@@ -2876,6 +2969,9 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("radius.vendor.attributes[%d].type %q is invalid", i, attr.Type)
 			}
 		}
+	}
+	if err := validateRadiusVendorIdentity(c.Radius.Vendor); err != nil {
+		return err
 	}
 	seenVendorPacks := map[string]struct{}{}
 	for i, pack := range c.Radius.Vendor.CompatibilityPacks {
@@ -3174,8 +3270,12 @@ func (c *Config) Validate() error {
 		if cl.IP == "" {
 			return fmt.Errorf("radius.client[%d] missing ip", i)
 		}
-		if cl.Secret == "" {
+		transport := normalizeRadiusTransport(cl.Transport)
+		if transport == "udp" && cl.Secret == "" {
 			return fmt.Errorf("radius.client[%d] missing secret", i)
+		}
+		if err := validateRadiusClientTransport(i, cl, c.Radius.RadSec.Enabled); err != nil {
+			return err
 		}
 	}
 
@@ -3228,7 +3328,8 @@ func (c *Config) Validate() error {
 			if strings.TrimSpace(server.Address) == "" {
 				return fmt.Errorf("radius.upstream.server[%d] missing address", i)
 			}
-			if strings.TrimSpace(server.Secret) == "" {
+			transport := normalizeRadiusTransport(server.Transport)
+			if transport == "udp" && strings.TrimSpace(server.Secret) == "" {
 				return fmt.Errorf("radius.upstream.server[%d] missing secret", i)
 			}
 			if server.AuthPort != 0 && (server.AuthPort < 1 || server.AuthPort > 65535) {
@@ -3236,6 +3337,9 @@ func (c *Config) Validate() error {
 			}
 			if server.AcctPort != 0 && (server.AcctPort < 1 || server.AcctPort > 65535) {
 				return fmt.Errorf("radius.upstream.server[%d] acct_port %d out of range", i, server.AcctPort)
+			}
+			if err := validateRadSecPeer(i, server); err != nil {
+				return err
 			}
 		}
 	}
@@ -3500,6 +3604,83 @@ func validRadiusDictionaryName(value string) bool {
 		}
 	}
 	return true
+}
+
+func validateRadiusVendorIdentity(vendor RadiusVendorConfig) error {
+	if !vendor.Enabled && vendor.ID == 0 && strings.TrimSpace(vendor.IdentityMode) == "" &&
+		strings.TrimSpace(vendor.AssignedOrganization) == "" && len(vendor.LegacyIDs) == 0 {
+		return nil
+	}
+	mode := strings.ToLower(strings.TrimSpace(vendor.IdentityMode))
+	if mode == "" {
+		if vendor.ID == productconfigs.AegisNASPlaceholderVendorID {
+			mode = "lab"
+		} else {
+			mode = "unverified"
+		}
+	}
+	switch mode {
+	case "lab":
+		if vendor.ID != productconfigs.AegisNASPlaceholderVendorID && vendor.ID != vendoridentity.DocumentationPEN {
+			return fmt.Errorf("radius.vendor.identity_mode lab requires PEN %d or RFC 5612 documentation PEN %d", productconfigs.AegisNASPlaceholderVendorID, vendoridentity.DocumentationPEN)
+		}
+	case "unverified":
+		if err := vendoridentity.ValidateProductionPEN(vendor.ID); err != nil {
+			return fmt.Errorf("radius.vendor.id: %w", err)
+		}
+		if vendor.Enabled {
+			return errors.New("radius.vendor.enabled requires identity_mode lab or a verified production identity")
+		}
+	case "production":
+		evidence, err := RadiusVendorAssignmentEvidence(vendor)
+		if err != nil {
+			return err
+		}
+		if err := evidence.Validate(vendor.ID, vendor.AssignedOrganization); err != nil {
+			return fmt.Errorf("radius.vendor production identity: %w", err)
+		}
+	default:
+		return fmt.Errorf("radius.vendor.identity_mode %q must be lab, unverified, or production", vendor.IdentityMode)
+	}
+
+	seen := map[int]struct{}{vendor.ID: {}}
+	for i, legacyID := range vendor.LegacyIDs {
+		if legacyID < 1 || uint64(legacyID) >= uint64(^uint32(0)) {
+			return fmt.Errorf("radius.vendor.legacy_ids[%d] %d is outside the RADIUS vendor ID range", i, legacyID)
+		}
+		if _, exists := seen[legacyID]; exists {
+			return fmt.Errorf("radius.vendor.legacy_ids[%d] duplicates PEN %d", i, legacyID)
+		}
+		seen[legacyID] = struct{}{}
+	}
+	if len(vendor.LegacyIDs) > 0 {
+		if strings.TrimSpace(vendor.LegacyAcceptUntil) == "" {
+			return errors.New("radius.vendor.legacy_accept_until is required when legacy_ids are configured")
+		}
+		if _, err := time.Parse(time.RFC3339, vendor.LegacyAcceptUntil); err != nil {
+			return fmt.Errorf("radius.vendor.legacy_accept_until must be RFC3339: %w", err)
+		}
+	} else if strings.TrimSpace(vendor.LegacyAcceptUntil) != "" {
+		return errors.New("radius.vendor.legacy_accept_until requires at least one legacy_ids entry")
+	}
+	return nil
+}
+
+func RadiusVendorAssignmentEvidence(vendor RadiusVendorConfig) (vendoridentity.AssignmentEvidence, error) {
+	verifiedAt, err := time.Parse(time.RFC3339, strings.TrimSpace(vendor.AssignmentVerifiedAt))
+	if err != nil {
+		return vendoridentity.AssignmentEvidence{}, fmt.Errorf("radius.vendor.assignment_verified_at must be RFC3339: %w", err)
+	}
+	return vendoridentity.AssignmentEvidence{
+		SchemaVersion:       vendoridentity.EvidenceSchemaVersion,
+		PEN:                 uint32(vendor.ID),
+		Organization:        strings.TrimSpace(vendor.AssignedOrganization),
+		RegistryURL:         strings.TrimSpace(vendor.AssignmentRegistryURL),
+		RegistryLastUpdated: strings.TrimSpace(vendor.RegistryLastUpdated),
+		FetchedAt:           verifiedAt.UTC(),
+		RegistrySHA256:      strings.TrimSpace(vendor.AssignmentRegistrySHA),
+		RecordSHA256:        strings.TrimSpace(vendor.AssignmentRecordSHA),
+	}, nil
 }
 
 func unsupportedAVPairTemplateToken(value string) string {

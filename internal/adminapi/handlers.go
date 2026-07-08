@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"sort"
 	"strconv"
@@ -501,20 +502,61 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 			return err
 		}
 	case "radius_client":
+		shortName := strings.TrimSpace(fmt.Sprint(data["shortname"]))
+		clientIP := strings.TrimSpace(fmt.Sprint(data["ip"]))
+		if shortName == "" || strings.ContainsAny(shortName, " \t\r\n{}\"") {
+			return fmt.Errorf("shortname is required and contains invalid FreeRADIUS configuration characters")
+		}
+		if net.ParseIP(clientIP) == nil {
+			if _, _, err := net.ParseCIDR(clientIP); err != nil {
+				return fmt.Errorf("ip must be an IPv4/IPv6 address or CIDR")
+			}
+		}
+		transport := strings.ToLower(strings.TrimSpace(fmt.Sprint(data["transport"])))
+		if transport == "" || transport == "<nil>" {
+			transport = "udp"
+		}
+		secret := strings.TrimSpace(fmt.Sprint(data["secret"]))
+		if secret == "<nil>" {
+			secret = ""
+		}
+		if transport == "radsec" {
+			secret = "radsec"
+			if strings.TrimSpace(fmt.Sprint(data["radsec_certificate_cn"])) == "" {
+				return fmt.Errorf("radsec_certificate_cn is required for a RadSec client")
+			}
+			if strings.ContainsAny(fmt.Sprint(data["radsec_certificate_cn"]), " \t\r\n{}\"") {
+				return fmt.Errorf("radsec_certificate_cn contains invalid FreeRADIUS configuration characters")
+			}
+		} else if transport != "udp" {
+			return fmt.Errorf("radius client transport %q is invalid", transport)
+		}
 		fields := []fieldValue{
 			{"shortname", data["shortname"]},
 			{"ipaddr", data["ip"]},
-			{"secret", data["secret"]},
 			{"nas_type", nullIfEmpty(data["nas_type"])},
+			{"transport", transport},
+			{"radsec_certificate_cn", nullIfEmpty(data["radsec_certificate_cn"])},
+			{"radsec_certificate_issuer", nullIfEmpty(data["radsec_certificate_issuer"])},
+			{"radsec_radius_v11", nullIfEmpty(data["radsec_radius_v11"])},
 			{"description", nullIfEmpty(data["description"])},
 			{"enabled", data["enabled"]},
 		}
 		switch change.Operation {
 		case "create":
-			_, err := tx.Exec(`INSERT INTO radius_clients (shortname, ipaddr, secret, nas_type, description, enabled)
-				VALUES (?, ?, ?, ?, ?, ?)`, data["shortname"], data["ip"], data["secret"], nullIfEmpty(data["nas_type"]), nullIfEmpty(data["description"]), data["enabled"])
+			if transport == "udp" && secret == "" {
+				return fmt.Errorf("secret is required for a UDP RADIUS client")
+			}
+			_, err := tx.Exec(`INSERT INTO radius_clients
+				(shortname, ipaddr, secret, nas_type, transport, radsec_certificate_cn, radsec_certificate_issuer, radsec_radius_v11, description, enabled)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, data["shortname"], data["ip"], secret, nullIfEmpty(data["nas_type"]),
+				transport, nullIfEmpty(data["radsec_certificate_cn"]), nullIfEmpty(data["radsec_certificate_issuer"]),
+				nullIfEmpty(data["radsec_radius_v11"]), nullIfEmpty(data["description"]), data["enabled"])
 			return err
 		case "update":
+			if secret != "" {
+				fields = append(fields, fieldValue{"secret", secret})
+			}
 			return updateByID(tx, "radius_clients", change.ResourceID, fields)
 		case "delete":
 			_, err := tx.Exec(`DELETE FROM radius_clients WHERE id = ?`, change.ResourceID)
@@ -920,7 +962,9 @@ func HandleDeleteBandwidthProfile(w http.ResponseWriter, r *http.Request) {
 // ---------- RADIUS Clients ----------
 
 func HandleListRadiusClients(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.DB.Query(`SELECT id, shortname, ipaddr, secret, COALESCE(nas_type, ''), COALESCE(description, ''), enabled FROM radius_clients ORDER BY shortname`)
+	rows, err := db.DB.Query(`SELECT id, shortname, ipaddr, secret != '', COALESCE(nas_type, ''), COALESCE(transport, 'udp'),
+		COALESCE(radsec_certificate_cn, ''), COALESCE(radsec_certificate_issuer, ''), COALESCE(radsec_radius_v11, ''),
+		COALESCE(description, ''), enabled FROM radius_clients ORDER BY shortname`)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -929,20 +973,24 @@ func HandleListRadiusClients(w http.ResponseWriter, r *http.Request) {
 	var clients []map[string]any
 	for rows.Next() {
 		var id int
-		var shortname, ip, secret, nasType, description string
-		var enabled bool
-		if err := rows.Scan(&id, &shortname, &ip, &secret, &nasType, &description, &enabled); err != nil {
+		var shortname, ip, nasType, transport, certificateCN, certificateIssuer, radiusV11, description string
+		var enabled, secretSet bool
+		if err := rows.Scan(&id, &shortname, &ip, &secretSet, &nasType, &transport, &certificateCN, &certificateIssuer, &radiusV11, &description, &enabled); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		clients = append(clients, map[string]any{
-			"id":          id,
-			"shortname":   shortname,
-			"ip":          ip,
-			"secret":      secret,
-			"nas_type":    nasType,
-			"description": description,
-			"enabled":     enabled,
+			"id":                        id,
+			"shortname":                 shortname,
+			"ip":                        ip,
+			"secret_set":                secretSet,
+			"nas_type":                  nasType,
+			"transport":                 transport,
+			"radsec_certificate_cn":     certificateCN,
+			"radsec_certificate_issuer": certificateIssuer,
+			"radsec_radius_v11":         radiusV11,
+			"description":               description,
+			"enabled":                   enabled,
 		})
 	}
 	writeJSON(w, http.StatusOK, clients)

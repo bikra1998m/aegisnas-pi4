@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
@@ -314,56 +315,107 @@ func ApplyVendorAttributes(result *BrokerAuthResult, packet *layehradius.Packet,
 		return
 	}
 
-	if vendor.ID >= 1 {
-		attrs := EffectiveVendorAttributes(vendor)
-		vendorID := uint32(vendor.ID)
+	attrs := EffectiveVendorAttributes(vendor)
+	for _, vendorID := range ProductVendorInboundIDsAt(vendor, time.Now()) {
+		applyProductVendorID(result, packet, attrs, vendorID)
+	}
 
+	applyVendorCompatibilityAttributes(result, packet, vendor)
+}
+
+func ProductVendorInboundIDsAt(vendor config.RadiusVendorConfig, now time.Time) []uint32 {
+	if !vendor.Enabled || vendor.ID < 1 {
+		return nil
+	}
+	ids := []uint32{uint32(vendor.ID)}
+	if len(vendor.LegacyIDs) == 0 {
+		return ids
+	}
+	until, err := time.Parse(time.RFC3339, strings.TrimSpace(vendor.LegacyAcceptUntil))
+	if err != nil || now.After(until) {
+		return ids
+	}
+	seen := map[uint32]struct{}{uint32(vendor.ID): {}}
+	for _, legacyID := range vendor.LegacyIDs {
+		if legacyID < 1 {
+			continue
+		}
+		id := uint32(legacyID)
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func applyProductVendorID(result *BrokerAuthResult, packet *layehradius.Packet, attrs []config.RadiusVendorAttribute, vendorID uint32) {
+	if result.VendorRole == "" {
 		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrRole)); ok {
 			result.VendorRole = value
 		}
+	}
+	if result.VendorBandwidthProfile == "" {
 		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrBandwidthProfile)); ok {
 			result.VendorBandwidthProfile = value
 		}
+	}
+	if !result.HasVendorVLAN {
 		if value, ok := lookupVendorInteger(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrVLAN)); ok {
 			result.VendorVLAN = int(value)
 			result.HasVendorVLAN = true
 		}
+	}
+	if !result.HasVendorQuarantine {
 		if value, ok := lookupVendorBool(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrQuarantine)); ok {
 			result.VendorQuarantine = value
 			result.HasVendorQuarantine = true
 		}
+	}
+	if result.VendorPolicyTag == "" {
 		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrPolicyTag)); ok {
 			result.VendorPolicyTag = value
 		}
+	}
+	if !result.HasVendorSessionTimeout {
 		if value, ok := lookupVendorInteger(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrSessionTimeout)); ok {
 			result.VendorSessionTimeout = int(value)
 			result.HasVendorSessionTimeout = true
 		}
+	}
+	if !result.HasVendorIdleTimeout {
 		if value, ok := lookupVendorInteger(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrIdleTimeout)); ok {
 			result.VendorIdleTimeout = int(value)
 			result.HasVendorIdleTimeout = true
 		}
+	}
+	if result.VendorSessionAction == "" {
 		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrSessionAction)); ok {
 			result.VendorSessionAction = value
 		}
+	}
+	if result.VendorPortalProfile == "" {
 		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrPortalProfile)); ok {
 			result.VendorPortalProfile = value
 		}
+	}
+	if result.VendorDeviceGroup == "" {
 		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrDeviceGroup)); ok {
 			result.VendorDeviceGroup = value
 		}
+	}
+	if result.VendorTenant == "" {
 		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTenant)); ok {
 			result.VendorTenant = value
 		}
-		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrACLName)); ok {
-			setStringIfEmpty(&result.VendorInboundACL, value)
-		}
-		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrACLRule)); ok {
-			setStringIfEmpty(&result.VendorInboundACL, value)
-		}
 	}
-
-	applyVendorCompatibilityAttributes(result, packet, vendor)
+	if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrACLName)); ok {
+		setStringIfEmpty(&result.VendorInboundACL, value)
+	}
+	if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrACLRule)); ok {
+		setStringIfEmpty(&result.VendorInboundACL, value)
+	}
 }
 
 func AddVendorAccountingAttributes(packet *layehradius.Packet, vendor config.RadiusVendorConfig, rec *AccountingRecord) error {

@@ -142,10 +142,40 @@ radius:
   dynamic_auth:
     enabled: true
     port: 3799
+  radsec:
+    enabled: false
+    listen_address: "0.0.0.0"
+    port: 2083
+    certificate_file: /etc/aegisnas/radsec/server.crt
+    private_key_file: /etc/aegisnas/radsec/server.key
+    private_key_password_env: "" # Set an environment variable name, never a password value.
+    ca_file: /etc/aegisnas/radsec/ca.crt
+    ca_path: /etc/aegisnas/radsec/trust
+    check_crl: true
+    check_all_crl: true
+    ca_path_reload_interval: 3600
+    tls_min_version: "1.2"
+    tls_max_version: "1.3"
+    cipher_list: "DEFAULT@SECLEVEL=2"
+    radius_v11: forbid # Use allow/require only with a RADIUS/1.1-enabled FreeRADIUS build and TLS 1.3.
+    max_connections: 64
+    lifetime_seconds: 86400
+    idle_timeout_seconds: 300
+    probe_interval_seconds: 30
+    certificate_expiry_warning_days: 30
   vendor:
     enabled: false
     name: "AegisNAS"
-    id: 55555 # Lab placeholder from configs/dictionary.aegisnas. Set AEGISNAS_VENDOR_ID or replace with your IANA Private Enterprise Number before production use.
+    id: 55555 # Lab placeholder. Production changes are written by the verified vendor-identity migration workflow after IANA assignment.
+    identity_mode: "lab" # lab, unverified (disabled only), or production. Use the verified migration API to enter production mode.
+    assigned_organization: "" # Exact organization in IANA's Private Enterprise Numbers registry.
+    assignment_registry_url: ""
+    registry_last_updated: ""
+    assignment_verified_at: ""
+    assignment_registry_sha256: ""
+    assignment_record_sha256: ""
+    legacy_ids: [] # Inbound-only PENs accepted during a migration window; replies always use id.
+    legacy_accept_until: "" # Required RFC3339 deadline when legacy_ids is non-empty.
     compatibility_packs: ["standard", "mikrotik", "wispr"] # Add aegisnas, aruba, ruckus, fortinet, cisco, ubnt, cambium, extreme, juniper, huawei, h3c, paloalto, tplink, meraki, or mist only after the NAS/controller side is prepared.
     dictionary_paths: [] # Optional FreeRADIUS dictionary files or directories to import for compatibility coverage, such as /etc/freeradius/3.0/dictionary or /usr/share/freeradius.
     role_mappings: [] # Map local roles to certified uint32 values for cambium, aerohive, dlink, sonicwall, or zte; for example [{pack: dlink, role: admin, value: 5}].
@@ -161,6 +191,15 @@ radius:
       secret: "replace-this-radius-secret"
       shortname: "localhost"
       nas_type: "other"
+      transport: udp
+    # RadSec clients use the fixed RFC 6614 application secret and exact certificate CN verification.
+    # - ip: 10.20.0.20
+    #   shortname: branch-nas-01
+    #   nas_type: other
+    #   transport: radsec
+    #   radsec_certificate_cn: branch-nas-01.example.net
+    #   radsec_certificate_issuer: ""
+    #   radsec_radius_v11: forbid
   upstream:
     enabled: false
     realm: "aegis-upstream"
@@ -175,11 +214,33 @@ radius:
     servers:
       - name: "primary-aaa"
         address: "10.10.10.10"
+        transport: udp
         auth_port: 1812
         acct_port: 1813
         secret: "replace-this-upstream-secret"
+      # - name: "radsec-aaa"
+      #   address: "radsec.example.net"
+      #   transport: radsec
+      #   radsec:
+      #     port: 2083
+      #     server_name: "radsec.example.net"
+      #     certificate_file: /etc/aegisnas/radsec/client.crt
+      #     private_key_file: /etc/aegisnas/radsec/client.key
+      #     private_key_password_env: ""
+      #     ca_file: /etc/aegisnas/radsec/ca.crt
+      #     ca_path: /etc/aegisnas/radsec/trust
+      #     check_crl: true
+      #     tls_min_version: "1.2"
+      #     tls_max_version: "1.3"
+      #     cipher_list: "DEFAULT@SECLEVEL=2"
+      #     radius_v11: forbid
+      #     max_connections: 16
+      #     max_requests: 0
+      #     lifetime_seconds: 86400
+      #     idle_timeout_seconds: 300
       - name: "secondary-aaa"
         address: "10.10.10.11"
+        transport: udp
         auth_port: 1812
         acct_port: 1813
         secret: "replace-this-upstream-secret-too"

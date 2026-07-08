@@ -122,6 +122,15 @@ type UpstreamAAAHistoryRecord = {
   supports_status_server: boolean;
   checked_at: string;
   created_at: string;
+  transport: string;
+  radsec_port?: number;
+  tls_version?: string;
+  tls_cipher_suite?: string;
+  tls_alpn?: string;
+  peer_subject?: string;
+  peer_issuer?: string;
+  peer_serial?: string;
+  peer_not_after?: string;
 };
 
 type UpstreamAAAHistoryStats = {
@@ -287,6 +296,15 @@ type UpstreamAAAHealth = {
   latency_ms?: number;
   checked_at: string;
   supports_status_server: boolean;
+  transport: string;
+  radsec_port?: number;
+  tls_version?: string;
+  tls_cipher_suite?: string;
+  tls_alpn?: string;
+  peer_subject?: string;
+  peer_issuer?: string;
+  peer_serial?: string;
+  peer_not_after?: string;
 };
 
 type DiagnosticsReport = {
@@ -7188,6 +7206,9 @@ export default function Backups() {
                     Status
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-gray-600">
+                    Transport Security
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600">
                     Response
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-gray-600">
@@ -7211,6 +7232,10 @@ export default function Backups() {
                       </div>
                     </td>
                     <td className="px-3 py-2 text-gray-700">{item.status}</td>
+                    <td className="px-3 py-2 text-gray-700">
+                      <div>{item.transport === "radsec" ? `${item.tls_version || "TLS"} / ${item.tls_alpn || "RADIUS/1.0"}` : "RADIUS / UDP"}</div>
+                      {item.transport === "radsec" ? <div className="text-xs text-gray-500">{item.tls_cipher_suite || "-"}<br />{item.peer_subject || "-"}<br />Expires {item.peer_not_after || "-"}</div> : null}
+                    </td>
                     <td className="px-3 py-2 text-gray-700">
                       {item.response_code || "-"}
                     </td>

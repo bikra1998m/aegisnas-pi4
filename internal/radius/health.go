@@ -27,6 +27,15 @@ type UpstreamServerHealth struct {
 	LatencyMs            int64  `json:"latency_ms,omitempty"`
 	CheckedAt            string `json:"checked_at"`
 	SupportsStatusServer bool   `json:"supports_status_server"`
+	Transport            string `json:"transport"`
+	RadSecPort           int    `json:"radsec_port,omitempty"`
+	TLSVersion           string `json:"tls_version,omitempty"`
+	TLSCipherSuite       string `json:"tls_cipher_suite,omitempty"`
+	TLSALPN              string `json:"tls_alpn,omitempty"`
+	PeerSubject          string `json:"peer_subject,omitempty"`
+	PeerIssuer           string `json:"peer_issuer,omitempty"`
+	PeerSerial           string `json:"peer_serial,omitempty"`
+	PeerNotAfter         string `json:"peer_not_after,omitempty"`
 }
 
 func ProbeUpstreamServers(ctx context.Context, cfg *config.Config) ([]UpstreamServerHealth, error) {
@@ -73,6 +82,11 @@ func probeUpstreamServer(ctx context.Context, cfg *config.Config, server config.
 		AcctPort:             acctPort,
 		CheckedAt:            time.Now().UTC().Format(time.RFC3339),
 		SupportsStatusServer: cfg.Radius.Upstream.StatusCheck == "status-server",
+		Transport:            normalizedUpstreamTransport(server.Transport),
+	}
+	if status.Transport == "radsec" {
+		status.RadSecPort = server.RadSec.Port
+		return probeRadSecServer(ctx, cfg, server, status)
 	}
 	component := runtimeStatusComponentName(status.Name)
 
@@ -240,21 +254,34 @@ func runtimeStatusDetails(status UpstreamServerHealth) map[string]any {
 		"latency_ms":             status.LatencyMs,
 		"checked_at":             status.CheckedAt,
 		"supports_status_server": status.SupportsStatusServer,
+		"transport":              status.Transport,
+		"radsec_port":            status.RadSecPort,
+		"tls_version":            status.TLSVersion,
+		"tls_cipher_suite":       status.TLSCipherSuite,
+		"tls_alpn":               status.TLSALPN,
+		"peer_subject":           status.PeerSubject,
+		"peer_issuer":            status.PeerIssuer,
+		"peer_serial":            status.PeerSerial,
+		"peer_not_after":         status.PeerNotAfter,
 	}
 }
 
 func persistUpstreamProbeStatus(component string, status UpstreamServerHealth) {
 	_ = db.UpsertRuntimeStatus(component, status.Status, status.Message, runtimeStatusDetails(status))
-	_ = db.RecordUpstreamAAAHistory(
-		status.Name,
-		status.Address,
-		status.AuthPort,
-		status.AcctPort,
-		status.Status,
-		status.Message,
-		status.ResponseCode,
-		status.LatencyMs,
-		status.SupportsStatusServer,
-		status.CheckedAt,
-	)
+	_ = db.RecordUpstreamAAAHistoryRecord(db.UpstreamAAAHistoryRecord{
+		ServerName: status.Name, Address: status.Address, AuthPort: status.AuthPort, AcctPort: status.AcctPort,
+		Status: status.Status, Message: status.Message, ResponseCode: status.ResponseCode, LatencyMs: status.LatencyMs,
+		SupportsStatusServer: status.SupportsStatusServer, CheckedAt: status.CheckedAt, Transport: status.Transport,
+		RadSecPort: status.RadSecPort, TLSVersion: status.TLSVersion, TLSCipherSuite: status.TLSCipherSuite,
+		TLSALPN: status.TLSALPN, PeerSubject: status.PeerSubject, PeerIssuer: status.PeerIssuer,
+		PeerSerial: status.PeerSerial, PeerNotAfter: status.PeerNotAfter,
+	})
+}
+
+func normalizedUpstreamTransport(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "udp"
+	}
+	return value
 }

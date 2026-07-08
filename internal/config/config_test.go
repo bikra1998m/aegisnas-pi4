@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -689,6 +690,29 @@ portal:
 	assert.False(t, reloaded.Telemetry.Enabled)
 	assert.False(t, reloaded.Policy.RuntimeShapingEnabled)
 	assert.True(t, reloaded.Deployment.Hardware.WirelessPassthrough)
+}
+
+func TestSaveSettingsMapRejectsDirectVendorIdentityChange(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+mode: two-nic
+wan: {name: eth0}
+lan: {name: eth1}
+database: {path: /tmp/aegis.db}
+health: {port: 8080}
+telemetry: {enabled: true, prometheus_port: 9090}
+radius:
+  auth_port: 1812
+  acct_port: 1813
+  request_timeout_seconds: 5
+  vendor: {enabled: false, name: AegisNAS, id: 55555, identity_mode: lab}
+`), 0600))
+	_, err := Load(path)
+	require.NoError(t, err)
+
+	_, err = SaveSettingsMap(map[string]any{"radius": map[string]any{"vendor": map[string]any{"id": 424242, "identity_mode": "unverified"}}})
+	assert.ErrorContains(t, err, "verified vendor identity migration workflow")
+	assert.Equal(t, 55555, Get().Radius.Vendor.ID)
 }
 
 func TestDeploymentSummary(t *testing.T) {

@@ -3,6 +3,7 @@ package adminapi
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -45,6 +46,13 @@ type productionVendorIdentityState struct {
 	PENRegistryURL             string   `json:"pen_registry_url"`
 	PENApplyURL                string   `json:"pen_apply_url"`
 	ProductCompatibilityActive bool     `json:"product_compatibility_active"`
+	IdentityMode               string   `json:"identity_mode"`
+	AssignedOrganization       string   `json:"assigned_organization,omitempty"`
+	EvidenceValid              bool     `json:"evidence_valid"`
+	AssignmentActive           bool     `json:"assignment_active"`
+	AssignmentRecordSHA256     string   `json:"assignment_record_sha256,omitempty"`
+	LegacyIDs                  []int    `json:"legacy_ids,omitempty"`
+	LegacyAcceptUntil          string   `json:"legacy_accept_until,omitempty"`
 }
 
 type productionReadinessCheck struct {
@@ -95,12 +103,60 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
+	addProductionRadSecCheck(&report, cfg)
 	addProductionFeatureCapabilityCheck(&report, cfg)
 	addProductionControllerCheck(&report, cfg)
 	addProductionVendorRuntimeCheck(&report)
 
 	finalizeProductionReadinessReport(&report)
 	return report
+}
+
+func addProductionRadSecCheck(report *productionReadinessReport, cfg *config.Config) {
+	paths := []string{}
+	if cfg.Radius.RadSec.Enabled {
+		paths = append(paths, cfg.Radius.RadSec.CertificateFile, cfg.Radius.RadSec.PrivateKeyFile)
+		if cfg.Radius.RadSec.CAFile != "" {
+			paths = append(paths, cfg.Radius.RadSec.CAFile)
+		}
+		if env := strings.TrimSpace(cfg.Radius.RadSec.PrivateKeyPasswordEnv); env != "" && os.Getenv(env) == "" {
+			addProductionCheck(report, productionReadinessCheck{Key: "radsec_key_environment", Category: "security", Label: "RadSec Key Password Environment", Status: "blocked", Summary: "RadSec private key password environment variable " + env + " is not set.", Recommendation: "Set the systemd service environment securely before applying RadSec configuration.", Dependencies: []string{env}})
+			return
+		}
+	}
+	peerCount := 0
+	for _, server := range cfg.Radius.Upstream.Servers {
+		if !strings.EqualFold(strings.TrimSpace(server.Transport), "radsec") {
+			continue
+		}
+		peerCount++
+		paths = append(paths, server.RadSec.CertificateFile, server.RadSec.PrivateKeyFile)
+		if server.RadSec.CAFile != "" {
+			paths = append(paths, server.RadSec.CAFile)
+		}
+		if env := strings.TrimSpace(server.RadSec.PrivateKeyPasswordEnv); env != "" && os.Getenv(env) == "" {
+			addProductionCheck(report, productionReadinessCheck{Key: "radsec_key_environment", Category: "security", Label: "RadSec Key Password Environment", Status: "blocked", Summary: "RadSec private key password environment variable " + env + " is not set.", Recommendation: "Set the systemd service environment securely before applying RadSec configuration.", Dependencies: []string{env}})
+			return
+		}
+	}
+	if !cfg.Radius.RadSec.Enabled && peerCount == 0 {
+		return
+	}
+	missing := []string{}
+	for _, path := range paths {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		if info, err := os.Stat(path); err != nil || info.IsDir() {
+			missing = append(missing, path)
+		}
+	}
+	if len(missing) > 0 {
+		addProductionCheck(report, productionReadinessCheck{Key: "radsec_credentials", Category: "security", Label: "RadSec Credentials", Status: "blocked", Summary: "RadSec certificate, key, or CA files are unavailable: " + strings.Join(missing, ", "), Recommendation: "Install the mTLS identity and trust files with root ownership and least-privilege service access.", Dependencies: missing})
+		return
+	}
+	addProductionCheck(report, productionReadinessCheck{Key: "radsec_credentials", Category: "security", Label: "RadSec Credentials", Status: "passed", Summary: fmt.Sprintf("RadSec credential files are present for the inbound listener and %d outbound peer(s).", peerCount)})
 }
 
 func buildProductionVendorIdentityState(cfg *config.Config) productionVendorIdentityState {
@@ -112,7 +168,7 @@ func buildProductionVendorIdentityState(cfg *config.Config) productionVendorIden
 		idSource = "config:radius.vendor.id"
 	}
 	importPaths := vendorDictionaryImportPaths(cfg)
-	return productionVendorIdentityState{
+	state := productionVendorIdentityState{
 		Enabled:                    vendor.Enabled,
 		Name:                       strings.TrimSpace(vendor.Name),
 		ConfiguredID:               configuredID,
@@ -126,7 +182,21 @@ func buildProductionVendorIdentityState(cfg *config.Config) productionVendorIden
 		PENRegistryURL:             identity.RegistryURL,
 		PENApplyURL:                identity.ApplyURL,
 		ProductCompatibilityActive: normalizedProductionPackSet(vendor.CompatibilityPacks)[productconfigs.VendorPackAegisNAS],
+		IdentityMode:               strings.ToLower(strings.TrimSpace(vendor.IdentityMode)),
+		AssignedOrganization:       strings.TrimSpace(vendor.AssignedOrganization),
+		AssignmentRecordSHA256:     strings.TrimSpace(vendor.AssignmentRecordSHA),
+		LegacyIDs:                  append([]int(nil), vendor.LegacyIDs...),
+		LegacyAcceptUntil:          strings.TrimSpace(vendor.LegacyAcceptUntil),
 	}
+	if evidence, err := config.RadiusVendorAssignmentEvidence(vendor); err == nil {
+		state.EvidenceValid = evidence.Validate(vendor.ID, vendor.AssignedOrganization) == nil
+	}
+	if db.DB != nil {
+		if assignment, err := db.ActiveVendorIdentityAssignment(db.DB); err == nil && assignment != nil {
+			state.AssignmentActive = assignment.PEN == uint32(vendor.ID) && assignment.RecordSHA256 == vendor.AssignmentRecordSHA
+		}
+	}
+	return state
 }
 
 func productDictionaryDetected(cfg *config.Config, importPaths []string) bool {
@@ -247,8 +317,18 @@ func addProductionVendorIdentityCheck(report *productionReadinessReport) {
 			Label:          "AegisNAS Vendor Identity",
 			Status:         "blocked",
 			Summary:        fmt.Sprintf("AegisNAS product VSAs are enabled with the lab placeholder vendor ID %d.", productconfigs.AegisNASPlaceholderVendorID),
-			Recommendation: "Request an IANA Private Enterprise Number and set radius.vendor.id or AEGISNAS_VENDOR_ID before production VSA use.",
-			Dependencies:   []string{"radius.vendor.id", productconfigs.AegisNASVendorIDEnv},
+			Recommendation: "Request an IANA Private Enterprise Number, wait for publication, and use the verified Vendor Identity preview/apply workflow.",
+			Dependencies:   []string{"radius.vendor.id", "vendor_identity_assignments"},
+		})
+	case identity.IdentityMode != "production" || !identity.EvidenceValid || !identity.AssignmentActive:
+		addProductionCheck(report, productionReadinessCheck{
+			Key:            "vendor_identity",
+			Category:       "vendor",
+			Label:          "AegisNAS Vendor Identity",
+			Status:         "blocked",
+			Summary:        fmt.Sprintf("AegisNAS PEN %d does not have matching verified IANA evidence and an active assignment record.", identity.ConfiguredID),
+			Recommendation: "Use the Vendor Identity preview/apply workflow after IANA assigns the PEN; do not activate arbitrary non-placeholder values.",
+			Dependencies:   []string{"radius.vendor.identity_mode", "vendor_identity_assignments"},
 		})
 	default:
 		addProductionCheck(report, productionReadinessCheck{
@@ -256,7 +336,7 @@ func addProductionVendorIdentityCheck(report *productionReadinessReport) {
 			Category: "vendor",
 			Label:    "AegisNAS Vendor Identity",
 			Status:   "passed",
-			Summary:  fmt.Sprintf("AegisNAS product vendor ID %d is not the lab placeholder.", identity.ConfiguredID),
+			Summary:  fmt.Sprintf("AegisNAS product PEN %d is verified for %s and matches the active assignment record.", identity.ConfiguredID, identity.AssignedOrganization),
 		})
 	}
 }

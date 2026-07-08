@@ -36,6 +36,7 @@ func ApplyConfig(cfg *config.Config) error {
 		filepath.Join(raddb, "proxy.conf"):                        fullCfg.ProxyConf,
 		filepath.Join(raddb, "sites-enabled", "default"):          fullCfg.SitesDefault,
 		filepath.Join(raddb, "sites-enabled", "inner-tunnel"):     fullCfg.SitesInnerTunnel,
+		filepath.Join(raddb, "sites-enabled", "aegis-radsec"):     fullCfg.RadSecSite,
 	}
 
 	for path, content := range files {
@@ -58,6 +59,23 @@ func ApplyConfig(cfg *config.Config) error {
 	}
 
 	logging.L().Info("FreeRADIUS configuration applied and service restarted")
+	return nil
+}
+
+// ApplyVendorIdentityConfig applies FreeRADIUS state and restarts the AegisNAS
+// broker so both packet paths switch PENs in the same maintenance operation.
+func ApplyVendorIdentityConfig(cfg *config.Config) error {
+	if err := ApplyConfig(cfg); err != nil {
+		return err
+	}
+	restartCmd := exec.Command("systemctl", "restart", "aegis-radius")
+	if out, err := restartCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("restart aegis-radius after vendor identity change: %w\nOutput: %s", err, out)
+	}
+	activeCmd := exec.Command("systemctl", "is-active", "--quiet", "aegis-radius")
+	if out, err := activeCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("aegis-radius is not active after vendor identity change: %w\nOutput: %s", err, out)
+	}
 	return nil
 }
 

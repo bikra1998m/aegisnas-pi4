@@ -74,6 +74,62 @@ func TestGenerator(t *testing.T) {
 	assert.Contains(t, fullCfg.VendorDictionary, "ATTRIBUTE AegisNAS-Bandwidth-Profile 2 string")
 }
 
+func TestGeneratorRendersInboundAndOutboundRadSec(t *testing.T) {
+	previousDB := db.DB
+	db.DB = nil
+	t.Cleanup(func() { db.DB = previousDB })
+
+	cfg := &config.Config{Radius: config.RadiusConfig{
+		Secret: "local-secret", AuthPort: 1812, AcctPort: 1813,
+		RadSec: config.RadiusRadSecConfig{
+			Enabled: true, ListenAddress: "0.0.0.0", Port: 2083,
+			CertificateFile: "/radsec/server.crt", PrivateKeyFile: "/radsec/server.key",
+			PrivateKeyPasswordEnv: "RADSEC_SERVER_KEY_PASSWORD", CAFile: "/radsec/ca.crt",
+			CheckCRL: true, CheckAllCRL: true, CAPathReloadInterval: 3600,
+			TLSMinVersion: "1.2", TLSMaxVersion: "1.3", CipherList: "DEFAULT@SECLEVEL=2",
+			RadiusV11: "forbid", MaxConnections: 64, LifetimeSeconds: 86400, IdleTimeoutSeconds: 300,
+		},
+		Clients: []config.RadiusClient{
+			{IP: "192.0.2.10", ShortName: "branch-nas", NASType: "cisco", Transport: "radsec", RadSecCertificateCN: "branch-nas.example.net"},
+		},
+		Upstream: config.RadiusUpstreamConfig{
+			Enabled: true, Realm: "secure-realm", PoolStrategy: "fail-over", StatusCheck: "status-server",
+			ResponseWindow: 20, ZombiePeriod: 40, ReviveInterval: 120, CheckInterval: 30, NumAnswersToAlive: 3,
+			Servers: []config.RadiusHomeServer{{Name: "secure-aaa", Address: "203.0.113.20", Transport: "radsec", RadSec: config.RadiusRadSecPeerConfig{
+				Port: 2083, ServerName: "aaa.example.net", CertificateFile: "/radsec/client.crt", PrivateKeyFile: "/radsec/client.key",
+				PrivateKeyPasswordEnv: "RADSEC_CLIENT_KEY_PASSWORD", CAFile: "/radsec/ca.crt", CheckCRL: true,
+				TLSMinVersion: "1.2", TLSMaxVersion: "1.3", CipherList: "DEFAULT@SECLEVEL=2", RadiusV11: "forbid",
+				MaxConnections: 16, LifetimeSeconds: 86400, IdleTimeoutSeconds: 300,
+			}}},
+		},
+	}, Database: config.DatabaseConfig{Path: "/var/lib/aegisnas/data.db"}}
+
+	generated, err := NewGenerator(cfg).Generate()
+	require.NoError(t, err)
+	assert.NotContains(t, generated.ClientsConf, "branch-nas")
+	assert.Contains(t, generated.RadSecSite, "type = auth+acct+coa")
+	assert.Contains(t, generated.RadSecSite, "require_client_cert = yes")
+	assert.Contains(t, generated.RadSecSite, "check_cert_cn = %{client:shortname}")
+	assert.Contains(t, generated.RadSecSite, "shortname = branch-nas.example.net")
+	assert.Contains(t, generated.RadSecSite, "private_key_password = $ENV{RADSEC_SERVER_KEY_PASSWORD}")
+	assert.NotContains(t, generated.RadSecSite, "radiusv1_1")
+	assert.Contains(t, generated.ProxyConf, "proto = tcp")
+	assert.Contains(t, generated.ProxyConf, "secret = radsec")
+	assert.Contains(t, generated.ProxyConf, "hostname = aaa.example.net")
+	assert.Contains(t, generated.ProxyConf, "private_key_password = $ENV{RADSEC_CLIENT_KEY_PASSWORD}")
+	assert.NotContains(t, generated.ProxyConf, "acctport = 2083")
+}
+
+func TestGeneratorEmitsRadiusV11OnlyWhenEnabled(t *testing.T) {
+	cfg := &config.Config{Radius: config.RadiusConfig{AuthPort: 1812, AcctPort: 1813, RadSec: config.RadiusRadSecConfig{
+		Enabled: true, ListenAddress: "::", Port: 2083, CertificateFile: "/server.crt", PrivateKeyFile: "/server.key",
+		CAFile: "/ca.crt", TLSMinVersion: "1.3", TLSMaxVersion: "1.3", CipherList: "DEFAULT", RadiusV11: "require",
+	}}}
+	generated, err := NewGenerator(cfg).Generate()
+	require.NoError(t, err)
+	assert.Contains(t, generated.RadSecSite, "radiusv1_1 = require")
+}
+
 func TestGeneratorFallsBackToConfigClientsWhenDBNotMigrated(t *testing.T) {
 	previousDB := db.DB
 	tmpDB, err := os.CreateTemp("", "aegis-radius-*.db")
