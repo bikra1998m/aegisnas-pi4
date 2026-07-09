@@ -36,6 +36,21 @@ go run ./cmd/aegis-admin seed --config configs/config.yaml
 go run ./cmd/aegis-admin-api run --config configs/config.yaml
 ```
 
+## Secret Provider Operations
+
+Use [secret-providers.md](secret-providers.md) for the NAS-0007 secret reference
+model. Before production sign-off, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/secret-providers | jq '.status, .summary'
+```
+
+All required `env:` and `file:` refs must resolve, and inline secret material
+must be migrated out of YAML and SQLite. Existing inline secrets remain
+backward-compatible during upgrade, but production readiness marks them as
+blocking when `security.secrets.production_require_references` is enabled.
+
 ## Admin Access Workflow
 
 Operators can now sign in with either:

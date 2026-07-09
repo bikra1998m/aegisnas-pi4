@@ -245,7 +245,64 @@ func TestConfigValidation(t *testing.T) {
 					},
 				},
 			},
-			wantErr: "requires radius.secret",
+			wantErr: "requires radius.secret or radius.secret_ref",
+		},
+		{
+			name: "radius client can use secret ref",
+			cfg: &Config{
+				Mode:      "two-nic",
+				WAN:       InterfaceConfig{Name: "eth0"},
+				LAN:       InterfaceConfig{Name: "eth1"},
+				Database:  DatabaseConfig{Path: "/tmp/aegis.db"},
+				Health:    HealthConfig{Port: 8080},
+				Telemetry: TelemetryConfig{Enabled: true, PrometheusPort: 9090},
+				Radius: RadiusConfig{
+					AuthPort:              1812,
+					AcctPort:              1813,
+					RequestTimeoutSeconds: 5,
+					Clients: []RadiusClient{
+						{IP: "192.0.2.10", SecretRef: "env:AEGIS_AP_SECRET", ShortName: "ap"},
+					},
+				},
+			},
+		},
+		{
+			name: "radius client rejects ambiguous inline secret and ref",
+			cfg: &Config{
+				Mode:      "two-nic",
+				WAN:       InterfaceConfig{Name: "eth0"},
+				LAN:       InterfaceConfig{Name: "eth1"},
+				Database:  DatabaseConfig{Path: "/tmp/aegis.db"},
+				Health:    HealthConfig{Port: 8080},
+				Telemetry: TelemetryConfig{Enabled: true, PrometheusPort: 9090},
+				Radius: RadiusConfig{
+					AuthPort:              1812,
+					AcctPort:              1813,
+					RequestTimeoutSeconds: 5,
+					Clients: []RadiusClient{
+						{IP: "192.0.2.10", Secret: "inline", SecretRef: "env:AEGIS_AP_SECRET", ShortName: "ap"},
+					},
+				},
+			},
+			wantErr: "cannot both be set",
+		},
+		{
+			name: "secret provider rejects unsupported provider",
+			cfg: &Config{
+				Mode:      "two-nic",
+				WAN:       InterfaceConfig{Name: "eth0"},
+				LAN:       InterfaceConfig{Name: "eth1"},
+				Database:  DatabaseConfig{Path: "/tmp/aegis.db"},
+				Health:    HealthConfig{Port: 8080},
+				Telemetry: TelemetryConfig{Enabled: true, PrometheusPort: 9090},
+				Security:  SecurityConfig{Secrets: SecretProviderConfig{Enabled: true, Providers: []string{"vault"}}},
+				Radius: RadiusConfig{
+					AuthPort:              1812,
+					AcctPort:              1813,
+					RequestTimeoutSeconds: 5,
+				},
+			},
+			wantErr: "is not supported",
 		},
 		{
 			name: "wireless wpa3 personal without passphrase",

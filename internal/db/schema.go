@@ -61,7 +61,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{12, schemaV12},
 		{13, schemaV13},
 		{14, schemaV14},
-		{LatestSchemaVersion(), schemaV15},
+		{15, schemaV15},
+		{LatestSchemaVersion(), schemaV16},
 	}
 
 	for _, m := range migrations {
@@ -88,8 +89,29 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureACLPolicyBindingColumns(handle); err != nil {
 		return fmt.Errorf("repair ACL policy binding schema: %w", err)
 	}
+	if err := ensureRadiusClientSecretColumns(handle); err != nil {
+		return fmt.Errorf("repair radius client secret schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureRadiusClientSecretColumns(handle *sql.DB) error {
+	exists, err := tableExists(handle, "radius_clients")
+	if err != nil || !exists {
+		return err
+	}
+	hasColumn, err := tableHasColumn(handle, "radius_clients", "secret_ref")
+	if err != nil {
+		return err
+	}
+	if !hasColumn {
+		if _, err := handle.Exec(`ALTER TABLE radius_clients ADD COLUMN secret_ref TEXT`); err != nil {
+			return err
+		}
+	}
+	_, err = handle.Exec(`CREATE INDEX IF NOT EXISTS idx_radius_clients_secret_ref ON radius_clients(secret_ref)`)
+	return err
 }
 
 func ensureRadSecCompatibilityColumns(handle *sql.DB) error {

@@ -2,6 +2,7 @@ package radius
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"text/template"
@@ -9,6 +10,7 @@ import (
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
+	"github.com/yourorg/aegisnas-pi4/internal/secrets"
 )
 
 // FreeRADIUSConfig bundles all generated configuration files.
@@ -55,6 +57,10 @@ func (g *Generator) Generate() (*FreeRADIUSConfig, error) {
 		clients = append([]config.RadiusClient(nil), g.cfg.Radius.Clients...)
 	}
 	clients = g.ensureBrokerClients(clients)
+	clients, err = g.resolveClientSecrets(clients)
+	if err != nil {
+		return nil, fmt.Errorf("clients secret resolution: %w", err)
+	}
 	udpClients, radSecClients := splitClientDefinitions(clients)
 	out.ClientsConf, err = renderClientDefinitions(udpClients)
 	if err != nil {
@@ -118,6 +124,36 @@ func (g *Generator) Generate() (*FreeRADIUSConfig, error) {
 }
 
 func clientDefinitionsFromDB() ([]config.RadiusClient, error) {
+	rows, err := db.DB.Query(`SELECT shortname, ipaddr, secret, COALESCE(secret_ref, ''), COALESCE(NULLIF(TRIM(nas_type), ''), 'other'),
+		COALESCE(NULLIF(TRIM(transport), ''), 'udp'), COALESCE(radsec_certificate_cn, ''),
+		COALESCE(radsec_certificate_issuer, ''), COALESCE(radsec_radius_v11, '')
+		FROM radius_clients WHERE enabled = 1`)
+	if isMissingRadiusClientSecretRefColumn(err) {
+		return clientDefinitionsWithoutSecretRefFromDB()
+	}
+	if isMissingRadiusClientRadSecColumn(err) {
+		return clientDefinitionsWithoutRadSecFromDB()
+	}
+	if isMissingRadiusClientNASTypeColumn(err) {
+		return legacyClientDefinitionsFromDB()
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var clients []config.RadiusClient
+	for rows.Next() {
+		var c config.RadiusClient
+		if err := rows.Scan(&c.ShortName, &c.IP, &c.Secret, &c.SecretRef, &c.NASType, &c.Transport, &c.RadSecCertificateCN, &c.RadSecCertificateIssuer, &c.RadSecRadiusV11); err != nil {
+			return nil, err
+		}
+		clients = append(clients, c)
+	}
+	return clients, rows.Err()
+}
+
+func clientDefinitionsWithoutSecretRefFromDB() ([]config.RadiusClient, error) {
 	rows, err := db.DB.Query(`SELECT shortname, ipaddr, secret, COALESCE(NULLIF(TRIM(nas_type), ''), 'other'),
 		COALESCE(NULLIF(TRIM(transport), ''), 'udp'), COALESCE(radsec_certificate_cn, ''),
 		COALESCE(radsec_certificate_issuer, ''), COALESCE(radsec_radius_v11, '')
@@ -400,6 +436,14 @@ func isMissingRadiusClientRadSecColumn(err error) bool {
 		(strings.Contains(normalized, "transport") || strings.Contains(normalized, "radsec_"))
 }
 
+func isMissingRadiusClientSecretRefColumn(err error) bool {
+	if err == nil {
+		return false
+	}
+	normalized := strings.ToLower(err.Error())
+	return strings.Contains(normalized, "no such column") && strings.Contains(normalized, "secret_ref")
+}
+
 func (g *Generator) ensureBrokerClients(existing []config.RadiusClient) []config.RadiusClient {
 	clients := append([]config.RadiusClient(nil), existing...)
 	ensure := func(ip, shortName string) {
@@ -408,6 +452,7 @@ func (g *Generator) ensureBrokerClients(existing []config.RadiusClient) []config
 				continue
 			}
 			clients[i].Secret = g.cfg.Radius.Secret
+			clients[i].SecretRef = g.cfg.Radius.SecretRef
 			if strings.TrimSpace(clients[i].ShortName) == "" {
 				clients[i].ShortName = shortName
 			}
@@ -419,6 +464,7 @@ func (g *Generator) ensureBrokerClients(existing []config.RadiusClient) []config
 		clients = append(clients, config.RadiusClient{
 			IP:        ip,
 			Secret:    g.cfg.Radius.Secret,
+			SecretRef: g.cfg.Radius.SecretRef,
 			ShortName: shortName,
 			NASType:   "other",
 			Transport: "udp",
@@ -430,10 +476,39 @@ func (g *Generator) ensureBrokerClients(existing []config.RadiusClient) []config
 	return clients
 }
 
+func (g *Generator) resolveClientSecrets(clients []config.RadiusClient) ([]config.RadiusClient, error) {
+	resolver := secrets.NewResolver(secrets.OptionsFromConfig(g.cfg))
+	resolved := append([]config.RadiusClient(nil), clients...)
+	for i := range resolved {
+		transport := strings.ToLower(strings.TrimSpace(resolved[i].Transport))
+		if transport == "" {
+			transport = "udp"
+		}
+		if transport == "radsec" {
+			resolved[i].Secret = "radsec"
+			resolved[i].SecretRef = ""
+			continue
+		}
+		secret, err := secrets.ResolveConfiguredSecret(context.Background(), resolver, fmt.Sprintf("radius.clients[%d].secret", i), resolved[i].Secret, resolved[i].SecretRef)
+		if err != nil {
+			return nil, err
+		}
+		resolved[i].Secret = secret
+		resolved[i].SecretRef = ""
+	}
+	return resolved, nil
+}
+
 func (g *Generator) renderModsLDAP() (string, error) {
 	if !g.cfg.LDAP.Enabled {
 		return "# LDAP disabled\n", nil
 	}
+	ldap := g.cfg.LDAP
+	password, err := secrets.ResolveConfiguredSecret(context.Background(), secrets.NewResolver(secrets.OptionsFromConfig(g.cfg)), "ldap.bind_password", ldap.BindPassword, ldap.BindPasswordRef)
+	if err != nil {
+		return "", err
+	}
+	ldap.BindPassword = password
 	tmpl := `# mods-enabled/ldap
 ldap {
 	server = '{{ .LDAP.URL }}'
@@ -459,7 +534,7 @@ ldap {
 `
 	var buf bytes.Buffer
 	t := template.Must(template.New("ldap").Parse(tmpl))
-	err := t.Execute(&buf, g.cfg)
+	err = t.Execute(&buf, struct{ LDAP config.LDAPConfig }{LDAP: ldap})
 	return buf.String(), err
 }
 
@@ -506,6 +581,7 @@ func (g *Generator) renderProxyConf() (string, error) {
 	}
 
 	servers := make([]upstreamServer, 0, len(g.cfg.Radius.Upstream.Servers))
+	resolver := secrets.NewResolver(secrets.OptionsFromConfig(g.cfg))
 	for _, server := range g.cfg.Radius.Upstream.Servers {
 		authPort := server.AuthPort
 		if authPort == 0 {
@@ -523,12 +599,20 @@ func (g *Generator) renderProxyConf() (string, error) {
 			authPort = server.RadSec.Port
 			acctPort = server.RadSec.Port
 		}
+		secret := server.Secret
+		if transport == "udp" {
+			resolvedSecret, err := secrets.ResolveConfiguredSecret(context.Background(), resolver, "radius.upstream.servers."+server.Name+".secret", server.Secret, server.SecretRef)
+			if err != nil {
+				return "", err
+			}
+			secret = resolvedSecret
+		}
 		servers = append(servers, upstreamServer{
 			Name:      server.Name,
 			Address:   server.Address,
 			AuthPort:  authPort,
 			AcctPort:  acctPort,
-			Secret:    server.Secret,
+			Secret:    secret,
 			Transport: transport,
 			RadSec:    server.RadSec,
 		})

@@ -294,6 +294,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/integration-history.json", requestPath: "/api/v1/system/integration-history", label: "Integration history", handler: HandleListIntegrationHistory},
 		{archivePath: "api/ha-history.json", requestPath: "/api/v1/system/ha/history", label: "HA history", handler: HandleListHAHistory},
 		{archivePath: "api/upgrade-readiness.json", requestPath: "/api/v1/system/upgrade-readiness", label: "Upgrade readiness", handler: HandleGetUpgradeReadiness},
+		{archivePath: "api/secret-providers.json", requestPath: "/api/v1/system/secret-providers", label: "Secret provider readiness", handler: HandleGetSecretProviders},
 		{archivePath: "api/openapi.json", requestPath: "/api/v1/openapi.json", label: "OpenAPI schema", handler: HandleGetOpenAPI},
 	}
 }
@@ -410,6 +411,9 @@ func shouldRedactSupportBundleKey(key string) bool {
 		return false
 	}
 	if strings.HasSuffix(lower, "_env") {
+		return false
+	}
+	if strings.HasSuffix(lower, "_ref") {
 		return false
 	}
 	sensitiveTokens := []string{

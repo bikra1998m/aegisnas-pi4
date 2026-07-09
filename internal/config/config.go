@@ -36,6 +36,7 @@ type Config struct {
 	Profiling        ProfilingConfig        `mapstructure:"profiling"`
 	Integrations     IntegrationsConfig     `mapstructure:"integrations"`
 	Governance       GovernanceConfig       `mapstructure:"governance"`
+	Security         SecurityConfig         `mapstructure:"security"`
 	HighAvailability HighAvailabilityConfig `mapstructure:"high_availability"`
 	DHCP             DHCPConfig             `mapstructure:"dhcp"`
 	Wireless         WirelessConfig         `mapstructure:"wireless"`
@@ -182,6 +183,7 @@ type HealthConfig struct {
 type RadiusConfig struct {
 	Clients               []RadiusClient       `mapstructure:"clients"`
 	Secret                string               `mapstructure:"secret"`
+	SecretRef             string               `mapstructure:"secret_ref"`
 	AuthPort              int                  `mapstructure:"auth_port"`
 	AcctPort              int                  `mapstructure:"acct_port"`
 	MaxSessions           int                  `mapstructure:"max_sessions"`
@@ -199,6 +201,7 @@ type RadiusConfig struct {
 type RadiusClient struct {
 	IP                      string `mapstructure:"ip"`
 	Secret                  string `mapstructure:"secret"`
+	SecretRef               string `mapstructure:"secret_ref"`
 	ShortName               string `mapstructure:"shortname"`
 	NASType                 string `mapstructure:"nas_type"`
 	Transport               string `mapstructure:"transport"`
@@ -252,6 +255,7 @@ type RadiusHomeServer struct {
 	AuthPort  int                    `mapstructure:"auth_port"`
 	AcctPort  int                    `mapstructure:"acct_port"`
 	Secret    string                 `mapstructure:"secret"`
+	SecretRef string                 `mapstructure:"secret_ref"`
 	Transport string                 `mapstructure:"transport"`
 	RadSec    RadiusRadSecPeerConfig `mapstructure:"radsec"`
 }
@@ -423,13 +427,14 @@ type PortalGuestWorkflowConfig struct {
 }
 
 type LDAPConfig struct {
-	Enabled      bool   `mapstructure:"enabled"`
-	URL          string `mapstructure:"url"`
-	BaseDN       string `mapstructure:"base_dn"`
-	BindDN       string `mapstructure:"bind_dn"`
-	BindPassword string `mapstructure:"bind_password"`
-	UserFilter   string `mapstructure:"user_filter"`
-	GroupFilter  string `mapstructure:"group_filter"`
+	Enabled         bool   `mapstructure:"enabled"`
+	URL             string `mapstructure:"url"`
+	BaseDN          string `mapstructure:"base_dn"`
+	BindDN          string `mapstructure:"bind_dn"`
+	BindPassword    string `mapstructure:"bind_password"`
+	BindPasswordRef string `mapstructure:"bind_password_ref"`
+	UserFilter      string `mapstructure:"user_filter"`
+	GroupFilter     string `mapstructure:"group_filter"`
 }
 
 type PolicyConfig struct {
@@ -564,6 +569,19 @@ type GovernanceConfig struct {
 	ExternalGroupsEnabled bool   `mapstructure:"external_groups_enabled"`
 	MultiTenantEnabled    bool   `mapstructure:"multi_tenant_enabled"`
 	TenantClaim           string `mapstructure:"tenant_claim"`
+}
+
+type SecurityConfig struct {
+	Secrets SecretProviderConfig `mapstructure:"secrets"`
+}
+
+type SecretProviderConfig struct {
+	Enabled                     bool     `mapstructure:"enabled"`
+	Providers                   []string `mapstructure:"providers"`
+	FileBaseDir                 string   `mapstructure:"file_base_dir"`
+	MaxSecretBytes              int      `mapstructure:"max_secret_bytes"`
+	AllowInline                 bool     `mapstructure:"allow_inline"`
+	ProductionRequireReferences bool     `mapstructure:"production_require_references"`
 }
 
 type HighAvailabilityConfig struct {
@@ -844,6 +862,12 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("integrations.siem.batch_size", 100)
 	v.SetDefault("integrations.controller.sync_mode", "monitor")
 	v.SetDefault("governance.rbac_mode", "local")
+	v.SetDefault("security.secrets.enabled", true)
+	v.SetDefault("security.secrets.providers", []string{"env", "file"})
+	v.SetDefault("security.secrets.file_base_dir", "/etc/aegisnas/secrets")
+	v.SetDefault("security.secrets.max_secret_bytes", 8192)
+	v.SetDefault("security.secrets.allow_inline", true)
+	v.SetDefault("security.secrets.production_require_references", true)
 	v.SetDefault("high_availability.enabled", false)
 	v.SetDefault("high_availability.role", "standby")
 	v.SetDefault("high_availability.heartbeat_interval_seconds", 5)
@@ -1049,6 +1073,12 @@ func (c *Config) Validate() error {
 	}
 	if c.Deployment.Hardware.WirelessPassthrough && EffectiveDeploymentForm(c.Deployment.Form) != "virtual" {
 		return errors.New("deployment.hardware.wireless_passthrough is only valid for virtual deployments")
+	}
+	if err := validateSecretProviderConfig(c.Security.Secrets); err != nil {
+		return err
+	}
+	if err := validateConfiguredSecretReferences(c); err != nil {
+		return err
 	}
 
 	if c.Mode == "two-nic" {
@@ -3303,8 +3333,8 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("radius.client[%d] missing ip", i)
 		}
 		transport := normalizeRadiusTransport(cl.Transport)
-		if transport == "udp" && cl.Secret == "" {
-			return fmt.Errorf("radius.client[%d] missing secret", i)
+		if transport == "udp" && strings.TrimSpace(cl.Secret) == "" && strings.TrimSpace(cl.SecretRef) == "" {
+			return fmt.Errorf("radius.client[%d] missing secret or secret_ref", i)
 		}
 		if err := validateRadiusClientTransport(i, cl, c.Radius.RadSec.Enabled); err != nil {
 			return err
@@ -3361,8 +3391,8 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("radius.upstream.server[%d] missing address", i)
 			}
 			transport := normalizeRadiusTransport(server.Transport)
-			if transport == "udp" && strings.TrimSpace(server.Secret) == "" {
-				return fmt.Errorf("radius.upstream.server[%d] missing secret", i)
+			if transport == "udp" && strings.TrimSpace(server.Secret) == "" && strings.TrimSpace(server.SecretRef) == "" {
+				return fmt.Errorf("radius.upstream.server[%d] missing secret or secret_ref", i)
 			}
 			if server.AuthPort != 0 && (server.AuthPort < 1 || server.AuthPort > 65535) {
 				return fmt.Errorf("radius.upstream.server[%d] auth_port %d out of range", i, server.AuthPort)
@@ -3425,8 +3455,8 @@ func (c *Config) Validate() error {
 					return fmt.Errorf("wireless.ssids[%d].passphrase must be 8-63 characters for %s", i, ssid.AuthMode)
 				}
 			}
-			if (ssid.AuthMode == "wpa2-enterprise" || ssid.AuthMode == "wpa3-enterprise") && strings.TrimSpace(c.Radius.Secret) == "" {
-				return fmt.Errorf("wireless.ssids[%d] requires radius.secret for %s", i, ssid.AuthMode)
+			if (ssid.AuthMode == "wpa2-enterprise" || ssid.AuthMode == "wpa3-enterprise") && strings.TrimSpace(c.Radius.Secret) == "" && strings.TrimSpace(c.Radius.SecretRef) == "" {
+				return fmt.Errorf("wireless.ssids[%d] requires radius.secret or radius.secret_ref for %s", i, ssid.AuthMode)
 			}
 			if ssid.AuthMode == "captive-portal" && !c.Portal.Enabled {
 				return fmt.Errorf("wireless.ssids[%d] requires portal.enabled for captive-portal auth", i)
@@ -3618,6 +3648,109 @@ func requireHTTPURL(fieldName, raw string) error {
 	default:
 		return fmt.Errorf("%s %q must use http or https", fieldName, raw)
 	}
+}
+
+func validateSecretProviderConfig(cfg SecretProviderConfig) error {
+	providers := cfg.Providers
+	if len(providers) == 0 {
+		providers = []string{"env", "file"}
+	}
+	seen := map[string]struct{}{}
+	for i, provider := range providers {
+		normalized := strings.ToLower(strings.TrimSpace(provider))
+		switch normalized {
+		case "env", "file":
+		default:
+			return fmt.Errorf("security.secrets.providers[%d] %q is not supported", i, provider)
+		}
+		if _, exists := seen[normalized]; exists {
+			return fmt.Errorf("security.secrets.providers[%d] %q duplicates an earlier provider", i, provider)
+		}
+		seen[normalized] = struct{}{}
+	}
+	if cfg.MaxSecretBytes < 0 {
+		return fmt.Errorf("security.secrets.max_secret_bytes %d cannot be negative", cfg.MaxSecretBytes)
+	}
+	if cfg.MaxSecretBytes > 1024*1024 {
+		return fmt.Errorf("security.secrets.max_secret_bytes %d exceeds 1048576", cfg.MaxSecretBytes)
+	}
+	if strings.ContainsAny(cfg.FileBaseDir, "\r\n\x00") {
+		return errors.New("security.secrets.file_base_dir contains invalid characters")
+	}
+	return nil
+}
+
+func validateConfiguredSecretReferences(c *Config) error {
+	if c == nil {
+		return nil
+	}
+	if err := validateSecretPair("radius.secret", c.Radius.Secret, "radius.secret_ref", c.Radius.SecretRef); err != nil {
+		return err
+	}
+	for i, client := range c.Radius.Clients {
+		if err := validateSecretPair(fmt.Sprintf("radius.clients[%d].secret", i), client.Secret, fmt.Sprintf("radius.clients[%d].secret_ref", i), client.SecretRef); err != nil {
+			return err
+		}
+	}
+	for i, server := range c.Radius.Upstream.Servers {
+		if err := validateSecretPair(fmt.Sprintf("radius.upstream.servers[%d].secret", i), server.Secret, fmt.Sprintf("radius.upstream.servers[%d].secret_ref", i), server.SecretRef); err != nil {
+			return err
+		}
+	}
+	return validateSecretPair("ldap.bind_password", c.LDAP.BindPassword, "ldap.bind_password_ref", c.LDAP.BindPasswordRef)
+}
+
+func validateSecretPair(inlineField, inlineValue, refField, refValue string) error {
+	inlineValue = strings.TrimSpace(inlineValue)
+	refValue = strings.TrimSpace(refValue)
+	if inlineValue != "" && refValue != "" {
+		return fmt.Errorf("%s and %s cannot both be set", inlineField, refField)
+	}
+	if refValue == "" {
+		return nil
+	}
+	return validateSecretRefField(refField, refValue)
+}
+
+func validateSecretRefField(fieldName, raw string) error {
+	scheme, value, ok := strings.Cut(strings.TrimSpace(raw), ":")
+	if !ok || strings.TrimSpace(scheme) == "" || strings.TrimSpace(value) == "" {
+		return fmt.Errorf("%s must use env:NAME or file:NAME", fieldName)
+	}
+	switch strings.ToLower(strings.TrimSpace(scheme)) {
+	case "env":
+		if !validSecretEnvName(value) {
+			return fmt.Errorf("%s has invalid environment variable name %q", fieldName, value)
+		}
+	case "file":
+		if len(value) > 4096 || strings.ContainsAny(value, "\r\n\x00") {
+			return fmt.Errorf("%s has invalid file secret path", fieldName)
+		}
+	default:
+		return fmt.Errorf("%s uses unsupported secret provider %q", fieldName, scheme)
+	}
+	return nil
+}
+
+func validSecretEnvName(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 128 {
+		return false
+	}
+	for i, r := range value {
+		switch {
+		case r == '_':
+		case r >= 'A' && r <= 'Z':
+		case r >= 'a' && r <= 'z':
+		case i > 0 && r >= '0' && r <= '9':
+		default:
+			return false
+		}
+		if i == 0 && r >= '0' && r <= '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func validRadiusDictionaryName(value string) bool {

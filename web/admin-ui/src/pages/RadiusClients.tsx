@@ -11,6 +11,11 @@ export default function RadiusClients() {
         { key: 'ip', label: 'IP Address' },
         { key: 'transport', label: 'Transport' },
         { key: 'nas_type', label: 'NAS Type / Vendor' },
+        {
+          key: 'secret_ref_set',
+          label: 'Secret Ref',
+          render: (item) => (item.secret_ref_set ? 'Yes' : 'No'),
+        },
         { key: 'description', label: 'Description' },
         {
           key: 'enabled',
@@ -33,6 +38,7 @@ export default function RadiusClients() {
           ],
         },
         { name: 'secret', label: 'Shared Secret (UDP only)', type: 'password' },
+        { name: 'secret_ref', label: 'Shared Secret Reference', placeholder: 'env:AEGIS_BRANCH_AP_SECRET or file:branch-ap.secret' },
         { name: 'nas_type', label: 'NAS Type / Vendor Profile', placeholder: 'other, aruba, cisco, juniper, cambium, tplink' },
         { name: 'radsec_certificate_cn', label: 'RadSec Client Certificate CN', placeholder: 'nas01.example.net' },
         { name: 'radsec_certificate_issuer', label: 'RadSec Certificate Issuer DN', placeholder: 'Optional exact issuer DN' },

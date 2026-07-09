@@ -121,6 +121,21 @@ type ProductionReadinessReport = ProductionReadinessSummary & {
   checks?: ProductionReadinessCheck[];
 };
 
+type SecretProviderReport = {
+  status: "ready" | "degraded" | "blocked";
+  providers: string[];
+  summary: {
+    total_sources: number;
+    reference_count: number;
+    inline_count: number;
+    missing_count: number;
+    unsupported_count: number;
+    blocked_count: number;
+    provider_ready_count: number;
+    provider_error_count: number;
+  };
+};
+
 type SystemStatus = {
   generated_at: string;
   summary: {
@@ -622,6 +637,8 @@ export default function Dashboard() {
 	const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [productionReadiness, setProductionReadiness] =
     useState<ProductionReadinessReport | null>(null);
+  const [secretProviders, setSecretProviders] =
+    useState<SecretProviderReport | null>(null);
   const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 	const [controllerBusy, setControllerBusy] = useState("");
@@ -635,15 +652,20 @@ export default function Dashboard() {
 
   const loadStatus = async (includeReadiness = true) => {
     try {
-      const [statusResponse, readinessResponse] = await Promise.all([
+      const [statusResponse, readinessResponse, secretProviderResponse] =
+        await Promise.all([
         api.get("/system/status"),
         includeReadiness
           ? api.get("/system/production-readiness").catch(() => null)
+          : Promise.resolve(null),
+        includeReadiness
+          ? api.get("/system/secret-providers").catch(() => null)
           : Promise.resolve(null),
       ]);
       setSystemStatus(statusResponse.data);
       if (includeReadiness) {
         setProductionReadiness(readinessResponse?.data || null);
+        setSecretProviders(secretProviderResponse?.data || null);
       }
       setError("");
     } catch (err: any) {
@@ -740,6 +762,7 @@ export default function Dashboard() {
   const readinessIssues =
     productionReadiness?.checks?.filter((check) => check.status !== "passed") ||
     [];
+  const secretSummary = secretProviders?.summary;
 	const highAvailabilityStatus =
     systemStatus.high_availability.replication_runtime?.status === "degraded"
       ? "degraded"
@@ -887,6 +910,100 @@ export default function Dashboard() {
               className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
             >
               Vendor Compatibility
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
+      {secretProviders && secretSummary ? (
+        <section
+          className={`rounded-md border bg-white p-5 shadow-sm ${
+            secretProviders.status === "blocked"
+              ? "border-red-300"
+              : secretProviders.status === "ready"
+                ? "border-emerald-300"
+                : "border-amber-300"
+          }`}
+          aria-labelledby="secret-providers-heading"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h3
+                id="secret-providers-heading"
+                className="text-lg font-semibold text-gray-900"
+              >
+                Secret Providers
+              </h3>
+              <p className="mt-1 text-sm text-gray-600">
+                {secretSummary.inline_count
+                  ? `${secretSummary.inline_count} inline source(s) still need references.`
+                  : "Configured references are provider-backed."}
+              </p>
+            </div>
+            <StatusBadge status={secretProviders.status} />
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-6">
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                Providers
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {secretProviders.providers.join(", ") || "none"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                Sources
+              </div>
+              <div className="mt-1 text-2xl font-bold text-gray-900">
+                {secretSummary.total_sources}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                References
+              </div>
+              <div className="mt-1 text-2xl font-bold text-emerald-700">
+                {secretSummary.reference_count}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                Inline
+              </div>
+              <div className="mt-1 text-2xl font-bold text-amber-700">
+                {secretSummary.inline_count}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                Missing
+              </div>
+              <div className="mt-1 text-2xl font-bold text-red-700">
+                {secretSummary.missing_count}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                Blocked
+              </div>
+              <div className="mt-1 text-2xl font-bold text-red-700">
+                {secretSummary.blocked_count}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              to="/radius-clients"
+              className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white"
+            >
+              RADIUS Clients
+            </Link>
+            <Link
+              to="/access-settings"
+              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
+            >
+              Security Settings
             </Link>
           </div>
         </section>

@@ -1,6 +1,7 @@
 package adminapi
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/radius"
+	"github.com/yourorg/aegisnas-pi4/internal/secrets"
 )
 
 type productionReadinessReport struct {
@@ -104,6 +106,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionAttributeRegistryCheck(&report)
 	addProductionVSACodecCheck(&report)
 	addProductionOpaquePassThroughCheck(&report, cfg)
+	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
 	addProductionCompatibilityEvidenceCheck(&report, cfg)
 	addProductionDictionaryCheck(&report)
@@ -205,6 +208,33 @@ func addProductionOpaquePassThroughCheck(report *productionReadinessReport, cfg 
 			reportPayload.SchemaVersion, reportPayload.Status, reportPayload.Policy.DefaultAction, reportPayload.Summary.RuleCount, len(reportPayload.SensitiveTypes), reportPayload.Limits.MaxTotalBytesPerPacket),
 		Recommendation: "Use /api/v1/system/opaque-passthrough to review the effective allowlist; real proxy and device evidence stays in the NAS-0006 release checklist.",
 		Dependencies:   []string{"radius.vendor.opaque_pass_through", "internal/radius/opaque_passthrough.go"},
+	})
+}
+
+func addProductionSecretProviderCheck(report *productionReadinessReport, cfg *config.Config) {
+	stored, err := storedSecretSources()
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "secret_providers", Category: "security", Label: "Secret Providers", Status: "blocked",
+			Summary:        "Secret provider inventory cannot be read from the database.",
+			Recommendation: "Run database migration and inspect /api/v1/system/secret-providers before production sign-off.",
+			Dependencies:   []string{"radius_clients.secret_ref"},
+		})
+		return
+	}
+	reportPayload := secrets.BuildReport(context.Background(), cfg, stored)
+	status := "passed"
+	if reportPayload.Status == "blocked" {
+		status = "blocked"
+	} else if reportPayload.Status == "degraded" {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "secret_providers", Category: "security", Label: "Secret Providers", Status: status,
+		Summary: fmt.Sprintf("Secret provider schema %d is %s with %d reference(s), %d inline source(s), %d missing reference(s), and %d unsupported provider source(s).",
+			reportPayload.SchemaVersion, reportPayload.Status, reportPayload.Summary.ReferenceCount, reportPayload.Summary.InlineCount, reportPayload.Summary.MissingCount, reportPayload.Summary.UnsupportedCount),
+		Recommendation: "Move RADIUS, LDAP, integration, and HA secrets to env: or file: refs; keep external secret-manager rollout evidence in the NAS-0007 release checklist.",
+		Dependencies:   []string{"security.secrets", "radius_clients.secret_ref", "/api/v1/system/secret-providers"},
 	})
 }
 

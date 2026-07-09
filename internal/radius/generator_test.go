@@ -200,6 +200,81 @@ func TestGeneratorUsesDBClientNASType(t *testing.T) {
 	assert.Contains(t, fullCfg.ClientsConf, "nastype = aruba")
 }
 
+func TestGeneratorResolvesConfigSecretRefs(t *testing.T) {
+	previousDB := db.DB
+	db.DB = nil
+	t.Cleanup(func() {
+		db.DB = previousDB
+	})
+	t.Setenv("AEGIS_RADIUS_SECRET", "local-ref-secret")
+	t.Setenv("AEGIS_UPSTREAM_SECRET", "upstream-ref-secret")
+
+	cfg := &config.Config{
+		Security: config.SecurityConfig{Secrets: config.SecretProviderConfig{Enabled: true, Providers: []string{"env"}, AllowInline: false, MaxSecretBytes: 128}},
+		Radius: config.RadiusConfig{
+			SecretRef: "env:AEGIS_RADIUS_SECRET",
+			AuthPort:  1812,
+			AcctPort:  1813,
+			Clients: []config.RadiusClient{
+				{IP: "192.168.1.10", SecretRef: "env:AEGIS_RADIUS_SECRET", ShortName: "ap1", NASType: "aruba"},
+			},
+			Upstream: config.RadiusUpstreamConfig{
+				Enabled:           true,
+				Realm:             "aegis-upstream",
+				PoolStrategy:      "fail-over",
+				StatusCheck:       "status-server",
+				ResponseWindow:    20,
+				ZombiePeriod:      40,
+				ReviveInterval:    120,
+				CheckInterval:     30,
+				NumAnswersToAlive: 3,
+				Servers: []config.RadiusHomeServer{
+					{Name: "primary", Address: "10.0.0.10", SecretRef: "env:AEGIS_UPSTREAM_SECRET"},
+				},
+			},
+		},
+		LDAP: config.LDAPConfig{Enabled: false},
+	}
+
+	fullCfg, err := NewGenerator(cfg).Generate()
+	require.NoError(t, err)
+	assert.Contains(t, fullCfg.ClientsConf, "secret = local-ref-secret")
+	assert.Contains(t, fullCfg.ProxyConf, "secret = upstream-ref-secret")
+	assert.NotContains(t, fullCfg.ClientsConf, "env:AEGIS_RADIUS_SECRET")
+}
+
+func TestGeneratorResolvesDBClientSecretRef(t *testing.T) {
+	previousDB := db.DB
+	tmpDB, err := os.CreateTemp("", "aegis-radius-db-ref-*.db")
+	require.NoError(t, err)
+	tmpDB.Close()
+	defer os.Remove(tmpDB.Name())
+
+	require.NoError(t, db.Init(tmpDB.Name()))
+	t.Cleanup(func() {
+		_ = db.Close()
+		db.DB = previousDB
+	})
+	require.NoError(t, db.Migrate())
+	t.Setenv("AEGIS_DB_CLIENT_SECRET", "db-ref-secret")
+
+	_, err = db.DB.Exec(`INSERT INTO radius_clients (shortname, ipaddr, secret, secret_ref, nas_type, enabled)
+		VALUES ('ref-controller', '10.20.0.22', '', 'env:AEGIS_DB_CLIENT_SECRET', 'cisco', 1)`)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Security: config.SecurityConfig{Secrets: config.SecretProviderConfig{Enabled: true, Providers: []string{"env"}, AllowInline: false, MaxSecretBytes: 128}},
+		Radius:   config.RadiusConfig{SecretRef: "env:AEGIS_DB_CLIENT_SECRET", AuthPort: 1812, AcctPort: 1813},
+		Database: config.DatabaseConfig{Path: tmpDB.Name()},
+	}
+
+	fullCfg, err := NewGenerator(cfg).Generate()
+	require.NoError(t, err)
+	assert.Contains(t, fullCfg.ClientsConf, "client ref-controller")
+	assert.Contains(t, fullCfg.ClientsConf, "secret = db-ref-secret")
+	assert.NotContains(t, fullCfg.ClientsConf, "env:AEGIS_DB_CLIENT_SECRET")
+}
+
 func TestGeneratorFallsBackWhenDBClientNASTypeColumnMissing(t *testing.T) {
 	previousDB := db.DB
 	tmpDB, err := os.CreateTemp("", "aegis-radius-legacy-*.db")

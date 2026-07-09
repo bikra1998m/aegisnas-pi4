@@ -937,6 +937,25 @@ function createProductionReadiness() {
   };
 }
 
+function createSecretProviders() {
+  return {
+    schema_version: 1,
+    generated_at: "2026-06-20T12:00:00Z",
+    status: "blocked",
+    providers: ["env", "file"],
+    summary: {
+      total_sources: 3,
+      reference_count: 2,
+      inline_count: 1,
+      missing_count: 0,
+      unsupported_count: 0,
+      blocked_count: 1,
+      provider_ready_count: 2,
+      provider_error_count: 0,
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -3531,6 +3550,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
     deploymentPreview: createDeploymentPreview(),
     systemStatus: createSystemStatus(),
     productionReadiness: createProductionReadiness(),
+    secretProviders: createSecretProviders(),
     identity: options.identity || SUPER_ADMIN,
     authOptions: options.authOptions || {
       token_login: true,
@@ -3841,6 +3861,11 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
 		await route.fulfill({ json: state.productionReadiness });
 		return;
 	}
+
+    if (path === "/system/secret-providers" && method === "GET") {
+      await route.fulfill({ json: state.secretProviders });
+      return;
+    }
 
 	if (path === "/system/controller-sync/preview" && method === "GET") {
 		const operation = url.searchParams.get("operation") === "push" ? "push" : "pull";
@@ -4220,7 +4245,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
     if (path === "/radius-clients" && method === "GET") {
-      await route.fulfill({ json: [{ id: 1, shortname: "secure-nas", ip: "192.0.2.10", secret_set: true, nas_type: "cisco", transport: "radsec", radsec_certificate_cn: "secure-nas.example.test", radsec_radius_v11: "forbid", description: "Branch NAS", enabled: true }] });
+      await route.fulfill({ json: [{ id: 1, shortname: "secure-nas", ip: "192.0.2.10", secret_set: true, inline_secret_set: true, secret_ref: "", secret_ref_set: false, secret_ref_fingerprint: "", nas_type: "cisco", transport: "radsec", radsec_certificate_cn: "secure-nas.example.test", radsec_radius_v11: "forbid", description: "Branch NAS", enabled: true }] });
       return;
     }
     if (path === "/radius-clients" && method === "POST") {

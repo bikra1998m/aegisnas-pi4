@@ -114,8 +114,18 @@ health:
 
 admin_port: 8083
 
+security:
+  secrets:
+    enabled: true
+    providers: ["env", "file"]
+    file_base_dir: /etc/aegisnas/secrets
+    max_secret_bytes: 8192
+    allow_inline: true # Backward-compatible upgrade mode. Set false after all secret_ref fields resolve.
+    production_require_references: true # Production readiness blocks inline secret material.
+
 radius:
-  secret: "replace-this-radius-secret"
+  secret: ""
+  secret_ref: "env:AEGIS_SECRET_RADIUS_SHARED"
   auth_port: 1812
   acct_port: 1813
   max_sessions: 1024
@@ -203,7 +213,8 @@ radius:
     attributes: [] # Optional FreeRADIUS-style local overrides or extensions. Built-ins come from configs/dictionary.aegisnas.
   clients:
     - ip: 127.0.0.1
-      secret: "replace-this-radius-secret"
+      secret: ""
+      secret_ref: "env:AEGIS_SECRET_RADIUS_SHARED"
       shortname: "localhost"
       nas_type: "other"
       transport: udp
@@ -232,7 +243,8 @@ radius:
         transport: udp
         auth_port: 1812
         acct_port: 1813
-        secret: "replace-this-upstream-secret"
+        secret: ""
+        secret_ref: "env:AEGIS_SECRET_UPSTREAM_PRIMARY"
       # - name: "radsec-aaa"
       #   address: "radsec.example.net"
       #   transport: radsec
@@ -258,7 +270,8 @@ radius:
         transport: udp
         auth_port: 1812
         acct_port: 1813
-        secret: "replace-this-upstream-secret-too"
+        secret: ""
+        secret_ref: "env:AEGIS_SECRET_UPSTREAM_SECONDARY"
 
 portal:
   enabled: true
@@ -285,7 +298,8 @@ ldap:
   url: "ldaps://ldap.example.com"
   base_dn: "dc=example,dc=com"
   bind_dn: "cn=svc-aegisnas,dc=example,dc=com"
-  bind_password: "replace-this-password"
+  bind_password: ""
+  bind_password_ref: "env:AEGIS_SECRET_LDAP_BIND"
   user_filter: "(uid=%s)"
   group_filter: "(memberUid=%s)"
 

@@ -87,6 +87,13 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read opaque attribute pass-through policy", opaquePassThroughGet["summary"])
 	assert.Contains(t, opaquePassThroughGet["x-aegisnas-roles"], "read_only")
 
+	secretProvidersPath, ok := paths["/api/v1/system/secret-providers"].(map[string]any)
+	require.True(t, ok)
+	secretProvidersGet, ok := secretProvidersPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read secret provider readiness", secretProvidersGet["summary"])
+	assert.Contains(t, secretProvidersGet["x-aegisnas-roles"], "read_only")
+
 	vendorIdentityPreviewPath, ok := paths["/api/v1/system/vendor-identity/migrations/preview"].(map[string]any)
 	require.True(t, ok)
 	vendorIdentityPreviewPost, ok := vendorIdentityPreviewPath["post"].(map[string]any)

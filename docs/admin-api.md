@@ -3,7 +3,9 @@
 RadSec upstream status and history include `transport`, `radsec_port`,
 `tls_version`, `tls_cipher_suite`, `tls_alpn`, `peer_subject`, `peer_issuer`,
 `peer_serial`, and `peer_not_after`. RADIUS-client list responses return
-`secret_set` and never return the shared secret. See [radsec.md](radsec.md).
+`secret_set`, `inline_secret_set`, `secret_ref_set`, and
+`secret_ref_fingerprint`; they never return shared-secret values. See
+[radsec.md](radsec.md) and [secret-providers.md](secret-providers.md).
 
 This guide is the operator and integration entry point for the AegisNAS admin API.
 
@@ -130,6 +132,19 @@ The bounded opaque pass-through policy is exposed at:
 ```
 
 Use this endpoint to confirm the default action is `drop`, review explicit allow rules, inspect packet byte limits, and verify the sensitive standard-attribute denylist before enabling proxy workflows that must preserve unknown vendor attributes.
+
+## Secret Provider Endpoint
+
+Secret-provider readiness is exposed at:
+
+```text
+/api/v1/system/secret-providers
+```
+
+Use it to confirm `env:` and `file:` references resolve, inline secret material
+has been migrated, and provider policy is ready before production sign-off. The
+endpoint returns reference fingerprints and status only; it does not return
+secret values.
 
 ## ACL Policy Library
 

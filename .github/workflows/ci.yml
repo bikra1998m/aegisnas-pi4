@@ -24,6 +24,7 @@ jobs:
       - run: make test-compatibility-evidence
       - run: make test-vsa-codec
       - run: make test-opaque-passthrough
+      - run: make test-secret-providers
       - run: make test-vendor-certification
 
   frontend:

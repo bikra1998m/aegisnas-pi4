@@ -43,7 +43,7 @@ func TestMigrate(t *testing.T) {
 	err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('radius_clients') WHERE name='nas_type'").Scan(&nasTypeColumnCount)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, nasTypeColumnCount)
-	for _, column := range []string{"transport", "radsec_certificate_cn", "radsec_certificate_issuer", "radsec_radius_v11"} {
+	for _, column := range []string{"transport", "radsec_certificate_cn", "radsec_certificate_issuer", "radsec_radius_v11", "secret_ref"} {
 		var count int
 		err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('radius_clients') WHERE name=?", column).Scan(&count)
 		assert.NoError(t, err)

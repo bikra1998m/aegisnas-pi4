@@ -19,6 +19,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/enforcement"
+	"github.com/yourorg/aegisnas-pi4/internal/secrets"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -520,8 +521,21 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 		if secret == "<nil>" {
 			secret = ""
 		}
+		secretRef := strings.TrimSpace(fmt.Sprint(data["secret_ref"]))
+		if secretRef == "<nil>" {
+			secretRef = ""
+		}
+		if secret != "" && secretRef != "" {
+			return fmt.Errorf("secret and secret_ref cannot both be set")
+		}
+		if secretRef != "" {
+			if _, err := secrets.ParseRef(secretRef); err != nil {
+				return fmt.Errorf("secret_ref is invalid: %w", err)
+			}
+		}
 		if transport == "radsec" {
 			secret = "radsec"
+			secretRef = ""
 			if strings.TrimSpace(fmt.Sprint(data["radsec_certificate_cn"])) == "" {
 				return fmt.Errorf("radsec_certificate_cn is required for a RadSec client")
 			}
@@ -544,18 +558,25 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 		}
 		switch change.Operation {
 		case "create":
-			if transport == "udp" && secret == "" {
-				return fmt.Errorf("secret is required for a UDP RADIUS client")
+			if transport == "udp" && secret == "" && secretRef == "" {
+				return fmt.Errorf("secret or secret_ref is required for a UDP RADIUS client")
 			}
 			_, err := tx.Exec(`INSERT INTO radius_clients
-				(shortname, ipaddr, secret, nas_type, transport, radsec_certificate_cn, radsec_certificate_issuer, radsec_radius_v11, description, enabled)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, data["shortname"], data["ip"], secret, nullIfEmpty(data["nas_type"]),
+				(shortname, ipaddr, secret, secret_ref, nas_type, transport, radsec_certificate_cn, radsec_certificate_issuer, radsec_radius_v11, description, enabled)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, data["shortname"], data["ip"], secret, nullIfEmpty(secretRef), nullIfEmpty(data["nas_type"]),
 				transport, nullIfEmpty(data["radsec_certificate_cn"]), nullIfEmpty(data["radsec_certificate_issuer"]),
 				nullIfEmpty(data["radsec_radius_v11"]), nullIfEmpty(data["description"]), data["enabled"])
 			return err
 		case "update":
-			if secret != "" {
+			if transport == "radsec" {
 				fields = append(fields, fieldValue{"secret", secret})
+				fields = append(fields, fieldValue{"secret_ref", nil})
+			} else if secret != "" {
+				fields = append(fields, fieldValue{"secret", secret})
+				fields = append(fields, fieldValue{"secret_ref", nil})
+			} else if secretRef != "" {
+				fields = append(fields, fieldValue{"secret", ""})
+				fields = append(fields, fieldValue{"secret_ref", secretRef})
 			}
 			return updateByID(tx, "radius_clients", change.ResourceID, fields)
 		case "delete":
@@ -962,9 +983,14 @@ func HandleDeleteBandwidthProfile(w http.ResponseWriter, r *http.Request) {
 // ---------- RADIUS Clients ----------
 
 func HandleListRadiusClients(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.DB.Query(`SELECT id, shortname, ipaddr, secret != '', COALESCE(nas_type, ''), COALESCE(transport, 'udp'),
+	rows, err := db.DB.Query(`SELECT id, shortname, ipaddr, secret != '', COALESCE(secret_ref, ''), COALESCE(nas_type, ''), COALESCE(transport, 'udp'),
 		COALESCE(radsec_certificate_cn, ''), COALESCE(radsec_certificate_issuer, ''), COALESCE(radsec_radius_v11, ''),
 		COALESCE(description, ''), enabled FROM radius_clients ORDER BY shortname`)
+	if isMissingRadiusClientSecretRefForAPI(err) {
+		rows, err = db.DB.Query(`SELECT id, shortname, ipaddr, secret != '', '', COALESCE(nas_type, ''), COALESCE(transport, 'udp'),
+			COALESCE(radsec_certificate_cn, ''), COALESCE(radsec_certificate_issuer, ''), COALESCE(radsec_radius_v11, ''),
+			COALESCE(description, ''), enabled FROM radius_clients ORDER BY shortname`)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -973,17 +999,22 @@ func HandleListRadiusClients(w http.ResponseWriter, r *http.Request) {
 	var clients []map[string]any
 	for rows.Next() {
 		var id int
-		var shortname, ip, nasType, transport, certificateCN, certificateIssuer, radiusV11, description string
-		var enabled, secretSet bool
-		if err := rows.Scan(&id, &shortname, &ip, &secretSet, &nasType, &transport, &certificateCN, &certificateIssuer, &radiusV11, &description, &enabled); err != nil {
+		var shortname, ip, secretRef, nasType, transport, certificateCN, certificateIssuer, radiusV11, description string
+		var enabled, inlineSecretSet bool
+		if err := rows.Scan(&id, &shortname, &ip, &inlineSecretSet, &secretRef, &nasType, &transport, &certificateCN, &certificateIssuer, &radiusV11, &description, &enabled); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		secretRef = strings.TrimSpace(secretRef)
 		clients = append(clients, map[string]any{
 			"id":                        id,
 			"shortname":                 shortname,
 			"ip":                        ip,
-			"secret_set":                secretSet,
+			"secret_set":                inlineSecretSet || secretRef != "",
+			"inline_secret_set":         inlineSecretSet,
+			"secret_ref":                secretRef,
+			"secret_ref_set":            secretRef != "",
+			"secret_ref_fingerprint":    secretRefFingerprint(secretRef),
 			"nas_type":                  nasType,
 			"transport":                 transport,
 			"radsec_certificate_cn":     certificateCN,
@@ -994,6 +1025,22 @@ func HandleListRadiusClients(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeJSON(w, http.StatusOK, clients)
+}
+
+func isMissingRadiusClientSecretRefForAPI(err error) bool {
+	if err == nil {
+		return false
+	}
+	normalized := strings.ToLower(err.Error())
+	return strings.Contains(normalized, "no such column") && strings.Contains(normalized, "secret_ref")
+}
+
+func secretRefFingerprint(ref string) string {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return ""
+	}
+	return secrets.Fingerprint(ref)
 }
 
 func HandleCreateRadiusClient(w http.ResponseWriter, r *http.Request) {

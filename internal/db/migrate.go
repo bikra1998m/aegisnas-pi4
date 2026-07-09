@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 15
+	return 16
 }
 
 func Migrate() error {
@@ -583,4 +583,9 @@ CREATE INDEX IF NOT EXISTS idx_vendor_identity_migrations_created
 	ON vendor_identity_migrations(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_vendor_identity_migrations_status
 	ON vendor_identity_migrations(status, created_at DESC);
+`
+
+const schemaV16 = `
+ALTER TABLE radius_clients ADD COLUMN secret_ref TEXT;
+CREATE INDEX IF NOT EXISTS idx_radius_clients_secret_ref ON radius_clients(secret_ref);
 `

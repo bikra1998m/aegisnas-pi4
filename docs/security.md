@@ -68,10 +68,20 @@ Every staged apply and rollback creates a config revision snapshot. Rollback ver
 
 ## Integration Secrets
 
-Keep integration secrets out of handwritten runbooks and ad hoc shell history. Prefer `/etc/default/aegisnas`, systemd drop-ins, or another root-readable secret source.
+Keep integration secrets out of handwritten runbooks and ad hoc shell history. Prefer the NAS-0007 secret-provider reference model in [secret-providers.md](secret-providers.md).
+
+Supported reference forms are:
+
+- `env:AEGIS_SECRET_RADIUS_SHARED`
+- `file:branch-ap.secret`
+
+`file:` references resolve under `security.secrets.file_base_dir` unless an absolute path is used inside that same directory. Production readiness blocks inline secret material when `security.secrets.production_require_references` is true. Keep `security.secrets.allow_inline` enabled only for upgrade compatibility, then set it to false after all refs resolve.
 
 Important environment-backed secrets now include:
 
+- `AEGIS_SECRET_RADIUS_SHARED`
+- `AEGIS_SECRET_UPSTREAM_PRIMARY`
+- `AEGIS_SECRET_LDAP_BIND`
 - `AEGIS_AI_API_KEY`
 - `AEGIS_ADMIN_SSO_CLIENT_SECRET`
 - `AEGIS_CA_ENROLLMENT_TOKEN`

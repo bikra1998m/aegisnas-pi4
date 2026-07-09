@@ -1140,6 +1140,9 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/opaque-passthrough", "get", securedOperation("Read opaque attribute pass-through policy", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Effective bounded pass-through policy, default-drop state, rule counts, sensitive denylist, and registry provenance."),
 	}))
+	addOperation(paths, "/api/v1/system/secret-providers", "get", securedOperation("Read secret provider readiness", "Security", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Redacted secret-provider inventory, reference status, inline-secret blockers, and provider policy."),
+	}))
 	addOperation(paths, "/api/v1/system/attribute-registry", "get", securedOperationWithParameters("Read the generated typed attribute registry", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("release", "Optional dictionary release profile ID; defaults to the active embedded profile.", false),
 		queryStringParameter("vendor", "Exact vendor namespace filter.", false),

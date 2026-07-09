@@ -12,6 +12,7 @@ test("manages a certificate-authenticated RadSec NAS identity", async ({
     page.getByRole("heading", { name: "RADIUS Clients" }),
   ).toBeVisible();
   await expect(page.getByRole("cell", { name: "radsec" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "No" })).toBeVisible();
   await expect(page.getByText("secure-nas.example.test")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Add RADIUS client" }).click();
@@ -21,6 +22,7 @@ test("manages a certificate-authenticated RadSec NAS identity", async ({
   await page
     .getByLabel("RadSec Client Certificate CN")
     .fill("branch-nas.example.test");
+  await expect(page.getByLabel("Shared Secret Reference")).toBeVisible();
   await page.getByLabel("RADIUS/1.1 Policy").selectOption("forbid");
   await page.getByRole("button", { name: "Stage Create" }).click();
 
