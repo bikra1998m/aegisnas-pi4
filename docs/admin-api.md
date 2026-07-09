@@ -123,6 +123,14 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 Use this before introducing a new AP, switch, or controller profile so you can verify the exact reply attributes and fallback warnings without changing live policy.
 
+The bounded opaque pass-through policy is exposed at:
+
+```text
+/api/v1/system/opaque-passthrough
+```
+
+Use this endpoint to confirm the default action is `drop`, review explicit allow rules, inspect packet byte limits, and verify the sensitive standard-attribute denylist before enabling proxy workflows that must preserve unknown vendor attributes.
+
 ## ACL Policy Library
 
 Vendor-neutral dynamic ACL policies use the standard staged configuration workflow:

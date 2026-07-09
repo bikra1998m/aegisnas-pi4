@@ -4067,6 +4067,70 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
+    if (path === "/system/opaque-passthrough" && method === "GET") {
+      await route.fulfill({
+        json: {
+          schema_version: 1,
+          release_profile_id: "freeradius-3.2.8",
+          source_release: "3.2.8",
+          source_sha256: "6".repeat(64),
+          status: "ready",
+          policy: {
+            schema_version: 1,
+            enabled: true,
+            default_action: "drop",
+            limits: {
+              max_radius_packet_bytes: 4096,
+              max_attributes_per_packet: 32,
+              max_attribute_bytes: 249,
+              max_total_bytes_per_packet: 2048,
+              max_vendor_specific_bytes: 249,
+              max_standard_value_bytes: 253,
+              max_replay_records_per_call: 32,
+            },
+            rules: [
+              {
+                direction: "proxy_response",
+                kind: "vendor_attribute",
+                vendor_id: 424242,
+                type: 77,
+                description: "Example lab controller correlation token",
+              },
+            ],
+            notes: ["Unknown attributes require an explicit allow rule."],
+          },
+          summary: {
+            source_attribute_count: 7654,
+            runtime_decoder_count: 134,
+            rule_count: 1,
+            allowed_standard_type_count: 0,
+            allowed_vendor_count: 0,
+            allowed_vendor_attribute_count: 1,
+            registry_missing_attribute_count: 6200,
+            registry_partial_attribute_count: 1200,
+            default_action_drop: true,
+          },
+          limits: {
+            max_radius_packet_bytes: 4096,
+            max_attributes_per_packet: 32,
+            max_attribute_bytes: 249,
+            max_total_bytes_per_packet: 2048,
+            max_vendor_specific_bytes: 249,
+            max_standard_value_bytes: 253,
+            max_replay_records_per_call: 32,
+          },
+          sensitive_types: [
+            { type: 2, name: "User-Password", reason: "credential material" },
+            { type: 3, name: "CHAP-Password", reason: "credential material" },
+            { type: 79, name: "EAP-Message", reason: "protocol-aware handling required" },
+            { type: 80, name: "Message-Authenticator", reason: "integrity attributes are rebuilt" },
+          ],
+          notes: ["Software pass-through readiness is separate from real proxy, FreeRADIUS, and vendor hardware certification."],
+        },
+      });
+      return;
+    }
+
     if (path === "/system/attribute-registry" && method === "GET") {
       const vendor = (url.searchParams.get("vendor") || "Aruba").trim();
       const entries = [

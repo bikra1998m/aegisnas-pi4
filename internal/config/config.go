@@ -300,7 +300,26 @@ type RadiusVendorConfig struct {
 	SessionActionMappings []RadiusVendorSessionActionMapping `mapstructure:"session_action_mappings"`
 	QuotaMappings         []RadiusVendorQuotaMapping         `mapstructure:"quota_mappings"`
 	ServiceNameMappings   []RadiusVendorServiceNameMapping   `mapstructure:"service_name_mappings"`
+	OpaquePassThrough     RadiusOpaquePassThroughConfig      `mapstructure:"opaque_pass_through"`
 	Attributes            []RadiusVendorAttribute            `mapstructure:"attributes"`
+}
+
+type RadiusOpaquePassThroughConfig struct {
+	Enabled                bool                          `mapstructure:"enabled"`
+	MaxAttributesPerPacket int                           `mapstructure:"max_attributes_per_packet"`
+	MaxAttributeBytes      int                           `mapstructure:"max_attribute_bytes"`
+	MaxTotalBytesPerPacket int                           `mapstructure:"max_total_bytes_per_packet"`
+	Rules                  []RadiusOpaquePassThroughRule `mapstructure:"rules"`
+}
+
+type RadiusOpaquePassThroughRule struct {
+	Direction         string `mapstructure:"direction"`
+	Kind              string `mapstructure:"kind"`
+	VendorID          int    `mapstructure:"vendor_id"`
+	Type              int    `mapstructure:"type"`
+	MaxAttributeBytes int    `mapstructure:"max_attribute_bytes"`
+	AllowKnown        bool   `mapstructure:"allow_known"`
+	Description       string `mapstructure:"description"`
 }
 
 type RadiusVendorRoleMapping struct {
@@ -942,6 +961,11 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.vendor.legacy_ids", []int{})
 	v.SetDefault("radius.vendor.compatibility_packs", productconfigs.DefaultVendorCompatibilityPackKeys())
 	v.SetDefault("radius.vendor.dictionary_paths", []string{})
+	v.SetDefault("radius.vendor.opaque_pass_through.enabled", true)
+	v.SetDefault("radius.vendor.opaque_pass_through.max_attributes_per_packet", 32)
+	v.SetDefault("radius.vendor.opaque_pass_through.max_attribute_bytes", 249)
+	v.SetDefault("radius.vendor.opaque_pass_through.max_total_bytes_per_packet", 2048)
+	v.SetDefault("radius.vendor.opaque_pass_through.rules", []map[string]any{})
 	v.SetDefault("portal.radius_auth", false)
 	v.SetDefault("portal.local_fallback", true)
 	v.SetDefault("policy.runtime_shaping_enabled", true)
@@ -2992,6 +3016,9 @@ func (c *Config) Validate() error {
 		}
 		seenVendorPacks[key] = struct{}{}
 	}
+	if err := validateRadiusOpaquePassThrough(c.Radius.Vendor.OpaquePassThrough); err != nil {
+		return err
+	}
 	seenVendorRoles := map[string]struct{}{}
 	seenVendorRoleValues := map[string]struct{}{}
 	for i, mapping := range c.Radius.Vendor.RoleMappings {
@@ -3708,5 +3735,123 @@ func unsupportedAVPairTemplateToken(value string) string {
 			return value[start : end+1]
 		}
 		value = value[end+1:]
+	}
+}
+
+func validateRadiusOpaquePassThrough(cfg RadiusOpaquePassThroughConfig) error {
+	if cfg.MaxAttributesPerPacket < 0 || cfg.MaxAttributesPerPacket > 128 {
+		return fmt.Errorf("radius.vendor.opaque_pass_through.max_attributes_per_packet must be between 1 and 128 when set")
+	}
+	if cfg.MaxAttributeBytes < 0 || cfg.MaxAttributeBytes > 249 {
+		return fmt.Errorf("radius.vendor.opaque_pass_through.max_attribute_bytes must be between 1 and 249 when set")
+	}
+	if cfg.MaxTotalBytesPerPacket < 0 || cfg.MaxTotalBytesPerPacket > 4096 {
+		return fmt.Errorf("radius.vendor.opaque_pass_through.max_total_bytes_per_packet must be between 1 and 4096 when set")
+	}
+	effectiveMaxAttr := cfg.MaxAttributeBytes
+	if effectiveMaxAttr == 0 {
+		effectiveMaxAttr = 249
+	}
+	effectiveMaxTotal := cfg.MaxTotalBytesPerPacket
+	if effectiveMaxTotal == 0 {
+		effectiveMaxTotal = 2048
+	}
+	if effectiveMaxTotal < effectiveMaxAttr {
+		return errors.New("radius.vendor.opaque_pass_through.max_total_bytes_per_packet must be greater than or equal to max_attribute_bytes")
+	}
+	seen := map[string]struct{}{}
+	for i, rule := range cfg.Rules {
+		direction := strings.ToLower(strings.TrimSpace(rule.Direction))
+		if direction == "" {
+			direction = "any"
+		}
+		if !validOpaquePassThroughDirection(direction) {
+			return fmt.Errorf("radius.vendor.opaque_pass_through.rules[%d].direction %q is invalid", i, rule.Direction)
+		}
+		kind := strings.ToLower(strings.TrimSpace(rule.Kind))
+		if kind == "vsa" {
+			kind = "vendor_attribute"
+		}
+		if !validOpaquePassThroughKind(kind) {
+			return fmt.Errorf("radius.vendor.opaque_pass_through.rules[%d].kind %q is invalid", i, rule.Kind)
+		}
+		if rule.MaxAttributeBytes < 0 || rule.MaxAttributeBytes > effectiveMaxAttr {
+			return fmt.Errorf("radius.vendor.opaque_pass_through.rules[%d].max_attribute_bytes must be between 0 and the policy max", i)
+		}
+		if strings.ContainsAny(rule.Description, "\r\n\x00") || len(rule.Description) > 240 {
+			return fmt.Errorf("radius.vendor.opaque_pass_through.rules[%d].description is invalid", i)
+		}
+		switch kind {
+		case "standard":
+			if rule.VendorID != 0 {
+				return fmt.Errorf("radius.vendor.opaque_pass_through.rules[%d].vendor_id must be empty for standard rules", i)
+			}
+			if rule.Type < 1 || rule.Type > 255 {
+				return fmt.Errorf("radius.vendor.opaque_pass_through.rules[%d].type must be between 1 and 255 for standard rules", i)
+			}
+			if name, denied := deniedOpaqueStandardRadiusType(rule.Type); denied {
+				return fmt.Errorf("radius.vendor.opaque_pass_through.rules[%d].type %d (%s) cannot be passed opaquely", i, rule.Type, name)
+			}
+		case "vendor":
+			if rule.VendorID < 1 {
+				return fmt.Errorf("radius.vendor.opaque_pass_through.rules[%d].vendor_id is required for vendor rules", i)
+			}
+			if rule.Type != 0 {
+				return fmt.Errorf("radius.vendor.opaque_pass_through.rules[%d].type must be empty for vendor rules", i)
+			}
+		case "vendor_attribute":
+			if rule.VendorID < 1 {
+				return fmt.Errorf("radius.vendor.opaque_pass_through.rules[%d].vendor_id is required for vendor_attribute rules", i)
+			}
+			if rule.Type < 1 {
+				return fmt.Errorf("radius.vendor.opaque_pass_through.rules[%d].type is required for vendor_attribute rules", i)
+			}
+		}
+		key := fmt.Sprintf("%s\x00%s\x00%d\x00%d", direction, kind, rule.VendorID, rule.Type)
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("radius.vendor.opaque_pass_through.rules[%d] duplicates an earlier rule", i)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+func validOpaquePassThroughDirection(value string) bool {
+	switch value {
+	case "any", "inbound_request", "outbound_reply", "accounting_request", "accounting_response",
+		"coa_request", "coa_response", "disconnect_request", "disconnect_response", "proxy_request", "proxy_response":
+		return true
+	default:
+		return false
+	}
+}
+
+func validOpaquePassThroughKind(value string) bool {
+	switch value {
+	case "standard", "vendor", "vendor_attribute":
+		return true
+	default:
+		return false
+	}
+}
+
+func deniedOpaqueStandardRadiusType(typ int) (string, bool) {
+	switch typ {
+	case 2:
+		return "User-Password", true
+	case 3:
+		return "CHAP-Password", true
+	case 26:
+		return "Vendor-Specific", true
+	case 60:
+		return "CHAP-Challenge", true
+	case 69:
+		return "Tunnel-Password", true
+	case 79:
+		return "EAP-Message", true
+	case 80:
+		return "Message-Authenticator", true
+	default:
+		return "", false
 	}
 }

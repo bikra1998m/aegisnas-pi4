@@ -383,6 +383,19 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	}
 	assert.NoError(t, validServiceNames.Validate())
 
+	validOpaquePassThrough := base()
+	validOpaquePassThrough.Radius.Vendor.OpaquePassThrough = RadiusOpaquePassThroughConfig{
+		Enabled:                true,
+		MaxAttributesPerPacket: 16,
+		MaxAttributeBytes:      128,
+		MaxTotalBytesPerPacket: 1024,
+		Rules: []RadiusOpaquePassThroughRule{
+			{Direction: "proxy_response", Kind: "vendor_attribute", VendorID: 424242, Type: 77, Description: "Preserve lab controller correlation token"},
+			{Direction: "any", Kind: "standard", Type: 25, MaxAttributeBytes: 64},
+		},
+	}
+	assert.NoError(t, validOpaquePassThrough.Validate())
+
 	invalidID := base()
 	invalidID.Radius.Vendor.ID = 0
 	assert.ErrorContains(t, invalidID.Validate(), "radius.vendor.id")
@@ -414,6 +427,17 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	invalidDictionaryRelease := base()
 	invalidDictionaryRelease.Radius.Vendor.DictionaryRelease = "freeradius-4.0.0"
 	assert.ErrorContains(t, invalidDictionaryRelease.Validate(), "dictionary_release")
+
+	invalidOpaqueSensitiveStandard := base()
+	invalidOpaqueSensitiveStandard.Radius.Vendor.OpaquePassThrough.Rules = []RadiusOpaquePassThroughRule{{Direction: "any", Kind: "standard", Type: 2}}
+	assert.ErrorContains(t, invalidOpaqueSensitiveStandard.Validate(), "cannot be passed opaquely")
+
+	invalidOpaqueDuplicate := base()
+	invalidOpaqueDuplicate.Radius.Vendor.OpaquePassThrough.Rules = []RadiusOpaquePassThroughRule{
+		{Direction: "proxy_response", Kind: "vendor_attribute", VendorID: 424242, Type: 77},
+		{Direction: "proxy_response", Kind: "vsa", VendorID: 424242, Type: 77},
+	}
+	assert.ErrorContains(t, invalidOpaqueDuplicate.Validate(), "duplicates")
 
 	invalidRolePack := base()
 	invalidRolePack.Radius.Vendor.RoleMappings = []RadiusVendorRoleMapping{{Pack: "aruba", Role: "admin", Value: 1}}

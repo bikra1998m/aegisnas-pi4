@@ -476,6 +476,8 @@ The `radius.vendor.attributes` list is only for local overrides or extra site-sp
 
 The same enabled compatibility packs are also used for inbound parsing of Vendor-Specific Attributes returned by an upstream AAA platform or seen in accounting context. Product AegisNAS VSAs win first; compatibility packs then fill any still-empty normalized fields such as role, VLAN, bandwidth rates, policy tag, portal profile, device group, tenant, device posture, accounting identity, quarantine, and ACL names.
 
+Unknown attributes are not trusted or forwarded by default. If a proxy workflow must preserve a long-tail vendor token before AegisNAS has native semantics for it, configure `radius.vendor.opaque_pass_through` with an explicit `standard`, `vendor`, or `vendor_attribute` allow rule and review `/api/v1/system/opaque-passthrough`. Credential, EAP, tunnel-secret, and packet-integrity attributes are always denied as opaque payloads.
+
 The executable compatibility set includes Meraki AP tags, Palo Alto client OS, Airespace WLAN IDs, Arista profiling, Aerohive client-monitor problem codes, and Meru AP IDs as inbound accounting context. Aerohive problem codes are retained as decimal strings because the vendor dictionary defines the attribute as an integer without portable value labels. Safe outbound additions include HP `Egress-VLANID`, Cambium `Cambium-Walled-Garden-State`, Colubris `Intercept` and `AVPair`, plus Pica8 and Nokia `AVPair` policy tags. These attributes remain opt-in through their vendor packs. Vendor-specific dynamic-ACL grammars remain planned until an operator template or certified encoding is configured.
 
 Example upstream Access-Accept reply:

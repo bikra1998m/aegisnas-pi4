@@ -103,6 +103,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionVendorIdentityCheck(&report)
 	addProductionAttributeRegistryCheck(&report)
 	addProductionVSACodecCheck(&report)
+	addProductionOpaquePassThroughCheck(&report, cfg)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
 	addProductionCompatibilityEvidenceCheck(&report, cfg)
 	addProductionDictionaryCheck(&report)
@@ -177,6 +178,33 @@ func addProductionVSACodecCheck(report *productionReadinessReport) {
 			codec.SchemaVersion, codec.Status, codec.Summary.SourceAttributeCount, codec.Summary.GroupedAttributeCount, len(codec.SupportedFormats)),
 		Recommendation: "Use /api/v1/system/vsa-codec for software readiness and the NAS-0005 release checklist for hardware/vendor certification evidence.",
 		Dependencies:   []string{"internal/radius/vsa_codec.go", "configs/attribute_registry.go"},
+	})
+}
+
+func addProductionOpaquePassThroughCheck(report *productionReadinessReport, cfg *config.Config) {
+	registry, err := productconfigs.BuiltInAttributeRegistry()
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "opaque_passthrough", Category: "radius", Label: "Opaque Attribute Pass-through", Status: "blocked",
+			Summary:        "The opaque pass-through policy cannot be validated because the generated registry is unavailable.",
+			Recommendation: "Regenerate the pinned registry and rebuild the appliance before enabling proxy pass-through.",
+			Dependencies:   []string{"configs/attribute_registry", "internal/radius/opaque_passthrough.go"},
+		})
+		return
+	}
+	reportPayload := radius.BuildOpaquePassThroughReport(registry, cfg)
+	status := "passed"
+	if reportPayload.Status != "ready" || reportPayload.SchemaVersion != radius.OpaquePassThroughSchemaVersion ||
+		reportPayload.Policy.DefaultAction != "drop" || reportPayload.Limits.MaxAttributesPerPacket < 1 ||
+		reportPayload.Limits.MaxAttributeBytes > 249 || len(reportPayload.SensitiveTypes) == 0 {
+		status = "blocked"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "opaque_passthrough", Category: "radius", Label: "Opaque Attribute Pass-through", Status: status,
+		Summary: fmt.Sprintf("Opaque pass-through schema %d is %s with default action %s, %d allow rule(s), %d sensitive standard type denylist entries, and %d byte total packet budget.",
+			reportPayload.SchemaVersion, reportPayload.Status, reportPayload.Policy.DefaultAction, reportPayload.Summary.RuleCount, len(reportPayload.SensitiveTypes), reportPayload.Limits.MaxTotalBytesPerPacket),
+		Recommendation: "Use /api/v1/system/opaque-passthrough to review the effective allowlist; real proxy and device evidence stays in the NAS-0006 release checklist.",
+		Dependencies:   []string{"radius.vendor.opaque_pass_through", "internal/radius/opaque_passthrough.go"},
 	})
 }
 

@@ -80,6 +80,13 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read VSA codec capabilities", vsaCodecGet["summary"])
 	assert.Contains(t, vsaCodecGet["x-aegisnas-roles"], "read_only")
 
+	opaquePassThroughPath, ok := paths["/api/v1/system/opaque-passthrough"].(map[string]any)
+	require.True(t, ok)
+	opaquePassThroughGet, ok := opaquePassThroughPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read opaque attribute pass-through policy", opaquePassThroughGet["summary"])
+	assert.Contains(t, opaquePassThroughGet["x-aegisnas-roles"], "read_only")
+
 	vendorIdentityPreviewPath, ok := paths["/api/v1/system/vendor-identity/migrations/preview"].(map[string]any)
 	require.True(t, ok)
 	vendorIdentityPreviewPost, ok := vendorIdentityPreviewPath["post"].(map[string]any)

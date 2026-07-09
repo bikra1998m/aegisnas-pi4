@@ -17,6 +17,13 @@ test('filters the generated typed attribute registry', async ({ page }) => {
   await expect(codec.getByText('Grouped OIDs', { exact: true })).toBeVisible();
   await expect(codec.getByText('type 4 / length 2')).toBeVisible();
 
+  const opaque = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Opaque Pass-through' }) });
+  await expect(opaque).toBeVisible();
+  await expect(opaque.getByText('Policy schema 1')).toBeVisible();
+  await expect(opaque.getByText('Default Action')).toBeVisible();
+  await expect(opaque.getByText('proxy_response / vendor_attribute')).toBeVisible();
+  await expect(opaque.getByText('User-Password')).toBeVisible();
+
   const evidence = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Compatibility Evidence' }) });
   await expect(evidence).toBeVisible();
   await expect(evidence.getByText('UBNT-Data-Rate-DL')).toBeVisible();

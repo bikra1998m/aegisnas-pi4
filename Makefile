@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec install-radius-dictionary scan-radius-dictionaries
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough install-radius-dictionary scan-radius-dictionaries
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -54,6 +54,9 @@ test-compatibility-evidence:
 
 test-vsa-codec:
 	go test ./configs ./internal/radius ./internal/adminapi -run 'VSACodec|VendorAttributeFormat|AttributeRegistry|GeneratedAttributeRegistry|Authorize|OpenAPI|ProductionReadiness' -count=1
+
+test-opaque-passthrough:
+	go test ./internal/config ./internal/radius ./internal/adminapi -run 'OpaquePassThrough|ConfigValidationRadiusVendor|Authorize|OpenAPI|ProductionReadiness' -count=1
 				
 build:
 	go build ./...

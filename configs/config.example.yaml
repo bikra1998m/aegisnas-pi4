@@ -179,6 +179,20 @@ radius:
     legacy_accept_until: "" # Required RFC3339 deadline when legacy_ids is non-empty.
     compatibility_packs: ["standard", "mikrotik", "wispr"] # Add aegisnas, aruba, ruckus, fortinet, cisco, ubnt, cambium, extreme, juniper, huawei, h3c, paloalto, tplink, meraki, or mist only after the NAS/controller side is prepared.
     dictionary_paths: [] # Optional FreeRADIUS dictionary files or directories to import for compatibility coverage, such as /etc/freeradius/3.0/dictionary or /usr/share/freeradius.
+    opaque_pass_through:
+      enabled: true
+      max_attributes_per_packet: 32
+      max_attribute_bytes: 249
+      max_total_bytes_per_packet: 2048
+      rules:
+        # Unknown attributes are dropped unless explicitly allowed. Use
+        # vendor_attribute for one VSA, vendor for all unknown VSAs from one
+        # PEN, or standard for a non-sensitive standard RADIUS type.
+        - direction: proxy_response
+          kind: vendor_attribute
+          vendor_id: 424242
+          type: 77
+          description: "Example lab controller correlation token"
     role_mappings: [] # Map local roles to certified uint32 values for cambium, aerohive, dlink, sonicwall, or zte; for example [{pack: dlink, role: admin, value: 5}].
     extended_vlan_mappings: [] # Extreme VSA 211 mappings; for example [{pack: extreme, role: voice, untagged_vlan: 20, tagged_vlans: [30, 40]}].
     avpair_mappings: [] # Certified per-role templates for juniper, huawei, h3c, or arista; for example [{pack: arista, role: admin, values: ["shell:roles=${role}"]}].

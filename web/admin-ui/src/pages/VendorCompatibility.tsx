@@ -349,6 +349,66 @@ type VSACodecPayload = {
   notes?: string[];
 };
 
+type OpaquePassThroughRule = {
+  direction: string;
+  kind: string;
+  vendor_id?: number;
+  type?: number;
+  max_attribute_bytes?: number;
+  allow_known?: boolean;
+  description?: string;
+};
+
+type OpaquePassThroughLimits = {
+  max_radius_packet_bytes: number;
+  max_attributes_per_packet: number;
+  max_attribute_bytes: number;
+  max_total_bytes_per_packet: number;
+  max_vendor_specific_bytes: number;
+  max_standard_value_bytes: number;
+  max_replay_records_per_call: number;
+};
+
+type OpaquePassThroughPolicy = {
+  schema_version: number;
+  enabled: boolean;
+  default_action: string;
+  limits: OpaquePassThroughLimits;
+  rules: OpaquePassThroughRule[];
+  notes?: string[];
+};
+
+type OpaquePassThroughSummary = {
+  source_attribute_count: number;
+  runtime_decoder_count: number;
+  rule_count: number;
+  allowed_standard_type_count: number;
+  allowed_vendor_count: number;
+  allowed_vendor_attribute_count: number;
+  registry_missing_attribute_count: number;
+  registry_partial_attribute_count: number;
+  default_action_drop: boolean;
+};
+
+type OpaqueStandardTypeDeny = {
+  type: number;
+  name: string;
+  reason: string;
+};
+
+type OpaquePassThroughPayload = {
+  schema_version: number;
+  release_profile_id: string;
+  source_release: string;
+  source_sha256: string;
+  status: string;
+  policy: OpaquePassThroughPolicy;
+  summary: OpaquePassThroughSummary;
+  limits: OpaquePassThroughLimits;
+  sensitive_types: OpaqueStandardTypeDeny[];
+  notes?: string[];
+};
+
 type VendorReplyPreviewAttribute = {
   name: string;
   value: string;
@@ -572,6 +632,8 @@ export default function VendorCompatibility() {
   const [compatibilityEvidenceFilters, setCompatibilityEvidenceFilters] = useState({ search: '', claim: '' });
   const [vsaCodec, setVSACodec] = useState<VSACodecPayload | null>(null);
   const [vsaCodecError, setVSACodecError] = useState('');
+  const [opaquePassThrough, setOpaquePassThrough] = useState<OpaquePassThroughPayload | null>(null);
+  const [opaquePassThroughError, setOpaquePassThroughError] = useState('');
 
   const canManageIdentity = identity?.role === 'super_admin';
 
@@ -708,6 +770,16 @@ export default function VendorCompatibility() {
     }
   };
 
+  const fetchOpaquePassThrough = async () => {
+    setOpaquePassThroughError('');
+    try {
+      const { data } = await api.get<OpaquePassThroughPayload>('/system/opaque-passthrough');
+      setOpaquePassThrough(data);
+    } catch (err: any) {
+      setOpaquePassThroughError(apiErrorMessage(err, 'Could not load opaque pass-through policy.'));
+    }
+  };
+
   const updatePreviewField = (field: VendorReplyPreviewTextField, value: string) => {
     setPreviewForm((current) => ({ ...current, [field]: value }));
   };
@@ -793,6 +865,7 @@ export default function VendorCompatibility() {
     void fetchAttributeRegistry(false);
     void fetchCompatibilityEvidence(false);
     void fetchVSACodec();
+    void fetchOpaquePassThrough();
   }, []);
 
   const clientProfiles = payload?.client_profiles || [];
@@ -827,7 +900,7 @@ export default function VendorCompatibility() {
           <p className="mt-1 text-sm text-gray-600">Confirm deployed NAS profiles, reply packs, and vendor dictionary coverage before changing access policy.</p>
         </div>
         <button
-          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchVSACodec(); }}
+          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
           disabled={loading}
           className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
@@ -1008,6 +1081,72 @@ export default function VendorCompatibility() {
                 </div>
                 {vsaCodec.notes?.length ? <p className="mt-2 text-xs text-gray-500">{vsaCodec.notes[0]}</p> : null}
                 <p className="mt-2 break-all text-xs text-gray-500">Codec source SHA-256: {vsaCodec.source_sha256}</p>
+              </>
+            ) : null}
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Opaque Pass-through</h3>
+                <p className="mt-1 text-sm text-gray-600">Preserve unknown RADIUS attributes only when an explicit bounded rule allows the value through.</p>
+              </div>
+              {opaquePassThrough ? (
+                <StatusBadge tone={opaquePassThrough.status === 'ready' && opaquePassThrough.summary.default_action_drop ? 'green' : 'amber'}>
+                  Policy schema {opaquePassThrough.schema_version}
+                </StatusBadge>
+              ) : null}
+            </div>
+            {opaquePassThroughError ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{opaquePassThroughError}</div> : null}
+            {opaquePassThrough ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="Policy Status" value={opaquePassThrough.status} hint={opaquePassThrough.policy.enabled ? 'Configured policy is active.' : 'Pass-through collection is disabled.'} />
+                  <StatCard label="Default Action" value={opaquePassThrough.policy.default_action} hint={opaquePassThrough.summary.default_action_drop ? 'Unknown attributes drop unless allowed.' : 'Review policy before proxy use.'} />
+                  <StatCard label="Allow Rules" value={opaquePassThrough.summary.rule_count} hint={`${opaquePassThrough.summary.allowed_vendor_attribute_count} exact VSAs, ${opaquePassThrough.summary.allowed_vendor_count} vendors.`} />
+                  <StatCard label="Total Budget" value={opaquePassThrough.limits.max_total_bytes_per_packet} hint={`${opaquePassThrough.limits.max_attributes_per_packet} attributes per packet.`} />
+                </div>
+                <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                  <div className="rounded-md border border-gray-200 p-4">
+                    <h4 className="text-sm font-semibold uppercase text-gray-600">Effective Rules</h4>
+                    <div className="mt-3 space-y-2">
+                      {(opaquePassThrough.policy.rules || []).length === 0 ? (
+                        <div className="text-sm text-gray-500">No opaque attributes are allowed by the current policy.</div>
+                      ) : (
+                        opaquePassThrough.policy.rules.map((rule, index) => (
+                          <div key={`${rule.direction}-${rule.kind}-${rule.vendor_id || 0}-${rule.type || 0}-${index}`} className="rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700">
+                            <div className="font-medium text-gray-900">{rule.direction || 'any'} / {rule.kind}</div>
+                            <div className="mt-1">
+                              {rule.vendor_id ? `Vendor ${rule.vendor_id}` : 'Standard RADIUS'}
+                              {rule.type ? ` / type ${rule.type}` : ''}
+                              {rule.allow_known ? ' / known allowed' : ''}
+                            </div>
+                            {rule.description ? <div className="mt-1 text-xs text-gray-500">{rule.description}</div> : null}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-gray-200 p-4">
+                    <h4 className="text-sm font-semibold uppercase text-gray-600">Safety Bounds</h4>
+                    <div className="mt-3 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
+                      <div>Attribute bytes: {opaquePassThrough.limits.max_attribute_bytes}</div>
+                      <div>VSA bytes: {opaquePassThrough.limits.max_vendor_specific_bytes}</div>
+                      <div>Standard bytes: {opaquePassThrough.limits.max_standard_value_bytes}</div>
+                      <div>Replay records: {opaquePassThrough.limits.max_replay_records_per_call}</div>
+                    </div>
+                    <div className="mt-4">
+                      <h5 className="text-xs font-semibold uppercase text-gray-500">Never Opaque</h5>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {(opaquePassThrough.sensitive_types || []).map((item) => (
+                          <span key={item.type} className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700">{item.name}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {opaquePassThrough.notes?.length ? <p className="mt-2 text-xs text-gray-500">{opaquePassThrough.notes[0]}</p> : null}
+                <p className="mt-2 break-all text-xs text-gray-500">Pass-through source SHA-256: {opaquePassThrough.source_sha256}</p>
               </>
             ) : null}
           </section>
