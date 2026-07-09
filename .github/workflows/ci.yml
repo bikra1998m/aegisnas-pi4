@@ -22,6 +22,7 @@ jobs:
       - run: make test-attribute-registry
       - run: make test-dictionary-release-profiles
       - run: make test-compatibility-evidence
+      - run: make test-vsa-codec
       - run: make test-vendor-certification
 
   frontend:

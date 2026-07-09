@@ -10,7 +10,6 @@ import (
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	layehradius "layeh.com/radius"
-	"layeh.com/radius/rfc2865"
 )
 
 const (
@@ -805,28 +804,10 @@ func lookupVendorString(packet *layehradius.Packet, vendorID uint32, typ byte) (
 }
 
 func lookupVendorStrings(packet *layehradius.Packet, vendorID uint32, typ byte) []string {
-	if packet == nil {
-		return nil
-	}
-	values := make([]string, 0, 2)
-	for _, avp := range packet.Attributes {
-		if avp.Type != rfc2865.VendorSpecific_Type {
-			continue
-		}
-		gotVendorID, vsa, err := layehradius.VendorSpecific(avp.Attribute)
-		if err != nil || gotVendorID != vendorID {
-			continue
-		}
-		for len(vsa) >= 3 {
-			vsaType, vsaLen := vsa[0], int(vsa[1])
-			if vsaLen > len(vsa) || vsaLen < 3 {
-				break
-			}
-			if vsaType == typ {
-				values = append(values, string(vsa[2:vsaLen]))
-			}
-			vsa = vsa[vsaLen:]
-		}
+	attrs := LookupVendorAttributeValues(packet, vendorID, uint32(typ))
+	values := make([]string, 0, len(attrs))
+	for _, attr := range attrs {
+		values = append(values, string(attr))
 	}
 	return values
 }
@@ -904,28 +885,7 @@ func lookupVendorBool(packet *layehradius.Packet, vendorID uint32, typ byte) (bo
 }
 
 func lookupVendorAttribute(packet *layehradius.Packet, vendorID uint32, typ byte) (layehradius.Attribute, bool) {
-	for _, avp := range packet.Attributes {
-		if avp.Type != rfc2865.VendorSpecific_Type {
-			continue
-		}
-		gotVendorID, vsa, err := layehradius.VendorSpecific(avp.Attribute)
-		if err != nil || gotVendorID != vendorID {
-			continue
-		}
-		for len(vsa) >= 3 {
-			vsaType, vsaLen := vsa[0], int(vsa[1])
-			if vsaLen > len(vsa) || vsaLen < 3 {
-				break
-			}
-			if vsaType == typ {
-				attr := make(layehradius.Attribute, vsaLen-2)
-				copy(attr, vsa[2:vsaLen])
-				return attr, true
-			}
-			vsa = vsa[vsaLen:]
-		}
-	}
-	return nil, false
+	return LookupVendorAttributeValue(packet, vendorID, uint32(typ))
 }
 
 func addVendorString(packet *layehradius.Packet, vendorID uint32, typ byte, value string) error {
@@ -947,17 +907,5 @@ func addVendorInteger64(packet *layehradius.Packet, vendorID uint32, typ byte, v
 }
 
 func addVendorAttribute(packet *layehradius.Packet, vendorID uint32, typ byte, attr layehradius.Attribute) error {
-	if len(attr) > 253 {
-		return fmt.Errorf("vendor attribute %d too long", typ)
-	}
-	vendorAttr := make(layehradius.Attribute, 2+len(attr))
-	vendorAttr[0] = typ
-	vendorAttr[1] = byte(len(vendorAttr))
-	copy(vendorAttr[2:], attr)
-	vsa, err := layehradius.NewVendorSpecific(vendorID, vendorAttr)
-	if err != nil {
-		return err
-	}
-	packet.Add(rfc2865.VendorSpecific_Type, vsa)
-	return nil
+	return AddVendorAttributeWithSpec(packet, VendorAttributeSpec{VendorID: vendorID, Type: uint32(typ)}, attr)
 }

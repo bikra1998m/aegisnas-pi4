@@ -11,6 +11,7 @@ import (
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
+	"github.com/yourorg/aegisnas-pi4/internal/radius"
 )
 
 type productionReadinessReport struct {
@@ -101,6 +102,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionScalingCheck(&report)
 	addProductionVendorIdentityCheck(&report)
 	addProductionAttributeRegistryCheck(&report)
+	addProductionVSACodecCheck(&report)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
 	addProductionCompatibilityEvidenceCheck(&report, cfg)
 	addProductionDictionaryCheck(&report)
@@ -147,6 +149,34 @@ func addProductionAttributeRegistryCheck(report *productionReadinessReport) {
 	addProductionCheck(report, productionReadinessCheck{
 		Key: "attribute_registry", Category: "radius", Label: "Typed Attribute Registry", Status: "passed",
 		Summary: fmt.Sprintf("FreeRADIUS %s registry schema %d validates %d source attributes with SHA-256 %s.", registry.SourceRelease, registry.SchemaVersion, registry.SourceAttributeCount, registry.SourceSHA256),
+	})
+}
+
+func addProductionVSACodecCheck(report *productionReadinessReport) {
+	registry, err := productconfigs.BuiltInAttributeRegistry()
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "vsa_codec", Category: "radius", Label: "VSA Codec", Status: "blocked",
+			Summary:        "The VSA codec cannot be validated because the generated registry is unavailable.",
+			Recommendation: "Regenerate the pinned registry and rebuild the appliance before enabling broad vendor compatibility.",
+			Dependencies:   []string{"configs/attribute_registry", "internal/radius/vsa_codec.go"},
+		})
+		return
+	}
+	codec := radius.BuildVSACodecReport(registry, productconfigs.AegisNASVendorDictionaryCatalog())
+	status := "passed"
+	if codec.SchemaVersion != radius.VSACodecSchemaVersion || codec.Status != "ready" ||
+		codec.Summary.SourceAttributeCount != registry.SourceAttributeCount ||
+		codec.Summary.GroupedAttributeCount == 0 ||
+		len(codec.SupportedFormats) < 9 {
+		status = "blocked"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "vsa_codec", Category: "radius", Label: "VSA Codec", Status: status,
+		Summary: fmt.Sprintf("Codec schema %d is %s for %d registry attributes, %d grouped/OID attributes, repeated values, tags, malformed lengths, and %d vendor wire formats.",
+			codec.SchemaVersion, codec.Status, codec.Summary.SourceAttributeCount, codec.Summary.GroupedAttributeCount, len(codec.SupportedFormats)),
+		Recommendation: "Use /api/v1/system/vsa-codec for software readiness and the NAS-0005 release checklist for hardware/vendor certification evidence.",
+		Dependencies:   []string{"internal/radius/vsa_codec.go", "configs/attribute_registry.go"},
 	})
 }
 

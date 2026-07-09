@@ -73,6 +73,13 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read compatibility evidence states", compatibilityEvidenceGet["summary"])
 	assert.Contains(t, compatibilityEvidenceGet["x-aegisnas-roles"], "read_only")
 
+	vsaCodecPath, ok := paths["/api/v1/system/vsa-codec"].(map[string]any)
+	require.True(t, ok)
+	vsaCodecGet, ok := vsaCodecPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read VSA codec capabilities", vsaCodecGet["summary"])
+	assert.Contains(t, vsaCodecGet["x-aegisnas-roles"], "read_only")
+
 	vendorIdentityPreviewPath, ok := paths["/api/v1/system/vendor-identity/migrations/preview"].(map[string]any)
 	require.True(t, ok)
 	vendorIdentityPreviewPost, ok := vendorIdentityPreviewPath["post"].(map[string]any)

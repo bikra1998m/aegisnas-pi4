@@ -4021,6 +4021,52 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
+    if (path === "/system/vsa-codec" && method === "GET") {
+      await route.fulfill({
+        json: {
+          schema_version: 1,
+          release_profile_id: "freeradius-3.2.8",
+          source_release: "3.2.8",
+          source_sha256: "6".repeat(64),
+          status: "ready",
+          summary: {
+            source_attribute_count: 7654,
+            runtime_decoder_count: 134,
+            numeric_attribute_count: 6400,
+            oid_attribute_count: 512,
+            grouped_attribute_count: 320,
+            repeated_attribute_count: 7661,
+            tagged_attribute_count: 0,
+            catalog_vendor_count: 1,
+            formatted_vendor_count: 0,
+          },
+          limits: {
+            max_radius_packet_bytes: 4096,
+            max_vendor_specific_value_bytes: 249,
+            max_default_vendor_value_bytes: 247,
+            max_grouped_depth: 4,
+            max_decoded_attributes: 4096,
+            max_repeated_values_per_type: 256,
+            supported_type_octets_max: 4,
+            supported_length_octets_max: 2,
+          },
+          supported_formats: [
+            { type_octets: 1, length_octets: 0 },
+            { type_octets: 1, length_octets: 1 },
+            { type_octets: 1, length_octets: 2 },
+            { type_octets: 2, length_octets: 0 },
+            { type_octets: 2, length_octets: 1 },
+            { type_octets: 2, length_octets: 2 },
+            { type_octets: 4, length_octets: 0 },
+            { type_octets: 4, length_octets: 1 },
+            { type_octets: 4, length_octets: 2 },
+          ],
+          notes: ["Software codec readiness is separate from real vendor hardware certification."],
+        },
+      });
+      return;
+    }
+
     if (path === "/system/attribute-registry" && method === "GET") {
       const vendor = (url.searchParams.get("vendor") || "Aruba").trim();
       const entries = [

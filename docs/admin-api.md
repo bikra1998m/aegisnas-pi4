@@ -865,4 +865,6 @@ use the matching runbook as well so you keep the preview, validation, backup, an
 
 `GET /api/v1/system/compatibility-evidence` returns software evidence states with cursor pagination. Filters: `pack`, `vendor`, `semantic`, `software_state`, `certification_state`, `claim`, `search`, `limit`, and `cursor`. See [compatibility-evidence.md](compatibility-evidence.md).
 
+`GET /api/v1/system/vsa-codec` returns VSA codec software readiness, supported vendor type/length formats, grouped/OID counts, repeated value support, packet limits, and source hash provenance. See [vsa-codec.md](vsa-codec.md).
+
 `GET /api/v1/system/attribute-registry` returns the generated typed registry with release/hash provenance and cursor pagination. Filters: `release`, `vendor`, `pen`, `pack`, `semantic`, `status`, `search`, `limit`, and `cursor`. See [attribute-registry.md](attribute-registry.md) and [dictionary-release-profiles.md](dictionary-release-profiles.md).

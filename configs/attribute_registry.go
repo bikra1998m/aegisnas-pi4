@@ -39,27 +39,39 @@ type AttributeRegistry struct {
 }
 
 type AttributeRegistryEntry struct {
-	Source             string   `json:"source"`
-	Key                string   `json:"key"`
-	WireKey            string   `json:"wire_key"`
-	ReleaseProfileID   string   `json:"release_profile_id"`
-	Vendor             string   `json:"vendor"`
-	PEN                uint32   `json:"pen"`
-	Attribute          string   `json:"attribute"`
-	Number             uint32   `json:"number,omitempty"`
-	OID                string   `json:"oid,omitempty"`
-	WireType           string   `json:"wire_type"`
-	EnumeratedValues   int      `json:"enumerated_values,omitempty"`
-	CapabilityFamily   string   `json:"capability_family"`
-	DictionaryStatus   string   `json:"dictionary_status"`
-	PackKey            string   `json:"pack_key,omitempty"`
-	Semantic           string   `json:"semantic,omitempty"`
-	SemanticProvenance string   `json:"semantic_provenance,omitempty"`
-	Directions         []string `json:"directions,omitempty"`
-	Functionality      string   `json:"functionality,omitempty"`
-	DecodeKind         string   `json:"decode_kind,omitempty"`
-	DecodeSemantic     string   `json:"decode_semantic,omitempty"`
-	DecodeScale        int      `json:"decode_scale,omitempty"`
+	Source             string             `json:"source"`
+	Key                string             `json:"key"`
+	WireKey            string             `json:"wire_key"`
+	ReleaseProfileID   string             `json:"release_profile_id"`
+	Vendor             string             `json:"vendor"`
+	PEN                uint32             `json:"pen"`
+	Attribute          string             `json:"attribute"`
+	Number             uint32             `json:"number,omitempty"`
+	OID                string             `json:"oid,omitempty"`
+	OIDPath            []uint32           `json:"oid_path,omitempty"`
+	WireType           string             `json:"wire_type"`
+	WireCodec          AttributeWireCodec `json:"wire_codec"`
+	EnumeratedValues   int                `json:"enumerated_values,omitempty"`
+	CapabilityFamily   string             `json:"capability_family"`
+	DictionaryStatus   string             `json:"dictionary_status"`
+	PackKey            string             `json:"pack_key,omitempty"`
+	Semantic           string             `json:"semantic,omitempty"`
+	SemanticProvenance string             `json:"semantic_provenance,omitempty"`
+	Directions         []string           `json:"directions,omitempty"`
+	Functionality      string             `json:"functionality,omitempty"`
+	DecodeKind         string             `json:"decode_kind,omitempty"`
+	DecodeSemantic     string             `json:"decode_semantic,omitempty"`
+	DecodeScale        int                `json:"decode_scale,omitempty"`
+}
+
+type AttributeWireCodec struct {
+	TypeOctets   int      `json:"type_octets"`
+	LengthOctets int      `json:"length_octets"`
+	OIDPath      []uint32 `json:"oid_path,omitempty"`
+	Repeated     bool     `json:"repeated"`
+	Grouped      bool     `json:"grouped"`
+	Tagged       bool     `json:"tagged"`
+	Extended     bool     `json:"extended"`
 }
 
 type AttributeRuntimeMapping struct {
@@ -189,6 +201,8 @@ func parseAttributeRegistryRecord(record []string) (AttributeRegistryEntry, erro
 	} else {
 		entry.WireKey = fmt.Sprintf("vsa:%d:%s", entry.PEN, entry.OID)
 	}
+	entry.OIDPath = attributeRegistryOIDPath(entry.Number, entry.OID)
+	entry.WireCodec = attributeRegistryWireCodec(entry)
 	entry.DecodeKind, entry.DecodeScale = attributeRegistryDecoder(entry)
 	if entry.DecodeKind != "" {
 		entry.DecodeSemantic = firstRegistrySemantic(entry.Semantic)
@@ -197,6 +211,8 @@ func parseAttributeRegistryRecord(record []string) (AttributeRegistryEntry, erro
 }
 
 func (r *AttributeRegistry) addEntry(entry AttributeRegistryEntry) {
+	entry.OIDPath = attributeRegistryOIDPath(entry.Number, entry.OID)
+	entry.WireCodec = attributeRegistryWireCodec(entry)
 	r.Entries = append(r.Entries, entry)
 	idx := len(r.Entries) - 1
 	r.byName[attributeRegistryNameKey(entry.Vendor, entry.Attribute)] = idx
@@ -359,6 +375,60 @@ func parseRegistryDirections(value string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func attributeRegistryOIDPath(number uint32, oid string) []uint32 {
+	if strings.TrimSpace(oid) == "" {
+		if number == 0 {
+			return nil
+		}
+		return []uint32{number}
+	}
+	oid = strings.TrimPrefix(strings.TrimSpace(oid), ".")
+	parts := strings.Split(oid, ".")
+	out := make([]uint32, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			return nil
+		}
+		parsed, err := strconv.ParseUint(part, 10, 32)
+		if err != nil || parsed == 0 {
+			return nil
+		}
+		out = append(out, uint32(parsed))
+	}
+	return out
+}
+
+func attributeRegistryWireCodec(entry AttributeRegistryEntry) AttributeWireCodec {
+	wireType := baseDictionaryWireType(entry.WireType)
+	grouped := len(entry.OIDPath) > 1
+	switch wireType {
+	case "group", "tlv", "struct":
+		grouped = true
+	}
+	extended := false
+	switch wireType {
+	case "extended", "vendor", "vsa":
+		extended = true
+	}
+	return AttributeWireCodec{
+		TypeOctets:   1,
+		LengthOctets: 1,
+		OIDPath:      append([]uint32(nil), entry.OIDPath...),
+		Repeated:     true,
+		Grouped:      grouped,
+		Tagged:       false,
+		Extended:     extended,
+	}
+}
+
+func baseDictionaryWireType(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if idx := strings.Index(value, "["); idx >= 0 {
+		value = value[:idx]
+	}
+	return value
 }
 
 func attributeRegistryDecoder(entry AttributeRegistryEntry) (string, int) {

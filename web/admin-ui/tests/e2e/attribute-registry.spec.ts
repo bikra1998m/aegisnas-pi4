@@ -11,6 +11,12 @@ test('filters the generated typed attribute registry', async ({ page }) => {
   await expect(releaseProfile.getByText('freeradius-3.2.8').first()).toBeVisible();
   await expect(releaseProfile.getByText('UniFi Network')).toBeVisible();
 
+  const codec = page.locator('section').filter({ has: page.getByRole('heading', { name: 'VSA Codec' }) });
+  await expect(codec).toBeVisible();
+  await expect(codec.getByText('Codec schema 1')).toBeVisible();
+  await expect(codec.getByText('Grouped OIDs', { exact: true })).toBeVisible();
+  await expect(codec.getByText('type 4 / length 2')).toBeVisible();
+
   const evidence = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Compatibility Evidence' }) });
   await expect(evidence).toBeVisible();
   await expect(evidence.getByText('UBNT-Data-Rate-DL')).toBeVisible();

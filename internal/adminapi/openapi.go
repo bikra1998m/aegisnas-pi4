@@ -1134,6 +1134,9 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200": responseJSON("Compatibility evidence summary, filtered records, dimensions, and next cursor."),
 		"400": responseJSON("Invalid filter, limit, or cursor."),
 	}))
+	addOperation(paths, "/api/v1/system/vsa-codec", "get", securedOperation("Read VSA codec capabilities", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Extended, grouped, tagged, and repeated VSA codec readiness."),
+	}))
 	addOperation(paths, "/api/v1/system/attribute-registry", "get", securedOperationWithParameters("Read the generated typed attribute registry", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("release", "Optional dictionary release profile ID; defaults to the active embedded profile.", false),
 		queryStringParameter("vendor", "Exact vendor namespace filter.", false),

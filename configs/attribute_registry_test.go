@@ -49,6 +49,14 @@ func TestAttributeRegistryIndexesAndRuntimeCodecs(t *testing.T) {
 	nokia, ok := registry.LookupName("Nokia", "Nokia-Service-Name")
 	require.True(t, ok)
 	assert.Equal(t, "nokia_bcd", nokia.DecodeKind)
+
+	wimax, ok := registry.LookupName("WiMAX", "WiMAX-Termination-Action")
+	require.True(t, ok)
+	assert.Equal(t, []uint32{37, 12}, wimax.OIDPath)
+	assert.True(t, wimax.WireCodec.Grouped)
+	assert.True(t, wimax.WireCodec.Repeated)
+	assert.Equal(t, 1, wimax.WireCodec.TypeOctets)
+	assert.Equal(t, 1, wimax.WireCodec.LengthOctets)
 }
 
 func TestAttributeRegistryValidatesRendererPackContract(t *testing.T) {

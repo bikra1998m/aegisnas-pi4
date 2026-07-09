@@ -309,6 +309,46 @@ type AttributeRegistryPayload = {
   next_cursor?: string;
 };
 
+type VSACodecFormat = {
+  type_octets: number;
+  length_octets: number;
+};
+
+type VSACodecSummary = {
+  source_attribute_count: number;
+  runtime_decoder_count: number;
+  numeric_attribute_count: number;
+  oid_attribute_count: number;
+  grouped_attribute_count: number;
+  repeated_attribute_count: number;
+  tagged_attribute_count: number;
+  catalog_vendor_count: number;
+  formatted_vendor_count: number;
+};
+
+type VSACodecLimits = {
+  max_radius_packet_bytes: number;
+  max_vendor_specific_value_bytes: number;
+  max_default_vendor_value_bytes: number;
+  max_grouped_depth: number;
+  max_decoded_attributes: number;
+  max_repeated_values_per_type: number;
+  supported_type_octets_max: number;
+  supported_length_octets_max: number;
+};
+
+type VSACodecPayload = {
+  schema_version: number;
+  release_profile_id: string;
+  source_release: string;
+  source_sha256: string;
+  status: string;
+  summary: VSACodecSummary;
+  limits: VSACodecLimits;
+  supported_formats: VSACodecFormat[];
+  notes?: string[];
+};
+
 type VendorReplyPreviewAttribute = {
   name: string;
   value: string;
@@ -530,6 +570,8 @@ export default function VendorCompatibility() {
   const [compatibilityEvidenceBusy, setCompatibilityEvidenceBusy] = useState(false);
   const [compatibilityEvidenceError, setCompatibilityEvidenceError] = useState('');
   const [compatibilityEvidenceFilters, setCompatibilityEvidenceFilters] = useState({ search: '', claim: '' });
+  const [vsaCodec, setVSACodec] = useState<VSACodecPayload | null>(null);
+  const [vsaCodecError, setVSACodecError] = useState('');
 
   const canManageIdentity = identity?.role === 'super_admin';
 
@@ -656,6 +698,16 @@ export default function VendorCompatibility() {
     }
   };
 
+  const fetchVSACodec = async () => {
+    setVSACodecError('');
+    try {
+      const { data } = await api.get<VSACodecPayload>('/system/vsa-codec');
+      setVSACodec(data);
+    } catch (err: any) {
+      setVSACodecError(apiErrorMessage(err, 'Could not load VSA codec readiness.'));
+    }
+  };
+
   const updatePreviewField = (field: VendorReplyPreviewTextField, value: string) => {
     setPreviewForm((current) => ({ ...current, [field]: value }));
   };
@@ -740,6 +792,7 @@ export default function VendorCompatibility() {
     void fetchVendorIdentity();
     void fetchAttributeRegistry(false);
     void fetchCompatibilityEvidence(false);
+    void fetchVSACodec();
   }, []);
 
   const clientProfiles = payload?.client_profiles || [];
@@ -774,7 +827,7 @@ export default function VendorCompatibility() {
           <p className="mt-1 text-sm text-gray-600">Confirm deployed NAS profiles, reply packs, and vendor dictionary coverage before changing access policy.</p>
         </div>
         <button
-          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); }}
+          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchVSACodec(); }}
           disabled={loading}
           className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
@@ -913,6 +966,50 @@ export default function VendorCompatibility() {
                 </div>
               ) : null}
             </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">VSA Codec</h3>
+                <p className="mt-1 text-sm text-gray-600">Decode and encode vendor attributes without losing repeated values, grouped OIDs, tags, malformed-length evidence, or release provenance.</p>
+              </div>
+              {vsaCodec ? <StatusBadge tone={vsaCodec.status === 'ready' ? 'green' : 'amber'}>Codec schema {vsaCodec.schema_version}</StatusBadge> : null}
+            </div>
+            {vsaCodecError ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{vsaCodecError}</div> : null}
+            {vsaCodec ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="Codec Status" value={vsaCodec.status} hint={`${vsaCodec.summary.runtime_decoder_count} runtime decoders.`} />
+                  <StatCard label="Grouped OIDs" value={vsaCodec.summary.grouped_attribute_count} hint={`${vsaCodec.summary.oid_attribute_count} OID-backed attributes.`} />
+                  <StatCard label="Repeated Values" value={vsaCodec.summary.repeated_attribute_count} hint={`${vsaCodec.limits.max_repeated_values_per_type} per wire type budget.`} />
+                  <StatCard label="Value Limit" value={vsaCodec.limits.max_default_vendor_value_bytes} hint={`${vsaCodec.limits.max_vendor_specific_value_bytes} bytes per vendor payload.`} />
+                </div>
+                <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                  <div className="rounded-md border border-gray-200 p-4">
+                    <h4 className="text-sm font-semibold uppercase text-gray-600">Supported Formats</h4>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {vsaCodec.supported_formats.map((format) => (
+                        <span key={`${format.type_octets}-${format.length_octets}`} className="rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700">
+                          type {format.type_octets} / length {format.length_octets}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-gray-200 p-4">
+                    <h4 className="text-sm font-semibold uppercase text-gray-600">Codec Limits</h4>
+                    <div className="mt-3 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
+                      <div>Packet bytes: {vsaCodec.limits.max_radius_packet_bytes}</div>
+                      <div>Grouped depth: {vsaCodec.limits.max_grouped_depth}</div>
+                      <div>Decoded attrs: {vsaCodec.limits.max_decoded_attributes}</div>
+                      <div>Catalog vendors: {vsaCodec.summary.catalog_vendor_count}</div>
+                    </div>
+                  </div>
+                </div>
+                {vsaCodec.notes?.length ? <p className="mt-2 text-xs text-gray-500">{vsaCodec.notes[0]}</p> : null}
+                <p className="mt-2 break-all text-xs text-gray-500">Codec source SHA-256: {vsaCodec.source_sha256}</p>
+              </>
+            ) : null}
           </section>
 
           <section className="mt-6">
