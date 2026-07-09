@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry install-radius-dictionary scan-radius-dictionaries
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles install-radius-dictionary scan-radius-dictionaries
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -45,6 +45,9 @@ test-vendor-identity:
 test-attribute-registry:
 	go run ./cmd/aegis-attribute-registry-gen -input docs/freeradius-3.2.8-vsa-audit.csv -output configs/attribute_registry/freeradius-3.2.8-vsa-audit.csv -check -expected-sha256 60748478d30ea16b609601aacda83ff3e28a584a9bddb6b704991a0412f5bf4d
 	go test ./configs ./cmd/aegis-attribute-registry-gen ./internal/radius ./internal/adminapi -run 'AttributeRegistry|GeneratedAttributeRegistry' -count=1
+
+test-dictionary-release-profiles:
+	go test ./configs ./internal/config ./internal/adminapi -run 'DictionaryRelease|VendorCompatibility|Authorize|OpenAPI|ProductionReadiness' -count=1
 				
 build:
 	go build ./...

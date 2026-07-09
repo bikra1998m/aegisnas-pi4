@@ -95,4 +95,6 @@ External interoperability, sustained performance, physical hardware, HA deployme
 | Ready for External Validation | Yes |
 | NAS-0002 status | Closed |
 
-There is no remaining NAS-0002 software implementation work. Dictionary release aliases and firmware profiles belong to NAS-0003; independent evidence states belong to NAS-0004; extended/grouped/tagged wire formats belong to NAS-0005.
+There is no remaining NAS-0002 software implementation work. Dictionary release aliases and firmware profiles were completed by NAS-0003; independent evidence states belong to NAS-0004; extended/grouped/tagged wire formats belong to NAS-0005.
+
+The active registry entries include `release_profile_id` and `semantic_provenance`, and release aliases plus firmware scopes are documented in [dictionary-release-profiles.md](dictionary-release-profiles.md).

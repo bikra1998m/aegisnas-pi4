@@ -3893,6 +3893,9 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           summary: {
             product_vendor_id: state.vendorIdentity.current.pen,
             product_vendor_name: "AegisNAS",
+            dictionary_release_profile_id: "freeradius-3.2.8",
+            dictionary_release: "3.2.8",
+            dictionary_release_source_sha256: "6".repeat(64),
             product_vendor_id_source: "config:radius.vendor.id",
             product_vendor_id_placeholder: state.vendorIdentity.current.pen === 55555,
             product_vendor_dictionary_filename: "dictionary.aegisnas",
@@ -3908,6 +3911,30 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           },
           active_packs: ["aegisnas"],
           packs: [],
+          dictionary_release_profile: {
+            id: "freeradius-3.2.8",
+            release: "3.2.8",
+            status: "active",
+            default: true,
+            registry_source_sha256: "6".repeat(64),
+            source_file_count: 246,
+            source_attribute_count: 7654,
+            effective_attribute_count: 7661,
+            vendor_count: 196,
+            mapped_attribute_count: 148,
+            runtime_decoder_count: 134,
+            vendor_alias_count: 43,
+            attribute_alias_count: 10,
+            firmware_profile_count: 9,
+            vendor_aliases: [
+              { alias: "unifi", canonical_vendor: "Ubiquiti", canonical_pack_key: "ubnt", pen: 41112, scope: "controller family" },
+              { alias: "routeros", canonical_vendor: "Mikrotik", canonical_pack_key: "mikrotik", pen: 14988, scope: "product firmware" },
+            ],
+            firmware_profiles: [
+              { key: "ubiquiti-unifi-network", vendor: "Ubiquiti", pack_key: "ubnt", pen: 41112, product_family: "UniFi Network", firmware_scope: "UniFi Network controllers and AP firmware that accept UBNT rate VSAs", hardware_profiles: ["branch", "enterprise"], support_state: "software-ready", evidence_state: "external-certification-required", attribute_scope: ["UBNT-Data-Rate-DL", "UBNT-Data-Rate-UL"] },
+              { key: "mikrotik-routeros", vendor: "Mikrotik", pack_key: "mikrotik", pen: 14988, product_family: "RouterOS", firmware_scope: "RouterOS 6.x and 7.x dictionary-compatible RADIUS attributes", hardware_profiles: ["lite", "branch", "enterprise"], support_state: "software-ready", evidence_state: "external-certification-required", attribute_scope: ["Mikrotik-Rate-Limit"] },
+            ],
+          },
           client_profiles: [],
           profile_summary: { total_clients: 0, enabled_clients: 0, profile_counts: {}, global_fallback_client_count: 0, known_vendor_profile_clients: 0 },
           dictionary_coverage: { catalog_vendor_count: 1, catalog_attribute_count: 13, pack_count: 1, active_pack_count: 1, dictionary_backed_pack_count: 1, partial_dictionary_pack_count: 0, missing_dictionary_vendor_count: 0, dictionary_matched_attribute_count: 13, missing_dictionary_attribute_count: 0, rows: [] },
@@ -3921,10 +3948,10 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
     if (path === "/system/attribute-registry" && method === "GET") {
       const vendor = (url.searchParams.get("vendor") || "Aruba").trim();
       const entries = [
-        { key: "freeradius:3.2.8:14823:aruba-user-role", source: "freeradius-3.2.8", vendor: "Aruba", pen: 14823, attribute: "Aruba-User-Role", number: 1, wire_type: "string", capability_family: "Authorization", dictionary_status: "partial", pack_key: "aruba", semantic: "access.role", directions: ["inbound", "outbound_reply"], decode_kind: "string" },
-        { key: "freeradius:3.2.8:14823:aruba-user-vlan", source: "freeradius-3.2.8", vendor: "Aruba", pen: 14823, attribute: "Aruba-User-Vlan", number: 2, wire_type: "integer", capability_family: "Dynamic VLAN", dictionary_status: "partial", pack_key: "aruba", semantic: "access.vlan", directions: ["inbound", "outbound_reply"], decode_kind: "vlan" },
+        { key: "freeradius:3.2.8:14823:aruba-user-role", source: "freeradius-3.2.8", release_profile_id: "freeradius-3.2.8", vendor: "Aruba", pen: 14823, attribute: "Aruba-User-Role", number: 1, wire_type: "string", capability_family: "Authorization", dictionary_status: "partial", pack_key: "aruba", semantic: "access.role", semantic_provenance: "freeradius-audit:3.2.8", directions: ["inbound", "outbound_reply"], decode_kind: "string" },
+        { key: "freeradius:3.2.8:14823:aruba-user-vlan", source: "freeradius-3.2.8", release_profile_id: "freeradius-3.2.8", vendor: "Aruba", pen: 14823, attribute: "Aruba-User-Vlan", number: 2, wire_type: "integer", capability_family: "Dynamic VLAN", dictionary_status: "partial", pack_key: "aruba", semantic: "access.vlan", semantic_provenance: "freeradius-audit:3.2.8", directions: ["inbound", "outbound_reply"], decode_kind: "vlan" },
       ].filter((entry) => !vendor || entry.vendor.toLowerCase() === vendor.toLowerCase());
-      await route.fulfill({ json: { schema_version: 1, source_release: "3.2.8", source_file_count: 246, source_attribute_count: 7654, source_sha256: "6".repeat(64), vendor_count: 196, attribute_count: 7661, mapped_count: 148, filtered_count: entries.length, entries } });
+      await route.fulfill({ json: { schema_version: 1, release_profile_id: "freeradius-3.2.8", source_release: "3.2.8", source_file_count: 246, source_attribute_count: 7654, source_sha256: "6".repeat(64), vendor_count: 196, attribute_count: 7661, mapped_count: 148, filtered_count: entries.length, entries } });
       return;
     }
 

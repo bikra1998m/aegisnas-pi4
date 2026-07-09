@@ -161,6 +161,7 @@ radius:
     enabled: true
     name: "AegisNAS"
     id: 55555 # Lab placeholder from configs/dictionary.aegisnas. Replace before production use.
+    dictionary_release: "freeradius-3.2.8"
     compatibility_packs: ["standard", "mikrotik", "wispr"] # Global default for unprofiled NAS clients.
     attributes: [] # Optional local overrides or extensions. Built-ins come from the product dictionary.
   auth_port: 1812

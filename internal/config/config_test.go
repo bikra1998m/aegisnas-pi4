@@ -330,6 +330,10 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	validDictionaryPaths.Radius.Vendor.DictionaryPaths = []string{"/etc/freeradius/3.0/dictionary", "/usr/share/freeradius"}
 	assert.NoError(t, validDictionaryPaths.Validate())
 
+	validDictionaryRelease := base()
+	validDictionaryRelease.Radius.Vendor.DictionaryRelease = "freeradius-3.2.8"
+	assert.NoError(t, validDictionaryRelease.Validate())
+
 	validRoleMappings := base()
 	validRoleMappings.Radius.Vendor.RoleMappings = []RadiusVendorRoleMapping{
 		{Pack: "canopy", Role: "network-admin", Value: 2},
@@ -406,6 +410,10 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	duplicateDictionaryPath := base()
 	duplicateDictionaryPath.Radius.Vendor.DictionaryPaths = []string{"/etc/freeradius/3.0/dictionary", "/etc/freeradius/3.0/../3.0/dictionary"}
 	assert.ErrorContains(t, duplicateDictionaryPath.Validate(), "duplicates")
+
+	invalidDictionaryRelease := base()
+	invalidDictionaryRelease.Radius.Vendor.DictionaryRelease = "freeradius-4.0.0"
+	assert.ErrorContains(t, invalidDictionaryRelease.Validate(), "dictionary_release")
 
 	invalidRolePack := base()
 	invalidRolePack.Radius.Vendor.RoleMappings = []RadiusVendorRoleMapping{{Pack: "aruba", Role: "admin", Value: 1}}

@@ -6,8 +6,12 @@ test('filters the generated typed attribute registry', async ({ page }) => {
   await installMockApi(page);
   await page.goto('/vendor-compatibility');
 
+  const releaseProfile = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Dictionary Release Profile' }) });
+  await expect(releaseProfile).toBeVisible();
+  await expect(releaseProfile.getByText('freeradius-3.2.8').first()).toBeVisible();
+  await expect(releaseProfile.getByText('UniFi Network')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Typed Attribute Registry' })).toBeVisible();
-  await expect(page.getByText('Schema 1 / FreeRADIUS 3.2.8')).toBeVisible();
+  await expect(page.getByText('freeradius-3.2.8 / schema 1')).toBeVisible();
   const registry = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Typed Attribute Registry' }) });
   await registry.getByLabel('Vendor').fill('Aruba');
   await registry.getByLabel('Status').selectOption('partial');

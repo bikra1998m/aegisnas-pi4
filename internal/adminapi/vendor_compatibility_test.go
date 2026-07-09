@@ -30,6 +30,8 @@ func TestHandleGetVendorCompatibility(t *testing.T) {
 	assert.Equal(t, "AegisNAS", summary["product_vendor_name"])
 	assert.EqualValues(t, 55555, summary["product_vendor_id"])
 	assert.Equal(t, true, summary["product_vendor_id_placeholder"])
+	assert.Equal(t, "freeradius-3.2.8", summary["dictionary_release_profile_id"])
+	assert.Equal(t, "3.2.8", summary["dictionary_release"])
 	assert.Equal(t, "dictionary.aegisnas", summary["product_vendor_dictionary_filename"])
 	assert.Equal(t, "$INCLUDE dictionary.aegisnas", summary["product_vendor_dictionary_include"])
 	assert.EqualValues(t, 13, summary["product_attribute_count"])
@@ -54,6 +56,12 @@ func TestHandleGetVendorCompatibility(t *testing.T) {
 	rows, ok := coverage["rows"].([]any)
 	require.True(t, ok)
 	assert.NotEmpty(t, rows)
+
+	releaseProfile, ok := payload["dictionary_release_profile"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "freeradius-3.2.8", releaseProfile["id"])
+	assert.NotEmpty(t, releaseProfile["vendor_aliases"])
+	assert.NotEmpty(t, releaseProfile["firmware_profiles"])
 }
 
 func TestHandleGetVendorCompatibilityIncludesClientProfiles(t *testing.T) {

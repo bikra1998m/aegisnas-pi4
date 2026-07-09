@@ -25,6 +25,7 @@ var freeRADIUSRegistryCSV []byte
 
 type AttributeRegistry struct {
 	SchemaVersion        int                      `json:"schema_version"`
+	ReleaseProfileID     string                   `json:"release_profile_id"`
 	SourceRelease        string                   `json:"source_release"`
 	SourceFileCount      int                      `json:"source_file_count"`
 	SourceSHA256         string                   `json:"source_sha256"`
@@ -38,25 +39,27 @@ type AttributeRegistry struct {
 }
 
 type AttributeRegistryEntry struct {
-	Source           string   `json:"source"`
-	Key              string   `json:"key"`
-	WireKey          string   `json:"wire_key"`
-	Vendor           string   `json:"vendor"`
-	PEN              uint32   `json:"pen"`
-	Attribute        string   `json:"attribute"`
-	Number           uint32   `json:"number,omitempty"`
-	OID              string   `json:"oid,omitempty"`
-	WireType         string   `json:"wire_type"`
-	EnumeratedValues int      `json:"enumerated_values,omitempty"`
-	CapabilityFamily string   `json:"capability_family"`
-	DictionaryStatus string   `json:"dictionary_status"`
-	PackKey          string   `json:"pack_key,omitempty"`
-	Semantic         string   `json:"semantic,omitempty"`
-	Directions       []string `json:"directions,omitempty"`
-	Functionality    string   `json:"functionality,omitempty"`
-	DecodeKind       string   `json:"decode_kind,omitempty"`
-	DecodeSemantic   string   `json:"decode_semantic,omitempty"`
-	DecodeScale      int      `json:"decode_scale,omitempty"`
+	Source             string   `json:"source"`
+	Key                string   `json:"key"`
+	WireKey            string   `json:"wire_key"`
+	ReleaseProfileID   string   `json:"release_profile_id"`
+	Vendor             string   `json:"vendor"`
+	PEN                uint32   `json:"pen"`
+	Attribute          string   `json:"attribute"`
+	Number             uint32   `json:"number,omitempty"`
+	OID                string   `json:"oid,omitempty"`
+	WireType           string   `json:"wire_type"`
+	EnumeratedValues   int      `json:"enumerated_values,omitempty"`
+	CapabilityFamily   string   `json:"capability_family"`
+	DictionaryStatus   string   `json:"dictionary_status"`
+	PackKey            string   `json:"pack_key,omitempty"`
+	Semantic           string   `json:"semantic,omitempty"`
+	SemanticProvenance string   `json:"semantic_provenance,omitempty"`
+	Directions         []string `json:"directions,omitempty"`
+	Functionality      string   `json:"functionality,omitempty"`
+	DecodeKind         string   `json:"decode_kind,omitempty"`
+	DecodeSemantic     string   `json:"decode_semantic,omitempty"`
+	DecodeScale        int      `json:"decode_scale,omitempty"`
 }
 
 type AttributeRuntimeMapping struct {
@@ -93,12 +96,13 @@ func MustBuiltInAttributeRegistry() *AttributeRegistry {
 func ParseAttributeRegistryCSV(payload []byte) (*AttributeRegistry, error) {
 	digest := sha256.Sum256(payload)
 	registry := &AttributeRegistry{
-		SchemaVersion:   AttributeRegistrySchemaVersion,
-		SourceRelease:   FreeRADIUSRegistryRelease,
-		SourceFileCount: FreeRADIUSRegistryFileCount,
-		SourceSHA256:    hex.EncodeToString(digest[:]),
-		byName:          map[string]int{},
-		byWire:          map[string][]int{},
+		SchemaVersion:    AttributeRegistrySchemaVersion,
+		ReleaseProfileID: DefaultDictionaryReleaseProfileID,
+		SourceRelease:    FreeRADIUSRegistryRelease,
+		SourceFileCount:  FreeRADIUSRegistryFileCount,
+		SourceSHA256:     hex.EncodeToString(digest[:]),
+		byName:           map[string]int{},
+		byWire:           map[string][]int{},
 	}
 
 	reader := csv.NewReader(strings.NewReader(string(payload)))
@@ -155,8 +159,8 @@ func parseAttributeRegistryRecord(record []string) (AttributeRegistryEntry, erro
 	if err != nil {
 		return AttributeRegistryEntry{}, fmt.Errorf("invalid enumerated value count %q", record[6])
 	}
-	vendor := strings.TrimSpace(record[0])
-	attribute := strings.TrimSpace(record[2])
+	vendor := NormalizeDictionaryVendorName(DefaultDictionaryReleaseProfileID, record[0])
+	attribute := NormalizeDictionaryAttributeName(DefaultDictionaryReleaseProfileID, vendor, record[2])
 	wireType := strings.ToLower(strings.TrimSpace(record[5]))
 	status := strings.ToLower(strings.TrimSpace(record[8]))
 	if vendor == "" || attribute == "" || !ValidVendorDictionaryAttributeType(wireType) {
@@ -171,12 +175,13 @@ func parseAttributeRegistryRecord(record []string) (AttributeRegistryEntry, erro
 	}
 
 	entry := AttributeRegistryEntry{
-		Source: "freeradius-" + FreeRADIUSRegistryRelease,
+		Source: "freeradius-" + FreeRADIUSRegistryRelease, ReleaseProfileID: DefaultDictionaryReleaseProfileID,
 		Vendor: vendor, PEN: uint32(pen), Attribute: attribute, Number: number, OID: oid,
 		WireType: wireType, EnumeratedValues: enums, CapabilityFamily: strings.TrimSpace(record[7]),
 		DictionaryStatus: status, PackKey: NormalizeVendorCompatibilityPackKey(record[9]),
 		Semantic: strings.TrimSpace(record[10]), Directions: parseRegistryDirections(record[11]),
-		Functionality: strings.TrimSpace(record[12]),
+		SemanticProvenance: "freeradius-audit:" + FreeRADIUSRegistryRelease,
+		Functionality:      strings.TrimSpace(record[12]),
 	}
 	entry.Key = fmt.Sprintf("freeradius:%s:%d:%s", FreeRADIUSRegistryRelease, entry.PEN, strings.ToLower(entry.Attribute))
 	if entry.Number > 0 {
@@ -204,44 +209,46 @@ func (r *AttributeRegistry) addEntry(entry AttributeRegistryEntry) {
 func runtimeAttributeRegistryAnnotations() []AttributeRegistryEntry {
 	entries := []AttributeRegistryEntry{
 		{
-			Vendor: "Cisco", PEN: 9, Attribute: "Cisco-AVPair", Number: 1, WireType: "string",
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Cisco", PEN: 9, Attribute: "Cisco-AVPair", Number: 1, WireType: "string",
 			PackKey: VendorPackCisco, Semantic: VendorSemanticDynamicACL, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
 		},
 		{
-			Vendor: "Nomadix", PEN: 3309, Attribute: "Nomadix-Bw-Class-Name", Number: 27, WireType: "string",
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Nomadix", PEN: 3309, Attribute: "Nomadix-Bw-Class-Name", Number: 27, WireType: "string",
 			PackKey: VendorPackNomadix, Semantic: VendorSemanticBandwidthProfile, Directions: []string{"inbound"}, DecodeKind: "string", DecodeSemantic: VendorSemanticBandwidthProfile,
 		},
 		{
-			Vendor: "Meraki", PEN: 29671, Attribute: "Meraki-Ap-Name", Number: 3, WireType: "string",
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Meraki", PEN: 29671, Attribute: "Meraki-Ap-Name", Number: 3, WireType: "string",
 			PackKey: VendorPackMeraki, Semantic: VendorSemanticAccountingIdentity, Directions: []string{"accounting", "inbound"}, DecodeKind: "string", DecodeSemantic: VendorSemanticAccountingIdentity,
 		},
 		{
-			Vendor: "Arista", PEN: 30065, Attribute: "Arista-Segment-Id", Number: 11, WireType: "string",
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Arista", PEN: 30065, Attribute: "Arista-Segment-Id", Number: 11, WireType: "string",
 			PackKey: VendorPackArista, Semantic: VendorSemanticVLAN, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "vlan", DecodeSemantic: VendorSemanticVLAN,
 		},
 		{
-			Vendor: "Arista", PEN: 30065, Attribute: "Arista-Device-Profiling", Number: 17, WireType: "string",
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Arista", PEN: 30065, Attribute: "Arista-Device-Profiling", Number: 17, WireType: "string",
 			PackKey: VendorPackArista, Semantic: VendorSemanticDevicePosture, Directions: []string{"accounting", "inbound"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDevicePosture,
 		},
 		{
-			Vendor: "Arista", PEN: 30065, Attribute: "Arista-Tenant-Id", Number: 20, WireType: "integer",
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Arista", PEN: 30065, Attribute: "Arista-Tenant-Id", Number: 20, WireType: "integer",
 			PackKey: VendorPackArista, Semantic: VendorSemanticTenant, Directions: []string{"inbound"}, DecodeKind: "integer_text", DecodeSemantic: VendorSemanticTenant,
 		},
 		{
-			Vendor: "Arista", PEN: 30065, Attribute: "Arista-Interface-Profile", Number: 21, WireType: "string",
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Arista", PEN: 30065, Attribute: "Arista-Interface-Profile", Number: 21, WireType: "string",
 			PackKey: VendorPackArista, Semantic: VendorSemanticDeviceGroup, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDeviceGroup,
 		},
 		{
-			Source: "aegisnas-runtime", Vendor: "Ubiquiti", PEN: 41112, Attribute: "UBNT-Data-Rate-DL", Number: 1,
+			Source: "aegisnas-runtime", ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Ubiquiti", PEN: 41112, Attribute: "UBNT-Data-Rate-DL", Number: 1,
 			WireType: "integer", CapabilityFamily: "Bandwidth/QoS", DictionaryStatus: "partial", PackKey: VendorPackUBNT,
 			Semantic: VendorSemanticDownloadBandwidth, Directions: []string{"inbound", "outbound_reply"},
-			Functionality: "Ubiquiti downstream data-rate assignment and accounting context.", DecodeKind: "rate_bps", DecodeSemantic: VendorSemanticDownloadBandwidth, DecodeScale: 1000,
+			SemanticProvenance: "aegisnas-runtime",
+			Functionality:      "Ubiquiti downstream data-rate assignment and accounting context.", DecodeKind: "rate_bps", DecodeSemantic: VendorSemanticDownloadBandwidth, DecodeScale: 1000,
 		},
 		{
-			Source: "aegisnas-runtime", Vendor: "Ubiquiti", PEN: 41112, Attribute: "UBNT-Data-Rate-UL", Number: 3,
+			Source: "aegisnas-runtime", ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Ubiquiti", PEN: 41112, Attribute: "UBNT-Data-Rate-UL", Number: 3,
 			WireType: "integer", CapabilityFamily: "Bandwidth/QoS", DictionaryStatus: "partial", PackKey: VendorPackUBNT,
 			Semantic: VendorSemanticUploadBandwidth, Directions: []string{"inbound", "outbound_reply"},
-			Functionality: "Ubiquiti upstream data-rate assignment and accounting context.", DecodeKind: "rate_bps", DecodeSemantic: VendorSemanticUploadBandwidth, DecodeScale: 1000,
+			SemanticProvenance: "aegisnas-runtime",
+			Functionality:      "Ubiquiti upstream data-rate assignment and accounting context.", DecodeKind: "rate_bps", DecodeSemantic: VendorSemanticUploadBandwidth, DecodeScale: 1000,
 		},
 	}
 	return entries
@@ -254,6 +261,7 @@ func (r *AttributeRegistry) applyRuntimeAnnotations(vendors map[string]struct{})
 			wasMissing := r.Entries[idx].DictionaryStatus == "missing"
 			r.Entries[idx].PackKey = annotation.PackKey
 			r.Entries[idx].Semantic = mergeRegistrySemantics(r.Entries[idx].Semantic, annotation.Semantic)
+			r.Entries[idx].SemanticProvenance = mergeRegistrySemantics(r.Entries[idx].SemanticProvenance, "aegisnas-runtime")
 			r.Entries[idx].Directions = append([]string(nil), annotation.Directions...)
 			r.Entries[idx].DecodeKind = annotation.DecodeKind
 			r.Entries[idx].DecodeSemantic = annotation.DecodeSemantic
@@ -265,7 +273,11 @@ func (r *AttributeRegistry) applyRuntimeAnnotations(vendors map[string]struct{})
 			continue
 		}
 		annotation.Source = "aegisnas-runtime"
+		annotation.ReleaseProfileID = DefaultDictionaryReleaseProfileID
 		annotation.DictionaryStatus = "partial"
+		if annotation.SemanticProvenance == "" {
+			annotation.SemanticProvenance = "aegisnas-runtime"
+		}
 		if annotation.CapabilityFamily == "" {
 			annotation.CapabilityFamily = "Vendor-specific/other"
 		}
@@ -410,6 +422,8 @@ func registryDirectionContains(values []string, target string) bool {
 }
 
 func attributeRegistryNameKey(vendor, attribute string) string {
+	vendor = NormalizeDictionaryVendorName(DefaultDictionaryReleaseProfileID, vendor)
+	attribute = NormalizeDictionaryAttributeName(DefaultDictionaryReleaseProfileID, vendor, attribute)
 	return strings.ToLower(strings.TrimSpace(vendor)) + "\x00" + strings.ToLower(strings.TrimSpace(attribute))
 }
 
@@ -465,15 +479,18 @@ func (r *AttributeRegistry) ValidateCompatibilityPacks(packs []VendorCompatibili
 }
 
 func (r *AttributeRegistry) lookupPackAttribute(pack VendorCompatibilityPack, attribute string) (AttributeRegistryEntry, bool) {
-	attribute = strings.ToLower(strings.TrimSpace(attribute))
+	attribute = strings.ToLower(strings.TrimSpace(NormalizeDictionaryAttributeName(DefaultDictionaryReleaseProfileID, pack.VendorName, attribute)))
+	if entry, ok := r.LookupName(pack.VendorName, attribute); ok {
+		return entry, true
+	}
 	for _, entry := range r.Entries {
 		if pack.VendorID > 0 && entry.PEN != uint32(pack.VendorID) {
 			continue
 		}
-		if pack.VendorID == 0 && !strings.EqualFold(entry.Vendor, pack.VendorName) {
+		if pack.VendorID == 0 && !strings.EqualFold(NormalizeDictionaryVendorName(DefaultDictionaryReleaseProfileID, entry.Vendor), NormalizeDictionaryVendorName(DefaultDictionaryReleaseProfileID, pack.VendorName)) {
 			continue
 		}
-		candidate := strings.ToLower(strings.TrimSpace(entry.Attribute))
+		candidate := strings.ToLower(strings.TrimSpace(NormalizeDictionaryAttributeName(DefaultDictionaryReleaseProfileID, entry.Vendor, entry.Attribute)))
 		if candidate == attribute || strings.HasSuffix(candidate, "-"+attribute) {
 			return entry, true
 		}

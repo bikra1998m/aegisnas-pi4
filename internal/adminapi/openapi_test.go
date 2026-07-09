@@ -59,6 +59,13 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read AegisNAS vendor identity lifecycle", vendorIdentityGet["summary"])
 	assert.Contains(t, vendorIdentityGet["x-aegisnas-roles"], "read_only")
 
+	dictionaryReleasePath, ok := paths["/api/v1/system/dictionary-release-profiles"].(map[string]any)
+	require.True(t, ok)
+	dictionaryReleaseGet, ok := dictionaryReleasePath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read dictionary release profiles", dictionaryReleaseGet["summary"])
+	assert.Contains(t, dictionaryReleaseGet["x-aegisnas-roles"], "read_only")
+
 	vendorIdentityPreviewPath, ok := paths["/api/v1/system/vendor-identity/migrations/preview"].(map[string]any)
 	require.True(t, ok)
 	vendorIdentityPreviewPost, ok := vendorIdentityPreviewPath["post"].(map[string]any)

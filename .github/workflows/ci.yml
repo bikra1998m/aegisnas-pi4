@@ -20,6 +20,7 @@ jobs:
       - run: go test -count=1 -p=1 -v ./...
       - run: make test-vendor-identity
       - run: make test-attribute-registry
+      - run: make test-dictionary-release-profiles
       - run: make test-vendor-certification
 
   frontend:

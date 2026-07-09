@@ -101,6 +101,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionScalingCheck(&report)
 	addProductionVendorIdentityCheck(&report)
 	addProductionAttributeRegistryCheck(&report)
+	addProductionDictionaryReleaseProfileCheck(&report, cfg)
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
@@ -145,6 +146,46 @@ func addProductionAttributeRegistryCheck(report *productionReadinessReport) {
 	addProductionCheck(report, productionReadinessCheck{
 		Key: "attribute_registry", Category: "radius", Label: "Typed Attribute Registry", Status: "passed",
 		Summary: fmt.Sprintf("FreeRADIUS %s registry schema %d validates %d source attributes with SHA-256 %s.", registry.SourceRelease, registry.SchemaVersion, registry.SourceAttributeCount, registry.SourceSHA256),
+	})
+}
+
+func addProductionDictionaryReleaseProfileCheck(report *productionReadinessReport, cfg *config.Config) {
+	activeID := productconfigs.DefaultDictionaryReleaseProfileID
+	if cfg != nil {
+		activeID = productconfigs.EffectiveDictionaryReleaseProfileID(cfg.Radius.Vendor.DictionaryRelease)
+	}
+	profile, ok := productconfigs.DictionaryReleaseProfileByID(activeID)
+	if !ok {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "dictionary_release_profile", Category: "radius", Label: "Dictionary Release Profile", Status: "blocked",
+			Summary:        "The configured dictionary release profile is not embedded in this build.",
+			Recommendation: "Use the pinned release profile shipped with this appliance or install a reviewed build for the requested release.",
+			Dependencies:   []string{"radius.vendor.dictionary_release"},
+		})
+		return
+	}
+	registry, err := productconfigs.BuiltInAttributeRegistry()
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "dictionary_release_profile", Category: "radius", Label: "Dictionary Release Profile", Status: "blocked",
+			Summary:        "The dictionary release profile cannot be validated because the attribute registry is unavailable.",
+			Recommendation: "Regenerate the pinned registry and rebuild the appliance.",
+			Dependencies:   []string{"attribute_registry"},
+		})
+		return
+	}
+	if err := productconfigs.ValidateDictionaryReleaseProfile(profile, registry, productconfigs.AegisNASVendorCompatibilityPacks()); err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "dictionary_release_profile", Category: "radius", Label: "Dictionary Release Profile", Status: "blocked",
+			Summary:        "The dictionary release profile is inconsistent with the registry or compatibility packs: " + err.Error(),
+			Recommendation: "Review the release profile, alias table, firmware scopes, registry hash, and compatibility pack metadata together.",
+			Dependencies:   []string{"configs/dictionary_release_profiles.go", "configs/attribute_registry"},
+		})
+		return
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "dictionary_release_profile", Category: "radius", Label: "Dictionary Release Profile", Status: "passed",
+		Summary: fmt.Sprintf("Active profile %s pins FreeRADIUS %s with %d vendor aliases, %d attribute aliases, and %d firmware scopes.", profile.ID, profile.Release, profile.VendorAliasCount, profile.AttributeAliasCount, profile.FirmwareProfileCount),
 	})
 }
 

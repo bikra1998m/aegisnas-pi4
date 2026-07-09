@@ -85,6 +85,9 @@ func TestAegisNASVendorCompatibilityReport(t *testing.T) {
 
 	assert.Equal(t, "AegisNAS", report.Summary.ProductVendorName)
 	assert.Equal(t, 55555, report.Summary.ProductVendorID)
+	assert.Equal(t, DefaultDictionaryReleaseProfileID, report.Summary.DictionaryReleaseProfileID)
+	assert.Equal(t, "3.2.8", report.Summary.DictionaryRelease)
+	assert.Equal(t, report.DictionaryReleaseProfile.RegistrySourceSHA256, report.Summary.DictionaryReleaseSourceSHA256)
 	assert.True(t, report.Summary.ProductVendorIDPlaceholder)
 	assert.Equal(t, "dictionary.aegisnas", report.Summary.ProductVendorDictionaryFilename)
 	assert.Equal(t, "$INCLUDE dictionary.aegisnas", report.Summary.ProductVendorDictionaryInclude)
@@ -94,6 +97,7 @@ func TestAegisNASVendorCompatibilityReport(t *testing.T) {
 	assert.Greater(t, report.Summary.ImplementedCount, 0)
 	assert.Greater(t, report.Summary.PlannedCount, 0)
 	assert.NotEmpty(t, report.Packs)
+	assert.NotEmpty(t, report.DictionaryReleaseProfile.FirmwareProfiles)
 
 	role, ok := report.Catalog.Attribute("AegisNAS", "AegisNAS-Role")
 	require.True(t, ok)
@@ -157,6 +161,10 @@ func TestAegisNASVendorCompatibilityPacks(t *testing.T) {
 	openwifi, ok := VendorCompatibilityPackByKey("open-wifi")
 	require.True(t, ok)
 	assert.Equal(t, VendorPackOpenWiFi, openwifi.Key)
+
+	tplink, ok = VendorCompatibilityPackByKey("tp-link")
+	require.True(t, ok)
+	assert.Equal(t, VendorPackTPLink, tplink.Key)
 
 	for _, item := range []struct {
 		pack      string

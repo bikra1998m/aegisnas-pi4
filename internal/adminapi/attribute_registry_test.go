@@ -19,6 +19,7 @@ func TestHandleGetAttributeRegistryFiltersAndPaginates(t *testing.T) {
 
 	var first attributeRegistryResponse
 	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &first))
+	assert.Equal(t, productconfigs.DefaultDictionaryReleaseProfileID, first.ReleaseProfileID)
 	assert.Equal(t, 7654, first.SourceAttributeCount)
 	assert.Equal(t, 148, first.MappedCount)
 	assert.Greater(t, first.FilteredCount, 2)
@@ -44,6 +45,7 @@ func TestHandleGetAttributeRegistryRejectsInvalidQueries(t *testing.T) {
 		"/api/v1/system/attribute-registry?limit=501",
 		"/api/v1/system/attribute-registry?pen=-1",
 		"/api/v1/system/attribute-registry?status=certified",
+		"/api/v1/system/attribute-registry?release=freeradius-4.0.0",
 		"/api/v1/system/attribute-registry?cursor=not-base64",
 	} {
 		response := httptest.NewRecorder()

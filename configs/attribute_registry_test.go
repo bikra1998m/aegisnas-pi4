@@ -14,6 +14,7 @@ func TestBuiltInAttributeRegistryContract(t *testing.T) {
 	require.NotNil(t, registry)
 
 	assert.Equal(t, AttributeRegistrySchemaVersion, registry.SchemaVersion)
+	assert.Equal(t, DefaultDictionaryReleaseProfileID, registry.ReleaseProfileID)
 	assert.Equal(t, "3.2.8", registry.SourceRelease)
 	assert.Equal(t, 246, registry.SourceFileCount)
 	assert.Equal(t, 196, registry.VendorCount)
@@ -41,6 +42,7 @@ func TestAttributeRegistryIndexesAndRuntimeCodecs(t *testing.T) {
 	ubnt, ok := registry.LookupName("Ubiquiti", "UBNT-Data-Rate-DL")
 	require.True(t, ok)
 	assert.Equal(t, "aegisnas-runtime", ubnt.Source)
+	assert.Equal(t, "aegisnas-runtime", ubnt.SemanticProvenance)
 	assert.Equal(t, "rate_bps", ubnt.DecodeKind)
 	assert.Equal(t, 1000, ubnt.DecodeScale)
 

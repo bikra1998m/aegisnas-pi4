@@ -281,6 +281,7 @@ type RadiusVendorConfig struct {
 	Enabled               bool                               `mapstructure:"enabled"`
 	Name                  string                             `mapstructure:"name"`
 	ID                    int                                `mapstructure:"id"`
+	DictionaryRelease     string                             `mapstructure:"dictionary_release"`
 	IdentityMode          string                             `mapstructure:"identity_mode"`
 	AssignedOrganization  string                             `mapstructure:"assigned_organization"`
 	AssignmentRegistryURL string                             `mapstructure:"assignment_registry_url"`
@@ -2972,6 +2973,10 @@ func (c *Config) Validate() error {
 	}
 	if err := validateRadiusVendorIdentity(c.Radius.Vendor); err != nil {
 		return err
+	}
+	dictionaryRelease := productconfigs.EffectiveDictionaryReleaseProfileID(c.Radius.Vendor.DictionaryRelease)
+	if !productconfigs.ValidDictionaryReleaseProfileID(dictionaryRelease) {
+		return fmt.Errorf("radius.vendor.dictionary_release %q is unknown", c.Radius.Vendor.DictionaryRelease)
 	}
 	seenVendorPacks := map[string]struct{}{}
 	for i, pack := range c.Radius.Vendor.CompatibilityPacks {

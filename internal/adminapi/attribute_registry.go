@@ -18,6 +18,7 @@ const (
 
 type attributeRegistryResponse struct {
 	SchemaVersion        int                                     `json:"schema_version"`
+	ReleaseProfileID     string                                  `json:"release_profile_id"`
 	SourceRelease        string                                  `json:"source_release"`
 	SourceFileCount      int                                     `json:"source_file_count"`
 	SourceAttributeCount int                                     `json:"source_attribute_count"`
@@ -31,6 +32,7 @@ type attributeRegistryResponse struct {
 }
 
 type attributeRegistryFilter struct {
+	Release  string
 	Vendor   string
 	PEN      uint32
 	Pack     string
@@ -55,8 +57,12 @@ func HandleGetAttributeRegistry(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
+	if !strings.EqualFold(filter.Release, registry.ReleaseProfileID) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "attribute registry release does not match the active embedded registry"})
+		return
+	}
 	fingerprint := attributeRegistryFilterFingerprint(filter)
-	offset, err := decodeAttributeRegistryCursor(r.URL.Query().Get("cursor"), registry.SourceSHA256, fingerprint)
+	offset, err := decodeAttributeRegistryCursor(r.URL.Query().Get("cursor"), registry.ReleaseProfileID, registry.SourceSHA256, fingerprint)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
@@ -79,10 +85,10 @@ func HandleGetAttributeRegistry(w http.ResponseWriter, r *http.Request) {
 	}
 	next := ""
 	if offset+len(filtered) < matched {
-		next = encodeAttributeRegistryCursor(registry.SourceSHA256, fingerprint, offset+len(filtered))
+		next = encodeAttributeRegistryCursor(registry.ReleaseProfileID, registry.SourceSHA256, fingerprint, offset+len(filtered))
 	}
 	writeJSON(w, http.StatusOK, attributeRegistryResponse{
-		SchemaVersion: registry.SchemaVersion, SourceRelease: registry.SourceRelease,
+		SchemaVersion: registry.SchemaVersion, ReleaseProfileID: registry.ReleaseProfileID, SourceRelease: registry.SourceRelease,
 		SourceFileCount: registry.SourceFileCount, SourceAttributeCount: registry.SourceAttributeCount,
 		SourceSHA256: registry.SourceSHA256, VendorCount: registry.VendorCount,
 		AttributeCount: registry.AttributeCount, MappedCount: registry.MappedCount,
@@ -93,6 +99,7 @@ func HandleGetAttributeRegistry(w http.ResponseWriter, r *http.Request) {
 func parseAttributeRegistryFilter(r *http.Request) (attributeRegistryFilter, error) {
 	query := r.URL.Query()
 	filter := attributeRegistryFilter{
+		Release:  productconfigs.EffectiveDictionaryReleaseProfileID(query.Get("release")),
 		Vendor:   strings.ToLower(strings.TrimSpace(query.Get("vendor"))),
 		Pack:     productconfigs.NormalizeVendorCompatibilityPackKey(query.Get("pack")),
 		Semantic: strings.ToLower(strings.TrimSpace(query.Get("semantic"))),
@@ -108,6 +115,9 @@ func parseAttributeRegistryFilter(r *http.Request) (attributeRegistryFilter, err
 	}
 	if filter.Status != "" && filter.Status != "missing" && filter.Status != "partial" && filter.Status != "implemented" {
 		return attributeRegistryFilter{}, fmt.Errorf("status must be missing, partial, or implemented")
+	}
+	if !productconfigs.ValidDictionaryReleaseProfileID(filter.Release) {
+		return attributeRegistryFilter{}, fmt.Errorf("release must be a supported dictionary release profile")
 	}
 	if len(filter.Search) > 200 || len(filter.Vendor) > 200 || len(filter.Semantic) > 200 || len(filter.Pack) > 200 {
 		return attributeRegistryFilter{}, fmt.Errorf("attribute registry filter exceeds 200 characters")
@@ -161,16 +171,16 @@ func attributeRegistrySemanticContains(value, target string) bool {
 }
 
 func attributeRegistryFilterFingerprint(filter attributeRegistryFilter) string {
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%d\x00%s\x00%s\x00%s\x00%s", filter.Vendor, filter.PEN, filter.Pack, filter.Semantic, filter.Status, filter.Search)))
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%s\x00%d\x00%s\x00%s\x00%s\x00%s", filter.Release, filter.Vendor, filter.PEN, filter.Pack, filter.Semantic, filter.Status, filter.Search)))
 	return fmt.Sprintf("%x", digest[:8])
 }
 
-func encodeAttributeRegistryCursor(sourceSHA, fingerprint string, offset int) string {
-	payload := fmt.Sprintf("v1:%s:%s:%d", sourceSHA[:16], fingerprint, offset)
+func encodeAttributeRegistryCursor(releaseProfileID, sourceSHA, fingerprint string, offset int) string {
+	payload := fmt.Sprintf("v2:%s:%s:%s:%d", releaseProfileID, sourceSHA[:16], fingerprint, offset)
 	return base64.RawURLEncoding.EncodeToString([]byte(payload))
 }
 
-func decodeAttributeRegistryCursor(cursor, sourceSHA, fingerprint string) (int, error) {
+func decodeAttributeRegistryCursor(cursor, releaseProfileID, sourceSHA, fingerprint string) (int, error) {
 	if strings.TrimSpace(cursor) == "" {
 		return 0, nil
 	}
@@ -179,10 +189,10 @@ func decodeAttributeRegistryCursor(cursor, sourceSHA, fingerprint string) (int, 
 		return 0, fmt.Errorf("attribute registry cursor is invalid")
 	}
 	parts := strings.Split(string(payload), ":")
-	if len(parts) != 4 || parts[0] != "v1" || parts[1] != sourceSHA[:16] || parts[2] != fingerprint {
+	if len(parts) != 5 || parts[0] != "v2" || parts[1] != releaseProfileID || parts[2] != sourceSHA[:16] || parts[3] != fingerprint {
 		return 0, fmt.Errorf("attribute registry cursor is stale or does not match the filters")
 	}
-	offset, err := strconv.Atoi(parts[3])
+	offset, err := strconv.Atoi(parts[4])
 	if err != nil || offset < 0 {
 		return 0, fmt.Errorf("attribute registry cursor is invalid")
 	}

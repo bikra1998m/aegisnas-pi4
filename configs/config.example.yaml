@@ -167,6 +167,7 @@ radius:
     enabled: false
     name: "AegisNAS"
     id: 55555 # Lab placeholder. Production changes are written by the verified vendor-identity migration workflow after IANA assignment.
+    dictionary_release: "freeradius-3.2.8" # Pinned release profile for VSA aliases, firmware scopes, and registry provenance.
     identity_mode: "lab" # lab, unverified (disabled only), or production. Use the verified migration API to enter production mode.
     assigned_organization: "" # Exact organization in IANA's Private Enterprise Numbers registry.
     assignment_registry_url: ""

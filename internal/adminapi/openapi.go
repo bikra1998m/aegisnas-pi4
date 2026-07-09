@@ -1114,7 +1114,14 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))
+	addOperation(paths, "/api/v1/system/dictionary-release-profiles", "get", securedOperationWithParameters("Read dictionary release profiles", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("id", "Optional exact release profile ID such as freeradius-3.2.8.", false),
+	}, map[string]any{
+		"200": responseJSON("Pinned dictionary release profiles, alias normalization tables, firmware scopes, and active/default profile IDs."),
+		"404": responseJSON("Requested dictionary release profile was not found."),
+	}))
 	addOperation(paths, "/api/v1/system/attribute-registry", "get", securedOperationWithParameters("Read the generated typed attribute registry", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("release", "Optional dictionary release profile ID; defaults to the active embedded profile.", false),
 		queryStringParameter("vendor", "Exact vendor namespace filter.", false),
 		queryStringParameter("pen", "Exact Private Enterprise Number filter.", false),
 		queryStringParameter("pack", "Normalized compatibility pack filter.", false),

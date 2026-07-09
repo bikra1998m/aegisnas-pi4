@@ -329,9 +329,9 @@ func fieldsAfter(fields []string, needle string) []string {
 }
 
 func (c VendorDictionaryCatalog) VendorByName(name string) (VendorDictionary, bool) {
-	name = strings.ToLower(strings.TrimSpace(name))
+	name = strings.ToLower(strings.TrimSpace(NormalizeDictionaryVendorName(DefaultDictionaryReleaseProfileID, name)))
 	for _, vendor := range c.Vendors {
-		if strings.ToLower(vendor.Name) == name {
+		if strings.ToLower(NormalizeDictionaryVendorName(DefaultDictionaryReleaseProfileID, vendor.Name)) == name {
 			return vendor, true
 		}
 	}
@@ -343,9 +343,9 @@ func (c VendorDictionaryCatalog) Attribute(vendorName, attributeName string) (Ve
 	if !ok {
 		return VendorDictionaryAttribute{}, false
 	}
-	attributeName = strings.ToLower(strings.TrimSpace(attributeName))
+	attributeName = strings.ToLower(strings.TrimSpace(NormalizeDictionaryAttributeName(DefaultDictionaryReleaseProfileID, vendor.Name, attributeName)))
 	for _, attr := range vendor.Attributes {
-		attrName := strings.ToLower(attr.Name)
+		attrName := strings.ToLower(NormalizeDictionaryAttributeName(DefaultDictionaryReleaseProfileID, vendor.Name, attr.Name))
 		if attrName == attributeName || attrName == strings.ToLower(vendor.Name)+"."+attributeName {
 			return attr, true
 		}

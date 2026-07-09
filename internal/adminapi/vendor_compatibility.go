@@ -46,6 +46,12 @@ func HandleGetVendorCompatibility(w http.ResponseWriter, r *http.Request) {
 		report.ActivePacks = normalizeVendorCompatibilityPackKeys(cfg.Radius.Vendor.CompatibilityPacks)
 	}
 	if cfg != nil {
+		if profile, ok := productconfigs.DictionaryReleaseProfileByID(cfg.Radius.Vendor.DictionaryRelease); ok {
+			report.DictionaryReleaseProfile = profile
+			report.Summary.DictionaryReleaseProfileID = profile.ID
+			report.Summary.DictionaryRelease = profile.Release
+			report.Summary.DictionaryReleaseSourceSHA256 = profile.RegistrySourceSHA256
+		}
 		vendor := cfg.Radius.Vendor
 		report.Catalog = productconfigs.AegisNASVendorDictionaryCatalogFor(vendor.Name, vendor.ID)
 		for index := range report.Packs {

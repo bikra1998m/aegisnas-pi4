@@ -45,6 +45,9 @@ type VendorSemanticCapability struct {
 type VendorCompatibilitySummary struct {
 	ProductVendorID                    int      `json:"product_vendor_id"`
 	ProductVendorName                  string   `json:"product_vendor_name"`
+	DictionaryReleaseProfileID         string   `json:"dictionary_release_profile_id"`
+	DictionaryRelease                  string   `json:"dictionary_release"`
+	DictionaryReleaseSourceSHA256      string   `json:"dictionary_release_source_sha256"`
 	ProductVendorIDSource              string   `json:"product_vendor_id_source"`
 	ProductVendorIDPlaceholder         bool     `json:"product_vendor_id_placeholder"`
 	ProductVendorDictionaryFilename    string   `json:"product_vendor_dictionary_filename"`
@@ -67,13 +70,14 @@ type VendorCompatibilitySummary struct {
 }
 
 type VendorCompatibilityReport struct {
-	Catalog            VendorDictionaryCatalog        `json:"catalog"`
-	Semantics          []VendorSemanticCapability     `json:"semantics"`
-	Packs              []VendorCompatibilityPack      `json:"packs"`
-	ActivePacks        []string                       `json:"active_packs,omitempty"`
-	DictionaryCoverage VendorDictionaryCoverageReport `json:"dictionary_coverage"`
-	Summary            VendorCompatibilitySummary     `json:"summary"`
-	Notes              []string                       `json:"notes"`
+	Catalog                  VendorDictionaryCatalog        `json:"catalog"`
+	Semantics                []VendorSemanticCapability     `json:"semantics"`
+	Packs                    []VendorCompatibilityPack      `json:"packs"`
+	ActivePacks              []string                       `json:"active_packs,omitempty"`
+	DictionaryCoverage       VendorDictionaryCoverageReport `json:"dictionary_coverage"`
+	DictionaryReleaseProfile DictionaryReleaseProfile       `json:"dictionary_release_profile"`
+	Summary                  VendorCompatibilitySummary     `json:"summary"`
+	Notes                    []string                       `json:"notes"`
 }
 
 func AegisNASSemanticRegistry() []VendorSemanticCapability {
@@ -357,9 +361,13 @@ func AegisNASVendorCompatibilityReport() VendorCompatibilityReport {
 	semantics := AegisNASSemanticRegistry()
 	packs := AegisNASVendorCompatibilityPacks()
 	identity := AegisNASVendorIdentity()
+	releaseProfile := DefaultDictionaryReleaseProfile()
 	summary := VendorCompatibilitySummary{
 		ProductVendorName:                  identity.Name,
 		ProductVendorID:                    identity.ID,
+		DictionaryReleaseProfileID:         releaseProfile.ID,
+		DictionaryRelease:                  releaseProfile.Release,
+		DictionaryReleaseSourceSHA256:      releaseProfile.RegistrySourceSHA256,
 		ProductVendorIDSource:              identity.IDSource,
 		ProductVendorIDPlaceholder:         identity.Placeholder,
 		ProductVendorDictionaryFilename:    identity.DictionaryFilename,
@@ -385,12 +393,13 @@ func AegisNASVendorCompatibilityReport() VendorCompatibilityReport {
 		}
 	}
 	report := VendorCompatibilityReport{
-		Catalog:            catalog,
-		Semantics:          semantics,
-		Packs:              packs,
-		ActivePacks:        DefaultVendorCompatibilityPackKeys(),
-		DictionaryCoverage: BuildVendorDictionaryCoverageReport(catalog, packs, DefaultVendorCompatibilityPackKeys()),
-		Summary:            summary,
+		Catalog:                  catalog,
+		Semantics:                semantics,
+		Packs:                    packs,
+		ActivePacks:              DefaultVendorCompatibilityPackKeys(),
+		DictionaryCoverage:       BuildVendorDictionaryCoverageReport(catalog, packs, DefaultVendorCompatibilityPackKeys()),
+		DictionaryReleaseProfile: releaseProfile,
+		Summary:                  summary,
 		Notes: []string{
 			"FreeRADIUS dictionaries identify attributes; AegisNAS semantics define product behavior.",
 			"Compatibility packs should map vendor-specific attributes into these semantic keys instead of hard-coding vendor behavior.",

@@ -5,6 +5,9 @@ import { useAuth } from '../contexts/AuthContext';
 type VendorCompatibilitySummary = {
   product_vendor_id: number;
   product_vendor_name: string;
+  dictionary_release_profile_id?: string;
+  dictionary_release?: string;
+  dictionary_release_source_sha256?: string;
   product_vendor_id_source?: string;
   product_vendor_id_placeholder?: boolean;
   product_vendor_dictionary_filename?: string;
@@ -125,6 +128,46 @@ type VendorPack = {
   notes?: string[];
 };
 
+type DictionaryVendorAlias = {
+  alias: string;
+  canonical_vendor: string;
+  canonical_pack_key?: string;
+  pen?: number;
+  scope: string;
+};
+
+type DictionaryFirmwareProfile = {
+  key: string;
+  vendor: string;
+  pack_key: string;
+  pen?: number;
+  product_family: string;
+  firmware_scope: string;
+  hardware_profiles: string[];
+  support_state: string;
+  evidence_state: string;
+  attribute_scope: string[];
+};
+
+type DictionaryReleaseProfile = {
+  id: string;
+  release: string;
+  status: string;
+  default: boolean;
+  registry_source_sha256?: string;
+  source_file_count: number;
+  source_attribute_count: number;
+  effective_attribute_count: number;
+  vendor_count: number;
+  mapped_attribute_count: number;
+  runtime_decoder_count: number;
+  vendor_alias_count: number;
+  attribute_alias_count: number;
+  firmware_profile_count: number;
+  vendor_aliases?: DictionaryVendorAlias[];
+  firmware_profiles?: DictionaryFirmwareProfile[];
+};
+
 type VendorSemanticCapability = {
   key: string;
   label: string;
@@ -167,6 +210,7 @@ type VendorCompatibilityPayload = {
   summary: VendorCompatibilitySummary;
   active_packs?: string[];
   packs?: VendorPack[];
+  dictionary_release_profile?: DictionaryReleaseProfile;
   client_profiles?: VendorClientProfile[];
   profile_summary?: VendorProfileSummary;
   dictionary_coverage?: VendorDictionaryCoverage;
@@ -177,6 +221,7 @@ type VendorCompatibilityPayload = {
 type AttributeRegistryEntry = {
   key: string;
   source: string;
+  release_profile_id?: string;
   vendor: string;
   pen: number;
   attribute: string;
@@ -187,12 +232,14 @@ type AttributeRegistryEntry = {
   dictionary_status: string;
   pack_key?: string;
   semantic?: string;
+  semantic_provenance?: string;
   directions?: string[];
   decode_kind?: string;
 };
 
 type AttributeRegistryPayload = {
   schema_version: number;
+  release_profile_id: string;
   source_release: string;
   source_file_count: number;
   source_attribute_count: number;
@@ -601,6 +648,9 @@ export default function VendorCompatibility() {
   const packs = payload?.packs || [];
   const dictionaryCoverage = payload?.dictionary_coverage;
   const coverageRows = dictionaryCoverage?.rows || [];
+  const releaseProfile = payload?.dictionary_release_profile;
+  const firmwareProfiles = releaseProfile?.firmware_profiles || [];
+  const vendorAliases = releaseProfile?.vendor_aliases || [];
   const plannedSemantics = useMemo(
     () => (payload?.semantics || []).filter((item) => item.compatibility_state !== 'implemented'),
     [payload?.semantics],
@@ -767,10 +817,63 @@ export default function VendorCompatibility() {
           <section className="mt-6">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
               <div>
+                <h3 className="text-lg font-semibold text-gray-900">Dictionary Release Profile</h3>
+                <p className="mt-1 text-sm text-gray-600">Pin FreeRADIUS dictionary release, vendor aliases, firmware scopes, and registry provenance before enabling vendor packs.</p>
+              </div>
+              {releaseProfile ? <StatusBadge tone="green">{releaseProfile.id}</StatusBadge> : null}
+            </div>
+            {releaseProfile ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="FreeRADIUS Release" value={releaseProfile.release} hint={`${releaseProfile.source_file_count} dictionary files pinned.`} />
+                  <StatCard label="Vendor Aliases" value={releaseProfile.vendor_alias_count} hint={`${releaseProfile.attribute_alias_count} attribute aliases.`} />
+                  <StatCard label="Firmware Scopes" value={releaseProfile.firmware_profile_count} hint={`${releaseProfile.runtime_decoder_count} runtime decoders.`} />
+                  <StatCard label="Effective Attrs" value={releaseProfile.effective_attribute_count} hint={`${releaseProfile.mapped_attribute_count} mapped entries.`} />
+                </div>
+                <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Alias', 'Canonical', 'Scope'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {vendorAliases.slice(0, 8).map((alias) => (
+                          <tr key={`${alias.alias}-${alias.canonical_pack_key}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{alias.alias}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{alias.canonical_vendor}<div className="text-xs text-gray-500">{alias.canonical_pack_key || 'metadata'}{alias.pen ? ` / PEN ${alias.pen}` : ''}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{alias.scope}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Firmware', 'Vendor', 'Evidence'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {firmwareProfiles.slice(0, 8).map((profile) => (
+                          <tr key={profile.key}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{profile.product_family}<div className="text-xs text-gray-500">{profile.firmware_scope}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{profile.vendor}<div className="text-xs text-gray-500">{profile.pack_key}{profile.pen ? ` / PEN ${profile.pen}` : ''}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{profile.support_state}<div className="text-xs text-gray-500">{profile.evidence_state}</div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <p className="mt-2 break-all text-xs text-gray-500">Registry SHA-256: {releaseProfile.registry_source_sha256 || payload.summary.dictionary_release_source_sha256}</p>
+              </>
+            ) : (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Dictionary release profile metadata is unavailable.</div>
+            )}
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
                 <h3 className="text-lg font-semibold text-gray-900">Typed Attribute Registry</h3>
                 <p className="mt-1 text-sm text-gray-600">Trace wire identifiers, value types, policy semantics, packet decoders, and source provenance from one versioned contract.</p>
               </div>
-              {attributeRegistry ? <StatusBadge tone="green">Schema {attributeRegistry.schema_version} / FreeRADIUS {attributeRegistry.source_release}</StatusBadge> : null}
+              {attributeRegistry ? <StatusBadge tone="green">{attributeRegistry.release_profile_id} / schema {attributeRegistry.schema_version}</StatusBadge> : null}
             </div>
 
             <form className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]" onSubmit={(event) => { event.preventDefault(); void fetchAttributeRegistry(false); }}>
@@ -806,7 +909,7 @@ export default function VendorCompatibility() {
                           <td className="px-4 py-3 text-sm"><div className="font-medium text-gray-900">{entry.vendor}</div><div className="text-xs text-gray-500">PEN {entry.pen} / {entry.number || entry.oid || '-'}</div></td>
                           <td className="px-4 py-3 text-sm text-gray-800">{entry.attribute}<div className="text-xs text-gray-500">{entry.source}</div></td>
                           <td className="px-4 py-3 text-sm text-gray-700">{entry.wire_type}<div className="text-xs text-gray-500">{joinList(entry.directions)}{entry.decode_kind ? ` / ${entry.decode_kind}` : ''}</div></td>
-                          <td className="px-4 py-3 text-sm"><div>{entry.semantic || entry.capability_family}</div><div className="mt-1"><StatusBadge tone={entry.dictionary_status === 'missing' ? 'gray' : 'amber'}>{entry.dictionary_status}</StatusBadge></div></td>
+                          <td className="px-4 py-3 text-sm"><div>{entry.semantic || entry.capability_family}</div><div className="text-xs text-gray-500">{entry.semantic_provenance || entry.release_profile_id || 'metadata'}</div><div className="mt-1"><StatusBadge tone={entry.dictionary_status === 'missing' ? 'gray' : 'amber'}>{entry.dictionary_status}</StatusBadge></div></td>
                         </tr>
                       ))}
                     </tbody>

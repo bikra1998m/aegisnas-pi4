@@ -615,57 +615,7 @@ func VendorPackSupportsServiceNameMapping(key string) bool {
 }
 
 func NormalizeVendorCompatibilityPackKey(key string) string {
-	key = strings.ToLower(strings.TrimSpace(key))
-	switch key {
-	case "aegis", "aegisnas-vsa", "product":
-		return VendorPackAegisNAS
-	case "mikrotik", "routeros":
-		return VendorPackMikroTik
-	case "wisp", "wispr":
-		return VendorPackWISPr
-	case "ubiquiti", "unifi", "ubnt":
-		return VendorPackUBNT
-	case "canopy", "epmp":
-		return VendorPackCambium
-	case "cisco-meraki":
-		return VendorPackMeraki
-	case "extremenetworks", "extreme-networks":
-		return VendorPackExtreme
-	case "junos":
-		return VendorPackJuniper
-	case "huawei-3com", "comware":
-		return VendorPackH3C
-	case "palo-alto", "palo_alto", "pan":
-		return VendorPackPaloAlto
-	case "tp-link", "tp_link", "omada":
-		return VendorPackTPLink
-	case "extremecloud", "extremecloudiq", "extreme-cloud-iq", "hive", "hivemanager":
-		return VendorPackAerohive
-	case "cisco-wlc", "wlc":
-		return VendorPackAirespace
-	case "hewlett-packard", "arubaos-switch", "procurve":
-		return VendorPackHP
-	case "coovachilli", "coova-chilli", "chilli":
-		return VendorPackChilliSpot
-	case "d-link", "d_link":
-		return VendorPackDLink
-	case "sonic-wall":
-		return VendorPackSonicWall
-	case "arista-eos", "eos":
-		return VendorPackArista
-	case "pica":
-		return VendorPackPica8
-	case "alcatel-lucent", "alu", "nokia-sr":
-		return VendorPackNokia
-	case "hp-msm":
-		return VendorPackColubris
-	case "open-wifi", "tip-openwifi":
-		return VendorPackOpenWiFi
-	case "juniper-mist":
-		return VendorPackMist
-	default:
-		return key
-	}
+	return NormalizeDictionaryPackAlias(DefaultDictionaryReleaseProfileID, key)
 }
 
 func ValidVendorCompatibilityPackKey(key string) bool {

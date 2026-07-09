@@ -66,7 +66,7 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/production-readiness | jq '.status, .checks[] | select(.status != "passed")'
 ```
 
-The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, product dictionary detection, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
+The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
 
 ## Vendor Compatibility Endpoint
 
@@ -96,6 +96,7 @@ Use this endpoint when you want to confirm:
 - per-role ChilliSpot combined data quotas from `radius.vendor.quota_mappings`
 - per-role Nokia decimal service names encoded as BCD from `radius.vendor.service_name_mappings`
 - the parsed dictionary coverage matrix through `dictionary_coverage`, including configured or auto-detected FreeRADIUS dictionary imports
+- the pinned dictionary release, alias table, firmware scopes, and registry SHA-256 through `dictionary_release_profile`
 - the same coverage model is available from `aegis-admin scan-radius-dictionaries` for offline JSON/CSV scans of FreeRADIUS dictionary trees
 - reply preview responses include normalized ACL intent plus per-pack ACL exports for Cisco AVPair, Aruba/NAS filter rules, AegisNAS ACL rules, and profile-style vendor hints
 - the deployed RADIUS client `nas_type` values and their effective reply packs through `client_profiles`
@@ -859,4 +860,6 @@ use the matching runbook as well so you keep the preview, validation, backup, an
 
 ## Attribute Registry API
 
-`GET /api/v1/system/attribute-registry` returns the generated typed registry with release/hash provenance and cursor pagination. Filters: `vendor`, `pen`, `pack`, `semantic`, `status`, `search`, `limit`, and `cursor`. See [attribute-registry.md](attribute-registry.md).
+`GET /api/v1/system/dictionary-release-profiles` returns the pinned dictionary release profiles, vendor aliases, attribute aliases, firmware scopes, and active/default profile IDs. Optional `id` filters one profile.
+
+`GET /api/v1/system/attribute-registry` returns the generated typed registry with release/hash provenance and cursor pagination. Filters: `release`, `vendor`, `pen`, `pack`, `semantic`, `status`, `search`, `limit`, and `cursor`. See [attribute-registry.md](attribute-registry.md) and [dictionary-release-profiles.md](dictionary-release-profiles.md).

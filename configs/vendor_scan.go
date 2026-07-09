@@ -210,12 +210,12 @@ func mappedVendorDictionaryAttributes(packs []VendorCompatibilityPack) map[strin
 }
 
 func hasVendorPack(packs []VendorCompatibilityPack, vendorName string) bool {
-	vendorName = strings.ToLower(strings.TrimSpace(vendorName))
+	vendorName = strings.ToLower(strings.TrimSpace(NormalizeDictionaryVendorName(DefaultDictionaryReleaseProfileID, vendorName)))
 	if vendorName == "" {
 		return false
 	}
 	for _, pack := range packs {
-		if strings.ToLower(strings.TrimSpace(pack.VendorName)) == vendorName {
+		if strings.ToLower(strings.TrimSpace(NormalizeDictionaryVendorName(DefaultDictionaryReleaseProfileID, pack.VendorName))) == vendorName {
 			return true
 		}
 	}
@@ -223,8 +223,8 @@ func hasVendorPack(packs []VendorCompatibilityPack, vendorName string) bool {
 }
 
 func vendorDictionaryAttributeKey(vendorName, attrName string) string {
-	vendorName = strings.ToLower(strings.TrimSpace(vendorName))
-	attrName = strings.ToLower(strings.TrimSpace(attrName))
+	vendorName = strings.ToLower(strings.TrimSpace(NormalizeDictionaryVendorName(DefaultDictionaryReleaseProfileID, vendorName)))
+	attrName = strings.ToLower(strings.TrimSpace(NormalizeDictionaryAttributeName(DefaultDictionaryReleaseProfileID, vendorName, attrName)))
 	prefix := vendorName + "."
 	if strings.HasPrefix(attrName, prefix) {
 		attrName = strings.TrimPrefix(attrName, prefix)
