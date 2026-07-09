@@ -196,6 +196,7 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Post("/system/controller-sync", adminapi.HandleRunControllerSync)
 			r.Get("/system/vendor-compatibility", adminapi.HandleGetVendorCompatibility)
 			r.Get("/system/dictionary-release-profiles", adminapi.HandleGetDictionaryReleaseProfiles)
+			r.Get("/system/compatibility-evidence", adminapi.HandleGetCompatibilityEvidence)
 			r.Get("/system/attribute-registry", adminapi.HandleGetAttributeRegistry)
 			r.Get("/system/vendor-identity", adminapi.HandleGetVendorIdentity)
 			r.Post("/system/vendor-identity/migrations/preview", adminapi.HandlePreviewVendorIdentityMigration)

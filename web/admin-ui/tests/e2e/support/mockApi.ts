@@ -3935,11 +3935,87 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
               { key: "mikrotik-routeros", vendor: "Mikrotik", pack_key: "mikrotik", pen: 14988, product_family: "RouterOS", firmware_scope: "RouterOS 6.x and 7.x dictionary-compatible RADIUS attributes", hardware_profiles: ["lite", "branch", "enterprise"], support_state: "software-ready", evidence_state: "external-certification-required", attribute_scope: ["Mikrotik-Rate-Limit"] },
             ],
           },
+          evidence: {
+            schema_version: 1,
+            release_profile_id: "freeradius-3.2.8",
+            source_sha256: "6".repeat(64),
+            summary: { total_records: 156, software_ready_count: 42, software_planned_count: 70, software_blocked_count: 10, metadata_only_count: 34, external_required_count: 28, externally_certified_count: 0 },
+            filtered_count: 0,
+            records: [],
+          },
           client_profiles: [],
           profile_summary: { total_clients: 0, enabled_clients: 0, profile_counts: {}, global_fallback_client_count: 0, known_vendor_profile_clients: 0 },
           dictionary_coverage: { catalog_vendor_count: 1, catalog_attribute_count: 13, pack_count: 1, active_pack_count: 1, dictionary_backed_pack_count: 1, partial_dictionary_pack_count: 0, missing_dictionary_vendor_count: 0, dictionary_matched_attribute_count: 13, missing_dictionary_attribute_count: 0, rows: [] },
           semantics: [],
           notes: [],
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/compatibility-evidence" && method === "GET") {
+      const claim = url.searchParams.get("claim") || "";
+      const records = [
+        {
+          id: "attribute:ubnt:qos.download_bandwidth:ubnt-data-rate-dl:outbound_reply",
+          subject_type: "attribute",
+          pack_key: "ubnt",
+          pack_label: "Ubiquiti / UniFi",
+          active: false,
+          vendor_name: "Ubiquiti",
+          vendor_id: 41112,
+          attribute: "UBNT-Data-Rate-DL",
+          semantic: "qos.download_bandwidth",
+          direction: "outbound_reply",
+          value_type: "rate",
+          compatibility_state: "implemented",
+          software_state: "ready",
+          certification_state: "external_required",
+          claim_state: "software_ready_external_required",
+          software_ready: true,
+          ready_for_external_validation: true,
+          external_validation_required: true,
+          dimensions: [
+            { key: "dictionary", label: "Dictionary Metadata", state: "passed", required: true },
+            { key: "typed_registry", label: "Typed Registry", state: "passed", required: true },
+            { key: "reply_render", label: "Reply Renderer", state: "passed", required: true },
+          ],
+        },
+        {
+          id: "attribute:aruba:access.role:aruba-user-role:outbound_reply",
+          subject_type: "attribute",
+          pack_key: "aruba",
+          pack_label: "Aruba",
+          active: false,
+          vendor_name: "Aruba",
+          vendor_id: 14823,
+          attribute: "Aruba-User-Role",
+          semantic: "access.role",
+          direction: "outbound_reply",
+          value_type: "string",
+          compatibility_state: "implemented",
+          software_state: "blocked",
+          certification_state: "not_required",
+          claim_state: "blocked",
+          software_ready: false,
+          ready_for_external_validation: false,
+          external_validation_required: false,
+          blockers: ["Dictionary Metadata: vendor dictionary is not present"],
+          dimensions: [
+            { key: "dictionary", label: "Dictionary Metadata", state: "blocked", required: true },
+            { key: "typed_registry", label: "Typed Registry", state: "passed", required: true },
+          ],
+        },
+      ].filter((record) => !claim || record.claim_state === claim);
+      await route.fulfill({
+        json: {
+          schema_version: 1,
+          release_profile_id: "freeradius-3.2.8",
+          source_sha256: "6".repeat(64),
+          summary: { total_records: 156, software_ready_count: 42, software_planned_count: 70, software_blocked_count: 10, metadata_only_count: 34, external_required_count: 28, externally_certified_count: 0 },
+          filtered_count: records.length,
+          records,
+          notes: ["software_ready is not device certification"],
         },
       });
       return;

@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles install-radius-dictionary scan-radius-dictionaries
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence install-radius-dictionary scan-radius-dictionaries
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -48,6 +48,9 @@ test-attribute-registry:
 
 test-dictionary-release-profiles:
 	go test ./configs ./internal/config ./internal/adminapi -run 'DictionaryRelease|VendorCompatibility|Authorize|OpenAPI|ProductionReadiness' -count=1
+
+test-compatibility-evidence:
+	go test ./configs ./internal/adminapi -run 'CompatibilityEvidence|VendorCompatibility|Authorize|OpenAPI|ProductionReadiness' -count=1
 				
 build:
 	go build ./...

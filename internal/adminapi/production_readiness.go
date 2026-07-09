@@ -102,6 +102,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionVendorIdentityCheck(&report)
 	addProductionAttributeRegistryCheck(&report)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
+	addProductionCompatibilityEvidenceCheck(&report, cfg)
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
@@ -186,6 +187,54 @@ func addProductionDictionaryReleaseProfileCheck(report *productionReadinessRepor
 	addProductionCheck(report, productionReadinessCheck{
 		Key: "dictionary_release_profile", Category: "radius", Label: "Dictionary Release Profile", Status: "passed",
 		Summary: fmt.Sprintf("Active profile %s pins FreeRADIUS %s with %d vendor aliases, %d attribute aliases, and %d firmware scopes.", profile.ID, profile.Release, profile.VendorAliasCount, profile.AttributeAliasCount, profile.FirmwareProfileCount),
+	})
+}
+
+func addProductionCompatibilityEvidenceCheck(report *productionReadinessReport, cfg *config.Config) {
+	compatibility := productconfigs.AegisNASVendorCompatibilityReport()
+	if cfg != nil && len(cfg.Radius.Vendor.CompatibilityPacks) > 0 {
+		compatibility.ActivePacks = normalizeVendorCompatibilityPackKeys(cfg.Radius.Vendor.CompatibilityPacks)
+	}
+	if cfg != nil {
+		vendor := cfg.Radius.Vendor
+		compatibility.Catalog = productconfigs.AegisNASVendorDictionaryCatalogFor(vendor.Name, vendor.ID)
+		for index := range compatibility.Packs {
+			if compatibility.Packs[index].Key == productconfigs.VendorPackAegisNAS {
+				compatibility.Packs[index].VendorName = strings.TrimSpace(vendor.Name)
+				compatibility.Packs[index].VendorID = vendor.ID
+			}
+		}
+	}
+	importPaths := vendorDictionaryImportPaths(cfg)
+	if len(importPaths) > 0 {
+		imported := productconfigs.LoadVendorDictionaryCatalog(importPaths)
+		compatibility.Catalog = productconfigs.MergeVendorDictionaryCatalogs("built-in AegisNAS, "+imported.Source, compatibility.Catalog, imported)
+	}
+	evidence := productconfigs.BuildCompatibilityEvidenceReport(compatibility.Catalog, compatibility.Packs, compatibility.ActivePacks)
+	if err := productconfigs.ValidateCompatibilityEvidenceReport(evidence); err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "compatibility_evidence", Category: "radius", Label: "Compatibility Evidence Model", Status: "blocked",
+			Summary:        "Compatibility evidence could not be validated: " + err.Error(),
+			Recommendation: "Review the evidence model, registry, vendor packs, and dictionary release profile before claiming compatibility.",
+			Dependencies:   []string{"configs/compatibility_evidence.go", "configs/vendor_packs.go", "configs/attribute_registry"},
+		})
+		return
+	}
+	activeBlocked := 0
+	for _, record := range evidence.Records {
+		if record.Active && record.SoftwareState == productconfigs.EvidenceSoftwareStateBlocked {
+			activeBlocked++
+		}
+	}
+	status := "passed"
+	if activeBlocked > 0 {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "compatibility_evidence", Category: "radius", Label: "Compatibility Evidence Model", Status: status,
+		Summary: fmt.Sprintf("Evidence schema %d tracks %d mappings: %d software-ready, %d planned, %d blocked (%d active), %d requiring external certification.",
+			evidence.SchemaVersion, evidence.Summary.TotalRecords, evidence.Summary.SoftwareReadyCount, evidence.Summary.SoftwarePlannedCount, evidence.Summary.SoftwareBlockedCount, activeBlocked, evidence.Summary.ExternalRequiredCount),
+		Recommendation: "Use /api/v1/system/compatibility-evidence before publishing vendor compatibility claims.",
 	})
 }
 

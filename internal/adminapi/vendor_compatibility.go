@@ -86,6 +86,7 @@ func HandleGetVendorCompatibility(w http.ResponseWriter, r *http.Request) {
 		report.Notes = append(report.Notes, "FreeRADIUS dictionary import paths: "+strings.Join(importPaths, ", "))
 	}
 	report.DictionaryCoverage = productconfigs.BuildVendorDictionaryCoverageReport(report.Catalog, report.Packs, report.ActivePacks)
+	report.Evidence = productconfigs.BuildCompatibilityEvidenceReport(report.Catalog, report.Packs, report.ActivePacks)
 	clientProfiles, profileSummary, err := loadVendorCompatibilityClientProfiles(cfg)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "vendor compatibility client profiles: " + err.Error()})

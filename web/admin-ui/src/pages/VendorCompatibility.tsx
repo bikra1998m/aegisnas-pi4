@@ -172,8 +172,64 @@ type VendorSemanticCapability = {
   key: string;
   label: string;
   compatibility_state: string;
+  evidence?: CompatibilityEvidenceRecord;
   next_step?: string;
   hardware_scope: string;
+};
+
+type CompatibilityEvidenceDimension = {
+  key: string;
+  label: string;
+  state: string;
+  required: boolean;
+  source?: string;
+  detail?: string;
+  next_step?: string;
+};
+
+type CompatibilityEvidenceRecord = {
+  id: string;
+  subject_type: string;
+  pack_key?: string;
+  pack_label?: string;
+  active: boolean;
+  vendor_name?: string;
+  vendor_id?: number;
+  attribute?: string;
+  semantic?: string;
+  direction?: string;
+  value_type?: string;
+  compatibility_state?: string;
+  software_state: string;
+  certification_state: string;
+  claim_state: string;
+  software_ready: boolean;
+  ready_for_external_validation: boolean;
+  external_validation_required: boolean;
+  dimensions: CompatibilityEvidenceDimension[];
+  blockers?: string[];
+  next_steps?: string[];
+};
+
+type CompatibilityEvidenceSummary = {
+  total_records: number;
+  software_ready_count: number;
+  software_planned_count: number;
+  software_blocked_count: number;
+  metadata_only_count: number;
+  external_required_count: number;
+  externally_certified_count: number;
+};
+
+type CompatibilityEvidencePayload = {
+  schema_version: number;
+  release_profile_id: string;
+  source_sha256: string;
+  summary: CompatibilityEvidenceSummary;
+  filtered_count: number;
+  records: CompatibilityEvidenceRecord[];
+  next_cursor?: string;
+  notes?: string[];
 };
 
 type VendorDictionaryCoverageRow = {
@@ -211,6 +267,7 @@ type VendorCompatibilityPayload = {
   active_packs?: string[];
   packs?: VendorPack[];
   dictionary_release_profile?: DictionaryReleaseProfile;
+  evidence?: CompatibilityEvidencePayload;
   client_profiles?: VendorClientProfile[];
   profile_summary?: VendorProfileSummary;
   dictionary_coverage?: VendorDictionaryCoverage;
@@ -417,6 +474,25 @@ function coverageLabel(state: string) {
   }
 }
 
+function evidenceTone(state: string): 'green' | 'amber' | 'gray' {
+  switch (state) {
+    case 'ready':
+    case 'software_ready':
+      return 'green';
+    case 'blocked':
+    case 'software_ready_external_required':
+    case 'external_required':
+    case 'planned':
+      return 'amber';
+    default:
+      return 'gray';
+  }
+}
+
+function evidenceLabel(state: string) {
+  return state.replace(/_/g, ' ') || 'unknown';
+}
+
 function aclExportModeLabel(mode: string) {
   switch (mode) {
     case 'rules':
@@ -450,6 +526,10 @@ export default function VendorCompatibility() {
   const [attributeRegistryBusy, setAttributeRegistryBusy] = useState(false);
   const [attributeRegistryError, setAttributeRegistryError] = useState('');
   const [attributeRegistryFilters, setAttributeRegistryFilters] = useState({ search: '', vendor: '', status: '' });
+  const [compatibilityEvidence, setCompatibilityEvidence] = useState<CompatibilityEvidencePayload | null>(null);
+  const [compatibilityEvidenceBusy, setCompatibilityEvidenceBusy] = useState(false);
+  const [compatibilityEvidenceError, setCompatibilityEvidenceError] = useState('');
+  const [compatibilityEvidenceFilters, setCompatibilityEvidenceFilters] = useState({ search: '', claim: '' });
 
   const canManageIdentity = identity?.role === 'super_admin';
 
@@ -557,6 +637,25 @@ export default function VendorCompatibility() {
     }
   };
 
+  const fetchCompatibilityEvidence = async (append = false) => {
+    setCompatibilityEvidenceBusy(true);
+    setCompatibilityEvidenceError('');
+    try {
+      const params = new URLSearchParams({ limit: '100' });
+      if (compatibilityEvidenceFilters.search.trim()) params.set('search', compatibilityEvidenceFilters.search.trim());
+      if (compatibilityEvidenceFilters.claim) params.set('claim', compatibilityEvidenceFilters.claim);
+      if (append && compatibilityEvidence?.next_cursor) params.set('cursor', compatibilityEvidence.next_cursor);
+      const { data } = await api.get<CompatibilityEvidencePayload>(`/system/compatibility-evidence?${params.toString()}`);
+      setCompatibilityEvidence((current) => append && current
+        ? { ...data, records: [...current.records, ...data.records] }
+        : data);
+    } catch (err: any) {
+      setCompatibilityEvidenceError(apiErrorMessage(err, 'Could not load compatibility evidence.'));
+    } finally {
+      setCompatibilityEvidenceBusy(false);
+    }
+  };
+
   const updatePreviewField = (field: VendorReplyPreviewTextField, value: string) => {
     setPreviewForm((current) => ({ ...current, [field]: value }));
   };
@@ -640,6 +739,7 @@ export default function VendorCompatibility() {
     void fetchCompatibility(false);
     void fetchVendorIdentity();
     void fetchAttributeRegistry(false);
+    void fetchCompatibilityEvidence(false);
   }, []);
 
   const clientProfiles = payload?.client_profiles || [];
@@ -651,6 +751,7 @@ export default function VendorCompatibility() {
   const releaseProfile = payload?.dictionary_release_profile;
   const firmwareProfiles = releaseProfile?.firmware_profiles || [];
   const vendorAliases = releaseProfile?.vendor_aliases || [];
+  const evidenceSummary = compatibilityEvidence?.summary || payload?.evidence?.summary;
   const plannedSemantics = useMemo(
     () => (payload?.semantics || []).filter((item) => item.compatibility_state !== 'implemented'),
     [payload?.semantics],
@@ -673,7 +774,7 @@ export default function VendorCompatibility() {
           <p className="mt-1 text-sm text-gray-600">Confirm deployed NAS profiles, reply packs, and vendor dictionary coverage before changing access policy.</p>
         </div>
         <button
-          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); }}
+          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); }}
           disabled={loading}
           className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
@@ -812,6 +913,70 @@ export default function VendorCompatibility() {
                 </div>
               ) : null}
             </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Compatibility Evidence</h3>
+                <p className="mt-1 text-sm text-gray-600">Separate software readiness from dictionary metadata, packet coverage, policy wiring, reply rendering, and external certification.</p>
+              </div>
+              {compatibilityEvidence ? <StatusBadge tone="green">Evidence schema {compatibilityEvidence.schema_version}</StatusBadge> : null}
+            </div>
+
+            {evidenceSummary ? (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard label="Evidence Records" value={evidenceSummary.total_records} hint={`${evidenceSummary.software_ready_count} software ready.`} />
+                <StatCard label="Planned" value={evidenceSummary.software_planned_count} hint={`${evidenceSummary.metadata_only_count} metadata only.`} />
+                <StatCard label="Blocked" value={evidenceSummary.software_blocked_count} hint="Usually missing dictionary, registry, or decoder evidence." />
+                <StatCard label="External Required" value={evidenceSummary.external_required_count} hint={`${evidenceSummary.externally_certified_count} certified in software ledger.`} />
+              </div>
+            ) : null}
+
+            <form className="mt-4 grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]" onSubmit={(event) => { event.preventDefault(); void fetchCompatibilityEvidence(false); }}>
+              <label className="text-sm font-medium text-gray-700">Search
+                <input value={compatibilityEvidenceFilters.search} onChange={(event) => setCompatibilityEvidenceFilters((current) => ({ ...current, search: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" placeholder="Pack, vendor, attribute, semantic" />
+              </label>
+              <label className="text-sm font-medium text-gray-700">Claim
+                <select value={compatibilityEvidenceFilters.claim} onChange={(event) => setCompatibilityEvidenceFilters((current) => ({ ...current, claim: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2">
+                  <option value="">All claims</option>
+                  <option value="software_ready">Software ready</option>
+                  <option value="software_ready_external_required">Software ready, external required</option>
+                  <option value="planned">Planned</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="metadata_only">Metadata only</option>
+                </select>
+              </label>
+              <button type="submit" disabled={compatibilityEvidenceBusy} className="self-end rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{compatibilityEvidenceBusy ? 'Loading...' : 'Filter'}</button>
+            </form>
+
+            {compatibilityEvidenceError ? <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{compatibilityEvidenceError}</div> : null}
+            {compatibilityEvidence ? (
+              <>
+                <div className="mt-4 overflow-x-auto rounded-md border border-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50"><tr>{['Pack / Attribute', 'Software', 'Certification', 'Evidence'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {compatibilityEvidence.records.map((record) => (
+                        <tr key={record.id}>
+                          <td className="px-4 py-3 text-sm"><div className="font-medium text-gray-900">{record.attribute || record.semantic}</div><div className="text-xs text-gray-500">{record.pack_key || 'semantic'}{record.active ? ' / active' : ''}</div></td>
+                          <td className="px-4 py-3 text-sm"><StatusBadge tone={evidenceTone(record.software_state)}>{evidenceLabel(record.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{evidenceLabel(record.claim_state)}</div></td>
+                          <td className="px-4 py-3 text-sm"><StatusBadge tone={evidenceTone(record.certification_state)}>{evidenceLabel(record.certification_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{record.ready_for_external_validation ? 'ready for lab' : 'not lab-ready'}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            {record.dimensions.slice(0, 3).map((dimension) => (
+                              <div key={`${record.id}-${dimension.key}`} className="mb-1"><span className="font-medium">{dimension.label}:</span> {evidenceLabel(dimension.state)}</div>
+                            ))}
+                            {record.blockers?.length ? <div className="text-xs text-amber-700">{record.blockers[0]}</div> : null}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {compatibilityEvidence.next_cursor ? <button type="button" disabled={compatibilityEvidenceBusy} onClick={() => void fetchCompatibilityEvidence(true)} className="mt-3 rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 disabled:opacity-50">Load more evidence</button> : null}
+                <p className="mt-2 break-all text-xs text-gray-500">Evidence source SHA-256: {compatibilityEvidence.source_sha256}</p>
+              </>
+            ) : null}
           </section>
 
           <section className="mt-6">

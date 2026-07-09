@@ -29,17 +29,18 @@ const (
 )
 
 type VendorSemanticCapability struct {
-	Key                string   `json:"key"`
-	Label              string   `json:"label"`
-	Description        string   `json:"description"`
-	ValueType          string   `json:"value_type"`
-	Directions         []string `json:"directions"`
-	ProductAttribute   string   `json:"product_attribute,omitempty"`
-	ProductNumber      int      `json:"product_number,omitempty"`
-	StandardAttributes []string `json:"standard_attributes,omitempty"`
-	HardwareScope      string   `json:"hardware_scope"`
-	CompatibilityState string   `json:"compatibility_state"`
-	NextStep           string   `json:"next_step,omitempty"`
+	Key                string                      `json:"key"`
+	Label              string                      `json:"label"`
+	Description        string                      `json:"description"`
+	ValueType          string                      `json:"value_type"`
+	Directions         []string                    `json:"directions"`
+	ProductAttribute   string                      `json:"product_attribute,omitempty"`
+	ProductNumber      int                         `json:"product_number,omitempty"`
+	StandardAttributes []string                    `json:"standard_attributes,omitempty"`
+	HardwareScope      string                      `json:"hardware_scope"`
+	CompatibilityState string                      `json:"compatibility_state"`
+	Evidence           CompatibilityEvidenceRecord `json:"evidence"`
+	NextStep           string                      `json:"next_step,omitempty"`
 }
 
 type VendorCompatibilitySummary struct {
@@ -76,6 +77,7 @@ type VendorCompatibilityReport struct {
 	ActivePacks              []string                       `json:"active_packs,omitempty"`
 	DictionaryCoverage       VendorDictionaryCoverageReport `json:"dictionary_coverage"`
 	DictionaryReleaseProfile DictionaryReleaseProfile       `json:"dictionary_release_profile"`
+	Evidence                 CompatibilityEvidenceReport    `json:"evidence"`
 	Summary                  VendorCompatibilitySummary     `json:"summary"`
 	Notes                    []string                       `json:"notes"`
 }
@@ -358,7 +360,7 @@ func AegisNASSemanticRegistry() []VendorSemanticCapability {
 
 func AegisNASVendorCompatibilityReport() VendorCompatibilityReport {
 	catalog := AegisNASVendorDictionaryCatalog()
-	semantics := AegisNASSemanticRegistry()
+	semantics := AttachSemanticEvidence(AegisNASSemanticRegistry())
 	packs := AegisNASVendorCompatibilityPacks()
 	identity := AegisNASVendorIdentity()
 	releaseProfile := DefaultDictionaryReleaseProfile()
@@ -399,6 +401,7 @@ func AegisNASVendorCompatibilityReport() VendorCompatibilityReport {
 		ActivePacks:              DefaultVendorCompatibilityPackKeys(),
 		DictionaryCoverage:       BuildVendorDictionaryCoverageReport(catalog, packs, DefaultVendorCompatibilityPackKeys()),
 		DictionaryReleaseProfile: releaseProfile,
+		Evidence:                 BuildCompatibilityEvidenceReport(catalog, packs, DefaultVendorCompatibilityPackKeys()),
 		Summary:                  summary,
 		Notes: []string{
 			"FreeRADIUS dictionaries identify attributes; AegisNAS semantics define product behavior.",

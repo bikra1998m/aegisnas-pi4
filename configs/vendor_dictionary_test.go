@@ -98,6 +98,9 @@ func TestAegisNASVendorCompatibilityReport(t *testing.T) {
 	assert.Greater(t, report.Summary.PlannedCount, 0)
 	assert.NotEmpty(t, report.Packs)
 	assert.NotEmpty(t, report.DictionaryReleaseProfile.FirmwareProfiles)
+	assert.Equal(t, CompatibilityEvidenceSchemaVersion, report.Evidence.SchemaVersion)
+	assert.Greater(t, report.Evidence.Summary.TotalRecords, 100)
+	assert.Zero(t, report.Evidence.Summary.ExternallyCertifiedCount)
 
 	role, ok := report.Catalog.Attribute("AegisNAS", "AegisNAS-Role")
 	require.True(t, ok)
@@ -108,6 +111,7 @@ func TestAegisNASVendorCompatibilityReport(t *testing.T) {
 		if semantic.Key == VendorSemanticDynamicACL {
 			foundACL = true
 			assert.Equal(t, "implemented", semantic.CompatibilityState)
+			assert.Equal(t, EvidenceSoftwareStateReady, semantic.Evidence.SoftwareState)
 			assert.Equal(t, "enterprise first", semantic.HardwareScope)
 		}
 	}

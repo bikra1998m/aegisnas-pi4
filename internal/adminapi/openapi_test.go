@@ -66,6 +66,13 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read dictionary release profiles", dictionaryReleaseGet["summary"])
 	assert.Contains(t, dictionaryReleaseGet["x-aegisnas-roles"], "read_only")
 
+	compatibilityEvidencePath, ok := paths["/api/v1/system/compatibility-evidence"].(map[string]any)
+	require.True(t, ok)
+	compatibilityEvidenceGet, ok := compatibilityEvidencePath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read compatibility evidence states", compatibilityEvidenceGet["summary"])
+	assert.Contains(t, compatibilityEvidenceGet["x-aegisnas-roles"], "read_only")
+
 	vendorIdentityPreviewPath, ok := paths["/api/v1/system/vendor-identity/migrations/preview"].(map[string]any)
 	require.True(t, ok)
 	vendorIdentityPreviewPost, ok := vendorIdentityPreviewPath["post"].(map[string]any)

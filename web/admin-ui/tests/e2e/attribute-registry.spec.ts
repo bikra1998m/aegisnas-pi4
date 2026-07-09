@@ -10,6 +10,15 @@ test('filters the generated typed attribute registry', async ({ page }) => {
   await expect(releaseProfile).toBeVisible();
   await expect(releaseProfile.getByText('freeradius-3.2.8').first()).toBeVisible();
   await expect(releaseProfile.getByText('UniFi Network')).toBeVisible();
+
+  const evidence = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Compatibility Evidence' }) });
+  await expect(evidence).toBeVisible();
+  await expect(evidence.getByText('UBNT-Data-Rate-DL')).toBeVisible();
+  await evidence.getByLabel('Claim').selectOption('software_ready_external_required');
+  await evidence.getByRole('button', { name: 'Filter' }).click();
+  await expect(evidence.getByText('software ready external required')).toBeVisible();
+  await expect(evidence.getByText('external required', { exact: true })).toBeVisible();
+
   await expect(page.getByRole('heading', { name: 'Typed Attribute Registry' })).toBeVisible();
   await expect(page.getByText('freeradius-3.2.8 / schema 1')).toBeVisible();
   const registry = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Typed Attribute Registry' }) });

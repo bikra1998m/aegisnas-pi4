@@ -97,6 +97,7 @@ Use this endpoint when you want to confirm:
 - per-role Nokia decimal service names encoded as BCD from `radius.vendor.service_name_mappings`
 - the parsed dictionary coverage matrix through `dictionary_coverage`, including configured or auto-detected FreeRADIUS dictionary imports
 - the pinned dictionary release, alias table, firmware scopes, and registry SHA-256 through `dictionary_release_profile`
+- the compatibility evidence model through `evidence`, including software-ready, planned, blocked, and external-certification counts
 - the same coverage model is available from `aegis-admin scan-radius-dictionaries` for offline JSON/CSV scans of FreeRADIUS dictionary trees
 - reply preview responses include normalized ACL intent plus per-pack ACL exports for Cisco AVPair, Aruba/NAS filter rules, AegisNAS ACL rules, and profile-style vendor hints
 - the deployed RADIUS client `nas_type` values and their effective reply packs through `client_profiles`
@@ -861,5 +862,7 @@ use the matching runbook as well so you keep the preview, validation, backup, an
 ## Attribute Registry API
 
 `GET /api/v1/system/dictionary-release-profiles` returns the pinned dictionary release profiles, vendor aliases, attribute aliases, firmware scopes, and active/default profile IDs. Optional `id` filters one profile.
+
+`GET /api/v1/system/compatibility-evidence` returns software evidence states with cursor pagination. Filters: `pack`, `vendor`, `semantic`, `software_state`, `certification_state`, `claim`, `search`, `limit`, and `cursor`. See [compatibility-evidence.md](compatibility-evidence.md).
 
 `GET /api/v1/system/attribute-registry` returns the generated typed registry with release/hash provenance and cursor pagination. Filters: `release`, `vendor`, `pen`, `pack`, `semantic`, `status`, `search`, `limit`, and `cursor`. See [attribute-registry.md](attribute-registry.md) and [dictionary-release-profiles.md](dictionary-release-profiles.md).

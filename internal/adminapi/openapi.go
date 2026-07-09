@@ -1120,6 +1120,20 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200": responseJSON("Pinned dictionary release profiles, alias normalization tables, firmware scopes, and active/default profile IDs."),
 		"404": responseJSON("Requested dictionary release profile was not found."),
 	}))
+	addOperation(paths, "/api/v1/system/compatibility-evidence", "get", securedOperationWithParameters("Read compatibility evidence states", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("pack", "Normalized compatibility pack filter.", false),
+		queryStringParameter("vendor", "Case-insensitive vendor filter.", false),
+		queryStringParameter("semantic", "Exact vendor-neutral semantic filter.", false),
+		queryEnumParameter("software_state", "Software readiness state.", []string{"ready", "planned", "blocked", "metadata_only"}, false),
+		queryEnumParameter("certification_state", "External certification state.", []string{"not_required", "external_required", "certified"}, false),
+		queryEnumParameter("claim", "Compatibility claim state.", []string{"software_ready", "software_ready_external_required", "planned", "blocked", "metadata_only"}, false),
+		queryStringParameter("search", "Case-insensitive pack, vendor, attribute, semantic, direction, or state search.", false),
+		queryStringParameter("limit", "Page size from 1 to 500; defaults to 100.", false),
+		queryStringParameter("cursor", "Opaque cursor returned by the previous page.", false),
+	}, map[string]any{
+		"200": responseJSON("Compatibility evidence summary, filtered records, dimensions, and next cursor."),
+		"400": responseJSON("Invalid filter, limit, or cursor."),
+	}))
 	addOperation(paths, "/api/v1/system/attribute-registry", "get", securedOperationWithParameters("Read the generated typed attribute registry", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("release", "Optional dictionary release profile ID; defaults to the active embedded profile.", false),
 		queryStringParameter("vendor", "Exact vendor namespace filter.", false),
