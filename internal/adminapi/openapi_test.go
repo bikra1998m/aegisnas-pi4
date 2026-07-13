@@ -101,6 +101,13 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read RADIUS proxy routing table", proxyRoutesGet["summary"])
 	assert.Contains(t, proxyRoutesGet["x-aegisnas-roles"], "read_only")
 
+	proxyPolicyPath, ok := paths["/api/v1/system/proxy-policy"].(map[string]any)
+	require.True(t, ok)
+	proxyPolicyGet, ok := proxyPolicyPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read RADIUS proxy loop and attribute policy", proxyPolicyGet["summary"])
+	assert.Contains(t, proxyPolicyGet["x-aegisnas-roles"], "read_only")
+
 	secretProvidersPath, ok := paths["/api/v1/system/secret-providers"].(map[string]any)
 	require.True(t, ok)
 	secretProvidersGet, ok := secretProvidersPath["get"].(map[string]any)

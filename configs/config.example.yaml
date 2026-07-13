@@ -333,6 +333,44 @@ radius:
         status_check: "status-server"
         servers:
           - "secondary-aaa"
+    proxy_policy:
+      enabled: true
+      fail_closed: true
+      default_action: "drop"
+      loop_marker: "aegisnas"
+      add_loop_marker: true
+      reject_loop_marker: true
+      max_hops: 8
+      route_policies:
+        - route: "corp"
+          direction: "any"
+          trusted_source_realms:
+            - "corp.example.com"
+            - "employees.example.com"
+          allow_standard:
+            - "User-Name"
+            - "EAP-Message"
+            - "Message-Authenticator"
+          allow_vendor_ids:
+            - 9
+            - 14823
+          deny_standard:
+            - "Filter-Id"
+          rewrite_rules:
+            - attribute: "User-Name"
+              action: "replace_realm"
+              match_realm: "employees.example.com"
+              replacement: "corp.example.com"
+        - route: "guest"
+          direction: "proxy_request"
+          trusted_source_realms:
+            - "guest.example.com"
+          allow_vendor_attributes:
+            - vendor_id: 14179
+              type: 13
+              name: "WISPr-Bandwidth-Max-Down"
+          deny_vendor_ids:
+            - 311
 
 portal:
   enabled: true

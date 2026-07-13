@@ -1146,6 +1146,9 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/proxy-routes", "get", securedOperation("Read RADIUS proxy routing table", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Effective multi-realm proxy routes, route pools, default fallback behavior, upstream servers, and validation warnings."),
 	}))
+	addOperation(paths, "/api/v1/system/proxy-policy", "get", securedOperation("Read RADIUS proxy loop and attribute policy", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Effective proxy loop marker, route trust, attribute allow/deny, rewrite policy, FreeRADIUS enforcement state, and readiness warnings."),
+	}))
 	addOperation(paths, "/api/v1/system/secret-providers", "get", securedOperation("Read secret provider readiness", "Security", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Redacted secret-provider inventory, reference status, inline-secret blockers, and provider policy."),
 	}))

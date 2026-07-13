@@ -105,6 +105,25 @@ func TestGeneratorRendersMultiRealmProxyRoutes(t *testing.T) {
 	assert.Contains(t, fullCfg.SitesInnerTunnel, `Proxy-To-Realm := "corp.example.com"`)
 }
 
+func TestGeneratorRendersProxyPolicy(t *testing.T) {
+	previousDB := db.DB
+	db.DB = nil
+	t.Cleanup(func() {
+		db.DB = previousDB
+	})
+
+	cfg := proxyPolicyTestConfig()
+	fullCfg, err := NewGenerator(cfg).Generate()
+	require.NoError(t, err)
+
+	assert.Contains(t, fullCfg.SitesDefault, "pre-proxy")
+	assert.Contains(t, fullCfg.SitesDefault, "NAS-0011 proxy loop prevention")
+	assert.Contains(t, fullCfg.SitesDefault, `Proxy-State += "aegisnas:corp`)
+	assert.Contains(t, fullCfg.SitesDefault, "Filter-Id")
+	assert.Contains(t, fullCfg.SitesDefault, `User-Name := "%{1}@corp.example.com"`)
+	assert.Contains(t, fullCfg.SitesInnerTunnel, "NAS-0011 proxy loop prevention")
+}
+
 func TestGeneratorRendersPostgreSQLSQLModule(t *testing.T) {
 	previousDB := db.DB
 	db.DB = nil

@@ -1050,18 +1050,38 @@ server default {
 		exec
 		reply_log
 	}
+
+	pre-proxy {
+{{ .ProxyRequestPolicy }}
+	}
+
+	post-proxy {
+{{ .ProxyResponsePolicy }}
+	}
 }
 `
 	var buf bytes.Buffer
 	t := template.Must(template.New("default").Parse(tmpl))
+	proxyRequestPolicy, err := FreeRADIUSProxyPolicyUnlang(g.cfg, "proxy-request")
+	if err != nil {
+		return "", err
+	}
+	proxyResponsePolicy, err := FreeRADIUSProxyPolicyUnlang(g.cfg, "proxy-reply")
+	if err != nil {
+		return "", err
+	}
 	data := struct {
 		*config.Config
-		ProxyDefaultRealm string
+		ProxyDefaultRealm   string
+		ProxyRequestPolicy  string
+		ProxyResponsePolicy string
 	}{
-		Config:            g.cfg,
-		ProxyDefaultRealm: DefaultProxyRealm(g.cfg),
+		Config:              g.cfg,
+		ProxyDefaultRealm:   DefaultProxyRealm(g.cfg),
+		ProxyRequestPolicy:  proxyRequestPolicy,
+		ProxyResponsePolicy: proxyResponsePolicy,
 	}
-	err := t.Execute(&buf, data)
+	err = t.Execute(&buf, data)
 	return buf.String(), err
 }
 
@@ -1125,17 +1145,37 @@ server inner-tunnel {
 			attr_filter.access_reject
 		}
 	}
+
+	pre-proxy {
+{{ .ProxyRequestPolicy }}
+	}
+
+	post-proxy {
+{{ .ProxyResponsePolicy }}
+	}
 }
 `
 	var buf bytes.Buffer
 	t := template.Must(template.New("inner-tunnel").Parse(tmpl))
+	proxyRequestPolicy, err := FreeRADIUSProxyPolicyUnlang(g.cfg, "proxy-request")
+	if err != nil {
+		return "", err
+	}
+	proxyResponsePolicy, err := FreeRADIUSProxyPolicyUnlang(g.cfg, "proxy-reply")
+	if err != nil {
+		return "", err
+	}
 	data := struct {
 		*config.Config
-		ProxyDefaultRealm string
+		ProxyDefaultRealm   string
+		ProxyRequestPolicy  string
+		ProxyResponsePolicy string
 	}{
-		Config:            g.cfg,
-		ProxyDefaultRealm: DefaultProxyRealm(g.cfg),
+		Config:              g.cfg,
+		ProxyDefaultRealm:   DefaultProxyRealm(g.cfg),
+		ProxyRequestPolicy:  proxyRequestPolicy,
+		ProxyResponsePolicy: proxyResponsePolicy,
 	}
-	err := t.Execute(&buf, data)
+	err = t.Execute(&buf, data)
 	return buf.String(), err
 }

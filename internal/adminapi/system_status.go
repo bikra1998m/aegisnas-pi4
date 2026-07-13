@@ -136,6 +136,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	upstreamStatuses, probeErr := radius.ProbeUpstreamServers(r.Context(), cfg)
 	packetHardening := radius.BuildPacketHardeningReport(cfg)
 	proxyRoutes := radius.BuildProxyRoutingReport(cfg)
+	proxyPolicy := radius.BuildProxyPolicyReport(cfg)
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -144,6 +145,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"configured_servers":      cfg.Radius.Upstream.Servers,
 		"server_statuses":         upstreamStatuses,
 		"proxy_routes":            proxyRoutes,
+		"proxy_policy":            proxyPolicy,
 		"enabled_radius_clients":  enabledRadiusClients,
 		"broker_auth":             runtimeMap["radius_broker_auth"],
 		"broker_accounting":       runtimeMap["radius_broker_accounting"],

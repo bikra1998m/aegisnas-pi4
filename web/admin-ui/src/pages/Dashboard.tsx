@@ -217,6 +217,31 @@ type RadiusProxyRoutingReport = {
   warnings?: string[];
 };
 
+type RadiusProxyPolicyReport = {
+  status?: string;
+  message?: string;
+  enabled?: boolean;
+  summary?: {
+    route_policy_count: number;
+    implicit_route_policy_count: number;
+    allow_standard_count: number;
+    deny_standard_count: number;
+    allow_vendor_id_count: number;
+    deny_vendor_id_count: number;
+    allow_vendor_attribute_count: number;
+    deny_vendor_attribute_count: number;
+    rewrite_rule_count: number;
+    trusted_realm_count: number;
+  };
+  freeradius?: {
+    generated_pre_proxy_policy: boolean;
+    generated_post_proxy_policy: boolean;
+    loop_marker_enforced: boolean;
+    sections: string[];
+  };
+  warnings?: string[];
+};
+
 type SystemStatus = {
   generated_at: string;
   summary: {
@@ -297,6 +322,7 @@ type SystemStatus = {
     broker_accounting: RuntimeStatus;
     packet_hardening?: RadiusPacketHardeningReport;
     proxy_routes?: RadiusProxyRoutingReport;
+    proxy_policy?: RadiusProxyPolicyReport;
     probe_error?: string;
   };
   wireless: {
@@ -834,6 +860,7 @@ export default function Dashboard() {
   const radiusServerStatuses = systemStatus.radius?.server_statuses ?? [];
   const packetHardening = systemStatus.radius?.packet_hardening;
   const proxyRoutes = systemStatus.radius?.proxy_routes;
+  const proxyPolicy = systemStatus.radius?.proxy_policy;
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
   const serviceProblems = services.filter(
     (service) => !["ok", "disabled"].includes(service.status),
@@ -1474,6 +1501,60 @@ export default function Dashboard() {
                       ) : null}
                     </div>
                     <StatusBadge status={proxyRoutes.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {proxyPolicy ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Proxy Loop And Attribute Policy
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {proxyPolicy.message ||
+                          "Proxy policy state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-4">
+                        <div>
+                          Route policies{" "}
+                          {proxyPolicy.summary?.route_policy_count ?? 0}
+                        </div>
+                        <div>
+                          Vendor allows{" "}
+                          {(proxyPolicy.summary?.allow_vendor_id_count ?? 0) +
+                            (proxyPolicy.summary
+                              ?.allow_vendor_attribute_count ?? 0)}
+                        </div>
+                        <div>
+                          Vendor denies{" "}
+                          {(proxyPolicy.summary?.deny_vendor_id_count ?? 0) +
+                            (proxyPolicy.summary
+                              ?.deny_vendor_attribute_count ?? 0)}
+                        </div>
+                        <div>
+                          Rewrites{" "}
+                          {proxyPolicy.summary?.rewrite_rule_count ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Loop marker{" "}
+                        {proxyPolicy.freeradius?.loop_marker_enforced
+                          ? "enforced"
+                          : "not enforced"}
+                        ; pre-proxy policy{" "}
+                        {proxyPolicy.freeradius?.generated_pre_proxy_policy
+                          ? "generated"
+                          : "not generated"}
+                        .
+                      </div>
+                      {proxyPolicy.warnings?.length ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {proxyPolicy.warnings[0]}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge status={proxyPolicy.status || "unknown"} />
                   </div>
                 </div>
               ) : null}

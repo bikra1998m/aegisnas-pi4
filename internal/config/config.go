@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -286,6 +287,7 @@ type RadiusUpstreamConfig struct {
 	StripRealm        bool                     `mapstructure:"strip_realm"`
 	Servers           []RadiusHomeServer       `mapstructure:"servers"`
 	Routes            []RadiusProxyRouteConfig `mapstructure:"routes"`
+	ProxyPolicy       RadiusProxyPolicyConfig  `mapstructure:"proxy_policy"`
 }
 
 type RadiusProxyRouteConfig struct {
@@ -299,6 +301,46 @@ type RadiusProxyRouteConfig struct {
 	PoolStrategy string   `mapstructure:"pool_strategy"`
 	StatusCheck  string   `mapstructure:"status_check"`
 	Servers      []string `mapstructure:"servers"`
+}
+
+type RadiusProxyPolicyConfig struct {
+	Enabled          bool                           `mapstructure:"enabled"`
+	FailClosed       bool                           `mapstructure:"fail_closed"`
+	DefaultAction    string                         `mapstructure:"default_action"`
+	LoopMarker       string                         `mapstructure:"loop_marker"`
+	AddLoopMarker    bool                           `mapstructure:"add_loop_marker"`
+	RejectLoopMarker bool                           `mapstructure:"reject_loop_marker"`
+	MaxHops          int                            `mapstructure:"max_hops"`
+	RoutePolicies    []RadiusProxyRoutePolicyConfig `mapstructure:"route_policies"`
+}
+
+type RadiusProxyRoutePolicyConfig struct {
+	Route                 string                               `mapstructure:"route"`
+	Direction             string                               `mapstructure:"direction"`
+	TrustedSourceRealms   []string                             `mapstructure:"trusted_source_realms"`
+	AllowStandard         []string                             `mapstructure:"allow_standard"`
+	DenyStandard          []string                             `mapstructure:"deny_standard"`
+	AllowVendorIDs        []int                                `mapstructure:"allow_vendor_ids"`
+	DenyVendorIDs         []int                                `mapstructure:"deny_vendor_ids"`
+	AllowVendorAttributes []RadiusProxyVendorAttributeSelector `mapstructure:"allow_vendor_attributes"`
+	DenyVendorAttributes  []RadiusProxyVendorAttributeSelector `mapstructure:"deny_vendor_attributes"`
+	RewriteRules          []RadiusProxyRewriteRuleConfig       `mapstructure:"rewrite_rules"`
+	Description           string                               `mapstructure:"description"`
+}
+
+type RadiusProxyVendorAttributeSelector struct {
+	VendorID    int    `mapstructure:"vendor_id"`
+	Type        int    `mapstructure:"type"`
+	Name        string `mapstructure:"name"`
+	Description string `mapstructure:"description"`
+}
+
+type RadiusProxyRewriteRuleConfig struct {
+	Attribute   string `mapstructure:"attribute"`
+	Action      string `mapstructure:"action"`
+	MatchRealm  string `mapstructure:"match_realm"`
+	Replacement string `mapstructure:"replacement"`
+	Description string `mapstructure:"description"`
 }
 
 type RadiusHomeServer struct {
@@ -1058,6 +1100,14 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.upstream.num_answers_to_alive", 3)
 	v.SetDefault("radius.upstream.strip_realm", false)
 	v.SetDefault("radius.upstream.routes", []map[string]any{})
+	v.SetDefault("radius.upstream.proxy_policy.enabled", true)
+	v.SetDefault("radius.upstream.proxy_policy.fail_closed", true)
+	v.SetDefault("radius.upstream.proxy_policy.default_action", "drop")
+	v.SetDefault("radius.upstream.proxy_policy.loop_marker", "aegisnas")
+	v.SetDefault("radius.upstream.proxy_policy.add_loop_marker", true)
+	v.SetDefault("radius.upstream.proxy_policy.reject_loop_marker", true)
+	v.SetDefault("radius.upstream.proxy_policy.max_hops", 8)
+	v.SetDefault("radius.upstream.proxy_policy.route_policies", []map[string]any{})
 	productVendor := productconfigs.AegisNASVendorDictionary()
 	v.SetDefault("radius.vendor.enabled", false)
 	v.SetDefault("radius.vendor.name", productVendor.Name)
@@ -3498,6 +3548,9 @@ func (c *Config) Validate() error {
 		if err := validateRadiusProxyRoutes(c.Radius.Upstream, seenNames); err != nil {
 			return err
 		}
+		if err := validateRadiusProxyPolicy(c.Radius.Upstream); err != nil {
+			return err
+		}
 	}
 
 	if c.Wireless.Enabled {
@@ -4067,6 +4120,231 @@ func validateRadiusProxyRoutes(upstream RadiusUpstreamConfig, serverNames map[st
 		return errors.New("radius.upstream.routes requires at least one enabled route when configured")
 	}
 	return nil
+}
+
+func validateRadiusProxyPolicy(upstream RadiusUpstreamConfig) error {
+	policy := upstream.ProxyPolicy
+	if !policy.Enabled && len(policy.RoutePolicies) == 0 && strings.TrimSpace(policy.DefaultAction) == "" &&
+		strings.TrimSpace(policy.LoopMarker) == "" && policy.MaxHops == 0 {
+		return nil
+	}
+	defaultAction := strings.ToLower(strings.TrimSpace(policy.DefaultAction))
+	if defaultAction == "" {
+		defaultAction = "drop"
+	}
+	switch defaultAction {
+	case "drop", "reject":
+	default:
+		return fmt.Errorf("radius.upstream.proxy_policy.default_action %q must be drop or reject", policy.DefaultAction)
+	}
+	marker := strings.TrimSpace(policy.LoopMarker)
+	if marker == "" {
+		marker = "aegisnas"
+	}
+	if !validProxyPolicyToken(marker) {
+		return fmt.Errorf("radius.upstream.proxy_policy.loop_marker %q is invalid", policy.LoopMarker)
+	}
+	if policy.MaxHops < 0 || policy.MaxHops > 32 {
+		return fmt.Errorf("radius.upstream.proxy_policy.max_hops must be between 1 and 32 when set")
+	}
+
+	routeNames := map[string]struct{}{}
+	if len(upstream.Routes) == 0 {
+		routeNames["legacy-default"] = struct{}{}
+	} else {
+		for _, route := range upstream.Routes {
+			if route.Enabled {
+				routeNames[strings.TrimSpace(route.Name)] = struct{}{}
+			}
+		}
+	}
+	seen := map[string]struct{}{}
+	for i, routePolicy := range policy.RoutePolicies {
+		routeName := strings.TrimSpace(routePolicy.Route)
+		if routeName == "" {
+			return fmt.Errorf("radius.upstream.proxy_policy.route_policies[%d].route cannot be empty", i)
+		}
+		if _, ok := routeNames[routeName]; !ok {
+			return fmt.Errorf("radius.upstream.proxy_policy.route_policies[%d].route %q does not match an enabled proxy route", i, routePolicy.Route)
+		}
+		direction := strings.ToLower(strings.TrimSpace(routePolicy.Direction))
+		if direction == "" {
+			direction = "any"
+		}
+		switch direction {
+		case "any", "proxy_request", "proxy_response":
+		default:
+			return fmt.Errorf("radius.upstream.proxy_policy.route_policies[%d].direction %q is invalid", i, routePolicy.Direction)
+		}
+		key := strings.ToLower(routeName) + "\x00" + direction
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("radius.upstream.proxy_policy.route_policies[%d] duplicates an earlier route/direction policy", i)
+		}
+		seen[key] = struct{}{}
+		if strings.ContainsAny(routePolicy.Description, "\r\n\x00") || len(routePolicy.Description) > 240 {
+			return fmt.Errorf("radius.upstream.proxy_policy.route_policies[%d].description is invalid", i)
+		}
+		for realmIndex, realm := range routePolicy.TrustedSourceRealms {
+			if !validRadiusRealmName(realm) {
+				return fmt.Errorf("radius.upstream.proxy_policy.route_policies[%d].trusted_source_realms[%d] %q is invalid", i, realmIndex, realm)
+			}
+		}
+		if err := validateProxyStandardAttributes(routePolicy.AllowStandard, fmt.Sprintf("radius.upstream.proxy_policy.route_policies[%d].allow_standard", i)); err != nil {
+			return err
+		}
+		if err := validateProxyStandardAttributes(routePolicy.DenyStandard, fmt.Sprintf("radius.upstream.proxy_policy.route_policies[%d].deny_standard", i)); err != nil {
+			return err
+		}
+		if err := validateProxyVendorIDs(routePolicy.AllowVendorIDs, fmt.Sprintf("radius.upstream.proxy_policy.route_policies[%d].allow_vendor_ids", i)); err != nil {
+			return err
+		}
+		if err := validateProxyVendorIDs(routePolicy.DenyVendorIDs, fmt.Sprintf("radius.upstream.proxy_policy.route_policies[%d].deny_vendor_ids", i)); err != nil {
+			return err
+		}
+		if err := validateProxyVendorSelectors(routePolicy.AllowVendorAttributes, fmt.Sprintf("radius.upstream.proxy_policy.route_policies[%d].allow_vendor_attributes", i)); err != nil {
+			return err
+		}
+		if err := validateProxyVendorSelectors(routePolicy.DenyVendorAttributes, fmt.Sprintf("radius.upstream.proxy_policy.route_policies[%d].deny_vendor_attributes", i)); err != nil {
+			return err
+		}
+		for rewriteIndex, rewrite := range routePolicy.RewriteRules {
+			if err := validateProxyRewriteRule(rewrite); err != nil {
+				return fmt.Errorf("radius.upstream.proxy_policy.route_policies[%d].rewrite_rules[%d]: %w", i, rewriteIndex, err)
+			}
+		}
+	}
+	return nil
+}
+
+func validateProxyStandardAttributes(values []string, path string) error {
+	seen := map[string]struct{}{}
+	for i, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return fmt.Errorf("%s[%d] cannot be empty", path, i)
+		}
+		if _, err := strconv.Atoi(value); err == nil {
+			number, _ := strconv.Atoi(value)
+			if number < 1 || number > 255 {
+				return fmt.Errorf("%s[%d] numeric type must be between 1 and 255", path, i)
+			}
+		} else if !validFreeRADIUSAttributeName(value) {
+			return fmt.Errorf("%s[%d] %q is not a valid RADIUS attribute name or type", path, i, value)
+		}
+		key := strings.ToLower(value)
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("%s[%d] duplicates an earlier attribute", path, i)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+func validateProxyVendorIDs(values []int, path string) error {
+	seen := map[int]struct{}{}
+	for i, value := range values {
+		if value < 1 {
+			return fmt.Errorf("%s[%d] must be positive", path, i)
+		}
+		if _, exists := seen[value]; exists {
+			return fmt.Errorf("%s[%d] duplicates an earlier vendor ID", path, i)
+		}
+		seen[value] = struct{}{}
+	}
+	return nil
+}
+
+func validateProxyVendorSelectors(values []RadiusProxyVendorAttributeSelector, path string) error {
+	seen := map[string]struct{}{}
+	for i, value := range values {
+		if value.VendorID < 1 {
+			return fmt.Errorf("%s[%d].vendor_id must be positive", path, i)
+		}
+		if value.Type < 1 {
+			return fmt.Errorf("%s[%d].type must be positive", path, i)
+		}
+		if strings.TrimSpace(value.Name) != "" && !validFreeRADIUSAttributeName(value.Name) {
+			return fmt.Errorf("%s[%d].name %q is invalid", path, i, value.Name)
+		}
+		if strings.ContainsAny(value.Description, "\r\n\x00") || len(value.Description) > 240 {
+			return fmt.Errorf("%s[%d].description is invalid", path, i)
+		}
+		key := fmt.Sprintf("%d/%d", value.VendorID, value.Type)
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("%s[%d] duplicates an earlier vendor attribute", path, i)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+func validateProxyRewriteRule(rule RadiusProxyRewriteRuleConfig) error {
+	attribute := strings.TrimSpace(rule.Attribute)
+	if attribute == "" {
+		attribute = "User-Name"
+	}
+	if !strings.EqualFold(attribute, "User-Name") && attribute != "1" {
+		return fmt.Errorf("attribute must be User-Name")
+	}
+	action := strings.ToLower(strings.TrimSpace(rule.Action))
+	switch action {
+	case "strip_realm_from_user_name":
+		if strings.TrimSpace(rule.Replacement) != "" {
+			return fmt.Errorf("strip_realm_from_user_name must not set replacement")
+		}
+	case "replace_realm":
+		if !validRadiusRealmName(rule.MatchRealm) {
+			return fmt.Errorf("replace_realm requires a valid match_realm")
+		}
+		if !validRadiusRealmName(rule.Replacement) {
+			return fmt.Errorf("replace_realm requires a valid replacement realm")
+		}
+	default:
+		return fmt.Errorf("action %q is invalid", rule.Action)
+	}
+	if strings.TrimSpace(rule.MatchRealm) != "" && !validRadiusRealmName(rule.MatchRealm) {
+		return fmt.Errorf("match_realm %q is invalid", rule.MatchRealm)
+	}
+	if strings.ContainsAny(rule.Description, "\r\n\x00") || len(rule.Description) > 240 {
+		return fmt.Errorf("description is invalid")
+	}
+	return nil
+}
+
+func validFreeRADIUSAttributeName(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 96 {
+		return false
+	}
+	for i, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case i > 0 && r >= '0' && r <= '9':
+		case i > 0 && (r == '-' || r == '_' || r == '.'):
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func validProxyPolicyToken(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 64 {
+		return false
+	}
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '-' || r == '_' || r == '.':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func validateRadiusVendorIdentity(vendor RadiusVendorConfig) error {

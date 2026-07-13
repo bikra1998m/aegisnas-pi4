@@ -3193,6 +3193,78 @@ func TestConfigValidationRejectsUnknownProxyRouteServer(t *testing.T) {
 	assert.ErrorContains(t, cfg.Validate(), "references unknown upstream server")
 }
 
+func TestConfigValidationAllowsProxyPolicy(t *testing.T) {
+	cfg := baseProxyRoutingValidationConfig()
+	cfg.Radius.Upstream.Routes = []RadiusProxyRouteConfig{
+		{Name: "corp", Enabled: true, Realm: "corp.example.com", MatchRealms: []string{"employees.example.com"}, Default: true, Servers: []string{"primary"}},
+	}
+	cfg.Radius.Upstream.ProxyPolicy = RadiusProxyPolicyConfig{
+		Enabled:          true,
+		FailClosed:       true,
+		DefaultAction:    "drop",
+		LoopMarker:       "aegisnas",
+		AddLoopMarker:    true,
+		RejectLoopMarker: true,
+		MaxHops:          8,
+		RoutePolicies: []RadiusProxyRoutePolicyConfig{{
+			Route:               "corp",
+			Direction:           "any",
+			TrustedSourceRealms: []string{"corp.example.com", "employees.example.com"},
+			AllowStandard:       []string{"User-Name", "EAP-Message", "80"},
+			DenyStandard:        []string{"Filter-Id"},
+			AllowVendorIDs:      []int{9},
+			AllowVendorAttributes: []RadiusProxyVendorAttributeSelector{{
+				VendorID: 14823,
+				Type:     1,
+				Name:     "Aruba-User-Role",
+			}},
+			RewriteRules: []RadiusProxyRewriteRuleConfig{{
+				Attribute:   "User-Name",
+				Action:      "replace_realm",
+				MatchRealm:  "employees.example.com",
+				Replacement: "corp.example.com",
+			}},
+		}},
+	}
+
+	assert.NoError(t, cfg.Validate())
+}
+
+func TestConfigValidationRejectsProxyPolicyUnknownRoute(t *testing.T) {
+	cfg := baseProxyRoutingValidationConfig()
+	cfg.Radius.Upstream.Routes = []RadiusProxyRouteConfig{
+		{Name: "corp", Enabled: true, Realm: "corp.example.com", Default: true, Servers: []string{"primary"}},
+	}
+	cfg.Radius.Upstream.ProxyPolicy = RadiusProxyPolicyConfig{
+		Enabled:       true,
+		DefaultAction: "drop",
+		LoopMarker:    "aegisnas",
+		MaxHops:       8,
+		RoutePolicies: []RadiusProxyRoutePolicyConfig{{Route: "missing"}},
+	}
+
+	assert.ErrorContains(t, cfg.Validate(), "does not match an enabled proxy route")
+}
+
+func TestConfigValidationRejectsProxyPolicyInvalidRewrite(t *testing.T) {
+	cfg := baseProxyRoutingValidationConfig()
+	cfg.Radius.Upstream.Routes = []RadiusProxyRouteConfig{
+		{Name: "corp", Enabled: true, Realm: "corp.example.com", Default: true, Servers: []string{"primary"}},
+	}
+	cfg.Radius.Upstream.ProxyPolicy = RadiusProxyPolicyConfig{
+		Enabled:       true,
+		DefaultAction: "drop",
+		LoopMarker:    "aegisnas",
+		MaxHops:       8,
+		RoutePolicies: []RadiusProxyRoutePolicyConfig{{
+			Route:        "corp",
+			RewriteRules: []RadiusProxyRewriteRuleConfig{{Attribute: "Filter-Id", Action: "strip_realm_from_user_name"}},
+		}},
+	}
+
+	assert.ErrorContains(t, cfg.Validate(), "attribute must be User-Name")
+}
+
 func baseProxyRoutingValidationConfig() *Config {
 	return &Config{
 		Mode: "two-nic",

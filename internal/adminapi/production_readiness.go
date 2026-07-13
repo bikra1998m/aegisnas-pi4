@@ -108,6 +108,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionOpaquePassThroughCheck(&report, cfg)
 	addProductionRadiusPacketHardeningCheck(&report, cfg)
 	addProductionProxyRoutingCheck(&report, cfg)
+	addProductionProxyPolicyCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
@@ -192,6 +193,37 @@ func addProductionProxyRoutingCheck(report *productionReadinessReport, cfg *conf
 		Summary:        summary,
 		Recommendation: "Use explicit radius.upstream.routes for every production realm, keep server bindings named and secret-backed, review /api/v1/system/proxy-routes before generation, and capture NAS-0010 external interoperability evidence before release sign-off.",
 		Dependencies:   []string{"radius.upstream.routes", "/api/v1/system/proxy-routes", "proxy.conf", "sites-enabled/default", "sites-enabled/inner-tunnel"},
+	})
+}
+
+func addProductionProxyPolicyCheck(report *productionReadinessReport, cfg *config.Config) {
+	policy := radius.BuildProxyPolicyReport(cfg)
+	status := "passed"
+	switch policy.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		if cfg != nil && cfg.Radius.Upstream.Enabled {
+			status = "degraded"
+		}
+	}
+	if cfg != nil && cfg.Radius.Upstream.Enabled {
+		if !policy.Enabled || policy.Summary.RoutePolicyCount == 0 || !policy.FreeRADIUS.LoopMarkerEnforced {
+			status = "blocked"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_proxy_policy",
+		Category: "radius",
+		Label:    "RADIUS Proxy Loop And Attribute Policy",
+		Status:   status,
+		Summary: fmt.Sprintf("Proxy policy schema %d is %s with %d route policy item(s), %d vendor allow selector(s), %d deny selector(s), and %d rewrite rule(s).",
+			policy.SchemaVersion, policy.Status, policy.Summary.RoutePolicyCount,
+			policy.Summary.AllowVendorIDCount+policy.Summary.AllowVendorAttributeCount,
+			policy.Summary.DenyVendorIDCount+policy.Summary.DenyVendorAttributeCount,
+			policy.Summary.RewriteRuleCount),
+		Recommendation: "Keep radius.upstream.proxy_policy enabled, fail-closed, loop-marker enforced, route-scoped, and reviewed through /api/v1/system/proxy-policy before production proxy operation.",
+		Dependencies:   []string{"radius.upstream.proxy_policy", "/api/v1/system/proxy-policy", "sites-enabled/default:pre-proxy", "sites-enabled/inner-tunnel:pre-proxy"},
 	})
 }
 
