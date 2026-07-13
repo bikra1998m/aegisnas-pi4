@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 18
+	return 19
 }
 
 func Migrate() error {
@@ -632,4 +632,56 @@ CREATE TABLE IF NOT EXISTS radius_packet_hardening_events (
 CREATE INDEX IF NOT EXISTS idx_radius_packet_hardening_events_observed_at ON radius_packet_hardening_events(observed_at);
 CREATE INDEX IF NOT EXISTS idx_radius_packet_hardening_events_source ON radius_packet_hardening_events(source_ip, observed_at);
 CREATE INDEX IF NOT EXISTS idx_radius_packet_hardening_events_decision ON radius_packet_hardening_events(decision, reason);
+`
+
+const schemaV19 = `
+CREATE TABLE IF NOT EXISTS radius_accounting_spool (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	record_id TEXT NOT NULL UNIQUE,
+	status TEXT NOT NULL,
+	route TEXT,
+	realm TEXT,
+	server_name TEXT,
+	username TEXT,
+	session_id TEXT,
+	acct_status_type TEXT,
+	payload_json TEXT NOT NULL,
+	payload_sha256 TEXT NOT NULL,
+	attempt_count INTEGER NOT NULL DEFAULT 0,
+	max_attempts INTEGER NOT NULL DEFAULT 10,
+	last_error TEXT,
+	last_response_code TEXT,
+	last_attempt_at DATETIME,
+	next_attempt_at DATETIME NOT NULL,
+	expires_at DATETIME NOT NULL,
+	owner_node TEXT,
+	locked_until DATETIME,
+	sent_at DATETIME,
+	created_at DATETIME NOT NULL,
+	updated_at DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS radius_accounting_spool_attempts (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	spool_id INTEGER NOT NULL,
+	record_id TEXT NOT NULL,
+	attempt_number INTEGER NOT NULL,
+	result TEXT NOT NULL,
+	error TEXT,
+	response_code TEXT,
+	route TEXT,
+	realm TEXT,
+	server_name TEXT,
+	latency_ms INTEGER DEFAULT 0,
+	attempted_at DATETIME NOT NULL,
+	next_attempt_at DATETIME,
+	FOREIGN KEY(spool_id) REFERENCES radius_accounting_spool(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_spool_status_next ON radius_accounting_spool(status, next_attempt_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_spool_expires ON radius_accounting_spool(expires_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_spool_session ON radius_accounting_spool(session_id, acct_status_type);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_spool_owner_lock ON radius_accounting_spool(owner_node, locked_until);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_spool_attempts_record ON radius_accounting_spool_attempts(record_id, attempted_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_spool_attempts_spool ON radius_accounting_spool_attempts(spool_id, attempted_at);
 `

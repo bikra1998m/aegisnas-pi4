@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-proxy-policy install-radius-dictionary scan-radius-dictionaries
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-proxy-policy test-radius-accounting-spool install-radius-dictionary scan-radius-dictionaries
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -72,6 +72,9 @@ test-radius-proxy-routing:
 
 test-radius-proxy-policy:
 	go test ./internal/config ./internal/radius ./internal/adminapi -run 'ProxyPolicy|ProxyRoute|ProxyRouting|Generator|OpenAPI|Authorize|ProductionReadiness' -count=1
+
+test-radius-accounting-spool:
+	go test ./internal/config ./internal/db ./internal/radius ./internal/adminapi -run 'AccountingSpool|Migrate|OpenAPI|Authorize|ProductionReadiness' -count=1
 
 build:
 	go build ./...

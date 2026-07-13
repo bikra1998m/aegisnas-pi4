@@ -109,6 +109,67 @@ func TestConfigValidationRadiusPacketHardening(t *testing.T) {
 	assert.ErrorContains(t, badCIDR.Validate(), "trusted_proxy_cidrs")
 }
 
+func TestConfigValidationRadiusAccountingSpool(t *testing.T) {
+	cfg := &Config{
+		Mode:     "two-nic",
+		WAN:      InterfaceConfig{Name: "eth0"},
+		LAN:      InterfaceConfig{Name: "eth1"},
+		Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+		Health:   HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{
+			PrometheusPort: 9090,
+		},
+		Radius: RadiusConfig{
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+			Upstream: RadiusUpstreamConfig{
+				Enabled:           true,
+				Realm:             "corp.example.com",
+				PoolStrategy:      "fail-over",
+				StatusCheck:       "status-server",
+				ResponseWindow:    20,
+				ZombiePeriod:      40,
+				ReviveInterval:    120,
+				CheckInterval:     30,
+				NumAnswersToAlive: 3,
+				Servers: []RadiusHomeServer{
+					{Name: "primary", Address: "10.0.0.10", Secret: "secret"},
+				},
+				Routes: []RadiusProxyRouteConfig{
+					{Name: "corp", Enabled: true, Realm: "corp.example.com", Default: true, Servers: []string{"primary"}},
+				},
+				ProxyPolicy: RadiusProxyPolicyConfig{
+					Enabled:          true,
+					FailClosed:       true,
+					DefaultAction:    "drop",
+					LoopMarker:       "aegisnas",
+					AddLoopMarker:    true,
+					RejectLoopMarker: true,
+					MaxHops:          8,
+				},
+				AccountingSpool: RadiusAccountingSpoolConfig{
+					Enabled:                true,
+					MaxQueueRecords:        100,
+					MaxAttempts:            5,
+					InitialRetrySeconds:    5,
+					MaxRetrySeconds:        60,
+					RecordTTLSeconds:       3600,
+					ReplayIntervalSeconds:  30,
+					BatchSize:              10,
+					LockSeconds:            60,
+					SentRetentionSeconds:   3600,
+					PoisonRetentionSeconds: 3600,
+				},
+			},
+		},
+	}
+	require.NoError(t, cfg.Validate())
+
+	cfg.Radius.Upstream.AccountingSpool.MaxRetrySeconds = 1
+	assert.ErrorContains(t, cfg.Validate(), "max_retry_seconds")
+}
+
 func TestConfigValidation(t *testing.T) {
 	tests := []struct {
 		name    string

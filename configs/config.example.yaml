@@ -273,6 +273,18 @@ radius:
     check_interval: 30
     num_answers_to_alive: 3
     strip_realm: false
+    accounting_spool:
+      enabled: true
+      max_queue_records: 10000
+      max_attempts: 10
+      initial_retry_seconds: 30
+      max_retry_seconds: 3600
+      record_ttl_seconds: 604800
+      replay_interval_seconds: 60
+      batch_size: 100
+      lock_seconds: 120
+      sent_retention_seconds: 604800
+      poison_retention_seconds: 2592000
     servers:
       - name: "primary-aaa"
         address: "10.10.10.10"

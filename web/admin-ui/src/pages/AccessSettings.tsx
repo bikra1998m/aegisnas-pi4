@@ -644,6 +644,19 @@ const defaultSettings: JsonMap = {
       check_interval: 30,
       num_answers_to_alive: 3,
       strip_realm: false,
+      accounting_spool: {
+        enabled: true,
+        max_queue_records: 10000,
+        max_attempts: 10,
+        initial_retry_seconds: 30,
+        max_retry_seconds: 3600,
+        record_ttl_seconds: 604800,
+        replay_interval_seconds: 60,
+        batch_size: 100,
+        lock_seconds: 120,
+        sent_retention_seconds: 604800,
+        poison_retention_seconds: 2592000,
+      },
       servers: [],
     },
   },
@@ -8917,6 +8930,146 @@ export default function AccessSettings() {
               updateField(["radius", "upstream", "strip_realm"], value)
             }
           />
+        </div>
+        <div className="mt-4">
+          <h4 className="text-sm font-semibold text-gray-900">
+            Accounting Spool
+          </h4>
+          <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Durable Spool"
+              checked={
+                settings.radius?.upstream?.accounting_spool?.enabled !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "accounting_spool", "enabled"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Queue Records"
+              type="number"
+              value={
+                settings.radius?.upstream?.accounting_spool
+                  ?.max_queue_records || 10000
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "upstream",
+                    "accounting_spool",
+                    "max_queue_records",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Attempts"
+              type="number"
+              value={
+                settings.radius?.upstream?.accounting_spool?.max_attempts || 10
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "accounting_spool", "max_attempts"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Batch Size"
+              type="number"
+              value={
+                settings.radius?.upstream?.accounting_spool?.batch_size || 100
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "accounting_spool", "batch_size"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Initial Retry (s)"
+              type="number"
+              value={
+                settings.radius?.upstream?.accounting_spool
+                  ?.initial_retry_seconds || 30
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "upstream",
+                    "accounting_spool",
+                    "initial_retry_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Retry (s)"
+              type="number"
+              value={
+                settings.radius?.upstream?.accounting_spool
+                  ?.max_retry_seconds || 3600
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "upstream",
+                    "accounting_spool",
+                    "max_retry_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Record TTL (s)"
+              type="number"
+              value={
+                settings.radius?.upstream?.accounting_spool
+                  ?.record_ttl_seconds || 604800
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "upstream",
+                    "accounting_spool",
+                    "record_ttl_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Replay Interval (s)"
+              type="number"
+              value={
+                settings.radius?.upstream?.accounting_spool
+                  ?.replay_interval_seconds || 60
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "upstream",
+                    "accounting_spool",
+                    "replay_interval_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+          </div>
         </div>
         <div className="mt-4 space-y-4">
           {upstreamServers.length === 0 ? (

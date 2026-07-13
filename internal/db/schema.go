@@ -65,7 +65,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{15, schemaV15},
 		{16, schemaV16},
 		{17, schemaV17},
-		{LatestSchemaVersion(), schemaV18},
+		{18, schemaV18},
+		{LatestSchemaVersion(), schemaV19},
 	}
 
 	for _, m := range migrations {
@@ -101,7 +102,32 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureRadiusPacketHardeningEventsTable(handle); err != nil {
 		return fmt.Errorf("repair RADIUS packet hardening event schema: %w", err)
 	}
+	if err := ensureRadiusAccountingSpoolTables(handle); err != nil {
+		return fmt.Errorf("repair RADIUS accounting spool schema: %w", err)
+	}
 
+	return nil
+}
+
+func ensureRadiusAccountingSpoolTables(handle *sql.DB) error {
+	exists, err := tableExists(handle, "radius_accounting_spool")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		if _, err := handle.Exec(SQLForDialect(schemaV19, DialectForHandle(handle))); err != nil {
+			return err
+		}
+		return nil
+	}
+	attemptsExists, err := tableExists(handle, "radius_accounting_spool_attempts")
+	if err != nil {
+		return err
+	}
+	if !attemptsExists {
+		_, err = handle.Exec(SQLForDialect(schemaV19, DialectForHandle(handle)))
+		return err
+	}
 	return nil
 }
 

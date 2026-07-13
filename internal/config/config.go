@@ -275,19 +275,20 @@ type RadiusRadSecConfig struct {
 }
 
 type RadiusUpstreamConfig struct {
-	Enabled           bool                     `mapstructure:"enabled"`
-	Realm             string                   `mapstructure:"realm"`
-	PoolStrategy      string                   `mapstructure:"pool_strategy"`
-	StatusCheck       string                   `mapstructure:"status_check"`
-	ResponseWindow    int                      `mapstructure:"response_window"`
-	ZombiePeriod      int                      `mapstructure:"zombie_period"`
-	ReviveInterval    int                      `mapstructure:"revive_interval"`
-	CheckInterval     int                      `mapstructure:"check_interval"`
-	NumAnswersToAlive int                      `mapstructure:"num_answers_to_alive"`
-	StripRealm        bool                     `mapstructure:"strip_realm"`
-	Servers           []RadiusHomeServer       `mapstructure:"servers"`
-	Routes            []RadiusProxyRouteConfig `mapstructure:"routes"`
-	ProxyPolicy       RadiusProxyPolicyConfig  `mapstructure:"proxy_policy"`
+	Enabled           bool                        `mapstructure:"enabled"`
+	Realm             string                      `mapstructure:"realm"`
+	PoolStrategy      string                      `mapstructure:"pool_strategy"`
+	StatusCheck       string                      `mapstructure:"status_check"`
+	ResponseWindow    int                         `mapstructure:"response_window"`
+	ZombiePeriod      int                         `mapstructure:"zombie_period"`
+	ReviveInterval    int                         `mapstructure:"revive_interval"`
+	CheckInterval     int                         `mapstructure:"check_interval"`
+	NumAnswersToAlive int                         `mapstructure:"num_answers_to_alive"`
+	StripRealm        bool                        `mapstructure:"strip_realm"`
+	Servers           []RadiusHomeServer          `mapstructure:"servers"`
+	Routes            []RadiusProxyRouteConfig    `mapstructure:"routes"`
+	ProxyPolicy       RadiusProxyPolicyConfig     `mapstructure:"proxy_policy"`
+	AccountingSpool   RadiusAccountingSpoolConfig `mapstructure:"accounting_spool"`
 }
 
 type RadiusProxyRouteConfig struct {
@@ -341,6 +342,20 @@ type RadiusProxyRewriteRuleConfig struct {
 	MatchRealm  string `mapstructure:"match_realm"`
 	Replacement string `mapstructure:"replacement"`
 	Description string `mapstructure:"description"`
+}
+
+type RadiusAccountingSpoolConfig struct {
+	Enabled                bool `mapstructure:"enabled"`
+	MaxQueueRecords        int  `mapstructure:"max_queue_records"`
+	MaxAttempts            int  `mapstructure:"max_attempts"`
+	InitialRetrySeconds    int  `mapstructure:"initial_retry_seconds"`
+	MaxRetrySeconds        int  `mapstructure:"max_retry_seconds"`
+	RecordTTLSeconds       int  `mapstructure:"record_ttl_seconds"`
+	ReplayIntervalSeconds  int  `mapstructure:"replay_interval_seconds"`
+	BatchSize              int  `mapstructure:"batch_size"`
+	LockSeconds            int  `mapstructure:"lock_seconds"`
+	SentRetentionSeconds   int  `mapstructure:"sent_retention_seconds"`
+	PoisonRetentionSeconds int  `mapstructure:"poison_retention_seconds"`
 }
 
 type RadiusHomeServer struct {
@@ -1108,6 +1123,17 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.upstream.proxy_policy.reject_loop_marker", true)
 	v.SetDefault("radius.upstream.proxy_policy.max_hops", 8)
 	v.SetDefault("radius.upstream.proxy_policy.route_policies", []map[string]any{})
+	v.SetDefault("radius.upstream.accounting_spool.enabled", true)
+	v.SetDefault("radius.upstream.accounting_spool.max_queue_records", 10000)
+	v.SetDefault("radius.upstream.accounting_spool.max_attempts", 10)
+	v.SetDefault("radius.upstream.accounting_spool.initial_retry_seconds", 30)
+	v.SetDefault("radius.upstream.accounting_spool.max_retry_seconds", 3600)
+	v.SetDefault("radius.upstream.accounting_spool.record_ttl_seconds", 604800)
+	v.SetDefault("radius.upstream.accounting_spool.replay_interval_seconds", 60)
+	v.SetDefault("radius.upstream.accounting_spool.batch_size", 100)
+	v.SetDefault("radius.upstream.accounting_spool.lock_seconds", 120)
+	v.SetDefault("radius.upstream.accounting_spool.sent_retention_seconds", 604800)
+	v.SetDefault("radius.upstream.accounting_spool.poison_retention_seconds", 2592000)
 	productVendor := productconfigs.AegisNASVendorDictionary()
 	v.SetDefault("radius.vendor.enabled", false)
 	v.SetDefault("radius.vendor.name", productVendor.Name)
@@ -3551,6 +3577,9 @@ func (c *Config) Validate() error {
 		if err := validateRadiusProxyPolicy(c.Radius.Upstream); err != nil {
 			return err
 		}
+		if err := validateRadiusAccountingSpool(c.Radius.Upstream.AccountingSpool); err != nil {
+			return err
+		}
 	}
 
 	if c.Wireless.Enabled {
@@ -4212,6 +4241,96 @@ func validateRadiusProxyPolicy(upstream RadiusUpstreamConfig) error {
 				return fmt.Errorf("radius.upstream.proxy_policy.route_policies[%d].rewrite_rules[%d]: %w", i, rewriteIndex, err)
 			}
 		}
+	}
+	return nil
+}
+
+func EffectiveRadiusAccountingSpoolConfig(raw RadiusAccountingSpoolConfig) RadiusAccountingSpoolConfig {
+	effective := raw
+	if effective.MaxQueueRecords == 0 {
+		effective.MaxQueueRecords = 10000
+	}
+	if effective.MaxAttempts == 0 {
+		effective.MaxAttempts = 10
+	}
+	if effective.InitialRetrySeconds == 0 {
+		effective.InitialRetrySeconds = 30
+	}
+	if effective.MaxRetrySeconds == 0 {
+		effective.MaxRetrySeconds = 3600
+	}
+	if effective.RecordTTLSeconds == 0 {
+		effective.RecordTTLSeconds = 604800
+	}
+	if effective.ReplayIntervalSeconds == 0 {
+		effective.ReplayIntervalSeconds = 60
+	}
+	if effective.BatchSize == 0 {
+		effective.BatchSize = 100
+	}
+	if effective.LockSeconds == 0 {
+		effective.LockSeconds = 120
+	}
+	if effective.SentRetentionSeconds == 0 {
+		effective.SentRetentionSeconds = 604800
+	}
+	if effective.PoisonRetentionSeconds == 0 {
+		effective.PoisonRetentionSeconds = 2592000
+	}
+	return effective
+}
+
+func validateRadiusAccountingSpool(raw RadiusAccountingSpoolConfig) error {
+	values := map[string]int{
+		"max_queue_records":        raw.MaxQueueRecords,
+		"max_attempts":             raw.MaxAttempts,
+		"initial_retry_seconds":    raw.InitialRetrySeconds,
+		"max_retry_seconds":        raw.MaxRetrySeconds,
+		"record_ttl_seconds":       raw.RecordTTLSeconds,
+		"replay_interval_seconds":  raw.ReplayIntervalSeconds,
+		"batch_size":               raw.BatchSize,
+		"lock_seconds":             raw.LockSeconds,
+		"sent_retention_seconds":   raw.SentRetentionSeconds,
+		"poison_retention_seconds": raw.PoisonRetentionSeconds,
+	}
+	for name, value := range values {
+		if value < 0 {
+			return fmt.Errorf("radius.upstream.accounting_spool.%s %d cannot be negative", name, value)
+		}
+	}
+	if !raw.Enabled {
+		return nil
+	}
+	effective := EffectiveRadiusAccountingSpoolConfig(raw)
+	if effective.MaxQueueRecords < 1 || effective.MaxQueueRecords > 1000000 {
+		return fmt.Errorf("radius.upstream.accounting_spool.max_queue_records must be between 1 and 1000000")
+	}
+	if effective.MaxAttempts < 1 || effective.MaxAttempts > 1000 {
+		return fmt.Errorf("radius.upstream.accounting_spool.max_attempts must be between 1 and 1000")
+	}
+	if effective.InitialRetrySeconds < 1 {
+		return fmt.Errorf("radius.upstream.accounting_spool.initial_retry_seconds must be positive")
+	}
+	if effective.MaxRetrySeconds < effective.InitialRetrySeconds {
+		return fmt.Errorf("radius.upstream.accounting_spool.max_retry_seconds must be greater than or equal to initial_retry_seconds")
+	}
+	if effective.RecordTTLSeconds < effective.MaxRetrySeconds {
+		return fmt.Errorf("radius.upstream.accounting_spool.record_ttl_seconds must be greater than or equal to max_retry_seconds")
+	}
+	if effective.ReplayIntervalSeconds < 1 {
+		return fmt.Errorf("radius.upstream.accounting_spool.replay_interval_seconds must be positive")
+	}
+	if effective.BatchSize < 1 || effective.BatchSize > effective.MaxQueueRecords {
+		return fmt.Errorf("radius.upstream.accounting_spool.batch_size must be between 1 and max_queue_records")
+	}
+	if effective.LockSeconds < 1 {
+		return fmt.Errorf("radius.upstream.accounting_spool.lock_seconds must be positive")
+	}
+	if effective.SentRetentionSeconds < 1 {
+		return fmt.Errorf("radius.upstream.accounting_spool.sent_retention_seconds must be positive")
+	}
+	if effective.PoisonRetentionSeconds < 1 {
+		return fmt.Errorf("radius.upstream.accounting_spool.poison_retention_seconds must be positive")
 	}
 	return nil
 }

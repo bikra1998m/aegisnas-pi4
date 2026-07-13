@@ -109,6 +109,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionRadiusPacketHardeningCheck(&report, cfg)
 	addProductionProxyRoutingCheck(&report, cfg)
 	addProductionProxyPolicyCheck(&report, cfg)
+	addProductionAccountingSpoolCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
@@ -224,6 +225,40 @@ func addProductionProxyPolicyCheck(report *productionReadinessReport, cfg *confi
 			policy.Summary.RewriteRuleCount),
 		Recommendation: "Keep radius.upstream.proxy_policy enabled, fail-closed, loop-marker enforced, route-scoped, and reviewed through /api/v1/system/proxy-policy before production proxy operation.",
 		Dependencies:   []string{"radius.upstream.proxy_policy", "/api/v1/system/proxy-policy", "sites-enabled/default:pre-proxy", "sites-enabled/inner-tunnel:pre-proxy"},
+	})
+}
+
+func addProductionAccountingSpoolCheck(report *productionReadinessReport, cfg *config.Config) {
+	spool := radius.BuildAccountingSpoolReport(cfg)
+	status := "passed"
+	switch spool.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		if cfg != nil && cfg.Radius.Upstream.Enabled {
+			status = "degraded"
+		}
+	}
+	if cfg != nil && cfg.Radius.Upstream.Enabled {
+		if !spool.Enabled || spool.Policy.MaxQueueRecords <= 0 || spool.Policy.MaxAttempts <= 0 || spool.Policy.RecordTTLSeconds <= 0 {
+			status = "blocked"
+		}
+		if spool.Summary.QueueUtilization >= 90 || spool.Summary.PoisonCount > 0 {
+			if status == "passed" {
+				status = "degraded"
+			}
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_accounting_spool",
+		Category: "radius",
+		Label:    "Durable RADIUS Accounting Spool",
+		Status:   status,
+		Summary: fmt.Sprintf("Accounting spool schema %d is %s with %d queued, %d retrying, %d poison, %d expired, and %d%% queue utilization.",
+			spool.SchemaVersion, spool.Status, spool.Summary.QueuedCount, spool.Summary.RetryingCount,
+			spool.Summary.PoisonCount, spool.Summary.ExpiredCount, spool.Summary.QueueUtilization),
+		Recommendation: "Keep radius.upstream.accounting_spool enabled for proxy accounting, monitor /api/v1/system/accounting-spool, and complete the NAS-0012 release certification replay and outage drills.",
+		Dependencies:   []string{"radius.upstream.accounting_spool", "/api/v1/system/accounting-spool", "/api/v1/system/accounting-spool/replay", "radius_accounting_spool", "radius_accounting_spool_attempts"},
 	})
 }
 

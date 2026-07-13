@@ -62,6 +62,7 @@ var runCmd = &cobra.Command{
 
 		// Start health server on a dedicated port so it does not collide with gateway health.
 		go health.StartServer(cfg.Health.Port+5, logger)
+		go radius.StartAccountingSpoolReplayer(context.Background(), cfg)
 
 		logger.Info("aegis-radius running",
 			zap.Int("auth_port", cfg.Radius.AuthPort),

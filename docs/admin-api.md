@@ -157,6 +157,22 @@ Proxy loop and attribute policy is exposed at:
 
 Use this endpoint to confirm loop-marker enforcement, route trust realms, standard and vendor allow/deny selectors, rewrite rules, generated FreeRADIUS `pre-proxy` / `post-proxy` coverage, and production readiness before enabling upstream proxy workflows. The same summary appears in `/api/v1/system/status` under `radius.proxy_policy` and in production readiness as `radius_proxy_policy`.
 
+Durable proxy accounting spool state is exposed at:
+
+```text
+/api/v1/system/accounting-spool
+/api/v1/system/accounting-spool?status=queued&limit=100
+/api/v1/system/accounting-spool?record_id=<record-id>
+```
+
+Use these endpoints to review queued, retrying, sent, poison, and expired accounting records plus replay attempts. Manual replay is available to `ops_admin` and `super_admin`:
+
+```text
+POST /api/v1/system/accounting-spool/replay
+```
+
+The same summary appears in `/api/v1/system/status` under `radius.accounting_spool` and in production readiness as `radius_accounting_spool`.
+
 ## Secret Provider Endpoint
 
 Secret-provider readiness is exposed at:

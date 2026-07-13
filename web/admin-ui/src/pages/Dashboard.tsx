@@ -242,6 +242,28 @@ type RadiusProxyPolicyReport = {
   warnings?: string[];
 };
 
+type RadiusAccountingSpoolReport = {
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary?: {
+    total_records: number;
+    queued_count: number;
+    retrying_count: number;
+    sent_count: number;
+    poison_count: number;
+    expired_count: number;
+    due_count: number;
+    attempt_count: number;
+    queue_capacity: number;
+    queue_utilization_percent: number;
+    oldest_queued_at?: string;
+    next_attempt_at?: string;
+    last_sent_at?: string;
+    last_poison_at?: string;
+  };
+};
+
 type SystemStatus = {
   generated_at: string;
   summary: {
@@ -323,6 +345,7 @@ type SystemStatus = {
     packet_hardening?: RadiusPacketHardeningReport;
     proxy_routes?: RadiusProxyRoutingReport;
     proxy_policy?: RadiusProxyPolicyReport;
+    accounting_spool?: RadiusAccountingSpoolReport;
     probe_error?: string;
   };
   wireless: {
@@ -861,6 +884,7 @@ export default function Dashboard() {
   const packetHardening = systemStatus.radius?.packet_hardening;
   const proxyRoutes = systemStatus.radius?.proxy_routes;
   const proxyPolicy = systemStatus.radius?.proxy_policy;
+  const accountingSpool = systemStatus.radius?.accounting_spool;
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
   const serviceProblems = services.filter(
     (service) => !["ok", "disabled"].includes(service.status),
@@ -1594,6 +1618,54 @@ export default function Dashboard() {
                   />
                 </div>
               </div>
+              {accountingSpool ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Durable Accounting Spool
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {accountingSpool.message ||
+                          "Accounting spool state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Queued{" "}
+                          {accountingSpool.summary?.queued_count ?? 0}
+                        </div>
+                        <div>
+                          Retrying{" "}
+                          {accountingSpool.summary?.retrying_count ?? 0}
+                        </div>
+                        <div>
+                          Due {accountingSpool.summary?.due_count ?? 0}
+                        </div>
+                        <div>
+                          Poison{" "}
+                          {accountingSpool.summary?.poison_count ?? 0}
+                        </div>
+                        <div>
+                          Used{" "}
+                          {accountingSpool.summary
+                            ?.queue_utilization_percent ?? 0}
+                          %
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Sent {accountingSpool.summary?.sent_count ?? 0};
+                        expired {accountingSpool.summary?.expired_count ?? 0};
+                        attempts{" "}
+                        {accountingSpool.summary?.attempt_count ?? 0}
+                        {accountingSpool.summary?.next_attempt_at
+                          ? `; next ${accountingSpool.summary.next_attempt_at}`
+                          : ""}
+                      </div>
+                    </div>
+                    <StatusBadge status={accountingSpool.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
               {packetHardening ? (
                 <div className="rounded-md border border-gray-200 px-4 py-3">
                   <div className="flex items-start justify-between gap-3">

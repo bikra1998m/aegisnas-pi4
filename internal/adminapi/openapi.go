@@ -1149,6 +1149,16 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/proxy-policy", "get", securedOperation("Read RADIUS proxy loop and attribute policy", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Effective proxy loop marker, route trust, attribute allow/deny, rewrite policy, FreeRADIUS enforcement state, and readiness warnings."),
 	}))
+	addOperation(paths, "/api/v1/system/accounting-spool", "get", securedOperationWithParameters("Read durable RADIUS accounting spool state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("status", "Optional spool record status filter.", []string{"queued", "retrying", "sent", "poison", "expired"}, false),
+		queryStringParameter("record_id", "Optional spool record ID for attempt history.", false),
+		queryStringParameter("limit", "Record or attempt limit from 1 to 1000.", false),
+	}, map[string]any{
+		"200": responseJSON("Accounting spool policy, summary, recent records, optional filtered records, and attempt history."),
+	}))
+	addOperation(paths, "/api/v1/system/accounting-spool/replay", "post", securedOperation("Replay due durable RADIUS accounting records", "RADIUS", []string{"ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Replay run result with claimed, sent, failed, poisoned, expired, and queue summary counts."),
+	}))
 	addOperation(paths, "/api/v1/system/secret-providers", "get", securedOperation("Read secret provider readiness", "Security", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Redacted secret-provider inventory, reference status, inline-secret blockers, and provider policy."),
 	}))

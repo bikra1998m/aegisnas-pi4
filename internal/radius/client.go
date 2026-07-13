@@ -66,6 +66,25 @@ type BrokerAuthResult struct {
 	HasVendorIdleTimeout     bool
 }
 
+type accountingSendResult struct {
+	ResponseCode string
+	Latency      time.Duration
+}
+
+type accountingBuildError struct {
+	err error
+}
+
+func (e accountingBuildError) Error() string {
+	return e.err.Error()
+}
+
+func (e accountingBuildError) Unwrap() error {
+	return e.err
+}
+
+var accountingPacketSender = sendAccountingDirect
+
 func AuthenticatePAP(ctx context.Context, cfg *config.Config, req BrokerAuthRequest) (*BrokerAuthResult, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("config is required")
@@ -166,65 +185,107 @@ func SendAccounting(ctx context.Context, cfg *config.Config, rec *AccountingReco
 		return fmt.Errorf("accounting record is required")
 	}
 
+	result, err := accountingPacketSender(ctx, cfg, rec)
+	if err != nil {
+		details := map[string]any{
+			"endpoint":         accountingEndpoint(cfg),
+			"upstream_enabled": cfg.Radius.Upstream.Enabled,
+			"realm":            cfg.Radius.Upstream.Realm,
+			"acct_status_type": rec.AcctStatusType,
+		}
+		if result.ResponseCode != "" {
+			details["response_code"] = result.ResponseCode
+		}
+		status := "down"
+		message := err.Error()
+		if _, ok := err.(accountingBuildError); ok {
+			status = "degraded"
+		} else {
+			spooled, queued, spoolErr := queueAccountingFailure(ctx, cfg, rec, err.Error())
+			if spoolErr != nil {
+				details["spool_error"] = spoolErr.Error()
+			}
+			if spooled.RecordID != "" {
+				details["spool_record_id"] = spooled.RecordID
+				details["spool_status"] = spooled.Status
+				details["spool_queued"] = queued
+				message = fmt.Sprintf("%s; accounting record spooled for replay", message)
+			}
+		}
+		_ = db.UpsertRuntimeStatus("radius_broker_accounting", status, message, details)
+		return err
+	}
+	_ = db.UpsertRuntimeStatus("radius_broker_accounting", "ok", "broker accounting succeeded", map[string]any{
+		"endpoint":         accountingEndpoint(cfg),
+		"upstream_enabled": cfg.Radius.Upstream.Enabled,
+		"realm":            cfg.Radius.Upstream.Realm,
+		"acct_status_type": rec.AcctStatusType,
+		"response_code":    result.ResponseCode,
+		"latency_ms":       result.Latency.Milliseconds(),
+	})
+	return nil
+}
+
+func sendAccountingDirect(ctx context.Context, cfg *config.Config, rec *AccountingRecord) (accountingSendResult, error) {
 	packet := layehradius.New(layehradius.CodeAccountingRequest, []byte(cfg.Radius.Secret))
 
 	if err := rfc2865.UserName_SetString(packet, rec.Username); err != nil {
-		return err
+		return accountingSendResult{}, accountingBuildError{err: err}
 	}
 	if err := rfc2866.AcctSessionID_SetString(packet, rec.SessionID); err != nil {
-		return err
+		return accountingSendResult{}, accountingBuildError{err: err}
 	}
 	if err := rfc2866.AcctStatusType_Set(packet, accountingStatusType(rec.AcctStatusType)); err != nil {
-		return err
+		return accountingSendResult{}, accountingBuildError{err: err}
 	}
 	if err := rfc2865.NASIdentifier_SetString(packet, cfg.Radius.NASIdentifier); err != nil {
-		return err
+		return accountingSendResult{}, accountingBuildError{err: err}
 	}
 	if nasIP := resolveNASIP(cfg); nasIP != nil {
 		if err := rfc2865.NASIPAddress_Set(packet, nasIP); err != nil {
-			return err
+			return accountingSendResult{}, accountingBuildError{err: err}
 		}
 	}
 	if rec.CallingStationID != "" {
 		if err := rfc2865.CallingStationID_SetString(packet, rec.CallingStationID); err != nil {
-			return err
+			return accountingSendResult{}, accountingBuildError{err: err}
 		}
 	}
 	if rec.CalledStationID != "" {
 		if err := rfc2865.CalledStationID_SetString(packet, rec.CalledStationID); err != nil {
-			return err
+			return accountingSendResult{}, accountingBuildError{err: err}
 		}
 	}
 	if rec.FramedIPAddress != "" {
 		if framedIP := net.ParseIP(rec.FramedIPAddress); framedIP != nil {
 			if err := rfc2865.FramedIPAddress_Set(packet, framedIP); err != nil {
-				return err
+				return accountingSendResult{}, accountingBuildError{err: err}
 			}
 		}
 	}
 	if rec.NASPort > 0 {
 		if err := rfc2865.NASPort_Set(packet, rfc2865.NASPort(rec.NASPort)); err != nil {
-			return err
+			return accountingSendResult{}, accountingBuildError{err: err}
 		}
 	}
 	if err := rfc2866.AcctInputOctets_Set(packet, rfc2866.AcctInputOctets(rec.AcctInputOctets)); err != nil {
-		return err
+		return accountingSendResult{}, accountingBuildError{err: err}
 	}
 	if err := rfc2866.AcctOutputOctets_Set(packet, rfc2866.AcctOutputOctets(rec.AcctOutputOctets)); err != nil {
-		return err
+		return accountingSendResult{}, accountingBuildError{err: err}
 	}
 	if rec.AcctSessionTime > 0 {
 		if err := rfc2866.AcctSessionTime_Set(packet, rfc2866.AcctSessionTime(rec.AcctSessionTime)); err != nil {
-			return err
+			return accountingSendResult{}, accountingBuildError{err: err}
 		}
 	}
 	if termCause, ok := accountingTerminateCause(rec.StopReason); ok {
 		if err := rfc2866.AcctTerminateCause_Set(packet, termCause); err != nil {
-			return err
+			return accountingSendResult{}, accountingBuildError{err: err}
 		}
 	}
 	if err := AddVendorAccountingAttributes(packet, cfg.Radius.Vendor, rec); err != nil {
-		return err
+		return accountingSendResult{}, accountingBuildError{err: err}
 	}
 
 	timeout := time.Duration(cfg.Radius.RequestTimeoutSeconds) * time.Second
@@ -240,33 +301,23 @@ func SendAccounting(ctx context.Context, cfg *config.Config, rec *AccountingReco
 	client := layehradius.Client{
 		Retry: timeout / 3,
 	}
-	response, err := client.Exchange(ctx, packet, fmt.Sprintf("127.0.0.1:%d", cfg.Radius.AcctPort))
+	start := time.Now()
+	response, err := client.Exchange(ctx, packet, accountingEndpoint(cfg))
 	if err != nil {
-		_ = db.UpsertRuntimeStatus("radius_broker_accounting", "down", err.Error(), map[string]any{
-			"endpoint":         fmt.Sprintf("127.0.0.1:%d", cfg.Radius.AcctPort),
-			"upstream_enabled": cfg.Radius.Upstream.Enabled,
-			"realm":            cfg.Radius.Upstream.Realm,
-			"acct_status_type": rec.AcctStatusType,
-		})
-		return err
+		return accountingSendResult{Latency: time.Since(start)}, err
 	}
+	result := accountingSendResult{ResponseCode: response.Code.String(), Latency: time.Since(start)}
 	if response.Code != layehradius.CodeAccountingResponse {
-		_ = db.UpsertRuntimeStatus("radius_broker_accounting", "degraded", "unexpected accounting response", map[string]any{
-			"endpoint":         fmt.Sprintf("127.0.0.1:%d", cfg.Radius.AcctPort),
-			"upstream_enabled": cfg.Radius.Upstream.Enabled,
-			"realm":            cfg.Radius.Upstream.Realm,
-			"acct_status_type": rec.AcctStatusType,
-			"response_code":    response.Code.String(),
-		})
-		return fmt.Errorf("unexpected accounting response code: %s", response.Code)
+		return result, fmt.Errorf("unexpected accounting response code: %s", response.Code)
 	}
-	_ = db.UpsertRuntimeStatus("radius_broker_accounting", "ok", "broker accounting succeeded", map[string]any{
-		"endpoint":         fmt.Sprintf("127.0.0.1:%d", cfg.Radius.AcctPort),
-		"upstream_enabled": cfg.Radius.Upstream.Enabled,
-		"realm":            cfg.Radius.Upstream.Realm,
-		"acct_status_type": rec.AcctStatusType,
-	})
-	return nil
+	return result, nil
+}
+
+func accountingEndpoint(cfg *config.Config) string {
+	if cfg == nil {
+		return ""
+	}
+	return fmt.Sprintf("127.0.0.1:%d", cfg.Radius.AcctPort)
 }
 
 func ParseBrokerPacket(packet *layehradius.Packet) *BrokerAuthResult {

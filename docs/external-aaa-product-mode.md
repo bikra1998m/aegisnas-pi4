@@ -182,6 +182,18 @@ radius:
     check_interval: 30
     num_answers_to_alive: 3
     strip_realm: false
+    accounting_spool:
+      enabled: true
+      max_queue_records: 10000
+      max_attempts: 10
+      initial_retry_seconds: 30
+      max_retry_seconds: 3600
+      record_ttl_seconds: 604800
+      replay_interval_seconds: 60
+      batch_size: 100
+      lock_seconds: 120
+      sent_retention_seconds: 604800
+      poison_retention_seconds: 2592000
     servers:
       - name: "primary-aaa"
         address: "10.10.10.10"
@@ -205,6 +217,7 @@ Notes:
 - use `status_check: status-server` only when the upstream platform supports it
 - use `status_check: none` when the upstream vendor does not answer `Status-Server`
 - `strip_realm: false` preserves the original username format sent by the access device
+- `accounting_spool.enabled: true` persists failed proxy accounting records for bounded replay, poison handling, and operator audit
 - `radius.vendor.id` must be your own verified IANA Private Enterprise Number for production; keep `55555` only for lab testing.
 - IANA PEN registration is free and first-come-first-served. Request the assignment from <https://www.iana.org/assignments/enterprise-numbers/assignment/apply/>, wait for the registry entry, then use the Vendor Compatibility preview/apply workflow. Direct settings updates to vendor identity fields are rejected.
 - During migration, outbound VSAs use the assigned PEN immediately. `radius.vendor.legacy_ids` are inbound-only and expire at `radius.vendor.legacy_accept_until`.
