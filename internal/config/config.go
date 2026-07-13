@@ -274,17 +274,31 @@ type RadiusRadSecConfig struct {
 }
 
 type RadiusUpstreamConfig struct {
-	Enabled           bool               `mapstructure:"enabled"`
-	Realm             string             `mapstructure:"realm"`
-	PoolStrategy      string             `mapstructure:"pool_strategy"`
-	StatusCheck       string             `mapstructure:"status_check"`
-	ResponseWindow    int                `mapstructure:"response_window"`
-	ZombiePeriod      int                `mapstructure:"zombie_period"`
-	ReviveInterval    int                `mapstructure:"revive_interval"`
-	CheckInterval     int                `mapstructure:"check_interval"`
-	NumAnswersToAlive int                `mapstructure:"num_answers_to_alive"`
-	StripRealm        bool               `mapstructure:"strip_realm"`
-	Servers           []RadiusHomeServer `mapstructure:"servers"`
+	Enabled           bool                     `mapstructure:"enabled"`
+	Realm             string                   `mapstructure:"realm"`
+	PoolStrategy      string                   `mapstructure:"pool_strategy"`
+	StatusCheck       string                   `mapstructure:"status_check"`
+	ResponseWindow    int                      `mapstructure:"response_window"`
+	ZombiePeriod      int                      `mapstructure:"zombie_period"`
+	ReviveInterval    int                      `mapstructure:"revive_interval"`
+	CheckInterval     int                      `mapstructure:"check_interval"`
+	NumAnswersToAlive int                      `mapstructure:"num_answers_to_alive"`
+	StripRealm        bool                     `mapstructure:"strip_realm"`
+	Servers           []RadiusHomeServer       `mapstructure:"servers"`
+	Routes            []RadiusProxyRouteConfig `mapstructure:"routes"`
+}
+
+type RadiusProxyRouteConfig struct {
+	Name         string   `mapstructure:"name"`
+	Description  string   `mapstructure:"description"`
+	Enabled      bool     `mapstructure:"enabled"`
+	Realm        string   `mapstructure:"realm"`
+	MatchRealms  []string `mapstructure:"match_realms"`
+	Default      bool     `mapstructure:"default"`
+	StripRealm   bool     `mapstructure:"strip_realm"`
+	PoolStrategy string   `mapstructure:"pool_strategy"`
+	StatusCheck  string   `mapstructure:"status_check"`
+	Servers      []string `mapstructure:"servers"`
 }
 
 type RadiusHomeServer struct {
@@ -1043,6 +1057,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.upstream.check_interval", 30)
 	v.SetDefault("radius.upstream.num_answers_to_alive", 3)
 	v.SetDefault("radius.upstream.strip_realm", false)
+	v.SetDefault("radius.upstream.routes", []map[string]any{})
 	productVendor := productconfigs.AegisNASVendorDictionary()
 	v.SetDefault("radius.vendor.enabled", false)
 	v.SetDefault("radius.vendor.name", productVendor.Name)
@@ -3427,8 +3442,11 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("radius.upstream.status_check %q is invalid", c.Radius.Upstream.StatusCheck)
 		}
 
-		if strings.TrimSpace(c.Radius.Upstream.Realm) == "" {
+		if strings.TrimSpace(c.Radius.Upstream.Realm) == "" && len(c.Radius.Upstream.Routes) == 0 {
 			return errors.New("radius.upstream.realm cannot be empty when upstream is enabled")
+		}
+		if strings.TrimSpace(c.Radius.Upstream.Realm) != "" && !validRadiusRealmName(c.Radius.Upstream.Realm) {
+			return fmt.Errorf("radius.upstream.realm %q is invalid", c.Radius.Upstream.Realm)
 		}
 		if len(c.Radius.Upstream.Servers) == 0 {
 			return errors.New("radius.upstream.enabled requires at least one upstream server")
@@ -3476,6 +3494,9 @@ func (c *Config) Validate() error {
 			if err := validateRadSecPeer(i, server); err != nil {
 				return err
 			}
+		}
+		if err := validateRadiusProxyRoutes(c.Radius.Upstream, seenNames); err != nil {
+			return err
 		}
 	}
 
@@ -3916,6 +3937,136 @@ func validRadiusDictionaryName(value string) bool {
 		}
 	}
 	return true
+}
+
+func validRadiusRealmName(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 253 {
+		return false
+	}
+	upper := strings.ToUpper(value)
+	if upper == "DEFAULT" || upper == "NULL" {
+		return true
+	}
+	if strings.HasPrefix(value, ".") || strings.HasSuffix(value, ".") {
+		return false
+	}
+	for i, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '-' || r == '_' || r == '.':
+		default:
+			return false
+		}
+		if i == 0 && (r == '-' || r == '_') {
+			return false
+		}
+	}
+	return true
+}
+
+func validateRadiusProxyRoutes(upstream RadiusUpstreamConfig, serverNames map[string]struct{}) error {
+	if len(upstream.Routes) == 0 {
+		return nil
+	}
+
+	enabledRoutes := 0
+	defaultRoutes := 0
+	routeNames := make(map[string]struct{}, len(upstream.Routes))
+	matchRealms := make(map[string]string)
+
+	for i, route := range upstream.Routes {
+		if !route.Enabled {
+			continue
+		}
+		enabledRoutes++
+		name := strings.TrimSpace(route.Name)
+		if name == "" {
+			return fmt.Errorf("radius.upstream.routes[%d] missing name", i)
+		}
+		if !validRadiusDictionaryName(name) {
+			return fmt.Errorf("radius.upstream.routes[%d].name %q is invalid", i, route.Name)
+		}
+		if _, exists := routeNames[name]; exists {
+			return fmt.Errorf("radius.upstream.routes[%d] duplicate name %q", i, name)
+		}
+		routeNames[name] = struct{}{}
+
+		realm := strings.TrimSpace(route.Realm)
+		if realm == "" {
+			return fmt.Errorf("radius.upstream.routes[%d].realm cannot be empty", i)
+		}
+		if !validRadiusRealmName(realm) {
+			return fmt.Errorf("radius.upstream.routes[%d].realm %q is invalid", i, route.Realm)
+		}
+
+		poolStrategy := strings.TrimSpace(route.PoolStrategy)
+		if poolStrategy == "" {
+			poolStrategy = upstream.PoolStrategy
+		}
+		switch poolStrategy {
+		case "fail-over", "load-balance", "client-balance", "client-port-balance", "keyed-balance":
+		default:
+			return fmt.Errorf("radius.upstream.routes[%d].pool_strategy %q is invalid", i, route.PoolStrategy)
+		}
+
+		statusCheck := strings.TrimSpace(route.StatusCheck)
+		if statusCheck == "" {
+			statusCheck = upstream.StatusCheck
+		}
+		switch statusCheck {
+		case "status-server", "none":
+		default:
+			return fmt.Errorf("radius.upstream.routes[%d].status_check %q is invalid", i, route.StatusCheck)
+		}
+
+		if len(route.Servers) == 0 {
+			return fmt.Errorf("radius.upstream.routes[%d].servers requires at least one upstream server name", i)
+		}
+		seenRouteServers := make(map[string]struct{}, len(route.Servers))
+		for serverIndex, serverName := range route.Servers {
+			name := strings.TrimSpace(serverName)
+			if name == "" {
+				return fmt.Errorf("radius.upstream.routes[%d].servers[%d] cannot be empty", i, serverIndex)
+			}
+			if _, duplicate := seenRouteServers[name]; duplicate {
+				return fmt.Errorf("radius.upstream.routes[%d].servers[%d] duplicate server %q", i, serverIndex, name)
+			}
+			seenRouteServers[name] = struct{}{}
+			if _, exists := serverNames[name]; !exists {
+				return fmt.Errorf("radius.upstream.routes[%d].servers[%d] references unknown upstream server %q", i, serverIndex, name)
+			}
+		}
+
+		if route.Default {
+			defaultRoutes++
+			if defaultRoutes > 1 {
+				return errors.New("radius.upstream.routes allows only one enabled default route")
+			}
+		}
+
+		for _, matchRealm := range append([]string{realm}, route.MatchRealms...) {
+			matchRealm = strings.TrimSpace(matchRealm)
+			if matchRealm == "" {
+				continue
+			}
+			if !validRadiusRealmName(matchRealm) {
+				return fmt.Errorf("radius.upstream.routes[%d].match_realms contains invalid realm %q", i, matchRealm)
+			}
+			key := strings.ToLower(matchRealm)
+			if owner, exists := matchRealms[key]; exists && owner != name {
+				return fmt.Errorf("radius.upstream.routes[%d].match_realms realm %q is already claimed by route %q", i, matchRealm, owner)
+			}
+			matchRealms[key] = name
+		}
+	}
+
+	if enabledRoutes == 0 {
+		return errors.New("radius.upstream.routes requires at least one enabled route when configured")
+	}
+	return nil
 }
 
 func validateRadiusVendorIdentity(vendor RadiusVendorConfig) error {

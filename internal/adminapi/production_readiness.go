@@ -107,6 +107,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionVSACodecCheck(&report)
 	addProductionOpaquePassThroughCheck(&report, cfg)
 	addProductionRadiusPacketHardeningCheck(&report, cfg)
+	addProductionProxyRoutingCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
@@ -154,6 +155,43 @@ func addProductionRadiusPacketHardeningCheck(report *productionReadinessReport, 
 			hardening.Limits.ReplayWindowSeconds, hardening.Limits.PerClientRateLimitPerSecond, hardening.RuntimeStats.TotalEvents),
 		Recommendation: "Keep packet hardening enabled and fail-closed with known RADIUS clients, Message-Authenticator auto or always, replay cache, rate limits, and the NAS-0009 release checklist for external packet-capture evidence.",
 		Dependencies:   []string{"radius.packet_hardening", "/api/v1/system/radius-hardening", "radius_packet_hardening_events"},
+	})
+}
+
+func addProductionProxyRoutingCheck(report *productionReadinessReport, cfg *config.Config) {
+	routing := radius.BuildProxyRoutingReport(cfg)
+	status := "passed"
+	if routing.Status == "blocked" {
+		status = "blocked"
+	} else if routing.Status == "degraded" {
+		status = "degraded"
+	}
+	if routing.Enabled {
+		if routing.Summary.RouteCount == 0 || routing.Summary.ServerCount == 0 {
+			status = "blocked"
+		}
+		if routing.Summary.DefaultRouteCount > 1 {
+			status = "blocked"
+		}
+	}
+
+	summary := "Upstream AAA proxy routing is disabled."
+	if routing.Enabled {
+		defaultRealm := routing.Summary.DefaultRealm
+		if defaultRealm == "" {
+			defaultRealm = "none"
+		}
+		summary = fmt.Sprintf("Proxy routing schema %d is %s with %d route(s), %d upstream server(s), and default realm %s.",
+			routing.SchemaVersion, routing.Status, routing.Summary.RouteCount, routing.Summary.ServerCount, defaultRealm)
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "radius_proxy_routes",
+		Category:       "radius",
+		Label:          "RADIUS Proxy Route Table",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use explicit radius.upstream.routes for every production realm, keep server bindings named and secret-backed, review /api/v1/system/proxy-routes before generation, and capture NAS-0010 external interoperability evidence before release sign-off.",
+		Dependencies:   []string{"radius.upstream.routes", "/api/v1/system/proxy-routes", "proxy.conf", "sites-enabled/default", "sites-enabled/inner-tunnel"},
 	})
 }
 

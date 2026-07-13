@@ -190,6 +190,33 @@ type RadiusPacketHardeningReport = {
   };
 };
 
+type RadiusProxyRoutingReport = {
+  status?: string;
+  message?: string;
+  enabled?: boolean;
+  summary?: {
+    route_count: number;
+    explicit_route_count: number;
+    default_route_count: number;
+    server_count: number;
+    radsec_server_count: number;
+    default_realm?: string;
+  };
+  routes?: Array<{
+    name: string;
+    description?: string;
+    realm: string;
+    match_realms: string[];
+    default: boolean;
+    strip_realm: boolean;
+    pool_strategy: string;
+    status_check: string;
+    pool_name: string;
+    server_names: string[];
+  }>;
+  warnings?: string[];
+};
+
 type SystemStatus = {
   generated_at: string;
   summary: {
@@ -269,6 +296,7 @@ type SystemStatus = {
     broker_auth: RuntimeStatus;
     broker_accounting: RuntimeStatus;
     packet_hardening?: RadiusPacketHardeningReport;
+    proxy_routes?: RadiusProxyRoutingReport;
     probe_error?: string;
   };
   wireless: {
@@ -805,6 +833,7 @@ export default function Dashboard() {
   const configuredServers = systemStatus.radius?.configured_servers ?? [];
   const radiusServerStatuses = systemStatus.radius?.server_statuses ?? [];
   const packetHardening = systemStatus.radius?.packet_hardening;
+  const proxyRoutes = systemStatus.radius?.proxy_routes;
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
   const serviceProblems = services.filter(
     (service) => !["ok", "disabled"].includes(service.status),
@@ -1383,6 +1412,71 @@ export default function Dashboard() {
                   />
                 </div>
               </div>
+              {proxyRoutes ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Proxy Route Table
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {proxyRoutes.message ||
+                          "Proxy route state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-4">
+                        <div>
+                          Routes {proxyRoutes.summary?.route_count ?? 0}
+                        </div>
+                        <div>
+                          Explicit{" "}
+                          {proxyRoutes.summary?.explicit_route_count ?? 0}
+                        </div>
+                        <div>
+                          Default{" "}
+                          {proxyRoutes.summary?.default_realm || "none"}
+                        </div>
+                        <div>
+                          Servers {proxyRoutes.summary?.server_count ?? 0}
+                        </div>
+                      </div>
+                      {proxyRoutes.routes?.length ? (
+                        <div className="mt-3 divide-y divide-gray-100 text-sm">
+                          {proxyRoutes.routes.slice(0, 3).map((route) => (
+                            <div key={route.name} className="py-2 first:pt-0">
+                              <div className="font-medium text-gray-800">
+                                {route.name}
+                                {route.default ? " default" : ""}
+                              </div>
+                              <div className="mt-1 text-xs text-gray-500">
+                                {route.realm} via{" "}
+                                {route.server_names.join(", ") || "no servers"}
+                              </div>
+                              {route.match_realms.length > 1 ? (
+                                <div className="mt-1 text-xs text-gray-500">
+                                  Also matches{" "}
+                                  {route.match_realms.slice(1).join(", ")}
+                                </div>
+                              ) : null}
+                            </div>
+                          ))}
+                          {proxyRoutes.routes.length > 3 ? (
+                            <div className="pt-2 text-xs text-gray-500">
+                              {proxyRoutes.routes.length - 3} more route(s)
+                              available from the proxy routes API.
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {proxyRoutes.warnings?.length ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {proxyRoutes.warnings[0]}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge status={proxyRoutes.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
               <div className="rounded-md border border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>

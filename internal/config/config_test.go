@@ -3148,3 +3148,84 @@ func TestConfigValidationDiagnosticsExports(t *testing.T) {
 	badUpgradeReadinessRetention.Telemetry.UpgradeReadinessExports.RetentionCount = 0
 	assert.ErrorContains(t, badUpgradeReadinessRetention.Validate(), "telemetry.upgrade_readiness_exports.enabled requires a positive telemetry.upgrade_readiness_exports.retention_count")
 }
+
+func TestConfigValidationAllowsMultiRealmProxyRoutes(t *testing.T) {
+	cfg := baseProxyRoutingValidationConfig()
+	cfg.Radius.Upstream.Routes = []RadiusProxyRouteConfig{
+		{
+			Name:        "corp",
+			Description: "Corporate 802.1X users",
+			Enabled:     true,
+			Realm:       "corp.example.com",
+			MatchRealms: []string{"employees.example.com"},
+			Default:     true,
+			Servers:     []string{"primary", "secondary"},
+		},
+		{
+			Name:         "guest",
+			Enabled:      true,
+			Realm:        "guest.example.com",
+			PoolStrategy: "load-balance",
+			StatusCheck:  "none",
+			Servers:      []string{"secondary"},
+		},
+	}
+
+	assert.NoError(t, cfg.Validate())
+}
+
+func TestConfigValidationRejectsDuplicateProxyRouteRealm(t *testing.T) {
+	cfg := baseProxyRoutingValidationConfig()
+	cfg.Radius.Upstream.Routes = []RadiusProxyRouteConfig{
+		{Name: "corp", Enabled: true, Realm: "corp.example.com", Servers: []string{"primary"}},
+		{Name: "duplicate", Enabled: true, Realm: "guest.example.com", MatchRealms: []string{"corp.example.com"}, Servers: []string{"secondary"}},
+	}
+
+	assert.ErrorContains(t, cfg.Validate(), "already claimed by route")
+}
+
+func TestConfigValidationRejectsUnknownProxyRouteServer(t *testing.T) {
+	cfg := baseProxyRoutingValidationConfig()
+	cfg.Radius.Upstream.Routes = []RadiusProxyRouteConfig{
+		{Name: "corp", Enabled: true, Realm: "corp.example.com", Servers: []string{"missing"}},
+	}
+
+	assert.ErrorContains(t, cfg.Validate(), "references unknown upstream server")
+}
+
+func baseProxyRoutingValidationConfig() *Config {
+	return &Config{
+		Mode: "two-nic",
+		WAN:  InterfaceConfig{Name: "eth0"},
+		LAN:  InterfaceConfig{Name: "eth1", Address: "192.168.50.1/24"},
+		Database: DatabaseConfig{
+			Path: "/tmp/aegisnas-proxy-routes.db",
+		},
+		Health: HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{
+			Enabled:        false,
+			PrometheusPort: 9090,
+		},
+		Radius: RadiusConfig{
+			Secret:                "testing123",
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+			Upstream: RadiusUpstreamConfig{
+				Enabled:           true,
+				Realm:             "legacy.example.com",
+				PoolStrategy:      "fail-over",
+				StatusCheck:       "status-server",
+				ResponseWindow:    20,
+				ZombiePeriod:      40,
+				ReviveInterval:    120,
+				CheckInterval:     30,
+				NumAnswersToAlive: 3,
+				Servers: []RadiusHomeServer{
+					{Name: "primary", Address: "10.0.0.10", Secret: "secret-one"},
+					{Name: "secondary", Address: "10.0.0.11", Secret: "secret-two"},
+				},
+			},
+		},
+	}
+}

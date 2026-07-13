@@ -30,6 +30,12 @@ type FreeRADIUSConfig struct {
 	RadSecSite       string
 }
 
+type generatedProxyRealm struct {
+	Name       string
+	PoolName   string
+	StripRealm bool
+}
+
 const VendorDictionaryFilename = productconfigs.AegisNASVendorDictionaryFilename
 
 // Generator creates FreeRADIUS configuration from the system config.
@@ -661,64 +667,112 @@ func (g *Generator) renderProxyConf() (string, error) {
 		return "# Upstream RADIUS proxy disabled\n", nil
 	}
 
-	type upstreamServer struct {
-		Name      string
-		Address   string
-		AuthPort  int
-		AcctPort  int
-		Secret    string
-		Transport string
-		RadSec    config.RadiusRadSecPeerConfig
+	routes, err := EffectiveProxyRoutes(g.cfg)
+	if err != nil {
+		return "", err
+	}
+	if len(routes) == 0 {
+		return "", fmt.Errorf("radius upstream is enabled but no proxy routes are available")
 	}
 
-	servers := make([]upstreamServer, 0, len(g.cfg.Radius.Upstream.Servers))
+	type proxyHomeServer struct {
+		Name              string
+		Address           string
+		AuthPort          int
+		AcctPort          int
+		Secret            string
+		Transport         string
+		RadSec            config.RadiusRadSecPeerConfig
+		StatusCheck       string
+		ResponseWindow    int
+		ZombiePeriod      int
+		ReviveInterval    int
+		CheckInterval     int
+		NumAnswersToAlive int
+	}
+	type proxyPool struct {
+		Name         string
+		PoolStrategy string
+		HomeServers  []string
+	}
+
+	homeServers := make([]proxyHomeServer, 0)
+	pools := make([]proxyPool, 0, len(routes))
+	realms := make([]generatedProxyRealm, 0, len(routes))
+	seenRealm := make(map[string]struct{})
 	resolver := secrets.NewResolver(secrets.OptionsFromConfig(g.cfg))
-	for _, server := range g.cfg.Radius.Upstream.Servers {
-		authPort := server.AuthPort
-		if authPort == 0 {
-			authPort = g.cfg.Radius.AuthPort
+	for _, route := range routes {
+		if len(route.Servers) == 0 {
+			return "", fmt.Errorf("proxy route %q has no home servers", route.Name)
 		}
-		acctPort := server.AcctPort
-		if acctPort == 0 {
-			acctPort = g.cfg.Radius.AcctPort
-		}
-		transport := strings.ToLower(strings.TrimSpace(server.Transport))
-		if transport == "" {
-			transport = "udp"
-		}
-		if transport == "radsec" {
-			authPort = server.RadSec.Port
-			acctPort = server.RadSec.Port
-		}
-		secret := server.Secret
-		if transport == "udp" {
-			resolvedSecret, err := secrets.ResolveConfiguredSecret(context.Background(), resolver, "radius.upstream.servers."+server.Name+".secret", server.Secret, server.SecretRef)
-			if err != nil {
-				return "", err
+		pool := proxyPool{Name: route.PoolName, PoolStrategy: route.PoolStrategy}
+		for _, server := range route.Servers {
+			authPort := server.AuthPort
+			if authPort == 0 {
+				authPort = g.cfg.Radius.AuthPort
 			}
-			secret = resolvedSecret
+			acctPort := server.AcctPort
+			if acctPort == 0 {
+				acctPort = g.cfg.Radius.AcctPort
+			}
+			transport := strings.ToLower(strings.TrimSpace(server.Transport))
+			if transport == "" {
+				transport = "udp"
+			}
+			if transport == "radsec" {
+				authPort = server.RadSec.Port
+				acctPort = server.RadSec.Port
+			}
+			secret := server.Secret
+			if transport == "udp" {
+				resolvedSecret, err := secrets.ResolveConfiguredSecret(context.Background(), resolver, "radius.upstream.servers."+server.Name+".secret", server.Secret, server.SecretRef)
+				if err != nil {
+					return "", err
+				}
+				secret = resolvedSecret
+			}
+
+			homeServerName := strings.TrimSpace(server.Name)
+			if route.Name != "legacy-default" {
+				homeServerName = route.PoolName + "_" + freeRADIUSIdentifier(server.Name)
+			}
+			pool.HomeServers = append(pool.HomeServers, homeServerName)
+			homeServers = append(homeServers, proxyHomeServer{
+				Name:              homeServerName,
+				Address:           server.Address,
+				AuthPort:          authPort,
+				AcctPort:          acctPort,
+				Secret:            secret,
+				Transport:         transport,
+				RadSec:            server.RadSec,
+				StatusCheck:       route.StatusCheck,
+				ResponseWindow:    g.cfg.Radius.Upstream.ResponseWindow,
+				ZombiePeriod:      g.cfg.Radius.Upstream.ZombiePeriod,
+				ReviveInterval:    g.cfg.Radius.Upstream.ReviveInterval,
+				CheckInterval:     g.cfg.Radius.Upstream.CheckInterval,
+				NumAnswersToAlive: g.cfg.Radius.Upstream.NumAnswersToAlive,
+			})
 		}
-		servers = append(servers, upstreamServer{
-			Name:      server.Name,
-			Address:   server.Address,
-			AuthPort:  authPort,
-			AcctPort:  acctPort,
-			Secret:    secret,
-			Transport: transport,
-			RadSec:    server.RadSec,
-		})
+		pools = append(pools, pool)
+		for _, realm := range route.MatchRealms {
+			addProxyRealm(&realms, seenRealm, generatedProxyRealm{Name: realm, PoolName: route.PoolName, StripRealm: route.StripRealm})
+		}
+		if route.Default {
+			addProxyRealm(&realms, seenRealm, generatedProxyRealm{Name: "DEFAULT", PoolName: route.PoolName, StripRealm: route.StripRealm})
+			addProxyRealm(&realms, seenRealm, generatedProxyRealm{Name: "NULL", PoolName: route.PoolName, StripRealm: route.StripRealm})
+		}
 	}
 
 	packetPolicy, _ := effectivePacketHardening(g.cfg)
 	data := struct {
-		Upstream                    config.RadiusUpstreamConfig
-		PoolName                    string
-		Servers                     []upstreamServer
+		HomeServers                 []proxyHomeServer
+		Pools                       []proxyPool
+		Realms                      []generatedProxyRealm
 		RequireMessageAuthenticator string
 	}{
-		Upstream:                    g.cfg.Radius.Upstream,
-		PoolName:                    "aegis_upstream_pool",
-		Servers:                     servers,
+		HomeServers:                 homeServers,
+		Pools:                       pools,
+		Realms:                      realms,
 		RequireMessageAuthenticator: FreeRADIUSMessageAuthenticatorMode(packetPolicy),
 	}
 
@@ -729,7 +783,7 @@ proxy server {
 	default_fallback = no
 }
 
-{{- range .Servers }}
+{{- range .HomeServers }}
 home_server {{ .Name }} {
 	type = auth+acct
 	ipaddr = {{ .Address }}
@@ -769,39 +823,56 @@ home_server {{ .Name }} {
 	acctport = {{ .AcctPort }}
 	secret = {{ .Secret }}
 	{{- end }}
-	response_window = {{ $.Upstream.ResponseWindow }}
-	zombie_period = {{ $.Upstream.ZombiePeriod }}
+	response_window = {{ .ResponseWindow }}
+	zombie_period = {{ .ZombiePeriod }}
 	require_message_authenticator = {{ $.RequireMessageAuthenticator }}
-	{{- if eq $.Upstream.StatusCheck "status-server" }}
+	{{- if eq .StatusCheck "status-server" }}
 	status_check = status-server
-	check_interval = {{ $.Upstream.CheckInterval }}
-	num_answers_to_alive = {{ $.Upstream.NumAnswersToAlive }}
+	check_interval = {{ .CheckInterval }}
+	num_answers_to_alive = {{ .NumAnswersToAlive }}
 	{{- else }}
 	status_check = none
-	revive_interval = {{ $.Upstream.ReviveInterval }}
+	revive_interval = {{ .ReviveInterval }}
 	{{- end }}
 }
 {{- end }}
-home_server_pool {{ .PoolName }} {
-	type = {{ .Upstream.PoolStrategy }}
-{{- range .Servers }}
-	home_server = {{ .Name }}
+{{- range .Pools }}
+home_server_pool {{ .Name }} {
+	type = {{ .PoolStrategy }}
+{{- range .HomeServers }}
+	home_server = {{ . }}
 {{- end }}
 }
 
-realm {{ .Upstream.Realm }} {
+{{- end }}
+{{- range .Realms }}
+realm {{ .Name }} {
 	pool = {{ .PoolName }}
-	{{- if .Upstream.StripRealm }}
+	{{- if .StripRealm }}
 	strip
 	{{- else }}
 	nostrip
 	{{- end }}
 }
+{{- end }}
 `
 	var buf bytes.Buffer
 	t := template.Must(template.New("proxy").Parse(tmpl))
-	err := t.Execute(&buf, data)
+	err = t.Execute(&buf, data)
 	return buf.String(), err
+}
+
+func addProxyRealm(realms *[]generatedProxyRealm, seen map[string]struct{}, realm generatedProxyRealm) {
+	realm.Name = strings.TrimSpace(realm.Name)
+	if realm.Name == "" {
+		return
+	}
+	key := strings.ToLower(realm.Name)
+	if _, exists := seen[key]; exists {
+		return
+	}
+	seen[key] = struct{}{}
+	*realms = append(*realms, realm)
 }
 
 func (g *Generator) renderRadSecSite(clients []config.RadiusClient) (string, error) {
@@ -916,9 +987,13 @@ server default {
 		digest
 		suffix
 		{{- if .Radius.Upstream.Enabled }}
-		update control {
-			Proxy-To-Realm := "{{ .Radius.Upstream.Realm }}"
+		{{- if .ProxyDefaultRealm }}
+		if (!&control:Proxy-To-Realm) {
+			update control {
+				Proxy-To-Realm := "{{ .ProxyDefaultRealm }}"
+			}
 		}
+		{{- end }}
 		{{- else }}
 		eap {
 			ok = return
@@ -950,9 +1025,13 @@ server default {
 		suffix
 		files
 		{{- if .Radius.Upstream.Enabled }}
-		update control {
-			Proxy-To-Realm := "{{ .Radius.Upstream.Realm }}"
+		{{- if .ProxyDefaultRealm }}
+		if (!&control:Proxy-To-Realm) {
+			update control {
+				Proxy-To-Realm := "{{ .ProxyDefaultRealm }}"
+			}
 		}
+		{{- end }}
 		{{- end }}
 	}
 
@@ -975,7 +1054,14 @@ server default {
 `
 	var buf bytes.Buffer
 	t := template.Must(template.New("default").Parse(tmpl))
-	err := t.Execute(&buf, g.cfg)
+	data := struct {
+		*config.Config
+		ProxyDefaultRealm string
+	}{
+		Config:            g.cfg,
+		ProxyDefaultRealm: DefaultProxyRealm(g.cfg),
+	}
+	err := t.Execute(&buf, data)
 	return buf.String(), err
 }
 
@@ -995,9 +1081,13 @@ server inner-tunnel {
 		mschap
 		suffix
 		{{- if .Radius.Upstream.Enabled }}
-		update control {
-			Proxy-To-Realm := "{{ .Radius.Upstream.Realm }}"
+		{{- if .ProxyDefaultRealm }}
+		if (!&control:Proxy-To-Realm) {
+			update control {
+				Proxy-To-Realm := "{{ .ProxyDefaultRealm }}"
+			}
 		}
+		{{- end }}
 		{{- else }}
 		update control {
 			&Proxy-To-Realm := LOCAL
@@ -1039,6 +1129,13 @@ server inner-tunnel {
 `
 	var buf bytes.Buffer
 	t := template.Must(template.New("inner-tunnel").Parse(tmpl))
-	err := t.Execute(&buf, g.cfg)
+	data := struct {
+		*config.Config
+		ProxyDefaultRealm string
+	}{
+		Config:            g.cfg,
+		ProxyDefaultRealm: DefaultProxyRealm(g.cfg),
+	}
+	err := t.Execute(&buf, data)
 	return buf.String(), err
 }

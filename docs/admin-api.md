@@ -141,6 +141,14 @@ RADIUS packet hardening is exposed at:
 
 Use this endpoint to confirm malformed-packet rejection, `Message-Authenticator` policy, known-source enforcement, `Proxy-State` limits, replay cache, rate limits, generated FreeRADIUS integrity mode, runtime counters, and recent hardening decisions. The same summary appears in `/api/v1/system/status` under `radius.packet_hardening` and in production readiness as `radius_packet_hardening`.
 
+RADIUS proxy routing is exposed at:
+
+```text
+/api/v1/system/proxy-routes
+```
+
+Use this endpoint to review the effective multi-realm route table, default route behavior, route-to-server bindings, pool strategy, status-check policy, and warnings before generating or deploying FreeRADIUS configuration. The same summary appears in `/api/v1/system/status` under `radius.proxy_routes` and in production readiness as `radius_proxy_routes`.
+
 ## Secret Provider Endpoint
 
 Secret-provider readiness is exposed at:

@@ -308,6 +308,31 @@ radius:
         acct_port: 1813
         secret: ""
         secret_ref: "env:AEGIS_SECRET_UPSTREAM_SECONDARY"
+    routes:
+      - name: "corp"
+        description: "Corporate users and managed devices"
+        enabled: true
+        realm: "corp.example.com"
+        match_realms:
+          - "employees.example.com"
+        default: true
+        strip_realm: false
+        pool_strategy: "fail-over"
+        status_check: "status-server"
+        servers:
+          - "primary-aaa"
+          - "secondary-aaa"
+      - name: "guest"
+        description: "Guest and contractor access"
+        enabled: true
+        realm: "guest.example.com"
+        match_realms: []
+        default: false
+        strip_realm: false
+        pool_strategy: "load-balance"
+        status_check: "status-server"
+        servers:
+          - "secondary-aaa"
 
 portal:
   enabled: true

@@ -76,6 +76,35 @@ func TestGenerator(t *testing.T) {
 	assert.Contains(t, fullCfg.VendorDictionary, "ATTRIBUTE AegisNAS-Bandwidth-Profile 2 string")
 }
 
+func TestGeneratorRendersMultiRealmProxyRoutes(t *testing.T) {
+	previousDB := db.DB
+	db.DB = nil
+	t.Cleanup(func() {
+		db.DB = previousDB
+	})
+
+	cfg := proxyRoutingTestConfig()
+	gen := NewGenerator(cfg)
+	fullCfg, err := gen.Generate()
+	require.NoError(t, err)
+
+	assert.Contains(t, fullCfg.ProxyConf, "home_server aegis_route_corp_primary")
+	assert.Contains(t, fullCfg.ProxyConf, "home_server aegis_route_corp_secondary")
+	assert.Contains(t, fullCfg.ProxyConf, "home_server_pool aegis_route_corp")
+	assert.Contains(t, fullCfg.ProxyConf, "type = fail-over")
+	assert.Contains(t, fullCfg.ProxyConf, "home_server_pool aegis_route_guest")
+	assert.Contains(t, fullCfg.ProxyConf, "type = load-balance")
+	assert.Contains(t, fullCfg.ProxyConf, "realm corp.example.com")
+	assert.Contains(t, fullCfg.ProxyConf, "realm employees.example.com")
+	assert.Contains(t, fullCfg.ProxyConf, "realm guest.example.com")
+	assert.Contains(t, fullCfg.ProxyConf, "realm DEFAULT")
+	assert.Contains(t, fullCfg.ProxyConf, "realm NULL")
+	assert.Contains(t, fullCfg.ProxyConf, "status_check = none")
+	assert.Contains(t, fullCfg.SitesDefault, `if (!&control:Proxy-To-Realm)`)
+	assert.Contains(t, fullCfg.SitesDefault, `Proxy-To-Realm := "corp.example.com"`)
+	assert.Contains(t, fullCfg.SitesInnerTunnel, `Proxy-To-Realm := "corp.example.com"`)
+}
+
 func TestGeneratorRendersPostgreSQLSQLModule(t *testing.T) {
 	previousDB := db.DB
 	db.DB = nil
