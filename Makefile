@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane install-radius-dictionary scan-radius-dictionaries
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening install-radius-dictionary scan-radius-dictionaries
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -63,6 +63,9 @@ test-secret-providers:
 
 test-postgres-data-plane:
 	go test ./internal/config ./internal/db ./internal/radius ./internal/adminapi -run 'Database|PostgreSQL|Migrate|Generator|OpenAPI|Authorize|ProductionReadiness|SupportBundle|Secret' -count=1
+
+test-radius-packet-hardening:
+	go test ./internal/config ./internal/db ./internal/radius ./internal/adminapi ./internal/sessions -run 'PacketHardening|RadiusHardening|Generator|OpenAPI|Authorize|ProductionReadiness|Migrate|DynamicAuth' -count=1
 
 build:
 	go build ./...

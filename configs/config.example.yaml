@@ -168,6 +168,26 @@ radius:
   dynamic_auth:
     enabled: true
     port: 3799
+  packet_hardening:
+    enabled: true
+    fail_closed: true
+    require_known_source: true
+    allow_trailing_padding: false
+    allow_status_server: true
+    allow_status_client: false
+    require_message_authenticator: auto # auto requires it for EAP, Status-Server, CoA, and Disconnect; use always for strict labs.
+    max_packet_bytes: 4096
+    max_attributes_per_packet: 128
+    max_proxy_state_attributes: 8
+    max_proxy_state_bytes: 1024
+    replay_cache_enabled: true
+    replay_window_seconds: 30
+    replay_cache_max_entries: 16384
+    rate_limit_enabled: true
+    per_client_rate_limit_per_second: 250
+    per_client_burst: 500
+    trusted_proxy_cidrs: [] # Add trusted HA peers, loopback relays, or proxy subnets that are not listed as RADIUS clients.
+    event_retention_limit: 6000
   radsec:
     enabled: false
     listen_address: "0.0.0.0"

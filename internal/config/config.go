@@ -196,21 +196,44 @@ type HealthConfig struct {
 }
 
 type RadiusConfig struct {
-	Clients               []RadiusClient       `mapstructure:"clients"`
-	Secret                string               `mapstructure:"secret"`
-	SecretRef             string               `mapstructure:"secret_ref"`
-	AuthPort              int                  `mapstructure:"auth_port"`
-	AcctPort              int                  `mapstructure:"acct_port"`
-	MaxSessions           int                  `mapstructure:"max_sessions"`
-	CertDir               string               `mapstructure:"cert_dir"`
-	NASIdentifier         string               `mapstructure:"nas_identifier"`
-	RequestTimeoutSeconds int                  `mapstructure:"request_timeout_seconds"`
-	InterimUpdateSeconds  int                  `mapstructure:"interim_update_seconds"`
-	DynamicAuth           DynamicAuthConfig    `mapstructure:"dynamic_auth"`
-	RadSec                RadiusRadSecConfig   `mapstructure:"radsec"`
-	EAP                   RadiusEAPConfig      `mapstructure:"eap"`
-	Upstream              RadiusUpstreamConfig `mapstructure:"upstream"`
-	Vendor                RadiusVendorConfig   `mapstructure:"vendor"`
+	Clients               []RadiusClient              `mapstructure:"clients"`
+	Secret                string                      `mapstructure:"secret"`
+	SecretRef             string                      `mapstructure:"secret_ref"`
+	AuthPort              int                         `mapstructure:"auth_port"`
+	AcctPort              int                         `mapstructure:"acct_port"`
+	MaxSessions           int                         `mapstructure:"max_sessions"`
+	CertDir               string                      `mapstructure:"cert_dir"`
+	NASIdentifier         string                      `mapstructure:"nas_identifier"`
+	RequestTimeoutSeconds int                         `mapstructure:"request_timeout_seconds"`
+	InterimUpdateSeconds  int                         `mapstructure:"interim_update_seconds"`
+	DynamicAuth           DynamicAuthConfig           `mapstructure:"dynamic_auth"`
+	PacketHardening       RadiusPacketHardeningConfig `mapstructure:"packet_hardening"`
+	RadSec                RadiusRadSecConfig          `mapstructure:"radsec"`
+	EAP                   RadiusEAPConfig             `mapstructure:"eap"`
+	Upstream              RadiusUpstreamConfig        `mapstructure:"upstream"`
+	Vendor                RadiusVendorConfig          `mapstructure:"vendor"`
+}
+
+type RadiusPacketHardeningConfig struct {
+	Enabled                     bool     `mapstructure:"enabled"`
+	FailClosed                  bool     `mapstructure:"fail_closed"`
+	RequireKnownSource          bool     `mapstructure:"require_known_source"`
+	AllowTrailingPadding        bool     `mapstructure:"allow_trailing_padding"`
+	AllowStatusServer           bool     `mapstructure:"allow_status_server"`
+	AllowStatusClient           bool     `mapstructure:"allow_status_client"`
+	RequireMessageAuthenticator string   `mapstructure:"require_message_authenticator"`
+	MaxPacketBytes              int      `mapstructure:"max_packet_bytes"`
+	MaxAttributesPerPacket      int      `mapstructure:"max_attributes_per_packet"`
+	MaxProxyStateAttributes     int      `mapstructure:"max_proxy_state_attributes"`
+	MaxProxyStateBytes          int      `mapstructure:"max_proxy_state_bytes"`
+	ReplayCacheEnabled          bool     `mapstructure:"replay_cache_enabled"`
+	ReplayWindowSeconds         int      `mapstructure:"replay_window_seconds"`
+	ReplayCacheMaxEntries       int      `mapstructure:"replay_cache_max_entries"`
+	RateLimitEnabled            bool     `mapstructure:"rate_limit_enabled"`
+	PerClientRateLimitPerSecond int      `mapstructure:"per_client_rate_limit_per_second"`
+	PerClientBurst              int      `mapstructure:"per_client_burst"`
+	TrustedProxyCIDRs           []string `mapstructure:"trusted_proxy_cidrs"`
+	EventRetentionLimit         int      `mapstructure:"event_retention_limit"`
 }
 
 type RadiusClient struct {
@@ -965,6 +988,25 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.interim_update_seconds", 300)
 	v.SetDefault("radius.dynamic_auth.enabled", true)
 	v.SetDefault("radius.dynamic_auth.port", 3799)
+	v.SetDefault("radius.packet_hardening.enabled", true)
+	v.SetDefault("radius.packet_hardening.fail_closed", true)
+	v.SetDefault("radius.packet_hardening.require_known_source", true)
+	v.SetDefault("radius.packet_hardening.allow_trailing_padding", false)
+	v.SetDefault("radius.packet_hardening.allow_status_server", true)
+	v.SetDefault("radius.packet_hardening.allow_status_client", false)
+	v.SetDefault("radius.packet_hardening.require_message_authenticator", "auto")
+	v.SetDefault("radius.packet_hardening.max_packet_bytes", 4096)
+	v.SetDefault("radius.packet_hardening.max_attributes_per_packet", 128)
+	v.SetDefault("radius.packet_hardening.max_proxy_state_attributes", 8)
+	v.SetDefault("radius.packet_hardening.max_proxy_state_bytes", 1024)
+	v.SetDefault("radius.packet_hardening.replay_cache_enabled", true)
+	v.SetDefault("radius.packet_hardening.replay_window_seconds", 30)
+	v.SetDefault("radius.packet_hardening.replay_cache_max_entries", 16384)
+	v.SetDefault("radius.packet_hardening.rate_limit_enabled", true)
+	v.SetDefault("radius.packet_hardening.per_client_rate_limit_per_second", 250)
+	v.SetDefault("radius.packet_hardening.per_client_burst", 500)
+	v.SetDefault("radius.packet_hardening.trusted_proxy_cidrs", []string{})
+	v.SetDefault("radius.packet_hardening.event_retention_limit", 6000)
 	v.SetDefault("radius.radsec.enabled", false)
 	v.SetDefault("radius.radsec.listen_address", "0.0.0.0")
 	v.SetDefault("radius.radsec.port", 2083)
@@ -3019,6 +3061,9 @@ func (c *Config) Validate() error {
 	if c.Radius.DynamicAuth.Enabled && (c.Radius.DynamicAuth.Port < 1 || c.Radius.DynamicAuth.Port > 65535) {
 		return fmt.Errorf("radius.dynamic_auth.port %d out of range", c.Radius.DynamicAuth.Port)
 	}
+	if err := validateRadiusPacketHardening(c.Radius.PacketHardening); err != nil {
+		return err
+	}
 	if err := validateRadSecConfig(c); err != nil {
 		return err
 	}
@@ -4047,6 +4092,58 @@ func validateRadiusOpaquePassThrough(cfg RadiusOpaquePassThroughConfig) error {
 			return fmt.Errorf("radius.vendor.opaque_pass_through.rules[%d] duplicates an earlier rule", i)
 		}
 		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+func validateRadiusPacketHardening(cfg RadiusPacketHardeningConfig) error {
+	mode := strings.ToLower(strings.TrimSpace(cfg.RequireMessageAuthenticator))
+	switch mode {
+	case "", "auto", "always", "never":
+	default:
+		return fmt.Errorf("radius.packet_hardening.require_message_authenticator %q must be auto, always, or never", cfg.RequireMessageAuthenticator)
+	}
+	if cfg.MaxPacketBytes < 0 || cfg.MaxPacketBytes > 4096 {
+		return fmt.Errorf("radius.packet_hardening.max_packet_bytes must be between 1 and 4096 when set")
+	}
+	if cfg.MaxPacketBytes > 0 && cfg.MaxPacketBytes < 20 {
+		return fmt.Errorf("radius.packet_hardening.max_packet_bytes must be at least 20")
+	}
+	if cfg.MaxAttributesPerPacket < 0 || cfg.MaxAttributesPerPacket > 256 {
+		return fmt.Errorf("radius.packet_hardening.max_attributes_per_packet must be between 1 and 256 when set")
+	}
+	if cfg.MaxProxyStateAttributes < 0 || cfg.MaxProxyStateAttributes > 32 {
+		return fmt.Errorf("radius.packet_hardening.max_proxy_state_attributes must be between 0 and 32")
+	}
+	if cfg.MaxProxyStateBytes < 0 || cfg.MaxProxyStateBytes > 4096 {
+		return fmt.Errorf("radius.packet_hardening.max_proxy_state_bytes must be between 1 and 4096 when set")
+	}
+	if cfg.ReplayWindowSeconds < 0 || cfg.ReplayWindowSeconds > 3600 {
+		return fmt.Errorf("radius.packet_hardening.replay_window_seconds must be between 1 and 3600 when set")
+	}
+	if cfg.ReplayCacheMaxEntries < 0 || cfg.ReplayCacheMaxEntries > 1000000 {
+		return fmt.Errorf("radius.packet_hardening.replay_cache_max_entries must be between 1 and 1000000 when set")
+	}
+	if cfg.PerClientRateLimitPerSecond < 0 || cfg.PerClientRateLimitPerSecond > 100000 {
+		return fmt.Errorf("radius.packet_hardening.per_client_rate_limit_per_second must be between 1 and 100000 when set")
+	}
+	if cfg.PerClientBurst < 0 || cfg.PerClientBurst > 1000000 {
+		return fmt.Errorf("radius.packet_hardening.per_client_burst must be between 1 and 1000000 when set")
+	}
+	if cfg.EventRetentionLimit < 0 || cfg.EventRetentionLimit > 1000000 {
+		return fmt.Errorf("radius.packet_hardening.event_retention_limit must be between 1 and 1000000 when set")
+	}
+	for i, cidr := range cfg.TrustedProxyCIDRs {
+		cidr = strings.TrimSpace(cidr)
+		if cidr == "" {
+			return fmt.Errorf("radius.packet_hardening.trusted_proxy_cidrs[%d] cannot be empty", i)
+		}
+		if net.ParseIP(cidr) != nil {
+			continue
+		}
+		if _, _, err := net.ParseCIDR(cidr); err != nil {
+			return fmt.Errorf("radius.packet_hardening.trusted_proxy_cidrs[%d] %q must be an IP address or CIDR", i, cidr)
+		}
 	}
 	return nil
 }

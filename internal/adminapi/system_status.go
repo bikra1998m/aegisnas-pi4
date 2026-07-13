@@ -134,6 +134,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	upstreamStatuses, probeErr := radius.ProbeUpstreamServers(r.Context(), cfg)
+	packetHardening := radius.BuildPacketHardeningReport(cfg)
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -145,6 +146,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broker_auth":             runtimeMap["radius_broker_auth"],
 		"broker_accounting":       runtimeMap["radius_broker_accounting"],
 		"dynamic_authorization":   cfg.Radius.DynamicAuth,
+		"packet_hardening":        packetHardening,
 		"request_timeout_seconds": cfg.Radius.RequestTimeoutSeconds,
 		"vendor_observability": map[string]any{
 			"summary": vendorObservabilitySummary,

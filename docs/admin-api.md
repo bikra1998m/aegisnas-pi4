@@ -133,6 +133,14 @@ The bounded opaque pass-through policy is exposed at:
 
 Use this endpoint to confirm the default action is `drop`, review explicit allow rules, inspect packet byte limits, and verify the sensitive standard-attribute denylist before enabling proxy workflows that must preserve unknown vendor attributes.
 
+RADIUS packet hardening is exposed at:
+
+```text
+/api/v1/system/radius-hardening
+```
+
+Use this endpoint to confirm malformed-packet rejection, `Message-Authenticator` policy, known-source enforcement, `Proxy-State` limits, replay cache, rate limits, generated FreeRADIUS integrity mode, runtime counters, and recent hardening decisions. The same summary appears in `/api/v1/system/status` under `radius.packet_hardening` and in production readiness as `radius_packet_hardening`.
+
 ## Secret Provider Endpoint
 
 Secret-provider readiness is exposed at:

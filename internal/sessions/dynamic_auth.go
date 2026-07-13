@@ -17,17 +17,19 @@ import (
 
 // DynamicAuthServer listens for Disconnect-Request and CoA-Request packets.
 type DynamicAuthServer struct {
-	cfg    *config.Config
-	logger *zap.Logger
-	mgr    *Manager
-	server *layehradius.PacketServer
+	cfg      *config.Config
+	logger   *zap.Logger
+	mgr      *Manager
+	hardener *aegisradius.PacketHardener
+	server   *layehradius.PacketServer
 }
 
 func NewDynamicAuthServer(cfg *config.Config, logger *zap.Logger, mgr *Manager) *DynamicAuthServer {
 	svc := &DynamicAuthServer{
-		cfg:    cfg,
-		logger: logger,
-		mgr:    mgr,
+		cfg:      cfg,
+		logger:   logger,
+		mgr:      mgr,
+		hardener: aegisradius.NewPacketHardener(cfg),
 	}
 	svc.server = &layehradius.PacketServer{
 		Addr:         fmt.Sprintf(":%d", cfg.Radius.DynamicAuth.Port),
@@ -65,6 +67,22 @@ func (s *DynamicAuthServer) ListenAndServe(ctx context.Context) error {
 }
 
 func (s *DynamicAuthServer) handle(w layehradius.ResponseWriter, r *layehradius.Request) {
+	hardening := s.hardener.ValidatePacket(aegisradius.PacketValidationContext{
+		RemoteAddr:   r.RemoteAddr,
+		LocalAddr:    r.LocalAddr,
+		Direction:    "dynamic_authorization",
+		SharedSecret: r.Packet.Secret,
+	}, r.Packet)
+	aegisradius.RecordPacketHardeningDecision(s.cfg, hardening)
+	if !hardening.Accepted {
+		s.writeNAK(w, r, nakCodeForRequest(r.Code), hardening.Message)
+		s.logger.Warn("dynamic authorization packet rejected by hardening policy",
+			zap.String("reason", hardening.Reason),
+			zap.String("source_ip", hardening.SourceIP),
+			zap.String("packet_code", hardening.PacketCode))
+		return
+	}
+
 	sessionID, _ := rfc2866.AcctSessionID_LookupString(r.Packet)
 	username, _ := rfc2865.UserName_LookupString(r.Packet)
 	mac, _ := rfc2865.CallingStationID_LookupString(r.Packet)
@@ -152,6 +170,17 @@ func (s dynamicAuthSecretSource) RADIUSSecret(ctx context.Context, remoteAddr ne
 	if s.cfg == nil {
 		return nil, nil
 	}
+	if !aegisradius.SourceAllowedByPacketHardening(s.cfg, remoteAddr, "dynamic_authorization") {
+		aegisradius.RecordPacketHardeningDecision(s.cfg, aegisradius.PacketValidationResult{
+			Accepted:  false,
+			Decision:  "rejected",
+			Reason:    "unknown_source",
+			Message:   "Dynamic authorization source is not trusted by packet hardening policy.",
+			SourceIP:  remoteHost(remoteAddr),
+			Direction: "dynamic_authorization_secret_lookup",
+		})
+		return nil, nil
+	}
 	host := remoteHost(remoteAddr)
 	for _, server := range s.cfg.Radius.Upstream.Servers {
 		if strings.EqualFold(strings.TrimSpace(server.Address), host) {
@@ -162,6 +191,13 @@ func (s dynamicAuthSecretSource) RADIUSSecret(ctx context.Context, remoteAddr ne
 		return nil, nil
 	}
 	return []byte(s.cfg.Radius.Secret), nil
+}
+
+func nakCodeForRequest(code layehradius.Code) layehradius.Code {
+	if code == layehradius.CodeDisconnectRequest {
+		return layehradius.CodeDisconnectNAK
+	}
+	return layehradius.CodeCoANAK
 }
 
 func remoteHost(addr net.Addr) string {

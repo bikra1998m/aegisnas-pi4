@@ -87,6 +87,13 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read opaque attribute pass-through policy", opaquePassThroughGet["summary"])
 	assert.Contains(t, opaquePassThroughGet["x-aegisnas-roles"], "read_only")
 
+	radiusHardeningPath, ok := paths["/api/v1/system/radius-hardening"].(map[string]any)
+	require.True(t, ok)
+	radiusHardeningGet, ok := radiusHardeningPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read RADIUS packet hardening policy", radiusHardeningGet["summary"])
+	assert.Contains(t, radiusHardeningGet["x-aegisnas-roles"], "read_only")
+
 	secretProvidersPath, ok := paths["/api/v1/system/secret-providers"].(map[string]any)
 	require.True(t, ok)
 	secretProvidersGet, ok := secretProvidersPath["get"].(map[string]any)

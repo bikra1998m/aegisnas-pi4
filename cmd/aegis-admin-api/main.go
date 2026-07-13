@@ -199,6 +199,7 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/compatibility-evidence", adminapi.HandleGetCompatibilityEvidence)
 			r.Get("/system/vsa-codec", adminapi.HandleGetVSACodec)
 			r.Get("/system/opaque-passthrough", adminapi.HandleGetOpaquePassThrough)
+			r.Get("/system/radius-hardening", adminapi.HandleGetRadiusHardening)
 			r.Get("/system/secret-providers", adminapi.HandleGetSecretProviders)
 			r.Get("/system/database", adminapi.HandleGetDatabaseStatus)
 			r.Get("/system/attribute-registry", adminapi.HandleGetAttributeRegistry)

@@ -61,6 +61,54 @@ radius:
 	assert.NoError(t, err)
 }
 
+func TestConfigValidationRadiusPacketHardening(t *testing.T) {
+	cfg := &Config{
+		Mode:      "two-nic",
+		WAN:       InterfaceConfig{Name: "eth0"},
+		LAN:       InterfaceConfig{Name: "eth1"},
+		Database:  DatabaseConfig{Path: "/tmp/aegis.db"},
+		Health:    HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{Enabled: true, PrometheusPort: 9090},
+		Radius: RadiusConfig{
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+			PacketHardening: RadiusPacketHardeningConfig{
+				Enabled:                     true,
+				FailClosed:                  true,
+				RequireKnownSource:          true,
+				AllowStatusServer:           true,
+				RequireMessageAuthenticator: "auto",
+				MaxPacketBytes:              4096,
+				MaxAttributesPerPacket:      128,
+				MaxProxyStateAttributes:     8,
+				MaxProxyStateBytes:          1024,
+				ReplayCacheEnabled:          true,
+				ReplayWindowSeconds:         30,
+				ReplayCacheMaxEntries:       1024,
+				RateLimitEnabled:            true,
+				PerClientRateLimitPerSecond: 250,
+				PerClientBurst:              500,
+				TrustedProxyCIDRs:           []string{"10.0.0.0/24", "2001:db8::1"},
+				EventRetentionLimit:         6000,
+			},
+		},
+	}
+	require.NoError(t, cfg.Validate())
+
+	badMode := *cfg
+	badMode.Radius.PacketHardening.RequireMessageAuthenticator = "sometimes"
+	assert.ErrorContains(t, badMode.Validate(), "require_message_authenticator")
+
+	badSize := *cfg
+	badSize.Radius.PacketHardening.MaxPacketBytes = 9000
+	assert.ErrorContains(t, badSize.Validate(), "max_packet_bytes")
+
+	badCIDR := *cfg
+	badCIDR.Radius.PacketHardening.TrustedProxyCIDRs = []string{"not a cidr"}
+	assert.ErrorContains(t, badCIDR.Validate(), "trusted_proxy_cidrs")
+}
+
 func TestConfigValidation(t *testing.T) {
 	tests := []struct {
 		name    string

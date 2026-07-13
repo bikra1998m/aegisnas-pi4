@@ -159,6 +159,37 @@ type DatabaseStatusReport = {
   warnings?: string[];
 };
 
+type RadiusPacketHardeningReport = {
+  status?: string;
+  message?: string;
+  policy?: {
+    enabled: boolean;
+    fail_closed: boolean;
+    require_known_source: boolean;
+    require_message_authenticator: string;
+  };
+  limits?: {
+    replay_window_seconds: number;
+    per_client_rate_limit_per_second: number;
+    per_client_burst: number;
+    max_proxy_state_attributes: number;
+    max_proxy_state_bytes: number;
+  };
+  source_trust?: {
+    trusted_sources: string[];
+  };
+  runtime_stats?: {
+    total_events: number;
+    rejected_count: number;
+    replay_reject_count: number;
+    rate_limited_reject_count: number;
+    message_authenticator_rejects: number;
+    unknown_source_rejects: number;
+    malformed_rejects: number;
+    last_event_at?: string;
+  };
+};
+
 type SystemStatus = {
   generated_at: string;
   summary: {
@@ -237,6 +268,7 @@ type SystemStatus = {
     enabled_radius_clients: number;
     broker_auth: RuntimeStatus;
     broker_accounting: RuntimeStatus;
+    packet_hardening?: RadiusPacketHardeningReport;
     probe_error?: string;
   };
   wireless: {
@@ -772,6 +804,7 @@ export default function Dashboard() {
     ) ?? [];
   const configuredServers = systemStatus.radius?.configured_servers ?? [];
   const radiusServerStatuses = systemStatus.radius?.server_statuses ?? [];
+  const packetHardening = systemStatus.radius?.packet_hardening;
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
   const serviceProblems = services.filter(
     (service) => !["ok", "disabled"].includes(service.status),
@@ -1386,6 +1419,59 @@ export default function Dashboard() {
                   />
                 </div>
               </div>
+              {packetHardening ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Packet Hardening
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {packetHardening.message ||
+                          "Packet hardening policy is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500">
+                        <div>
+                          Message-Authenticator{" "}
+                          {packetHardening.policy
+                            ?.require_message_authenticator || "auto"}
+                        </div>
+                        <div>
+                          Fail closed{" "}
+                          {packetHardening.policy?.fail_closed ? "yes" : "no"}
+                        </div>
+                        <div>
+                          Replay window{" "}
+                          {packetHardening.limits?.replay_window_seconds ?? 0}s
+                        </div>
+                        <div>
+                          Rate{" "}
+                          {packetHardening.limits
+                            ?.per_client_rate_limit_per_second ?? 0}
+                          /s burst{" "}
+                          {packetHardening.limits?.per_client_burst ?? 0}
+                        </div>
+                        <div>
+                          Rejects{" "}
+                          {packetHardening.runtime_stats?.rejected_count ?? 0}
+                        </div>
+                        <div>
+                          MA rejects{" "}
+                          {packetHardening.runtime_stats
+                            ?.message_authenticator_rejects ?? 0}
+                        </div>
+                      </div>
+                      {packetHardening.runtime_stats?.last_event_at ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last hardening event{" "}
+                          {packetHardening.runtime_stats.last_event_at}.
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge status={packetHardening.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
             </div>
             {systemStatus.radius.probe_error ? (
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

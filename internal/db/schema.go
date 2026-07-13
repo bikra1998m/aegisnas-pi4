@@ -64,7 +64,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{14, schemaV14},
 		{15, schemaV15},
 		{16, schemaV16},
-		{LatestSchemaVersion(), schemaV17},
+		{17, schemaV17},
+		{LatestSchemaVersion(), schemaV18},
 	}
 
 	for _, m := range migrations {
@@ -97,8 +98,20 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureDatabaseBackendEventsTable(handle); err != nil {
 		return fmt.Errorf("repair database backend event schema: %w", err)
 	}
+	if err := ensureRadiusPacketHardeningEventsTable(handle); err != nil {
+		return fmt.Errorf("repair RADIUS packet hardening event schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureRadiusPacketHardeningEventsTable(handle *sql.DB) error {
+	exists, err := tableExists(handle, "radius_packet_hardening_events")
+	if err != nil || exists {
+		return err
+	}
+	_, err = handle.Exec(SQLForDialect(schemaV18, DialectForHandle(handle)))
+	return err
 }
 
 func ensureDatabaseBackendEventsTable(handle *sql.DB) error {

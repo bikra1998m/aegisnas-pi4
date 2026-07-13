@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 17
+	return 18
 }
 
 func Migrate() error {
@@ -605,4 +605,31 @@ CREATE TABLE IF NOT EXISTS database_backend_events (
 
 CREATE INDEX IF NOT EXISTS idx_database_backend_events_created_at ON database_backend_events(created_at);
 CREATE INDEX IF NOT EXISTS idx_database_backend_events_backend_status ON database_backend_events(backend, status);
+`
+
+const schemaV18 = `
+CREATE TABLE IF NOT EXISTS radius_packet_hardening_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	source_ip TEXT,
+	direction TEXT NOT NULL,
+	packet_code TEXT,
+	packet_identifier INTEGER DEFAULT 0,
+	decision TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	message TEXT,
+	packet_length INTEGER DEFAULT 0,
+	attribute_count INTEGER DEFAULT 0,
+	proxy_state_count INTEGER DEFAULT 0,
+	proxy_state_bytes INTEGER DEFAULT 0,
+	message_authenticator_present BOOLEAN DEFAULT 0,
+	replay_detected BOOLEAN DEFAULT 0,
+	rate_limited BOOLEAN DEFAULT 0,
+	details_json TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_radius_packet_hardening_events_observed_at ON radius_packet_hardening_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_radius_packet_hardening_events_source ON radius_packet_hardening_events(source_ip, observed_at);
+CREATE INDEX IF NOT EXISTS idx_radius_packet_hardening_events_decision ON radius_packet_hardening_events(decision, reason);
 `

@@ -106,6 +106,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionAttributeRegistryCheck(&report)
 	addProductionVSACodecCheck(&report)
 	addProductionOpaquePassThroughCheck(&report, cfg)
+	addProductionRadiusPacketHardeningCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
@@ -120,6 +121,40 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 
 	finalizeProductionReadinessReport(&report)
 	return report
+}
+
+func addProductionRadiusPacketHardeningCheck(report *productionReadinessReport, cfg *config.Config) {
+	hardening := radius.BuildPacketHardeningReport(cfg)
+	status := "passed"
+	switch hardening.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "degraded"
+	}
+	if hardening.SchemaVersion != radius.PacketHardeningSchemaVersion ||
+		!hardening.Policy.Enabled ||
+		!hardening.Policy.FailClosed ||
+		!hardening.Policy.RequireKnownSource ||
+		hardening.Policy.RequireMessageAuthenticator == "never" ||
+		hardening.Limits.MaxPacketBytes > 4096 ||
+		hardening.Limits.ReplayWindowSeconds <= 0 ||
+		hardening.Limits.PerClientRateLimitPerSecond <= 0 {
+		if status == "passed" {
+			status = "blocked"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_packet_hardening",
+		Category: "radius",
+		Label:    "RADIUS Packet Hardening",
+		Status:   status,
+		Summary: fmt.Sprintf("Packet hardening schema %d is %s with Message-Authenticator=%s, known-source=%t, replay window=%ds, rate limit=%d/s, and %d recent hardening event(s).",
+			hardening.SchemaVersion, hardening.Status, hardening.Policy.RequireMessageAuthenticator, hardening.Policy.RequireKnownSource,
+			hardening.Limits.ReplayWindowSeconds, hardening.Limits.PerClientRateLimitPerSecond, hardening.RuntimeStats.TotalEvents),
+		Recommendation: "Keep packet hardening enabled and fail-closed with known RADIUS clients, Message-Authenticator auto or always, replay cache, rate limits, and the NAS-0009 release checklist for external packet-capture evidence.",
+		Dependencies:   []string{"radius.packet_hardening", "/api/v1/system/radius-hardening", "radius_packet_hardening_events"},
+	})
 }
 
 func addProductionDatabaseDataPlaneCheck(report *productionReadinessReport, cfg *config.Config) {
