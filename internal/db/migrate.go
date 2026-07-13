@@ -1,11 +1,14 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 16
+	return 17
 }
 
 func Migrate() error {
-	return MigrateHandle(GetDB())
+	if err := MigrateHandle(GetDB()); err != nil {
+		return err
+	}
+	return RecordBackendEvent("migrated")
 }
 
 const schemaV1 = `
@@ -588,4 +591,18 @@ CREATE INDEX IF NOT EXISTS idx_vendor_identity_migrations_status
 const schemaV16 = `
 ALTER TABLE radius_clients ADD COLUMN secret_ref TEXT;
 CREATE INDEX IF NOT EXISTS idx_radius_clients_secret_ref ON radius_clients(secret_ref);
+`
+
+const schemaV17 = `
+CREATE TABLE IF NOT EXISTS database_backend_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	backend TEXT NOT NULL,
+	status TEXT NOT NULL,
+	schema_version INTEGER NOT NULL DEFAULT 0,
+	detail_json TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_database_backend_events_created_at ON database_backend_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_database_backend_events_backend_status ON database_backend_events(backend, status);
 `

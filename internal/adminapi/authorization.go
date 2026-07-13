@@ -147,6 +147,8 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/secret-providers"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/database"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/attribute-registry"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/vendor-identity"):

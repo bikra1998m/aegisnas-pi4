@@ -58,7 +58,7 @@ var runCmd = &cobra.Command{
 		defer logging.Sync()
 		logger := logging.L()
 
-		if err := db.Init(cfg.Database.Path); err != nil {
+		if err := db.InitConfigured(cmd.Context(), cfg); err != nil {
 			return fmt.Errorf("init db: %w", err)
 		}
 		defer db.Close()

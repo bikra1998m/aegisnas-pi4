@@ -29,11 +29,12 @@ func MigrateHandle(handle *sql.DB) error {
 	if handle == nil {
 		return fmt.Errorf("database handle is required")
 	}
+	dialect := DialectForHandle(handle)
 
-	_, err := handle.Exec(`CREATE TABLE IF NOT EXISTS schema_version (
+	_, err := handle.Exec(SQLForDialect(`CREATE TABLE IF NOT EXISTS schema_version (
 		version INTEGER PRIMARY KEY,
 		applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	)`)
+	)`, dialect))
 	if err != nil {
 		return fmt.Errorf("create schema_version: %w", err)
 	}
@@ -62,14 +63,15 @@ func MigrateHandle(handle *sql.DB) error {
 		{13, schemaV13},
 		{14, schemaV14},
 		{15, schemaV15},
-		{LatestSchemaVersion(), schemaV16},
+		{16, schemaV16},
+		{LatestSchemaVersion(), schemaV17},
 	}
 
 	for _, m := range migrations {
 		if m.version <= currentVersion {
 			continue
 		}
-		if _, err := handle.Exec(m.sql); err != nil {
+		if _, err := handle.Exec(SQLForDialect(m.sql, dialect)); err != nil {
 			return fmt.Errorf("apply migration v%d: %w", m.version, err)
 		}
 		if _, err := handle.Exec("INSERT INTO schema_version (version) VALUES (?)", m.version); err != nil {
@@ -92,8 +94,20 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureRadiusClientSecretColumns(handle); err != nil {
 		return fmt.Errorf("repair radius client secret schema: %w", err)
 	}
+	if err := ensureDatabaseBackendEventsTable(handle); err != nil {
+		return fmt.Errorf("repair database backend event schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureDatabaseBackendEventsTable(handle *sql.DB) error {
+	exists, err := tableExists(handle, "database_backend_events")
+	if err != nil || exists {
+		return err
+	}
+	_, err = handle.Exec(SQLForDialect(schemaV17, DialectForHandle(handle)))
+	return err
 }
 
 func ensureRadiusClientSecretColumns(handle *sql.DB) error {
@@ -243,11 +257,22 @@ func ensureDeviceInventoryProfilingColumns(handle *sql.DB) error {
 
 func tableExists(handle *sql.DB, table string) (bool, error) {
 	var count int
-	err := handle.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table).Scan(&count)
-	return count > 0, err
+	switch DialectForHandle(handle) {
+	case DialectPostgreSQL:
+		err := handle.QueryRow(`SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = ?`, table).Scan(&count)
+		return count > 0, err
+	default:
+		err := handle.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table).Scan(&count)
+		return count > 0, err
+	}
 }
 
 func tableHasColumn(handle *sql.DB, table, column string) (bool, error) {
+	if DialectForHandle(handle) == DialectPostgreSQL {
+		var count int
+		err := handle.QueryRow(`SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?`, table, column).Scan(&count)
+		return count > 0, err
+	}
 	rows, err := handle.Query(fmt.Sprintf("PRAGMA table_info('%s')", strings.ReplaceAll(table, "'", "''")))
 	if err != nil {
 		return false, err

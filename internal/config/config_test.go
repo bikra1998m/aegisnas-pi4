@@ -804,6 +804,65 @@ radius:
 	assert.Equal(t, 55555, Get().Radius.Vendor.ID)
 }
 
+func TestValidateDatabasePostgreSQLRequiresSecretRefByDefault(t *testing.T) {
+	cfg := loadMinimalValidConfig(t)
+	cfg.Database = DatabaseConfig{
+		Backend:              "postgres",
+		DSNRef:               "env:AEGIS_SECRET_POSTGRES_DSN",
+		SSLMode:              "verify-full",
+		MaxOpenConns:         20,
+		MaxIdleConns:         5,
+		ProductionRequireTLS: true,
+	}
+	require.NoError(t, cfg.Validate())
+
+	cfg.Database.DSNRef = ""
+	cfg.Database.DSN = "postgres://aegis:secret@db.example.test/aegisnas?sslmode=verify-full"
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "database.dsn contains inline connection material")
+
+	cfg.Database.AllowInlinePostgreSQLDSN = true
+	require.NoError(t, cfg.Validate())
+}
+
+func TestValidateDatabasePostgreSQLRejectsUnsafeTLSMode(t *testing.T) {
+	cfg := loadMinimalValidConfig(t)
+	cfg.Database = DatabaseConfig{
+		Backend:              "postgres",
+		DSNRef:               "env:AEGIS_SECRET_POSTGRES_DSN",
+		SSLMode:              "disable",
+		ProductionRequireTLS: true,
+	}
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "database.sslmode")
+
+	cfg.Database.AllowUnsafePostgreSQLSSLMode = true
+	require.NoError(t, cfg.Validate())
+}
+
+func loadMinimalValidConfig(t *testing.T) *Config {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+mode: two-nic
+wan: {name: eth0}
+lan: {name: eth1}
+database: {path: /tmp/aegis.db}
+health: {port: 8080}
+telemetry: {enabled: true, prometheus_port: 9090}
+radius:
+  auth_port: 1812
+  acct_port: 1813
+  request_timeout_seconds: 5
+`), 0600))
+	cfg, err := LoadCandidate(path)
+	require.NoError(t, err)
+	require.NoError(t, cfg.Validate())
+	return cfg
+}
+
 func TestDeploymentSummary(t *testing.T) {
 	cfg := &Config{
 		Deployment: DeploymentConfig{

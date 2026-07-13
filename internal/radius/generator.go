@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -539,6 +541,9 @@ ldap {
 }
 
 func (g *Generator) renderModsSQL() (string, error) {
+	if strings.EqualFold(strings.TrimSpace(g.cfg.Database.Backend), "postgres") || strings.EqualFold(strings.TrimSpace(g.cfg.Database.Backend), "postgresql") {
+		return g.renderModsPostgreSQL()
+	}
 	tmpl := `# mods-enabled/sql
 sql {
 	dialect = "sqlite"
@@ -563,6 +568,87 @@ sql {
 	t := template.Must(template.New("sql").Parse(tmpl))
 	err := t.Execute(&buf, g.cfg)
 	return buf.String(), err
+}
+
+func (g *Generator) renderModsPostgreSQL() (string, error) {
+	dsn := strings.TrimSpace(g.cfg.Database.DSN)
+	if ref := strings.TrimSpace(g.cfg.Database.DSNRef); ref != "" {
+		resolved, err := secrets.ResolveConfiguredSecret(context.Background(), secrets.NewResolver(secrets.OptionsFromConfig(g.cfg)), "database.dsn", "", ref)
+		if err != nil {
+			return "", err
+		}
+		dsn = strings.TrimSpace(resolved)
+	}
+	parsed, err := parsePostgreSQLURLDSN(dsn)
+	if err != nil {
+		return "", err
+	}
+	tmpl := `# mods-enabled/sql
+sql {
+	dialect = "postgresql"
+	driver = "rlm_sql_postgresql"
+	server = "{{ .Host }}"
+	port = {{ .Port }}
+	login = "{{ .User }}"
+	password = "{{ .Password }}"
+	radius_db = "{{ .Database }}"
+
+	accounting {
+		reference = "%{tolower:type.%{Acct-Status-Type}}"
+	}
+
+	postauth {
+		reference = ".query"
+	}
+}
+`
+	var buf bytes.Buffer
+	t := template.Must(template.New("sql-postgresql").Parse(tmpl))
+	err = t.Execute(&buf, parsed)
+	return buf.String(), err
+}
+
+type postgreSQLSQLModuleDSN struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	Database string
+}
+
+func parsePostgreSQLURLDSN(raw string) (postgreSQLSQLModuleDSN, error) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return postgreSQLSQLModuleDSN{}, fmt.Errorf("database PostgreSQL DSN must use a postgres:// URL for FreeRADIUS SQL generation")
+	}
+	if parsed.Scheme != "postgres" && parsed.Scheme != "postgresql" {
+		return postgreSQLSQLModuleDSN{}, fmt.Errorf("database PostgreSQL DSN scheme %q is not supported", parsed.Scheme)
+	}
+	port := 5432
+	if parsed.Port() != "" {
+		value, err := strconv.Atoi(parsed.Port())
+		if err != nil || value < 1 || value > 65535 {
+			return postgreSQLSQLModuleDSN{}, fmt.Errorf("database PostgreSQL DSN port is invalid")
+		}
+		port = value
+	}
+	user := ""
+	password := ""
+	if parsed.User != nil {
+		user = parsed.User.Username()
+		password, _ = parsed.User.Password()
+	}
+	databaseName := strings.Trim(strings.TrimSpace(parsed.Path), "/")
+	if parsed.Hostname() == "" || user == "" || databaseName == "" {
+		return postgreSQLSQLModuleDSN{}, fmt.Errorf("database PostgreSQL DSN must include host, user, and database name")
+	}
+	return postgreSQLSQLModuleDSN{
+		Host:     parsed.Hostname(),
+		Port:     port,
+		User:     user,
+		Password: password,
+		Database: databaseName,
+	}, nil
 }
 
 func (g *Generator) renderProxyConf() (string, error) {

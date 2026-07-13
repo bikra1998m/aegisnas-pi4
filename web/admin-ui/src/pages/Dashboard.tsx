@@ -136,6 +136,29 @@ type SecretProviderReport = {
   };
 };
 
+type DatabaseStatusReport = {
+  status: "ready" | "degraded" | "blocked";
+  message: string;
+  configured_backend: string;
+  ready_for_ha: boolean;
+  active: {
+    backend: string;
+    driver: string;
+    dialect: string;
+    dsn_ref_set: boolean;
+    inline_dsn_set: boolean;
+    dsn_fingerprint?: string;
+    sslmode?: string;
+    tls_required: boolean;
+  };
+  pool_stats?: {
+    OpenConnections?: number;
+    InUse?: number;
+    Idle?: number;
+  };
+  warnings?: string[];
+};
+
 type SystemStatus = {
   generated_at: string;
   summary: {
@@ -150,6 +173,7 @@ type SystemStatus = {
     session_methods: Record<string, number>;
   };
   services: ServiceStatus[];
+  database?: DatabaseStatusReport;
   production_readiness?: ProductionReadinessSummary;
   deployment: {
     profile: string;
@@ -763,6 +787,7 @@ export default function Dashboard() {
     productionReadiness?.checks?.filter((check) => check.status !== "passed") ||
     [];
   const secretSummary = secretProviders?.summary;
+  const databaseStatus = systemStatus.database;
 	const highAvailabilityStatus =
     systemStatus.high_availability.replication_runtime?.status === "degraded"
       ? "degraded"
@@ -1006,6 +1031,91 @@ export default function Dashboard() {
               Security Settings
             </Link>
           </div>
+        </section>
+      ) : null}
+
+      {databaseStatus ? (
+        <section
+          className={`rounded-md border bg-white p-5 shadow-sm ${
+            databaseStatus.status === "blocked"
+              ? "border-red-300"
+              : databaseStatus.status === "ready"
+                ? "border-emerald-300"
+                : "border-amber-300"
+          }`}
+          aria-labelledby="database-heading"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h3
+                id="database-heading"
+                className="text-lg font-semibold text-gray-900"
+              >
+                Database Data Plane
+              </h3>
+              <p className="mt-1 text-sm text-gray-600">
+                {databaseStatus.message}
+              </p>
+            </div>
+            <StatusBadge status={databaseStatus.status} />
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-6">
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                Backend
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {databaseStatus.active?.backend ||
+                  databaseStatus.configured_backend ||
+                  "unknown"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                DSN Ref
+              </div>
+              <div className="mt-1 text-2xl font-bold text-gray-900">
+                {databaseStatus.active?.dsn_ref_set ? "Yes" : "No"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                TLS
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {databaseStatus.active?.sslmode || "n/a"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                HA Ready
+              </div>
+              <div className="mt-1 text-2xl font-bold text-gray-900">
+                {databaseStatus.ready_for_ha ? "Yes" : "No"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                Open
+              </div>
+              <div className="mt-1 text-2xl font-bold text-gray-900">
+                {databaseStatus.pool_stats?.OpenConnections ?? 0}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase text-gray-500">
+                Inline
+              </div>
+              <div className="mt-1 text-2xl font-bold text-amber-700">
+                {databaseStatus.active?.inline_dsn_set ? "Yes" : "No"}
+              </div>
+            </div>
+          </div>
+          {databaseStatus.warnings?.length ? (
+            <div className="mt-4 text-sm text-amber-800">
+              {databaseStatus.warnings.slice(0, 2).join(" ")}
+            </div>
+          ) : null}
         </section>
       ) : null}
 

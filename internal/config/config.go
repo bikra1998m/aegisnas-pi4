@@ -168,7 +168,22 @@ type VLANConfig struct {
 }
 
 type DatabaseConfig struct {
-	Path string `mapstructure:"path"`
+	Backend                      string `mapstructure:"backend"`
+	Path                         string `mapstructure:"path"`
+	DSN                          string `mapstructure:"dsn"`
+	DSNRef                       string `mapstructure:"dsn_ref"`
+	SSLMode                      string `mapstructure:"sslmode"`
+	MaxOpenConns                 int    `mapstructure:"max_open_conns"`
+	MaxIdleConns                 int    `mapstructure:"max_idle_conns"`
+	ConnMaxLifetimeSeconds       int    `mapstructure:"conn_max_lifetime_seconds"`
+	ConnMaxIdleTimeSeconds       int    `mapstructure:"conn_max_idle_time_seconds"`
+	ConnectTimeoutSeconds        int    `mapstructure:"connect_timeout_seconds"`
+	StatementTimeoutMilliseconds int    `mapstructure:"statement_timeout_milliseconds"`
+	MigrationLockTimeoutSeconds  int    `mapstructure:"migration_lock_timeout_seconds"`
+	ProductionRequirePostgreSQL  bool   `mapstructure:"production_require_postgresql"`
+	ProductionRequireTLS         bool   `mapstructure:"production_require_tls"`
+	AllowUnsafePostgreSQLSSLMode bool   `mapstructure:"allow_unsafe_postgresql_sslmode"`
+	AllowInlinePostgreSQLDSN     bool   `mapstructure:"allow_inline_postgresql_dsn"`
 }
 
 type LoggingConfig struct {
@@ -854,6 +869,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("ailite.request_timeout_seconds", 20)
 	v.SetDefault("ailite.max_input_events", 200)
 	v.SetDefault("ailite.recommendation_limit", 100)
+	v.SetDefault("database.backend", "sqlite")
 	v.SetDefault("onboarding.ca_mode", "none")
 	v.SetDefault("profiling.poll_interval_seconds", 300)
 	v.SetDefault("profiling.retention_hours", 24)
@@ -868,6 +884,18 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("security.secrets.max_secret_bytes", 8192)
 	v.SetDefault("security.secrets.allow_inline", true)
 	v.SetDefault("security.secrets.production_require_references", true)
+	v.SetDefault("database.sslmode", "verify-full")
+	v.SetDefault("database.max_open_conns", 25)
+	v.SetDefault("database.max_idle_conns", 5)
+	v.SetDefault("database.conn_max_lifetime_seconds", 1800)
+	v.SetDefault("database.conn_max_idle_time_seconds", 300)
+	v.SetDefault("database.connect_timeout_seconds", 10)
+	v.SetDefault("database.statement_timeout_milliseconds", 30000)
+	v.SetDefault("database.migration_lock_timeout_seconds", 30)
+	v.SetDefault("database.production_require_postgresql", false)
+	v.SetDefault("database.production_require_tls", true)
+	v.SetDefault("database.allow_unsafe_postgresql_sslmode", false)
+	v.SetDefault("database.allow_inline_postgresql_dsn", false)
 	v.SetDefault("high_availability.enabled", false)
 	v.SetDefault("high_availability.role", "standby")
 	v.SetDefault("high_availability.heartbeat_interval_seconds", 5)
@@ -1294,8 +1322,8 @@ func (c *Config) Validate() error {
 		staticLeaseIPs[strings.TrimSpace(lease.IP)] = struct{}{}
 	}
 
-	if c.Database.Path == "" {
-		return errors.New("database.path cannot be empty")
+	if err := validateDatabaseConfig(c.Database); err != nil {
+		return err
 	}
 
 	if c.Health.Port < 1 || c.Health.Port > 65535 {
@@ -3676,6 +3704,80 @@ func validateSecretProviderConfig(cfg SecretProviderConfig) error {
 	}
 	if strings.ContainsAny(cfg.FileBaseDir, "\r\n\x00") {
 		return errors.New("security.secrets.file_base_dir contains invalid characters")
+	}
+	return nil
+}
+
+func validateDatabaseConfig(cfg DatabaseConfig) error {
+	backend := strings.ToLower(strings.TrimSpace(cfg.Backend))
+	if backend == "" {
+		backend = "sqlite"
+	}
+	switch backend {
+	case "sqlite":
+		if strings.TrimSpace(cfg.Path) == "" {
+			return errors.New("database.path cannot be empty")
+		}
+		if strings.TrimSpace(cfg.DSN) != "" {
+			return errors.New("database.dsn is only valid when database.backend is postgres")
+		}
+		if strings.TrimSpace(cfg.DSNRef) != "" {
+			return errors.New("database.dsn_ref is only valid when database.backend is postgres")
+		}
+	case "postgres", "postgresql":
+		if strings.TrimSpace(cfg.DSN) == "" && strings.TrimSpace(cfg.DSNRef) == "" {
+			return errors.New("database.dsn_ref or database.dsn is required when database.backend is postgres")
+		}
+		if strings.TrimSpace(cfg.DSN) != "" && strings.TrimSpace(cfg.DSNRef) != "" {
+			return errors.New("database.dsn and database.dsn_ref cannot both be set")
+		}
+		if strings.TrimSpace(cfg.DSN) != "" && !cfg.AllowInlinePostgreSQLDSN {
+			return errors.New("database.dsn contains inline connection material; use database.dsn_ref or set database.allow_inline_postgresql_dsn for a controlled lab")
+		}
+		if strings.TrimSpace(cfg.DSNRef) != "" {
+			if err := validateSecretRefField("database.dsn_ref", cfg.DSNRef); err != nil {
+				return err
+			}
+		}
+		sslMode := strings.ToLower(strings.TrimSpace(cfg.SSLMode))
+		switch sslMode {
+		case "", "disable", "allow", "prefer", "require", "verify-ca", "verify-full":
+		default:
+			return fmt.Errorf("database.sslmode %q is invalid", cfg.SSLMode)
+		}
+		if cfg.ProductionRequireTLS && !cfg.AllowUnsafePostgreSQLSSLMode {
+			switch sslMode {
+			case "require", "verify-ca", "verify-full":
+			default:
+				return fmt.Errorf("database.sslmode %q is not allowed when database.production_require_tls is true", cfg.SSLMode)
+			}
+		}
+	default:
+		return fmt.Errorf("database.backend %q is invalid", cfg.Backend)
+	}
+	if cfg.MaxOpenConns < 0 {
+		return fmt.Errorf("database.max_open_conns %d cannot be negative", cfg.MaxOpenConns)
+	}
+	if cfg.MaxIdleConns < 0 {
+		return fmt.Errorf("database.max_idle_conns %d cannot be negative", cfg.MaxIdleConns)
+	}
+	if cfg.MaxOpenConns > 0 && cfg.MaxIdleConns > cfg.MaxOpenConns {
+		return errors.New("database.max_idle_conns cannot exceed database.max_open_conns")
+	}
+	if cfg.ConnMaxLifetimeSeconds < 0 {
+		return fmt.Errorf("database.conn_max_lifetime_seconds %d cannot be negative", cfg.ConnMaxLifetimeSeconds)
+	}
+	if cfg.ConnMaxIdleTimeSeconds < 0 {
+		return fmt.Errorf("database.conn_max_idle_time_seconds %d cannot be negative", cfg.ConnMaxIdleTimeSeconds)
+	}
+	if cfg.ConnectTimeoutSeconds < 0 {
+		return fmt.Errorf("database.connect_timeout_seconds %d cannot be negative", cfg.ConnectTimeoutSeconds)
+	}
+	if cfg.StatementTimeoutMilliseconds < 0 {
+		return fmt.Errorf("database.statement_timeout_milliseconds %d cannot be negative", cfg.StatementTimeoutMilliseconds)
+	}
+	if cfg.MigrationLockTimeoutSeconds < 0 {
+		return fmt.Errorf("database.migration_lock_timeout_seconds %d cannot be negative", cfg.MigrationLockTimeoutSeconds)
 	}
 	return nil
 }

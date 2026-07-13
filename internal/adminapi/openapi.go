@@ -1143,6 +1143,9 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/secret-providers", "get", securedOperation("Read secret provider readiness", "Security", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Redacted secret-provider inventory, reference status, inline-secret blockers, and provider policy."),
 	}))
+	addOperation(paths, "/api/v1/system/database", "get", securedOperation("Read database data-plane readiness", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Redacted database backend, schema, pool, TLS, and HA readiness status."),
+	}))
 	addOperation(paths, "/api/v1/system/attribute-registry", "get", securedOperationWithParameters("Read the generated typed attribute registry", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("release", "Optional dictionary release profile ID; defaults to the active embedded profile.", false),
 		queryStringParameter("vendor", "Exact vendor namespace filter.", false),

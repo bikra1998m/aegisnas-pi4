@@ -82,6 +82,7 @@ Important environment-backed secrets now include:
 - `AEGIS_SECRET_RADIUS_SHARED`
 - `AEGIS_SECRET_UPSTREAM_PRIMARY`
 - `AEGIS_SECRET_LDAP_BIND`
+- `AEGIS_SECRET_POSTGRES_DSN`
 - `AEGIS_AI_API_KEY`
 - `AEGIS_ADMIN_SSO_CLIENT_SECRET`
 - `AEGIS_CA_ENROLLMENT_TOKEN`
@@ -91,6 +92,11 @@ Important environment-backed secrets now include:
 - `AEGIS_CONTROLLER_API_TOKEN`
 
 Restrict these files to root-readable permissions and rotate them as part of site handoff or incident response.
+
+Treat `database.dsn` as secret material because PostgreSQL URLs usually contain
+usernames, passwords, hosts, and database names. Production deployments should
+use `database.dsn_ref`; support bundles redact `database.dsn` and expose only
+the reference plus a DSN fingerprint.
 
 ## Management VLAN Isolation
 

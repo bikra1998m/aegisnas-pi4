@@ -49,7 +49,7 @@ var migrateCmd = &cobra.Command{
 		}
 		defer logging.Sync()
 
-		if err := db.Init(cfg.Database.Path); err != nil {
+		if err := db.InitConfigured(cmd.Context(), cfg); err != nil {
 			return fmt.Errorf("init db: %w", err)
 		}
 		defer db.Close()
@@ -75,7 +75,7 @@ var seedCmd = &cobra.Command{
 		}
 		defer logging.Sync()
 
-		if err := db.Init(cfg.Database.Path); err != nil {
+		if err := db.InitConfigured(cmd.Context(), cfg); err != nil {
 			return fmt.Errorf("init db: %w", err)
 		}
 		defer db.Close()

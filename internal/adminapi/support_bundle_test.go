@@ -136,8 +136,10 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	require.Contains(t, entries, "api/ha-history.json")
 	require.Contains(t, entries, "api/upgrade-readiness.json")
 	require.Contains(t, entries, "api/secret-providers.json")
+	require.Contains(t, entries, "api/database.json")
 	require.Contains(t, entries, "api/openapi.json")
 	require.Contains(t, entries, "runtime/runtime-statuses.json")
+	require.Contains(t, entries, "system/database-backend.txt")
 	require.Contains(t, entries, "system/ip-addr.txt")
 	require.Contains(t, entries, "logs/aegis-admin-api.log")
 
@@ -175,14 +177,17 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	assert.Contains(t, string(entries["api/ha-history.json"]), "Standby promoted cleanly.")
 	assert.Contains(t, string(entries["api/integration-history.json"]), "\"history\"")
 	assert.Contains(t, string(entries["api/upgrade-readiness.json"]), "\"config_valid\": true")
+	assert.Contains(t, string(entries["api/database.json"]), "\"schema_version\"")
 	assert.Contains(t, string(entries["api/openapi.json"]), "\"openapi\": \"3.1.0\"")
 }
 
 func TestSupportBundleKeepsSecretReferencesVisible(t *testing.T) {
 	assert.False(t, shouldRedactSupportBundleKey("secret_ref"))
 	assert.False(t, shouldRedactSupportBundleKey("bind_password_ref"))
+	assert.False(t, shouldRedactSupportBundleKey("dsn_ref"))
 	assert.True(t, shouldRedactSupportBundleKey("secret"))
 	assert.True(t, shouldRedactSupportBundleKey("bind_password"))
+	assert.True(t, shouldRedactSupportBundleKey("dsn"))
 }
 
 func TestBuildSupportBundleCapturesCommandWarnings(t *testing.T) {

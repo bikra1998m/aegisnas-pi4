@@ -74,6 +74,27 @@ func TestGenerator(t *testing.T) {
 	assert.Contains(t, fullCfg.VendorDictionary, "ATTRIBUTE AegisNAS-Bandwidth-Profile 2 string")
 }
 
+func TestGeneratorRendersPostgreSQLSQLModule(t *testing.T) {
+	previousDB := db.DB
+	db.DB = nil
+	t.Cleanup(func() { db.DB = previousDB })
+
+	cfg := &config.Config{
+		Radius:   config.RadiusConfig{Secret: "testing123", AuthPort: 1812, AcctPort: 1813},
+		Database: config.DatabaseConfig{Backend: "postgres", DSN: "postgres://radius:sqlpass@db.example.test:15432/aegisnas?sslmode=verify-full"},
+	}
+	generated, err := NewGenerator(cfg).Generate()
+	require.NoError(t, err)
+	assert.Contains(t, generated.ModsSQL, `dialect = "postgresql"`)
+	assert.Contains(t, generated.ModsSQL, `driver = "rlm_sql_postgresql"`)
+	assert.Contains(t, generated.ModsSQL, `server = "db.example.test"`)
+	assert.Contains(t, generated.ModsSQL, `port = 15432`)
+	assert.Contains(t, generated.ModsSQL, `login = "radius"`)
+	assert.Contains(t, generated.ModsSQL, `password = "sqlpass"`)
+	assert.Contains(t, generated.ModsSQL, `radius_db = "aegisnas"`)
+	assert.NotContains(t, generated.ModsSQL, `rlm_sql_sqlite`)
+}
+
 func TestGeneratorRendersInboundAndOutboundRadSec(t *testing.T) {
 	previousDB := db.DB
 	db.DB = nil

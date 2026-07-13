@@ -94,6 +94,13 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read secret provider readiness", secretProvidersGet["summary"])
 	assert.Contains(t, secretProvidersGet["x-aegisnas-roles"], "read_only")
 
+	databasePath, ok := paths["/api/v1/system/database"].(map[string]any)
+	require.True(t, ok)
+	databaseGet, ok := databasePath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read database data-plane readiness", databaseGet["summary"])
+	assert.Contains(t, databaseGet["x-aegisnas-roles"], "read_only")
+
 	vendorIdentityPreviewPath, ok := paths["/api/v1/system/vendor-identity/migrations/preview"].(map[string]any)
 	require.True(t, ok)
 	vendorIdentityPreviewPost, ok := vendorIdentityPreviewPath["post"].(map[string]any)

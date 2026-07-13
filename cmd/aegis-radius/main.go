@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -283,7 +284,7 @@ func loadAndValidateConfig() (*config.Config, error) {
 }
 
 func initRadiusDB(cfg *config.Config) error {
-	if err := db.Init(cfg.Database.Path); err != nil {
+	if err := db.InitConfigured(context.Background(), cfg); err != nil {
 		return fmt.Errorf("init db: %w", err)
 	}
 	if err := db.Migrate(); err != nil {

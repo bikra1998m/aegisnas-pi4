@@ -146,6 +146,18 @@ has been migrated, and provider policy is ready before production sign-off. The
 endpoint returns reference fingerprints and status only; it does not return
 secret values.
 
+## Database Data-Plane Endpoint
+
+Database backend readiness is exposed at:
+
+```text
+/api/v1/system/database
+```
+
+Use it to confirm SQLite or PostgreSQL mode, schema version, pool settings, TLS
+posture, DSN reference status, and HA readiness. The endpoint reports a DSN
+fingerprint only; it never returns the DSN or database password.
+
 ## ACL Policy Library
 
 Vendor-neutral dynamic ACL policies use the standard staged configuration workflow:

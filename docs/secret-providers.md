@@ -116,6 +116,7 @@ The generator resolves refs only while rendering runtime configuration:
 - local broker client secrets from `radius.secret_ref`
 - upstream `proxy.conf` UDP home-server secrets
 - LDAP module bind password
+- PostgreSQL SQL module connection material from `database.dsn_ref`
 
 Generated files contain the resolved values because FreeRADIUS needs them at
 runtime. Support bundles and readiness reports do not include those values.

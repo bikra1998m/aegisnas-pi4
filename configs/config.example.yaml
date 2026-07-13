@@ -103,7 +103,23 @@ vlans:
     purpose: management
 
 database:
+  backend: sqlite # sqlite for lite/lab, postgres for enterprise production
   path: /var/lib/aegisnas/data.db
+  # PostgreSQL production data plane example:
+  # backend: postgres
+  # dsn_ref: "env:AEGIS_SECRET_POSTGRES_DSN"
+  # sslmode: verify-full
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime_seconds: 1800
+  conn_max_idle_time_seconds: 300
+  connect_timeout_seconds: 10
+  statement_timeout_milliseconds: 30000
+  migration_lock_timeout_seconds: 30
+  production_require_postgresql: false
+  production_require_tls: true
+  allow_unsafe_postgresql_sslmode: false
+  allow_inline_postgresql_dsn: false
 
 logging:
   level: info

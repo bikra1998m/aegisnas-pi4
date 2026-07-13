@@ -199,6 +199,9 @@ func buildSupportBundle(cfg *config.Config) ([]byte, string, error) {
 	if err := addText("system/database-path.txt", cfg.Database.Path); err != nil {
 		return nil, "", fmt.Errorf("write database path: %w", err)
 	}
+	if err := addText("system/database-backend.txt", cfg.Database.Backend); err != nil {
+		return nil, "", fmt.Errorf("write database backend: %w", err)
+	}
 
 	for _, capture := range supportBundleCommandCaptures() {
 		output, cmdErr := supportBundleRunCommand(capture.name, capture.args...)
@@ -295,6 +298,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/ha-history.json", requestPath: "/api/v1/system/ha/history", label: "HA history", handler: HandleListHAHistory},
 		{archivePath: "api/upgrade-readiness.json", requestPath: "/api/v1/system/upgrade-readiness", label: "Upgrade readiness", handler: HandleGetUpgradeReadiness},
 		{archivePath: "api/secret-providers.json", requestPath: "/api/v1/system/secret-providers", label: "Secret provider readiness", handler: HandleGetSecretProviders},
+		{archivePath: "api/database.json", requestPath: "/api/v1/system/database", label: "Database data-plane readiness", handler: HandleGetDatabaseStatus},
 		{archivePath: "api/openapi.json", requestPath: "/api/v1/openapi.json", label: "OpenAPI schema", handler: HandleGetOpenAPI},
 	}
 }
@@ -318,8 +322,8 @@ func buildSupportBundleSummary(cfg *config.Config, generatedAt time.Time) suppor
 		BundleVersion:      supportBundleVersion,
 		GeneratedAt:        generatedAt.Format(time.RFC3339),
 		ContainsSecrets:    true,
-		RedactionNote:      "Secret-like fields are redacted, but *_env references remain visible so operators can see which environment variables the node expects.",
-		ArchiveEntries:     []string{"manifest.json", "api/support-bundle-summary.json", "api/system-settings-redacted.json", "runtime/runtime-statuses.json", "runtime/network-recovery.json", "system/schema-version.txt", "system/config-path.txt", "system/database-path.txt"},
+		RedactionNote:      "Secret-like fields are redacted, but *_env and *_ref references remain visible so operators can see which external secret handles the node expects.",
+		ArchiveEntries:     []string{"manifest.json", "api/support-bundle-summary.json", "api/system-settings-redacted.json", "runtime/runtime-statuses.json", "runtime/network-recovery.json", "system/schema-version.txt", "system/config-path.txt", "system/database-path.txt", "system/database-backend.txt"},
 		UpgradeDiagnostics: []string{"api/upgrade-readiness.json", "api/openapi.json"},
 	}
 	if cfg != nil {
@@ -422,6 +426,7 @@ func shouldRedactSupportBundleKey(key string) bool {
 		"token",
 		"private_key",
 		"passphrase",
+		"dsn",
 		"shared_key",
 		"signing_key",
 		"encryption_key",

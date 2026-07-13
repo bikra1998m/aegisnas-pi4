@@ -338,6 +338,7 @@ func DiscoverConfigSources(cfg *config.Config) []Source {
 		}
 	}
 
+	appendPair("database.dsn", "config", cfg.Database.DSN, cfg.Database.DSNRef, strings.EqualFold(strings.TrimSpace(cfg.Database.Backend), "postgres") || strings.EqualFold(strings.TrimSpace(cfg.Database.Backend), "postgresql"))
 	appendPair("radius.secret", "config", cfg.Radius.Secret, cfg.Radius.SecretRef, false)
 	for i, client := range cfg.Radius.Clients {
 		appendPair(fmt.Sprintf("radius.clients[%d].secret", i), "config", client.Secret, client.SecretRef, strings.EqualFold(strings.TrimSpace(client.Transport), "udp") || strings.TrimSpace(client.Transport) == "")

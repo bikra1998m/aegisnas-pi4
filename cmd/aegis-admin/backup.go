@@ -28,10 +28,13 @@ var backupCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := db.Init(cfg.Database.Path); err != nil {
+		if err := db.InitConfigured(cmd.Context(), cfg); err != nil {
 			return fmt.Errorf("init db: %w", err)
 		}
 		defer db.Close()
+		if strings.EqualFold(strings.TrimSpace(cfg.Database.Backend), "postgres") || strings.EqualFold(strings.TrimSpace(cfg.Database.Backend), "postgresql") {
+			return fmt.Errorf("file backup is not supported for PostgreSQL data planes; use a PostgreSQL logical or managed backup and export the AegisNAS config separately")
+		}
 
 		outputFile := "aegisnas-backup-" + time.Now().Format("20060102-150405") + ".tar.gz"
 		if len(args) > 0 {

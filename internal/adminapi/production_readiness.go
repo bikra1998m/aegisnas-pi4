@@ -107,6 +107,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionVSACodecCheck(&report)
 	addProductionOpaquePassThroughCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
+	addProductionDatabaseDataPlaneCheck(&report, cfg)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
 	addProductionCompatibilityEvidenceCheck(&report, cfg)
 	addProductionDictionaryCheck(&report)
@@ -119,6 +120,26 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 
 	finalizeProductionReadinessReport(&report)
 	return report
+}
+
+func addProductionDatabaseDataPlaneCheck(report *productionReadinessReport, cfg *config.Config) {
+	statusReport := db.BuildStatusReport(cfg)
+	status := "passed"
+	if statusReport.Status == "blocked" {
+		status = "blocked"
+	} else if statusReport.Status == "degraded" {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "database_data_plane",
+		Category: "architecture",
+		Label:    "Database Data Plane",
+		Status:   status,
+		Summary: fmt.Sprintf("Database backend %s is %s with schema target %d, DSN reference set=%t, TLS mode=%s, and HA-ready=%t.",
+			statusReport.Active.Backend, statusReport.Status, db.LatestSchemaVersion(), statusReport.Active.DSNRefSet, statusReport.Active.SSLMode, statusReport.ReadyForHA),
+		Recommendation: "Use database.backend=postgres, database.dsn_ref, TLS sslmode verify-full or verify-ca, and managed PostgreSQL backup/HA validation before enterprise production sign-off.",
+		Dependencies:   []string{"database.backend", "database.dsn_ref", "database.sslmode", "/api/v1/system/database", "database_backend_events"},
+	})
 }
 
 func addProductionAttributeRegistryCheck(report *productionReadinessReport) {

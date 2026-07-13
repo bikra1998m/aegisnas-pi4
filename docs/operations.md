@@ -51,6 +51,22 @@ must be migrated out of YAML and SQLite. Existing inline secrets remain
 backward-compatible during upgrade, but production readiness marks them as
 blocking when `security.secrets.production_require_references` is enabled.
 
+## PostgreSQL Data-Plane Operations
+
+Use [postgresql-data-plane.md](postgresql-data-plane.md) for NAS-0008
+configuration, migration, FreeRADIUS SQL, and backup notes. Before enterprise
+production sign-off, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/database | jq '.status, .active, .warnings'
+```
+
+Production deployments should use `database.backend: postgres`,
+`database.dsn_ref`, and TLS `sslmode: verify-full` or `verify-ca`. SQLite remains
+valid for lite/lab deployments but is reported as degraded for enterprise
+readiness.
+
 ## Admin Access Workflow
 
 Operators can now sign in with either:

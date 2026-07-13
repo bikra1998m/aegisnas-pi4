@@ -956,6 +956,34 @@ function createSecretProviders() {
   };
 }
 
+function createDatabaseStatus() {
+  return {
+    schema_version: 1,
+    generated_at: "2026-06-20T12:00:00Z",
+    status: "ready",
+    message: "PostgreSQL data plane is configured.",
+    configured_backend: "postgres",
+    ready_for_ha: true,
+    active: {
+      backend: "postgres",
+      driver: "aegis-pgx",
+      dialect: "postgres",
+      dsn_ref_set: true,
+      inline_dsn_set: false,
+      dsn_fingerprint:
+        "7f83b1657ff1fc53b92dc18148a1d65dfa135249c5f95bc6b708f3f7ff3478a",
+      sslmode: "verify-full",
+      tls_required: true,
+    },
+    pool_stats: {
+      OpenConnections: 4,
+      InUse: 1,
+      Idle: 3,
+    },
+    warnings: [],
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -999,6 +1027,7 @@ function createSystemStatus() {
       degraded_count: productionReadiness.degraded_count,
       passing_count: productionReadiness.passing_count,
     },
+    database: createDatabaseStatus(),
     deployment: createDeploymentPreview(),
     radius: {
       upstream_enabled: true,
@@ -3551,6 +3580,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
     systemStatus: createSystemStatus(),
     productionReadiness: createProductionReadiness(),
     secretProviders: createSecretProviders(),
+    databaseStatus: createDatabaseStatus(),
     identity: options.identity || SUPER_ADMIN,
     authOptions: options.authOptions || {
       token_login: true,
@@ -3864,6 +3894,11 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
 
     if (path === "/system/secret-providers" && method === "GET") {
       await route.fulfill({ json: state.secretProviders });
+      return;
+    }
+
+    if (path === "/system/database" && method === "GET") {
+      await route.fulfill({ json: state.databaseStatus });
       return;
     }
 

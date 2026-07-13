@@ -63,7 +63,7 @@ var runCmd = &cobra.Command{
 			return nil
 		}
 
-		if err := db.Init(cfg.Database.Path); err != nil {
+		if err := db.InitConfigured(cmd.Context(), cfg); err != nil {
 			return fmt.Errorf("init db: %w", err)
 		}
 		defer db.Close()

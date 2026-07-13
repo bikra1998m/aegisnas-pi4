@@ -871,6 +871,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		},
 		"services":             services,
 		"deployment":           config.DeploymentSummary(cfg),
+		"database":             db.BuildStatusReport(cfg),
 		"production_readiness": productionReadinessSummaryFromReport(productionReadiness),
 		"radius":               radiusStatus,
 		"wireless":             wirelessStatus,

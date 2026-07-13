@@ -60,7 +60,7 @@ var runCmd = &cobra.Command{
 		defer logging.Sync()
 		logger := logging.L()
 
-		if err := db.Init(cfg.Database.Path); err != nil {
+		if err := db.InitConfigured(cmd.Context(), cfg); err != nil {
 			return fmt.Errorf("init db: %w", err)
 		}
 		defer db.Close()
@@ -200,6 +200,7 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/vsa-codec", adminapi.HandleGetVSACodec)
 			r.Get("/system/opaque-passthrough", adminapi.HandleGetOpaquePassThrough)
 			r.Get("/system/secret-providers", adminapi.HandleGetSecretProviders)
+			r.Get("/system/database", adminapi.HandleGetDatabaseStatus)
 			r.Get("/system/attribute-registry", adminapi.HandleGetAttributeRegistry)
 			r.Get("/system/vendor-identity", adminapi.HandleGetVendorIdentity)
 			r.Post("/system/vendor-identity/migrations/preview", adminapi.HandlePreviewVendorIdentityMigration)
