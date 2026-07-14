@@ -37,6 +37,7 @@ Files involved:
 - [vendor.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/vendor.go)
 - [accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting.go)
 - [mapping.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/mapping.go)
+- [dynamic_nas_clients.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/dynamic_nas_clients.go)
 - [manager.go](F:/random_project/Pookie/aegisnas-pi4/internal/sessions/manager.go)
 - [dynamic_auth.go](F:/random_project/Pookie/aegisnas-pi4/internal/sessions/dynamic_auth.go)
 - [config.example.yaml](F:/random_project/Pookie/aegisnas-pi4/configs/config.example.yaml)
@@ -54,6 +55,7 @@ The implementation now does these things end to end:
 9. applies immediate gateway quarantine when a live session is reclassified into quarantine role, `Filter-Id`, or VLAN `99`
 10. terminates a live session immediately when a `CoA-Request` tightens session or idle timeout past the session's current age
 11. rebuilds live gateway bandwidth shaping from active `bandwidth_profile` assignments and forces reauthentication when a `CoA-Request` changes VLAN
+12. records and approves dynamic AP, switch, gateway, and controller NAS clients before allowing them to send trusted RADIUS traffic
 
 ## Current Behavior
 
@@ -63,6 +65,8 @@ When `radius.upstream.enabled: true`:
 - inbound RADIUS accounting requests are proxied to the configured upstream pool
 - captive portal web logins can use the same broker path through `portal.radius_auth: true`
 - upstream server failover and load distribution are handled by FreeRADIUS
+- APs and switches can use the dynamic NAS enrollment API when `radius.dynamic_clients.enabled: true`
+- unknown packet sources can be recorded as pending discovery evidence when packet discovery is enabled, but they remain rejected until approved
 - portal sessions keep a stable `Acct-Session-Id`
 - the session service sends interim accounting on the configured interval
 - the session service listens on `radius.dynamic_auth.port` for dynamic authorization

@@ -94,6 +94,19 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read RADIUS packet hardening policy", radiusHardeningGet["summary"])
 	assert.Contains(t, radiusHardeningGet["x-aegisnas-roles"], "read_only")
 
+	nasEnrollPath, ok := paths["/api/v1/nas/enroll"].(map[string]any)
+	require.True(t, ok)
+	nasEnrollPost, ok := nasEnrollPath["post"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Bootstrap dynamic NAS enrollment", nasEnrollPost["summary"])
+
+	nasClientsPath, ok := paths["/api/v1/system/nas-clients"].(map[string]any)
+	require.True(t, ok)
+	nasClientsGet, ok := nasClientsPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read dynamic NAS client lifecycle", nasClientsGet["summary"])
+	assert.Contains(t, nasClientsGet["x-aegisnas-roles"], "read_only")
+
 	proxyRoutesPath, ok := paths["/api/v1/system/proxy-routes"].(map[string]any)
 	require.True(t, ok)
 	proxyRoutesGet, ok := proxyRoutesPath["get"].(map[string]any)

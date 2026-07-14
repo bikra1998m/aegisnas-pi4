@@ -39,6 +39,12 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseXML("Admin SSO SAML metadata when SAML is enabled."),
 		"default": responseText("Metadata is unavailable."),
 	}))
+	addOperation(paths, "/api/v1/nas/enroll", "post", openAPIOperation("Bootstrap dynamic NAS enrollment", "RADIUS", nil, map[string]any{
+		"201":     responseJSON("Auto-approved dynamic NAS enrollment when approval_required is false and credentials validate."),
+		"202":     responseJSON("Pending dynamic NAS enrollment awaiting administrator approval."),
+		"401":     responseText("Missing or invalid enrollment token."),
+		"default": responseText("Enrollment validation error."),
+	}))
 	addOperation(paths, "/api/v1/auth/validate", "get", securedOperation("Validate admin token", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Resolved admin identity and role scopes."),
 		"401": responseText("Missing or invalid token."),
@@ -1142,6 +1148,40 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}))
 	addOperation(paths, "/api/v1/system/radius-hardening", "get", securedOperation("Read RADIUS packet hardening policy", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("RADIUS packet hardening policy, supported packet codes, source trust, limits, runtime counters, and recent decisions."),
+	}))
+	addOperation(paths, "/api/v1/system/nas-clients", "get", securedOperation("Read dynamic NAS client lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Dynamic NAS enrollment policy, approval queue, capability templates, inventory summary, and recent lifecycle events."),
+	}))
+	addOperation(paths, "/api/v1/system/nas-clients/enrollments", "get", securedOperationWithParameters("List dynamic NAS enrollments", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("status", "Optional enrollment status filter.", []string{"pending", "approved", "rejected", "revoked", "expired"}, false),
+		queryStringParameter("limit", "Record limit from 1 to 1000.", false),
+	}, map[string]any{
+		"200": responseJSON("Dynamic NAS enrollment records."),
+	}))
+	addOperation(paths, "/api/v1/system/nas-clients/enrollments", "post", securedOperationWithBody("Create dynamic NAS enrollment", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Enrollment metadata to seed or refresh."), map[string]any{
+		"201":     responseJSON("Created pending NAS enrollment."),
+		"default": responseText("Enrollment validation error."),
+	}))
+	for _, action := range []string{"approve", "reject", "revoke"} {
+		addOperation(paths, "/api/v1/system/nas-clients/enrollments/{id}/"+action, "post", securedOperationWithParameters("Update dynamic NAS enrollment "+action, "RADIUS", []string{"ops_admin", "super_admin"}, []map[string]any{idParameter("id", "Enrollment identifier.")}, map[string]any{
+			"200":     responseJSON("Updated dynamic NAS enrollment."),
+			"default": responseText("Lifecycle transition error."),
+		}))
+	}
+	addOperation(paths, "/api/v1/system/nas-clients/templates", "get", securedOperation("List NAS capability templates", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Capability templates used to gate dynamic NAS approvals."),
+	}))
+	addOperation(paths, "/api/v1/system/nas-clients/templates", "post", securedOperationWithBody("Create NAS capability template", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Capability template payload."), map[string]any{
+		"200":     responseJSON("Saved capability template."),
+		"default": responseText("Template validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/nas-clients/templates/{name}", "put", securedOperationWithParameters("Update NAS capability template", "RADIUS", []string{"ops_admin", "super_admin"}, []map[string]any{idParameter("name", "Capability template name.")}, map[string]any{
+		"200":     responseJSON("Saved capability template."),
+		"default": responseText("Template validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/nas-clients/templates/{name}", "delete", securedOperationWithParameters("Delete NAS capability template", "RADIUS", []string{"ops_admin", "super_admin"}, []map[string]any{idParameter("name", "Capability template name.")}, map[string]any{
+		"200":     responseJSON("Delete result."),
+		"default": responseText("Template validation error."),
 	}))
 	addOperation(paths, "/api/v1/system/proxy-routes", "get", securedOperation("Read RADIUS proxy routing table", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Effective multi-realm proxy routes, route pools, default fallback behavior, upstream servers, and validation warnings."),

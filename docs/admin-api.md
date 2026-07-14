@@ -173,6 +173,28 @@ POST /api/v1/system/accounting-spool/replay
 
 The same summary appears in `/api/v1/system/status` under `radius.accounting_spool` and in production readiness as `radius_accounting_spool`.
 
+## Dynamic NAS Client Endpoints
+
+NAS client bootstrap and lifecycle state are exposed through:
+
+```text
+POST /api/v1/nas/enroll
+GET  /api/v1/system/nas-clients
+GET  /api/v1/system/nas-clients/enrollments
+POST /api/v1/system/nas-clients/enrollments
+POST /api/v1/system/nas-clients/enrollments/{id}/approve
+POST /api/v1/system/nas-clients/enrollments/{id}/reject
+POST /api/v1/system/nas-clients/enrollments/{id}/revoke
+GET  /api/v1/system/nas-clients/templates
+POST /api/v1/system/nas-clients/templates
+PUT  /api/v1/system/nas-clients/templates/{name}
+DELETE /api/v1/system/nas-clients/templates/{name}
+```
+
+`POST /api/v1/nas/enroll` is intentionally unauthenticated by admin bearer token, but it requires `X-AegisNAS-Enrollment-Token` or `Authorization: Bearer <token>` matching `radius.dynamic_clients.enrollment_token_ref`. Unknown packet sources discovered by RADIUS hardening may create pending evidence, but the packet is still rejected until an operator approves the client.
+
+The lifecycle APIs return pending, approved, rejected, revoked, and expired enrollments; capability templates; recent events; and dynamic/static inventory counts. The same summary appears in `/api/v1/system/status` under `radius.dynamic_nas_clients` and in production readiness as `dynamic_nas_clients`. See [dynamic-nas-clients.md](dynamic-nas-clients.md).
+
 ## Secret Provider Endpoint
 
 Secret-provider readiness is exposed at:

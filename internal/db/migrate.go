@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 19
+	return 20
 }
 
 func Migrate() error {
@@ -684,4 +684,98 @@ CREATE INDEX IF NOT EXISTS idx_radius_accounting_spool_session ON radius_account
 CREATE INDEX IF NOT EXISTS idx_radius_accounting_spool_owner_lock ON radius_accounting_spool(owner_node, locked_until);
 CREATE INDEX IF NOT EXISTS idx_radius_accounting_spool_attempts_record ON radius_accounting_spool_attempts(record_id, attempted_at);
 CREATE INDEX IF NOT EXISTS idx_radius_accounting_spool_attempts_spool ON radius_accounting_spool_attempts(spool_id, attempted_at);
+`
+
+const schemaV20 = `
+ALTER TABLE radius_clients ADD COLUMN dynamic_source TEXT NOT NULL DEFAULT 'static';
+ALTER TABLE radius_clients ADD COLUMN enrollment_id TEXT;
+ALTER TABLE radius_clients ADD COLUMN capabilities_json TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE radius_clients ADD COLUMN vendor TEXT;
+ALTER TABLE radius_clients ADD COLUMN model TEXT;
+ALTER TABLE radius_clients ADD COLUMN firmware_version TEXT;
+ALTER TABLE radius_clients ADD COLUMN serial_number TEXT;
+ALTER TABLE radius_clients ADD COLUMN lifecycle_status TEXT NOT NULL DEFAULT 'approved';
+ALTER TABLE radius_clients ADD COLUMN last_seen_at DATETIME;
+ALTER TABLE radius_clients ADD COLUMN approved_at DATETIME;
+ALTER TABLE radius_clients ADD COLUMN approved_by TEXT;
+ALTER TABLE radius_clients ADD COLUMN owner_tenant TEXT;
+ALTER TABLE radius_clients ADD COLUMN template_name TEXT;
+
+CREATE TABLE IF NOT EXISTS nas_client_enrollments (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	enrollment_id TEXT UNIQUE NOT NULL,
+	source_ip TEXT NOT NULL,
+	shortname TEXT NOT NULL,
+	nas_type TEXT NOT NULL DEFAULT 'other',
+	transport TEXT NOT NULL DEFAULT 'udp',
+	secret_ref TEXT,
+	radsec_certificate_cn TEXT,
+	radsec_certificate_issuer TEXT,
+	radsec_radius_v11 TEXT,
+	vendor TEXT,
+	model TEXT,
+	firmware_version TEXT,
+	serial_number TEXT,
+	capabilities_json TEXT NOT NULL DEFAULT '{}',
+	status TEXT NOT NULL DEFAULT 'pending',
+	discovery_source TEXT NOT NULL DEFAULT 'bootstrap',
+	requested_at DATETIME NOT NULL,
+	expires_at DATETIME NOT NULL,
+	approved_by TEXT,
+	approved_at DATETIME,
+	rejected_by TEXT,
+	rejected_at DATETIME,
+	radius_client_id INTEGER,
+	owner_tenant TEXT,
+	template_name TEXT,
+	last_seen_at DATETIME,
+	last_seen_reason TEXT,
+	drift_json TEXT NOT NULL DEFAULT '{}',
+	evidence_sha256 TEXT NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(radius_client_id) REFERENCES radius_clients(id),
+	CHECK (status IN ('pending', 'approved', 'rejected', 'revoked', 'expired')),
+	CHECK (transport IN ('udp', 'radsec'))
+);
+
+CREATE TABLE IF NOT EXISTS nas_client_capability_templates (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	name TEXT UNIQUE NOT NULL,
+	description TEXT,
+	nas_type TEXT NOT NULL DEFAULT 'other',
+	required_capabilities_json TEXT NOT NULL DEFAULT '[]',
+	allowed_vendors_json TEXT NOT NULL DEFAULT '[]',
+	default_capabilities_json TEXT NOT NULL DEFAULT '{}',
+	enabled BOOLEAN DEFAULT 1,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS nas_client_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	enrollment_id TEXT,
+	radius_client_id INTEGER,
+	event_type TEXT NOT NULL,
+	status TEXT NOT NULL,
+	summary TEXT,
+	actor TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_radius_clients_enrollment_id ON radius_clients(enrollment_id);
+CREATE INDEX IF NOT EXISTS idx_radius_clients_dynamic_source ON radius_clients(dynamic_source, lifecycle_status);
+CREATE INDEX IF NOT EXISTS idx_radius_clients_last_seen ON radius_clients(last_seen_at);
+CREATE INDEX IF NOT EXISTS idx_nas_client_enrollments_status ON nas_client_enrollments(status, requested_at);
+CREATE INDEX IF NOT EXISTS idx_nas_client_enrollments_source ON nas_client_enrollments(source_ip, status);
+CREATE INDEX IF NOT EXISTS idx_nas_client_enrollments_radius_client ON nas_client_enrollments(radius_client_id);
+CREATE INDEX IF NOT EXISTS idx_nas_client_templates_enabled ON nas_client_capability_templates(enabled, name);
+CREATE INDEX IF NOT EXISTS idx_nas_client_events_enrollment ON nas_client_events(enrollment_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_nas_client_events_radius_client ON nas_client_events(radius_client_id, created_at);
+
+INSERT OR IGNORE INTO nas_client_capability_templates
+	(name, description, nas_type, required_capabilities_json, allowed_vendors_json, default_capabilities_json, enabled)
+VALUES
+	('default', 'Default dynamic NAS capability gate for RADIUS authentication and accounting clients.', 'other', '[]', '[]', '{"radius":{"authentication":true,"accounting":true},"policy":{"role":true,"vlan":true}}', 1);
 `

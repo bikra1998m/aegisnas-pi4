@@ -138,7 +138,7 @@ var runCmd = &cobra.Command{
 		r.Use(cors.Handler(cors.Options{
 			AllowedOrigins:   adminAllowedOrigins(),
 			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-AegisNAS-Enrollment-Token"},
 			AllowCredentials: false,
 		}))
 
@@ -182,6 +182,7 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 		r.Get("/auth/options", adminapi.HandleAdminAuthOptions)
 		r.Get("/auth/sso/start", adminapi.HandleAdminSSOStart)
 		r.Get("/auth/sso/metadata", adminapi.HandleAdminSSOMetadata)
+		r.Post("/nas/enroll", adminapi.HandleEnrollNASClient)
 
 		r.Group(func(r chi.Router) {
 			r.Use(adminapi.AuthMiddleware)
@@ -200,6 +201,16 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/vsa-codec", adminapi.HandleGetVSACodec)
 			r.Get("/system/opaque-passthrough", adminapi.HandleGetOpaquePassThrough)
 			r.Get("/system/radius-hardening", adminapi.HandleGetRadiusHardening)
+			r.Get("/system/nas-clients", adminapi.HandleGetNASClients)
+			r.Get("/system/nas-clients/enrollments", adminapi.HandleListNASClientEnrollments)
+			r.Post("/system/nas-clients/enrollments", adminapi.HandleCreateNASClientEnrollment)
+			r.Post("/system/nas-clients/enrollments/{id}/approve", adminapi.HandleApproveNASClientEnrollment)
+			r.Post("/system/nas-clients/enrollments/{id}/reject", adminapi.HandleRejectNASClientEnrollment)
+			r.Post("/system/nas-clients/enrollments/{id}/revoke", adminapi.HandleRevokeNASClientEnrollment)
+			r.Get("/system/nas-clients/templates", adminapi.HandleListNASClientCapabilityTemplates)
+			r.Post("/system/nas-clients/templates", adminapi.HandleUpsertNASClientCapabilityTemplate)
+			r.Put("/system/nas-clients/templates/{name}", adminapi.HandleUpsertNASClientCapabilityTemplate)
+			r.Delete("/system/nas-clients/templates/{name}", adminapi.HandleDeleteNASClientCapabilityTemplate)
 			r.Get("/system/proxy-routes", adminapi.HandleGetProxyRoutes)
 			r.Get("/system/proxy-policy", adminapi.HandleGetProxyPolicy)
 			r.Get("/system/accounting-spool", adminapi.HandleGetAccountingSpool)

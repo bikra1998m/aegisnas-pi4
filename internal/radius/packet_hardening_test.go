@@ -3,12 +3,14 @@ package radius
 import (
 	"encoding/binary"
 	"net"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
+	"github.com/yourorg/aegisnas-pi4/internal/db"
 	layehradius "layeh.com/radius"
 )
 
@@ -31,6 +33,42 @@ func TestPacketHardeningRejectsUnknownSource(t *testing.T) {
 	result := NewPacketHardener(hardeningTestConfig()).ValidateRawPacket(hardeningContext("198.51.100.50"), raw)
 	require.False(t, result.Accepted)
 	assert.Equal(t, "unknown_source", result.Reason)
+}
+
+func TestPacketHardeningDiscoversUnknownDynamicNASButStillRejects(t *testing.T) {
+	file, err := os.CreateTemp("", "dynamic-nas-discovery-*.db")
+	require.NoError(t, err)
+	path := file.Name()
+	require.NoError(t, file.Close())
+	require.NoError(t, db.Init(path))
+	require.NoError(t, db.Migrate())
+	t.Cleanup(func() { _ = db.Close(); _ = os.Remove(path) })
+
+	cfg := hardeningTestConfig()
+	cfg.Radius.DynamicClients = config.RadiusDynamicClientsConfig{
+		Enabled:               true,
+		DiscoveryEnabled:      true,
+		ApprovalRequired:      true,
+		EnrollmentTTLSeconds:  3600,
+		MaxPending:            10,
+		DiscoveryAllowedCIDRs: []string{"198.51.100.0/24"},
+		DefaultNASType:        "other",
+		DefaultTransport:      "udp",
+		DefaultTemplate:       "default",
+	}
+	packet := layehradius.New(layehradius.CodeAccessRequest, []byte("secret"))
+	raw, err := packet.MarshalBinary()
+	require.NoError(t, err)
+
+	result := NewPacketHardener(cfg).ValidateRawPacket(hardeningContext("198.51.100.50"), raw)
+	require.False(t, result.Accepted)
+	assert.Equal(t, "unknown_source", result.Reason)
+
+	enrollments, err := db.ListNASClientEnrollments(db.NASClientStatusPending, 10)
+	require.NoError(t, err)
+	require.Len(t, enrollments, 1)
+	assert.Equal(t, "198.51.100.50", enrollments[0].SourceIP)
+	assert.Equal(t, "packet_hardening", enrollments[0].DiscoverySource)
 }
 
 func TestPacketHardeningRequiresAndValidatesMessageAuthenticator(t *testing.T) {

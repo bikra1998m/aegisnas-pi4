@@ -208,11 +208,25 @@ type RadiusConfig struct {
 	RequestTimeoutSeconds int                         `mapstructure:"request_timeout_seconds"`
 	InterimUpdateSeconds  int                         `mapstructure:"interim_update_seconds"`
 	DynamicAuth           DynamicAuthConfig           `mapstructure:"dynamic_auth"`
+	DynamicClients        RadiusDynamicClientsConfig  `mapstructure:"dynamic_clients"`
 	PacketHardening       RadiusPacketHardeningConfig `mapstructure:"packet_hardening"`
 	RadSec                RadiusRadSecConfig          `mapstructure:"radsec"`
 	EAP                   RadiusEAPConfig             `mapstructure:"eap"`
 	Upstream              RadiusUpstreamConfig        `mapstructure:"upstream"`
 	Vendor                RadiusVendorConfig          `mapstructure:"vendor"`
+}
+
+type RadiusDynamicClientsConfig struct {
+	Enabled               bool     `mapstructure:"enabled"`
+	DiscoveryEnabled      bool     `mapstructure:"discovery_enabled"`
+	ApprovalRequired      bool     `mapstructure:"approval_required"`
+	EnrollmentTokenRef    string   `mapstructure:"enrollment_token_ref"`
+	EnrollmentTTLSeconds  int      `mapstructure:"enrollment_ttl_seconds"`
+	MaxPending            int      `mapstructure:"max_pending"`
+	DiscoveryAllowedCIDRs []string `mapstructure:"discovery_allowed_cidrs"`
+	DefaultNASType        string   `mapstructure:"default_nas_type"`
+	DefaultTransport      string   `mapstructure:"default_transport"`
+	DefaultTemplate       string   `mapstructure:"default_template"`
 }
 
 type RadiusPacketHardeningConfig struct {
@@ -1059,6 +1073,16 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.interim_update_seconds", 300)
 	v.SetDefault("radius.dynamic_auth.enabled", true)
 	v.SetDefault("radius.dynamic_auth.port", 3799)
+	v.SetDefault("radius.dynamic_clients.enabled", false)
+	v.SetDefault("radius.dynamic_clients.discovery_enabled", false)
+	v.SetDefault("radius.dynamic_clients.approval_required", true)
+	v.SetDefault("radius.dynamic_clients.enrollment_token_ref", "")
+	v.SetDefault("radius.dynamic_clients.enrollment_ttl_seconds", 86400)
+	v.SetDefault("radius.dynamic_clients.max_pending", 256)
+	v.SetDefault("radius.dynamic_clients.discovery_allowed_cidrs", []string{})
+	v.SetDefault("radius.dynamic_clients.default_nas_type", "other")
+	v.SetDefault("radius.dynamic_clients.default_transport", "udp")
+	v.SetDefault("radius.dynamic_clients.default_template", "default")
 	v.SetDefault("radius.packet_hardening.enabled", true)
 	v.SetDefault("radius.packet_hardening.fail_closed", true)
 	v.SetDefault("radius.packet_hardening.require_known_source", true)
@@ -3152,6 +3176,9 @@ func (c *Config) Validate() error {
 	if c.Radius.DynamicAuth.Enabled && (c.Radius.DynamicAuth.Port < 1 || c.Radius.DynamicAuth.Port > 65535) {
 		return fmt.Errorf("radius.dynamic_auth.port %d out of range", c.Radius.DynamicAuth.Port)
 	}
+	if err := validateRadiusDynamicClients(c.Radius.DynamicClients); err != nil {
+		return err
+	}
 	if err := validateRadiusPacketHardening(c.Radius.PacketHardening); err != nil {
 		return err
 	}
@@ -3937,6 +3964,11 @@ func validateConfiguredSecretReferences(c *Config) error {
 	if err := validateSecretPair("radius.secret", c.Radius.Secret, "radius.secret_ref", c.Radius.SecretRef); err != nil {
 		return err
 	}
+	if ref := strings.TrimSpace(c.Radius.DynamicClients.EnrollmentTokenRef); ref != "" {
+		if err := validateSecretRefField("radius.dynamic_clients.enrollment_token_ref", ref); err != nil {
+			return err
+		}
+	}
 	for i, client := range c.Radius.Clients {
 		if err := validateSecretPair(fmt.Sprintf("radius.clients[%d].secret", i), client.Secret, fmt.Sprintf("radius.clients[%d].secret_ref", i), client.SecretRef); err != nil {
 			return err
@@ -4333,6 +4365,84 @@ func validateRadiusAccountingSpool(raw RadiusAccountingSpoolConfig) error {
 		return fmt.Errorf("radius.upstream.accounting_spool.poison_retention_seconds must be positive")
 	}
 	return nil
+}
+
+func EffectiveRadiusDynamicClientsConfig(raw RadiusDynamicClientsConfig) RadiusDynamicClientsConfig {
+	effective := raw
+	if effective.EnrollmentTTLSeconds == 0 {
+		effective.EnrollmentTTLSeconds = 86400
+	}
+	if effective.MaxPending == 0 {
+		effective.MaxPending = 256
+	}
+	if strings.TrimSpace(effective.DefaultNASType) == "" {
+		effective.DefaultNASType = "other"
+	}
+	if strings.TrimSpace(effective.DefaultTransport) == "" {
+		effective.DefaultTransport = "udp"
+	}
+	if strings.TrimSpace(effective.DefaultTemplate) == "" {
+		effective.DefaultTemplate = "default"
+	}
+	return effective
+}
+
+func validateRadiusDynamicClients(raw RadiusDynamicClientsConfig) error {
+	effective := EffectiveRadiusDynamicClientsConfig(raw)
+	if raw.EnrollmentTTLSeconds < 0 {
+		return fmt.Errorf("radius.dynamic_clients.enrollment_ttl_seconds cannot be negative")
+	}
+	if raw.MaxPending < 0 {
+		return fmt.Errorf("radius.dynamic_clients.max_pending cannot be negative")
+	}
+	if effective.EnrollmentTTLSeconds < 60 || effective.EnrollmentTTLSeconds > 2592000 {
+		return fmt.Errorf("radius.dynamic_clients.enrollment_ttl_seconds must be between 60 and 2592000")
+	}
+	if effective.MaxPending < 1 || effective.MaxPending > 100000 {
+		return fmt.Errorf("radius.dynamic_clients.max_pending must be between 1 and 100000")
+	}
+	if !validRadiusClientToken(effective.DefaultNASType) {
+		return fmt.Errorf("radius.dynamic_clients.default_nas_type %q is invalid", effective.DefaultNASType)
+	}
+	switch strings.ToLower(strings.TrimSpace(effective.DefaultTransport)) {
+	case "udp", "radsec":
+	default:
+		return fmt.Errorf("radius.dynamic_clients.default_transport %q must be udp or radsec", effective.DefaultTransport)
+	}
+	if !validRadiusClientToken(effective.DefaultTemplate) {
+		return fmt.Errorf("radius.dynamic_clients.default_template %q is invalid", effective.DefaultTemplate)
+	}
+	for i, cidr := range raw.DiscoveryAllowedCIDRs {
+		cidr = strings.TrimSpace(cidr)
+		if cidr == "" {
+			return fmt.Errorf("radius.dynamic_clients.discovery_allowed_cidrs[%d] cannot be empty", i)
+		}
+		if net.ParseIP(cidr) != nil {
+			continue
+		}
+		if _, _, err := net.ParseCIDR(cidr); err != nil {
+			return fmt.Errorf("radius.dynamic_clients.discovery_allowed_cidrs[%d] %q must be an IP address or CIDR", i, cidr)
+		}
+	}
+	return nil
+}
+
+func validRadiusClientToken(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 128 {
+		return false
+	}
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '-' || r == '_' || r == '.':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func validateProxyStandardAttributes(values []string, path string) error {

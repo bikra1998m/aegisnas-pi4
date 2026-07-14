@@ -170,6 +170,49 @@ func TestConfigValidationRadiusAccountingSpool(t *testing.T) {
 	assert.ErrorContains(t, cfg.Validate(), "max_retry_seconds")
 }
 
+func TestConfigValidationRadiusDynamicClients(t *testing.T) {
+	cfg := &Config{
+		Mode:     "two-nic",
+		WAN:      InterfaceConfig{Name: "eth0"},
+		LAN:      InterfaceConfig{Name: "eth1"},
+		Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+		Health:   HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{
+			PrometheusPort: 9090,
+		},
+		Radius: RadiusConfig{
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+			DynamicClients: RadiusDynamicClientsConfig{
+				Enabled:               true,
+				DiscoveryEnabled:      true,
+				ApprovalRequired:      true,
+				EnrollmentTokenRef:    "env:AEGIS_NAS_ENROLLMENT_TOKEN",
+				EnrollmentTTLSeconds:  3600,
+				MaxPending:            128,
+				DiscoveryAllowedCIDRs: []string{"192.0.2.0/24", "2001:db8::10"},
+				DefaultNASType:        "cisco",
+				DefaultTransport:      "udp",
+				DefaultTemplate:       "campus-edge",
+			},
+		},
+	}
+	assert.NoError(t, cfg.Validate())
+
+	badCIDR := *cfg
+	badCIDR.Radius.DynamicClients.DiscoveryAllowedCIDRs = []string{"not a cidr"}
+	assert.ErrorContains(t, badCIDR.Validate(), "discovery_allowed_cidrs")
+
+	badTransport := *cfg
+	badTransport.Radius.DynamicClients.DefaultTransport = "tcp"
+	assert.ErrorContains(t, badTransport.Validate(), "default_transport")
+
+	badTokenRef := *cfg
+	badTokenRef.Radius.DynamicClients.EnrollmentTokenRef = "vault:path"
+	assert.ErrorContains(t, badTokenRef.Validate(), "enrollment_token_ref")
+}
+
 func TestConfigValidation(t *testing.T) {
 	tests := []struct {
 		name    string

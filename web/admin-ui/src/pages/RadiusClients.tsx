@@ -11,10 +11,19 @@ export default function RadiusClients() {
         { key: 'ip', label: 'IP Address' },
         { key: 'transport', label: 'Transport' },
         { key: 'nas_type', label: 'NAS Type / Vendor' },
+        { key: 'dynamic_source', label: 'Source' },
+        { key: 'lifecycle_status', label: 'Lifecycle' },
+        { key: 'vendor', label: 'Vendor' },
+        { key: 'model', label: 'Model' },
         {
           key: 'secret_ref_set',
           label: 'Secret Ref',
           render: (item) => (item.secret_ref_set ? 'Yes' : 'No'),
+        },
+        {
+          key: 'last_seen_at',
+          label: 'Last Seen',
+          render: (item) => item.last_seen_at || 'Never',
         },
         { key: 'description', label: 'Description' },
         {

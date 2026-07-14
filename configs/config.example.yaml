@@ -168,6 +168,17 @@ radius:
   dynamic_auth:
     enabled: true
     port: 3799
+  dynamic_clients:
+    enabled: false
+    discovery_enabled: false
+    approval_required: true
+    enrollment_token_ref: "env:AEGIS_NAS_ENROLLMENT_TOKEN"
+    enrollment_ttl_seconds: 86400
+    max_pending: 256
+    discovery_allowed_cidrs: []
+    default_nas_type: other
+    default_transport: udp
+    default_template: default
   packet_hardening:
     enabled: true
     fail_closed: true

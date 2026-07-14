@@ -30,6 +30,7 @@ jobs:
       - run: make test-radius-proxy-routing
       - run: make test-radius-proxy-policy
       - run: make test-radius-accounting-spool
+      - run: make test-dynamic-nas-clients
       - run: make test-vendor-certification
 
   frontend:

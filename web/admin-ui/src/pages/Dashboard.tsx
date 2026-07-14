@@ -264,6 +264,37 @@ type RadiusAccountingSpoolReport = {
   };
 };
 
+type DynamicNASClientReport = {
+  enabled: boolean;
+  status: string;
+  message: string;
+  policy?: {
+    discovery_enabled: boolean;
+    approval_required: boolean;
+    enrollment_token_ref_set: boolean;
+    enrollment_ttl_seconds: number;
+    max_pending: number;
+    discovery_allowed_cidrs: string[];
+    default_nas_type: string;
+    default_transport: string;
+    default_template: string;
+  };
+  summary?: {
+    total_enrollments: number;
+    pending_enrollments: number;
+    approved_enrollments: number;
+    rejected_enrollments: number;
+    revoked_enrollments: number;
+    expired_enrollments: number;
+    dynamic_clients: number;
+    static_clients: number;
+    capability_templates: number;
+    recent_events: number;
+    last_event_at?: string;
+  };
+  warnings?: string[];
+};
+
 type SystemStatus = {
   generated_at: string;
   summary: {
@@ -346,6 +377,7 @@ type SystemStatus = {
     proxy_routes?: RadiusProxyRoutingReport;
     proxy_policy?: RadiusProxyPolicyReport;
     accounting_spool?: RadiusAccountingSpoolReport;
+    dynamic_nas_clients?: DynamicNASClientReport;
     probe_error?: string;
   };
   wireless: {
@@ -885,6 +917,7 @@ export default function Dashboard() {
   const proxyRoutes = systemStatus.radius?.proxy_routes;
   const proxyPolicy = systemStatus.radius?.proxy_policy;
   const accountingSpool = systemStatus.radius?.accounting_spool;
+  const dynamicNASClients = systemStatus.radius?.dynamic_nas_clients;
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
   const serviceProblems = services.filter(
     (service) => !["ok", "disabled"].includes(service.status),
@@ -1663,6 +1696,71 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <StatusBadge status={accountingSpool.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {dynamicNASClients ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Dynamic NAS Clients
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {dynamicNASClients.message ||
+                          "Dynamic NAS client lifecycle state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Pending{" "}
+                          {dynamicNASClients.summary?.pending_enrollments ?? 0}
+                        </div>
+                        <div>
+                          Approved{" "}
+                          {dynamicNASClients.summary
+                            ?.approved_enrollments ?? 0}
+                        </div>
+                        <div>
+                          Dynamic{" "}
+                          {dynamicNASClients.summary?.dynamic_clients ?? 0}
+                        </div>
+                        <div>
+                          Static{" "}
+                          {dynamicNASClients.summary?.static_clients ?? 0}
+                        </div>
+                        <div>
+                          Templates{" "}
+                          {dynamicNASClients.summary
+                            ?.capability_templates ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Approval{" "}
+                        {dynamicNASClients.policy?.approval_required
+                          ? "required"
+                          : "automatic"}
+                        ; discovery{" "}
+                        {dynamicNASClients.policy?.discovery_enabled
+                          ? "enabled"
+                          : "disabled"}
+                        ; token{" "}
+                        {dynamicNASClients.policy?.enrollment_token_ref_set
+                          ? "configured"
+                          : "missing"}
+                        .
+                        {dynamicNASClients.summary?.last_event_at
+                          ? ` Last event ${dynamicNASClients.summary.last_event_at}.`
+                          : ""}
+                      </div>
+                      {dynamicNASClients.warnings?.length ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {dynamicNASClients.warnings[0]}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge
+                      status={dynamicNASClients.status || "unknown"}
+                    />
                   </div>
                 </div>
               ) : null}

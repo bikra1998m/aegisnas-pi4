@@ -985,11 +985,14 @@ func HandleDeleteBandwidthProfile(w http.ResponseWriter, r *http.Request) {
 func HandleListRadiusClients(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.DB.Query(`SELECT id, shortname, ipaddr, secret != '', COALESCE(secret_ref, ''), COALESCE(nas_type, ''), COALESCE(transport, 'udp'),
 		COALESCE(radsec_certificate_cn, ''), COALESCE(radsec_certificate_issuer, ''), COALESCE(radsec_radius_v11, ''),
-		COALESCE(description, ''), enabled FROM radius_clients ORDER BY shortname`)
+		COALESCE(description, ''), enabled, COALESCE(dynamic_source, 'static'), COALESCE(enrollment_id, ''),
+		COALESCE(vendor, ''), COALESCE(model, ''), COALESCE(firmware_version, ''), COALESCE(serial_number, ''),
+		COALESCE(lifecycle_status, 'approved'), COALESCE(last_seen_at, ''), COALESCE(owner_tenant, ''), COALESCE(template_name, '')
+		FROM radius_clients ORDER BY shortname`)
 	if isMissingRadiusClientSecretRefForAPI(err) {
 		rows, err = db.DB.Query(`SELECT id, shortname, ipaddr, secret != '', '', COALESCE(nas_type, ''), COALESCE(transport, 'udp'),
 			COALESCE(radsec_certificate_cn, ''), COALESCE(radsec_certificate_issuer, ''), COALESCE(radsec_radius_v11, ''),
-			COALESCE(description, ''), enabled FROM radius_clients ORDER BY shortname`)
+			COALESCE(description, ''), enabled, 'static', '', '', '', '', '', 'approved', '', '', '' FROM radius_clients ORDER BY shortname`)
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -1000,8 +1003,10 @@ func HandleListRadiusClients(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var id int
 		var shortname, ip, secretRef, nasType, transport, certificateCN, certificateIssuer, radiusV11, description string
+		var dynamicSource, enrollmentID, vendor, model, firmwareVersion, serialNumber, lifecycleStatus, lastSeenAt, ownerTenant, templateName string
 		var enabled, inlineSecretSet bool
-		if err := rows.Scan(&id, &shortname, &ip, &inlineSecretSet, &secretRef, &nasType, &transport, &certificateCN, &certificateIssuer, &radiusV11, &description, &enabled); err != nil {
+		if err := rows.Scan(&id, &shortname, &ip, &inlineSecretSet, &secretRef, &nasType, &transport, &certificateCN, &certificateIssuer, &radiusV11, &description, &enabled,
+			&dynamicSource, &enrollmentID, &vendor, &model, &firmwareVersion, &serialNumber, &lifecycleStatus, &lastSeenAt, &ownerTenant, &templateName); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -1022,6 +1027,16 @@ func HandleListRadiusClients(w http.ResponseWriter, r *http.Request) {
 			"radsec_radius_v11":         radiusV11,
 			"description":               description,
 			"enabled":                   enabled,
+			"dynamic_source":            dynamicSource,
+			"enrollment_id":             enrollmentID,
+			"vendor":                    vendor,
+			"model":                     model,
+			"firmware_version":          firmwareVersion,
+			"serial_number":             serialNumber,
+			"lifecycle_status":          lifecycleStatus,
+			"last_seen_at":              lastSeenAt,
+			"owner_tenant":              ownerTenant,
+			"template_name":             templateName,
 		})
 	}
 	writeJSON(w, http.StatusOK, clients)

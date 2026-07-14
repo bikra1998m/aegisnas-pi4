@@ -107,6 +107,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionVSACodecCheck(&report)
 	addProductionOpaquePassThroughCheck(&report, cfg)
 	addProductionRadiusPacketHardeningCheck(&report, cfg)
+	addProductionDynamicNASClientsCheck(&report, cfg)
 	addProductionProxyRoutingCheck(&report, cfg)
 	addProductionProxyPolicyCheck(&report, cfg)
 	addProductionAccountingSpoolCheck(&report, cfg)
@@ -157,6 +158,43 @@ func addProductionRadiusPacketHardeningCheck(report *productionReadinessReport, 
 			hardening.Limits.ReplayWindowSeconds, hardening.Limits.PerClientRateLimitPerSecond, hardening.RuntimeStats.TotalEvents),
 		Recommendation: "Keep packet hardening enabled and fail-closed with known RADIUS clients, Message-Authenticator auto or always, replay cache, rate limits, and the NAS-0009 release checklist for external packet-capture evidence.",
 		Dependencies:   []string{"radius.packet_hardening", "/api/v1/system/radius-hardening", "radius_packet_hardening_events"},
+	})
+}
+
+func addProductionDynamicNASClientsCheck(report *productionReadinessReport, cfg *config.Config) {
+	dynamicClients := radius.BuildDynamicNASClientReport(cfg)
+	status := "passed"
+	switch dynamicClients.Status {
+	case "disabled":
+		status = "degraded"
+	case "degraded", "pending":
+		status = "degraded"
+	case "blocked":
+		status = "blocked"
+	}
+	if dynamicClients.Enabled {
+		if strings.TrimSpace(dynamicClients.Policy.EnrollmentTokenRef) == "" {
+			status = "blocked"
+		}
+		if !dynamicClients.Policy.ApprovalRequired {
+			status = "blocked"
+		}
+		if dynamicClients.Policy.DiscoveryEnabled && len(dynamicClients.Policy.DiscoveryAllowedCIDRs) == 0 {
+			if status == "passed" {
+				status = "degraded"
+			}
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "dynamic_nas_clients",
+		Category: "radius",
+		Label:    "Dynamic NAS Clients And Capability Discovery",
+		Status:   status,
+		Summary: fmt.Sprintf("Dynamic NAS clients are %s with %d pending, %d approved, %d dynamic client(s), and %d capability template(s).",
+			dynamicClients.Status, dynamicClients.Summary.PendingCount, dynamicClients.Summary.ApprovedCount,
+			dynamicClients.Summary.DynamicClients, dynamicClients.Summary.CapabilityTemplates),
+		Recommendation: "Keep approval required, use radius.dynamic_clients.enrollment_token_ref, restrict discovery CIDRs, approve only credential-backed clients, and complete the NAS-0013 release certification checklist before production claims.",
+		Dependencies:   []string{"radius.dynamic_clients", "/api/v1/nas/enroll", "/api/v1/system/nas-clients", "nas_client_enrollments", "nas_client_capability_templates", "nas_client_events"},
 	})
 }
 

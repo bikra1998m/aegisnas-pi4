@@ -311,8 +311,12 @@ func (h *PacketHardener) ValidatePacket(ctx PacketValidationContext, packet *lay
 
 func (h *PacketHardener) checkSourceAndRate(ctx PacketValidationContext, result *PacketValidationResult) *PacketValidationResult {
 	if h.policy.RequireKnownSource && !h.sourceAllowed(ctx.RemoteAddr) {
+		RecordDynamicNASDiscovery(h.cfg, ctx.RemoteAddr, ctx.Direction, "unknown_source")
 		rejected := rejectResult(*result, "unknown_source", "Packet source is not a configured RADIUS client, upstream server, loopback, or trusted CIDR.")
 		return &rejected
+	}
+	if h.policy.RequireKnownSource {
+		RecordDynamicNASHeartbeat(h.cfg, ctx.RemoteAddr, ctx.Direction)
 	}
 	if h.limits.RateLimitEnabled && !h.allowRate(ctx) {
 		result.RateLimited = true

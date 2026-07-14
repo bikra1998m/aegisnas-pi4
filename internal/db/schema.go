@@ -25,6 +25,83 @@ func CurrentSchemaVersion() (int, error) {
 	return CurrentSchemaVersionHandle(GetDB())
 }
 
+const dynamicNASClientTablesSQL = `
+CREATE TABLE IF NOT EXISTS nas_client_enrollments (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	enrollment_id TEXT UNIQUE NOT NULL,
+	source_ip TEXT NOT NULL,
+	shortname TEXT NOT NULL,
+	nas_type TEXT NOT NULL DEFAULT 'other',
+	transport TEXT NOT NULL DEFAULT 'udp',
+	secret_ref TEXT,
+	radsec_certificate_cn TEXT,
+	radsec_certificate_issuer TEXT,
+	radsec_radius_v11 TEXT,
+	vendor TEXT,
+	model TEXT,
+	firmware_version TEXT,
+	serial_number TEXT,
+	capabilities_json TEXT NOT NULL DEFAULT '{}',
+	status TEXT NOT NULL DEFAULT 'pending',
+	discovery_source TEXT NOT NULL DEFAULT 'bootstrap',
+	requested_at DATETIME NOT NULL,
+	expires_at DATETIME NOT NULL,
+	approved_by TEXT,
+	approved_at DATETIME,
+	rejected_by TEXT,
+	rejected_at DATETIME,
+	radius_client_id INTEGER,
+	owner_tenant TEXT,
+	template_name TEXT,
+	last_seen_at DATETIME,
+	last_seen_reason TEXT,
+	drift_json TEXT NOT NULL DEFAULT '{}',
+	evidence_sha256 TEXT NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(radius_client_id) REFERENCES radius_clients(id),
+	CHECK (status IN ('pending', 'approved', 'rejected', 'revoked', 'expired')),
+	CHECK (transport IN ('udp', 'radsec'))
+);
+
+CREATE TABLE IF NOT EXISTS nas_client_capability_templates (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	name TEXT UNIQUE NOT NULL,
+	description TEXT,
+	nas_type TEXT NOT NULL DEFAULT 'other',
+	required_capabilities_json TEXT NOT NULL DEFAULT '[]',
+	allowed_vendors_json TEXT NOT NULL DEFAULT '[]',
+	default_capabilities_json TEXT NOT NULL DEFAULT '{}',
+	enabled BOOLEAN DEFAULT 1,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS nas_client_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	enrollment_id TEXT,
+	radius_client_id INTEGER,
+	event_type TEXT NOT NULL,
+	status TEXT NOT NULL,
+	summary TEXT,
+	actor TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_nas_client_enrollments_status ON nas_client_enrollments(status, requested_at);
+CREATE INDEX IF NOT EXISTS idx_nas_client_enrollments_source ON nas_client_enrollments(source_ip, status);
+CREATE INDEX IF NOT EXISTS idx_nas_client_enrollments_radius_client ON nas_client_enrollments(radius_client_id);
+CREATE INDEX IF NOT EXISTS idx_nas_client_templates_enabled ON nas_client_capability_templates(enabled, name);
+CREATE INDEX IF NOT EXISTS idx_nas_client_events_enrollment ON nas_client_events(enrollment_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_nas_client_events_radius_client ON nas_client_events(radius_client_id, created_at);
+
+INSERT OR IGNORE INTO nas_client_capability_templates
+	(name, description, nas_type, required_capabilities_json, allowed_vendors_json, default_capabilities_json, enabled)
+VALUES
+	('default', 'Default dynamic NAS capability gate for RADIUS authentication and accounting clients.', 'other', '[]', '[]', '{"radius":{"authentication":true,"accounting":true},"policy":{"role":true,"vlan":true}}', 1);
+`
+
 func MigrateHandle(handle *sql.DB) error {
 	if handle == nil {
 		return fmt.Errorf("database handle is required")
@@ -66,7 +143,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{16, schemaV16},
 		{17, schemaV17},
 		{18, schemaV18},
-		{LatestSchemaVersion(), schemaV19},
+		{19, schemaV19},
+		{LatestSchemaVersion(), schemaV20},
 	}
 
 	for _, m := range migrations {
@@ -105,8 +183,80 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureRadiusAccountingSpoolTables(handle); err != nil {
 		return fmt.Errorf("repair RADIUS accounting spool schema: %w", err)
 	}
+	if err := ensureDynamicNASClientTables(handle); err != nil {
+		return fmt.Errorf("repair dynamic NAS client schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureDynamicNASClientTables(handle *sql.DB) error {
+	exists, err := tableExists(handle, "radius_clients")
+	if err != nil {
+		return err
+	}
+	if exists {
+		columns := []struct {
+			name string
+			sql  string
+		}{
+			{"dynamic_source", `ALTER TABLE radius_clients ADD COLUMN dynamic_source TEXT NOT NULL DEFAULT 'static'`},
+			{"enrollment_id", `ALTER TABLE radius_clients ADD COLUMN enrollment_id TEXT`},
+			{"capabilities_json", `ALTER TABLE radius_clients ADD COLUMN capabilities_json TEXT NOT NULL DEFAULT '{}'`},
+			{"vendor", `ALTER TABLE radius_clients ADD COLUMN vendor TEXT`},
+			{"model", `ALTER TABLE radius_clients ADD COLUMN model TEXT`},
+			{"firmware_version", `ALTER TABLE radius_clients ADD COLUMN firmware_version TEXT`},
+			{"serial_number", `ALTER TABLE radius_clients ADD COLUMN serial_number TEXT`},
+			{"lifecycle_status", `ALTER TABLE radius_clients ADD COLUMN lifecycle_status TEXT NOT NULL DEFAULT 'approved'`},
+			{"last_seen_at", `ALTER TABLE radius_clients ADD COLUMN last_seen_at DATETIME`},
+			{"approved_at", `ALTER TABLE radius_clients ADD COLUMN approved_at DATETIME`},
+			{"approved_by", `ALTER TABLE radius_clients ADD COLUMN approved_by TEXT`},
+			{"owner_tenant", `ALTER TABLE radius_clients ADD COLUMN owner_tenant TEXT`},
+			{"template_name", `ALTER TABLE radius_clients ADD COLUMN template_name TEXT`},
+		}
+		for _, column := range columns {
+			hasColumn, err := tableHasColumn(handle, "radius_clients", column.name)
+			if err != nil {
+				return err
+			}
+			if !hasColumn {
+				if _, err := handle.Exec(SQLForDialect(column.sql, DialectForHandle(handle))); err != nil {
+					return err
+				}
+			}
+		}
+		if _, err := handle.Exec(`CREATE INDEX IF NOT EXISTS idx_radius_clients_enrollment_id ON radius_clients(enrollment_id)`); err != nil {
+			return err
+		}
+		if _, err := handle.Exec(`CREATE INDEX IF NOT EXISTS idx_radius_clients_dynamic_source ON radius_clients(dynamic_source, lifecycle_status)`); err != nil {
+			return err
+		}
+		if _, err := handle.Exec(`CREATE INDEX IF NOT EXISTS idx_radius_clients_last_seen ON radius_clients(last_seen_at)`); err != nil {
+			return err
+		}
+	}
+
+	enrollmentsExist, err := tableExists(handle, "nas_client_enrollments")
+	if err != nil {
+		return err
+	}
+	templatesExist, err := tableExists(handle, "nas_client_capability_templates")
+	if err != nil {
+		return err
+	}
+	eventsExist, err := tableExists(handle, "nas_client_events")
+	if err != nil {
+		return err
+	}
+	if enrollmentsExist && templatesExist && eventsExist {
+		_, err = handle.Exec(SQLForDialect(`INSERT OR IGNORE INTO nas_client_capability_templates
+			(name, description, nas_type, required_capabilities_json, allowed_vendors_json, default_capabilities_json, enabled)
+			VALUES ('default', 'Default dynamic NAS capability gate for RADIUS authentication and accounting clients.', 'other', '[]', '[]', '{"radius":{"authentication":true,"accounting":true},"policy":{"role":true,"vlan":true}}', 1)`, DialectForHandle(handle)))
+		return err
+	}
+
+	_, err = handle.Exec(SQLForDialect(dynamicNASClientTablesSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureRadiusAccountingSpoolTables(handle *sql.DB) error {

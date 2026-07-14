@@ -579,6 +579,18 @@ const defaultSettings: JsonMap = {
     request_timeout_seconds: 5,
     interim_update_seconds: 300,
     dynamic_auth: { enabled: true, port: 3799 },
+    dynamic_clients: {
+      enabled: false,
+      discovery_enabled: false,
+      approval_required: true,
+      enrollment_token_ref: "",
+      enrollment_ttl_seconds: 86400,
+      max_pending: 256,
+      discovery_allowed_cidrs: [],
+      default_nas_type: "other",
+      default_transport: "udp",
+      default_template: "default",
+    },
     radsec: {
       enabled: false,
       listen_address: "0.0.0.0",
@@ -7614,6 +7626,151 @@ export default function AccessSettings() {
               updateField(["radius", "dynamic_auth", "port"], Number(value))
             }
           />
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <h4 className="font-semibold text-gray-900">
+            Dynamic NAS Clients
+          </h4>
+          <p className="mt-1 text-sm text-gray-600">
+            New APs, switches, and controllers can request enrollment, stay
+            pending until approved, and inherit capability templates.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <ToggleField
+              label="Enable Enrollment"
+              checked={Boolean(settings.radius?.dynamic_clients?.enabled)}
+              onChange={(value) =>
+                updateField(["radius", "dynamic_clients", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Packet Discovery"
+              checked={Boolean(
+                settings.radius?.dynamic_clients?.discovery_enabled,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_clients", "discovery_enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Approval"
+              checked={
+                settings.radius?.dynamic_clients?.approval_required !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_clients", "approval_required"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Enrollment Token Ref"
+              value={
+                settings.radius?.dynamic_clients?.enrollment_token_ref || ""
+              }
+              placeholder="env:AEGIS_NAS_ENROLLMENT_TOKEN"
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_clients", "enrollment_token_ref"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Enrollment TTL (s)"
+              type="number"
+              value={
+                settings.radius?.dynamic_clients?.enrollment_ttl_seconds ||
+                86400
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_clients", "enrollment_ttl_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Pending"
+              type="number"
+              value={settings.radius?.dynamic_clients?.max_pending || 256}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_clients", "max_pending"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Default NAS Type"
+              value={
+                settings.radius?.dynamic_clients?.default_nas_type || "other"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_clients", "default_nas_type"],
+                  value,
+                )
+              }
+            />
+            <SelectField
+              label="Default Transport"
+              value={
+                settings.radius?.dynamic_clients?.default_transport || "udp"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_clients", "default_transport"],
+                  value,
+                )
+              }
+              options={[
+                { value: "udp", label: "RADIUS / UDP" },
+                { value: "radsec", label: "RadSec / TLS" },
+              ]}
+            />
+            <TextField
+              label="Default Template"
+              value={
+                settings.radius?.dynamic_clients?.default_template || "default"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_clients", "default_template"],
+                  value,
+                )
+              }
+            />
+          </div>
+          <label className="mt-4 block text-sm font-medium text-gray-700">
+            <span>Discovery Allowed CIDRs</span>
+            <textarea
+              value={
+                Array.isArray(
+                  settings.radius?.dynamic_clients?.discovery_allowed_cidrs,
+                )
+                  ? settings.radius.dynamic_clients.discovery_allowed_cidrs.join(
+                      "\n",
+                    )
+                  : ""
+              }
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+                updateField(
+                  ["radius", "dynamic_clients", "discovery_allowed_cidrs"],
+                  event.target.value
+                    .split(/\r?\n/)
+                    .map((line) => line.trim())
+                    .filter(Boolean),
+                )
+              }
+              className="mt-1 min-h-[96px] w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm"
+              placeholder={"10.20.0.0/24\n2001:db8:10::/64"}
+            />
+          </label>
         </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
           <h4 className="font-semibold text-gray-900">
