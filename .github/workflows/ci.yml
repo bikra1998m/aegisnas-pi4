@@ -33,6 +33,7 @@ jobs:
       - run: make test-radius-accounting-spool
       - run: make test-radius-fallback-policy
       - run: make test-identity-failover
+      - run: make test-mfa
       - run: make test-dynamic-nas-clients
       - run: make test-radsec-credentials
       - run: make test-vendor-certification

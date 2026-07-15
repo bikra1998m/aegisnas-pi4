@@ -108,6 +108,8 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	mac := r.FormValue("client_mac")
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
+	otp := strings.TrimSpace(r.FormValue("mfa_otp"))
+	mfaState := strings.TrimSpace(r.FormValue("mfa_state"))
 	s.observeClient(r, mac, clientIP, username, "")
 
 	if !s.rateLimiter.Allow(clientIP) {
@@ -122,6 +124,8 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		CalledStationID:  s.cfg.Radius.NASIdentifier,
 		FramedIPAddress:  clientIP,
 		NASPort:          1,
+		OTP:              otp,
+		MFAState:         mfaState,
 	})
 	if err != nil {
 		s.logger.Error("user validation error", zap.String("username", username), zap.Error(err))
@@ -129,6 +133,21 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if authResult == nil || !authResult.Accepted {
+		if authResult != nil && authResult.MFARequired {
+			s.render(w, "login.html", map[string]any{
+				"Branding":     s.cfg.Portal.Branding,
+				"ClientMAC":    mac,
+				"ClientIP":     clientIP,
+				"Username":     username,
+				"MFARequired":  true,
+				"MFAState":     authResult.MFAState,
+				"MFAPrompt":    authResult.MFAPrompt,
+				"MFAExpiresAt": authResult.MFAExpiresAt,
+				"Error":        "",
+				"VoucherURL":   "/voucher?client_mac=" + mac,
+			})
+			return
+		}
 		http.Redirect(w, r, "/?error=invalid_credentials&client_mac="+mac, http.StatusFound)
 		return
 	}

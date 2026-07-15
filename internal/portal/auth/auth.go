@@ -12,6 +12,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	identityfailover "github.com/yourorg/aegisnas-pi4/internal/identity"
 	ldapclient "github.com/yourorg/aegisnas-pi4/internal/ldap"
+	"github.com/yourorg/aegisnas-pi4/internal/mfa"
 	aegisradius "github.com/yourorg/aegisnas-pi4/internal/radius"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -35,6 +36,10 @@ type Result struct {
 	VLAN             int
 	SessionTimeout   int
 	IdleTimeout      int
+	MFARequired      bool
+	MFAState         string
+	MFAPrompt        string
+	MFAExpiresAt     string
 }
 
 // LoginRequest describes the portal login attempt.
@@ -45,6 +50,8 @@ type LoginRequest struct {
 	CalledStationID  string
 	FramedIPAddress  string
 	NASPort          int
+	OTP              string
+	MFAState         string
 }
 
 // ValidateUser checks username/password against local users.
@@ -118,12 +125,16 @@ func AuthenticateUser(ctx context.Context, req LoginRequest) (*Result, error) {
 		return nil, errors.New("configuration not loaded")
 	}
 
+	if strings.TrimSpace(req.MFAState) != "" {
+		return authenticateMFAChallenge(ctx, cfg, req)
+	}
+
 	breakGlassResult, breakGlassErr := authenticateLocal(req.Username, req.Password)
 	if breakGlassErr != nil {
 		return nil, breakGlassErr
 	}
 	if breakGlassResult.Accepted && breakGlassResult.Role == "admin" {
-		return breakGlassResult, nil
+		return applyMFA(ctx, cfg, req, breakGlassResult)
 	}
 
 	if cfg.Portal.RadiusAuth {
@@ -136,6 +147,15 @@ func AuthenticateUser(ctx context.Context, req LoginRequest) (*Result, error) {
 			NASPort:          req.NASPort,
 		})
 		if err == nil {
+			if brokerResult.Challenge {
+				return &Result{
+					Accepted:     false,
+					MFARequired:  true,
+					MFAState:     brokerResult.ChallengeState,
+					MFAPrompt:    firstNonEmpty(brokerResult.ChallengePrompt, "Enter one-time password"),
+					ReplyMessage: strings.TrimSpace(brokerResult.ReplyMessage),
+				}, nil
+			}
 			if !brokerResult.Accepted {
 				return &Result{
 					Accepted:     false,
@@ -147,7 +167,7 @@ func AuthenticateUser(ctx context.Context, req LoginRequest) (*Result, error) {
 			if mapErr != nil {
 				return nil, mapErr
 			}
-			return &Result{
+			result := &Result{
 				Accepted:         true,
 				Username:         req.Username,
 				Role:             policy.Role,
@@ -161,7 +181,8 @@ func AuthenticateUser(ctx context.Context, req LoginRequest) (*Result, error) {
 				VLAN:             policy.VLAN,
 				SessionTimeout:   policy.SessionTimeout,
 				IdleTimeout:      policy.IdleTimeout,
-			}, nil
+			}
+			return applyMFA(ctx, cfg, req, result)
 		}
 
 		zap.L().Warn("upstream radius authentication unavailable",
@@ -195,7 +216,7 @@ func AuthenticateUser(ctx context.Context, req LoginRequest) (*Result, error) {
 					}, nil
 				}
 				fallbackResult.ReplyMessage = "upstream AAA unavailable; local fallback granted"
-				return fallbackResult, nil
+				return applyMFA(ctx, cfg, req, fallbackResult)
 			}
 		}
 
@@ -205,7 +226,132 @@ func AuthenticateUser(ctx context.Context, req LoginRequest) (*Result, error) {
 		}, nil
 	}
 
-	return authenticateFallback(ctx, req.Username, req.Password)
+	result, err := authenticateFallback(ctx, req.Username, req.Password)
+	if err != nil || result == nil || !result.Accepted {
+		return result, err
+	}
+	return applyMFA(ctx, cfg, req, result)
+}
+
+func authenticateMFAChallenge(ctx context.Context, cfg *config.Config, req LoginRequest) (*Result, error) {
+	if mfa.IsLocalState(req.MFAState) {
+		verified, err := mfa.VerifyChallenge(ctx, cfg, req.MFAState, req.Username, req.OTP)
+		if err != nil {
+			return nil, err
+		}
+		if !verified.Allowed {
+			return &Result{Accepted: false, ReplyMessage: verified.Reason}, nil
+		}
+		authMethod := strings.TrimSpace(verified.AuthMethod)
+		if authMethod == "" {
+			authMethod = "portal-local"
+		}
+		return &Result{
+			Accepted:       true,
+			Username:       req.Username,
+			Role:           verified.Role,
+			IdentitySource: verified.IdentitySource,
+			AuthMethod:     authMethod + "+mfa-" + verified.Method,
+			ReplyMessage:   "MFA challenge verified",
+		}, nil
+	}
+	if !cfg.Portal.RadiusAuth {
+		return &Result{Accepted: false, ReplyMessage: "unknown MFA challenge"}, nil
+	}
+	brokerResult, err := aegisradius.AuthenticatePAP(ctx, cfg, aegisradius.BrokerAuthRequest{
+		Username:         req.Username,
+		Password:         req.OTP,
+		CallingStationID: req.CallingStationID,
+		CalledStationID:  req.CalledStationID,
+		FramedIPAddress:  req.FramedIPAddress,
+		NASPort:          req.NASPort,
+		State:            req.MFAState,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if brokerResult.Challenge {
+		return &Result{
+			Accepted:     false,
+			MFARequired:  true,
+			MFAState:     brokerResult.ChallengeState,
+			MFAPrompt:    firstNonEmpty(brokerResult.ChallengePrompt, "Enter one-time password"),
+			ReplyMessage: brokerResult.ReplyMessage,
+		}, nil
+	}
+	if !brokerResult.Accepted {
+		return &Result{Accepted: false, ReplyMessage: strings.TrimSpace(brokerResult.ReplyMessage)}, nil
+	}
+	policy, mapErr := aegisradius.ResolveSessionPolicy(cfg.Policy.DefaultRole, brokerResult)
+	if mapErr != nil {
+		return nil, mapErr
+	}
+	return &Result{
+		Accepted:         true,
+		Username:         req.Username,
+		Role:             policy.Role,
+		IdentitySource:   policy.IdentitySource,
+		AuthMethod:       "radius-pap+mfa-challenge",
+		ReplyMessage:     brokerResult.ReplyMessage,
+		FilterID:         policy.FilterID,
+		ACLPolicyName:    policy.ACLPolicyName,
+		RadiusClass:      policy.RadiusClass,
+		BandwidthProfile: policy.BandwidthProfile,
+		VLAN:             policy.VLAN,
+		SessionTimeout:   policy.SessionTimeout,
+		IdleTimeout:      policy.IdleTimeout,
+	}, nil
+}
+
+func applyMFA(ctx context.Context, cfg *config.Config, req LoginRequest, result *Result) (*Result, error) {
+	if result == nil || !result.Accepted {
+		return result, nil
+	}
+	stepCtx := mfa.StepUpContext{
+		Username:       result.Username,
+		Role:           result.Role,
+		IdentitySource: result.IdentitySource,
+		AuthMethod:     result.AuthMethod,
+		Source:         "portal",
+	}
+	if !mfa.RequiresStepUp(cfg, stepCtx) {
+		return result, nil
+	}
+	policy := mfa.PolicyFromConfig(cfg)
+	if policy.Mode == "monitor" {
+		mfa.RecordMonitorAllowed(cfg, stepCtx, "MFA step-up would be required in enforce mode")
+		return result, nil
+	}
+	if strings.TrimSpace(req.OTP) != "" {
+		verified, err := mfa.VerifyOTP(ctx, cfg, result.Username, req.OTP, stepCtx, true)
+		if err != nil {
+			return nil, err
+		}
+		if verified.Allowed {
+			result.AuthMethod = result.AuthMethod + "+mfa-" + verified.Method
+			result.ReplyMessage = firstNonEmpty(result.ReplyMessage, "MFA accepted")
+			return result, nil
+		}
+		return &Result{Accepted: false, ReplyMessage: verified.Reason}, nil
+	}
+	challenge, err := mfa.StartChallenge(cfg, stepCtx)
+	if err != nil {
+		if policy.FailClosed {
+			return nil, err
+		}
+		result.ReplyMessage = "MFA challenge unavailable; fail-open policy allowed login"
+		return result, nil
+	}
+	return &Result{
+		Accepted:     false,
+		Username:     result.Username,
+		Role:         result.Role,
+		MFARequired:  true,
+		MFAState:     challenge.State,
+		MFAPrompt:    challenge.Prompt,
+		MFAExpiresAt: challenge.ExpiresAt,
+		ReplyMessage: "MFA required",
+	}, nil
 }
 
 func authenticateFallback(ctx context.Context, username, password string) (*Result, error) {
@@ -397,6 +543,15 @@ func splitResultDenied(policy identityfailover.FailoverPolicy) bool {
 	default:
 		return true
 	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 func authenticateLDAP(username, password string) (*Result, error) {

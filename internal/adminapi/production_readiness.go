@@ -13,6 +13,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/identity"
+	mfapkg "github.com/yourorg/aegisnas-pi4/internal/mfa"
 	"github.com/yourorg/aegisnas-pi4/internal/radius"
 	"github.com/yourorg/aegisnas-pi4/internal/secrets"
 )
@@ -115,6 +116,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionAccountingSpoolCheck(&report, cfg)
 	addProductionFallbackPolicyCheck(&report, cfg)
 	addProductionIdentityFailoverCheck(&report, cfg)
+	addProductionMFACheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
@@ -398,6 +400,41 @@ func addProductionIdentityFailoverCheck(report *productionReadinessReport, cfg *
 			failover.Summary.OpenCircuitCount, failover.Policy.CacheCredentials, failover.AuditSummary.TotalRecords),
 		Recommendation: "Set identity.failover.mode=enforce, keep fail_closed=true, define source_order, keep audit enabled, and review /api/v1/system/identity-failover before production authentication cutover.",
 		Dependencies:   []string{"identity.failover", "identity_sources", "/api/v1/system/identity-failover", "identity_source_events", "identity_source_cache"},
+	})
+}
+
+func addProductionMFACheck(report *productionReadinessReport, cfg *config.Config) {
+	mfaReport := mfapkg.BuildReport(cfg)
+	status := "passed"
+	switch mfaReport.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "degraded"
+	}
+	activePortalIdentity := cfg != nil && (cfg.Portal.Enabled || cfg.Portal.RadiusAuth || cfg.Portal.LocalFallback || cfg.LDAP.Enabled)
+	if activePortalIdentity && cfg != nil && cfg.MFA.Enabled {
+		if mfaReport.Policy.Mode != "enforce" || !mfaReport.Policy.FailClosed || !mfaReport.Policy.OTPEnabled {
+			status = "blocked"
+		}
+		if mfaReport.Credentials.EnabledUsers == 0 {
+			status = "blocked"
+		}
+		if mfaReport.Policy.AuditEnabled && db.DB == nil {
+			status = "blocked"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "mfa_challenge_otp",
+		Category: "authentication",
+		Label:    "OTP And RADIUS Challenge MFA",
+		Status:   status,
+		Summary: fmt.Sprintf("MFA schema %d is %s in %s mode with OTP=%t, challenge=%t, enrolled users=%d, pending challenges=%d, and %d audited decision(s).",
+			mfaReport.SchemaVersion, mfaReport.Status, mfaReport.Policy.Mode, mfaReport.Policy.OTPEnabled,
+			mfaReport.Policy.ChallengeEnabled, mfaReport.Credentials.EnabledUsers, mfaReport.Credentials.PendingChallenges,
+			mfaReport.AuditSummary.TotalRecords),
+		Recommendation: "Enable mfa.mode=enforce, keep fail_closed=true, set mfa.otp.sealing_key_ref to a secure env/file secret, enroll required users, and review /api/v1/system/mfa before production cutover.",
+		Dependencies:   []string{"mfa", "mfa.otp.sealing_key_ref", "mfa_totp_secrets", "mfa_recovery_codes", "mfa_challenges", "mfa_events", "/api/v1/system/mfa"},
 	})
 }
 

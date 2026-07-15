@@ -459,6 +459,7 @@ type SystemStatus = {
   production_readiness?: ProductionReadinessSummary;
   identity?: {
     failover?: IdentityFailoverReport;
+    mfa?: any;
   };
   deployment: {
     profile: string;
@@ -1072,6 +1073,7 @@ export default function Dashboard() {
   const accountingSpool = systemStatus.radius?.accounting_spool;
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
   const identityFailover = systemStatus.identity?.failover;
+  const identityMFA = systemStatus.identity?.mfa;
   const radSecCredentials = systemStatus.radius?.radsec_credentials;
   const dynamicNASClients = systemStatus.radius?.dynamic_nas_clients;
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
@@ -2038,6 +2040,56 @@ export default function Dashboard() {
                     <StatusBadge
                       status={identityFailover.status || "unknown"}
                     />
+                  </div>
+                </div>
+              ) : null}
+              {identityMFA ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        OTP And Challenge MFA
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {identityMFA.message ||
+                          "MFA challenge state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>Mode {identityMFA.policy?.mode || "monitor"}</div>
+                        <div>
+                          Enrolled{" "}
+                          {identityMFA.credentials?.enabled_users ?? 0}
+                        </div>
+                        <div>
+                          Pending{" "}
+                          {identityMFA.credentials?.pending_challenges ?? 0}
+                        </div>
+                        <div>
+                          Recovery{" "}
+                          {identityMFA.credentials
+                            ?.recovery_codes_available ?? 0}
+                        </div>
+                        <div>
+                          Decisions{" "}
+                          {identityMFA.audit_summary?.total_records ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        OTP {identityMFA.policy?.otp_enabled ? "on" : "off"};
+                        challenge{" "}
+                        {identityMFA.policy?.challenge_enabled ? "on" : "off"};
+                        fail closed{" "}
+                        {identityMFA.policy?.fail_closed ? "yes" : "no"}.
+                      </div>
+                      {identityMFA.audit_summary?.last_decision ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last {identityMFA.audit_summary.last_decision}:{" "}
+                          {identityMFA.audit_summary.last_reason ||
+                            "no reason recorded"}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge status={identityMFA.status || "unknown"} />
                   </div>
                 </div>
               ) : null}

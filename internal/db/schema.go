@@ -146,7 +146,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{19, schemaV19},
 		{20, schemaV20},
 		{21, schemaV21},
-		{LatestSchemaVersion(), schemaV22},
+		{22, schemaV22},
+		{LatestSchemaVersion(), schemaV23},
 	}
 
 	for _, m := range migrations {
@@ -194,8 +195,20 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureIdentitySourceFailoverTables(handle); err != nil {
 		return fmt.Errorf("repair identity source failover schema: %w", err)
 	}
+	if err := ensureMFATables(handle); err != nil {
+		return fmt.Errorf("repair MFA schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureMFATables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	_, err := handle.Exec(SQLForDialect(schemaV23, dialect))
+	return err
 }
 
 func ensureIdentitySourceFailoverTables(handle *sql.DB) error {

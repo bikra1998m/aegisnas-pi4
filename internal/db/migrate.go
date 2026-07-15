@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 22
+	return 23
 }
 
 func Migrate() error {
@@ -843,4 +843,78 @@ CREATE INDEX IF NOT EXISTS idx_identity_source_events_decision ON identity_sourc
 CREATE INDEX IF NOT EXISTS idx_identity_source_events_username_hash ON identity_source_events(username_hash, observed_at);
 CREATE INDEX IF NOT EXISTS idx_identity_source_cache_source_hash ON identity_source_cache(source_name, username_hash);
 CREATE INDEX IF NOT EXISTS idx_identity_source_cache_expires ON identity_source_cache(expires_at);
+`
+
+const schemaV23 = `
+CREATE TABLE IF NOT EXISTS mfa_totp_secrets (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	username_hash TEXT NOT NULL UNIQUE,
+	secret_ciphertext TEXT NOT NULL,
+	secret_nonce TEXT NOT NULL,
+	algorithm TEXT NOT NULL DEFAULT 'SHA1',
+	digits INTEGER NOT NULL DEFAULT 6,
+	period_seconds INTEGER NOT NULL DEFAULT 30,
+	issuer TEXT NOT NULL DEFAULT 'AegisNAS',
+	enabled BOOLEAN NOT NULL DEFAULT 1,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	last_verified_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS mfa_recovery_codes (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	username_hash TEXT NOT NULL,
+	code_hash TEXT NOT NULL,
+	used_at DATETIME,
+	expires_at DATETIME,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS mfa_challenges (
+	id TEXT PRIMARY KEY,
+	state_hash TEXT NOT NULL UNIQUE,
+	username_hash TEXT NOT NULL,
+	source TEXT NOT NULL,
+	role TEXT,
+	identity_source TEXT,
+	auth_method TEXT,
+	challenge_type TEXT NOT NULL DEFAULT 'totp',
+	status TEXT NOT NULL DEFAULT 'pending',
+	attempt_count INTEGER NOT NULL DEFAULT 0,
+	max_attempts INTEGER NOT NULL DEFAULT 5,
+	prompt TEXT,
+	expires_at DATETIME NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	verified_at DATETIME,
+	failure_reason TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	CHECK (status IN ('pending', 'verified', 'expired', 'failed'))
+);
+
+CREATE TABLE IF NOT EXISTS mfa_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	username_hash TEXT NOT NULL,
+	source TEXT NOT NULL,
+	method TEXT NOT NULL,
+	decision TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	challenge_id TEXT,
+	role TEXT,
+	identity_source TEXT,
+	auth_method TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_mfa_totp_secrets_username ON mfa_totp_secrets(username_hash);
+CREATE INDEX IF NOT EXISTS idx_mfa_recovery_codes_username ON mfa_recovery_codes(username_hash, used_at, expires_at);
+CREATE INDEX IF NOT EXISTS idx_mfa_challenges_state ON mfa_challenges(state_hash);
+CREATE INDEX IF NOT EXISTS idx_mfa_challenges_status_expires ON mfa_challenges(status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_mfa_challenges_username ON mfa_challenges(username_hash, created_at);
+CREATE INDEX IF NOT EXISTS idx_mfa_events_observed_at ON mfa_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_mfa_events_decision ON mfa_events(decision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_mfa_events_username_hash ON mfa_events(username_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_mfa_events_method ON mfa_events(method, observed_at);
 `

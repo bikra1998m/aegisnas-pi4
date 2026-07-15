@@ -36,6 +36,8 @@ func RecordVendorAuthResult(cfg *config.Config, result *BrokerAuthResult, packet
 		}
 		if result.Accepted {
 			delta.AuthSuccessDelta = 1
+		} else if result.Challenge {
+			delta.Message = fmt.Sprintf("auth challenge %s", responseCode)
 		} else {
 			delta.AuthFailureDelta = 1
 		}

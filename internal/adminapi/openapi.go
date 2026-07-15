@@ -1219,6 +1219,25 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Effective identity-source failover policy, deterministic source plan, circuit state, cache summary, audit summary, and recent source decisions."),
 	}))
+	addOperation(paths, "/api/v1/system/mfa", "get", securedOperationWithParameters("Read OTP and RADIUS challenge MFA state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("decision", "Optional audited decision filter.", []string{"challenge_issued", "accepted", "denied", "monitor_allowed", "enrolled"}, false),
+		queryEnumParameter("method", "Optional MFA method filter.", []string{"totp", "recovery"}, false),
+		queryStringParameter("limit", "Event limit from 1 to 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("Effective MFA policy, encrypted enrollment posture, challenge state, recovery-code summary, audit summary, and recent decisions."),
+	}))
+	addOperation(paths, "/api/v1/system/mfa/enroll", "post", securedOperationWithBody("Enroll a user for TOTP MFA", "Authentication", []string{"super_admin"}, genericJSONObjectRequest("Username to enroll. The response returns the TOTP secret and recovery codes once."), map[string]any{
+		"201":     responseJSON("TOTP enrollment with username hash, otpauth URL, secret, and one-time recovery codes."),
+		"default": responseJSON("MFA enrollment error."),
+	}))
+	addOperation(paths, "/api/v1/system/mfa/verify", "post", securedOperationWithBody("Verify an MFA code for controlled testing", "Authentication", []string{"super_admin"}, genericJSONObjectRequest("Username and TOTP or recovery code."), map[string]any{
+		"200":     responseJSON("Verification result with method and reason."),
+		"default": responseJSON("MFA verification error."),
+	}))
+	addOperation(paths, "/api/v1/system/mfa/recovery-codes", "post", securedOperationWithBody("Rotate MFA recovery codes", "Authentication", []string{"super_admin"}, genericJSONObjectRequest("Username whose recovery codes should be replaced."), map[string]any{
+		"201":     responseJSON("Replacement recovery codes returned once with username hash."),
+		"default": responseJSON("MFA recovery-code rotation error."),
+	}))
 	addOperation(paths, "/api/v1/system/secret-providers", "get", securedOperation("Read secret provider readiness", "Security", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Redacted secret-provider inventory, reference status, inline-secret blockers, and provider policy."),
 	}))

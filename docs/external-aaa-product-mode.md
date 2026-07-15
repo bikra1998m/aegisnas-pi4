@@ -725,6 +725,16 @@ For portal local or LDAP fallback:
 6. confirm repeated LDAP failures open the circuit and fail closed when no executable source remains
 7. export a support bundle and retain `api/identity-failover.json`
 
+For OTP or upstream RADIUS challenge MFA:
+
+1. set `mfa.enabled: true`, `mfa.mode: enforce`, and `mfa.fail_closed: true`
+2. set `mfa.otp.sealing_key_ref` to a secure `env:` or `file:` secret
+3. enroll a test identity with `POST /api/v1/system/mfa/enroll`
+4. perform a portal login for a step-up role and confirm the OTP prompt appears
+5. confirm successful OTP creates the session and failed OTP records a denied `mfa_events` entry
+6. if the upstream server issues `Access-Challenge`, confirm the broker returns RFC 2865 `State` and the second request includes that state
+7. export a support bundle and retain `api/mfa.json`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

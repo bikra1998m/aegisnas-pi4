@@ -30,6 +30,7 @@ type Config struct {
 	Radius           RadiusConfig           `mapstructure:"radius"`
 	Portal           PortalConfig           `mapstructure:"portal"`
 	Identity         IdentityConfig         `mapstructure:"identity"`
+	MFA              MFAConfig              `mapstructure:"mfa"`
 	LDAP             LDAPConfig             `mapstructure:"ldap"`
 	Policy           PolicyConfig           `mapstructure:"policy"`
 	Telemetry        TelemetryConfig        `mapstructure:"telemetry"`
@@ -618,6 +619,47 @@ type IdentityFailoverConfig struct {
 	HealthCheckIntervalSeconds int      `mapstructure:"health_check_interval_seconds"`
 	AuditEnabled               bool     `mapstructure:"audit_enabled"`
 	RetentionLimit             int      `mapstructure:"retention_limit"`
+}
+
+type MFAConfig struct {
+	Enabled         bool                     `mapstructure:"enabled"`
+	Mode            string                   `mapstructure:"mode"`
+	FailClosed      bool                     `mapstructure:"fail_closed"`
+	OTP             MFAOTPConfig             `mapstructure:"otp"`
+	RadiusChallenge MFARadiusChallengeConfig `mapstructure:"radius_challenge"`
+	Recovery        MFARecoveryConfig        `mapstructure:"recovery"`
+	AuditEnabled    bool                     `mapstructure:"audit_enabled"`
+	RetentionLimit  int                      `mapstructure:"retention_limit"`
+}
+
+type MFAOTPConfig struct {
+	Enabled           bool     `mapstructure:"enabled"`
+	Issuer            string   `mapstructure:"issuer"`
+	Algorithm         string   `mapstructure:"algorithm"`
+	Digits            int      `mapstructure:"digits"`
+	PeriodSeconds     int      `mapstructure:"period_seconds"`
+	WindowSteps       int      `mapstructure:"window_steps"`
+	MaxAttempts       int      `mapstructure:"max_attempts"`
+	SealingKeyRef     string   `mapstructure:"sealing_key_ref"`
+	StepUpRoles       []string `mapstructure:"step_up_roles"`
+	StepUpRealms      []string `mapstructure:"step_up_realms"`
+	RequiredForAdmins bool     `mapstructure:"required_for_admins"`
+}
+
+type MFARadiusChallengeConfig struct {
+	Enabled                bool   `mapstructure:"enabled"`
+	TTLSeconds             int    `mapstructure:"ttl_seconds"`
+	MaxPending             int    `mapstructure:"max_pending"`
+	Prompt                 string `mapstructure:"prompt"`
+	StateBytes             int    `mapstructure:"state_bytes"`
+	AllowPAPPasswordAppend bool   `mapstructure:"allow_pap_password_append"`
+}
+
+type MFARecoveryConfig struct {
+	Enabled        bool `mapstructure:"enabled"`
+	CodeCount      int  `mapstructure:"code_count"`
+	CodeBytes      int  `mapstructure:"code_bytes"`
+	CodeTTLSeconds int  `mapstructure:"code_ttl_seconds"`
 }
 
 type LDAPConfig struct {
@@ -1283,6 +1325,32 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("identity.failover.health_check_interval_seconds", 60)
 	v.SetDefault("identity.failover.audit_enabled", true)
 	v.SetDefault("identity.failover.retention_limit", 6000)
+	v.SetDefault("mfa.enabled", false)
+	v.SetDefault("mfa.mode", "monitor")
+	v.SetDefault("mfa.fail_closed", true)
+	v.SetDefault("mfa.otp.enabled", true)
+	v.SetDefault("mfa.otp.issuer", "AegisNAS")
+	v.SetDefault("mfa.otp.algorithm", "SHA1")
+	v.SetDefault("mfa.otp.digits", 6)
+	v.SetDefault("mfa.otp.period_seconds", 30)
+	v.SetDefault("mfa.otp.window_steps", 1)
+	v.SetDefault("mfa.otp.max_attempts", 5)
+	v.SetDefault("mfa.otp.sealing_key_ref", "env:AEGIS_MFA_SEALING_KEY")
+	v.SetDefault("mfa.otp.step_up_roles", []string{"admin", "super_admin", "ops_admin"})
+	v.SetDefault("mfa.otp.step_up_realms", []string{})
+	v.SetDefault("mfa.otp.required_for_admins", true)
+	v.SetDefault("mfa.radius_challenge.enabled", true)
+	v.SetDefault("mfa.radius_challenge.ttl_seconds", 300)
+	v.SetDefault("mfa.radius_challenge.max_pending", 10000)
+	v.SetDefault("mfa.radius_challenge.prompt", "Enter one-time password")
+	v.SetDefault("mfa.radius_challenge.state_bytes", 32)
+	v.SetDefault("mfa.radius_challenge.allow_pap_password_append", true)
+	v.SetDefault("mfa.recovery.enabled", true)
+	v.SetDefault("mfa.recovery.code_count", 10)
+	v.SetDefault("mfa.recovery.code_bytes", 16)
+	v.SetDefault("mfa.recovery.code_ttl_seconds", 0)
+	v.SetDefault("mfa.audit_enabled", true)
+	v.SetDefault("mfa.retention_limit", 6000)
 	v.SetDefault("policy.runtime_shaping_enabled", true)
 	v.SetDefault("wireless.enabled", false)
 	v.SetDefault("wireless.country_code", "US")
@@ -2125,6 +2193,9 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("portal.guest_workflows.invite_delivery %q is invalid", c.Portal.GuestWorkflows.InviteDelivery)
 	}
 	if err := validateIdentityFailover(c.Identity.Failover); err != nil {
+		return err
+	}
+	if err := validateMFA(c.MFA); err != nil {
 		return err
 	}
 	switch strings.ToLower(strings.TrimSpace(c.Portal.GuestWorkflows.ApprovalDelivery)) {
@@ -4079,6 +4150,11 @@ func validateConfiguredSecretReferences(c *Config) error {
 	if err := validateSecretPair("radius.secret", c.Radius.Secret, "radius.secret_ref", c.Radius.SecretRef); err != nil {
 		return err
 	}
+	if ref := strings.TrimSpace(EffectiveMFAConfig(c.MFA).OTP.SealingKeyRef); ref != "" {
+		if err := validateSecretRefField("mfa.otp.sealing_key_ref", ref); err != nil {
+			return err
+		}
+	}
 	if ref := strings.TrimSpace(c.Radius.DynamicClients.EnrollmentTokenRef); ref != "" {
 		if err := validateSecretRefField("radius.dynamic_clients.enrollment_token_ref", ref); err != nil {
 			return err
@@ -4666,6 +4742,166 @@ func validateIdentityFailover(raw IdentityFailoverConfig) error {
 		}
 	}
 	return nil
+}
+
+func EffectiveMFAConfig(raw MFAConfig) MFAConfig {
+	effective := raw
+	if strings.TrimSpace(effective.Mode) == "" {
+		effective.Mode = "monitor"
+	}
+	if strings.TrimSpace(effective.OTP.Issuer) == "" {
+		effective.OTP.Issuer = "AegisNAS"
+	}
+	if strings.TrimSpace(effective.OTP.Algorithm) == "" {
+		effective.OTP.Algorithm = "SHA1"
+	}
+	if effective.OTP.Digits == 0 {
+		effective.OTP.Digits = 6
+	}
+	if effective.OTP.PeriodSeconds == 0 {
+		effective.OTP.PeriodSeconds = 30
+	}
+	if effective.OTP.WindowSteps == 0 {
+		effective.OTP.WindowSteps = 1
+	}
+	if effective.OTP.MaxAttempts == 0 {
+		effective.OTP.MaxAttempts = 5
+	}
+	if strings.TrimSpace(effective.OTP.SealingKeyRef) == "" {
+		effective.OTP.SealingKeyRef = "env:AEGIS_MFA_SEALING_KEY"
+	}
+	if len(effective.OTP.StepUpRoles) == 0 {
+		effective.OTP.StepUpRoles = []string{"admin", "super_admin", "ops_admin"}
+	}
+	if effective.RadiusChallenge.TTLSeconds == 0 {
+		effective.RadiusChallenge.TTLSeconds = 300
+	}
+	if effective.RadiusChallenge.MaxPending == 0 {
+		effective.RadiusChallenge.MaxPending = 10000
+	}
+	if strings.TrimSpace(effective.RadiusChallenge.Prompt) == "" {
+		effective.RadiusChallenge.Prompt = "Enter one-time password"
+	}
+	if effective.RadiusChallenge.StateBytes == 0 {
+		effective.RadiusChallenge.StateBytes = 32
+	}
+	if effective.Recovery.CodeCount == 0 {
+		effective.Recovery.CodeCount = 10
+	}
+	if effective.Recovery.CodeBytes == 0 {
+		effective.Recovery.CodeBytes = 16
+	}
+	if effective.RetentionLimit == 0 {
+		effective.RetentionLimit = 6000
+	}
+	return effective
+}
+
+func validateMFA(raw MFAConfig) error {
+	effective := EffectiveMFAConfig(raw)
+	switch strings.ToLower(strings.TrimSpace(effective.Mode)) {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("mfa.mode %q must be monitor or enforce", raw.Mode)
+	}
+	values := map[string]int{
+		"otp.digits":                   raw.OTP.Digits,
+		"otp.period_seconds":           raw.OTP.PeriodSeconds,
+		"otp.window_steps":             raw.OTP.WindowSteps,
+		"otp.max_attempts":             raw.OTP.MaxAttempts,
+		"radius_challenge.ttl_seconds": raw.RadiusChallenge.TTLSeconds,
+		"radius_challenge.max_pending": raw.RadiusChallenge.MaxPending,
+		"radius_challenge.state_bytes": raw.RadiusChallenge.StateBytes,
+		"recovery.code_count":          raw.Recovery.CodeCount,
+		"recovery.code_bytes":          raw.Recovery.CodeBytes,
+		"recovery.code_ttl_seconds":    raw.Recovery.CodeTTLSeconds,
+		"retention_limit":              raw.RetentionLimit,
+	}
+	for name, value := range values {
+		if value < 0 {
+			return fmt.Errorf("mfa.%s %d cannot be negative", name, value)
+		}
+	}
+	switch strings.ToUpper(strings.TrimSpace(effective.OTP.Algorithm)) {
+	case "SHA1", "SHA256", "SHA512":
+	default:
+		return fmt.Errorf("mfa.otp.algorithm %q must be SHA1, SHA256, or SHA512", effective.OTP.Algorithm)
+	}
+	if effective.OTP.Digits != 6 && effective.OTP.Digits != 8 {
+		return errors.New("mfa.otp.digits must be 6 or 8")
+	}
+	if effective.OTP.PeriodSeconds < 15 || effective.OTP.PeriodSeconds > 300 {
+		return errors.New("mfa.otp.period_seconds must be between 15 and 300")
+	}
+	if effective.OTP.WindowSteps < 0 || effective.OTP.WindowSteps > 10 {
+		return errors.New("mfa.otp.window_steps must be between 0 and 10")
+	}
+	if effective.OTP.MaxAttempts < 1 || effective.OTP.MaxAttempts > 20 {
+		return errors.New("mfa.otp.max_attempts must be between 1 and 20")
+	}
+	if err := validateSecretRefField("mfa.otp.sealing_key_ref", effective.OTP.SealingKeyRef); err != nil {
+		return err
+	}
+	if len(strings.TrimSpace(effective.OTP.Issuer)) > 64 || strings.ContainsAny(effective.OTP.Issuer, "\r\n\x00") {
+		return errors.New("mfa.otp.issuer is invalid")
+	}
+	for i, role := range effective.OTP.StepUpRoles {
+		if !validMFAToken(role) {
+			return fmt.Errorf("mfa.otp.step_up_roles[%d] is invalid", i)
+		}
+	}
+	for i, realm := range effective.OTP.StepUpRealms {
+		realm = strings.TrimSpace(realm)
+		if realm == "" {
+			return fmt.Errorf("mfa.otp.step_up_realms[%d] cannot be empty", i)
+		}
+		if realm != "*" && !validRadiusRealmName(realm) {
+			return fmt.Errorf("mfa.otp.step_up_realms[%d] %q is invalid", i, realm)
+		}
+	}
+	if effective.RadiusChallenge.TTLSeconds < 30 || effective.RadiusChallenge.TTLSeconds > 3600 {
+		return errors.New("mfa.radius_challenge.ttl_seconds must be between 30 and 3600")
+	}
+	if effective.RadiusChallenge.MaxPending < 1 || effective.RadiusChallenge.MaxPending > 1000000 {
+		return errors.New("mfa.radius_challenge.max_pending must be between 1 and 1000000")
+	}
+	if effective.RadiusChallenge.StateBytes < 16 || effective.RadiusChallenge.StateBytes > 128 {
+		return errors.New("mfa.radius_challenge.state_bytes must be between 16 and 128")
+	}
+	if len(strings.TrimSpace(effective.RadiusChallenge.Prompt)) > 160 || strings.ContainsAny(effective.RadiusChallenge.Prompt, "\r\n\x00") {
+		return errors.New("mfa.radius_challenge.prompt is invalid")
+	}
+	if effective.Recovery.CodeCount < 1 || effective.Recovery.CodeCount > 50 {
+		return errors.New("mfa.recovery.code_count must be between 1 and 50")
+	}
+	if effective.Recovery.CodeBytes < 8 || effective.Recovery.CodeBytes > 64 {
+		return errors.New("mfa.recovery.code_bytes must be between 8 and 64")
+	}
+	if effective.Recovery.CodeTTLSeconds < 0 || effective.Recovery.CodeTTLSeconds > 31536000 {
+		return errors.New("mfa.recovery.code_ttl_seconds must be between 0 and 31536000")
+	}
+	if effective.RetentionLimit < 100 || effective.RetentionLimit > 1000000 {
+		return errors.New("mfa.retention_limit must be between 100 and 1000000")
+	}
+	return nil
+}
+
+func validMFAToken(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 64 || strings.ContainsAny(value, "\r\n\x00") {
+		return false
+	}
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '-' || r == '_' || r == '.':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func validateRadiusFallbackPolicy(raw RadiusFallbackPolicyConfig) error {

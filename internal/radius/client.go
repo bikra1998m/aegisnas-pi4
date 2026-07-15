@@ -2,6 +2,7 @@ package radius
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"strconv"
@@ -25,10 +26,14 @@ type BrokerAuthRequest struct {
 	CalledStationID  string
 	FramedIPAddress  string
 	NASPort          int
+	State            string
 }
 
 type BrokerAuthResult struct {
 	Accepted                 bool
+	Challenge                bool
+	ChallengeState           string
+	ChallengePrompt          string
 	ReplyMessage             string
 	FilterID                 string
 	Class                    string
@@ -97,6 +102,11 @@ func AuthenticatePAP(ctx context.Context, cfg *config.Config, req BrokerAuthRequ
 	if err := rfc2865.UserPassword_SetString(request, req.Password); err != nil {
 		return nil, err
 	}
+	if strings.TrimSpace(req.State) != "" {
+		if err := setRADIUSState(request, req.State); err != nil {
+			return nil, err
+		}
+	}
 	if err := rfc2865.ServiceType_Set(request, rfc2865.ServiceType_Value_FramedUser); err != nil {
 		return nil, err
 	}
@@ -158,12 +168,21 @@ func AuthenticatePAP(ctx context.Context, cfg *config.Config, req BrokerAuthRequ
 
 	result := ParseBrokerPacketWithConfig(response, cfg)
 	result.Accepted = response.Code == layehradius.CodeAccessAccept
+	result.Challenge = response.Code == layehradius.CodeAccessChallenge
 	if msg, err := rfc2865.ReplyMessage_LookupString(response); err == nil {
 		result.ReplyMessage = msg
 	}
+	if result.Challenge {
+		result.ChallengePrompt = strings.TrimSpace(result.ReplyMessage)
+		if state, err := rfc2865.State_Lookup(response); err == nil && len(state) > 0 {
+			result.ChallengeState = base64.RawURLEncoding.EncodeToString(state)
+		}
+	}
 	status := "ok"
 	message := "broker auth succeeded"
-	if !result.Accepted {
+	if result.Challenge {
+		message = "broker auth issued access challenge"
+	} else if !result.Accepted {
 		status = "degraded"
 		message = "broker auth rejected"
 	}
@@ -175,6 +194,17 @@ func AuthenticatePAP(ctx context.Context, cfg *config.Config, req BrokerAuthRequ
 	})
 	RecordVendorAuthResult(cfg, result, response)
 	return result, nil
+}
+
+func setRADIUSState(packet *layehradius.Packet, state string) error {
+	state = strings.TrimSpace(state)
+	if state == "" {
+		return nil
+	}
+	if decoded, err := base64.RawURLEncoding.DecodeString(state); err == nil {
+		return rfc2865.State_Set(packet, decoded)
+	}
+	return rfc2865.State_SetString(packet, state)
 }
 
 func SendAccounting(ctx context.Context, cfg *config.Config, rec *AccountingRecord) error {
@@ -322,6 +352,21 @@ func accountingEndpoint(cfg *config.Config) string {
 
 func ParseBrokerPacket(packet *layehradius.Packet) *BrokerAuthResult {
 	result := &BrokerAuthResult{}
+	if packet == nil {
+		return result
+	}
+	result.Challenge = packet.Code == layehradius.CodeAccessChallenge
+	if msg, err := rfc2865.ReplyMessage_LookupString(packet); err == nil {
+		result.ReplyMessage = msg
+		if result.Challenge {
+			result.ChallengePrompt = strings.TrimSpace(msg)
+		}
+	}
+	if result.Challenge {
+		if state, err := rfc2865.State_Lookup(packet); err == nil && len(state) > 0 {
+			result.ChallengeState = base64.RawURLEncoding.EncodeToString(state)
+		}
+	}
 	if filterID, err := rfc2865.FilterID_LookupString(packet); err == nil {
 		result.FilterID = filterID
 	}

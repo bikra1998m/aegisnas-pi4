@@ -10,20 +10,37 @@
     <div class="container">
         <div class="card">
             <h1>{{.Branding}}</h1>
-            <p class="subtitle">Please sign in to access the network</p>
+            <p class="subtitle">{{if .MFARequired}}{{.MFAPrompt}}{{else}}Please sign in to access the network{{end}}</p>
             {{if .Error}}
             <div class="error">{{.Error}}</div>
             {{end}}
             <form method="POST" action="/login">
                 <input type="hidden" name="client_mac" value="{{.ClientMAC}}">
+                {{if .MFARequired}}
+                <input type="hidden" name="mfa_state" value="{{.MFAState}}">
+                {{end}}
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required autofocus>
+                    <input type="text" id="username" name="username" value="{{.Username}}" required {{if .MFARequired}}readonly{{else}}autofocus{{end}}>
                 </div>
+                {{if .MFARequired}}
+                <div class="form-group">
+                    <label for="mfa_otp">One-Time Password</label>
+                    <input type="text" id="mfa_otp" name="mfa_otp" inputmode="numeric" autocomplete="one-time-code" required autofocus>
+                </div>
+                {{if .MFAExpiresAt}}
+                <div class="footer">Challenge expires at {{.MFAExpiresAt}}</div>
+                {{end}}
+                {{else}}
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required>
                 </div>
+                <div class="form-group">
+                    <label for="mfa_otp">One-Time Password</label>
+                    <input type="text" id="mfa_otp" name="mfa_otp" inputmode="numeric" autocomplete="one-time-code">
+                </div>
+                {{end}}
                 <button type="submit" class="btn primary">Sign In</button>
             </form>
             <div class="links">

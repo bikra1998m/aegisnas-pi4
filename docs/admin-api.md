@@ -238,6 +238,23 @@ hashed identity-source decisions. The same summary appears in
 `identity_source_failover`, and in support bundles as
 `api/identity-failover.json`. See [identity-source-failover.md](identity-source-failover.md).
 
+OTP and RADIUS challenge MFA state is exposed at:
+
+```text
+/api/v1/system/mfa
+/api/v1/system/mfa?decision=denied&method=totp&limit=100
+POST /api/v1/system/mfa/enroll
+POST /api/v1/system/mfa/verify
+POST /api/v1/system/mfa/recovery-codes
+```
+
+Use these endpoints to review effective step-up policy, encrypted TOTP
+enrollment posture, challenge state, recovery-code inventory, and hashed MFA
+audit decisions. Enrollment, verification, and recovery-code rotation are
+restricted to `super_admin`. The same summary appears in `/api/v1/system/status`
+under `identity.mfa`, in production readiness as `mfa_challenge_otp`, and in
+support bundles as `api/mfa.json`. See [mfa-radius-challenge.md](mfa-radius-challenge.md).
+
 ## Dynamic NAS Client Endpoints
 
 NAS client bootstrap and lifecycle state are exposed through:

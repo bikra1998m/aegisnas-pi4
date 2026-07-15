@@ -475,6 +475,40 @@ identity:
     audit_enabled: true
     retention_limit: 6000
 
+mfa:
+  enabled: false
+  mode: "monitor" # Use enforce with fail_closed=true for production step-up.
+  fail_closed: true
+  otp:
+    enabled: true
+    issuer: "AegisNAS"
+    algorithm: "SHA1" # SHA1, SHA256, or SHA512.
+    digits: 6
+    period_seconds: 30
+    window_steps: 1
+    max_attempts: 5
+    sealing_key_ref: "env:AEGIS_MFA_SEALING_KEY"
+    step_up_roles:
+      - "admin"
+      - "super_admin"
+      - "ops_admin"
+    step_up_realms: []
+    required_for_admins: true
+  radius_challenge:
+    enabled: true
+    ttl_seconds: 300
+    max_pending: 10000
+    prompt: "Enter one-time password"
+    state_bytes: 32
+    allow_pap_password_append: true
+  recovery:
+    enabled: true
+    code_count: 10
+    code_bytes: 16
+    code_ttl_seconds: 0
+  audit_enabled: true
+  retention_limit: 6000
+
 ldap:
   enabled: false
   url: "ldaps://ldap.example.com"

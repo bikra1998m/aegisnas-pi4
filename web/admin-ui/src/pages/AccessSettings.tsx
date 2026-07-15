@@ -585,6 +585,40 @@ const defaultSettings: JsonMap = {
       retention_limit: 6000,
     },
   },
+  mfa: {
+    enabled: false,
+    mode: "monitor",
+    fail_closed: true,
+    otp: {
+      enabled: true,
+      issuer: "AegisNAS",
+      algorithm: "SHA1",
+      digits: 6,
+      period_seconds: 30,
+      window_steps: 1,
+      max_attempts: 5,
+      sealing_key_ref: "env:AEGIS_MFA_SEALING_KEY",
+      step_up_roles: ["admin", "super_admin", "ops_admin"],
+      step_up_realms: [],
+      required_for_admins: true,
+    },
+    radius_challenge: {
+      enabled: true,
+      ttl_seconds: 300,
+      max_pending: 10000,
+      prompt: "Enter one-time password",
+      state_bytes: 32,
+      allow_pap_password_append: true,
+    },
+    recovery: {
+      enabled: true,
+      code_count: 10,
+      code_bytes: 16,
+      code_ttl_seconds: 0,
+    },
+    audit_enabled: true,
+    retention_limit: 6000,
+  },
   radius: {
     secret: "",
     auth_port: 1812,
@@ -964,6 +998,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.portal.guest_workflows = next.portal.guest_workflows || {};
   next.identity = next.identity || {};
   next.identity.failover = next.identity.failover || {};
+  next.mfa = next.mfa || {};
+  next.mfa.otp = next.mfa.otp || {};
+  next.mfa.radius_challenge = next.mfa.radius_challenge || {};
+  next.mfa.recovery = next.mfa.recovery || {};
   next.radius = next.radius || {};
   next.radius.upstream = next.radius.upstream || {};
   next.radius.upstream.fallback_policy =
@@ -4344,6 +4382,225 @@ export default function AccessSettings() {
                   ["identity", "failover", "retention_limit"],
                   Number(value),
                 )
+              }
+            />
+          </div>
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-4">
+            <h4 className="font-semibold text-gray-900">
+              OTP And Challenge MFA
+            </h4>
+            <p className="mt-1 text-sm text-gray-600">
+              Step-up verification protects privileged roles and selected
+              realms with encrypted TOTP secrets, recovery codes, and bounded
+              challenge state.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <ToggleField
+              label="MFA Enabled"
+              checked={Boolean(settings.mfa?.enabled)}
+              onChange={(value) => updateField(["mfa", "enabled"], value)}
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={settings.mfa?.fail_closed !== false}
+              onChange={(value) => updateField(["mfa", "fail_closed"], value)}
+            />
+            <ToggleField
+              label="OTP Enabled"
+              checked={settings.mfa?.otp?.enabled !== false}
+              onChange={(value) =>
+                updateField(["mfa", "otp", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Admin Step-Up"
+              checked={settings.mfa?.otp?.required_for_admins !== false}
+              onChange={(value) =>
+                updateField(["mfa", "otp", "required_for_admins"], value)
+              }
+            />
+            <ToggleField
+              label="RADIUS Challenge State"
+              checked={settings.mfa?.radius_challenge?.enabled !== false}
+              onChange={(value) =>
+                updateField(["mfa", "radius_challenge", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Recovery Codes"
+              checked={settings.mfa?.recovery?.enabled !== false}
+              onChange={(value) =>
+                updateField(["mfa", "recovery", "enabled"], value)
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <SelectField
+              label="Mode"
+              value={settings.mfa?.mode || "monitor"}
+              onChange={(value) => updateField(["mfa", "mode"], value)}
+              options={transportPolicyModeOptions}
+            />
+            <TextField
+              label="Issuer"
+              value={settings.mfa?.otp?.issuer || "AegisNAS"}
+              onChange={(value) => updateField(["mfa", "otp", "issuer"], value)}
+            />
+            <SelectField
+              label="Algorithm"
+              value={settings.mfa?.otp?.algorithm || "SHA1"}
+              onChange={(value) =>
+                updateField(["mfa", "otp", "algorithm"], value)
+              }
+              options={[
+                { value: "SHA1", label: "SHA1" },
+                { value: "SHA256", label: "SHA256" },
+                { value: "SHA512", label: "SHA512" },
+              ]}
+            />
+            <TextField
+              label="Digits"
+              type="number"
+              value={settings.mfa?.otp?.digits || 6}
+              onChange={(value) =>
+                updateField(["mfa", "otp", "digits"], Number(value))
+              }
+            />
+            <TextField
+              label="Period Seconds"
+              type="number"
+              value={settings.mfa?.otp?.period_seconds || 30}
+              onChange={(value) =>
+                updateField(["mfa", "otp", "period_seconds"], Number(value))
+              }
+            />
+            <TextField
+              label="Window Steps"
+              type="number"
+              value={settings.mfa?.otp?.window_steps ?? 1}
+              onChange={(value) =>
+                updateField(["mfa", "otp", "window_steps"], Number(value))
+              }
+            />
+            <TextField
+              label="Max Attempts"
+              type="number"
+              value={settings.mfa?.otp?.max_attempts || 5}
+              onChange={(value) =>
+                updateField(["mfa", "otp", "max_attempts"], Number(value))
+              }
+            />
+            <TextField
+              label="Sealing Key Ref"
+              value={
+                settings.mfa?.otp?.sealing_key_ref ||
+                "env:AEGIS_MFA_SEALING_KEY"
+              }
+              onChange={(value) =>
+                updateField(["mfa", "otp", "sealing_key_ref"], value)
+              }
+            />
+            <TextField
+              label="Step-Up Roles"
+              value={listToCSV(
+                settings.mfa?.otp?.step_up_roles || [
+                  "admin",
+                  "super_admin",
+                  "ops_admin",
+                ],
+              )}
+              onChange={(value) =>
+                updateField(["mfa", "otp", "step_up_roles"], csvToList(value))
+              }
+              placeholder="admin, super_admin, ops_admin"
+            />
+            <TextField
+              label="Step-Up Realms"
+              value={listToCSV(settings.mfa?.otp?.step_up_realms || [])}
+              onChange={(value) =>
+                updateField(["mfa", "otp", "step_up_realms"], csvToList(value))
+              }
+              placeholder="corp.example, contractors.example"
+            />
+            <TextField
+              label="Challenge TTL Seconds"
+              type="number"
+              value={settings.mfa?.radius_challenge?.ttl_seconds || 300}
+              onChange={(value) =>
+                updateField(
+                  ["mfa", "radius_challenge", "ttl_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Pending Challenges"
+              type="number"
+              value={settings.mfa?.radius_challenge?.max_pending || 10000}
+              onChange={(value) =>
+                updateField(
+                  ["mfa", "radius_challenge", "max_pending"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Challenge Prompt"
+              value={
+                settings.mfa?.radius_challenge?.prompt ||
+                "Enter one-time password"
+              }
+              onChange={(value) =>
+                updateField(["mfa", "radius_challenge", "prompt"], value)
+              }
+            />
+            <TextField
+              label="State Bytes"
+              type="number"
+              value={settings.mfa?.radius_challenge?.state_bytes || 32}
+              onChange={(value) =>
+                updateField(
+                  ["mfa", "radius_challenge", "state_bytes"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Recovery Code Count"
+              type="number"
+              value={settings.mfa?.recovery?.code_count || 10}
+              onChange={(value) =>
+                updateField(["mfa", "recovery", "code_count"], Number(value))
+              }
+            />
+            <TextField
+              label="Recovery Code Bytes"
+              type="number"
+              value={settings.mfa?.recovery?.code_bytes || 16}
+              onChange={(value) =>
+                updateField(["mfa", "recovery", "code_bytes"], Number(value))
+              }
+            />
+            <TextField
+              label="Recovery TTL Seconds"
+              type="number"
+              value={settings.mfa?.recovery?.code_ttl_seconds || 0}
+              onChange={(value) =>
+                updateField(
+                  ["mfa", "recovery", "code_ttl_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Audit Retention"
+              type="number"
+              value={settings.mfa?.retention_limit || 6000}
+              onChange={(value) =>
+                updateField(["mfa", "retention_limit"], Number(value))
               }
             />
           </div>
