@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
@@ -512,6 +513,20 @@ func (g *Generator) resolveClientSecrets(clients []config.RadiusClient) ([]confi
 	return resolved, nil
 }
 
+func normalizeRadSecPSKHexPhrase(value string) (string, error) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if len(value) < 32 || len(value) > 512 || len(value)%2 != 0 {
+		return "", fmt.Errorf("TLS-PSK secret must be an even-length hex string between 32 and 512 characters")
+	}
+	for _, r := range value {
+		if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') {
+			continue
+		}
+		return "", fmt.Errorf("TLS-PSK secret must contain only hexadecimal characters")
+	}
+	return value, nil
+}
+
 func (g *Generator) renderModsLDAP() (string, error) {
 	if !g.cfg.LDAP.Enabled {
 		return "# LDAP disabled\n", nil
@@ -683,6 +698,8 @@ func (g *Generator) renderProxyConf() (string, error) {
 		Secret            string
 		Transport         string
 		RadSec            config.RadiusRadSecPeerConfig
+		PSKIdentity       string
+		PSKHexPhrase      string
 		StatusCheck       string
 		ResponseWindow    int
 		ZombiePeriod      int
@@ -731,6 +748,23 @@ func (g *Generator) renderProxyConf() (string, error) {
 				}
 				secret = resolvedSecret
 			}
+			pskHexPhrase := ""
+			pskIdentity := ""
+			if transport == "radsec" && server.RadSec.PSK.Enabled {
+				selectedPSK, err := SelectRadSecPSK(server.RadSec.PSK, time.Now().UTC())
+				if err != nil {
+					return "", fmt.Errorf("radius.upstream.servers.%s.radsec.psk: %w", server.Name, err)
+				}
+				pskIdentity = selectedPSK.Identity
+				resolved, err := secrets.ResolveConfiguredSecret(context.Background(), resolver, "radius.upstream.servers."+server.Name+".radsec.psk.secret_ref", "", selectedPSK.SecretRef)
+				if err != nil {
+					return "", err
+				}
+				pskHexPhrase, err = normalizeRadSecPSKHexPhrase(resolved)
+				if err != nil {
+					return "", fmt.Errorf("radius.upstream.servers.%s.radsec.psk.secret_ref: %w", server.Name, err)
+				}
+			}
 
 			homeServerName := strings.TrimSpace(server.Name)
 			if route.Name != "legacy-default" {
@@ -745,6 +779,8 @@ func (g *Generator) renderProxyConf() (string, error) {
 				Secret:            secret,
 				Transport:         transport,
 				RadSec:            server.RadSec,
+				PSKIdentity:       pskIdentity,
+				PSKHexPhrase:      pskHexPhrase,
 				StatusCheck:       route.StatusCheck,
 				ResponseWindow:    g.cfg.Radius.Upstream.ResponseWindow,
 				ZombiePeriod:      g.cfg.Radius.Upstream.ZombiePeriod,
@@ -794,6 +830,10 @@ home_server {{ .Name }} {
 	hostname = {{ .RadSec.ServerName }}
 	nonblock = yes
 	tls {
+		{{- if .RadSec.PSK.Enabled }}
+		psk_identity = "{{ .PSKIdentity }}"
+		psk_hexphrase = "{{ .PSKHexPhrase }}"
+		{{- else }}
 		certificate_file = {{ .RadSec.CertificateFile }}
 		private_key_file = {{ .RadSec.PrivateKeyFile }}
 		{{- if .RadSec.PrivateKeyPasswordEnv }}
@@ -806,6 +846,7 @@ home_server {{ .Name }} {
 		ca_path = {{ .RadSec.CAPath }}
 		{{- end }}
 		check_crl = {{ if .RadSec.CheckCRL }}yes{{ else }}no{{ end }}
+		{{- end }}
 		cipher_list = "{{ .RadSec.CipherList }}"
 		tls_min_version = "{{ .RadSec.TLSMinVersion }}"
 		tls_max_version = "{{ .RadSec.TLSMaxVersion }}"

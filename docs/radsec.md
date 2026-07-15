@@ -6,21 +6,24 @@ RadSec protects RADIUS authentication, authorization, accounting, Status-Server,
 CoA, and Disconnect traffic with TLS over TCP. It replaces source-IP plus shared
 secret transport trust with certificate-based peer authentication, encrypted
 transport, integrity protection, server-name verification, and revocation
-policy. The RFC 6614 application-layer secret is always `radsec`; it is not an
-operator credential and is never used as a UDP fallback secret.
+policy. For X.509 RadSec, the RFC 6614 application-layer secret is always
+`radsec`; it is not an operator credential and is never used as a UDP fallback
+secret.
 
-This implementation covers the mandatory X.509 mutual-TLS profile. TLS-PSK is
-an optional, separately negotiated profile defined by RFC 9813 and is not
-represented as X.509 support. DTLS is not enabled because the current
-RADIUS/DTLS revision is not an RFC.
+This implementation covers the mandatory X.509 mutual-TLS profile and outbound
+TLS-PSK home-server profiles with deterministic credential rotation. TLS-PSK is
+the optional RFC 9813 profile for environments that have explicitly negotiated
+pre-shared RadSec credentials with a roaming partner or upstream AAA provider.
+DTLS is not enabled because the current RADIUS/DTLS revision is not an RFC.
 
 ## Standards and vendor interoperability
 
 | Item | Implementation |
 |---|---|
-| RFC 6614 | TCP port 2083 default, one stream for RADIUS packet classes, fixed `radsec` application secret, X.509 mTLS, no automatic UDP downgrade |
+| RFC 6614 | TCP port 2083 default, one stream for RADIUS packet classes, fixed `radsec` application secret for X.509 mTLS, no automatic UDP downgrade |
 | RFC 8996 | TLS 1.2 minimum; TLS 1.0 and 1.1 are rejected by configuration validation |
 | RFC 9765 | `radius/1.0` and `radius/1.1` ALPN policy with `forbid`, `allow`, and `require`; RADIUS/1.1 requires TLS 1.3 |
+| RFC 9813 | Outbound TLS-PSK identity and hexphrase rendering, secret-reference validation, active-window rotation, and fail-closed expired rotation windows |
 | RFC 2865/2866 | Authentication and accounting packets retain ordinary RADIUS packet semantics inside TLS |
 | RFC 5176 | CoA and Disconnect are accepted on the inbound RadSec listener |
 | RFC 5997 | Status-Server is used for active RADIUS/1.0 health checks |
@@ -47,11 +50,22 @@ model before rollout.
   source IP/CIDR and exact certificate common name. An optional issuer DN adds a
   second connection-authorization condition.
 - Each upstream home server independently selects `udp` or `radsec`. RadSec
-  peers require a verified server name, client certificate/key, CA material,
-  TLS bounds, and connection limits.
+  peers use either X.509 mTLS credentials or TLS-PSK. mTLS peers require a
+  verified server name, client certificate/key, CA material, TLS bounds, and
+  connection limits. TLS-PSK peers require a verified server name, safe PSK
+  identity, `env:` or `file:` secret reference, and optional next credential
+  window.
 - Password fields hold environment variable names only. Raw private-key
   passwords are not stored in YAML, SQLite, API responses, generated history,
   or support metadata.
+- TLS-PSK secret references are resolved only during FreeRADIUS generation.
+  API, status, readiness, and support views expose fingerprints and boolean
+  presence only. Secret values and raw references are not returned.
+- A staged TLS-PSK becomes effective when `next_not_before` is reached and
+  remains valid until `next_not_after`. After the window expires, generation and
+  readiness fail closed until the operator promotes or removes the staged
+  credential. Use `overlap_seconds` and `warning_days` to document the partner
+  overlap period and alert window.
 - A RadSec transport never falls back to UDP. Operators must define a separate
   UDP home server explicitly if degraded transport is an accepted policy.
 
@@ -67,7 +81,8 @@ Implementation: `internal/config/config.go`, `internal/config/radsec.go`, and
   mandatory client certificates, exact CN matching, optional issuer matching,
   CRL checks, TLS limits, and a dedicated TLS client namespace;
 - `proxy.conf` home servers with `proto = tcp`, `secret = radsec`, SNI/hostname,
-  client credentials, CA/CRL policy, and bounded connection pools; and
+  mTLS client credentials or TLS-PSK identity/hexphrase, CA/CRL policy where
+  applicable, and bounded connection pools; and
 - no `radiusv1_1` directive in compatibility mode, allowing stock distribution
   builds without `WITH_RADIUSV11` to validate the generated configuration.
 
@@ -89,6 +104,7 @@ Existing endpoints expose the feature without a parallel control plane:
 | `GET/POST/PUT/DELETE /api/v1/radius-clients` | Manage UDP or RadSec NAS peers; list responses expose `secret_set`, never the secret |
 | settings preview/apply/rollback endpoints | Configure inbound and outbound RadSec safely |
 | `GET /api/v1/system/status` | Active upstream TLS and RADIUS health |
+| `GET /api/v1/system/radsec-credentials` | Redacted mTLS and TLS-PSK credential state, effective PSK identity, rotation state, warnings, and RFC coverage |
 | `GET /api/v1/system/upstream-aaa-history` | Durable TLS negotiation and certificate history |
 | `GET /api/v1/system/upstream-aaa-history/export?format=csv` | CSV operational evidence |
 | `GET /api/v1/system/upstream-aaa-history/export?format=json` | JSON operational evidence |
@@ -102,6 +118,12 @@ serial when CRL enforcement is enabled. For RADIUS/1.0 it sends Status-Server,
 validates the response authenticator, and records the response. For required
 RADIUS/1.1 it validates TLS 1.3 and ALPN without sending an incompatible
 RADIUS/1.0 probe.
+
+TLS-PSK transport probing is reported as `unknown` by the Go health path because
+the standard library path used here does not expose the FreeRADIUS TLS-PSK
+handshake. The generated FreeRADIUS configuration and credential lifecycle are
+fully automated; live PSK transport evidence belongs in the NAS-0014 release
+certification checklist.
 
 `internal/telemetry/upstream_aaa.go` collects history in the background, so an
 outage is recorded even when no administrator has the dashboard open. Runtime
@@ -130,7 +152,12 @@ not copied through the application database.
    it, and confirm management reachability.
 6. Add outbound RadSec home servers. Do not retain a UDP peer unless explicit
    downgrade is part of the approved threat model.
-7. Run `scripts/radsec-smoke-test.sh` and inspect upstream history.
+7. For TLS-PSK peers, set the current secret through an `env:` or `file:` ref
+   containing an even-length hexadecimal phrase between 32 and 512 characters.
+   Stage `next_identity`, `next_secret_ref`, `next_not_before`, and
+   `next_not_after` before rotating a partner.
+8. Run `scripts/radsec-smoke-test.sh`, inspect upstream history, and review
+   `/api/v1/system/radsec-credentials`.
 
 RADIUS/1.1 `allow` or `require` needs a FreeRADIUS build with
 `WITH_RADIUSV11`. Keep `forbid` for ordinary FreeRADIUS 3.2.x distribution
@@ -139,8 +166,9 @@ packages. Apply validation detects an unsupported directive before restart.
 ## Validation and failure behavior
 
 Automated coverage includes invalid TLS and identity policy, generated inbound
-and outbound syntax, fixed application secret, environment expansion, schema
-migration, successful mTLS plus Status-Server, wrong server identity,
+and outbound syntax, fixed application secret, environment expansion, TLS-PSK
+hexphrase validation, active-window PSK rotation, redacted credential APIs,
+schema migration, successful mTLS plus Status-Server, wrong server identity,
 incompatible ALPN, API secret redaction, blank-edit secret preservation, and a
 production TypeScript build.
 
@@ -155,13 +183,17 @@ automatic UDP retry occurs.
 | Configuration and validation | Complete |
 | Inbound listener and client identity | Complete |
 | Outbound proxy pools | Complete |
+| Outbound TLS-PSK profile | Complete |
+| TLS-PSK credential rotation | Complete |
 | Packet health and revocation | Complete |
 | Background history and exports | Complete |
 | REST API and secret handling | Complete |
 | Admin UI | Complete |
 | Unit and local integration tests | Complete |
-| Ubuntu FreeRADIUS and physical vendor certification | Run on the deployment lab before release sign-off |
+| Ubuntu FreeRADIUS and physical vendor certification | Tracked in `nas-0014-release-certification-checklist.md` |
 
-The X.509 RadSec software implementation is complete. Release sign-off still
-requires the environment-owned Ubuntu and target-device matrix because those
-systems and certificates are not available in the source workspace.
+The RadSec software implementation for X.509 mTLS, outbound TLS-PSK, and
+credential rotation is complete. Release sign-off still requires the
+environment-owned Ubuntu, FreeRADIUS TLS-PSK, HA, performance, security, and
+target-device matrix because those systems and certificates are not available
+in the source workspace.

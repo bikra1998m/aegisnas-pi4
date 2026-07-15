@@ -94,6 +94,13 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read RADIUS packet hardening policy", radiusHardeningGet["summary"])
 	assert.Contains(t, radiusHardeningGet["x-aegisnas-roles"], "read_only")
 
+	radsecCredentialsPath, ok := paths["/api/v1/system/radsec-credentials"].(map[string]any)
+	require.True(t, ok)
+	radsecCredentialsGet, ok := radsecCredentialsPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read RadSec credential and rotation state", radsecCredentialsGet["summary"])
+	assert.Contains(t, radsecCredentialsGet["x-aegisnas-roles"], "read_only")
+
 	nasEnrollPath, ok := paths["/api/v1/nas/enroll"].(map[string]any)
 	require.True(t, ok)
 	nasEnrollPost, ok := nasEnrollPath["post"].(map[string]any)

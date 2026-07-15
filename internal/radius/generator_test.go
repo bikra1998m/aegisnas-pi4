@@ -3,6 +3,7 @@ package radius
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -199,6 +200,92 @@ func TestGeneratorEmitsRadiusV11OnlyWhenEnabled(t *testing.T) {
 	generated, err := NewGenerator(cfg).Generate()
 	require.NoError(t, err)
 	assert.Contains(t, generated.RadSecSite, "radiusv1_1 = require")
+}
+
+func TestGeneratorRendersOutboundRadSecTLSPSK(t *testing.T) {
+	previousDB := db.DB
+	db.DB = nil
+	t.Cleanup(func() { db.DB = previousDB })
+	t.Setenv("RADSEC_PSK_CURRENT", "00112233445566778899aabbccddeeff")
+
+	cfg := &config.Config{Radius: config.RadiusConfig{
+		Secret: "local-secret", AuthPort: 1812, AcctPort: 1813,
+		Upstream: config.RadiusUpstreamConfig{
+			Enabled: true, Realm: "secure-realm", PoolStrategy: "fail-over", StatusCheck: "status-server",
+			ResponseWindow: 20, ZombiePeriod: 40, ReviveInterval: 120, CheckInterval: 30, NumAnswersToAlive: 3,
+			Servers: []config.RadiusHomeServer{{Name: "psk-aaa", Address: "203.0.113.30", Transport: "radsec", RadSec: config.RadiusRadSecPeerConfig{
+				Port: 2083, ServerName: "aaa-psk.example.net", TLSMinVersion: "1.2", TLSMaxVersion: "1.3",
+				CipherList: "DEFAULT@SECLEVEL=2", RadiusV11: "forbid", MaxConnections: 16, LifetimeSeconds: 86400, IdleTimeoutSeconds: 300,
+				PSK: config.RadiusRadSecPSKConfig{Enabled: true, Identity: "aegisnas-psk", SecretRef: "env:RADSEC_PSK_CURRENT"},
+			}}},
+		},
+	}, Database: config.DatabaseConfig{Path: "/var/lib/aegisnas/data.db"}}
+
+	generated, err := NewGenerator(cfg).Generate()
+	require.NoError(t, err)
+	assert.Contains(t, generated.ProxyConf, `psk_identity = "aegisnas-psk"`)
+	assert.Contains(t, generated.ProxyConf, `psk_hexphrase = "00112233445566778899aabbccddeeff"`)
+	assert.NotContains(t, generated.ProxyConf, "certificate_file =")
+	assert.NotContains(t, generated.ProxyConf, "private_key_file =")
+}
+
+func TestGeneratorUsesActiveRadSecTLSPSKRotation(t *testing.T) {
+	previousDB := db.DB
+	db.DB = nil
+	t.Cleanup(func() { db.DB = previousDB })
+	t.Setenv("RADSEC_PSK_CURRENT", "00112233445566778899aabbccddeeff")
+	t.Setenv("RADSEC_PSK_NEXT", "ffeeddccbbaa99887766554433221100")
+	now := time.Now().UTC()
+
+	cfg := &config.Config{Radius: config.RadiusConfig{
+		Secret: "local-secret", AuthPort: 1812, AcctPort: 1813,
+		Upstream: config.RadiusUpstreamConfig{
+			Enabled: true, Realm: "secure-realm", PoolStrategy: "fail-over", StatusCheck: "status-server",
+			ResponseWindow: 20, ZombiePeriod: 40, ReviveInterval: 120, CheckInterval: 30, NumAnswersToAlive: 3,
+			Servers: []config.RadiusHomeServer{{Name: "psk-aaa", Address: "203.0.113.30", Transport: "radsec", RadSec: config.RadiusRadSecPeerConfig{
+				Port: 2083, ServerName: "aaa-psk.example.net", TLSMinVersion: "1.2", TLSMaxVersion: "1.3",
+				CipherList: "DEFAULT@SECLEVEL=2", RadiusV11: "forbid", MaxConnections: 16, LifetimeSeconds: 86400, IdleTimeoutSeconds: 300,
+				PSK: config.RadiusRadSecPSKConfig{
+					Enabled:       true,
+					Identity:      "aegisnas-psk",
+					SecretRef:     "env:RADSEC_PSK_CURRENT",
+					NextIdentity:  "aegisnas-psk-next",
+					NextSecretRef: "env:RADSEC_PSK_NEXT",
+					NextNotBefore: now.Add(-time.Minute).Format(time.RFC3339),
+					NextNotAfter:  now.Add(time.Hour).Format(time.RFC3339),
+				},
+			}}},
+		},
+	}, Database: config.DatabaseConfig{Path: "/var/lib/aegisnas/data.db"}}
+
+	generated, err := NewGenerator(cfg).Generate()
+	require.NoError(t, err)
+	assert.Contains(t, generated.ProxyConf, `psk_identity = "aegisnas-psk-next"`)
+	assert.Contains(t, generated.ProxyConf, `psk_hexphrase = "ffeeddccbbaa99887766554433221100"`)
+	assert.NotContains(t, generated.ProxyConf, `psk_identity = "aegisnas-psk"`)
+}
+
+func TestGeneratorRejectsInvalidRadSecTLSPSKSecret(t *testing.T) {
+	previousDB := db.DB
+	db.DB = nil
+	t.Cleanup(func() { db.DB = previousDB })
+	t.Setenv("RADSEC_PSK_CURRENT", "not-hex")
+
+	cfg := &config.Config{Radius: config.RadiusConfig{
+		AuthPort: 1812, AcctPort: 1813,
+		Upstream: config.RadiusUpstreamConfig{
+			Enabled: true, Realm: "secure-realm", PoolStrategy: "fail-over", StatusCheck: "status-server",
+			ResponseWindow: 20, ZombiePeriod: 40, ReviveInterval: 120, CheckInterval: 30, NumAnswersToAlive: 3,
+			Servers: []config.RadiusHomeServer{{Name: "psk-aaa", Address: "203.0.113.30", Transport: "radsec", RadSec: config.RadiusRadSecPeerConfig{
+				Port: 2083, ServerName: "aaa-psk.example.net", TLSMinVersion: "1.2", TLSMaxVersion: "1.3",
+				CipherList: "DEFAULT@SECLEVEL=2", RadiusV11: "forbid", MaxConnections: 16,
+				PSK: config.RadiusRadSecPSKConfig{Enabled: true, Identity: "aegisnas-psk", SecretRef: "env:RADSEC_PSK_CURRENT"},
+			}}},
+		},
+	}, Database: config.DatabaseConfig{Path: "/var/lib/aegisnas/data.db"}}
+
+	_, err := NewGenerator(cfg).Generate()
+	assert.ErrorContains(t, err, "TLS-PSK secret")
 }
 
 func TestGeneratorFallsBackToConfigClientsWhenDBNotMigrated(t *testing.T) {

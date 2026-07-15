@@ -310,6 +310,16 @@ radius:
       #   radsec:
       #     port: 2083
       #     server_name: "radsec.example.net"
+      #     psk:
+      #       enabled: false
+      #       identity: ""
+      #       secret_ref: "env:AEGIS_RADSEC_PSK_CURRENT"
+      #       next_identity: ""
+      #       next_secret_ref: "env:AEGIS_RADSEC_PSK_NEXT"
+      #       next_not_before: ""
+      #       next_not_after: ""
+      #       overlap_seconds: 86400
+      #       warning_days: 30
       #     certificate_file: /etc/aegisnas/radsec/client.crt
       #     private_key_file: /etc/aegisnas/radsec/client.key
       #     private_key_password_env: ""

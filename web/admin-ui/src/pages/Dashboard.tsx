@@ -264,6 +264,32 @@ type RadiusAccountingSpoolReport = {
   };
 };
 
+type RadSecCredentialReport = {
+  status: string;
+  message: string;
+  summary?: {
+    inbound_enabled: boolean;
+    upstream_radsec_peers: number;
+    mtls_endpoints: number;
+    psk_endpoints: number;
+    rotation_staged: number;
+    rotation_active: number;
+    rotation_expired: number;
+    certificate_warnings: number;
+    blocking_issues: number;
+  };
+  upstream?: Array<{
+    name: string;
+    mode: string;
+    status: string;
+    rotation_status: string;
+    effective_psk_identity?: string;
+    using_next_psk?: boolean;
+    warnings?: string[];
+  }>;
+  warnings?: string[];
+};
+
 type DynamicNASClientReport = {
   enabled: boolean;
   status: string;
@@ -377,6 +403,7 @@ type SystemStatus = {
     proxy_routes?: RadiusProxyRoutingReport;
     proxy_policy?: RadiusProxyPolicyReport;
     accounting_spool?: RadiusAccountingSpoolReport;
+    radsec_credentials?: RadSecCredentialReport;
     dynamic_nas_clients?: DynamicNASClientReport;
     probe_error?: string;
   };
@@ -917,6 +944,7 @@ export default function Dashboard() {
   const proxyRoutes = systemStatus.radius?.proxy_routes;
   const proxyPolicy = systemStatus.radius?.proxy_policy;
   const accountingSpool = systemStatus.radius?.accounting_spool;
+  const radSecCredentials = systemStatus.radius?.radsec_credentials;
   const dynamicNASClients = systemStatus.radius?.dynamic_nas_clients;
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
   const serviceProblems = services.filter(
@@ -1612,6 +1640,72 @@ export default function Dashboard() {
                       ) : null}
                     </div>
                     <StatusBadge status={proxyPolicy.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {radSecCredentials ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        RadSec Credentials
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {radSecCredentials.message ||
+                          "RadSec credential state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          mTLS{" "}
+                          {radSecCredentials.summary?.mtls_endpoints ?? 0}
+                        </div>
+                        <div>
+                          TLS-PSK{" "}
+                          {radSecCredentials.summary?.psk_endpoints ?? 0}
+                        </div>
+                        <div>
+                          Staged{" "}
+                          {radSecCredentials.summary?.rotation_staged ?? 0}
+                        </div>
+                        <div>
+                          Active{" "}
+                          {radSecCredentials.summary?.rotation_active ?? 0}
+                        </div>
+                        <div>
+                          Blocked{" "}
+                          {radSecCredentials.summary?.blocking_issues ?? 0}
+                        </div>
+                      </div>
+                      {radSecCredentials.upstream?.length ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          {radSecCredentials.upstream
+                            .slice(0, 2)
+                            .map((peer) =>
+                              `${peer.name}: ${peer.mode} ${peer.rotation_status}${
+                                peer.using_next_psk &&
+                                peer.effective_psk_identity
+                                  ? ` using ${peer.effective_psk_identity}`
+                                  : ""
+                              }`,
+                            )
+                            .join("; ")}
+                          {radSecCredentials.upstream.length > 2
+                            ? `; ${
+                                radSecCredentials.upstream.length - 2
+                              } more`
+                            : ""}
+                          .
+                        </div>
+                      ) : null}
+                      {radSecCredentials.warnings?.length ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {radSecCredentials.warnings[0]}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge
+                      status={radSecCredentials.status || "unknown"}
+                    />
                   </div>
                 </div>
               ) : null}

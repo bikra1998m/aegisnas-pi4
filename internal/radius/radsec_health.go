@@ -40,6 +40,13 @@ func probeRadSecServer(ctx context.Context, cfg *config.Config, server config.Ra
 	probeCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	start := time.Now()
+	if server.RadSec.PSK.Enabled {
+		status.Status = "unknown"
+		status.Message = "RadSec TLS-PSK peer is configured; active PSK transport validation is tracked by the NAS-0014 release certification workflow."
+		status.LatencyMs = time.Since(start).Milliseconds()
+		persistUpstreamProbeStatus(component, status)
+		return status
+	}
 	tlsConfig, err := radSecTLSConfig(server.RadSec)
 	if err != nil {
 		status.Status = "down"

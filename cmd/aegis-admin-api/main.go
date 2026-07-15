@@ -201,6 +201,7 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/vsa-codec", adminapi.HandleGetVSACodec)
 			r.Get("/system/opaque-passthrough", adminapi.HandleGetOpaquePassThrough)
 			r.Get("/system/radius-hardening", adminapi.HandleGetRadiusHardening)
+			r.Get("/system/radsec-credentials", adminapi.HandleGetRadSecCredentials)
 			r.Get("/system/nas-clients", adminapi.HandleGetNASClients)
 			r.Get("/system/nas-clients/enrollments", adminapi.HandleListNASClientEnrollments)
 			r.Post("/system/nas-clients/enrollments", adminapi.HandleCreateNASClientEnrollment)

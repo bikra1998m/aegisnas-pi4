@@ -386,22 +386,38 @@ type RadiusHomeServer struct {
 // RadiusRadSecPeerConfig contains outbound client identity, trust anchors, and
 // connection limits for one RadSec home server.
 type RadiusRadSecPeerConfig struct {
-	Port                  int    `mapstructure:"port"`
-	ServerName            string `mapstructure:"server_name"`
-	CertificateFile       string `mapstructure:"certificate_file"`
-	PrivateKeyFile        string `mapstructure:"private_key_file"`
-	PrivateKeyPasswordEnv string `mapstructure:"private_key_password_env"`
-	CAFile                string `mapstructure:"ca_file"`
-	CAPath                string `mapstructure:"ca_path"`
-	CheckCRL              bool   `mapstructure:"check_crl"`
-	TLSMinVersion         string `mapstructure:"tls_min_version"`
-	TLSMaxVersion         string `mapstructure:"tls_max_version"`
-	CipherList            string `mapstructure:"cipher_list"`
-	RadiusV11             string `mapstructure:"radius_v11"`
-	MaxConnections        int    `mapstructure:"max_connections"`
-	MaxRequests           int    `mapstructure:"max_requests"`
-	LifetimeSeconds       int    `mapstructure:"lifetime_seconds"`
-	IdleTimeoutSeconds    int    `mapstructure:"idle_timeout_seconds"`
+	Port                  int                   `mapstructure:"port"`
+	ServerName            string                `mapstructure:"server_name"`
+	CertificateFile       string                `mapstructure:"certificate_file"`
+	PrivateKeyFile        string                `mapstructure:"private_key_file"`
+	PrivateKeyPasswordEnv string                `mapstructure:"private_key_password_env"`
+	CAFile                string                `mapstructure:"ca_file"`
+	CAPath                string                `mapstructure:"ca_path"`
+	CheckCRL              bool                  `mapstructure:"check_crl"`
+	TLSMinVersion         string                `mapstructure:"tls_min_version"`
+	TLSMaxVersion         string                `mapstructure:"tls_max_version"`
+	CipherList            string                `mapstructure:"cipher_list"`
+	RadiusV11             string                `mapstructure:"radius_v11"`
+	MaxConnections        int                   `mapstructure:"max_connections"`
+	MaxRequests           int                   `mapstructure:"max_requests"`
+	LifetimeSeconds       int                   `mapstructure:"lifetime_seconds"`
+	IdleTimeoutSeconds    int                   `mapstructure:"idle_timeout_seconds"`
+	PSK                   RadiusRadSecPSKConfig `mapstructure:"psk"`
+}
+
+// RadiusRadSecPSKConfig enables the optional RFC 9813 TLS-PSK profile for an
+// outbound RadSec home server. Secret material is always referenced through the
+// enterprise secret-provider interface.
+type RadiusRadSecPSKConfig struct {
+	Enabled        bool   `mapstructure:"enabled"`
+	Identity       string `mapstructure:"identity"`
+	SecretRef      string `mapstructure:"secret_ref"`
+	NextIdentity   string `mapstructure:"next_identity"`
+	NextSecretRef  string `mapstructure:"next_secret_ref"`
+	NextNotBefore  string `mapstructure:"next_not_before"`
+	NextNotAfter   string `mapstructure:"next_not_after"`
+	OverlapSeconds int    `mapstructure:"overlap_seconds"`
+	WarningDays    int    `mapstructure:"warning_days"`
 }
 
 type RadiusVendorConfig struct {
@@ -1114,6 +1130,9 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.radsec.idle_timeout_seconds", 300)
 	v.SetDefault("radius.radsec.probe_interval_seconds", 30)
 	v.SetDefault("radius.radsec.certificate_expiry_warning_days", 30)
+	v.SetDefault("radius.upstream.servers[].radsec.psk.enabled", false)
+	v.SetDefault("radius.upstream.servers[].radsec.psk.overlap_seconds", 86400)
+	v.SetDefault("radius.upstream.servers[].radsec.psk.warning_days", 30)
 	v.SetDefault("radius.eap.default_type", "peap")
 	v.SetDefault("radius.eap.peap_inner", "mschapv2")
 	v.SetDefault("radius.eap.ttls_inner", "mschapv2")
@@ -3977,6 +3996,16 @@ func validateConfiguredSecretReferences(c *Config) error {
 	for i, server := range c.Radius.Upstream.Servers {
 		if err := validateSecretPair(fmt.Sprintf("radius.upstream.servers[%d].secret", i), server.Secret, fmt.Sprintf("radius.upstream.servers[%d].secret_ref", i), server.SecretRef); err != nil {
 			return err
+		}
+		if ref := strings.TrimSpace(server.RadSec.PSK.SecretRef); ref != "" {
+			if err := validateSecretRefField(fmt.Sprintf("radius.upstream.servers[%d].radsec.psk.secret_ref", i), ref); err != nil {
+				return err
+			}
+		}
+		if ref := strings.TrimSpace(server.RadSec.PSK.NextSecretRef); ref != "" {
+			if err := validateSecretRefField(fmt.Sprintf("radius.upstream.servers[%d].radsec.psk.next_secret_ref", i), ref); err != nil {
+				return err
+			}
 		}
 	}
 	return validateSecretPair("ldap.bind_password", c.LDAP.BindPassword, "ldap.bind_password_ref", c.LDAP.BindPasswordRef)

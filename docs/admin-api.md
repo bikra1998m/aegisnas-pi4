@@ -4,7 +4,9 @@ RadSec upstream status and history include `transport`, `radsec_port`,
 `tls_version`, `tls_cipher_suite`, `tls_alpn`, `peer_subject`, `peer_issuer`,
 `peer_serial`, and `peer_not_after`. RADIUS-client list responses return
 `secret_set`, `inline_secret_set`, `secret_ref_set`, and
-`secret_ref_fingerprint`; they never return shared-secret values. See
+`secret_ref_fingerprint`; they never return shared-secret values. RadSec
+TLS-PSK credential views return presence flags and fingerprints, never secret
+values or raw secret references. See
 [radsec.md](radsec.md) and [secret-providers.md](secret-providers.md).
 
 This guide is the operator and integration entry point for the AegisNAS admin API.
@@ -69,6 +71,28 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 ```
 
 The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
+
+## RadSec Credential Status
+
+Use the RadSec credential report during TLS-PSK staging, mTLS certificate
+renewal, and production readiness reviews:
+
+```text
+/api/v1/system/radsec-credentials
+```
+
+Example:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/radsec-credentials | jq '.status, .summary, .upstream[]?'
+```
+
+The report includes inbound mTLS state, upstream mTLS and TLS-PSK peers,
+effective TLS-PSK identity, staged/active/expired rotation windows, certificate
+warning state, and blocking issues. It is also embedded in
+`/api/v1/system/status` as `radius.radsec_credentials` and included in
+`/api/v1/system/production-readiness` as the `radsec_credentials` check.
 
 ## Vendor Compatibility Endpoint
 

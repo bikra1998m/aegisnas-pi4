@@ -6,6 +6,7 @@ import (
 	"net"
 	"regexp"
 	"strings"
+	"time"
 )
 
 var radiusEnvironmentName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
@@ -122,6 +123,24 @@ func validateRadSecPeer(index int, server RadiusHomeServer) error {
 	if strings.TrimSpace(r.ServerName) == "" || containsConfigControl(r.ServerName) {
 		return fmt.Errorf("%s.server_name is required and must be safe for TLS SNI verification", prefix)
 	}
+	if r.PSK.Enabled {
+		if err := validateRadSecPSKConfig(prefix+".psk", r.PSK); err != nil {
+			return err
+		}
+		if err := validateTLSVersions(prefix, r.TLSMinVersion, r.TLSMaxVersion); err != nil {
+			return err
+		}
+		if err := validateRadiusV11(prefix+".radius_v11", r.RadiusV11); err != nil {
+			return err
+		}
+		if radiusV11Enabled(r.RadiusV11) && r.TLSMinVersion != "1.3" {
+			return fmt.Errorf("%s.radius_v11 allow or require needs %s.tls_min_version 1.3", prefix, prefix)
+		}
+		if strings.TrimSpace(r.CipherList) == "" || containsConfigControl(r.CipherList) {
+			return fmt.Errorf("%s.cipher_list must be non-empty and contain no control characters", prefix)
+		}
+		return validateConnectionLimits(prefix, r.MaxConnections, r.MaxRequests, r.LifetimeSeconds, r.IdleTimeoutSeconds)
+	}
 	if err := requireTLSFiles(prefix, r.CertificateFile, r.PrivateKeyFile, r.CAFile, r.CAPath); err != nil {
 		return err
 	}
@@ -141,6 +160,67 @@ func validateRadSecPeer(index int, server RadiusHomeServer) error {
 		return fmt.Errorf("%s.cipher_list must be non-empty and contain no control characters", prefix)
 	}
 	return validateConnectionLimits(prefix, r.MaxConnections, r.MaxRequests, r.LifetimeSeconds, r.IdleTimeoutSeconds)
+}
+
+func validateRadSecPSKConfig(prefix string, psk RadiusRadSecPSKConfig) error {
+	if strings.TrimSpace(psk.Identity) == "" || !radiusConfigAtom.MatchString(strings.TrimSpace(psk.Identity)) {
+		return fmt.Errorf("%s.identity is required and must be safe for TLS-PSK identity use", prefix)
+	}
+	if strings.TrimSpace(psk.SecretRef) == "" {
+		return fmt.Errorf("%s.secret_ref is required", prefix)
+	}
+	if err := validateSecretRefField(prefix+".secret_ref", psk.SecretRef); err != nil {
+		return err
+	}
+	if psk.OverlapSeconds < 0 || psk.OverlapSeconds > 2592000 {
+		return fmt.Errorf("%s.overlap_seconds must be between 0 and 2592000", prefix)
+	}
+	if psk.WarningDays < 0 || psk.WarningDays > 365 {
+		return fmt.Errorf("%s.warning_days must be between 0 and 365", prefix)
+	}
+	nextIdentity := strings.TrimSpace(psk.NextIdentity)
+	nextRef := strings.TrimSpace(psk.NextSecretRef)
+	nextBefore := strings.TrimSpace(psk.NextNotBefore)
+	nextAfter := strings.TrimSpace(psk.NextNotAfter)
+	if nextIdentity == "" && nextRef == "" && nextBefore == "" && nextAfter == "" {
+		return nil
+	}
+	if nextIdentity == "" || !radiusConfigAtom.MatchString(nextIdentity) {
+		return fmt.Errorf("%s.next_identity is required and must be safe when staging a next PSK", prefix)
+	}
+	if nextRef == "" {
+		return fmt.Errorf("%s.next_secret_ref is required when staging a next PSK", prefix)
+	}
+	if err := validateSecretRefField(prefix+".next_secret_ref", nextRef); err != nil {
+		return err
+	}
+	notBefore, err := parseOptionalRFC3339(prefix+".next_not_before", nextBefore)
+	if err != nil {
+		return err
+	}
+	notAfter, err := parseOptionalRFC3339(prefix+".next_not_after", nextAfter)
+	if err != nil {
+		return err
+	}
+	if notBefore.IsZero() || notAfter.IsZero() {
+		return fmt.Errorf("%s.next_not_before and %s.next_not_after are required when staging a next PSK", prefix, prefix)
+	}
+	if !notAfter.After(notBefore) {
+		return fmt.Errorf("%s.next_not_after must be after %s.next_not_before", prefix, prefix)
+	}
+	return nil
+}
+
+func parseOptionalRFC3339(field, value string) (time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, nil
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%s must be RFC3339", field)
+	}
+	return parsed, nil
 }
 
 func requireTLSFiles(prefix, certificateFile, privateKeyFile, caFile, caPath string) error {

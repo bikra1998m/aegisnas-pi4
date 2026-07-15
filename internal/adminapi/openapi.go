@@ -1149,6 +1149,9 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/radius-hardening", "get", securedOperation("Read RADIUS packet hardening policy", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("RADIUS packet hardening policy, supported packet codes, source trust, limits, runtime counters, and recent decisions."),
 	}))
+	addOperation(paths, "/api/v1/system/radsec-credentials", "get", securedOperation("Read RadSec credential and rotation state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("RadSec mTLS and TLS-PSK credential state, rotation windows, redacted secret references, warnings, and blockers."),
+	}))
 	addOperation(paths, "/api/v1/system/nas-clients", "get", securedOperation("Read dynamic NAS client lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Dynamic NAS enrollment policy, approval queue, capability templates, inventory summary, and recent lifecycle events."),
 	}))

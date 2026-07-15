@@ -8968,6 +8968,17 @@ export default function AccessSettings() {
                     radsec: {
                       port: 2083,
                       server_name: "",
+                      psk: {
+                        enabled: false,
+                        identity: "",
+                        secret_ref: "",
+                        next_identity: "",
+                        next_secret_ref: "",
+                        next_not_before: "",
+                        next_not_after: "",
+                        overlap_seconds: 86400,
+                        warning_days: 30,
+                      },
                       certificate_file: "/etc/aegisnas/radsec/client.crt",
                       private_key_file: "/etc/aegisnas/radsec/client.key",
                       private_key_password_env: "",
@@ -9352,15 +9363,28 @@ export default function AccessSettings() {
                   </> : <>
                     <TextField label="RadSec Port" type="number" value={server.radsec?.port || 2083} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "port"], Number(value))} />
                     <TextField label="Verified Server Name" value={server.radsec?.server_name || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "server_name"], value)} />
-                    <TextField label="Client Certificate" value={server.radsec?.certificate_file || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "certificate_file"], value)} />
-                    <TextField label="Client Private Key" value={server.radsec?.private_key_file || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "private_key_file"], value)} />
-                    <TextField label="Key Password Environment" value={server.radsec?.private_key_password_env || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "private_key_password_env"], value)} />
-                    <TextField label="Trusted CA File" value={server.radsec?.ca_file || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "ca_file"], value)} />
-                    <TextField label="Trusted CA Path" value={server.radsec?.ca_path || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "ca_path"], value)} />
+                    <ToggleField label="TLS-PSK" checked={Boolean(server.radsec?.psk?.enabled)} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "enabled"], value)} />
+                    {server.radsec?.psk?.enabled ? <>
+                      <TextField label="PSK Identity" value={server.radsec?.psk?.identity || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "identity"], value)} />
+                      <TextField label="PSK Secret Ref" value={server.radsec?.psk?.secret_ref || ""} placeholder="env:AEGIS_RADSEC_PSK_CURRENT" onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "secret_ref"], value)} />
+                      <TextField label="Next PSK Identity" value={server.radsec?.psk?.next_identity || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "next_identity"], value)} />
+                      <TextField label="Next PSK Secret Ref" value={server.radsec?.psk?.next_secret_ref || ""} placeholder="env:AEGIS_RADSEC_PSK_NEXT" onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "next_secret_ref"], value)} />
+                      <TextField label="Next PSK Not Before" value={server.radsec?.psk?.next_not_before || ""} placeholder="2026-08-01T00:00:00Z" onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "next_not_before"], value)} />
+                      <TextField label="Next PSK Not After" value={server.radsec?.psk?.next_not_after || ""} placeholder="2026-08-08T00:00:00Z" onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "next_not_after"], value)} />
+                      <TextField label="PSK Overlap (s)" type="number" value={server.radsec?.psk?.overlap_seconds || 86400} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "overlap_seconds"], Number(value))} />
+                      <TextField label="PSK Warning (days)" type="number" value={server.radsec?.psk?.warning_days || 30} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "warning_days"], Number(value))} />
+                    </> : null}
+                    {!server.radsec?.psk?.enabled ? <>
+                      <TextField label="Client Certificate" value={server.radsec?.certificate_file || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "certificate_file"], value)} />
+                      <TextField label="Client Private Key" value={server.radsec?.private_key_file || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "private_key_file"], value)} />
+                      <TextField label="Key Password Environment" value={server.radsec?.private_key_password_env || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "private_key_password_env"], value)} />
+                      <TextField label="Trusted CA File" value={server.radsec?.ca_file || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "ca_file"], value)} />
+                      <TextField label="Trusted CA Path" value={server.radsec?.ca_path || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "ca_path"], value)} />
+                    </> : null}
                     <SelectField label="RADIUS Version" value={server.radsec?.radius_v11 || "forbid"} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "radius_v11"], value)} options={[{ value: "forbid", label: "RADIUS/1.0" }, { value: "allow", label: "Allow RADIUS/1.1" }, { value: "require", label: "Require RADIUS/1.1" }]} />
                     <SelectField label="TLS Minimum" value={server.radsec?.tls_min_version || "1.2"} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "tls_min_version"], value)} options={[{ value: "1.2", label: "TLS 1.2" }, { value: "1.3", label: "TLS 1.3" }]} />
                     <SelectField label="TLS Maximum" value={server.radsec?.tls_max_version || "1.3"} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "tls_max_version"], value)} options={[{ value: "1.2", label: "TLS 1.2" }, { value: "1.3", label: "TLS 1.3" }]} />
-                    <ToggleField label="CRL Validation" checked={Boolean(server.radsec?.check_crl)} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "check_crl"], value)} />
+                    {!server.radsec?.psk?.enabled ? <ToggleField label="CRL Validation" checked={Boolean(server.radsec?.check_crl)} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "check_crl"], value)} /> : null}
                   </>}
                 </div>
               </div>

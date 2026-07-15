@@ -538,11 +538,26 @@ func addProductionRadSecCheck(report *productionReadinessReport, cfg *config.Con
 		}
 	}
 	peerCount := 0
+	pskPeerCount := 0
+	pskDependencies := []string{}
 	for _, server := range cfg.Radius.Upstream.Servers {
 		if !strings.EqualFold(strings.TrimSpace(server.Transport), "radsec") {
 			continue
 		}
 		peerCount++
+		if server.RadSec.PSK.Enabled {
+			pskPeerCount++
+			for _, ref := range []string{server.RadSec.PSK.SecretRef, server.RadSec.PSK.NextSecretRef} {
+				ref = strings.TrimSpace(ref)
+				if ref == "" {
+					continue
+				}
+				if !secretRefAvailable(ref) {
+					pskDependencies = append(pskDependencies, ref)
+				}
+			}
+			continue
+		}
 		paths = append(paths, server.RadSec.CertificateFile, server.RadSec.PrivateKeyFile)
 		if server.RadSec.CAFile != "" {
 			paths = append(paths, server.RadSec.CAFile)
@@ -553,6 +568,11 @@ func addProductionRadSecCheck(report *productionReadinessReport, cfg *config.Con
 		}
 	}
 	if !cfg.Radius.RadSec.Enabled && peerCount == 0 {
+		return
+	}
+	credentialReport := radius.BuildRadSecCredentialReport(cfg)
+	if len(pskDependencies) > 0 {
+		addProductionCheck(report, productionReadinessCheck{Key: "radsec_psk_secret_refs", Category: "security", Label: "RadSec TLS-PSK Secret References", Status: "blocked", Summary: "RadSec TLS-PSK secret references are unavailable: " + strings.Join(pskDependencies, ", "), Recommendation: "Set referenced environment variables or install referenced files before applying PSK RadSec configuration.", Dependencies: pskDependencies})
 		return
 	}
 	missing := []string{}
@@ -569,7 +589,31 @@ func addProductionRadSecCheck(report *productionReadinessReport, cfg *config.Con
 		addProductionCheck(report, productionReadinessCheck{Key: "radsec_credentials", Category: "security", Label: "RadSec Credentials", Status: "blocked", Summary: "RadSec certificate, key, or CA files are unavailable: " + strings.Join(missing, ", "), Recommendation: "Install the mTLS identity and trust files with root ownership and least-privilege service access.", Dependencies: missing})
 		return
 	}
-	addProductionCheck(report, productionReadinessCheck{Key: "radsec_credentials", Category: "security", Label: "RadSec Credentials", Status: "passed", Summary: fmt.Sprintf("RadSec credential files are present for the inbound listener and %d outbound peer(s).", peerCount)})
+	if credentialReport.Status == "blocked" {
+		addProductionCheck(report, productionReadinessCheck{Key: "radsec_credentials", Category: "security", Label: "RadSec Credentials", Status: "blocked", Summary: credentialReport.Message, Recommendation: "Review /api/v1/system/radsec-credentials and fix blocked mTLS or PSK credential state.", Dependencies: credentialReport.Warnings})
+		return
+	}
+	status := "passed"
+	if credentialReport.Status == "degraded" {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{Key: "radsec_credentials", Category: "security", Label: "RadSec Credentials", Status: status, Summary: fmt.Sprintf("RadSec credentials are configured for %d mTLS endpoint(s) and %d TLS-PSK endpoint(s).", credentialReport.Summary.MTLSEndpoints, credentialReport.Summary.PSKEndpoints), Recommendation: "Use /api/v1/system/radsec-credentials during every RadSec credential rotation."})
+}
+
+func secretRefAvailable(ref string) bool {
+	scheme, value, ok := strings.Cut(strings.TrimSpace(ref), ":")
+	if !ok {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(scheme)) {
+	case "env":
+		return os.Getenv(strings.TrimSpace(value)) != ""
+	case "file":
+		info, err := os.Stat(strings.TrimSpace(value))
+		return err == nil && !info.IsDir()
+	default:
+		return false
+	}
 }
 
 func buildProductionVendorIdentityState(cfg *config.Config) productionVendorIdentityState {

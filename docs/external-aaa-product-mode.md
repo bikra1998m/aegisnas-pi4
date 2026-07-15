@@ -2,7 +2,9 @@
 
 For untrusted or cross-site networks, configure upstream servers with
 `transport: radsec` and follow [radsec.md](radsec.md). RadSec peers fail closed
-and never downgrade automatically to UDP.
+and never downgrade automatically to UDP. Upstream RadSec peers can use either
+X.509 mTLS or explicitly negotiated TLS-PSK with redacted secret references and
+active-window rotation.
 
 This guide documents the product mode where AegisNAS acts as a Network Access Server appliance in front of one or more external AAA systems.
 
@@ -33,6 +35,7 @@ Files involved:
 - [server.go](F:/random_project/Pookie/aegisnas-pi4/internal/portal/server/server.go)
 - [statemachine.go](F:/random_project/Pookie/aegisnas-pi4/internal/portal/statemachine.go)
 - [generator.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/generator.go)
+- [radsec_credentials.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/radsec_credentials.go)
 - [client.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/client.go)
 - [vendor.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/vendor.go)
 - [accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting.go)
@@ -56,6 +59,7 @@ The implementation now does these things end to end:
 10. terminates a live session immediately when a `CoA-Request` tightens session or idle timeout past the session's current age
 11. rebuilds live gateway bandwidth shaping from active `bandwidth_profile` assignments and forces reauthentication when a `CoA-Request` changes VLAN
 12. records and approves dynamic AP, switch, gateway, and controller NAS clients before allowing them to send trusted RADIUS traffic
+13. supports outbound RadSec TLS-PSK peers with secret-reference validation, deterministic rotation, redacted status, and production readiness checks
 
 ## Current Behavior
 
@@ -71,6 +75,7 @@ When `radius.upstream.enabled: true`:
 - the session service sends interim accounting on the configured interval
 - the session service listens on `radius.dynamic_auth.port` for dynamic authorization
 - the dashboard probes each upstream AAA home server directly with `Status-Server` when that mode is enabled
+- TLS-PSK RadSec peers expose credential and rotation state through `/api/v1/system/radsec-credentials`; active transport proof remains part of the release certification checklist because the local Go probe path is mTLS-only
 - the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
 - the vendor reply preview can render vendor-neutral ACL intent into `NAS-Filter-Rule`, Cisco `Cisco-AVPair`, Aruba filter rules, MikroTik address-list hints, and AegisNAS ACL VSAs
 - upstream reply attributes are mapped into local session state:

@@ -136,6 +136,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	upstreamStatuses, probeErr := radius.ProbeUpstreamServers(r.Context(), cfg)
 	packetHardening := radius.BuildPacketHardeningReport(cfg)
 	dynamicNASClients := radius.BuildDynamicNASClientReport(cfg)
+	radSecCredentials := radius.BuildRadSecCredentialReport(cfg)
 	proxyRoutes := radius.BuildProxyRoutingReport(cfg)
 	proxyPolicy := radius.BuildProxyPolicyReport(cfg)
 	accountingSpool := radius.BuildAccountingSpoolReport(cfg)
@@ -154,6 +155,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broker_accounting":       runtimeMap["radius_broker_accounting"],
 		"dynamic_authorization":   cfg.Radius.DynamicAuth,
 		"dynamic_nas_clients":     dynamicNASClients,
+		"radsec_credentials":      radSecCredentials,
 		"packet_hardening":        packetHardening,
 		"request_timeout_seconds": cfg.Radius.RequestTimeoutSeconds,
 		"vendor_observability": map[string]any{

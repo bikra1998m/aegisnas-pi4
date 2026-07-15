@@ -50,3 +50,24 @@ func TestValidateRadSecPeerRejectsUDPFallbackAndUnsafeEnvironment(t *testing.T) 
 	server.RadSec.PrivateKeyPasswordEnv = "$(unsafe)"
 	assert.ErrorContains(t, validateRadSecPeer(0, server), "not a valid environment variable name")
 }
+
+func TestValidateRadSecPeerAllowsTLSPSKWithRotation(t *testing.T) {
+	server := RadiusHomeServer{Name: "primary", Address: "aaa.example.net", Transport: "radsec", RadSec: RadiusRadSecPeerConfig{
+		Port: 2083, ServerName: "aaa.example.net", TLSMinVersion: "1.3", TLSMaxVersion: "1.3",
+		CipherList: "DEFAULT@SECLEVEL=2", RadiusV11: "allow", MaxConnections: 16,
+		PSK: RadiusRadSecPSKConfig{
+			Enabled: true, Identity: "aegisnas-primary", SecretRef: "env:RADSEC_PSK_CURRENT",
+			NextIdentity: "aegisnas-primary-next", NextSecretRef: "env:RADSEC_PSK_NEXT",
+			NextNotBefore: "2026-08-01T00:00:00Z", NextNotAfter: "2026-08-08T00:00:00Z",
+			OverlapSeconds: 86400, WarningDays: 30,
+		},
+	}}
+	require.NoError(t, validateRadSecPeer(0, server))
+
+	server.RadSec.PSK.NextNotAfter = "2026-07-01T00:00:00Z"
+	assert.ErrorContains(t, validateRadSecPeer(0, server), "next_not_after")
+
+	server.RadSec.PSK.NextNotAfter = "2026-08-08T00:00:00Z"
+	server.RadSec.PSK.SecretRef = "vault:path"
+	assert.ErrorContains(t, validateRadSecPeer(0, server), "unsupported secret provider")
+}
