@@ -109,6 +109,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionRadiusPacketHardeningCheck(&report, cfg)
 	addProductionDynamicNASClientsCheck(&report, cfg)
 	addProductionProxyRoutingCheck(&report, cfg)
+	addProductionTransportPolicyCheck(&report, cfg)
 	addProductionProxyPolicyCheck(&report, cfg)
 	addProductionAccountingSpoolCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
@@ -232,6 +233,35 @@ func addProductionProxyRoutingCheck(report *productionReadinessReport, cfg *conf
 		Summary:        summary,
 		Recommendation: "Use explicit radius.upstream.routes for every production realm, keep server bindings named and secret-backed, review /api/v1/system/proxy-routes before generation, and capture NAS-0010 external interoperability evidence before release sign-off.",
 		Dependencies:   []string{"radius.upstream.routes", "/api/v1/system/proxy-routes", "proxy.conf", "sites-enabled/default", "sites-enabled/inner-tunnel"},
+	})
+}
+
+func addProductionTransportPolicyCheck(report *productionReadinessReport, cfg *config.Config) {
+	transportPolicy := radius.BuildTransportPolicyReport(cfg)
+	status := "passed"
+	if transportPolicy.Status == "blocked" {
+		status = "blocked"
+	} else if transportPolicy.Status == "degraded" {
+		status = "degraded"
+	}
+	if cfg != nil && cfg.Radius.Upstream.Enabled {
+		if !transportPolicy.Enabled || transportPolicy.Policy.Mode != "enforce" || !transportPolicy.Policy.FailClosed {
+			status = "blocked"
+		}
+		if transportPolicy.Summary.ViolationCount > 0 {
+			status = "blocked"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_transport_policy",
+		Category: "radius",
+		Label:    "RADIUS Transport Downgrade Policy",
+		Status:   status,
+		Summary: fmt.Sprintf("Transport policy schema %d is %s in %s mode with %d route(s), %d mixed route(s), and %d violation(s).",
+			transportPolicy.SchemaVersion, transportPolicy.Status, transportPolicy.Policy.Mode,
+			transportPolicy.Summary.RouteCount, transportPolicy.Summary.MixedTransportRoutes, transportPolicy.Summary.ViolationCount),
+		Recommendation: "Set radius.upstream.transport_policy.mode=enforce, keep fail_closed=true, require RadSec on sensitive routes, and explicitly approve any UDP or mixed-transport exceptions before production proxy operation.",
+		Dependencies:   []string{"radius.upstream.transport_policy", "/api/v1/system/transport-policy", "proxy.conf:default_fallback=no"},
 	})
 }
 

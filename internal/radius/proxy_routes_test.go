@@ -43,6 +43,59 @@ func TestEffectiveProxyRoutesSynthesizesLegacyDefault(t *testing.T) {
 	assert.Equal(t, []string{"primary", "secondary"}, routes[0].ServerNames)
 }
 
+func TestBuildTransportPolicyReportFlagsMixedTransportRisk(t *testing.T) {
+	cfg := proxyRoutingTestConfig()
+	cfg.Radius.Upstream.Servers[1].Transport = "radsec"
+	cfg.Radius.Upstream.TransportPolicy = config.RadiusTransportPolicyConfig{
+		Enabled:                  true,
+		Mode:                     "monitor",
+		FailClosed:               true,
+		DefaultRequiredTransport: "any",
+		AllowMixedTransports:     false,
+	}
+
+	report := BuildTransportPolicyReport(cfg)
+
+	require.Equal(t, "degraded", report.Status)
+	assert.Equal(t, 1, report.Summary.MixedTransportRoutes)
+	assert.Equal(t, 1, report.Summary.ViolationCount)
+	require.Len(t, report.Routes, 2)
+	assert.True(t, report.Routes[0].DowngradeRisk)
+	assert.Contains(t, report.Warnings[0], "mixes UDP and RadSec")
+}
+
+func TestBuildTransportPolicyReportEnforcesRadSecRoutes(t *testing.T) {
+	cfg := proxyRoutingTestConfig()
+	cfg.Radius.Upstream.TransportPolicy = config.RadiusTransportPolicyConfig{
+		Enabled:                  true,
+		Mode:                     "enforce",
+		FailClosed:               true,
+		DefaultRequiredTransport: "radsec",
+	}
+
+	report := BuildTransportPolicyReport(cfg)
+
+	require.Equal(t, "blocked", report.Status)
+	assert.Equal(t, 2, report.Summary.ViolationCount)
+	assert.Contains(t, report.Routes[0].Message, "requires radsec")
+}
+
+func TestGeneratorBlocksTransportDowngradeInEnforceMode(t *testing.T) {
+	cfg := proxyRoutingTestConfig()
+	cfg.Radius.Upstream.Servers[1].Transport = "radsec"
+	cfg.Radius.Upstream.TransportPolicy = config.RadiusTransportPolicyConfig{
+		Enabled:                  true,
+		Mode:                     "enforce",
+		FailClosed:               true,
+		DefaultRequiredTransport: "any",
+		AllowMixedTransports:     false,
+	}
+
+	_, err := NewGenerator(cfg).Generate()
+
+	assert.ErrorContains(t, err, "transport downgrade policy blocked")
+}
+
 func proxyRoutingTestConfig() *config.Config {
 	return &config.Config{
 		Radius: config.RadiusConfig{

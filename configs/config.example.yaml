@@ -366,6 +366,21 @@ radius:
         status_check: "status-server"
         servers:
           - "secondary-aaa"
+    transport_policy:
+      enabled: true
+      mode: "monitor" # monitor during migration; use enforce for production sign-off.
+      fail_closed: true
+      default_required_transport: "any" # any, radsec, or udp.
+      allow_mixed_transports: false
+      route_policies:
+        - route: "corp"
+          required_transport: "any"
+          allow_mixed_transports: false
+          description: "Corporate routes must not silently mix RadSec and UDP."
+        - route: "guest"
+          required_transport: "udp"
+          allow_mixed_transports: false
+          description: "Guest route explicitly uses UDP until RadSec is certified."
     proxy_policy:
       enabled: true
       fail_closed: true

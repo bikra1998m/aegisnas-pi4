@@ -656,6 +656,14 @@ const defaultSettings: JsonMap = {
       check_interval: 30,
       num_answers_to_alive: 3,
       strip_realm: false,
+      transport_policy: {
+        enabled: true,
+        mode: "monitor",
+        fail_closed: true,
+        default_required_transport: "any",
+        allow_mixed_transports: false,
+        route_policies: [],
+      },
       accounting_spool: {
         enabled: true,
         max_queue_records: 10000,
@@ -773,6 +781,17 @@ const controllerSyncOptions: Option[] = [
   { value: "monitor", label: "Monitor Only" },
   { value: "push-config", label: "Push Config" },
   { value: "coa-only", label: "CoA Only" },
+];
+
+const transportPolicyModeOptions: Option[] = [
+  { value: "monitor", label: "Monitor" },
+  { value: "enforce", label: "Enforce" },
+];
+
+const requiredTransportOptions: Option[] = [
+  { value: "any", label: "Any Explicit Transport" },
+  { value: "radsec", label: "Require RadSec" },
+  { value: "udp", label: "Require UDP" },
 ];
 
 const numericVendorRolePackOptions: Option[] = [
@@ -9098,6 +9117,92 @@ export default function AccessSettings() {
               updateField(["radius", "upstream", "strip_realm"], value)
             }
           />
+        </div>
+        <div className="mt-4">
+          <h4 className="text-sm font-semibold text-gray-900">
+            Transport Downgrade Policy
+          </h4>
+          <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+            <ToggleField
+              label="Policy Enabled"
+              checked={
+                settings.radius?.upstream?.transport_policy?.enabled !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "transport_policy", "enabled"],
+                  value,
+                )
+              }
+            />
+            <SelectField
+              label="Mode"
+              value={
+                settings.radius?.upstream?.transport_policy?.mode || "monitor"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "transport_policy", "mode"],
+                  value,
+                )
+              }
+              options={transportPolicyModeOptions}
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={
+                settings.radius?.upstream?.transport_policy?.fail_closed !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "transport_policy", "fail_closed"],
+                  value,
+                )
+              }
+            />
+            <SelectField
+              label="Required Transport"
+              value={
+                settings.radius?.upstream?.transport_policy
+                  ?.default_required_transport || "any"
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "upstream",
+                    "transport_policy",
+                    "default_required_transport",
+                  ],
+                  value,
+                )
+              }
+              options={requiredTransportOptions}
+            />
+            <ToggleField
+              label="Allow Mixed Pools"
+              checked={Boolean(
+                settings.radius?.upstream?.transport_policy
+                  ?.allow_mixed_transports,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "upstream",
+                    "transport_policy",
+                    "allow_mixed_transports",
+                  ],
+                  value,
+                )
+              }
+            />
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Enforce mode blocks proxy generation when a route can silently
+            downgrade from RadSec to UDP.
+          </p>
         </div>
         <div className="mt-4">
           <h4 className="text-sm font-semibold text-gray-900">

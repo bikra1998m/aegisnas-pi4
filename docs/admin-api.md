@@ -163,6 +163,19 @@ RADIUS packet hardening is exposed at:
 /api/v1/system/radius-hardening
 ```
 
+RADIUS transport downgrade policy is exposed at:
+
+```text
+/api/v1/system/transport-policy
+```
+
+Use this endpoint to confirm the effective proxy transport mode, fail-closed
+state, default required transport, mixed UDP/RadSec route risks, explicit
+route-policy exceptions, and production readiness before enabling upstream AAA
+proxy workflows. The same summary appears in `/api/v1/system/status` under
+`radius.transport_policy` and in production readiness as
+`radius_transport_policy`.
+
 Use this endpoint to confirm malformed-packet rejection, `Message-Authenticator` policy, known-source enforcement, `Proxy-State` limits, replay cache, rate limits, generated FreeRADIUS integrity mode, runtime counters, and recent hardening decisions. The same summary appears in `/api/v1/system/status` under `radius.packet_hardening` and in production readiness as `radius_packet_hardening`.
 
 RADIUS proxy routing is exposed at:

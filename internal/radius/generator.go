@@ -682,6 +682,11 @@ func (g *Generator) renderProxyConf() (string, error) {
 		return "# Upstream RADIUS proxy disabled\n", nil
 	}
 
+	transportPolicy := BuildTransportPolicyReport(g.cfg)
+	if transportPolicy.Status == "blocked" {
+		return "", fmt.Errorf("transport downgrade policy blocked proxy generation: %s", transportPolicy.Message)
+	}
+
 	routes, err := EffectiveProxyRoutes(g.cfg)
 	if err != nil {
 		return "", err

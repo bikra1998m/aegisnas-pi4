@@ -156,6 +156,8 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return (method == http.MethodPost || method == http.MethodPut || method == http.MethodDelete) && identity.Role == adminRoleOpsAdmin
 	case strings.HasPrefix(path, "/api/v1/system/proxy-routes"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/transport-policy"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/proxy-policy"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/accounting-spool/replay"):

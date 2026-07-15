@@ -138,6 +138,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	dynamicNASClients := radius.BuildDynamicNASClientReport(cfg)
 	radSecCredentials := radius.BuildRadSecCredentialReport(cfg)
 	proxyRoutes := radius.BuildProxyRoutingReport(cfg)
+	transportPolicy := radius.BuildTransportPolicyReport(cfg)
 	proxyPolicy := radius.BuildProxyPolicyReport(cfg)
 	accountingSpool := radius.BuildAccountingSpoolReport(cfg)
 
@@ -148,6 +149,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"configured_servers":      cfg.Radius.Upstream.Servers,
 		"server_statuses":         upstreamStatuses,
 		"proxy_routes":            proxyRoutes,
+		"transport_policy":        transportPolicy,
 		"proxy_policy":            proxyPolicy,
 		"accounting_spool":        accountingSpool,
 		"enabled_radius_clients":  enabledRadiusClients,

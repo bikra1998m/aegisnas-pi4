@@ -85,6 +85,11 @@ the FreeRADIUS `suffix` module first. If a configured realm matches, that realm
 controls `Proxy-To-Realm`. AegisNAS sets `Proxy-To-Realm` only when a default
 route exists and no previous realm match has selected a target.
 
+`proxy.conf` is generated with `default_fallback = no`. NAS-0015 adds
+`radius.upstream.transport_policy` on top of this route table so mixed UDP and
+RadSec pools cannot silently downgrade traffic unless that exception is
+explicitly approved. See [radius-transport-policy.md](radius-transport-policy.md).
+
 ## Validation
 
 Config validation fails before generation when:
@@ -103,6 +108,9 @@ GET /api/v1/system/proxy-routes
 ```
 
 Production readiness includes `radius_proxy_routes`.
+
+Transport downgrade readiness is reported separately as
+`radius_transport_policy`.
 
 ## Standards And Vendor Scope
 

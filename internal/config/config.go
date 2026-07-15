@@ -301,6 +301,7 @@ type RadiusUpstreamConfig struct {
 	StripRealm        bool                        `mapstructure:"strip_realm"`
 	Servers           []RadiusHomeServer          `mapstructure:"servers"`
 	Routes            []RadiusProxyRouteConfig    `mapstructure:"routes"`
+	TransportPolicy   RadiusTransportPolicyConfig `mapstructure:"transport_policy"`
 	ProxyPolicy       RadiusProxyPolicyConfig     `mapstructure:"proxy_policy"`
 	AccountingSpool   RadiusAccountingSpoolConfig `mapstructure:"accounting_spool"`
 }
@@ -316,6 +317,22 @@ type RadiusProxyRouteConfig struct {
 	PoolStrategy string   `mapstructure:"pool_strategy"`
 	StatusCheck  string   `mapstructure:"status_check"`
 	Servers      []string `mapstructure:"servers"`
+}
+
+type RadiusTransportPolicyConfig struct {
+	Enabled                  bool                               `mapstructure:"enabled"`
+	Mode                     string                             `mapstructure:"mode"`
+	FailClosed               bool                               `mapstructure:"fail_closed"`
+	DefaultRequiredTransport string                             `mapstructure:"default_required_transport"`
+	AllowMixedTransports     bool                               `mapstructure:"allow_mixed_transports"`
+	RoutePolicies            []RadiusTransportRoutePolicyConfig `mapstructure:"route_policies"`
+}
+
+type RadiusTransportRoutePolicyConfig struct {
+	Route                string `mapstructure:"route"`
+	RequiredTransport    string `mapstructure:"required_transport"`
+	AllowMixedTransports bool   `mapstructure:"allow_mixed_transports"`
+	Description          string `mapstructure:"description"`
 }
 
 type RadiusProxyPolicyConfig struct {
@@ -1158,6 +1175,12 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.upstream.num_answers_to_alive", 3)
 	v.SetDefault("radius.upstream.strip_realm", false)
 	v.SetDefault("radius.upstream.routes", []map[string]any{})
+	v.SetDefault("radius.upstream.transport_policy.enabled", true)
+	v.SetDefault("radius.upstream.transport_policy.mode", "monitor")
+	v.SetDefault("radius.upstream.transport_policy.fail_closed", true)
+	v.SetDefault("radius.upstream.transport_policy.default_required_transport", "any")
+	v.SetDefault("radius.upstream.transport_policy.allow_mixed_transports", false)
+	v.SetDefault("radius.upstream.transport_policy.route_policies", []map[string]any{})
 	v.SetDefault("radius.upstream.proxy_policy.enabled", true)
 	v.SetDefault("radius.upstream.proxy_policy.fail_closed", true)
 	v.SetDefault("radius.upstream.proxy_policy.default_action", "drop")
@@ -3620,6 +3643,9 @@ func (c *Config) Validate() error {
 		if err := validateRadiusProxyRoutes(c.Radius.Upstream, seenNames); err != nil {
 			return err
 		}
+		if err := validateRadiusTransportPolicy(c.Radius.Upstream); err != nil {
+			return err
+		}
 		if err := validateRadiusProxyPolicy(c.Radius.Upstream); err != nil {
 			return err
 		}
@@ -4210,6 +4236,75 @@ func validateRadiusProxyRoutes(upstream RadiusUpstreamConfig, serverNames map[st
 		return errors.New("radius.upstream.routes requires at least one enabled route when configured")
 	}
 	return nil
+}
+
+func validateRadiusTransportPolicy(upstream RadiusUpstreamConfig) error {
+	policy := upstream.TransportPolicy
+	if !policy.Enabled && strings.TrimSpace(policy.Mode) == "" && strings.TrimSpace(policy.DefaultRequiredTransport) == "" &&
+		!policy.FailClosed && !policy.AllowMixedTransports && len(policy.RoutePolicies) == 0 {
+		return nil
+	}
+	mode := strings.ToLower(strings.TrimSpace(policy.Mode))
+	if mode == "" {
+		mode = "monitor"
+	}
+	switch mode {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("radius.upstream.transport_policy.mode %q must be monitor or enforce", policy.Mode)
+	}
+	required := strings.ToLower(strings.TrimSpace(policy.DefaultRequiredTransport))
+	if required == "" {
+		required = "any"
+	}
+	if !validUpstreamRequiredTransport(required) {
+		return fmt.Errorf("radius.upstream.transport_policy.default_required_transport %q must be any, udp, or radsec", policy.DefaultRequiredTransport)
+	}
+	routeNames := map[string]struct{}{}
+	if len(upstream.Routes) == 0 {
+		routeNames["legacy-default"] = struct{}{}
+	} else {
+		for _, route := range upstream.Routes {
+			if route.Enabled {
+				routeNames[strings.TrimSpace(route.Name)] = struct{}{}
+			}
+		}
+	}
+	seen := map[string]struct{}{}
+	for i, routePolicy := range policy.RoutePolicies {
+		routeName := strings.TrimSpace(routePolicy.Route)
+		if routeName == "" {
+			return fmt.Errorf("radius.upstream.transport_policy.route_policies[%d].route cannot be empty", i)
+		}
+		if _, ok := routeNames[routeName]; !ok {
+			return fmt.Errorf("radius.upstream.transport_policy.route_policies[%d].route %q does not match an enabled proxy route", i, routePolicy.Route)
+		}
+		key := strings.ToLower(routeName)
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("radius.upstream.transport_policy.route_policies[%d] duplicates an earlier route policy", i)
+		}
+		seen[key] = struct{}{}
+		requiredTransport := strings.ToLower(strings.TrimSpace(routePolicy.RequiredTransport))
+		if requiredTransport == "" {
+			requiredTransport = required
+		}
+		if !validUpstreamRequiredTransport(requiredTransport) {
+			return fmt.Errorf("radius.upstream.transport_policy.route_policies[%d].required_transport %q must be any, udp, or radsec", i, routePolicy.RequiredTransport)
+		}
+		if strings.ContainsAny(routePolicy.Description, "\r\n\x00") || len(routePolicy.Description) > 240 {
+			return fmt.Errorf("radius.upstream.transport_policy.route_policies[%d].description is invalid", i)
+		}
+	}
+	return nil
+}
+
+func validUpstreamRequiredTransport(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "any", "udp", "radsec":
+		return true
+	default:
+		return false
+	}
 }
 
 func validateRadiusProxyPolicy(upstream RadiusUpstreamConfig) error {

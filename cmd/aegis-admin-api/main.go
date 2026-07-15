@@ -213,6 +213,7 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Put("/system/nas-clients/templates/{name}", adminapi.HandleUpsertNASClientCapabilityTemplate)
 			r.Delete("/system/nas-clients/templates/{name}", adminapi.HandleDeleteNASClientCapabilityTemplate)
 			r.Get("/system/proxy-routes", adminapi.HandleGetProxyRoutes)
+			r.Get("/system/transport-policy", adminapi.HandleGetTransportPolicy)
 			r.Get("/system/proxy-policy", adminapi.HandleGetProxyPolicy)
 			r.Get("/system/accounting-spool", adminapi.HandleGetAccountingSpool)
 			r.Post("/system/accounting-spool/replay", adminapi.HandleReplayAccountingSpool)

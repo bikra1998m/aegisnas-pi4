@@ -69,6 +69,8 @@ func TestAuthorizeRequestByRole(t *testing.T) {
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleGuestAdmin}, "POST", "/api/v1/system/nas-clients/enrollments/abc/approve"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/nas-clients/enrollments/abc/approve"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/proxy-routes"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/transport-policy"))
+	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/transport-policy"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/proxy-policy"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/accounting-spool"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/accounting-spool/replay"))

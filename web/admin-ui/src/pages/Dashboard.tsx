@@ -217,6 +217,38 @@ type RadiusProxyRoutingReport = {
   warnings?: string[];
 };
 
+type RadiusTransportPolicyReport = {
+  status?: string;
+  message?: string;
+  enabled?: boolean;
+  policy?: {
+    mode: string;
+    fail_closed: boolean;
+    default_required_transport: string;
+    allow_mixed_transports: boolean;
+  };
+  summary?: {
+    route_count: number;
+    explicit_route_policy_count: number;
+    radsec_required_routes: number;
+    udp_required_routes: number;
+    any_transport_routes: number;
+    mixed_transport_routes: number;
+    violation_count: number;
+    udp_server_count: number;
+    radsec_server_count: number;
+  };
+  routes?: Array<{
+    name: string;
+    required_transport: string;
+    observed_transports: string[];
+    downgrade_risk: boolean;
+    status: string;
+    message: string;
+  }>;
+  warnings?: string[];
+};
+
 type RadiusProxyPolicyReport = {
   status?: string;
   message?: string;
@@ -401,6 +433,7 @@ type SystemStatus = {
     broker_accounting: RuntimeStatus;
     packet_hardening?: RadiusPacketHardeningReport;
     proxy_routes?: RadiusProxyRoutingReport;
+    transport_policy?: RadiusTransportPolicyReport;
     proxy_policy?: RadiusProxyPolicyReport;
     accounting_spool?: RadiusAccountingSpoolReport;
     radsec_credentials?: RadSecCredentialReport;
@@ -942,6 +975,7 @@ export default function Dashboard() {
   const radiusServerStatuses = systemStatus.radius?.server_statuses ?? [];
   const packetHardening = systemStatus.radius?.packet_hardening;
   const proxyRoutes = systemStatus.radius?.proxy_routes;
+  const transportPolicy = systemStatus.radius?.transport_policy;
   const proxyPolicy = systemStatus.radius?.proxy_policy;
   const accountingSpool = systemStatus.radius?.accounting_spool;
   const radSecCredentials = systemStatus.radius?.radsec_credentials;
@@ -1586,6 +1620,65 @@ export default function Dashboard() {
                       ) : null}
                     </div>
                     <StatusBadge status={proxyRoutes.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {transportPolicy ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Transport Downgrade Policy
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {transportPolicy.message ||
+                          "Transport policy state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Mode {transportPolicy.policy?.mode || "monitor"}
+                        </div>
+                        <div>
+                          Required{" "}
+                          {transportPolicy.policy
+                            ?.default_required_transport || "any"}
+                        </div>
+                        <div>
+                          Mixed{" "}
+                          {transportPolicy.summary?.mixed_transport_routes ??
+                            0}
+                        </div>
+                        <div>
+                          Violations{" "}
+                          {transportPolicy.summary?.violation_count ?? 0}
+                        </div>
+                        <div>
+                          RadSec servers{" "}
+                          {transportPolicy.summary?.radsec_server_count ?? 0}
+                        </div>
+                      </div>
+                      {transportPolicy.routes?.length ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          {transportPolicy.routes
+                            .filter((route) => route.status !== "ready")
+                            .slice(0, 2)
+                            .map(
+                              (route) =>
+                                `${route.name}: ${route.observed_transports.join(
+                                  "/",
+                                )} requires ${route.required_transport}`,
+                            )
+                            .join("; ") ||
+                            "No route transport violations detected."}
+                        </div>
+                      ) : null}
+                      {transportPolicy.warnings?.length ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {transportPolicy.warnings[0]}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge status={transportPolicy.status || "unknown"} />
                   </div>
                 </div>
               ) : null}

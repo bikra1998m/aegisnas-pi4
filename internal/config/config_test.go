@@ -3297,6 +3297,54 @@ func TestConfigValidationRejectsUnknownProxyRouteServer(t *testing.T) {
 	assert.ErrorContains(t, cfg.Validate(), "references unknown upstream server")
 }
 
+func TestConfigValidationAllowsTransportPolicy(t *testing.T) {
+	cfg := baseProxyRoutingValidationConfig()
+	cfg.Radius.Upstream.Routes = []RadiusProxyRouteConfig{
+		{Name: "corp", Enabled: true, Realm: "corp.example.com", Default: true, Servers: []string{"primary"}},
+	}
+	cfg.Radius.Upstream.TransportPolicy = RadiusTransportPolicyConfig{
+		Enabled:                  true,
+		Mode:                     "enforce",
+		FailClosed:               true,
+		DefaultRequiredTransport: "radsec",
+		RoutePolicies: []RadiusTransportRoutePolicyConfig{{
+			Route:             "corp",
+			RequiredTransport: "radsec",
+			Description:       "Corporate transport must stay encrypted.",
+		}},
+	}
+
+	assert.NoError(t, cfg.Validate())
+}
+
+func TestConfigValidationRejectsTransportPolicyUnknownRoute(t *testing.T) {
+	cfg := baseProxyRoutingValidationConfig()
+	cfg.Radius.Upstream.Routes = []RadiusProxyRouteConfig{
+		{Name: "corp", Enabled: true, Realm: "corp.example.com", Default: true, Servers: []string{"primary"}},
+	}
+	cfg.Radius.Upstream.TransportPolicy = RadiusTransportPolicyConfig{
+		Enabled:                  true,
+		Mode:                     "enforce",
+		FailClosed:               true,
+		DefaultRequiredTransport: "radsec",
+		RoutePolicies:            []RadiusTransportRoutePolicyConfig{{Route: "missing", RequiredTransport: "radsec"}},
+	}
+
+	assert.ErrorContains(t, cfg.Validate(), "transport_policy.route_policies[0].route")
+}
+
+func TestConfigValidationRejectsTransportPolicyInvalidDefault(t *testing.T) {
+	cfg := baseProxyRoutingValidationConfig()
+	cfg.Radius.Upstream.TransportPolicy = RadiusTransportPolicyConfig{
+		Enabled:                  true,
+		Mode:                     "enforce",
+		FailClosed:               true,
+		DefaultRequiredTransport: "tls",
+	}
+
+	assert.ErrorContains(t, cfg.Validate(), "default_required_transport")
+}
+
 func TestConfigValidationAllowsProxyPolicy(t *testing.T) {
 	cfg := baseProxyRoutingValidationConfig()
 	cfg.Radius.Upstream.Routes = []RadiusProxyRouteConfig{

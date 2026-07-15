@@ -34,6 +34,24 @@ func TestHandleGetProxyRoutes(t *testing.T) {
 	assert.NotContains(t, rec.Body.String(), "secret-one")
 }
 
+func TestHandleGetTransportPolicy(t *testing.T) {
+	cfgPath := writeProxyRoutesConfig(t)
+	_, err := config.Load(cfgPath)
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/transport-policy", nil)
+	HandleGetTransportPolicy(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var payload radius.TransportPolicyReport
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	assert.Equal(t, "ready", payload.Status)
+	assert.Equal(t, "enforce", payload.Policy.Mode)
+	assert.Equal(t, 2, payload.Summary.RouteCount)
+	assert.Equal(t, 0, payload.Summary.MixedTransportRoutes)
+}
+
 func writeProxyRoutesConfig(t *testing.T) string {
 	t.Helper()
 	tmpfile, err := os.CreateTemp("", "proxy-routes-config-*.yaml")
@@ -92,6 +110,19 @@ radius:
         pool_strategy: load-balance
         status_check: none
         servers: [secondary]
+    transport_policy:
+      enabled: true
+      mode: enforce
+      fail_closed: true
+      default_required_transport: any
+      allow_mixed_transports: false
+      route_policies:
+        - route: corp
+          required_transport: any
+          allow_mixed_transports: false
+        - route: guest
+          required_transport: udp
+          allow_mixed_transports: false
 `
 	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0644))
 	t.Cleanup(func() { _ = os.Remove(cfgPath) })
