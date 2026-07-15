@@ -677,6 +677,22 @@ const defaultSettings: JsonMap = {
         sent_retention_seconds: 604800,
         poison_retention_seconds: 2592000,
       },
+      fallback_policy: {
+        enabled: true,
+        mode: "monitor",
+        fail_closed: true,
+        allow_portal_local: true,
+        allow_ldap: false,
+        require_identity_allowlist: true,
+        max_outage_seconds: 900,
+        stale_policy_seconds: 3600,
+        recovery_successes: 2,
+        allowed_users: [],
+        allowed_realms: [],
+        allowed_roles: [],
+        audit_enabled: true,
+        retention_limit: 6000,
+      },
       servers: [],
     },
   },
@@ -926,6 +942,8 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.portal.guest_workflows = next.portal.guest_workflows || {};
   next.radius = next.radius || {};
   next.radius.upstream = next.radius.upstream || {};
+  next.radius.upstream.fallback_policy =
+    next.radius.upstream.fallback_policy || {};
   next.wireless = next.wireless || {};
 
   if (profile === "lite") {
@@ -1011,6 +1029,17 @@ function setAtPath(target: JsonMap, path: string[], value: any) {
     cursor = cursor[path[index]];
   }
   cursor[path[path.length - 1]] = value;
+}
+
+function listToCSV(value: any) {
+  return Array.isArray(value) ? value.join(", ") : "";
+}
+
+function csvToList(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function TextField({
@@ -9343,6 +9372,209 @@ export default function AccessSettings() {
               }
             />
           </div>
+        </div>
+        <div className="mt-4">
+          <h4 className="text-sm font-semibold text-gray-900">
+            Outage Fallback Policy
+          </h4>
+          <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+            <ToggleField
+              label="Policy Enabled"
+              checked={
+                settings.radius?.upstream?.fallback_policy?.enabled !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "fallback_policy", "enabled"],
+                  value,
+                )
+              }
+            />
+            <SelectField
+              label="Mode"
+              value={
+                settings.radius?.upstream?.fallback_policy?.mode || "monitor"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "fallback_policy", "mode"],
+                  value,
+                )
+              }
+              options={transportPolicyModeOptions}
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={
+                settings.radius?.upstream?.fallback_policy?.fail_closed !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "fallback_policy", "fail_closed"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Allow Local Users"
+              checked={
+                settings.radius?.upstream?.fallback_policy
+                  ?.allow_portal_local !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "upstream",
+                    "fallback_policy",
+                    "allow_portal_local",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Allow LDAP"
+              checked={Boolean(
+                settings.radius?.upstream?.fallback_policy?.allow_ldap,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "fallback_policy", "allow_ldap"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Allowlist"
+              checked={
+                settings.radius?.upstream?.fallback_policy
+                  ?.require_identity_allowlist !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "upstream",
+                    "fallback_policy",
+                    "require_identity_allowlist",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Audit Decisions"
+              checked={
+                settings.radius?.upstream?.fallback_policy?.audit_enabled !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "fallback_policy", "audit_enabled"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Max Outage (s)"
+              type="number"
+              value={
+                settings.radius?.upstream?.fallback_policy
+                  ?.max_outage_seconds || 900
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "upstream",
+                    "fallback_policy",
+                    "max_outage_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Stale Policy (s)"
+              type="number"
+              value={
+                settings.radius?.upstream?.fallback_policy
+                  ?.stale_policy_seconds || 3600
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "upstream",
+                    "fallback_policy",
+                    "stale_policy_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Retention Rows"
+              type="number"
+              value={
+                settings.radius?.upstream?.fallback_policy?.retention_limit ||
+                6000
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "fallback_policy", "retention_limit"],
+                  Number(value),
+                )
+              }
+            />
+          </div>
+          <div className="mt-3 grid gap-4 md:grid-cols-3">
+            <TextField
+              label="Allowed Users"
+              value={listToCSV(
+                settings.radius?.upstream?.fallback_policy?.allowed_users,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "fallback_policy", "allowed_users"],
+                  csvToList(value),
+                )
+              }
+              placeholder="breakglass@example.com"
+            />
+            <TextField
+              label="Allowed Realms"
+              value={listToCSV(
+                settings.radius?.upstream?.fallback_policy?.allowed_realms,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "fallback_policy", "allowed_realms"],
+                  csvToList(value),
+                )
+              }
+              placeholder="guest.example.com"
+            />
+            <TextField
+              label="Allowed Roles"
+              value={listToCSV(
+                settings.radius?.upstream?.fallback_policy?.allowed_roles,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "upstream", "fallback_policy", "allowed_roles"],
+                  csvToList(value),
+                )
+              }
+              placeholder="guest-basic"
+            />
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Enforce mode denies local or LDAP fallback unless the identity
+            source, allowlist, and outage window all match.
+          </p>
         </div>
         <div className="mt-4 space-y-4">
           {upstreamServers.length === 0 ? (

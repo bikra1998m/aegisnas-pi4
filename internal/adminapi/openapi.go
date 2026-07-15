@@ -1205,6 +1205,13 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/accounting-spool/replay", "post", securedOperation("Replay due durable RADIUS accounting records", "RADIUS", []string{"ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Replay run result with claimed, sent, failed, poisoned, expired, and queue summary counts."),
 	}))
+	addOperation(paths, "/api/v1/system/fallback-policy", "get", securedOperationWithParameters("Read upstream outage fallback policy", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("decision", "Optional audited decision filter.", []string{"allowed", "denied"}, false),
+		queryStringParameter("source", "Optional fallback source filter such as portal.", false),
+		queryStringParameter("limit", "Event limit from 1 to 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("Effective outage fallback policy, allowlist posture, audit summary, and recent local/LDAP fallback decisions."),
+	}))
 	addOperation(paths, "/api/v1/system/secret-providers", "get", securedOperation("Read secret provider readiness", "Security", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Redacted secret-provider inventory, reference status, inline-secret blockers, and provider policy."),
 	}))

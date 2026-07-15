@@ -166,6 +166,26 @@ func AuthenticateUser(ctx context.Context, req LoginRequest) (*Result, error) {
 				return nil, fallbackErr
 			}
 			if fallbackResult.Accepted {
+				decision := aegisradius.EvaluateFallbackPolicy(cfg, aegisradius.FallbackEvaluationRequest{
+					Username:       req.Username,
+					Role:           fallbackResult.Role,
+					IdentitySource: fallbackResult.IdentitySource,
+					Source:         "portal",
+				})
+				if recordErr := aegisradius.RecordFallbackDecision(cfg, decision); recordErr != nil {
+					zap.L().Warn("record radius fallback decision failed",
+						zap.String("username_hash", decision.UsernameHash),
+						zap.Error(recordErr))
+				}
+				if !decision.Allowed {
+					zap.L().Warn("upstream radius local fallback denied by policy",
+						zap.String("username_hash", decision.UsernameHash),
+						zap.String("reason", decision.Reason))
+					return &Result{
+						Accepted:     false,
+						ReplyMessage: "upstream AAA unavailable; local fallback denied by policy",
+					}, nil
+				}
 				fallbackResult.ReplyMessage = "upstream AAA unavailable; local fallback granted"
 				return fallbackResult, nil
 			}

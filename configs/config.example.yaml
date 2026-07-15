@@ -419,6 +419,24 @@ radius:
               name: "WISPr-Bandwidth-Max-Down"
           deny_vendor_ids:
             - 311
+    fallback_policy:
+      enabled: true
+      mode: "monitor" # monitor during migration; use enforce for production sign-off.
+      fail_closed: true
+      allow_portal_local: true
+      allow_ldap: false
+      require_identity_allowlist: true
+      max_outage_seconds: 900
+      stale_policy_seconds: 3600
+      recovery_successes: 2
+      allowed_users:
+        - "breakglass@example.com"
+      allowed_realms:
+        - "guest.example.com"
+      allowed_roles:
+        - "guest-basic"
+      audit_enabled: true
+      retention_limit: 6000
 
 portal:
   enabled: true

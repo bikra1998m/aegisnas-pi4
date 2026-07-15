@@ -112,6 +112,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionTransportPolicyCheck(&report, cfg)
 	addProductionProxyPolicyCheck(&report, cfg)
 	addProductionAccountingSpoolCheck(&report, cfg)
+	addProductionFallbackPolicyCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
@@ -327,6 +328,40 @@ func addProductionAccountingSpoolCheck(report *productionReadinessReport, cfg *c
 			spool.Summary.PoisonCount, spool.Summary.ExpiredCount, spool.Summary.QueueUtilization),
 		Recommendation: "Keep radius.upstream.accounting_spool enabled for proxy accounting, monitor /api/v1/system/accounting-spool, and complete the NAS-0012 release certification replay and outage drills.",
 		Dependencies:   []string{"radius.upstream.accounting_spool", "/api/v1/system/accounting-spool", "/api/v1/system/accounting-spool/replay", "radius_accounting_spool", "radius_accounting_spool_attempts"},
+	})
+}
+
+func addProductionFallbackPolicyCheck(report *productionReadinessReport, cfg *config.Config) {
+	fallback := radius.BuildFallbackPolicyReport(cfg)
+	status := "passed"
+	switch fallback.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded":
+		status = "degraded"
+	}
+	activePortalFallback := cfg != nil && cfg.Radius.Upstream.Enabled && cfg.Portal.RadiusAuth && cfg.Portal.LocalFallback
+	if activePortalFallback {
+		if !fallback.Enabled || fallback.Policy.Mode != "enforce" || !fallback.Policy.FailClosed {
+			status = "blocked"
+		}
+		if fallback.Policy.RequireIdentityAllowlist && !fallback.Summary.IdentityAllowlistSet {
+			status = "blocked"
+		}
+		if fallback.Policy.AuditEnabled && db.DB == nil {
+			status = "blocked"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_fallback_policy",
+		Category: "radius",
+		Label:    "Upstream Outage Fallback Policy",
+		Status:   status,
+		Summary: fmt.Sprintf("Fallback policy schema %d is %s in %s mode with local=%t ldap=%t allowlists users=%d realms=%d roles=%d and %d audited decision(s).",
+			fallback.SchemaVersion, fallback.Status, fallback.Policy.Mode, fallback.Policy.AllowPortalLocal, fallback.Policy.AllowLDAP,
+			fallback.Summary.AllowedUserCount, fallback.Summary.AllowedRealmCount, fallback.Summary.AllowedRoleCount, fallback.AuditSummary.TotalRecords),
+		Recommendation: "Set radius.upstream.fallback_policy.mode=enforce, keep fail_closed=true, bound max_outage_seconds, configure identity allowlists, and review /api/v1/system/fallback-policy before production upstream AAA operation.",
+		Dependencies:   []string{"radius.upstream.fallback_policy", "portal.radius_auth", "portal.local_fallback", "/api/v1/system/fallback-policy", "radius_fallback_events"},
 	})
 }
 

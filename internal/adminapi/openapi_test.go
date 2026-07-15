@@ -148,6 +148,13 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Replay due durable RADIUS accounting records", accountingSpoolReplayPost["summary"])
 	assert.Contains(t, accountingSpoolReplayPost["x-aegisnas-roles"], "ops_admin")
 
+	fallbackPolicyPath, ok := paths["/api/v1/system/fallback-policy"].(map[string]any)
+	require.True(t, ok)
+	fallbackPolicyGet, ok := fallbackPolicyPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read upstream outage fallback policy", fallbackPolicyGet["summary"])
+	assert.Contains(t, fallbackPolicyGet["x-aegisnas-roles"], "read_only")
+
 	secretProvidersPath, ok := paths["/api/v1/system/secret-providers"].(map[string]any)
 	require.True(t, ok)
 	secretProvidersGet, ok := secretProvidersPath["get"].(map[string]any)

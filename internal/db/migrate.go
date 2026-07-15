@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 20
+	return 21
 }
 
 func Migrate() error {
@@ -778,4 +778,30 @@ INSERT OR IGNORE INTO nas_client_capability_templates
 	(name, description, nas_type, required_capabilities_json, allowed_vendors_json, default_capabilities_json, enabled)
 VALUES
 	('default', 'Default dynamic NAS capability gate for RADIUS authentication and accounting clients.', 'other', '[]', '[]', '{"radius":{"authentication":true,"accounting":true},"policy":{"role":true,"vlan":true}}', 1);
+`
+
+const schemaV21 = `
+CREATE TABLE IF NOT EXISTS radius_fallback_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	source TEXT NOT NULL,
+	username_hash TEXT NOT NULL,
+	realm TEXT,
+	identity_source TEXT,
+	role TEXT,
+	decision TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	upstream_status TEXT,
+	policy_mode TEXT NOT NULL,
+	fail_closed BOOLEAN DEFAULT 1,
+	outage_started_at DATETIME,
+	expires_at DATETIME,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_radius_fallback_events_observed_at ON radius_fallback_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_radius_fallback_events_decision ON radius_fallback_events(decision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_radius_fallback_events_username_hash ON radius_fallback_events(username_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_radius_fallback_events_source ON radius_fallback_events(source, observed_at);
 `

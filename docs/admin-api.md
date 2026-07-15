@@ -210,6 +210,20 @@ POST /api/v1/system/accounting-spool/replay
 
 The same summary appears in `/api/v1/system/status` under `radius.accounting_spool` and in production readiness as `radius_accounting_spool`.
 
+Upstream outage fallback policy is exposed at:
+
+```text
+/api/v1/system/fallback-policy
+/api/v1/system/fallback-policy?decision=allowed&limit=100
+```
+
+Use this endpoint to review monitor/enforce mode, fail-closed state, local and
+LDAP eligibility, identity allowlists, outage window limits, audit retention,
+and recent hashed fallback decisions. The same summary appears in
+`/api/v1/system/status` under `radius.fallback_policy`, in production readiness
+as `radius_fallback_policy`, and in support bundles as
+`api/fallback-policy.json`. See [radius-fallback-policy.md](radius-fallback-policy.md).
+
 ## Dynamic NAS Client Endpoints
 
 NAS client bootstrap and lifecycle state are exposed through:

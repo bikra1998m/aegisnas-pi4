@@ -141,6 +141,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	transportPolicy := radius.BuildTransportPolicyReport(cfg)
 	proxyPolicy := radius.BuildProxyPolicyReport(cfg)
 	accountingSpool := radius.BuildAccountingSpoolReport(cfg)
+	fallbackPolicy := radius.BuildFallbackPolicyReport(cfg)
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -152,6 +153,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"transport_policy":        transportPolicy,
 		"proxy_policy":            proxyPolicy,
 		"accounting_spool":        accountingSpool,
+		"fallback_policy":         fallbackPolicy,
 		"enabled_radius_clients":  enabledRadiusClients,
 		"broker_auth":             runtimeMap["radius_broker_auth"],
 		"broker_accounting":       runtimeMap["radius_broker_accounting"],

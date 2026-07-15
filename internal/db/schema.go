@@ -144,7 +144,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{17, schemaV17},
 		{18, schemaV18},
 		{19, schemaV19},
-		{LatestSchemaVersion(), schemaV20},
+		{20, schemaV20},
+		{LatestSchemaVersion(), schemaV21},
 	}
 
 	for _, m := range migrations {
@@ -186,8 +187,20 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureDynamicNASClientTables(handle); err != nil {
 		return fmt.Errorf("repair dynamic NAS client schema: %w", err)
 	}
+	if err := ensureRadiusFallbackEventTable(handle); err != nil {
+		return fmt.Errorf("repair RADIUS fallback event schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureRadiusFallbackEventTable(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	_, err := handle.Exec(SQLForDialect(schemaV21, dialect))
+	return err
 }
 
 func ensureDynamicNASClientTables(handle *sql.DB) error {

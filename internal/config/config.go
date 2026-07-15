@@ -304,6 +304,7 @@ type RadiusUpstreamConfig struct {
 	TransportPolicy   RadiusTransportPolicyConfig `mapstructure:"transport_policy"`
 	ProxyPolicy       RadiusProxyPolicyConfig     `mapstructure:"proxy_policy"`
 	AccountingSpool   RadiusAccountingSpoolConfig `mapstructure:"accounting_spool"`
+	FallbackPolicy    RadiusFallbackPolicyConfig  `mapstructure:"fallback_policy"`
 }
 
 type RadiusProxyRouteConfig struct {
@@ -387,6 +388,23 @@ type RadiusAccountingSpoolConfig struct {
 	LockSeconds            int  `mapstructure:"lock_seconds"`
 	SentRetentionSeconds   int  `mapstructure:"sent_retention_seconds"`
 	PoisonRetentionSeconds int  `mapstructure:"poison_retention_seconds"`
+}
+
+type RadiusFallbackPolicyConfig struct {
+	Enabled                  bool     `mapstructure:"enabled"`
+	Mode                     string   `mapstructure:"mode"`
+	FailClosed               bool     `mapstructure:"fail_closed"`
+	AllowPortalLocal         bool     `mapstructure:"allow_portal_local"`
+	AllowLDAP                bool     `mapstructure:"allow_ldap"`
+	RequireIdentityAllowlist bool     `mapstructure:"require_identity_allowlist"`
+	MaxOutageSeconds         int      `mapstructure:"max_outage_seconds"`
+	StalePolicySeconds       int      `mapstructure:"stale_policy_seconds"`
+	RecoverySuccesses        int      `mapstructure:"recovery_successes"`
+	AllowedUsers             []string `mapstructure:"allowed_users"`
+	AllowedRealms            []string `mapstructure:"allowed_realms"`
+	AllowedRoles             []string `mapstructure:"allowed_roles"`
+	AuditEnabled             bool     `mapstructure:"audit_enabled"`
+	RetentionLimit           int      `mapstructure:"retention_limit"`
 }
 
 type RadiusHomeServer struct {
@@ -1200,6 +1218,20 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.upstream.accounting_spool.lock_seconds", 120)
 	v.SetDefault("radius.upstream.accounting_spool.sent_retention_seconds", 604800)
 	v.SetDefault("radius.upstream.accounting_spool.poison_retention_seconds", 2592000)
+	v.SetDefault("radius.upstream.fallback_policy.enabled", true)
+	v.SetDefault("radius.upstream.fallback_policy.mode", "monitor")
+	v.SetDefault("radius.upstream.fallback_policy.fail_closed", true)
+	v.SetDefault("radius.upstream.fallback_policy.allow_portal_local", true)
+	v.SetDefault("radius.upstream.fallback_policy.allow_ldap", false)
+	v.SetDefault("radius.upstream.fallback_policy.require_identity_allowlist", true)
+	v.SetDefault("radius.upstream.fallback_policy.max_outage_seconds", 900)
+	v.SetDefault("radius.upstream.fallback_policy.stale_policy_seconds", 3600)
+	v.SetDefault("radius.upstream.fallback_policy.recovery_successes", 2)
+	v.SetDefault("radius.upstream.fallback_policy.allowed_users", []string{})
+	v.SetDefault("radius.upstream.fallback_policy.allowed_realms", []string{})
+	v.SetDefault("radius.upstream.fallback_policy.allowed_roles", []string{})
+	v.SetDefault("radius.upstream.fallback_policy.audit_enabled", true)
+	v.SetDefault("radius.upstream.fallback_policy.retention_limit", 6000)
 	productVendor := productconfigs.AegisNASVendorDictionary()
 	v.SetDefault("radius.vendor.enabled", false)
 	v.SetDefault("radius.vendor.name", productVendor.Name)
@@ -3652,6 +3684,9 @@ func (c *Config) Validate() error {
 		if err := validateRadiusAccountingSpool(c.Radius.Upstream.AccountingSpool); err != nil {
 			return err
 		}
+		if err := validateRadiusFallbackPolicy(c.Radius.Upstream.FallbackPolicy); err != nil {
+			return err
+		}
 	}
 
 	if c.Wireless.Enabled {
@@ -4487,6 +4522,81 @@ func validateRadiusAccountingSpool(raw RadiusAccountingSpoolConfig) error {
 	}
 	if effective.PoisonRetentionSeconds < 1 {
 		return fmt.Errorf("radius.upstream.accounting_spool.poison_retention_seconds must be positive")
+	}
+	return nil
+}
+
+func EffectiveRadiusFallbackPolicyConfig(raw RadiusFallbackPolicyConfig) RadiusFallbackPolicyConfig {
+	effective := raw
+	if strings.TrimSpace(effective.Mode) == "" {
+		effective.Mode = "monitor"
+	}
+	if effective.MaxOutageSeconds == 0 {
+		effective.MaxOutageSeconds = 900
+	}
+	if effective.StalePolicySeconds == 0 {
+		effective.StalePolicySeconds = 3600
+	}
+	if effective.RecoverySuccesses == 0 {
+		effective.RecoverySuccesses = 2
+	}
+	if effective.RetentionLimit == 0 {
+		effective.RetentionLimit = 6000
+	}
+	return effective
+}
+
+func validateRadiusFallbackPolicy(raw RadiusFallbackPolicyConfig) error {
+	values := map[string]int{
+		"max_outage_seconds":   raw.MaxOutageSeconds,
+		"stale_policy_seconds": raw.StalePolicySeconds,
+		"recovery_successes":   raw.RecoverySuccesses,
+		"retention_limit":      raw.RetentionLimit,
+	}
+	for name, value := range values {
+		if value < 0 {
+			return fmt.Errorf("radius.upstream.fallback_policy.%s %d cannot be negative", name, value)
+		}
+	}
+	effective := EffectiveRadiusFallbackPolicyConfig(raw)
+	mode := strings.ToLower(strings.TrimSpace(effective.Mode))
+	switch mode {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("radius.upstream.fallback_policy.mode %q must be monitor or enforce", raw.Mode)
+	}
+	if raw.Enabled {
+		if effective.MaxOutageSeconds < 60 || effective.MaxOutageSeconds > 86400 {
+			return fmt.Errorf("radius.upstream.fallback_policy.max_outage_seconds must be between 60 and 86400")
+		}
+		if effective.StalePolicySeconds < effective.MaxOutageSeconds {
+			return fmt.Errorf("radius.upstream.fallback_policy.stale_policy_seconds must be greater than or equal to max_outage_seconds")
+		}
+		if effective.RecoverySuccesses < 1 || effective.RecoverySuccesses > 10 {
+			return fmt.Errorf("radius.upstream.fallback_policy.recovery_successes must be between 1 and 10")
+		}
+		if effective.RetentionLimit < 100 || effective.RetentionLimit > 1000000 {
+			return fmt.Errorf("radius.upstream.fallback_policy.retention_limit must be between 100 and 1000000")
+		}
+	}
+	for i, value := range raw.AllowedUsers {
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("radius.upstream.fallback_policy.allowed_users[%d] cannot be empty", i)
+		}
+	}
+	for i, value := range raw.AllowedRealms {
+		realm := strings.TrimSpace(value)
+		if realm == "" {
+			return fmt.Errorf("radius.upstream.fallback_policy.allowed_realms[%d] cannot be empty", i)
+		}
+		if realm != "*" && !validRadiusRealmName(realm) {
+			return fmt.Errorf("radius.upstream.fallback_policy.allowed_realms[%d] %q is invalid", i, value)
+		}
+	}
+	for i, value := range raw.AllowedRoles {
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("radius.upstream.fallback_policy.allowed_roles[%d] cannot be empty", i)
+		}
 	}
 	return nil
 }

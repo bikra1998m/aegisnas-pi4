@@ -134,7 +134,8 @@ Behavior:
 
 - local admin auth is tried first as break-glass access
 - if `portal.radius_auth` is enabled, the portal authenticates through local FreeRADIUS
-- if upstream AAA is unavailable and `portal.local_fallback` is enabled, local and LDAP fallback are allowed
+- if upstream AAA is unavailable and `portal.local_fallback` is enabled, local and LDAP fallback are evaluated by `radius.upstream.fallback_policy`
+- enforce mode requires an allowed source, identity allowlist match, active outage window, and hashed audit record
 - vouchers stay local
 
 Reason:

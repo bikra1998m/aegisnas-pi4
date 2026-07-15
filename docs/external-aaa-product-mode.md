@@ -63,6 +63,7 @@ The implementation now does these things end to end:
 12. records and approves dynamic AP, switch, gateway, and controller NAS clients before allowing them to send trusted RADIUS traffic
 13. supports outbound RadSec TLS-PSK peers with secret-reference validation, deterministic rotation, redacted status, and production readiness checks
 14. blocks downgrade-prone mixed UDP/RadSec proxy pools when transport policy is in enforce mode
+15. governs portal local/LDAP fallback during upstream outage with identity allowlists, bounded outage windows, hashed audit events, readiness checks, and dashboard/API visibility
 
 ## Current Behavior
 
@@ -80,6 +81,7 @@ When `radius.upstream.enabled: true`:
 - the dashboard probes each upstream AAA home server directly with `Status-Server` when that mode is enabled
 - TLS-PSK RadSec peers expose credential and rotation state through `/api/v1/system/radsec-credentials`; active transport proof remains part of the release certification checklist because the local Go probe path is mTLS-only
 - transport policy exposes route-level downgrade risk through `/api/v1/system/transport-policy` and prevents proxy generation when enforce mode would be violated
+- fallback policy exposes local/LDAP outage behavior through `/api/v1/system/fallback-policy`; enforce mode denies fallback unless source, identity allowlist, and outage window policy all match
 - the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
 - the vendor reply preview can render vendor-neutral ACL intent into `NAS-Filter-Rule`, Cisco `Cisco-AVPair`, Aruba filter rules, MikroTik address-list hints, and AegisNAS ACL VSAs
 - upstream reply attributes are mapped into local session state:
@@ -752,8 +754,7 @@ This section is here on purpose so future work is easy to pick back up.
 
 ### Most Likely Next Enhancements
 
-1. add optional policy for which local users are allowed during upstream outage
-2. add storage NAS services as a separate product layer when needed
+1. add storage NAS services as a separate product layer when needed
 
 ### Engineering Intent
 

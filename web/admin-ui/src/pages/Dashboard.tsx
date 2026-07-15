@@ -296,6 +296,39 @@ type RadiusAccountingSpoolReport = {
   };
 };
 
+type RadiusFallbackPolicyReport = {
+  enabled: boolean;
+  status: string;
+  message: string;
+  policy?: {
+    mode: string;
+    fail_closed: boolean;
+    allow_portal_local: boolean;
+    allow_ldap: boolean;
+    require_identity_allowlist: boolean;
+    max_outage_seconds: number;
+  };
+  summary?: {
+    allowed_user_count: number;
+    allowed_realm_count: number;
+    allowed_role_count: number;
+    identity_allowlist_set: boolean;
+    active_outage: boolean;
+    fallback_expires_at?: string;
+    current_upstream_status?: string;
+  };
+  audit_summary?: {
+    total_records: number;
+    allowed_count: number;
+    denied_count: number;
+    monitor_count: number;
+    last_observed_at?: string;
+    last_decision?: string;
+    last_reason?: string;
+  };
+  warnings?: string[];
+};
+
 type RadSecCredentialReport = {
   status: string;
   message: string;
@@ -436,6 +469,7 @@ type SystemStatus = {
     transport_policy?: RadiusTransportPolicyReport;
     proxy_policy?: RadiusProxyPolicyReport;
     accounting_spool?: RadiusAccountingSpoolReport;
+    fallback_policy?: RadiusFallbackPolicyReport;
     radsec_credentials?: RadSecCredentialReport;
     dynamic_nas_clients?: DynamicNASClientReport;
     probe_error?: string;
@@ -978,6 +1012,7 @@ export default function Dashboard() {
   const transportPolicy = systemStatus.radius?.transport_policy;
   const proxyPolicy = systemStatus.radius?.proxy_policy;
   const accountingSpool = systemStatus.radius?.accounting_spool;
+  const fallbackPolicy = systemStatus.radius?.fallback_policy;
   const radSecCredentials = systemStatus.radius?.radsec_credentials;
   const dynamicNASClients = systemStatus.radius?.dynamic_nas_clients;
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
@@ -1799,6 +1834,75 @@ export default function Dashboard() {
                     <StatusBadge
                       status={radSecCredentials.status || "unknown"}
                     />
+                  </div>
+                </div>
+              ) : null}
+              {fallbackPolicy ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Outage Fallback Policy
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {fallbackPolicy.message ||
+                          "Fallback policy state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>Mode {fallbackPolicy.policy?.mode || "monitor"}</div>
+                        <div>
+                          Window{" "}
+                          {fallbackPolicy.policy?.max_outage_seconds ?? 0}s
+                        </div>
+                        <div>
+                          Users{" "}
+                          {fallbackPolicy.summary?.allowed_user_count ?? 0}
+                        </div>
+                        <div>
+                          Realms{" "}
+                          {fallbackPolicy.summary?.allowed_realm_count ?? 0}
+                        </div>
+                        <div>
+                          Decisions{" "}
+                          {fallbackPolicy.audit_summary?.total_records ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Local{" "}
+                        {fallbackPolicy.policy?.allow_portal_local
+                          ? "allowed"
+                          : "blocked"}
+                        ; LDAP{" "}
+                        {fallbackPolicy.policy?.allow_ldap
+                          ? "allowed"
+                          : "blocked"}
+                        ; allowlist{" "}
+                        {fallbackPolicy.summary?.identity_allowlist_set
+                          ? "configured"
+                          : "empty"}
+                        {fallbackPolicy.summary?.active_outage
+                          ? `; outage active${
+                              fallbackPolicy.summary?.fallback_expires_at
+                                ? ` until ${fallbackPolicy.summary.fallback_expires_at}`
+                                : ""
+                            }`
+                          : ""}
+                        .
+                      </div>
+                      {fallbackPolicy.audit_summary?.last_decision ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last {fallbackPolicy.audit_summary.last_decision}:{" "}
+                          {fallbackPolicy.audit_summary.last_reason ||
+                            "no reason recorded"}
+                        </div>
+                      ) : null}
+                      {fallbackPolicy.warnings?.length ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {fallbackPolicy.warnings[0]}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge status={fallbackPolicy.status || "unknown"} />
                   </div>
                 </div>
               ) : null}

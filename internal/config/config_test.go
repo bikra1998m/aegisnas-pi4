@@ -3345,6 +3345,57 @@ func TestConfigValidationRejectsTransportPolicyInvalidDefault(t *testing.T) {
 	assert.ErrorContains(t, cfg.Validate(), "default_required_transport")
 }
 
+func TestConfigValidationAllowsFallbackPolicy(t *testing.T) {
+	cfg := baseProxyRoutingValidationConfig()
+	cfg.Radius.Upstream.FallbackPolicy = RadiusFallbackPolicyConfig{
+		Enabled:                 true,
+		Mode:                    "enforce",
+		FailClosed:              true,
+		AllowPortalLocal:        true,
+		AllowLDAP:               false,
+		RequireIdentityAllowlist: true,
+		MaxOutageSeconds:        900,
+		StalePolicySeconds:      3600,
+		RecoverySuccesses:       2,
+		AllowedUsers:            []string{"breakglass@example.com"},
+		AllowedRealms:           []string{"guest.example.com"},
+		AllowedRoles:            []string{"guest-basic"},
+		AuditEnabled:            true,
+		RetentionLimit:          6000,
+	}
+
+	assert.NoError(t, cfg.Validate())
+}
+
+func TestConfigValidationRejectsFallbackPolicyInvalidMode(t *testing.T) {
+	cfg := baseProxyRoutingValidationConfig()
+	cfg.Radius.Upstream.FallbackPolicy = RadiusFallbackPolicyConfig{
+		Enabled:            true,
+		Mode:               "silent",
+		MaxOutageSeconds:   900,
+		StalePolicySeconds: 3600,
+		RecoverySuccesses:  2,
+		RetentionLimit:     6000,
+	}
+
+	assert.ErrorContains(t, cfg.Validate(), "fallback_policy.mode")
+}
+
+func TestConfigValidationRejectsFallbackPolicyInvalidRealm(t *testing.T) {
+	cfg := baseProxyRoutingValidationConfig()
+	cfg.Radius.Upstream.FallbackPolicy = RadiusFallbackPolicyConfig{
+		Enabled:            true,
+		Mode:               "enforce",
+		MaxOutageSeconds:   900,
+		StalePolicySeconds: 3600,
+		RecoverySuccesses:  2,
+		AllowedRealms:      []string{"bad realm"},
+		RetentionLimit:     6000,
+	}
+
+	assert.ErrorContains(t, cfg.Validate(), "fallback_policy.allowed_realms")
+}
+
 func TestConfigValidationAllowsProxyPolicy(t *testing.T) {
 	cfg := baseProxyRoutingValidationConfig()
 	cfg.Radius.Upstream.Routes = []RadiusProxyRouteConfig{
