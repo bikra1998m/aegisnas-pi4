@@ -10,6 +10,7 @@ import (
 
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
+	identityfailover "github.com/yourorg/aegisnas-pi4/internal/identity"
 	ldapclient "github.com/yourorg/aegisnas-pi4/internal/ldap"
 	aegisradius "github.com/yourorg/aegisnas-pi4/internal/radius"
 	"go.uber.org/zap"
@@ -48,18 +49,25 @@ type LoginRequest struct {
 
 // ValidateUser checks username/password against local users.
 func ValidateUser(username, password string) (bool, string, error) {
+	valid, role, _, err := ValidateUserDetailed(username, password)
+	return valid, role, err
+}
+
+// ValidateUserDetailed checks username/password and distinguishes a missing
+// local user from an existing user with a bad password.
+func ValidateUserDetailed(username, password string) (bool, string, bool, error) {
 	var hash, role string
 	err := db.DB.QueryRow("SELECT password_hash, role FROM local_users WHERE username = ?", username).Scan(&hash, &role)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return false, "", nil
+			return false, "", false, nil
 		}
-		return false, "", err
+		return false, "", false, err
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
-		return false, "", nil
+		return false, "", true, nil
 	}
-	return true, role, nil
+	return true, role, true, nil
 }
 
 // RateLimiter implements a per-IP token bucket rate limiter.
@@ -161,7 +169,7 @@ func AuthenticateUser(ctx context.Context, req LoginRequest) (*Result, error) {
 			zap.Error(err))
 
 		if cfg.Portal.LocalFallback {
-			fallbackResult, fallbackErr := authenticateFallback(req.Username, req.Password)
+			fallbackResult, fallbackErr := authenticateFallback(ctx, req.Username, req.Password)
 			if fallbackErr != nil {
 				return nil, fallbackErr
 			}
@@ -197,22 +205,81 @@ func AuthenticateUser(ctx context.Context, req LoginRequest) (*Result, error) {
 		}, nil
 	}
 
-	return authenticateFallback(req.Username, req.Password)
+	return authenticateFallback(ctx, req.Username, req.Password)
 }
 
-func authenticateFallback(username, password string) (*Result, error) {
-	localResult, err := authenticateLocal(username, password)
-	if err != nil {
-		return nil, err
+func authenticateFallback(ctx context.Context, username, password string) (*Result, error) {
+	cfg := config.Get()
+	policy := identityfailover.FailoverPolicyFromConfig(cfg)
+	if !policy.Enabled {
+		localResult, err := authenticateLocal(username, password)
+		if err != nil {
+			return nil, err
+		}
+		if localResult.Accepted {
+			return localResult, nil
+		}
+		return authenticateLDAP(username, password)
 	}
-	if localResult.Accepted {
-		return localResult, nil
+
+	type credentialReject struct {
+		sourceName string
+		sourceType string
 	}
-	return authenticateLDAP(username, password)
+	var firstReject *credentialReject
+	var attempted int
+	var skipped int
+	for _, source := range identityfailover.BuildSourcePlan(cfg) {
+		if !source.Executable {
+			skipped++
+			recordIdentitySourceEvent(policy, source, username, "skipped", source.Reason, 0, source.CircuitState.State, false, nil)
+			continue
+		}
+		attempted++
+		started := time.Now()
+		result, decision, reason, err := authenticateIdentitySource(ctx, source, username, password, policy)
+		latencyMS := time.Since(started).Milliseconds()
+		if err != nil {
+			recordIdentitySourceEvent(policy, source, username, "failed", err.Error(), latencyMS, "closed", false, map[string]any{"reason": reason})
+			if source.Type == "ldap" {
+				if cached, ok, cacheErr := authenticateStaleIdentityCache(source, username, password, policy); cacheErr != nil {
+					zap.L().Warn("identity source stale cache lookup failed",
+						zap.String("source", source.Name),
+						zap.Error(cacheErr))
+				} else if ok {
+					recordIdentitySourceEvent(policy, source, username, "stale_accepted", "ldap unavailable; stale cache accepted", latencyMS, "closed", true, nil)
+					return cached, nil
+				}
+			}
+			continue
+		}
+		recordIdentitySourceEvent(policy, source, username, decision, reason, latencyMS, "closed", false, nil)
+		switch decision {
+		case "accepted":
+			if firstReject != nil && splitResultDenied(policy) {
+				recordIdentitySourceEvent(policy, source, username, "split_denied",
+					"identity source accepted after earlier credential rejection", latencyMS, "closed", false,
+					map[string]any{"first_reject_source": firstReject.sourceName, "first_reject_type": firstReject.sourceType})
+				return &Result{Accepted: false, ReplyMessage: "identity source split-result policy denied login"}, nil
+			}
+			return result, nil
+		case "rejected":
+			if firstReject == nil {
+				firstReject = &credentialReject{sourceName: source.Name, sourceType: source.Type}
+			}
+		}
+	}
+	if firstReject != nil {
+		return &Result{Accepted: false, ReplyMessage: "invalid credentials"}, nil
+	}
+	if policy.Mode == "enforce" && policy.FailClosed && attempted == 0 && skipped > 0 {
+		return &Result{Accepted: false, ReplyMessage: "identity sources unavailable"}, nil
+	}
+	return &Result{Accepted: false}, nil
 }
 
 func authenticateLocal(username, password string) (*Result, error) {
-	valid, role, err := ValidateUser(username, password)
+	valid, role, _, err := ValidateUserDetailed(username, password)
 	if err != nil {
 		return nil, err
 	}
@@ -226,6 +293,110 @@ func authenticateLocal(username, password string) (*Result, error) {
 		IdentitySource: "local",
 		AuthMethod:     "portal-local",
 	}, nil
+}
+
+func authenticateIdentitySource(ctx context.Context, source identityfailover.SourcePlan, username, password string, policy identityfailover.FailoverPolicy) (*Result, string, string, error) {
+	select {
+	case <-ctx.Done():
+		return nil, "failed", "request context cancelled", ctx.Err()
+	default:
+	}
+	switch source.Type {
+	case "local":
+		return authenticateLocalSource(source, username, password)
+	case "ldap":
+		result, err := authenticateLDAP(username, password)
+		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "user not found") {
+				return &Result{Accepted: false}, "not_found", "user not found", nil
+			}
+			return nil, "failed", "ldap error", err
+		}
+		if !result.Accepted {
+			return result, "rejected", "invalid credentials", nil
+		}
+		if policy.CacheCredentials && db.DB != nil {
+			if cacheErr := db.UpsertIdentitySourceCache(source.Name, username, password, result.Role, result.IdentitySource, result.Groups, policy.StaleCacheSeconds, time.Now().UTC()); cacheErr != nil {
+				zap.L().Warn("identity source credential cache update failed",
+					zap.String("source", source.Name),
+					zap.Error(cacheErr))
+			}
+		}
+		return result, "accepted", "credentials accepted", nil
+	default:
+		return &Result{Accepted: false}, "skipped", "unsupported identity source type", nil
+	}
+}
+
+func authenticateLocalSource(source identityfailover.SourcePlan, username, password string) (*Result, string, string, error) {
+	valid, role, found, err := ValidateUserDetailed(username, password)
+	if err != nil {
+		return nil, "failed", "local database error", err
+	}
+	if !found {
+		return &Result{Accepted: false}, "not_found", "user not found", nil
+	}
+	if !valid {
+		return &Result{Accepted: false}, "rejected", "invalid credentials", nil
+	}
+	return &Result{
+		Accepted:       true,
+		Username:       username,
+		Role:           role,
+		IdentitySource: source.Name,
+		AuthMethod:     "portal-local",
+	}, "accepted", "credentials accepted", nil
+}
+
+func authenticateStaleIdentityCache(source identityfailover.SourcePlan, username, password string, policy identityfailover.FailoverPolicy) (*Result, bool, error) {
+	if !policy.CacheCredentials || db.DB == nil {
+		return nil, false, nil
+	}
+	entry, ok, err := db.VerifyIdentitySourceCache(source.Name, username, password, time.Now().UTC())
+	if err != nil || !ok {
+		return nil, ok, err
+	}
+	authMethod := "portal-ldap-cache"
+	if strings.TrimSpace(entry.IdentitySource) != "" {
+		authMethod = "portal-" + strings.TrimSpace(entry.IdentitySource) + "-cache"
+	}
+	return &Result{
+		Accepted:       true,
+		Username:       username,
+		Role:           entry.Role,
+		Groups:         entry.Groups,
+		IdentitySource: entry.IdentitySource,
+		AuthMethod:     authMethod,
+		ReplyMessage:   "identity source unavailable; stale cache accepted",
+	}, true, nil
+}
+
+func recordIdentitySourceEvent(policy identityfailover.FailoverPolicy, source identityfailover.SourcePlan, username, decision, reason string, latencyMS int64, circuitState string, cacheUsed bool, details any) {
+	if err := identityfailover.RecordEvent(policy, identityfailover.EventRecord{
+		SourceName:   source.Name,
+		SourceType:   source.Type,
+		Username:     username,
+		Decision:     decision,
+		Reason:       reason,
+		LatencyMS:    latencyMS,
+		CircuitState: circuitState,
+		CacheUsed:    cacheUsed,
+		Details:      details,
+	}); err != nil {
+		zap.L().Warn("record identity source event failed",
+			zap.String("source", source.Name),
+			zap.String("decision", decision),
+			zap.Error(err))
+	}
+}
+
+func splitResultDenied(policy identityfailover.FailoverPolicy) bool {
+	switch identityfailover.NormalizeSplitResultPolicy(policy.SplitResultPolicy) {
+	case "prefer_success":
+		return false
+	default:
+		return true
+	}
 }
 
 func authenticateLDAP(username, password string) (*Result, error) {

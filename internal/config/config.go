@@ -29,6 +29,7 @@ type Config struct {
 	Health           HealthConfig           `mapstructure:"health"`
 	Radius           RadiusConfig           `mapstructure:"radius"`
 	Portal           PortalConfig           `mapstructure:"portal"`
+	Identity         IdentityConfig         `mapstructure:"identity"`
 	LDAP             LDAPConfig             `mapstructure:"ldap"`
 	Policy           PolicyConfig           `mapstructure:"policy"`
 	Telemetry        TelemetryConfig        `mapstructure:"telemetry"`
@@ -598,6 +599,25 @@ type PortalGuestWorkflowConfig struct {
 	SMTPPort                int    `mapstructure:"smtp_port"`
 	SMSProvider             string `mapstructure:"sms_provider"`
 	SMSEndpoint             string `mapstructure:"sms_endpoint"`
+}
+
+type IdentityConfig struct {
+	Failover IdentityFailoverConfig `mapstructure:"failover"`
+}
+
+type IdentityFailoverConfig struct {
+	Enabled                    bool     `mapstructure:"enabled"`
+	Mode                       string   `mapstructure:"mode"`
+	FailClosed                 bool     `mapstructure:"fail_closed"`
+	SourceOrder                []string `mapstructure:"source_order"`
+	MaxFailures                int      `mapstructure:"max_failures"`
+	CircuitOpenSeconds         int      `mapstructure:"circuit_open_seconds"`
+	StaleCacheSeconds          int      `mapstructure:"stale_cache_seconds"`
+	CacheCredentials           bool     `mapstructure:"cache_credentials"`
+	SplitResultPolicy          string   `mapstructure:"split_result_policy"`
+	HealthCheckIntervalSeconds int      `mapstructure:"health_check_interval_seconds"`
+	AuditEnabled               bool     `mapstructure:"audit_enabled"`
+	RetentionLimit             int      `mapstructure:"retention_limit"`
 }
 
 type LDAPConfig struct {
@@ -1251,6 +1271,18 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.vendor.opaque_pass_through.rules", []map[string]any{})
 	v.SetDefault("portal.radius_auth", false)
 	v.SetDefault("portal.local_fallback", true)
+	v.SetDefault("identity.failover.enabled", true)
+	v.SetDefault("identity.failover.mode", "monitor")
+	v.SetDefault("identity.failover.fail_closed", true)
+	v.SetDefault("identity.failover.source_order", []string{"local", "ldap-primary"})
+	v.SetDefault("identity.failover.max_failures", 3)
+	v.SetDefault("identity.failover.circuit_open_seconds", 300)
+	v.SetDefault("identity.failover.stale_cache_seconds", 3600)
+	v.SetDefault("identity.failover.cache_credentials", false)
+	v.SetDefault("identity.failover.split_result_policy", "deny")
+	v.SetDefault("identity.failover.health_check_interval_seconds", 60)
+	v.SetDefault("identity.failover.audit_enabled", true)
+	v.SetDefault("identity.failover.retention_limit", 6000)
 	v.SetDefault("policy.runtime_shaping_enabled", true)
 	v.SetDefault("wireless.enabled", false)
 	v.SetDefault("wireless.country_code", "US")
@@ -2091,6 +2123,9 @@ func (c *Config) Validate() error {
 	case "", "none", "email", "sms":
 	default:
 		return fmt.Errorf("portal.guest_workflows.invite_delivery %q is invalid", c.Portal.GuestWorkflows.InviteDelivery)
+	}
+	if err := validateIdentityFailover(c.Identity.Failover); err != nil {
+		return err
 	}
 	switch strings.ToLower(strings.TrimSpace(c.Portal.GuestWorkflows.ApprovalDelivery)) {
 	case "", "email", "sms":
@@ -4544,6 +4579,93 @@ func EffectiveRadiusFallbackPolicyConfig(raw RadiusFallbackPolicyConfig) RadiusF
 		effective.RetentionLimit = 6000
 	}
 	return effective
+}
+
+func EffectiveIdentityFailoverConfig(raw IdentityFailoverConfig) IdentityFailoverConfig {
+	effective := raw
+	if strings.TrimSpace(effective.Mode) == "" {
+		effective.Mode = "monitor"
+	}
+	if len(effective.SourceOrder) == 0 {
+		effective.SourceOrder = []string{"local", "ldap-primary"}
+	}
+	if effective.MaxFailures == 0 {
+		effective.MaxFailures = 3
+	}
+	if effective.CircuitOpenSeconds == 0 {
+		effective.CircuitOpenSeconds = 300
+	}
+	if effective.StaleCacheSeconds == 0 {
+		effective.StaleCacheSeconds = 3600
+	}
+	if strings.TrimSpace(effective.SplitResultPolicy) == "" {
+		effective.SplitResultPolicy = "deny"
+	}
+	if effective.HealthCheckIntervalSeconds == 0 {
+		effective.HealthCheckIntervalSeconds = 60
+	}
+	if effective.RetentionLimit == 0 {
+		effective.RetentionLimit = 6000
+	}
+	return effective
+}
+
+func validateIdentityFailover(raw IdentityFailoverConfig) error {
+	values := map[string]int{
+		"max_failures":                  raw.MaxFailures,
+		"circuit_open_seconds":          raw.CircuitOpenSeconds,
+		"stale_cache_seconds":           raw.StaleCacheSeconds,
+		"health_check_interval_seconds": raw.HealthCheckIntervalSeconds,
+		"retention_limit":               raw.RetentionLimit,
+	}
+	for name, value := range values {
+		if value < 0 {
+			return fmt.Errorf("identity.failover.%s %d cannot be negative", name, value)
+		}
+	}
+	effective := EffectiveIdentityFailoverConfig(raw)
+	switch strings.ToLower(strings.TrimSpace(effective.Mode)) {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("identity.failover.mode %q must be monitor or enforce", raw.Mode)
+	}
+	switch strings.ToLower(strings.TrimSpace(effective.SplitResultPolicy)) {
+	case "deny", "prefer_first", "prefer_success":
+	default:
+		return fmt.Errorf("identity.failover.split_result_policy %q must be deny, prefer_first, or prefer_success", raw.SplitResultPolicy)
+	}
+	seenSources := map[string]struct{}{}
+	for i, source := range effective.SourceOrder {
+		normalized := strings.ToLower(strings.TrimSpace(source))
+		if normalized == "" {
+			return fmt.Errorf("identity.failover.source_order[%d] cannot be empty", i)
+		}
+		if strings.ContainsAny(normalized, "\r\n\x00") {
+			return fmt.Errorf("identity.failover.source_order[%d] is invalid", i)
+		}
+		if _, exists := seenSources[normalized]; exists {
+			return fmt.Errorf("identity.failover.source_order[%d] %q duplicates an earlier source", i, source)
+		}
+		seenSources[normalized] = struct{}{}
+	}
+	if raw.Enabled {
+		if effective.MaxFailures < 1 || effective.MaxFailures > 100 {
+			return errors.New("identity.failover.max_failures must be between 1 and 100")
+		}
+		if effective.CircuitOpenSeconds < 5 || effective.CircuitOpenSeconds > 86400 {
+			return errors.New("identity.failover.circuit_open_seconds must be between 5 and 86400")
+		}
+		if effective.StaleCacheSeconds < 60 || effective.StaleCacheSeconds > 2592000 {
+			return errors.New("identity.failover.stale_cache_seconds must be between 60 and 2592000")
+		}
+		if effective.HealthCheckIntervalSeconds < 5 || effective.HealthCheckIntervalSeconds > 3600 {
+			return errors.New("identity.failover.health_check_interval_seconds must be between 5 and 3600")
+		}
+		if effective.RetentionLimit < 100 || effective.RetentionLimit > 1000000 {
+			return errors.New("identity.failover.retention_limit must be between 100 and 1000000")
+		}
+	}
+	return nil
 }
 
 func validateRadiusFallbackPolicy(raw RadiusFallbackPolicyConfig) error {

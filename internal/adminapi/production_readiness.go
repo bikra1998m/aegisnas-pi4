@@ -12,6 +12,7 @@ import (
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
+	"github.com/yourorg/aegisnas-pi4/internal/identity"
 	"github.com/yourorg/aegisnas-pi4/internal/radius"
 	"github.com/yourorg/aegisnas-pi4/internal/secrets"
 )
@@ -113,6 +114,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionProxyPolicyCheck(&report, cfg)
 	addProductionAccountingSpoolCheck(&report, cfg)
 	addProductionFallbackPolicyCheck(&report, cfg)
+	addProductionIdentityFailoverCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
@@ -362,6 +364,40 @@ func addProductionFallbackPolicyCheck(report *productionReadinessReport, cfg *co
 			fallback.Summary.AllowedUserCount, fallback.Summary.AllowedRealmCount, fallback.Summary.AllowedRoleCount, fallback.AuditSummary.TotalRecords),
 		Recommendation: "Set radius.upstream.fallback_policy.mode=enforce, keep fail_closed=true, bound max_outage_seconds, configure identity allowlists, and review /api/v1/system/fallback-policy before production upstream AAA operation.",
 		Dependencies:   []string{"radius.upstream.fallback_policy", "portal.radius_auth", "portal.local_fallback", "/api/v1/system/fallback-policy", "radius_fallback_events"},
+	})
+}
+
+func addProductionIdentityFailoverCheck(report *productionReadinessReport, cfg *config.Config) {
+	failover := identity.BuildFailoverReport(cfg)
+	status := "passed"
+	switch failover.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "degraded"
+	}
+	activePortalIdentity := cfg != nil && (cfg.Portal.Enabled || cfg.Portal.RadiusAuth || cfg.Portal.LocalFallback || cfg.LDAP.Enabled)
+	if activePortalIdentity {
+		if !failover.Enabled || failover.Policy.Mode != "enforce" || !failover.Policy.FailClosed {
+			status = "blocked"
+		}
+		if failover.Summary.ExecutableSourceCount == 0 {
+			status = "blocked"
+		}
+		if failover.Policy.AuditEnabled && db.DB == nil {
+			status = "blocked"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "identity_source_failover",
+		Category: "authentication",
+		Label:    "Identity Source HA And Deterministic Failover",
+		Status:   status,
+		Summary: fmt.Sprintf("Identity failover schema %d is %s in %s mode with %d executable source(s), %d open circuit(s), cache=%t, and %d audited decision(s).",
+			failover.SchemaVersion, failover.Status, failover.Policy.Mode, failover.Summary.ExecutableSourceCount,
+			failover.Summary.OpenCircuitCount, failover.Policy.CacheCredentials, failover.AuditSummary.TotalRecords),
+		Recommendation: "Set identity.failover.mode=enforce, keep fail_closed=true, define source_order, keep audit enabled, and review /api/v1/system/identity-failover before production authentication cutover.",
+		Dependencies:   []string{"identity.failover", "identity_sources", "/api/v1/system/identity-failover", "identity_source_events", "identity_source_cache"},
 	})
 }
 

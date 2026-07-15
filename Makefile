@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-transport-policy test-radius-proxy-policy test-radius-accounting-spool test-radius-fallback-policy test-dynamic-nas-clients test-radsec-credentials install-radius-dictionary scan-radius-dictionaries
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-transport-policy test-radius-proxy-policy test-radius-accounting-spool test-radius-fallback-policy test-identity-failover test-dynamic-nas-clients test-radsec-credentials install-radius-dictionary scan-radius-dictionaries
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -81,6 +81,9 @@ test-radius-accounting-spool:
 
 test-radius-fallback-policy:
 	go test ./internal/config ./internal/db ./internal/radius ./internal/adminapi -run 'FallbackPolicy|RadiusFallback|Migrate|OpenAPI|Authorize|ProductionReadiness|SupportBundle' -count=1
+
+test-identity-failover:
+	go test -p=1 -timeout=600s ./internal/config ./internal/db ./internal/identity ./internal/portal/auth ./internal/adminapi -run 'IdentityFailover|IdentitySourceEvents|IdentitySourceCredential|ConfigValidationIdentity|BuildSourcePlan|BuildFailoverReport|HandleGetIdentityFailover|ProductionReadinessIncludesIdentityFailover|AuthenticateFallbackUsesIdentityFailover|ValidateUserDetailed|OpenAPI|Authorize|SupportBundleIncludesIdentityFailoverCapture' -count=1
 
 test-dynamic-nas-clients:
 	go test ./internal/config ./internal/db ./internal/radius ./internal/adminapi -run 'DynamicNAS|RadiusDynamicClients|NASClient|Migrate|OpenAPI|Authorize|ProductionReadiness|RadiusClient' -count=1

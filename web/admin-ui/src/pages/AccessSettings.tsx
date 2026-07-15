@@ -569,6 +569,22 @@ const defaultSettings: JsonMap = {
       sms_endpoint: "",
     },
   },
+  identity: {
+    failover: {
+      enabled: true,
+      mode: "monitor",
+      fail_closed: true,
+      source_order: ["local", "ldap-primary"],
+      max_failures: 3,
+      circuit_open_seconds: 300,
+      stale_cache_seconds: 3600,
+      cache_credentials: false,
+      split_result_policy: "deny",
+      health_check_interval_seconds: 60,
+      audit_enabled: true,
+      retention_limit: 6000,
+    },
+  },
   radius: {
     secret: "",
     auth_port: 1812,
@@ -804,6 +820,12 @@ const transportPolicyModeOptions: Option[] = [
   { value: "enforce", label: "Enforce" },
 ];
 
+const splitResultPolicyOptions: Option[] = [
+  { value: "deny", label: "Deny Split Result" },
+  { value: "prefer_first", label: "Prefer First Result" },
+  { value: "prefer_success", label: "Prefer Successful Result" },
+];
+
 const requiredTransportOptions: Option[] = [
   { value: "any", label: "Any Explicit Transport" },
   { value: "radsec", label: "Require RadSec" },
@@ -940,6 +962,8 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.governance = next.governance || {};
   next.portal = next.portal || {};
   next.portal.guest_workflows = next.portal.guest_workflows || {};
+  next.identity = next.identity || {};
+  next.identity.failover = next.identity.failover || {};
   next.radius = next.radius || {};
   next.radius.upstream = next.radius.upstream || {};
   next.radius.upstream.fallback_policy =
@@ -4179,6 +4203,150 @@ export default function AccessSettings() {
             checked={Boolean(settings.ldap?.enabled)}
             onChange={(value) => updateField(["ldap", "enabled"], value)}
           />
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-4">
+            <h4 className="font-semibold text-gray-900">
+              Identity Source Failover
+            </h4>
+            <p className="mt-1 text-sm text-gray-600">
+              Ordered local and LDAP decisions keep portal authentication
+              predictable during source outages.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <ToggleField
+              label="Failover Enabled"
+              checked={settings.identity?.failover?.enabled !== false}
+              onChange={(value) =>
+                updateField(["identity", "failover", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={settings.identity?.failover?.fail_closed !== false}
+              onChange={(value) =>
+                updateField(["identity", "failover", "fail_closed"], value)
+              }
+            />
+            <ToggleField
+              label="Audit Decisions"
+              checked={settings.identity?.failover?.audit_enabled !== false}
+              onChange={(value) =>
+                updateField(["identity", "failover", "audit_enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Credential Cache"
+              checked={Boolean(settings.identity?.failover?.cache_credentials)}
+              onChange={(value) =>
+                updateField(
+                  ["identity", "failover", "cache_credentials"],
+                  value,
+                )
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <SelectField
+              label="Mode"
+              value={settings.identity?.failover?.mode || "monitor"}
+              onChange={(value) =>
+                updateField(["identity", "failover", "mode"], value)
+              }
+              options={transportPolicyModeOptions}
+            />
+            <SelectField
+              label="Split Result Policy"
+              value={
+                settings.identity?.failover?.split_result_policy || "deny"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["identity", "failover", "split_result_policy"],
+                  value,
+                )
+              }
+              options={splitResultPolicyOptions}
+            />
+            <TextField
+              label="Source Order"
+              value={listToCSV(
+                settings.identity?.failover?.source_order || [
+                  "local",
+                  "ldap-primary",
+                ],
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["identity", "failover", "source_order"],
+                  csvToList(value),
+                )
+              }
+              placeholder="local, ldap-primary"
+            />
+            <TextField
+              label="Max Failures"
+              type="number"
+              value={settings.identity?.failover?.max_failures || 3}
+              onChange={(value) =>
+                updateField(
+                  ["identity", "failover", "max_failures"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Circuit Open Seconds"
+              type="number"
+              value={settings.identity?.failover?.circuit_open_seconds || 300}
+              onChange={(value) =>
+                updateField(
+                  ["identity", "failover", "circuit_open_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Stale Cache Seconds"
+              type="number"
+              value={settings.identity?.failover?.stale_cache_seconds || 3600}
+              onChange={(value) =>
+                updateField(
+                  ["identity", "failover", "stale_cache_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Health Check Seconds"
+              type="number"
+              value={
+                settings.identity?.failover?.health_check_interval_seconds || 60
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "identity",
+                    "failover",
+                    "health_check_interval_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Audit Retention"
+              type="number"
+              value={settings.identity?.failover?.retention_limit || 6000}
+              onChange={(value) =>
+                updateField(
+                  ["identity", "failover", "retention_limit"],
+                  Number(value),
+                )
+              }
+            />
+          </div>
         </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
           <div className="mb-4">

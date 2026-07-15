@@ -458,6 +458,23 @@ portal:
     sms_provider: ""
     sms_endpoint: ""
 
+identity:
+  failover:
+    enabled: true
+    mode: "monitor" # monitor during migration; use enforce for production sign-off.
+    fail_closed: true
+    source_order:
+      - "local"
+      - "ldap-primary"
+    max_failures: 3
+    circuit_open_seconds: 300
+    stale_cache_seconds: 3600
+    cache_credentials: false
+    split_result_policy: "deny"
+    health_check_interval_seconds: 60
+    audit_enabled: true
+    retention_limit: 6000
+
 ldap:
   enabled: false
   url: "ldaps://ldap.example.com"

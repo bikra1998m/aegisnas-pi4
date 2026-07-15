@@ -145,7 +145,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{18, schemaV18},
 		{19, schemaV19},
 		{20, schemaV20},
-		{LatestSchemaVersion(), schemaV21},
+		{21, schemaV21},
+		{LatestSchemaVersion(), schemaV22},
 	}
 
 	for _, m := range migrations {
@@ -190,8 +191,20 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureRadiusFallbackEventTable(handle); err != nil {
 		return fmt.Errorf("repair RADIUS fallback event schema: %w", err)
 	}
+	if err := ensureIdentitySourceFailoverTables(handle); err != nil {
+		return fmt.Errorf("repair identity source failover schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureIdentitySourceFailoverTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	_, err := handle.Exec(SQLForDialect(schemaV22, dialect))
+	return err
 }
 
 func ensureRadiusFallbackEventTable(handle *sql.DB) error {

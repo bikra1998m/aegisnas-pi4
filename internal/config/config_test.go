@@ -109,6 +109,55 @@ func TestConfigValidationRadiusPacketHardening(t *testing.T) {
 	assert.ErrorContains(t, badCIDR.Validate(), "trusted_proxy_cidrs")
 }
 
+func TestConfigValidationIdentityFailover(t *testing.T) {
+	cfg := &Config{
+		Mode:     "two-nic",
+		WAN:      InterfaceConfig{Name: "eth0"},
+		LAN:      InterfaceConfig{Name: "eth1"},
+		Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+		Health:   HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{
+			PrometheusPort: 9090,
+		},
+		Portal: PortalConfig{Enabled: true, LocalFallback: true},
+		Identity: IdentityConfig{Failover: IdentityFailoverConfig{
+			Enabled:                    true,
+			Mode:                       "enforce",
+			FailClosed:                 true,
+			SourceOrder:                []string{"local", "ldap-primary"},
+			MaxFailures:                3,
+			CircuitOpenSeconds:         300,
+			StaleCacheSeconds:          3600,
+			SplitResultPolicy:          "deny",
+			HealthCheckIntervalSeconds: 60,
+			AuditEnabled:               true,
+			RetentionLimit:             6000,
+		}},
+		Radius: RadiusConfig{
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+		},
+	}
+	require.NoError(t, cfg.Validate())
+
+	badMode := *cfg
+	badMode.Identity.Failover.Mode = "automatic"
+	assert.ErrorContains(t, badMode.Validate(), "identity.failover.mode")
+
+	badSource := *cfg
+	badSource.Identity.Failover.SourceOrder = []string{"local", ""}
+	assert.ErrorContains(t, badSource.Validate(), "source_order")
+
+	badSplit := *cfg
+	badSplit.Identity.Failover.SplitResultPolicy = "merge"
+	assert.ErrorContains(t, badSplit.Validate(), "split_result_policy")
+
+	badTimer := *cfg
+	badTimer.Identity.Failover.CircuitOpenSeconds = 1
+	assert.ErrorContains(t, badTimer.Validate(), "circuit_open_seconds")
+}
+
 func TestConfigValidationRadiusAccountingSpool(t *testing.T) {
 	cfg := &Config{
 		Mode:     "two-nic",
@@ -3348,20 +3397,20 @@ func TestConfigValidationRejectsTransportPolicyInvalidDefault(t *testing.T) {
 func TestConfigValidationAllowsFallbackPolicy(t *testing.T) {
 	cfg := baseProxyRoutingValidationConfig()
 	cfg.Radius.Upstream.FallbackPolicy = RadiusFallbackPolicyConfig{
-		Enabled:                 true,
-		Mode:                    "enforce",
-		FailClosed:              true,
-		AllowPortalLocal:        true,
-		AllowLDAP:               false,
+		Enabled:                  true,
+		Mode:                     "enforce",
+		FailClosed:               true,
+		AllowPortalLocal:         true,
+		AllowLDAP:                false,
 		RequireIdentityAllowlist: true,
-		MaxOutageSeconds:        900,
-		StalePolicySeconds:      3600,
-		RecoverySuccesses:       2,
-		AllowedUsers:            []string{"breakglass@example.com"},
-		AllowedRealms:           []string{"guest.example.com"},
-		AllowedRoles:            []string{"guest-basic"},
-		AuditEnabled:            true,
-		RetentionLimit:          6000,
+		MaxOutageSeconds:         900,
+		StalePolicySeconds:       3600,
+		RecoverySuccesses:        2,
+		AllowedUsers:             []string{"breakglass@example.com"},
+		AllowedRealms:            []string{"guest.example.com"},
+		AllowedRoles:             []string{"guest-basic"},
+		AuditEnabled:             true,
+		RetentionLimit:           6000,
 	}
 
 	assert.NoError(t, cfg.Validate())

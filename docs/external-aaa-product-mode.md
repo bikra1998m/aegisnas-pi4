@@ -715,6 +715,16 @@ If you configured multiple upstream servers:
 4. restore the primary
 5. confirm it becomes usable again according to your health-check mode
 
+For portal local or LDAP fallback:
+
+1. set `identity.failover.mode: enforce`
+2. confirm `/api/v1/system/identity-failover` reports the intended `source_order`
+3. block the LDAP directory or upstream identity source
+4. trigger portal logins for a known local user, a directory user, and a bad password
+5. confirm source decisions are recorded in `identity_source_events`
+6. confirm repeated LDAP failures open the circuit and fail closed when no executable source remains
+7. export a support bundle and retain `api/identity-failover.json`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

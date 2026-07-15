@@ -329,6 +329,61 @@ type RadiusFallbackPolicyReport = {
   warnings?: string[];
 };
 
+type IdentityFailoverReport = {
+  enabled: boolean;
+  status: string;
+  message: string;
+  policy?: {
+    mode: string;
+    fail_closed: boolean;
+    cache_credentials: boolean;
+    source_order: string[];
+    max_failures: number;
+    circuit_open_seconds: number;
+    stale_cache_seconds: number;
+    split_result_policy: string;
+  };
+  summary?: {
+    source_count: number;
+    enabled_source_count: number;
+    executable_source_count: number;
+    open_circuit_count: number;
+    cache_enabled: boolean;
+    audit_enabled: boolean;
+    last_decision?: string;
+    last_reason?: string;
+  };
+  audit_summary?: {
+    total_records: number;
+    accepted_count: number;
+    rejected_count: number;
+    failure_count: number;
+    stale_accepted_count: number;
+    split_denied_count: number;
+    last_observed_at?: string;
+    last_decision?: string;
+    last_reason?: string;
+  };
+  cache_summary?: {
+    total_entries: number;
+    expired_entries: number;
+    last_success_at?: string;
+    next_expires_at?: string;
+  };
+  sources?: Array<{
+    name: string;
+    type: string;
+    enabled: boolean;
+    executable: boolean;
+    reason?: string;
+    circuit_state?: {
+      state: string;
+      failure_count: number;
+      reopens_at?: string;
+    };
+  }>;
+};
+
 type RadSecCredentialReport = {
   status: string;
   message: string;
@@ -402,6 +457,9 @@ type SystemStatus = {
   services: ServiceStatus[];
   database?: DatabaseStatusReport;
   production_readiness?: ProductionReadinessSummary;
+  identity?: {
+    failover?: IdentityFailoverReport;
+  };
   deployment: {
     profile: string;
     form: string;
@@ -1013,6 +1071,7 @@ export default function Dashboard() {
   const proxyPolicy = systemStatus.radius?.proxy_policy;
   const accountingSpool = systemStatus.radius?.accounting_spool;
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
+  const identityFailover = systemStatus.identity?.failover;
   const radSecCredentials = systemStatus.radius?.radsec_credentials;
   const dynamicNASClients = systemStatus.radius?.dynamic_nas_clients;
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
@@ -1903,6 +1962,82 @@ export default function Dashboard() {
                       ) : null}
                     </div>
                     <StatusBadge status={fallbackPolicy.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {identityFailover ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Identity Source Failover
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {identityFailover.message ||
+                          "Identity source failover state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Mode {identityFailover.policy?.mode || "monitor"}
+                        </div>
+                        <div>
+                          Sources{" "}
+                          {identityFailover.summary
+                            ?.executable_source_count ?? 0}
+                          /{identityFailover.summary?.source_count ?? 0}
+                        </div>
+                        <div>
+                          Open circuits{" "}
+                          {identityFailover.summary?.open_circuit_count ?? 0}
+                        </div>
+                        <div>
+                          Cache{" "}
+                          {identityFailover.policy?.cache_credentials
+                            ? "on"
+                            : "off"}
+                        </div>
+                        <div>
+                          Decisions{" "}
+                          {identityFailover.audit_summary?.total_records ?? 0}
+                        </div>
+                      </div>
+                      {identityFailover.policy?.source_order?.length ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Order{" "}
+                          {identityFailover.policy.source_order.join(" -> ")}.
+                        </div>
+                      ) : null}
+                      {identityFailover.sources?.length ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          {identityFailover.sources
+                            .slice(0, 3)
+                            .map((source) =>
+                              `${source.name}: ${
+                                source.executable ? "ready" : source.reason || "not ready"
+                              }${
+                                source.circuit_state?.state === "open"
+                                  ? ` until ${source.circuit_state.reopens_at || "later"}`
+                                  : ""
+                              }`,
+                            )
+                            .join("; ")}
+                          {identityFailover.sources.length > 3
+                            ? `; ${identityFailover.sources.length - 3} more`
+                            : ""}
+                          .
+                        </div>
+                      ) : null}
+                      {identityFailover.audit_summary?.last_decision ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last {identityFailover.audit_summary.last_decision}:{" "}
+                          {identityFailover.audit_summary.last_reason ||
+                            "no reason recorded"}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge
+                      status={identityFailover.status || "unknown"}
+                    />
                   </div>
                 </div>
               ) : null}

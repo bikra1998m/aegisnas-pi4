@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 21
+	return 22
 }
 
 func Migrate() error {
@@ -804,4 +804,43 @@ CREATE INDEX IF NOT EXISTS idx_radius_fallback_events_observed_at ON radius_fall
 CREATE INDEX IF NOT EXISTS idx_radius_fallback_events_decision ON radius_fallback_events(decision, observed_at);
 CREATE INDEX IF NOT EXISTS idx_radius_fallback_events_username_hash ON radius_fallback_events(username_hash, observed_at);
 CREATE INDEX IF NOT EXISTS idx_radius_fallback_events_source ON radius_fallback_events(source, observed_at);
+`
+
+const schemaV22 = `
+CREATE TABLE IF NOT EXISTS identity_source_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	source_name TEXT NOT NULL,
+	source_type TEXT NOT NULL,
+	username_hash TEXT NOT NULL,
+	decision TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	latency_ms INTEGER DEFAULT 0,
+	circuit_state TEXT NOT NULL DEFAULT 'closed',
+	cache_used BOOLEAN DEFAULT 0,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS identity_source_cache (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	source_name TEXT NOT NULL,
+	username_hash TEXT NOT NULL,
+	password_hash TEXT NOT NULL,
+	role TEXT,
+	groups_json TEXT NOT NULL DEFAULT '[]',
+	identity_source TEXT,
+	last_success_at DATETIME NOT NULL,
+	expires_at DATETIME NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE(source_name, username_hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_identity_source_events_observed_at ON identity_source_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_identity_source_events_source ON identity_source_events(source_name, observed_at);
+CREATE INDEX IF NOT EXISTS idx_identity_source_events_decision ON identity_source_events(decision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_identity_source_events_username_hash ON identity_source_events(username_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_identity_source_cache_source_hash ON identity_source_cache(source_name, username_hash);
+CREATE INDEX IF NOT EXISTS idx_identity_source_cache_expires ON identity_source_cache(expires_at);
 `

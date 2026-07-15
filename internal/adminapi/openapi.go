@@ -1212,6 +1212,13 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Effective outage fallback policy, allowlist posture, audit summary, and recent local/LDAP fallback decisions."),
 	}))
+	addOperation(paths, "/api/v1/system/identity-failover", "get", securedOperationWithParameters("Read identity source failover state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("source", "Optional identity source name filter such as local or ldap-primary.", false),
+		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "not_found", "failed", "skipped", "stale_accepted", "split_denied"}, false),
+		queryStringParameter("limit", "Event limit from 1 to 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("Effective identity-source failover policy, deterministic source plan, circuit state, cache summary, audit summary, and recent source decisions."),
+	}))
 	addOperation(paths, "/api/v1/system/secret-providers", "get", securedOperation("Read secret provider readiness", "Security", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Redacted secret-provider inventory, reference status, inline-secret blockers, and provider policy."),
 	}))

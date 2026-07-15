@@ -224,6 +224,20 @@ and recent hashed fallback decisions. The same summary appears in
 as `radius_fallback_policy`, and in support bundles as
 `api/fallback-policy.json`. See [radius-fallback-policy.md](radius-fallback-policy.md).
 
+Identity source failover state is exposed at:
+
+```text
+/api/v1/system/identity-failover
+/api/v1/system/identity-failover?source=ldap-primary&decision=failed&limit=100
+```
+
+Use this endpoint to review deterministic local/LDAP source order, circuit
+state, split-result policy, stale-cache posture, audit retention, and recent
+hashed identity-source decisions. The same summary appears in
+`/api/v1/system/status` under `identity.failover`, in production readiness as
+`identity_source_failover`, and in support bundles as
+`api/identity-failover.json`. See [identity-source-failover.md](identity-source-failover.md).
+
 ## Dynamic NAS Client Endpoints
 
 NAS client bootstrap and lifecycle state are exposed through:
