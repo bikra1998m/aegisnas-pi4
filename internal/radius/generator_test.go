@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
+	"github.com/yourorg/aegisnas-pi4/internal/mab"
 )
 
 func TestGenerator(t *testing.T) {
@@ -75,6 +76,66 @@ func TestGenerator(t *testing.T) {
 	assert.Contains(t, fullCfg.VendorDictionary, "Vendor ID source: placeholder")
 	assert.Contains(t, fullCfg.VendorDictionary, "ATTRIBUTE AegisNAS-Role 1 string")
 	assert.Contains(t, fullCfg.VendorDictionary, "ATTRIBUTE AegisNAS-Bandwidth-Profile 2 string")
+}
+
+func TestGeneratorRendersMABAuthorizeEntries(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", "radius-mab-*.db")
+	require.NoError(t, err)
+	dbPath := tmpfile.Name()
+	require.NoError(t, tmpfile.Close())
+	require.NoError(t, db.Init(dbPath))
+	t.Cleanup(func() {
+		db.Close()
+		_ = os.Remove(dbPath)
+	})
+	require.NoError(t, db.Migrate())
+	_, err = db.DB.Exec(`INSERT INTO roles (name, vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name)
+		VALUES ('printer', 30, NULL, NULL, NULL, NULL, NULL)`)
+	require.NoError(t, err)
+	_, err = db.UpsertMABEndpoint(db.MABEndpoint{
+		MAC:    "aa-bb-cc-dd-ee-ff",
+		Status: "approved",
+		Role:   "printer",
+		Source: "test",
+	}, time.Now().UTC())
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		MAB: config.MABConfig{
+			Enabled:                   true,
+			Mode:                      "enforce",
+			FailClosed:                true,
+			UnknownEndpointPolicy:     "deny",
+			QuarantineRole:            "quarantine",
+			MACFormats:                []string{"colon", "plain", "cisco-dot"},
+			PasswordPolicy:            "accept_known_mac",
+			ProfilingLinkEnabled:      true,
+			EndpointInventoryFallback: true,
+			RevalidateIntervalSeconds: 300,
+			CacheTTLSeconds:           300,
+			AuditEnabled:              true,
+			RetentionLimit:            6000,
+		},
+		Radius: config.RadiusConfig{
+			Secret:   "testing123",
+			AuthPort: 1812,
+			AcctPort: 1813,
+			Vendor: config.RadiusVendorConfig{
+				CompatibilityPacks: []string{"standard"},
+			},
+		},
+	}
+	endpoints, err := db.ListMABEndpoints("", 10)
+	require.NoError(t, err)
+	require.Len(t, endpoints, 1)
+	require.True(t, mab.PolicyFromConfig(cfg).Enabled)
+	fullCfg, err := NewGenerator(cfg).Generate()
+	require.NoError(t, err)
+	assert.Contains(t, fullCfg.Users, "MAC Authentication Bypass endpoints")
+	assert.Contains(t, fullCfg.Users, `"aa:bb:cc:dd:ee:ff" Auth-Type := Accept`)
+	assert.Contains(t, fullCfg.Users, `"aabbccddeeff" Auth-Type := Accept`)
+	assert.Contains(t, fullCfg.Users, `"aabb.ccdd.eeff" Auth-Type := Accept`)
+	assert.Contains(t, fullCfg.Users, `Tunnel-Private-Group-Id := "30"`)
 }
 
 func TestGeneratorRendersMultiRealmProxyRoutes(t *testing.T) {

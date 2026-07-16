@@ -661,6 +661,24 @@ const defaultSettings: JsonMap = {
     audit_enabled: true,
     retention_limit: 6000,
   },
+  mab: {
+    enabled: false,
+    mode: "monitor",
+    fail_closed: true,
+    unknown_endpoint_policy: "deny",
+    default_role: "",
+    guest_role: "guest",
+    quarantine_role: "quarantine",
+    allowed_nas_port_types: ["ethernet", "wireless-802.11", "wireless80211"],
+    mac_formats: ["colon", "hyphen", "plain", "cisco-dot"],
+    password_policy: "accept_known_mac",
+    profiling_link_enabled: true,
+    endpoint_inventory_fallback: true,
+    revalidate_interval_seconds: 300,
+    cache_ttl_seconds: 300,
+    audit_enabled: true,
+    retention_limit: 6000,
+  },
   radius: {
     secret: "",
     auth_port: 1812,
@@ -908,6 +926,19 @@ const activeDirectoryAuthMethodOptions: Option[] = [
   { value: "winbind_helper", label: "Winbind Helper" },
 ];
 
+const mabUnknownPolicyOptions: Option[] = [
+  { value: "deny", label: "Deny Unknown" },
+  { value: "guest", label: "Guest Role" },
+  { value: "quarantine", label: "Quarantine Role" },
+  { value: "fail_open", label: "Fail Open" },
+];
+
+const mabPasswordPolicyOptions: Option[] = [
+  { value: "accept_known_mac", label: "Accept Known MAC" },
+  { value: "username_equals_password", label: "Username Equals Password" },
+  { value: "calling_station_id", label: "Calling-Station-Id" },
+];
+
 const requiredTransportOptions: Option[] = [
   { value: "any", label: "Any Explicit Transport" },
   { value: "radsec", label: "Require RadSec" },
@@ -1053,6 +1084,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.mfa.otp = next.mfa.otp || {};
   next.mfa.radius_challenge = next.mfa.radius_challenge || {};
   next.mfa.recovery = next.mfa.recovery || {};
+  next.mab = next.mab || {};
   next.radius = next.radius || {};
   next.radius.upstream = next.radius.upstream || {};
   next.radius.upstream.fallback_policy =
@@ -1078,6 +1110,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.onboarding.certificate_enrollment_enabled = false;
     next.onboarding.eap_tls_enabled = false;
     next.onboarding.ca_mode = "none";
+    next.mab.enabled = false;
     next.profiling.passive_enabled = false;
     next.profiling.posture_enabled = false;
     next.profiling.mdm_sync_enabled = false;
@@ -1100,6 +1133,9 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.max_sessions = 4096;
     next.radius.interim_update_seconds = 300;
     next.radius.upstream.status_check = "status-server";
+    next.mab.cache_ttl_seconds = next.mab.cache_ttl_seconds || 300;
+    next.mab.revalidate_interval_seconds =
+      next.mab.revalidate_interval_seconds || 300;
     next.onboarding.ca_mode = next.onboarding.ca_mode || "none";
     next.profiling.poll_interval_seconds =
       next.profiling.poll_interval_seconds || 300;
@@ -1125,6 +1161,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.max_sessions = 1024;
     next.radius.interim_update_seconds = 300;
     next.radius.upstream.status_check = "status-server";
+    next.mab.cache_ttl_seconds = next.mab.cache_ttl_seconds || 300;
   }
 
   if (form === "virtual") {
@@ -4316,6 +4353,146 @@ export default function AccessSettings() {
             checked={Boolean(settings.ldap?.enabled)}
             onChange={(value) => updateField(["ldap", "enabled"], value)}
           />
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-4">
+            <h4 className="font-semibold text-gray-900">
+              MAC Authentication Bypass
+            </h4>
+            <p className="mt-1 text-sm text-gray-600">
+              Known device MACs can receive role, VLAN, ACL, bandwidth, tenant,
+              and quarantine decisions when 802.1X is not available.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <ToggleField
+              label="MAB Enabled"
+              checked={Boolean(settings.mab?.enabled)}
+              onChange={(value) => updateField(["mab", "enabled"], value)}
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={settings.mab?.fail_closed !== false}
+              onChange={(value) => updateField(["mab", "fail_closed"], value)}
+            />
+            <ToggleField
+              label="Audit Decisions"
+              checked={settings.mab?.audit_enabled !== false}
+              onChange={(value) =>
+                updateField(["mab", "audit_enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Link Device Profiles"
+              checked={settings.mab?.profiling_link_enabled !== false}
+              onChange={(value) =>
+                updateField(["mab", "profiling_link_enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Inventory Fallback"
+              checked={settings.mab?.endpoint_inventory_fallback !== false}
+              onChange={(value) =>
+                updateField(["mab", "endpoint_inventory_fallback"], value)
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <SelectField
+              label="Mode"
+              value={settings.mab?.mode || "monitor"}
+              onChange={(value) => updateField(["mab", "mode"], value)}
+              options={transportPolicyModeOptions}
+            />
+            <SelectField
+              label="Unknown Endpoint"
+              value={settings.mab?.unknown_endpoint_policy || "deny"}
+              onChange={(value) =>
+                updateField(["mab", "unknown_endpoint_policy"], value)
+              }
+              options={mabUnknownPolicyOptions}
+            />
+            <SelectField
+              label="Password Policy"
+              value={settings.mab?.password_policy || "accept_known_mac"}
+              onChange={(value) =>
+                updateField(["mab", "password_policy"], value)
+              }
+              options={mabPasswordPolicyOptions}
+            />
+            <TextField
+              label="Default Role"
+              value={settings.mab?.default_role || ""}
+              onChange={(value) => updateField(["mab", "default_role"], value)}
+              placeholder="employee"
+            />
+            <TextField
+              label="Guest Role"
+              value={settings.mab?.guest_role || "guest"}
+              onChange={(value) => updateField(["mab", "guest_role"], value)}
+            />
+            <TextField
+              label="Quarantine Role"
+              value={settings.mab?.quarantine_role || "quarantine"}
+              onChange={(value) =>
+                updateField(["mab", "quarantine_role"], value)
+              }
+            />
+            <TextField
+              label="Allowed NAS-Port-Types"
+              value={listToCSV(
+                settings.mab?.allowed_nas_port_types || [
+                  "ethernet",
+                  "wireless-802.11",
+                  "wireless80211",
+                ],
+              )}
+              onChange={(value) =>
+                updateField(["mab", "allowed_nas_port_types"], csvToList(value))
+              }
+            />
+            <TextField
+              label="MAC Formats"
+              value={listToCSV(
+                settings.mab?.mac_formats || [
+                  "colon",
+                  "hyphen",
+                  "plain",
+                  "cisco-dot",
+                ],
+              )}
+              onChange={(value) =>
+                updateField(["mab", "mac_formats"], csvToList(value))
+              }
+            />
+            <TextField
+              label="Revalidate Seconds"
+              type="number"
+              value={settings.mab?.revalidate_interval_seconds || 300}
+              onChange={(value) =>
+                updateField(
+                  ["mab", "revalidate_interval_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Cache TTL Seconds"
+              type="number"
+              value={settings.mab?.cache_ttl_seconds || 300}
+              onChange={(value) =>
+                updateField(["mab", "cache_ttl_seconds"], Number(value))
+              }
+            />
+            <TextField
+              label="Audit Retention"
+              type="number"
+              value={settings.mab?.retention_limit || 6000}
+              onChange={(value) =>
+                updateField(["mab", "retention_limit"], Number(value))
+              }
+            />
+          </div>
         </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
           <div className="mb-4">

@@ -236,6 +236,63 @@ func TestConfigValidationActiveDirectory(t *testing.T) {
 	assert.ErrorContains(t, badTimer.Validate(), "group_cache_ttl_seconds")
 }
 
+func TestConfigValidationMAB(t *testing.T) {
+	cfg := &Config{
+		Mode:     "two-nic",
+		WAN:      InterfaceConfig{Name: "eth0"},
+		LAN:      InterfaceConfig{Name: "eth1"},
+		Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+		Health:   HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{
+			PrometheusPort: 9090,
+		},
+		MAB: MABConfig{
+			Enabled:                   true,
+			Mode:                      "enforce",
+			FailClosed:                true,
+			UnknownEndpointPolicy:     "deny",
+			DefaultRole:               "employee",
+			GuestRole:                 "guest",
+			QuarantineRole:            "quarantine",
+			AllowedNASPortTypes:       []string{"ethernet", "wireless-802.11"},
+			MACFormats:                []string{"colon", "hyphen", "plain", "cisco-dot"},
+			PasswordPolicy:            "accept_known_mac",
+			ProfilingLinkEnabled:      true,
+			EndpointInventoryFallback: true,
+			RevalidateIntervalSeconds: 300,
+			CacheTTLSeconds:           300,
+			AuditEnabled:              true,
+			RetentionLimit:            6000,
+		},
+		Radius: RadiusConfig{
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+		},
+	}
+	require.NoError(t, cfg.Validate())
+
+	badMode := *cfg
+	badMode.MAB.Mode = "auto"
+	assert.ErrorContains(t, badMode.Validate(), "mab.mode")
+
+	badUnknown := *cfg
+	badUnknown.MAB.UnknownEndpointPolicy = "permit"
+	assert.ErrorContains(t, badUnknown.Validate(), "unknown_endpoint_policy")
+
+	badPassword := *cfg
+	badPassword.MAB.PasswordPolicy = "pap"
+	assert.ErrorContains(t, badPassword.Validate(), "password_policy")
+
+	badFormat := *cfg
+	badFormat.MAB.MACFormats = []string{"colon", "colon"}
+	assert.ErrorContains(t, badFormat.Validate(), "duplicates")
+
+	badTimer := *cfg
+	badTimer.MAB.CacheTTLSeconds = 1
+	assert.ErrorContains(t, badTimer.Validate(), "cache_ttl_seconds")
+}
+
 func TestConfigValidationRadiusAccountingSpool(t *testing.T) {
 	cfg := &Config{
 		Mode:     "two-nic",

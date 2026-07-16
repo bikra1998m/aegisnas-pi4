@@ -461,6 +461,7 @@ type SystemStatus = {
     failover?: IdentityFailoverReport;
     active_directory?: any;
     mfa?: any;
+    mab?: any;
   };
   deployment: {
     profile: string;
@@ -1076,6 +1077,7 @@ export default function Dashboard() {
   const identityFailover = systemStatus.identity?.failover;
   const identityActiveDirectory = systemStatus.identity?.active_directory;
   const identityMFA = systemStatus.identity?.mfa;
+  const identityMAB = systemStatus.identity?.mab;
   const radSecCredentials = systemStatus.radius?.radsec_credentials;
   const dynamicNASClients = systemStatus.radius?.dynamic_nas_clients;
   const wirelessAuthModes = systemStatus.wireless?.auth_modes ?? [];
@@ -2163,6 +2165,57 @@ export default function Dashboard() {
                       ) : null}
                     </div>
                     <StatusBadge status={identityMFA.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {identityMAB ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        MAC Authentication Bypass
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {identityMAB.message ||
+                          "MAB endpoint and decision state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>Mode {identityMAB.policy?.mode || "monitor"}</div>
+                        <div>
+                          Approved{" "}
+                          {identityMAB.endpoint_summary?.approved_count ?? 0}
+                        </div>
+                        <div>
+                          Quarantine{" "}
+                          {identityMAB.endpoint_summary
+                            ?.quarantined_count ?? 0}
+                        </div>
+                        <div>
+                          Unknown{" "}
+                          {identityMAB.policy?.unknown_endpoint_policy ||
+                            "deny"}
+                        </div>
+                        <div>
+                          Decisions{" "}
+                          {identityMAB.audit_summary?.total_records ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Formats{" "}
+                        {(identityMAB.policy?.mac_formats || []).join(", ") ||
+                          "default"}
+                        ; fail closed{" "}
+                        {identityMAB.policy?.fail_closed ? "yes" : "no"}.
+                      </div>
+                      {identityMAB.audit_summary?.last_decision ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last {identityMAB.audit_summary.last_decision}:{" "}
+                          {identityMAB.audit_summary.last_reason ||
+                            "no reason recorded"}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge status={identityMAB.status || "unknown"} />
                   </div>
                 </div>
               ) : null}

@@ -1250,6 +1250,35 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"201":     responseJSON("Replacement recovery codes returned once with username hash."),
 		"default": responseJSON("MFA recovery-code rotation error."),
 	}))
+	addOperation(paths, "/api/v1/system/mab", "get", securedOperationWithParameters("Read MAC Authentication Bypass state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "quarantined", "monitor_allowed", "fail_open", "unsupported"}, false),
+		queryStringParameter("mac", "Optional endpoint MAC filter in colon, hyphen, plain, or Cisco dotted format.", false),
+		queryStringParameter("limit", "Event limit from 1 to 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("Effective MAB policy, endpoint summary, audit summary, recent decisions, and readiness state."),
+	}))
+	addOperation(paths, "/api/v1/system/mab/endpoints", "get", securedOperationWithParameters("List MAB endpoint inventory", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("status", "Optional endpoint status filter.", []string{"approved", "pending", "quarantined", "denied", "expired"}, false),
+		queryStringParameter("limit", "Endpoint limit from 1 to 50000.", false),
+	}, map[string]any{
+		"200": responseJSON("Persistent MAB endpoint records with role, VLAN, ACL, tenant, posture, and profile snapshot fields."),
+	}))
+	addOperation(paths, "/api/v1/system/mab/endpoints", "post", securedOperationWithBody("Create or update a MAB endpoint", "Authentication", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Endpoint MAC, status, optional role, VLAN, ACL, tenant, posture, expiration, and profile snapshot."), map[string]any{
+		"201":     responseJSON("Stored MAB endpoint."),
+		"default": responseJSON("MAB endpoint validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/mab/endpoints/{mac}", "put", securedOperationWithBody("Update a MAB endpoint by MAC", "Authentication", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Endpoint status and optional policy overrides."), map[string]any{
+		"201":     responseJSON("Stored MAB endpoint."),
+		"default": responseJSON("MAB endpoint validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/mab/endpoints/{mac}", "delete", securedOperation("Delete a MAB endpoint by MAC", "Authentication", []string{"ops_admin", "super_admin"}, map[string]any{
+		"200":     responseJSON("Endpoint deletion result."),
+		"default": responseJSON("MAB endpoint deletion error."),
+	}))
+	addOperation(paths, "/api/v1/system/mab/evaluate", "post", securedOperationWithBody("Evaluate a MAB access request", "Authentication", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("RADIUS-like request fields: username, Calling-Station-Id, NAS identity, NAS-Port-Type, EAP presence, and optional audit recording."), map[string]any{
+		"200":     responseJSON("Deterministic MAB decision with endpoint/profile context and enforcement state."),
+		"default": responseJSON("MAB evaluation error."),
+	}))
 	addOperation(paths, "/api/v1/system/secret-providers", "get", securedOperation("Read secret provider readiness", "Security", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Redacted secret-provider inventory, reference status, inline-secret blockers, and provider policy."),
 	}))

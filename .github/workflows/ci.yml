@@ -35,6 +35,7 @@ jobs:
       - run: make test-active-directory
       - run: make test-identity-failover
       - run: make test-mfa
+      - run: make test-mab
       - run: make test-dynamic-nas-clients
       - run: make test-radsec-credentials
       - run: make test-vendor-certification

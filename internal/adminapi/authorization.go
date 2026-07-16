@@ -177,6 +177,15 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 			return true
 		}
 		return method == http.MethodPost && identity.Role == adminRoleSuperAdmin
+	case strings.HasPrefix(path, "/api/v1/system/mab/evaluate"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/mab/endpoints"):
+		if readonly {
+			return true
+		}
+		return (method == http.MethodPost || method == http.MethodPut || method == http.MethodDelete) && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/mab"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/secret-providers"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/database"):

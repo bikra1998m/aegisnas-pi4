@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 24
+	return 25
 }
 
 func Migrate() error {
@@ -976,4 +976,62 @@ CREATE INDEX IF NOT EXISTS idx_active_directory_group_cache_source_hash ON activ
 CREATE INDEX IF NOT EXISTS idx_active_directory_group_cache_expires ON active_directory_group_cache(expires_at);
 CREATE INDEX IF NOT EXISTS idx_active_directory_health_checked_at ON active_directory_health_checks(checked_at);
 CREATE INDEX IF NOT EXISTS idx_active_directory_health_component ON active_directory_health_checks(component, checked_at);
+`
+
+const schemaV25 = `
+CREATE TABLE IF NOT EXISTS mab_endpoints (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	mac TEXT NOT NULL UNIQUE,
+	status TEXT NOT NULL DEFAULT 'pending',
+	role TEXT,
+	vlan INTEGER DEFAULT 0,
+	bandwidth_profile TEXT,
+	acl_policy_name TEXT,
+	tenant TEXT,
+	device_group TEXT,
+	posture TEXT,
+	owner TEXT,
+	source TEXT NOT NULL DEFAULT 'manual',
+	description TEXT,
+	expires_at DATETIME,
+	last_seen_at DATETIME,
+	profile_snapshot_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('approved', 'pending', 'quarantined', 'denied', 'expired'))
+);
+
+CREATE TABLE IF NOT EXISTS mab_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	mac TEXT NOT NULL,
+	mac_hash TEXT NOT NULL,
+	nas_identifier TEXT,
+	nas_ip_address TEXT,
+	nas_port TEXT,
+	nas_port_type TEXT,
+	called_station_id TEXT,
+	username TEXT,
+	decision TEXT NOT NULL,
+	state TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	role TEXT,
+	vlan INTEGER DEFAULT 0,
+	bandwidth_profile TEXT,
+	acl_policy_name TEXT,
+	tenant TEXT,
+	device_group TEXT,
+	posture TEXT,
+	latency_ms INTEGER DEFAULT 0,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_mab_endpoints_status ON mab_endpoints(status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_mab_endpoints_tenant ON mab_endpoints(tenant, status);
+CREATE INDEX IF NOT EXISTS idx_mab_endpoints_last_seen ON mab_endpoints(last_seen_at);
+CREATE INDEX IF NOT EXISTS idx_mab_events_observed_at ON mab_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_mab_events_decision ON mab_events(decision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_mab_events_mac_hash ON mab_events(mac_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_mab_events_nas ON mab_events(nas_identifier, nas_ip_address, observed_at);
 `

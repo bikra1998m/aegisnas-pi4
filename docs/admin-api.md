@@ -72,6 +72,27 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
 
+## MAC Authentication Bypass
+
+MAB state, endpoint inventory, and audit history are exposed through:
+
+```text
+GET    /api/v1/system/mab
+GET    /api/v1/system/mab/endpoints
+POST   /api/v1/system/mab/endpoints
+PUT    /api/v1/system/mab/endpoints/{mac}
+DELETE /api/v1/system/mab/endpoints/{mac}
+POST   /api/v1/system/mab/evaluate
+```
+
+Read-only roles can inspect MAB state and endpoint records. `ops_admin` and
+`super_admin` can create, update, delete, and evaluate endpoint decisions.
+`/api/v1/system/status` embeds the report at `identity.mab`, production
+readiness includes `mac_authentication_bypass`, and support bundles include
+`api/mab.json`.
+
+See [mac-authentication-bypass.md](mac-authentication-bypass.md).
+
 ## RadSec Credential Status
 
 Use the RadSec credential report during TLS-PSK staging, mTLS certificate

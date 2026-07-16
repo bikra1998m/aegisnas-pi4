@@ -551,6 +551,31 @@ mfa:
   audit_enabled: true
   retention_limit: 6000
 
+mab:
+  enabled: false
+  mode: "monitor" # Use enforce with fail_closed=true after endpoint inventory has been approved.
+  fail_closed: true
+  unknown_endpoint_policy: "deny" # deny, guest, quarantine, or fail_open. Avoid fail_open for production.
+  default_role: ""
+  guest_role: "guest"
+  quarantine_role: "quarantine"
+  allowed_nas_port_types:
+    - "ethernet"
+    - "wireless-802.11"
+    - "wireless80211"
+  mac_formats:
+    - "colon"
+    - "hyphen"
+    - "plain"
+    - "cisco-dot"
+  password_policy: "accept_known_mac" # accept_known_mac, username_equals_password, or calling_station_id.
+  profiling_link_enabled: true
+  endpoint_inventory_fallback: true
+  revalidate_interval_seconds: 300
+  cache_ttl_seconds: 300
+  audit_enabled: true
+  retention_limit: 6000
+
 ldap:
   enabled: false
   url: "ldaps://ldap.example.com"

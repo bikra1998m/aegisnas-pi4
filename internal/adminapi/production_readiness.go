@@ -14,6 +14,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/identity"
+	mabpkg "github.com/yourorg/aegisnas-pi4/internal/mab"
 	mfapkg "github.com/yourorg/aegisnas-pi4/internal/mfa"
 	"github.com/yourorg/aegisnas-pi4/internal/radius"
 	"github.com/yourorg/aegisnas-pi4/internal/secrets"
@@ -119,6 +120,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionIdentityFailoverCheck(&report, cfg)
 	addProductionActiveDirectoryCheck(&report, cfg)
 	addProductionMFACheck(&report, cfg)
+	addProductionMABCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
@@ -477,6 +479,44 @@ func addProductionMFACheck(report *productionReadinessReport, cfg *config.Config
 			mfaReport.AuditSummary.TotalRecords),
 		Recommendation: "Enable mfa.mode=enforce, keep fail_closed=true, set mfa.otp.sealing_key_ref to a secure env/file secret, enroll required users, and review /api/v1/system/mfa before production cutover.",
 		Dependencies:   []string{"mfa", "mfa.otp.sealing_key_ref", "mfa_totp_secrets", "mfa_recovery_codes", "mfa_challenges", "mfa_events", "/api/v1/system/mfa"},
+	})
+}
+
+func addProductionMABCheck(report *productionReadinessReport, cfg *config.Config) {
+	mabReport := mabpkg.BuildReport(cfg)
+	if !mabReport.Enabled {
+		return
+	}
+	status := "passed"
+	switch mabReport.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "degraded"
+	}
+	if mabReport.Policy.Mode != "enforce" || !mabReport.Policy.FailClosed {
+		status = "blocked"
+	}
+	if mabReport.EndpointSummary.ApprovedCount == 0 && mabReport.EndpointSummary.QuarantinedCount == 0 {
+		status = "blocked"
+	}
+	if mabReport.Policy.AuditEnabled && db.DB == nil {
+		status = "blocked"
+	}
+	if mabReport.Policy.UnknownEndpointPolicy == "fail_open" && status != "blocked" {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "mac_authentication_bypass",
+		Category: "authentication",
+		Label:    "MAC Authentication Bypass",
+		Status:   status,
+		Summary: fmt.Sprintf("MAB schema %d is %s in %s mode with %d approved endpoint(s), %d quarantined endpoint(s), unknown policy %s, and %d audited decision(s).",
+			mabReport.SchemaVersion, mabReport.Status, mabReport.Policy.Mode,
+			mabReport.EndpointSummary.ApprovedCount, mabReport.EndpointSummary.QuarantinedCount,
+			mabReport.Policy.UnknownEndpointPolicy, mabReport.AuditSummary.TotalRecords),
+		Recommendation: "Set mab.mode=enforce, keep fail_closed=true, approve or quarantine known endpoints, avoid fail_open for production, and review /api/v1/system/mab before enabling MAB SSIDs or switch ports.",
+		Dependencies:   []string{"mab", "mab_endpoints", "mab_events", "/api/v1/system/mab", "/api/v1/system/mab/endpoints"},
 	})
 }
 

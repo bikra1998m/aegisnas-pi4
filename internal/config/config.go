@@ -32,6 +32,7 @@ type Config struct {
 	Identity         IdentityConfig         `mapstructure:"identity"`
 	ActiveDirectory  ActiveDirectoryConfig  `mapstructure:"active_directory"`
 	MFA              MFAConfig              `mapstructure:"mfa"`
+	MAB              MABConfig              `mapstructure:"mab"`
 	LDAP             LDAPConfig             `mapstructure:"ldap"`
 	Policy           PolicyConfig           `mapstructure:"policy"`
 	Telemetry        TelemetryConfig        `mapstructure:"telemetry"`
@@ -708,6 +709,25 @@ type MFARecoveryConfig struct {
 	CodeCount      int  `mapstructure:"code_count"`
 	CodeBytes      int  `mapstructure:"code_bytes"`
 	CodeTTLSeconds int  `mapstructure:"code_ttl_seconds"`
+}
+
+type MABConfig struct {
+	Enabled                   bool     `mapstructure:"enabled"`
+	Mode                      string   `mapstructure:"mode"`
+	FailClosed                bool     `mapstructure:"fail_closed"`
+	UnknownEndpointPolicy     string   `mapstructure:"unknown_endpoint_policy"`
+	DefaultRole               string   `mapstructure:"default_role"`
+	GuestRole                 string   `mapstructure:"guest_role"`
+	QuarantineRole            string   `mapstructure:"quarantine_role"`
+	AllowedNASPortTypes       []string `mapstructure:"allowed_nas_port_types"`
+	MACFormats                []string `mapstructure:"mac_formats"`
+	PasswordPolicy            string   `mapstructure:"password_policy"`
+	ProfilingLinkEnabled      bool     `mapstructure:"profiling_link_enabled"`
+	EndpointInventoryFallback bool     `mapstructure:"endpoint_inventory_fallback"`
+	RevalidateIntervalSeconds int      `mapstructure:"revalidate_interval_seconds"`
+	CacheTTLSeconds           int      `mapstructure:"cache_ttl_seconds"`
+	AuditEnabled              bool     `mapstructure:"audit_enabled"`
+	RetentionLimit            int      `mapstructure:"retention_limit"`
 }
 
 type LDAPConfig struct {
@@ -1421,6 +1441,22 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("mfa.recovery.code_ttl_seconds", 0)
 	v.SetDefault("mfa.audit_enabled", true)
 	v.SetDefault("mfa.retention_limit", 6000)
+	v.SetDefault("mab.enabled", false)
+	v.SetDefault("mab.mode", "monitor")
+	v.SetDefault("mab.fail_closed", true)
+	v.SetDefault("mab.unknown_endpoint_policy", "deny")
+	v.SetDefault("mab.default_role", "")
+	v.SetDefault("mab.guest_role", "guest")
+	v.SetDefault("mab.quarantine_role", "quarantine")
+	v.SetDefault("mab.allowed_nas_port_types", []string{"ethernet", "wireless-802.11", "wireless80211"})
+	v.SetDefault("mab.mac_formats", []string{"colon", "hyphen", "plain", "cisco-dot"})
+	v.SetDefault("mab.password_policy", "accept_known_mac")
+	v.SetDefault("mab.profiling_link_enabled", true)
+	v.SetDefault("mab.endpoint_inventory_fallback", true)
+	v.SetDefault("mab.revalidate_interval_seconds", 300)
+	v.SetDefault("mab.cache_ttl_seconds", 300)
+	v.SetDefault("mab.audit_enabled", true)
+	v.SetDefault("mab.retention_limit", 6000)
 	v.SetDefault("policy.runtime_shaping_enabled", true)
 	v.SetDefault("wireless.enabled", false)
 	v.SetDefault("wireless.country_code", "US")
@@ -2269,6 +2305,9 @@ func (c *Config) Validate() error {
 		return err
 	}
 	if err := validateMFA(c.MFA); err != nil {
+		return err
+	}
+	if err := validateMAB(c.MAB); err != nil {
 		return err
 	}
 	switch strings.ToLower(strings.TrimSpace(c.Portal.GuestWorkflows.ApprovalDelivery)) {
@@ -5145,6 +5184,129 @@ func validateMFA(raw MFAConfig) error {
 	}
 	if effective.RetentionLimit < 100 || effective.RetentionLimit > 1000000 {
 		return errors.New("mfa.retention_limit must be between 100 and 1000000")
+	}
+	return nil
+}
+
+func EffectiveMABConfig(raw MABConfig) MABConfig {
+	effective := raw
+	if strings.TrimSpace(effective.Mode) == "" {
+		effective.Mode = "monitor"
+	}
+	if strings.TrimSpace(effective.UnknownEndpointPolicy) == "" {
+		effective.UnknownEndpointPolicy = "deny"
+	}
+	if strings.TrimSpace(effective.GuestRole) == "" {
+		effective.GuestRole = "guest"
+	}
+	if strings.TrimSpace(effective.QuarantineRole) == "" {
+		effective.QuarantineRole = "quarantine"
+	}
+	if len(effective.AllowedNASPortTypes) == 0 {
+		effective.AllowedNASPortTypes = []string{"ethernet", "wireless-802.11", "wireless80211"}
+	}
+	if len(effective.MACFormats) == 0 {
+		effective.MACFormats = []string{"colon", "hyphen", "plain", "cisco-dot"}
+	}
+	if strings.TrimSpace(effective.PasswordPolicy) == "" {
+		effective.PasswordPolicy = "accept_known_mac"
+	}
+	if effective.RevalidateIntervalSeconds == 0 {
+		effective.RevalidateIntervalSeconds = 300
+	}
+	if effective.CacheTTLSeconds == 0 {
+		effective.CacheTTLSeconds = 300
+	}
+	if effective.RetentionLimit == 0 {
+		effective.RetentionLimit = 6000
+	}
+	return effective
+}
+
+func validateMAB(raw MABConfig) error {
+	effective := EffectiveMABConfig(raw)
+	switch strings.ToLower(strings.TrimSpace(effective.Mode)) {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("mab.mode %q must be monitor or enforce", raw.Mode)
+	}
+	switch strings.ToLower(strings.TrimSpace(effective.UnknownEndpointPolicy)) {
+	case "deny", "guest", "quarantine", "fail_open":
+	default:
+		return fmt.Errorf("mab.unknown_endpoint_policy %q must be deny, guest, quarantine, or fail_open", raw.UnknownEndpointPolicy)
+	}
+	switch strings.ToLower(strings.TrimSpace(effective.PasswordPolicy)) {
+	case "accept_known_mac", "username_equals_password", "calling_station_id":
+	default:
+		return fmt.Errorf("mab.password_policy %q must be accept_known_mac, username_equals_password, or calling_station_id", raw.PasswordPolicy)
+	}
+	values := map[string]int{
+		"revalidate_interval_seconds": raw.RevalidateIntervalSeconds,
+		"cache_ttl_seconds":           raw.CacheTTLSeconds,
+		"retention_limit":             raw.RetentionLimit,
+	}
+	for name, value := range values {
+		if value < 0 {
+			return fmt.Errorf("mab.%s %d cannot be negative", name, value)
+		}
+	}
+	if effective.RevalidateIntervalSeconds < 30 || effective.RevalidateIntervalSeconds > 86400 {
+		return errors.New("mab.revalidate_interval_seconds must be between 30 and 86400")
+	}
+	if effective.CacheTTLSeconds < 30 || effective.CacheTTLSeconds > 86400 {
+		return errors.New("mab.cache_ttl_seconds must be between 30 and 86400")
+	}
+	if effective.RetentionLimit < 100 || effective.RetentionLimit > 1000000 {
+		return errors.New("mab.retention_limit must be between 100 and 1000000")
+	}
+	roleFields := map[string]string{
+		"mab.default_role":    effective.DefaultRole,
+		"mab.guest_role":      effective.GuestRole,
+		"mab.quarantine_role": effective.QuarantineRole,
+	}
+	for field, role := range roleFields {
+		role = strings.TrimSpace(role)
+		if role == "" {
+			continue
+		}
+		if len(role) > 128 || strings.ContainsAny(role, "\r\n\x00") {
+			return fmt.Errorf("%s is invalid", field)
+		}
+	}
+	if effective.Enabled {
+		if strings.EqualFold(effective.UnknownEndpointPolicy, "guest") && strings.TrimSpace(effective.GuestRole) == "" {
+			return errors.New("mab.unknown_endpoint_policy guest requires mab.guest_role")
+		}
+		if strings.EqualFold(effective.UnknownEndpointPolicy, "quarantine") && strings.TrimSpace(effective.QuarantineRole) == "" {
+			return errors.New("mab.unknown_endpoint_policy quarantine requires mab.quarantine_role")
+		}
+	}
+	seenPortTypes := map[string]struct{}{}
+	for i, item := range effective.AllowedNASPortTypes {
+		normalized := strings.ToLower(strings.TrimSpace(item))
+		if normalized == "" {
+			return fmt.Errorf("mab.allowed_nas_port_types[%d] cannot be empty", i)
+		}
+		if len(normalized) > 64 || strings.ContainsAny(normalized, "\r\n\x00") {
+			return fmt.Errorf("mab.allowed_nas_port_types[%d] is invalid", i)
+		}
+		if _, exists := seenPortTypes[normalized]; exists {
+			return fmt.Errorf("mab.allowed_nas_port_types[%d] %q duplicates an earlier value", i, item)
+		}
+		seenPortTypes[normalized] = struct{}{}
+	}
+	seenFormats := map[string]struct{}{}
+	for i, item := range effective.MACFormats {
+		normalized := strings.ToLower(strings.TrimSpace(item))
+		switch normalized {
+		case "colon", "hyphen", "plain", "cisco-dot":
+		default:
+			return fmt.Errorf("mab.mac_formats[%d] %q must be colon, hyphen, plain, or cisco-dot", i, item)
+		}
+		if _, exists := seenFormats[normalized]; exists {
+			return fmt.Errorf("mab.mac_formats[%d] %q duplicates an earlier value", i, item)
+		}
+		seenFormats[normalized] = struct{}{}
 	}
 	return nil
 }

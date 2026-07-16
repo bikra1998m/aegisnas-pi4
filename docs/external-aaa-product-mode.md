@@ -64,6 +64,7 @@ The implementation now does these things end to end:
 13. supports outbound RadSec TLS-PSK peers with secret-reference validation, deterministic rotation, redacted status, and production readiness checks
 14. blocks downgrade-prone mixed UDP/RadSec proxy pools when transport policy is in enforce mode
 15. governs portal local/LDAP fallback during upstream outage with identity allowlists, bounded outage windows, hashed audit events, readiness checks, and dashboard/API visibility
+16. supports MAC Authentication Bypass endpoint state, profile-linked quarantine, generated FreeRADIUS authorize entries, API evaluation, dashboard status, and readiness checks for non-802.1X devices
 
 ## Current Behavior
 
@@ -84,6 +85,8 @@ When `radius.upstream.enabled: true`:
 - fallback policy exposes local/LDAP outage behavior through `/api/v1/system/fallback-policy`; enforce mode denies fallback unless source, identity allowlist, and outage window policy all match
 - the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
 - the vendor reply preview can render vendor-neutral ACL intent into `NAS-Filter-Rule`, Cisco `Cisco-AVPair`, Aruba filter rules, MikroTik address-list hints, and AegisNAS ACL VSAs
+- MAB endpoints can be approved, denied, quarantined, expired, or left pending; approved and quarantined endpoints render MAC variants into FreeRADIUS `files/authorize`
+- unknown MAB endpoints can deny, enter guest, enter quarantine, or explicitly fail open based on `mab.unknown_endpoint_policy`
 - upstream reply attributes are mapped into local session state:
   - VLAN assignment
   - role mapping
@@ -102,6 +105,7 @@ What this pass still does not change:
 - reusable ACL policies are not yet persisted as first-class database objects
 - `CoA-Request` can now trigger immediate gateway quarantine enforcement, immediate timeout expiry, live bandwidth profile reshaping, and VLAN-change reauthentication, but live controller/device ACL push still needs per-vendor smoke testing
 - `scripts/vendor-certification-lab.sh` provides the repeatable per-pack API, RADIUS, packet-capture, real-device, controller, upgrade, and rollback evidence workflow for that smoke testing
+- real AP/switch/controller certification for MAB remains tracked in [nas-0017-release-certification-checklist.md](nas-0017-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 
