@@ -459,6 +459,7 @@ type SystemStatus = {
   production_readiness?: ProductionReadinessSummary;
   identity?: {
     failover?: IdentityFailoverReport;
+    active_directory?: any;
     mfa?: any;
   };
   deployment: {
@@ -1073,6 +1074,7 @@ export default function Dashboard() {
   const accountingSpool = systemStatus.radius?.accounting_spool;
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
   const identityFailover = systemStatus.identity?.failover;
+  const identityActiveDirectory = systemStatus.identity?.active_directory;
   const identityMFA = systemStatus.identity?.mfa;
   const radSecCredentials = systemStatus.radius?.radsec_credentials;
   const dynamicNASClients = systemStatus.radius?.dynamic_nas_clients;
@@ -2039,6 +2041,77 @@ export default function Dashboard() {
                     </div>
                     <StatusBadge
                       status={identityFailover.status || "unknown"}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {identityActiveDirectory ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Active Directory
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {identityActiveDirectory.message ||
+                          "Active Directory identity state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Mode{" "}
+                          {identityActiveDirectory.policy?.mode || "monitor"}
+                        </div>
+                        <div>
+                          Method{" "}
+                          {identityActiveDirectory.policy?.auth_method ||
+                            "ldap_bind"}
+                        </div>
+                        <div>
+                          Cache{" "}
+                          {identityActiveDirectory.summary?.group_cache_enabled
+                            ? "on"
+                            : "off"}
+                        </div>
+                        <div>
+                          Decisions{" "}
+                          {identityActiveDirectory.audit_summary
+                            ?.total_records ?? 0}
+                        </div>
+                        <div>
+                          Health{" "}
+                          {identityActiveDirectory.health_summary
+                            ?.last_status || "none"}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Domain{" "}
+                        {identityActiveDirectory.policy?.domain ||
+                          "not configured"}
+                        ; realm{" "}
+                        {identityActiveDirectory.policy?.realm ||
+                          "not configured"}
+                        ; source{" "}
+                        {identityActiveDirectory.summary?.source_executable
+                          ? "ready"
+                          : identityActiveDirectory.summary?.source_reason ||
+                            "not ready"}
+                        .
+                      </div>
+                      {identityActiveDirectory.audit_summary?.last_decision ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last{" "}
+                          {
+                            identityActiveDirectory.audit_summary
+                              .last_decision
+                          }
+                          :{" "}
+                          {identityActiveDirectory.audit_summary
+                            .last_reason || "no reason recorded"}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge
+                      status={identityActiveDirectory.status || "unknown"}
                     />
                   </div>
                 </div>

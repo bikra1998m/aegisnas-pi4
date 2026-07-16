@@ -10,6 +10,7 @@ import (
 	"time"
 
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
+	"github.com/yourorg/aegisnas-pi4/internal/activedirectory"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/identity"
@@ -116,6 +117,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionAccountingSpoolCheck(&report, cfg)
 	addProductionFallbackPolicyCheck(&report, cfg)
 	addProductionIdentityFailoverCheck(&report, cfg)
+	addProductionActiveDirectoryCheck(&report, cfg)
 	addProductionMFACheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
@@ -400,6 +402,46 @@ func addProductionIdentityFailoverCheck(report *productionReadinessReport, cfg *
 			failover.Summary.OpenCircuitCount, failover.Policy.CacheCredentials, failover.AuditSummary.TotalRecords),
 		Recommendation: "Set identity.failover.mode=enforce, keep fail_closed=true, define source_order, keep audit enabled, and review /api/v1/system/identity-failover before production authentication cutover.",
 		Dependencies:   []string{"identity.failover", "identity_sources", "/api/v1/system/identity-failover", "identity_source_events", "identity_source_cache"},
+	})
+}
+
+func addProductionActiveDirectoryCheck(report *productionReadinessReport, cfg *config.Config) {
+	ad := activedirectory.BuildReport(cfg)
+	if !ad.Enabled {
+		return
+	}
+	status := "passed"
+	switch ad.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "degraded"
+	}
+	if ad.Policy.Mode != "enforce" || !ad.Policy.FailClosed {
+		status = "blocked"
+	}
+	if !ad.Summary.SourceExecutable {
+		status = "blocked"
+	}
+	if ad.Policy.AuthMethod == "kerberos" && !ad.Policy.KerberosEnabled {
+		status = "blocked"
+	}
+	if ad.Policy.AuthMethod == "winbind_helper" && !ad.Policy.WinbindHelperConfigured {
+		status = "blocked"
+	}
+	if ad.Policy.AuditEnabled && db.DB == nil {
+		status = "blocked"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "active_directory_identity",
+		Category: "authentication",
+		Label:    "Active Directory Kerberos And Winbind",
+		Status:   status,
+		Summary: fmt.Sprintf("Active Directory schema %d is %s using %s with cache=%t, %d audit event(s), and last health status %s.",
+			ad.SchemaVersion, ad.Status, ad.Policy.AuthMethod, ad.Summary.GroupCacheEnabled,
+			ad.AuditSummary.TotalRecords, firstNonEmpty(ad.HealthSummary.LastStatus, "none")),
+		Recommendation: "Set active_directory.mode=enforce, keep fail_closed=true, use LDAPS or Kerberos/winbind helper, keep audit enabled, and review /api/v1/system/active-directory before production authentication cutover.",
+		Dependencies:   []string{"active_directory", "identity.failover.source_order", "/api/v1/system/active-directory", "active_directory_events", "active_directory_group_cache", "active_directory_health_checks"},
 	})
 }
 

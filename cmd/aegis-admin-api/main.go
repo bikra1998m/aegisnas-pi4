@@ -219,6 +219,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Post("/system/accounting-spool/replay", adminapi.HandleReplayAccountingSpool)
 			r.Get("/system/fallback-policy", adminapi.HandleGetFallbackPolicy)
 			r.Get("/system/identity-failover", adminapi.HandleGetIdentityFailover)
+			r.Get("/system/active-directory", adminapi.HandleGetActiveDirectory)
+			r.Post("/system/active-directory/check", adminapi.HandleCheckActiveDirectory)
 			r.Get("/system/mfa", adminapi.HandleGetMFA)
 			r.Post("/system/mfa/enroll", adminapi.HandleEnrollMFA)
 			r.Post("/system/mfa/verify", adminapi.HandleVerifyMFA)

@@ -574,7 +574,7 @@ const defaultSettings: JsonMap = {
       enabled: true,
       mode: "monitor",
       fail_closed: true,
-      source_order: ["local", "ldap-primary"],
+      source_order: ["local", "active-directory", "ldap-primary"],
       max_failures: 3,
       circuit_open_seconds: 300,
       stale_cache_seconds: 3600,
@@ -583,6 +583,48 @@ const defaultSettings: JsonMap = {
       health_check_interval_seconds: 60,
       audit_enabled: true,
       retention_limit: 6000,
+    },
+  },
+  active_directory: {
+    enabled: false,
+    mode: "monitor",
+    fail_closed: true,
+    domain: "",
+    realm: "",
+    netbios_domain: "",
+    ldap_url: "",
+    base_dn: "",
+    bind_dn: "",
+    bind_password: "",
+    bind_password_ref: "",
+    user_filter: "(|(userPrincipalName=%p)(sAMAccountName=%u))",
+    group_filter: "(|(member=%D)(member:1.2.840.113556.1.4.1941:=%D))",
+    require_ldaps: true,
+    nested_groups: true,
+    auth_method: "ldap_bind",
+    default_role: "",
+    group_role_mappings: {},
+    request_timeout_seconds: 5,
+    group_cache_ttl_seconds: 3600,
+    health_check_interval_seconds: 60,
+    clock_skew_seconds: 300,
+    audit_enabled: true,
+    retention_limit: 6000,
+    kerberos: {
+      enabled: false,
+      kinit_path: "kinit",
+      kdestroy_path: "kdestroy",
+      krb5_config_path: "",
+      keytab_path: "",
+      service_principal: "",
+      credential_cache_dir: "",
+    },
+    winbind: {
+      enabled: false,
+      domain_join_required: true,
+      wbinfo_path: "wbinfo",
+      ntlm_auth_path: "/usr/bin/ntlm_auth",
+      auth_helper_path: "",
     },
   },
   mfa: {
@@ -860,6 +902,12 @@ const splitResultPolicyOptions: Option[] = [
   { value: "prefer_success", label: "Prefer Successful Result" },
 ];
 
+const activeDirectoryAuthMethodOptions: Option[] = [
+  { value: "ldap_bind", label: "LDAP Bind" },
+  { value: "kerberos", label: "Kerberos kinit" },
+  { value: "winbind_helper", label: "Winbind Helper" },
+];
+
 const requiredTransportOptions: Option[] = [
   { value: "any", label: "Any Explicit Transport" },
   { value: "radsec", label: "Require RadSec" },
@@ -998,6 +1046,9 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.portal.guest_workflows = next.portal.guest_workflows || {};
   next.identity = next.identity || {};
   next.identity.failover = next.identity.failover || {};
+  next.active_directory = next.active_directory || {};
+  next.active_directory.kerberos = next.active_directory.kerberos || {};
+  next.active_directory.winbind = next.active_directory.winbind || {};
   next.mfa = next.mfa || {};
   next.mfa.otp = next.mfa.otp || {};
   next.mfa.radius_challenge = next.mfa.radius_challenge || {};
@@ -1102,6 +1153,30 @@ function csvToList(value: string) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function mapToLines(value: any) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return "";
+  }
+  return Object.entries(value)
+    .map(([key, mapped]) => `${key}=${String(mapped)}`)
+    .join("\n");
+}
+
+function linesToMap(value: string) {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .reduce((next: JsonMap, line) => {
+      const [key, ...rest] = line.split("=");
+      const mapped = rest.join("=").trim();
+      if (key.trim() && mapped) {
+        next[key.trim()] = mapped;
+      }
+      return next;
+    }, {});
 }
 
 function TextField({
@@ -4245,6 +4320,372 @@ export default function AccessSettings() {
         <div className="mt-6 border-t border-gray-200 pt-5">
           <div className="mb-4">
             <h4 className="font-semibold text-gray-900">
+              Active Directory Kerberos And Winbind
+            </h4>
+            <p className="mt-1 text-sm text-gray-600">
+              Domain identity uses LDAPS lookup, Kerberos password checks, or a
+              winbind helper with bounded group cache and audit history.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <ToggleField
+              label="AD Enabled"
+              checked={Boolean(settings.active_directory?.enabled)}
+              onChange={(value) =>
+                updateField(["active_directory", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={settings.active_directory?.fail_closed !== false}
+              onChange={(value) =>
+                updateField(["active_directory", "fail_closed"], value)
+              }
+            />
+            <ToggleField
+              label="Audit Decisions"
+              checked={settings.active_directory?.audit_enabled !== false}
+              onChange={(value) =>
+                updateField(["active_directory", "audit_enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Require LDAPS"
+              checked={settings.active_directory?.require_ldaps !== false}
+              onChange={(value) =>
+                updateField(["active_directory", "require_ldaps"], value)
+              }
+            />
+            <ToggleField
+              label="Nested Groups"
+              checked={settings.active_directory?.nested_groups !== false}
+              onChange={(value) =>
+                updateField(["active_directory", "nested_groups"], value)
+              }
+            />
+            <ToggleField
+              label="Kerberos Enabled"
+              checked={Boolean(settings.active_directory?.kerberos?.enabled)}
+              onChange={(value) =>
+                updateField(["active_directory", "kerberos", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Winbind Enabled"
+              checked={Boolean(settings.active_directory?.winbind?.enabled)}
+              onChange={(value) =>
+                updateField(["active_directory", "winbind", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Domain Join Required"
+              checked={
+                settings.active_directory?.winbind?.domain_join_required !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "winbind", "domain_join_required"],
+                  value,
+                )
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <SelectField
+              label="Mode"
+              value={settings.active_directory?.mode || "monitor"}
+              onChange={(value) =>
+                updateField(["active_directory", "mode"], value)
+              }
+              options={transportPolicyModeOptions}
+            />
+            <SelectField
+              label="Verifier"
+              value={settings.active_directory?.auth_method || "ldap_bind"}
+              onChange={(value) =>
+                updateField(["active_directory", "auth_method"], value)
+              }
+              options={activeDirectoryAuthMethodOptions}
+            />
+            <TextField
+              label="Domain"
+              value={settings.active_directory?.domain || ""}
+              onChange={(value) =>
+                updateField(["active_directory", "domain"], value)
+              }
+              placeholder="corp.example.com"
+            />
+            <TextField
+              label="Realm"
+              value={settings.active_directory?.realm || ""}
+              onChange={(value) =>
+                updateField(["active_directory", "realm"], value)
+              }
+              placeholder="CORP.EXAMPLE.COM"
+            />
+            <TextField
+              label="NetBIOS Domain"
+              value={settings.active_directory?.netbios_domain || ""}
+              onChange={(value) =>
+                updateField(["active_directory", "netbios_domain"], value)
+              }
+              placeholder="CORP"
+            />
+            <TextField
+              label="AD LDAP URL"
+              value={settings.active_directory?.ldap_url || ""}
+              onChange={(value) =>
+                updateField(["active_directory", "ldap_url"], value)
+              }
+              placeholder="ldaps://dc1.corp.example.com:636"
+            />
+            <TextField
+              label="AD Base DN"
+              value={settings.active_directory?.base_dn || ""}
+              onChange={(value) =>
+                updateField(["active_directory", "base_dn"], value)
+              }
+              placeholder="dc=corp,dc=example,dc=com"
+            />
+            <TextField
+              label="AD Bind DN"
+              value={settings.active_directory?.bind_dn || ""}
+              onChange={(value) =>
+                updateField(["active_directory", "bind_dn"], value)
+              }
+              placeholder="cn=aegisnas,ou=svc,dc=corp,dc=example,dc=com"
+            />
+            <TextField
+              label="AD Bind Password"
+              type="password"
+              value={settings.active_directory?.bind_password || ""}
+              onChange={(value) =>
+                updateField(["active_directory", "bind_password"], value)
+              }
+            />
+            <TextField
+              label="AD Bind Password Ref"
+              value={settings.active_directory?.bind_password_ref || ""}
+              onChange={(value) =>
+                updateField(["active_directory", "bind_password_ref"], value)
+              }
+              placeholder="env:AEGIS_AD_BIND_PASSWORD"
+            />
+            <TextField
+              label="AD User Filter"
+              value={
+                settings.active_directory?.user_filter ||
+                "(|(userPrincipalName=%p)(sAMAccountName=%u))"
+              }
+              onChange={(value) =>
+                updateField(["active_directory", "user_filter"], value)
+              }
+            />
+            <TextField
+              label="AD Group Filter"
+              value={
+                settings.active_directory?.group_filter ||
+                "(|(member=%D)(member:1.2.840.113556.1.4.1941:=%D))"
+              }
+              onChange={(value) =>
+                updateField(["active_directory", "group_filter"], value)
+              }
+            />
+            <TextField
+              label="Default AD Role"
+              value={settings.active_directory?.default_role || ""}
+              onChange={(value) =>
+                updateField(["active_directory", "default_role"], value)
+              }
+              placeholder="guest-basic"
+            />
+            <TextField
+              label="Request Timeout Seconds"
+              type="number"
+              value={settings.active_directory?.request_timeout_seconds || 5}
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "request_timeout_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Group Cache TTL Seconds"
+              type="number"
+              value={settings.active_directory?.group_cache_ttl_seconds || 3600}
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "group_cache_ttl_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Health Check Seconds"
+              type="number"
+              value={
+                settings.active_directory?.health_check_interval_seconds || 60
+              }
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "health_check_interval_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Clock Skew Seconds"
+              type="number"
+              value={settings.active_directory?.clock_skew_seconds || 300}
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "clock_skew_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="AD Audit Retention"
+              type="number"
+              value={settings.active_directory?.retention_limit || 6000}
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "retention_limit"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="kinit Path"
+              value={
+                settings.active_directory?.kerberos?.kinit_path || "kinit"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "kerberos", "kinit_path"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="kdestroy Path"
+              value={
+                settings.active_directory?.kerberos?.kdestroy_path ||
+                "kdestroy"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "kerberos", "kdestroy_path"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="krb5.conf Path"
+              value={
+                settings.active_directory?.kerberos?.krb5_config_path || ""
+              }
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "kerberos", "krb5_config_path"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Keytab Path"
+              value={settings.active_directory?.kerberos?.keytab_path || ""}
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "kerberos", "keytab_path"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Service Principal"
+              value={
+                settings.active_directory?.kerberos?.service_principal || ""
+              }
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "kerberos", "service_principal"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Credential Cache Dir"
+              value={
+                settings.active_directory?.kerberos?.credential_cache_dir || ""
+              }
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "kerberos", "credential_cache_dir"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="wbinfo Path"
+              value={settings.active_directory?.winbind?.wbinfo_path || "wbinfo"}
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "winbind", "wbinfo_path"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="ntlm_auth Path"
+              value={
+                settings.active_directory?.winbind?.ntlm_auth_path ||
+                "/usr/bin/ntlm_auth"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "winbind", "ntlm_auth_path"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Winbind Auth Helper"
+              value={
+                settings.active_directory?.winbind?.auth_helper_path || ""
+              }
+              onChange={(value) =>
+                updateField(
+                  ["active_directory", "winbind", "auth_helper_path"],
+                  value,
+                )
+              }
+              placeholder="/usr/local/libexec/aegisnas-ad-auth"
+            />
+            <label className="block text-sm font-medium text-gray-700 md:col-span-2 lg:col-span-3">
+              <span>Group Role Mappings</span>
+              <textarea
+                value={mapToLines(
+                  settings.active_directory?.group_role_mappings || {},
+                )}
+                onChange={(event) =>
+                  updateField(
+                    ["active_directory", "group_role_mappings"],
+                    linesToMap(event.target.value),
+                  )
+                }
+                rows={4}
+                placeholder={"AegisNAS-Employees=employee\nAegisNAS-Admins=admin"}
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
+              />
+            </label>
+          </div>
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-4">
+            <h4 className="font-semibold text-gray-900">
               Identity Source Failover
             </h4>
             <p className="mt-1 text-sm text-gray-600">
@@ -4312,6 +4753,7 @@ export default function AccessSettings() {
               value={listToCSV(
                 settings.identity?.failover?.source_order || [
                   "local",
+                  "active-directory",
                   "ldap-primary",
                 ],
               )}
@@ -4321,7 +4763,7 @@ export default function AccessSettings() {
                   csvToList(value),
                 )
               }
-              placeholder="local, ldap-primary"
+              placeholder="local, active-directory, ldap-primary"
             />
             <TextField
               label="Max Failures"

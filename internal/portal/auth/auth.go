@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yourorg/aegisnas-pi4/internal/activedirectory"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	identityfailover "github.com/yourorg/aegisnas-pi4/internal/identity"
@@ -387,7 +388,7 @@ func authenticateFallback(ctx context.Context, username, password string) (*Resu
 		latencyMS := time.Since(started).Milliseconds()
 		if err != nil {
 			recordIdentitySourceEvent(policy, source, username, "failed", err.Error(), latencyMS, "closed", false, map[string]any{"reason": reason})
-			if source.Type == "ldap" {
+			if source.Type == "ldap" || source.Type == "active_directory" {
 				if cached, ok, cacheErr := authenticateStaleIdentityCache(source, username, password, policy); cacheErr != nil {
 					zap.L().Warn("identity source stale cache lookup failed",
 						zap.String("source", source.Name),
@@ -469,6 +470,38 @@ func authenticateIdentitySource(ctx context.Context, source identityfailover.Sou
 			}
 		}
 		return result, "accepted", "credentials accepted", nil
+	case "active_directory":
+		result, err := activedirectory.Authenticate(ctx, config.Get(), source.Name, username, password)
+		if err != nil {
+			return nil, "failed", "active directory error", err
+		}
+		if !result.Accepted {
+			reason := strings.TrimSpace(result.ReplyMessage)
+			if reason == "" {
+				reason = "invalid credentials"
+			}
+			if strings.Contains(strings.ToLower(reason), "not found") {
+				return &Result{Accepted: false}, "not_found", reason, nil
+			}
+			return &Result{Accepted: false, ReplyMessage: reason}, "rejected", reason, nil
+		}
+		portalResult := &Result{
+			Accepted:       true,
+			Username:       username,
+			Role:           result.Role,
+			Groups:         result.Groups,
+			IdentitySource: source.Name,
+			AuthMethod:     result.AuthMethod,
+			ReplyMessage:   result.ReplyMessage,
+		}
+		if policy.CacheCredentials && db.DB != nil {
+			if cacheErr := db.UpsertIdentitySourceCache(source.Name, username, password, portalResult.Role, portalResult.IdentitySource, portalResult.Groups, policy.StaleCacheSeconds, time.Now().UTC()); cacheErr != nil {
+				zap.L().Warn("identity source credential cache update failed",
+					zap.String("source", source.Name),
+					zap.Error(cacheErr))
+			}
+		}
+		return portalResult, "accepted", "credentials accepted", nil
 	default:
 		return &Result{Accepted: false}, "skipped", "unsupported identity source type", nil
 	}

@@ -725,6 +725,17 @@ For portal local or LDAP fallback:
 6. confirm repeated LDAP failures open the circuit and fail closed when no executable source remains
 7. export a support bundle and retain `api/identity-failover.json`
 
+For Active Directory Kerberos or winbind identity:
+
+1. set `active_directory.enabled: true`, `active_directory.mode: enforce`, and `active_directory.fail_closed: true`
+2. configure `domain`, uppercase `realm`, `ldap_url`, `base_dn`, and either LDAPS bind credentials or Kerberos/winbind verifier settings
+3. add `active-directory` to `identity.failover.source_order`
+4. confirm `/api/v1/system/active-directory` reports `source_executable: true`
+5. run `POST /api/v1/system/active-directory/check` and review recorded health checks
+6. trigger portal logins for a valid AD user, a bad password, and a missing user
+7. confirm hashed decisions appear in `active_directory_events` and source decisions appear in `identity_source_events`
+8. export a support bundle and retain `api/active-directory.json`
+
 For OTP or upstream RADIUS challenge MFA:
 
 1. set `mfa.enabled: true`, `mfa.mode: enforce`, and `mfa.fail_closed: true`

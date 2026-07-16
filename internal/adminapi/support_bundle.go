@@ -295,6 +295,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/upstream-aaa-history.json", requestPath: "/api/v1/system/upstream-aaa-history", label: "Upstream AAA history", handler: HandleListUpstreamAAAHistory},
 		{archivePath: "api/fallback-policy.json", requestPath: "/api/v1/system/fallback-policy", label: "Upstream fallback policy", handler: HandleGetFallbackPolicy},
 		{archivePath: "api/identity-failover.json", requestPath: "/api/v1/system/identity-failover", label: "Identity source failover", handler: HandleGetIdentityFailover},
+		{archivePath: "api/active-directory.json", requestPath: "/api/v1/system/active-directory", label: "Active Directory identity", handler: HandleGetActiveDirectory},
 		{archivePath: "api/mfa.json", requestPath: "/api/v1/system/mfa", label: "MFA challenge and OTP state", handler: HandleGetMFA},
 		{archivePath: "api/audit-history.json", requestPath: "/api/v1/system/audit-history", label: "Audit history", handler: HandleListAuditHistory},
 		{archivePath: "api/integration-history.json", requestPath: "/api/v1/system/integration-history", label: "Integration history", handler: HandleListIntegrationHistory},

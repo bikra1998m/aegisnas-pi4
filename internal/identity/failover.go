@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yourorg/aegisnas-pi4/internal/activedirectory"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 )
@@ -38,20 +39,21 @@ type SourcePlan struct {
 }
 
 type FailoverSummary struct {
-	PortalRadiusAuth      bool   `json:"portal_radius_auth"`
-	PortalLocalFallback   bool   `json:"portal_local_fallback"`
-	LDAPEnabled           bool   `json:"ldap_enabled"`
-	SourceCount           int    `json:"source_count"`
-	EnabledSourceCount    int    `json:"enabled_source_count"`
-	ExecutableSourceCount int    `json:"executable_source_count"`
-	OpenCircuitCount      int    `json:"open_circuit_count"`
-	ClosedCircuitCount    int    `json:"closed_circuit_count"`
-	CacheEnabled          bool   `json:"cache_enabled"`
-	AuditEnabled          bool   `json:"audit_enabled"`
-	DeterministicOrder    bool   `json:"deterministic_order"`
-	LastObservedAt        string `json:"last_observed_at,omitempty"`
-	LastDecision          string `json:"last_decision,omitempty"`
-	LastReason            string `json:"last_reason,omitempty"`
+	PortalRadiusAuth       bool   `json:"portal_radius_auth"`
+	PortalLocalFallback    bool   `json:"portal_local_fallback"`
+	LDAPEnabled            bool   `json:"ldap_enabled"`
+	ActiveDirectoryEnabled bool   `json:"active_directory_enabled"`
+	SourceCount            int    `json:"source_count"`
+	EnabledSourceCount     int    `json:"enabled_source_count"`
+	ExecutableSourceCount  int    `json:"executable_source_count"`
+	OpenCircuitCount       int    `json:"open_circuit_count"`
+	ClosedCircuitCount     int    `json:"closed_circuit_count"`
+	CacheEnabled           bool   `json:"cache_enabled"`
+	AuditEnabled           bool   `json:"audit_enabled"`
+	DeterministicOrder     bool   `json:"deterministic_order"`
+	LastObservedAt         string `json:"last_observed_at,omitempty"`
+	LastDecision           string `json:"last_decision,omitempty"`
+	LastReason             string `json:"last_reason,omitempty"`
 }
 
 type FailoverReport struct {
@@ -114,13 +116,14 @@ func BuildFailoverReport(cfg *config.Config) FailoverReport {
 	}
 	report.Sources = BuildSourcePlan(cfg)
 	report.Summary = FailoverSummary{
-		PortalRadiusAuth:    cfg != nil && cfg.Portal.RadiusAuth,
-		PortalLocalFallback: cfg != nil && cfg.Portal.LocalFallback,
-		LDAPEnabled:         cfg != nil && cfg.LDAP.Enabled,
-		SourceCount:         len(report.Sources),
-		CacheEnabled:        policy.CacheCredentials,
-		AuditEnabled:        policy.AuditEnabled,
-		DeterministicOrder:  len(policy.SourceOrder) > 0,
+		PortalRadiusAuth:       cfg != nil && cfg.Portal.RadiusAuth,
+		PortalLocalFallback:    cfg != nil && cfg.Portal.LocalFallback,
+		LDAPEnabled:            cfg != nil && cfg.LDAP.Enabled,
+		ActiveDirectoryEnabled: cfg != nil && cfg.ActiveDirectory.Enabled,
+		SourceCount:            len(report.Sources),
+		CacheEnabled:           policy.CacheCredentials,
+		AuditEnabled:           policy.AuditEnabled,
+		DeterministicOrder:     len(policy.SourceOrder) > 0,
 	}
 	for _, source := range report.Sources {
 		if source.Enabled {
@@ -194,6 +197,9 @@ func BuildSourcePlan(cfg *config.Config) []SourcePlan {
 			enabled = true
 		}
 		if sourceType == "ldap" && cfg != nil && cfg.LDAP.Enabled {
+			enabled = true
+		}
+		if sourceType == "active_directory" && cfg != nil && cfg.ActiveDirectory.Enabled {
 			enabled = true
 		}
 		plan := SourcePlan{
@@ -310,6 +316,7 @@ func loadIdentitySourceRecords(cfg *config.Config) []db.IdentitySourceRecord {
 	}
 	return []db.IdentitySourceRecord{
 		{Name: "local", Type: "local", Enabled: true, Priority: 0},
+		{Name: "active-directory", Type: "active_directory", Enabled: cfg != nil && cfg.ActiveDirectory.Enabled, Priority: 5},
 		{Name: "ldap-primary", Type: "ldap", Enabled: cfg != nil && cfg.LDAP.Enabled, Priority: 10},
 	}
 }
@@ -319,7 +326,7 @@ func sourceFromName(cfg *config.Config, name string) SourcePlan {
 	source := SourcePlan{
 		Name:       name,
 		Type:       sourceType,
-		Enabled:    sourceType == "local" || (sourceType == "ldap" && cfg != nil && cfg.LDAP.Enabled),
+		Enabled:    sourceType == "local" || (sourceType == "ldap" && cfg != nil && cfg.LDAP.Enabled) || (sourceType == "active_directory" && cfg != nil && cfg.ActiveDirectory.Enabled),
 		Executable: false,
 		Priority:   1000,
 	}
@@ -339,6 +346,8 @@ func sourceExecutable(cfg *config.Config, source SourcePlan) (bool, string) {
 			return false, "ldap disabled in config"
 		}
 		return true, ""
+	case "active_directory":
+		return activedirectory.SourceExecutable(cfg)
 	default:
 		return false, "source type is not executable by portal auth"
 	}
@@ -384,7 +393,7 @@ func normalizeSourceName(value string) string {
 func normalizeSourceType(sourceType, name string) string {
 	sourceType = strings.ToLower(strings.TrimSpace(sourceType))
 	switch sourceType {
-	case "local", "ldap":
+	case "local", "ldap", "active_directory":
 		return sourceType
 	}
 	name = normalizeSourceName(name)
@@ -393,6 +402,11 @@ func normalizeSourceType(sourceType, name string) string {
 	}
 	if name == "ldap" || strings.HasPrefix(name, "ldap") {
 		return "ldap"
+	}
+	if name == "ad" || name == "active-directory" || name == "active_directory" ||
+		strings.HasPrefix(name, "ad-") || strings.HasPrefix(name, "active-directory") || strings.HasPrefix(name, "active_directory") ||
+		strings.Contains(name, "kerberos") || strings.Contains(name, "winbind") {
+		return "active_directory"
 	}
 	return sourceType
 }

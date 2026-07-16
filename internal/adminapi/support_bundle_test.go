@@ -150,6 +150,8 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	assert.Equal(t, "<redacted>", radius["secret"])
 	ldap := settings["ldap"].(map[string]any)
 	assert.Equal(t, "<redacted>", ldap["bind_password"])
+	activeDirectory := settings["active_directory"].(map[string]any)
+	assert.Equal(t, "<redacted>", activeDirectory["bind_password"])
 	ha := settings["high_availability"].(map[string]any)
 	assert.Equal(t, "AEGIS_WITNESS_SIGNING_KEY", ha["witness_signing_key_env"])
 
@@ -321,6 +323,9 @@ func prepareSupportBundleTestConfig(t *testing.T) *config.Config {
 		},
 		LDAP: config.LDAPConfig{
 			BindPassword: "directory-password",
+		},
+		ActiveDirectory: config.ActiveDirectoryConfig{
+			BindPassword: "ad-directory-password",
 		},
 		HighAvailability: config.HighAvailabilityConfig{
 			Enabled:                     true,

@@ -27,6 +27,39 @@ func TestBuildSourcePlanUsesConfiguredOrderAndLDAPConfig(t *testing.T) {
 	assert.True(t, plan[1].Executable)
 }
 
+func TestBuildSourcePlanIncludesActiveDirectorySource(t *testing.T) {
+	setupIdentityFailoverServiceDB(t)
+	cfg := identityFailoverTestConfig()
+	cfg.Identity.Failover.SourceOrder = []string{"active-directory", "local"}
+	cfg.ActiveDirectory = config.ActiveDirectoryConfig{
+		Enabled:                    true,
+		Mode:                       "enforce",
+		FailClosed:                 true,
+		Domain:                     "corp.example.com",
+		Realm:                      "CORP.EXAMPLE.COM",
+		LDAPURL:                    "ldaps://dc1.corp.example.com:636",
+		BaseDN:                     "dc=corp,dc=example,dc=com",
+		UserFilter:                 "(|(userPrincipalName=%p)(sAMAccountName=%u))",
+		GroupFilter:                "(member=%D)",
+		AuthMethod:                 "ldap_bind",
+		RequestTimeoutSeconds:      5,
+		GroupCacheTTLSeconds:       3600,
+		HealthCheckIntervalSeconds: 60,
+		ClockSkewSeconds:           300,
+		AuditEnabled:               true,
+		RetentionLimit:             6000,
+	}
+
+	plan := BuildSourcePlan(cfg)
+
+	require.GreaterOrEqual(t, len(plan), 2)
+	assert.Equal(t, "active-directory", plan[0].Name)
+	assert.Equal(t, "active_directory", plan[0].Type)
+	assert.True(t, plan[0].Enabled)
+	assert.True(t, plan[0].Executable)
+	assert.Equal(t, "local", plan[1].Name)
+}
+
 func TestBuildSourcePlanSkipsOpenCircuitOnlyInEnforceMode(t *testing.T) {
 	setupIdentityFailoverServiceDB(t)
 	now := time.Now().UTC().Add(-10 * time.Second)

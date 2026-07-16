@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yourorg/aegisnas-pi4/internal/activedirectory"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/mfa"
@@ -33,6 +34,44 @@ func TestAuthenticateFallbackUsesIdentityFailoverAndAuditsLocalAccept(t *testing
 	require.NoError(t, err)
 	require.Len(t, events, 1)
 	assert.NotContains(t, events[0].UsernameHash, "alice")
+}
+
+func TestAuthenticateFallbackUsesActiveDirectorySource(t *testing.T) {
+	prepareActiveDirectoryAuthConfig(t)
+	restore := activedirectory.SetAuthenticateForTest(func(ctx context.Context, cfg *config.Config, sourceName, username, password string) (*activedirectory.Result, error) {
+		assert.Equal(t, "active-directory", sourceName)
+		assert.Equal(t, "alice@corp.example.com", username)
+		assert.Equal(t, "secret-pass", password)
+		return &activedirectory.Result{
+			Accepted:     true,
+			Username:     username,
+			Principal:    "alice@CORP.EXAMPLE.COM",
+			Role:         "employee",
+			Groups:       []string{"AegisNAS-Employees"},
+			AuthMethod:   "portal-active-directory-kerberos",
+			ReplyMessage: "Active Directory credentials accepted",
+		}, nil
+	})
+	defer restore()
+
+	result, err := authenticateFallback(context.Background(), "alice@corp.example.com", "secret-pass")
+	require.NoError(t, err)
+	require.True(t, result.Accepted)
+	assert.Equal(t, "employee", result.Role)
+	assert.Equal(t, "active-directory", result.IdentitySource)
+	assert.Equal(t, "portal-active-directory-kerberos", result.AuthMethod)
+
+	events, err := db.ListIdentitySourceEvents("active-directory", "accepted", 10)
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, "active_directory", events[0].SourceType)
+	assert.NotContains(t, events[0].UsernameHash, "alice")
+
+	cached, ok, err := db.VerifyIdentitySourceCache("active-directory", "alice@corp.example.com", "secret-pass", time.Now().UTC())
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Equal(t, "employee", cached.Role)
+	assert.Equal(t, []string{"AegisNAS-Employees"}, cached.Groups)
 }
 
 func TestValidateUserDetailedDistinguishesMissingAndBadPassword(t *testing.T) {
@@ -129,6 +168,89 @@ identity:
     health_check_interval_seconds: 60
     audit_enabled: true
     retention_limit: 6000
+radius:
+  secret: secret
+`, strconv.Quote(dbPath))
+	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0644))
+	_, err = config.Load(cfgPath)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = db.Close()
+		_ = os.Remove(dbPath)
+		_ = os.Remove(cfgPath)
+	})
+}
+
+func prepareActiveDirectoryAuthConfig(t *testing.T) {
+	t.Helper()
+	tmpdb, err := os.CreateTemp("", "active-directory-auth-*.db")
+	require.NoError(t, err)
+	dbPath := tmpdb.Name()
+	require.NoError(t, tmpdb.Close())
+	require.NoError(t, db.Init(dbPath))
+	require.NoError(t, db.Migrate())
+
+	tmpcfg, err := os.CreateTemp("", "active-directory-auth-*.yaml")
+	require.NoError(t, err)
+	cfgPath := tmpcfg.Name()
+	require.NoError(t, tmpcfg.Close())
+	content := fmt.Sprintf(`
+mode: two-nic
+wan:
+  name: eth0
+lan:
+  name: eth1
+  address: 192.168.1.1/24
+database:
+  path: %s
+portal:
+  enabled: true
+  radius_auth: false
+  local_fallback: true
+identity:
+  failover:
+    enabled: true
+    mode: enforce
+    fail_closed: true
+    source_order: [active-directory, local]
+    max_failures: 3
+    circuit_open_seconds: 300
+    stale_cache_seconds: 3600
+    cache_credentials: true
+    split_result_policy: deny
+    health_check_interval_seconds: 60
+    audit_enabled: true
+    retention_limit: 6000
+active_directory:
+  enabled: true
+  mode: enforce
+  fail_closed: true
+  domain: corp.example.com
+  realm: CORP.EXAMPLE.COM
+  netbios_domain: CORP
+  ldap_url: ldaps://dc1.corp.example.com:636
+  base_dn: dc=corp,dc=example,dc=com
+  user_filter: "(|(userPrincipalName=%%p)(sAMAccountName=%%u))"
+  group_filter: "(member=%%D)"
+  require_ldaps: true
+  auth_method: kerberos
+  default_role: guest-basic
+  group_role_mappings:
+    AegisNAS-Employees: employee
+  request_timeout_seconds: 5
+  group_cache_ttl_seconds: 3600
+  health_check_interval_seconds: 60
+  clock_skew_seconds: 300
+  audit_enabled: true
+  retention_limit: 6000
+  kerberos:
+    enabled: true
+    kinit_path: kinit
+    kdestroy_path: kdestroy
+  winbind:
+    enabled: false
+    wbinfo_path: wbinfo
+    ntlm_auth_path: /usr/bin/ntlm_auth
 radius:
   secret: secret
 `, strconv.Quote(dbPath))

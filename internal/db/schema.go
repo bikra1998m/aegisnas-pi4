@@ -147,7 +147,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{20, schemaV20},
 		{21, schemaV21},
 		{22, schemaV22},
-		{LatestSchemaVersion(), schemaV23},
+		{23, schemaV23},
+		{LatestSchemaVersion(), schemaV24},
 	}
 
 	for _, m := range migrations {
@@ -198,8 +199,20 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureMFATables(handle); err != nil {
 		return fmt.Errorf("repair MFA schema: %w", err)
 	}
+	if err := ensureActiveDirectoryTables(handle); err != nil {
+		return fmt.Errorf("repair Active Directory schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureActiveDirectoryTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	_, err := handle.Exec(SQLForDialect(schemaV24, dialect))
+	return err
 }
 
 func ensureMFATables(handle *sql.DB) error {

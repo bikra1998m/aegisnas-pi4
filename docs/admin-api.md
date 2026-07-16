@@ -238,6 +238,24 @@ hashed identity-source decisions. The same summary appears in
 `identity_source_failover`, and in support bundles as
 `api/identity-failover.json`. See [identity-source-failover.md](identity-source-failover.md).
 
+Active Directory Kerberos and winbind identity state is exposed at:
+
+```text
+/api/v1/system/active-directory
+/api/v1/system/active-directory?source=active-directory&decision=accepted&component=configuration&limit=100
+POST /api/v1/system/active-directory/check
+```
+
+Use these endpoints to review effective domain, realm, LDAPS, verifier method,
+group cache, recent hashed AD decisions, and recorded health checks. The
+`check` operation runs configuration, DNS, Kerberos binary/keytab, and winbind
+trust probes where configured and is restricted to `ops_admin` and
+`super_admin`. The same summary appears in `/api/v1/system/status` under
+`identity.active_directory`, in production readiness as
+`active_directory_identity`, and in support bundles as
+`api/active-directory.json`. See
+[active-directory-kerberos-winbind.md](active-directory-kerberos-winbind.md).
+
 OTP and RADIUS challenge MFA state is exposed at:
 
 ```text

@@ -1219,6 +1219,18 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Effective identity-source failover policy, deterministic source plan, circuit state, cache summary, audit summary, and recent source decisions."),
 	}))
+	addOperation(paths, "/api/v1/system/active-directory", "get", securedOperationWithParameters("Read Active Directory identity state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("source", "Optional Active Directory source name filter.", false),
+		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "not_found", "failed", "skipped"}, false),
+		queryStringParameter("component", "Optional health component filter such as ldap_dns or winbind_trust.", false),
+		queryStringParameter("limit", "Event or health limit from 1 to 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("Effective Active Directory policy, Kerberos/winbind posture, group cache summary, health summary, and recent decisions."),
+	}))
+	addOperation(paths, "/api/v1/system/active-directory/check", "post", securedOperation("Run Active Directory health checks", "Authentication", []string{"ops_admin", "super_admin"}, map[string]any{
+		"200":     responseJSON("Fresh Active Directory health check results and updated report."),
+		"default": responseText("Health check error."),
+	}))
 	addOperation(paths, "/api/v1/system/mfa", "get", securedOperationWithParameters("Read OTP and RADIUS challenge MFA state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"challenge_issued", "accepted", "denied", "monitor_allowed", "enrolled"}, false),
 		queryEnumParameter("method", "Optional MFA method filter.", []string{"totp", "recovery"}, false),

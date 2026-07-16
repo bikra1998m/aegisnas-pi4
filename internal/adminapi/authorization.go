@@ -168,6 +168,10 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/identity-failover"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/active-directory/check"):
+		return method == http.MethodPost && identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/active-directory"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/mfa"):
 		if readonly {
 			return true

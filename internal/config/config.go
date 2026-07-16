@@ -30,6 +30,7 @@ type Config struct {
 	Radius           RadiusConfig           `mapstructure:"radius"`
 	Portal           PortalConfig           `mapstructure:"portal"`
 	Identity         IdentityConfig         `mapstructure:"identity"`
+	ActiveDirectory  ActiveDirectoryConfig  `mapstructure:"active_directory"`
 	MFA              MFAConfig              `mapstructure:"mfa"`
 	LDAP             LDAPConfig             `mapstructure:"ldap"`
 	Policy           PolicyConfig           `mapstructure:"policy"`
@@ -619,6 +620,53 @@ type IdentityFailoverConfig struct {
 	HealthCheckIntervalSeconds int      `mapstructure:"health_check_interval_seconds"`
 	AuditEnabled               bool     `mapstructure:"audit_enabled"`
 	RetentionLimit             int      `mapstructure:"retention_limit"`
+}
+
+type ActiveDirectoryConfig struct {
+	Enabled                    bool                          `mapstructure:"enabled"`
+	Mode                       string                        `mapstructure:"mode"`
+	FailClosed                 bool                          `mapstructure:"fail_closed"`
+	Domain                     string                        `mapstructure:"domain"`
+	Realm                      string                        `mapstructure:"realm"`
+	NetBIOSDomain              string                        `mapstructure:"netbios_domain"`
+	LDAPURL                    string                        `mapstructure:"ldap_url"`
+	BaseDN                     string                        `mapstructure:"base_dn"`
+	BindDN                     string                        `mapstructure:"bind_dn"`
+	BindPassword               string                        `mapstructure:"bind_password"`
+	BindPasswordRef            string                        `mapstructure:"bind_password_ref"`
+	UserFilter                 string                        `mapstructure:"user_filter"`
+	GroupFilter                string                        `mapstructure:"group_filter"`
+	RequireLDAPS               bool                          `mapstructure:"require_ldaps"`
+	NestedGroups               bool                          `mapstructure:"nested_groups"`
+	AuthMethod                 string                        `mapstructure:"auth_method"`
+	DefaultRole                string                        `mapstructure:"default_role"`
+	GroupRoleMappings          map[string]string             `mapstructure:"group_role_mappings"`
+	RequestTimeoutSeconds      int                           `mapstructure:"request_timeout_seconds"`
+	GroupCacheTTLSeconds       int                           `mapstructure:"group_cache_ttl_seconds"`
+	HealthCheckIntervalSeconds int                           `mapstructure:"health_check_interval_seconds"`
+	ClockSkewSeconds           int                           `mapstructure:"clock_skew_seconds"`
+	AuditEnabled               bool                          `mapstructure:"audit_enabled"`
+	RetentionLimit             int                           `mapstructure:"retention_limit"`
+	Kerberos                   ActiveDirectoryKerberosConfig `mapstructure:"kerberos"`
+	Winbind                    ActiveDirectoryWinbindConfig  `mapstructure:"winbind"`
+}
+
+type ActiveDirectoryKerberosConfig struct {
+	Enabled            bool   `mapstructure:"enabled"`
+	KinitPath          string `mapstructure:"kinit_path"`
+	KDestroyPath       string `mapstructure:"kdestroy_path"`
+	Krb5ConfigPath     string `mapstructure:"krb5_config_path"`
+	KeytabPath         string `mapstructure:"keytab_path"`
+	ServicePrincipal   string `mapstructure:"service_principal"`
+	CredentialCacheDir string `mapstructure:"credential_cache_dir"`
+}
+
+type ActiveDirectoryWinbindConfig struct {
+	Enabled            bool   `mapstructure:"enabled"`
+	DomainJoinRequired bool   `mapstructure:"domain_join_required"`
+	WbinfoPath         string `mapstructure:"wbinfo_path"`
+	NTLMAuthPath       string `mapstructure:"ntlm_auth_path"`
+	AuthHelperPath     string `mapstructure:"auth_helper_path"`
 }
 
 type MFAConfig struct {
@@ -1325,6 +1373,28 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("identity.failover.health_check_interval_seconds", 60)
 	v.SetDefault("identity.failover.audit_enabled", true)
 	v.SetDefault("identity.failover.retention_limit", 6000)
+	v.SetDefault("active_directory.enabled", false)
+	v.SetDefault("active_directory.mode", "monitor")
+	v.SetDefault("active_directory.fail_closed", true)
+	v.SetDefault("active_directory.require_ldaps", true)
+	v.SetDefault("active_directory.nested_groups", true)
+	v.SetDefault("active_directory.auth_method", "ldap_bind")
+	v.SetDefault("active_directory.user_filter", "(|(userPrincipalName=%p)(sAMAccountName=%u))")
+	v.SetDefault("active_directory.group_filter", "(|(member=%D)(member:1.2.840.113556.1.4.1941:=%D))")
+	v.SetDefault("active_directory.group_role_mappings", map[string]string{})
+	v.SetDefault("active_directory.request_timeout_seconds", 5)
+	v.SetDefault("active_directory.group_cache_ttl_seconds", 3600)
+	v.SetDefault("active_directory.health_check_interval_seconds", 60)
+	v.SetDefault("active_directory.clock_skew_seconds", 300)
+	v.SetDefault("active_directory.audit_enabled", true)
+	v.SetDefault("active_directory.retention_limit", 6000)
+	v.SetDefault("active_directory.kerberos.enabled", false)
+	v.SetDefault("active_directory.kerberos.kinit_path", "kinit")
+	v.SetDefault("active_directory.kerberos.kdestroy_path", "kdestroy")
+	v.SetDefault("active_directory.winbind.enabled", false)
+	v.SetDefault("active_directory.winbind.domain_join_required", true)
+	v.SetDefault("active_directory.winbind.wbinfo_path", "wbinfo")
+	v.SetDefault("active_directory.winbind.ntlm_auth_path", "/usr/bin/ntlm_auth")
 	v.SetDefault("mfa.enabled", false)
 	v.SetDefault("mfa.mode", "monitor")
 	v.SetDefault("mfa.fail_closed", true)
@@ -2193,6 +2263,9 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("portal.guest_workflows.invite_delivery %q is invalid", c.Portal.GuestWorkflows.InviteDelivery)
 	}
 	if err := validateIdentityFailover(c.Identity.Failover); err != nil {
+		return err
+	}
+	if err := validateActiveDirectory(c.ActiveDirectory); err != nil {
 		return err
 	}
 	if err := validateMFA(c.MFA); err != nil {
@@ -4180,6 +4253,9 @@ func validateConfiguredSecretReferences(c *Config) error {
 			}
 		}
 	}
+	if err := validateSecretPair("active_directory.bind_password", c.ActiveDirectory.BindPassword, "active_directory.bind_password_ref", c.ActiveDirectory.BindPasswordRef); err != nil {
+		return err
+	}
 	return validateSecretPair("ldap.bind_password", c.LDAP.BindPassword, "ldap.bind_password_ref", c.LDAP.BindPasswordRef)
 }
 
@@ -4740,6 +4816,193 @@ func validateIdentityFailover(raw IdentityFailoverConfig) error {
 		if effective.RetentionLimit < 100 || effective.RetentionLimit > 1000000 {
 			return errors.New("identity.failover.retention_limit must be between 100 and 1000000")
 		}
+	}
+	return nil
+}
+
+func EffectiveActiveDirectoryConfig(raw ActiveDirectoryConfig) ActiveDirectoryConfig {
+	effective := raw
+	if strings.TrimSpace(effective.Mode) == "" {
+		effective.Mode = "monitor"
+	}
+	if strings.TrimSpace(effective.AuthMethod) == "" {
+		effective.AuthMethod = "ldap_bind"
+	}
+	if strings.TrimSpace(effective.UserFilter) == "" {
+		effective.UserFilter = "(|(userPrincipalName=%p)(sAMAccountName=%u))"
+	}
+	if strings.TrimSpace(effective.GroupFilter) == "" {
+		if effective.NestedGroups || !raw.Enabled {
+			effective.GroupFilter = "(|(member=%D)(member:1.2.840.113556.1.4.1941:=%D))"
+		} else {
+			effective.GroupFilter = "(member=%D)"
+		}
+	}
+	if effective.RequestTimeoutSeconds == 0 {
+		effective.RequestTimeoutSeconds = 5
+	}
+	if effective.GroupCacheTTLSeconds == 0 {
+		effective.GroupCacheTTLSeconds = 3600
+	}
+	if effective.HealthCheckIntervalSeconds == 0 {
+		effective.HealthCheckIntervalSeconds = 60
+	}
+	if effective.ClockSkewSeconds == 0 {
+		effective.ClockSkewSeconds = 300
+	}
+	if effective.RetentionLimit == 0 {
+		effective.RetentionLimit = 6000
+	}
+	if strings.TrimSpace(effective.Kerberos.KinitPath) == "" {
+		effective.Kerberos.KinitPath = "kinit"
+	}
+	if strings.TrimSpace(effective.Kerberos.KDestroyPath) == "" {
+		effective.Kerberos.KDestroyPath = "kdestroy"
+	}
+	if strings.TrimSpace(effective.Winbind.WbinfoPath) == "" {
+		effective.Winbind.WbinfoPath = "wbinfo"
+	}
+	if strings.TrimSpace(effective.Winbind.NTLMAuthPath) == "" {
+		effective.Winbind.NTLMAuthPath = "/usr/bin/ntlm_auth"
+	}
+	if effective.GroupRoleMappings == nil {
+		effective.GroupRoleMappings = map[string]string{}
+	}
+	return effective
+}
+
+func validateActiveDirectory(raw ActiveDirectoryConfig) error {
+	effective := EffectiveActiveDirectoryConfig(raw)
+	switch strings.ToLower(strings.TrimSpace(effective.Mode)) {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("active_directory.mode %q must be monitor or enforce", raw.Mode)
+	}
+	switch strings.ToLower(strings.TrimSpace(effective.AuthMethod)) {
+	case "ldap_bind", "kerberos", "winbind_helper":
+	default:
+		return fmt.Errorf("active_directory.auth_method %q must be ldap_bind, kerberos, or winbind_helper", raw.AuthMethod)
+	}
+	values := map[string]int{
+		"request_timeout_seconds":       raw.RequestTimeoutSeconds,
+		"group_cache_ttl_seconds":       raw.GroupCacheTTLSeconds,
+		"health_check_interval_seconds": raw.HealthCheckIntervalSeconds,
+		"clock_skew_seconds":            raw.ClockSkewSeconds,
+		"retention_limit":               raw.RetentionLimit,
+	}
+	for name, value := range values {
+		if value < 0 {
+			return fmt.Errorf("active_directory.%s %d cannot be negative", name, value)
+		}
+	}
+	if !raw.Enabled {
+		return validateActiveDirectoryTextFields(effective)
+	}
+	if strings.TrimSpace(effective.Domain) == "" {
+		return errors.New("active_directory.enabled requires active_directory.domain")
+	}
+	if strings.TrimSpace(effective.Realm) == "" {
+		return errors.New("active_directory.enabled requires active_directory.realm")
+	}
+	if strings.TrimSpace(effective.LDAPURL) == "" {
+		return errors.New("active_directory.enabled requires active_directory.ldap_url")
+	}
+	if err := requireLDAPURL("active_directory.ldap_url", effective.LDAPURL, effective.RequireLDAPS); err != nil {
+		return err
+	}
+	if strings.TrimSpace(effective.BaseDN) == "" {
+		return errors.New("active_directory.enabled requires active_directory.base_dn")
+	}
+	if strings.TrimSpace(effective.BindDN) != "" && strings.TrimSpace(effective.BindPassword) == "" && strings.TrimSpace(effective.BindPasswordRef) == "" {
+		return errors.New("active_directory.bind_dn requires bind_password or bind_password_ref")
+	}
+	if effective.RequestTimeoutSeconds < 1 || effective.RequestTimeoutSeconds > 60 {
+		return errors.New("active_directory.request_timeout_seconds must be between 1 and 60")
+	}
+	if effective.GroupCacheTTLSeconds < 60 || effective.GroupCacheTTLSeconds > 2592000 {
+		return errors.New("active_directory.group_cache_ttl_seconds must be between 60 and 2592000")
+	}
+	if effective.HealthCheckIntervalSeconds < 5 || effective.HealthCheckIntervalSeconds > 3600 {
+		return errors.New("active_directory.health_check_interval_seconds must be between 5 and 3600")
+	}
+	if effective.ClockSkewSeconds < 30 || effective.ClockSkewSeconds > 3600 {
+		return errors.New("active_directory.clock_skew_seconds must be between 30 and 3600")
+	}
+	if effective.RetentionLimit < 100 || effective.RetentionLimit > 1000000 {
+		return errors.New("active_directory.retention_limit must be between 100 and 1000000")
+	}
+	if strings.EqualFold(effective.AuthMethod, "kerberos") && !effective.Kerberos.Enabled {
+		return errors.New("active_directory.auth_method kerberos requires active_directory.kerberos.enabled")
+	}
+	if strings.EqualFold(effective.AuthMethod, "winbind_helper") {
+		if !effective.Winbind.Enabled {
+			return errors.New("active_directory.auth_method winbind_helper requires active_directory.winbind.enabled")
+		}
+		if strings.TrimSpace(effective.Winbind.AuthHelperPath) == "" {
+			return errors.New("active_directory.auth_method winbind_helper requires active_directory.winbind.auth_helper_path")
+		}
+	}
+	return validateActiveDirectoryTextFields(effective)
+}
+
+func validateActiveDirectoryTextFields(effective ActiveDirectoryConfig) error {
+	textFields := map[string]string{
+		"active_directory.domain":                        effective.Domain,
+		"active_directory.realm":                         effective.Realm,
+		"active_directory.netbios_domain":                effective.NetBIOSDomain,
+		"active_directory.base_dn":                       effective.BaseDN,
+		"active_directory.bind_dn":                       effective.BindDN,
+		"active_directory.user_filter":                   effective.UserFilter,
+		"active_directory.group_filter":                  effective.GroupFilter,
+		"active_directory.default_role":                  effective.DefaultRole,
+		"active_directory.kerberos.kinit_path":           effective.Kerberos.KinitPath,
+		"active_directory.kerberos.kdestroy_path":        effective.Kerberos.KDestroyPath,
+		"active_directory.kerberos.krb5_config_path":     effective.Kerberos.Krb5ConfigPath,
+		"active_directory.kerberos.keytab_path":          effective.Kerberos.KeytabPath,
+		"active_directory.kerberos.service_principal":    effective.Kerberos.ServicePrincipal,
+		"active_directory.kerberos.credential_cache_dir": effective.Kerberos.CredentialCacheDir,
+		"active_directory.winbind.wbinfo_path":           effective.Winbind.WbinfoPath,
+		"active_directory.winbind.ntlm_auth_path":        effective.Winbind.NTLMAuthPath,
+		"active_directory.winbind.auth_helper_path":      effective.Winbind.AuthHelperPath,
+	}
+	for name, value := range textFields {
+		if len(value) > 4096 || strings.ContainsAny(value, "\r\n\x00") {
+			return fmt.Errorf("%s is invalid", name)
+		}
+	}
+	if !strings.Contains(effective.UserFilter, "%s") && !strings.Contains(effective.UserFilter, "%u") && !strings.Contains(effective.UserFilter, "%p") {
+		return errors.New("active_directory.user_filter must contain %s, %u, or %p")
+	}
+	if strings.Count(effective.GroupFilter, "%D") == 0 && strings.Count(effective.GroupFilter, "%s") == 0 {
+		return errors.New("active_directory.group_filter must contain %D or %s")
+	}
+	if err := validateSecretPair("active_directory.bind_password", effective.BindPassword, "active_directory.bind_password_ref", effective.BindPasswordRef); err != nil {
+		return err
+	}
+	for group, role := range effective.GroupRoleMappings {
+		group = strings.TrimSpace(group)
+		role = strings.TrimSpace(role)
+		if group == "" || len(group) > 256 || strings.ContainsAny(group, "\r\n\x00") {
+			return errors.New("active_directory.group_role_mappings contains an invalid group")
+		}
+		if role == "" || len(role) > 128 || strings.ContainsAny(role, "\r\n\x00") {
+			return errors.New("active_directory.group_role_mappings contains an invalid role")
+		}
+	}
+	return nil
+}
+
+func requireLDAPURL(field, raw string, requireLDAPS bool) error {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Host == "" {
+		return fmt.Errorf("%s must be an ldap:// or ldaps:// URL", field)
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "ldap" && scheme != "ldaps" {
+		return fmt.Errorf("%s must use ldap:// or ldaps://", field)
+	}
+	if requireLDAPS && scheme != "ldaps" {
+		return fmt.Errorf("%s must use ldaps:// when require_ldaps is true", field)
 	}
 	return nil
 }

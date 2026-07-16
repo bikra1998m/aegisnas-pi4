@@ -475,6 +475,48 @@ identity:
     audit_enabled: true
     retention_limit: 6000
 
+active_directory:
+  enabled: false
+  mode: "monitor" # Use enforce with fail_closed=true after domain smoke tests.
+  fail_closed: true
+  domain: "corp.example.com"
+  realm: "CORP.EXAMPLE.COM"
+  netbios_domain: "CORP"
+  ldap_url: "ldaps://dc1.corp.example.com:636"
+  base_dn: "dc=corp,dc=example,dc=com"
+  bind_dn: "CN=svc-aegisnas,OU=Service Accounts,DC=corp,DC=example,DC=com"
+  bind_password: ""
+  bind_password_ref: "env:AEGIS_AD_BIND_PASSWORD"
+  user_filter: "(|(userPrincipalName=%p)(sAMAccountName=%u))"
+  group_filter: "(|(member=%D)(member:1.2.840.113556.1.4.1941:=%D))"
+  require_ldaps: true
+  nested_groups: true
+  auth_method: "ldap_bind" # ldap_bind, kerberos, or winbind_helper.
+  default_role: "guest-basic"
+  group_role_mappings:
+    "AegisNAS-Admins": "admin"
+    "AegisNAS-Employees": "employee"
+  request_timeout_seconds: 5
+  group_cache_ttl_seconds: 3600
+  health_check_interval_seconds: 60
+  clock_skew_seconds: 300
+  audit_enabled: true
+  retention_limit: 6000
+  kerberos:
+    enabled: false
+    kinit_path: "kinit"
+    kdestroy_path: "kdestroy"
+    krb5_config_path: "/etc/krb5.conf"
+    keytab_path: "/etc/aegisnas/aegisnas.keytab"
+    service_principal: "aegisnas/radius.corp.example.com@CORP.EXAMPLE.COM"
+    credential_cache_dir: "/run/aegisnas/krb5"
+  winbind:
+    enabled: false
+    domain_join_required: true
+    wbinfo_path: "wbinfo"
+    ntlm_auth_path: "/usr/bin/ntlm_auth"
+    auth_helper_path: ""
+
 mfa:
   enabled: false
   mode: "monitor" # Use enforce with fail_closed=true for production step-up.

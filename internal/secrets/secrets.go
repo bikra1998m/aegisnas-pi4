@@ -347,6 +347,7 @@ func DiscoverConfigSources(cfg *config.Config) []Source {
 		appendPair(fmt.Sprintf("radius.upstream.servers[%d].secret", i), "config", server.Secret, server.SecretRef, cfg.Radius.Upstream.Enabled && (strings.EqualFold(strings.TrimSpace(server.Transport), "udp") || strings.TrimSpace(server.Transport) == ""))
 		appendEnv(fmt.Sprintf("radius.upstream.servers[%d].radsec.private_key_password_env", i), "config", server.RadSec.PrivateKeyPasswordEnv, false)
 	}
+	appendPair("active_directory.bind_password", "config", cfg.ActiveDirectory.BindPassword, cfg.ActiveDirectory.BindPasswordRef, cfg.ActiveDirectory.Enabled && strings.TrimSpace(cfg.ActiveDirectory.BindDN) != "")
 	appendPair("ldap.bind_password", "config", cfg.LDAP.BindPassword, cfg.LDAP.BindPasswordRef, cfg.LDAP.Enabled)
 	appendEnv("radius.radsec.private_key_password_env", "config", cfg.Radius.RadSec.PrivateKeyPasswordEnv, false)
 	if strings.EqualFold(strings.TrimSpace(cfg.AILite.Mode), "full") {

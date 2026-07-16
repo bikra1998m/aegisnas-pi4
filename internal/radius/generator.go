@@ -24,6 +24,7 @@ type FreeRADIUSConfig struct {
 	EAPConf          string
 	Users            string
 	ModsLDAP         string
+	ModsMSCHAP       string
 	ModsSQL          string
 	ProxyConf        string
 	SitesDefault     string
@@ -100,6 +101,12 @@ func (g *Generator) Generate() (*FreeRADIUSConfig, error) {
 
 	// LDAP module
 	out.ModsLDAP, err = g.renderModsLDAP()
+	if err != nil {
+		return nil, err
+	}
+
+	// MSCHAP module
+	out.ModsMSCHAP, err = g.renderModsMSCHAP()
 	if err != nil {
 		return nil, err
 	}
@@ -528,11 +535,15 @@ func normalizeRadSecPSKHexPhrase(value string) (string, error) {
 }
 
 func (g *Generator) renderModsLDAP() (string, error) {
-	if !g.cfg.LDAP.Enabled {
+	ldap, enabled := g.effectiveLDAPModuleConfig()
+	if !enabled {
 		return "# LDAP disabled\n", nil
 	}
-	ldap := g.cfg.LDAP
-	password, err := secrets.ResolveConfiguredSecret(context.Background(), secrets.NewResolver(secrets.OptionsFromConfig(g.cfg)), "ldap.bind_password", ldap.BindPassword, ldap.BindPasswordRef)
+	secretField := "ldap.bind_password"
+	if !g.cfg.LDAP.Enabled && g.cfg.ActiveDirectory.Enabled {
+		secretField = "active_directory.bind_password"
+	}
+	password, err := secrets.ResolveConfiguredSecret(context.Background(), secrets.NewResolver(secrets.OptionsFromConfig(g.cfg)), secretField, ldap.BindPassword, ldap.BindPasswordRef)
 	if err != nil {
 		return "", err
 	}
@@ -563,6 +574,75 @@ ldap {
 	var buf bytes.Buffer
 	t := template.Must(template.New("ldap").Parse(tmpl))
 	err = t.Execute(&buf, struct{ LDAP config.LDAPConfig }{LDAP: ldap})
+	return buf.String(), err
+}
+
+func (g *Generator) effectiveLDAPModuleConfig() (config.LDAPConfig, bool) {
+	if g.cfg.LDAP.Enabled {
+		return g.cfg.LDAP, true
+	}
+	if !g.cfg.ActiveDirectory.Enabled {
+		return config.LDAPConfig{}, false
+	}
+	ad := config.EffectiveActiveDirectoryConfig(g.cfg.ActiveDirectory)
+	return config.LDAPConfig{
+		Enabled:         true,
+		URL:             ad.LDAPURL,
+		BaseDN:          ad.BaseDN,
+		BindDN:          ad.BindDN,
+		BindPassword:    ad.BindPassword,
+		BindPasswordRef: ad.BindPasswordRef,
+		UserFilter:      ad.UserFilter,
+		GroupFilter:     ad.GroupFilter,
+	}, true
+}
+
+func (g *Generator) ldapModuleEnabled() bool {
+	_, enabled := g.effectiveLDAPModuleConfig()
+	return enabled
+}
+
+func (g *Generator) renderModsMSCHAP() (string, error) {
+	ad := config.EffectiveActiveDirectoryConfig(g.cfg.ActiveDirectory)
+	if !ad.Enabled || !ad.Winbind.Enabled {
+		return `# mods-enabled/mschap
+mschap {
+	use_mppe = yes
+	require_encryption = yes
+	require_strong = yes
+	with_ntdomain_hack = yes
+}
+`, nil
+	}
+	domain := strings.TrimSpace(ad.NetBIOSDomain)
+	if domain == "" {
+		domain = strings.TrimSpace(ad.Domain)
+	}
+	if domain == "" {
+		return "", fmt.Errorf("active_directory.winbind requires domain or netbios_domain for mschap generation")
+	}
+	ntlmAuthPath := strings.TrimSpace(ad.Winbind.NTLMAuthPath)
+	if ntlmAuthPath == "" {
+		ntlmAuthPath = "/usr/bin/ntlm_auth"
+	}
+	if strings.ContainsAny(domain+ntlmAuthPath, "\r\n\"") {
+		return "", fmt.Errorf("active_directory winbind mschap settings contain invalid characters")
+	}
+	tmpl := `# mods-enabled/mschap
+mschap {
+	use_mppe = yes
+	require_encryption = yes
+	require_strong = yes
+	with_ntdomain_hack = yes
+	ntlm_auth = "{{ .NTLMAuthPath }} --request-nt-key --domain={{ .Domain }} --username=%{%{Stripped-User-Name}:-%{%{mschap:User-Name}:-%{%{User-Name}:-None}}} --challenge=%{%{mschap:Challenge}:-00} --nt-response=%{%{mschap:NT-Response}:-00}"
+}
+`
+	var buf bytes.Buffer
+	t := template.Must(template.New("mschap").Parse(tmpl))
+	err := t.Execute(&buf, map[string]string{
+		"Domain":       escapeReplyValue(domain),
+		"NTLMAuthPath": escapeReplyValue(ntlmAuthPath),
+	})
 	return buf.String(), err
 }
 
@@ -1045,7 +1125,7 @@ server default {
 			ok = return
 		}
 		files
-		{{- if .LDAP.Enabled }}
+		{{- if .LDAPModuleEnabled }}
 		ldap
 		{{- end }}
 		pap
@@ -1121,11 +1201,13 @@ server default {
 		ProxyDefaultRealm   string
 		ProxyRequestPolicy  string
 		ProxyResponsePolicy string
+		LDAPModuleEnabled   bool
 	}{
 		Config:              g.cfg,
 		ProxyDefaultRealm:   DefaultProxyRealm(g.cfg),
 		ProxyRequestPolicy:  proxyRequestPolicy,
 		ProxyResponsePolicy: proxyResponsePolicy,
+		LDAPModuleEnabled:   g.ldapModuleEnabled(),
 	}
 	err = t.Execute(&buf, data)
 	return buf.String(), err
@@ -1162,7 +1244,7 @@ server inner-tunnel {
 			ok = return
 		}
 		files
-		{{- if .LDAP.Enabled }}
+		{{- if .LDAPModuleEnabled }}
 		ldap
 		{{- end }}
 		pap
@@ -1216,11 +1298,13 @@ server inner-tunnel {
 		ProxyDefaultRealm   string
 		ProxyRequestPolicy  string
 		ProxyResponsePolicy string
+		LDAPModuleEnabled   bool
 	}{
 		Config:              g.cfg,
 		ProxyDefaultRealm:   DefaultProxyRealm(g.cfg),
 		ProxyRequestPolicy:  proxyRequestPolicy,
 		ProxyResponsePolicy: proxyResponsePolicy,
+		LDAPModuleEnabled:   g.ldapModuleEnabled(),
 	}
 	err = t.Execute(&buf, data)
 	return buf.String(), err

@@ -32,6 +32,7 @@ func ApplyConfig(cfg *config.Config) error {
 		filepath.Join(raddb, "mods-config", "files", "authorize"): fullCfg.Users,
 		filepath.Join(raddb, "users"):                             fullCfg.Users,
 		filepath.Join(raddb, "mods-enabled", "ldap"):              fullCfg.ModsLDAP,
+		filepath.Join(raddb, "mods-enabled", "mschap"):            fullCfg.ModsMSCHAP,
 		filepath.Join(raddb, "mods-enabled", "sql"):               fullCfg.ModsSQL,
 		filepath.Join(raddb, "proxy.conf"):                        fullCfg.ProxyConf,
 		filepath.Join(raddb, "sites-enabled", "default"):          fullCfg.SitesDefault,

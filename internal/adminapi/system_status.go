@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yourorg/aegisnas-pi4/internal/activedirectory"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/enforcement"
@@ -874,6 +875,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	productionReadiness := buildProductionReadinessReport(cfg)
 	identityFailover := identity.BuildFailoverReport(cfg)
+	activeDirectory := activedirectory.BuildReport(cfg)
 	mfaReport := mfapkg.BuildReport(cfg)
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -893,7 +895,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"deployment":           config.DeploymentSummary(cfg),
 		"database":             db.BuildStatusReport(cfg),
 		"production_readiness": productionReadinessSummaryFromReport(productionReadiness),
-		"identity":             map[string]any{"failover": identityFailover, "mfa": mfaReport},
+		"identity":             map[string]any{"failover": identityFailover, "active_directory": activeDirectory, "mfa": mfaReport},
 		"radius":               radiusStatus,
 		"wireless":             wirelessStatus,
 		"enforcement":          enforcementStatus,

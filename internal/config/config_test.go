@@ -158,6 +158,84 @@ func TestConfigValidationIdentityFailover(t *testing.T) {
 	assert.ErrorContains(t, badTimer.Validate(), "circuit_open_seconds")
 }
 
+func TestConfigValidationActiveDirectory(t *testing.T) {
+	cfg := &Config{
+		Mode:     "two-nic",
+		WAN:      InterfaceConfig{Name: "eth0"},
+		LAN:      InterfaceConfig{Name: "eth1"},
+		Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+		Health:   HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{
+			PrometheusPort: 9090,
+		},
+		Policy: PolicyConfig{DefaultRole: "guest-basic"},
+		ActiveDirectory: ActiveDirectoryConfig{
+			Enabled:                    true,
+			Mode:                       "enforce",
+			FailClosed:                 true,
+			Domain:                     "corp.example.com",
+			Realm:                      "CORP.EXAMPLE.COM",
+			NetBIOSDomain:              "CORP",
+			LDAPURL:                    "ldaps://dc1.corp.example.com:636",
+			BaseDN:                     "dc=corp,dc=example,dc=com",
+			BindDN:                     "cn=aegisnas,ou=svc,dc=corp,dc=example,dc=com",
+			BindPasswordRef:            "env:AEGIS_AD_BIND_PASSWORD",
+			UserFilter:                 "(|(userPrincipalName=%p)(sAMAccountName=%u))",
+			GroupFilter:                "(member=%D)",
+			RequireLDAPS:               true,
+			NestedGroups:               true,
+			AuthMethod:                 "ldap_bind",
+			DefaultRole:                "guest-basic",
+			GroupRoleMappings:          map[string]string{"AegisNAS-Employees": "employee"},
+			RequestTimeoutSeconds:      5,
+			GroupCacheTTLSeconds:       3600,
+			HealthCheckIntervalSeconds: 60,
+			ClockSkewSeconds:           300,
+			AuditEnabled:               true,
+			RetentionLimit:             6000,
+			Kerberos: ActiveDirectoryKerberosConfig{
+				Enabled:      false,
+				KinitPath:    "kinit",
+				KDestroyPath: "kdestroy",
+			},
+			Winbind: ActiveDirectoryWinbindConfig{
+				Enabled:      false,
+				WbinfoPath:   "wbinfo",
+				NTLMAuthPath: "/usr/bin/ntlm_auth",
+			},
+		},
+		Radius: RadiusConfig{
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+		},
+	}
+	require.NoError(t, cfg.Validate())
+
+	badLDAP := *cfg
+	badLDAP.ActiveDirectory.LDAPURL = "ldap://dc1.corp.example.com:389"
+	assert.ErrorContains(t, badLDAP.Validate(), "active_directory.ldap_url must use ldaps://")
+
+	badKerberos := *cfg
+	badKerberos.ActiveDirectory.AuthMethod = "kerberos"
+	badKerberos.ActiveDirectory.Kerberos.Enabled = false
+	assert.ErrorContains(t, badKerberos.Validate(), "active_directory.auth_method kerberos")
+
+	badWinbind := *cfg
+	badWinbind.ActiveDirectory.AuthMethod = "winbind_helper"
+	badWinbind.ActiveDirectory.Winbind.Enabled = true
+	badWinbind.ActiveDirectory.Winbind.AuthHelperPath = ""
+	assert.ErrorContains(t, badWinbind.Validate(), "active_directory.winbind.auth_helper_path")
+
+	badCommandText := *cfg
+	badCommandText.ActiveDirectory.Kerberos.KinitPath = "kinit\n--debug"
+	assert.ErrorContains(t, badCommandText.Validate(), "active_directory.kerberos.kinit_path is invalid")
+
+	badTimer := *cfg
+	badTimer.ActiveDirectory.GroupCacheTTLSeconds = 30
+	assert.ErrorContains(t, badTimer.Validate(), "group_cache_ttl_seconds")
+}
+
 func TestConfigValidationRadiusAccountingSpool(t *testing.T) {
 	cfg := &Config{
 		Mode:     "two-nic",

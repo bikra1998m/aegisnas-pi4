@@ -146,6 +146,52 @@ func TestGeneratorRendersPostgreSQLSQLModule(t *testing.T) {
 	assert.NotContains(t, generated.ModsSQL, `rlm_sql_sqlite`)
 }
 
+func TestGeneratorRendersActiveDirectoryLDAPAndWinbindMSCHAP(t *testing.T) {
+	previousDB := db.DB
+	db.DB = nil
+	t.Cleanup(func() { db.DB = previousDB })
+
+	cfg := &config.Config{
+		Radius: config.RadiusConfig{
+			Secret:   "testing123",
+			AuthPort: 1812,
+			AcctPort: 1813,
+			EAP: config.RadiusEAPConfig{
+				DefaultType: "peap",
+				PEAPInner:   "mschapv2",
+				TTLSInner:   "mschapv2",
+			},
+		},
+		ActiveDirectory: config.ActiveDirectoryConfig{
+			Enabled:               true,
+			Domain:                "corp.example.com",
+			Realm:                 "CORP.EXAMPLE.COM",
+			NetBIOSDomain:         "CORP",
+			LDAPURL:               "ldaps://dc1.corp.example.com:636",
+			BaseDN:                "dc=corp,dc=example,dc=com",
+			UserFilter:            "(|(userPrincipalName=%p)(sAMAccountName=%u))",
+			GroupFilter:           "(member=%D)",
+			AuthMethod:            "winbind_helper",
+			RequestTimeoutSeconds: 5,
+			GroupCacheTTLSeconds:  3600,
+			Winbind: config.ActiveDirectoryWinbindConfig{
+				Enabled:        true,
+				AuthHelperPath: "/usr/local/libexec/aegisnas-ad-auth",
+				NTLMAuthPath:   "/usr/bin/ntlm_auth",
+			},
+		},
+	}
+
+	generated, err := NewGenerator(cfg).Generate()
+	require.NoError(t, err)
+	assert.Contains(t, generated.ModsLDAP, "ldaps://dc1.corp.example.com:636")
+	assert.Contains(t, generated.ModsLDAP, "dc=corp,dc=example,dc=com")
+	assert.Contains(t, generated.ModsMSCHAP, `ntlm_auth = "/usr/bin/ntlm_auth --request-nt-key --domain=CORP`)
+	assert.Contains(t, generated.ModsMSCHAP, "--nt-response=%{%{mschap:NT-Response}:-00}")
+	assert.Contains(t, generated.SitesDefault, "ldap")
+	assert.Contains(t, generated.SitesInnerTunnel, "mschap")
+}
+
 func TestGeneratorRendersInboundAndOutboundRadSec(t *testing.T) {
 	previousDB := db.DB
 	db.DB = nil

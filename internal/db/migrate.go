@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 23
+	return 24
 }
 
 func Migrate() error {
@@ -917,4 +917,63 @@ CREATE INDEX IF NOT EXISTS idx_mfa_events_observed_at ON mfa_events(observed_at)
 CREATE INDEX IF NOT EXISTS idx_mfa_events_decision ON mfa_events(decision, observed_at);
 CREATE INDEX IF NOT EXISTS idx_mfa_events_username_hash ON mfa_events(username_hash, observed_at);
 CREATE INDEX IF NOT EXISTS idx_mfa_events_method ON mfa_events(method, observed_at);
+`
+
+const schemaV24 = `
+CREATE TABLE IF NOT EXISTS active_directory_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	domain TEXT,
+	realm TEXT,
+	source_name TEXT NOT NULL DEFAULT 'active-directory',
+	username_hash TEXT NOT NULL,
+	principal_hash TEXT,
+	auth_method TEXT NOT NULL,
+	decision TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	latency_ms INTEGER DEFAULT 0,
+	role TEXT,
+	groups_json TEXT NOT NULL DEFAULT '[]',
+	cache_used BOOLEAN DEFAULT 0,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS active_directory_group_cache (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	username_hash TEXT NOT NULL,
+	principal_hash TEXT,
+	source_name TEXT NOT NULL DEFAULT 'active-directory',
+	domain TEXT,
+	realm TEXT,
+	role TEXT,
+	groups_json TEXT NOT NULL DEFAULT '[]',
+	last_success_at DATETIME NOT NULL,
+	expires_at DATETIME NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE(source_name, username_hash)
+);
+
+CREATE TABLE IF NOT EXISTS active_directory_health_checks (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	checked_at DATETIME NOT NULL,
+	domain TEXT,
+	realm TEXT,
+	component TEXT NOT NULL,
+	status TEXT NOT NULL,
+	message TEXT,
+	latency_ms INTEGER DEFAULT 0,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_active_directory_events_observed_at ON active_directory_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_active_directory_events_decision ON active_directory_events(decision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_active_directory_events_source ON active_directory_events(source_name, observed_at);
+CREATE INDEX IF NOT EXISTS idx_active_directory_events_username ON active_directory_events(username_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_active_directory_group_cache_source_hash ON active_directory_group_cache(source_name, username_hash);
+CREATE INDEX IF NOT EXISTS idx_active_directory_group_cache_expires ON active_directory_group_cache(expires_at);
+CREATE INDEX IF NOT EXISTS idx_active_directory_health_checked_at ON active_directory_health_checks(checked_at);
+CREATE INDEX IF NOT EXISTS idx_active_directory_health_component ON active_directory_health_checks(component, checked_at);
 `

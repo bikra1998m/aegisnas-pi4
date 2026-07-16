@@ -100,6 +100,8 @@ var genConfigCmd = &cobra.Command{
 		fmt.Println(fullCfg.Users)
 		fmt.Println("=== mods-enabled/ldap ===")
 		fmt.Println(fullCfg.ModsLDAP)
+		fmt.Println("=== mods-enabled/mschap ===")
+		fmt.Println(fullCfg.ModsMSCHAP)
 		fmt.Println("=== mods-enabled/sql ===")
 		fmt.Println(fullCfg.ModsSQL)
 		fmt.Println("=== proxy.conf ===")
