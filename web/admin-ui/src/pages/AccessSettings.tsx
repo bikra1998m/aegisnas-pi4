@@ -661,6 +661,27 @@ const defaultSettings: JsonMap = {
     audit_enabled: true,
     retention_limit: 6000,
   },
+  admin_webauthn: {
+    enabled: false,
+    mode: "monitor",
+    fail_closed: true,
+    rp_id: "",
+    rp_name: "AegisNAS Admin",
+    origins: [],
+    challenge_ttl_seconds: 300,
+    session_ttl_seconds: 28800,
+    max_pending: 10000,
+    user_verification: "preferred",
+    attestation: "none",
+    resident_key: "preferred",
+    require_for_roles: ["super_admin", "ops_admin"],
+    require_for_sso: true,
+    require_for_token_login: true,
+    break_glass_allowed: true,
+    allow_bootstrap_enrollment: false,
+    audit_enabled: true,
+    retention_limit: 6000,
+  },
   mab: {
     enabled: false,
     mode: "monitor",
@@ -1084,6 +1105,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.mfa.otp = next.mfa.otp || {};
   next.mfa.radius_challenge = next.mfa.radius_challenge || {};
   next.mfa.recovery = next.mfa.recovery || {};
+  next.admin_webauthn = next.admin_webauthn || {};
   next.mab = next.mab || {};
   next.radius = next.radius || {};
   next.radius.upstream = next.radius.upstream || {};
@@ -1110,6 +1132,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.onboarding.certificate_enrollment_enabled = false;
     next.onboarding.eap_tls_enabled = false;
     next.onboarding.ca_mode = "none";
+    next.admin_webauthn.enabled = false;
     next.mab.enabled = false;
     next.profiling.passive_enabled = false;
     next.profiling.posture_enabled = false;
@@ -1133,6 +1156,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.max_sessions = 4096;
     next.radius.interim_update_seconds = 300;
     next.radius.upstream.status_check = "status-server";
+    next.admin_webauthn.challenge_ttl_seconds =
+      next.admin_webauthn.challenge_ttl_seconds || 300;
+    next.admin_webauthn.session_ttl_seconds =
+      next.admin_webauthn.session_ttl_seconds || 28800;
     next.mab.cache_ttl_seconds = next.mab.cache_ttl_seconds || 300;
     next.mab.revalidate_interval_seconds =
       next.mab.revalidate_interval_seconds || 300;
@@ -1161,6 +1188,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.max_sessions = 1024;
     next.radius.interim_update_seconds = 300;
     next.radius.upstream.status_check = "status-server";
+    next.admin_webauthn.challenge_ttl_seconds =
+      next.admin_webauthn.challenge_ttl_seconds || 300;
+    next.admin_webauthn.session_ttl_seconds =
+      next.admin_webauthn.session_ttl_seconds || 28800;
     next.mab.cache_ttl_seconds = next.mab.cache_ttl_seconds || 300;
   }
 
@@ -5220,6 +5251,195 @@ export default function AccessSettings() {
               value={settings.mfa?.retention_limit || 6000}
               onChange={(value) =>
                 updateField(["mfa", "retention_limit"], Number(value))
+              }
+            />
+          </div>
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-4">
+            <h4 className="font-semibold text-gray-900">
+              Admin Passkeys
+            </h4>
+            <p className="mt-1 text-sm text-gray-600">
+              Phishing-resistant WebAuthn step-up protects privileged admin
+              sessions after token or SSO first factor.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <ToggleField
+              label="Passkeys Enabled"
+              checked={Boolean(settings.admin_webauthn?.enabled)}
+              onChange={(value) =>
+                updateField(["admin_webauthn", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={settings.admin_webauthn?.fail_closed !== false}
+              onChange={(value) =>
+                updateField(["admin_webauthn", "fail_closed"], value)
+              }
+            />
+            <ToggleField
+              label="Require For SSO"
+              checked={settings.admin_webauthn?.require_for_sso !== false}
+              onChange={(value) =>
+                updateField(["admin_webauthn", "require_for_sso"], value)
+              }
+            />
+            <ToggleField
+              label="Require For Token Login"
+              checked={
+                settings.admin_webauthn?.require_for_token_login !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["admin_webauthn", "require_for_token_login"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Break-Glass Allowed"
+              checked={settings.admin_webauthn?.break_glass_allowed !== false}
+              onChange={(value) =>
+                updateField(["admin_webauthn", "break_glass_allowed"], value)
+              }
+            />
+            <ToggleField
+              label="Audit Enabled"
+              checked={settings.admin_webauthn?.audit_enabled !== false}
+              onChange={(value) =>
+                updateField(["admin_webauthn", "audit_enabled"], value)
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <SelectField
+              label="Mode"
+              value={settings.admin_webauthn?.mode || "monitor"}
+              onChange={(value) =>
+                updateField(["admin_webauthn", "mode"], value)
+              }
+              options={transportPolicyModeOptions}
+            />
+            <TextField
+              label="RP ID"
+              value={settings.admin_webauthn?.rp_id || ""}
+              onChange={(value) =>
+                updateField(["admin_webauthn", "rp_id"], value)
+              }
+              placeholder="admin.example.com"
+            />
+            <TextField
+              label="RP Name"
+              value={settings.admin_webauthn?.rp_name || "AegisNAS Admin"}
+              onChange={(value) =>
+                updateField(["admin_webauthn", "rp_name"], value)
+              }
+            />
+            <TextField
+              label="Origins"
+              value={listToCSV(settings.admin_webauthn?.origins || [])}
+              onChange={(value) =>
+                updateField(["admin_webauthn", "origins"], csvToList(value))
+              }
+              placeholder="https://admin.example.com"
+            />
+            <SelectField
+              label="User Verification"
+              value={settings.admin_webauthn?.user_verification || "preferred"}
+              onChange={(value) =>
+                updateField(["admin_webauthn", "user_verification"], value)
+              }
+              options={[
+                { value: "required", label: "Required" },
+                { value: "preferred", label: "Preferred" },
+                { value: "discouraged", label: "Discouraged" },
+              ]}
+            />
+            <SelectField
+              label="Attestation"
+              value={settings.admin_webauthn?.attestation || "none"}
+              onChange={(value) =>
+                updateField(["admin_webauthn", "attestation"], value)
+              }
+              options={[
+                { value: "none", label: "None" },
+                { value: "direct", label: "Direct" },
+                { value: "enterprise", label: "Enterprise" },
+              ]}
+            />
+            <SelectField
+              label="Resident Key"
+              value={settings.admin_webauthn?.resident_key || "preferred"}
+              onChange={(value) =>
+                updateField(["admin_webauthn", "resident_key"], value)
+              }
+              options={[
+                { value: "required", label: "Required" },
+                { value: "preferred", label: "Preferred" },
+                { value: "discouraged", label: "Discouraged" },
+              ]}
+            />
+            <TextField
+              label="Required Roles"
+              value={listToCSV(
+                settings.admin_webauthn?.require_for_roles || [
+                  "super_admin",
+                  "ops_admin",
+                ],
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["admin_webauthn", "require_for_roles"],
+                  csvToList(value),
+                )
+              }
+              placeholder="super_admin, ops_admin"
+            />
+            <TextField
+              label="Challenge TTL Seconds"
+              type="number"
+              value={settings.admin_webauthn?.challenge_ttl_seconds || 300}
+              onChange={(value) =>
+                updateField(
+                  ["admin_webauthn", "challenge_ttl_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Session TTL Seconds"
+              type="number"
+              value={settings.admin_webauthn?.session_ttl_seconds || 28800}
+              onChange={(value) =>
+                updateField(
+                  ["admin_webauthn", "session_ttl_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Pending Challenges"
+              type="number"
+              value={settings.admin_webauthn?.max_pending || 10000}
+              onChange={(value) =>
+                updateField(
+                  ["admin_webauthn", "max_pending"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Audit Retention"
+              type="number"
+              value={settings.admin_webauthn?.retention_limit || 6000}
+              onChange={(value) =>
+                updateField(
+                  ["admin_webauthn", "retention_limit"],
+                  Number(value),
+                )
               }
             />
           </div>

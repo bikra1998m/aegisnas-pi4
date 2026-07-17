@@ -18,6 +18,7 @@ import (
 	mfapkg "github.com/yourorg/aegisnas-pi4/internal/mfa"
 	"github.com/yourorg/aegisnas-pi4/internal/radius"
 	"github.com/yourorg/aegisnas-pi4/internal/secrets"
+	webauthnpkg "github.com/yourorg/aegisnas-pi4/internal/webauthn"
 )
 
 type productionReadinessReport struct {
@@ -120,6 +121,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionIdentityFailoverCheck(&report, cfg)
 	addProductionActiveDirectoryCheck(&report, cfg)
 	addProductionMFACheck(&report, cfg)
+	addProductionAdminWebAuthnCheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
@@ -479,6 +481,48 @@ func addProductionMFACheck(report *productionReadinessReport, cfg *config.Config
 			mfaReport.AuditSummary.TotalRecords),
 		Recommendation: "Enable mfa.mode=enforce, keep fail_closed=true, set mfa.otp.sealing_key_ref to a secure env/file secret, enroll required users, and review /api/v1/system/mfa before production cutover.",
 		Dependencies:   []string{"mfa", "mfa.otp.sealing_key_ref", "mfa_totp_secrets", "mfa_recovery_codes", "mfa_challenges", "mfa_events", "/api/v1/system/mfa"},
+	})
+}
+
+func addProductionAdminWebAuthnCheck(report *productionReadinessReport, cfg *config.Config) {
+	webAuthnReport := webauthnpkg.BuildReport(cfg)
+	if !webAuthnReport.Enabled {
+		return
+	}
+	status := "passed"
+	switch webAuthnReport.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "degraded"
+	}
+	if webAuthnReport.Policy.Mode != "enforce" || !webAuthnReport.Policy.FailClosed {
+		status = "blocked"
+	}
+	if !webAuthnReport.Policy.RPIDConfigured || len(webAuthnReport.Policy.Origins) == 0 {
+		status = "blocked"
+	}
+	if webAuthnReport.Credentials.EnabledCredentials == 0 {
+		status = "blocked"
+	}
+	if webAuthnReport.Policy.BreakGlassAllowed && status != "blocked" {
+		status = "degraded"
+	}
+	if webAuthnReport.Policy.AuditEnabled && db.DB == nil {
+		status = "blocked"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "admin_webauthn_passkeys",
+		Category: "authentication",
+		Label:    "Admin WebAuthn Passkeys",
+		Status:   status,
+		Summary: fmt.Sprintf("Admin WebAuthn schema %d is %s in %s mode with RP ID configured=%t, %d origin(s), %d enabled credential(s), %d pending challenge(s), and %d audited decision(s).",
+			webAuthnReport.SchemaVersion, webAuthnReport.Status, webAuthnReport.Policy.Mode,
+			webAuthnReport.Policy.RPIDConfigured, len(webAuthnReport.Policy.Origins),
+			webAuthnReport.Credentials.EnabledCredentials, webAuthnReport.Credentials.PendingChallenges,
+			webAuthnReport.AuditSummary.TotalRecords),
+		Recommendation: "Set admin_webauthn.mode=enforce, keep fail_closed=true, configure rp_id and HTTPS origins, enroll passkeys for privileged admins, and keep break-glass use governed.",
+		Dependencies:   []string{"admin_webauthn", "admin_webauthn_credentials", "admin_webauthn_challenges", "admin_webauthn_events", "/api/v1/system/webauthn"},
 	})
 }
 

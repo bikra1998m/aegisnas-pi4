@@ -15,6 +15,7 @@ import (
 	mabpkg "github.com/yourorg/aegisnas-pi4/internal/mab"
 	mfapkg "github.com/yourorg/aegisnas-pi4/internal/mfa"
 	"github.com/yourorg/aegisnas-pi4/internal/radius"
+	webauthnpkg "github.com/yourorg/aegisnas-pi4/internal/webauthn"
 )
 
 type serviceStatus struct {
@@ -878,6 +879,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	identityFailover := identity.BuildFailoverReport(cfg)
 	activeDirectory := activedirectory.BuildReport(cfg)
 	mfaReport := mfapkg.BuildReport(cfg)
+	webAuthnReport := webauthnpkg.BuildReport(cfg)
 	mabReport := mabpkg.BuildReport(cfg)
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -897,7 +899,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"deployment":           config.DeploymentSummary(cfg),
 		"database":             db.BuildStatusReport(cfg),
 		"production_readiness": productionReadinessSummaryFromReport(productionReadiness),
-		"identity":             map[string]any{"failover": identityFailover, "active_directory": activeDirectory, "mfa": mfaReport, "mab": mabReport},
+		"identity":             map[string]any{"failover": identityFailover, "active_directory": activeDirectory, "mfa": mfaReport, "webauthn": webAuthnReport, "mab": mabReport},
 		"radius":               radiusStatus,
 		"wireless":             wirelessStatus,
 		"enforcement":          enforcementStatus,

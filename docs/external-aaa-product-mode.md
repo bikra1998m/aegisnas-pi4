@@ -45,6 +45,8 @@ Files involved:
 - [dynamic_nas_clients.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/dynamic_nas_clients.go)
 - [manager.go](F:/random_project/Pookie/aegisnas-pi4/internal/sessions/manager.go)
 - [dynamic_auth.go](F:/random_project/Pookie/aegisnas-pi4/internal/sessions/dynamic_auth.go)
+- [webauthn.go](F:/random_project/Pookie/aegisnas-pi4/internal/webauthn/webauthn.go)
+- [webauthn.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/webauthn.go)
 - [config.example.yaml](F:/random_project/Pookie/aegisnas-pi4/configs/config.example.yaml)
 
 The implementation now does these things end to end:
@@ -65,6 +67,7 @@ The implementation now does these things end to end:
 14. blocks downgrade-prone mixed UDP/RadSec proxy pools when transport policy is in enforce mode
 15. governs portal local/LDAP fallback during upstream outage with identity allowlists, bounded outage windows, hashed audit events, readiness checks, and dashboard/API visibility
 16. supports MAC Authentication Bypass endpoint state, profile-linked quarantine, generated FreeRADIUS authorize entries, API evaluation, dashboard status, and readiness checks for non-802.1X devices
+17. protects privileged admin token and SSO sessions with WebAuthn/passkey step-up, credential lifecycle APIs, dashboard status, readiness checks, and support-bundle evidence
 
 ## Current Behavior
 
@@ -97,6 +100,7 @@ When `radius.upstream.enabled: true`:
   - AegisNAS vendor-specific attributes when `radius.vendor.enabled: true`
   - enabled compatibility-pack VSAs such as Aruba role/VLAN, Ruckus groups/VLAN, Fortinet profiles, Cisco/Juniper ACL names, UniFi/UBNT rate hints, Cambium rate/VLAN/quarantine, Meraki context, Extreme Netlogin, Huawei/H3C QoS, Palo Alto context, and TP-Link Omada hints
 - break-glass local admin auth remains available even when portal RADIUS auth is enabled
+- privileged admin token and SSO sessions can require WebAuthn/passkey assertion before the admin API accepts a verified session token
 - voucher logins remain local so guest access still has an offline path
 
 What this pass still does not change:
@@ -106,6 +110,7 @@ What this pass still does not change:
 - `CoA-Request` can now trigger immediate gateway quarantine enforcement, immediate timeout expiry, live bandwidth profile reshaping, and VLAN-change reauthentication, but live controller/device ACL push still needs per-vendor smoke testing
 - `scripts/vendor-certification-lab.sh` provides the repeatable per-pack API, RADIUS, packet-capture, real-device, controller, upgrade, and rollback evidence workflow for that smoke testing
 - real AP/switch/controller certification for MAB remains tracked in [nas-0017-release-certification-checklist.md](nas-0017-release-certification-checklist.md)
+- real authenticator, browser, SSO provider, HA, and security validation for admin passkeys remains tracked in [nas-0021-release-certification-checklist.md](nas-0021-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 
@@ -749,6 +754,16 @@ For OTP or upstream RADIUS challenge MFA:
 5. confirm successful OTP creates the session and failed OTP records a denied `mfa_events` entry
 6. if the upstream server issues `Access-Challenge`, confirm the broker returns RFC 2865 `State` and the second request includes that state
 7. export a support bundle and retain `api/mfa.json`
+
+For admin WebAuthn/passkey step-up:
+
+1. set `admin_webauthn.enabled: true`, `admin_webauthn.mode: monitor`, and configure the production HTTPS `rp_id` and `origins`
+2. sign in as `super_admin` and register at least two passkeys for privileged administrators
+3. confirm `/api/v1/system/webauthn` reports enabled credentials and no blocking warnings
+4. set `admin_webauthn.mode: enforce` and keep `admin_webauthn.fail_closed: true`
+5. perform token login and admin SSO login and confirm both require a WebAuthn assertion before protected APIs accept the session
+6. revoke one credential and confirm it can no longer complete login
+7. export a support bundle and retain `api/webauthn.json`
 
 ## Ubuntu Appliance Notes
 

@@ -31,6 +31,20 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/auth/options", "get", openAPIOperation("List admin authentication options", "Authentication", nil, map[string]any{
 		"200": responseJSON("Available admin login methods and runtime support."),
 	}))
+	addOperation(paths, "/api/v1/auth/token/start", "post", openAPIOperationWithBody("Start token or passkey admin login", "Authentication", genericJSONObjectRequest("Bearer token first factor."), map[string]any{
+		"200": responseJSON("Either a completed token login or a WebAuthn request-options challenge."),
+		"401": responseJSON("Invalid or expired token."),
+		"403": responseJSON("Passkey step-up is required but cannot be started."),
+	}))
+	addOperation(paths, "/api/v1/auth/webauthn/login/options", "post", openAPIOperationWithBody("Fetch pending passkey login options", "Authentication", genericJSONObjectRequest("Pending WebAuthn state from SSO redirect or token start."), map[string]any{
+		"200":     responseJSON("WebAuthn PublicKeyCredentialRequestOptions for the pending state."),
+		"default": responseJSON("Pending challenge lookup error."),
+	}))
+	addOperation(paths, "/api/v1/auth/webauthn/login/finish", "post", openAPIOperationWithBody("Finish passkey admin login", "Authentication", genericJSONObjectRequest("Pending state and browser assertion credential."), map[string]any{
+		"200":     responseJSON("Short-lived verified admin session token."),
+		"403":     responseJSON("Passkey assertion denied."),
+		"default": responseJSON("Passkey verification error."),
+	}))
 	addOperation(paths, "/api/v1/auth/sso/start", "get", openAPIOperation("Start admin SSO flow", "Authentication", nil, map[string]any{
 		"200":     responseJSON("SSO start details or redirect metadata."),
 		"default": responseText("Authentication error."),
@@ -1250,6 +1264,26 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"201":     responseJSON("Replacement recovery codes returned once with username hash."),
 		"default": responseJSON("MFA recovery-code rotation error."),
 	}))
+	addOperation(paths, "/api/v1/system/webauthn", "get", securedOperationWithParameters("Read admin WebAuthn passkey state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("decision", "Optional audited decision filter.", []string{"challenge_issued", "registered", "accepted", "denied", "monitor_allowed"}, false),
+		queryEnumParameter("ceremony", "Optional ceremony filter.", []string{"registration", "authentication"}, false),
+		queryStringParameter("subject", "Optional admin subject filter for credentials.", false),
+		queryStringParameter("limit", "Credential or event limit from 1 to 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("Effective WebAuthn policy, credential inventory, challenge posture, audit summary, and recent events."),
+	}))
+	addOperation(paths, "/api/v1/system/webauthn/register/options", "post", securedOperationWithBody("Start admin passkey registration", "Authentication", []string{"super_admin"}, genericJSONObjectRequest("Admin subject, display name, and credential label."), map[string]any{
+		"201":     responseJSON("WebAuthn PublicKeyCredentialCreationOptions and pending state."),
+		"default": responseJSON("Passkey registration challenge error."),
+	}))
+	addOperation(paths, "/api/v1/system/webauthn/register/finish", "post", securedOperationWithBody("Finish admin passkey registration", "Authentication", []string{"super_admin"}, genericJSONObjectRequest("Pending state and browser attestation credential."), map[string]any{
+		"201":     responseJSON("Stored passkey credential metadata."),
+		"default": responseJSON("Passkey registration verification error."),
+	}))
+	addOperation(paths, "/api/v1/system/webauthn/credentials/{id}", "delete", securedOperation("Revoke an admin passkey credential", "Authentication", []string{"super_admin"}, map[string]any{
+		"204":     responseText("Credential revoked."),
+		"default": responseJSON("Credential revoke error."),
+	}))
 	addOperation(paths, "/api/v1/system/mab", "get", securedOperationWithParameters("Read MAC Authentication Bypass state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "quarantined", "monitor_allowed", "fail_open", "unsupported"}, false),
 		queryStringParameter("mac", "Optional endpoint MAC filter in colon, hyphen, plain, or Cisco dotted format.", false),
@@ -1562,6 +1596,14 @@ func openAPIOperation(summary, tag string, parameters []map[string]any, response
 	}
 	if len(parameters) > 0 {
 		op["parameters"] = parameters
+	}
+	return op
+}
+
+func openAPIOperationWithBody(summary, tag string, body map[string]any, responses map[string]any) map[string]any {
+	op := openAPIOperation(summary, tag, nil, responses)
+	if body != nil {
+		op["requestBody"] = body
 	}
 	return op
 }

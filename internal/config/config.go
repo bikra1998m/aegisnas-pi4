@@ -32,6 +32,7 @@ type Config struct {
 	Identity         IdentityConfig         `mapstructure:"identity"`
 	ActiveDirectory  ActiveDirectoryConfig  `mapstructure:"active_directory"`
 	MFA              MFAConfig              `mapstructure:"mfa"`
+	AdminWebAuthn    AdminWebAuthnConfig    `mapstructure:"admin_webauthn"`
 	MAB              MABConfig              `mapstructure:"mab"`
 	LDAP             LDAPConfig             `mapstructure:"ldap"`
 	Policy           PolicyConfig           `mapstructure:"policy"`
@@ -709,6 +710,28 @@ type MFARecoveryConfig struct {
 	CodeCount      int  `mapstructure:"code_count"`
 	CodeBytes      int  `mapstructure:"code_bytes"`
 	CodeTTLSeconds int  `mapstructure:"code_ttl_seconds"`
+}
+
+type AdminWebAuthnConfig struct {
+	Enabled                  bool     `mapstructure:"enabled"`
+	Mode                     string   `mapstructure:"mode"`
+	FailClosed               bool     `mapstructure:"fail_closed"`
+	RPID                     string   `mapstructure:"rp_id"`
+	RPName                   string   `mapstructure:"rp_name"`
+	Origins                  []string `mapstructure:"origins"`
+	ChallengeTTLSeconds      int      `mapstructure:"challenge_ttl_seconds"`
+	SessionTTLSeconds        int      `mapstructure:"session_ttl_seconds"`
+	MaxPending               int      `mapstructure:"max_pending"`
+	UserVerification         string   `mapstructure:"user_verification"`
+	Attestation              string   `mapstructure:"attestation"`
+	ResidentKey              string   `mapstructure:"resident_key"`
+	RequireForRoles          []string `mapstructure:"require_for_roles"`
+	RequireForSSO            bool     `mapstructure:"require_for_sso"`
+	RequireForTokenLogin     bool     `mapstructure:"require_for_token_login"`
+	BreakGlassAllowed        bool     `mapstructure:"break_glass_allowed"`
+	AllowBootstrapEnrollment bool     `mapstructure:"allow_bootstrap_enrollment"`
+	AuditEnabled             bool     `mapstructure:"audit_enabled"`
+	RetentionLimit           int      `mapstructure:"retention_limit"`
 }
 
 type MABConfig struct {
@@ -1441,6 +1464,25 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("mfa.recovery.code_ttl_seconds", 0)
 	v.SetDefault("mfa.audit_enabled", true)
 	v.SetDefault("mfa.retention_limit", 6000)
+	v.SetDefault("admin_webauthn.enabled", false)
+	v.SetDefault("admin_webauthn.mode", "monitor")
+	v.SetDefault("admin_webauthn.fail_closed", true)
+	v.SetDefault("admin_webauthn.rp_id", "")
+	v.SetDefault("admin_webauthn.rp_name", "AegisNAS Admin")
+	v.SetDefault("admin_webauthn.origins", []string{})
+	v.SetDefault("admin_webauthn.challenge_ttl_seconds", 300)
+	v.SetDefault("admin_webauthn.session_ttl_seconds", 28800)
+	v.SetDefault("admin_webauthn.max_pending", 10000)
+	v.SetDefault("admin_webauthn.user_verification", "preferred")
+	v.SetDefault("admin_webauthn.attestation", "none")
+	v.SetDefault("admin_webauthn.resident_key", "preferred")
+	v.SetDefault("admin_webauthn.require_for_roles", []string{"super_admin", "ops_admin"})
+	v.SetDefault("admin_webauthn.require_for_sso", true)
+	v.SetDefault("admin_webauthn.require_for_token_login", true)
+	v.SetDefault("admin_webauthn.break_glass_allowed", true)
+	v.SetDefault("admin_webauthn.allow_bootstrap_enrollment", false)
+	v.SetDefault("admin_webauthn.audit_enabled", true)
+	v.SetDefault("admin_webauthn.retention_limit", 6000)
 	v.SetDefault("mab.enabled", false)
 	v.SetDefault("mab.mode", "monitor")
 	v.SetDefault("mab.fail_closed", true)
@@ -2305,6 +2347,9 @@ func (c *Config) Validate() error {
 		return err
 	}
 	if err := validateMFA(c.MFA); err != nil {
+		return err
+	}
+	if err := validateAdminWebAuthn(c.AdminWebAuthn); err != nil {
 		return err
 	}
 	if err := validateMAB(c.MAB); err != nil {
@@ -5186,6 +5231,148 @@ func validateMFA(raw MFAConfig) error {
 		return errors.New("mfa.retention_limit must be between 100 and 1000000")
 	}
 	return nil
+}
+
+func EffectiveAdminWebAuthnConfig(raw AdminWebAuthnConfig) AdminWebAuthnConfig {
+	effective := raw
+	if strings.TrimSpace(effective.Mode) == "" {
+		effective.Mode = "monitor"
+	}
+	if strings.TrimSpace(effective.RPName) == "" {
+		effective.RPName = "AegisNAS Admin"
+	}
+	if effective.ChallengeTTLSeconds == 0 {
+		effective.ChallengeTTLSeconds = 300
+	}
+	if effective.SessionTTLSeconds == 0 {
+		effective.SessionTTLSeconds = 28800
+	}
+	if effective.MaxPending == 0 {
+		effective.MaxPending = 10000
+	}
+	if strings.TrimSpace(effective.UserVerification) == "" {
+		effective.UserVerification = "preferred"
+	}
+	if strings.TrimSpace(effective.Attestation) == "" {
+		effective.Attestation = "none"
+	}
+	if strings.TrimSpace(effective.ResidentKey) == "" {
+		effective.ResidentKey = "preferred"
+	}
+	if len(effective.RequireForRoles) == 0 {
+		effective.RequireForRoles = []string{"super_admin", "ops_admin"}
+	}
+	if effective.RetentionLimit == 0 {
+		effective.RetentionLimit = 6000
+	}
+	return effective
+}
+
+func validateAdminWebAuthn(raw AdminWebAuthnConfig) error {
+	effective := EffectiveAdminWebAuthnConfig(raw)
+	switch strings.ToLower(strings.TrimSpace(effective.Mode)) {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("admin_webauthn.mode %q must be monitor or enforce", raw.Mode)
+	}
+	if len(strings.TrimSpace(effective.RPName)) > 64 || strings.ContainsAny(effective.RPName, "\r\n\x00") {
+		return errors.New("admin_webauthn.rp_name is invalid")
+	}
+	rpID := strings.TrimSpace(effective.RPID)
+	if rpID != "" && !validWebAuthnRPID(rpID) {
+		return fmt.Errorf("admin_webauthn.rp_id %q is invalid", rpID)
+	}
+	seenOrigins := map[string]struct{}{}
+	for i, origin := range effective.Origins {
+		origin = strings.TrimSpace(origin)
+		if origin == "" {
+			return fmt.Errorf("admin_webauthn.origins[%d] cannot be empty", i)
+		}
+		parsed, err := url.Parse(origin)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+			return fmt.Errorf("admin_webauthn.origins[%d] %q must be an origin without path, query, or fragment", i, origin)
+		}
+		if parsed.Scheme != "https" && !isLocalWebAuthnOrigin(parsed) {
+			return fmt.Errorf("admin_webauthn.origins[%d] %q must use https outside localhost", i, origin)
+		}
+		key := strings.ToLower(origin)
+		if _, ok := seenOrigins[key]; ok {
+			return fmt.Errorf("admin_webauthn.origins[%d] duplicates another origin", i)
+		}
+		seenOrigins[key] = struct{}{}
+	}
+	values := map[string]int{
+		"challenge_ttl_seconds": raw.ChallengeTTLSeconds,
+		"session_ttl_seconds":   raw.SessionTTLSeconds,
+		"max_pending":           raw.MaxPending,
+		"retention_limit":       raw.RetentionLimit,
+	}
+	for name, value := range values {
+		if value < 0 {
+			return fmt.Errorf("admin_webauthn.%s %d cannot be negative", name, value)
+		}
+	}
+	if effective.ChallengeTTLSeconds < 30 || effective.ChallengeTTLSeconds > 3600 {
+		return errors.New("admin_webauthn.challenge_ttl_seconds must be between 30 and 3600")
+	}
+	if effective.SessionTTLSeconds < 300 || effective.SessionTTLSeconds > 86400 {
+		return errors.New("admin_webauthn.session_ttl_seconds must be between 300 and 86400")
+	}
+	if effective.MaxPending < 1 || effective.MaxPending > 1000000 {
+		return errors.New("admin_webauthn.max_pending must be between 1 and 1000000")
+	}
+	if effective.RetentionLimit < 100 || effective.RetentionLimit > 1000000 {
+		return errors.New("admin_webauthn.retention_limit must be between 100 and 1000000")
+	}
+	switch strings.ToLower(strings.TrimSpace(effective.UserVerification)) {
+	case "required", "preferred", "discouraged":
+	default:
+		return fmt.Errorf("admin_webauthn.user_verification %q must be required, preferred, or discouraged", effective.UserVerification)
+	}
+	switch strings.ToLower(strings.TrimSpace(effective.Attestation)) {
+	case "none", "direct", "enterprise":
+	default:
+		return fmt.Errorf("admin_webauthn.attestation %q must be none, direct, or enterprise", effective.Attestation)
+	}
+	switch strings.ToLower(strings.TrimSpace(effective.ResidentKey)) {
+	case "required", "preferred", "discouraged":
+	default:
+		return fmt.Errorf("admin_webauthn.resident_key %q must be required, preferred, or discouraged", effective.ResidentKey)
+	}
+	for i, role := range effective.RequireForRoles {
+		role = strings.TrimSpace(role)
+		if !validMFAToken(role) {
+			return fmt.Errorf("admin_webauthn.require_for_roles[%d] is invalid", i)
+		}
+	}
+	return nil
+}
+
+func validWebAuthnRPID(value string) bool {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if value == "" || len(value) > 253 || strings.ContainsAny(value, "/:@\r\n\x00") {
+		return false
+	}
+	if strings.HasPrefix(value, ".") || strings.HasSuffix(value, ".") {
+		return false
+	}
+	parts := strings.Split(value, ".")
+	for _, part := range parts {
+		if part == "" || len(part) > 63 || strings.HasPrefix(part, "-") || strings.HasSuffix(part, "-") {
+			return false
+		}
+		for _, r := range part {
+			if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '-' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func isLocalWebAuthnOrigin(parsed *url.URL) bool {
+	host := strings.ToLower(parsed.Hostname())
+	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
 func EffectiveMABConfig(raw MABConfig) MABConfig {

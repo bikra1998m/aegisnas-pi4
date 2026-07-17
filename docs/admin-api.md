@@ -294,6 +294,27 @@ restricted to `super_admin`. The same summary appears in `/api/v1/system/status`
 under `identity.mfa`, in production readiness as `mfa_challenge_otp`, and in
 support bundles as `api/mfa.json`. See [mfa-radius-challenge.md](mfa-radius-challenge.md).
 
+Admin WebAuthn/passkey step-up state is exposed at:
+
+```text
+GET    /api/v1/system/webauthn
+POST   /api/v1/system/webauthn/register/options
+POST   /api/v1/system/webauthn/register/finish
+DELETE /api/v1/system/webauthn/credentials/{id}
+POST   /api/v1/auth/token/start
+POST   /api/v1/auth/webauthn/login/options
+POST   /api/v1/auth/webauthn/login/finish
+```
+
+Use these endpoints to review passkey policy, enabled credentials, pending
+challenges, recent hashed audit decisions, and privileged-admin step-up
+readiness. Registration and revocation are restricted to `super_admin`.
+Token login and admin SSO can require WebAuthn before a short-lived verified
+admin session token is minted. The same summary appears in
+`/api/v1/system/status` under `identity.webauthn`, in production readiness as
+`admin_webauthn_passkeys`, and in support bundles as `api/webauthn.json`. See
+[admin-webauthn-passkeys.md](admin-webauthn-passkeys.md).
+
 ## Dynamic NAS Client Endpoints
 
 NAS client bootstrap and lifecycle state are exposed through:
@@ -1029,6 +1050,13 @@ The common flow is:
 1. use `GET /api/v1/auth/options`
 2. sign in through token or admin SSO
 3. call the protected endpoint with the bearer token
+
+When `admin_webauthn.mode: enforce` and the authenticated role requires
+passkey step-up, token login starts with `POST /api/v1/auth/token/start`.
+OIDC and SAML callbacks redirect to the login page with a pending
+`webauthn_state`. The browser must complete
+`POST /api/v1/auth/webauthn/login/finish` before protected admin APIs accept
+the session token.
 
 ## Role Hints
 

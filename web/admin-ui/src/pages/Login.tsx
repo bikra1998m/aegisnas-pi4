@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/client';
+import { browserSupportsWebAuthn, getPasskeyCredential } from '../utils/webauthn';
 
 type AuthOptions = {
   token_login: boolean;
@@ -12,6 +13,15 @@ type AuthOptions = {
     redirect_url?: string;
     issuer_url?: string;
   };
+  webauthn?: {
+    enabled: boolean;
+    mode: string;
+    status: string;
+    require_for_sso: boolean;
+    require_for_token_login: boolean;
+    require_for_roles: string[];
+    user_verification: string;
+  };
 };
 
 export default function Login() {
@@ -19,8 +29,24 @@ export default function Login() {
   const [error, setError] = useState('');
   const [authOptions, setAuthOptions] = useState<AuthOptions | null>(null);
   const [loadingSSO, setLoadingSSO] = useState(true);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  const completePasskeyLogin = async (challengePayload: any) => {
+    setPasskeyBusy(true);
+    try {
+      const credential = await getPasskeyCredential(challengePayload.publicKey);
+      const { data } = await api.post('/auth/webauthn/login/finish', {
+        state: challengePayload.state,
+        credential,
+      });
+      await login(data.token, 'webauthn');
+      navigate('/');
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -28,6 +54,24 @@ export default function Login() {
       const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
       const ssoToken = hash.get('sso_token');
       const authMode = hash.get('auth_mode');
+      const webauthnState = hash.get('webauthn_state');
+      if (webauthnState) {
+        try {
+          if (!active) {
+            return;
+          }
+          window.history.replaceState({}, document.title, '/login');
+          const { data } = await api.post('/auth/webauthn/login/options', { state: webauthnState });
+          await completePasskeyLogin(data);
+          return;
+        } catch (err: any) {
+          if (!active) {
+            return;
+          }
+          setError(err?.response?.data?.error || err?.message || 'Passkey verification could not be completed.');
+          window.history.replaceState({}, document.title, '/login');
+        }
+      }
       if (ssoToken) {
         try {
           if (!active) {
@@ -89,10 +133,15 @@ export default function Login() {
     e.preventDefault();
     setError('');
     try {
-      await login(token, 'token');
+      const { data } = await api.post('/auth/token/start', { token });
+      if (data?.step_up_required) {
+        await completePasskeyLogin(data);
+        return;
+      }
+      await login(data?.token || token, data?.auth_mode === 'webauthn' ? 'webauthn' : 'token');
       navigate('/');
-    } catch (err) {
-      setError('Invalid token');
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || 'Invalid token');
     }
   };
 
@@ -102,6 +151,7 @@ export default function Login() {
 
   const ssoEnabled = Boolean(authOptions?.sso?.enabled);
   const ssoSupported = Boolean(authOptions?.sso?.supported);
+  const passkeysEnabled = Boolean(authOptions?.webauthn?.enabled);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -127,6 +177,12 @@ export default function Login() {
         ) : null}
 
         {ssoEnabled ? <div className="mb-4 text-center text-xs uppercase tracking-wide text-gray-400">or use a token</div> : null}
+        {passkeysEnabled ? (
+          <div className="mb-4 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600">
+            Passkey step-up is {authOptions?.webauthn?.mode || 'monitor'} for privileged admin sessions.
+            {!browserSupportsWebAuthn() ? ' This browser does not expose the passkey API.' : null}
+          </div>
+        ) : null}
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label className="block text-gray-700 mb-2">API Token</label>
@@ -142,9 +198,10 @@ export default function Login() {
           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition"
+            disabled={passkeyBusy}
+            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition disabled:cursor-not-allowed disabled:bg-gray-400"
           >
-            Sign In With Token
+            {passkeyBusy ? 'Waiting For Passkey' : 'Sign In With Token'}
           </button>
         </form>
       </div>

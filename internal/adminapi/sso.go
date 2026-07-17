@@ -56,6 +56,7 @@ func HandleAdminAuthOptions(w http.ResponseWriter, r *http.Request) {
 			"redirect_url": cfg.Integrations.AdminSSO.RedirectURL,
 			"issuer_url":   cfg.Integrations.AdminSSO.IssuerURL,
 		},
+		"webauthn": adminWebAuthnSummaryForAuthOptions(cfg),
 	}
 	if provider == "saml" {
 		response["sso"].(map[string]any)["metadata_url"] = adminSSOMetadataURL(cfg)
@@ -260,6 +261,14 @@ func handleAdminSSOCallbackOIDC(w http.ResponseWriter, r *http.Request, cfg *con
 		auditSSOEvent(username, "admin_sso_login", err.Error(), "failed", r.RemoteAddr)
 		clearAdminSSOCookies(w, cfg)
 		redirectLoginError(w, r, "Single sign-on is not authorized for this admin account.")
+		return
+	}
+	if redirected, err := maybeBeginAdminWebAuthnSSOStepUp(w, r, cfg, username, *identity, cfg.Integrations.AdminSSO.Provider, groups, idToken.Expiry); err != nil {
+		clearAdminSSOCookies(w, cfg)
+		redirectLoginError(w, r, "Admin passkey verification could not be started.")
+		return
+	} else if redirected {
+		clearAdminSSOCookies(w, cfg)
 		return
 	}
 

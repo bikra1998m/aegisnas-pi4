@@ -551,6 +551,30 @@ mfa:
   audit_enabled: true
   retention_limit: 6000
 
+admin_webauthn:
+  enabled: false
+  mode: "monitor" # Use enforce with fail_closed=true after privileged admins have enrolled passkeys.
+  fail_closed: true
+  rp_id: "admin.example.com"
+  rp_name: "AegisNAS Admin"
+  origins:
+    - "https://admin.example.com"
+  challenge_ttl_seconds: 300
+  session_ttl_seconds: 28800
+  max_pending: 10000
+  user_verification: "preferred" # required, preferred, or discouraged.
+  attestation: "none" # none, direct, or enterprise. Hardware attestation evidence is release certification.
+  resident_key: "preferred" # required, preferred, or discouraged.
+  require_for_roles:
+    - "super_admin"
+    - "ops_admin"
+  require_for_sso: true
+  require_for_token_login: true
+  break_glass_allowed: true # Keep true only with governed recovery and audited storage.
+  allow_bootstrap_enrollment: false
+  audit_enabled: true
+  retention_limit: 6000
+
 mab:
   enabled: false
   mode: "monitor" # Use enforce with fail_closed=true after endpoint inventory has been approved.

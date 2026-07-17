@@ -461,6 +461,7 @@ type SystemStatus = {
     failover?: IdentityFailoverReport;
     active_directory?: any;
     mfa?: any;
+    webauthn?: any;
     mab?: any;
   };
   deployment: {
@@ -1077,6 +1078,7 @@ export default function Dashboard() {
   const identityFailover = systemStatus.identity?.failover;
   const identityActiveDirectory = systemStatus.identity?.active_directory;
   const identityMFA = systemStatus.identity?.mfa;
+  const identityWebAuthn = systemStatus.identity?.webauthn;
   const identityMAB = systemStatus.identity?.mab;
   const radSecCredentials = systemStatus.radius?.radsec_credentials;
   const dynamicNASClients = systemStatus.radius?.dynamic_nas_clients;
@@ -2165,6 +2167,67 @@ export default function Dashboard() {
                       ) : null}
                     </div>
                     <StatusBadge status={identityMFA.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {identityWebAuthn ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Admin Passkeys
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {identityWebAuthn.message ||
+                          "Admin WebAuthn passkey state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Mode {identityWebAuthn.policy?.mode || "monitor"}
+                        </div>
+                        <div>
+                          Credentials{" "}
+                          {identityWebAuthn.credentials
+                            ?.enabled_credentials ?? 0}
+                        </div>
+                        <div>
+                          Pending{" "}
+                          {identityWebAuthn.credentials
+                            ?.pending_challenges ?? 0}
+                        </div>
+                        <div>
+                          Origins{" "}
+                          {identityWebAuthn.summary?.origin_count ?? 0}
+                        </div>
+                        <div>
+                          Decisions{" "}
+                          {identityWebAuthn.audit_summary?.total_records ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        RP{" "}
+                        {identityWebAuthn.policy?.rp_id ||
+                          "not configured"}
+                        ; user verification{" "}
+                        {identityWebAuthn.policy?.user_verification ||
+                          "preferred"}
+                        ; break-glass{" "}
+                        {identityWebAuthn.policy?.break_glass_allowed
+                          ? "allowed"
+                          : "blocked"}
+                        .
+                      </div>
+                      {identityWebAuthn.audit_summary?.last_decision ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last {identityWebAuthn.audit_summary.last_decision}:{" "}
+                          {identityWebAuthn.audit_summary.last_reason ||
+                            "no reason recorded"}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge
+                      status={identityWebAuthn.status || "unknown"}
+                    />
                   </div>
                 </div>
               ) : null}

@@ -149,7 +149,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{22, schemaV22},
 		{23, schemaV23},
 		{24, schemaV24},
-		{LatestSchemaVersion(), schemaV25},
+		{25, schemaV25},
+		{LatestSchemaVersion(), schemaV26},
 	}
 
 	for _, m := range migrations {
@@ -206,6 +207,9 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureMABTables(handle); err != nil {
 		return fmt.Errorf("repair MAB schema: %w", err)
 	}
+	if err := ensureAdminWebAuthnTables(handle); err != nil {
+		return fmt.Errorf("repair admin WebAuthn schema: %w", err)
+	}
 
 	return nil
 }
@@ -216,6 +220,15 @@ func ensureMABTables(handle *sql.DB) error {
 	}
 	dialect := DialectForHandle(handle)
 	_, err := handle.Exec(SQLForDialect(schemaV25, dialect))
+	return err
+}
+
+func ensureAdminWebAuthnTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	_, err := handle.Exec(SQLForDialect(schemaV26, dialect))
 	return err
 }
 

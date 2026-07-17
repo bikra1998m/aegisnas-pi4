@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 25
+	return 26
 }
 
 func Migrate() error {
@@ -1034,4 +1034,91 @@ CREATE INDEX IF NOT EXISTS idx_mab_events_observed_at ON mab_events(observed_at)
 CREATE INDEX IF NOT EXISTS idx_mab_events_decision ON mab_events(decision, observed_at);
 CREATE INDEX IF NOT EXISTS idx_mab_events_mac_hash ON mab_events(mac_hash, observed_at);
 CREATE INDEX IF NOT EXISTS idx_mab_events_nas ON mab_events(nas_identifier, nas_ip_address, observed_at);
+`
+
+const schemaV26 = `
+CREATE TABLE IF NOT EXISTS admin_webauthn_credentials (
+	id TEXT PRIMARY KEY,
+	credential_id_hash TEXT NOT NULL UNIQUE,
+	credential_id_b64 TEXT NOT NULL,
+	username_hash TEXT NOT NULL,
+	subject TEXT NOT NULL,
+	display_name TEXT,
+	credential_name TEXT,
+	public_key_cose_b64 TEXT NOT NULL,
+	public_key_alg INTEGER NOT NULL,
+	sign_count INTEGER NOT NULL DEFAULT 0,
+	transports_json TEXT NOT NULL DEFAULT '[]',
+	aaguid TEXT,
+	attestation_format TEXT,
+	user_verified_required BOOLEAN DEFAULT 0,
+	backup_eligible BOOLEAN DEFAULT 0,
+	backup_state BOOLEAN DEFAULT 0,
+	enabled BOOLEAN NOT NULL DEFAULT 1,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	last_used_at DATETIME,
+	revoked_at DATETIME,
+	revoked_by TEXT
+);
+
+CREATE TABLE IF NOT EXISTS admin_webauthn_challenges (
+	id TEXT PRIMARY KEY,
+	state_hash TEXT NOT NULL UNIQUE,
+	challenge TEXT NOT NULL,
+	challenge_hash TEXT NOT NULL,
+	ceremony TEXT NOT NULL,
+	status TEXT NOT NULL DEFAULT 'pending',
+	username_hash TEXT NOT NULL,
+	subject TEXT NOT NULL,
+	display_name TEXT,
+	credential_name TEXT,
+	role TEXT,
+	source TEXT,
+	provider TEXT,
+	tenants_json TEXT NOT NULL DEFAULT '[]',
+	groups_json TEXT NOT NULL DEFAULT '[]',
+	first_factor TEXT,
+	origin TEXT,
+	rp_id TEXT,
+	attempt_count INTEGER NOT NULL DEFAULT 0,
+	max_attempts INTEGER NOT NULL DEFAULT 5,
+	expires_at DATETIME NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	verified_at DATETIME,
+	failure_reason TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	CHECK (ceremony IN ('registration', 'authentication')),
+	CHECK (status IN ('pending', 'verified', 'expired', 'failed'))
+);
+
+CREATE TABLE IF NOT EXISTS admin_webauthn_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	username_hash TEXT NOT NULL,
+	subject TEXT,
+	source TEXT NOT NULL,
+	ceremony TEXT NOT NULL,
+	decision TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	credential_id_hash TEXT,
+	role TEXT,
+	provider TEXT,
+	origin TEXT,
+	rp_id TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_webauthn_credentials_subject ON admin_webauthn_credentials(subject, enabled);
+CREATE INDEX IF NOT EXISTS idx_admin_webauthn_credentials_username ON admin_webauthn_credentials(username_hash, enabled);
+CREATE INDEX IF NOT EXISTS idx_admin_webauthn_credentials_hash ON admin_webauthn_credentials(credential_id_hash);
+CREATE INDEX IF NOT EXISTS idx_admin_webauthn_challenges_state ON admin_webauthn_challenges(state_hash);
+CREATE INDEX IF NOT EXISTS idx_admin_webauthn_challenges_status_expires ON admin_webauthn_challenges(status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_admin_webauthn_challenges_username ON admin_webauthn_challenges(username_hash, created_at);
+CREATE INDEX IF NOT EXISTS idx_admin_webauthn_events_observed_at ON admin_webauthn_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_admin_webauthn_events_decision ON admin_webauthn_events(decision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_admin_webauthn_events_username ON admin_webauthn_events(username_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_admin_webauthn_events_ceremony ON admin_webauthn_events(ceremony, observed_at);
 `

@@ -293,6 +293,61 @@ func TestConfigValidationMAB(t *testing.T) {
 	assert.ErrorContains(t, badTimer.Validate(), "cache_ttl_seconds")
 }
 
+func TestConfigValidationAdminWebAuthn(t *testing.T) {
+	cfg := &Config{
+		Mode:     "two-nic",
+		WAN:      InterfaceConfig{Name: "eth0"},
+		LAN:      InterfaceConfig{Name: "eth1"},
+		Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+		Health:   HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{
+			PrometheusPort: 9090,
+		},
+		AdminWebAuthn: AdminWebAuthnConfig{
+			Enabled:              true,
+			Mode:                 "enforce",
+			FailClosed:           true,
+			RPID:                 "admin.example.com",
+			RPName:               "AegisNAS Admin",
+			Origins:              []string{"https://admin.example.com"},
+			ChallengeTTLSeconds:  300,
+			SessionTTLSeconds:    28800,
+			MaxPending:           10000,
+			UserVerification:     "preferred",
+			Attestation:          "none",
+			ResidentKey:          "preferred",
+			RequireForRoles:      []string{"super_admin", "ops_admin"},
+			RequireForSSO:        true,
+			RequireForTokenLogin: true,
+			BreakGlassAllowed:    false,
+			AuditEnabled:         true,
+			RetentionLimit:       6000,
+		},
+		Radius: RadiusConfig{
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+		},
+	}
+	require.NoError(t, cfg.Validate())
+
+	badMode := *cfg
+	badMode.AdminWebAuthn.Mode = "strict"
+	assert.ErrorContains(t, badMode.Validate(), "admin_webauthn.mode")
+
+	badOrigin := *cfg
+	badOrigin.AdminWebAuthn.Origins = []string{"http://admin.example.com"}
+	assert.ErrorContains(t, badOrigin.Validate(), "must use https")
+
+	badChoice := *cfg
+	badChoice.AdminWebAuthn.UserVerification = "always"
+	assert.ErrorContains(t, badChoice.Validate(), "user_verification")
+
+	badTTL := *cfg
+	badTTL.AdminWebAuthn.ChallengeTTLSeconds = 5
+	assert.ErrorContains(t, badTTL.Validate(), "challenge_ttl_seconds")
+}
+
 func TestConfigValidationRadiusAccountingSpool(t *testing.T) {
 	cfg := &Config{
 		Mode:     "two-nic",

@@ -25,6 +25,7 @@ require (
 
 require (
 	github.com/beevik/etree v1.5.0 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -33,6 +34,7 @@ require (
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/mattermost/xml-roundtrip-validator v0.1.0 // indirect
 	github.com/russellhaering/goxmldsig v1.4.0 // indirect
+	github.com/x448/float16 v0.8.4 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 )
 

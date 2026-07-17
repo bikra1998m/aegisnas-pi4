@@ -130,6 +130,12 @@ func handleAdminSSOCallbackSAML(w http.ResponseWriter, r *http.Request, cfg *con
 		redirectLoginError(w, r, "Single sign-on is not authorized for this admin account.")
 		return
 	}
+	if redirected, err := maybeBeginAdminWebAuthnSSOStepUp(w, r, cfg, username, *identity, cfg.Integrations.AdminSSO.Provider, groups, samlAssertionExpiry(assertion)); err != nil {
+		redirectLoginError(w, r, "Admin passkey verification could not be started.")
+		return
+	} else if redirected {
+		return
+	}
 
 	sessionToken, expiresAt, err := mintAdminSSOSession(username, *identity, cfg.Integrations.AdminSSO.Provider, groups, samlAssertionExpiry(assertion))
 	if err != nil {

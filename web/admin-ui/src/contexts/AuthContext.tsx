@@ -14,7 +14,7 @@ export type AuthIdentity = {
 interface AuthContextType {
   isAuthenticated: boolean;
   identity: AuthIdentity | null;
-  login: (token: string, mode?: 'token' | 'sso') => Promise<void>;
+  login: (token: string, mode?: 'token' | 'sso' | 'webauthn') => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -29,7 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIdentity(data?.identity || null);
   };
 
-  const login = async (token: string, mode: 'token' | 'sso' = 'token') => {
+  const login = async (token: string, mode: 'token' | 'sso' | 'webauthn' = 'token') => {
     localStorage.setItem('token', token);
     localStorage.setItem('auth_mode', mode);
     await hydrateIdentity(token);
