@@ -15,6 +15,8 @@ func GenerateEAPConfig(cfg *config.Config, certDir string) (string, error) {
 	frameworkReport := eappkg.BuildFrameworkReport(cfg, eappkg.RuntimeSummary{})
 	framework := frameworkReport.Policy
 	teapPolicy := eappkg.BuildTEAPPolicyReport(cfg)
+	fastPolicy := eappkg.BuildFASTPolicyReport(cfg)
+	pwdPolicy := eappkg.BuildPWDPolicyReport(cfg)
 	if frameworkReport.Status == "blocked" && framework.Mode == "enforce" && framework.FailClosed {
 		return "", fmt.Errorf("EAP framework blocked FreeRADIUS generation: %s", strings.Join(frameworkReport.BlockingIssues, "; "))
 	}
@@ -25,6 +27,8 @@ func GenerateEAPConfig(cfg *config.Config, certDir string) (string, error) {
 # Allowed outer methods: {{ .AllowedMethods }}
 # Allowed inner methods: {{ .AllowedInnerMethods }}
 # NAS-0023 TEAP generated: {{ .TEAPEnabled }}, chain_mode={{ .TEAPChainMode }}, cryptobinding={{ .TEAPRequireCryptoBinding }}, channel_binding={{ .TEAPRequireChannelBinding }}
+# NAS-0024 EAP-FAST generated: {{ .FASTEnabled }}, pac={{ .FASTAllowPAC }}, cryptobinding={{ .FASTRequireCryptoBinding }}
+# NAS-0024 EAP-PWD generated: {{ .PWDEnabled }}, group={{ .PWDGroup }}, source={{ .PWDPasswordSource }}
 eap {
 	default_eap_type = {{ .DefaultType }}
 	timer_expire = {{ .MethodTimeoutSeconds }}
@@ -99,6 +103,24 @@ eap {
 		virtual_server = "inner-tunnel"
 	}
 {{ end }}
+{{ if .FASTEnabled }}
+
+	fast {
+		default_eap_type = {{ .FASTInner }}
+		tls = tls-common
+		copy_request_to_tunnel = no
+		use_tunneled_reply = no
+		virtual_server = "inner-tunnel"
+	}
+{{ end }}
+{{ if .PWDEnabled }}
+
+	pwd {
+		group = {{ .PWDGroup }}
+		server_id = "{{ .PWDServerID }}"
+		fragment_size = {{ .PWDFragmentSize }}
+	}
+{{ end }}
 
 	mschapv2 {
 		with_ntdomain_hack = no
@@ -122,6 +144,15 @@ eap {
 		TEAPChainMode             string
 		TEAPRequireCryptoBinding  bool
 		TEAPRequireChannelBinding bool
+		FASTEnabled               bool
+		FASTInner                 string
+		FASTAllowPAC              bool
+		FASTRequireCryptoBinding  bool
+		PWDEnabled                bool
+		PWDGroup                  int
+		PWDServerID               string
+		PWDPasswordSource         string
+		PWDFragmentSize           int
 		MethodTimeoutSeconds      int
 		FragmentSize              int
 		TLSMinVersion             string
@@ -151,6 +182,15 @@ eap {
 		TEAPChainMode:             teapPolicy.ChainMode,
 		TEAPRequireCryptoBinding:  teapPolicy.RequireCryptoBinding,
 		TEAPRequireChannelBinding: teapPolicy.RequireChannelBinding,
+		FASTEnabled:               fastPolicy.GeneratedInFreeRADIUS,
+		FASTInner:                 fastPolicy.DefaultInnerMethod,
+		FASTAllowPAC:              fastPolicy.AllowPAC,
+		FASTRequireCryptoBinding:  fastPolicy.RequireCryptoBinding,
+		PWDEnabled:                pwdPolicy.GeneratedInFreeRADIUS,
+		PWDGroup:                  pwdPolicy.Group,
+		PWDServerID:               radiusEscapeString(firstNonEmptyString(cfg.Radius.EAP.PWD.ServerID, "aegisnas-pwd")),
+		PWDPasswordSource:         pwdPolicy.PasswordSource,
+		PWDFragmentSize:           pwdPolicy.FragmentSize,
 		MethodTimeoutSeconds:      framework.MethodTimeoutSeconds,
 		FragmentSize:              framework.FragmentSize,
 		TLSMinVersion:             cfg.Radius.EAP.TLSMinVersion,
@@ -176,4 +216,19 @@ func radiusYesNo(value bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+func radiusEscapeString(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	return strings.ReplaceAll(value, `"`, `\"`)
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }

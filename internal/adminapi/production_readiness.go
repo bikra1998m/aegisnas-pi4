@@ -125,6 +125,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionAdminWebAuthnCheck(&report, cfg)
 	addProductionEAPFrameworkCheck(&report, cfg)
 	addProductionTEAPCheck(&report, cfg)
+	addProductionFASTPWDCheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
@@ -603,6 +604,53 @@ func addProductionTEAPCheck(report *productionReadinessReport, cfg *config.Confi
 			teapReport.Policy.RequireCryptoBinding, teapReport.Policy.RequireChannelBinding, teapReport.Runtime.TotalEvents),
 		Recommendation: "For TEAP production SSIDs, add teap to radius.eap.framework.allowed_methods, keep framework enforce/fail-closed, require cryptobinding and identity binding, use machine_then_user for chained access, and complete the NAS-0023 release certification checklist for real supplicant evidence.",
 		Dependencies:   []string{"radius.eap.teap", "radius.eap.framework.allowed_methods", "eap_teap_chain_events", "rlm_eap_teap", "/api/v1/system/eap-framework/teap"},
+	})
+}
+
+func addProductionFASTPWDCheck(report *productionReadinessReport, cfg *config.Config) {
+	summary, _ := db.SummarizeFASTPWDEvents(1000)
+	fastPWDReport := eappkg.BuildFASTPWDReport(cfg, fastPWDRuntimeSummaryFromDB(summary))
+	status := "passed"
+	switch fastPWDReport.Status {
+	case "blocked":
+		status = "blocked"
+	case "disabled", "degraded":
+		status = "degraded"
+	}
+	if fastPWDReport.FAST.GeneratedInFreeRADIUS {
+		if !fastPWDReport.FAST.RequireMessageAuthenticator ||
+			!fastPWDReport.FAST.RequireIdentityBinding ||
+			!fastPWDReport.FAST.RequireCryptoBinding ||
+			fastPWDReport.FAST.FrameworkMode != "enforce" ||
+			!fastPWDReport.FAST.FrameworkFailClosed {
+			status = "blocked"
+		}
+	}
+	if fastPWDReport.PWD.GeneratedInFreeRADIUS {
+		if !fastPWDReport.PWD.RequireMessageAuthenticator ||
+			!fastPWDReport.PWD.RequireIdentityBinding ||
+			!fastPWDReport.PWD.RequireStrongGroup ||
+			!fastPWDReport.PWD.RequireIdentity ||
+			!fastPWDReport.PWD.RequirePasswordProof ||
+			fastPWDReport.PWD.FrameworkMode != "enforce" ||
+			!fastPWDReport.PWD.FrameworkFailClosed {
+			status = "blocked"
+		}
+	}
+	if fastPWDReport.Runtime.Rejected > 0 && status == "passed" {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "eap_fast_pwd_methods",
+		Category: "authentication",
+		Label:    "EAP-FAST And EAP-PWD",
+		Status:   status,
+		Summary: fmt.Sprintf("FAST/PWD schema %d is %s with FAST generated=%t, PAC=%t, cryptobinding=%t, PWD generated=%t, group=%d, and %d recent event(s).",
+			fastPWDReport.SchemaVersion, fastPWDReport.Status, fastPWDReport.FAST.GeneratedInFreeRADIUS,
+			fastPWDReport.FAST.AllowPAC, fastPWDReport.FAST.RequireCryptoBinding,
+			fastPWDReport.PWD.GeneratedInFreeRADIUS, fastPWDReport.PWD.Group, fastPWDReport.Runtime.TotalEvents),
+		Recommendation: "For production FAST/PWD profiles, add fast or pwd to radius.eap.framework.allowed_methods only where clients require them, keep framework enforce/fail-closed, require FAST cryptobinding, use strong PWD groups, and complete the NAS-0024 release certification checklist for supplicant evidence.",
+		Dependencies:   []string{"radius.eap.fast", "radius.eap.pwd", "radius.eap.framework.allowed_methods", "eap_fast_pwd_events", "rlm_eap_fast", "rlm_eap_pwd", "/api/v1/system/eap-framework/fast-pwd"},
 	})
 }
 

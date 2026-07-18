@@ -1308,6 +1308,18 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Deterministic TEAP chain decision and audit status."),
 		"default": responseJSON("TEAP evaluation error."),
 	}))
+	addOperation(paths, "/api/v1/system/eap-framework/fast-pwd", "get", securedOperationWithParameters("Read EAP-FAST and EAP-PWD state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("method", "Optional audited method filter.", []string{"fast", "pwd"}, false),
+		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "monitor_allowed"}, false),
+		queryStringParameter("nas_type", "Optional NAS type filter for recent FAST/PWD events.", false),
+		queryStringParameter("limit", "Event limit from 1 to 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("EAP-FAST PAC policy, EAP-PWD group policy, attribute capability catalog, runtime summary, release evidence checklist, and recent method events."),
+	}))
+	addOperation(paths, "/api/v1/system/eap-framework/fast-pwd/evaluate", "post", securedOperationWithBody("Evaluate an EAP-FAST or EAP-PWD decision", "Authentication", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("FAST/PWD method facts: method, inner method, NAS type, identity, Message-Authenticator, TLS version, cryptobinding, PAC state, PWD group, password proof, replay state, and optional audit flag."), map[string]any{
+		"200":     responseJSON("Deterministic EAP-FAST/PWD decision and audit status."),
+		"default": responseJSON("EAP-FAST/PWD evaluation error."),
+	}))
 	addOperation(paths, "/api/v1/system/mab", "get", securedOperationWithParameters("Read MAC Authentication Bypass state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "quarantined", "monitor_allowed", "fail_open", "unsupported"}, false),
 		queryStringParameter("mac", "Optional endpoint MAC filter in colon, hyphen, plain, or Cisco dotted format.", false),

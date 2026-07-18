@@ -322,19 +322,24 @@ GET  /api/v1/system/eap-framework
 POST /api/v1/system/eap-framework/evaluate
 GET  /api/v1/system/eap-framework/teap
 POST /api/v1/system/eap-framework/teap/evaluate
+GET  /api/v1/system/eap-framework/fast-pwd
+POST /api/v1/system/eap-framework/fast-pwd/evaluate
 ```
 
 Use these endpoints to inspect the typed EAP catalog, effective PEAP/TTLS/TLS
-and TEAP policy, planned method blockers, identity-source bindings, vendor
-compatibility profiles, and recent hashed method decisions. `evaluate` and
-`teap/evaluate` are restricted to `ops_admin` and `super_admin` and can
+TEAP, FAST, and PWD policy, planned method blockers, identity-source bindings,
+vendor compatibility profiles, and recent hashed method decisions. `evaluate`,
+`teap/evaluate`, and `fast-pwd/evaluate` are restricted to `ops_admin` and
+`super_admin` and can
 optionally record audited decisions. The same summaries appear in
-`/api/v1/system/status` under `radius.eap_framework` and `radius.eap_teap`, in
-production readiness as `eap_method_framework` and `teap_method_chaining`, and
-in support bundles as `api/eap-framework.json` and
-`api/eap-framework-teap.json`. See
+`/api/v1/system/status` under `radius.eap_framework`, `radius.eap_teap`, and
+`radius.eap_fast_pwd`, in production readiness as `eap_method_framework`,
+`teap_method_chaining`, and `eap_fast_pwd_methods`, and in support bundles as
+`api/eap-framework.json`, `api/eap-framework-teap.json`, and
+`api/eap-framework-fast-pwd.json`. See
 [eap-method-framework.md](eap-method-framework.md) and
-[teap-method-chaining.md](teap-method-chaining.md).
+[teap-method-chaining.md](teap-method-chaining.md), plus
+[eap-fast-pwd.md](eap-fast-pwd.md).
 
 ## Dynamic NAS Client Endpoints
 

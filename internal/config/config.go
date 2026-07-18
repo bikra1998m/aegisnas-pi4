@@ -572,6 +572,8 @@ type RadiusEAPConfig struct {
 	OCSP                 RadiusEAPOCSPConfig `mapstructure:"ocsp"`
 	Framework            RadiusEAPFramework  `mapstructure:"framework"`
 	TEAP                 RadiusEAPTEAPConfig `mapstructure:"teap"`
+	FAST                 RadiusEAPFASTConfig `mapstructure:"fast"`
+	PWD                  RadiusEAPPWDConfig  `mapstructure:"pwd"`
 }
 
 type RadiusEAPOCSPConfig struct {
@@ -602,6 +604,37 @@ type RadiusEAPTEAPConfig struct {
 	MaxChainSteps          int    `mapstructure:"max_chain_steps"`
 	SessionTTLSeconds      int    `mapstructure:"session_ttl_seconds"`
 	EventRetentionLimit    int    `mapstructure:"event_retention_limit"`
+}
+
+type RadiusEAPFASTConfig struct {
+	Enabled                    bool   `mapstructure:"enabled"`
+	DefaultInnerMethod         string `mapstructure:"default_inner_method"`
+	RequireCryptoBinding       bool   `mapstructure:"require_crypto_binding"`
+	AllowPAC                   bool   `mapstructure:"allow_pac"`
+	RequirePAC                 bool   `mapstructure:"require_pac"`
+	PACProvisioning            string `mapstructure:"pac_provisioning"`
+	PACAuthorityID             string `mapstructure:"pac_authority_id"`
+	PACLifetimeSeconds         int    `mapstructure:"pac_lifetime_seconds"`
+	PACOpaqueKeyRef            string `mapstructure:"pac_opaque_key_ref"`
+	AllowAnonymousProvisioning bool   `mapstructure:"allow_anonymous_provisioning"`
+	AllowEAPPayload            bool   `mapstructure:"allow_eap_payload"`
+	MaxProvisioningAttempts    int    `mapstructure:"max_provisioning_attempts"`
+	SessionTTLSeconds          int    `mapstructure:"session_ttl_seconds"`
+	EventRetentionLimit        int    `mapstructure:"event_retention_limit"`
+}
+
+type RadiusEAPPWDConfig struct {
+	Enabled              bool   `mapstructure:"enabled"`
+	Group                int    `mapstructure:"group"`
+	ServerID             string `mapstructure:"server_id"`
+	RequireStrongGroup   bool   `mapstructure:"require_strong_group"`
+	PasswordSource       string `mapstructure:"password_source"`
+	AllowLocalVerifier   bool   `mapstructure:"allow_local_verifier"`
+	RequireIdentity      bool   `mapstructure:"require_identity"`
+	RequirePasswordProof bool   `mapstructure:"require_password_proof"`
+	ReplayWindowSeconds  int    `mapstructure:"replay_window_seconds"`
+	FragmentSize         int    `mapstructure:"fragment_size"`
+	EventRetentionLimit  int    `mapstructure:"event_retention_limit"`
 }
 
 type RadiusEAPFramework struct {
@@ -1429,6 +1462,31 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.eap.teap.max_chain_steps", 2)
 	v.SetDefault("radius.eap.teap.session_ttl_seconds", 900)
 	v.SetDefault("radius.eap.teap.event_retention_limit", 6000)
+	v.SetDefault("radius.eap.fast.enabled", true)
+	v.SetDefault("radius.eap.fast.default_inner_method", "mschapv2")
+	v.SetDefault("radius.eap.fast.require_crypto_binding", true)
+	v.SetDefault("radius.eap.fast.allow_pac", true)
+	v.SetDefault("radius.eap.fast.require_pac", false)
+	v.SetDefault("radius.eap.fast.pac_provisioning", "authenticated")
+	v.SetDefault("radius.eap.fast.pac_authority_id", "aegisnas-fast")
+	v.SetDefault("radius.eap.fast.pac_lifetime_seconds", 2592000)
+	v.SetDefault("radius.eap.fast.pac_opaque_key_ref", "")
+	v.SetDefault("radius.eap.fast.allow_anonymous_provisioning", false)
+	v.SetDefault("radius.eap.fast.allow_eap_payload", true)
+	v.SetDefault("radius.eap.fast.max_provisioning_attempts", 3)
+	v.SetDefault("radius.eap.fast.session_ttl_seconds", 900)
+	v.SetDefault("radius.eap.fast.event_retention_limit", 6000)
+	v.SetDefault("radius.eap.pwd.enabled", true)
+	v.SetDefault("radius.eap.pwd.group", 19)
+	v.SetDefault("radius.eap.pwd.server_id", "aegisnas-pwd")
+	v.SetDefault("radius.eap.pwd.require_strong_group", true)
+	v.SetDefault("radius.eap.pwd.password_source", "identity-failover")
+	v.SetDefault("radius.eap.pwd.allow_local_verifier", true)
+	v.SetDefault("radius.eap.pwd.require_identity", true)
+	v.SetDefault("radius.eap.pwd.require_password_proof", true)
+	v.SetDefault("radius.eap.pwd.replay_window_seconds", 30)
+	v.SetDefault("radius.eap.pwd.fragment_size", 1020)
+	v.SetDefault("radius.eap.pwd.event_retention_limit", 6000)
 	v.SetDefault("radius.eap.framework.enabled", true)
 	v.SetDefault("radius.eap.framework.mode", "monitor")
 	v.SetDefault("radius.eap.framework.fail_closed", true)
@@ -6008,6 +6066,12 @@ func validateRadiusEAPFramework(eap RadiusEAPConfig) error {
 	if err := validateRadiusEAPTEAP(eap, framework); err != nil {
 		return err
 	}
+	if err := validateRadiusEAPFAST(eap, framework); err != nil {
+		return err
+	}
+	if err := validateRadiusEAPPWD(eap, framework); err != nil {
+		return err
+	}
 	if !framework.Enabled && !radiusEAPFrameworkConfigured(framework) {
 		return nil
 	}
@@ -6330,6 +6394,199 @@ func radiusEAPTEAPConfigured(teap RadiusEAPTEAPConfig) bool {
 		teap.EventRetentionLimit != 0
 }
 
+func validateRadiusEAPFAST(eap RadiusEAPConfig, framework RadiusEAPFramework) error {
+	fast := eap.FAST
+	if !fast.Enabled && !radiusEAPFASTConfigured(fast) {
+		return nil
+	}
+	defaultInner := normalizeEAPInnerMethod(fast.DefaultInnerMethod)
+	if defaultInner == "" {
+		defaultInner = "mschapv2"
+	}
+	if !validEAPInnerMethod(defaultInner) {
+		return fmt.Errorf("radius.eap.fast.default_inner_method %q is invalid", fast.DefaultInnerMethod)
+	}
+	rawAllowedInner := framework.AllowedInnerMethods
+	if len(rawAllowedInner) == 0 {
+		rawAllowedInner = []string{"mschapv2", "pap", "chap", "gtc", "tls"}
+	}
+	allowedInner, err := validateEAPInnerMethodList("radius.eap.framework.allowed_inner_methods", rawAllowedInner, true)
+	if err != nil {
+		return err
+	}
+	if framework.Enabled {
+		if _, ok := allowedInner[defaultInner]; !ok {
+			return fmt.Errorf("radius.eap.fast.default_inner_method %q is not in radius.eap.framework.allowed_inner_methods", fast.DefaultInnerMethod)
+		}
+	}
+	provisioning := strings.ToLower(strings.TrimSpace(fast.PACProvisioning))
+	if provisioning == "" {
+		provisioning = "authenticated"
+	}
+	switch provisioning {
+	case "disabled", "authenticated", "anonymous", "optional":
+	default:
+		return fmt.Errorf("radius.eap.fast.pac_provisioning %q must be disabled, authenticated, anonymous, or optional", fast.PACProvisioning)
+	}
+	if fast.RequirePAC && !fast.AllowPAC {
+		return fmt.Errorf("radius.eap.fast.require_pac requires radius.eap.fast.allow_pac")
+	}
+	if fast.PACLifetimeSeconds < 0 || fast.PACLifetimeSeconds > 31536000 {
+		return fmt.Errorf("radius.eap.fast.pac_lifetime_seconds must be between 0 and 31536000")
+	}
+	if fast.MaxProvisioningAttempts < 0 || fast.MaxProvisioningAttempts > 100 {
+		return fmt.Errorf("radius.eap.fast.max_provisioning_attempts must be between 0 and 100")
+	}
+	if fast.SessionTTLSeconds < 0 || fast.SessionTTLSeconds > 86400 {
+		return fmt.Errorf("radius.eap.fast.session_ttl_seconds must be between 60 and 86400 when set")
+	}
+	if fast.SessionTTLSeconds > 0 && fast.SessionTTLSeconds < 60 {
+		return fmt.Errorf("radius.eap.fast.session_ttl_seconds must be between 60 and 86400 when set")
+	}
+	if fast.EventRetentionLimit < 0 || fast.EventRetentionLimit > 1000000 {
+		return fmt.Errorf("radius.eap.fast.event_retention_limit must be between 1 and 1000000 when set")
+	}
+	if !validEAPAuthorityID(fast.PACAuthorityID) {
+		return fmt.Errorf("radius.eap.fast.pac_authority_id is invalid")
+	}
+	if !validEAPSecretRefOrEmpty(fast.PACOpaqueKeyRef) {
+		return fmt.Errorf("radius.eap.fast.pac_opaque_key_ref is invalid")
+	}
+
+	rawAllowedMethods := framework.AllowedMethods
+	if len(rawAllowedMethods) == 0 {
+		rawAllowedMethods = []string{"peap", "ttls", "tls"}
+	}
+	allowedMethods, err := validateEAPMethodList("radius.eap.framework.allowed_methods", rawAllowedMethods, false)
+	if err != nil {
+		return err
+	}
+	_, fastAllowed := allowedMethods["fast"]
+	if fast.Enabled && framework.Enabled && fastAllowed {
+		if !framework.RequireMessageAuthenticator {
+			return fmt.Errorf("radius.eap.fast requires radius.eap.framework.require_message_authenticator when fast is allowed")
+		}
+		if !framework.RequireIdentityBinding {
+			return fmt.Errorf("radius.eap.fast requires radius.eap.framework.require_identity_binding when fast is allowed")
+		}
+		mode := strings.ToLower(strings.TrimSpace(framework.Mode))
+		if mode == "" {
+			mode = "monitor"
+		}
+		if mode == "enforce" && framework.FailClosed {
+			if !fast.RequireCryptoBinding {
+				return fmt.Errorf("radius.eap.fast.require_crypto_binding must be true in enforce fail-closed mode")
+			}
+			if provisioning == "anonymous" && !fast.AllowAnonymousProvisioning {
+				return fmt.Errorf("radius.eap.fast.pac_provisioning anonymous requires allow_anonymous_provisioning")
+			}
+		}
+	}
+	return nil
+}
+
+func validateRadiusEAPPWD(eap RadiusEAPConfig, framework RadiusEAPFramework) error {
+	pwd := eap.PWD
+	if !pwd.Enabled && !radiusEAPPWDConfigured(pwd) {
+		return nil
+	}
+	group := pwd.Group
+	if group == 0 {
+		group = 19
+	}
+	if group < 1 || group > 65535 {
+		return fmt.Errorf("radius.eap.pwd.group must be between 1 and 65535")
+	}
+	if pwd.RequireStrongGroup && !strongEAPPWDGroup(group) {
+		return fmt.Errorf("radius.eap.pwd.group %d is not in the strong group allowlist", group)
+	}
+	if !validEAPAuthorityID(pwd.ServerID) {
+		return fmt.Errorf("radius.eap.pwd.server_id is invalid")
+	}
+	source := normalizeEAPIdentitySourceName(pwd.PasswordSource)
+	if source == "" {
+		source = "identity-failover"
+	}
+	if !validEAPPolicyToken(source) {
+		return fmt.Errorf("radius.eap.pwd.password_source is invalid")
+	}
+	if pwd.ReplayWindowSeconds < 0 || pwd.ReplayWindowSeconds > 3600 {
+		return fmt.Errorf("radius.eap.pwd.replay_window_seconds must be between 0 and 3600")
+	}
+	if pwd.FragmentSize < 0 || pwd.FragmentSize > 4096 {
+		return fmt.Errorf("radius.eap.pwd.fragment_size must be between 512 and 4096 when set")
+	}
+	if pwd.FragmentSize > 0 && pwd.FragmentSize < 512 {
+		return fmt.Errorf("radius.eap.pwd.fragment_size must be between 512 and 4096 when set")
+	}
+	if pwd.EventRetentionLimit < 0 || pwd.EventRetentionLimit > 1000000 {
+		return fmt.Errorf("radius.eap.pwd.event_retention_limit must be between 1 and 1000000 when set")
+	}
+
+	rawAllowedMethods := framework.AllowedMethods
+	if len(rawAllowedMethods) == 0 {
+		rawAllowedMethods = []string{"peap", "ttls", "tls"}
+	}
+	allowedMethods, err := validateEAPMethodList("radius.eap.framework.allowed_methods", rawAllowedMethods, false)
+	if err != nil {
+		return err
+	}
+	_, pwdAllowed := allowedMethods["pwd"]
+	if pwd.Enabled && framework.Enabled && pwdAllowed {
+		if !framework.RequireMessageAuthenticator {
+			return fmt.Errorf("radius.eap.pwd requires radius.eap.framework.require_message_authenticator when pwd is allowed")
+		}
+		if !framework.RequireIdentityBinding {
+			return fmt.Errorf("radius.eap.pwd requires radius.eap.framework.require_identity_binding when pwd is allowed")
+		}
+		mode := strings.ToLower(strings.TrimSpace(framework.Mode))
+		if mode == "" {
+			mode = "monitor"
+		}
+		if mode == "enforce" && framework.FailClosed {
+			if !pwd.RequireIdentity {
+				return fmt.Errorf("radius.eap.pwd.require_identity must be true in enforce fail-closed mode")
+			}
+			if !pwd.RequirePasswordProof {
+				return fmt.Errorf("radius.eap.pwd.require_password_proof must be true in enforce fail-closed mode")
+			}
+			if !pwd.AllowLocalVerifier {
+				return fmt.Errorf("radius.eap.pwd.allow_local_verifier must be true until an external verifier is configured")
+			}
+		}
+	}
+	return nil
+}
+
+func radiusEAPFASTConfigured(fast RadiusEAPFASTConfig) bool {
+	return strings.TrimSpace(fast.DefaultInnerMethod) != "" ||
+		fast.RequireCryptoBinding ||
+		fast.AllowPAC ||
+		fast.RequirePAC ||
+		strings.TrimSpace(fast.PACProvisioning) != "" ||
+		strings.TrimSpace(fast.PACAuthorityID) != "" ||
+		fast.PACLifetimeSeconds != 0 ||
+		strings.TrimSpace(fast.PACOpaqueKeyRef) != "" ||
+		fast.AllowAnonymousProvisioning ||
+		fast.AllowEAPPayload ||
+		fast.MaxProvisioningAttempts != 0 ||
+		fast.SessionTTLSeconds != 0 ||
+		fast.EventRetentionLimit != 0
+}
+
+func radiusEAPPWDConfigured(pwd RadiusEAPPWDConfig) bool {
+	return pwd.Group != 0 ||
+		strings.TrimSpace(pwd.ServerID) != "" ||
+		pwd.RequireStrongGroup ||
+		strings.TrimSpace(pwd.PasswordSource) != "" ||
+		pwd.AllowLocalVerifier ||
+		pwd.RequireIdentity ||
+		pwd.RequirePasswordProof ||
+		pwd.ReplayWindowSeconds != 0 ||
+		pwd.FragmentSize != 0 ||
+		pwd.EventRetentionLimit != 0
+}
+
 func radiusEAPFrameworkConfigured(framework RadiusEAPFramework) bool {
 	return strings.TrimSpace(framework.Mode) != "" ||
 		framework.FailClosed ||
@@ -6508,6 +6765,26 @@ func validEAPAuthorityID(value string) bool {
 		}
 	}
 	return true
+}
+
+func validEAPSecretRefOrEmpty(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return true
+	}
+	if len(value) > 256 || strings.ContainsAny(value, "\r\n\x00") {
+		return false
+	}
+	return strings.Contains(value, ":")
+}
+
+func strongEAPPWDGroup(group int) bool {
+	switch group {
+	case 19, 20, 21, 25, 26:
+		return true
+	default:
+		return false
+	}
 }
 
 func validateRadiusOpaquePassThrough(cfg RadiusOpaquePassThroughConfig) error {

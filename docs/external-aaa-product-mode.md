@@ -73,6 +73,7 @@ The implementation now does these things end to end:
 17. protects privileged admin token and SSO sessions with WebAuthn/passkey step-up, credential lifecycle APIs, dashboard status, readiness checks, and support-bundle evidence
 18. governs EAP methods through a typed framework for PEAP, TTLS, TLS, identity-source binding, Message-Authenticator requirements, planned-method blockers, API evaluation, dashboard status, and support-bundle evidence
 19. generates opt-in TEAP policy with RFC 7170 method chaining, machine/user identity requirements, cryptobinding checks, PAC governance, API evaluation, dashboard status, and support-bundle evidence
+20. generates opt-in EAP-FAST and EAP-PWD policy with PAC governance, cryptobinding checks, PWD group and password-proof validation, replay rejection, API evaluation, dashboard status, and support-bundle evidence
 
 ## Current Behavior
 
@@ -106,8 +107,9 @@ When `radius.upstream.enabled: true`:
   - enabled compatibility-pack VSAs such as Aruba role/VLAN, Ruckus groups/VLAN, Fortinet profiles, Cisco/Juniper ACL names, UniFi/UBNT rate hints, Cambium rate/VLAN/quarantine, Meraki context, Extreme Netlogin, Huawei/H3C QoS, Palo Alto context, and TP-Link Omada hints
 - break-glass local admin auth remains available even when portal RADIUS auth is enabled
 - privileged admin token and SSO sessions can require WebAuthn/passkey assertion before the admin API accepts a verified session token
-- EAP framework state is available through `/api/v1/system/eap-framework`; enforce/fail-closed mode prevents generated FreeRADIUS config when planned methods such as FAST, PWD, SIM, AKA, or AKA-prime are enabled before their roadmap feature lands
+- EAP framework state is available through `/api/v1/system/eap-framework`; enforce/fail-closed mode prevents generated FreeRADIUS config when planned methods such as SIM, AKA, or AKA-prime are enabled before their roadmap feature lands
 - TEAP method-chain state is available through `/api/v1/system/eap-framework/teap`; when `teap` is added to `radius.eap.framework.allowed_methods`, generated FreeRADIUS includes a conservative `teap` block and AegisNAS evaluates cryptobinding, Identity-Type, PAC, machine identity, and user identity policy
+- EAP-FAST/PWD state is available through `/api/v1/system/eap-framework/fast-pwd`; when `fast` or `pwd` is added to `radius.eap.framework.allowed_methods`, generated FreeRADIUS includes conservative method blocks and AegisNAS evaluates FAST cryptobinding/PAC policy plus PWD group, password proof, and replay policy
 - voucher logins remain local so guest access still has an offline path
 
 What this pass still does not change:
@@ -120,6 +122,7 @@ What this pass still does not change:
 - real authenticator, browser, SSO provider, HA, and security validation for admin passkeys remains tracked in [nas-0021-release-certification-checklist.md](nas-0021-release-certification-checklist.md)
 - real supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, and performance validation for EAP remains tracked in [nas-0022-release-certification-checklist.md](nas-0022-release-certification-checklist.md)
 - real TEAP supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, performance, and security validation remains tracked in [nas-0023-release-certification-checklist.md](nas-0023-release-certification-checklist.md)
+- real FAST/PWD supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, performance, and security validation remains tracked in [nas-0024-release-certification-checklist.md](nas-0024-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 
@@ -783,6 +786,20 @@ For the EAP method framework:
 5. run **Apply RADIUS Config** so `mods-enabled/eap` is regenerated and validated
 6. test enabled supplicant methods through a real AP or switch
 7. export a support bundle and retain `api/eap-framework.json`
+
+For EAP-FAST and EAP-PWD:
+
+1. set `radius.eap.fast.enabled: true` or `radius.eap.pwd.enabled: true`
+2. add `fast` or `pwd` to `radius.eap.framework.allowed_methods` only for
+   tested supplicant/NAS families
+3. confirm `/api/v1/system/eap-framework/fast-pwd` reports generated methods
+   and no blocking issues
+4. use `POST /api/v1/system/eap-framework/fast-pwd/evaluate` with accepted and
+   rejected FAST/PWD payloads
+5. keep FAST cryptobinding and PWD password proof required in enforce mode
+6. run **Apply RADIUS Config** so `mods-enabled/eap` is regenerated and
+   validated
+7. export a support bundle and retain `api/eap-framework-fast-pwd.json`
 
 ## Ubuntu Appliance Notes
 

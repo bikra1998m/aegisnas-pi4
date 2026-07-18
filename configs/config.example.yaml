@@ -184,11 +184,38 @@ radius:
       max_chain_steps: 2
       session_ttl_seconds: 900
       event_retention_limit: 6000
+    fast:
+      enabled: true # Add "fast" to framework.allowed_methods only for clients that require EAP-FAST.
+      default_inner_method: mschapv2
+      require_crypto_binding: true
+      allow_pac: true
+      require_pac: false
+      pac_provisioning: authenticated # disabled, authenticated, anonymous, or optional.
+      pac_authority_id: "aegisnas-fast"
+      pac_lifetime_seconds: 2592000
+      pac_opaque_key_ref: "" # Optional secret reference for external PAC opaque-key material.
+      allow_anonymous_provisioning: false
+      allow_eap_payload: true
+      max_provisioning_attempts: 3
+      session_ttl_seconds: 900
+      event_retention_limit: 6000
+    pwd:
+      enabled: true # Add "pwd" to framework.allowed_methods only after EAP-PWD supplicant smoke tests.
+      group: 19
+      server_id: "aegisnas-pwd"
+      require_strong_group: true
+      password_source: "identity-failover"
+      allow_local_verifier: true
+      require_identity: true
+      require_password_proof: true
+      replay_window_seconds: 30
+      fragment_size: 1020
+      event_retention_limit: 6000
     framework:
       enabled: true
       mode: "monitor" # Use enforce with fail_closed=true after supplicant/AP smoke tests.
       fail_closed: true
-      allowed_methods: ["peap", "ttls", "tls"] # Add "teap" to generate RFC 7170 TEAP.
+      allowed_methods: ["peap", "ttls", "tls"] # Add "teap", "fast", or "pwd" only after method-specific smoke tests.
       allowed_inner_methods: ["mschapv2", "pap", "chap", "gtc", "tls"]
       default_outer_identity_source: "configured-default"
       default_inner_identity_source: "identity-failover"

@@ -150,6 +150,7 @@ The phases are ownership lanes. The executable order is the dependency-resolved 
 - [x] NAS-0021 engineering implementation complete; external release evidence is tracked in `nas-0021-release-certification-checklist.md`.
 - [x] NAS-0022 engineering implementation complete; external release evidence is tracked in `nas-0022-release-certification-checklist.md`.
 - [x] NAS-0023 engineering implementation complete; external release evidence is tracked in `nas-0023-release-certification-checklist.md`.
+- [x] NAS-0024 engineering implementation complete; external release evidence is tracked in `nas-0024-release-certification-checklist.md`.
 - [ ] Phase 2 exit gate accepted; NAS-0017..NAS-0028 Complete.
 - [ ] Phase 3 exit gate accepted; NAS-0029..NAS-0034 Complete.
 - [ ] Phase 4 exit gate accepted; NAS-0035..NAS-0041 Complete.
@@ -281,7 +282,7 @@ Dictionary processing order for each pinned release:
 |---|---|---|---|
 | RFC 2865 / 2866 / 2868 | Authentication, accounting, tunneling/VLAN | NAS-0002..0006, 0009..0013, 0035..0041, 0053..0054 | Golden packets, FreeRADIUS interop, duplicate/replay and VLAN device tests |
 | RFC 3162 / 6911 / 8415 | IPv6 RADIUS, delegated prefixes, DHCPv6 | NAS-0038, 0055..0056, 0086 | Dual-stack subscriber and failover evidence |
-| RFC 3748 / 5216 / 7170 | EAP, EAP-TLS, TEAP | NAS-0022..0028 | Supplicant, method chaining, certificate, downgrade, and negative tests |
+| RFC 3748 / 5216 / 7170 / 4851 / 5931 | EAP, EAP-TLS, TEAP, EAP-FAST, EAP-PWD | NAS-0022..0028 | Supplicant, method chaining, PAC, password-proof, certificate, downgrade, and negative tests |
 | RFC 4186 / 4187 / 5448 | EAP-SIM/AKA/AKA' | NAS-0025, 0092..0095 | SIM/mobile lab and identity privacy tests |
 | RFC 5176 | CoA and Disconnect | NAS-0042..0047, 0058, vendor packs | ACK/NAK, Error-Cause, retries, ownership, proxy, cluster tests |
 | RFC 5997 / 6614 / 9765 / 9813 | Status and secure RADIUS transports | NAS-0007, 0009, 0014..0015, 0123 | X.509/PSK, rotation, downgrade prevention, vendor interop |

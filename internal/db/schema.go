@@ -152,7 +152,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{25, schemaV25},
 		{26, schemaV26},
 		{27, schemaV27},
-		{LatestSchemaVersion(), schemaV28},
+		{28, schemaV28},
+		{LatestSchemaVersion(), schemaV29},
 	}
 
 	for _, m := range migrations {
@@ -227,7 +228,10 @@ func ensureEAPFrameworkTables(handle *sql.DB) error {
 	if _, err := handle.Exec(SQLForDialect(schemaV27, dialect)); err != nil {
 		return err
 	}
-	_, err := handle.Exec(SQLForDialect(schemaV28, dialect))
+	if _, err := handle.Exec(SQLForDialect(schemaV28, dialect)); err != nil {
+		return err
+	}
+	_, err := handle.Exec(SQLForDialect(schemaV29, dialect))
 	return err
 }
 

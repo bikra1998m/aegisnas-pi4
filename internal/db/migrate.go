@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 28
+	return 29
 }
 
 func Migrate() error {
@@ -1194,4 +1194,42 @@ CREATE INDEX IF NOT EXISTS idx_eap_teap_chain_events_chain_mode ON eap_teap_chai
 CREATE INDEX IF NOT EXISTS idx_eap_teap_chain_events_nas ON eap_teap_chain_events(nas_identifier, nas_type, observed_at);
 CREATE INDEX IF NOT EXISTS idx_eap_teap_chain_events_user ON eap_teap_chain_events(user_identity_hash, observed_at);
 CREATE INDEX IF NOT EXISTS idx_eap_teap_chain_events_machine ON eap_teap_chain_events(machine_identity_hash, observed_at);
+`
+
+const schemaV29 = `
+CREATE TABLE IF NOT EXISTS eap_fast_pwd_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	method TEXT NOT NULL,
+	decision TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	nas_identifier TEXT,
+	nas_type TEXT,
+	identity_hash TEXT,
+	calling_station_hash TEXT,
+	identity_source TEXT,
+	inner_method TEXT,
+	crypto_binding_valid BOOLEAN DEFAULT 0,
+	pac_presented BOOLEAN DEFAULT 0,
+	pac_provisioning_requested BOOLEAN DEFAULT 0,
+	pac_opaque_key_available BOOLEAN DEFAULT 0,
+	anonymous_provisioning BOOLEAN DEFAULT 0,
+	eap_payload_present BOOLEAN DEFAULT 0,
+	provisioning_attempt_count INTEGER DEFAULT 0,
+	password_proof_valid BOOLEAN DEFAULT 0,
+	replay_detected BOOLEAN DEFAULT 0,
+	pwd_group INTEGER DEFAULT 0,
+	pwd_server_id_hash TEXT,
+	tls_version TEXT,
+	policy_mode TEXT,
+	latency_ms INTEGER DEFAULT 0,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_eap_fast_pwd_events_observed_at ON eap_fast_pwd_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_fast_pwd_events_method ON eap_fast_pwd_events(method, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_fast_pwd_events_decision ON eap_fast_pwd_events(decision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_fast_pwd_events_nas ON eap_fast_pwd_events(nas_identifier, nas_type, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_fast_pwd_events_identity ON eap_fast_pwd_events(identity_hash, observed_at);
 `

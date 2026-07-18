@@ -405,6 +405,48 @@ type TEAPReport = {
   blocking_issues?: string[];
 };
 
+type FASTPWDReport = {
+  status: string;
+  message: string;
+  fast?: {
+    enabled: boolean;
+    allowed_by_framework: boolean;
+    generated_in_freeradius: boolean;
+    framework_mode: string;
+    default_inner_method: string;
+    require_crypto_binding: boolean;
+    allow_pac: boolean;
+    require_pac: boolean;
+    pac_provisioning: string;
+    allow_anonymous_provisioning: boolean;
+  };
+  pwd?: {
+    enabled: boolean;
+    allowed_by_framework: boolean;
+    generated_in_freeradius: boolean;
+    framework_mode: string;
+    group: number;
+    require_strong_group: boolean;
+    password_source: string;
+    require_password_proof: boolean;
+    replay_window_seconds: number;
+  };
+  runtime?: {
+    total_events: number;
+    accepted: number;
+    rejected: number;
+    monitor_allowed: number;
+    invalid_crypto_binding: number;
+    missing_pac: number;
+    missing_password_proof: number;
+    weak_pwd_group: number;
+    replay_rejected: number;
+    last_rejected_reason?: string;
+  };
+  warnings?: string[];
+  blocking_issues?: string[];
+};
+
 type IdentityFailoverReport = {
   enabled: boolean;
   status: string;
@@ -610,6 +652,7 @@ type SystemStatus = {
     fallback_policy?: RadiusFallbackPolicyReport;
     eap_framework?: EAPFrameworkReport;
     eap_teap?: TEAPReport;
+    eap_fast_pwd?: FASTPWDReport;
     radsec_credentials?: RadSecCredentialReport;
     dynamic_nas_clients?: DynamicNASClientReport;
     probe_error?: string;
@@ -1155,6 +1198,7 @@ export default function Dashboard() {
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
   const eapFramework = systemStatus.radius?.eap_framework;
   const teapReport = systemStatus.radius?.eap_teap;
+  const fastPWDReport = systemStatus.radius?.eap_fast_pwd;
   const identityFailover = systemStatus.identity?.failover;
   const identityActiveDirectory = systemStatus.identity?.active_directory;
   const identityMFA = systemStatus.identity?.mfa;
@@ -2116,6 +2160,79 @@ export default function Dashboard() {
                       ) : null}
                     </div>
                     <StatusBadge status={teapReport.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {fastPWDReport ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        EAP-FAST And EAP-PWD
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {fastPWDReport.message ||
+                          "EAP-FAST and EAP-PWD state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Mode{" "}
+                          {fastPWDReport.fast?.framework_mode ||
+                            fastPWDReport.pwd?.framework_mode ||
+                            "monitor"}
+                        </div>
+                        <div>
+                          FAST{" "}
+                          {fastPWDReport.fast?.generated_in_freeradius
+                            ? "generated"
+                            : "off"}
+                        </div>
+                        <div>
+                          PWD{" "}
+                          {fastPWDReport.pwd?.generated_in_freeradius
+                            ? "generated"
+                            : "off"}
+                        </div>
+                        <div>
+                          Events {fastPWDReport.runtime?.total_events ?? 0}
+                        </div>
+                        <div>
+                          Rejects {fastPWDReport.runtime?.rejected ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        FAST inner{" "}
+                        {fastPWDReport.fast?.default_inner_method ||
+                          "mschapv2"}
+                        ; PAC{" "}
+                        {fastPWDReport.fast?.require_pac
+                          ? "required"
+                          : fastPWDReport.fast?.allow_pac
+                            ? "allowed"
+                            : "disabled"}
+                        ; PWD group {fastPWDReport.pwd?.group ?? 19}; proof{" "}
+                        {fastPWDReport.pwd?.require_password_proof
+                          ? "required"
+                          : "not required"}
+                        .
+                      </div>
+                      {fastPWDReport.runtime?.last_rejected_reason ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last FAST/PWD rejection:{" "}
+                          {fastPWDReport.runtime.last_rejected_reason}
+                        </div>
+                      ) : null}
+                      {fastPWDReport.blocking_issues?.length ? (
+                        <div className="mt-2 text-xs text-red-700">
+                          {fastPWDReport.blocking_issues[0]}
+                        </div>
+                      ) : fastPWDReport.warnings?.length ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {fastPWDReport.warnings[0]}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge status={fastPWDReport.status || "unknown"} />
                   </div>
                 </div>
               ) : null}

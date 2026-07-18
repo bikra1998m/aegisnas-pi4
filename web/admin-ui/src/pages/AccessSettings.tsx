@@ -795,6 +795,35 @@ const defaultSettings: JsonMap = {
         session_ttl_seconds: 900,
         event_retention_limit: 6000,
       },
+      fast: {
+        enabled: true,
+        default_inner_method: "mschapv2",
+        require_crypto_binding: true,
+        allow_pac: true,
+        require_pac: false,
+        pac_provisioning: "authenticated",
+        pac_authority_id: "aegisnas-fast",
+        pac_lifetime_seconds: 2592000,
+        pac_opaque_key_ref: "",
+        allow_anonymous_provisioning: false,
+        allow_eap_payload: true,
+        max_provisioning_attempts: 3,
+        session_ttl_seconds: 900,
+        event_retention_limit: 6000,
+      },
+      pwd: {
+        enabled: true,
+        group: 19,
+        server_id: "aegisnas-pwd",
+        require_strong_group: true,
+        password_source: "identity-failover",
+        allow_local_verifier: true,
+        require_identity: true,
+        require_password_proof: true,
+        replay_window_seconds: 30,
+        fragment_size: 1020,
+        event_retention_limit: 6000,
+      },
       framework: {
         enabled: true,
         mode: "monitor",
@@ -1216,6 +1245,8 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.radius = next.radius || {};
   next.radius.eap = next.radius.eap || {};
   next.radius.eap.teap = next.radius.eap.teap || {};
+  next.radius.eap.fast = next.radius.eap.fast || {};
+  next.radius.eap.pwd = next.radius.eap.pwd || {};
   next.radius.eap.framework = next.radius.eap.framework || {};
   next.radius.upstream = next.radius.upstream || {};
   next.radius.upstream.fallback_policy =
@@ -1238,6 +1269,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.eap.teap.enabled = true;
     next.radius.eap.teap.max_chain_steps = 2;
     next.radius.eap.teap.event_retention_limit = 1000;
+    next.radius.eap.fast.enabled = true;
+    next.radius.eap.fast.event_retention_limit = 1000;
+    next.radius.eap.pwd.enabled = true;
+    next.radius.eap.pwd.event_retention_limit = 1000;
     next.radius.upstream.status_check = "none";
     next.portal.guest_workflows.self_registration_enabled = false;
     next.portal.guest_workflows.sponsor_approval_enabled = false;
@@ -1281,6 +1316,12 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.eap.teap.max_chain_steps || 2;
     next.radius.eap.teap.event_retention_limit =
       next.radius.eap.teap.event_retention_limit || 12000;
+    next.radius.eap.fast.enabled = true;
+    next.radius.eap.fast.event_retention_limit =
+      next.radius.eap.fast.event_retention_limit || 12000;
+    next.radius.eap.pwd.enabled = true;
+    next.radius.eap.pwd.event_retention_limit =
+      next.radius.eap.pwd.event_retention_limit || 12000;
     next.radius.upstream.status_check = "status-server";
     next.admin_webauthn.challenge_ttl_seconds =
       next.admin_webauthn.challenge_ttl_seconds || 300;
@@ -1323,6 +1364,12 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.eap.teap.max_chain_steps || 2;
     next.radius.eap.teap.event_retention_limit =
       next.radius.eap.teap.event_retention_limit || 6000;
+    next.radius.eap.fast.enabled = true;
+    next.radius.eap.fast.event_retention_limit =
+      next.radius.eap.fast.event_retention_limit || 6000;
+    next.radius.eap.pwd.enabled = true;
+    next.radius.eap.pwd.event_retention_limit =
+      next.radius.eap.pwd.event_retention_limit || 6000;
     next.radius.upstream.status_check = "status-server";
     next.admin_webauthn.challenge_ttl_seconds =
       next.admin_webauthn.challenge_ttl_seconds || 300;
@@ -9518,6 +9565,302 @@ export default function AccessSettings() {
                 updateField(
                   ["radius", "eap", "teap", "allow_basic_password_auth"],
                   value,
+                )
+              }
+            />
+          </div>
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <h4 className="font-semibold text-gray-900">
+            EAP-FAST And EAP-PWD
+          </h4>
+          <p className="mt-1 text-sm text-gray-600">
+            Govern PAC-backed EAP-FAST and password-authenticated EAP-PWD with
+            cryptobinding, replay protection, strong groups, and bounded audit
+            history.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="FAST Available"
+              checked={settings.radius?.eap?.fast?.enabled !== false}
+              onChange={(value) =>
+                updateField(["radius", "eap", "fast", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="FAST Cryptobinding"
+              checked={
+                settings.radius?.eap?.fast?.require_crypto_binding !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "fast", "require_crypto_binding"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Allow FAST PAC"
+              checked={settings.radius?.eap?.fast?.allow_pac !== false}
+              onChange={(value) =>
+                updateField(["radius", "eap", "fast", "allow_pac"], value)
+              }
+            />
+            <ToggleField
+              label="Require FAST PAC"
+              checked={Boolean(settings.radius?.eap?.fast?.require_pac)}
+              onChange={(value) =>
+                updateField(["radius", "eap", "fast", "require_pac"], value)
+              }
+            />
+            <ToggleField
+              label="Anonymous PAC"
+              checked={Boolean(
+                settings.radius?.eap?.fast?.allow_anonymous_provisioning,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "fast",
+                    "allow_anonymous_provisioning",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="FAST EAP Payload"
+              checked={settings.radius?.eap?.fast?.allow_eap_payload !== false}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "fast", "allow_eap_payload"],
+                  value,
+                )
+              }
+            />
+            <SelectField
+              label="FAST Inner"
+              value={
+                settings.radius?.eap?.fast?.default_inner_method ||
+                "mschapv2"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "fast", "default_inner_method"],
+                  value,
+                )
+              }
+              options={[
+                { value: "mschapv2", label: "MSCHAPv2" },
+                { value: "pap", label: "PAP" },
+                { value: "chap", label: "CHAP" },
+                { value: "gtc", label: "GTC" },
+                { value: "tls", label: "TLS" },
+              ]}
+            />
+            <SelectField
+              label="FAST PAC Mode"
+              value={
+                settings.radius?.eap?.fast?.pac_provisioning ||
+                "authenticated"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "fast", "pac_provisioning"],
+                  value,
+                )
+              }
+              options={[
+                { value: "disabled", label: "Disabled" },
+                { value: "authenticated", label: "Authenticated" },
+                { value: "anonymous", label: "Anonymous" },
+                { value: "optional", label: "Optional" },
+              ]}
+            />
+            <TextField
+              label="FAST Authority ID"
+              value={
+                settings.radius?.eap?.fast?.pac_authority_id ||
+                "aegisnas-fast"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "fast", "pac_authority_id"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="PAC Key Ref"
+              value={settings.radius?.eap?.fast?.pac_opaque_key_ref || ""}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "fast", "pac_opaque_key_ref"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="PAC Lifetime (s)"
+              type="number"
+              value={
+                settings.radius?.eap?.fast?.pac_lifetime_seconds ?? 2592000
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "fast", "pac_lifetime_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="PAC Attempts"
+              type="number"
+              value={
+                settings.radius?.eap?.fast?.max_provisioning_attempts ?? 3
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "fast", "max_provisioning_attempts"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="FAST TTL (s)"
+              type="number"
+              value={settings.radius?.eap?.fast?.session_ttl_seconds ?? 900}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "fast", "session_ttl_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="FAST Retention"
+              type="number"
+              value={
+                settings.radius?.eap?.fast?.event_retention_limit ?? 6000
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "fast", "event_retention_limit"],
+                  Number(value),
+                )
+              }
+            />
+            <ToggleField
+              label="PWD Available"
+              checked={settings.radius?.eap?.pwd?.enabled !== false}
+              onChange={(value) =>
+                updateField(["radius", "eap", "pwd", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="PWD Strong Group"
+              checked={
+                settings.radius?.eap?.pwd?.require_strong_group !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "pwd", "require_strong_group"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="PWD Identity"
+              checked={settings.radius?.eap?.pwd?.require_identity !== false}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "pwd", "require_identity"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="PWD Proof"
+              checked={
+                settings.radius?.eap?.pwd?.require_password_proof !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "pwd", "require_password_proof"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="PWD Local Verifier"
+              checked={settings.radius?.eap?.pwd?.allow_local_verifier !== false}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "pwd", "allow_local_verifier"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="PWD Group"
+              type="number"
+              value={settings.radius?.eap?.pwd?.group ?? 19}
+              onChange={(value) =>
+                updateField(["radius", "eap", "pwd", "group"], Number(value))
+              }
+            />
+            <TextField
+              label="PWD Server ID"
+              value={settings.radius?.eap?.pwd?.server_id || "aegisnas-pwd"}
+              onChange={(value) =>
+                updateField(["radius", "eap", "pwd", "server_id"], value)
+              }
+            />
+            <TextField
+              label="PWD Source"
+              value={
+                settings.radius?.eap?.pwd?.password_source ||
+                "identity-failover"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "pwd", "password_source"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Replay Window (s)"
+              type="number"
+              value={settings.radius?.eap?.pwd?.replay_window_seconds ?? 30}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "pwd", "replay_window_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="PWD Fragment"
+              type="number"
+              value={settings.radius?.eap?.pwd?.fragment_size ?? 1020}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "pwd", "fragment_size"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="PWD Retention"
+              type="number"
+              value={settings.radius?.eap?.pwd?.event_retention_limit ?? 6000}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "pwd", "event_retention_limit"],
+                  Number(value),
                 )
               }
             />

@@ -119,7 +119,7 @@ func TestGenerateEAPConfigBlocksPlannedMethodInEnforceMode(t *testing.T) {
 					Enabled:                     true,
 					Mode:                        "enforce",
 					FailClosed:                  true,
-					AllowedMethods:              []string{"peap", "fast"},
+					AllowedMethods:              []string{"peap", "sim"},
 					AllowedInnerMethods:         []string{"mschapv2", "pap"},
 					UnsupportedMethodAction:     "reject",
 					RequireMessageAuthenticator: true,
@@ -187,6 +187,77 @@ func TestGenerateEAPConfigIncludesTEAPWhenAllowed(t *testing.T) {
 		"default_eap_type = teap",
 		"teap {\n\t\tdefault_eap_type = mschapv2\n\t\ttls = tls-common",
 		`virtual_server = "inner-tunnel"`,
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("expected EAP config to contain %q, got:\n%s", expected, content)
+		}
+	}
+}
+
+func TestGenerateEAPConfigIncludesFASTAndPWDWhenAllowed(t *testing.T) {
+	cfg := &config.Config{
+		Radius: config.RadiusConfig{
+			MaxSessions: 1024,
+			EAP: config.RadiusEAPConfig{
+				DefaultType:   "fast",
+				PEAPInner:     "mschapv2",
+				TTLSInner:     "pap",
+				TLSMinVersion: "1.2",
+				TLSMaxVersion: "1.3",
+				FAST: config.RadiusEAPFASTConfig{
+					Enabled:                 true,
+					DefaultInnerMethod:      "mschapv2",
+					RequireCryptoBinding:    true,
+					AllowPAC:                true,
+					PACProvisioning:         "authenticated",
+					PACAuthorityID:          "aegisnas-fast",
+					AllowEAPPayload:         true,
+					MaxProvisioningAttempts: 3,
+					SessionTTLSeconds:       900,
+					EventRetentionLimit:     6000,
+				},
+				PWD: config.RadiusEAPPWDConfig{
+					Enabled:              true,
+					Group:                19,
+					ServerID:             "aegisnas-pwd",
+					RequireStrongGroup:   true,
+					PasswordSource:       "identity-failover",
+					AllowLocalVerifier:   true,
+					RequireIdentity:      true,
+					RequirePasswordProof: true,
+					ReplayWindowSeconds:  30,
+					FragmentSize:         1020,
+					EventRetentionLimit:  6000,
+				},
+				Framework: config.RadiusEAPFramework{
+					Enabled:                     true,
+					Mode:                        "enforce",
+					FailClosed:                  true,
+					AllowedMethods:              []string{"peap", "ttls", "tls", "fast", "pwd"},
+					AllowedInnerMethods:         []string{"mschapv2", "pap", "chap", "gtc", "tls"},
+					DefaultInnerIdentitySource:  "identity-failover",
+					UnsupportedMethodAction:     "reject",
+					RequireMessageAuthenticator: true,
+					RequireIdentityBinding:      true,
+					MethodTimeoutSeconds:        60,
+					FragmentSize:                1024,
+				},
+			},
+		},
+	}
+
+	content, err := GenerateEAPConfig(cfg, "/etc/freeradius/3.0/certs")
+	if err != nil {
+		t.Fatalf("GenerateEAPConfig returned error: %v", err)
+	}
+	for _, expected := range []string{
+		"NAS-0024 EAP-FAST generated: true, pac=true, cryptobinding=true",
+		"NAS-0024 EAP-PWD generated: true, group=19, source=identity-failover",
+		"default_eap_type = fast",
+		"fast {\n\t\tdefault_eap_type = mschapv2\n\t\ttls = tls-common",
+		"pwd {\n\t\tgroup = 19",
+		`server_id = "aegisnas-pwd"`,
+		"fragment_size = 1020",
 	} {
 		if !strings.Contains(content, expected) {
 			t.Fatalf("expected EAP config to contain %q, got:\n%s", expected, content)

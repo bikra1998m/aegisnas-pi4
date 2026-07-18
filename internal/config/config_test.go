@@ -163,6 +163,60 @@ func TestConfigValidationEAPFramework(t *testing.T) {
 	badTEAPPAC.Radius.EAP.TEAP.RequirePAC = true
 	badTEAPPAC.Radius.EAP.TEAP.AllowPAC = false
 	assert.ErrorContains(t, badTEAPPAC.Validate(), "require_pac")
+
+	fastReady := *cfg
+	fastReady.Radius.EAP.DefaultType = "fast"
+	fastReady.Radius.EAP.FAST = RadiusEAPFASTConfig{
+		Enabled:                 true,
+		DefaultInnerMethod:      "mschapv2",
+		RequireCryptoBinding:    true,
+		AllowPAC:                true,
+		PACProvisioning:         "authenticated",
+		PACAuthorityID:          "aegisnas-fast",
+		PACLifetimeSeconds:      2592000,
+		AllowEAPPayload:         true,
+		MaxProvisioningAttempts: 3,
+		SessionTTLSeconds:       900,
+		EventRetentionLimit:     6000,
+	}
+	fastReady.Radius.EAP.Framework.AllowedMethods = []string{"peap", "ttls", "tls", "fast"}
+	require.NoError(t, fastReady.Validate())
+
+	badFASTPAC := fastReady
+	badFASTPAC.Radius.EAP.FAST.RequirePAC = true
+	badFASTPAC.Radius.EAP.FAST.AllowPAC = false
+	assert.ErrorContains(t, badFASTPAC.Validate(), "radius.eap.fast.require_pac")
+
+	badFASTAnonymous := fastReady
+	badFASTAnonymous.Radius.EAP.FAST.PACProvisioning = "anonymous"
+	badFASTAnonymous.Radius.EAP.FAST.AllowAnonymousProvisioning = false
+	assert.ErrorContains(t, badFASTAnonymous.Validate(), "allow_anonymous_provisioning")
+
+	pwdReady := *cfg
+	pwdReady.Radius.EAP.DefaultType = "pwd"
+	pwdReady.Radius.EAP.PWD = RadiusEAPPWDConfig{
+		Enabled:              true,
+		Group:                19,
+		ServerID:             "aegisnas-pwd",
+		RequireStrongGroup:   true,
+		PasswordSource:       "identity-failover",
+		AllowLocalVerifier:   true,
+		RequireIdentity:      true,
+		RequirePasswordProof: true,
+		ReplayWindowSeconds:  30,
+		FragmentSize:         1020,
+		EventRetentionLimit:  6000,
+	}
+	pwdReady.Radius.EAP.Framework.AllowedMethods = []string{"peap", "ttls", "tls", "pwd"}
+	require.NoError(t, pwdReady.Validate())
+
+	badPWDGroup := pwdReady
+	badPWDGroup.Radius.EAP.PWD.Group = 2
+	assert.ErrorContains(t, badPWDGroup.Validate(), "strong group")
+
+	badPWDProof := pwdReady
+	badPWDProof.Radius.EAP.PWD.RequirePasswordProof = false
+	assert.ErrorContains(t, badPWDProof.Validate(), "require_password_proof")
 }
 
 func TestConfigValidationRadiusPacketHardening(t *testing.T) {

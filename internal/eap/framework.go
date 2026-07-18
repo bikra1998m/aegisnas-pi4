@@ -161,6 +161,8 @@ type EvaluationRequest struct {
 	IdentityTypePresented       bool
 	PACPresented                bool
 	PACProvisioningRequested    bool
+	PACOpaqueKeyAvailable       bool
+	AnonymousProvisioning       bool
 	EAPPayloadPresent           bool
 	BasicPasswordAuth           bool
 	IntermediateResultPresent   bool
@@ -168,6 +170,11 @@ type EvaluationRequest struct {
 	FinalResultPresent          bool
 	FinalResultSuccess          bool
 	StepCount                   int
+	ProvisioningAttemptCount    int
+	PasswordProofValid          bool
+	ReplayDetected              bool
+	PWDGroup                    int
+	PWDServerID                 string
 }
 
 type EvaluationDecision struct {
@@ -371,6 +378,39 @@ func Evaluate(cfg *config.Config, request EvaluationRequest) EvaluationDecision 
 			Dependencies:   teapDecision.Dependencies,
 		}
 	}
+	if method == "fast" || method == "pwd" {
+		fastPWDDecision := EvaluateFASTPWD(cfg, FASTPWDEvaluationRequest{
+			Method:                      method,
+			InnerMethod:                 request.InnerMethod,
+			NASType:                     request.NASType,
+			Identity:                    request.UserIdentity,
+			IdentitySource:              request.IdentitySource,
+			EAPMessagePresent:           request.EAPMessagePresent,
+			MessageAuthenticatorPresent: request.MessageAuthenticatorPresent,
+			TLSVersion:                  request.TLSVersion,
+			CryptoBindingValid:          request.CryptoBindingValid,
+			PACPresented:                request.PACPresented,
+			PACProvisioningRequested:    request.PACProvisioningRequested,
+			PACOpaqueKeyAvailable:       request.PACOpaqueKeyAvailable,
+			AnonymousProvisioning:       request.AnonymousProvisioning,
+			EAPPayloadPresent:           request.EAPPayloadPresent,
+			ProvisioningAttemptCount:    request.ProvisioningAttemptCount,
+			PasswordProofValid:          request.PasswordProofValid,
+			ReplayDetected:              request.ReplayDetected,
+			PWDGroup:                    request.PWDGroup,
+			PWDServerID:                 request.PWDServerID,
+		})
+		return EvaluationDecision{
+			Decision:       fastPWDDecision.Decision,
+			Method:         fastPWDDecision.Method,
+			InnerMethod:    fastPWDDecision.InnerMethod,
+			Reason:         fastPWDDecision.Reason,
+			PolicyMode:     fastPWDDecision.PolicyMode,
+			IdentitySource: fastPWDDecision.IdentitySource,
+			Warnings:       fastPWDDecision.Warnings,
+			Dependencies:   fastPWDDecision.Dependencies,
+		}
+	}
 	methodReport, found := methodReportByName(report.Methods, method)
 	if !found || !stringInSlice(method, policy.AllowedMethods) {
 		switch policy.UnsupportedMethodAction {
@@ -419,8 +459,8 @@ func MethodCatalog() []MethodCapability {
 		{Method: "ttls", DisplayName: "EAP-TTLS", Kind: "tunnel", RFCs: []string{"RFC 3748", "RFC 5281"}, FreeRADIUSModule: "rlm_eap_ttls", SoftwareStatus: "complete", GeneratedByFramework: true, PasswordBased: true, TunnelBased: true, InnerMethodCapable: true, Summary: "TLS tunnel for PAP, CHAP, MSCHAPv2, GTC, or certificate-backed inner authentication."},
 		{Method: "tls", DisplayName: "EAP-TLS", Kind: "certificate", RFCs: []string{"RFC 3748", "RFC 5216", "RFC 9190"}, FreeRADIUSModule: "rlm_eap_tls", SoftwareStatus: "complete", GeneratedByFramework: true, CertificateBased: true, Summary: "Certificate-based EAP method using server and client certificate validation."},
 		{Method: "teap", DisplayName: "TEAP", Kind: "tunnel", RFCs: []string{"RFC 7170"}, FreeRADIUSModule: "rlm_eap_teap", SoftwareStatus: "complete", GeneratedByFramework: true, TunnelBased: true, InnerMethodCapable: true, MethodChainingCapable: true, Summary: "Tunnel Extensible Authentication Protocol with cryptobinding and machine/user method chaining."},
-		{Method: "fast", DisplayName: "EAP-FAST", Kind: "tunnel", RFCs: []string{"RFC 4851"}, FreeRADIUSModule: "rlm_eap_fast", SoftwareStatus: "planned", TunnelBased: true, InnerMethodCapable: true, RequiresFutureFeature: "NAS-0024", Summary: "Cisco-originated protected access credential method."},
-		{Method: "pwd", DisplayName: "EAP-PWD", Kind: "password", RFCs: []string{"RFC 5931"}, FreeRADIUSModule: "rlm_eap_pwd", SoftwareStatus: "planned", PasswordBased: true, RequiresFutureFeature: "NAS-0024", Summary: "Password-authenticated key exchange EAP method."},
+		{Method: "fast", DisplayName: "EAP-FAST", Kind: "tunnel", RFCs: []string{"RFC 4851"}, FreeRADIUSModule: "rlm_eap_fast", SoftwareStatus: "complete", GeneratedByFramework: true, PasswordBased: true, TunnelBased: true, InnerMethodCapable: true, Summary: "Cisco-originated protected access credential tunnel method with PAC governance."},
+		{Method: "pwd", DisplayName: "EAP-PWD", Kind: "password", RFCs: []string{"RFC 5931"}, FreeRADIUSModule: "rlm_eap_pwd", SoftwareStatus: "complete", GeneratedByFramework: true, PasswordBased: true, Summary: "Password-authenticated key exchange EAP method with group and replay policy."},
 		{Method: "sim", DisplayName: "EAP-SIM", Kind: "mobile", RFCs: []string{"RFC 4186"}, FreeRADIUSModule: "rlm_eap_sim", SoftwareStatus: "planned", RequiresFutureFeature: "NAS-0025", Summary: "GSM SIM triplet based EAP method for carrier offload and roaming."},
 		{Method: "aka", DisplayName: "EAP-AKA", Kind: "mobile", RFCs: []string{"RFC 4187"}, FreeRADIUSModule: "rlm_eap_aka", SoftwareStatus: "planned", RequiresFutureFeature: "NAS-0025", Summary: "UMTS AKA quintuplet based EAP method."},
 		{Method: "aka-prime", DisplayName: "EAP-AKA'", Kind: "mobile", RFCs: []string{"RFC 5448"}, FreeRADIUSModule: "rlm_eap_aka_prime", SoftwareStatus: "planned", RequiresFutureFeature: "NAS-0025", Summary: "AKA-prime with stronger key derivation for evolved packet systems."},
@@ -440,6 +480,8 @@ func buildMethodReports(cfg *config.Config, policy PolicyReport, catalog []Metho
 		}
 	}
 	teapPolicy := BuildTEAPPolicyReport(cfg)
+	fastPolicy := BuildFASTPolicyReport(cfg)
+	pwdPolicy := BuildPWDPolicyReport(cfg)
 	names := append([]string{}, policy.AllowedMethods...)
 	for _, capability := range catalog {
 		if !stringInSlice(capability.Method, names) {
@@ -487,6 +529,15 @@ func buildMethodReports(cfg *config.Config, policy PolicyReport, catalog []Metho
 				report.InnerMethods = normalizeInnerList(raw.InnerMethods)
 			}
 			report.AllowPasswordVerifier = teapPolicy.AllowBasicPasswordAuth
+		case "fast":
+			report.InnerMethods = []string{fastPolicy.DefaultInnerMethod}
+			if isConfigured && len(raw.InnerMethods) > 0 {
+				report.InnerMethods = normalizeInnerList(raw.InnerMethods)
+			}
+			report.AllowPasswordVerifier = true
+		case "pwd":
+			report.IdentitySource = pwdPolicy.PasswordSource
+			report.AllowPasswordVerifier = true
 		}
 		if isConfigured {
 			report.Enabled = raw.Enabled && stringInSlice(name, policy.AllowedMethods)
@@ -523,6 +574,30 @@ func buildMethodReports(cfg *config.Config, policy PolicyReport, catalog []Metho
 				report.Dependencies = append(report.Dependencies, "radius.eap.teap.enabled")
 			}
 			if report.Enabled && len(teapPolicy.BlockingIssues) > 0 {
+				report.EffectiveStatus = "blocked"
+			}
+		}
+		if name == "fast" {
+			report.GeneratedInFreeRADIUS = report.GeneratedInFreeRADIUS && fastPolicy.GeneratedInFreeRADIUS
+			report.Warnings = append(report.Warnings, fastPolicy.Warnings...)
+			report.Dependencies = append(report.Dependencies, fastPolicy.BlockingIssues...)
+			if report.Enabled && !fastPolicy.Enabled {
+				report.EffectiveStatus = "blocked"
+				report.Dependencies = append(report.Dependencies, "radius.eap.fast.enabled")
+			}
+			if report.Enabled && len(fastPolicy.BlockingIssues) > 0 {
+				report.EffectiveStatus = "blocked"
+			}
+		}
+		if name == "pwd" {
+			report.GeneratedInFreeRADIUS = report.GeneratedInFreeRADIUS && pwdPolicy.GeneratedInFreeRADIUS
+			report.Warnings = append(report.Warnings, pwdPolicy.Warnings...)
+			report.Dependencies = append(report.Dependencies, pwdPolicy.BlockingIssues...)
+			if report.Enabled && !pwdPolicy.Enabled {
+				report.EffectiveStatus = "blocked"
+				report.Dependencies = append(report.Dependencies, "radius.eap.pwd.enabled")
+			}
+			if report.Enabled && len(pwdPolicy.BlockingIssues) > 0 {
 				report.EffectiveStatus = "blocked"
 			}
 		}
@@ -640,7 +715,7 @@ func methodReportByName(methods []MethodPolicyReport, name string) (MethodPolicy
 func configuresUnsupportedMethods(policy PolicyReport) bool {
 	for _, method := range policy.AllowedMethods {
 		switch method {
-		case "peap", "ttls", "tls", "teap":
+		case "peap", "ttls", "tls", "teap", "fast", "pwd":
 		default:
 			return true
 		}
