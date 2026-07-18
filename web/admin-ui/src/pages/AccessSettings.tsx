@@ -795,6 +795,33 @@ const defaultSettings: JsonMap = {
         session_ttl_seconds: 900,
         event_retention_limit: 6000,
       },
+      machine_user: {
+        enabled: true,
+        mode: "monitor",
+        fail_closed: true,
+        correlation_mode: "machine_then_user",
+        require_teap: true,
+        require_machine_identity: true,
+        require_user_identity: true,
+        require_machine_before_user: true,
+        require_same_calling_station: true,
+        require_same_nas: false,
+        require_fresh_machine_auth: true,
+        machine_auth_ttl_seconds: 28800,
+        user_auth_ttl_seconds: 28800,
+        transition_window_seconds: 900,
+        allowed_machine_methods: ["teap", "tls"],
+        allowed_user_methods: ["teap", "peap", "ttls"],
+        identity_precedence: "user_over_machine",
+        role_merge_strategy: "user_primary",
+        conflict_action: "reject",
+        stale_machine_action: "reject",
+        machine_identity_prefixes: ["host/", "machine/"],
+        user_identity_prefixes: [],
+        max_active_correlations: 100000,
+        audit_enabled: true,
+        event_retention_limit: 6000,
+      },
       fast: {
         enabled: true,
         default_inner_method: "mschapv2",
@@ -1268,6 +1295,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.radius = next.radius || {};
   next.radius.eap = next.radius.eap || {};
   next.radius.eap.teap = next.radius.eap.teap || {};
+  next.radius.eap.machine_user = next.radius.eap.machine_user || {};
   next.radius.eap.fast = next.radius.eap.fast || {};
   next.radius.eap.pwd = next.radius.eap.pwd || {};
   next.radius.eap.sim_aka = next.radius.eap.sim_aka || {};
@@ -1293,6 +1321,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.eap.teap.enabled = true;
     next.radius.eap.teap.max_chain_steps = 2;
     next.radius.eap.teap.event_retention_limit = 1000;
+    next.radius.eap.machine_user.enabled = true;
+    next.radius.eap.machine_user.mode = "monitor";
+    next.radius.eap.machine_user.max_active_correlations = 10000;
+    next.radius.eap.machine_user.event_retention_limit = 1000;
     next.radius.eap.fast.enabled = true;
     next.radius.eap.fast.event_retention_limit = 1000;
     next.radius.eap.pwd.enabled = true;
@@ -1342,6 +1374,11 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.eap.teap.max_chain_steps || 2;
     next.radius.eap.teap.event_retention_limit =
       next.radius.eap.teap.event_retention_limit || 12000;
+    next.radius.eap.machine_user.enabled = true;
+    next.radius.eap.machine_user.max_active_correlations =
+      next.radius.eap.machine_user.max_active_correlations || 250000;
+    next.radius.eap.machine_user.event_retention_limit =
+      next.radius.eap.machine_user.event_retention_limit || 12000;
     next.radius.eap.fast.enabled = true;
     next.radius.eap.fast.event_retention_limit =
       next.radius.eap.fast.event_retention_limit || 12000;
@@ -1393,6 +1430,11 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.eap.teap.max_chain_steps || 2;
     next.radius.eap.teap.event_retention_limit =
       next.radius.eap.teap.event_retention_limit || 6000;
+    next.radius.eap.machine_user.enabled = true;
+    next.radius.eap.machine_user.max_active_correlations =
+      next.radius.eap.machine_user.max_active_correlations || 100000;
+    next.radius.eap.machine_user.event_retention_limit =
+      next.radius.eap.machine_user.event_retention_limit || 6000;
     next.radius.eap.fast.enabled = true;
     next.radius.eap.fast.event_retention_limit =
       next.radius.eap.fast.event_retention_limit || 6000;
@@ -9603,6 +9645,403 @@ export default function AccessSettings() {
                 updateField(
                   ["radius", "eap", "teap", "allow_basic_password_auth"],
                   value,
+                )
+              }
+            />
+          </div>
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <h4 className="font-semibold text-gray-900">
+            Machine And User Correlation
+          </h4>
+          <p className="mt-1 text-sm text-gray-600">
+            Bind managed device authentication to user logon with fresh machine
+            evidence, same-client checks, deterministic role merge, and bounded
+            history.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Correlation Enabled"
+              checked={settings.radius?.eap?.machine_user?.enabled !== false}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={settings.radius?.eap?.machine_user?.fail_closed !== false}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "fail_closed"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require TEAP"
+              checked={settings.radius?.eap?.machine_user?.require_teap !== false}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "require_teap"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Machine Identity"
+              checked={
+                settings.radius?.eap?.machine_user
+                  ?.require_machine_identity !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "machine_user",
+                    "require_machine_identity",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="User Identity"
+              checked={
+                settings.radius?.eap?.machine_user?.require_user_identity !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "require_user_identity"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Machine Before User"
+              checked={
+                settings.radius?.eap?.machine_user
+                  ?.require_machine_before_user !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "machine_user",
+                    "require_machine_before_user",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Same Client"
+              checked={
+                settings.radius?.eap?.machine_user
+                  ?.require_same_calling_station !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "machine_user",
+                    "require_same_calling_station",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Same NAS"
+              checked={Boolean(
+                settings.radius?.eap?.machine_user?.require_same_nas,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "require_same_nas"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Fresh Machine Auth"
+              checked={
+                settings.radius?.eap?.machine_user
+                  ?.require_fresh_machine_auth !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "machine_user",
+                    "require_fresh_machine_auth",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Audit Decisions"
+              checked={settings.radius?.eap?.machine_user?.audit_enabled !== false}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "audit_enabled"],
+                  value,
+                )
+              }
+            />
+            <SelectField
+              label="Correlation Mode"
+              value={
+                settings.radius?.eap?.machine_user?.correlation_mode ||
+                "machine_then_user"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "correlation_mode"],
+                  value,
+                )
+              }
+              options={[
+                { value: "machine_then_user", label: "Machine Then User" },
+                { value: "same_session", label: "Same Session" },
+                { value: "either", label: "Either" },
+                { value: "machine_only", label: "Machine Only" },
+                { value: "user_only", label: "User Only" },
+              ]}
+            />
+            <SelectField
+              label="Mode"
+              value={settings.radius?.eap?.machine_user?.mode || "monitor"}
+              onChange={(value) =>
+                updateField(["radius", "eap", "machine_user", "mode"], value)
+              }
+              options={[
+                { value: "monitor", label: "Monitor" },
+                { value: "enforce", label: "Enforce" },
+              ]}
+            />
+            <SelectField
+              label="Identity Precedence"
+              value={
+                settings.radius?.eap?.machine_user?.identity_precedence ||
+                "user_over_machine"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "identity_precedence"],
+                  value,
+                )
+              }
+              options={[
+                { value: "user_over_machine", label: "User Over Machine" },
+                { value: "machine_over_user", label: "Machine Over User" },
+                { value: "deny_conflict", label: "Deny Conflict" },
+              ]}
+            />
+            <SelectField
+              label="Role Merge"
+              value={
+                settings.radius?.eap?.machine_user?.role_merge_strategy ||
+                "user_primary"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "role_merge_strategy"],
+                  value,
+                )
+              }
+              options={[
+                { value: "user_primary", label: "User Primary" },
+                { value: "machine_primary", label: "Machine Primary" },
+                { value: "intersection", label: "Intersection" },
+                { value: "deny_conflict", label: "Deny Conflict" },
+              ]}
+            />
+            <SelectField
+              label="Conflict Action"
+              value={
+                settings.radius?.eap?.machine_user?.conflict_action || "reject"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "conflict_action"],
+                  value,
+                )
+              }
+              options={[
+                { value: "reject", label: "Reject" },
+                { value: "monitor", label: "Monitor" },
+                { value: "quarantine", label: "Quarantine" },
+              ]}
+            />
+            <SelectField
+              label="Stale Machine"
+              value={
+                settings.radius?.eap?.machine_user?.stale_machine_action ||
+                "reject"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "stale_machine_action"],
+                  value,
+                )
+              }
+              options={[
+                { value: "reject", label: "Reject" },
+                { value: "monitor", label: "Monitor" },
+                { value: "allow", label: "Allow" },
+              ]}
+            />
+            <TextField
+              label="Machine Methods"
+              value={listToCSV(
+                settings.radius?.eap?.machine_user
+                  ?.allowed_machine_methods || ["teap", "tls"],
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "allowed_machine_methods"],
+                  csvToList(value),
+                )
+              }
+            />
+            <TextField
+              label="User Methods"
+              value={listToCSV(
+                settings.radius?.eap?.machine_user?.allowed_user_methods || [
+                  "teap",
+                  "peap",
+                  "ttls",
+                ],
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "allowed_user_methods"],
+                  csvToList(value),
+                )
+              }
+            />
+            <TextField
+              label="Machine Prefixes"
+              value={listToCSV(
+                settings.radius?.eap?.machine_user
+                  ?.machine_identity_prefixes || ["host/", "machine/"],
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "machine_user",
+                    "machine_identity_prefixes",
+                  ],
+                  csvToList(value),
+                )
+              }
+            />
+            <TextField
+              label="User Prefixes"
+              value={listToCSV(
+                settings.radius?.eap?.machine_user?.user_identity_prefixes ||
+                  [],
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "user_identity_prefixes"],
+                  csvToList(value),
+                )
+              }
+            />
+            <TextField
+              label="Machine TTL (s)"
+              type="number"
+              value={
+                settings.radius?.eap?.machine_user
+                  ?.machine_auth_ttl_seconds ?? 28800
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "machine_user",
+                    "machine_auth_ttl_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="User TTL (s)"
+              type="number"
+              value={
+                settings.radius?.eap?.machine_user?.user_auth_ttl_seconds ??
+                28800
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "user_auth_ttl_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Transition Window (s)"
+              type="number"
+              value={
+                settings.radius?.eap?.machine_user
+                  ?.transition_window_seconds ?? 900
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "machine_user",
+                    "transition_window_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Correlations"
+              type="number"
+              value={
+                settings.radius?.eap?.machine_user
+                  ?.max_active_correlations ?? 100000
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "machine_user",
+                    "max_active_correlations",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Correlation Retention"
+              type="number"
+              value={
+                settings.radius?.eap?.machine_user?.event_retention_limit ??
+                6000
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "machine_user", "event_retention_limit"],
+                  Number(value),
                 )
               }
             />

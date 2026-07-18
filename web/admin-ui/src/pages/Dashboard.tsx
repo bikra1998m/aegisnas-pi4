@@ -405,6 +405,52 @@ type TEAPReport = {
   blocking_issues?: string[];
 };
 
+type MachineUserReport = {
+  status: string;
+  message: string;
+  policy?: {
+    enabled: boolean;
+    mode: string;
+    fail_closed: boolean;
+    framework_enabled: boolean;
+    require_teap: boolean;
+    teap_generated: boolean;
+    correlation_mode: string;
+    require_machine_identity: boolean;
+    require_user_identity: boolean;
+    require_machine_before_user: boolean;
+    require_same_calling_station: boolean;
+    require_same_nas: boolean;
+    require_fresh_machine_auth: boolean;
+    machine_auth_ttl_seconds: number;
+    user_auth_ttl_seconds: number;
+    transition_window_seconds: number;
+    allowed_machine_methods: string[];
+    allowed_user_methods: string[];
+    role_merge_strategy: string;
+    conflict_action: string;
+    stale_machine_action: string;
+  };
+  runtime?: {
+    total_events: number;
+    accepted: number;
+    rejected: number;
+    monitor_allowed: number;
+    quarantined: number;
+    active_correlations: number;
+    missing_machine_identity: number;
+    missing_user_identity: number;
+    stale_machine_auth: number;
+    role_conflict: number;
+    calling_station_mismatch: number;
+    nas_mismatch: number;
+    machine_before_user_failure: number;
+    last_rejected_reason?: string;
+  };
+  warnings?: string[];
+  blocking_issues?: string[];
+};
+
 type FASTPWDReport = {
   status: string;
   message: string;
@@ -692,6 +738,7 @@ type SystemStatus = {
     fallback_policy?: RadiusFallbackPolicyReport;
     eap_framework?: EAPFrameworkReport;
     eap_teap?: TEAPReport;
+    eap_machine_user?: MachineUserReport;
     eap_fast_pwd?: FASTPWDReport;
     eap_sim_aka?: SIMAKAReport;
     radsec_credentials?: RadSecCredentialReport;
@@ -1239,6 +1286,7 @@ export default function Dashboard() {
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
   const eapFramework = systemStatus.radius?.eap_framework;
   const teapReport = systemStatus.radius?.eap_teap;
+  const machineUserReport = systemStatus.radius?.eap_machine_user;
   const fastPWDReport = systemStatus.radius?.eap_fast_pwd;
   const simAKAReport = systemStatus.radius?.eap_sim_aka;
   const identityFailover = systemStatus.identity?.failover;
@@ -2204,6 +2252,81 @@ export default function Dashboard() {
                     <StatusBadge status={teapReport.status || "unknown"} />
                   </div>
                 </div>
+              ) : null}
+              {machineUserReport ? (
+                  <div className="rounded-md border border-gray-200 px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium text-gray-900">
+                          Machine And User Correlation
+                        </div>
+                        <div className="mt-1 text-sm text-gray-600">
+                          {machineUserReport.message ||
+                            "Machine and user correlation state is available."}
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                          <div>
+                            Mode {machineUserReport.policy?.mode || "monitor"}
+                          </div>
+                          <div>
+                            Chain{" "}
+                            {machineUserReport.policy?.correlation_mode ||
+                              "machine_then_user"}
+                          </div>
+                          <div>
+                            Active{" "}
+                            {machineUserReport.runtime?.active_correlations ??
+                              0}
+                          </div>
+                          <div>
+                            Events{" "}
+                            {machineUserReport.runtime?.total_events ?? 0}
+                          </div>
+                          <div>
+                            Quarantine{" "}
+                            {machineUserReport.runtime?.quarantined ?? 0}
+                          </div>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          TEAP{" "}
+                          {machineUserReport.policy?.teap_generated
+                            ? "generated"
+                            : machineUserReport.policy?.require_teap
+                              ? "required"
+                              : "optional"}
+                          ; same client{" "}
+                          {machineUserReport.policy?.require_same_calling_station
+                            ? "required"
+                            : "not required"}
+                          ; machine TTL{" "}
+                          {machineUserReport.policy
+                            ?.machine_auth_ttl_seconds ?? 28800}
+                          s; merge{" "}
+                          {machineUserReport.policy?.role_merge_strategy ||
+                            "user_primary"}
+                          .
+                        </div>
+                        {machineUserReport.runtime?.last_rejected_reason ? (
+                          <div className="mt-2 text-xs text-gray-500">
+                            Last correlation rejection:{" "}
+                            {machineUserReport.runtime.last_rejected_reason}
+                          </div>
+                        ) : null}
+                        {machineUserReport.blocking_issues?.length ? (
+                          <div className="mt-2 text-xs text-red-700">
+                            {machineUserReport.blocking_issues[0]}
+                          </div>
+                        ) : machineUserReport.warnings?.length ? (
+                          <div className="mt-2 text-xs text-amber-700">
+                            {machineUserReport.warnings[0]}
+                          </div>
+                        ) : null}
+                      </div>
+                      <StatusBadge
+                        status={machineUserReport.status || "unknown"}
+                      />
+                    </div>
+                  </div>
               ) : null}
               {fastPWDReport ? (
                 <div className="rounded-md border border-gray-200 px-4 py-3">

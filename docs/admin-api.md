@@ -322,6 +322,8 @@ GET  /api/v1/system/eap-framework
 POST /api/v1/system/eap-framework/evaluate
 GET  /api/v1/system/eap-framework/teap
 POST /api/v1/system/eap-framework/teap/evaluate
+GET  /api/v1/system/eap-framework/machine-user
+POST /api/v1/system/eap-framework/machine-user/evaluate
 GET  /api/v1/system/eap-framework/fast-pwd
 POST /api/v1/system/eap-framework/fast-pwd/evaluate
 GET  /api/v1/system/eap-framework/sim-aka
@@ -329,20 +331,24 @@ POST /api/v1/system/eap-framework/sim-aka/evaluate
 ```
 
 Use these endpoints to inspect the typed EAP catalog, effective PEAP/TTLS/TLS
-TEAP, FAST, PWD, SIM, AKA, and AKA-prime policy, method blockers,
+TEAP, machine/user correlation, FAST, PWD, SIM, AKA, and AKA-prime policy,
+method blockers,
 identity-source bindings, vendor compatibility profiles, and recent hashed
 method decisions. `evaluate`, `teap/evaluate`, `fast-pwd/evaluate`, and
-`sim-aka/evaluate` are restricted to `ops_admin` and `super_admin` and can
+`sim-aka/evaluate` are restricted to `ops_admin` and `super_admin`;
+`machine-user/evaluate` follows the same role boundary and can
 optionally record audited decisions. The same summaries appear in
 `/api/v1/system/status` under `radius.eap_framework`, `radius.eap_teap`,
-`radius.eap_fast_pwd`, and `radius.eap_sim_aka`, in production readiness as
-`eap_method_framework`, `teap_method_chaining`, `eap_fast_pwd_methods`, and
+`radius.eap_machine_user`, `radius.eap_fast_pwd`, and `radius.eap_sim_aka`, in
+production readiness as `eap_method_framework`, `teap_method_chaining`,
+`eap_machine_user_correlation`, `eap_fast_pwd_methods`, and
 `eap_sim_aka_methods`, and in support bundles as `api/eap-framework.json`,
-`api/eap-framework-teap.json`, `api/eap-framework-fast-pwd.json`, and
-`api/eap-framework-sim-aka.json`. See
+`api/eap-framework-teap.json`, `api/eap-framework-machine-user.json`,
+`api/eap-framework-fast-pwd.json`, and `api/eap-framework-sim-aka.json`. See
 [eap-method-framework.md](eap-method-framework.md) and
 [teap-method-chaining.md](teap-method-chaining.md), plus
-[eap-fast-pwd.md](eap-fast-pwd.md) and [eap-sim-aka.md](eap-sim-aka.md).
+[eap-machine-user-correlation.md](eap-machine-user-correlation.md),
+[eap-fast-pwd.md](eap-fast-pwd.md), and [eap-sim-aka.md](eap-sim-aka.md).
 
 ## Dynamic NAS Client Endpoints
 

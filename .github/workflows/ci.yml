@@ -38,6 +38,7 @@ jobs:
       - run: make test-admin-webauthn
       - run: make test-eap-framework
       - run: make test-eap-teap
+      - run: make test-eap-machine-user
       - run: make test-eap-fast-pwd
       - run: make test-eap-sim-aka
       - run: make test-mab

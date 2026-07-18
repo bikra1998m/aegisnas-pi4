@@ -152,6 +152,8 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	eapFramework := eappkg.BuildFrameworkReport(cfg, eapRuntimeSummaryFromDB(eapSummary))
 	teapSummary, _ := db.SummarizeTEAPChainEvents(1000)
 	teapFramework := eappkg.BuildTEAPReport(cfg, teapRuntimeSummaryFromDB(teapSummary))
+	machineUserSummary, _ := db.SummarizeMachineUserCorrelations(1000)
+	machineUserFramework := eappkg.BuildMachineUserReport(cfg, machineUserRuntimeSummaryFromDB(machineUserSummary))
 	fastPWDSummary, _ := db.SummarizeFASTPWDEvents(1000)
 	fastPWDFramework := eappkg.BuildFASTPWDReport(cfg, fastPWDRuntimeSummaryFromDB(fastPWDSummary))
 	simAKASummary, _ := db.SummarizeSIMAKAEvents(1000)
@@ -170,6 +172,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"fallback_policy":         fallbackPolicy,
 		"eap_framework":           eapFramework,
 		"eap_teap":                teapFramework,
+		"eap_machine_user":        machineUserFramework,
 		"eap_fast_pwd":            fastPWDFramework,
 		"eap_sim_aka":             simAKAFramework,
 		"enabled_radius_clients":  enabledRadiusClients,

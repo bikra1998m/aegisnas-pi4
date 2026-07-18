@@ -3,7 +3,8 @@
 NAS-0022 adds a typed EAP control plane around the generated FreeRADIUS EAP
 configuration. NAS-0023 extends this control plane with opt-in TEAP method
 chaining. NAS-0024 adds opt-in EAP-FAST and EAP-PWD policy. NAS-0025 adds
-opt-in EAP-SIM, EAP-AKA, and EAP-AKA-prime policy.
+opt-in EAP-SIM, EAP-AKA, and EAP-AKA-prime policy. NAS-0026 adds
+machine/user authentication correlation on top of TEAP and 802.1X evidence.
 
 ## What It Solves
 
@@ -16,6 +17,7 @@ The framework makes EAP behavior explicit:
 - whether a client certificate is required
 - whether unsupported methods are rejected, NAKed, or monitored
 - whether TEAP machine/user method chaining is generated and safe
+- whether machine and user authentication evidence can be correlated safely
 - whether EAP-FAST PAC policy and EAP-PWD password-proof policy are generated
   and safe
 - whether EAP-SIM/AKA vector provider, pseudonym, resync, and AKA-prime KDF
@@ -38,6 +40,9 @@ Generated methods in this release:
 - EAP-SIM, EAP-AKA, and EAP-AKA-prime with RFC 4186, RFC 4187, and RFC 5448
   vector-provider policy, identity privacy controls, resync handling,
   AKA-prime network binding, and bounded method telemetry
+- machine/user authentication correlation with fresh machine evidence,
+  same-client binding, transition windows, deterministic role merge, conflict
+  handling, current-state tracking, and bounded telemetry
 
 ## Configuration
 
@@ -61,6 +66,21 @@ radius:
       pac_provisioning: authenticated
       max_chain_steps: 2
       session_ttl_seconds: 900
+    machine_user:
+      enabled: true
+      mode: enforce
+      fail_closed: true
+      correlation_mode: machine_then_user
+      require_teap: true
+      require_machine_identity: true
+      require_user_identity: true
+      require_machine_before_user: true
+      require_same_calling_station: true
+      require_fresh_machine_auth: true
+      machine_auth_ttl_seconds: 28800
+      transition_window_seconds: 900
+      role_merge_strategy: user_primary
+      conflict_action: reject
     fast:
       enabled: true
       default_inner_method: mschapv2
@@ -121,6 +141,8 @@ GET  /api/v1/system/eap-framework
 POST /api/v1/system/eap-framework/evaluate
 GET  /api/v1/system/eap-framework/teap
 POST /api/v1/system/eap-framework/teap/evaluate
+GET  /api/v1/system/eap-framework/machine-user
+POST /api/v1/system/eap-framework/machine-user/evaluate
 GET  /api/v1/system/eap-framework/fast-pwd
 POST /api/v1/system/eap-framework/fast-pwd/evaluate
 GET  /api/v1/system/eap-framework/sim-aka
@@ -137,6 +159,11 @@ presence, certificate state, identity source, and optional audit recording.
 The TEAP endpoints expose RFC 7170 TLV coverage, chain policy, recent TEAP
 events, and deterministic machine/user chain evaluation. See
 [teap-method-chaining.md](teap-method-chaining.md).
+
+The machine/user endpoints expose correlation policy, current correlation
+state, recent decisions, role-merge behavior, stale-machine handling, and
+deterministic evaluation. See
+[eap-machine-user-correlation.md](eap-machine-user-correlation.md).
 
 The FAST/PWD endpoints expose RFC 4851 and RFC 5931 policy, PAC and password
 proof coverage, recent FAST/PWD events, and deterministic method evaluation.
@@ -161,6 +188,8 @@ raw subscriber identifiers.
 Method-family telemetry is stored in bounded tables:
 
 - `eap_teap_chain_events`
+- `eap_machine_user_correlations`
+- `eap_machine_user_session_state`
 - `eap_fast_pwd_events`
 - `eap_sim_aka_events`
 
@@ -182,6 +211,8 @@ generate, FreeRADIUS generation fails before apply.
 - Keep planned methods out of `allowed_methods` until their roadmap feature is
   implemented.
 - Add `teap` to `allowed_methods` only after TEAP supplicant/AP smoke tests.
+- Put `radius.eap.machine_user.mode` in `enforce` only after machine and user
+  authentication transitions have been tested for the target client fleet.
 - Add `fast` or `pwd` to `allowed_methods` only after method-specific
   supplicant/AP smoke tests.
 - Add `sim`, `aka`, or `aka-prime` only after `radius.eap.sim_aka` has a real
@@ -189,6 +220,8 @@ generate, FreeRADIUS generation fails before apply.
 - Enable CRL or OCSP before making production EAP-TLS certificate claims.
 - Retain `api/eap-framework.json` from support bundles as release evidence.
 - Retain `api/eap-framework-teap.json` when TEAP is enabled.
+- Retain `api/eap-framework-machine-user.json` when machine/user correlation is
+  enabled.
 - Retain `api/eap-framework-fast-pwd.json` when FAST or PWD is enabled.
 - Retain `api/eap-framework-sim-aka.json` when SIM, AKA, or AKA-prime is
   enabled.

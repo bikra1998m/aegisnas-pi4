@@ -125,6 +125,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionAdminWebAuthnCheck(&report, cfg)
 	addProductionEAPFrameworkCheck(&report, cfg)
 	addProductionTEAPCheck(&report, cfg)
+	addProductionMachineUserCheck(&report, cfg)
 	addProductionFASTPWDCheck(&report, cfg)
 	addProductionSIMAKACheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
@@ -605,6 +606,48 @@ func addProductionTEAPCheck(report *productionReadinessReport, cfg *config.Confi
 			teapReport.Policy.RequireCryptoBinding, teapReport.Policy.RequireChannelBinding, teapReport.Runtime.TotalEvents),
 		Recommendation: "For TEAP production SSIDs, add teap to radius.eap.framework.allowed_methods, keep framework enforce/fail-closed, require cryptobinding and identity binding, use machine_then_user for chained access, and complete the NAS-0023 release certification checklist for real supplicant evidence.",
 		Dependencies:   []string{"radius.eap.teap", "radius.eap.framework.allowed_methods", "eap_teap_chain_events", "rlm_eap_teap", "/api/v1/system/eap-framework/teap"},
+	})
+}
+
+func addProductionMachineUserCheck(report *productionReadinessReport, cfg *config.Config) {
+	summary, _ := db.SummarizeMachineUserCorrelations(1000)
+	machineUserReport := eappkg.BuildMachineUserReport(cfg, machineUserRuntimeSummaryFromDB(summary))
+	status := "passed"
+	switch machineUserReport.Status {
+	case "blocked":
+		status = "blocked"
+	case "disabled", "degraded":
+		status = "degraded"
+	}
+	if machineUserReport.Policy.Enabled {
+		if machineUserReport.Policy.Mode != "enforce" {
+			if status == "passed" {
+				status = "degraded"
+			}
+		}
+		if !machineUserReport.Policy.FailClosed ||
+			!machineUserReport.Policy.FrameworkEnabled ||
+			(machineUserReport.Policy.RequireTEAP && !machineUserReport.Policy.TEAPGenerated) ||
+			len(machineUserReport.Policy.BlockingIssues) > 0 {
+			status = "blocked"
+		}
+	}
+	if machineUserReport.Runtime.Rejected > 0 || machineUserReport.Runtime.Quarantined > 0 {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "eap_machine_user_correlation",
+		Category: "authentication",
+		Label:    "Machine And User Authentication Correlation",
+		Status:   status,
+		Summary: fmt.Sprintf("Machine/user schema %d is %s in %s mode with correlation mode %s, TEAP required=%t, active correlations=%d, and %d recent event(s).",
+			machineUserReport.SchemaVersion, machineUserReport.Status, machineUserReport.Policy.Mode,
+			machineUserReport.Policy.CorrelationMode, machineUserReport.Policy.RequireTEAP,
+			machineUserReport.Runtime.ActiveCorrelations, machineUserReport.Runtime.TotalEvents),
+		Recommendation: "Use radius.eap.machine_user in enforce/fail-closed mode with TEAP cryptobinding, same Calling-Station-Id binding, fresh machine auth, deterministic role merge, and the NAS-0026 release checklist for real Windows/Cisco/Aruba evidence.",
+		Dependencies:   []string{"radius.eap.machine_user", "radius.eap.teap", "eap_machine_user_correlations", "eap_machine_user_session_state", "/api/v1/system/eap-framework/machine-user"},
 	})
 }
 

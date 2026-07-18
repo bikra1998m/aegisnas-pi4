@@ -1308,6 +1308,18 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Deterministic TEAP chain decision and audit status."),
 		"default": responseJSON("TEAP evaluation error."),
 	}))
+	addOperation(paths, "/api/v1/system/eap-framework/machine-user", "get", securedOperationWithParameters("Read machine and user authentication correlation state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("decision", "Optional audited machine/user decision filter.", []string{"accepted", "rejected", "monitor_allowed", "quarantined"}, false),
+		queryEnumParameter("correlation_mode", "Optional machine/user correlation mode filter.", []string{"machine_then_user", "same_session", "either", "machine_only", "user_only"}, false),
+		queryStringParameter("nas_type", "Optional NAS type filter for recent machine/user events.", false),
+		queryStringParameter("limit", "Event and state limit from 1 to 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("Machine/user correlation policy, capability catalog, runtime summary, current correlation state, release evidence checklist, and recent correlation events."),
+	}))
+	addOperation(paths, "/api/v1/system/eap-framework/machine-user/evaluate", "post", securedOperationWithBody("Evaluate a machine and user authentication correlation decision", "Authentication", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Machine/user correlation facts: machine and user identities, methods, authentication ages, Calling-Station-Id, NAS binding, TEAP evidence, roles, posture, and optional audit flag."), map[string]any{
+		"200":     responseJSON("Deterministic machine/user correlation decision and audit status."),
+		"default": responseJSON("Machine/user correlation evaluation error."),
+	}))
 	addOperation(paths, "/api/v1/system/eap-framework/fast-pwd", "get", securedOperationWithParameters("Read EAP-FAST and EAP-PWD state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("method", "Optional audited method filter.", []string{"fast", "pwd"}, false),
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "monitor_allowed"}, false),

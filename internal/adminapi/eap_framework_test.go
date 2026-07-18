@@ -116,6 +116,72 @@ func TestHandleGetAndEvaluateTEAPFramework(t *testing.T) {
 	assert.NotContains(t, payload.Events[0].UserIdentityHash, "alice")
 }
 
+func TestHandleGetAndEvaluateMachineUserFramework(t *testing.T) {
+	prepareEAPFrameworkAPIConfig(t)
+
+	body := bytes.NewBufferString(`{
+		"nas_type":"cisco",
+		"nas_identifier":"ap-1",
+		"correlation_id":"acct-123",
+		"outer_identity":"anonymous@example.com",
+		"machine_identity":"host/laptop.example.com",
+		"user_identity":"alice@example.com",
+		"calling_station_id":"aa:bb:cc:dd:ee:ff",
+		"identity_source":"identity-failover",
+		"machine_method":"teap",
+		"user_method":"teap",
+		"machine_authenticated":true,
+		"user_authenticated":true,
+		"machine_auth_age_seconds":300,
+		"user_auth_age_seconds":30,
+		"machine_role":"managed-device",
+		"user_role":"employee",
+		"eap_message_present":true,
+		"message_authenticator_present":true,
+		"teap_chain_complete":true,
+		"identity_type_presented":true,
+		"crypto_binding_valid":true,
+		"audit":true
+	}`)
+	evalRec := httptest.NewRecorder()
+	HandleEvaluateMachineUserCorrelation(evalRec, httptest.NewRequest(http.MethodPost, "/api/v1/system/eap-framework/machine-user/evaluate", body))
+	require.Equal(t, http.StatusOK, evalRec.Code)
+	assert.Contains(t, evalRec.Body.String(), `"decision":"accepted"`)
+	assert.Contains(t, evalRec.Body.String(), `"correlation_state":"complete"`)
+	assert.Contains(t, evalRec.Body.String(), `"audited":true`)
+
+	rec := httptest.NewRecorder()
+	HandleGetMachineUserFramework(rec, httptest.NewRequest(http.MethodGet, "/api/v1/system/eap-framework/machine-user?limit=10", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	var payload struct {
+		Status string `json:"status"`
+		Policy struct {
+			Mode            string `json:"mode"`
+			CorrelationMode string `json:"correlation_mode"`
+			TEAPGenerated   bool   `json:"teap_generated"`
+		} `json:"policy"`
+		Runtime struct {
+			TotalEvents        int `json:"total_events"`
+			Accepted           int `json:"accepted"`
+			ActiveCorrelations int `json:"active_correlations"`
+		} `json:"runtime"`
+		Events []db.MachineUserCorrelationEvent `json:"events"`
+		State  []db.MachineUserCorrelationState `json:"state"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	assert.Equal(t, "ready", payload.Status)
+	assert.Equal(t, "enforce", payload.Policy.Mode)
+	assert.Equal(t, "machine_then_user", payload.Policy.CorrelationMode)
+	assert.True(t, payload.Policy.TEAPGenerated)
+	assert.Equal(t, 1, payload.Runtime.TotalEvents)
+	assert.Equal(t, 1, payload.Runtime.Accepted)
+	assert.Equal(t, 1, payload.Runtime.ActiveCorrelations)
+	require.Len(t, payload.Events, 1)
+	require.Len(t, payload.State, 1)
+	assert.NotContains(t, payload.Events[0].UserIdentityHash, "alice")
+	assert.Equal(t, "employee", payload.State[0].EffectiveRole)
+}
+
 func TestHandleGetAndEvaluateFASTPWDFramework(t *testing.T) {
 	prepareEAPFrameworkAPIConfig(t)
 
@@ -255,6 +321,20 @@ func TestProductionReadinessIncludesTEAPCheck(t *testing.T) {
 	assert.True(t, found)
 }
 
+func TestProductionReadinessIncludesMachineUserCheck(t *testing.T) {
+	cfg := prepareEAPFrameworkAPIConfig(t)
+	report := buildProductionReadinessReport(cfg)
+	var found bool
+	for _, check := range report.Checks {
+		if check.Key == "eap_machine_user_correlation" {
+			found = true
+			assert.Equal(t, "passed", check.Status)
+			assert.Contains(t, check.Dependencies, "/api/v1/system/eap-framework/machine-user")
+		}
+	}
+	assert.True(t, found)
+}
+
 func TestProductionReadinessIncludesFASTPWDCheck(t *testing.T) {
 	cfg := prepareEAPFrameworkAPIConfig(t)
 	report := buildProductionReadinessReport(cfg)
@@ -290,6 +370,8 @@ func TestOpenAPIAndSupportBundleIncludeEAPFramework(t *testing.T) {
 	assert.Contains(t, paths, "/api/v1/system/eap-framework/evaluate")
 	assert.Contains(t, paths, "/api/v1/system/eap-framework/teap")
 	assert.Contains(t, paths, "/api/v1/system/eap-framework/teap/evaluate")
+	assert.Contains(t, paths, "/api/v1/system/eap-framework/machine-user")
+	assert.Contains(t, paths, "/api/v1/system/eap-framework/machine-user/evaluate")
 	assert.Contains(t, paths, "/api/v1/system/eap-framework/fast-pwd")
 	assert.Contains(t, paths, "/api/v1/system/eap-framework/fast-pwd/evaluate")
 	assert.Contains(t, paths, "/api/v1/system/eap-framework/sim-aka")
@@ -297,6 +379,7 @@ func TestOpenAPIAndSupportBundleIncludeEAPFramework(t *testing.T) {
 
 	var foundFramework bool
 	var foundTEAP bool
+	var foundMachineUser bool
 	var foundFASTPWD bool
 	var foundSIMAKA bool
 	for _, capture := range supportBundleAPICaptures() {
@@ -307,6 +390,10 @@ func TestOpenAPIAndSupportBundleIncludeEAPFramework(t *testing.T) {
 		if capture.archivePath == "api/eap-framework-teap.json" {
 			foundTEAP = true
 			assert.Equal(t, "/api/v1/system/eap-framework/teap", capture.requestPath)
+		}
+		if capture.archivePath == "api/eap-framework-machine-user.json" {
+			foundMachineUser = true
+			assert.Equal(t, "/api/v1/system/eap-framework/machine-user", capture.requestPath)
 		}
 		if capture.archivePath == "api/eap-framework-fast-pwd.json" {
 			foundFASTPWD = true
@@ -319,6 +406,7 @@ func TestOpenAPIAndSupportBundleIncludeEAPFramework(t *testing.T) {
 	}
 	assert.True(t, foundFramework)
 	assert.True(t, foundTEAP)
+	assert.True(t, foundMachineUser)
 	assert.True(t, foundFASTPWD)
 	assert.True(t, foundSIMAKA)
 }
@@ -331,6 +419,9 @@ func TestAuthorizeEAPFramework(t *testing.T) {
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/eap-framework/teap"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/eap-framework/teap/evaluate"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/eap-framework/teap/evaluate"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/eap-framework/machine-user"))
+	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/eap-framework/machine-user/evaluate"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/eap-framework/machine-user/evaluate"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/eap-framework/fast-pwd"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/eap-framework/fast-pwd/evaluate"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/eap-framework/fast-pwd/evaluate"))
@@ -400,6 +491,32 @@ radius:
       allow_basic_password_auth: false
       max_chain_steps: 2
       session_ttl_seconds: 900
+      event_retention_limit: 6000
+    machine_user:
+      enabled: true
+      mode: enforce
+      fail_closed: true
+      correlation_mode: machine_then_user
+      require_teap: true
+      require_machine_identity: true
+      require_user_identity: true
+      require_machine_before_user: true
+      require_same_calling_station: true
+      require_same_nas: false
+      require_fresh_machine_auth: true
+      machine_auth_ttl_seconds: 28800
+      user_auth_ttl_seconds: 28800
+      transition_window_seconds: 900
+      allowed_machine_methods: [teap, tls]
+      allowed_user_methods: [teap, peap, ttls]
+      identity_precedence: user_over_machine
+      role_merge_strategy: user_primary
+      conflict_action: reject
+      stale_machine_action: reject
+      machine_identity_prefixes: [host/, machine/]
+      user_identity_prefixes: []
+      max_active_correlations: 100000
+      audit_enabled: true
       event_retention_limit: 6000
     fast:
       enabled: true

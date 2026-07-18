@@ -184,6 +184,32 @@ radius:
       max_chain_steps: 2
       session_ttl_seconds: 900
       event_retention_limit: 6000
+    machine_user:
+      enabled: true # Correlates machine and user EAP evidence; enforce only after TEAP and Windows/client smoke tests.
+      mode: monitor # monitor or enforce.
+      fail_closed: true
+      correlation_mode: machine_then_user # machine_then_user, same_session, either, machine_only, or user_only.
+      require_teap: true
+      require_machine_identity: true
+      require_user_identity: true
+      require_machine_before_user: true
+      require_same_calling_station: true
+      require_same_nas: false
+      require_fresh_machine_auth: true
+      machine_auth_ttl_seconds: 28800
+      user_auth_ttl_seconds: 28800
+      transition_window_seconds: 900
+      allowed_machine_methods: ["teap", "tls"]
+      allowed_user_methods: ["teap", "peap", "ttls"]
+      identity_precedence: user_over_machine # user_over_machine, machine_over_user, or deny_conflict.
+      role_merge_strategy: user_primary # user_primary, machine_primary, intersection, or deny_conflict.
+      conflict_action: reject # reject, monitor, or quarantine.
+      stale_machine_action: reject # reject, monitor, or allow.
+      machine_identity_prefixes: ["host/", "machine/"]
+      user_identity_prefixes: []
+      max_active_correlations: 100000
+      audit_enabled: true
+      event_retention_limit: 6000
     fast:
       enabled: true # Add "fast" to framework.allowed_methods only for clients that require EAP-FAST.
       default_inner_method: mschapv2

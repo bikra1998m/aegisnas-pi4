@@ -283,6 +283,120 @@ func TestEAPFrameworkEvaluateAcceptsGeneratedMethod(t *testing.T) {
 	assert.Equal(t, "identity-failover", decision.IdentitySource)
 }
 
+func TestMachineUserReportAndEvaluationAcceptsCorrelation(t *testing.T) {
+	cfg := eapFrameworkMachineUserTestConfig()
+	report := BuildMachineUserReport(cfg, MachineUserRuntimeSummary{})
+	assert.Equal(t, "ready", report.Status)
+	assert.True(t, report.Policy.Enabled)
+	assert.Equal(t, "machine_then_user", report.Policy.CorrelationMode)
+	assert.True(t, report.Policy.TEAPGenerated)
+
+	decision := EvaluateMachineUserCorrelation(cfg, MachineUserEvaluationRequest{
+		CorrelationID:               "acct-123",
+		MachineIdentity:             "host/laptop01.example.com",
+		UserIdentity:                "alice@example.com",
+		CallingStationID:            "00-11-22-33-44-55",
+		NASIdentifier:               "ap-1",
+		MachineMethod:               "teap",
+		UserMethod:                  "teap",
+		MachineAuthenticated:        true,
+		UserAuthenticated:           true,
+		MachineAuthAgeSeconds:       300,
+		UserAuthAgeSeconds:          30,
+		MachineRole:                 "managed-device",
+		UserRole:                    "employee",
+		EAPMessagePresent:           true,
+		MessageAuthenticatorPresent: true,
+		TEAPChainComplete:           true,
+		IdentityTypePresented:       true,
+		CryptoBindingValid:          true,
+	})
+	assert.Equal(t, "accepted", decision.Decision)
+	assert.Equal(t, "employee", decision.EffectiveRole)
+	assert.True(t, decision.MachineBeforeUser)
+	assert.True(t, decision.SameCallingStation)
+}
+
+func TestMachineUserEvaluationRejectsStaleMachineAuth(t *testing.T) {
+	cfg := eapFrameworkMachineUserTestConfig()
+	decision := EvaluateMachineUserCorrelation(cfg, MachineUserEvaluationRequest{
+		MachineIdentity:             "host/laptop01.example.com",
+		UserIdentity:                "alice@example.com",
+		CallingStationID:            "00-11-22-33-44-55",
+		MachineMethod:               "teap",
+		UserMethod:                  "teap",
+		MachineAuthenticated:        true,
+		UserAuthenticated:           true,
+		MachineAuthAgeSeconds:       40000,
+		UserAuthAgeSeconds:          30,
+		EAPMessagePresent:           true,
+		MessageAuthenticatorPresent: true,
+		TEAPChainComplete:           true,
+		IdentityTypePresented:       true,
+		CryptoBindingValid:          true,
+	})
+	assert.Equal(t, "rejected", decision.Decision)
+	assert.True(t, decision.StaleMachineAuth)
+	assert.Equal(t, "machine authentication evidence is stale", decision.Reason)
+}
+
+func TestMachineUserEvaluationQuarantinesRoleConflict(t *testing.T) {
+	cfg := eapFrameworkMachineUserTestConfig()
+	cfg.Radius.EAP.MachineUser.ConflictAction = "quarantine"
+	cfg.Radius.EAP.MachineUser.RoleMergeStrategy = "deny_conflict"
+	decision := EvaluateMachineUserCorrelation(cfg, MachineUserEvaluationRequest{
+		MachineIdentity:             "host/laptop01.example.com",
+		UserIdentity:                "alice@example.com",
+		CallingStationID:            "00-11-22-33-44-55",
+		MachineMethod:               "teap",
+		UserMethod:                  "teap",
+		MachineAuthenticated:        true,
+		UserAuthenticated:           true,
+		MachineAuthAgeSeconds:       300,
+		UserAuthAgeSeconds:          30,
+		MachineRole:                 "contractor-device",
+		UserRole:                    "employee",
+		EAPMessagePresent:           true,
+		MessageAuthenticatorPresent: true,
+		TEAPChainComplete:           true,
+		IdentityTypePresented:       true,
+		CryptoBindingValid:          true,
+	})
+	assert.Equal(t, "quarantined", decision.Decision)
+	assert.True(t, decision.ConflictDetected)
+	assert.Equal(t, "quarantine", decision.EffectiveRole)
+}
+
+func eapFrameworkMachineUserTestConfig() *config.Config {
+	cfg := eapFrameworkTEAPTestConfig()
+	cfg.Radius.EAP.MachineUser = config.RadiusEAPMachineUserConfig{
+		Enabled:                   true,
+		Mode:                      "enforce",
+		FailClosed:                true,
+		CorrelationMode:           "machine_then_user",
+		RequireTEAP:               true,
+		RequireMachineIdentity:    true,
+		RequireUserIdentity:       true,
+		RequireMachineBeforeUser:  true,
+		RequireSameCallingStation: true,
+		RequireFreshMachineAuth:   true,
+		MachineAuthTTLSeconds:     28800,
+		UserAuthTTLSeconds:        28800,
+		TransitionWindowSeconds:   900,
+		AllowedMachineMethods:     []string{"teap", "tls"},
+		AllowedUserMethods:        []string{"teap", "peap", "ttls"},
+		IdentityPrecedence:        "user_over_machine",
+		RoleMergeStrategy:         "user_primary",
+		ConflictAction:            "reject",
+		StaleMachineAction:        "reject",
+		MachineIdentityPrefixes:   []string{"host/", "machine/"},
+		MaxActiveCorrelations:     100000,
+		AuditEnabled:              true,
+		EventRetentionLimit:       6000,
+	}
+	return cfg
+}
+
 func eapFrameworkTEAPTestConfig() *config.Config {
 	cfg := eapFrameworkTestConfig()
 	cfg.Radius.EAP.DefaultType = "teap"

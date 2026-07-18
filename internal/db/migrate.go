@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 30
+	return 31
 }
 
 func Migrate() error {
@@ -1278,4 +1278,91 @@ CREATE INDEX IF NOT EXISTS idx_eap_sim_aka_events_nas ON eap_sim_aka_events(nas_
 CREATE INDEX IF NOT EXISTS idx_eap_sim_aka_events_identity ON eap_sim_aka_events(identity_hash, observed_at);
 CREATE INDEX IF NOT EXISTS idx_eap_sim_aka_events_permanent_identity ON eap_sim_aka_events(permanent_identity_hash, observed_at);
 CREATE INDEX IF NOT EXISTS idx_eap_sim_aka_events_pseudonym_identity ON eap_sim_aka_events(pseudonym_identity_hash, observed_at);
+`
+
+const schemaV31 = `
+CREATE TABLE IF NOT EXISTS eap_machine_user_correlations (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	decision TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	correlation_key TEXT NOT NULL,
+	correlation_id_hash TEXT,
+	correlation_mode TEXT NOT NULL,
+	correlation_state TEXT NOT NULL,
+	nas_identifier TEXT,
+	nas_type TEXT,
+	calling_station_hash TEXT,
+	machine_calling_station_hash TEXT,
+	user_calling_station_hash TEXT,
+	machine_nas_identifier TEXT,
+	user_nas_identifier TEXT,
+	outer_identity_hash TEXT,
+	machine_identity_hash TEXT,
+	user_identity_hash TEXT,
+	identity_source TEXT,
+	machine_method TEXT,
+	user_method TEXT,
+	machine_authenticated BOOLEAN DEFAULT 0,
+	user_authenticated BOOLEAN DEFAULT 0,
+	same_calling_station BOOLEAN DEFAULT 0,
+	same_nas BOOLEAN DEFAULT 0,
+	machine_before_user BOOLEAN DEFAULT 0,
+	machine_auth_age_seconds INTEGER DEFAULT 0,
+	user_auth_age_seconds INTEGER DEFAULT 0,
+	machine_role TEXT,
+	user_role TEXT,
+	effective_role TEXT,
+	device_posture TEXT,
+	conflict_detected BOOLEAN DEFAULT 0,
+	stale_machine_auth BOOLEAN DEFAULT 0,
+	teap_chain_complete BOOLEAN DEFAULT 0,
+	identity_type_present BOOLEAN DEFAULT 0,
+	crypto_binding_valid BOOLEAN DEFAULT 0,
+	channel_binding_valid BOOLEAN DEFAULT 0,
+	replay_detected BOOLEAN DEFAULT 0,
+	policy_mode TEXT,
+	latency_ms INTEGER DEFAULT 0,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS eap_machine_user_session_state (
+	correlation_key TEXT PRIMARY KEY,
+	updated_at DATETIME NOT NULL,
+	decision TEXT NOT NULL,
+	correlation_state TEXT NOT NULL,
+	correlation_mode TEXT NOT NULL,
+	nas_identifier TEXT,
+	nas_type TEXT,
+	calling_station_hash TEXT,
+	machine_identity_hash TEXT,
+	user_identity_hash TEXT,
+	machine_method TEXT,
+	user_method TEXT,
+	machine_authenticated BOOLEAN DEFAULT 0,
+	user_authenticated BOOLEAN DEFAULT 0,
+	machine_auth_age_seconds INTEGER DEFAULT 0,
+	user_auth_age_seconds INTEGER DEFAULT 0,
+	effective_role TEXT,
+	device_posture TEXT,
+	conflict_detected BOOLEAN DEFAULT 0,
+	stale_machine_auth BOOLEAN DEFAULT 0,
+	policy_mode TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_eap_machine_user_correlations_observed_at ON eap_machine_user_correlations(observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_machine_user_correlations_decision ON eap_machine_user_correlations(decision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_machine_user_correlations_mode ON eap_machine_user_correlations(correlation_mode, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_machine_user_correlations_state ON eap_machine_user_correlations(correlation_state, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_machine_user_correlations_nas ON eap_machine_user_correlations(nas_identifier, nas_type, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_machine_user_correlations_machine ON eap_machine_user_correlations(machine_identity_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_machine_user_correlations_user ON eap_machine_user_correlations(user_identity_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_machine_user_correlations_calling ON eap_machine_user_correlations(calling_station_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_machine_user_state_updated ON eap_machine_user_session_state(updated_at);
+CREATE INDEX IF NOT EXISTS idx_eap_machine_user_state_decision ON eap_machine_user_session_state(decision, updated_at);
+CREATE INDEX IF NOT EXISTS idx_eap_machine_user_state_machine ON eap_machine_user_session_state(machine_identity_hash, updated_at);
+CREATE INDEX IF NOT EXISTS idx_eap_machine_user_state_user ON eap_machine_user_session_state(user_identity_hash, updated_at);
 `

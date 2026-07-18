@@ -73,7 +73,9 @@ The implementation now does these things end to end:
 17. protects privileged admin token and SSO sessions with WebAuthn/passkey step-up, credential lifecycle APIs, dashboard status, readiness checks, and support-bundle evidence
 18. governs EAP methods through a typed framework for PEAP, TTLS, TLS, identity-source binding, Message-Authenticator requirements, planned-method blockers, API evaluation, dashboard status, and support-bundle evidence
 19. generates opt-in TEAP policy with RFC 7170 method chaining, machine/user identity requirements, cryptobinding checks, PAC governance, API evaluation, dashboard status, and support-bundle evidence
-20. generates opt-in EAP-FAST and EAP-PWD policy with PAC governance, cryptobinding checks, PWD group and password-proof validation, replay rejection, API evaluation, dashboard status, and support-bundle evidence
+20. correlates machine and user authentication evidence with fresh-machine windows, same-client binding, deterministic role merge, quarantine conflict handling, API evaluation, dashboard status, and support-bundle evidence
+21. generates opt-in EAP-FAST and EAP-PWD policy with PAC governance, cryptobinding checks, PWD group and password-proof validation, replay rejection, API evaluation, dashboard status, and support-bundle evidence
+22. generates opt-in EAP-SIM, EAP-AKA, and EAP-AKA-prime policy with vector-provider freshness, pseudonym/reauth privacy, resync, AKA-prime network binding, API evaluation, dashboard status, and support-bundle evidence
 
 ## Current Behavior
 
@@ -109,7 +111,9 @@ When `radius.upstream.enabled: true`:
 - privileged admin token and SSO sessions can require WebAuthn/passkey assertion before the admin API accepts a verified session token
 - EAP framework state is available through `/api/v1/system/eap-framework`; enforce/fail-closed mode prevents generated FreeRADIUS config when planned methods such as SIM, AKA, or AKA-prime are enabled before their roadmap feature lands
 - TEAP method-chain state is available through `/api/v1/system/eap-framework/teap`; when `teap` is added to `radius.eap.framework.allowed_methods`, generated FreeRADIUS includes a conservative `teap` block and AegisNAS evaluates cryptobinding, Identity-Type, PAC, machine identity, and user identity policy
+- machine/user correlation state is available through `/api/v1/system/eap-framework/machine-user`; when `radius.eap.machine_user` is in enforce mode, AegisNAS validates fresh machine evidence, same-client binding, machine-before-user order, role merge, stale-machine behavior, and conflict/quarantine policy
 - EAP-FAST/PWD state is available through `/api/v1/system/eap-framework/fast-pwd`; when `fast` or `pwd` is added to `radius.eap.framework.allowed_methods`, generated FreeRADIUS includes conservative method blocks and AegisNAS evaluates FAST cryptobinding/PAC policy plus PWD group, password proof, and replay policy
+- EAP-SIM/AKA state is available through `/api/v1/system/eap-framework/sim-aka`; when `sim`, `aka`, or `aka-prime` is added to `radius.eap.framework.allowed_methods`, AegisNAS validates vector-provider availability, vector freshness, identity privacy, resync, replay, and AKA-prime network/KDF evidence
 - voucher logins remain local so guest access still has an offline path
 
 What this pass still does not change:
@@ -122,6 +126,7 @@ What this pass still does not change:
 - real authenticator, browser, SSO provider, HA, and security validation for admin passkeys remains tracked in [nas-0021-release-certification-checklist.md](nas-0021-release-certification-checklist.md)
 - real supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, and performance validation for EAP remains tracked in [nas-0022-release-certification-checklist.md](nas-0022-release-certification-checklist.md)
 - real TEAP supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, performance, and security validation remains tracked in [nas-0023-release-certification-checklist.md](nas-0023-release-certification-checklist.md)
+- real Windows machine/user, Microsoft NPS, Cisco ISE, Aruba ClearPass, HP/Aruba switch/WLAN, HA, performance, and security validation remains tracked in [nas-0026-release-certification-checklist.md](nas-0026-release-certification-checklist.md)
 - real FAST/PWD supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, performance, and security validation remains tracked in [nas-0024-release-certification-checklist.md](nas-0024-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
@@ -786,6 +791,21 @@ For the EAP method framework:
 5. run **Apply RADIUS Config** so `mods-enabled/eap` is regenerated and validated
 6. test enabled supplicant methods through a real AP or switch
 7. export a support bundle and retain `api/eap-framework.json`
+
+For machine and user authentication correlation:
+
+1. enable TEAP and confirm `/api/v1/system/eap-framework/teap` is ready
+2. set `radius.eap.machine_user.enabled: true` and start in `mode: monitor`
+3. keep `require_same_calling_station: true` and set a bounded
+   `machine_auth_ttl_seconds`
+4. use `POST /api/v1/system/eap-framework/machine-user/evaluate` with accepted,
+   stale-machine, user-before-machine, Calling-Station mismatch, role-conflict,
+   quarantine, and replay payloads
+5. confirm `/api/v1/system/eap-framework/machine-user` reports current
+   correlations and no blocking issues
+6. switch to `mode: enforce` only after Windows/supplicant transition evidence
+   matches the target fleet
+7. export a support bundle and retain `api/eap-framework-machine-user.json`
 
 For EAP-FAST and EAP-PWD:
 

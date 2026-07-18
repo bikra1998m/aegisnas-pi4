@@ -155,6 +155,42 @@ func TestConfigValidationEAPFramework(t *testing.T) {
 	teapReady.Radius.EAP.Framework.IdentitySources[0].Methods = []string{"peap", "ttls", "teap"}
 	require.NoError(t, teapReady.Validate())
 
+	machineUserReady := teapReady
+	machineUserReady.Radius.EAP.MachineUser = RadiusEAPMachineUserConfig{
+		Enabled:                   true,
+		Mode:                      "enforce",
+		FailClosed:                true,
+		CorrelationMode:           "machine_then_user",
+		RequireTEAP:               true,
+		RequireMachineIdentity:    true,
+		RequireUserIdentity:       true,
+		RequireMachineBeforeUser:  true,
+		RequireSameCallingStation: true,
+		RequireFreshMachineAuth:   true,
+		MachineAuthTTLSeconds:     28800,
+		UserAuthTTLSeconds:        28800,
+		TransitionWindowSeconds:   900,
+		AllowedMachineMethods:     []string{"teap", "tls"},
+		AllowedUserMethods:        []string{"teap", "peap", "ttls"},
+		IdentityPrecedence:        "user_over_machine",
+		RoleMergeStrategy:         "user_primary",
+		ConflictAction:            "reject",
+		StaleMachineAction:        "reject",
+		MachineIdentityPrefixes:   []string{"host/", "machine/"},
+		MaxActiveCorrelations:     100000,
+		AuditEnabled:              true,
+		EventRetentionLimit:       6000,
+	}
+	require.NoError(t, machineUserReady.Validate())
+
+	badMachineUserTEAP := machineUserReady
+	badMachineUserTEAP.Radius.EAP.Framework.AllowedMethods = []string{"peap", "ttls", "tls"}
+	assert.ErrorContains(t, badMachineUserTEAP.Validate(), "require_teap")
+
+	badMachineUserStation := machineUserReady
+	badMachineUserStation.Radius.EAP.MachineUser.RequireSameCallingStation = false
+	assert.ErrorContains(t, badMachineUserStation.Validate(), "require_same_calling_station")
+
 	badTEAPCrypto := teapReady
 	badTEAPCrypto.Radius.EAP.TEAP.RequireCryptoBinding = false
 	assert.ErrorContains(t, badTEAPCrypto.Validate(), "require_crypto_binding")

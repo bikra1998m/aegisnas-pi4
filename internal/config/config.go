@@ -561,20 +561,21 @@ type DynamicAuthConfig struct {
 }
 
 type RadiusEAPConfig struct {
-	DefaultType          string                `mapstructure:"default_type"`
-	PEAPInner            string                `mapstructure:"peap_inner"`
-	TTLSInner            string                `mapstructure:"ttls_inner"`
-	TLSMinVersion        string                `mapstructure:"tls_min_version"`
-	TLSMaxVersion        string                `mapstructure:"tls_max_version"`
-	CheckCRL             bool                  `mapstructure:"check_crl"`
-	CheckAllCRL          bool                  `mapstructure:"check_all_crl"`
-	CAPathReloadInterval int                   `mapstructure:"ca_path_reload_interval"`
-	OCSP                 RadiusEAPOCSPConfig   `mapstructure:"ocsp"`
-	Framework            RadiusEAPFramework    `mapstructure:"framework"`
-	TEAP                 RadiusEAPTEAPConfig   `mapstructure:"teap"`
-	FAST                 RadiusEAPFASTConfig   `mapstructure:"fast"`
-	PWD                  RadiusEAPPWDConfig    `mapstructure:"pwd"`
-	SIMAKA               RadiusEAPSIMAKAConfig `mapstructure:"sim_aka"`
+	DefaultType          string                     `mapstructure:"default_type"`
+	PEAPInner            string                     `mapstructure:"peap_inner"`
+	TTLSInner            string                     `mapstructure:"ttls_inner"`
+	TLSMinVersion        string                     `mapstructure:"tls_min_version"`
+	TLSMaxVersion        string                     `mapstructure:"tls_max_version"`
+	CheckCRL             bool                       `mapstructure:"check_crl"`
+	CheckAllCRL          bool                       `mapstructure:"check_all_crl"`
+	CAPathReloadInterval int                        `mapstructure:"ca_path_reload_interval"`
+	OCSP                 RadiusEAPOCSPConfig        `mapstructure:"ocsp"`
+	Framework            RadiusEAPFramework         `mapstructure:"framework"`
+	TEAP                 RadiusEAPTEAPConfig        `mapstructure:"teap"`
+	MachineUser          RadiusEAPMachineUserConfig `mapstructure:"machine_user"`
+	FAST                 RadiusEAPFASTConfig        `mapstructure:"fast"`
+	PWD                  RadiusEAPPWDConfig         `mapstructure:"pwd"`
+	SIMAKA               RadiusEAPSIMAKAConfig      `mapstructure:"sim_aka"`
 }
 
 type RadiusEAPOCSPConfig struct {
@@ -605,6 +606,34 @@ type RadiusEAPTEAPConfig struct {
 	MaxChainSteps          int    `mapstructure:"max_chain_steps"`
 	SessionTTLSeconds      int    `mapstructure:"session_ttl_seconds"`
 	EventRetentionLimit    int    `mapstructure:"event_retention_limit"`
+}
+
+type RadiusEAPMachineUserConfig struct {
+	Enabled                   bool     `mapstructure:"enabled"`
+	Mode                      string   `mapstructure:"mode"`
+	FailClosed                bool     `mapstructure:"fail_closed"`
+	CorrelationMode           string   `mapstructure:"correlation_mode"`
+	RequireTEAP               bool     `mapstructure:"require_teap"`
+	RequireMachineIdentity    bool     `mapstructure:"require_machine_identity"`
+	RequireUserIdentity       bool     `mapstructure:"require_user_identity"`
+	RequireMachineBeforeUser  bool     `mapstructure:"require_machine_before_user"`
+	RequireSameCallingStation bool     `mapstructure:"require_same_calling_station"`
+	RequireSameNAS            bool     `mapstructure:"require_same_nas"`
+	RequireFreshMachineAuth   bool     `mapstructure:"require_fresh_machine_auth"`
+	MachineAuthTTLSeconds     int      `mapstructure:"machine_auth_ttl_seconds"`
+	UserAuthTTLSeconds        int      `mapstructure:"user_auth_ttl_seconds"`
+	TransitionWindowSeconds   int      `mapstructure:"transition_window_seconds"`
+	AllowedMachineMethods     []string `mapstructure:"allowed_machine_methods"`
+	AllowedUserMethods        []string `mapstructure:"allowed_user_methods"`
+	IdentityPrecedence        string   `mapstructure:"identity_precedence"`
+	RoleMergeStrategy         string   `mapstructure:"role_merge_strategy"`
+	ConflictAction            string   `mapstructure:"conflict_action"`
+	StaleMachineAction        string   `mapstructure:"stale_machine_action"`
+	MachineIdentityPrefixes   []string `mapstructure:"machine_identity_prefixes"`
+	UserIdentityPrefixes      []string `mapstructure:"user_identity_prefixes"`
+	MaxActiveCorrelations     int      `mapstructure:"max_active_correlations"`
+	AuditEnabled              bool     `mapstructure:"audit_enabled"`
+	EventRetentionLimit       int      `mapstructure:"event_retention_limit"`
 }
 
 type RadiusEAPFASTConfig struct {
@@ -1487,6 +1516,31 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.eap.teap.max_chain_steps", 2)
 	v.SetDefault("radius.eap.teap.session_ttl_seconds", 900)
 	v.SetDefault("radius.eap.teap.event_retention_limit", 6000)
+	v.SetDefault("radius.eap.machine_user.enabled", true)
+	v.SetDefault("radius.eap.machine_user.mode", "monitor")
+	v.SetDefault("radius.eap.machine_user.fail_closed", true)
+	v.SetDefault("radius.eap.machine_user.correlation_mode", "machine_then_user")
+	v.SetDefault("radius.eap.machine_user.require_teap", true)
+	v.SetDefault("radius.eap.machine_user.require_machine_identity", true)
+	v.SetDefault("radius.eap.machine_user.require_user_identity", true)
+	v.SetDefault("radius.eap.machine_user.require_machine_before_user", true)
+	v.SetDefault("radius.eap.machine_user.require_same_calling_station", true)
+	v.SetDefault("radius.eap.machine_user.require_same_nas", false)
+	v.SetDefault("radius.eap.machine_user.require_fresh_machine_auth", true)
+	v.SetDefault("radius.eap.machine_user.machine_auth_ttl_seconds", 28800)
+	v.SetDefault("radius.eap.machine_user.user_auth_ttl_seconds", 28800)
+	v.SetDefault("radius.eap.machine_user.transition_window_seconds", 900)
+	v.SetDefault("radius.eap.machine_user.allowed_machine_methods", []string{"teap", "tls"})
+	v.SetDefault("radius.eap.machine_user.allowed_user_methods", []string{"teap", "peap", "ttls"})
+	v.SetDefault("radius.eap.machine_user.identity_precedence", "user_over_machine")
+	v.SetDefault("radius.eap.machine_user.role_merge_strategy", "user_primary")
+	v.SetDefault("radius.eap.machine_user.conflict_action", "reject")
+	v.SetDefault("radius.eap.machine_user.stale_machine_action", "reject")
+	v.SetDefault("radius.eap.machine_user.machine_identity_prefixes", []string{"host/", "machine/"})
+	v.SetDefault("radius.eap.machine_user.user_identity_prefixes", []string{})
+	v.SetDefault("radius.eap.machine_user.max_active_correlations", 100000)
+	v.SetDefault("radius.eap.machine_user.audit_enabled", true)
+	v.SetDefault("radius.eap.machine_user.event_retention_limit", 6000)
 	v.SetDefault("radius.eap.fast.enabled", true)
 	v.SetDefault("radius.eap.fast.default_inner_method", "mschapv2")
 	v.SetDefault("radius.eap.fast.require_crypto_binding", true)
@@ -6112,6 +6166,9 @@ func validateRadiusEAPFramework(eap RadiusEAPConfig) error {
 	if err := validateRadiusEAPTEAP(eap, framework); err != nil {
 		return err
 	}
+	if err := validateRadiusEAPMachineUser(eap, framework); err != nil {
+		return err
+	}
 	if err := validateRadiusEAPFAST(eap, framework); err != nil {
 		return err
 	}
@@ -6441,6 +6498,176 @@ func radiusEAPTEAPConfigured(teap RadiusEAPTEAPConfig) bool {
 		teap.MaxChainSteps != 0 ||
 		teap.SessionTTLSeconds != 0 ||
 		teap.EventRetentionLimit != 0
+}
+
+func validateRadiusEAPMachineUser(eap RadiusEAPConfig, framework RadiusEAPFramework) error {
+	machineUser := eap.MachineUser
+	if !machineUser.Enabled && !radiusEAPMachineUserConfigured(machineUser) {
+		return nil
+	}
+	mode := strings.ToLower(strings.TrimSpace(machineUser.Mode))
+	if mode == "" {
+		mode = "monitor"
+	}
+	switch mode {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("radius.eap.machine_user.mode %q must be monitor or enforce", machineUser.Mode)
+	}
+	correlationMode := strings.ToLower(strings.TrimSpace(machineUser.CorrelationMode))
+	if correlationMode == "" {
+		correlationMode = "machine_then_user"
+	}
+	switch correlationMode {
+	case "machine_then_user", "same_session", "either", "machine_only", "user_only":
+	default:
+		return fmt.Errorf("radius.eap.machine_user.correlation_mode %q must be machine_then_user, same_session, either, machine_only, or user_only", machineUser.CorrelationMode)
+	}
+	if machineUser.MachineAuthTTLSeconds < 0 || machineUser.MachineAuthTTLSeconds > 604800 {
+		return fmt.Errorf("radius.eap.machine_user.machine_auth_ttl_seconds must be between 60 and 604800 when set")
+	}
+	if machineUser.MachineAuthTTLSeconds > 0 && machineUser.MachineAuthTTLSeconds < 60 {
+		return fmt.Errorf("radius.eap.machine_user.machine_auth_ttl_seconds must be between 60 and 604800 when set")
+	}
+	if machineUser.UserAuthTTLSeconds < 0 || machineUser.UserAuthTTLSeconds > 604800 {
+		return fmt.Errorf("radius.eap.machine_user.user_auth_ttl_seconds must be between 60 and 604800 when set")
+	}
+	if machineUser.UserAuthTTLSeconds > 0 && machineUser.UserAuthTTLSeconds < 60 {
+		return fmt.Errorf("radius.eap.machine_user.user_auth_ttl_seconds must be between 60 and 604800 when set")
+	}
+	if machineUser.TransitionWindowSeconds < 0 || machineUser.TransitionWindowSeconds > 86400 {
+		return fmt.Errorf("radius.eap.machine_user.transition_window_seconds must be between 0 and 86400")
+	}
+	if _, err := validateEAPMethodList("radius.eap.machine_user.allowed_machine_methods", machineUser.AllowedMachineMethods, true); err != nil {
+		return err
+	}
+	if _, err := validateEAPMethodList("radius.eap.machine_user.allowed_user_methods", machineUser.AllowedUserMethods, true); err != nil {
+		return err
+	}
+	precedence := strings.ToLower(strings.TrimSpace(machineUser.IdentityPrecedence))
+	if precedence == "" {
+		precedence = "user_over_machine"
+	}
+	switch precedence {
+	case "user_over_machine", "machine_over_user", "deny_conflict":
+	default:
+		return fmt.Errorf("radius.eap.machine_user.identity_precedence %q must be user_over_machine, machine_over_user, or deny_conflict", machineUser.IdentityPrecedence)
+	}
+	merge := strings.ToLower(strings.TrimSpace(machineUser.RoleMergeStrategy))
+	if merge == "" {
+		merge = "user_primary"
+	}
+	switch merge {
+	case "user_primary", "machine_primary", "intersection", "deny_conflict":
+	default:
+		return fmt.Errorf("radius.eap.machine_user.role_merge_strategy %q must be user_primary, machine_primary, intersection, or deny_conflict", machineUser.RoleMergeStrategy)
+	}
+	conflictAction := strings.ToLower(strings.TrimSpace(machineUser.ConflictAction))
+	if conflictAction == "" {
+		conflictAction = "reject"
+	}
+	switch conflictAction {
+	case "reject", "monitor", "quarantine":
+	default:
+		return fmt.Errorf("radius.eap.machine_user.conflict_action %q must be reject, monitor, or quarantine", machineUser.ConflictAction)
+	}
+	staleAction := strings.ToLower(strings.TrimSpace(machineUser.StaleMachineAction))
+	if staleAction == "" {
+		staleAction = "reject"
+	}
+	switch staleAction {
+	case "reject", "monitor", "allow":
+	default:
+		return fmt.Errorf("radius.eap.machine_user.stale_machine_action %q must be reject, monitor, or allow", machineUser.StaleMachineAction)
+	}
+	for i, prefix := range machineUser.MachineIdentityPrefixes {
+		if !validEAPIdentityPrefix(prefix) {
+			return fmt.Errorf("radius.eap.machine_user.machine_identity_prefixes[%d] is invalid", i)
+		}
+	}
+	for i, prefix := range machineUser.UserIdentityPrefixes {
+		if !validEAPIdentityPrefix(prefix) {
+			return fmt.Errorf("radius.eap.machine_user.user_identity_prefixes[%d] is invalid", i)
+		}
+	}
+	if machineUser.MaxActiveCorrelations < 0 || machineUser.MaxActiveCorrelations > 10000000 {
+		return fmt.Errorf("radius.eap.machine_user.max_active_correlations must be between 1 and 10000000 when set")
+	}
+	if machineUser.EventRetentionLimit < 0 || machineUser.EventRetentionLimit > 1000000 {
+		return fmt.Errorf("radius.eap.machine_user.event_retention_limit must be between 1 and 1000000 when set")
+	}
+	if machineUser.Enabled && mode == "enforce" && machineUser.FailClosed {
+		if !framework.Enabled {
+			return fmt.Errorf("radius.eap.machine_user requires radius.eap.framework.enabled in enforce fail-closed mode")
+		}
+		rawAllowedMethods := framework.AllowedMethods
+		if len(rawAllowedMethods) == 0 {
+			rawAllowedMethods = []string{"peap", "ttls", "tls"}
+		}
+		if machineUser.RequireTEAP && (!eap.TEAP.Enabled || !containsEAPMethod(rawAllowedMethods, "teap")) {
+			return fmt.Errorf("radius.eap.machine_user.require_teap requires TEAP to be enabled and listed in radius.eap.framework.allowed_methods")
+		}
+		if correlationMode == "machine_then_user" || correlationMode == "same_session" {
+			if !machineUser.RequireMachineIdentity || !machineUser.RequireUserIdentity {
+				return fmt.Errorf("radius.eap.machine_user requires machine and user identity in %s enforce fail-closed mode", correlationMode)
+			}
+		}
+		if machineUser.RequireFreshMachineAuth && machineUser.MachineAuthTTLSeconds == 0 {
+			return fmt.Errorf("radius.eap.machine_user.machine_auth_ttl_seconds must be set when fresh machine auth is required")
+		}
+		if correlationMode == "machine_then_user" && machineUser.TransitionWindowSeconds == 0 {
+			return fmt.Errorf("radius.eap.machine_user.transition_window_seconds must be set for machine_then_user enforce fail-closed mode")
+		}
+		if machineUser.RequireMachineBeforeUser && correlationMode == "user_only" {
+			return fmt.Errorf("radius.eap.machine_user.require_machine_before_user cannot be true with user_only correlation mode")
+		}
+		if !machineUser.RequireSameCallingStation && correlationMode != "user_only" && correlationMode != "machine_only" {
+			return fmt.Errorf("radius.eap.machine_user.require_same_calling_station must be true in enforce fail-closed correlation mode")
+		}
+	}
+	return nil
+}
+
+func radiusEAPMachineUserConfigured(machineUser RadiusEAPMachineUserConfig) bool {
+	return strings.TrimSpace(machineUser.Mode) != "" ||
+		strings.TrimSpace(machineUser.CorrelationMode) != "" ||
+		machineUser.FailClosed ||
+		machineUser.RequireTEAP ||
+		machineUser.RequireMachineIdentity ||
+		machineUser.RequireUserIdentity ||
+		machineUser.RequireMachineBeforeUser ||
+		machineUser.RequireSameCallingStation ||
+		machineUser.RequireSameNAS ||
+		machineUser.RequireFreshMachineAuth ||
+		machineUser.MachineAuthTTLSeconds != 0 ||
+		machineUser.UserAuthTTLSeconds != 0 ||
+		machineUser.TransitionWindowSeconds != 0 ||
+		len(machineUser.AllowedMachineMethods) > 0 ||
+		len(machineUser.AllowedUserMethods) > 0 ||
+		strings.TrimSpace(machineUser.IdentityPrecedence) != "" ||
+		strings.TrimSpace(machineUser.RoleMergeStrategy) != "" ||
+		strings.TrimSpace(machineUser.ConflictAction) != "" ||
+		strings.TrimSpace(machineUser.StaleMachineAction) != "" ||
+		len(machineUser.MachineIdentityPrefixes) > 0 ||
+		len(machineUser.UserIdentityPrefixes) > 0 ||
+		machineUser.MaxActiveCorrelations != 0 ||
+		machineUser.AuditEnabled ||
+		machineUser.EventRetentionLimit != 0
+}
+
+func containsEAPMethod(methods []string, target string) bool {
+	target = strings.ToLower(strings.TrimSpace(target))
+	for _, method := range methods {
+		if strings.ToLower(strings.TrimSpace(method)) == target {
+			return true
+		}
+	}
+	return false
+}
+
+func validEAPIdentityPrefix(prefix string) bool {
+	prefix = strings.TrimSpace(prefix)
+	return prefix != "" && len(prefix) <= 64 && !strings.ContainsAny(prefix, "\r\n\x00")
 }
 
 func validateRadiusEAPFAST(eap RadiusEAPConfig, framework RadiusEAPFramework) error {

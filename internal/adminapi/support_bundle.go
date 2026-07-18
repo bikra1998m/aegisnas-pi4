@@ -300,6 +300,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/webauthn.json", requestPath: "/api/v1/system/webauthn", label: "Admin WebAuthn passkey state", handler: HandleGetAdminWebAuthn},
 		{archivePath: "api/eap-framework.json", requestPath: "/api/v1/system/eap-framework", label: "EAP method framework", handler: HandleGetEAPFramework},
 		{archivePath: "api/eap-framework-teap.json", requestPath: "/api/v1/system/eap-framework/teap", label: "TEAP method chaining", handler: HandleGetTEAPFramework},
+		{archivePath: "api/eap-framework-machine-user.json", requestPath: "/api/v1/system/eap-framework/machine-user", label: "Machine and user authentication correlation", handler: HandleGetMachineUserFramework},
 		{archivePath: "api/eap-framework-fast-pwd.json", requestPath: "/api/v1/system/eap-framework/fast-pwd", label: "EAP-FAST and EAP-PWD", handler: HandleGetFASTPWDFramework},
 		{archivePath: "api/eap-framework-sim-aka.json", requestPath: "/api/v1/system/eap-framework/sim-aka", label: "EAP-SIM, EAP-AKA, and EAP-AKA-prime", handler: HandleGetSIMAKAFramework},
 		{archivePath: "api/mab.json", requestPath: "/api/v1/system/mab", label: "MAC Authentication Bypass", handler: HandleGetMAB},
