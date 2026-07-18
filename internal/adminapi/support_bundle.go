@@ -298,6 +298,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/active-directory.json", requestPath: "/api/v1/system/active-directory", label: "Active Directory identity", handler: HandleGetActiveDirectory},
 		{archivePath: "api/mfa.json", requestPath: "/api/v1/system/mfa", label: "MFA challenge and OTP state", handler: HandleGetMFA},
 		{archivePath: "api/webauthn.json", requestPath: "/api/v1/system/webauthn", label: "Admin WebAuthn passkey state", handler: HandleGetAdminWebAuthn},
+		{archivePath: "api/eap-framework.json", requestPath: "/api/v1/system/eap-framework", label: "EAP method framework", handler: HandleGetEAPFramework},
 		{archivePath: "api/mab.json", requestPath: "/api/v1/system/mab", label: "MAC Authentication Bypass", handler: HandleGetMAB},
 		{archivePath: "api/audit-history.json", requestPath: "/api/v1/system/audit-history", label: "Audit history", handler: HandleListAuditHistory},
 		{archivePath: "api/integration-history.json", requestPath: "/api/v1/system/integration-history", label: "Integration history", handler: HandleListIntegrationHistory},

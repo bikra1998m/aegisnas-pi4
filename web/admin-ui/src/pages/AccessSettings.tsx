@@ -775,6 +775,92 @@ const defaultSettings: JsonMap = {
         timeout_seconds: 5,
         soft_fail: false,
       },
+      framework: {
+        enabled: true,
+        mode: "monitor",
+        fail_closed: true,
+        allowed_methods: ["peap", "ttls", "tls"],
+        allowed_inner_methods: ["mschapv2", "pap", "chap", "gtc", "tls"],
+        default_outer_identity_source: "configured-default",
+        default_inner_identity_source: "identity-failover",
+        unsupported_method_action: "reject",
+        require_message_authenticator: true,
+        require_identity_binding: true,
+        telemetry_enabled: true,
+        event_retention_limit: 6000,
+        max_concurrent_sessions: 0,
+        method_timeout_seconds: 60,
+        fragment_size: 1024,
+        nak_unknown_types: true,
+        identity_sources: [
+          {
+            name: "identity-failover",
+            source: "identity_failover",
+            enabled: true,
+            methods: ["peap", "ttls"],
+            allow_password_verifier: true,
+            allow_certificate_subject: false,
+            priority: 10,
+          },
+          {
+            name: "certificate-subject",
+            source: "certificate",
+            enabled: true,
+            methods: ["tls"],
+            allow_password_verifier: false,
+            allow_certificate_subject: true,
+            priority: 20,
+          },
+        ],
+        method_policies: [
+          {
+            method: "peap",
+            enabled: true,
+            inner_methods: ["mschapv2", "gtc"],
+            identity_source: "identity-failover",
+            allow_password_verifier: true,
+            min_tls_version: "1.2",
+            max_tls_version: "1.3",
+          },
+          {
+            method: "ttls",
+            enabled: true,
+            inner_methods: ["mschapv2", "pap", "chap", "gtc"],
+            identity_source: "identity-failover",
+            allow_password_verifier: true,
+            min_tls_version: "1.2",
+            max_tls_version: "1.3",
+          },
+          {
+            method: "tls",
+            enabled: true,
+            identity_source: "certificate-subject",
+            require_certificate: true,
+            require_revocation: false,
+            allow_password_verifier: false,
+            min_tls_version: "1.2",
+            max_tls_version: "1.3",
+          },
+        ],
+        vendor_compatibility_profiles: [
+          {
+            name: "enterprise-8021x",
+            nas_types: [
+              "cisco",
+              "aruba",
+              "ruckus",
+              "extreme",
+              "juniper",
+              "fortinet",
+              "unifi",
+              "other",
+            ],
+            allowed_methods: ["peap", "ttls", "tls"],
+            required_methods: [],
+            notes: "Baseline RFC 3748 EAP policy for enterprise APs and switches.",
+          },
+        ],
+      },
     },
     upstream: {
       enabled: false,
@@ -1108,6 +1194,8 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.admin_webauthn = next.admin_webauthn || {};
   next.mab = next.mab || {};
   next.radius = next.radius || {};
+  next.radius.eap = next.radius.eap || {};
+  next.radius.eap.framework = next.radius.eap.framework || {};
   next.radius.upstream = next.radius.upstream || {};
   next.radius.upstream.fallback_policy =
     next.radius.upstream.fallback_policy || {};
@@ -1122,6 +1210,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.policy.runtime_shaping_enabled = false;
     next.radius.max_sessions = 256;
     next.radius.interim_update_seconds = 600;
+    next.radius.eap.framework.enabled = true;
+    next.radius.eap.framework.mode = "monitor";
+    next.radius.eap.framework.max_concurrent_sessions = 256;
+    next.radius.eap.framework.event_retention_limit = 1000;
     next.radius.upstream.status_check = "none";
     next.portal.guest_workflows.self_registration_enabled = false;
     next.portal.guest_workflows.sponsor_approval_enabled = false;
@@ -1155,6 +1247,11 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.policy.runtime_shaping_enabled = true;
     next.radius.max_sessions = 4096;
     next.radius.interim_update_seconds = 300;
+    next.radius.eap.framework.enabled = true;
+    next.radius.eap.framework.max_concurrent_sessions =
+      next.radius.eap.framework.max_concurrent_sessions || 4096;
+    next.radius.eap.framework.event_retention_limit =
+      next.radius.eap.framework.event_retention_limit || 12000;
     next.radius.upstream.status_check = "status-server";
     next.admin_webauthn.challenge_ttl_seconds =
       next.admin_webauthn.challenge_ttl_seconds || 300;
@@ -1187,6 +1284,11 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.policy.runtime_shaping_enabled = true;
     next.radius.max_sessions = 1024;
     next.radius.interim_update_seconds = 300;
+    next.radius.eap.framework.enabled = true;
+    next.radius.eap.framework.max_concurrent_sessions =
+      next.radius.eap.framework.max_concurrent_sessions || 1024;
+    next.radius.eap.framework.event_retention_limit =
+      next.radius.eap.framework.event_retention_limit || 6000;
     next.radius.upstream.status_check = "status-server";
     next.admin_webauthn.challenge_ttl_seconds =
       next.admin_webauthn.challenge_ttl_seconds || 300;
@@ -8919,6 +9021,243 @@ export default function AccessSettings() {
                 { value: "1.2", label: "1.2" },
                 { value: "1.3", label: "1.3" },
               ]}
+            />
+          </div>
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <h4 className="font-semibold text-gray-900">
+            EAP Method Framework
+          </h4>
+          <p className="mt-1 text-sm text-gray-600">
+            Bind 802.1X methods to explicit identity sources and packet
+            integrity checks before enforcing production access.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Framework Enabled"
+              checked={settings.radius?.eap?.framework?.enabled !== false}
+              onChange={(value) =>
+                updateField(["radius", "eap", "framework", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={settings.radius?.eap?.framework?.fail_closed !== false}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "framework", "fail_closed"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Message-Authenticator"
+              checked={
+                settings.radius?.eap?.framework
+                  ?.require_message_authenticator !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "framework",
+                    "require_message_authenticator",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Identity Binding"
+              checked={
+                settings.radius?.eap?.framework?.require_identity_binding !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "framework", "require_identity_binding"],
+                  value,
+                )
+              }
+            />
+            <SelectField
+              label="Framework Mode"
+              value={settings.radius?.eap?.framework?.mode || "monitor"}
+              onChange={(value) =>
+                updateField(["radius", "eap", "framework", "mode"], value)
+              }
+              options={[
+                { value: "monitor", label: "Monitor" },
+                { value: "enforce", label: "Enforce" },
+              ]}
+            />
+            <SelectField
+              label="Unsupported Method"
+              value={
+                settings.radius?.eap?.framework?.unsupported_method_action ||
+                "reject"
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "framework",
+                    "unsupported_method_action",
+                  ],
+                  value,
+                )
+              }
+              options={[
+                { value: "reject", label: "Reject" },
+                { value: "nak", label: "NAK" },
+                { value: "monitor", label: "Monitor" },
+              ]}
+            />
+            <TextField
+              label="Allowed Methods"
+              value={listToCSV(
+                settings.radius?.eap?.framework?.allowed_methods || [
+                  "peap",
+                  "ttls",
+                  "tls",
+                ],
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "framework", "allowed_methods"],
+                  csvToList(value),
+                )
+              }
+            />
+            <TextField
+              label="Allowed Inner Methods"
+              value={listToCSV(
+                settings.radius?.eap?.framework?.allowed_inner_methods || [
+                  "mschapv2",
+                  "pap",
+                  "chap",
+                  "gtc",
+                  "tls",
+                ],
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "framework", "allowed_inner_methods"],
+                  csvToList(value),
+                )
+              }
+            />
+            <TextField
+              label="Outer Identity Source"
+              value={
+                settings.radius?.eap?.framework
+                  ?.default_outer_identity_source || "configured-default"
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "framework",
+                    "default_outer_identity_source",
+                  ],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Inner Identity Source"
+              value={
+                settings.radius?.eap?.framework
+                  ?.default_inner_identity_source || "identity-failover"
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "framework",
+                    "default_inner_identity_source",
+                  ],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Method Timeout (s)"
+              type="number"
+              value={
+                settings.radius?.eap?.framework?.method_timeout_seconds ?? 60
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "framework", "method_timeout_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Fragment Size"
+              type="number"
+              value={settings.radius?.eap?.framework?.fragment_size ?? 1024}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "framework", "fragment_size"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max EAP Sessions"
+              type="number"
+              value={
+                settings.radius?.eap?.framework?.max_concurrent_sessions ?? 0
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "framework", "max_concurrent_sessions"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Telemetry Retention"
+              type="number"
+              value={
+                settings.radius?.eap?.framework?.event_retention_limit ?? 6000
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "framework", "event_retention_limit"],
+                  Number(value),
+                )
+              }
+            />
+            <ToggleField
+              label="Telemetry Enabled"
+              checked={
+                settings.radius?.eap?.framework?.telemetry_enabled !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "framework", "telemetry_enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="NAK Unknown Types"
+              checked={
+                settings.radius?.eap?.framework?.nak_unknown_types !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "framework", "nak_unknown_types"],
+                  value,
+                )
+              }
             />
           </div>
         </div>

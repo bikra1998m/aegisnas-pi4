@@ -59,3 +59,78 @@ func TestGenerateEAPConfigReferencesTLSConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestGenerateEAPConfigUsesFrameworkLimits(t *testing.T) {
+	cfg := &config.Config{
+		Radius: config.RadiusConfig{
+			MaxSessions: 1024,
+			EAP: config.RadiusEAPConfig{
+				DefaultType:   "ttls",
+				PEAPInner:     "mschapv2",
+				TTLSInner:     "pap",
+				TLSMinVersion: "1.2",
+				TLSMaxVersion: "1.3",
+				Framework: config.RadiusEAPFramework{
+					Enabled:                     true,
+					Mode:                        "enforce",
+					FailClosed:                  true,
+					AllowedMethods:              []string{"peap", "ttls", "tls"},
+					AllowedInnerMethods:         []string{"mschapv2", "pap", "chap", "gtc", "tls"},
+					UnsupportedMethodAction:     "reject",
+					RequireMessageAuthenticator: true,
+					RequireIdentityBinding:      true,
+					MaxConcurrentSessions:       512,
+					MethodTimeoutSeconds:        45,
+					FragmentSize:                1200,
+				},
+			},
+		},
+	}
+
+	content, err := GenerateEAPConfig(cfg, "/etc/freeradius/3.0/certs")
+	if err != nil {
+		t.Fatalf("GenerateEAPConfig returned error: %v", err)
+	}
+	for _, expected := range []string{
+		"NAS-0022 EAP framework status: ready",
+		"EAP framework mode: enforce, fail_closed=true",
+		"default_eap_type = ttls",
+		"timer_expire = 45",
+		"max_sessions = 512",
+		"fragment_size = 1200",
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("expected EAP config to contain %q, got:\n%s", expected, content)
+		}
+	}
+}
+
+func TestGenerateEAPConfigBlocksPlannedMethodInEnforceMode(t *testing.T) {
+	cfg := &config.Config{
+		Radius: config.RadiusConfig{
+			MaxSessions: 1024,
+			EAP: config.RadiusEAPConfig{
+				DefaultType:   "peap",
+				PEAPInner:     "mschapv2",
+				TTLSInner:     "pap",
+				TLSMinVersion: "1.2",
+				TLSMaxVersion: "1.3",
+				Framework: config.RadiusEAPFramework{
+					Enabled:                     true,
+					Mode:                        "enforce",
+					FailClosed:                  true,
+					AllowedMethods:              []string{"peap", "teap"},
+					AllowedInnerMethods:         []string{"mschapv2", "pap"},
+					UnsupportedMethodAction:     "reject",
+					RequireMessageAuthenticator: true,
+					RequireIdentityBinding:      false,
+				},
+			},
+		},
+	}
+
+	_, err := GenerateEAPConfig(cfg, "/etc/freeradius/3.0/certs")
+	if err == nil || !strings.Contains(err.Error(), "EAP framework blocked") {
+		t.Fatalf("expected enforce mode to block planned EAP method, got %v", err)
+	}
+}

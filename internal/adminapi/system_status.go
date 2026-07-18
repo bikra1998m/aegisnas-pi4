@@ -10,6 +10,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/activedirectory"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
+	eappkg "github.com/yourorg/aegisnas-pi4/internal/eap"
 	"github.com/yourorg/aegisnas-pi4/internal/enforcement"
 	"github.com/yourorg/aegisnas-pi4/internal/identity"
 	mabpkg "github.com/yourorg/aegisnas-pi4/internal/mab"
@@ -147,6 +148,8 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	proxyPolicy := radius.BuildProxyPolicyReport(cfg)
 	accountingSpool := radius.BuildAccountingSpoolReport(cfg)
 	fallbackPolicy := radius.BuildFallbackPolicyReport(cfg)
+	eapSummary, _ := db.SummarizeEAPMethodEvents(1000)
+	eapFramework := eappkg.BuildFrameworkReport(cfg, eapRuntimeSummaryFromDB(eapSummary))
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -159,6 +162,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"proxy_policy":            proxyPolicy,
 		"accounting_spool":        accountingSpool,
 		"fallback_policy":         fallbackPolicy,
+		"eap_framework":           eapFramework,
 		"enabled_radius_clients":  enabledRadiusClients,
 		"broker_auth":             runtimeMap["radius_broker_auth"],
 		"broker_accounting":       runtimeMap["radius_broker_accounting"],

@@ -13,6 +13,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/activedirectory"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
+	eappkg "github.com/yourorg/aegisnas-pi4/internal/eap"
 	"github.com/yourorg/aegisnas-pi4/internal/identity"
 	mabpkg "github.com/yourorg/aegisnas-pi4/internal/mab"
 	mfapkg "github.com/yourorg/aegisnas-pi4/internal/mfa"
@@ -122,6 +123,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionActiveDirectoryCheck(&report, cfg)
 	addProductionMFACheck(&report, cfg)
 	addProductionAdminWebAuthnCheck(&report, cfg)
+	addProductionEAPFrameworkCheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
@@ -523,6 +525,48 @@ func addProductionAdminWebAuthnCheck(report *productionReadinessReport, cfg *con
 			webAuthnReport.AuditSummary.TotalRecords),
 		Recommendation: "Set admin_webauthn.mode=enforce, keep fail_closed=true, configure rp_id and HTTPS origins, enroll passkeys for privileged admins, and keep break-glass use governed.",
 		Dependencies:   []string{"admin_webauthn", "admin_webauthn_credentials", "admin_webauthn_challenges", "admin_webauthn_events", "/api/v1/system/webauthn"},
+	})
+}
+
+func addProductionEAPFrameworkCheck(report *productionReadinessReport, cfg *config.Config) {
+	summary, _ := db.SummarizeEAPMethodEvents(1000)
+	eapReport := eappkg.BuildFrameworkReport(cfg, eapRuntimeSummaryFromDB(summary))
+	status := "passed"
+	switch eapReport.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "degraded"
+	}
+	if eapReport.Policy.Mode != "enforce" {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	if !eapReport.Policy.Enabled ||
+		!eapReport.Policy.FailClosed ||
+		!eapReport.Policy.RequireMessageAuthenticator ||
+		!eapReport.Policy.RequireIdentityBinding ||
+		!eapReport.Policy.GeneratedFreeRADIUSPolicy ||
+		eapReport.Summary.GeneratedMethodCount == 0 ||
+		eapReport.Summary.BlockedMethodCount > 0 {
+		status = "blocked"
+	}
+	if eapReport.Runtime.Rejected > 0 || eapReport.Runtime.Unsupported > 0 {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "eap_method_framework",
+		Category: "authentication",
+		Label:    "Extensible EAP Method Framework",
+		Status:   status,
+		Summary: fmt.Sprintf("EAP framework schema %d is %s in %s mode with %d enabled method(s), %d generated method(s), %d blocked method(s), and %d recent event(s).",
+			eapReport.SchemaVersion, eapReport.Status, eapReport.Policy.Mode, eapReport.Summary.EnabledMethodCount,
+			eapReport.Summary.GeneratedMethodCount, eapReport.Summary.BlockedMethodCount, eapReport.Runtime.TotalEvents),
+		Recommendation: "Use radius.eap.framework in enforce/fail-closed mode, keep Message-Authenticator and identity binding required, enable only generated methods for this release, and complete the NAS-0022 release certification checklist for real supplicant/AP evidence.",
+		Dependencies:   []string{"radius.eap.framework", "eap_method_events", "mods-enabled/eap", "/api/v1/system/eap-framework"},
 	})
 }
 

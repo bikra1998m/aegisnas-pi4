@@ -61,6 +61,79 @@ radius:
 	assert.NoError(t, err)
 }
 
+func TestConfigValidationEAPFramework(t *testing.T) {
+	cfg := &Config{
+		Mode:     "two-nic",
+		WAN:      InterfaceConfig{Name: "eth0"},
+		LAN:      InterfaceConfig{Name: "eth1"},
+		Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+		Health:   HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{
+			PrometheusPort: 9090,
+		},
+		Radius: RadiusConfig{
+			AuthPort:              1812,
+			AcctPort:              1813,
+			MaxSessions:           1024,
+			RequestTimeoutSeconds: 5,
+			EAP: RadiusEAPConfig{
+				DefaultType:   "peap",
+				PEAPInner:     "mschapv2",
+				TTLSInner:     "pap",
+				TLSMinVersion: "1.2",
+				TLSMaxVersion: "1.3",
+				Framework: RadiusEAPFramework{
+					Enabled:                     true,
+					Mode:                        "enforce",
+					FailClosed:                  true,
+					AllowedMethods:              []string{"peap", "ttls", "tls"},
+					AllowedInnerMethods:         []string{"mschapv2", "pap", "chap", "gtc", "tls"},
+					DefaultOuterIdentitySource:  "configured-default",
+					DefaultInnerIdentitySource:  "identity-failover",
+					UnsupportedMethodAction:     "reject",
+					RequireMessageAuthenticator: true,
+					RequireIdentityBinding:      true,
+					TelemetryEnabled:            true,
+					EventRetentionLimit:         6000,
+					MethodTimeoutSeconds:        60,
+					FragmentSize:                1024,
+					IdentitySources: []RadiusEAPIdentitySource{
+						{Name: "identity-failover", Source: "identity_failover", Enabled: true, Methods: []string{"peap", "ttls"}, AllowPasswordVerifier: true, Priority: 10},
+						{Name: "certificate-subject", Source: "certificate", Enabled: true, Methods: []string{"tls"}, AllowCertificateSubject: true, Priority: 20},
+					},
+					MethodPolicies: []RadiusEAPMethodPolicy{
+						{Method: "peap", Enabled: true, InnerMethods: []string{"mschapv2", "gtc"}, IdentitySource: "identity-failover", AllowPasswordVerifier: true, MinTLSVersion: "1.2", MaxTLSVersion: "1.3"},
+						{Method: "ttls", Enabled: true, InnerMethods: []string{"mschapv2", "pap"}, IdentitySource: "identity-failover", AllowPasswordVerifier: true, MinTLSVersion: "1.2", MaxTLSVersion: "1.3"},
+						{Method: "tls", Enabled: true, IdentitySource: "certificate-subject", RequireCertificate: true, AllowPasswordVerifier: false, MinTLSVersion: "1.2", MaxTLSVersion: "1.3"},
+					},
+				},
+			},
+		},
+	}
+	require.NoError(t, cfg.Validate())
+
+	badMethod := *cfg
+	badMethod.Radius.EAP.Framework.AllowedMethods = []string{"peap", "magic"}
+	assert.ErrorContains(t, badMethod.Validate(), "allowed_methods")
+
+	badDefault := *cfg
+	badDefault.Radius.EAP.DefaultType = "tls"
+	badDefault.Radius.EAP.Framework.AllowedMethods = []string{"peap", "ttls"}
+	assert.ErrorContains(t, badDefault.Validate(), "default_type")
+
+	badSource := *cfg
+	badSource.Radius.EAP.Framework.MethodPolicies = []RadiusEAPMethodPolicy{
+		{Method: "peap", Enabled: true, InnerMethods: []string{"mschapv2"}, IdentitySource: "missing-source", AllowPasswordVerifier: true},
+	}
+	assert.ErrorContains(t, badSource.Validate(), "identity_source")
+
+	badRevocation := *cfg
+	badRevocation.Radius.EAP.Framework.MethodPolicies = []RadiusEAPMethodPolicy{
+		{Method: "tls", Enabled: true, IdentitySource: "certificate-subject", RequireCertificate: true, RequireRevocation: true},
+	}
+	assert.ErrorContains(t, badRevocation.Validate(), "require_revocation")
+}
+
 func TestConfigValidationRadiusPacketHardening(t *testing.T) {
 	cfg := &Config{
 		Mode:      "two-nic",

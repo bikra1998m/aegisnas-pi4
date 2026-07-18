@@ -45,6 +45,8 @@ Files involved:
 - [dynamic_nas_clients.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/dynamic_nas_clients.go)
 - [manager.go](F:/random_project/Pookie/aegisnas-pi4/internal/sessions/manager.go)
 - [dynamic_auth.go](F:/random_project/Pookie/aegisnas-pi4/internal/sessions/dynamic_auth.go)
+- [framework.go](F:/random_project/Pookie/aegisnas-pi4/internal/eap/framework.go)
+- [eap_framework.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/eap_framework.go)
 - [webauthn.go](F:/random_project/Pookie/aegisnas-pi4/internal/webauthn/webauthn.go)
 - [webauthn.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/webauthn.go)
 - [config.example.yaml](F:/random_project/Pookie/aegisnas-pi4/configs/config.example.yaml)
@@ -68,6 +70,7 @@ The implementation now does these things end to end:
 15. governs portal local/LDAP fallback during upstream outage with identity allowlists, bounded outage windows, hashed audit events, readiness checks, and dashboard/API visibility
 16. supports MAC Authentication Bypass endpoint state, profile-linked quarantine, generated FreeRADIUS authorize entries, API evaluation, dashboard status, and readiness checks for non-802.1X devices
 17. protects privileged admin token and SSO sessions with WebAuthn/passkey step-up, credential lifecycle APIs, dashboard status, readiness checks, and support-bundle evidence
+18. governs EAP methods through a typed framework for PEAP, TTLS, TLS, identity-source binding, Message-Authenticator requirements, planned-method blockers, API evaluation, dashboard status, and support-bundle evidence
 
 ## Current Behavior
 
@@ -101,6 +104,7 @@ When `radius.upstream.enabled: true`:
   - enabled compatibility-pack VSAs such as Aruba role/VLAN, Ruckus groups/VLAN, Fortinet profiles, Cisco/Juniper ACL names, UniFi/UBNT rate hints, Cambium rate/VLAN/quarantine, Meraki context, Extreme Netlogin, Huawei/H3C QoS, Palo Alto context, and TP-Link Omada hints
 - break-glass local admin auth remains available even when portal RADIUS auth is enabled
 - privileged admin token and SSO sessions can require WebAuthn/passkey assertion before the admin API accepts a verified session token
+- EAP framework state is available through `/api/v1/system/eap-framework`; enforce/fail-closed mode prevents generated FreeRADIUS config when planned methods such as TEAP, FAST, PWD, SIM, AKA, or AKA-prime are enabled before their roadmap feature lands
 - voucher logins remain local so guest access still has an offline path
 
 What this pass still does not change:
@@ -111,6 +115,7 @@ What this pass still does not change:
 - `scripts/vendor-certification-lab.sh` provides the repeatable per-pack API, RADIUS, packet-capture, real-device, controller, upgrade, and rollback evidence workflow for that smoke testing
 - real AP/switch/controller certification for MAB remains tracked in [nas-0017-release-certification-checklist.md](nas-0017-release-certification-checklist.md)
 - real authenticator, browser, SSO provider, HA, and security validation for admin passkeys remains tracked in [nas-0021-release-certification-checklist.md](nas-0021-release-certification-checklist.md)
+- real supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, and performance validation for EAP remains tracked in [nas-0022-release-certification-checklist.md](nas-0022-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 
@@ -764,6 +769,16 @@ For admin WebAuthn/passkey step-up:
 5. perform token login and admin SSO login and confirm both require a WebAuthn assertion before protected APIs accept the session
 6. revoke one credential and confirm it can no longer complete login
 7. export a support bundle and retain `api/webauthn.json`
+
+For the EAP method framework:
+
+1. set `radius.eap.framework.enabled: true`, `mode: monitor`, and configure allowed PEAP, TTLS, and TLS methods
+2. confirm `/api/v1/system/eap-framework` reports generated methods and no blocking issues
+3. use `POST /api/v1/system/eap-framework/evaluate` with representative method and NAS-type payloads
+4. switch to `mode: enforce` and keep `fail_closed: true`
+5. run **Apply RADIUS Config** so `mods-enabled/eap` is regenerated and validated
+6. test enabled supplicant methods through a real AP or switch
+7. export a support bundle and retain `api/eap-framework.json`
 
 ## Ubuntu Appliance Notes
 

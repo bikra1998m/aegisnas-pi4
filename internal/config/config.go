@@ -570,6 +570,7 @@ type RadiusEAPConfig struct {
 	CheckAllCRL          bool                `mapstructure:"check_all_crl"`
 	CAPathReloadInterval int                 `mapstructure:"ca_path_reload_interval"`
 	OCSP                 RadiusEAPOCSPConfig `mapstructure:"ocsp"`
+	Framework            RadiusEAPFramework  `mapstructure:"framework"`
 }
 
 type RadiusEAPOCSPConfig struct {
@@ -579,6 +580,59 @@ type RadiusEAPOCSPConfig struct {
 	UseNonce        bool   `mapstructure:"use_nonce"`
 	TimeoutSeconds  int    `mapstructure:"timeout_seconds"`
 	SoftFail        bool   `mapstructure:"soft_fail"`
+}
+
+type RadiusEAPFramework struct {
+	Enabled                     bool                         `mapstructure:"enabled"`
+	Mode                        string                       `mapstructure:"mode"`
+	FailClosed                  bool                         `mapstructure:"fail_closed"`
+	AllowedMethods              []string                     `mapstructure:"allowed_methods"`
+	AllowedInnerMethods         []string                     `mapstructure:"allowed_inner_methods"`
+	DefaultOuterIdentitySource  string                       `mapstructure:"default_outer_identity_source"`
+	DefaultInnerIdentitySource  string                       `mapstructure:"default_inner_identity_source"`
+	MethodPolicies              []RadiusEAPMethodPolicy      `mapstructure:"method_policies"`
+	UnsupportedMethodAction     string                       `mapstructure:"unsupported_method_action"`
+	RequireMessageAuthenticator bool                         `mapstructure:"require_message_authenticator"`
+	RequireIdentityBinding      bool                         `mapstructure:"require_identity_binding"`
+	TelemetryEnabled            bool                         `mapstructure:"telemetry_enabled"`
+	EventRetentionLimit         int                          `mapstructure:"event_retention_limit"`
+	MaxConcurrentSessions       int                          `mapstructure:"max_concurrent_sessions"`
+	MethodTimeoutSeconds        int                          `mapstructure:"method_timeout_seconds"`
+	FragmentSize                int                          `mapstructure:"fragment_size"`
+	NakUnknownTypes             bool                         `mapstructure:"nak_unknown_types"`
+	IdentitySources             []RadiusEAPIdentitySource    `mapstructure:"identity_sources"`
+	VendorCompatibilityProfiles []RadiusEAPVendorProfileRule `mapstructure:"vendor_compatibility_profiles"`
+}
+
+type RadiusEAPMethodPolicy struct {
+	Method                string   `mapstructure:"method"`
+	Enabled               bool     `mapstructure:"enabled"`
+	InnerMethods          []string `mapstructure:"inner_methods"`
+	IdentitySource        string   `mapstructure:"identity_source"`
+	RequireCertificate    bool     `mapstructure:"require_certificate"`
+	RequireRevocation     bool     `mapstructure:"require_revocation"`
+	AllowPasswordVerifier bool     `mapstructure:"allow_password_verifier"`
+	MinTLSVersion         string   `mapstructure:"min_tls_version"`
+	MaxTLSVersion         string   `mapstructure:"max_tls_version"`
+	VendorProfiles        []string `mapstructure:"vendor_profiles"`
+}
+
+type RadiusEAPIdentitySource struct {
+	Name                    string   `mapstructure:"name"`
+	Source                  string   `mapstructure:"source"`
+	Enabled                 bool     `mapstructure:"enabled"`
+	Methods                 []string `mapstructure:"methods"`
+	AllowPasswordVerifier   bool     `mapstructure:"allow_password_verifier"`
+	AllowCertificateSubject bool     `mapstructure:"allow_certificate_subject"`
+	Priority                int      `mapstructure:"priority"`
+}
+
+type RadiusEAPVendorProfileRule struct {
+	Name            string   `mapstructure:"name"`
+	NASTypes        []string `mapstructure:"nas_types"`
+	AllowedMethods  []string `mapstructure:"allowed_methods"`
+	RequiredMethods []string `mapstructure:"required_methods"`
+	Notes           string   `mapstructure:"notes"`
 }
 
 type PortalConfig struct {
@@ -1335,6 +1389,34 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.eap.ocsp.use_nonce", true)
 	v.SetDefault("radius.eap.ocsp.timeout_seconds", 5)
 	v.SetDefault("radius.eap.ocsp.soft_fail", false)
+	v.SetDefault("radius.eap.framework.enabled", true)
+	v.SetDefault("radius.eap.framework.mode", "monitor")
+	v.SetDefault("radius.eap.framework.fail_closed", true)
+	v.SetDefault("radius.eap.framework.allowed_methods", []string{"peap", "ttls", "tls"})
+	v.SetDefault("radius.eap.framework.allowed_inner_methods", []string{"mschapv2", "pap", "chap", "gtc", "tls"})
+	v.SetDefault("radius.eap.framework.default_outer_identity_source", "configured-default")
+	v.SetDefault("radius.eap.framework.default_inner_identity_source", "identity-failover")
+	v.SetDefault("radius.eap.framework.unsupported_method_action", "reject")
+	v.SetDefault("radius.eap.framework.require_message_authenticator", true)
+	v.SetDefault("radius.eap.framework.require_identity_binding", true)
+	v.SetDefault("radius.eap.framework.telemetry_enabled", true)
+	v.SetDefault("radius.eap.framework.event_retention_limit", 6000)
+	v.SetDefault("radius.eap.framework.max_concurrent_sessions", 0)
+	v.SetDefault("radius.eap.framework.method_timeout_seconds", 60)
+	v.SetDefault("radius.eap.framework.fragment_size", 1024)
+	v.SetDefault("radius.eap.framework.nak_unknown_types", true)
+	v.SetDefault("radius.eap.framework.identity_sources", []map[string]any{
+		{"name": "identity-failover", "source": "identity_failover", "enabled": true, "methods": []string{"peap", "ttls"}, "allow_password_verifier": true, "allow_certificate_subject": false, "priority": 10},
+		{"name": "certificate-subject", "source": "certificate", "enabled": true, "methods": []string{"tls"}, "allow_password_verifier": false, "allow_certificate_subject": true, "priority": 20},
+	})
+	v.SetDefault("radius.eap.framework.method_policies", []map[string]any{
+		{"method": "peap", "enabled": true, "inner_methods": []string{"mschapv2", "gtc"}, "identity_source": "identity-failover", "require_certificate": false, "require_revocation": false, "allow_password_verifier": true, "min_tls_version": "1.2", "max_tls_version": "1.3"},
+		{"method": "ttls", "enabled": true, "inner_methods": []string{"mschapv2", "pap", "chap", "gtc"}, "identity_source": "identity-failover", "require_certificate": false, "require_revocation": false, "allow_password_verifier": true, "min_tls_version": "1.2", "max_tls_version": "1.3"},
+		{"method": "tls", "enabled": true, "inner_methods": []string{}, "identity_source": "certificate-subject", "require_certificate": true, "require_revocation": false, "allow_password_verifier": false, "min_tls_version": "1.2", "max_tls_version": "1.3"},
+	})
+	v.SetDefault("radius.eap.framework.vendor_compatibility_profiles", []map[string]any{
+		{"name": "enterprise-8021x", "nas_types": []string{"cisco", "aruba", "ruckus", "extreme", "juniper", "fortinet", "unifi", "other"}, "allowed_methods": []string{"peap", "ttls", "tls"}, "required_methods": []string{}, "notes": "Baseline RFC 3748 EAP pass-through and FreeRADIUS method selection for enterprise APs and switches."},
+	})
 	v.SetDefault("radius.upstream.enabled", false)
 	v.SetDefault("radius.upstream.realm", "aegis-upstream")
 	v.SetDefault("radius.upstream.pool_strategy", "fail-over")
@@ -3855,6 +3937,9 @@ func (c *Config) Validate() error {
 	if c.Onboarding.EAPTLSEnabled && !c.Radius.EAP.CheckCRL && !c.Radius.EAP.OCSP.Enabled {
 		return errors.New("onboarding.eap_tls_enabled requires radius.eap.check_crl or radius.eap.ocsp.enabled")
 	}
+	if err := validateRadiusEAPFramework(c.Radius.EAP); err != nil {
+		return err
+	}
 
 	for i, cl := range c.Radius.Clients {
 		if cl.IP == "" {
@@ -5878,6 +5963,372 @@ func unsupportedAVPairTemplateToken(value string) string {
 		}
 		value = value[end+1:]
 	}
+}
+
+func validateRadiusEAPFramework(eap RadiusEAPConfig) error {
+	framework := eap.Framework
+	if !framework.Enabled && !radiusEAPFrameworkConfigured(framework) {
+		return nil
+	}
+	mode := strings.ToLower(strings.TrimSpace(framework.Mode))
+	switch mode {
+	case "", "monitor", "enforce":
+	default:
+		return fmt.Errorf("radius.eap.framework.mode %q must be monitor or enforce", framework.Mode)
+	}
+	action := strings.ToLower(strings.TrimSpace(framework.UnsupportedMethodAction))
+	switch action {
+	case "", "reject", "nak", "monitor":
+	default:
+		return fmt.Errorf("radius.eap.framework.unsupported_method_action %q must be reject, nak, or monitor", framework.UnsupportedMethodAction)
+	}
+	if framework.EventRetentionLimit < 0 || framework.EventRetentionLimit > 1000000 {
+		return fmt.Errorf("radius.eap.framework.event_retention_limit must be between 1 and 1000000 when set")
+	}
+	if framework.MaxConcurrentSessions < 0 || framework.MaxConcurrentSessions > 1000000 {
+		return fmt.Errorf("radius.eap.framework.max_concurrent_sessions must be between 0 and 1000000")
+	}
+	if framework.MethodTimeoutSeconds < 0 || framework.MethodTimeoutSeconds > 3600 {
+		return fmt.Errorf("radius.eap.framework.method_timeout_seconds must be between 1 and 3600 when set")
+	}
+	if framework.FragmentSize < 0 || framework.FragmentSize > 4096 {
+		return fmt.Errorf("radius.eap.framework.fragment_size must be between 512 and 4096 when set")
+	}
+	if framework.FragmentSize > 0 && framework.FragmentSize < 512 {
+		return fmt.Errorf("radius.eap.framework.fragment_size must be between 512 and 4096 when set")
+	}
+
+	rawAllowedMethods := framework.AllowedMethods
+	if len(rawAllowedMethods) == 0 {
+		rawAllowedMethods = []string{"peap", "ttls", "tls"}
+	}
+	allowedMethods, err := validateEAPMethodList("radius.eap.framework.allowed_methods", rawAllowedMethods, false)
+	if err != nil {
+		return err
+	}
+	rawAllowedInner := framework.AllowedInnerMethods
+	if len(rawAllowedInner) == 0 {
+		rawAllowedInner = []string{"mschapv2", "pap", "chap", "gtc", "tls"}
+	}
+	allowedInner, err := validateEAPInnerMethodList("radius.eap.framework.allowed_inner_methods", rawAllowedInner, true)
+	if err != nil {
+		return err
+	}
+	defaultType := normalizeEAPMethod(eap.DefaultType)
+	if defaultType == "" {
+		defaultType = "peap"
+	}
+	if _, ok := allowedMethods[defaultType]; framework.Enabled && !ok {
+		return fmt.Errorf("radius.eap.default_type %q is not in radius.eap.framework.allowed_methods", eap.DefaultType)
+	}
+	peapInner := normalizeEAPInnerMethod(eap.PEAPInner)
+	if peapInner == "" {
+		peapInner = "mschapv2"
+	}
+	if _, ok := allowedInner[peapInner]; framework.Enabled && !ok {
+		return fmt.Errorf("radius.eap.peap_inner %q is not in radius.eap.framework.allowed_inner_methods", eap.PEAPInner)
+	}
+	ttlsInner := normalizeEAPInnerMethod(eap.TTLSInner)
+	if ttlsInner == "" {
+		ttlsInner = "mschapv2"
+	}
+	if _, ok := allowedInner[ttlsInner]; framework.Enabled && !ok {
+		return fmt.Errorf("radius.eap.ttls_inner %q is not in radius.eap.framework.allowed_inner_methods", eap.TTLSInner)
+	}
+
+	identitySources := map[string]RadiusEAPIdentitySource{}
+	seenPriority := map[int]struct{}{}
+	for i, source := range framework.IdentitySources {
+		name := normalizeEAPIdentitySourceName(source.Name)
+		if name == "" {
+			return fmt.Errorf("radius.eap.framework.identity_sources[%d].name is required", i)
+		}
+		if !validEAPPolicyToken(name) {
+			return fmt.Errorf("radius.eap.framework.identity_sources[%d].name %q is invalid", i, source.Name)
+		}
+		sourceType := strings.ToLower(strings.TrimSpace(source.Source))
+		switch sourceType {
+		case "local", "ldap", "active_directory", "identity_failover", "certificate", "upstream", "external":
+		default:
+			return fmt.Errorf("radius.eap.framework.identity_sources[%d].source %q is invalid", i, source.Source)
+		}
+		if _, exists := identitySources[name]; exists {
+			return fmt.Errorf("radius.eap.framework.identity_sources[%d].name %q duplicates an earlier identity source", i, source.Name)
+		}
+		if _, exists := seenPriority[source.Priority]; source.Priority > 0 && exists {
+			return fmt.Errorf("radius.eap.framework.identity_sources[%d].priority duplicates an earlier identity source", i)
+		}
+		seenPriority[source.Priority] = struct{}{}
+		if _, err := validateEAPMethodList(fmt.Sprintf("radius.eap.framework.identity_sources[%d].methods", i), source.Methods, true); err != nil {
+			return err
+		}
+		identitySources[name] = source
+	}
+
+	if framework.Enabled && framework.RequireIdentityBinding {
+		outer := normalizeEAPIdentitySourceName(framework.DefaultOuterIdentitySource)
+		inner := normalizeEAPIdentitySourceName(framework.DefaultInnerIdentitySource)
+		if outer == "" {
+			outer = "configured-default"
+		}
+		if inner == "" {
+			inner = "identity-failover"
+		}
+		if outer != "configured-default" {
+			if _, ok := identitySources[outer]; !ok {
+				return fmt.Errorf("radius.eap.framework.default_outer_identity_source %q is not defined", framework.DefaultOuterIdentitySource)
+			}
+		}
+		if _, ok := identitySources[inner]; !ok {
+			return fmt.Errorf("radius.eap.framework.default_inner_identity_source %q is not defined", framework.DefaultInnerIdentitySource)
+		}
+	}
+
+	seenMethods := map[string]struct{}{}
+	for i, policy := range framework.MethodPolicies {
+		method := normalizeEAPMethod(policy.Method)
+		if method == "" {
+			return fmt.Errorf("radius.eap.framework.method_policies[%d].method is required", i)
+		}
+		if !validEAPMethod(method) {
+			return fmt.Errorf("radius.eap.framework.method_policies[%d].method %q is invalid", i, policy.Method)
+		}
+		if _, exists := seenMethods[method]; exists {
+			return fmt.Errorf("radius.eap.framework.method_policies[%d].method %q duplicates an earlier policy", i, policy.Method)
+		}
+		seenMethods[method] = struct{}{}
+		if framework.Enabled {
+			if _, ok := allowedMethods[method]; !ok {
+				return fmt.Errorf("radius.eap.framework.method_policies[%d].method %q is not in allowed_methods", i, policy.Method)
+			}
+		}
+		policyInner, err := validateEAPInnerMethodList(fmt.Sprintf("radius.eap.framework.method_policies[%d].inner_methods", i), policy.InnerMethods, true)
+		if err != nil {
+			return err
+		}
+		for innerMethod := range policyInner {
+			if _, ok := allowedInner[innerMethod]; framework.Enabled && !ok {
+				return fmt.Errorf("radius.eap.framework.method_policies[%d].inner_methods contains %q which is not in allowed_inner_methods", i, innerMethod)
+			}
+		}
+		identitySource := normalizeEAPIdentitySourceName(policy.IdentitySource)
+		if framework.Enabled && framework.RequireIdentityBinding && identitySource == "" {
+			return fmt.Errorf("radius.eap.framework.method_policies[%d].identity_source is required when identity binding is required", i)
+		}
+		if identitySource != "" {
+			if _, ok := identitySources[identitySource]; !ok {
+				return fmt.Errorf("radius.eap.framework.method_policies[%d].identity_source %q is not defined", i, policy.IdentitySource)
+			}
+		}
+		if policy.RequireCertificate && policy.AllowPasswordVerifier {
+			return fmt.Errorf("radius.eap.framework.method_policies[%d] cannot require_certificate and allow_password_verifier together", i)
+		}
+		if policy.RequireRevocation && !policy.RequireCertificate {
+			return fmt.Errorf("radius.eap.framework.method_policies[%d].require_revocation requires require_certificate", i)
+		}
+		if policy.RequireRevocation && !eap.CheckCRL && !eap.OCSP.Enabled {
+			return fmt.Errorf("radius.eap.framework.method_policies[%d].require_revocation requires radius.eap.check_crl or radius.eap.ocsp.enabled", i)
+		}
+		if err := validateEAPTLSVersionBounds(fmt.Sprintf("radius.eap.framework.method_policies[%d]", i), policy.MinTLSVersion, policy.MaxTLSVersion); err != nil {
+			return err
+		}
+		for j, profile := range policy.VendorProfiles {
+			if !validEAPPolicyToken(strings.ToLower(strings.TrimSpace(profile))) {
+				return fmt.Errorf("radius.eap.framework.method_policies[%d].vendor_profiles[%d] is invalid", i, j)
+			}
+		}
+	}
+
+	seenProfiles := map[string]struct{}{}
+	for i, profile := range framework.VendorCompatibilityProfiles {
+		name := strings.ToLower(strings.TrimSpace(profile.Name))
+		if name == "" || !validEAPPolicyToken(name) {
+			return fmt.Errorf("radius.eap.framework.vendor_compatibility_profiles[%d].name is invalid", i)
+		}
+		if _, exists := seenProfiles[name]; exists {
+			return fmt.Errorf("radius.eap.framework.vendor_compatibility_profiles[%d].name duplicates an earlier profile", i)
+		}
+		seenProfiles[name] = struct{}{}
+		if _, err := validateEAPMethodList(fmt.Sprintf("radius.eap.framework.vendor_compatibility_profiles[%d].allowed_methods", i), profile.AllowedMethods, true); err != nil {
+			return err
+		}
+		if _, err := validateEAPMethodList(fmt.Sprintf("radius.eap.framework.vendor_compatibility_profiles[%d].required_methods", i), profile.RequiredMethods, true); err != nil {
+			return err
+		}
+		for j, nasType := range profile.NASTypes {
+			if !validEAPPolicyToken(strings.ToLower(strings.TrimSpace(nasType))) {
+				return fmt.Errorf("radius.eap.framework.vendor_compatibility_profiles[%d].nas_types[%d] is invalid", i, j)
+			}
+		}
+		if strings.ContainsAny(profile.Notes, "\r\n\x00") || len(profile.Notes) > 512 {
+			return fmt.Errorf("radius.eap.framework.vendor_compatibility_profiles[%d].notes is invalid", i)
+		}
+	}
+	return nil
+}
+
+func radiusEAPFrameworkConfigured(framework RadiusEAPFramework) bool {
+	return strings.TrimSpace(framework.Mode) != "" ||
+		framework.FailClosed ||
+		len(framework.AllowedMethods) > 0 ||
+		len(framework.AllowedInnerMethods) > 0 ||
+		strings.TrimSpace(framework.DefaultOuterIdentitySource) != "" ||
+		strings.TrimSpace(framework.DefaultInnerIdentitySource) != "" ||
+		len(framework.MethodPolicies) > 0 ||
+		strings.TrimSpace(framework.UnsupportedMethodAction) != "" ||
+		framework.RequireMessageAuthenticator ||
+		framework.RequireIdentityBinding ||
+		framework.TelemetryEnabled ||
+		framework.EventRetentionLimit != 0 ||
+		framework.MaxConcurrentSessions != 0 ||
+		framework.MethodTimeoutSeconds != 0 ||
+		framework.FragmentSize != 0 ||
+		framework.NakUnknownTypes ||
+		len(framework.IdentitySources) > 0 ||
+		len(framework.VendorCompatibilityProfiles) > 0
+}
+
+func validateEAPMethodList(path string, methods []string, allowEmpty bool) (map[string]struct{}, error) {
+	seen := map[string]struct{}{}
+	if len(methods) == 0 && !allowEmpty {
+		return seen, fmt.Errorf("%s must include at least one method", path)
+	}
+	for i, raw := range methods {
+		method := normalizeEAPMethod(raw)
+		if method == "" {
+			return seen, fmt.Errorf("%s[%d] cannot be empty", path, i)
+		}
+		if !validEAPMethod(method) {
+			return seen, fmt.Errorf("%s[%d] %q is invalid", path, i, raw)
+		}
+		if _, exists := seen[method]; exists {
+			return seen, fmt.Errorf("%s[%d] %q duplicates an earlier method", path, i, raw)
+		}
+		seen[method] = struct{}{}
+	}
+	return seen, nil
+}
+
+func validateEAPInnerMethodList(path string, methods []string, allowEmpty bool) (map[string]struct{}, error) {
+	seen := map[string]struct{}{}
+	if len(methods) == 0 && !allowEmpty {
+		return seen, fmt.Errorf("%s must include at least one inner method", path)
+	}
+	for i, raw := range methods {
+		method := normalizeEAPInnerMethod(raw)
+		if method == "" {
+			return seen, fmt.Errorf("%s[%d] cannot be empty", path, i)
+		}
+		if !validEAPInnerMethod(method) {
+			return seen, fmt.Errorf("%s[%d] %q is invalid", path, i, raw)
+		}
+		if _, exists := seen[method]; exists {
+			return seen, fmt.Errorf("%s[%d] %q duplicates an earlier inner method", path, i, raw)
+		}
+		seen[method] = struct{}{}
+	}
+	return seen, nil
+}
+
+func validateEAPTLSVersionBounds(path, minVersion, maxVersion string) error {
+	if minVersion == "" && maxVersion == "" {
+		return nil
+	}
+	min := strings.TrimSpace(minVersion)
+	max := strings.TrimSpace(maxVersion)
+	switch min {
+	case "", "1.2", "1.3":
+	default:
+		return fmt.Errorf("%s.min_tls_version %q is invalid", path, minVersion)
+	}
+	switch max {
+	case "", "1.2", "1.3":
+	default:
+		return fmt.Errorf("%s.max_tls_version %q is invalid", path, maxVersion)
+	}
+	if min == "1.3" && max == "1.2" {
+		return fmt.Errorf("%s.min_tls_version cannot be greater than max_tls_version", path)
+	}
+	return nil
+}
+
+func normalizeEAPMethod(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	switch value {
+	case "eap-tls":
+		return "tls"
+	case "eap-ttls":
+		return "ttls"
+	case "eap-peap":
+		return "peap"
+	case "eap-fast":
+		return "fast"
+	case "eap-pwd":
+		return "pwd"
+	case "eap-sim":
+		return "sim"
+	case "eap-aka":
+		return "aka"
+	case "eap-aka-prime", "eap-aka'":
+		return "aka-prime"
+	default:
+		return value
+	}
+}
+
+func normalizeEAPInnerMethod(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	switch value {
+	case "mschap", "mschap-v2", "ms-chap-v2":
+		return "mschapv2"
+	case "eap-tls":
+		return "tls"
+	default:
+		return value
+	}
+}
+
+func normalizeEAPIdentitySourceName(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func validEAPMethod(method string) bool {
+	switch method {
+	case "peap", "ttls", "tls", "teap", "fast", "pwd", "sim", "aka", "aka-prime", "md5", "leap", "gtc":
+		return true
+	default:
+		return false
+	}
+}
+
+func validEAPInnerMethod(method string) bool {
+	switch method {
+	case "mschapv2", "pap", "chap", "gtc", "tls", "md5":
+		return true
+	default:
+		return false
+	}
+}
+
+func validEAPPolicyToken(value string) bool {
+	if value == "" || len(value) > 128 {
+		return false
+	}
+	for _, r := range value {
+		if r >= 'a' && r <= 'z' {
+			continue
+		}
+		if r >= '0' && r <= '9' {
+			continue
+		}
+		switch r {
+		case '-', '_', '.', ':':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func validateRadiusOpaquePassThrough(cfg RadiusOpaquePassThroughConfig) error {

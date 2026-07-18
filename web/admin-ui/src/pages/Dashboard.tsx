@@ -329,6 +329,46 @@ type RadiusFallbackPolicyReport = {
   warnings?: string[];
 };
 
+type EAPFrameworkReport = {
+  status: string;
+  message: string;
+  policy?: {
+    enabled: boolean;
+    mode: string;
+    fail_closed: boolean;
+    allowed_methods: string[];
+    allowed_inner_methods: string[];
+    require_message_authenticator: boolean;
+    require_identity_binding: boolean;
+    effective_max_sessions: number;
+    method_timeout_seconds: number;
+    fragment_size: number;
+  };
+  summary?: {
+    enabled_method_count: number;
+    generated_method_count: number;
+    planned_method_count: number;
+    blocked_method_count: number;
+    identity_source_count: number;
+    vendor_profile_count: number;
+    recent_event_count: number;
+    recent_rejected_count: number;
+    recent_unsupported_count: number;
+    message_authenticator_mode: string;
+  };
+  runtime?: {
+    total_events: number;
+    accepted: number;
+    rejected: number;
+    monitor_allowed: number;
+    unsupported: number;
+    last_event_at?: string;
+    last_rejected_reason?: string;
+  };
+  warnings?: string[];
+  blocking_issues?: string[];
+};
+
 type IdentityFailoverReport = {
   enabled: boolean;
   status: string;
@@ -532,6 +572,7 @@ type SystemStatus = {
     proxy_policy?: RadiusProxyPolicyReport;
     accounting_spool?: RadiusAccountingSpoolReport;
     fallback_policy?: RadiusFallbackPolicyReport;
+    eap_framework?: EAPFrameworkReport;
     radsec_credentials?: RadSecCredentialReport;
     dynamic_nas_clients?: DynamicNASClientReport;
     probe_error?: string;
@@ -1075,6 +1116,7 @@ export default function Dashboard() {
   const proxyPolicy = systemStatus.radius?.proxy_policy;
   const accountingSpool = systemStatus.radius?.accounting_spool;
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
+  const eapFramework = systemStatus.radius?.eap_framework;
   const identityFailover = systemStatus.identity?.failover;
   const identityActiveDirectory = systemStatus.identity?.active_directory;
   const identityMFA = systemStatus.identity?.mfa;
@@ -1901,6 +1943,71 @@ export default function Dashboard() {
                     <StatusBadge
                       status={radSecCredentials.status || "unknown"}
                     />
+                  </div>
+                </div>
+              ) : null}
+              {eapFramework ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        EAP Method Framework
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {eapFramework.message ||
+                          "EAP method framework state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Mode {eapFramework.policy?.mode || "monitor"}
+                        </div>
+                        <div>
+                          Enabled{" "}
+                          {eapFramework.summary?.enabled_method_count ?? 0}
+                        </div>
+                        <div>
+                          Generated{" "}
+                          {eapFramework.summary?.generated_method_count ?? 0}
+                        </div>
+                        <div>
+                          Blocked{" "}
+                          {eapFramework.summary?.blocked_method_count ?? 0}
+                        </div>
+                        <div>
+                          Events {eapFramework.runtime?.total_events ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Methods{" "}
+                        {eapFramework.policy?.allowed_methods?.join(", ") ||
+                          "none"}
+                        ; inner{" "}
+                        {eapFramework.policy?.allowed_inner_methods?.join(
+                          ", ",
+                        ) || "none"}
+                        ; integrity{" "}
+                        {eapFramework.policy?.require_message_authenticator
+                          ? "required"
+                          : "inherited"}
+                        .
+                      </div>
+                      {eapFramework.runtime?.last_rejected_reason ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last rejection:{" "}
+                          {eapFramework.runtime.last_rejected_reason}
+                        </div>
+                      ) : null}
+                      {eapFramework.blocking_issues?.length ? (
+                        <div className="mt-2 text-xs text-red-700">
+                          {eapFramework.blocking_issues[0]}
+                        </div>
+                      ) : eapFramework.warnings?.length ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {eapFramework.warnings[0]}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge status={eapFramework.status || "unknown"} />
                   </div>
                 </div>
               ) : null}

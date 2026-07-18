@@ -150,7 +150,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{23, schemaV23},
 		{24, schemaV24},
 		{25, schemaV25},
-		{LatestSchemaVersion(), schemaV26},
+		{26, schemaV26},
+		{LatestSchemaVersion(), schemaV27},
 	}
 
 	for _, m := range migrations {
@@ -210,8 +211,20 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureAdminWebAuthnTables(handle); err != nil {
 		return fmt.Errorf("repair admin WebAuthn schema: %w", err)
 	}
+	if err := ensureEAPFrameworkTables(handle); err != nil {
+		return fmt.Errorf("repair EAP framework schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureEAPFrameworkTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	_, err := handle.Exec(SQLForDialect(schemaV27, dialect))
+	return err
 }
 
 func ensureMABTables(handle *sql.DB) error {

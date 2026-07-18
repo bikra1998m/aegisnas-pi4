@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 26
+	return 27
 }
 
 func Migrate() error {
@@ -1121,4 +1121,34 @@ CREATE INDEX IF NOT EXISTS idx_admin_webauthn_events_observed_at ON admin_webaut
 CREATE INDEX IF NOT EXISTS idx_admin_webauthn_events_decision ON admin_webauthn_events(decision, observed_at);
 CREATE INDEX IF NOT EXISTS idx_admin_webauthn_events_username ON admin_webauthn_events(username_hash, observed_at);
 CREATE INDEX IF NOT EXISTS idx_admin_webauthn_events_ceremony ON admin_webauthn_events(ceremony, observed_at);
+`
+
+const schemaV27 = `
+CREATE TABLE IF NOT EXISTS eap_method_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	method TEXT NOT NULL,
+	inner_method TEXT,
+	decision TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	nas_identifier TEXT,
+	nas_type TEXT,
+	user_name_hash TEXT,
+	calling_station_hash TEXT,
+	identity_source TEXT,
+	eap_message_present BOOLEAN DEFAULT 0,
+	message_authenticator_present BOOLEAN DEFAULT 0,
+	certificate_presented BOOLEAN DEFAULT 0,
+	tls_version TEXT,
+	policy_mode TEXT,
+	latency_ms INTEGER DEFAULT 0,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_eap_method_events_observed_at ON eap_method_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_method_events_method ON eap_method_events(method, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_method_events_decision ON eap_method_events(decision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_method_events_nas ON eap_method_events(nas_identifier, nas_type, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_method_events_user ON eap_method_events(user_name_hash, observed_at);
 `

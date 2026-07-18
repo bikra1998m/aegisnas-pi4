@@ -1284,6 +1284,18 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"204":     responseText("Credential revoked."),
 		"default": responseJSON("Credential revoke error."),
 	}))
+	addOperation(paths, "/api/v1/system/eap-framework", "get", securedOperationWithParameters("Read extensible EAP method framework state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("method", "Optional EAP method filter for recent events.", false),
+		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "monitor_allowed", "unsupported"}, false),
+		queryStringParameter("nas_type", "Optional NAS type filter for recent events.", false),
+		queryStringParameter("limit", "Event limit from 1 to 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("Typed EAP catalog, effective method policy, identity-source bindings, vendor compatibility profiles, runtime summary, and recent EAP method events."),
+	}))
+	addOperation(paths, "/api/v1/system/eap-framework/evaluate", "post", securedOperationWithBody("Evaluate an EAP method decision", "Authentication", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("RADIUS-like EAP request fields: method, inner_method, NAS type, identity source, EAP-Message presence, Message-Authenticator presence, certificate state, and optional audit flag."), map[string]any{
+		"200":     responseJSON("Deterministic EAP framework decision and audit status."),
+		"default": responseJSON("EAP framework evaluation error."),
+	}))
 	addOperation(paths, "/api/v1/system/mab", "get", securedOperationWithParameters("Read MAC Authentication Bypass state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "quarantined", "monitor_allowed", "fail_open", "unsupported"}, false),
 		queryStringParameter("mac", "Optional endpoint MAC filter in colon, hyphen, plain, or Cisco dotted format.", false),

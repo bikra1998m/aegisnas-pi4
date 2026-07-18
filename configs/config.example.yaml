@@ -165,6 +165,67 @@ radius:
       use_nonce: true
       timeout_seconds: 5
       soft_fail: false # Keep false for strict production revocation enforcement.
+    framework:
+      enabled: true
+      mode: "monitor" # Use enforce with fail_closed=true after supplicant/AP smoke tests.
+      fail_closed: true
+      allowed_methods: ["peap", "ttls", "tls"]
+      allowed_inner_methods: ["mschapv2", "pap", "chap", "gtc", "tls"]
+      default_outer_identity_source: "configured-default"
+      default_inner_identity_source: "identity-failover"
+      unsupported_method_action: "reject" # reject, nak, or monitor.
+      require_message_authenticator: true
+      require_identity_binding: true
+      telemetry_enabled: true
+      event_retention_limit: 6000
+      max_concurrent_sessions: 0 # 0 inherits radius.max_sessions.
+      method_timeout_seconds: 60
+      fragment_size: 1024
+      nak_unknown_types: true
+      identity_sources:
+        - name: "identity-failover"
+          source: "identity_failover"
+          enabled: true
+          methods: ["peap", "ttls"]
+          allow_password_verifier: true
+          allow_certificate_subject: false
+          priority: 10
+        - name: "certificate-subject"
+          source: "certificate"
+          enabled: true
+          methods: ["tls"]
+          allow_password_verifier: false
+          allow_certificate_subject: true
+          priority: 20
+      method_policies:
+        - method: "peap"
+          enabled: true
+          inner_methods: ["mschapv2", "gtc"]
+          identity_source: "identity-failover"
+          allow_password_verifier: true
+          min_tls_version: "1.2"
+          max_tls_version: "1.3"
+        - method: "ttls"
+          enabled: true
+          inner_methods: ["mschapv2", "pap", "chap", "gtc"]
+          identity_source: "identity-failover"
+          allow_password_verifier: true
+          min_tls_version: "1.2"
+          max_tls_version: "1.3"
+        - method: "tls"
+          enabled: true
+          identity_source: "certificate-subject"
+          require_certificate: true
+          require_revocation: false # Set true with check_crl or ocsp.enabled before EAP-TLS production claims.
+          allow_password_verifier: false
+          min_tls_version: "1.2"
+          max_tls_version: "1.3"
+      vendor_compatibility_profiles:
+        - name: "enterprise-8021x"
+          nas_types: ["cisco", "aruba", "ruckus", "extreme", "juniper", "fortinet", "unifi", "other"]
+          allowed_methods: ["peap", "ttls", "tls"]
+          required_methods: []
+          notes: "Baseline RFC 3748 EAP policy for enterprise APs and switches."
   dynamic_auth:
     enabled: true
     port: 3799

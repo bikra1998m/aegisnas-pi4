@@ -149,6 +149,10 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/radsec-credentials"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/eap-framework/evaluate"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/eap-framework"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/nas-clients"):
 		if readonly {
 			return true
