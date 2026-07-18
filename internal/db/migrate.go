@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 29
+	return 30
 }
 
 func Migrate() error {
@@ -1232,4 +1232,50 @@ CREATE INDEX IF NOT EXISTS idx_eap_fast_pwd_events_method ON eap_fast_pwd_events
 CREATE INDEX IF NOT EXISTS idx_eap_fast_pwd_events_decision ON eap_fast_pwd_events(decision, observed_at);
 CREATE INDEX IF NOT EXISTS idx_eap_fast_pwd_events_nas ON eap_fast_pwd_events(nas_identifier, nas_type, observed_at);
 CREATE INDEX IF NOT EXISTS idx_eap_fast_pwd_events_identity ON eap_fast_pwd_events(identity_hash, observed_at);
+`
+
+const schemaV30 = `
+CREATE TABLE IF NOT EXISTS eap_sim_aka_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	method TEXT NOT NULL,
+	decision TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	nas_identifier TEXT,
+	nas_type TEXT,
+	identity_hash TEXT,
+	permanent_identity_hash TEXT,
+	pseudonym_identity_hash TEXT,
+	reauth_identity_hash TEXT,
+	calling_station_hash TEXT,
+	identity_source TEXT,
+	vector_provider TEXT,
+	vector_provider_available BOOLEAN DEFAULT 0,
+	vector_available BOOLEAN DEFAULT 0,
+	vector_fresh BOOLEAN DEFAULT 0,
+	vector_age_seconds INTEGER DEFAULT 0,
+	triplet_count INTEGER DEFAULT 0,
+	quintuplet_count INTEGER DEFAULT 0,
+	res_valid BOOLEAN DEFAULT 0,
+	mac_valid BOOLEAN DEFAULT 0,
+	autn_valid BOOLEAN DEFAULT 0,
+	auts_valid BOOLEAN DEFAULT 0,
+	resync_requested BOOLEAN DEFAULT 0,
+	resync_age_seconds INTEGER DEFAULT 0,
+	network_name_hash TEXT,
+	kdf_valid BOOLEAN DEFAULT 0,
+	replay_detected BOOLEAN DEFAULT 0,
+	policy_mode TEXT,
+	latency_ms INTEGER DEFAULT 0,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_eap_sim_aka_events_observed_at ON eap_sim_aka_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_sim_aka_events_method ON eap_sim_aka_events(method, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_sim_aka_events_decision ON eap_sim_aka_events(decision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_sim_aka_events_nas ON eap_sim_aka_events(nas_identifier, nas_type, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_sim_aka_events_identity ON eap_sim_aka_events(identity_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_sim_aka_events_permanent_identity ON eap_sim_aka_events(permanent_identity_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_sim_aka_events_pseudonym_identity ON eap_sim_aka_events(pseudonym_identity_hash, observed_at);
 `

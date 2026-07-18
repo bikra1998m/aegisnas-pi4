@@ -154,6 +154,8 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	teapFramework := eappkg.BuildTEAPReport(cfg, teapRuntimeSummaryFromDB(teapSummary))
 	fastPWDSummary, _ := db.SummarizeFASTPWDEvents(1000)
 	fastPWDFramework := eappkg.BuildFASTPWDReport(cfg, fastPWDRuntimeSummaryFromDB(fastPWDSummary))
+	simAKASummary, _ := db.SummarizeSIMAKAEvents(1000)
+	simAKAFramework := eappkg.BuildSIMAKAReport(cfg, simAKARuntimeSummaryFromDB(simAKASummary))
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -169,6 +171,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"eap_framework":           eapFramework,
 		"eap_teap":                teapFramework,
 		"eap_fast_pwd":            fastPWDFramework,
+		"eap_sim_aka":             simAKAFramework,
 		"enabled_radius_clients":  enabledRadiusClients,
 		"broker_auth":             runtimeMap["radius_broker_auth"],
 		"broker_accounting":       runtimeMap["radius_broker_accounting"],

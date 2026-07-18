@@ -217,6 +217,45 @@ func TestConfigValidationEAPFramework(t *testing.T) {
 	badPWDProof := pwdReady
 	badPWDProof.Radius.EAP.PWD.RequirePasswordProof = false
 	assert.ErrorContains(t, badPWDProof.Validate(), "require_password_proof")
+
+	simAKAReady := *cfg
+	simAKAReady.Radius.EAP.DefaultType = "sim"
+	simAKAReady.Radius.EAP.SIMAKA = RadiusEAPSIMAKAConfig{
+		Enabled:                   true,
+		Methods:                   []string{"sim", "aka", "aka-prime"},
+		RequireIdentity:           true,
+		RequirePermanentIdentity:  true,
+		AllowPseudonymIdentity:    true,
+		PseudonymTTLSeconds:       86400,
+		ReauthTTLSeconds:          43200,
+		VectorProvider:            "external-http",
+		VectorProviderRef:         "env:AEGIS_SIMAKA_VECTOR_PROVIDER_URL",
+		RequireFreshVectors:       true,
+		MaxVectorAgeSeconds:       300,
+		MinTriplets:               2,
+		MinQuintuplets:            1,
+		AllowResynchronization:    true,
+		ResyncWindowSeconds:       300,
+		RequireNetworkName:        true,
+		NetworkName:               "wlan.mnc001.mcc001.3gppnetwork.org",
+		RequireKDF:                true,
+		FailOnProviderUnavailable: true,
+		EventRetentionLimit:       6000,
+	}
+	simAKAReady.Radius.EAP.Framework.AllowedMethods = []string{"peap", "ttls", "tls", "sim", "aka", "aka-prime"}
+	require.NoError(t, simAKAReady.Validate())
+
+	badSIMAKAProvider := simAKAReady
+	badSIMAKAProvider.Radius.EAP.SIMAKA.VectorProviderRef = ""
+	assert.ErrorContains(t, badSIMAKAProvider.Validate(), "vector_provider_ref")
+
+	badSIMTriplets := simAKAReady
+	badSIMTriplets.Radius.EAP.SIMAKA.MinTriplets = 1
+	assert.ErrorContains(t, badSIMTriplets.Validate(), "min_triplets")
+
+	badAKAPrimeNetwork := simAKAReady
+	badAKAPrimeNetwork.Radius.EAP.SIMAKA.NetworkName = ""
+	assert.ErrorContains(t, badAKAPrimeNetwork.Validate(), "network_name")
 }
 
 func TestConfigValidationRadiusPacketHardening(t *testing.T) {

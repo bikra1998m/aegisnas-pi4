@@ -175,6 +175,23 @@ type EvaluationRequest struct {
 	ReplayDetected              bool
 	PWDGroup                    int
 	PWDServerID                 string
+	PermanentIdentity           string
+	PseudonymIdentity           string
+	ReauthIdentity              string
+	VectorProviderAvailable     bool
+	VectorAvailable             bool
+	VectorFresh                 bool
+	VectorAgeSeconds            int
+	TripletCount                int
+	QuintupletCount             int
+	RESValid                    bool
+	MACValid                    bool
+	AUTNValid                   bool
+	AUTSValid                   bool
+	ResynchronizationRequested  bool
+	ResyncAgeSeconds            int
+	NetworkName                 string
+	KDFValid                    bool
 }
 
 type EvaluationDecision struct {
@@ -411,6 +428,43 @@ func Evaluate(cfg *config.Config, request EvaluationRequest) EvaluationDecision 
 			Dependencies:   fastPWDDecision.Dependencies,
 		}
 	}
+	if method == "sim" || method == "aka" || method == "aka-prime" {
+		simAKADecision := EvaluateSIMAKA(cfg, SIMAKAEvaluationRequest{
+			Method:                      method,
+			NASType:                     request.NASType,
+			Identity:                    request.UserIdentity,
+			PermanentIdentity:           request.PermanentIdentity,
+			PseudonymIdentity:           request.PseudonymIdentity,
+			ReauthIdentity:              request.ReauthIdentity,
+			IdentitySource:              request.IdentitySource,
+			EAPMessagePresent:           request.EAPMessagePresent,
+			MessageAuthenticatorPresent: request.MessageAuthenticatorPresent,
+			VectorProviderAvailable:     request.VectorProviderAvailable,
+			VectorAvailable:             request.VectorAvailable,
+			VectorFresh:                 request.VectorFresh,
+			VectorAgeSeconds:            request.VectorAgeSeconds,
+			TripletCount:                request.TripletCount,
+			QuintupletCount:             request.QuintupletCount,
+			RESValid:                    request.RESValid,
+			MACValid:                    request.MACValid,
+			AUTNValid:                   request.AUTNValid,
+			AUTSValid:                   request.AUTSValid,
+			ResynchronizationRequested:  request.ResynchronizationRequested,
+			ResyncAgeSeconds:            request.ResyncAgeSeconds,
+			NetworkName:                 request.NetworkName,
+			KDFValid:                    request.KDFValid,
+			ReplayDetected:              request.ReplayDetected,
+		})
+		return EvaluationDecision{
+			Decision:       simAKADecision.Decision,
+			Method:         simAKADecision.Method,
+			Reason:         simAKADecision.Reason,
+			PolicyMode:     simAKADecision.PolicyMode,
+			IdentitySource: simAKADecision.IdentitySource,
+			Warnings:       simAKADecision.Warnings,
+			Dependencies:   simAKADecision.Dependencies,
+		}
+	}
 	methodReport, found := methodReportByName(report.Methods, method)
 	if !found || !stringInSlice(method, policy.AllowedMethods) {
 		switch policy.UnsupportedMethodAction {
@@ -461,9 +515,9 @@ func MethodCatalog() []MethodCapability {
 		{Method: "teap", DisplayName: "TEAP", Kind: "tunnel", RFCs: []string{"RFC 7170"}, FreeRADIUSModule: "rlm_eap_teap", SoftwareStatus: "complete", GeneratedByFramework: true, TunnelBased: true, InnerMethodCapable: true, MethodChainingCapable: true, Summary: "Tunnel Extensible Authentication Protocol with cryptobinding and machine/user method chaining."},
 		{Method: "fast", DisplayName: "EAP-FAST", Kind: "tunnel", RFCs: []string{"RFC 4851"}, FreeRADIUSModule: "rlm_eap_fast", SoftwareStatus: "complete", GeneratedByFramework: true, PasswordBased: true, TunnelBased: true, InnerMethodCapable: true, Summary: "Cisco-originated protected access credential tunnel method with PAC governance."},
 		{Method: "pwd", DisplayName: "EAP-PWD", Kind: "password", RFCs: []string{"RFC 5931"}, FreeRADIUSModule: "rlm_eap_pwd", SoftwareStatus: "complete", GeneratedByFramework: true, PasswordBased: true, Summary: "Password-authenticated key exchange EAP method with group and replay policy."},
-		{Method: "sim", DisplayName: "EAP-SIM", Kind: "mobile", RFCs: []string{"RFC 4186"}, FreeRADIUSModule: "rlm_eap_sim", SoftwareStatus: "planned", RequiresFutureFeature: "NAS-0025", Summary: "GSM SIM triplet based EAP method for carrier offload and roaming."},
-		{Method: "aka", DisplayName: "EAP-AKA", Kind: "mobile", RFCs: []string{"RFC 4187"}, FreeRADIUSModule: "rlm_eap_aka", SoftwareStatus: "planned", RequiresFutureFeature: "NAS-0025", Summary: "UMTS AKA quintuplet based EAP method."},
-		{Method: "aka-prime", DisplayName: "EAP-AKA'", Kind: "mobile", RFCs: []string{"RFC 5448"}, FreeRADIUSModule: "rlm_eap_aka_prime", SoftwareStatus: "planned", RequiresFutureFeature: "NAS-0025", Summary: "AKA-prime with stronger key derivation for evolved packet systems."},
+		{Method: "sim", DisplayName: "EAP-SIM", Kind: "mobile", RFCs: []string{"RFC 4186"}, FreeRADIUSModule: "rlm_eap_sim", SoftwareStatus: "complete", GeneratedByFramework: true, Summary: "GSM SIM triplet based EAP method for carrier offload and roaming."},
+		{Method: "aka", DisplayName: "EAP-AKA", Kind: "mobile", RFCs: []string{"RFC 4187"}, FreeRADIUSModule: "rlm_eap_aka", SoftwareStatus: "complete", GeneratedByFramework: true, Summary: "UMTS AKA quintuplet based EAP method."},
+		{Method: "aka-prime", DisplayName: "EAP-AKA'", Kind: "mobile", RFCs: []string{"RFC 5448"}, FreeRADIUSModule: "rlm_eap_aka_prime", SoftwareStatus: "complete", GeneratedByFramework: true, Summary: "AKA-prime with stronger key derivation for evolved packet systems."},
 	}
 	return catalog
 }
@@ -482,6 +536,7 @@ func buildMethodReports(cfg *config.Config, policy PolicyReport, catalog []Metho
 	teapPolicy := BuildTEAPPolicyReport(cfg)
 	fastPolicy := BuildFASTPolicyReport(cfg)
 	pwdPolicy := BuildPWDPolicyReport(cfg)
+	simAKAPolicy := BuildSIMAKAPolicyReport(cfg)
 	names := append([]string{}, policy.AllowedMethods...)
 	for _, capability := range catalog {
 		if !stringInSlice(capability.Method, names) {
@@ -538,6 +593,8 @@ func buildMethodReports(cfg *config.Config, policy PolicyReport, catalog []Metho
 		case "pwd":
 			report.IdentitySource = pwdPolicy.PasswordSource
 			report.AllowPasswordVerifier = true
+		case "sim", "aka", "aka-prime":
+			report.IdentitySource = "sim-aka-vector-provider"
 		}
 		if isConfigured {
 			report.Enabled = raw.Enabled && stringInSlice(name, policy.AllowedMethods)
@@ -598,6 +655,22 @@ func buildMethodReports(cfg *config.Config, policy PolicyReport, catalog []Metho
 				report.Dependencies = append(report.Dependencies, "radius.eap.pwd.enabled")
 			}
 			if report.Enabled && len(pwdPolicy.BlockingIssues) > 0 {
+				report.EffectiveStatus = "blocked"
+			}
+		}
+		if name == "sim" || name == "aka" || name == "aka-prime" {
+			report.GeneratedInFreeRADIUS = report.GeneratedInFreeRADIUS && simAKAPolicy.GeneratedInFreeRADIUS && stringInSlice(name, simAKAPolicy.GeneratedMethods)
+			report.Warnings = append(report.Warnings, simAKAPolicy.Warnings...)
+			report.Dependencies = append(report.Dependencies, simAKAPolicy.BlockingIssues...)
+			if report.Enabled && !simAKAPolicy.Enabled {
+				report.EffectiveStatus = "blocked"
+				report.Dependencies = append(report.Dependencies, "radius.eap.sim_aka.enabled")
+			}
+			if report.Enabled && !stringInSlice(name, simAKAPolicy.Methods) {
+				report.EffectiveStatus = "blocked"
+				report.Dependencies = append(report.Dependencies, "radius.eap.sim_aka.methods")
+			}
+			if report.Enabled && len(simAKAPolicy.BlockingIssues) > 0 {
 				report.EffectiveStatus = "blocked"
 			}
 		}
@@ -715,7 +788,7 @@ func methodReportByName(methods []MethodPolicyReport, name string) (MethodPolicy
 func configuresUnsupportedMethods(policy PolicyReport) bool {
 	for _, method := range policy.AllowedMethods {
 		switch method {
-		case "peap", "ttls", "tls", "teap", "fast", "pwd":
+		case "peap", "ttls", "tls", "teap", "fast", "pwd", "sim", "aka", "aka-prime":
 		default:
 			return true
 		}

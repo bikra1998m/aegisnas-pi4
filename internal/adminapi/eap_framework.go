@@ -16,6 +16,7 @@ type eapFrameworkResponse struct {
 	eappkg.Report
 	TEAP    eappkg.TEAPReport    `json:"teap"`
 	FASTPWD eappkg.FASTPWDReport `json:"fast_pwd"`
+	SIMAKA  eappkg.SIMAKAReport  `json:"sim_aka"`
 	Events  []db.EAPMethodEvent  `json:"events,omitempty"`
 }
 
@@ -54,6 +55,23 @@ type eapEvaluationRequest struct {
 	ReplayDetected              bool              `json:"replay_detected"`
 	PWDGroup                    int               `json:"pwd_group"`
 	PWDServerID                 string            `json:"pwd_server_id"`
+	PermanentIdentity           string            `json:"permanent_identity"`
+	PseudonymIdentity           string            `json:"pseudonym_identity"`
+	ReauthIdentity              string            `json:"reauth_identity"`
+	VectorProviderAvailable     bool              `json:"vector_provider_available"`
+	VectorAvailable             bool              `json:"vector_available"`
+	VectorFresh                 bool              `json:"vector_fresh"`
+	VectorAgeSeconds            int               `json:"vector_age_seconds"`
+	TripletCount                int               `json:"triplet_count"`
+	QuintupletCount             int               `json:"quintuplet_count"`
+	RESValid                    bool              `json:"res_valid"`
+	MACValid                    bool              `json:"mac_valid"`
+	AUTNValid                   bool              `json:"autn_valid"`
+	AUTSValid                   bool              `json:"auts_valid"`
+	ResynchronizationRequested  bool              `json:"resynchronization_requested"`
+	ResyncAgeSeconds            int               `json:"resync_age_seconds"`
+	NetworkName                 string            `json:"network_name"`
+	KDFValid                    bool              `json:"kdf_valid"`
 	LatencyMS                   int               `json:"latency_ms"`
 	Audit                       bool              `json:"audit"`
 	Details                     map[string]string `json:"details"`
@@ -67,6 +85,11 @@ type teapFrameworkResponse struct {
 type fastPWDFrameworkResponse struct {
 	eappkg.FASTPWDReport
 	Events []db.FASTPWDEvent `json:"events,omitempty"`
+}
+
+type simAKAFrameworkResponse struct {
+	eappkg.SIMAKAReport
+	Events []db.SIMAKAEvent `json:"events,omitempty"`
 }
 
 type teapEvaluationRequest struct {
@@ -127,6 +150,38 @@ type fastPWDEvaluationRequest struct {
 	Details                     map[string]string `json:"details"`
 }
 
+type simAKAEvaluationRequest struct {
+	Method                      string            `json:"method"`
+	NASType                     string            `json:"nas_type"`
+	NASIdentifier               string            `json:"nas_identifier"`
+	Identity                    string            `json:"identity"`
+	PermanentIdentity           string            `json:"permanent_identity"`
+	PseudonymIdentity           string            `json:"pseudonym_identity"`
+	ReauthIdentity              string            `json:"reauth_identity"`
+	CallingStationID            string            `json:"calling_station_id"`
+	IdentitySource              string            `json:"identity_source"`
+	EAPMessagePresent           bool              `json:"eap_message_present"`
+	MessageAuthenticatorPresent bool              `json:"message_authenticator_present"`
+	VectorProviderAvailable     bool              `json:"vector_provider_available"`
+	VectorAvailable             bool              `json:"vector_available"`
+	VectorFresh                 bool              `json:"vector_fresh"`
+	VectorAgeSeconds            int               `json:"vector_age_seconds"`
+	TripletCount                int               `json:"triplet_count"`
+	QuintupletCount             int               `json:"quintuplet_count"`
+	RESValid                    bool              `json:"res_valid"`
+	MACValid                    bool              `json:"mac_valid"`
+	AUTNValid                   bool              `json:"autn_valid"`
+	AUTSValid                   bool              `json:"auts_valid"`
+	ResynchronizationRequested  bool              `json:"resynchronization_requested"`
+	ResyncAgeSeconds            int               `json:"resync_age_seconds"`
+	NetworkName                 string            `json:"network_name"`
+	KDFValid                    bool              `json:"kdf_valid"`
+	ReplayDetected              bool              `json:"replay_detected"`
+	LatencyMS                   int               `json:"latency_ms"`
+	Audit                       bool              `json:"audit"`
+	Details                     map[string]string `json:"details"`
+}
+
 func HandleGetEAPFramework(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	if cfg == nil {
@@ -160,10 +215,16 @@ func HandleGetEAPFramework(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	simAKASummary, err := db.SummarizeSIMAKAEvents(limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	report := eappkg.BuildFrameworkReport(cfg, eapRuntimeSummaryFromDB(summary))
 	teapReport := eappkg.BuildTEAPReport(cfg, teapRuntimeSummaryFromDB(teapSummary))
 	fastPWDReport := eappkg.BuildFASTPWDReport(cfg, fastPWDRuntimeSummaryFromDB(fastPWDSummary))
-	writeJSON(w, http.StatusOK, eapFrameworkResponse{Report: report, TEAP: teapReport, FASTPWD: fastPWDReport, Events: events})
+	simAKAReport := eappkg.BuildSIMAKAReport(cfg, simAKARuntimeSummaryFromDB(simAKASummary))
+	writeJSON(w, http.StatusOK, eapFrameworkResponse{Report: report, TEAP: teapReport, FASTPWD: fastPWDReport, SIMAKA: simAKAReport, Events: events})
 }
 
 func HandleEvaluateEAPFramework(w http.ResponseWriter, r *http.Request) {
@@ -210,6 +271,23 @@ func HandleEvaluateEAPFramework(w http.ResponseWriter, r *http.Request) {
 		ReplayDetected:              req.ReplayDetected,
 		PWDGroup:                    req.PWDGroup,
 		PWDServerID:                 req.PWDServerID,
+		PermanentIdentity:           req.PermanentIdentity,
+		PseudonymIdentity:           req.PseudonymIdentity,
+		ReauthIdentity:              req.ReauthIdentity,
+		VectorProviderAvailable:     req.VectorProviderAvailable,
+		VectorAvailable:             req.VectorAvailable,
+		VectorFresh:                 req.VectorFresh,
+		VectorAgeSeconds:            req.VectorAgeSeconds,
+		TripletCount:                req.TripletCount,
+		QuintupletCount:             req.QuintupletCount,
+		RESValid:                    req.RESValid,
+		MACValid:                    req.MACValid,
+		AUTNValid:                   req.AUTNValid,
+		AUTSValid:                   req.AUTSValid,
+		ResynchronizationRequested:  req.ResynchronizationRequested,
+		ResyncAgeSeconds:            req.ResyncAgeSeconds,
+		NetworkName:                 req.NetworkName,
+		KDFValid:                    req.KDFValid,
 	})
 	if req.Audit && cfg.Radius.EAP.Framework.TelemetryEnabled {
 		latency := req.LatencyMS
@@ -345,6 +423,121 @@ func HandleEvaluateFASTPWD(w http.ResponseWriter, r *http.Request) {
 			PolicyMode:               decision.PolicyMode,
 			LatencyMS:                latency,
 			Details:                  req.Details,
+		}, retention)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"decision": decision,
+		"audited":  audited,
+	})
+}
+
+func HandleGetSIMAKAFramework(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Get()
+	if cfg == nil {
+		http.Error(w, "configuration not loaded", http.StatusInternalServerError)
+		return
+	}
+	limit := parseBoundedInt(r.URL.Query().Get("limit"), 100, 1, 5000)
+	filter := db.SIMAKAEventFilter{
+		Method:   r.URL.Query().Get("method"),
+		Decision: r.URL.Query().Get("decision"),
+		NASType:  r.URL.Query().Get("nas_type"),
+		Limit:    limit,
+	}
+	events, err := db.ListSIMAKAEvents(filter)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	summary, err := db.SummarizeSIMAKAEvents(limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	report := eappkg.BuildSIMAKAReport(cfg, simAKARuntimeSummaryFromDB(summary))
+	writeJSON(w, http.StatusOK, simAKAFrameworkResponse{SIMAKAReport: report, Events: events})
+}
+
+func HandleEvaluateSIMAKA(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Get()
+	if cfg == nil {
+		http.Error(w, "configuration not loaded", http.StatusInternalServerError)
+		return
+	}
+	var req simAKAEvaluationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	start := time.Now()
+	decision := eappkg.EvaluateSIMAKA(cfg, eappkg.SIMAKAEvaluationRequest{
+		Method:                      req.Method,
+		NASType:                     req.NASType,
+		Identity:                    req.Identity,
+		PermanentIdentity:           req.PermanentIdentity,
+		PseudonymIdentity:           req.PseudonymIdentity,
+		ReauthIdentity:              req.ReauthIdentity,
+		IdentitySource:              req.IdentitySource,
+		EAPMessagePresent:           req.EAPMessagePresent,
+		MessageAuthenticatorPresent: req.MessageAuthenticatorPresent,
+		VectorProviderAvailable:     req.VectorProviderAvailable,
+		VectorAvailable:             req.VectorAvailable,
+		VectorFresh:                 req.VectorFresh,
+		VectorAgeSeconds:            req.VectorAgeSeconds,
+		TripletCount:                req.TripletCount,
+		QuintupletCount:             req.QuintupletCount,
+		RESValid:                    req.RESValid,
+		MACValid:                    req.MACValid,
+		AUTNValid:                   req.AUTNValid,
+		AUTSValid:                   req.AUTSValid,
+		ResynchronizationRequested:  req.ResynchronizationRequested,
+		ResyncAgeSeconds:            req.ResyncAgeSeconds,
+		NetworkName:                 req.NetworkName,
+		KDFValid:                    req.KDFValid,
+		ReplayDetected:              req.ReplayDetected,
+	})
+	audited := req.Audit && cfg.Radius.EAP.Framework.TelemetryEnabled
+	if audited {
+		latency := req.LatencyMS
+		if latency <= 0 {
+			latency = int(time.Since(start).Milliseconds())
+		}
+		retention := cfg.Radius.EAP.SIMAKA.EventRetentionLimit
+		if retention <= 0 {
+			retention = cfg.Radius.EAP.Framework.EventRetentionLimit
+		}
+		_ = db.RecordSIMAKAEvent(db.SIMAKAEvent{
+			ObservedAt:              time.Now().UTC(),
+			Method:                  decision.Method,
+			Decision:                decision.Decision,
+			Reason:                  decision.Reason,
+			NASIdentifier:           req.NASIdentifier,
+			NASType:                 req.NASType,
+			IdentityHash:            db.HashEAPIdentity(req.Identity),
+			PermanentIdentityHash:   db.HashEAPIdentity(req.PermanentIdentity),
+			PseudonymIdentityHash:   db.HashEAPIdentity(req.PseudonymIdentity),
+			ReauthIdentityHash:      db.HashEAPIdentity(req.ReauthIdentity),
+			CallingStationHash:      db.HashEAPIdentity(req.CallingStationID),
+			IdentitySource:          decision.IdentitySource,
+			VectorProvider:          cfg.Radius.EAP.SIMAKA.VectorProvider,
+			VectorProviderAvailable: req.VectorProviderAvailable,
+			VectorAvailable:         req.VectorAvailable,
+			VectorFresh:             req.VectorFresh,
+			VectorAgeSeconds:        req.VectorAgeSeconds,
+			TripletCount:            req.TripletCount,
+			QuintupletCount:         req.QuintupletCount,
+			RESValid:                req.RESValid,
+			MACValid:                req.MACValid,
+			AUTNValid:               req.AUTNValid,
+			AUTSValid:               req.AUTSValid,
+			ResyncRequested:         req.ResynchronizationRequested,
+			ResyncAgeSeconds:        req.ResyncAgeSeconds,
+			NetworkNameHash:         db.HashEAPIdentity(req.NetworkName),
+			KDFValid:                req.KDFValid,
+			ReplayDetected:          req.ReplayDetected,
+			PolicyMode:              decision.PolicyMode,
+			LatencyMS:               latency,
+			Details:                 req.Details,
 		}, retention)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -513,6 +706,25 @@ func fastPWDRuntimeSummaryFromDB(summary db.FASTPWDEventSummary) eappkg.FASTPWDR
 		ReplayRejected:        summary.ReplayRejected,
 		LastEventAt:           summary.LastEventAt,
 		LastRejectedReason:    summary.LastRejectedReason,
+	}
+}
+
+func simAKARuntimeSummaryFromDB(summary db.SIMAKAEventSummary) eappkg.SIMAKARuntimeSummary {
+	return eappkg.SIMAKARuntimeSummary{
+		TotalEvents:          summary.TotalEvents,
+		Accepted:             summary.Accepted,
+		Rejected:             summary.Rejected,
+		MonitorAllowed:       summary.MonitorAllowed,
+		ByMethod:             summary.ByMethod,
+		ByDecision:           summary.ByDecision,
+		MissingIdentity:      summary.MissingIdentity,
+		MissingVector:        summary.MissingVector,
+		StaleVector:          summary.StaleVector,
+		InvalidAuthenticator: summary.InvalidAuthenticator,
+		ResyncEvents:         summary.ResyncEvents,
+		ReplayRejected:       summary.ReplayRejected,
+		LastEventAt:          summary.LastEventAt,
+		LastRejectedReason:   summary.LastRejectedReason,
 	}
 }
 

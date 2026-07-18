@@ -561,19 +561,20 @@ type DynamicAuthConfig struct {
 }
 
 type RadiusEAPConfig struct {
-	DefaultType          string              `mapstructure:"default_type"`
-	PEAPInner            string              `mapstructure:"peap_inner"`
-	TTLSInner            string              `mapstructure:"ttls_inner"`
-	TLSMinVersion        string              `mapstructure:"tls_min_version"`
-	TLSMaxVersion        string              `mapstructure:"tls_max_version"`
-	CheckCRL             bool                `mapstructure:"check_crl"`
-	CheckAllCRL          bool                `mapstructure:"check_all_crl"`
-	CAPathReloadInterval int                 `mapstructure:"ca_path_reload_interval"`
-	OCSP                 RadiusEAPOCSPConfig `mapstructure:"ocsp"`
-	Framework            RadiusEAPFramework  `mapstructure:"framework"`
-	TEAP                 RadiusEAPTEAPConfig `mapstructure:"teap"`
-	FAST                 RadiusEAPFASTConfig `mapstructure:"fast"`
-	PWD                  RadiusEAPPWDConfig  `mapstructure:"pwd"`
+	DefaultType          string                `mapstructure:"default_type"`
+	PEAPInner            string                `mapstructure:"peap_inner"`
+	TTLSInner            string                `mapstructure:"ttls_inner"`
+	TLSMinVersion        string                `mapstructure:"tls_min_version"`
+	TLSMaxVersion        string                `mapstructure:"tls_max_version"`
+	CheckCRL             bool                  `mapstructure:"check_crl"`
+	CheckAllCRL          bool                  `mapstructure:"check_all_crl"`
+	CAPathReloadInterval int                   `mapstructure:"ca_path_reload_interval"`
+	OCSP                 RadiusEAPOCSPConfig   `mapstructure:"ocsp"`
+	Framework            RadiusEAPFramework    `mapstructure:"framework"`
+	TEAP                 RadiusEAPTEAPConfig   `mapstructure:"teap"`
+	FAST                 RadiusEAPFASTConfig   `mapstructure:"fast"`
+	PWD                  RadiusEAPPWDConfig    `mapstructure:"pwd"`
+	SIMAKA               RadiusEAPSIMAKAConfig `mapstructure:"sim_aka"`
 }
 
 type RadiusEAPOCSPConfig struct {
@@ -635,6 +636,30 @@ type RadiusEAPPWDConfig struct {
 	ReplayWindowSeconds  int    `mapstructure:"replay_window_seconds"`
 	FragmentSize         int    `mapstructure:"fragment_size"`
 	EventRetentionLimit  int    `mapstructure:"event_retention_limit"`
+}
+
+type RadiusEAPSIMAKAConfig struct {
+	Enabled                   bool     `mapstructure:"enabled"`
+	Methods                   []string `mapstructure:"methods"`
+	RequireIdentity           bool     `mapstructure:"require_identity"`
+	RequirePermanentIdentity  bool     `mapstructure:"require_permanent_identity"`
+	AllowPseudonymIdentity    bool     `mapstructure:"allow_pseudonym_identity"`
+	RequirePseudonymReauth    bool     `mapstructure:"require_pseudonym_reauth"`
+	PseudonymTTLSeconds       int      `mapstructure:"pseudonym_ttl_seconds"`
+	ReauthTTLSeconds          int      `mapstructure:"reauth_ttl_seconds"`
+	VectorProvider            string   `mapstructure:"vector_provider"`
+	VectorProviderRef         string   `mapstructure:"vector_provider_ref"`
+	RequireFreshVectors       bool     `mapstructure:"require_fresh_vectors"`
+	MaxVectorAgeSeconds       int      `mapstructure:"max_vector_age_seconds"`
+	MinTriplets               int      `mapstructure:"min_triplets"`
+	MinQuintuplets            int      `mapstructure:"min_quintuplets"`
+	AllowResynchronization    bool     `mapstructure:"allow_resynchronization"`
+	ResyncWindowSeconds       int      `mapstructure:"resync_window_seconds"`
+	RequireNetworkName        bool     `mapstructure:"require_network_name"`
+	NetworkName               string   `mapstructure:"network_name"`
+	RequireKDF                bool     `mapstructure:"require_kdf"`
+	FailOnProviderUnavailable bool     `mapstructure:"fail_on_provider_unavailable"`
+	EventRetentionLimit       int      `mapstructure:"event_retention_limit"`
 }
 
 type RadiusEAPFramework struct {
@@ -1487,6 +1512,27 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.eap.pwd.replay_window_seconds", 30)
 	v.SetDefault("radius.eap.pwd.fragment_size", 1020)
 	v.SetDefault("radius.eap.pwd.event_retention_limit", 6000)
+	v.SetDefault("radius.eap.sim_aka.enabled", true)
+	v.SetDefault("radius.eap.sim_aka.methods", []string{"sim", "aka", "aka-prime"})
+	v.SetDefault("radius.eap.sim_aka.require_identity", true)
+	v.SetDefault("radius.eap.sim_aka.require_permanent_identity", true)
+	v.SetDefault("radius.eap.sim_aka.allow_pseudonym_identity", true)
+	v.SetDefault("radius.eap.sim_aka.require_pseudonym_reauth", false)
+	v.SetDefault("radius.eap.sim_aka.pseudonym_ttl_seconds", 86400)
+	v.SetDefault("radius.eap.sim_aka.reauth_ttl_seconds", 43200)
+	v.SetDefault("radius.eap.sim_aka.vector_provider", "external-http")
+	v.SetDefault("radius.eap.sim_aka.vector_provider_ref", "")
+	v.SetDefault("radius.eap.sim_aka.require_fresh_vectors", true)
+	v.SetDefault("radius.eap.sim_aka.max_vector_age_seconds", 300)
+	v.SetDefault("radius.eap.sim_aka.min_triplets", 2)
+	v.SetDefault("radius.eap.sim_aka.min_quintuplets", 1)
+	v.SetDefault("radius.eap.sim_aka.allow_resynchronization", true)
+	v.SetDefault("radius.eap.sim_aka.resync_window_seconds", 300)
+	v.SetDefault("radius.eap.sim_aka.require_network_name", true)
+	v.SetDefault("radius.eap.sim_aka.network_name", "")
+	v.SetDefault("radius.eap.sim_aka.require_kdf", true)
+	v.SetDefault("radius.eap.sim_aka.fail_on_provider_unavailable", true)
+	v.SetDefault("radius.eap.sim_aka.event_retention_limit", 6000)
 	v.SetDefault("radius.eap.framework.enabled", true)
 	v.SetDefault("radius.eap.framework.mode", "monitor")
 	v.SetDefault("radius.eap.framework.fail_closed", true)
@@ -6072,6 +6118,9 @@ func validateRadiusEAPFramework(eap RadiusEAPConfig) error {
 	if err := validateRadiusEAPPWD(eap, framework); err != nil {
 		return err
 	}
+	if err := validateRadiusEAPSIMAKA(eap, framework); err != nil {
+		return err
+	}
 	if !framework.Enabled && !radiusEAPFrameworkConfigured(framework) {
 		return nil
 	}
@@ -6558,6 +6607,148 @@ func validateRadiusEAPPWD(eap RadiusEAPConfig, framework RadiusEAPFramework) err
 	return nil
 }
 
+func validateRadiusEAPSIMAKA(eap RadiusEAPConfig, framework RadiusEAPFramework) error {
+	simaka := eap.SIMAKA
+	if !simaka.Enabled && !radiusEAPSIMAKAConfigured(simaka) {
+		return nil
+	}
+	methods := simaka.Methods
+	if len(methods) == 0 {
+		methods = []string{"sim", "aka", "aka-prime"}
+	}
+	seenMethods := map[string]struct{}{}
+	for i, raw := range methods {
+		method := normalizeEAPMethod(raw)
+		switch method {
+		case "sim", "aka", "aka-prime":
+		default:
+			return fmt.Errorf("radius.eap.sim_aka.methods[%d] %q must be sim, aka, or aka-prime", i, raw)
+		}
+		if _, exists := seenMethods[method]; exists {
+			return fmt.Errorf("radius.eap.sim_aka.methods[%d] %q duplicates an earlier method", i, raw)
+		}
+		seenMethods[method] = struct{}{}
+	}
+	provider := strings.ToLower(strings.TrimSpace(simaka.VectorProvider))
+	if provider == "" {
+		provider = "external-http"
+	}
+	switch provider {
+	case "external-http", "hss-http", "udm-http", "static-file", "identity-failover":
+	default:
+		return fmt.Errorf("radius.eap.sim_aka.vector_provider %q must be external-http, hss-http, udm-http, static-file, or identity-failover", simaka.VectorProvider)
+	}
+	if !validEAPSecretRefOrEmpty(simaka.VectorProviderRef) {
+		return fmt.Errorf("radius.eap.sim_aka.vector_provider_ref must be an external reference such as env:NAME or file:/path")
+	}
+	if simaka.PseudonymTTLSeconds < 0 || simaka.PseudonymTTLSeconds > 31536000 {
+		return fmt.Errorf("radius.eap.sim_aka.pseudonym_ttl_seconds must be between 0 and 31536000")
+	}
+	if simaka.ReauthTTLSeconds < 0 || simaka.ReauthTTLSeconds > 31536000 {
+		return fmt.Errorf("radius.eap.sim_aka.reauth_ttl_seconds must be between 0 and 31536000")
+	}
+	if simaka.MaxVectorAgeSeconds < 0 || simaka.MaxVectorAgeSeconds > 86400 {
+		return fmt.Errorf("radius.eap.sim_aka.max_vector_age_seconds must be between 1 and 86400 when set")
+	}
+	if simaka.MaxVectorAgeSeconds > 0 && simaka.MaxVectorAgeSeconds < 1 {
+		return fmt.Errorf("radius.eap.sim_aka.max_vector_age_seconds must be between 1 and 86400 when set")
+	}
+	if simaka.MinTriplets < 0 || simaka.MinTriplets > 16 {
+		return fmt.Errorf("radius.eap.sim_aka.min_triplets must be between 1 and 16 when set")
+	}
+	if simaka.MinQuintuplets < 0 || simaka.MinQuintuplets > 16 {
+		return fmt.Errorf("radius.eap.sim_aka.min_quintuplets must be between 1 and 16 when set")
+	}
+	if simaka.ResyncWindowSeconds < 0 || simaka.ResyncWindowSeconds > 3600 {
+		return fmt.Errorf("radius.eap.sim_aka.resync_window_seconds must be between 0 and 3600")
+	}
+	if !validEAPSIMAKANetworkName(simaka.NetworkName) {
+		return fmt.Errorf("radius.eap.sim_aka.network_name is invalid")
+	}
+	if simaka.EventRetentionLimit < 0 || simaka.EventRetentionLimit > 1000000 {
+		return fmt.Errorf("radius.eap.sim_aka.event_retention_limit must be between 1 and 1000000 when set")
+	}
+
+	rawAllowedMethods := framework.AllowedMethods
+	if len(rawAllowedMethods) == 0 {
+		rawAllowedMethods = []string{"peap", "ttls", "tls"}
+	}
+	allowedMethods, err := validateEAPMethodList("radius.eap.framework.allowed_methods", rawAllowedMethods, false)
+	if err != nil {
+		return err
+	}
+	simAllowed := false
+	for method := range seenMethods {
+		if _, ok := allowedMethods[method]; ok {
+			simAllowed = true
+			break
+		}
+	}
+	if simaka.Enabled && framework.Enabled && simAllowed {
+		if !framework.RequireMessageAuthenticator {
+			return fmt.Errorf("radius.eap.sim_aka requires radius.eap.framework.require_message_authenticator when mobile methods are allowed")
+		}
+		if !framework.RequireIdentityBinding {
+			return fmt.Errorf("radius.eap.sim_aka requires radius.eap.framework.require_identity_binding when mobile methods are allowed")
+		}
+		mode := strings.ToLower(strings.TrimSpace(framework.Mode))
+		if mode == "" {
+			mode = "monitor"
+		}
+		if mode == "enforce" && framework.FailClosed {
+			if !simaka.RequireIdentity {
+				return fmt.Errorf("radius.eap.sim_aka.require_identity must be true in enforce fail-closed mode")
+			}
+			if !simaka.RequirePermanentIdentity && !simaka.AllowPseudonymIdentity {
+				return fmt.Errorf("radius.eap.sim_aka requires permanent or pseudonym identity support in enforce fail-closed mode")
+			}
+			if strings.TrimSpace(simaka.VectorProviderRef) == "" {
+				return fmt.Errorf("radius.eap.sim_aka.vector_provider_ref is required when SIM/AKA methods are allowed in enforce fail-closed mode")
+			}
+			if !simaka.RequireFreshVectors {
+				return fmt.Errorf("radius.eap.sim_aka.require_fresh_vectors must be true in enforce fail-closed mode")
+			}
+			maxAge := simaka.MaxVectorAgeSeconds
+			if maxAge == 0 {
+				maxAge = 300
+			}
+			if maxAge > 3600 {
+				return fmt.Errorf("radius.eap.sim_aka.max_vector_age_seconds must be 3600 or less in enforce fail-closed mode")
+			}
+			if _, ok := allowedMethods["sim"]; ok {
+				minTriplets := simaka.MinTriplets
+				if minTriplets == 0 {
+					minTriplets = 2
+				}
+				if minTriplets < 2 {
+					return fmt.Errorf("radius.eap.sim_aka.min_triplets must be at least 2 when EAP-SIM is allowed")
+				}
+			}
+			if _, ok := allowedMethods["aka"]; ok {
+				minQuintuplets := simaka.MinQuintuplets
+				if minQuintuplets == 0 {
+					minQuintuplets = 1
+				}
+				if minQuintuplets < 1 {
+					return fmt.Errorf("radius.eap.sim_aka.min_quintuplets must be at least 1 when EAP-AKA is allowed")
+				}
+			}
+			if _, ok := allowedMethods["aka-prime"]; ok {
+				if !simaka.RequireNetworkName {
+					return fmt.Errorf("radius.eap.sim_aka.require_network_name must be true when EAP-AKA-prime is allowed")
+				}
+				if strings.TrimSpace(simaka.NetworkName) == "" {
+					return fmt.Errorf("radius.eap.sim_aka.network_name is required when EAP-AKA-prime is allowed")
+				}
+				if !simaka.RequireKDF {
+					return fmt.Errorf("radius.eap.sim_aka.require_kdf must be true when EAP-AKA-prime is allowed")
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func radiusEAPFASTConfigured(fast RadiusEAPFASTConfig) bool {
 	return strings.TrimSpace(fast.DefaultInnerMethod) != "" ||
 		fast.RequireCryptoBinding ||
@@ -6585,6 +6776,29 @@ func radiusEAPPWDConfigured(pwd RadiusEAPPWDConfig) bool {
 		pwd.ReplayWindowSeconds != 0 ||
 		pwd.FragmentSize != 0 ||
 		pwd.EventRetentionLimit != 0
+}
+
+func radiusEAPSIMAKAConfigured(simaka RadiusEAPSIMAKAConfig) bool {
+	return len(simaka.Methods) > 0 ||
+		simaka.RequireIdentity ||
+		simaka.RequirePermanentIdentity ||
+		simaka.AllowPseudonymIdentity ||
+		simaka.RequirePseudonymReauth ||
+		simaka.PseudonymTTLSeconds != 0 ||
+		simaka.ReauthTTLSeconds != 0 ||
+		strings.TrimSpace(simaka.VectorProvider) != "" ||
+		strings.TrimSpace(simaka.VectorProviderRef) != "" ||
+		simaka.RequireFreshVectors ||
+		simaka.MaxVectorAgeSeconds != 0 ||
+		simaka.MinTriplets != 0 ||
+		simaka.MinQuintuplets != 0 ||
+		simaka.AllowResynchronization ||
+		simaka.ResyncWindowSeconds != 0 ||
+		simaka.RequireNetworkName ||
+		strings.TrimSpace(simaka.NetworkName) != "" ||
+		simaka.RequireKDF ||
+		simaka.FailOnProviderUnavailable ||
+		simaka.EventRetentionLimit != 0
 }
 
 func radiusEAPFrameworkConfigured(framework RadiusEAPFramework) bool {
@@ -6776,6 +6990,34 @@ func validEAPSecretRefOrEmpty(value string) bool {
 		return false
 	}
 	return strings.Contains(value, ":")
+}
+
+func validEAPSIMAKANetworkName(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return true
+	}
+	if len(value) > 253 {
+		return false
+	}
+	for _, r := range value {
+		if r >= 'a' && r <= 'z' {
+			continue
+		}
+		if r >= 'A' && r <= 'Z' {
+			continue
+		}
+		if r >= '0' && r <= '9' {
+			continue
+		}
+		switch r {
+		case '.', '-', '_':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func strongEAPPWDGroup(group int) bool {

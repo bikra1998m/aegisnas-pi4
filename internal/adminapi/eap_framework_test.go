@@ -169,6 +169,64 @@ func TestHandleGetAndEvaluateFASTPWDFramework(t *testing.T) {
 	assert.NotContains(t, payload.Events[0].IdentityHash, "alice")
 }
 
+func TestHandleGetAndEvaluateSIMAKAFramework(t *testing.T) {
+	prepareEAPFrameworkAPIConfig(t)
+
+	body := bytes.NewBufferString(`{
+		"method":"aka-prime",
+		"nas_type":"carrier-offload",
+		"nas_identifier":"ap-1",
+		"identity":"anonymous@realm.example",
+		"permanent_identity":"001010123456789",
+		"pseudonym_identity":"pseudonym-1",
+		"calling_station_id":"aa:bb:cc:dd:ee:ff",
+		"eap_message_present":true,
+		"message_authenticator_present":true,
+		"vector_provider_available":true,
+		"vector_available":true,
+		"vector_fresh":true,
+		"vector_age_seconds":30,
+		"quintuplet_count":1,
+		"res_valid":true,
+		"mac_valid":true,
+		"autn_valid":true,
+		"network_name":"wlan.mnc001.mcc001.3gppnetwork.org",
+		"kdf_valid":true,
+		"audit":true
+	}`)
+	evalRec := httptest.NewRecorder()
+	HandleEvaluateSIMAKA(evalRec, httptest.NewRequest(http.MethodPost, "/api/v1/system/eap-framework/sim-aka/evaluate", body))
+	require.Equal(t, http.StatusOK, evalRec.Code)
+	assert.Contains(t, evalRec.Body.String(), `"decision":"accepted"`)
+	assert.Contains(t, evalRec.Body.String(), `"audited":true`)
+
+	rec := httptest.NewRecorder()
+	HandleGetSIMAKAFramework(rec, httptest.NewRequest(http.MethodGet, "/api/v1/system/eap-framework/sim-aka?limit=10", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	var payload struct {
+		Status string `json:"status"`
+		Policy struct {
+			Generated        bool     `json:"generated_in_freeradius"`
+			GeneratedMethods []string `json:"generated_methods"`
+			VectorProvider   string   `json:"vector_provider"`
+		} `json:"policy"`
+		Runtime struct {
+			TotalEvents int `json:"total_events"`
+			Accepted    int `json:"accepted"`
+		} `json:"runtime"`
+		Events []db.SIMAKAEvent `json:"events"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	assert.Equal(t, "ready", payload.Status)
+	assert.True(t, payload.Policy.Generated)
+	assert.Contains(t, payload.Policy.GeneratedMethods, "aka-prime")
+	assert.Equal(t, "external-http", payload.Policy.VectorProvider)
+	assert.Equal(t, 1, payload.Runtime.TotalEvents)
+	assert.Equal(t, 1, payload.Runtime.Accepted)
+	require.Len(t, payload.Events, 1)
+	assert.NotContains(t, payload.Events[0].PermanentIdentityHash, "001010")
+}
+
 func TestProductionReadinessIncludesEAPFrameworkCheck(t *testing.T) {
 	cfg := prepareEAPFrameworkAPIConfig(t)
 	report := buildProductionReadinessReport(cfg)
@@ -211,6 +269,20 @@ func TestProductionReadinessIncludesFASTPWDCheck(t *testing.T) {
 	assert.True(t, found)
 }
 
+func TestProductionReadinessIncludesSIMAKACheck(t *testing.T) {
+	cfg := prepareEAPFrameworkAPIConfig(t)
+	report := buildProductionReadinessReport(cfg)
+	var found bool
+	for _, check := range report.Checks {
+		if check.Key == "eap_sim_aka_methods" {
+			found = true
+			assert.Equal(t, "passed", check.Status)
+			assert.Contains(t, check.Dependencies, "/api/v1/system/eap-framework/sim-aka")
+		}
+	}
+	assert.True(t, found)
+}
+
 func TestOpenAPIAndSupportBundleIncludeEAPFramework(t *testing.T) {
 	spec := buildOpenAPISpec(httptest.NewRequest(http.MethodGet, "/api/v1/openapi.json", nil), nil)
 	paths := spec["paths"].(map[string]any)
@@ -220,10 +292,13 @@ func TestOpenAPIAndSupportBundleIncludeEAPFramework(t *testing.T) {
 	assert.Contains(t, paths, "/api/v1/system/eap-framework/teap/evaluate")
 	assert.Contains(t, paths, "/api/v1/system/eap-framework/fast-pwd")
 	assert.Contains(t, paths, "/api/v1/system/eap-framework/fast-pwd/evaluate")
+	assert.Contains(t, paths, "/api/v1/system/eap-framework/sim-aka")
+	assert.Contains(t, paths, "/api/v1/system/eap-framework/sim-aka/evaluate")
 
 	var foundFramework bool
 	var foundTEAP bool
 	var foundFASTPWD bool
+	var foundSIMAKA bool
 	for _, capture := range supportBundleAPICaptures() {
 		if capture.archivePath == "api/eap-framework.json" {
 			foundFramework = true
@@ -237,10 +312,15 @@ func TestOpenAPIAndSupportBundleIncludeEAPFramework(t *testing.T) {
 			foundFASTPWD = true
 			assert.Equal(t, "/api/v1/system/eap-framework/fast-pwd", capture.requestPath)
 		}
+		if capture.archivePath == "api/eap-framework-sim-aka.json" {
+			foundSIMAKA = true
+			assert.Equal(t, "/api/v1/system/eap-framework/sim-aka", capture.requestPath)
+		}
 	}
 	assert.True(t, foundFramework)
 	assert.True(t, foundTEAP)
 	assert.True(t, foundFASTPWD)
+	assert.True(t, foundSIMAKA)
 }
 
 func TestAuthorizeEAPFramework(t *testing.T) {
@@ -254,6 +334,9 @@ func TestAuthorizeEAPFramework(t *testing.T) {
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/eap-framework/fast-pwd"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/eap-framework/fast-pwd/evaluate"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/eap-framework/fast-pwd/evaluate"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/eap-framework/sim-aka"))
+	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/eap-framework/sim-aka/evaluate"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/eap-framework/sim-aka/evaluate"))
 }
 
 func prepareEAPFrameworkAPIConfig(t *testing.T) *config.Config {
@@ -344,11 +427,33 @@ radius:
       replay_window_seconds: 30
       fragment_size: 1020
       event_retention_limit: 6000
+    sim_aka:
+      enabled: true
+      methods: [sim, aka, aka-prime]
+      require_identity: true
+      require_permanent_identity: true
+      allow_pseudonym_identity: true
+      require_pseudonym_reauth: false
+      pseudonym_ttl_seconds: 86400
+      reauth_ttl_seconds: 43200
+      vector_provider: external-http
+      vector_provider_ref: env:AEGIS_SIMAKA_VECTOR_PROVIDER_URL
+      require_fresh_vectors: true
+      max_vector_age_seconds: 300
+      min_triplets: 2
+      min_quintuplets: 1
+      allow_resynchronization: true
+      resync_window_seconds: 300
+      require_network_name: true
+      network_name: wlan.mnc001.mcc001.3gppnetwork.org
+      require_kdf: true
+      fail_on_provider_unavailable: true
+      event_retention_limit: 6000
     framework:
       enabled: true
       mode: enforce
       fail_closed: true
-      allowed_methods: [peap, ttls, tls, teap, fast, pwd]
+      allowed_methods: [peap, ttls, tls, teap, fast, pwd, sim, aka, aka-prime]
       allowed_inner_methods: [mschapv2, pap, chap, gtc, tls]
       default_outer_identity_source: configured-default
       default_inner_identity_source: identity-failover
@@ -372,6 +477,11 @@ radius:
           methods: [tls]
           allow_certificate_subject: true
           priority: 20
+        - name: sim-aka-vector-provider
+          source: external
+          enabled: true
+          methods: [sim, aka, aka-prime]
+          priority: 30
       method_policies:
         - method: peap
           enabled: true
@@ -412,6 +522,15 @@ radius:
           enabled: true
           identity_source: identity-failover
           allow_password_verifier: true
+        - method: sim
+          enabled: true
+          identity_source: sim-aka-vector-provider
+        - method: aka
+          enabled: true
+          identity_source: sim-aka-vector-provider
+        - method: aka-prime
+          enabled: true
+          identity_source: sim-aka-vector-provider
 `, dbPath)
 	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0644))
 	cfg, err := config.Load(cfgPath)

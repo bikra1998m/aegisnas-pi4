@@ -211,11 +211,33 @@ radius:
       replay_window_seconds: 30
       fragment_size: 1020
       event_retention_limit: 6000
+    sim_aka:
+      enabled: true # Add "sim", "aka", or "aka-prime" only after vector-provider and carrier offload smoke tests.
+      methods: ["sim", "aka", "aka-prime"]
+      require_identity: true
+      require_permanent_identity: true
+      allow_pseudonym_identity: true
+      require_pseudonym_reauth: false
+      pseudonym_ttl_seconds: 86400
+      reauth_ttl_seconds: 43200
+      vector_provider: "external-http" # external-http, hss-http, udm-http, static-file, or identity-failover.
+      vector_provider_ref: "" # Required when SIM/AKA methods are allowed in enforce fail-closed mode.
+      require_fresh_vectors: true
+      max_vector_age_seconds: 300
+      min_triplets: 2
+      min_quintuplets: 1
+      allow_resynchronization: true
+      resync_window_seconds: 300
+      require_network_name: true
+      network_name: "" # Required for EAP-AKA-prime, for example wlan.mnc001.mcc001.3gppnetwork.org.
+      require_kdf: true
+      fail_on_provider_unavailable: true
+      event_retention_limit: 6000
     framework:
       enabled: true
       mode: "monitor" # Use enforce with fail_closed=true after supplicant/AP smoke tests.
       fail_closed: true
-      allowed_methods: ["peap", "ttls", "tls"] # Add "teap", "fast", or "pwd" only after method-specific smoke tests.
+      allowed_methods: ["peap", "ttls", "tls"] # Add "teap", "fast", "pwd", "sim", "aka", or "aka-prime" only after method-specific smoke tests.
       allowed_inner_methods: ["mschapv2", "pap", "chap", "gtc", "tls"]
       default_outer_identity_source: "configured-default"
       default_inner_identity_source: "identity-failover"

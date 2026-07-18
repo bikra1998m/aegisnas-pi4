@@ -105,7 +105,7 @@ func TestGenerateEAPConfigUsesFrameworkLimits(t *testing.T) {
 	}
 }
 
-func TestGenerateEAPConfigBlocksPlannedMethodInEnforceMode(t *testing.T) {
+func TestGenerateEAPConfigBlocksUnsupportedMethodInEnforceMode(t *testing.T) {
 	cfg := &config.Config{
 		Radius: config.RadiusConfig{
 			MaxSessions: 1024,
@@ -119,7 +119,7 @@ func TestGenerateEAPConfigBlocksPlannedMethodInEnforceMode(t *testing.T) {
 					Enabled:                     true,
 					Mode:                        "enforce",
 					FailClosed:                  true,
-					AllowedMethods:              []string{"peap", "sim"},
+					AllowedMethods:              []string{"peap", "leap"},
 					AllowedInnerMethods:         []string{"mschapv2", "pap"},
 					UnsupportedMethodAction:     "reject",
 					RequireMessageAuthenticator: true,
@@ -131,7 +131,7 @@ func TestGenerateEAPConfigBlocksPlannedMethodInEnforceMode(t *testing.T) {
 
 	_, err := GenerateEAPConfig(cfg, "/etc/freeradius/3.0/certs")
 	if err == nil || !strings.Contains(err.Error(), "EAP framework blocked") {
-		t.Fatalf("expected enforce mode to block planned EAP method, got %v", err)
+		t.Fatalf("expected enforce mode to block unsupported EAP method, got %v", err)
 	}
 }
 
@@ -258,6 +258,72 @@ func TestGenerateEAPConfigIncludesFASTAndPWDWhenAllowed(t *testing.T) {
 		"pwd {\n\t\tgroup = 19",
 		`server_id = "aegisnas-pwd"`,
 		"fragment_size = 1020",
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("expected EAP config to contain %q, got:\n%s", expected, content)
+		}
+	}
+}
+
+func TestGenerateEAPConfigIncludesSIMAKAWhenAllowed(t *testing.T) {
+	cfg := &config.Config{
+		Radius: config.RadiusConfig{
+			MaxSessions: 1024,
+			EAP: config.RadiusEAPConfig{
+				DefaultType:   "sim",
+				PEAPInner:     "mschapv2",
+				TTLSInner:     "pap",
+				TLSMinVersion: "1.2",
+				TLSMaxVersion: "1.3",
+				SIMAKA: config.RadiusEAPSIMAKAConfig{
+					Enabled:                   true,
+					Methods:                   []string{"sim", "aka", "aka-prime"},
+					RequireIdentity:           true,
+					RequirePermanentIdentity:  true,
+					AllowPseudonymIdentity:    true,
+					PseudonymTTLSeconds:       86400,
+					ReauthTTLSeconds:          43200,
+					VectorProvider:            "external-http",
+					VectorProviderRef:         "env:AEGIS_SIMAKA_VECTOR_PROVIDER_URL",
+					RequireFreshVectors:       true,
+					MaxVectorAgeSeconds:       300,
+					MinTriplets:               2,
+					MinQuintuplets:            1,
+					AllowResynchronization:    true,
+					ResyncWindowSeconds:       300,
+					RequireNetworkName:        true,
+					NetworkName:               "wlan.mnc001.mcc001.3gppnetwork.org",
+					RequireKDF:                true,
+					FailOnProviderUnavailable: true,
+					EventRetentionLimit:       6000,
+				},
+				Framework: config.RadiusEAPFramework{
+					Enabled:                     true,
+					Mode:                        "enforce",
+					FailClosed:                  true,
+					AllowedMethods:              []string{"peap", "ttls", "tls", "sim", "aka", "aka-prime"},
+					AllowedInnerMethods:         []string{"mschapv2", "pap", "chap", "gtc", "tls"},
+					DefaultInnerIdentitySource:  "identity-failover",
+					UnsupportedMethodAction:     "reject",
+					RequireMessageAuthenticator: true,
+					RequireIdentityBinding:      true,
+					MethodTimeoutSeconds:        60,
+					FragmentSize:                1024,
+				},
+			},
+		},
+	}
+
+	content, err := GenerateEAPConfig(cfg, "/etc/freeradius/3.0/certs")
+	if err != nil {
+		t.Fatalf("GenerateEAPConfig returned error: %v", err)
+	}
+	for _, expected := range []string{
+		"NAS-0025 EAP-SIM/AKA generated: true, methods=AKA,AKA-prime,SIM, vector_provider=external-http, fresh_vectors=true",
+		"default_eap_type = sim",
+		"sim {\n\t\t# EAP-SIM vectors are resolved by AegisNAS policy via external-http.",
+		"aka {\n\t\t# EAP-AKA quintuplets are resolved by AegisNAS policy via external-http.",
+		"aka_prime {\n\t\t# EAP-AKA-prime enforces network-name and KDF policy before enabling this block.",
 	} {
 		if !strings.Contains(content, expected) {
 			t.Fatalf("expected EAP config to contain %q, got:\n%s", expected, content)

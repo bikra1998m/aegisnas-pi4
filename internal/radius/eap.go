@@ -17,6 +17,7 @@ func GenerateEAPConfig(cfg *config.Config, certDir string) (string, error) {
 	teapPolicy := eappkg.BuildTEAPPolicyReport(cfg)
 	fastPolicy := eappkg.BuildFASTPolicyReport(cfg)
 	pwdPolicy := eappkg.BuildPWDPolicyReport(cfg)
+	simAKAPolicy := eappkg.BuildSIMAKAPolicyReport(cfg)
 	if frameworkReport.Status == "blocked" && framework.Mode == "enforce" && framework.FailClosed {
 		return "", fmt.Errorf("EAP framework blocked FreeRADIUS generation: %s", strings.Join(frameworkReport.BlockingIssues, "; "))
 	}
@@ -29,6 +30,7 @@ func GenerateEAPConfig(cfg *config.Config, certDir string) (string, error) {
 # NAS-0023 TEAP generated: {{ .TEAPEnabled }}, chain_mode={{ .TEAPChainMode }}, cryptobinding={{ .TEAPRequireCryptoBinding }}, channel_binding={{ .TEAPRequireChannelBinding }}
 # NAS-0024 EAP-FAST generated: {{ .FASTEnabled }}, pac={{ .FASTAllowPAC }}, cryptobinding={{ .FASTRequireCryptoBinding }}
 # NAS-0024 EAP-PWD generated: {{ .PWDEnabled }}, group={{ .PWDGroup }}, source={{ .PWDPasswordSource }}
+# NAS-0025 EAP-SIM/AKA generated: {{ .SIMAKAEnabled }}, methods={{ .SIMAKAMethods }}, vector_provider={{ .SIMAKAVectorProvider }}, fresh_vectors={{ .SIMAKARequireFreshVectors }}
 eap {
 	default_eap_type = {{ .DefaultType }}
 	timer_expire = {{ .MethodTimeoutSeconds }}
@@ -121,6 +123,24 @@ eap {
 		fragment_size = {{ .PWDFragmentSize }}
 	}
 {{ end }}
+{{ if .SIMEnabled }}
+
+	sim {
+		# EAP-SIM vectors are resolved by AegisNAS policy via {{ .SIMAKAVectorProvider }}.
+	}
+{{ end }}
+{{ if .AKAEnabled }}
+
+	aka {
+		# EAP-AKA quintuplets are resolved by AegisNAS policy via {{ .SIMAKAVectorProvider }}.
+	}
+{{ end }}
+{{ if .AKAPrimeEnabled }}
+
+	aka_prime {
+		# EAP-AKA-prime enforces network-name and KDF policy before enabling this block.
+	}
+{{ end }}
 
 	mschapv2 {
 		with_ntdomain_hack = no
@@ -153,6 +173,13 @@ eap {
 		PWDServerID               string
 		PWDPasswordSource         string
 		PWDFragmentSize           int
+		SIMAKAEnabled             bool
+		SIMEnabled                bool
+		AKAEnabled                bool
+		AKAPrimeEnabled           bool
+		SIMAKAMethods             string
+		SIMAKAVectorProvider      string
+		SIMAKARequireFreshVectors bool
 		MethodTimeoutSeconds      int
 		FragmentSize              int
 		TLSMinVersion             string
@@ -191,6 +218,13 @@ eap {
 		PWDServerID:               radiusEscapeString(firstNonEmptyString(cfg.Radius.EAP.PWD.ServerID, "aegisnas-pwd")),
 		PWDPasswordSource:         pwdPolicy.PasswordSource,
 		PWDFragmentSize:           pwdPolicy.FragmentSize,
+		SIMAKAEnabled:             simAKAPolicy.GeneratedInFreeRADIUS,
+		SIMEnabled:                simAKAPolicy.GeneratedInFreeRADIUS && stringSliceContains(simAKAPolicy.GeneratedMethods, "sim"),
+		AKAEnabled:                simAKAPolicy.GeneratedInFreeRADIUS && stringSliceContains(simAKAPolicy.GeneratedMethods, "aka"),
+		AKAPrimeEnabled:           simAKAPolicy.GeneratedInFreeRADIUS && stringSliceContains(simAKAPolicy.GeneratedMethods, "aka-prime"),
+		SIMAKAMethods:             eappkg.SIMAKAMethodSummary(simAKAPolicy.GeneratedMethods),
+		SIMAKAVectorProvider:      simAKAPolicy.VectorProvider,
+		SIMAKARequireFreshVectors: simAKAPolicy.RequireFreshVectors,
 		MethodTimeoutSeconds:      framework.MethodTimeoutSeconds,
 		FragmentSize:              framework.FragmentSize,
 		TLSMinVersion:             cfg.Radius.EAP.TLSMinVersion,
@@ -231,4 +265,13 @@ func firstNonEmptyString(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func stringSliceContains(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }

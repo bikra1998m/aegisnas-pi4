@@ -824,6 +824,29 @@ const defaultSettings: JsonMap = {
         fragment_size: 1020,
         event_retention_limit: 6000,
       },
+      sim_aka: {
+        enabled: true,
+        methods: ["sim", "aka", "aka-prime"],
+        require_identity: true,
+        require_permanent_identity: true,
+        allow_pseudonym_identity: true,
+        require_pseudonym_reauth: false,
+        pseudonym_ttl_seconds: 86400,
+        reauth_ttl_seconds: 43200,
+        vector_provider: "external-http",
+        vector_provider_ref: "",
+        require_fresh_vectors: true,
+        max_vector_age_seconds: 300,
+        min_triplets: 2,
+        min_quintuplets: 1,
+        allow_resynchronization: true,
+        resync_window_seconds: 300,
+        require_network_name: true,
+        network_name: "",
+        require_kdf: true,
+        fail_on_provider_unavailable: true,
+        event_retention_limit: 6000,
+      },
       framework: {
         enabled: true,
         mode: "monitor",
@@ -1247,6 +1270,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.radius.eap.teap = next.radius.eap.teap || {};
   next.radius.eap.fast = next.radius.eap.fast || {};
   next.radius.eap.pwd = next.radius.eap.pwd || {};
+  next.radius.eap.sim_aka = next.radius.eap.sim_aka || {};
   next.radius.eap.framework = next.radius.eap.framework || {};
   next.radius.upstream = next.radius.upstream || {};
   next.radius.upstream.fallback_policy =
@@ -1273,6 +1297,8 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.eap.fast.event_retention_limit = 1000;
     next.radius.eap.pwd.enabled = true;
     next.radius.eap.pwd.event_retention_limit = 1000;
+    next.radius.eap.sim_aka.enabled = true;
+    next.radius.eap.sim_aka.event_retention_limit = 1000;
     next.radius.upstream.status_check = "none";
     next.portal.guest_workflows.self_registration_enabled = false;
     next.portal.guest_workflows.sponsor_approval_enabled = false;
@@ -1322,6 +1348,9 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.eap.pwd.enabled = true;
     next.radius.eap.pwd.event_retention_limit =
       next.radius.eap.pwd.event_retention_limit || 12000;
+    next.radius.eap.sim_aka.enabled = true;
+    next.radius.eap.sim_aka.event_retention_limit =
+      next.radius.eap.sim_aka.event_retention_limit || 12000;
     next.radius.upstream.status_check = "status-server";
     next.admin_webauthn.challenge_ttl_seconds =
       next.admin_webauthn.challenge_ttl_seconds || 300;
@@ -1370,6 +1399,9 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.eap.pwd.enabled = true;
     next.radius.eap.pwd.event_retention_limit =
       next.radius.eap.pwd.event_retention_limit || 6000;
+    next.radius.eap.sim_aka.enabled = true;
+    next.radius.eap.sim_aka.event_retention_limit =
+      next.radius.eap.sim_aka.event_retention_limit || 6000;
     next.radius.upstream.status_check = "status-server";
     next.admin_webauthn.challenge_ttl_seconds =
       next.admin_webauthn.challenge_ttl_seconds || 300;
@@ -9052,6 +9084,12 @@ export default function AccessSettings() {
               { value: "peap", label: "PEAP" },
               { value: "ttls", label: "TTLS" },
               { value: "tls", label: "TLS" },
+              { value: "teap", label: "TEAP" },
+              { value: "fast", label: "FAST" },
+              { value: "pwd", label: "PWD" },
+              { value: "sim", label: "SIM" },
+              { value: "aka", label: "AKA" },
+              { value: "aka-prime", label: "AKA-prime" },
             ]}
           />
           <SelectField
@@ -9860,6 +9898,288 @@ export default function AccessSettings() {
               onChange={(value) =>
                 updateField(
                   ["radius", "eap", "pwd", "event_retention_limit"],
+                  Number(value),
+                )
+              }
+            />
+          </div>
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <h4 className="font-semibold text-gray-900">
+            EAP-SIM And EAP-AKA
+          </h4>
+          <p className="mt-1 text-sm text-gray-600">
+            Gate carrier offload and roaming with vector-provider health,
+            pseudonym privacy, resync policy, and AKA-prime network binding.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="SIM/AKA Available"
+              checked={settings.radius?.eap?.sim_aka?.enabled !== false}
+              onChange={(value) =>
+                updateField(["radius", "eap", "sim_aka", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Require Identity"
+              checked={
+                settings.radius?.eap?.sim_aka?.require_identity !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "require_identity"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Permanent Identity"
+              checked={
+                settings.radius?.eap?.sim_aka
+                  ?.require_permanent_identity !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "sim_aka",
+                    "require_permanent_identity",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Pseudonym Privacy"
+              checked={
+                settings.radius?.eap?.sim_aka
+                  ?.allow_pseudonym_identity !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "sim_aka",
+                    "allow_pseudonym_identity",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Pseudonym Reauth"
+              checked={Boolean(
+                settings.radius?.eap?.sim_aka?.require_pseudonym_reauth,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "sim_aka",
+                    "require_pseudonym_reauth",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Fresh Vectors"
+              checked={
+                settings.radius?.eap?.sim_aka?.require_fresh_vectors !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "require_fresh_vectors"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Allow Resync"
+              checked={
+                settings.radius?.eap?.sim_aka?.allow_resynchronization !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "allow_resynchronization"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="AKA-prime Network"
+              checked={
+                settings.radius?.eap?.sim_aka?.require_network_name !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "require_network_name"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="AKA-prime KDF"
+              checked={settings.radius?.eap?.sim_aka?.require_kdf !== false}
+              onChange={(value) =>
+                updateField(["radius", "eap", "sim_aka", "require_kdf"], value)
+              }
+            />
+            <ToggleField
+              label="Fail Provider Down"
+              checked={
+                settings.radius?.eap?.sim_aka
+                  ?.fail_on_provider_unavailable !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "eap",
+                    "sim_aka",
+                    "fail_on_provider_unavailable",
+                  ],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="SIM/AKA Methods"
+              value={listToCSV(
+                settings.radius?.eap?.sim_aka?.methods || [
+                  "sim",
+                  "aka",
+                  "aka-prime",
+                ],
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "methods"],
+                  csvToList(value),
+                )
+              }
+            />
+            <SelectField
+              label="Vector Provider"
+              value={
+                settings.radius?.eap?.sim_aka?.vector_provider ||
+                "external-http"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "vector_provider"],
+                  value,
+                )
+              }
+              options={[
+                { value: "external-http", label: "External HTTP" },
+                { value: "hss-http", label: "HSS HTTP" },
+                { value: "udm-http", label: "UDM HTTP" },
+                { value: "static-file", label: "Static File" },
+                { value: "identity-failover", label: "Identity Failover" },
+              ]}
+            />
+            <TextField
+              label="Provider Ref"
+              value={settings.radius?.eap?.sim_aka?.vector_provider_ref || ""}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "vector_provider_ref"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Pseudonym TTL (s)"
+              type="number"
+              value={
+                settings.radius?.eap?.sim_aka?.pseudonym_ttl_seconds ?? 86400
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "pseudonym_ttl_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Reauth TTL (s)"
+              type="number"
+              value={settings.radius?.eap?.sim_aka?.reauth_ttl_seconds ?? 43200}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "reauth_ttl_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Vector Age (s)"
+              type="number"
+              value={settings.radius?.eap?.sim_aka?.max_vector_age_seconds ?? 300}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "max_vector_age_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Min Triplets"
+              type="number"
+              value={settings.radius?.eap?.sim_aka?.min_triplets ?? 2}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "min_triplets"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Min Quintuplets"
+              type="number"
+              value={settings.radius?.eap?.sim_aka?.min_quintuplets ?? 1}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "min_quintuplets"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Resync Window (s)"
+              type="number"
+              value={settings.radius?.eap?.sim_aka?.resync_window_seconds ?? 300}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "resync_window_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="AKA-prime Network Name"
+              value={settings.radius?.eap?.sim_aka?.network_name || ""}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "network_name"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="SIM/AKA Retention"
+              type="number"
+              value={
+                settings.radius?.eap?.sim_aka?.event_retention_limit ?? 6000
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "sim_aka", "event_retention_limit"],
                   Number(value),
                 )
               }

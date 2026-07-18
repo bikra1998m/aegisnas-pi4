@@ -1320,6 +1320,18 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Deterministic EAP-FAST/PWD decision and audit status."),
 		"default": responseJSON("EAP-FAST/PWD evaluation error."),
 	}))
+	addOperation(paths, "/api/v1/system/eap-framework/sim-aka", "get", securedOperationWithParameters("Read EAP-SIM, EAP-AKA, and EAP-AKA-prime state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("method", "Optional audited method filter.", []string{"sim", "aka", "aka-prime"}, false),
+		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "monitor_allowed"}, false),
+		queryStringParameter("nas_type", "Optional NAS type filter for recent SIM/AKA events.", false),
+		queryStringParameter("limit", "Event limit from 1 to 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("EAP-SIM/AKA vector-provider policy, identity privacy controls, attribute capability catalog, runtime summary, release evidence checklist, and recent method events."),
+	}))
+	addOperation(paths, "/api/v1/system/eap-framework/sim-aka/evaluate", "post", securedOperationWithBody("Evaluate an EAP-SIM, EAP-AKA, or EAP-AKA-prime decision", "Authentication", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("SIM/AKA method facts: method, NAS type, mobile identities, Message-Authenticator, vector provider, vector freshness, triplet/quintuplet evidence, resync, network-name/KDF, replay state, and optional audit flag."), map[string]any{
+		"200":     responseJSON("Deterministic EAP-SIM/AKA decision and audit status."),
+		"default": responseJSON("EAP-SIM/AKA evaluation error."),
+	}))
 	addOperation(paths, "/api/v1/system/mab", "get", securedOperationWithParameters("Read MAC Authentication Bypass state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "quarantined", "monitor_allowed", "fail_open", "unsupported"}, false),
 		queryStringParameter("mac", "Optional endpoint MAC filter in colon, hyphen, plain, or Cisco dotted format.", false),

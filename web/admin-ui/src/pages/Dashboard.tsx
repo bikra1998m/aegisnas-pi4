@@ -447,6 +447,46 @@ type FASTPWDReport = {
   blocking_issues?: string[];
 };
 
+type SIMAKAReport = {
+  status: string;
+  message: string;
+  policy?: {
+    enabled: boolean;
+    allowed_by_framework: boolean;
+    generated_in_freeradius: boolean;
+    framework_mode: string;
+    methods: string[];
+    generated_methods: string[];
+    require_identity: boolean;
+    allow_pseudonym_identity: boolean;
+    vector_provider: string;
+    vector_provider_ref_configured: boolean;
+    require_fresh_vectors: boolean;
+    max_vector_age_seconds: number;
+    min_triplets: number;
+    min_quintuplets: number;
+    allow_resynchronization: boolean;
+    require_network_name: boolean;
+    network_name_configured: boolean;
+    require_kdf: boolean;
+  };
+  runtime?: {
+    total_events: number;
+    accepted: number;
+    rejected: number;
+    monitor_allowed: number;
+    missing_identity: number;
+    missing_vector: number;
+    stale_vector: number;
+    invalid_authenticator: number;
+    resync_events: number;
+    replay_rejected: number;
+    last_rejected_reason?: string;
+  };
+  warnings?: string[];
+  blocking_issues?: string[];
+};
+
 type IdentityFailoverReport = {
   enabled: boolean;
   status: string;
@@ -653,6 +693,7 @@ type SystemStatus = {
     eap_framework?: EAPFrameworkReport;
     eap_teap?: TEAPReport;
     eap_fast_pwd?: FASTPWDReport;
+    eap_sim_aka?: SIMAKAReport;
     radsec_credentials?: RadSecCredentialReport;
     dynamic_nas_clients?: DynamicNASClientReport;
     probe_error?: string;
@@ -1199,6 +1240,7 @@ export default function Dashboard() {
   const eapFramework = systemStatus.radius?.eap_framework;
   const teapReport = systemStatus.radius?.eap_teap;
   const fastPWDReport = systemStatus.radius?.eap_fast_pwd;
+  const simAKAReport = systemStatus.radius?.eap_sim_aka;
   const identityFailover = systemStatus.identity?.failover;
   const identityActiveDirectory = systemStatus.identity?.active_directory;
   const identityMFA = systemStatus.identity?.mfa;
@@ -2233,6 +2275,71 @@ export default function Dashboard() {
                       ) : null}
                     </div>
                     <StatusBadge status={fastPWDReport.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {simAKAReport ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        EAP-SIM And EAP-AKA
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {simAKAReport.message ||
+                          "EAP-SIM and EAP-AKA state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Mode{" "}
+                          {simAKAReport.policy?.framework_mode || "monitor"}
+                        </div>
+                        <div>
+                          Methods{" "}
+                          {simAKAReport.policy?.generated_methods?.join(", ") ||
+                            "off"}
+                        </div>
+                        <div>
+                          Provider{" "}
+                          {simAKAReport.policy?.vector_provider || "external"}
+                        </div>
+                        <div>
+                          Events {simAKAReport.runtime?.total_events ?? 0}
+                        </div>
+                        <div>
+                          Rejects {simAKAReport.runtime?.rejected ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Vectors{" "}
+                        {simAKAReport.policy?.require_fresh_vectors
+                          ? "fresh"
+                          : "not freshness-bound"}
+                        ; triplets{" "}
+                        {simAKAReport.policy?.min_triplets ?? 2}; quintuplets{" "}
+                        {simAKAReport.policy?.min_quintuplets ?? 1}; privacy{" "}
+                        {simAKAReport.policy?.allow_pseudonym_identity
+                          ? "pseudonym"
+                          : "permanent-only"}
+                        .
+                      </div>
+                      {simAKAReport.runtime?.last_rejected_reason ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last SIM/AKA rejection:{" "}
+                          {simAKAReport.runtime.last_rejected_reason}
+                        </div>
+                      ) : null}
+                      {simAKAReport.blocking_issues?.length ? (
+                        <div className="mt-2 text-xs text-red-700">
+                          {simAKAReport.blocking_issues[0]}
+                        </div>
+                      ) : simAKAReport.warnings?.length ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {simAKAReport.warnings[0]}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge status={simAKAReport.status || "unknown"} />
                   </div>
                 </div>
               ) : null}

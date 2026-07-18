@@ -126,6 +126,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionEAPFrameworkCheck(&report, cfg)
 	addProductionTEAPCheck(&report, cfg)
 	addProductionFASTPWDCheck(&report, cfg)
+	addProductionSIMAKACheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
@@ -651,6 +652,54 @@ func addProductionFASTPWDCheck(report *productionReadinessReport, cfg *config.Co
 			fastPWDReport.PWD.GeneratedInFreeRADIUS, fastPWDReport.PWD.Group, fastPWDReport.Runtime.TotalEvents),
 		Recommendation: "For production FAST/PWD profiles, add fast or pwd to radius.eap.framework.allowed_methods only where clients require them, keep framework enforce/fail-closed, require FAST cryptobinding, use strong PWD groups, and complete the NAS-0024 release certification checklist for supplicant evidence.",
 		Dependencies:   []string{"radius.eap.fast", "radius.eap.pwd", "radius.eap.framework.allowed_methods", "eap_fast_pwd_events", "rlm_eap_fast", "rlm_eap_pwd", "/api/v1/system/eap-framework/fast-pwd"},
+	})
+}
+
+func addProductionSIMAKACheck(report *productionReadinessReport, cfg *config.Config) {
+	summary, _ := db.SummarizeSIMAKAEvents(1000)
+	simAKAReport := eappkg.BuildSIMAKAReport(cfg, simAKARuntimeSummaryFromDB(summary))
+	status := "passed"
+	switch simAKAReport.Status {
+	case "blocked":
+		status = "blocked"
+	case "disabled", "degraded":
+		status = "degraded"
+	}
+	if simAKAReport.Policy.GeneratedInFreeRADIUS {
+		if !simAKAReport.Policy.RequireMessageAuthenticator ||
+			!simAKAReport.Policy.RequireIdentityBinding ||
+			!simAKAReport.Policy.RequireIdentity ||
+			!simAKAReport.Policy.RequireFreshVectors ||
+			!simAKAReport.Policy.VectorProviderRefConfigured ||
+			simAKAReport.Policy.FrameworkMode != "enforce" ||
+			!simAKAReport.Policy.FrameworkFailClosed {
+			status = "blocked"
+		}
+		if containsString(simAKAReport.Policy.GeneratedMethods, "sim") && simAKAReport.Policy.MinTriplets < 2 {
+			status = "blocked"
+		}
+		if (containsString(simAKAReport.Policy.GeneratedMethods, "aka") || containsString(simAKAReport.Policy.GeneratedMethods, "aka-prime")) && simAKAReport.Policy.MinQuintuplets < 1 {
+			status = "blocked"
+		}
+		if containsString(simAKAReport.Policy.GeneratedMethods, "aka-prime") &&
+			(!simAKAReport.Policy.RequireNetworkName || !simAKAReport.Policy.NetworkNameConfigured || !simAKAReport.Policy.RequireKDF) {
+			status = "blocked"
+		}
+	}
+	if simAKAReport.Runtime.Rejected > 0 && status == "passed" {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "eap_sim_aka_methods",
+		Category: "authentication",
+		Label:    "EAP-SIM, EAP-AKA, And EAP-AKA-prime",
+		Status:   status,
+		Summary: fmt.Sprintf("SIM/AKA schema %d is %s with methods=%s, generated=%t, vector provider=%s, fresh vectors=%t, and %d recent event(s).",
+			simAKAReport.SchemaVersion, simAKAReport.Status, strings.Join(simAKAReport.Policy.GeneratedMethods, ","),
+			simAKAReport.Policy.GeneratedInFreeRADIUS, simAKAReport.Policy.VectorProvider,
+			simAKAReport.Policy.RequireFreshVectors, simAKAReport.Runtime.TotalEvents),
+		Recommendation: "For production carrier, Passpoint, or roaming profiles, add only required SIM/AKA methods to radius.eap.framework.allowed_methods, configure radius.eap.sim_aka.vector_provider_ref, keep framework enforce/fail-closed, and complete the NAS-0025 release certification checklist for HSS/HLR/UDM and real-device evidence.",
+		Dependencies:   []string{"radius.eap.sim_aka", "radius.eap.framework.allowed_methods", "eap_sim_aka_events", "rlm_eap_sim", "rlm_eap_aka", "rlm_eap_aka_prime", "/api/v1/system/eap-framework/sim-aka"},
 	})
 }
 
@@ -1528,4 +1577,13 @@ func uniqueSortedStrings(values []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }

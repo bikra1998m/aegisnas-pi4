@@ -801,6 +801,22 @@ For EAP-FAST and EAP-PWD:
    validated
 7. export a support bundle and retain `api/eap-framework-fast-pwd.json`
 
+For EAP-SIM, EAP-AKA, and EAP-AKA-prime:
+
+1. set `radius.eap.sim_aka.enabled: true`
+2. configure `radius.eap.sim_aka.vector_provider_ref` as an `env:` or `file:`
+   reference to the approved vector provider endpoint or source
+3. set `radius.eap.sim_aka.network_name` before enabling `aka-prime`
+4. add only the tested methods, `sim`, `aka`, or `aka-prime`, to
+   `radius.eap.framework.allowed_methods`
+5. confirm `/api/v1/system/eap-framework/sim-aka` reports generated methods and
+   no blocking issues
+6. use `POST /api/v1/system/eap-framework/sim-aka/evaluate` with accepted,
+   missing-vector, stale-vector, resync, replay, and AKA-prime KDF payloads
+7. run **Apply RADIUS Config** so `mods-enabled/eap` is regenerated and
+   validated
+8. export a support bundle and retain `api/eap-framework-sim-aka.json`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

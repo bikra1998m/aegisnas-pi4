@@ -16,7 +16,7 @@ func TestEAPFrameworkReportCatalogsGeneratedAndPlannedMethods(t *testing.T) {
 	assert.Equal(t, "enforce", report.Policy.Mode)
 	assert.Equal(t, 3, report.Summary.EnabledMethodCount)
 	assert.Equal(t, 3, report.Summary.GeneratedMethodCount)
-	assert.GreaterOrEqual(t, report.Summary.PlannedMethodCount, 1)
+	assert.Equal(t, 0, report.Summary.PlannedMethodCount)
 	assert.Equal(t, 0, report.Runtime.Rejected)
 
 	teap, ok := methodReportByName(report.Methods, "teap")
@@ -34,6 +34,11 @@ func TestEAPFrameworkReportCatalogsGeneratedAndPlannedMethods(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "complete", pwd.SoftwareStatus)
 	assert.Equal(t, "disabled", pwd.EffectiveStatus)
+
+	sim, ok := methodReportByName(report.Methods, "sim")
+	assert.True(t, ok)
+	assert.Equal(t, "complete", sim.SoftwareStatus)
+	assert.Equal(t, "disabled", sim.EffectiveStatus)
 }
 
 func TestEAPFrameworkEvaluateRejectsMissingMessageAuthenticatorInEnforceMode(t *testing.T) {
@@ -51,15 +56,99 @@ func TestEAPFrameworkEvaluateRejectsMissingMessageAuthenticatorInEnforceMode(t *
 func TestEAPFrameworkEvaluateMonitorAllowsUnsupportedMethod(t *testing.T) {
 	cfg := eapFrameworkTestConfig()
 	cfg.Radius.EAP.Framework.Mode = "monitor"
-	cfg.Radius.EAP.Framework.AllowedMethods = append(cfg.Radius.EAP.Framework.AllowedMethods, "sim")
+	cfg.Radius.EAP.Framework.AllowedMethods = append(cfg.Radius.EAP.Framework.AllowedMethods, "leap")
 	decision := Evaluate(cfg, EvaluationRequest{
-		Method:                      "sim",
+		Method:                      "leap",
 		EAPMessagePresent:           true,
 		MessageAuthenticatorPresent: true,
 	})
 
 	assert.Equal(t, "monitor_allowed", decision.Decision)
 	assert.Contains(t, decision.Reason, "generated")
+}
+
+func TestSIMAKAReportAndEvaluationAcceptsMobileMethods(t *testing.T) {
+	cfg := eapFrameworkSIMAKATestConfig()
+	report := BuildSIMAKAReport(cfg, SIMAKARuntimeSummary{})
+
+	assert.Equal(t, "ready", report.Status)
+	assert.True(t, report.Policy.GeneratedInFreeRADIUS)
+	assert.ElementsMatch(t, []string{"sim", "aka", "aka-prime"}, report.Policy.GeneratedMethods)
+	assert.NotEmpty(t, report.Attributes)
+
+	simDecision := Evaluate(cfg, EvaluationRequest{
+		Method:                      "sim",
+		UserIdentity:                "001010123456789",
+		PermanentIdentity:           "001010123456789",
+		EAPMessagePresent:           true,
+		MessageAuthenticatorPresent: true,
+		VectorProviderAvailable:     true,
+		VectorAvailable:             true,
+		VectorFresh:                 true,
+		VectorAgeSeconds:            30,
+		TripletCount:                2,
+		RESValid:                    true,
+	})
+	assert.Equal(t, "accepted", simDecision.Decision)
+	assert.Equal(t, "sim-aka-vector-provider", simDecision.IdentitySource)
+
+	akaPrimeDecision := EvaluateSIMAKA(cfg, SIMAKAEvaluationRequest{
+		Method:                      "aka-prime",
+		PermanentIdentity:           "001010123456789",
+		EAPMessagePresent:           true,
+		MessageAuthenticatorPresent: true,
+		VectorProviderAvailable:     true,
+		VectorAvailable:             true,
+		VectorFresh:                 true,
+		VectorAgeSeconds:            45,
+		QuintupletCount:             1,
+		RESValid:                    true,
+		MACValid:                    true,
+		AUTNValid:                   true,
+		NetworkName:                 "wlan.mnc001.mcc001.3gppnetwork.org",
+		KDFValid:                    true,
+	})
+	assert.Equal(t, "accepted", akaPrimeDecision.Decision)
+}
+
+func TestSIMAKAEvaluationRejectsMissingVector(t *testing.T) {
+	cfg := eapFrameworkSIMAKATestConfig()
+
+	decision := EvaluateSIMAKA(cfg, SIMAKAEvaluationRequest{
+		Method:                      "aka",
+		PermanentIdentity:           "001010123456789",
+		EAPMessagePresent:           true,
+		MessageAuthenticatorPresent: true,
+		VectorProviderAvailable:     true,
+		VectorFresh:                 true,
+		QuintupletCount:             1,
+		RESValid:                    true,
+		MACValid:                    true,
+		AUTNValid:                   true,
+	})
+
+	assert.Equal(t, "rejected", decision.Decision)
+	assert.Contains(t, decision.Reason, "vector")
+}
+
+func TestSIMAKAEvaluationRejectsReplay(t *testing.T) {
+	cfg := eapFrameworkSIMAKATestConfig()
+
+	decision := EvaluateSIMAKA(cfg, SIMAKAEvaluationRequest{
+		Method:                      "sim",
+		PermanentIdentity:           "001010123456789",
+		EAPMessagePresent:           true,
+		MessageAuthenticatorPresent: true,
+		VectorProviderAvailable:     true,
+		VectorAvailable:             true,
+		VectorFresh:                 true,
+		TripletCount:                2,
+		RESValid:                    true,
+		ReplayDetected:              true,
+	})
+
+	assert.Equal(t, "rejected", decision.Decision)
+	assert.Contains(t, decision.Reason, "replay")
 }
 
 func TestFASTPWDReportAndEvaluationAcceptsMethods(t *testing.T) {
@@ -273,6 +362,59 @@ func eapFrameworkFASTPWDTestConfig() *config.Config {
 			Enabled:               true,
 			IdentitySource:        "identity-failover",
 			AllowPasswordVerifier: true,
+		},
+	)
+	return cfg
+}
+
+func eapFrameworkSIMAKATestConfig() *config.Config {
+	cfg := eapFrameworkTestConfig()
+	cfg.Radius.EAP.DefaultType = "sim"
+	cfg.Radius.EAP.SIMAKA = config.RadiusEAPSIMAKAConfig{
+		Enabled:                   true,
+		Methods:                   []string{"sim", "aka", "aka-prime"},
+		RequireIdentity:           true,
+		RequirePermanentIdentity:  true,
+		AllowPseudonymIdentity:    true,
+		PseudonymTTLSeconds:       86400,
+		ReauthTTLSeconds:          43200,
+		VectorProvider:            "external-http",
+		VectorProviderRef:         "env:AEGIS_SIMAKA_VECTOR_PROVIDER_URL",
+		RequireFreshVectors:       true,
+		MaxVectorAgeSeconds:       300,
+		MinTriplets:               2,
+		MinQuintuplets:            1,
+		AllowResynchronization:    true,
+		ResyncWindowSeconds:       300,
+		RequireNetworkName:        true,
+		NetworkName:               "wlan.mnc001.mcc001.3gppnetwork.org",
+		RequireKDF:                true,
+		FailOnProviderUnavailable: true,
+		EventRetentionLimit:       6000,
+	}
+	cfg.Radius.EAP.Framework.AllowedMethods = []string{"peap", "ttls", "tls", "sim", "aka", "aka-prime"}
+	cfg.Radius.EAP.Framework.IdentitySources = append(cfg.Radius.EAP.Framework.IdentitySources, config.RadiusEAPIdentitySource{
+		Name:     "sim-aka-vector-provider",
+		Source:   "external",
+		Enabled:  true,
+		Methods:  []string{"sim", "aka", "aka-prime"},
+		Priority: 30,
+	})
+	cfg.Radius.EAP.Framework.MethodPolicies = append(cfg.Radius.EAP.Framework.MethodPolicies,
+		config.RadiusEAPMethodPolicy{
+			Method:         "sim",
+			Enabled:        true,
+			IdentitySource: "sim-aka-vector-provider",
+		},
+		config.RadiusEAPMethodPolicy{
+			Method:         "aka",
+			Enabled:        true,
+			IdentitySource: "sim-aka-vector-provider",
+		},
+		config.RadiusEAPMethodPolicy{
+			Method:         "aka-prime",
+			Enabled:        true,
+			IdentitySource: "sim-aka-vector-provider",
 		},
 	)
 	return cfg
