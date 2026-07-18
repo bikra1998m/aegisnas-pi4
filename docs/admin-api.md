@@ -320,16 +320,21 @@ The extensible EAP method framework is exposed at:
 ```text
 GET  /api/v1/system/eap-framework
 POST /api/v1/system/eap-framework/evaluate
+GET  /api/v1/system/eap-framework/teap
+POST /api/v1/system/eap-framework/teap/evaluate
 ```
 
 Use these endpoints to inspect the typed EAP catalog, effective PEAP/TTLS/TLS
-policy, planned method blockers, identity-source bindings, vendor compatibility
-profiles, and recent hashed method decisions. `evaluate` is restricted to
-`ops_admin` and `super_admin` and can optionally record an audited decision.
-The same summary appears in `/api/v1/system/status` under
-`radius.eap_framework`, in production readiness as `eap_method_framework`, and
-in support bundles as `api/eap-framework.json`. See
-[eap-method-framework.md](eap-method-framework.md).
+and TEAP policy, planned method blockers, identity-source bindings, vendor
+compatibility profiles, and recent hashed method decisions. `evaluate` and
+`teap/evaluate` are restricted to `ops_admin` and `super_admin` and can
+optionally record audited decisions. The same summaries appear in
+`/api/v1/system/status` under `radius.eap_framework` and `radius.eap_teap`, in
+production readiness as `eap_method_framework` and `teap_method_chaining`, and
+in support bundles as `api/eap-framework.json` and
+`api/eap-framework-teap.json`. See
+[eap-method-framework.md](eap-method-framework.md) and
+[teap-method-chaining.md](teap-method-chaining.md).
 
 ## Dynamic NAS Client Endpoints
 

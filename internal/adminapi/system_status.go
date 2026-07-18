@@ -150,6 +150,8 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	fallbackPolicy := radius.BuildFallbackPolicyReport(cfg)
 	eapSummary, _ := db.SummarizeEAPMethodEvents(1000)
 	eapFramework := eappkg.BuildFrameworkReport(cfg, eapRuntimeSummaryFromDB(eapSummary))
+	teapSummary, _ := db.SummarizeTEAPChainEvents(1000)
+	teapFramework := eappkg.BuildTEAPReport(cfg, teapRuntimeSummaryFromDB(teapSummary))
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -163,6 +165,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"accounting_spool":        accountingSpool,
 		"fallback_policy":         fallbackPolicy,
 		"eap_framework":           eapFramework,
+		"eap_teap":                teapFramework,
 		"enabled_radius_clients":  enabledRadiusClients,
 		"broker_auth":             runtimeMap["radius_broker_auth"],
 		"broker_accounting":       runtimeMap["radius_broker_accounting"],

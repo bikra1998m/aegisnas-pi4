@@ -124,6 +124,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionMFACheck(&report, cfg)
 	addProductionAdminWebAuthnCheck(&report, cfg)
 	addProductionEAPFrameworkCheck(&report, cfg)
+	addProductionTEAPCheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
@@ -567,6 +568,41 @@ func addProductionEAPFrameworkCheck(report *productionReadinessReport, cfg *conf
 			eapReport.Summary.GeneratedMethodCount, eapReport.Summary.BlockedMethodCount, eapReport.Runtime.TotalEvents),
 		Recommendation: "Use radius.eap.framework in enforce/fail-closed mode, keep Message-Authenticator and identity binding required, enable only generated methods for this release, and complete the NAS-0022 release certification checklist for real supplicant/AP evidence.",
 		Dependencies:   []string{"radius.eap.framework", "eap_method_events", "mods-enabled/eap", "/api/v1/system/eap-framework"},
+	})
+}
+
+func addProductionTEAPCheck(report *productionReadinessReport, cfg *config.Config) {
+	summary, _ := db.SummarizeTEAPChainEvents(1000)
+	teapReport := eappkg.BuildTEAPReport(cfg, teapRuntimeSummaryFromDB(summary))
+	status := "passed"
+	switch teapReport.Status {
+	case "blocked":
+		status = "blocked"
+	case "disabled", "degraded":
+		status = "degraded"
+	}
+	if teapReport.Policy.GeneratedInFreeRADIUS {
+		if !teapReport.Policy.RequireMessageAuthenticator ||
+			!teapReport.Policy.RequireIdentityBinding ||
+			!teapReport.Policy.RequireCryptoBinding ||
+			teapReport.Policy.FrameworkMode != "enforce" ||
+			!teapReport.Policy.FrameworkFailClosed {
+			status = "blocked"
+		}
+	}
+	if teapReport.Runtime.Rejected > 0 && status == "passed" {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "teap_method_chaining",
+		Category: "authentication",
+		Label:    "TEAP Method Chaining",
+		Status:   status,
+		Summary: fmt.Sprintf("TEAP schema %d is %s with chain mode %s, generated=%t, cryptobinding=%t, channel-binding=%t, and %d recent chain event(s).",
+			teapReport.SchemaVersion, teapReport.Status, teapReport.Policy.ChainMode, teapReport.Policy.GeneratedInFreeRADIUS,
+			teapReport.Policy.RequireCryptoBinding, teapReport.Policy.RequireChannelBinding, teapReport.Runtime.TotalEvents),
+		Recommendation: "For TEAP production SSIDs, add teap to radius.eap.framework.allowed_methods, keep framework enforce/fail-closed, require cryptobinding and identity binding, use machine_then_user for chained access, and complete the NAS-0023 release certification checklist for real supplicant evidence.",
+		Dependencies:   []string{"radius.eap.teap", "radius.eap.framework.allowed_methods", "eap_teap_chain_events", "rlm_eap_teap", "/api/v1/system/eap-framework/teap"},
 	})
 }
 

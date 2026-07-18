@@ -82,6 +82,22 @@ func TestConfigValidationEAPFramework(t *testing.T) {
 				TTLSInner:     "pap",
 				TLSMinVersion: "1.2",
 				TLSMaxVersion: "1.3",
+				TEAP: RadiusEAPTEAPConfig{
+					Enabled:                true,
+					DefaultInnerMethod:     "mschapv2",
+					ChainMode:              "machine_then_user",
+					RequireCryptoBinding:   true,
+					RequireIdentityType:    true,
+					RequireMachineIdentity: true,
+					RequireUserIdentity:    true,
+					AllowPAC:               true,
+					PACProvisioning:        "authenticated",
+					PACAuthorityID:         "aegisnas-teap",
+					AllowEAPPayload:        true,
+					MaxChainSteps:          2,
+					SessionTTLSeconds:      900,
+					EventRetentionLimit:    6000,
+				},
 				Framework: RadiusEAPFramework{
 					Enabled:                     true,
 					Mode:                        "enforce",
@@ -132,6 +148,21 @@ func TestConfigValidationEAPFramework(t *testing.T) {
 		{Method: "tls", Enabled: true, IdentitySource: "certificate-subject", RequireCertificate: true, RequireRevocation: true},
 	}
 	assert.ErrorContains(t, badRevocation.Validate(), "require_revocation")
+
+	teapReady := *cfg
+	teapReady.Radius.EAP.DefaultType = "teap"
+	teapReady.Radius.EAP.Framework.AllowedMethods = []string{"peap", "ttls", "tls", "teap"}
+	teapReady.Radius.EAP.Framework.IdentitySources[0].Methods = []string{"peap", "ttls", "teap"}
+	require.NoError(t, teapReady.Validate())
+
+	badTEAPCrypto := teapReady
+	badTEAPCrypto.Radius.EAP.TEAP.RequireCryptoBinding = false
+	assert.ErrorContains(t, badTEAPCrypto.Validate(), "require_crypto_binding")
+
+	badTEAPPAC := teapReady
+	badTEAPPAC.Radius.EAP.TEAP.RequirePAC = true
+	badTEAPPAC.Radius.EAP.TEAP.AllowPAC = false
+	assert.ErrorContains(t, badTEAPPAC.Validate(), "require_pac")
 }
 
 func TestConfigValidationRadiusPacketHardening(t *testing.T) {

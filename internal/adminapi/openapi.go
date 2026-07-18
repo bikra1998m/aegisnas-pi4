@@ -1296,6 +1296,18 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Deterministic EAP framework decision and audit status."),
 		"default": responseJSON("EAP framework evaluation error."),
 	}))
+	addOperation(paths, "/api/v1/system/eap-framework/teap", "get", securedOperationWithParameters("Read TEAP method-chaining state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("decision", "Optional audited TEAP decision filter.", []string{"accepted", "rejected", "monitor_allowed"}, false),
+		queryEnumParameter("chain_mode", "Optional TEAP chain mode filter.", []string{"user_only", "machine_only", "machine_then_user", "either"}, false),
+		queryStringParameter("nas_type", "Optional NAS type filter for recent TEAP events.", false),
+		queryStringParameter("limit", "Event limit from 1 to 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("TEAP policy, RFC 7170 TLV coverage, runtime summary, release evidence checklist, and recent chain events."),
+	}))
+	addOperation(paths, "/api/v1/system/eap-framework/teap/evaluate", "post", securedOperationWithBody("Evaluate a TEAP method-chain decision", "Authentication", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("TEAP chain facts: inner method, NAS type, machine/user identities, Message-Authenticator, TLS version, cryptobinding, channel-binding, PAC, Identity-Type, Result TLVs, and optional audit flag."), map[string]any{
+		"200":     responseJSON("Deterministic TEAP chain decision and audit status."),
+		"default": responseJSON("TEAP evaluation error."),
+	}))
 	addOperation(paths, "/api/v1/system/mab", "get", securedOperationWithParameters("Read MAC Authentication Bypass state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "quarantined", "monitor_allowed", "fail_open", "unsupported"}, false),
 		queryStringParameter("mac", "Optional endpoint MAC filter in colon, hyphen, plain, or Cisco dotted format.", false),

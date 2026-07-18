@@ -119,7 +119,7 @@ func TestGenerateEAPConfigBlocksPlannedMethodInEnforceMode(t *testing.T) {
 					Enabled:                     true,
 					Mode:                        "enforce",
 					FailClosed:                  true,
-					AllowedMethods:              []string{"peap", "teap"},
+					AllowedMethods:              []string{"peap", "fast"},
 					AllowedInnerMethods:         []string{"mschapv2", "pap"},
 					UnsupportedMethodAction:     "reject",
 					RequireMessageAuthenticator: true,
@@ -132,5 +132,64 @@ func TestGenerateEAPConfigBlocksPlannedMethodInEnforceMode(t *testing.T) {
 	_, err := GenerateEAPConfig(cfg, "/etc/freeradius/3.0/certs")
 	if err == nil || !strings.Contains(err.Error(), "EAP framework blocked") {
 		t.Fatalf("expected enforce mode to block planned EAP method, got %v", err)
+	}
+}
+
+func TestGenerateEAPConfigIncludesTEAPWhenAllowed(t *testing.T) {
+	cfg := &config.Config{
+		Radius: config.RadiusConfig{
+			MaxSessions: 1024,
+			EAP: config.RadiusEAPConfig{
+				DefaultType:   "teap",
+				PEAPInner:     "mschapv2",
+				TTLSInner:     "pap",
+				TLSMinVersion: "1.2",
+				TLSMaxVersion: "1.3",
+				TEAP: config.RadiusEAPTEAPConfig{
+					Enabled:                true,
+					DefaultInnerMethod:     "mschapv2",
+					ChainMode:              "machine_then_user",
+					RequireCryptoBinding:   true,
+					RequireIdentityType:    true,
+					RequireMachineIdentity: true,
+					RequireUserIdentity:    true,
+					AllowPAC:               true,
+					PACProvisioning:        "authenticated",
+					PACAuthorityID:         "aegisnas-teap",
+					AllowEAPPayload:        true,
+					MaxChainSteps:          2,
+					SessionTTLSeconds:      900,
+					EventRetentionLimit:    6000,
+				},
+				Framework: config.RadiusEAPFramework{
+					Enabled:                     true,
+					Mode:                        "enforce",
+					FailClosed:                  true,
+					AllowedMethods:              []string{"peap", "ttls", "tls", "teap"},
+					AllowedInnerMethods:         []string{"mschapv2", "pap", "chap", "gtc", "tls"},
+					DefaultInnerIdentitySource:  "identity-failover",
+					UnsupportedMethodAction:     "reject",
+					RequireMessageAuthenticator: true,
+					RequireIdentityBinding:      true,
+					MethodTimeoutSeconds:        60,
+					FragmentSize:                1024,
+				},
+			},
+		},
+	}
+
+	content, err := GenerateEAPConfig(cfg, "/etc/freeradius/3.0/certs")
+	if err != nil {
+		t.Fatalf("GenerateEAPConfig returned error: %v", err)
+	}
+	for _, expected := range []string{
+		"NAS-0023 TEAP generated: true, chain_mode=machine_then_user, cryptobinding=true",
+		"default_eap_type = teap",
+		"teap {\n\t\tdefault_eap_type = mschapv2\n\t\ttls = tls-common",
+		`virtual_server = "inner-tunnel"`,
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("expected EAP config to contain %q, got:\n%s", expected, content)
+		}
 	}
 }

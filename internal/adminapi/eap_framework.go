@@ -14,6 +14,7 @@ import (
 
 type eapFrameworkResponse struct {
 	eappkg.Report
+	TEAP   eappkg.TEAPReport   `json:"teap"`
 	Events []db.EAPMethodEvent `json:"events,omitempty"`
 }
 
@@ -29,6 +30,58 @@ type eapEvaluationRequest struct {
 	MessageAuthenticatorPresent bool              `json:"message_authenticator_present"`
 	CertificatePresented        bool              `json:"certificate_presented"`
 	TLSVersion                  string            `json:"tls_version"`
+	OuterIdentity               string            `json:"outer_identity"`
+	UserIdentity                string            `json:"user_identity"`
+	MachineIdentity             string            `json:"machine_identity"`
+	CryptoBindingValid          bool              `json:"crypto_binding_valid"`
+	ChannelBindingPresent       bool              `json:"channel_binding_present"`
+	ChannelBindingValid         bool              `json:"channel_binding_valid"`
+	IdentityTypePresented       bool              `json:"identity_type_presented"`
+	PACPresented                bool              `json:"pac_presented"`
+	PACProvisioningRequested    bool              `json:"pac_provisioning_requested"`
+	EAPPayloadPresent           bool              `json:"eap_payload_present"`
+	BasicPasswordAuth           bool              `json:"basic_password_auth"`
+	IntermediateResultPresent   bool              `json:"intermediate_result_present"`
+	IntermediateResultSuccess   bool              `json:"intermediate_result_success"`
+	FinalResultPresent          bool              `json:"final_result_present"`
+	FinalResultSuccess          bool              `json:"final_result_success"`
+	StepCount                   int               `json:"step_count"`
+	LatencyMS                   int               `json:"latency_ms"`
+	Audit                       bool              `json:"audit"`
+	Details                     map[string]string `json:"details"`
+}
+
+type teapFrameworkResponse struct {
+	eappkg.TEAPReport
+	Events []db.TEAPChainEvent `json:"events,omitempty"`
+}
+
+type teapEvaluationRequest struct {
+	InnerMethod                 string            `json:"inner_method"`
+	NASType                     string            `json:"nas_type"`
+	NASIdentifier               string            `json:"nas_identifier"`
+	OuterIdentity               string            `json:"outer_identity"`
+	UserIdentity                string            `json:"user_identity"`
+	MachineIdentity             string            `json:"machine_identity"`
+	CallingStationID            string            `json:"calling_station_id"`
+	IdentitySource              string            `json:"identity_source"`
+	EAPMessagePresent           bool              `json:"eap_message_present"`
+	MessageAuthenticatorPresent bool              `json:"message_authenticator_present"`
+	CertificatePresented        bool              `json:"certificate_presented"`
+	TLSVersion                  string            `json:"tls_version"`
+	CryptoBindingValid          bool              `json:"crypto_binding_valid"`
+	ChannelBindingPresent       bool              `json:"channel_binding_present"`
+	ChannelBindingValid         bool              `json:"channel_binding_valid"`
+	IdentityTypePresented       bool              `json:"identity_type_presented"`
+	PACPresented                bool              `json:"pac_presented"`
+	PACProvisioningRequested    bool              `json:"pac_provisioning_requested"`
+	EAPPayloadPresent           bool              `json:"eap_payload_present"`
+	BasicPasswordAuth           bool              `json:"basic_password_auth"`
+	IntermediateResultPresent   bool              `json:"intermediate_result_present"`
+	IntermediateResultSuccess   bool              `json:"intermediate_result_success"`
+	FinalResultPresent          bool              `json:"final_result_present"`
+	FinalResultSuccess          bool              `json:"final_result_success"`
+	StepCount                   int               `json:"step_count"`
 	LatencyMS                   int               `json:"latency_ms"`
 	Audit                       bool              `json:"audit"`
 	Details                     map[string]string `json:"details"`
@@ -57,8 +110,14 @@ func HandleGetEAPFramework(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	teapSummary, err := db.SummarizeTEAPChainEvents(limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	report := eappkg.BuildFrameworkReport(cfg, eapRuntimeSummaryFromDB(summary))
-	writeJSON(w, http.StatusOK, eapFrameworkResponse{Report: report, Events: events})
+	teapReport := eappkg.BuildTEAPReport(cfg, teapRuntimeSummaryFromDB(teapSummary))
+	writeJSON(w, http.StatusOK, eapFrameworkResponse{Report: report, TEAP: teapReport, Events: events})
 }
 
 func HandleEvaluateEAPFramework(w http.ResponseWriter, r *http.Request) {
@@ -82,6 +141,22 @@ func HandleEvaluateEAPFramework(w http.ResponseWriter, r *http.Request) {
 		MessageAuthenticatorPresent: req.MessageAuthenticatorPresent,
 		CertificatePresented:        req.CertificatePresented,
 		TLSVersion:                  req.TLSVersion,
+		OuterIdentity:               req.OuterIdentity,
+		UserIdentity:                req.UserIdentity,
+		MachineIdentity:             req.MachineIdentity,
+		CryptoBindingValid:          req.CryptoBindingValid,
+		ChannelBindingPresent:       req.ChannelBindingPresent,
+		ChannelBindingValid:         req.ChannelBindingValid,
+		IdentityTypePresented:       req.IdentityTypePresented,
+		PACPresented:                req.PACPresented,
+		PACProvisioningRequested:    req.PACProvisioningRequested,
+		EAPPayloadPresent:           req.EAPPayloadPresent,
+		BasicPasswordAuth:           req.BasicPasswordAuth,
+		IntermediateResultPresent:   req.IntermediateResultPresent,
+		IntermediateResultSuccess:   req.IntermediateResultSuccess,
+		FinalResultPresent:          req.FinalResultPresent,
+		FinalResultSuccess:          req.FinalResultSuccess,
+		StepCount:                   req.StepCount,
 	})
 	if req.Audit && cfg.Radius.EAP.Framework.TelemetryEnabled {
 		latency := req.LatencyMS
@@ -114,6 +189,118 @@ func HandleEvaluateEAPFramework(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func HandleGetTEAPFramework(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Get()
+	if cfg == nil {
+		http.Error(w, "configuration not loaded", http.StatusInternalServerError)
+		return
+	}
+	limit := parseBoundedInt(r.URL.Query().Get("limit"), 100, 1, 5000)
+	filter := db.TEAPChainEventFilter{
+		Decision:  r.URL.Query().Get("decision"),
+		ChainMode: r.URL.Query().Get("chain_mode"),
+		NASType:   r.URL.Query().Get("nas_type"),
+		Limit:     limit,
+	}
+	events, err := db.ListTEAPChainEvents(filter)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	summary, err := db.SummarizeTEAPChainEvents(limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	report := eappkg.BuildTEAPReport(cfg, teapRuntimeSummaryFromDB(summary))
+	writeJSON(w, http.StatusOK, teapFrameworkResponse{TEAPReport: report, Events: events})
+}
+
+func HandleEvaluateTEAPChain(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Get()
+	if cfg == nil {
+		http.Error(w, "configuration not loaded", http.StatusInternalServerError)
+		return
+	}
+	var req teapEvaluationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	start := time.Now()
+	decision := eappkg.EvaluateTEAPChain(cfg, eappkg.TEAPChainEvaluationRequest{
+		InnerMethod:                 req.InnerMethod,
+		NASType:                     req.NASType,
+		OuterIdentity:               req.OuterIdentity,
+		UserIdentity:                req.UserIdentity,
+		MachineIdentity:             req.MachineIdentity,
+		IdentitySource:              req.IdentitySource,
+		EAPMessagePresent:           req.EAPMessagePresent,
+		MessageAuthenticatorPresent: req.MessageAuthenticatorPresent,
+		CertificatePresented:        req.CertificatePresented,
+		TLSVersion:                  req.TLSVersion,
+		CryptoBindingValid:          req.CryptoBindingValid,
+		ChannelBindingPresent:       req.ChannelBindingPresent,
+		ChannelBindingValid:         req.ChannelBindingValid,
+		IdentityTypePresented:       req.IdentityTypePresented,
+		PACPresented:                req.PACPresented,
+		PACProvisioningRequested:    req.PACProvisioningRequested,
+		EAPPayloadPresent:           req.EAPPayloadPresent,
+		BasicPasswordAuth:           req.BasicPasswordAuth,
+		IntermediateResultPresent:   req.IntermediateResultPresent,
+		IntermediateResultSuccess:   req.IntermediateResultSuccess,
+		FinalResultPresent:          req.FinalResultPresent,
+		FinalResultSuccess:          req.FinalResultSuccess,
+		StepCount:                   req.StepCount,
+	})
+	audited := req.Audit && cfg.Radius.EAP.Framework.TelemetryEnabled
+	if audited {
+		latency := req.LatencyMS
+		if latency <= 0 {
+			latency = int(time.Since(start).Milliseconds())
+		}
+		retention := cfg.Radius.EAP.TEAP.EventRetentionLimit
+		if retention <= 0 {
+			retention = cfg.Radius.EAP.Framework.EventRetentionLimit
+		}
+		_ = db.RecordTEAPChainEvent(db.TEAPChainEvent{
+			ObservedAt:                time.Now().UTC(),
+			Decision:                  decision.Decision,
+			Reason:                    decision.Reason,
+			ChainMode:                 decision.ChainMode,
+			ChainState:                decision.ChainState,
+			NASIdentifier:             req.NASIdentifier,
+			NASType:                   req.NASType,
+			OuterIdentityHash:         db.HashEAPIdentity(req.OuterIdentity),
+			UserIdentityHash:          db.HashEAPIdentity(req.UserIdentity),
+			MachineIdentityHash:       db.HashEAPIdentity(req.MachineIdentity),
+			IdentitySource:            decision.IdentitySource,
+			InnerMethod:               decision.InnerMethod,
+			CryptoBindingValid:        req.CryptoBindingValid,
+			ChannelBindingPresent:     req.ChannelBindingPresent,
+			ChannelBindingValid:       req.ChannelBindingValid,
+			IdentityTypePresent:       req.IdentityTypePresented,
+			PACPresented:              req.PACPresented,
+			PACProvisioningRequested:  req.PACProvisioningRequested,
+			EAPPayloadPresent:         req.EAPPayloadPresent,
+			BasicPasswordAuth:         req.BasicPasswordAuth,
+			IntermediateResultPresent: req.IntermediateResultPresent,
+			IntermediateResultSuccess: req.IntermediateResultSuccess,
+			FinalResultPresent:        req.FinalResultPresent,
+			FinalResultSuccess:        req.FinalResultSuccess,
+			StepCount:                 req.StepCount,
+			TLSVersion:                req.TLSVersion,
+			PolicyMode:                decision.PolicyMode,
+			LatencyMS:                 latency,
+			Details:                   req.Details,
+		}, retention)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"decision": decision,
+		"audited":  audited,
+	})
+}
+
 func eapRuntimeSummaryFromDB(summary db.EAPMethodEventSummary) eappkg.RuntimeSummary {
 	return eappkg.RuntimeSummary{
 		TotalEvents:        summary.TotalEvents,
@@ -125,6 +312,24 @@ func eapRuntimeSummaryFromDB(summary db.EAPMethodEventSummary) eappkg.RuntimeSum
 		ByDecision:         summary.ByDecision,
 		LastEventAt:        summary.LastEventAt,
 		LastRejectedReason: summary.LastRejectedReason,
+	}
+}
+
+func teapRuntimeSummaryFromDB(summary db.TEAPChainEventSummary) eappkg.TEAPRuntimeSummary {
+	return eappkg.TEAPRuntimeSummary{
+		TotalEvents:            summary.TotalEvents,
+		Accepted:               summary.Accepted,
+		Rejected:               summary.Rejected,
+		MonitorAllowed:         summary.MonitorAllowed,
+		ByDecision:             summary.ByDecision,
+		ByChainMode:            summary.ByChainMode,
+		MissingMachineIdentity: summary.MissingMachineIdentity,
+		MissingUserIdentity:    summary.MissingUserIdentity,
+		InvalidCryptoBinding:   summary.InvalidCryptoBinding,
+		InvalidChannelBinding:  summary.InvalidChannelBinding,
+		PACRequiredMissing:     summary.PACRequiredMissing,
+		LastEventAt:            summary.LastEventAt,
+		LastRejectedReason:     summary.LastRejectedReason,
 	}
 }
 

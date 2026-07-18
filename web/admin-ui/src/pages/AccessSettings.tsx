@@ -775,6 +775,26 @@ const defaultSettings: JsonMap = {
         timeout_seconds: 5,
         soft_fail: false,
       },
+      teap: {
+        enabled: true,
+        default_inner_method: "mschapv2",
+        chain_mode: "machine_then_user",
+        require_crypto_binding: true,
+        require_channel_binding: false,
+        require_identity_type: true,
+        require_machine_identity: true,
+        require_user_identity: true,
+        allow_pac: true,
+        require_pac: false,
+        pac_provisioning: "authenticated",
+        pac_authority_id: "aegisnas-teap",
+        pac_lifetime_seconds: 2592000,
+        allow_eap_payload: true,
+        allow_basic_password_auth: false,
+        max_chain_steps: 2,
+        session_ttl_seconds: 900,
+        event_retention_limit: 6000,
+      },
       framework: {
         enabled: true,
         mode: "monitor",
@@ -1195,6 +1215,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.mab = next.mab || {};
   next.radius = next.radius || {};
   next.radius.eap = next.radius.eap || {};
+  next.radius.eap.teap = next.radius.eap.teap || {};
   next.radius.eap.framework = next.radius.eap.framework || {};
   next.radius.upstream = next.radius.upstream || {};
   next.radius.upstream.fallback_policy =
@@ -1214,6 +1235,9 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.eap.framework.mode = "monitor";
     next.radius.eap.framework.max_concurrent_sessions = 256;
     next.radius.eap.framework.event_retention_limit = 1000;
+    next.radius.eap.teap.enabled = true;
+    next.radius.eap.teap.max_chain_steps = 2;
+    next.radius.eap.teap.event_retention_limit = 1000;
     next.radius.upstream.status_check = "none";
     next.portal.guest_workflows.self_registration_enabled = false;
     next.portal.guest_workflows.sponsor_approval_enabled = false;
@@ -1252,6 +1276,11 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.eap.framework.max_concurrent_sessions || 4096;
     next.radius.eap.framework.event_retention_limit =
       next.radius.eap.framework.event_retention_limit || 12000;
+    next.radius.eap.teap.enabled = true;
+    next.radius.eap.teap.max_chain_steps =
+      next.radius.eap.teap.max_chain_steps || 2;
+    next.radius.eap.teap.event_retention_limit =
+      next.radius.eap.teap.event_retention_limit || 12000;
     next.radius.upstream.status_check = "status-server";
     next.admin_webauthn.challenge_ttl_seconds =
       next.admin_webauthn.challenge_ttl_seconds || 300;
@@ -1289,6 +1318,11 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.eap.framework.max_concurrent_sessions || 1024;
     next.radius.eap.framework.event_retention_limit =
       next.radius.eap.framework.event_retention_limit || 6000;
+    next.radius.eap.teap.enabled = true;
+    next.radius.eap.teap.max_chain_steps =
+      next.radius.eap.teap.max_chain_steps || 2;
+    next.radius.eap.teap.event_retention_limit =
+      next.radius.eap.teap.event_retention_limit || 6000;
     next.radius.upstream.status_check = "status-server";
     next.admin_webauthn.challenge_ttl_seconds =
       next.admin_webauthn.challenge_ttl_seconds || 300;
@@ -9255,6 +9289,234 @@ export default function AccessSettings() {
               onChange={(value) =>
                 updateField(
                   ["radius", "eap", "framework", "nak_unknown_types"],
+                  value,
+                )
+              }
+            />
+          </div>
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <h4 className="font-semibold text-gray-900">
+            TEAP Method Chaining
+          </h4>
+          <p className="mt-1 text-sm text-gray-600">
+            Gate RFC 7170 TEAP with machine and user identity chaining,
+            cryptobinding, PAC policy, and bounded audit history.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="TEAP Available"
+              checked={settings.radius?.eap?.teap?.enabled !== false}
+              onChange={(value) =>
+                updateField(["radius", "eap", "teap", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Require Cryptobinding"
+              checked={
+                settings.radius?.eap?.teap?.require_crypto_binding !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "require_crypto_binding"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Channel Binding"
+              checked={Boolean(
+                settings.radius?.eap?.teap?.require_channel_binding,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "require_channel_binding"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Identity Type"
+              checked={
+                settings.radius?.eap?.teap?.require_identity_type !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "require_identity_type"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Machine Identity"
+              checked={
+                settings.radius?.eap?.teap?.require_machine_identity !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "require_machine_identity"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="User Identity"
+              checked={
+                settings.radius?.eap?.teap?.require_user_identity !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "require_user_identity"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Allow PAC"
+              checked={settings.radius?.eap?.teap?.allow_pac !== false}
+              onChange={(value) =>
+                updateField(["radius", "eap", "teap", "allow_pac"], value)
+              }
+            />
+            <ToggleField
+              label="Require PAC"
+              checked={Boolean(settings.radius?.eap?.teap?.require_pac)}
+              onChange={(value) =>
+                updateField(["radius", "eap", "teap", "require_pac"], value)
+              }
+            />
+            <SelectField
+              label="TEAP Inner"
+              value={
+                settings.radius?.eap?.teap?.default_inner_method || "mschapv2"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "default_inner_method"],
+                  value,
+                )
+              }
+              options={[
+                { value: "mschapv2", label: "MSCHAPv2" },
+                { value: "pap", label: "PAP" },
+                { value: "chap", label: "CHAP" },
+                { value: "gtc", label: "GTC" },
+                { value: "tls", label: "TLS" },
+              ]}
+            />
+            <SelectField
+              label="Chain Mode"
+              value={
+                settings.radius?.eap?.teap?.chain_mode ||
+                "machine_then_user"
+              }
+              onChange={(value) =>
+                updateField(["radius", "eap", "teap", "chain_mode"], value)
+              }
+              options={[
+                { value: "machine_then_user", label: "Machine Then User" },
+                { value: "machine_only", label: "Machine Only" },
+                { value: "user_only", label: "User Only" },
+                { value: "either", label: "Either" },
+              ]}
+            />
+            <SelectField
+              label="PAC Provisioning"
+              value={
+                settings.radius?.eap?.teap?.pac_provisioning ||
+                "authenticated"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "pac_provisioning"],
+                  value,
+                )
+              }
+              options={[
+                { value: "disabled", label: "Disabled" },
+                { value: "authenticated", label: "Authenticated" },
+                { value: "optional", label: "Optional" },
+              ]}
+            />
+            <TextField
+              label="PAC Authority ID"
+              value={
+                settings.radius?.eap?.teap?.pac_authority_id ||
+                "aegisnas-teap"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "pac_authority_id"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="PAC Lifetime (s)"
+              type="number"
+              value={
+                settings.radius?.eap?.teap?.pac_lifetime_seconds ?? 2592000
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "pac_lifetime_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Chain Steps"
+              type="number"
+              value={settings.radius?.eap?.teap?.max_chain_steps ?? 2}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "max_chain_steps"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Chain TTL (s)"
+              type="number"
+              value={settings.radius?.eap?.teap?.session_ttl_seconds ?? 900}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "session_ttl_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="TEAP Retention"
+              type="number"
+              value={
+                settings.radius?.eap?.teap?.event_retention_limit ?? 6000
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "event_retention_limit"],
+                  Number(value),
+                )
+              }
+            />
+            <ToggleField
+              label="Allow EAP Payload"
+              checked={settings.radius?.eap?.teap?.allow_eap_payload !== false}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "allow_eap_payload"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Basic Password Auth"
+              checked={Boolean(
+                settings.radius?.eap?.teap?.allow_basic_password_auth,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "eap", "teap", "allow_basic_password_auth"],
                   value,
                 )
               }

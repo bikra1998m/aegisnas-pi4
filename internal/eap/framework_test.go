@@ -21,8 +21,9 @@ func TestEAPFrameworkReportCatalogsGeneratedAndPlannedMethods(t *testing.T) {
 
 	teap, ok := methodReportByName(report.Methods, "teap")
 	assert.True(t, ok)
-	assert.Equal(t, "planned", teap.EffectiveStatus)
-	assert.Contains(t, teap.Dependencies, "NAS-0023")
+	assert.Equal(t, "complete", teap.SoftwareStatus)
+	assert.Equal(t, "disabled", teap.EffectiveStatus)
+	assert.False(t, teap.GeneratedInFreeRADIUS)
 }
 
 func TestEAPFrameworkEvaluateRejectsMissingMessageAuthenticatorInEnforceMode(t *testing.T) {
@@ -40,15 +41,64 @@ func TestEAPFrameworkEvaluateRejectsMissingMessageAuthenticatorInEnforceMode(t *
 func TestEAPFrameworkEvaluateMonitorAllowsUnsupportedMethod(t *testing.T) {
 	cfg := eapFrameworkTestConfig()
 	cfg.Radius.EAP.Framework.Mode = "monitor"
-	cfg.Radius.EAP.Framework.AllowedMethods = append(cfg.Radius.EAP.Framework.AllowedMethods, "teap")
+	cfg.Radius.EAP.Framework.AllowedMethods = append(cfg.Radius.EAP.Framework.AllowedMethods, "fast")
 	decision := Evaluate(cfg, EvaluationRequest{
-		Method:                      "teap",
+		Method:                      "fast",
 		EAPMessagePresent:           true,
 		MessageAuthenticatorPresent: true,
 	})
 
 	assert.Equal(t, "monitor_allowed", decision.Decision)
 	assert.Contains(t, decision.Reason, "generated")
+}
+
+func TestTEAPReportAndEvaluationAcceptMachineUserChain(t *testing.T) {
+	cfg := eapFrameworkTEAPTestConfig()
+	report := BuildTEAPReport(cfg, TEAPRuntimeSummary{})
+
+	assert.Equal(t, "ready", report.Status)
+	assert.True(t, report.Policy.GeneratedInFreeRADIUS)
+	assert.Equal(t, "machine_then_user", report.Policy.ChainMode)
+	assert.NotEmpty(t, report.TLVs)
+
+	decision := EvaluateTEAPChain(cfg, TEAPChainEvaluationRequest{
+		InnerMethod:                 "mschapv2",
+		OuterIdentity:               "anonymous@example.com",
+		UserIdentity:                "alice@example.com",
+		MachineIdentity:             "host/laptop.example.com",
+		EAPMessagePresent:           true,
+		MessageAuthenticatorPresent: true,
+		TLSVersion:                  "1.3",
+		CryptoBindingValid:          true,
+		IdentityTypePresented:       true,
+		EAPPayloadPresent:           true,
+		IntermediateResultPresent:   true,
+		IntermediateResultSuccess:   true,
+		FinalResultPresent:          true,
+		FinalResultSuccess:          true,
+		StepCount:                   2,
+	})
+
+	assert.Equal(t, "accepted", decision.Decision)
+	assert.Equal(t, "complete", decision.ChainState)
+	assert.Equal(t, "machine_user", decision.IdentityCorrelation)
+}
+
+func TestTEAPEvaluationRejectsMissingCryptoBinding(t *testing.T) {
+	cfg := eapFrameworkTEAPTestConfig()
+	decision := Evaluate(cfg, EvaluationRequest{
+		Method:                      "teap",
+		InnerMethod:                 "mschapv2",
+		UserIdentity:                "alice@example.com",
+		MachineIdentity:             "host/laptop.example.com",
+		EAPMessagePresent:           true,
+		MessageAuthenticatorPresent: true,
+		IdentityTypePresented:       true,
+		StepCount:                   2,
+	})
+
+	assert.Equal(t, "rejected", decision.Decision)
+	assert.Contains(t, decision.Reason, "Crypto-Binding")
 }
 
 func TestEAPFrameworkEvaluateAcceptsGeneratedMethod(t *testing.T) {
@@ -63,6 +113,39 @@ func TestEAPFrameworkEvaluateAcceptsGeneratedMethod(t *testing.T) {
 
 	assert.Equal(t, "accepted", decision.Decision)
 	assert.Equal(t, "identity-failover", decision.IdentitySource)
+}
+
+func eapFrameworkTEAPTestConfig() *config.Config {
+	cfg := eapFrameworkTestConfig()
+	cfg.Radius.EAP.DefaultType = "teap"
+	cfg.Radius.EAP.TEAP = config.RadiusEAPTEAPConfig{
+		Enabled:                true,
+		DefaultInnerMethod:     "mschapv2",
+		ChainMode:              "machine_then_user",
+		RequireCryptoBinding:   true,
+		RequireIdentityType:    true,
+		RequireMachineIdentity: true,
+		RequireUserIdentity:    true,
+		AllowPAC:               true,
+		PACProvisioning:        "authenticated",
+		PACAuthorityID:         "aegisnas-teap",
+		AllowEAPPayload:        true,
+		MaxChainSteps:          2,
+		SessionTTLSeconds:      900,
+		EventRetentionLimit:    6000,
+	}
+	cfg.Radius.EAP.Framework.AllowedMethods = []string{"peap", "ttls", "tls", "teap"}
+	cfg.Radius.EAP.Framework.IdentitySources[0].Methods = []string{"peap", "ttls", "teap"}
+	cfg.Radius.EAP.Framework.MethodPolicies = append(cfg.Radius.EAP.Framework.MethodPolicies, config.RadiusEAPMethodPolicy{
+		Method:                "teap",
+		Enabled:               true,
+		InnerMethods:          []string{"mschapv2", "gtc", "tls"},
+		IdentitySource:        "identity-failover",
+		AllowPasswordVerifier: false,
+		MinTLSVersion:         "1.2",
+		MaxTLSVersion:         "1.3",
+	})
+	return cfg
 }
 
 func eapFrameworkTestConfig() *config.Config {

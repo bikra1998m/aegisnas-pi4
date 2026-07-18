@@ -46,6 +46,7 @@ Files involved:
 - [manager.go](F:/random_project/Pookie/aegisnas-pi4/internal/sessions/manager.go)
 - [dynamic_auth.go](F:/random_project/Pookie/aegisnas-pi4/internal/sessions/dynamic_auth.go)
 - [framework.go](F:/random_project/Pookie/aegisnas-pi4/internal/eap/framework.go)
+- [teap.go](F:/random_project/Pookie/aegisnas-pi4/internal/eap/teap.go)
 - [eap_framework.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/eap_framework.go)
 - [webauthn.go](F:/random_project/Pookie/aegisnas-pi4/internal/webauthn/webauthn.go)
 - [webauthn.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/webauthn.go)
@@ -71,6 +72,7 @@ The implementation now does these things end to end:
 16. supports MAC Authentication Bypass endpoint state, profile-linked quarantine, generated FreeRADIUS authorize entries, API evaluation, dashboard status, and readiness checks for non-802.1X devices
 17. protects privileged admin token and SSO sessions with WebAuthn/passkey step-up, credential lifecycle APIs, dashboard status, readiness checks, and support-bundle evidence
 18. governs EAP methods through a typed framework for PEAP, TTLS, TLS, identity-source binding, Message-Authenticator requirements, planned-method blockers, API evaluation, dashboard status, and support-bundle evidence
+19. generates opt-in TEAP policy with RFC 7170 method chaining, machine/user identity requirements, cryptobinding checks, PAC governance, API evaluation, dashboard status, and support-bundle evidence
 
 ## Current Behavior
 
@@ -104,7 +106,8 @@ When `radius.upstream.enabled: true`:
   - enabled compatibility-pack VSAs such as Aruba role/VLAN, Ruckus groups/VLAN, Fortinet profiles, Cisco/Juniper ACL names, UniFi/UBNT rate hints, Cambium rate/VLAN/quarantine, Meraki context, Extreme Netlogin, Huawei/H3C QoS, Palo Alto context, and TP-Link Omada hints
 - break-glass local admin auth remains available even when portal RADIUS auth is enabled
 - privileged admin token and SSO sessions can require WebAuthn/passkey assertion before the admin API accepts a verified session token
-- EAP framework state is available through `/api/v1/system/eap-framework`; enforce/fail-closed mode prevents generated FreeRADIUS config when planned methods such as TEAP, FAST, PWD, SIM, AKA, or AKA-prime are enabled before their roadmap feature lands
+- EAP framework state is available through `/api/v1/system/eap-framework`; enforce/fail-closed mode prevents generated FreeRADIUS config when planned methods such as FAST, PWD, SIM, AKA, or AKA-prime are enabled before their roadmap feature lands
+- TEAP method-chain state is available through `/api/v1/system/eap-framework/teap`; when `teap` is added to `radius.eap.framework.allowed_methods`, generated FreeRADIUS includes a conservative `teap` block and AegisNAS evaluates cryptobinding, Identity-Type, PAC, machine identity, and user identity policy
 - voucher logins remain local so guest access still has an offline path
 
 What this pass still does not change:
@@ -116,6 +119,7 @@ What this pass still does not change:
 - real AP/switch/controller certification for MAB remains tracked in [nas-0017-release-certification-checklist.md](nas-0017-release-certification-checklist.md)
 - real authenticator, browser, SSO provider, HA, and security validation for admin passkeys remains tracked in [nas-0021-release-certification-checklist.md](nas-0021-release-certification-checklist.md)
 - real supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, and performance validation for EAP remains tracked in [nas-0022-release-certification-checklist.md](nas-0022-release-certification-checklist.md)
+- real TEAP supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, performance, and security validation remains tracked in [nas-0023-release-certification-checklist.md](nas-0023-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 

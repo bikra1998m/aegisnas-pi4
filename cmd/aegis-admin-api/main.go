@@ -207,6 +207,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/radsec-credentials", adminapi.HandleGetRadSecCredentials)
 			r.Get("/system/eap-framework", adminapi.HandleGetEAPFramework)
 			r.Post("/system/eap-framework/evaluate", adminapi.HandleEvaluateEAPFramework)
+			r.Get("/system/eap-framework/teap", adminapi.HandleGetTEAPFramework)
+			r.Post("/system/eap-framework/teap/evaluate", adminapi.HandleEvaluateTEAPChain)
 			r.Get("/system/nas-clients", adminapi.HandleGetNASClients)
 			r.Get("/system/nas-clients/enrollments", adminapi.HandleListNASClientEnrollments)
 			r.Post("/system/nas-clients/enrollments", adminapi.HandleCreateNASClientEnrollment)

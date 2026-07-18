@@ -369,6 +369,42 @@ type EAPFrameworkReport = {
   blocking_issues?: string[];
 };
 
+type TEAPReport = {
+  status: string;
+  message: string;
+  policy?: {
+    enabled: boolean;
+    allowed_by_framework: boolean;
+    generated_in_freeradius: boolean;
+    framework_mode: string;
+    default_inner_method: string;
+    chain_mode: string;
+    require_crypto_binding: boolean;
+    require_channel_binding: boolean;
+    require_identity_type: boolean;
+    require_machine_identity: boolean;
+    require_user_identity: boolean;
+    allow_pac: boolean;
+    require_pac: boolean;
+    pac_provisioning: string;
+    max_chain_steps: number;
+    session_ttl_seconds: number;
+  };
+  runtime?: {
+    total_events: number;
+    accepted: number;
+    rejected: number;
+    monitor_allowed: number;
+    invalid_crypto_binding: number;
+    invalid_channel_binding: number;
+    missing_machine_identity: number;
+    missing_user_identity: number;
+    last_rejected_reason?: string;
+  };
+  warnings?: string[];
+  blocking_issues?: string[];
+};
+
 type IdentityFailoverReport = {
   enabled: boolean;
   status: string;
@@ -573,6 +609,7 @@ type SystemStatus = {
     accounting_spool?: RadiusAccountingSpoolReport;
     fallback_policy?: RadiusFallbackPolicyReport;
     eap_framework?: EAPFrameworkReport;
+    eap_teap?: TEAPReport;
     radsec_credentials?: RadSecCredentialReport;
     dynamic_nas_clients?: DynamicNASClientReport;
     probe_error?: string;
@@ -1117,6 +1154,7 @@ export default function Dashboard() {
   const accountingSpool = systemStatus.radius?.accounting_spool;
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
   const eapFramework = systemStatus.radius?.eap_framework;
+  const teapReport = systemStatus.radius?.eap_teap;
   const identityFailover = systemStatus.identity?.failover;
   const identityActiveDirectory = systemStatus.identity?.active_directory;
   const identityMFA = systemStatus.identity?.mfa;
@@ -2008,6 +2046,76 @@ export default function Dashboard() {
                       ) : null}
                     </div>
                     <StatusBadge status={eapFramework.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {teapReport ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        TEAP Method Chaining
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {teapReport.message ||
+                          "TEAP method-chaining state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Mode{" "}
+                          {teapReport.policy?.framework_mode || "monitor"}
+                        </div>
+                        <div>
+                          Chain{" "}
+                          {teapReport.policy?.chain_mode ||
+                            "machine_then_user"}
+                        </div>
+                        <div>
+                          Generated{" "}
+                          {teapReport.policy?.generated_in_freeradius
+                            ? "yes"
+                            : "no"}
+                        </div>
+                        <div>
+                          Events {teapReport.runtime?.total_events ?? 0}
+                        </div>
+                        <div>
+                          Rejects {teapReport.runtime?.rejected ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Inner{" "}
+                        {teapReport.policy?.default_inner_method ||
+                          "mschapv2"}
+                        ; cryptobinding{" "}
+                        {teapReport.policy?.require_crypto_binding
+                          ? "required"
+                          : "not required"}
+                        ; PAC{" "}
+                        {teapReport.policy?.require_pac
+                          ? "required"
+                          : teapReport.policy?.allow_pac
+                            ? "allowed"
+                            : "disabled"}
+                        .
+                      </div>
+                      {teapReport.runtime?.last_rejected_reason ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last TEAP rejection:{" "}
+                          {teapReport.runtime.last_rejected_reason}
+                        </div>
+                      ) : null}
+                      {teapReport.blocking_issues?.length ? (
+                        <div className="mt-2 text-xs text-red-700">
+                          {teapReport.blocking_issues[0]}
+                        </div>
+                      ) : teapReport.warnings?.length ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {teapReport.warnings[0]}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge status={teapReport.status || "unknown"} />
                   </div>
                 </div>
               ) : null}

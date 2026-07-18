@@ -23,6 +23,7 @@ type MethodCapability struct {
 	CertificateBased      bool     `json:"certificate_based"`
 	TunnelBased           bool     `json:"tunnel_based"`
 	InnerMethodCapable    bool     `json:"inner_method_capable"`
+	MethodChainingCapable bool     `json:"method_chaining_capable"`
 	RequiresFutureFeature string   `json:"requires_future_feature,omitempty"`
 	Summary               string   `json:"summary"`
 }
@@ -151,6 +152,22 @@ type EvaluationRequest struct {
 	MessageAuthenticatorPresent bool
 	CertificatePresented        bool
 	TLSVersion                  string
+	OuterIdentity               string
+	UserIdentity                string
+	MachineIdentity             string
+	CryptoBindingValid          bool
+	ChannelBindingPresent       bool
+	ChannelBindingValid         bool
+	IdentityTypePresented       bool
+	PACPresented                bool
+	PACProvisioningRequested    bool
+	EAPPayloadPresent           bool
+	BasicPasswordAuth           bool
+	IntermediateResultPresent   bool
+	IntermediateResultSuccess   bool
+	FinalResultPresent          bool
+	FinalResultSuccess          bool
+	StepCount                   int
 }
 
 type EvaluationDecision struct {
@@ -317,6 +334,43 @@ func Evaluate(cfg *config.Config, request EvaluationRequest) EvaluationDecision 
 	if policy.RequireMessageAuthenticator && request.EAPMessagePresent && !request.MessageAuthenticatorPresent {
 		return reject("EAP-Message requires Message-Authenticator", "radius.packet_hardening.require_message_authenticator")
 	}
+	if method == "teap" {
+		teapDecision := EvaluateTEAPChain(cfg, TEAPChainEvaluationRequest{
+			InnerMethod:                 request.InnerMethod,
+			NASType:                     request.NASType,
+			OuterIdentity:               request.OuterIdentity,
+			UserIdentity:                request.UserIdentity,
+			MachineIdentity:             request.MachineIdentity,
+			IdentitySource:              request.IdentitySource,
+			EAPMessagePresent:           request.EAPMessagePresent,
+			MessageAuthenticatorPresent: request.MessageAuthenticatorPresent,
+			CertificatePresented:        request.CertificatePresented,
+			TLSVersion:                  request.TLSVersion,
+			CryptoBindingValid:          request.CryptoBindingValid,
+			ChannelBindingPresent:       request.ChannelBindingPresent,
+			ChannelBindingValid:         request.ChannelBindingValid,
+			IdentityTypePresented:       request.IdentityTypePresented,
+			PACPresented:                request.PACPresented,
+			PACProvisioningRequested:    request.PACProvisioningRequested,
+			EAPPayloadPresent:           request.EAPPayloadPresent,
+			BasicPasswordAuth:           request.BasicPasswordAuth,
+			IntermediateResultPresent:   request.IntermediateResultPresent,
+			IntermediateResultSuccess:   request.IntermediateResultSuccess,
+			FinalResultPresent:          request.FinalResultPresent,
+			FinalResultSuccess:          request.FinalResultSuccess,
+			StepCount:                   request.StepCount,
+		})
+		return EvaluationDecision{
+			Decision:       teapDecision.Decision,
+			Method:         teapDecision.Method,
+			InnerMethod:    teapDecision.InnerMethod,
+			Reason:         teapDecision.Reason,
+			PolicyMode:     teapDecision.PolicyMode,
+			IdentitySource: teapDecision.IdentitySource,
+			Warnings:       teapDecision.Warnings,
+			Dependencies:   teapDecision.Dependencies,
+		}
+	}
 	methodReport, found := methodReportByName(report.Methods, method)
 	if !found || !stringInSlice(method, policy.AllowedMethods) {
 		switch policy.UnsupportedMethodAction {
@@ -364,7 +418,7 @@ func MethodCatalog() []MethodCapability {
 		{Method: "peap", DisplayName: "PEAP", Kind: "tunnel", RFCs: []string{"RFC 3748", "PEAP"}, FreeRADIUSModule: "rlm_eap_peap", SoftwareStatus: "complete", GeneratedByFramework: true, PasswordBased: true, TunnelBased: true, InnerMethodCapable: true, Summary: "Protected EAP tunnel for password-based inner methods such as MSCHAPv2."},
 		{Method: "ttls", DisplayName: "EAP-TTLS", Kind: "tunnel", RFCs: []string{"RFC 3748", "RFC 5281"}, FreeRADIUSModule: "rlm_eap_ttls", SoftwareStatus: "complete", GeneratedByFramework: true, PasswordBased: true, TunnelBased: true, InnerMethodCapable: true, Summary: "TLS tunnel for PAP, CHAP, MSCHAPv2, GTC, or certificate-backed inner authentication."},
 		{Method: "tls", DisplayName: "EAP-TLS", Kind: "certificate", RFCs: []string{"RFC 3748", "RFC 5216", "RFC 9190"}, FreeRADIUSModule: "rlm_eap_tls", SoftwareStatus: "complete", GeneratedByFramework: true, CertificateBased: true, Summary: "Certificate-based EAP method using server and client certificate validation."},
-		{Method: "teap", DisplayName: "TEAP", Kind: "tunnel", RFCs: []string{"RFC 7170"}, FreeRADIUSModule: "rlm_eap_teap", SoftwareStatus: "planned", TunnelBased: true, InnerMethodCapable: true, RequiresFutureFeature: "NAS-0023", Summary: "Tunnel Extensible Authentication Protocol with cryptobinding and method chaining."},
+		{Method: "teap", DisplayName: "TEAP", Kind: "tunnel", RFCs: []string{"RFC 7170"}, FreeRADIUSModule: "rlm_eap_teap", SoftwareStatus: "complete", GeneratedByFramework: true, TunnelBased: true, InnerMethodCapable: true, MethodChainingCapable: true, Summary: "Tunnel Extensible Authentication Protocol with cryptobinding and machine/user method chaining."},
 		{Method: "fast", DisplayName: "EAP-FAST", Kind: "tunnel", RFCs: []string{"RFC 4851"}, FreeRADIUSModule: "rlm_eap_fast", SoftwareStatus: "planned", TunnelBased: true, InnerMethodCapable: true, RequiresFutureFeature: "NAS-0024", Summary: "Cisco-originated protected access credential method."},
 		{Method: "pwd", DisplayName: "EAP-PWD", Kind: "password", RFCs: []string{"RFC 5931"}, FreeRADIUSModule: "rlm_eap_pwd", SoftwareStatus: "planned", PasswordBased: true, RequiresFutureFeature: "NAS-0024", Summary: "Password-authenticated key exchange EAP method."},
 		{Method: "sim", DisplayName: "EAP-SIM", Kind: "mobile", RFCs: []string{"RFC 4186"}, FreeRADIUSModule: "rlm_eap_sim", SoftwareStatus: "planned", RequiresFutureFeature: "NAS-0025", Summary: "GSM SIM triplet based EAP method for carrier offload and roaming."},
@@ -385,6 +439,7 @@ func buildMethodReports(cfg *config.Config, policy PolicyReport, catalog []Metho
 			configured[normalizeMethod(item.Method)] = item
 		}
 	}
+	teapPolicy := BuildTEAPPolicyReport(cfg)
 	names := append([]string{}, policy.AllowedMethods...)
 	for _, capability := range catalog {
 		if !stringInSlice(capability.Method, names) {
@@ -426,6 +481,12 @@ func buildMethodReports(cfg *config.Config, policy PolicyReport, catalog []Metho
 				report.InnerMethods = normalizeInnerList(raw.InnerMethods)
 			}
 			report.AllowPasswordVerifier = true
+		case "teap":
+			report.InnerMethods = []string{teapPolicy.DefaultInnerMethod}
+			if isConfigured && len(raw.InnerMethods) > 0 {
+				report.InnerMethods = normalizeInnerList(raw.InnerMethods)
+			}
+			report.AllowPasswordVerifier = teapPolicy.AllowBasicPasswordAuth
 		}
 		if isConfigured {
 			report.Enabled = raw.Enabled && stringInSlice(name, policy.AllowedMethods)
@@ -452,6 +513,18 @@ func buildMethodReports(cfg *config.Config, policy PolicyReport, catalog []Metho
 			report.EffectiveStatus = "blocked"
 			report.GeneratedInFreeRADIUS = false
 			report.Dependencies = append(report.Dependencies, "unsupported EAP method catalog entry")
+		}
+		if name == "teap" {
+			report.GeneratedInFreeRADIUS = report.GeneratedInFreeRADIUS && teapPolicy.GeneratedInFreeRADIUS
+			report.Warnings = append(report.Warnings, teapPolicy.Warnings...)
+			report.Dependencies = append(report.Dependencies, teapPolicy.BlockingIssues...)
+			if report.Enabled && !teapPolicy.Enabled {
+				report.EffectiveStatus = "blocked"
+				report.Dependencies = append(report.Dependencies, "radius.eap.teap.enabled")
+			}
+			if report.Enabled && len(teapPolicy.BlockingIssues) > 0 {
+				report.EffectiveStatus = "blocked"
+			}
 		}
 		if report.Enabled && !report.GeneratedInFreeRADIUS {
 			report.EffectiveStatus = "blocked"
@@ -567,7 +640,7 @@ func methodReportByName(methods []MethodPolicyReport, name string) (MethodPolicy
 func configuresUnsupportedMethods(policy PolicyReport) bool {
 	for _, method := range policy.AllowedMethods {
 		switch method {
-		case "peap", "ttls", "tls":
+		case "peap", "ttls", "tls", "teap":
 		default:
 			return true
 		}

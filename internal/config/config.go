@@ -571,6 +571,7 @@ type RadiusEAPConfig struct {
 	CAPathReloadInterval int                 `mapstructure:"ca_path_reload_interval"`
 	OCSP                 RadiusEAPOCSPConfig `mapstructure:"ocsp"`
 	Framework            RadiusEAPFramework  `mapstructure:"framework"`
+	TEAP                 RadiusEAPTEAPConfig `mapstructure:"teap"`
 }
 
 type RadiusEAPOCSPConfig struct {
@@ -580,6 +581,27 @@ type RadiusEAPOCSPConfig struct {
 	UseNonce        bool   `mapstructure:"use_nonce"`
 	TimeoutSeconds  int    `mapstructure:"timeout_seconds"`
 	SoftFail        bool   `mapstructure:"soft_fail"`
+}
+
+type RadiusEAPTEAPConfig struct {
+	Enabled                bool   `mapstructure:"enabled"`
+	DefaultInnerMethod     string `mapstructure:"default_inner_method"`
+	ChainMode              string `mapstructure:"chain_mode"`
+	RequireCryptoBinding   bool   `mapstructure:"require_crypto_binding"`
+	RequireChannelBinding  bool   `mapstructure:"require_channel_binding"`
+	RequireIdentityType    bool   `mapstructure:"require_identity_type"`
+	RequireMachineIdentity bool   `mapstructure:"require_machine_identity"`
+	RequireUserIdentity    bool   `mapstructure:"require_user_identity"`
+	AllowPAC               bool   `mapstructure:"allow_pac"`
+	RequirePAC             bool   `mapstructure:"require_pac"`
+	PACProvisioning        string `mapstructure:"pac_provisioning"`
+	PACAuthorityID         string `mapstructure:"pac_authority_id"`
+	PACLifetimeSeconds     int    `mapstructure:"pac_lifetime_seconds"`
+	AllowEAPPayload        bool   `mapstructure:"allow_eap_payload"`
+	AllowBasicPasswordAuth bool   `mapstructure:"allow_basic_password_auth"`
+	MaxChainSteps          int    `mapstructure:"max_chain_steps"`
+	SessionTTLSeconds      int    `mapstructure:"session_ttl_seconds"`
+	EventRetentionLimit    int    `mapstructure:"event_retention_limit"`
 }
 
 type RadiusEAPFramework struct {
@@ -1389,6 +1411,24 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.eap.ocsp.use_nonce", true)
 	v.SetDefault("radius.eap.ocsp.timeout_seconds", 5)
 	v.SetDefault("radius.eap.ocsp.soft_fail", false)
+	v.SetDefault("radius.eap.teap.enabled", true)
+	v.SetDefault("radius.eap.teap.default_inner_method", "mschapv2")
+	v.SetDefault("radius.eap.teap.chain_mode", "machine_then_user")
+	v.SetDefault("radius.eap.teap.require_crypto_binding", true)
+	v.SetDefault("radius.eap.teap.require_channel_binding", false)
+	v.SetDefault("radius.eap.teap.require_identity_type", true)
+	v.SetDefault("radius.eap.teap.require_machine_identity", true)
+	v.SetDefault("radius.eap.teap.require_user_identity", true)
+	v.SetDefault("radius.eap.teap.allow_pac", true)
+	v.SetDefault("radius.eap.teap.require_pac", false)
+	v.SetDefault("radius.eap.teap.pac_provisioning", "authenticated")
+	v.SetDefault("radius.eap.teap.pac_authority_id", "aegisnas-teap")
+	v.SetDefault("radius.eap.teap.pac_lifetime_seconds", 2592000)
+	v.SetDefault("radius.eap.teap.allow_eap_payload", true)
+	v.SetDefault("radius.eap.teap.allow_basic_password_auth", false)
+	v.SetDefault("radius.eap.teap.max_chain_steps", 2)
+	v.SetDefault("radius.eap.teap.session_ttl_seconds", 900)
+	v.SetDefault("radius.eap.teap.event_retention_limit", 6000)
 	v.SetDefault("radius.eap.framework.enabled", true)
 	v.SetDefault("radius.eap.framework.mode", "monitor")
 	v.SetDefault("radius.eap.framework.fail_closed", true)
@@ -3882,9 +3922,7 @@ func (c *Config) Validate() error {
 		}
 		seenVendorDictionaryPaths[key] = struct{}{}
 	}
-	switch c.Radius.EAP.DefaultType {
-	case "", "peap", "ttls", "tls":
-	default:
+	if defaultEAPType := normalizeEAPMethod(c.Radius.EAP.DefaultType); defaultEAPType != "" && !validEAPMethod(defaultEAPType) {
 		return fmt.Errorf("radius.eap.default_type %q is invalid", c.Radius.EAP.DefaultType)
 	}
 	switch c.Radius.EAP.PEAPInner {
@@ -5967,6 +6005,9 @@ func unsupportedAVPairTemplateToken(value string) string {
 
 func validateRadiusEAPFramework(eap RadiusEAPConfig) error {
 	framework := eap.Framework
+	if err := validateRadiusEAPTEAP(eap, framework); err != nil {
+		return err
+	}
 	if !framework.Enabled && !radiusEAPFrameworkConfigured(framework) {
 		return nil
 	}
@@ -6167,6 +6208,128 @@ func validateRadiusEAPFramework(eap RadiusEAPConfig) error {
 	return nil
 }
 
+func validateRadiusEAPTEAP(eap RadiusEAPConfig, framework RadiusEAPFramework) error {
+	teap := eap.TEAP
+	if !teap.Enabled && !radiusEAPTEAPConfigured(teap) {
+		return nil
+	}
+	defaultInner := normalizeEAPInnerMethod(teap.DefaultInnerMethod)
+	if defaultInner == "" {
+		defaultInner = "mschapv2"
+	}
+	if !validEAPInnerMethod(defaultInner) {
+		return fmt.Errorf("radius.eap.teap.default_inner_method %q is invalid", teap.DefaultInnerMethod)
+	}
+	rawAllowedInner := framework.AllowedInnerMethods
+	if len(rawAllowedInner) == 0 {
+		rawAllowedInner = []string{"mschapv2", "pap", "chap", "gtc", "tls"}
+	}
+	allowedInner, err := validateEAPInnerMethodList("radius.eap.framework.allowed_inner_methods", rawAllowedInner, true)
+	if err != nil {
+		return err
+	}
+	if framework.Enabled {
+		if _, ok := allowedInner[defaultInner]; !ok {
+			return fmt.Errorf("radius.eap.teap.default_inner_method %q is not in radius.eap.framework.allowed_inner_methods", teap.DefaultInnerMethod)
+		}
+	}
+	chainMode := strings.ToLower(strings.TrimSpace(teap.ChainMode))
+	if chainMode == "" {
+		chainMode = "machine_then_user"
+	}
+	switch chainMode {
+	case "user_only", "machine_only", "machine_then_user", "either":
+	default:
+		return fmt.Errorf("radius.eap.teap.chain_mode %q must be user_only, machine_only, machine_then_user, or either", teap.ChainMode)
+	}
+	provisioning := strings.ToLower(strings.TrimSpace(teap.PACProvisioning))
+	if provisioning == "" {
+		provisioning = "authenticated"
+	}
+	switch provisioning {
+	case "disabled", "authenticated", "optional":
+	default:
+		return fmt.Errorf("radius.eap.teap.pac_provisioning %q must be disabled, authenticated, or optional", teap.PACProvisioning)
+	}
+	if teap.RequirePAC && !teap.AllowPAC {
+		return fmt.Errorf("radius.eap.teap.require_pac requires radius.eap.teap.allow_pac")
+	}
+	if teap.PACLifetimeSeconds < 0 || teap.PACLifetimeSeconds > 31536000 {
+		return fmt.Errorf("radius.eap.teap.pac_lifetime_seconds must be between 0 and 31536000")
+	}
+	if teap.MaxChainSteps < 0 || teap.MaxChainSteps > 8 {
+		return fmt.Errorf("radius.eap.teap.max_chain_steps must be between 1 and 8 when set")
+	}
+	if teap.MaxChainSteps > 0 && teap.MaxChainSteps < 1 {
+		return fmt.Errorf("radius.eap.teap.max_chain_steps must be between 1 and 8 when set")
+	}
+	maxSteps := teap.MaxChainSteps
+	if maxSteps == 0 {
+		maxSteps = 2
+	}
+	if chainMode == "machine_then_user" && maxSteps < 2 {
+		return fmt.Errorf("radius.eap.teap.max_chain_steps must be at least 2 for machine_then_user")
+	}
+	if teap.SessionTTLSeconds < 0 || teap.SessionTTLSeconds > 86400 {
+		return fmt.Errorf("radius.eap.teap.session_ttl_seconds must be between 60 and 86400 when set")
+	}
+	if teap.SessionTTLSeconds > 0 && teap.SessionTTLSeconds < 60 {
+		return fmt.Errorf("radius.eap.teap.session_ttl_seconds must be between 60 and 86400 when set")
+	}
+	if teap.EventRetentionLimit < 0 || teap.EventRetentionLimit > 1000000 {
+		return fmt.Errorf("radius.eap.teap.event_retention_limit must be between 1 and 1000000 when set")
+	}
+	if !validEAPAuthorityID(teap.PACAuthorityID) {
+		return fmt.Errorf("radius.eap.teap.pac_authority_id is invalid")
+	}
+
+	rawAllowedMethods := framework.AllowedMethods
+	if len(rawAllowedMethods) == 0 {
+		rawAllowedMethods = []string{"peap", "ttls", "tls"}
+	}
+	allowedMethods, err := validateEAPMethodList("radius.eap.framework.allowed_methods", rawAllowedMethods, false)
+	if err != nil {
+		return err
+	}
+	_, teapAllowed := allowedMethods["teap"]
+	if teap.Enabled && framework.Enabled && teapAllowed {
+		if !framework.RequireMessageAuthenticator {
+			return fmt.Errorf("radius.eap.teap requires radius.eap.framework.require_message_authenticator when teap is allowed")
+		}
+		if !framework.RequireIdentityBinding {
+			return fmt.Errorf("radius.eap.teap requires radius.eap.framework.require_identity_binding when teap is allowed")
+		}
+		mode := strings.ToLower(strings.TrimSpace(framework.Mode))
+		if mode == "" {
+			mode = "monitor"
+		}
+		if mode == "enforce" && framework.FailClosed && !teap.RequireCryptoBinding {
+			return fmt.Errorf("radius.eap.teap.require_crypto_binding must be true in enforce fail-closed mode")
+		}
+	}
+	return nil
+}
+
+func radiusEAPTEAPConfigured(teap RadiusEAPTEAPConfig) bool {
+	return strings.TrimSpace(teap.DefaultInnerMethod) != "" ||
+		strings.TrimSpace(teap.ChainMode) != "" ||
+		teap.RequireCryptoBinding ||
+		teap.RequireChannelBinding ||
+		teap.RequireIdentityType ||
+		teap.RequireMachineIdentity ||
+		teap.RequireUserIdentity ||
+		teap.AllowPAC ||
+		teap.RequirePAC ||
+		strings.TrimSpace(teap.PACProvisioning) != "" ||
+		strings.TrimSpace(teap.PACAuthorityID) != "" ||
+		teap.PACLifetimeSeconds != 0 ||
+		teap.AllowEAPPayload ||
+		teap.AllowBasicPasswordAuth ||
+		teap.MaxChainSteps != 0 ||
+		teap.SessionTTLSeconds != 0 ||
+		teap.EventRetentionLimit != 0
+}
+
 func radiusEAPFrameworkConfigured(framework RadiusEAPFramework) bool {
 	return strings.TrimSpace(framework.Mode) != "" ||
 		framework.FailClosed ||
@@ -6325,6 +6488,22 @@ func validEAPPolicyToken(value string) bool {
 		case '-', '_', '.', ':':
 			continue
 		default:
+			return false
+		}
+	}
+	return true
+}
+
+func validEAPAuthorityID(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return true
+	}
+	if len(value) > 128 {
+		return false
+	}
+	for _, r := range value {
+		if r < 0x21 || r > 0x7e {
 			return false
 		}
 	}

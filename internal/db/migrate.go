@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 27
+	return 28
 }
 
 func Migrate() error {
@@ -1151,4 +1151,47 @@ CREATE INDEX IF NOT EXISTS idx_eap_method_events_method ON eap_method_events(met
 CREATE INDEX IF NOT EXISTS idx_eap_method_events_decision ON eap_method_events(decision, observed_at);
 CREATE INDEX IF NOT EXISTS idx_eap_method_events_nas ON eap_method_events(nas_identifier, nas_type, observed_at);
 CREATE INDEX IF NOT EXISTS idx_eap_method_events_user ON eap_method_events(user_name_hash, observed_at);
+`
+
+const schemaV28 = `
+CREATE TABLE IF NOT EXISTS eap_teap_chain_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	decision TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	chain_mode TEXT NOT NULL,
+	chain_state TEXT NOT NULL,
+	nas_identifier TEXT,
+	nas_type TEXT,
+	outer_identity_hash TEXT,
+	user_identity_hash TEXT,
+	machine_identity_hash TEXT,
+	identity_source TEXT,
+	inner_method TEXT,
+	crypto_binding_valid BOOLEAN DEFAULT 0,
+	channel_binding_present BOOLEAN DEFAULT 0,
+	channel_binding_valid BOOLEAN DEFAULT 0,
+	identity_type_present BOOLEAN DEFAULT 0,
+	pac_presented BOOLEAN DEFAULT 0,
+	pac_provisioning_requested BOOLEAN DEFAULT 0,
+	eap_payload_present BOOLEAN DEFAULT 0,
+	basic_password_auth BOOLEAN DEFAULT 0,
+	intermediate_result_present BOOLEAN DEFAULT 0,
+	intermediate_result_success BOOLEAN DEFAULT 0,
+	final_result_present BOOLEAN DEFAULT 0,
+	final_result_success BOOLEAN DEFAULT 0,
+	step_count INTEGER DEFAULT 0,
+	tls_version TEXT,
+	policy_mode TEXT,
+	latency_ms INTEGER DEFAULT 0,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_eap_teap_chain_events_observed_at ON eap_teap_chain_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_teap_chain_events_decision ON eap_teap_chain_events(decision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_teap_chain_events_chain_mode ON eap_teap_chain_events(chain_mode, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_teap_chain_events_nas ON eap_teap_chain_events(nas_identifier, nas_type, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_teap_chain_events_user ON eap_teap_chain_events(user_identity_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_eap_teap_chain_events_machine ON eap_teap_chain_events(machine_identity_hash, observed_at);
 `

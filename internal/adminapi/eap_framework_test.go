@@ -61,6 +61,61 @@ func TestHandleGetAndEvaluateEAPFramework(t *testing.T) {
 	assert.NotContains(t, payload.Events[0].UserNameHash, "alice")
 }
 
+func TestHandleGetAndEvaluateTEAPFramework(t *testing.T) {
+	prepareEAPFrameworkAPIConfig(t)
+
+	body := bytes.NewBufferString(`{
+		"inner_method":"mschapv2",
+		"nas_type":"cisco",
+		"nas_identifier":"ap-1",
+		"outer_identity":"anonymous@example.com",
+		"user_identity":"alice@example.com",
+		"machine_identity":"host/laptop.example.com",
+		"eap_message_present":true,
+		"message_authenticator_present":true,
+		"tls_version":"1.3",
+		"crypto_binding_valid":true,
+		"identity_type_presented":true,
+		"eap_payload_present":true,
+		"intermediate_result_present":true,
+		"intermediate_result_success":true,
+		"final_result_present":true,
+		"final_result_success":true,
+		"step_count":2,
+		"audit":true
+	}`)
+	evalRec := httptest.NewRecorder()
+	HandleEvaluateTEAPChain(evalRec, httptest.NewRequest(http.MethodPost, "/api/v1/system/eap-framework/teap/evaluate", body))
+	require.Equal(t, http.StatusOK, evalRec.Code)
+	assert.Contains(t, evalRec.Body.String(), `"decision":"accepted"`)
+	assert.Contains(t, evalRec.Body.String(), `"chain_state":"complete"`)
+	assert.Contains(t, evalRec.Body.String(), `"audited":true`)
+
+	rec := httptest.NewRecorder()
+	HandleGetTEAPFramework(rec, httptest.NewRequest(http.MethodGet, "/api/v1/system/eap-framework/teap?limit=10", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	var payload struct {
+		Status string `json:"status"`
+		Policy struct {
+			Generated bool   `json:"generated_in_freeradius"`
+			ChainMode string `json:"chain_mode"`
+		} `json:"policy"`
+		Runtime struct {
+			TotalEvents int `json:"total_events"`
+			Accepted    int `json:"accepted"`
+		} `json:"runtime"`
+		Events []db.TEAPChainEvent `json:"events"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	assert.Equal(t, "ready", payload.Status)
+	assert.True(t, payload.Policy.Generated)
+	assert.Equal(t, "machine_then_user", payload.Policy.ChainMode)
+	assert.Equal(t, 1, payload.Runtime.TotalEvents)
+	assert.Equal(t, 1, payload.Runtime.Accepted)
+	require.Len(t, payload.Events, 1)
+	assert.NotContains(t, payload.Events[0].UserIdentityHash, "alice")
+}
+
 func TestProductionReadinessIncludesEAPFrameworkCheck(t *testing.T) {
 	cfg := prepareEAPFrameworkAPIConfig(t)
 	report := buildProductionReadinessReport(cfg)
@@ -75,20 +130,42 @@ func TestProductionReadinessIncludesEAPFrameworkCheck(t *testing.T) {
 	assert.True(t, found)
 }
 
+func TestProductionReadinessIncludesTEAPCheck(t *testing.T) {
+	cfg := prepareEAPFrameworkAPIConfig(t)
+	report := buildProductionReadinessReport(cfg)
+	var found bool
+	for _, check := range report.Checks {
+		if check.Key == "teap_method_chaining" {
+			found = true
+			assert.Equal(t, "passed", check.Status)
+			assert.Contains(t, check.Dependencies, "/api/v1/system/eap-framework/teap")
+		}
+	}
+	assert.True(t, found)
+}
+
 func TestOpenAPIAndSupportBundleIncludeEAPFramework(t *testing.T) {
 	spec := buildOpenAPISpec(httptest.NewRequest(http.MethodGet, "/api/v1/openapi.json", nil), nil)
 	paths := spec["paths"].(map[string]any)
 	assert.Contains(t, paths, "/api/v1/system/eap-framework")
 	assert.Contains(t, paths, "/api/v1/system/eap-framework/evaluate")
+	assert.Contains(t, paths, "/api/v1/system/eap-framework/teap")
+	assert.Contains(t, paths, "/api/v1/system/eap-framework/teap/evaluate")
 
-	var found bool
+	var foundFramework bool
+	var foundTEAP bool
 	for _, capture := range supportBundleAPICaptures() {
 		if capture.archivePath == "api/eap-framework.json" {
-			found = true
+			foundFramework = true
 			assert.Equal(t, "/api/v1/system/eap-framework", capture.requestPath)
 		}
+		if capture.archivePath == "api/eap-framework-teap.json" {
+			foundTEAP = true
+			assert.Equal(t, "/api/v1/system/eap-framework/teap", capture.requestPath)
+		}
 	}
-	assert.True(t, found)
+	assert.True(t, foundFramework)
+	assert.True(t, foundTEAP)
 }
 
 func TestAuthorizeEAPFramework(t *testing.T) {
@@ -96,6 +173,9 @@ func TestAuthorizeEAPFramework(t *testing.T) {
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/eap-framework/evaluate"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/eap-framework/evaluate"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleSuperAdmin}, "POST", "/api/v1/system/eap-framework/evaluate"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/eap-framework/teap"))
+	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/eap-framework/teap/evaluate"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/eap-framework/teap/evaluate"))
 }
 
 func prepareEAPFrameworkAPIConfig(t *testing.T) *config.Config {
@@ -141,11 +221,30 @@ radius:
     ttls_inner: pap
     tls_min_version: "1.2"
     tls_max_version: "1.3"
+    teap:
+      enabled: true
+      default_inner_method: mschapv2
+      chain_mode: machine_then_user
+      require_crypto_binding: true
+      require_channel_binding: false
+      require_identity_type: true
+      require_machine_identity: true
+      require_user_identity: true
+      allow_pac: true
+      require_pac: false
+      pac_provisioning: authenticated
+      pac_authority_id: aegisnas-teap
+      pac_lifetime_seconds: 2592000
+      allow_eap_payload: true
+      allow_basic_password_auth: false
+      max_chain_steps: 2
+      session_ttl_seconds: 900
+      event_retention_limit: 6000
     framework:
       enabled: true
       mode: enforce
       fail_closed: true
-      allowed_methods: [peap, ttls, tls]
+      allowed_methods: [peap, ttls, tls, teap]
       allowed_inner_methods: [mschapv2, pap, chap, gtc, tls]
       default_outer_identity_source: configured-default
       default_inner_identity_source: identity-failover
@@ -160,7 +259,7 @@ radius:
         - name: identity-failover
           source: identity_failover
           enabled: true
-          methods: [peap, ttls]
+          methods: [peap, ttls, teap]
           allow_password_verifier: true
           priority: 10
         - name: certificate-subject
@@ -188,6 +287,13 @@ radius:
           enabled: true
           identity_source: certificate-subject
           require_certificate: true
+          allow_password_verifier: false
+          min_tls_version: "1.2"
+          max_tls_version: "1.3"
+        - method: teap
+          enabled: true
+          inner_methods: [mschapv2, gtc, tls]
+          identity_source: identity-failover
           allow_password_verifier: false
           min_tls_version: "1.2"
           max_tls_version: "1.3"

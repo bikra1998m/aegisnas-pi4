@@ -165,11 +165,30 @@ radius:
       use_nonce: true
       timeout_seconds: 5
       soft_fail: false # Keep false for strict production revocation enforcement.
+    teap:
+      enabled: true # Add "teap" to framework.allowed_methods only after TEAP supplicant smoke tests.
+      default_inner_method: mschapv2
+      chain_mode: machine_then_user # user_only, machine_only, machine_then_user, or either.
+      require_crypto_binding: true
+      require_channel_binding: false
+      require_identity_type: true
+      require_machine_identity: true
+      require_user_identity: true
+      allow_pac: true
+      require_pac: false
+      pac_provisioning: authenticated # disabled, authenticated, or optional.
+      pac_authority_id: "aegisnas-teap"
+      pac_lifetime_seconds: 2592000
+      allow_eap_payload: true
+      allow_basic_password_auth: false
+      max_chain_steps: 2
+      session_ttl_seconds: 900
+      event_retention_limit: 6000
     framework:
       enabled: true
       mode: "monitor" # Use enforce with fail_closed=true after supplicant/AP smoke tests.
       fail_closed: true
-      allowed_methods: ["peap", "ttls", "tls"]
+      allowed_methods: ["peap", "ttls", "tls"] # Add "teap" to generate RFC 7170 TEAP.
       allowed_inner_methods: ["mschapv2", "pap", "chap", "gtc", "tls"]
       default_outer_identity_source: "configured-default"
       default_inner_identity_source: "identity-failover"
