@@ -156,7 +156,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{29, schemaV29},
 		{30, schemaV30},
 		{31, schemaV31},
-		{LatestSchemaVersion(), schemaV32},
+		{32, schemaV32},
+		{LatestSchemaVersion(), schemaV33},
 	}
 
 	for _, m := range migrations {
@@ -222,8 +223,20 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureCertificateLifecycleTables(handle); err != nil {
 		return fmt.Errorf("repair certificate lifecycle schema: %w", err)
 	}
+	if err := ensureSupplicantLifecycleTables(handle); err != nil {
+		return fmt.Errorf("repair supplicant lifecycle schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureSupplicantLifecycleTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	_, err := handle.Exec(SQLForDialect(schemaV33, dialect))
+	return err
 }
 
 func ensureCertificateLifecycleTables(handle *sql.DB) error {

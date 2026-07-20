@@ -354,6 +354,9 @@ func DiscoverConfigSources(cfg *config.Config) []Source {
 		appendEnv("ailite.api_key_env", "config", cfg.AILite.APIKeyEnv, true)
 	}
 	appendEnv("onboarding.ca_enrollment_token_env", "config", cfg.Onboarding.CAEnrollmentTokenEnv, strings.EqualFold(strings.TrimSpace(cfg.Onboarding.CAMode), "external"))
+	if strings.TrimSpace(cfg.Onboarding.SupplicantLifecycle.ProfileSigningKeyRef) != "" {
+		sources = append(sources, Source{Field: "onboarding.supplicant_lifecycle.profile_signing_key_ref", Scope: "config", Ref: strings.TrimSpace(cfg.Onboarding.SupplicantLifecycle.ProfileSigningKeyRef), Required: cfg.Onboarding.SupplicantLifecycle.RequireSignedProfiles})
+	}
 	appendEnv("profiling.mdm_api_token_env", "config", cfg.Profiling.MDMAPITokenEnv, cfg.Profiling.MDMSyncEnabled)
 	appendEnv("profiling.compliance_token_env", "config", cfg.Profiling.ComplianceTokenEnv, strings.TrimSpace(cfg.Profiling.ComplianceWebhook) != "")
 	appendEnv("integrations.admin_sso.client_secret_env", "config", cfg.Integrations.AdminSSO.ClientSecretEnv, cfg.Integrations.AdminSSO.Enabled)

@@ -165,6 +165,12 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
 	case strings.HasPrefix(path, "/api/v1/system/certificate-lifecycle"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/supplicant-lifecycle/evaluate"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/supplicant-lifecycle/profile"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/supplicant-lifecycle"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/nas-clients"):
 		if readonly {
 			return true

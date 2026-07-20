@@ -38,6 +38,16 @@
                 Device inventory is enabled. Registering this device records it for profiling and posture checks.
                 {{end}}
             </div>
+            {{if .SupplicantLifecycleEnabled}}
+            <div class="helper">
+                Download a signed Wi-Fi profile:
+                <a href="/onboarding/profile/windows?client_mac={{.ClientMAC}}">Windows</a>
+                <a href="/onboarding/profile/macos?client_mac={{.ClientMAC}}">macOS</a>
+                <a href="/onboarding/profile/ios?client_mac={{.ClientMAC}}">iOS</a>
+                <a href="/onboarding/profile/android?client_mac={{.ClientMAC}}">Android</a>
+                <a href="/onboarding/profile/linux?client_mac={{.ClientMAC}}">Linux</a>
+            </div>
+            {{end}}
             <div class="links">
                 <a href="/success?client_mac={{.ClientMAC}}">Back to connection status</a>
             </div>

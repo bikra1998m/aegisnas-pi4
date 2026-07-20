@@ -254,6 +254,50 @@ const certificateLifecycleDefaults: JsonMap = {
   inventory_retention_limit: 100000,
 };
 
+const supplicantLifecycleDefaults: JsonMap = {
+  enabled: false,
+  mode: "monitor",
+  fail_closed: true,
+  ssid: "AegisNAS-Enterprise",
+  security: "wpa2-enterprise",
+  default_platform: "windows",
+  allowed_platforms: ["windows", "macos", "ios", "android", "linux"],
+  default_eap_method: "tls",
+  allowed_eap_methods: ["tls", "peap", "ttls"],
+  default_inner_method: "mschapv2",
+  allowed_inner_methods: ["mschapv2", "pap", "gtc", "tls"],
+  anonymous_identity: "anonymous@aegisnas.local",
+  require_anonymous_identity: true,
+  domain_suffix: "",
+  server_names: [],
+  trust_anchor_pins: [],
+  require_trust_anchor_pinning: true,
+  allow_password_change: true,
+  password_change_url: "",
+  password_change_providers: ["local", "active-directory", "identity-failover"],
+  require_verifier_compatibility: true,
+  compatible_verifiers: [
+    "local",
+    "ldap",
+    "active-directory",
+    "identity-failover",
+    "winbind",
+  ],
+  max_password_age_days: 90,
+  expiry_warning_days: 14,
+  grace_period_days: 7,
+  min_password_length: 12,
+  require_mfa_for_change: true,
+  require_tls_for_delivery: true,
+  require_signed_profiles: true,
+  profile_signing_key_ref: "",
+  profile_validity_days: 365,
+  delivery_token_ttl_seconds: 900,
+  audit_enabled: true,
+  event_retention_limit: 6000,
+  profile_retention_limit: 100000,
+};
+
 const defaultSettings: JsonMap = {
   mode: "two-nic",
   admin_port: 8083,
@@ -476,6 +520,7 @@ const defaultSettings: JsonMap = {
     ca_enrollment_url: "",
     ca_enrollment_token_env: "",
     certificate_lifecycle: { ...certificateLifecycleDefaults },
+    supplicant_lifecycle: { ...supplicantLifecycleDefaults },
   },
   profiling: {
     mac_inventory_enabled: false,
@@ -1133,6 +1178,19 @@ const certificateEscrowOptions: Option[] = [
   { value: "allow", label: "Allow" },
 ];
 
+const supplicantSecurityOptions: Option[] = [
+  { value: "wpa2-enterprise", label: "WPA2 Enterprise" },
+  { value: "wpa3-enterprise", label: "WPA3 Enterprise" },
+];
+
+const supplicantPlatformOptions: Option[] = [
+  { value: "windows", label: "Windows" },
+  { value: "macos", label: "macOS" },
+  { value: "ios", label: "iOS" },
+  { value: "android", label: "Android" },
+  { value: "linux", label: "Linux" },
+];
+
 const adminSSOProviderOptions: Option[] = [
   { value: "", label: "Select provider" },
   { value: "oidc", label: "OIDC" },
@@ -1328,6 +1386,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     ...certificateLifecycleDefaults,
     ...(next.onboarding.certificate_lifecycle || {}),
   };
+  next.onboarding.supplicant_lifecycle = {
+    ...supplicantLifecycleDefaults,
+    ...(next.onboarding.supplicant_lifecycle || {}),
+  };
   next.profiling = next.profiling || {};
   next.integrations = next.integrations || {};
   next.integrations.admin_sso = next.integrations.admin_sso || {};
@@ -1400,6 +1462,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.onboarding.certificate_lifecycle.mode = "monitor";
     next.onboarding.certificate_lifecycle.event_retention_limit = 1000;
     next.onboarding.certificate_lifecycle.inventory_retention_limit = 10000;
+    next.onboarding.supplicant_lifecycle.enabled = false;
+    next.onboarding.supplicant_lifecycle.mode = "monitor";
+    next.onboarding.supplicant_lifecycle.event_retention_limit = 1000;
+    next.onboarding.supplicant_lifecycle.profile_retention_limit = 10000;
     next.admin_webauthn.enabled = false;
     next.mab.enabled = false;
     next.profiling.passive_enabled = false;
@@ -1460,6 +1526,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.onboarding.certificate_lifecycle.event_retention_limit || 12000;
     next.onboarding.certificate_lifecycle.inventory_retention_limit =
       next.onboarding.certificate_lifecycle.inventory_retention_limit || 500000;
+    next.onboarding.supplicant_lifecycle.event_retention_limit =
+      next.onboarding.supplicant_lifecycle.event_retention_limit || 12000;
+    next.onboarding.supplicant_lifecycle.profile_retention_limit =
+      next.onboarding.supplicant_lifecycle.profile_retention_limit || 500000;
     next.profiling.poll_interval_seconds =
       next.profiling.poll_interval_seconds || 300;
     next.profiling.retention_hours = next.profiling.retention_hours || 24;
@@ -1517,6 +1587,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.onboarding.certificate_lifecycle.event_retention_limit || 6000;
     next.onboarding.certificate_lifecycle.inventory_retention_limit =
       next.onboarding.certificate_lifecycle.inventory_retention_limit || 100000;
+    next.onboarding.supplicant_lifecycle.event_retention_limit =
+      next.onboarding.supplicant_lifecycle.event_retention_limit || 6000;
+    next.onboarding.supplicant_lifecycle.profile_retention_limit =
+      next.onboarding.supplicant_lifecycle.profile_retention_limit || 100000;
   }
 
   if (form === "virtual") {
@@ -4845,6 +4919,570 @@ export default function AccessSettings() {
               value={settings.mab?.retention_limit || 6000}
               onChange={(value) =>
                 updateField(["mab", "retention_limit"], Number(value))
+              }
+            />
+          </div>
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-4">
+            <h4 className="font-semibold text-gray-900">
+              Password And Supplicant Lifecycle
+            </h4>
+            <p className="mt-1 text-sm text-gray-600">
+              Deliver signed 802.1X profiles and require password-change,
+              verifier, trust-anchor, TLS, and MFA evidence before rollout.
+            </p>
+          </div>
+          <div className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Supplicant Lifecycle Enabled"
+              checked={Boolean(
+                settings.onboarding?.supplicant_lifecycle?.enabled,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={Boolean(
+                settings.onboarding?.supplicant_lifecycle?.fail_closed ?? true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "fail_closed"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Audit Events"
+              checked={Boolean(
+                settings.onboarding?.supplicant_lifecycle?.audit_enabled ??
+                  true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "audit_enabled"],
+                  value,
+                )
+              }
+            />
+            <SelectField
+              label="Lifecycle Mode"
+              value={
+                settings.onboarding?.supplicant_lifecycle?.mode || "monitor"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "mode"],
+                  value,
+                )
+              }
+              options={certificateLifecycleModeOptions}
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <TextField
+              label="Enterprise SSID"
+              value={
+                settings.onboarding?.supplicant_lifecycle?.ssid ||
+                "AegisNAS-Enterprise"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "ssid"],
+                  value,
+                )
+              }
+            />
+            <SelectField
+              label="Security"
+              value={
+                settings.onboarding?.supplicant_lifecycle?.security ||
+                "wpa2-enterprise"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "security"],
+                  value,
+                )
+              }
+              options={supplicantSecurityOptions}
+            />
+            <SelectField
+              label="Default Platform"
+              value={
+                settings.onboarding?.supplicant_lifecycle?.default_platform ||
+                "windows"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "default_platform"],
+                  value,
+                )
+              }
+              options={supplicantPlatformOptions}
+            />
+            <TextField
+              label="Allowed Platforms"
+              value={listToCSV(
+                settings.onboarding?.supplicant_lifecycle?.allowed_platforms ||
+                  supplicantLifecycleDefaults.allowed_platforms,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "allowed_platforms"],
+                  csvToList(value),
+                )
+              }
+              placeholder="windows, macos, ios, android, linux"
+            />
+            <TextField
+              label="Allowed EAP Methods"
+              value={listToCSV(
+                settings.onboarding?.supplicant_lifecycle
+                  ?.allowed_eap_methods ||
+                  supplicantLifecycleDefaults.allowed_eap_methods,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "allowed_eap_methods"],
+                  csvToList(value),
+                )
+              }
+              placeholder="tls, peap, ttls"
+            />
+            <TextField
+              label="Default EAP Method"
+              value={
+                settings.onboarding?.supplicant_lifecycle
+                  ?.default_eap_method || "tls"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "default_eap_method"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Allowed Inner Methods"
+              value={listToCSV(
+                settings.onboarding?.supplicant_lifecycle
+                  ?.allowed_inner_methods ||
+                  supplicantLifecycleDefaults.allowed_inner_methods,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "allowed_inner_methods",
+                  ],
+                  csvToList(value),
+                )
+              }
+              placeholder="mschapv2, pap, gtc, tls"
+            />
+            <TextField
+              label="Default Inner Method"
+              value={
+                settings.onboarding?.supplicant_lifecycle
+                  ?.default_inner_method || "mschapv2"
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "default_inner_method",
+                  ],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Anonymous Identity"
+              value={
+                settings.onboarding?.supplicant_lifecycle
+                  ?.anonymous_identity || "anonymous@aegisnas.local"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "anonymous_identity"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Domain Suffix Match"
+              value={
+                settings.onboarding?.supplicant_lifecycle?.domain_suffix || ""
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "domain_suffix"],
+                  value,
+                )
+              }
+              placeholder="example.com"
+            />
+            <TextField
+              label="Server Names"
+              value={listToCSV(
+                settings.onboarding?.supplicant_lifecycle?.server_names || [],
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "server_names"],
+                  csvToList(value),
+                )
+              }
+              placeholder="radius.example.com"
+            />
+            <TextField
+              label="Trust Anchor Pins"
+              value={listToCSV(
+                settings.onboarding?.supplicant_lifecycle
+                  ?.trust_anchor_pins || [],
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "trust_anchor_pins"],
+                  csvToList(value),
+                )
+              }
+              placeholder="sha256:..."
+            />
+            <TextField
+              label="Password Change URL"
+              value={
+                settings.onboarding?.supplicant_lifecycle
+                  ?.password_change_url || ""
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "password_change_url"],
+                  value,
+                )
+              }
+              placeholder="https://portal.example.com/password"
+            />
+            <TextField
+              label="Password Change Providers"
+              value={listToCSV(
+                settings.onboarding?.supplicant_lifecycle
+                  ?.password_change_providers ||
+                  supplicantLifecycleDefaults.password_change_providers,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "password_change_providers",
+                  ],
+                  csvToList(value),
+                )
+              }
+              placeholder="local, active-directory, identity-failover"
+            />
+            <TextField
+              label="Compatible Verifiers"
+              value={listToCSV(
+                settings.onboarding?.supplicant_lifecycle
+                  ?.compatible_verifiers ||
+                  supplicantLifecycleDefaults.compatible_verifiers,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "compatible_verifiers",
+                  ],
+                  csvToList(value),
+                )
+              }
+              placeholder="local, ldap, active-directory, winbind"
+            />
+            <TextField
+              label="Profile Signing Key Ref"
+              value={
+                settings.onboarding?.supplicant_lifecycle
+                  ?.profile_signing_key_ref || ""
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "profile_signing_key_ref",
+                  ],
+                  value,
+                )
+              }
+              placeholder="env:AEGIS_SUPPLICANT_PROFILE_SIGNING_KEY"
+            />
+            <TextField
+              label="Max Password Age Days"
+              type="number"
+              value={
+                settings.onboarding?.supplicant_lifecycle
+                  ?.max_password_age_days ?? 90
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "max_password_age_days",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Expiry Warning Days"
+              type="number"
+              value={
+                settings.onboarding?.supplicant_lifecycle
+                  ?.expiry_warning_days ?? 14
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "expiry_warning_days",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Grace Period Days"
+              type="number"
+              value={
+                settings.onboarding?.supplicant_lifecycle
+                  ?.grace_period_days ?? 7
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "grace_period_days"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Min Password Length"
+              type="number"
+              value={
+                settings.onboarding?.supplicant_lifecycle
+                  ?.min_password_length ?? 12
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "supplicant_lifecycle", "min_password_length"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Profile Validity Days"
+              type="number"
+              value={
+                settings.onboarding?.supplicant_lifecycle
+                  ?.profile_validity_days ?? 365
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "profile_validity_days",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Delivery Token TTL Seconds"
+              type="number"
+              value={
+                settings.onboarding?.supplicant_lifecycle
+                  ?.delivery_token_ttl_seconds ?? 900
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "delivery_token_ttl_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Event Retention Limit"
+              type="number"
+              value={
+                settings.onboarding?.supplicant_lifecycle
+                  ?.event_retention_limit ?? 6000
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "event_retention_limit",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Profile Retention Limit"
+              type="number"
+              value={
+                settings.onboarding?.supplicant_lifecycle
+                  ?.profile_retention_limit ?? 100000
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "profile_retention_limit",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Require Anonymous Identity"
+              checked={Boolean(
+                settings.onboarding?.supplicant_lifecycle
+                  ?.require_anonymous_identity ?? true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "require_anonymous_identity",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Trust Pinning"
+              checked={Boolean(
+                settings.onboarding?.supplicant_lifecycle
+                  ?.require_trust_anchor_pinning ?? true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "require_trust_anchor_pinning",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Allow Password Change"
+              checked={Boolean(
+                settings.onboarding?.supplicant_lifecycle
+                  ?.allow_password_change ?? true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "allow_password_change",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Verifier Compatibility"
+              checked={Boolean(
+                settings.onboarding?.supplicant_lifecycle
+                  ?.require_verifier_compatibility ?? true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "require_verifier_compatibility",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require MFA For Change"
+              checked={Boolean(
+                settings.onboarding?.supplicant_lifecycle
+                  ?.require_mfa_for_change ?? true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "require_mfa_for_change",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require TLS Delivery"
+              checked={Boolean(
+                settings.onboarding?.supplicant_lifecycle
+                  ?.require_tls_for_delivery ?? true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "require_tls_for_delivery",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Signed Profiles"
+              checked={Boolean(
+                settings.onboarding?.supplicant_lifecycle
+                  ?.require_signed_profiles ?? true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "supplicant_lifecycle",
+                    "require_signed_profiles",
+                  ],
+                  value,
+                )
               }
             />
           </div>

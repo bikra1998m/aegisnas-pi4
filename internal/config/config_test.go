@@ -2077,6 +2077,143 @@ func TestConfigValidationCertificateLifecycle(t *testing.T) {
 	assert.ErrorContains(t, badProtocol.Validate(), "requires at least one enrollment entry point")
 }
 
+func TestConfigValidationSupplicantLifecycle(t *testing.T) {
+	base := func() *Config {
+		pin := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+		return &Config{
+			Mode:     "two-nic",
+			WAN:      InterfaceConfig{Name: "eth0"},
+			LAN:      InterfaceConfig{Name: "eth1"},
+			Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+			Health:   HealthConfig{Port: 8080},
+			Telemetry: TelemetryConfig{
+				Enabled:        true,
+				PrometheusPort: 9090,
+			},
+			Portal:     PortalConfig{Enabled: true, LocalFallback: true, Branding: "AegisNAS Onboarding"},
+			Deployment: DeploymentConfig{Profile: "enterprise"},
+			Radius: RadiusConfig{
+				AuthPort:              1812,
+				AcctPort:              1813,
+				RequestTimeoutSeconds: 5,
+				EAP: RadiusEAPConfig{
+					DefaultType:          "tls",
+					CheckCRL:             true,
+					CAPathReloadInterval: 3600,
+					Framework: RadiusEAPFramework{
+						Enabled:                     true,
+						Mode:                        "enforce",
+						FailClosed:                  true,
+						AllowedMethods:              []string{"tls", "peap", "ttls"},
+						AllowedInnerMethods:         []string{"mschapv2", "pap", "gtc", "tls"},
+						RequireMessageAuthenticator: true,
+						RequireIdentityBinding:      true,
+						IdentitySources: []RadiusEAPIdentitySource{
+							{Name: "certificate-subject", Source: "certificate", Enabled: true, Methods: []string{"tls"}, AllowCertificateSubject: true, Priority: 10},
+							{Name: "identity-failover", Source: "identity_failover", Enabled: true, Methods: []string{"peap", "ttls"}, AllowPasswordVerifier: true, Priority: 20},
+						},
+						MethodPolicies: []RadiusEAPMethodPolicy{
+							{Method: "tls", Enabled: true, IdentitySource: "certificate-subject", RequireCertificate: true, RequireRevocation: true},
+							{Method: "peap", Enabled: true, InnerMethods: []string{"mschapv2"}, IdentitySource: "identity-failover", AllowPasswordVerifier: true},
+						},
+					},
+				},
+			},
+			Onboarding: OnboardingConfig{
+				DeviceInventoryEnabled:       true,
+				PortalEnabled:                true,
+				CertificateEnrollmentEnabled: true,
+				EAPTLSEnabled:                true,
+				CAMode:                       "internal",
+				CACertPath:                   "/etc/aegisnas/pki/ca.crt",
+				CAKeyPath:                    "/etc/aegisnas/pki/ca.key",
+				CertificateLifecycle: CertificateLifecycleConfig{
+					Enabled:                    true,
+					Mode:                       "enforce",
+					FailClosed:                 true,
+					DefaultTemplate:            "device-eap-tls",
+					Templates:                  []string{"device-eap-tls"},
+					ActiveIssuer:               "aegisnas-local",
+					IssuerRotationMode:         "disabled",
+					CertificateValidityDays:    365,
+					MaxCertificateValidityDays: 825,
+					RenewalWindowDays:          30,
+					RequireCSR:                 true,
+					RequireProofOfPossession:   true,
+					RequireDeviceBinding:       true,
+					RequireSubjectAltName:      true,
+					AllowedKeyTypes:            []string{"rsa", "ecdsa"},
+					MinRSABits:                 2048,
+					AllowedECDSACurves:         []string{"P-256", "P-384"},
+					EscrowPolicy:               "forbid",
+					CRLEnabled:                 true,
+					ESTEnabled:                 true,
+					AuditEnabled:               true,
+					EventRetentionLimit:        100,
+					InventoryRetentionLimit:    100,
+				},
+				SupplicantLifecycle: SupplicantLifecycleConfig{
+					Enabled:                      true,
+					Mode:                         "enforce",
+					FailClosed:                   true,
+					SSID:                         "AegisNAS-Enterprise",
+					Security:                     "wpa2-enterprise",
+					DefaultPlatform:              "windows",
+					AllowedPlatforms:             []string{"windows", "macos", "ios", "android", "linux"},
+					DefaultEAPMethod:             "tls",
+					AllowedEAPMethods:            []string{"tls", "peap", "ttls"},
+					DefaultInnerMethod:           "mschapv2",
+					AllowedInnerMethods:          []string{"mschapv2", "pap", "gtc", "tls"},
+					AnonymousIdentity:            "anonymous@aegisnas.local",
+					RequireAnonymousIdentity:     true,
+					ServerNames:                  []string{"radius.example.com"},
+					TrustAnchorPins:              []string{pin},
+					RequireTrustAnchorPinning:    true,
+					AllowPasswordChange:          true,
+					PasswordChangeProviders:      []string{"active-directory", "identity-failover"},
+					RequireVerifierCompatibility: true,
+					CompatibleVerifiers:          []string{"active-directory", "identity-failover", "local"},
+					MaxPasswordAgeDays:           90,
+					ExpiryWarningDays:            14,
+					GracePeriodDays:              7,
+					MinPasswordLength:            12,
+					RequireMFAForChange:          true,
+					RequireTLSForDelivery:        true,
+					RequireSignedProfiles:        true,
+					ProfileSigningKeyRef:         "env:AEGIS_SUPPLICANT_PROFILE_SIGNING_KEY",
+					ProfileValidityDays:          365,
+					DeliveryTokenTTLSeconds:      900,
+					AuditEnabled:                 true,
+					EventRetentionLimit:          100,
+					ProfileRetentionLimit:        100,
+				},
+			},
+		}
+	}
+
+	assert.NoError(t, base().Validate())
+
+	badPlatform := base()
+	badPlatform.Onboarding.SupplicantLifecycle.AllowedPlatforms = []string{"windows", "toaster"}
+	assert.ErrorContains(t, badPlatform.Validate(), "allowed_platforms")
+
+	missingPins := base()
+	missingPins.Onboarding.SupplicantLifecycle.TrustAnchorPins = nil
+	assert.ErrorContains(t, missingPins.Validate(), "requires trust_anchor_pins")
+
+	missingSigning := base()
+	missingSigning.Onboarding.SupplicantLifecycle.ProfileSigningKeyRef = ""
+	assert.ErrorContains(t, missingSigning.Validate(), "profile_signing_key_ref")
+
+	noPortal := base()
+	noPortal.Onboarding.PortalEnabled = false
+	assert.ErrorContains(t, noPortal.Validate(), "requires onboarding.portal_enabled")
+
+	noCertificateLifecycle := base()
+	noCertificateLifecycle.Onboarding.CertificateLifecycle.Enabled = false
+	assert.ErrorContains(t, noCertificateLifecycle.Validate(), "TLS profiles require onboarding.certificate_lifecycle.enabled")
+}
+
 func TestConfigValidationPhase4Integrations(t *testing.T) {
 	base := func() *Config {
 		return &Config{

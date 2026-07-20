@@ -998,6 +998,7 @@ type OnboardingConfig struct {
 	CAEnrollmentURL              string                     `mapstructure:"ca_enrollment_url"`
 	CAEnrollmentTokenEnv         string                     `mapstructure:"ca_enrollment_token_env"`
 	CertificateLifecycle         CertificateLifecycleConfig `mapstructure:"certificate_lifecycle"`
+	SupplicantLifecycle          SupplicantLifecycleConfig  `mapstructure:"supplicant_lifecycle"`
 }
 
 type CertificateLifecycleConfig struct {
@@ -1032,6 +1033,44 @@ type CertificateLifecycleConfig struct {
 	AuditEnabled               bool     `mapstructure:"audit_enabled"`
 	EventRetentionLimit        int      `mapstructure:"event_retention_limit"`
 	InventoryRetentionLimit    int      `mapstructure:"inventory_retention_limit"`
+}
+
+type SupplicantLifecycleConfig struct {
+	Enabled                      bool     `mapstructure:"enabled"`
+	Mode                         string   `mapstructure:"mode"`
+	FailClosed                   bool     `mapstructure:"fail_closed"`
+	SSID                         string   `mapstructure:"ssid"`
+	Security                     string   `mapstructure:"security"`
+	DefaultPlatform              string   `mapstructure:"default_platform"`
+	AllowedPlatforms             []string `mapstructure:"allowed_platforms"`
+	DefaultEAPMethod             string   `mapstructure:"default_eap_method"`
+	AllowedEAPMethods            []string `mapstructure:"allowed_eap_methods"`
+	DefaultInnerMethod           string   `mapstructure:"default_inner_method"`
+	AllowedInnerMethods          []string `mapstructure:"allowed_inner_methods"`
+	AnonymousIdentity            string   `mapstructure:"anonymous_identity"`
+	RequireAnonymousIdentity     bool     `mapstructure:"require_anonymous_identity"`
+	DomainSuffix                 string   `mapstructure:"domain_suffix"`
+	ServerNames                  []string `mapstructure:"server_names"`
+	TrustAnchorPins              []string `mapstructure:"trust_anchor_pins"`
+	RequireTrustAnchorPinning    bool     `mapstructure:"require_trust_anchor_pinning"`
+	AllowPasswordChange          bool     `mapstructure:"allow_password_change"`
+	PasswordChangeURL            string   `mapstructure:"password_change_url"`
+	PasswordChangeProviders      []string `mapstructure:"password_change_providers"`
+	RequireVerifierCompatibility bool     `mapstructure:"require_verifier_compatibility"`
+	CompatibleVerifiers          []string `mapstructure:"compatible_verifiers"`
+	MaxPasswordAgeDays           int      `mapstructure:"max_password_age_days"`
+	ExpiryWarningDays            int      `mapstructure:"expiry_warning_days"`
+	GracePeriodDays              int      `mapstructure:"grace_period_days"`
+	MinPasswordLength            int      `mapstructure:"min_password_length"`
+	RequireMFAForChange          bool     `mapstructure:"require_mfa_for_change"`
+	RequireTLSForDelivery        bool     `mapstructure:"require_tls_for_delivery"`
+	RequireSignedProfiles        bool     `mapstructure:"require_signed_profiles"`
+	ProfileSigningKeyRef         string   `mapstructure:"profile_signing_key_ref"`
+	ProfileValidityDays          int      `mapstructure:"profile_validity_days"`
+	DeliveryTokenTTLSeconds      int      `mapstructure:"delivery_token_ttl_seconds"`
+	AuditEnabled                 bool     `mapstructure:"audit_enabled"`
+	EventRetentionLimit          int      `mapstructure:"event_retention_limit"`
+	ProfileRetentionLimit        int      `mapstructure:"profile_retention_limit"`
 }
 
 type ProfilingConfig struct {
@@ -1412,6 +1451,41 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("onboarding.certificate_lifecycle.audit_enabled", true)
 	v.SetDefault("onboarding.certificate_lifecycle.event_retention_limit", 6000)
 	v.SetDefault("onboarding.certificate_lifecycle.inventory_retention_limit", 100000)
+	v.SetDefault("onboarding.supplicant_lifecycle.enabled", false)
+	v.SetDefault("onboarding.supplicant_lifecycle.mode", "monitor")
+	v.SetDefault("onboarding.supplicant_lifecycle.fail_closed", true)
+	v.SetDefault("onboarding.supplicant_lifecycle.ssid", "AegisNAS-Enterprise")
+	v.SetDefault("onboarding.supplicant_lifecycle.security", "wpa2-enterprise")
+	v.SetDefault("onboarding.supplicant_lifecycle.default_platform", "windows")
+	v.SetDefault("onboarding.supplicant_lifecycle.allowed_platforms", []string{"windows", "macos", "ios", "android", "linux"})
+	v.SetDefault("onboarding.supplicant_lifecycle.default_eap_method", "tls")
+	v.SetDefault("onboarding.supplicant_lifecycle.allowed_eap_methods", []string{"tls", "peap", "ttls"})
+	v.SetDefault("onboarding.supplicant_lifecycle.default_inner_method", "mschapv2")
+	v.SetDefault("onboarding.supplicant_lifecycle.allowed_inner_methods", []string{"mschapv2", "pap", "gtc", "tls"})
+	v.SetDefault("onboarding.supplicant_lifecycle.anonymous_identity", "anonymous@aegisnas.local")
+	v.SetDefault("onboarding.supplicant_lifecycle.require_anonymous_identity", true)
+	v.SetDefault("onboarding.supplicant_lifecycle.domain_suffix", "")
+	v.SetDefault("onboarding.supplicant_lifecycle.server_names", []string{})
+	v.SetDefault("onboarding.supplicant_lifecycle.trust_anchor_pins", []string{})
+	v.SetDefault("onboarding.supplicant_lifecycle.require_trust_anchor_pinning", true)
+	v.SetDefault("onboarding.supplicant_lifecycle.allow_password_change", true)
+	v.SetDefault("onboarding.supplicant_lifecycle.password_change_url", "")
+	v.SetDefault("onboarding.supplicant_lifecycle.password_change_providers", []string{"local", "active-directory", "identity-failover"})
+	v.SetDefault("onboarding.supplicant_lifecycle.require_verifier_compatibility", true)
+	v.SetDefault("onboarding.supplicant_lifecycle.compatible_verifiers", []string{"local", "ldap", "active-directory", "identity-failover", "winbind"})
+	v.SetDefault("onboarding.supplicant_lifecycle.max_password_age_days", 90)
+	v.SetDefault("onboarding.supplicant_lifecycle.expiry_warning_days", 14)
+	v.SetDefault("onboarding.supplicant_lifecycle.grace_period_days", 7)
+	v.SetDefault("onboarding.supplicant_lifecycle.min_password_length", 12)
+	v.SetDefault("onboarding.supplicant_lifecycle.require_mfa_for_change", true)
+	v.SetDefault("onboarding.supplicant_lifecycle.require_tls_for_delivery", true)
+	v.SetDefault("onboarding.supplicant_lifecycle.require_signed_profiles", true)
+	v.SetDefault("onboarding.supplicant_lifecycle.profile_signing_key_ref", "")
+	v.SetDefault("onboarding.supplicant_lifecycle.profile_validity_days", 365)
+	v.SetDefault("onboarding.supplicant_lifecycle.delivery_token_ttl_seconds", 900)
+	v.SetDefault("onboarding.supplicant_lifecycle.audit_enabled", true)
+	v.SetDefault("onboarding.supplicant_lifecycle.event_retention_limit", 6000)
+	v.SetDefault("onboarding.supplicant_lifecycle.profile_retention_limit", 100000)
 	v.SetDefault("profiling.poll_interval_seconds", 300)
 	v.SetDefault("profiling.retention_hours", 24)
 	v.SetDefault("profiling.mdm_sync_enabled", false)
@@ -4202,6 +4276,9 @@ func (c *Config) Validate() error {
 	if err := validateCertificateLifecycleConfig(c); err != nil {
 		return err
 	}
+	if err := validateSupplicantLifecycleConfig(c); err != nil {
+		return err
+	}
 	if err := validateRadiusEAPFramework(c.Radius.EAP); err != nil {
 		return err
 	}
@@ -4579,6 +4656,229 @@ func validateCertificateLifecycleConfig(c *Config) error {
 		}
 	}
 	return nil
+}
+
+func validateSupplicantLifecycleConfig(c *Config) error {
+	if c == nil {
+		return nil
+	}
+	lifecycle := c.Onboarding.SupplicantLifecycle
+	mode := strings.ToLower(strings.TrimSpace(lifecycle.Mode))
+	if mode == "" {
+		mode = "monitor"
+	}
+	switch mode {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("onboarding.supplicant_lifecycle.mode %q must be monitor or enforce", lifecycle.Mode)
+	}
+	security := strings.ToLower(strings.TrimSpace(lifecycle.Security))
+	if security == "" {
+		security = "wpa2-enterprise"
+	}
+	switch security {
+	case "wpa2-enterprise", "wpa3-enterprise":
+	default:
+		return fmt.Errorf("onboarding.supplicant_lifecycle.security %q must be wpa2-enterprise or wpa3-enterprise", lifecycle.Security)
+	}
+	if strings.TrimSpace(lifecycle.SSID) != "" && (len(lifecycle.SSID) > 32 || strings.ContainsAny(lifecycle.SSID, "\r\n\x00")) {
+		return errors.New("onboarding.supplicant_lifecycle.ssid is invalid")
+	}
+	if err := validateCertificateLifecycleNameList("onboarding.supplicant_lifecycle.allowed_platforms", lifecycle.AllowedPlatforms, true); err != nil {
+		return err
+	}
+	for i, platform := range lifecycle.AllowedPlatforms {
+		switch strings.ToLower(strings.TrimSpace(platform)) {
+		case "", "windows", "macos", "ios", "android", "linux":
+		default:
+			return fmt.Errorf("onboarding.supplicant_lifecycle.allowed_platforms[%d] %q is invalid", i, platform)
+		}
+	}
+	if len(lifecycle.AllowedPlatforms) > 0 && strings.TrimSpace(lifecycle.DefaultPlatform) != "" && !certificateLifecycleListContains(lifecycle.AllowedPlatforms, lifecycle.DefaultPlatform) {
+		return fmt.Errorf("onboarding.supplicant_lifecycle.default_platform %q is not in allowed_platforms", lifecycle.DefaultPlatform)
+	}
+	if err := validateCertificateLifecycleNameList("onboarding.supplicant_lifecycle.allowed_eap_methods", lifecycle.AllowedEAPMethods, true); err != nil {
+		return err
+	}
+	for i, method := range lifecycle.AllowedEAPMethods {
+		normalized := normalizeEAPMethod(method)
+		switch normalized {
+		case "tls", "peap", "ttls", "pwd", "fast", "teap":
+		default:
+			return fmt.Errorf("onboarding.supplicant_lifecycle.allowed_eap_methods[%d] %q is invalid", i, method)
+		}
+	}
+	if len(lifecycle.AllowedEAPMethods) > 0 && strings.TrimSpace(lifecycle.DefaultEAPMethod) != "" && !certificateLifecycleListContains(lifecycle.AllowedEAPMethods, normalizeEAPMethod(lifecycle.DefaultEAPMethod)) {
+		return fmt.Errorf("onboarding.supplicant_lifecycle.default_eap_method %q is not in allowed_eap_methods", lifecycle.DefaultEAPMethod)
+	}
+	if err := validateCertificateLifecycleNameList("onboarding.supplicant_lifecycle.allowed_inner_methods", lifecycle.AllowedInnerMethods, true); err != nil {
+		return err
+	}
+	for i, method := range lifecycle.AllowedInnerMethods {
+		switch strings.ToLower(strings.TrimSpace(method)) {
+		case "", "mschapv2", "pap", "chap", "gtc", "tls":
+		default:
+			return fmt.Errorf("onboarding.supplicant_lifecycle.allowed_inner_methods[%d] %q is invalid", i, method)
+		}
+	}
+	if len(lifecycle.AllowedInnerMethods) > 0 && strings.TrimSpace(lifecycle.DefaultInnerMethod) != "" && !certificateLifecycleListContains(lifecycle.AllowedInnerMethods, lifecycle.DefaultInnerMethod) {
+		return fmt.Errorf("onboarding.supplicant_lifecycle.default_inner_method %q is not in allowed_inner_methods", lifecycle.DefaultInnerMethod)
+	}
+	if strings.TrimSpace(lifecycle.AnonymousIdentity) != "" && (len(lifecycle.AnonymousIdentity) > 253 || strings.ContainsAny(lifecycle.AnonymousIdentity, "\r\n\x00")) {
+		return errors.New("onboarding.supplicant_lifecycle.anonymous_identity is invalid")
+	}
+	if strings.TrimSpace(lifecycle.DomainSuffix) != "" && !validDomainLabelList(lifecycle.DomainSuffix) {
+		return errors.New("onboarding.supplicant_lifecycle.domain_suffix is invalid")
+	}
+	if err := validateSupplicantHostnameList("onboarding.supplicant_lifecycle.server_names", lifecycle.ServerNames); err != nil {
+		return err
+	}
+	if err := validateSupplicantPinList("onboarding.supplicant_lifecycle.trust_anchor_pins", lifecycle.TrustAnchorPins); err != nil {
+		return err
+	}
+	if err := validateCertificateLifecycleNameList("onboarding.supplicant_lifecycle.password_change_providers", lifecycle.PasswordChangeProviders, true); err != nil {
+		return err
+	}
+	if err := validateCertificateLifecycleNameList("onboarding.supplicant_lifecycle.compatible_verifiers", lifecycle.CompatibleVerifiers, true); err != nil {
+		return err
+	}
+	if lifecycle.PasswordChangeURL != "" {
+		if err := requireHTTPURL("onboarding.supplicant_lifecycle.password_change_url", lifecycle.PasswordChangeURL); err != nil {
+			return err
+		}
+	}
+	if lifecycle.MaxPasswordAgeDays < 0 || lifecycle.MaxPasswordAgeDays > 3660 {
+		return errors.New("onboarding.supplicant_lifecycle.max_password_age_days must be between 0 and 3660")
+	}
+	if lifecycle.ExpiryWarningDays < 0 || lifecycle.ExpiryWarningDays > 365 {
+		return errors.New("onboarding.supplicant_lifecycle.expiry_warning_days must be between 0 and 365")
+	}
+	if lifecycle.GracePeriodDays < 0 || lifecycle.GracePeriodDays > 365 {
+		return errors.New("onboarding.supplicant_lifecycle.grace_period_days must be between 0 and 365")
+	}
+	if lifecycle.MinPasswordLength < 0 || lifecycle.MinPasswordLength > 256 {
+		return errors.New("onboarding.supplicant_lifecycle.min_password_length must be between 0 and 256")
+	}
+	if lifecycle.ProfileValidityDays != 0 && (lifecycle.ProfileValidityDays < 1 || lifecycle.ProfileValidityDays > 1095) {
+		return errors.New("onboarding.supplicant_lifecycle.profile_validity_days must be between 1 and 1095 when set")
+	}
+	if lifecycle.DeliveryTokenTTLSeconds < 0 || lifecycle.DeliveryTokenTTLSeconds > 86400 {
+		return errors.New("onboarding.supplicant_lifecycle.delivery_token_ttl_seconds must be between 0 and 86400")
+	}
+	if lifecycle.EventRetentionLimit != 0 && (lifecycle.EventRetentionLimit < 1 || lifecycle.EventRetentionLimit > 1000000) {
+		return errors.New("onboarding.supplicant_lifecycle.event_retention_limit must be between 1 and 1000000 when set")
+	}
+	if lifecycle.ProfileRetentionLimit != 0 && (lifecycle.ProfileRetentionLimit < 1 || lifecycle.ProfileRetentionLimit > 10000000) {
+		return errors.New("onboarding.supplicant_lifecycle.profile_retention_limit must be between 1 and 10000000 when set")
+	}
+	if strings.TrimSpace(lifecycle.ProfileSigningKeyRef) != "" && !validSecretRefShape(lifecycle.ProfileSigningKeyRef) {
+		return errors.New("onboarding.supplicant_lifecycle.profile_signing_key_ref must use env:NAME or file:PATH")
+	}
+	if lifecycle.Enabled {
+		if EffectiveDeploymentProfile(c.Deployment.Profile) != "enterprise" {
+			return errors.New("onboarding.supplicant_lifecycle.enabled is only supported on the enterprise deployment profile")
+		}
+		if !c.Onboarding.PortalEnabled {
+			return errors.New("onboarding.supplicant_lifecycle.enabled requires onboarding.portal_enabled")
+		}
+		if !c.Radius.EAP.Framework.Enabled {
+			return errors.New("onboarding.supplicant_lifecycle.enabled requires radius.eap.framework.enabled")
+		}
+		if certificateLifecycleListContains(lifecycle.AllowedEAPMethods, "tls") && !c.Onboarding.CertificateLifecycle.Enabled {
+			return errors.New("onboarding.supplicant_lifecycle TLS profiles require onboarding.certificate_lifecycle.enabled")
+		}
+		if lifecycle.RequireTrustAnchorPinning && len(lifecycle.TrustAnchorPins) == 0 {
+			return errors.New("onboarding.supplicant_lifecycle.require_trust_anchor_pinning requires trust_anchor_pins")
+		}
+		if lifecycle.RequireTrustAnchorPinning && len(lifecycle.ServerNames) == 0 {
+			return errors.New("onboarding.supplicant_lifecycle.require_trust_anchor_pinning requires server_names")
+		}
+		if lifecycle.AllowPasswordChange && len(lifecycle.PasswordChangeProviders) == 0 {
+			return errors.New("onboarding.supplicant_lifecycle.allow_password_change requires password_change_providers")
+		}
+		if mode == "enforce" && lifecycle.FailClosed {
+			if lifecycle.RequireTLSForDelivery == false {
+				return errors.New("onboarding.supplicant_lifecycle enforce fail-closed requires require_tls_for_delivery")
+			}
+			if lifecycle.RequireSignedProfiles && strings.TrimSpace(lifecycle.ProfileSigningKeyRef) == "" {
+				return errors.New("onboarding.supplicant_lifecycle enforce fail-closed requires profile_signing_key_ref")
+			}
+			if lifecycle.RequireVerifierCompatibility && len(lifecycle.CompatibleVerifiers) == 0 {
+				return errors.New("onboarding.supplicant_lifecycle enforce fail-closed requires compatible_verifiers")
+			}
+			if lifecycle.RequireAnonymousIdentity && strings.TrimSpace(lifecycle.AnonymousIdentity) == "" {
+				return errors.New("onboarding.supplicant_lifecycle enforce fail-closed requires anonymous_identity")
+			}
+		}
+	}
+	return nil
+}
+
+func validateSupplicantHostnameList(field string, values []string) error {
+	seen := map[string]struct{}{}
+	for i, value := range values {
+		value = strings.TrimSpace(strings.TrimSuffix(value, "."))
+		if value == "" {
+			return fmt.Errorf("%s[%d] cannot be empty", field, i)
+		}
+		if !validDomainLabelList(value) {
+			return fmt.Errorf("%s[%d] is invalid", field, i)
+		}
+		key := strings.ToLower(value)
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("%s[%d] duplicates an earlier value", field, i)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+func validateSupplicantPinList(field string, values []string) error {
+	seen := map[string]struct{}{}
+	for i, value := range values {
+		value = strings.TrimSpace(value)
+		lower := strings.ToLower(value)
+		lower = strings.TrimPrefix(lower, "sha256:")
+		if len(lower) != 64 {
+			return fmt.Errorf("%s[%d] must be a SHA-256 hex fingerprint", field, i)
+		}
+		for _, r := range lower {
+			if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') {
+				continue
+			}
+			return fmt.Errorf("%s[%d] must be a SHA-256 hex fingerprint", field, i)
+		}
+		if _, exists := seen[lower]; exists {
+			return fmt.Errorf("%s[%d] duplicates an earlier value", field, i)
+		}
+		seen[lower] = struct{}{}
+	}
+	return nil
+}
+
+func validSecretRefShape(value string) bool {
+	value = strings.TrimSpace(value)
+	provider, target, ok := strings.Cut(value, ":")
+	if !ok || strings.TrimSpace(provider) == "" || strings.TrimSpace(target) == "" {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "env":
+		for i, r := range target {
+			if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || r == '_' {
+				continue
+			}
+			if i > 0 && r >= '0' && r <= '9' {
+				continue
+			}
+			return false
+		}
+		return true
+	case "file":
+		return !strings.ContainsAny(target, "\r\n\x00")
+	default:
+		return false
+	}
 }
 
 func validateCertificateLifecycleNameList(field string, values []string, lower bool) error {

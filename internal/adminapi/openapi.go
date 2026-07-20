@@ -1358,6 +1358,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Deterministic certificate lifecycle decision and audit status."),
 		"default": responseJSON("Certificate lifecycle evaluation error."),
 	}))
+	addOperation(paths, "/api/v1/system/supplicant-lifecycle", "get", securedOperationWithParameters("Read password and supplicant lifecycle state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("decision", "Optional audited lifecycle decision filter.", []string{"accepted", "rejected", "monitor_allowed", "password_change_required"}, false),
+		queryEnumParameter("platform", "Optional profile platform filter.", []string{"windows", "macos", "ios", "android", "linux"}, false),
+		queryStringParameter("eap_method", "Optional EAP method filter.", false),
+		queryEnumParameter("status", "Optional profile delivery status filter.", []string{"active", "expired", "revoked"}, false),
+		queryStringParameter("limit", "Event and profile limit from 1 to 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("Password lifecycle policy, verifier compatibility state, platform profile policy, runtime summary, profile deliveries, release evidence checklist, and recent events."),
+	}))
+	addOperation(paths, "/api/v1/system/supplicant-lifecycle/evaluate", "post", securedOperationWithBody("Evaluate a password or supplicant lifecycle request", "Authentication", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Password/profile facts: platform, EAP method, identity source, expiry state, password-change evidence, TLS state, MFA, verifier compatibility, signing, trust-anchor pinning, delivery token, and optional audit flag."), map[string]any{
+		"200":     responseJSON("Deterministic password/supplicant lifecycle decision and audit status."),
+		"default": responseJSON("Supplicant lifecycle evaluation error."),
+	}))
+	addOperation(paths, "/api/v1/system/supplicant-lifecycle/profile", "post", securedOperationWithBody("Render a signed supplicant profile package", "Authentication", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Profile render request: platform, username, device ID, EAP method, optional certificate template, delivery channel, TLS evidence, token evidence, and optional audit flag."), map[string]any{
+		"200":     responseJSON("Signed platform-specific supplicant profile package, deterministic policy decision, and audit status."),
+		"default": responseJSON("Profile rendering error."),
+	}))
 	addOperation(paths, "/api/v1/system/mab", "get", securedOperationWithParameters("Read MAC Authentication Bypass state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "quarantined", "monitor_allowed", "fail_open", "unsupported"}, false),
 		queryStringParameter("mac", "Optional endpoint MAC filter in colon, hyphen, plain, or Cisco dotted format.", false),

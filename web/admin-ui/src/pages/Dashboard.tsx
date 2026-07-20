@@ -584,6 +584,56 @@ type CertificateLifecycleReport = {
   release_checklist?: string;
 };
 
+type SupplicantLifecycleReport = {
+  status: string;
+  message: string;
+  policy?: {
+    enabled: boolean;
+    mode: string;
+    fail_closed: boolean;
+    ssid: string;
+    security: string;
+    default_platform: string;
+    allowed_platforms: string[];
+    default_eap_method: string;
+    allowed_eap_methods: string[];
+    default_inner_method: string;
+    anonymous_identity: string;
+    require_trust_anchor_pinning: boolean;
+    server_names: string[];
+    trust_anchor_pins: string[];
+    allow_password_change: boolean;
+    require_verifier_compatibility: boolean;
+    require_mfa_for_change: boolean;
+    require_tls_for_delivery: boolean;
+    require_signed_profiles: boolean;
+    profile_signing_key_configured: boolean;
+    portal_ready: boolean;
+    eap_framework_ready: boolean;
+    certificate_lifecycle_ready: boolean;
+  };
+  runtime?: {
+    total_events: number;
+    accepted: number;
+    rejected: number;
+    monitor_allowed: number;
+    password_change_required: number;
+    password_changed: number;
+    profiles_delivered: number;
+    unsigned_profile_blocked: number;
+    trust_pin_failures: number;
+    verifier_failures: number;
+    tls_failures: number;
+    active_profiles: number;
+    expired_profiles: number;
+    last_rejected_reason?: string;
+    last_profile_delivered_at?: string;
+  };
+  warnings?: string[];
+  blocking_issues?: string[];
+  release_checklist?: string;
+};
+
 type IdentityFailoverReport = {
   enabled: boolean;
   status: string;
@@ -793,6 +843,7 @@ type SystemStatus = {
     eap_fast_pwd?: FASTPWDReport;
     eap_sim_aka?: SIMAKAReport;
     certificate_lifecycle?: CertificateLifecycleReport;
+    supplicant_lifecycle?: SupplicantLifecycleReport;
     radsec_credentials?: RadSecCredentialReport;
     dynamic_nas_clients?: DynamicNASClientReport;
     probe_error?: string;
@@ -1343,6 +1394,8 @@ export default function Dashboard() {
   const simAKAReport = systemStatus.radius?.eap_sim_aka;
   const certificateLifecycle =
     systemStatus.radius?.certificate_lifecycle;
+  const supplicantLifecycle =
+    systemStatus.radius?.supplicant_lifecycle;
   const identityFailover = systemStatus.identity?.failover;
   const identityActiveDirectory = systemStatus.identity?.active_directory;
   const identityMFA = systemStatus.identity?.mfa;
@@ -2612,6 +2665,99 @@ export default function Dashboard() {
                     </div>
                     <StatusBadge
                       status={certificateLifecycle.status || "unknown"}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {supplicantLifecycle ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Password And Supplicant Lifecycle
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {supplicantLifecycle.message ||
+                          "Supplicant lifecycle state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Mode{" "}
+                          {supplicantLifecycle.policy?.mode || "monitor"}
+                        </div>
+                        <div>
+                          SSID{" "}
+                          {supplicantLifecycle.policy?.ssid || "not set"}
+                        </div>
+                        <div>
+                          Events{" "}
+                          {supplicantLifecycle.runtime?.total_events ?? 0}
+                        </div>
+                        <div>
+                          Profiles{" "}
+                          {supplicantLifecycle.runtime?.profiles_delivered ??
+                            0}
+                        </div>
+                        <div>
+                          Change prompts{" "}
+                          {supplicantLifecycle.runtime
+                            ?.password_change_required ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Platforms{" "}
+                        {supplicantLifecycle.policy?.allowed_platforms?.join(
+                          ", ",
+                        ) || "none"}
+                        ; EAP{" "}
+                        {supplicantLifecycle.policy?.allowed_eap_methods?.join(
+                          ", ",
+                        ) || "none"}
+                        ; signing{" "}
+                        {supplicantLifecycle.policy
+                          ?.profile_signing_key_configured
+                          ? "configured"
+                          : "missing"}
+                        ; trust pins{" "}
+                        {supplicantLifecycle.policy?.trust_anchor_pins
+                          ?.length ?? 0}
+                        .
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Portal{" "}
+                        {supplicantLifecycle.policy?.portal_ready
+                          ? "ready"
+                          : "not ready"}
+                        ; EAP framework{" "}
+                        {supplicantLifecycle.policy?.eap_framework_ready
+                          ? "ready"
+                          : "not ready"}
+                        ; certificate lifecycle{" "}
+                        {supplicantLifecycle.policy
+                          ?.certificate_lifecycle_ready
+                          ? "ready"
+                          : "not ready"}
+                        ; active profiles{" "}
+                        {supplicantLifecycle.runtime?.active_profiles ?? 0}.
+                      </div>
+                      {supplicantLifecycle.runtime?.last_rejected_reason ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last supplicant rejection:{" "}
+                          {supplicantLifecycle.runtime.last_rejected_reason}
+                        </div>
+                      ) : null}
+                      {supplicantLifecycle.blocking_issues?.length ? (
+                        <div className="mt-2 text-xs text-red-700">
+                          {supplicantLifecycle.blocking_issues[0]}
+                        </div>
+                      ) : supplicantLifecycle.warnings?.length ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {supplicantLifecycle.warnings[0]}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge
+                      status={supplicantLifecycle.status || "unknown"}
                     />
                   </div>
                 </div>

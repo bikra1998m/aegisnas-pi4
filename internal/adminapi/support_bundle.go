@@ -304,6 +304,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/eap-framework-fast-pwd.json", requestPath: "/api/v1/system/eap-framework/fast-pwd", label: "EAP-FAST and EAP-PWD", handler: HandleGetFASTPWDFramework},
 		{archivePath: "api/eap-framework-sim-aka.json", requestPath: "/api/v1/system/eap-framework/sim-aka", label: "EAP-SIM, EAP-AKA, and EAP-AKA-prime", handler: HandleGetSIMAKAFramework},
 		{archivePath: "api/certificate-lifecycle.json", requestPath: "/api/v1/system/certificate-lifecycle", label: "Enterprise certificate lifecycle", handler: HandleGetCertificateLifecycle},
+		{archivePath: "api/supplicant-lifecycle.json", requestPath: "/api/v1/system/supplicant-lifecycle", label: "Password and supplicant lifecycle", handler: HandleGetSupplicantLifecycle},
 		{archivePath: "api/mab.json", requestPath: "/api/v1/system/mab", label: "MAC Authentication Bypass", handler: HandleGetMAB},
 		{archivePath: "api/audit-history.json", requestPath: "/api/v1/system/audit-history", label: "Audit history", handler: HandleListAuditHistory},
 		{archivePath: "api/integration-history.json", requestPath: "/api/v1/system/integration-history", label: "Integration history", handler: HandleListIntegrationHistory},

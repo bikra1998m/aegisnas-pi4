@@ -100,6 +100,7 @@ var runCmd = &cobra.Command{
 		r.Get("/onboarding", srv.HandleOnboardingPage)
 		r.Post("/onboarding", srv.HandleOnboardingRegister)
 		r.Get("/onboarding/download/*", srv.HandleOnboardingDownload)
+		r.Get("/onboarding/profile/*", srv.HandleOnboardingProfileDownload)
 
 		// Health endpoint
 		health.RegisterRoutes(r)

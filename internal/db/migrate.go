@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 32
+	return 33
 }
 
 func Migrate() error {
@@ -1443,4 +1443,76 @@ CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_inventory_status ON certifi
 CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_inventory_issuer ON certificate_lifecycle_inventory(issuer, issuer_state, updated_at);
 CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_inventory_device ON certificate_lifecycle_inventory(device_id_hash, updated_at);
 CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_inventory_serial ON certificate_lifecycle_inventory(serial_hash, updated_at);
+`
+
+const schemaV33 = `
+CREATE TABLE IF NOT EXISTS supplicant_lifecycle_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	protocol TEXT NOT NULL,
+	platform TEXT NOT NULL,
+	decision TEXT NOT NULL,
+	action TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	username_hash TEXT,
+	device_id_hash TEXT,
+	tenant TEXT,
+	eap_method TEXT,
+	inner_method TEXT,
+	identity_source TEXT,
+	password_expired BOOLEAN DEFAULT 0,
+	days_until_expiry INTEGER DEFAULT 0,
+	password_change_requested BOOLEAN DEFAULT 0,
+	password_change_required BOOLEAN DEFAULT 0,
+	password_changed BOOLEAN DEFAULT 0,
+	old_password_verified BOOLEAN DEFAULT 0,
+	new_password_meets_policy BOOLEAN DEFAULT 0,
+	mfa_complete BOOLEAN DEFAULT 0,
+	tls_protected BOOLEAN DEFAULT 0,
+	verifier_compatible BOOLEAN DEFAULT 0,
+	profile_requested BOOLEAN DEFAULT 0,
+	profile_signed BOOLEAN DEFAULT 0,
+	signing_key_available BOOLEAN DEFAULT 0,
+	trust_anchor_pinned BOOLEAN DEFAULT 0,
+	server_name_matched BOOLEAN DEFAULT 0,
+	delivery_token_valid BOOLEAN DEFAULT 0,
+	device_managed BOOLEAN DEFAULT 0,
+	certificate_lifecycle_ready BOOLEAN DEFAULT 0,
+	policy_mode TEXT,
+	latency_ms INTEGER DEFAULT 0,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS supplicant_profile_deliveries (
+	delivery_key TEXT PRIMARY KEY,
+	updated_at DATETIME NOT NULL,
+	status TEXT NOT NULL,
+	platform TEXT NOT NULL,
+	username_hash TEXT,
+	device_id_hash TEXT,
+	tenant TEXT,
+	ssid TEXT,
+	eap_method TEXT,
+	inner_method TEXT,
+	profile_hash TEXT,
+	signature_fingerprint TEXT,
+	content_type TEXT,
+	file_extension TEXT,
+	expires_at DATETIME,
+	policy_mode TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_supplicant_lifecycle_events_observed_at ON supplicant_lifecycle_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_supplicant_lifecycle_events_decision ON supplicant_lifecycle_events(decision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_supplicant_lifecycle_events_platform ON supplicant_lifecycle_events(platform, observed_at);
+CREATE INDEX IF NOT EXISTS idx_supplicant_lifecycle_events_eap ON supplicant_lifecycle_events(eap_method, inner_method, observed_at);
+CREATE INDEX IF NOT EXISTS idx_supplicant_lifecycle_events_username ON supplicant_lifecycle_events(username_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_supplicant_lifecycle_events_device ON supplicant_lifecycle_events(device_id_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_supplicant_profile_deliveries_status ON supplicant_profile_deliveries(status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_supplicant_profile_deliveries_platform ON supplicant_profile_deliveries(platform, updated_at);
+CREATE INDEX IF NOT EXISTS idx_supplicant_profile_deliveries_username ON supplicant_profile_deliveries(username_hash, updated_at);
+CREATE INDEX IF NOT EXISTS idx_supplicant_profile_deliveries_device ON supplicant_profile_deliveries(device_id_hash, updated_at);
 `

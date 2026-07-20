@@ -947,6 +947,42 @@ onboarding:
     audit_enabled: true
     event_retention_limit: 6000
     inventory_retention_limit: 100000
+  supplicant_lifecycle:
+    enabled: false # Password-change governance and signed supplicant profile delivery.
+    mode: "monitor" # monitor or enforce.
+    fail_closed: true
+    ssid: "AegisNAS-Enterprise"
+    security: "wpa2-enterprise" # wpa2-enterprise or wpa3-enterprise.
+    default_platform: "windows"
+    allowed_platforms: ["windows", "macos", "ios", "android", "linux"]
+    default_eap_method: "tls"
+    allowed_eap_methods: ["tls", "peap", "ttls"]
+    default_inner_method: "mschapv2"
+    allowed_inner_methods: ["mschapv2", "pap", "gtc", "tls"]
+    anonymous_identity: "anonymous@aegisnas.local"
+    require_anonymous_identity: true
+    domain_suffix: ""
+    server_names: [] # Example: ["radius.example.com"].
+    trust_anchor_pins: [] # SHA-256 CA fingerprints, with or without sha256: prefix.
+    require_trust_anchor_pinning: true
+    allow_password_change: true
+    password_change_url: ""
+    password_change_providers: ["local", "active-directory", "identity-failover"]
+    require_verifier_compatibility: true
+    compatible_verifiers: ["local", "ldap", "active-directory", "identity-failover", "winbind"]
+    max_password_age_days: 90
+    expiry_warning_days: 14
+    grace_period_days: 7
+    min_password_length: 12
+    require_mfa_for_change: true
+    require_tls_for_delivery: true
+    require_signed_profiles: true
+    profile_signing_key_ref: "" # env:AEGIS_SUPPLICANT_PROFILE_SIGNING_KEY or file:profile-signing.key.
+    profile_validity_days: 365
+    delivery_token_ttl_seconds: 900
+    audit_enabled: true
+    event_retention_limit: 6000
+    profile_retention_limit: 100000
 
 profiling:
   mac_inventory_enabled: false

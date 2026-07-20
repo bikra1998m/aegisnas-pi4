@@ -20,6 +20,7 @@ import (
 	mfapkg "github.com/yourorg/aegisnas-pi4/internal/mfa"
 	"github.com/yourorg/aegisnas-pi4/internal/radius"
 	"github.com/yourorg/aegisnas-pi4/internal/secrets"
+	"github.com/yourorg/aegisnas-pi4/internal/supplicantprofile"
 	webauthnpkg "github.com/yourorg/aegisnas-pi4/internal/webauthn"
 )
 
@@ -130,6 +131,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionFASTPWDCheck(&report, cfg)
 	addProductionSIMAKACheck(&report, cfg)
 	addProductionCertificateLifecycleCheck(&report, cfg)
+	addProductionSupplicantLifecycleCheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
@@ -795,6 +797,63 @@ func addProductionCertificateLifecycleCheck(report *productionReadinessReport, c
 			certReport.Policy.BYODPortalEnabled, certReport.Runtime.TotalEvents),
 		Recommendation: "Use onboarding.certificate_lifecycle in enforce/fail-closed mode with CSR proof-of-possession, device binding, CRL or OCSP readiness, guarded issuer rotation, forbidden or admin-approved escrow, and the NAS-0027 release checklist for external EST/SCEP and AP/controller evidence.",
 		Dependencies:   []string{"onboarding.certificate_lifecycle", "onboarding.certificate_enrollment_enabled", "onboarding.eap_tls_enabled", "certificate_lifecycle_events", "certificate_lifecycle_inventory", "/api/v1/system/certificate-lifecycle"},
+	})
+}
+
+func addProductionSupplicantLifecycleCheck(report *productionReadinessReport, cfg *config.Config) {
+	summary, _ := db.SummarizeSupplicantLifecycle(1000)
+	supplicantReport := supplicantprofile.BuildReport(cfg, supplicantRuntimeSummaryFromDB(summary))
+	if !supplicantReport.Policy.Enabled {
+		return
+	}
+	status := "passed"
+	switch supplicantReport.Status {
+	case "blocked":
+		status = "blocked"
+	case "disabled", "degraded":
+		status = "degraded"
+	}
+	if supplicantReport.Policy.Mode != "enforce" {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	if !supplicantReport.Policy.FailClosed ||
+		!supplicantReport.Policy.PortalReady ||
+		!supplicantReport.Policy.EAPFrameworkReady ||
+		!supplicantReport.Policy.CertificateLifecycleReady ||
+		!supplicantReport.Policy.RequireTrustAnchorPinning ||
+		len(supplicantReport.Policy.TrustAnchorPins) == 0 ||
+		len(supplicantReport.Policy.ServerNames) == 0 ||
+		!supplicantReport.Policy.RequireTLSForDelivery ||
+		!supplicantReport.Policy.RequireSignedProfiles ||
+		!supplicantReport.Policy.ProfileSigningKeyConfigured ||
+		!supplicantReport.Policy.RequireVerifierCompatibility ||
+		len(supplicantReport.Policy.CompatibleVerifiers) == 0 ||
+		len(supplicantReport.Policy.BlockingIssues) > 0 {
+		status = "blocked"
+	}
+	if supplicantReport.Runtime.Rejected > 0 ||
+		supplicantReport.Runtime.UnsignedProfileBlocked > 0 ||
+		supplicantReport.Runtime.TrustPinFailures > 0 ||
+		supplicantReport.Runtime.VerifierFailures > 0 ||
+		supplicantReport.Runtime.TLSFailures > 0 {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "supplicant_lifecycle",
+		Category: "authentication",
+		Label:    "Password And Supplicant Lifecycle",
+		Status:   status,
+		Summary: fmt.Sprintf("Supplicant lifecycle schema %d is %s in %s mode with platforms=%d, methods=%d, signed profiles=%t, trust pins=%d, and %d recent event(s).",
+			supplicantReport.SchemaVersion, supplicantReport.Status, supplicantReport.Policy.Mode,
+			len(supplicantReport.Policy.AllowedPlatforms), len(supplicantReport.Policy.AllowedEAPMethods),
+			supplicantReport.Policy.RequireSignedProfiles, len(supplicantReport.Policy.TrustAnchorPins),
+			supplicantReport.Runtime.TotalEvents),
+		Recommendation: "Use onboarding.supplicant_lifecycle in enforce/fail-closed mode with pinned RADIUS server names, signed profile packages, TLS-only delivery, MFA-gated password changes, verifier compatibility evidence, and the NAS-0028 release checklist for real supplicant and AP/controller validation.",
+		Dependencies:   []string{"onboarding.supplicant_lifecycle", "onboarding.certificate_lifecycle", "radius.eap.framework", "supplicant_lifecycle_events", "supplicant_profile_deliveries", "/api/v1/system/supplicant-lifecycle"},
 	})
 }
 

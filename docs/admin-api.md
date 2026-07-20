@@ -1019,6 +1019,16 @@ Enterprise certificate lifecycle policy and enrollment-request evaluation are av
 
 Use these to review the effective EST/SCEP/BYOD template and issuer policy, issuer rotation state, CRL/OCSP readiness, hashed lifecycle event history, and current certificate inventory. The evaluation endpoint accepts protocol, template, issuer, device binding, CSR PEM, renewal, revocation, CRL/OCSP, and optional audit evidence. Audit records store hashes for subjects, SANs, serials, and device IDs rather than raw identity material.
 
+Password lifecycle and supplicant profile delivery operations are available at:
+
+```text
+/api/v1/system/supplicant-lifecycle
+/api/v1/system/supplicant-lifecycle/evaluate
+/api/v1/system/supplicant-lifecycle/profile
+```
+
+Use these to review platform, EAP, verifier, password-change, trust-anchor, RADIUS server-name, TLS delivery, and profile-signing policy. The profile endpoint renders a signed package containing the manifest, platform-specific payload, content hash, signature, and signing-key fingerprint. Audit records store hashed usernames and device IDs, not passwords or profile contents.
+
 From the admin UI:
 
 1. sign in
