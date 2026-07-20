@@ -1226,6 +1226,17 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Effective outage fallback policy, allowlist posture, audit summary, and recent local/LDAP fallback decisions."),
 	}))
+	addOperation(paths, "/api/v1/system/policy-engine", "get", securedOperation("Read typed policy expression engine state", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Typed policy engine status, field/operator catalog, rule validation state, and redacted evaluation history."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-engine/validate", "post", securedOperationWithBody("Validate policy expression", "Policies", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Policy expression or legacy match_conditions JSON."), map[string]any{
+		"200":     responseJSON("Compiled typed expression and legacy/typed classification."),
+		"default": responseText("Validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-engine/evaluate", "post", securedOperationWithBody("Evaluate typed policy request", "Policies", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Policy request context."), map[string]any{
+		"200":     responseJSON("Decision, matched rules, conflicts, policy-set hash, request hash, and explain trace."),
+		"default": responseText("Evaluation error."),
+	}))
 	addOperation(paths, "/api/v1/system/identity-failover", "get", securedOperationWithParameters("Read identity source failover state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("source", "Optional identity source name filter such as local or ldap-primary.", false),
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "not_found", "failed", "skipped", "stale_accepted", "split_denied"}, false),

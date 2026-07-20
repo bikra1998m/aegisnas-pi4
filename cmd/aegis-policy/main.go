@@ -87,6 +87,31 @@ var runCmd = &cobra.Command{
 			json.NewEncoder(w).Encode(decision)
 		})
 
+		r.Post("/api/v1/evaluate-detailed", func(w http.ResponseWriter, r *http.Request) {
+			var req policy.Request
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return
+			}
+			result, err := engine.EvaluateDetailed(&req)
+			if err != nil {
+				logger.Error("policy evaluation failed", zap.Error(err))
+				http.Error(w, "evaluation error", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(result)
+		})
+
+		r.Get("/api/v1/catalog", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{
+				"schema_version": policy.TypedPolicySchemaVersion,
+				"fields":         policy.FieldCatalog(),
+				"operators":      policy.OperatorCatalog(),
+			})
+		})
+
 		// Rule management endpoints
 		r.Get("/api/v1/rules", func(w http.ResponseWriter, r *http.Request) {
 			rows, err := db.DB.Query(`SELECT id, name, description, priority, enabled, match_conditions, action,

@@ -634,6 +634,35 @@ type SupplicantLifecycleReport = {
   release_checklist?: string;
 };
 
+type PolicyEngineReport = {
+  status: string;
+  message: string;
+  schema_version: number;
+  config?: {
+    mode: string;
+    fail_closed: boolean;
+    audit_enabled: boolean;
+    allow_legacy_conditions: boolean;
+    require_typed_rules: boolean;
+  };
+  summary?: {
+    total_records: number;
+    allowed_count: number;
+    denied_count: number;
+    quarantine_count: number;
+    last_decision?: string;
+    last_evaluated_at?: string;
+  };
+  rules?: Array<{
+    enabled: boolean;
+    typed: boolean;
+    legacy: boolean;
+    valid: boolean;
+  }>;
+  fields?: Array<{ name: string; type: string }>;
+  operators?: Array<{ name: string }>;
+};
+
 type IdentityFailoverReport = {
   enabled: boolean;
   status: string;
@@ -842,6 +871,7 @@ type SystemStatus = {
     eap_machine_user?: MachineUserReport;
     eap_fast_pwd?: FASTPWDReport;
     eap_sim_aka?: SIMAKAReport;
+    policy_engine?: PolicyEngineReport;
     certificate_lifecycle?: CertificateLifecycleReport;
     supplicant_lifecycle?: SupplicantLifecycleReport;
     radsec_credentials?: RadSecCredentialReport;
@@ -1392,6 +1422,7 @@ export default function Dashboard() {
   const machineUserReport = systemStatus.radius?.eap_machine_user;
   const fastPWDReport = systemStatus.radius?.eap_fast_pwd;
   const simAKAReport = systemStatus.radius?.eap_sim_aka;
+  const policyEngine = systemStatus.radius?.policy_engine;
   const certificateLifecycle =
     systemStatus.radius?.certificate_lifecycle;
   const supplicantLifecycle =
@@ -2570,6 +2601,81 @@ export default function Dashboard() {
                       ) : null}
                     </div>
                     <StatusBadge status={simAKAReport.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {policyEngine ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Typed Policy Engine
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {policyEngine.message ||
+                          "Typed authorization policy state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Mode {policyEngine.config?.mode || "monitor"}
+                        </div>
+                        <div>
+                          Rules{" "}
+                          {policyEngine.rules?.filter((rule) => rule.enabled)
+                            .length ?? 0}
+                        </div>
+                        <div>
+                          Typed{" "}
+                          {policyEngine.rules?.filter(
+                            (rule) =>
+                              rule.enabled && rule.typed && rule.valid,
+                          ).length ?? 0}
+                        </div>
+                        <div>
+                          Legacy{" "}
+                          {policyEngine.rules?.filter(
+                            (rule) => rule.enabled && rule.legacy,
+                          ).length ?? 0}
+                        </div>
+                        <div>
+                          Decisions{" "}
+                          {policyEngine.summary?.total_records ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Fields {policyEngine.fields?.length ?? 0}; operators{" "}
+                        {policyEngine.operators?.length ?? 0}; audit{" "}
+                        {policyEngine.config?.audit_enabled
+                          ? "enabled"
+                          : "disabled"}
+                        ; fail closed{" "}
+                        {policyEngine.config?.fail_closed ? "yes" : "no"}.
+                      </div>
+                      {policyEngine.summary?.last_decision ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last decision {policyEngine.summary.last_decision}
+                          {policyEngine.summary.last_evaluated_at
+                            ? ` at ${policyEngine.summary.last_evaluated_at}`
+                            : ""}
+                          .
+                        </div>
+                      ) : null}
+                      {policyEngine.rules?.some(
+                        (rule) => rule.enabled && !rule.valid,
+                      ) ? (
+                        <div className="mt-2 text-xs text-red-700">
+                          One or more enabled rules have invalid expressions.
+                        </div>
+                      ) : policyEngine.rules?.some(
+                          (rule) => rule.enabled && rule.legacy,
+                        ) ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          Legacy match conditions are still enabled for
+                          migration.
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge status={policyEngine.status || "unknown"} />
                   </div>
                 </div>
               ) : null}

@@ -2214,6 +2214,49 @@ func TestConfigValidationSupplicantLifecycle(t *testing.T) {
 	assert.ErrorContains(t, noCertificateLifecycle.Validate(), "TLS profiles require onboarding.certificate_lifecycle.enabled")
 }
 
+func TestConfigValidationTypedPolicyEngine(t *testing.T) {
+	cfg := &Config{
+		Mode:      "two-nic",
+		WAN:       InterfaceConfig{Name: "eth0"},
+		LAN:       InterfaceConfig{Name: "eth1"},
+		Database:  DatabaseConfig{Path: "/tmp/aegis.db"},
+		Health:    HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{Enabled: true, PrometheusPort: 9090},
+		Radius: RadiusConfig{
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+		},
+		Policy: PolicyConfig{
+			DefaultRole:              "guest-basic",
+			RuntimeShapingEnabled:    true,
+			TypedEngineEnabled:       true,
+			Mode:                     "enforce",
+			FailClosed:               true,
+			AuditEnabled:             true,
+			AllowLegacyConditions:    false,
+			RequireTypedRules:        true,
+			MaxExpressionDepth:       8,
+			MaxExpressionNodes:       128,
+			MaxListValues:            128,
+			EvaluationRetentionLimit: 10000,
+		},
+	}
+	require.NoError(t, cfg.Validate())
+
+	badMode := *cfg
+	badMode.Policy.Mode = "observe"
+	assert.ErrorContains(t, badMode.Validate(), "policy.mode")
+
+	badLimits := *cfg
+	badLimits.Policy.MaxExpressionDepth = 0
+	assert.ErrorContains(t, badLimits.Validate(), "typed_engine_enabled requires positive")
+
+	badLegacy := *cfg
+	badLegacy.Policy.AllowLegacyConditions = true
+	assert.ErrorContains(t, badLegacy.Validate(), "require_typed_rules")
+}
+
 func TestConfigValidationPhase4Integrations(t *testing.T) {
 	base := func() *Config {
 		return &Config{

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
@@ -42,7 +44,15 @@ func (e *Engine) EnrichRequest(req *Request) error {
 
 // Evaluate processes all enabled rules in priority order and returns the final decision.
 func (e *Engine) Evaluate(req *Request) (*Decision, error) {
+	result, err := e.EvaluateDetailed(req)
+	if err != nil {
+		return nil, err
+	}
+	return &result.Decision, nil
+}
 
+// EvaluateDetailed processes all enabled rules and returns an explainable policy result.
+func (e *Engine) EvaluateDetailed(req *Request) (*EvaluationResult, error) {
 	// Optionally enrich request with LDAP groups if missing
 	if err := e.EnrichRequest(req); err != nil {
 		e.logger.Warn("failed to enrich request with LDAP groups", zap.Error(err))
@@ -55,38 +65,82 @@ func (e *Engine) Evaluate(req *Request) (*Decision, error) {
 		return nil, err
 	}
 
+	return EvaluateRules(req, rules, e.logger), nil
+}
+
+func (e *Engine) LoadRules() ([]Rule, error) {
+	return e.loadRules()
+}
+
+// EvaluateRules evaluates a caller-provided policy set. It is intentionally
+// independent from database access so tests, simulations, and future approval
+// workflows can replay exact rule sets.
+func EvaluateRules(req *Request, rules []Rule, logger *zap.Logger) *EvaluationResult {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+	evaluatedAt := time.Now().UTC()
+	if req != nil && !req.EvaluatedAt.IsZero() {
+		evaluatedAt = req.EvaluatedAt.UTC()
+	}
+	policySetHash := PolicySetHash(rules)
+	requestHash := RequestHash(req)
 	final := &Decision{
 		Allow:      false, // default deny if no rule matches
 		Quarantine: false,
 	}
+	result := &EvaluationResult{
+		SchemaVersion: TypedPolicySchemaVersion,
+		EvaluatedAt:   evaluatedAt.Format(time.RFC3339Nano),
+		PolicySetHash: policySetHash,
+		RequestHash:   requestHash,
+		EvaluationID:  NewEvaluationID(policySetHash, requestHash, evaluatedAt),
+		Decision:      *final,
+	}
 
 	for _, rule := range rules {
 		if !rule.Enabled {
+			result.SkippedRules = append(result.SkippedRules, RuleDiagnostic{ID: rule.ID, Name: rule.Name, Priority: rule.Priority, Status: "disabled", Message: "rule disabled"})
 			continue
 		}
-		match, err := e.matches(req, rule)
+		expr, legacy, err := CompileMatchConditions(rule.MatchConditions)
 		if err != nil {
-			e.logger.Error("rule match error", zap.String("rule", rule.Name), zap.Error(err))
+			result.InvalidRuleCount++
+			result.SkippedRules = append(result.SkippedRules, RuleDiagnostic{ID: rule.ID, Name: rule.Name, Priority: rule.Priority, Status: "invalid", Message: err.Error()})
+			logger.Error("rule match error", zap.String("rule", rule.Name), zap.Error(err))
 			continue
 		}
+		if legacy {
+			result.LegacyRuleCount++
+		} else {
+			result.TypedRuleCount++
+		}
+		match, trace := EvaluateTypedExpression(expr, req)
+		for i := range trace {
+			trace[i].Path = fmt.Sprintf("rule[%s].%s", rule.Name, strings.TrimPrefix(trace[i].Path, "$"))
+		}
+		result.Trace = append(result.Trace, trace...)
 		if match {
 			dec := ruleToDecision(&rule)
-			e.logger.Debug("rule matched", zap.String("rule", rule.Name))
+			result.Conflicts = append(result.Conflicts, decisionConflicts(final, dec, rule.Name)...)
+			logger.Debug("rule matched", zap.String("rule", rule.Name))
 			final.Merge(dec)
+			result.MatchedRules = append(result.MatchedRules, MatchedRule{ID: rule.ID, Name: rule.Name, Priority: rule.Priority, Action: normalizedAction(rule.Action), Notes: dec.Notes})
 			// If rule action is deny, stop processing further rules (explicit deny)
-			if rule.Action == "deny" {
+			if normalizedAction(rule.Action) == "deny" {
 				final.Allow = false
 				break
 			}
 		}
 	}
-	return final, nil
+	result.Decision = *final
+	return result
 }
 
 func (e *Engine) loadRules() ([]Rule, error) {
 	rows, err := db.DB.Query(`SELECT id, name, description, priority, enabled, match_conditions, action,
 		vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine
-		FROM policy_rules WHERE enabled = 1 ORDER BY priority DESC`)
+		FROM policy_rules ORDER BY priority DESC, name`)
 	if err != nil {
 		return nil, err
 	}
@@ -143,108 +197,19 @@ func (e *Engine) loadRules() ([]Rule, error) {
 
 // matches checks if a request satisfies the rule's conditions.
 func (e *Engine) matches(req *Request, rule Rule) (bool, error) {
-	var conds map[string]interface{}
-	if err := json.Unmarshal(rule.MatchConditions, &conds); err != nil {
+	expr, _, err := CompileMatchConditions(rule.MatchConditions)
+	if err != nil {
 		return false, fmt.Errorf("invalid match_conditions JSON: %w", err)
 	}
-
-	for key, expected := range conds {
-		switch key {
-		case "authenticated":
-			if val, ok := expected.(bool); ok {
-				if req.Authenticated != val {
-					return false, nil
-				}
-			}
-		case "role":
-			if val, ok := expected.(string); ok {
-				if req.Role != val {
-					return false, nil
-				}
-			} else if vals, ok := expected.([]interface{}); ok {
-				found := false
-				for _, v := range vals {
-					if s, ok := v.(string); ok && req.Role == s {
-						found = true
-						break
-					}
-				}
-				if !found {
-					return false, nil
-				}
-			}
-		case "auth_method":
-			if val, ok := expected.(string); ok {
-				if req.AuthMethod != val {
-					return false, nil
-				}
-			}
-		case "identity_source":
-			if val, ok := expected.(string); ok {
-				if req.IdentitySource != val {
-					return false, nil
-				}
-			}
-		case "ssid":
-			if val, ok := expected.(string); ok {
-				if req.SSID != val {
-					return false, nil
-				}
-			}
-		case "nas_identifier":
-			if val, ok := expected.(string); ok {
-				if req.NASIdentifier != val {
-					return false, nil
-				}
-			}
-		case "site":
-			if val, ok := expected.(string); ok {
-				if req.Site != val {
-					return false, nil
-				}
-			}
-		case "group":
-			if val, ok := expected.(string); ok {
-				found := false
-				for _, g := range req.Groups {
-					if g == val {
-						found = true
-						break
-					}
-				}
-				if !found {
-					return false, nil
-				}
-			} else if vals, ok := expected.([]interface{}); ok {
-				found := false
-				for _, v := range vals {
-					if s, ok := v.(string); ok {
-						for _, g := range req.Groups {
-							if g == s {
-								found = true
-								break
-							}
-						}
-					}
-				}
-				if !found {
-					return false, nil
-				}
-			}
-		// Additional conditions can be added as needed
-		default:
-			// Unknown condition key; ignore or log? For determinism, treat as not matched.
-			e.logger.Warn("unknown policy condition", zap.String("key", key))
-			return false, nil
-		}
-	}
-	return true, nil
+	matched, _ := EvaluateTypedExpression(expr, req)
+	return matched, nil
 }
 
 func ruleToDecision(rule *Rule) *Decision {
+	action := normalizedAction(rule.Action)
 	dec := &Decision{
-		Allow:            rule.Action == "allow",
-		Quarantine:       rule.Quarantine,
+		Allow:            action == "allow" || action == "quarantine",
+		Quarantine:       rule.Quarantine || action == "quarantine",
 		VLAN:             rule.VLAN,
 		BandwidthProfile: rule.BandwidthProfile,
 		SessionTimeout:   rule.SessionTimeout,
@@ -253,8 +218,40 @@ func ruleToDecision(rule *Rule) *Decision {
 		ACLPolicyName:    rule.ACLPolicyName,
 		MatchedRule:      rule.Name,
 	}
-	if rule.Action == "deny" {
+	if action == "deny" {
 		dec.Allow = false
+		dec.Notes = append(dec.Notes, "explicit deny")
+	}
+	if action == "quarantine" {
+		dec.Notes = append(dec.Notes, "quarantine action")
 	}
 	return dec
+}
+
+func normalizedAction(action string) string {
+	action = strings.ToLower(strings.TrimSpace(action))
+	if action == "" {
+		return "allow"
+	}
+	return action
+}
+
+func decisionConflicts(current, next *Decision, ruleName string) []string {
+	if current == nil || next == nil {
+		return nil
+	}
+	var conflicts []string
+	if current.VLAN != nil && next.VLAN != nil && *current.VLAN != *next.VLAN {
+		conflicts = append(conflicts, fmt.Sprintf("rule %s overrides VLAN %d with %d", ruleName, *current.VLAN, *next.VLAN))
+	}
+	if current.BandwidthProfile != nil && next.BandwidthProfile != nil && !strings.EqualFold(*current.BandwidthProfile, *next.BandwidthProfile) {
+		conflicts = append(conflicts, fmt.Sprintf("rule %s overrides bandwidth profile %s with %s", ruleName, *current.BandwidthProfile, *next.BandwidthProfile))
+	}
+	if current.ACLPolicyName != nil && next.ACLPolicyName != nil && !strings.EqualFold(*current.ACLPolicyName, *next.ACLPolicyName) {
+		conflicts = append(conflicts, fmt.Sprintf("rule %s overrides ACL policy %s with %s", ruleName, *current.ACLPolicyName, *next.ACLPolicyName))
+	}
+	if current.PortalProfile != nil && next.PortalProfile != nil && !strings.EqualFold(*current.PortalProfile, *next.PortalProfile) {
+		conflicts = append(conflicts, fmt.Sprintf("rule %s overrides portal profile %s with %s", ruleName, *current.PortalProfile, *next.PortalProfile))
+	}
+	return conflicts
 }

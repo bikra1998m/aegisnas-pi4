@@ -157,7 +157,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{30, schemaV30},
 		{31, schemaV31},
 		{32, schemaV32},
-		{LatestSchemaVersion(), schemaV33},
+		{33, schemaV33},
+		{LatestSchemaVersion(), schemaV34},
 	}
 
 	for _, m := range migrations {
@@ -226,8 +227,20 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureSupplicantLifecycleTables(handle); err != nil {
 		return fmt.Errorf("repair supplicant lifecycle schema: %w", err)
 	}
+	if err := ensurePolicyEngineTables(handle); err != nil {
+		return fmt.Errorf("repair policy engine schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensurePolicyEngineTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	_, err := handle.Exec(SQLForDialect(schemaV34, dialect))
+	return err
 }
 
 func ensureSupplicantLifecycleTables(handle *sql.DB) error {

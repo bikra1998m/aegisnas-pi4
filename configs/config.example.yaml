@@ -768,6 +768,16 @@ ldap:
 policy:
   default_role: guest-basic
   runtime_shaping_enabled: true
+  typed_engine_enabled: true
+  mode: "monitor" # monitor during rule migration; use enforce for production sign-off.
+  fail_closed: true
+  audit_enabled: true
+  allow_legacy_conditions: true # Set false after all policy_rules use typed all/any/not expressions.
+  require_typed_rules: false # Set true with allow_legacy_conditions=false for strict production governance.
+  max_expression_depth: 8
+  max_expression_nodes: 128
+  max_list_values: 128
+  evaluation_retention_limit: 10000
 
 telemetry:
   enabled: true

@@ -130,6 +130,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionMachineUserCheck(&report, cfg)
 	addProductionFASTPWDCheck(&report, cfg)
 	addProductionSIMAKACheck(&report, cfg)
+	addProductionPolicyEngineCheck(&report, cfg)
 	addProductionCertificateLifecycleCheck(&report, cfg)
 	addProductionSupplicantLifecycleCheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
@@ -748,6 +749,74 @@ func addProductionSIMAKACheck(report *productionReadinessReport, cfg *config.Con
 		Recommendation: "For production carrier, Passpoint, or roaming profiles, add only required SIM/AKA methods to radius.eap.framework.allowed_methods, configure radius.eap.sim_aka.vector_provider_ref, keep framework enforce/fail-closed, and complete the NAS-0025 release certification checklist for HSS/HLR/UDM and real-device evidence.",
 		Dependencies:   []string{"radius.eap.sim_aka", "radius.eap.framework.allowed_methods", "eap_sim_aka_events", "rlm_eap_sim", "rlm_eap_aka", "rlm_eap_aka_prime", "/api/v1/system/eap-framework/sim-aka"},
 	})
+}
+
+func addProductionPolicyEngineCheck(report *productionReadinessReport, cfg *config.Config) {
+	engineReport, err := buildPolicyEngineReport(cfg, 0)
+	status := "passed"
+	summary := "Typed policy engine is active and ready."
+	if err != nil {
+		status = "blocked"
+		summary = fmt.Sprintf("Typed policy engine report failed: %v", err)
+	} else {
+		switch engineReport.Status {
+		case "blocked", "disabled":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		}
+		if !cfg.Policy.TypedEngineEnabled || !cfg.Policy.FailClosed {
+			status = "blocked"
+		}
+		if !cfg.Policy.AuditEnabled && status == "passed" {
+			status = "degraded"
+		}
+		if cfg.Policy.EvaluationRetentionLimit < 100 {
+			status = "blocked"
+		}
+		summary = fmt.Sprintf("Typed policy engine schema %d is %s with %d rule(s), %d typed, %d legacy, %d invalid, and %d retained evaluation(s).",
+			engineReport.SchemaVersion, engineReport.Status, len(engineReport.Rules), enabledTypedPolicyRules(engineReport.Rules),
+			enabledLegacyPolicyRules(engineReport.Rules), enabledInvalidPolicyRules(engineReport.Rules), engineReport.Summary.TotalRecords)
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "typed_policy_engine",
+		Category:       "policy",
+		Label:          "Typed Policy Expression Engine",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Keep policy.typed_engine_enabled=true, fail_closed=true, audit_enabled=true, migrate legacy match_conditions to typed all/any/not expressions, and complete the NAS-0029 release certification checklist for real-device evidence.",
+		Dependencies:   []string{"policy.typed_engine_enabled", "/api/v1/system/policy-engine", "/api/v1/system/policy-engine/evaluate", "policy_engine_evaluations"},
+	})
+}
+
+func enabledTypedPolicyRules(rules []policyRuleStatus) int {
+	count := 0
+	for _, rule := range rules {
+		if rule.Enabled && rule.Typed && rule.Valid {
+			count++
+		}
+	}
+	return count
+}
+
+func enabledLegacyPolicyRules(rules []policyRuleStatus) int {
+	count := 0
+	for _, rule := range rules {
+		if rule.Enabled && rule.Legacy {
+			count++
+		}
+	}
+	return count
+}
+
+func enabledInvalidPolicyRules(rules []policyRuleStatus) int {
+	count := 0
+	for _, rule := range rules {
+		if rule.Enabled && !rule.Valid {
+			count++
+		}
+	}
+	return count
 }
 
 func addProductionCertificateLifecycleCheck(report *productionReadinessReport, cfg *config.Config) {

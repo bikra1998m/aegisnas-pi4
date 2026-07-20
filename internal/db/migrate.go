@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 33
+	return 34
 }
 
 func Migrate() error {
@@ -1515,4 +1515,37 @@ CREATE INDEX IF NOT EXISTS idx_supplicant_profile_deliveries_status ON supplican
 CREATE INDEX IF NOT EXISTS idx_supplicant_profile_deliveries_platform ON supplicant_profile_deliveries(platform, updated_at);
 CREATE INDEX IF NOT EXISTS idx_supplicant_profile_deliveries_username ON supplicant_profile_deliveries(username_hash, updated_at);
 CREATE INDEX IF NOT EXISTS idx_supplicant_profile_deliveries_device ON supplicant_profile_deliveries(device_id_hash, updated_at);
+`
+
+const schemaV34 = `
+CREATE TABLE IF NOT EXISTS policy_engine_evaluations (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	evaluation_id TEXT UNIQUE NOT NULL,
+	evaluated_at DATETIME NOT NULL,
+	policy_set_hash TEXT NOT NULL,
+	request_hash TEXT NOT NULL,
+	username_hash TEXT,
+	calling_station_hash TEXT,
+	tenant TEXT,
+	decision TEXT NOT NULL,
+	allowed BOOLEAN DEFAULT 0,
+	quarantine BOOLEAN DEFAULT 0,
+	matched_rules_json TEXT NOT NULL DEFAULT '[]',
+	conflicts_json TEXT NOT NULL DEFAULT '[]',
+	trace_json TEXT NOT NULL DEFAULT '[]',
+	request_summary_json TEXT NOT NULL DEFAULT '{}',
+	legacy_rule_count INTEGER DEFAULT 0,
+	typed_rule_count INTEGER DEFAULT 0,
+	invalid_rule_count INTEGER DEFAULT 0,
+	latency_ms INTEGER DEFAULT 0,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (decision IN ('allow', 'deny', 'quarantine'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_policy_engine_evaluations_evaluated_at ON policy_engine_evaluations(evaluated_at);
+CREATE INDEX IF NOT EXISTS idx_policy_engine_evaluations_decision ON policy_engine_evaluations(decision, evaluated_at);
+CREATE INDEX IF NOT EXISTS idx_policy_engine_evaluations_policy_hash ON policy_engine_evaluations(policy_set_hash, evaluated_at);
+CREATE INDEX IF NOT EXISTS idx_policy_engine_evaluations_username ON policy_engine_evaluations(username_hash, evaluated_at);
+CREATE INDEX IF NOT EXISTS idx_policy_engine_evaluations_calling_station ON policy_engine_evaluations(calling_station_hash, evaluated_at);
+CREATE INDEX IF NOT EXISTS idx_policy_engine_evaluations_tenant ON policy_engine_evaluations(tenant, evaluated_at);
 `

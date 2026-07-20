@@ -928,8 +928,18 @@ type LDAPConfig struct {
 }
 
 type PolicyConfig struct {
-	DefaultRole           string `mapstructure:"default_role"`
-	RuntimeShapingEnabled bool   `mapstructure:"runtime_shaping_enabled"`
+	DefaultRole              string `mapstructure:"default_role"`
+	RuntimeShapingEnabled    bool   `mapstructure:"runtime_shaping_enabled"`
+	TypedEngineEnabled       bool   `mapstructure:"typed_engine_enabled"`
+	Mode                     string `mapstructure:"mode"`
+	FailClosed               bool   `mapstructure:"fail_closed"`
+	AuditEnabled             bool   `mapstructure:"audit_enabled"`
+	AllowLegacyConditions    bool   `mapstructure:"allow_legacy_conditions"`
+	RequireTypedRules        bool   `mapstructure:"require_typed_rules"`
+	MaxExpressionDepth       int    `mapstructure:"max_expression_depth"`
+	MaxExpressionNodes       int    `mapstructure:"max_expression_nodes"`
+	MaxListValues            int    `mapstructure:"max_list_values"`
+	EvaluationRetentionLimit int    `mapstructure:"evaluation_retention_limit"`
 }
 
 type TelemetryConfig struct {
@@ -1920,6 +1930,16 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("mab.audit_enabled", true)
 	v.SetDefault("mab.retention_limit", 6000)
 	v.SetDefault("policy.runtime_shaping_enabled", true)
+	v.SetDefault("policy.typed_engine_enabled", true)
+	v.SetDefault("policy.mode", "monitor")
+	v.SetDefault("policy.fail_closed", true)
+	v.SetDefault("policy.audit_enabled", true)
+	v.SetDefault("policy.allow_legacy_conditions", true)
+	v.SetDefault("policy.require_typed_rules", false)
+	v.SetDefault("policy.max_expression_depth", 8)
+	v.SetDefault("policy.max_expression_nodes", 128)
+	v.SetDefault("policy.max_list_values", 128)
+	v.SetDefault("policy.evaluation_retention_limit", 10000)
 	v.SetDefault("wireless.enabled", false)
 	v.SetDefault("wireless.country_code", "US")
 	v.SetDefault("wireless.driver", "nl80211")
@@ -4379,6 +4399,10 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if err := validatePolicyEngineConfig(c.Policy); err != nil {
+		return err
+	}
+
 	if c.Wireless.Enabled {
 		if EffectiveDeploymentForm(c.Deployment.Form) == "virtual" && !c.Deployment.Hardware.WirelessPassthrough {
 			return errors.New("wireless.enabled requires deployment.hardware.wireless_passthrough on virtual appliances")
@@ -5379,6 +5403,40 @@ func validateRadiusProxyRoutes(upstream RadiusUpstreamConfig, serverNames map[st
 
 	if enabledRoutes == 0 {
 		return errors.New("radius.upstream.routes requires at least one enabled route when configured")
+	}
+	return nil
+}
+
+func validatePolicyEngineConfig(policy PolicyConfig) error {
+	mode := strings.ToLower(strings.TrimSpace(policy.Mode))
+	if mode == "" {
+		mode = "monitor"
+	}
+	if mode != "monitor" && mode != "enforce" {
+		return fmt.Errorf("policy.mode %q must be monitor or enforce", policy.Mode)
+	}
+	if policy.MaxExpressionDepth < 0 || policy.MaxExpressionDepth > 16 {
+		return fmt.Errorf("policy.max_expression_depth must be between 1 and 16 when set")
+	}
+	if policy.MaxExpressionNodes < 0 || policy.MaxExpressionNodes > 1024 {
+		return fmt.Errorf("policy.max_expression_nodes must be between 1 and 1024 when set")
+	}
+	if policy.MaxListValues < 0 || policy.MaxListValues > 1024 {
+		return fmt.Errorf("policy.max_list_values must be between 1 and 1024 when set")
+	}
+	if policy.EvaluationRetentionLimit < 0 || policy.EvaluationRetentionLimit > 1000000 {
+		return fmt.Errorf("policy.evaluation_retention_limit must be between 100 and 1000000 when set")
+	}
+	if policy.TypedEngineEnabled {
+		if policy.MaxExpressionDepth == 0 || policy.MaxExpressionNodes == 0 || policy.MaxListValues == 0 {
+			return errors.New("policy.typed_engine_enabled requires positive max_expression_depth, max_expression_nodes, and max_list_values")
+		}
+		if policy.AuditEnabled && policy.EvaluationRetentionLimit > 0 && policy.EvaluationRetentionLimit < 100 {
+			return fmt.Errorf("policy.evaluation_retention_limit must be between 100 and 1000000")
+		}
+		if policy.RequireTypedRules && policy.AllowLegacyConditions {
+			return errors.New("policy.require_typed_rules cannot be combined with policy.allow_legacy_conditions")
+		}
 	}
 	return nil
 }

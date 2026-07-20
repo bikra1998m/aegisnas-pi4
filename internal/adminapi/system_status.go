@@ -164,6 +164,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	certificateLifecycle := certlifecycle.BuildReport(cfg, certificateLifecycleRuntimeSummaryFromDB(certificateLifecycleSummary))
 	supplicantLifecycleSummary, _ := db.SummarizeSupplicantLifecycle(1000)
 	supplicantLifecycle := supplicantprofile.BuildReport(cfg, supplicantRuntimeSummaryFromDB(supplicantLifecycleSummary))
+	policyEngine, _ := buildPolicyEngineReport(cfg, 5)
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -183,6 +184,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"eap_sim_aka":             simAKAFramework,
 		"certificate_lifecycle":   certificateLifecycle,
 		"supplicant_lifecycle":    supplicantLifecycle,
+		"policy_engine":           policyEngine,
 		"enabled_radius_clients":  enabledRadiusClients,
 		"broker_auth":             runtimeMap["radius_broker_auth"],
 		"broker_accounting":       runtimeMap["radius_broker_accounting"],

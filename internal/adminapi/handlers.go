@@ -19,6 +19,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/enforcement"
+	policypkg "github.com/yourorg/aegisnas-pi4/internal/policy"
 	"github.com/yourorg/aegisnas-pi4/internal/secrets"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -405,6 +406,9 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 		matchJSON, err := jsonField(data["match_conditions"], "{}")
 		if err != nil {
 			return fmt.Errorf("match_conditions: %w", err)
+		}
+		if err := validatePolicyRuleForApply(data, matchJSON); err != nil {
+			return err
 		}
 		fields := []fieldValue{
 			{"name", data["name"]}, {"description", data["description"]}, {"priority", data["priority"]},
@@ -850,6 +854,17 @@ func HandleListPolicies(w http.ResponseWriter, r *http.Request) {
 			"id": id, "name": name, "description": desc, "priority": priority, "enabled": enabled,
 			"match_conditions": rawJSON(matchCond), "action": action, "quarantine": quarantine,
 		}
+		if expr, legacy, err := policypkg.CompileMatchConditions(json.RawMessage(matchCond)); err == nil {
+			policy["typed_expression"] = expr
+			policy["typed"] = !legacy
+			policy["legacy"] = legacy
+			policy["valid"] = true
+		} else {
+			policy["typed"] = false
+			policy["legacy"] = false
+			policy["valid"] = false
+			policy["validation_error"] = err.Error()
+		}
 		if vlan.Valid {
 			policy["vlan"] = vlan.Int64
 		}
@@ -881,6 +896,32 @@ func HandleUpdatePolicy(w http.ResponseWriter, r *http.Request) {
 }
 func HandleDeletePolicy(w http.ResponseWriter, r *http.Request) {
 	stageResource(w, r, "policy", chi.URLParam(r, "id"), "delete")
+}
+
+func validatePolicyRuleForApply(data map[string]any, matchJSON string) error {
+	rule := policypkg.Rule{
+		Name:            stringValue(data, "name"),
+		Action:          stringValue(data, "action"),
+		MatchConditions: json.RawMessage(matchJSON),
+	}
+	expr, legacy, err := policypkg.CompileMatchConditions(rule.MatchConditions)
+	if err != nil {
+		return fmt.Errorf("policy rule %q match_conditions: %w", rule.Name, err)
+	}
+	rule.MatchConditions, _ = json.Marshal(expr)
+	if err := policypkg.ValidateRule(rule); err != nil {
+		return err
+	}
+	cfg := config.Get()
+	if cfg != nil && cfg.Policy.TypedEngineEnabled {
+		if legacy && !cfg.Policy.AllowLegacyConditions {
+			return fmt.Errorf("policy rule %q uses legacy match_conditions while policy.allow_legacy_conditions is false", rule.Name)
+		}
+		if legacy && cfg.Policy.RequireTypedRules {
+			return fmt.Errorf("policy rule %q uses legacy match_conditions while policy.require_typed_rules is true", rule.Name)
+		}
+	}
+	return nil
 }
 
 // ---------- Identity Sources ----------

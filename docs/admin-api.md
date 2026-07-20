@@ -245,6 +245,21 @@ and recent hashed fallback decisions. The same summary appears in
 as `radius_fallback_policy`, and in support bundles as
 `api/fallback-policy.json`. See [radius-fallback-policy.md](radius-fallback-policy.md).
 
+Typed policy expression engine state is exposed at:
+
+```text
+/api/v1/system/policy-engine
+POST /api/v1/system/policy-engine/validate
+POST /api/v1/system/policy-engine/evaluate
+```
+
+Use these endpoints to review typed versus legacy policy rules, field and
+operator catalogs, retained redacted decisions, policy-set hashes, conflicts,
+and explain traces. The same summary appears in `/api/v1/system/status` under
+`radius.policy_engine`, in production readiness as `typed_policy_engine`, and
+in support bundles as `api/policy-engine.json`. See
+[typed-policy-engine.md](typed-policy-engine.md).
+
 Identity source failover state is exposed at:
 
 ```text
