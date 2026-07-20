@@ -1983,6 +1983,100 @@ func TestConfigValidationOnboardingAndProfiling(t *testing.T) {
 	assert.ErrorContains(t, badMDMProvider.Validate(), `profiling.mdm_provider "mystery-mdm" is invalid`)
 }
 
+func TestConfigValidationCertificateLifecycle(t *testing.T) {
+	base := func() *Config {
+		return &Config{
+			Mode:     "two-nic",
+			WAN:      InterfaceConfig{Name: "eth0"},
+			LAN:      InterfaceConfig{Name: "eth1"},
+			Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+			Health:   HealthConfig{Port: 8080},
+			Telemetry: TelemetryConfig{
+				Enabled:        true,
+				PrometheusPort: 9090,
+			},
+			Portal: PortalConfig{
+				Enabled:       true,
+				LocalFallback: true,
+				Branding:      "AegisNAS Onboarding",
+			},
+			Deployment: DeploymentConfig{Profile: "enterprise"},
+			Radius: RadiusConfig{
+				AuthPort:              1812,
+				AcctPort:              1813,
+				RequestTimeoutSeconds: 5,
+				EAP: RadiusEAPConfig{
+					DefaultType:          "tls",
+					CheckCRL:             true,
+					CAPathReloadInterval: 3600,
+				},
+			},
+			Onboarding: OnboardingConfig{
+				DeviceInventoryEnabled:       true,
+				PortalEnabled:                true,
+				CertificateEnrollmentEnabled: true,
+				EAPTLSEnabled:                true,
+				CAMode:                       "internal",
+				CACertPath:                   "/etc/aegisnas/pki/ca.crt",
+				CAKeyPath:                    "/etc/aegisnas/pki/ca.key",
+				CertificateLifecycle: CertificateLifecycleConfig{
+					Enabled:                    true,
+					Mode:                       "enforce",
+					FailClosed:                 true,
+					DefaultTemplate:            "device-eap-tls",
+					Templates:                  []string{"device-eap-tls", "byod-eap-tls"},
+					ActiveIssuer:               "aegisnas-local",
+					IssuerRotationMode:         "disabled",
+					IssuerOverlapSeconds:       2592000,
+					CertificateValidityDays:    365,
+					MaxCertificateValidityDays: 825,
+					RenewalWindowDays:          30,
+					RequireCSR:                 true,
+					RequireProofOfPossession:   true,
+					RequireDeviceBinding:       true,
+					RequireSubjectAltName:      true,
+					AllowedKeyTypes:            []string{"rsa", "ecdsa", "ed25519"},
+					MinRSABits:                 2048,
+					AllowedECDSACurves:         []string{"P-256", "P-384", "P-521"},
+					EscrowPolicy:               "forbid",
+					CRLEnabled:                 true,
+					ESTEnabled:                 true,
+					SCEPEnabled:                true,
+					BYODPortalEnabled:          true,
+					AuditEnabled:               true,
+					EventRetentionLimit:        6000,
+					InventoryRetentionLimit:    100000,
+				},
+			},
+		}
+	}
+
+	assert.NoError(t, base().Validate())
+
+	badTemplate := base()
+	badTemplate.Onboarding.CertificateLifecycle.DefaultTemplate = "missing"
+	assert.ErrorContains(t, badTemplate.Validate(), "default_template")
+
+	badEscrow := base()
+	badEscrow.Onboarding.CertificateLifecycle.AllowServerKeyGeneration = true
+	assert.ErrorContains(t, badEscrow.Validate(), "allow_server_key_generation")
+
+	noRevocation := base()
+	noRevocation.Radius.EAP.CheckCRL = false
+	noRevocation.Onboarding.CertificateLifecycle.CRLEnabled = false
+	assert.ErrorContains(t, noRevocation.Validate(), "requires radius.eap.check_crl or radius.eap.ocsp.enabled")
+
+	badRotation := base()
+	badRotation.Onboarding.CertificateLifecycle.IssuerRotationMode = "staged"
+	assert.ErrorContains(t, badRotation.Validate(), "requires staged_issuer")
+
+	badProtocol := base()
+	badProtocol.Onboarding.CertificateLifecycle.ESTEnabled = false
+	badProtocol.Onboarding.CertificateLifecycle.SCEPEnabled = false
+	badProtocol.Onboarding.CertificateLifecycle.BYODPortalEnabled = false
+	assert.ErrorContains(t, badProtocol.Validate(), "requires at least one enrollment entry point")
+}
+
 func TestConfigValidationPhase4Integrations(t *testing.T) {
 	base := func() *Config {
 		return &Config{

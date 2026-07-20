@@ -220,6 +220,40 @@ type NetworkObservabilityResponse = {
   recovery?: NetworkRecoveryState | null;
 };
 
+const certificateLifecycleDefaults: JsonMap = {
+  enabled: false,
+  mode: "monitor",
+  fail_closed: true,
+  default_template: "device-eap-tls",
+  templates: ["device-eap-tls", "byod-eap-tls"],
+  active_issuer: "aegisnas-local",
+  staged_issuer: "",
+  issuer_rotation_mode: "disabled",
+  issuer_overlap_seconds: 2592000,
+  certificate_validity_days: 365,
+  max_certificate_validity_days: 825,
+  renewal_window_days: 30,
+  require_csr: true,
+  require_proof_of_possession: true,
+  require_device_binding: true,
+  require_subject_alt_name: true,
+  allowed_key_types: ["rsa", "ecdsa", "ed25519"],
+  min_rsa_bits: 2048,
+  allowed_ecdsa_curves: ["P-256", "P-384", "P-521"],
+  allow_server_key_generation: false,
+  escrow_policy: "forbid",
+  crl_enabled: false,
+  crl_publish_path: "/var/lib/aegisnas/pki/crl",
+  ocsp_enabled: false,
+  ocsp_responder_url: "",
+  est_enabled: true,
+  scep_enabled: true,
+  byod_portal_enabled: true,
+  audit_enabled: true,
+  event_retention_limit: 6000,
+  inventory_retention_limit: 100000,
+};
+
 const defaultSettings: JsonMap = {
   mode: "two-nic",
   admin_port: 8083,
@@ -441,6 +475,7 @@ const defaultSettings: JsonMap = {
     ca_key_path: "",
     ca_enrollment_url: "",
     ca_enrollment_token_env: "",
+    certificate_lifecycle: { ...certificateLifecycleDefaults },
   },
   profiling: {
     mac_inventory_enabled: false,
@@ -1082,6 +1117,22 @@ const caModeOptions: Option[] = [
   { value: "external", label: "External Enrollment API" },
 ];
 
+const certificateLifecycleModeOptions: Option[] = [
+  { value: "monitor", label: "Monitor" },
+  { value: "enforce", label: "Enforce" },
+];
+
+const certificateLifecycleRotationOptions: Option[] = [
+  { value: "disabled", label: "No Rotation" },
+  { value: "staged", label: "Staged Issuer" },
+];
+
+const certificateEscrowOptions: Option[] = [
+  { value: "forbid", label: "Forbid Escrow" },
+  { value: "admin-approved", label: "Admin Approved" },
+  { value: "allow", label: "Allow" },
+];
+
 const adminSSOProviderOptions: Option[] = [
   { value: "", label: "Select provider" },
   { value: "oidc", label: "OIDC" },
@@ -1273,6 +1324,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.telemetry = next.telemetry || {};
   next.ailite = next.ailite || {};
   next.onboarding = next.onboarding || {};
+  next.onboarding.certificate_lifecycle = {
+    ...certificateLifecycleDefaults,
+    ...(next.onboarding.certificate_lifecycle || {}),
+  };
   next.profiling = next.profiling || {};
   next.integrations = next.integrations || {};
   next.integrations.admin_sso = next.integrations.admin_sso || {};
@@ -1341,6 +1396,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.onboarding.certificate_enrollment_enabled = false;
     next.onboarding.eap_tls_enabled = false;
     next.onboarding.ca_mode = "none";
+    next.onboarding.certificate_lifecycle.enabled = false;
+    next.onboarding.certificate_lifecycle.mode = "monitor";
+    next.onboarding.certificate_lifecycle.event_retention_limit = 1000;
+    next.onboarding.certificate_lifecycle.inventory_retention_limit = 10000;
     next.admin_webauthn.enabled = false;
     next.mab.enabled = false;
     next.profiling.passive_enabled = false;
@@ -1397,6 +1456,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.mab.revalidate_interval_seconds =
       next.mab.revalidate_interval_seconds || 300;
     next.onboarding.ca_mode = next.onboarding.ca_mode || "none";
+    next.onboarding.certificate_lifecycle.event_retention_limit =
+      next.onboarding.certificate_lifecycle.event_retention_limit || 12000;
+    next.onboarding.certificate_lifecycle.inventory_retention_limit =
+      next.onboarding.certificate_lifecycle.inventory_retention_limit || 500000;
     next.profiling.poll_interval_seconds =
       next.profiling.poll_interval_seconds || 300;
     next.profiling.retention_hours = next.profiling.retention_hours || 24;
@@ -1450,6 +1513,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.admin_webauthn.session_ttl_seconds =
       next.admin_webauthn.session_ttl_seconds || 28800;
     next.mab.cache_ttl_seconds = next.mab.cache_ttl_seconds || 300;
+    next.onboarding.certificate_lifecycle.event_retention_limit =
+      next.onboarding.certificate_lifecycle.event_retention_limit || 6000;
+    next.onboarding.certificate_lifecycle.inventory_retention_limit =
+      next.onboarding.certificate_lifecycle.inventory_retention_limit || 100000;
   }
 
   if (form === "virtual") {
@@ -7436,6 +7503,495 @@ export default function AccessSettings() {
             }
             placeholder="AEGIS_CA_ENROLLMENT_TOKEN"
           />
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-4">
+            <h4 className="font-semibold text-gray-900">
+              Certificate Lifecycle
+            </h4>
+            <p className="mt-1 text-sm text-gray-600">
+              Govern EAP-TLS certificate templates, EST/SCEP/BYOD enrollment,
+              revocation evidence, renewal windows, and issuer rollover.
+            </p>
+          </div>
+          <div className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Lifecycle Enabled"
+              checked={Boolean(
+                settings.onboarding?.certificate_lifecycle?.enabled,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={Boolean(
+                settings.onboarding?.certificate_lifecycle?.fail_closed ??
+                  true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "fail_closed"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Audit Events"
+              checked={Boolean(
+                settings.onboarding?.certificate_lifecycle?.audit_enabled ??
+                  true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "audit_enabled"],
+                  value,
+                )
+              }
+            />
+            <SelectField
+              label="Lifecycle Mode"
+              value={
+                settings.onboarding?.certificate_lifecycle?.mode || "monitor"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "mode"],
+                  value,
+                )
+              }
+              options={certificateLifecycleModeOptions}
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <TextField
+              label="Templates"
+              value={listToCSV(
+                settings.onboarding?.certificate_lifecycle?.templates ||
+                  certificateLifecycleDefaults.templates,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "templates"],
+                  csvToList(value),
+                )
+              }
+              placeholder="device-eap-tls, byod-eap-tls"
+            />
+            <TextField
+              label="Default Template"
+              value={
+                settings.onboarding?.certificate_lifecycle?.default_template ||
+                "device-eap-tls"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "default_template"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Active Issuer"
+              value={
+                settings.onboarding?.certificate_lifecycle?.active_issuer ||
+                "aegisnas-local"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "active_issuer"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Staged Issuer"
+              value={
+                settings.onboarding?.certificate_lifecycle?.staged_issuer || ""
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "staged_issuer"],
+                  value,
+                )
+              }
+            />
+            <SelectField
+              label="Issuer Rotation"
+              value={
+                settings.onboarding?.certificate_lifecycle
+                  ?.issuer_rotation_mode || "disabled"
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "issuer_rotation_mode",
+                  ],
+                  value,
+                )
+              }
+              options={certificateLifecycleRotationOptions}
+            />
+            <TextField
+              label="Issuer Overlap Seconds"
+              type="number"
+              value={
+                settings.onboarding?.certificate_lifecycle
+                  ?.issuer_overlap_seconds ?? 2592000
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "issuer_overlap_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Validity Days"
+              type="number"
+              value={
+                settings.onboarding?.certificate_lifecycle
+                  ?.certificate_validity_days ?? 365
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "certificate_validity_days",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Validity Days"
+              type="number"
+              value={
+                settings.onboarding?.certificate_lifecycle
+                  ?.max_certificate_validity_days ?? 825
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "max_certificate_validity_days",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Renewal Window Days"
+              type="number"
+              value={
+                settings.onboarding?.certificate_lifecycle
+                  ?.renewal_window_days ?? 30
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "renewal_window_days",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Allowed Key Types"
+              value={listToCSV(
+                settings.onboarding?.certificate_lifecycle
+                  ?.allowed_key_types ||
+                  certificateLifecycleDefaults.allowed_key_types,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "allowed_key_types"],
+                  csvToList(value),
+                )
+              }
+              placeholder="rsa, ecdsa, ed25519"
+            />
+            <TextField
+              label="Minimum RSA Bits"
+              type="number"
+              value={
+                settings.onboarding?.certificate_lifecycle?.min_rsa_bits ??
+                2048
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "min_rsa_bits"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Allowed ECDSA Curves"
+              value={listToCSV(
+                settings.onboarding?.certificate_lifecycle
+                  ?.allowed_ecdsa_curves ||
+                  certificateLifecycleDefaults.allowed_ecdsa_curves,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "allowed_ecdsa_curves",
+                  ],
+                  csvToList(value),
+                )
+              }
+              placeholder="P-256, P-384, P-521"
+            />
+            <SelectField
+              label="Escrow Policy"
+              value={
+                settings.onboarding?.certificate_lifecycle?.escrow_policy ||
+                "forbid"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "escrow_policy"],
+                  value,
+                )
+              }
+              options={certificateEscrowOptions}
+            />
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Require CSR"
+              checked={Boolean(
+                settings.onboarding?.certificate_lifecycle?.require_csr ??
+                  true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "require_csr"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Proof Of Possession"
+              checked={Boolean(
+                settings.onboarding?.certificate_lifecycle
+                  ?.require_proof_of_possession ?? true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "require_proof_of_possession",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Device Binding"
+              checked={Boolean(
+                settings.onboarding?.certificate_lifecycle
+                  ?.require_device_binding ?? true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "require_device_binding",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require subjectAltName"
+              checked={Boolean(
+                settings.onboarding?.certificate_lifecycle
+                  ?.require_subject_alt_name ?? true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "require_subject_alt_name",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Allow Server Key Generation"
+              checked={Boolean(
+                settings.onboarding?.certificate_lifecycle
+                  ?.allow_server_key_generation,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "allow_server_key_generation",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="EST Enabled"
+              checked={Boolean(
+                settings.onboarding?.certificate_lifecycle?.est_enabled ??
+                  true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "est_enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="SCEP Enabled"
+              checked={Boolean(
+                settings.onboarding?.certificate_lifecycle?.scep_enabled ??
+                  true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "scep_enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="BYOD Portal Enabled"
+              checked={Boolean(
+                settings.onboarding?.certificate_lifecycle
+                  ?.byod_portal_enabled ?? true,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "byod_portal_enabled",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="CRL Enabled"
+              checked={Boolean(
+                settings.onboarding?.certificate_lifecycle?.crl_enabled,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "crl_enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="OCSP Enabled"
+              checked={Boolean(
+                settings.onboarding?.certificate_lifecycle?.ocsp_enabled,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "ocsp_enabled"],
+                  value,
+                )
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <TextField
+              label="CRL Publish Path"
+              value={
+                settings.onboarding?.certificate_lifecycle?.crl_publish_path ||
+                "/var/lib/aegisnas/pki/crl"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["onboarding", "certificate_lifecycle", "crl_publish_path"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="OCSP Responder URL"
+              value={
+                settings.onboarding?.certificate_lifecycle
+                  ?.ocsp_responder_url || ""
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "ocsp_responder_url",
+                  ],
+                  value,
+                )
+              }
+              placeholder="https://ocsp.example.com"
+            />
+            <TextField
+              label="Event Retention Limit"
+              type="number"
+              value={
+                settings.onboarding?.certificate_lifecycle
+                  ?.event_retention_limit ?? 6000
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "event_retention_limit",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Inventory Retention Limit"
+              type="number"
+              value={
+                settings.onboarding?.certificate_lifecycle
+                  ?.inventory_retention_limit ?? 100000
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "onboarding",
+                    "certificate_lifecycle",
+                    "inventory_retention_limit",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+          </div>
         </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
           <div className="mb-4">

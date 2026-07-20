@@ -988,15 +988,50 @@ type AILiteConfig struct {
 }
 
 type OnboardingConfig struct {
-	DeviceInventoryEnabled       bool   `mapstructure:"device_inventory_enabled"`
-	PortalEnabled                bool   `mapstructure:"portal_enabled"`
-	CertificateEnrollmentEnabled bool   `mapstructure:"certificate_enrollment_enabled"`
-	EAPTLSEnabled                bool   `mapstructure:"eap_tls_enabled"`
-	CAMode                       string `mapstructure:"ca_mode"`
-	CACertPath                   string `mapstructure:"ca_cert_path"`
-	CAKeyPath                    string `mapstructure:"ca_key_path"`
-	CAEnrollmentURL              string `mapstructure:"ca_enrollment_url"`
-	CAEnrollmentTokenEnv         string `mapstructure:"ca_enrollment_token_env"`
+	DeviceInventoryEnabled       bool                       `mapstructure:"device_inventory_enabled"`
+	PortalEnabled                bool                       `mapstructure:"portal_enabled"`
+	CertificateEnrollmentEnabled bool                       `mapstructure:"certificate_enrollment_enabled"`
+	EAPTLSEnabled                bool                       `mapstructure:"eap_tls_enabled"`
+	CAMode                       string                     `mapstructure:"ca_mode"`
+	CACertPath                   string                     `mapstructure:"ca_cert_path"`
+	CAKeyPath                    string                     `mapstructure:"ca_key_path"`
+	CAEnrollmentURL              string                     `mapstructure:"ca_enrollment_url"`
+	CAEnrollmentTokenEnv         string                     `mapstructure:"ca_enrollment_token_env"`
+	CertificateLifecycle         CertificateLifecycleConfig `mapstructure:"certificate_lifecycle"`
+}
+
+type CertificateLifecycleConfig struct {
+	Enabled                    bool     `mapstructure:"enabled"`
+	Mode                       string   `mapstructure:"mode"`
+	FailClosed                 bool     `mapstructure:"fail_closed"`
+	DefaultTemplate            string   `mapstructure:"default_template"`
+	Templates                  []string `mapstructure:"templates"`
+	ActiveIssuer               string   `mapstructure:"active_issuer"`
+	StagedIssuer               string   `mapstructure:"staged_issuer"`
+	IssuerRotationMode         string   `mapstructure:"issuer_rotation_mode"`
+	IssuerOverlapSeconds       int      `mapstructure:"issuer_overlap_seconds"`
+	CertificateValidityDays    int      `mapstructure:"certificate_validity_days"`
+	MaxCertificateValidityDays int      `mapstructure:"max_certificate_validity_days"`
+	RenewalWindowDays          int      `mapstructure:"renewal_window_days"`
+	RequireCSR                 bool     `mapstructure:"require_csr"`
+	RequireProofOfPossession   bool     `mapstructure:"require_proof_of_possession"`
+	RequireDeviceBinding       bool     `mapstructure:"require_device_binding"`
+	RequireSubjectAltName      bool     `mapstructure:"require_subject_alt_name"`
+	AllowedKeyTypes            []string `mapstructure:"allowed_key_types"`
+	MinRSABits                 int      `mapstructure:"min_rsa_bits"`
+	AllowedECDSACurves         []string `mapstructure:"allowed_ecdsa_curves"`
+	AllowServerKeyGeneration   bool     `mapstructure:"allow_server_key_generation"`
+	EscrowPolicy               string   `mapstructure:"escrow_policy"`
+	CRLEnabled                 bool     `mapstructure:"crl_enabled"`
+	CRLPublishPath             string   `mapstructure:"crl_publish_path"`
+	OCSPEnabled                bool     `mapstructure:"ocsp_enabled"`
+	OCSPResponderURL           string   `mapstructure:"ocsp_responder_url"`
+	ESTEnabled                 bool     `mapstructure:"est_enabled"`
+	SCEPEnabled                bool     `mapstructure:"scep_enabled"`
+	BYODPortalEnabled          bool     `mapstructure:"byod_portal_enabled"`
+	AuditEnabled               bool     `mapstructure:"audit_enabled"`
+	EventRetentionLimit        int      `mapstructure:"event_retention_limit"`
+	InventoryRetentionLimit    int      `mapstructure:"inventory_retention_limit"`
 }
 
 type ProfilingConfig struct {
@@ -1346,6 +1381,37 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("ailite.recommendation_limit", 100)
 	v.SetDefault("database.backend", "sqlite")
 	v.SetDefault("onboarding.ca_mode", "none")
+	v.SetDefault("onboarding.certificate_lifecycle.enabled", false)
+	v.SetDefault("onboarding.certificate_lifecycle.mode", "monitor")
+	v.SetDefault("onboarding.certificate_lifecycle.fail_closed", true)
+	v.SetDefault("onboarding.certificate_lifecycle.default_template", "device-eap-tls")
+	v.SetDefault("onboarding.certificate_lifecycle.templates", []string{"device-eap-tls", "byod-eap-tls"})
+	v.SetDefault("onboarding.certificate_lifecycle.active_issuer", "aegisnas-local")
+	v.SetDefault("onboarding.certificate_lifecycle.staged_issuer", "")
+	v.SetDefault("onboarding.certificate_lifecycle.issuer_rotation_mode", "disabled")
+	v.SetDefault("onboarding.certificate_lifecycle.issuer_overlap_seconds", 2592000)
+	v.SetDefault("onboarding.certificate_lifecycle.certificate_validity_days", 365)
+	v.SetDefault("onboarding.certificate_lifecycle.max_certificate_validity_days", 825)
+	v.SetDefault("onboarding.certificate_lifecycle.renewal_window_days", 30)
+	v.SetDefault("onboarding.certificate_lifecycle.require_csr", true)
+	v.SetDefault("onboarding.certificate_lifecycle.require_proof_of_possession", true)
+	v.SetDefault("onboarding.certificate_lifecycle.require_device_binding", true)
+	v.SetDefault("onboarding.certificate_lifecycle.require_subject_alt_name", true)
+	v.SetDefault("onboarding.certificate_lifecycle.allowed_key_types", []string{"rsa", "ecdsa", "ed25519"})
+	v.SetDefault("onboarding.certificate_lifecycle.min_rsa_bits", 2048)
+	v.SetDefault("onboarding.certificate_lifecycle.allowed_ecdsa_curves", []string{"P-256", "P-384", "P-521"})
+	v.SetDefault("onboarding.certificate_lifecycle.allow_server_key_generation", false)
+	v.SetDefault("onboarding.certificate_lifecycle.escrow_policy", "forbid")
+	v.SetDefault("onboarding.certificate_lifecycle.crl_enabled", false)
+	v.SetDefault("onboarding.certificate_lifecycle.crl_publish_path", "/var/lib/aegisnas/pki/crl")
+	v.SetDefault("onboarding.certificate_lifecycle.ocsp_enabled", false)
+	v.SetDefault("onboarding.certificate_lifecycle.ocsp_responder_url", "")
+	v.SetDefault("onboarding.certificate_lifecycle.est_enabled", true)
+	v.SetDefault("onboarding.certificate_lifecycle.scep_enabled", true)
+	v.SetDefault("onboarding.certificate_lifecycle.byod_portal_enabled", true)
+	v.SetDefault("onboarding.certificate_lifecycle.audit_enabled", true)
+	v.SetDefault("onboarding.certificate_lifecycle.event_retention_limit", 6000)
+	v.SetDefault("onboarding.certificate_lifecycle.inventory_retention_limit", 100000)
 	v.SetDefault("profiling.poll_interval_seconds", 300)
 	v.SetDefault("profiling.retention_hours", 24)
 	v.SetDefault("profiling.mdm_sync_enabled", false)
@@ -4133,6 +4199,9 @@ func (c *Config) Validate() error {
 	if c.Onboarding.EAPTLSEnabled && !c.Radius.EAP.CheckCRL && !c.Radius.EAP.OCSP.Enabled {
 		return errors.New("onboarding.eap_tls_enabled requires radius.eap.check_crl or radius.eap.ocsp.enabled")
 	}
+	if err := validateCertificateLifecycleConfig(c); err != nil {
+		return err
+	}
 	if err := validateRadiusEAPFramework(c.Radius.EAP); err != nil {
 		return err
 	}
@@ -4372,6 +4441,195 @@ func certificateAuthorityReady(c *Config) bool {
 	default:
 		return false
 	}
+}
+
+func validateCertificateLifecycleConfig(c *Config) error {
+	if c == nil {
+		return nil
+	}
+	lifecycle := c.Onboarding.CertificateLifecycle
+	mode := strings.ToLower(strings.TrimSpace(lifecycle.Mode))
+	if mode == "" {
+		mode = "monitor"
+	}
+	switch mode {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("onboarding.certificate_lifecycle.mode %q must be monitor or enforce", lifecycle.Mode)
+	}
+	rotation := strings.ToLower(strings.TrimSpace(lifecycle.IssuerRotationMode))
+	if rotation == "" {
+		rotation = "disabled"
+	}
+	switch rotation {
+	case "disabled", "staged":
+	default:
+		return fmt.Errorf("onboarding.certificate_lifecycle.issuer_rotation_mode %q must be disabled or staged", lifecycle.IssuerRotationMode)
+	}
+	escrow := strings.ToLower(strings.TrimSpace(lifecycle.EscrowPolicy))
+	if escrow == "" {
+		escrow = "forbid"
+	}
+	switch escrow {
+	case "forbid", "admin-approved", "allow":
+	default:
+		return fmt.Errorf("onboarding.certificate_lifecycle.escrow_policy %q must be forbid, admin-approved, or allow", lifecycle.EscrowPolicy)
+	}
+	if lifecycle.CertificateValidityDays < 0 || lifecycle.CertificateValidityDays > 825 {
+		return fmt.Errorf("onboarding.certificate_lifecycle.certificate_validity_days must be between 0 and 825")
+	}
+	if lifecycle.MaxCertificateValidityDays < 0 || lifecycle.MaxCertificateValidityDays > 825 {
+		return fmt.Errorf("onboarding.certificate_lifecycle.max_certificate_validity_days must be between 0 and 825")
+	}
+	if lifecycle.CertificateValidityDays > 0 && lifecycle.MaxCertificateValidityDays > 0 && lifecycle.CertificateValidityDays > lifecycle.MaxCertificateValidityDays {
+		return fmt.Errorf("onboarding.certificate_lifecycle.certificate_validity_days cannot exceed max_certificate_validity_days")
+	}
+	if lifecycle.RenewalWindowDays < 0 || lifecycle.RenewalWindowDays > 365 {
+		return fmt.Errorf("onboarding.certificate_lifecycle.renewal_window_days must be between 0 and 365")
+	}
+	if lifecycle.IssuerOverlapSeconds < 0 || lifecycle.IssuerOverlapSeconds > 31536000 {
+		return fmt.Errorf("onboarding.certificate_lifecycle.issuer_overlap_seconds must be between 0 and 31536000")
+	}
+	if lifecycle.MinRSABits != 0 && (lifecycle.MinRSABits < 2048 || lifecycle.MinRSABits > 16384) {
+		return fmt.Errorf("onboarding.certificate_lifecycle.min_rsa_bits must be between 2048 and 16384 when set")
+	}
+	if lifecycle.EventRetentionLimit != 0 && (lifecycle.EventRetentionLimit < 1 || lifecycle.EventRetentionLimit > 1000000) {
+		return fmt.Errorf("onboarding.certificate_lifecycle.event_retention_limit must be between 1 and 1000000 when set")
+	}
+	if lifecycle.InventoryRetentionLimit != 0 && (lifecycle.InventoryRetentionLimit < 1 || lifecycle.InventoryRetentionLimit > 10000000) {
+		return fmt.Errorf("onboarding.certificate_lifecycle.inventory_retention_limit must be between 1 and 10000000 when set")
+	}
+	if err := validateCertificateLifecycleNameList("onboarding.certificate_lifecycle.templates", lifecycle.Templates, false); err != nil {
+		return err
+	}
+	if len(lifecycle.Templates) > 0 && strings.TrimSpace(lifecycle.DefaultTemplate) != "" && !certificateLifecycleListContains(lifecycle.Templates, lifecycle.DefaultTemplate) {
+		return fmt.Errorf("onboarding.certificate_lifecycle.default_template %q is not in templates", lifecycle.DefaultTemplate)
+	}
+	if strings.TrimSpace(lifecycle.ActiveIssuer) != "" && !validCertificateLifecycleName(lifecycle.ActiveIssuer) {
+		return fmt.Errorf("onboarding.certificate_lifecycle.active_issuer is invalid")
+	}
+	if strings.TrimSpace(lifecycle.StagedIssuer) != "" && !validCertificateLifecycleName(lifecycle.StagedIssuer) {
+		return fmt.Errorf("onboarding.certificate_lifecycle.staged_issuer is invalid")
+	}
+	if rotation == "staged" {
+		if strings.TrimSpace(lifecycle.StagedIssuer) == "" {
+			return errors.New("onboarding.certificate_lifecycle.issuer_rotation_mode=staged requires staged_issuer")
+		}
+		if strings.EqualFold(strings.TrimSpace(lifecycle.ActiveIssuer), strings.TrimSpace(lifecycle.StagedIssuer)) {
+			return errors.New("onboarding.certificate_lifecycle.staged_issuer must differ from active_issuer")
+		}
+		if lifecycle.IssuerOverlapSeconds == 0 {
+			return errors.New("onboarding.certificate_lifecycle.issuer_rotation_mode=staged requires issuer_overlap_seconds")
+		}
+	}
+	if err := validateCertificateLifecycleNameList("onboarding.certificate_lifecycle.allowed_key_types", lifecycle.AllowedKeyTypes, true); err != nil {
+		return err
+	}
+	for i, value := range lifecycle.AllowedKeyTypes {
+		switch strings.ToLower(strings.TrimSpace(value)) {
+		case "", "rsa", "ecdsa", "ed25519":
+		default:
+			return fmt.Errorf("onboarding.certificate_lifecycle.allowed_key_types[%d] %q is invalid", i, value)
+		}
+	}
+	if err := validateCertificateLifecycleNameList("onboarding.certificate_lifecycle.allowed_ecdsa_curves", lifecycle.AllowedECDSACurves, false); err != nil {
+		return err
+	}
+	for i, value := range lifecycle.AllowedECDSACurves {
+		switch strings.TrimSpace(value) {
+		case "", "P-256", "P-384", "P-521":
+		default:
+			return fmt.Errorf("onboarding.certificate_lifecycle.allowed_ecdsa_curves[%d] %q is invalid", i, value)
+		}
+	}
+	if lifecycle.AllowServerKeyGeneration && escrow == "forbid" {
+		return errors.New("onboarding.certificate_lifecycle.allow_server_key_generation requires escrow_policy to be admin-approved or allow")
+	}
+	if strings.TrimSpace(lifecycle.OCSPResponderURL) != "" {
+		if err := requireHTTPURL("onboarding.certificate_lifecycle.ocsp_responder_url", lifecycle.OCSPResponderURL); err != nil {
+			return err
+		}
+	}
+	if strings.ContainsRune(lifecycle.CRLPublishPath, 0) {
+		return errors.New("onboarding.certificate_lifecycle.crl_publish_path contains an invalid NUL byte")
+	}
+	if lifecycle.Enabled {
+		if EffectiveDeploymentProfile(c.Deployment.Profile) != "enterprise" {
+			return errors.New("onboarding.certificate_lifecycle.enabled is only supported on the enterprise deployment profile")
+		}
+		if !c.Onboarding.CertificateEnrollmentEnabled {
+			return errors.New("onboarding.certificate_lifecycle.enabled requires onboarding.certificate_enrollment_enabled")
+		}
+		if !c.Onboarding.EAPTLSEnabled {
+			return errors.New("onboarding.certificate_lifecycle.enabled requires onboarding.eap_tls_enabled")
+		}
+		if !certificateAuthorityReady(c) {
+			return errors.New("onboarding.certificate_lifecycle.enabled requires complete CA configuration")
+		}
+		if mode == "enforce" && lifecycle.FailClosed {
+			if !lifecycle.RequireCSR && !lifecycle.AllowServerKeyGeneration {
+				return errors.New("onboarding.certificate_lifecycle enforce fail-closed requires require_csr or allow_server_key_generation")
+			}
+			if !lifecycle.CRLEnabled && !lifecycle.OCSPEnabled && !c.Radius.EAP.CheckCRL && !c.Radius.EAP.OCSP.Enabled {
+				return errors.New("onboarding.certificate_lifecycle enforce fail-closed requires CRL or OCSP")
+			}
+		}
+		if !lifecycle.ESTEnabled && !lifecycle.SCEPEnabled && !lifecycle.BYODPortalEnabled {
+			return errors.New("onboarding.certificate_lifecycle.enabled requires at least one enrollment entry point")
+		}
+	}
+	return nil
+}
+
+func validateCertificateLifecycleNameList(field string, values []string, lower bool) error {
+	seen := map[string]struct{}{}
+	for i, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return fmt.Errorf("%s[%d] cannot be empty", field, i)
+		}
+		if lower {
+			value = strings.ToLower(value)
+		}
+		if !validCertificateLifecycleName(value) {
+			return fmt.Errorf("%s[%d] is invalid", field, i)
+		}
+		key := strings.ToLower(value)
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("%s[%d] duplicates an earlier value", field, i)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+func validCertificateLifecycleName(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 128 || strings.ContainsAny(value, "\r\n\x00") {
+		return false
+	}
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			continue
+		}
+		switch r {
+		case '.', '_', '-', ':', '@':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func certificateLifecycleListContains(values []string, target string) bool {
+	target = strings.TrimSpace(target)
+	for _, value := range values {
+		if strings.EqualFold(strings.TrimSpace(value), target) {
+			return true
+		}
+	}
+	return false
 }
 
 func profilingIntegrationReady(c *Config) bool {

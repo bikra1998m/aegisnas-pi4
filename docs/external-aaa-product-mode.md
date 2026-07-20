@@ -76,6 +76,7 @@ The implementation now does these things end to end:
 20. correlates machine and user authentication evidence with fresh-machine windows, same-client binding, deterministic role merge, quarantine conflict handling, API evaluation, dashboard status, and support-bundle evidence
 21. generates opt-in EAP-FAST and EAP-PWD policy with PAC governance, cryptobinding checks, PWD group and password-proof validation, replay rejection, API evaluation, dashboard status, and support-bundle evidence
 22. generates opt-in EAP-SIM, EAP-AKA, and EAP-AKA-prime policy with vector-provider freshness, pseudonym/reauth privacy, resync, AKA-prime network binding, API evaluation, dashboard status, and support-bundle evidence
+23. governs enterprise certificate lifecycle with EST/SCEP/BYOD entry points, CSR proof-of-possession, device binding, template and issuer policy, renewal, CRL/OCSP readiness, escrow controls, API evaluation, dashboard status, and support-bundle evidence
 
 ## Current Behavior
 
@@ -114,6 +115,7 @@ When `radius.upstream.enabled: true`:
 - machine/user correlation state is available through `/api/v1/system/eap-framework/machine-user`; when `radius.eap.machine_user` is in enforce mode, AegisNAS validates fresh machine evidence, same-client binding, machine-before-user order, role merge, stale-machine behavior, and conflict/quarantine policy
 - EAP-FAST/PWD state is available through `/api/v1/system/eap-framework/fast-pwd`; when `fast` or `pwd` is added to `radius.eap.framework.allowed_methods`, generated FreeRADIUS includes conservative method blocks and AegisNAS evaluates FAST cryptobinding/PAC policy plus PWD group, password proof, and replay policy
 - EAP-SIM/AKA state is available through `/api/v1/system/eap-framework/sim-aka`; when `sim`, `aka`, or `aka-prime` is added to `radius.eap.framework.allowed_methods`, AegisNAS validates vector-provider availability, vector freshness, identity privacy, resync, replay, and AKA-prime network/KDF evidence
+- certificate lifecycle state is available through `/api/v1/system/certificate-lifecycle`; when `onboarding.certificate_lifecycle.enabled: true`, AegisNAS validates EST/SCEP/BYOD/admin enrollment facts, CSR signatures, key policy, device binding, issuer rotation, renewal windows, CRL/OCSP evidence, and private-key escrow policy while storing only hashed audit and inventory evidence
 - voucher logins remain local so guest access still has an offline path
 
 What this pass still does not change:
@@ -128,6 +130,7 @@ What this pass still does not change:
 - real TEAP supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, performance, and security validation remains tracked in [nas-0023-release-certification-checklist.md](nas-0023-release-certification-checklist.md)
 - real Windows machine/user, Microsoft NPS, Cisco ISE, Aruba ClearPass, HP/Aruba switch/WLAN, HA, performance, and security validation remains tracked in [nas-0026-release-certification-checklist.md](nas-0026-release-certification-checklist.md)
 - real FAST/PWD supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, performance, and security validation remains tracked in [nas-0024-release-certification-checklist.md](nas-0024-release-certification-checklist.md)
+- real EST/SCEP, CA, supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, performance, and security validation remains tracked in [nas-0027-release-certification-checklist.md](nas-0027-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 

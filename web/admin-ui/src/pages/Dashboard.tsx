@@ -533,6 +533,57 @@ type SIMAKAReport = {
   blocking_issues?: string[];
 };
 
+type CertificateLifecycleReport = {
+  status: string;
+  message: string;
+  policy?: {
+    enabled: boolean;
+    mode: string;
+    fail_closed: boolean;
+    ca_mode: string;
+    ca_ready: boolean;
+    certificate_enrollment_ready: boolean;
+    eap_tls_ready: boolean;
+    default_template: string;
+    templates: string[];
+    active_issuer: string;
+    staged_issuer?: string;
+    issuer_rotation_mode: string;
+    certificate_validity_days: number;
+    renewal_window_days: number;
+    require_csr: boolean;
+    require_proof_of_possession: boolean;
+    require_device_binding: boolean;
+    require_subject_alt_name: boolean;
+    min_rsa_bits: number;
+    escrow_policy: string;
+    revocation_available: boolean;
+    est_enabled: boolean;
+    scep_enabled: boolean;
+    byod_portal_enabled: boolean;
+  };
+  runtime?: {
+    total_events: number;
+    accepted: number;
+    rejected: number;
+    monitor_allowed: number;
+    renewal_due: number;
+    revocation_blocked: number;
+    weak_key: number;
+    missing_csr: number;
+    missing_device_binding: number;
+    escrow_rejected: number;
+    active_inventory: number;
+    revoked_inventory: number;
+    renewal_due_inventory: number;
+    last_event_at?: string;
+    last_rejected_reason?: string;
+  };
+  warnings?: string[];
+  blocking_issues?: string[];
+  release_checklist?: string;
+};
+
 type IdentityFailoverReport = {
   enabled: boolean;
   status: string;
@@ -741,6 +792,7 @@ type SystemStatus = {
     eap_machine_user?: MachineUserReport;
     eap_fast_pwd?: FASTPWDReport;
     eap_sim_aka?: SIMAKAReport;
+    certificate_lifecycle?: CertificateLifecycleReport;
     radsec_credentials?: RadSecCredentialReport;
     dynamic_nas_clients?: DynamicNASClientReport;
     probe_error?: string;
@@ -1289,6 +1341,8 @@ export default function Dashboard() {
   const machineUserReport = systemStatus.radius?.eap_machine_user;
   const fastPWDReport = systemStatus.radius?.eap_fast_pwd;
   const simAKAReport = systemStatus.radius?.eap_sim_aka;
+  const certificateLifecycle =
+    systemStatus.radius?.certificate_lifecycle;
   const identityFailover = systemStatus.identity?.failover;
   const identityActiveDirectory = systemStatus.identity?.active_directory;
   const identityMFA = systemStatus.identity?.mfa;
@@ -2463,6 +2517,102 @@ export default function Dashboard() {
                       ) : null}
                     </div>
                     <StatusBadge status={simAKAReport.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {certificateLifecycle ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Certificate Lifecycle
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {certificateLifecycle.message ||
+                          "Certificate lifecycle state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Mode{" "}
+                          {certificateLifecycle.policy?.mode || "monitor"}
+                        </div>
+                        <div>
+                          Issuer{" "}
+                          {certificateLifecycle.policy?.active_issuer ||
+                            "not set"}
+                        </div>
+                        <div>
+                          Events{" "}
+                          {certificateLifecycle.runtime?.total_events ?? 0}
+                        </div>
+                        <div>
+                          Renewal due{" "}
+                          {certificateLifecycle.runtime
+                            ?.renewal_due_inventory ?? 0}
+                        </div>
+                        <div>
+                          Revocation blocks{" "}
+                          {certificateLifecycle.runtime
+                            ?.revocation_blocked ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Template{" "}
+                        {certificateLifecycle.policy?.default_template ||
+                          "device-eap-tls"}
+                        ; CA{" "}
+                        {certificateLifecycle.policy?.ca_ready
+                          ? "ready"
+                          : "not ready"}
+                        ; enrollment{" "}
+                        {certificateLifecycle.policy
+                          ?.certificate_enrollment_ready
+                          ? "ready"
+                          : "not ready"}
+                        ; revocation{" "}
+                        {certificateLifecycle.policy?.revocation_available
+                          ? "available"
+                          : "not configured"}
+                        ; escrow{" "}
+                        {certificateLifecycle.policy?.escrow_policy ||
+                          "forbid"}
+                        .
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        EST{" "}
+                        {certificateLifecycle.policy?.est_enabled
+                          ? "on"
+                          : "off"}
+                        ; SCEP{" "}
+                        {certificateLifecycle.policy?.scep_enabled
+                          ? "on"
+                          : "off"}
+                        ; BYOD{" "}
+                        {certificateLifecycle.policy?.byod_portal_enabled
+                          ? "on"
+                          : "off"}
+                        ; active inventory{" "}
+                        {certificateLifecycle.runtime?.active_inventory ?? 0}.
+                      </div>
+                      {certificateLifecycle.runtime?.last_rejected_reason ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Last certificate rejection:{" "}
+                          {certificateLifecycle.runtime.last_rejected_reason}
+                        </div>
+                      ) : null}
+                      {certificateLifecycle.blocking_issues?.length ? (
+                        <div className="mt-2 text-xs text-red-700">
+                          {certificateLifecycle.blocking_issues[0]}
+                        </div>
+                      ) : certificateLifecycle.warnings?.length ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {certificateLifecycle.warnings[0]}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge
+                      status={certificateLifecycle.status || "unknown"}
+                    />
                   </div>
                 </div>
               ) : null}

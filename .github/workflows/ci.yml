@@ -41,6 +41,7 @@ jobs:
       - run: make test-eap-machine-user
       - run: make test-eap-fast-pwd
       - run: make test-eap-sim-aka
+      - run: make test-certificate-lifecycle
       - run: make test-mab
       - run: make test-dynamic-nas-clients
       - run: make test-radsec-credentials

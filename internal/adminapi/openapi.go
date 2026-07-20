@@ -1344,6 +1344,20 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Deterministic EAP-SIM/AKA decision and audit status."),
 		"default": responseJSON("EAP-SIM/AKA evaluation error."),
 	}))
+	addOperation(paths, "/api/v1/system/certificate-lifecycle", "get", securedOperationWithParameters("Read enterprise certificate lifecycle state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("protocol", "Optional enrollment protocol filter.", []string{"est", "scep", "byod", "admin", "api"}, false),
+		queryEnumParameter("decision", "Optional audited lifecycle decision filter.", []string{"accepted", "rejected", "monitor_allowed"}, false),
+		queryStringParameter("template", "Optional certificate template filter.", false),
+		queryStringParameter("issuer", "Optional active or staged issuer filter.", false),
+		queryEnumParameter("status", "Optional inventory status filter.", []string{"pending", "active", "renewal_due", "revoked"}, false),
+		queryStringParameter("limit", "Event and inventory limit from 1 to 5000.", false),
+	}, map[string]any{
+		"200": responseJSON("Certificate lifecycle policy, issuer rotation state, template catalog, runtime summary, inventory, release evidence checklist, and recent events."),
+	}))
+	addOperation(paths, "/api/v1/system/certificate-lifecycle/evaluate", "post", securedOperationWithBody("Evaluate a certificate lifecycle request", "Authentication", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Certificate enrollment facts: protocol, template, issuer, device binding, CSR PEM, proof of possession, renewal state, CRL/OCSP reachability, certificate metadata, and optional audit flag."), map[string]any{
+		"200":     responseJSON("Deterministic certificate lifecycle decision and audit status."),
+		"default": responseJSON("Certificate lifecycle evaluation error."),
+	}))
 	addOperation(paths, "/api/v1/system/mab", "get", securedOperationWithParameters("Read MAC Authentication Bypass state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "quarantined", "monitor_allowed", "fail_open", "unsupported"}, false),
 		queryStringParameter("mac", "Optional endpoint MAC filter in colon, hyphen, plain, or Cisco dotted format.", false),

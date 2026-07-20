@@ -215,6 +215,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Post("/system/eap-framework/fast-pwd/evaluate", adminapi.HandleEvaluateFASTPWD)
 			r.Get("/system/eap-framework/sim-aka", adminapi.HandleGetSIMAKAFramework)
 			r.Post("/system/eap-framework/sim-aka/evaluate", adminapi.HandleEvaluateSIMAKA)
+			r.Get("/system/certificate-lifecycle", adminapi.HandleGetCertificateLifecycle)
+			r.Post("/system/certificate-lifecycle/evaluate", adminapi.HandleEvaluateCertificateLifecycle)
 			r.Get("/system/nas-clients", adminapi.HandleGetNASClients)
 			r.Get("/system/nas-clients/enrollments", adminapi.HandleListNASClientEnrollments)
 			r.Post("/system/nas-clients/enrollments", adminapi.HandleCreateNASClientEnrollment)

@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 31
+	return 32
 }
 
 func Migrate() error {
@@ -1365,4 +1365,82 @@ CREATE INDEX IF NOT EXISTS idx_eap_machine_user_state_updated ON eap_machine_use
 CREATE INDEX IF NOT EXISTS idx_eap_machine_user_state_decision ON eap_machine_user_session_state(decision, updated_at);
 CREATE INDEX IF NOT EXISTS idx_eap_machine_user_state_machine ON eap_machine_user_session_state(machine_identity_hash, updated_at);
 CREATE INDEX IF NOT EXISTS idx_eap_machine_user_state_user ON eap_machine_user_session_state(user_identity_hash, updated_at);
+`
+
+const schemaV32 = `
+CREATE TABLE IF NOT EXISTS certificate_lifecycle_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	observed_at DATETIME NOT NULL,
+	protocol TEXT NOT NULL,
+	decision TEXT NOT NULL,
+	reason TEXT NOT NULL,
+	template TEXT,
+	issuer TEXT,
+	issuer_state TEXT,
+	tenant TEXT,
+	device_id_hash TEXT,
+	subject_hash TEXT,
+	san_hash TEXT,
+	serial_hash TEXT,
+	existing_serial_hash TEXT,
+	renewal BOOLEAN DEFAULT 0,
+	renewal_due BOOLEAN DEFAULT 0,
+	inventory_status TEXT,
+	revocation_blocked BOOLEAN DEFAULT 0,
+	key_type TEXT,
+	key_bits INTEGER DEFAULT 0,
+	curve TEXT,
+	validity_days INTEGER DEFAULT 0,
+	escrow_requested BOOLEAN DEFAULT 0,
+	proof_of_possession BOOLEAN DEFAULT 0,
+	csr_present BOOLEAN DEFAULT 0,
+	csr_valid BOOLEAN DEFAULT 0,
+	csr_signature_valid BOOLEAN DEFAULT 0,
+	device_bound BOOLEAN DEFAULT 0,
+	revocation_checked BOOLEAN DEFAULT 0,
+	crl_reachable BOOLEAN DEFAULT 0,
+	ocsp_reachable BOOLEAN DEFAULT 0,
+	policy_mode TEXT,
+	latency_ms INTEGER DEFAULT 0,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS certificate_lifecycle_inventory (
+	certificate_key TEXT PRIMARY KEY,
+	updated_at DATETIME NOT NULL,
+	status TEXT NOT NULL,
+	protocol TEXT,
+	template TEXT,
+	issuer TEXT,
+	issuer_state TEXT,
+	tenant TEXT,
+	device_id_hash TEXT,
+	subject_hash TEXT,
+	san_hash TEXT,
+	serial_hash TEXT,
+	key_type TEXT,
+	key_bits INTEGER DEFAULT 0,
+	curve TEXT,
+	not_before DATETIME,
+	not_after DATETIME,
+	renewal_due BOOLEAN DEFAULT 0,
+	revoked_at DATETIME,
+	revoke_reason TEXT,
+	policy_mode TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_events_observed_at ON certificate_lifecycle_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_events_decision ON certificate_lifecycle_events(decision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_events_protocol ON certificate_lifecycle_events(protocol, observed_at);
+CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_events_template ON certificate_lifecycle_events(template, observed_at);
+CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_events_issuer ON certificate_lifecycle_events(issuer, issuer_state, observed_at);
+CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_events_device ON certificate_lifecycle_events(device_id_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_events_serial ON certificate_lifecycle_events(serial_hash, observed_at);
+CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_inventory_status ON certificate_lifecycle_inventory(status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_inventory_issuer ON certificate_lifecycle_inventory(issuer, issuer_state, updated_at);
+CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_inventory_device ON certificate_lifecycle_inventory(device_id_hash, updated_at);
+CREATE INDEX IF NOT EXISTS idx_certificate_lifecycle_inventory_serial ON certificate_lifecycle_inventory(serial_hash, updated_at);
 `

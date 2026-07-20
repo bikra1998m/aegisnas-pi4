@@ -138,6 +138,7 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	require.Contains(t, entries, "api/upgrade-readiness.json")
 	require.Contains(t, entries, "api/secret-providers.json")
 	require.Contains(t, entries, "api/database.json")
+	require.Contains(t, entries, "api/certificate-lifecycle.json")
 	require.Contains(t, entries, "api/openapi.json")
 	require.Contains(t, entries, "runtime/runtime-statuses.json")
 	require.Contains(t, entries, "system/database-backend.txt")
@@ -181,6 +182,7 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	assert.Contains(t, string(entries["api/integration-history.json"]), "\"history\"")
 	assert.Contains(t, string(entries["api/upgrade-readiness.json"]), "\"config_valid\": true")
 	assert.Contains(t, string(entries["api/database.json"]), "\"schema_version\"")
+	assert.Contains(t, string(entries["api/certificate-lifecycle.json"]), "\"schema_version\"")
 	assert.Contains(t, string(entries["api/openapi.json"]), "\"openapi\": \"3.1.0\"")
 }
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/yourorg/aegisnas-pi4/internal/activedirectory"
+	"github.com/yourorg/aegisnas-pi4/internal/certlifecycle"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	eappkg "github.com/yourorg/aegisnas-pi4/internal/eap"
@@ -158,6 +159,8 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	fastPWDFramework := eappkg.BuildFASTPWDReport(cfg, fastPWDRuntimeSummaryFromDB(fastPWDSummary))
 	simAKASummary, _ := db.SummarizeSIMAKAEvents(1000)
 	simAKAFramework := eappkg.BuildSIMAKAReport(cfg, simAKARuntimeSummaryFromDB(simAKASummary))
+	certificateLifecycleSummary, _ := db.SummarizeCertificateLifecycle(1000)
+	certificateLifecycle := certlifecycle.BuildReport(cfg, certificateLifecycleRuntimeSummaryFromDB(certificateLifecycleSummary))
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -175,6 +178,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"eap_machine_user":        machineUserFramework,
 		"eap_fast_pwd":            fastPWDFramework,
 		"eap_sim_aka":             simAKAFramework,
+		"certificate_lifecycle":   certificateLifecycle,
 		"enabled_radius_clients":  enabledRadiusClients,
 		"broker_auth":             runtimeMap["radius_broker_auth"],
 		"broker_accounting":       runtimeMap["radius_broker_accounting"],

@@ -915,6 +915,38 @@ onboarding:
   ca_key_path: "" # Required with ca_mode=internal and certificate enrollment.
   ca_enrollment_url: "" # Required with ca_mode=external and certificate enrollment.
   ca_enrollment_token_env: "AEGIS_CA_ENROLLMENT_TOKEN" # Optional bearer token env for external CA APIs.
+  certificate_lifecycle:
+    enabled: false # Enterprise certificate lifecycle policy, enrollment request evaluation, and redacted audit evidence.
+    mode: "monitor" # monitor or enforce.
+    fail_closed: true
+    default_template: "device-eap-tls"
+    templates: ["device-eap-tls", "byod-eap-tls"]
+    active_issuer: "aegisnas-local"
+    staged_issuer: "" # Set during issuer rotation when issuer_rotation_mode=staged.
+    issuer_rotation_mode: "disabled" # disabled or staged.
+    issuer_overlap_seconds: 2592000
+    certificate_validity_days: 365
+    max_certificate_validity_days: 825
+    renewal_window_days: 30
+    require_csr: true
+    require_proof_of_possession: true
+    require_device_binding: true
+    require_subject_alt_name: true
+    allowed_key_types: ["rsa", "ecdsa", "ed25519"]
+    min_rsa_bits: 2048
+    allowed_ecdsa_curves: ["P-256", "P-384", "P-521"]
+    allow_server_key_generation: false
+    escrow_policy: "forbid" # forbid, admin-approved, or allow.
+    crl_enabled: false
+    crl_publish_path: "/var/lib/aegisnas/pki/crl"
+    ocsp_enabled: false
+    ocsp_responder_url: ""
+    est_enabled: true
+    scep_enabled: true
+    byod_portal_enabled: true
+    audit_enabled: true
+    event_retention_limit: 6000
+    inventory_retention_limit: 100000
 
 profiling:
   mac_inventory_enabled: false

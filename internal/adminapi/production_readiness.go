@@ -11,6 +11,7 @@ import (
 
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 	"github.com/yourorg/aegisnas-pi4/internal/activedirectory"
+	"github.com/yourorg/aegisnas-pi4/internal/certlifecycle"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	eappkg "github.com/yourorg/aegisnas-pi4/internal/eap"
@@ -128,6 +129,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionMachineUserCheck(&report, cfg)
 	addProductionFASTPWDCheck(&report, cfg)
 	addProductionSIMAKACheck(&report, cfg)
+	addProductionCertificateLifecycleCheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
 	addProductionSecretProviderCheck(&report, cfg)
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
@@ -743,6 +745,56 @@ func addProductionSIMAKACheck(report *productionReadinessReport, cfg *config.Con
 			simAKAReport.Policy.RequireFreshVectors, simAKAReport.Runtime.TotalEvents),
 		Recommendation: "For production carrier, Passpoint, or roaming profiles, add only required SIM/AKA methods to radius.eap.framework.allowed_methods, configure radius.eap.sim_aka.vector_provider_ref, keep framework enforce/fail-closed, and complete the NAS-0025 release certification checklist for HSS/HLR/UDM and real-device evidence.",
 		Dependencies:   []string{"radius.eap.sim_aka", "radius.eap.framework.allowed_methods", "eap_sim_aka_events", "rlm_eap_sim", "rlm_eap_aka", "rlm_eap_aka_prime", "/api/v1/system/eap-framework/sim-aka"},
+	})
+}
+
+func addProductionCertificateLifecycleCheck(report *productionReadinessReport, cfg *config.Config) {
+	summary, _ := db.SummarizeCertificateLifecycle(1000)
+	certReport := certlifecycle.BuildReport(cfg, certificateLifecycleRuntimeSummaryFromDB(summary))
+	if !certReport.Policy.Enabled {
+		return
+	}
+	status := "passed"
+	switch certReport.Status {
+	case "blocked":
+		status = "blocked"
+	case "disabled", "degraded":
+		status = "degraded"
+	}
+	if certReport.Policy.Mode != "enforce" {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	if !certReport.Policy.FailClosed ||
+		!certReport.Policy.CertificateEnrollmentReady ||
+		!certReport.Policy.EAPTLSReady ||
+		!certReport.Policy.CAReady ||
+		!certReport.Policy.RequireCSR ||
+		!certReport.Policy.RequireProofOfPossession ||
+		!certReport.Policy.RequireDeviceBinding ||
+		!certReport.Policy.RevocationAvailable ||
+		certReport.Policy.EscrowPolicy == "allow" ||
+		len(certReport.Policy.BlockingIssues) > 0 {
+		status = "blocked"
+	}
+	if certReport.Runtime.Rejected > 0 || certReport.Runtime.RevocationBlocked > 0 || certReport.Runtime.WeakKey > 0 {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "certificate_lifecycle",
+		Category: "authentication",
+		Label:    "Enterprise Certificate Lifecycle",
+		Status:   status,
+		Summary: fmt.Sprintf("Certificate lifecycle schema %d is %s in %s mode with templates=%d, active issuer=%s, EST=%t, SCEP=%t, BYOD=%t, and %d recent event(s).",
+			certReport.SchemaVersion, certReport.Status, certReport.Policy.Mode,
+			len(certReport.Policy.Templates), certReport.Policy.ActiveIssuer,
+			certReport.Policy.ESTEnabled, certReport.Policy.SCEPEnabled,
+			certReport.Policy.BYODPortalEnabled, certReport.Runtime.TotalEvents),
+		Recommendation: "Use onboarding.certificate_lifecycle in enforce/fail-closed mode with CSR proof-of-possession, device binding, CRL or OCSP readiness, guarded issuer rotation, forbidden or admin-approved escrow, and the NAS-0027 release checklist for external EST/SCEP and AP/controller evidence.",
+		Dependencies:   []string{"onboarding.certificate_lifecycle", "onboarding.certificate_enrollment_enabled", "onboarding.eap_tls_enabled", "certificate_lifecycle_events", "certificate_lifecycle_inventory", "/api/v1/system/certificate-lifecycle"},
 	})
 }
 

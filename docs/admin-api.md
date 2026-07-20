@@ -1010,6 +1010,15 @@ Device certificate lifecycle operations are available at:
 
 Use these to inspect active, expired, and revoked certificates, revoke lost-device certificates, renew a device certificate, and download an internal-CA CRL. Revoke and renew require an ops or super admin session.
 
+Enterprise certificate lifecycle policy and enrollment-request evaluation are available at:
+
+```text
+/api/v1/system/certificate-lifecycle
+/api/v1/system/certificate-lifecycle/evaluate
+```
+
+Use these to review the effective EST/SCEP/BYOD template and issuer policy, issuer rotation state, CRL/OCSP readiness, hashed lifecycle event history, and current certificate inventory. The evaluation endpoint accepts protocol, template, issuer, device binding, CSR PEM, renewal, revocation, CRL/OCSP, and optional audit evidence. Audit records store hashes for subjects, SANs, serials, and device IDs rather than raw identity material.
+
 From the admin UI:
 
 1. sign in

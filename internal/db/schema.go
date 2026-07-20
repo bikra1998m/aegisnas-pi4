@@ -155,7 +155,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{28, schemaV28},
 		{29, schemaV29},
 		{30, schemaV30},
-		{LatestSchemaVersion(), schemaV31},
+		{31, schemaV31},
+		{LatestSchemaVersion(), schemaV32},
 	}
 
 	for _, m := range migrations {
@@ -218,8 +219,20 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureEAPFrameworkTables(handle); err != nil {
 		return fmt.Errorf("repair EAP framework schema: %w", err)
 	}
+	if err := ensureCertificateLifecycleTables(handle); err != nil {
+		return fmt.Errorf("repair certificate lifecycle schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureCertificateLifecycleTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	_, err := handle.Exec(SQLForDialect(schemaV32, dialect))
+	return err
 }
 
 func ensureEAPFrameworkTables(handle *sql.DB) error {
