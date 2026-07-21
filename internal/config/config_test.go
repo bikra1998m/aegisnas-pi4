@@ -2240,6 +2240,11 @@ func TestConfigValidationTypedPolicyEngine(t *testing.T) {
 			MaxExpressionNodes:       128,
 			MaxListValues:            128,
 			EvaluationRetentionLimit: 10000,
+			VersionApprovalRequired:  true,
+			VersionMinApprovals:      1,
+			VersionMakerChecker:      true,
+			MaxPolicySetDepth:        8,
+			VersionRetentionLimit:    1000,
 		},
 	}
 	require.NoError(t, cfg.Validate())
@@ -2255,6 +2260,10 @@ func TestConfigValidationTypedPolicyEngine(t *testing.T) {
 	badLegacy := *cfg
 	badLegacy.Policy.AllowLegacyConditions = true
 	assert.ErrorContains(t, badLegacy.Validate(), "require_typed_rules")
+
+	badApproval := *cfg
+	badApproval.Policy.VersionMinApprovals = 0
+	assert.ErrorContains(t, badApproval.Validate(), "version_approval_required")
 }
 
 func TestConfigValidationPhase4Integrations(t *testing.T) {

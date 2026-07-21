@@ -131,6 +131,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionFASTPWDCheck(&report, cfg)
 	addProductionSIMAKACheck(&report, cfg)
 	addProductionPolicyEngineCheck(&report, cfg)
+	addProductionPolicySetGovernanceCheck(&report, cfg)
 	addProductionCertificateLifecycleCheck(&report, cfg)
 	addProductionSupplicantLifecycleCheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
@@ -786,6 +787,45 @@ func addProductionPolicyEngineCheck(report *productionReadinessReport, cfg *conf
 		Summary:        summary,
 		Recommendation: "Keep policy.typed_engine_enabled=true, fail_closed=true, audit_enabled=true, migrate legacy match_conditions to typed all/any/not expressions, and complete the NAS-0029 release certification checklist for real-device evidence.",
 		Dependencies:   []string{"policy.typed_engine_enabled", "/api/v1/system/policy-engine", "/api/v1/system/policy-engine/evaluate", "policy_engine_evaluations"},
+	})
+}
+
+func addProductionPolicySetGovernanceCheck(report *productionReadinessReport, cfg *config.Config) {
+	governance, err := buildPolicySetGovernanceReport(cfg, 0)
+	status := "passed"
+	summary := "Versioned policy set governance is active."
+	if err != nil {
+		status = "blocked"
+		summary = fmt.Sprintf("Policy set governance report failed: %v", err)
+	} else {
+		switch governance.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		}
+		if !cfg.Policy.VersionApprovalRequired || cfg.Policy.VersionMinApprovals < 1 || !cfg.Policy.VersionMakerChecker {
+			status = "blocked"
+		}
+		if cfg.Policy.VersionRetentionLimit > 0 && cfg.Policy.VersionRetentionLimit < 100 {
+			status = "blocked"
+		}
+		active := 0
+		if governance.Active != nil {
+			active = governance.Active.Version
+		}
+		summary = fmt.Sprintf("Policy set governance schema %d is %s with active version %d, %d total version(s), %d pending approval(s), and %d simulation(s).",
+			governance.SchemaVersion, governance.Status, active, governance.Summary.TotalVersions,
+			governance.Summary.PendingApprovalCount, governance.Summary.SimulationCount)
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "policy_set_governance",
+		Category:       "policy",
+		Label:          "Nested Policy Sets And Versioned Approvals",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Keep policy.version_approval_required=true, version_min_approvals>=1, version_maker_checker=true, activate only approved immutable versions, and complete the NAS-0030 release certification checklist before production claims.",
+		Dependencies:   []string{"policy_set_versions", "policy_set_approvals", "policy_set_activation_events", "/api/v1/system/policy-sets", "/api/v1/system/policy-sets/versions"},
 	})
 }
 

@@ -188,6 +188,22 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/fallback-policy"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/policy-sets/versions/") && strings.Contains(path, "/compare/"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/policy-sets/versions/") && strings.HasSuffix(path, "/simulate"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/policy-sets/versions/") &&
+		(strings.HasSuffix(path, "/approve") || strings.HasSuffix(path, "/reject") || strings.HasSuffix(path, "/activate") || strings.HasSuffix(path, "/rollback")):
+		return method == http.MethodPost && identity.Role == adminRoleSuperAdmin
+	case strings.HasPrefix(path, "/api/v1/system/policy-sets/versions/") && strings.HasSuffix(path, "/submit"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/policy-sets/versions"):
+		if readonly {
+			return true
+		}
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/policy-sets"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/policy-engine/evaluate"):
 		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
 	case strings.HasPrefix(path, "/api/v1/system/policy-engine/validate"):

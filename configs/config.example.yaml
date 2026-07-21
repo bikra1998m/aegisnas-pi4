@@ -778,6 +778,11 @@ policy:
   max_expression_nodes: 128
   max_list_values: 128
   evaluation_retention_limit: 10000
+  version_approval_required: true
+  version_min_approvals: 1
+  version_maker_checker: true
+  max_policy_set_depth: 8
+  version_retention_limit: 1000
 
 telemetry:
   enabled: true

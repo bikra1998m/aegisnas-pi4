@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 34
+	return 35
 }
 
 func Migrate() error {
@@ -1548,4 +1548,107 @@ CREATE INDEX IF NOT EXISTS idx_policy_engine_evaluations_policy_hash ON policy_e
 CREATE INDEX IF NOT EXISTS idx_policy_engine_evaluations_username ON policy_engine_evaluations(username_hash, evaluated_at);
 CREATE INDEX IF NOT EXISTS idx_policy_engine_evaluations_calling_station ON policy_engine_evaluations(calling_station_hash, evaluated_at);
 CREATE INDEX IF NOT EXISTS idx_policy_engine_evaluations_tenant ON policy_engine_evaluations(tenant, evaluated_at);
+`
+
+const schemaV35 = `
+CREATE TABLE IF NOT EXISTS policy_set_versions (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	set_key TEXT NOT NULL DEFAULT 'default',
+	version INTEGER NOT NULL,
+	status TEXT NOT NULL DEFAULT 'draft',
+	description TEXT,
+	parent_version_id INTEGER,
+	rollback_of_version_id INTEGER,
+	content_json TEXT NOT NULL,
+	content_sha256 TEXT NOT NULL,
+	policy_sha256 TEXT NOT NULL,
+	rule_count INTEGER DEFAULT 0,
+	child_set_count INTEGER DEFAULT 0,
+	max_depth INTEGER DEFAULT 1,
+	approval_required BOOLEAN DEFAULT 1,
+	min_approvals INTEGER DEFAULT 1,
+	created_by TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	submitted_by TEXT,
+	submitted_at DATETIME,
+	activated_by TEXT,
+	activated_at DATETIME,
+	superseded_at DATETIME,
+	rejected_by TEXT,
+	rejected_at DATETIME,
+	rejection_reason TEXT,
+	activation_note TEXT,
+	CHECK (status IN ('draft', 'pending_approval', 'approved', 'active', 'superseded', 'rejected')),
+	CHECK (version > 0),
+	CHECK (rule_count >= 0),
+	CHECK (child_set_count >= 0),
+	CHECK (max_depth >= 1),
+	CHECK (min_approvals >= 0),
+	CHECK (length(content_sha256) = 64),
+	CHECK (length(policy_sha256) = 64),
+	UNIQUE (set_key, version)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_policy_set_versions_one_active
+	ON policy_set_versions(set_key) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_policy_set_versions_status
+	ON policy_set_versions(set_key, status, version DESC);
+CREATE INDEX IF NOT EXISTS idx_policy_set_versions_content_hash
+	ON policy_set_versions(content_sha256);
+
+CREATE TABLE IF NOT EXISTS policy_set_approvals (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	version_id INTEGER NOT NULL,
+	approved_by TEXT NOT NULL,
+	comment TEXT,
+	approved_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(version_id) REFERENCES policy_set_versions(id),
+	UNIQUE (version_id, approved_by)
+);
+
+CREATE INDEX IF NOT EXISTS idx_policy_set_approvals_version
+	ON policy_set_approvals(version_id, approved_at);
+
+CREATE TABLE IF NOT EXISTS policy_set_activation_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	version_id INTEGER NOT NULL,
+	previous_version_id INTEGER,
+	event_type TEXT NOT NULL,
+	status TEXT NOT NULL,
+	actor TEXT,
+	summary TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(version_id) REFERENCES policy_set_versions(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_policy_set_activation_events_version
+	ON policy_set_activation_events(version_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_policy_set_activation_events_created
+	ON policy_set_activation_events(created_at);
+
+CREATE TABLE IF NOT EXISTS policy_set_simulations (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	version_id INTEGER NOT NULL,
+	evaluation_id TEXT NOT NULL,
+	policy_sha256 TEXT NOT NULL,
+	request_hash TEXT NOT NULL,
+	decision TEXT NOT NULL,
+	allowed BOOLEAN DEFAULT 0,
+	quarantine BOOLEAN DEFAULT 0,
+	conflict_count INTEGER DEFAULT 0,
+	matched_rule_count INTEGER DEFAULT 0,
+	trace_node_count INTEGER DEFAULT 0,
+	actor TEXT,
+	result_json TEXT NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(version_id) REFERENCES policy_set_versions(id),
+	CHECK (decision IN ('allow', 'deny', 'quarantine')),
+	CHECK (length(policy_sha256) = 64)
+);
+
+CREATE INDEX IF NOT EXISTS idx_policy_set_simulations_version
+	ON policy_set_simulations(version_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_policy_set_simulations_decision
+	ON policy_set_simulations(decision, created_at);
 `

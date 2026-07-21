@@ -138,6 +138,19 @@ func EvaluateRules(req *Request, rules []Rule, logger *zap.Logger) *EvaluationRe
 }
 
 func (e *Engine) loadRules() ([]Rule, error) {
+	if active, err := db.GetActivePolicySetVersion("default"); err != nil {
+		return nil, err
+	} else if active != nil {
+		set, err := ParsePolicySet(active.ContentJSON)
+		if err != nil {
+			return nil, fmt.Errorf("active policy set version %d is invalid: %w", active.ID, err)
+		}
+		maxDepth := 0
+		if cfg := config.Get(); cfg != nil {
+			maxDepth = cfg.Policy.MaxExpressionDepth
+		}
+		return FlattenPolicySet(set, maxDepth)
+	}
 	rows, err := db.DB.Query(`SELECT id, name, description, priority, enabled, match_conditions, action,
 		vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine
 		FROM policy_rules ORDER BY priority DESC, name`)

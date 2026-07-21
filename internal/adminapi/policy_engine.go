@@ -24,6 +24,7 @@ type policyEngineReport struct {
 	Fields        []policy.FieldSpec               `json:"fields"`
 	Operators     []policy.OperatorSpec            `json:"operators"`
 	Recent        []policyEngineEvaluationView     `json:"recent_evaluations"`
+	PolicySets    policySetGovernanceReport        `json:"policy_sets"`
 }
 
 type policyEngineConfigView struct {
@@ -153,6 +154,10 @@ func buildPolicyEngineReport(cfg *config.Config, recentLimit int) (policyEngineR
 	if err != nil {
 		return policyEngineReport{}, err
 	}
+	policySets, err := buildPolicySetGovernanceReport(cfg, 10)
+	if err != nil {
+		return policyEngineReport{}, err
+	}
 	report := policyEngineReport{
 		SchemaVersion: policy.TypedPolicySchemaVersion,
 		Config:        policyEngineConfigFromConfig(cfg),
@@ -161,6 +166,7 @@ func buildPolicyEngineReport(cfg *config.Config, recentLimit int) (policyEngineR
 		Fields:        policy.FieldCatalog(),
 		Operators:     policy.OperatorCatalog(),
 		Recent:        policyEngineEvaluationViews(recent),
+		PolicySets:    policySets,
 	}
 	report.Status, report.Message = policyEngineReportStatus(cfg, report)
 	return report, nil

@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-transport-policy test-radius-proxy-policy test-radius-accounting-spool test-radius-fallback-policy test-active-directory test-identity-failover test-mfa test-admin-webauthn test-eap-framework test-eap-teap test-eap-machine-user test-eap-fast-pwd test-eap-sim-aka test-certificate-lifecycle test-supplicant-lifecycle test-typed-policy-engine test-mab test-dynamic-nas-clients test-radsec-credentials install-radius-dictionary scan-radius-dictionaries
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-transport-policy test-radius-proxy-policy test-radius-accounting-spool test-radius-fallback-policy test-active-directory test-identity-failover test-mfa test-admin-webauthn test-eap-framework test-eap-teap test-eap-machine-user test-eap-fast-pwd test-eap-sim-aka test-certificate-lifecycle test-supplicant-lifecycle test-typed-policy-engine test-policy-set-governance test-mab test-dynamic-nas-clients test-radsec-credentials install-radius-dictionary scan-radius-dictionaries
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -117,6 +117,13 @@ test-supplicant-lifecycle:
 
 test-typed-policy-engine:
 	go test -p=1 -timeout=600s ./internal/policy ./internal/config ./internal/db ./internal/adminapi ./cmd/aegis-policy -run 'TypedPolicy|PolicyEngine|ConfigValidationTypedPolicyEngine|MigrationCreatesExpectedTables|OpenAPI|Authorize|ProductionReadiness|SupportBundle' -count=1
+
+test-policy-set-governance:
+	go test -p=1 -timeout=600s ./internal/policy -run 'PolicySet|TypedPolicy|Engine' -count=1
+	go test -p=1 -timeout=600s ./internal/config -run 'ConfigValidationTypedPolicyEngine' -count=1
+	go test -p=1 -timeout=600s ./internal/db -run 'PolicySet|PolicyEngine|MigrationCreatesExpectedTables' -count=1
+	go test -p=1 -timeout=600s ./internal/adminapi -run 'PolicySet|PolicyEngine|OpenAPI|Authorize' -count=1
+	go test -p=1 -timeout=600s ./internal/adminapi -run '^TestHandleGetProductionReadinessReportsVendorBlockers$$|^TestHandleDownloadSupportBundle$$|^TestHandleGetSupportBundleSummary$$' -count=1
 
 test-mab:
 	go test -p=1 -timeout=600s ./internal/config ./internal/db ./internal/mab ./internal/radius ./internal/adminapi -run 'MAB|Evaluate|MACVariants|ConfigValidationMAB|GeneratorRendersMAB|OpenAPI|AuthorizeMAB|ProductionReadinessIncludesMAB|SupportBundleIncludeMAB|Migrate' -count=1

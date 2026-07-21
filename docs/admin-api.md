@@ -260,6 +260,29 @@ and explain traces. The same summary appears in `/api/v1/system/status` under
 in support bundles as `api/policy-engine.json`. See
 [typed-policy-engine.md](typed-policy-engine.md).
 
+Versioned nested policy-set governance is exposed at:
+
+```text
+/api/v1/system/policy-sets
+/api/v1/system/policy-sets/versions
+POST /api/v1/system/policy-sets/versions
+POST /api/v1/system/policy-sets/versions/{id}/submit
+POST /api/v1/system/policy-sets/versions/{id}/approve
+POST /api/v1/system/policy-sets/versions/{id}/reject
+POST /api/v1/system/policy-sets/versions/{id}/activate
+POST /api/v1/system/policy-sets/versions/{id}/rollback
+POST /api/v1/system/policy-sets/versions/{id}/simulate
+/api/v1/system/policy-sets/versions/{fromID}/compare/{toID}
+```
+
+Use these endpoints to create immutable policy-set versions, submit them for
+maker-checker approval, activate approved versions, compare flattened rule
+changes, simulate draft decisions, and roll back to prior approved versions.
+The same state appears in `/api/v1/system/status` under `radius.policy_sets`,
+inside `/api/v1/system/policy-engine` as `policy_sets`, in production readiness
+as `policy_set_governance`, and in support bundles as `api/policy-sets.json`.
+See [versioned-policy-sets.md](versioned-policy-sets.md).
+
 Identity source failover state is exposed at:
 
 ```text

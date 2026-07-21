@@ -93,10 +93,13 @@ Stored evidence includes evaluation ID, policy-set hash, request hash, redacted 
 Operators should check:
 
 - `/api/v1/system/policy-engine` before and after policy changes
+- `/api/v1/system/policy-sets` for immutable versions, approvals, activation, simulation, and rollback evidence
 - production readiness key `typed_policy_engine`
 - support bundle capture `api/policy-engine.json`
 - Dashboard "Typed Policy Engine"
 - Policies page `Typed`, `Legacy`, and `Valid` columns
+
+For governed production changes, use [versioned-policy-sets.md](versioned-policy-sets.md). The typed engine prefers the active immutable policy-set version when one exists, while activation mirrors flattened rules back into `policy_rules` for backward compatibility.
 
 ## External Certification
 

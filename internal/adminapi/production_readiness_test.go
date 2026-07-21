@@ -45,6 +45,7 @@ func TestHandleGetProductionReadinessReportsVendorBlockers(t *testing.T) {
 	assert.Equal(t, "passed", productionReadinessCheckStatus(payload.Checks, "radius_proxy_policy"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(payload.Checks, "radius_fallback_policy"))
 	assert.Equal(t, "degraded", productionReadinessCheckStatus(payload.Checks, "typed_policy_engine"))
+	assert.Equal(t, "degraded", productionReadinessCheckStatus(payload.Checks, "policy_set_governance"))
 	assert.Equal(t, "blocked", productionReadinessCheckStatus(payload.Checks, "secret_providers"))
 	assert.Equal(t, "degraded", productionReadinessCheckStatus(payload.Checks, "database_data_plane"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(payload.Checks, "dictionary_release_profile"))

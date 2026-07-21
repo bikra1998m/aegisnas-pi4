@@ -661,6 +661,23 @@ type PolicyEngineReport = {
   }>;
   fields?: Array<{ name: string; type: string }>;
   operators?: Array<{ name: string }>;
+  policy_sets?: {
+    status: string;
+    message: string;
+    summary?: {
+      total_versions: number;
+      pending_approval_count: number;
+      active_version?: number;
+      simulation_count: number;
+    };
+    active?: {
+      version: number;
+      status: string;
+      approval_count: number;
+      min_approvals: number;
+      policy_sha256: string;
+    };
+  };
 };
 
 type IdentityFailoverReport = {
@@ -2651,6 +2668,30 @@ export default function Dashboard() {
                         ; fail closed{" "}
                         {policyEngine.config?.fail_closed ? "yes" : "no"}.
                       </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Policy sets {policyEngine.policy_sets?.status || "unknown"};
+                        active v{policyEngine.policy_sets?.summary?.active_version ?? "none"};
+                        pending{" "}
+                        {policyEngine.policy_sets?.summary
+                          ?.pending_approval_count ?? 0}
+                        ; versions{" "}
+                        {policyEngine.policy_sets?.summary?.total_versions ??
+                          0}
+                        .
+                      </div>
+                      {policyEngine.policy_sets?.active ? (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Active approval evidence{" "}
+                          {policyEngine.policy_sets.active.approval_count}/
+                          {policyEngine.policy_sets.active.min_approvals};
+                          hash{" "}
+                          {policyEngine.policy_sets.active.policy_sha256.slice(
+                            0,
+                            12,
+                          )}
+                          .
+                        </div>
+                      ) : null}
                       {policyEngine.summary?.last_decision ? (
                         <div className="mt-2 text-xs text-gray-500">
                           Last decision {policyEngine.summary.last_decision}

@@ -940,6 +940,11 @@ type PolicyConfig struct {
 	MaxExpressionNodes       int    `mapstructure:"max_expression_nodes"`
 	MaxListValues            int    `mapstructure:"max_list_values"`
 	EvaluationRetentionLimit int    `mapstructure:"evaluation_retention_limit"`
+	VersionApprovalRequired  bool   `mapstructure:"version_approval_required"`
+	VersionMinApprovals      int    `mapstructure:"version_min_approvals"`
+	VersionMakerChecker      bool   `mapstructure:"version_maker_checker"`
+	MaxPolicySetDepth        int    `mapstructure:"max_policy_set_depth"`
+	VersionRetentionLimit    int    `mapstructure:"version_retention_limit"`
 }
 
 type TelemetryConfig struct {
@@ -1940,6 +1945,11 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("policy.max_expression_nodes", 128)
 	v.SetDefault("policy.max_list_values", 128)
 	v.SetDefault("policy.evaluation_retention_limit", 10000)
+	v.SetDefault("policy.version_approval_required", true)
+	v.SetDefault("policy.version_min_approvals", 1)
+	v.SetDefault("policy.version_maker_checker", true)
+	v.SetDefault("policy.max_policy_set_depth", 8)
+	v.SetDefault("policy.version_retention_limit", 1000)
 	v.SetDefault("wireless.enabled", false)
 	v.SetDefault("wireless.country_code", "US")
 	v.SetDefault("wireless.driver", "nl80211")
@@ -5427,12 +5437,30 @@ func validatePolicyEngineConfig(policy PolicyConfig) error {
 	if policy.EvaluationRetentionLimit < 0 || policy.EvaluationRetentionLimit > 1000000 {
 		return fmt.Errorf("policy.evaluation_retention_limit must be between 100 and 1000000 when set")
 	}
+	if policy.VersionMinApprovals < 0 || policy.VersionMinApprovals > 16 {
+		return fmt.Errorf("policy.version_min_approvals must be between 0 and 16")
+	}
+	if policy.VersionApprovalRequired && policy.VersionMinApprovals == 0 {
+		return errors.New("policy.version_approval_required requires policy.version_min_approvals to be at least 1")
+	}
+	if policy.MaxPolicySetDepth < 0 || policy.MaxPolicySetDepth > 32 {
+		return fmt.Errorf("policy.max_policy_set_depth must be between 1 and 32 when set")
+	}
+	if policy.VersionRetentionLimit < 0 || policy.VersionRetentionLimit > 1000000 {
+		return fmt.Errorf("policy.version_retention_limit must be between 100 and 1000000 when set")
+	}
 	if policy.TypedEngineEnabled {
 		if policy.MaxExpressionDepth == 0 || policy.MaxExpressionNodes == 0 || policy.MaxListValues == 0 {
 			return errors.New("policy.typed_engine_enabled requires positive max_expression_depth, max_expression_nodes, and max_list_values")
 		}
+		if policy.MaxPolicySetDepth == 0 {
+			return errors.New("policy.typed_engine_enabled requires positive max_policy_set_depth")
+		}
 		if policy.AuditEnabled && policy.EvaluationRetentionLimit > 0 && policy.EvaluationRetentionLimit < 100 {
 			return fmt.Errorf("policy.evaluation_retention_limit must be between 100 and 1000000")
+		}
+		if policy.VersionRetentionLimit > 0 && policy.VersionRetentionLimit < 100 {
+			return fmt.Errorf("policy.version_retention_limit must be between 100 and 1000000")
 		}
 		if policy.RequireTypedRules && policy.AllowLegacyConditions {
 			return errors.New("policy.require_typed_rules cannot be combined with policy.allow_legacy_conditions")

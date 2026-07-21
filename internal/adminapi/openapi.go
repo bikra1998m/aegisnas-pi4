@@ -1237,6 +1237,46 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Decision, matched rules, conflicts, policy-set hash, request hash, and explain trace."),
 		"default": responseText("Evaluation error."),
 	}))
+	addOperation(paths, "/api/v1/system/policy-sets", "get", securedOperation("Read versioned policy set governance", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Immutable policy-set version status, active version, approval posture, activation history, and simulation counts."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-sets/versions", "get", securedOperation("List policy set versions", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Policy set versions with content, hashes, approvals, and lifecycle state."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-sets/versions", "post", securedOperationWithBody("Create policy set version", "Policies", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Policy set content or from_current request."), map[string]any{
+		"201":     responseJSON("Created immutable draft or submitted policy set version."),
+		"default": responseText("Version validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-sets/versions/{id}", "get", securedOperation("Read policy set version", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Policy set version detail with content and approval evidence."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-sets/versions/{id}/submit", "post", securedOperation("Submit policy set version", "Policies", []string{"ops_admin", "super_admin"}, map[string]any{
+		"200":     responseJSON("Submitted policy set version."),
+		"default": responseText("Submission error."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-sets/versions/{id}/approve", "post", securedOperationWithBody("Approve policy set version", "Policies", []string{"super_admin"}, genericJSONObjectRequest("Approval comment."), map[string]any{
+		"200":     responseJSON("Approved policy set version with maker-checker evidence."),
+		"default": responseText("Approval error."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-sets/versions/{id}/reject", "post", securedOperationWithBody("Reject policy set version", "Policies", []string{"super_admin"}, genericJSONObjectRequest("Rejection reason."), map[string]any{
+		"200":     responseJSON("Rejected policy set version."),
+		"default": responseText("Rejection error."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-sets/versions/{id}/activate", "post", securedOperationWithBody("Activate approved policy set version", "Policies", []string{"super_admin"}, genericJSONObjectRequest("Activation note."), map[string]any{
+		"200":     responseJSON("Activated version and synchronized live policy rules."),
+		"default": responseText("Activation error."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-sets/versions/{id}/rollback", "post", securedOperationWithBody("Rollback to policy set version", "Policies", []string{"super_admin"}, genericJSONObjectRequest("Rollback note."), map[string]any{
+		"200":     responseJSON("Selected historical version reactivated with rollback evidence."),
+		"default": responseText("Rollback error."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-sets/versions/{id}/simulate", "post", securedOperationWithBody("Simulate policy set version", "Policies", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Policy request context."), map[string]any{
+		"200":     responseJSON("Decision, matched rules, conflicts, and explain trace without activating the version."),
+		"default": responseText("Simulation error."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-sets/versions/{fromID}/compare/{toID}", "get", securedOperation("Compare policy set versions", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Added, removed, and changed flattened rules between two immutable versions."),
+	}))
 	addOperation(paths, "/api/v1/system/identity-failover", "get", securedOperationWithParameters("Read identity source failover state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("source", "Optional identity source name filter such as local or ldap-primary.", false),
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "not_found", "failed", "skipped", "stale_accepted", "split_denied"}, false),

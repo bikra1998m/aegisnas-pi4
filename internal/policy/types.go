@@ -6,6 +6,7 @@ import (
 )
 
 const TypedPolicySchemaVersion = 1
+const PolicySetSchemaVersion = 1
 
 // Request contains all attributes available for policy evaluation.
 type Request struct {
@@ -120,20 +121,60 @@ func (d *Decision) Merge(other *Decision) {
 
 // Rule represents a stored policy rule.
 type Rule struct {
-	ID               int
-	Name             string
-	Description      string
-	Priority         int
-	Enabled          bool
-	MatchConditions  json.RawMessage
-	Action           string
-	VLAN             *int
-	BandwidthProfile *string
-	SessionTimeout   *int
-	IdleTimeout      *int
-	PortalProfile    *string
-	ACLPolicyName    *string
-	Quarantine       bool
+	ID               int             `json:"id,omitempty"`
+	Name             string          `json:"name"`
+	Description      string          `json:"description,omitempty"`
+	Priority         int             `json:"priority"`
+	Enabled          bool            `json:"enabled"`
+	MatchConditions  json.RawMessage `json:"match_conditions"`
+	Action           string          `json:"action"`
+	VLAN             *int            `json:"vlan,omitempty"`
+	BandwidthProfile *string         `json:"bandwidth_profile,omitempty"`
+	SessionTimeout   *int            `json:"session_timeout,omitempty"`
+	IdleTimeout      *int            `json:"idle_timeout,omitempty"`
+	PortalProfile    *string         `json:"portal_profile,omitempty"`
+	ACLPolicyName    *string         `json:"acl_policy_name,omitempty"`
+	Quarantine       bool            `json:"quarantine"`
+}
+
+// PolicySet is the NAS-0030 immutable policy tree. A version stores exactly
+// one root set; child sets inherit disabled state and contribute priority.
+type PolicySet struct {
+	SchemaVersion int         `json:"schema_version,omitempty"`
+	Key           string      `json:"key"`
+	Name          string      `json:"name"`
+	Description   string      `json:"description,omitempty"`
+	Tenant        string      `json:"tenant,omitempty"`
+	Priority      int         `json:"priority"`
+	Enabled       *bool       `json:"enabled,omitempty"`
+	Rules         []Rule      `json:"rules,omitempty"`
+	Children      []PolicySet `json:"children,omitempty"`
+}
+
+type PolicySetSummary struct {
+	SchemaVersion int    `json:"schema_version"`
+	Key           string `json:"key"`
+	Name          string `json:"name"`
+	Tenant        string `json:"tenant,omitempty"`
+	RuleCount     int    `json:"rule_count"`
+	ChildSetCount int    `json:"child_set_count"`
+	MaxDepth      int    `json:"max_depth"`
+	ContentHash   string `json:"content_hash"`
+	PolicyHash    string `json:"policy_hash"`
+}
+
+type PolicySetDiff struct {
+	FromHash     string           `json:"from_hash"`
+	ToHash       string           `json:"to_hash"`
+	AddedRules   []Rule           `json:"added_rules,omitempty"`
+	RemovedRules []Rule           `json:"removed_rules,omitempty"`
+	ChangedRules []PolicyRuleDiff `json:"changed_rules,omitempty"`
+}
+
+type PolicyRuleDiff struct {
+	Name string `json:"name"`
+	From Rule   `json:"from"`
+	To   Rule   `json:"to"`
 }
 
 // TypedExpression is the production policy AST used by NAS-0029. Existing

@@ -96,6 +96,7 @@ When `radius.upstream.enabled: true`:
 - transport policy exposes route-level downgrade risk through `/api/v1/system/transport-policy` and prevents proxy generation when enforce mode would be violated
 - fallback policy exposes local/LDAP outage behavior through `/api/v1/system/fallback-policy`; enforce mode denies fallback unless source, identity allowlist, and outage window policy all match
 - typed authorization policy state is available through `/api/v1/system/policy-engine`; AegisNAS compiles legacy `match_conditions` and new `all`/`any`/`not` expressions into a typed AST, records redacted decision evidence, and exposes explain traces for policy migration and vendor interoperability
+- nested policy changes are governed through `/api/v1/system/policy-sets`; operators create immutable versions, submit them for maker-checker approval, simulate representative requests, activate approved content, and keep rollback evidence before changing live access behavior
 - the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
 - the vendor reply preview can render vendor-neutral ACL intent into `NAS-Filter-Rule`, Cisco `Cisco-AVPair`, Aruba filter rules, MikroTik address-list hints, and AegisNAS ACL VSAs
 - MAB endpoints can be approved, denied, quarantined, expired, or left pending; approved and quarantined endpoints render MAC variants into FreeRADIUS `files/authorize`
