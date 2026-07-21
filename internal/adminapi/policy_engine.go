@@ -283,23 +283,8 @@ func recordPolicyEvaluation(req policy.Request, result *policy.EvaluationResult,
 	matched, _ := json.Marshal(result.MatchedRules)
 	conflicts, _ := json.Marshal(result.Conflicts)
 	trace, _ := json.Marshal(result.Trace)
-	summary := map[string]any{
-		"role":            req.Role,
-		"groups":          len(req.Groups),
-		"realm":           req.Realm,
-		"tenant":          req.Tenant,
-		"auth_method":     req.AuthMethod,
-		"identity_source": req.IdentitySource,
-		"ssid":            req.SSID,
-		"nas_identifier":  req.NASIdentifier,
-		"nas_port_type":   req.NASPortType,
-		"site":            req.Site,
-		"vendor":          req.Vendor,
-		"vlan":            req.VLAN,
-		"posture":         req.Posture,
-		"risk_score":      req.RiskScore,
-	}
-	requestSummary, _ := json.Marshal(summary)
+	requestSummary, _ := json.Marshal(policyRequestSummary(req))
+	requestReplay, _ := json.Marshal(policyReplayRequest(req))
 	return db.RecordPolicyEngineEvaluation(db.PolicyEngineEvaluation{
 		EvaluationID:       result.EvaluationID,
 		EvaluatedAt:        result.EvaluatedAt,
@@ -315,6 +300,7 @@ func recordPolicyEvaluation(req policy.Request, result *policy.EvaluationResult,
 		ConflictsJSON:      string(conflicts),
 		TraceJSON:          string(trace),
 		RequestSummaryJSON: string(requestSummary),
+		RequestReplayJSON:  string(requestReplay),
 		LegacyRuleCount:    result.LegacyRuleCount,
 		TypedRuleCount:     result.TypedRuleCount,
 		InvalidRuleCount:   result.InvalidRuleCount,

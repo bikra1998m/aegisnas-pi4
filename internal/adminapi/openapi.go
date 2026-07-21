@@ -1238,7 +1238,10 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"default": responseText("Evaluation error."),
 	}))
 	addOperation(paths, "/api/v1/system/policy-sets", "get", securedOperation("Read versioned policy set governance", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
-		"200": responseJSON("Immutable policy-set version status, active version, approval posture, activation history, and simulation counts."),
+		"200": responseJSON("Immutable policy-set version status, active version, approval posture, activation history, simulation counts, and recent blast-radius analyses."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-sets/analyses", "get", securedOperation("List policy simulation analyses", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Persisted candidate-vs-active replay analyses with risk, decision delta counts, and shadow/ineffective rule counts."),
 	}))
 	addOperation(paths, "/api/v1/system/policy-sets/versions", "get", securedOperation("List policy set versions", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Policy set versions with content, hashes, approvals, and lifecycle state."),
@@ -1273,6 +1276,10 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/policy-sets/versions/{id}/simulate", "post", securedOperationWithBody("Simulate policy set version", "Policies", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Policy request context."), map[string]any{
 		"200":     responseJSON("Decision, matched rules, conflicts, and explain trace without activating the version."),
 		"default": responseText("Simulation error."),
+	}))
+	addOperation(paths, "/api/v1/system/policy-sets/versions/{id}/analyze", "post", securedOperationWithBody("Analyze policy set version blast radius", "Policies", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Manual requests, sample_source, limit, and include_trace options."), map[string]any{
+		"200":     responseJSON("Candidate-vs-active replay analysis with decision deltas, risk, shadowed rules, and ineffective rules."),
+		"default": responseText("Analysis error."),
 	}))
 	addOperation(paths, "/api/v1/system/policy-sets/versions/{fromID}/compare/{toID}", "get", securedOperation("Compare policy set versions", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Added, removed, and changed flattened rules between two immutable versions."),

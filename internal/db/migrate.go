@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 35
+	return 36
 }
 
 func Migrate() error {
@@ -1652,3 +1652,51 @@ CREATE INDEX IF NOT EXISTS idx_policy_set_simulations_version
 CREATE INDEX IF NOT EXISTS idx_policy_set_simulations_decision
 	ON policy_set_simulations(decision, created_at);
 `
+
+const policySimulationAnalysisTablesSQL = `
+CREATE TABLE IF NOT EXISTS policy_simulation_analyses (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	analysis_id TEXT UNIQUE NOT NULL,
+	version_id INTEGER NOT NULL,
+	active_version_id INTEGER,
+	active_policy_sha256 TEXT NOT NULL,
+	candidate_policy_sha256 TEXT NOT NULL,
+	sample_source TEXT NOT NULL,
+	sample_count INTEGER DEFAULT 0,
+	decision_change_count INTEGER DEFAULT 0,
+	allow_to_deny_count INTEGER DEFAULT 0,
+	deny_to_allow_count INTEGER DEFAULT 0,
+	quarantine_change_count INTEGER DEFAULT 0,
+	vlan_change_count INTEGER DEFAULT 0,
+	bandwidth_profile_change_count INTEGER DEFAULT 0,
+	acl_policy_change_count INTEGER DEFAULT 0,
+	portal_profile_change_count INTEGER DEFAULT 0,
+	session_timeout_change_count INTEGER DEFAULT 0,
+	conflict_count INTEGER DEFAULT 0,
+	invalid_rule_count INTEGER DEFAULT 0,
+	shadowed_rule_count INTEGER DEFAULT 0,
+	ineffective_rule_count INTEGER DEFAULT 0,
+	risk_level TEXT NOT NULL,
+	actor TEXT,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	result_json TEXT NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(version_id) REFERENCES policy_set_versions(id),
+	FOREIGN KEY(active_version_id) REFERENCES policy_set_versions(id),
+	CHECK (risk_level IN ('unknown', 'low', 'medium', 'high', 'critical')),
+	CHECK (sample_count >= 0),
+	CHECK (length(active_policy_sha256) = 64),
+	CHECK (length(candidate_policy_sha256) = 64)
+);
+
+CREATE INDEX IF NOT EXISTS idx_policy_simulation_analyses_version
+	ON policy_simulation_analyses(version_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_policy_simulation_analyses_risk
+	ON policy_simulation_analyses(risk_level, created_at);
+CREATE INDEX IF NOT EXISTS idx_policy_simulation_analyses_candidate_hash
+	ON policy_simulation_analyses(candidate_policy_sha256, created_at);
+`
+
+const schemaV36 = `
+ALTER TABLE policy_engine_evaluations ADD COLUMN request_replay_json TEXT NOT NULL DEFAULT '{}';
+` + policySimulationAnalysisTablesSQL

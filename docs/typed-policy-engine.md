@@ -84,9 +84,11 @@ The standalone policy service also exposes:
 
 ## Persistence
 
-Schema v34 adds `policy_engine_evaluations`.
+Schema v34 adds `policy_engine_evaluations`. Schema v36 adds
+`request_replay_json` to retained evaluations so candidate policy versions can
+be replayed without storing usernames or supplicant MAC addresses.
 
-Stored evidence includes evaluation ID, policy-set hash, request hash, redacted username/calling-station hashes, decision, matched rules, conflict list, explain trace, request summary, rule counts, and latency.
+Stored evidence includes evaluation ID, policy-set hash, request hash, redacted username/calling-station hashes, decision, matched rules, conflict list, explain trace, request summary, replay-safe request facts, rule counts, and latency.
 
 ## Operations
 
@@ -94,6 +96,8 @@ Operators should check:
 
 - `/api/v1/system/policy-engine` before and after policy changes
 - `/api/v1/system/policy-sets` for immutable versions, approvals, activation, simulation, and rollback evidence
+- `/api/v1/system/policy-sets/versions/{id}/analyze` before activation
+- `/api/v1/system/policy-sets/analyses` for retained blast-radius evidence
 - production readiness key `typed_policy_engine`
 - support bundle capture `api/policy-engine.json`
 - Dashboard "Typed Policy Engine"

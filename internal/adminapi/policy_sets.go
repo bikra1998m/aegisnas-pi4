@@ -21,22 +21,26 @@ import (
 var syncRuntimeEnforcementForPolicySetFn = enforcement.SyncRuntimeEnforcement
 
 type policySetGovernanceReport struct {
-	SchemaVersion int                        `json:"schema_version"`
-	Status        string                     `json:"status"`
-	Message       string                     `json:"message"`
-	Config        policySetGovernanceConfig  `json:"config"`
-	Summary       db.PolicySetVersionSummary `json:"summary"`
-	Active        *policySetVersionView      `json:"active,omitempty"`
-	Versions      []policySetVersionView     `json:"versions"`
-	Events        []policySetActivationEvent `json:"events"`
+	SchemaVersion   int                                `json:"schema_version"`
+	Status          string                             `json:"status"`
+	Message         string                             `json:"message"`
+	Config          policySetGovernanceConfig          `json:"config"`
+	Summary         db.PolicySetVersionSummary         `json:"summary"`
+	AnalysisSummary db.PolicySimulationAnalysisSummary `json:"analysis_summary"`
+	Active          *policySetVersionView              `json:"active,omitempty"`
+	Versions        []policySetVersionView             `json:"versions"`
+	Events          []policySetActivationEvent         `json:"events"`
+	RecentAnalyses  []policySimulationAnalysisView     `json:"recent_analyses"`
 }
 
 type policySetGovernanceConfig struct {
-	ApprovalRequired bool `json:"approval_required"`
-	MinApprovals     int  `json:"min_approvals"`
-	MakerChecker     bool `json:"maker_checker"`
-	MaxDepth         int  `json:"max_depth"`
-	RetentionLimit   int  `json:"retention_limit"`
+	ApprovalRequired  bool `json:"approval_required"`
+	MinApprovals      int  `json:"min_approvals"`
+	MakerChecker      bool `json:"maker_checker"`
+	MaxDepth          int  `json:"max_depth"`
+	RetentionLimit    int  `json:"retention_limit"`
+	ReplayLimit       int  `json:"replay_limit"`
+	AnalysisRetention int  `json:"analysis_retention"`
 }
 
 type policySetVersionView struct {
@@ -73,6 +77,20 @@ type policySetActionRequest struct {
 	Note    string `json:"note"`
 }
 
+type policySetAnalysisRequest struct {
+	SampleSource      string           `json:"sample_source"`
+	Limit             int              `json:"limit"`
+	IncludeTrace      bool             `json:"include_trace"`
+	Requests          []policy.Request `json:"requests"`
+	AnalyzeRuleImpact bool             `json:"analyze_rule_impact"`
+}
+
+type policySimulationAnalysisView struct {
+	db.PolicySimulationAnalysisRecord
+	Summary any                              `json:"summary,omitempty"`
+	Result  *policy.PolicySimulationAnalysis `json:"result,omitempty"`
+}
+
 func HandleGetPolicySets(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	if cfg == nil {
@@ -100,6 +118,16 @@ func HandleListPolicySetVersions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, views)
+}
+
+func HandleListPolicySimulationAnalyses(w http.ResponseWriter, r *http.Request) {
+	limit := intQuery(r, "limit", 25, 1, 1000)
+	records, err := db.ListPolicySimulationAnalyses(limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, policySimulationAnalysisViews(records, true))
 }
 
 func HandleCreatePolicySetVersion(w http.ResponseWriter, r *http.Request) {
@@ -373,6 +401,60 @@ func HandleSimulatePolicySetVersion(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+func HandleAnalyzePolicySetVersion(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Get()
+	if cfg == nil {
+		http.Error(w, "configuration not loaded", http.StatusInternalServerError)
+		return
+	}
+	version, err := policySetVersionFromRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if version == nil {
+		http.Error(w, "policy set version not found", http.StatusNotFound)
+		return
+	}
+	var req policySetAnalysisRequest
+	if err := decodeOptionalBody(r, &req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	activeVersion, activeRules, err := activePolicyRulesForAnalysis(cfg)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	candidateSet, err := policy.ParsePolicySet(version.ContentJSON)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	candidateRules, err := policy.FlattenPolicySet(candidateSet, cfg.Policy.MaxPolicySetDepth)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	samples, sampleSource, err := policyReplaySamples(req, cfg)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	analysis := policy.AnalyzePolicySimulation(activeRules, candidateRules, samples, policy.SimulationAnalysisOptions{
+		MaxSamples:        len(samples),
+		MaxExamples:       25,
+		IncludeTrace:      req.IncludeTrace,
+		AnalyzeRuleImpact: true,
+	}, logging.L())
+	if err := recordPolicySimulationAnalysis(*version, activeVersion, sampleSource, analysis, userFromRequest(r), cfg); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	audit(r, "analyze_policy_set_version", strconv.Itoa(version.ID), analysis.RiskLevel)
+	writeJSON(w, http.StatusOK, analysis)
+}
+
 func buildPolicySetGovernanceReport(cfg *config.Config, limit int) (policySetGovernanceReport, error) {
 	summary, err := db.SummarizePolicySetVersions()
 	if err != nil {
@@ -387,6 +469,14 @@ func buildPolicySetGovernanceReport(cfg *config.Config, limit int) (policySetGov
 		return policySetGovernanceReport{}, err
 	}
 	events, err := db.ListPolicySetActivationEvents(limit)
+	if err != nil {
+		return policySetGovernanceReport{}, err
+	}
+	analysisSummary, err := db.SummarizePolicySimulationAnalyses()
+	if err != nil {
+		return policySetGovernanceReport{}, err
+	}
+	analysisRecords, err := db.ListPolicySimulationAnalyses(limit)
 	if err != nil {
 		return policySetGovernanceReport{}, err
 	}
@@ -405,16 +495,20 @@ func buildPolicySetGovernanceReport(cfg *config.Config, limit int) (policySetGov
 	report := policySetGovernanceReport{
 		SchemaVersion: policy.PolicySetSchemaVersion,
 		Config: policySetGovernanceConfig{
-			ApprovalRequired: cfg.Policy.VersionApprovalRequired,
-			MinApprovals:     cfg.Policy.VersionMinApprovals,
-			MakerChecker:     cfg.Policy.VersionMakerChecker,
-			MaxDepth:         cfg.Policy.MaxPolicySetDepth,
-			RetentionLimit:   cfg.Policy.VersionRetentionLimit,
+			ApprovalRequired:  cfg.Policy.VersionApprovalRequired,
+			MinApprovals:      cfg.Policy.VersionMinApprovals,
+			MakerChecker:      cfg.Policy.VersionMakerChecker,
+			MaxDepth:          cfg.Policy.MaxPolicySetDepth,
+			RetentionLimit:    cfg.Policy.VersionRetentionLimit,
+			ReplayLimit:       cfg.Policy.SimulationReplayLimit,
+			AnalysisRetention: cfg.Policy.SimulationRetentionLimit,
 		},
-		Summary:  summary,
-		Active:   active,
-		Versions: views,
-		Events:   policySetActivationEventViews(events),
+		Summary:         summary,
+		AnalysisSummary: analysisSummary,
+		Active:          active,
+		Versions:        views,
+		Events:          policySetActivationEventViews(events),
+		RecentAnalyses:  policySimulationAnalysisViews(analysisRecords, false),
 	}
 	report.Status, report.Message = policySetGovernanceStatus(report)
 	return report, nil
@@ -510,6 +604,174 @@ func replacePolicyRulesTx(tx *sql.Tx, rules []policy.Rule) error {
 		}
 	}
 	return nil
+}
+
+func activePolicyRulesForAnalysis(cfg *config.Config) (*db.PolicySetVersion, []policy.Rule, error) {
+	activeVersion, err := db.GetActivePolicySetVersion("default")
+	if err != nil {
+		return nil, nil, err
+	}
+	if activeVersion != nil {
+		set, err := policy.ParsePolicySet(activeVersion.ContentJSON)
+		if err != nil {
+			return nil, nil, err
+		}
+		rules, err := policy.FlattenPolicySet(set, cfg.Policy.MaxPolicySetDepth)
+		if err != nil {
+			return nil, nil, err
+		}
+		return activeVersion, rules, nil
+	}
+	rules, err := loadPolicyRulesForVersion()
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(rules) == 0 {
+		return nil, nil, fmt.Errorf("no active policy set or legacy policy rules are available for baseline analysis")
+	}
+	return nil, rules, nil
+}
+
+func policyReplaySamples(req policySetAnalysisRequest, cfg *config.Config) ([]policy.ReplaySample, string, error) {
+	limit := req.Limit
+	if limit <= 0 {
+		limit = cfg.Policy.SimulationReplayLimit
+	}
+	if limit <= 0 || limit > cfg.Policy.SimulationReplayLimit {
+		limit = cfg.Policy.SimulationReplayLimit
+	}
+	source := strings.ToLower(strings.TrimSpace(req.SampleSource))
+	if source == "" {
+		if len(req.Requests) > 0 {
+			source = "manual"
+		} else {
+			source = "history"
+		}
+	}
+	var samples []policy.ReplaySample
+	if source == "manual" || source == "mixed" {
+		for i, request := range req.Requests {
+			if len(samples) >= limit {
+				break
+			}
+			samples = append(samples, policy.ReplaySample{
+				Source:  "manual",
+				Request: policyReplayRequest(request),
+				Labels:  map[string]string{"index": strconv.Itoa(i)},
+			})
+		}
+	}
+	if source == "history" || source == "mixed" {
+		remaining := limit - len(samples)
+		if remaining > 0 {
+			records, err := db.ListPolicyEngineReplaySamples(remaining)
+			if err != nil {
+				return nil, source, err
+			}
+			for _, record := range records {
+				sample, err := replaySampleFromRecord(record)
+				if err != nil {
+					continue
+				}
+				samples = append(samples, sample)
+			}
+		}
+	}
+	if len(samples) == 0 {
+		return nil, source, fmt.Errorf("no replay samples are available; submit requests or retain policy evaluations first")
+	}
+	return samples, source, nil
+}
+
+func replaySampleFromRecord(record db.PolicyEngineReplaySampleRecord) (policy.ReplaySample, error) {
+	var req policy.Request
+	if err := json.Unmarshal([]byte(defaultString(record.RequestReplayJSON, "{}")), &req); err != nil {
+		return policy.ReplaySample{}, err
+	}
+	if policy.RequestHash(&req) == policy.RequestHash(&policy.Request{}) {
+		req = policyRequestFromSummary(record.RequestSummaryJSON)
+	}
+	var matched []policy.MatchedRule
+	_ = json.Unmarshal([]byte(defaultString(record.MatchedRulesJSON, "[]")), &matched)
+	var summary map[string]any
+	_ = json.Unmarshal([]byte(defaultString(record.RequestSummaryJSON, "{}")), &summary)
+	return policy.ReplaySample{
+		Source:                   "history",
+		EvaluationID:             record.EvaluationID,
+		EvaluatedAt:              record.EvaluatedAt,
+		HistoricalPolicySetHash:  record.PolicySetHash,
+		HistoricalDecision:       record.Decision,
+		HistoricalAllowed:        record.Allowed,
+		HistoricalQuarantine:     record.Quarantine,
+		HistoricalMatchedRules:   matched,
+		HistoricalConflictCount:  jsonArrayCount(record.ConflictsJSON),
+		HistoricalTraceNodeCount: jsonArrayCount(record.TraceJSON),
+		Request:                  req,
+		RequestSummary:           summary,
+	}, nil
+}
+
+func recordPolicySimulationAnalysis(version db.PolicySetVersion, active *db.PolicySetVersion, source string, analysis policy.PolicySimulationAnalysis, actor string, cfg *config.Config) error {
+	resultJSON, _ := json.Marshal(analysis)
+	summaryJSON, _ := json.Marshal(map[string]any{
+		"risk_level":             analysis.RiskLevel,
+		"recommendation":         analysis.Recommendation,
+		"sample_count":           analysis.SampleCount,
+		"decision_change_count":  analysis.DecisionChangeCount,
+		"shadowed_rule_count":    len(analysis.ShadowedRules),
+		"ineffective_rule_count": len(analysis.IneffectiveRules),
+	})
+	activeID := 0
+	if active != nil {
+		activeID = active.ID
+	}
+	return db.RecordPolicySimulationAnalysis(db.PolicySimulationAnalysisRecord{
+		AnalysisID:                  analysis.AnalysisID,
+		VersionID:                   version.ID,
+		ActiveVersionID:             activeID,
+		ActivePolicySHA256:          analysis.ActivePolicySetHash,
+		CandidatePolicySHA256:       analysis.CandidatePolicySetHash,
+		SampleSource:                source,
+		SampleCount:                 analysis.SampleCount,
+		DecisionChangeCount:         analysis.DecisionChangeCount,
+		AllowToDenyCount:            analysis.AllowToDenyCount,
+		DenyToAllowCount:            analysis.DenyToAllowCount,
+		QuarantineChangeCount:       analysis.QuarantineChangeCount,
+		VLANChangeCount:             analysis.VLANChangeCount,
+		BandwidthProfileChangeCount: analysis.BandwidthProfileChangeCount,
+		ACLPolicyChangeCount:        analysis.ACLPolicyChangeCount,
+		PortalProfileChangeCount:    analysis.PortalProfileChangeCount,
+		SessionTimeoutChangeCount:   analysis.SessionTimeoutChangeCount,
+		ConflictCount:               analysis.ConflictCount,
+		InvalidRuleCount:            analysis.InvalidRuleCount,
+		ShadowedRuleCount:           len(analysis.ShadowedRules),
+		IneffectiveRuleCount:        len(analysis.IneffectiveRules),
+		RiskLevel:                   analysis.RiskLevel,
+		Actor:                       actor,
+		SummaryJSON:                 string(summaryJSON),
+		ResultJSON:                  string(resultJSON),
+	}, cfg.Policy.SimulationRetentionLimit)
+}
+
+func policySimulationAnalysisViews(records []db.PolicySimulationAnalysisRecord, includeResult bool) []policySimulationAnalysisView {
+	out := make([]policySimulationAnalysisView, 0, len(records))
+	for _, record := range records {
+		view := policySimulationAnalysisView{PolicySimulationAnalysisRecord: record}
+		if strings.TrimSpace(record.SummaryJSON) != "" {
+			var summary any
+			if err := json.Unmarshal([]byte(record.SummaryJSON), &summary); err == nil {
+				view.Summary = summary
+			}
+		}
+		if includeResult && strings.TrimSpace(record.ResultJSON) != "" {
+			var result policy.PolicySimulationAnalysis
+			if err := json.Unmarshal([]byte(record.ResultJSON), &result); err == nil {
+				view.Result = &result
+			}
+		}
+		out = append(out, view)
+	}
+	return out
 }
 
 func activatePolicySetVersion(r *http.Request, id int, note string, rollback bool) error {

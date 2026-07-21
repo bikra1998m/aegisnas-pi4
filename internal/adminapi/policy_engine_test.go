@@ -70,6 +70,13 @@ func TestPolicyEngineAPIValidateEvaluateAndReport(t *testing.T) {
 	assert.Equal(t, 1, report.Summary.TotalRecords)
 	assert.Len(t, report.Rules, 1)
 	assert.True(t, report.Rules[0].Typed)
+
+	replay, err := db.ListPolicyEngineReplaySamples(10)
+	require.NoError(t, err)
+	require.Len(t, replay, 1)
+	assert.Contains(t, replay[0].RequestReplayJSON, "employees")
+	assert.NotContains(t, replay[0].RequestReplayJSON, "alice@example.com")
+	assert.NotContains(t, replay[0].RequestReplayJSON, "aa:bb:cc:dd:ee:ff")
 }
 
 func TestPolicyEngineAuthorization(t *testing.T) {

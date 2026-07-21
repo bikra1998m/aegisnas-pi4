@@ -68,6 +68,7 @@ The implementation now does these things end to end:
 12. records and approves dynamic AP, switch, gateway, and controller NAS clients before allowing them to send trusted RADIUS traffic
 13. supports outbound RadSec TLS-PSK peers with secret-reference validation, deterministic rotation, redacted status, and production readiness checks
 14. blocks downgrade-prone mixed UDP/RadSec proxy pools when transport policy is in enforce mode
+15. replays retained policy evaluations against candidate policy versions to show blast radius, conflicts, shadowed rules, and ineffective rules before activation
 15. governs portal local/LDAP fallback during upstream outage with identity allowlists, bounded outage windows, hashed audit events, readiness checks, and dashboard/API visibility
 16. supports MAC Authentication Bypass endpoint state, profile-linked quarantine, generated FreeRADIUS authorize entries, API evaluation, dashboard status, and readiness checks for non-802.1X devices
 17. protects privileged admin token and SSO sessions with WebAuthn/passkey step-up, credential lifecycle APIs, dashboard status, readiness checks, and support-bundle evidence

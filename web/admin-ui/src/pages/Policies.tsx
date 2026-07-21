@@ -40,6 +40,18 @@ type PolicyEngineReport = {
       active_version?: number;
       simulation_count: number;
     };
+    config?: {
+      replay_limit: number;
+    };
+    analysis_summary?: {
+      total_analyses: number;
+      last_risk_level?: string;
+      last_sample_count: number;
+      last_decision_change_count: number;
+      last_shadowed_rule_count: number;
+      last_ineffective_rule_count: number;
+    };
+    recent_analyses?: PolicySimulationAnalysis[];
     active?: PolicySetVersion;
     versions?: PolicySetVersion[];
   };
@@ -60,6 +72,17 @@ type PolicySetVersion = {
   created_by?: string;
   created_at: string;
   activated_at?: string;
+};
+
+type PolicySimulationAnalysis = {
+  analysis_id: string;
+  version_id: number;
+  risk_level: string;
+  sample_count: number;
+  decision_change_count: number;
+  shadowed_rule_count: number;
+  ineffective_rule_count: number;
+  created_at: string;
 };
 
 const typedDefaultExpression = `{
@@ -114,11 +137,19 @@ function PolicyEnginePanel() {
         });
         setMessage("Policy version created and submitted.");
       } else if (version) {
-        await api.post(`/system/policy-sets/versions/${version.id}/${action}`, {
-          note: `Policy version ${action}`,
-          comment: `Policy version ${action}`,
-        });
-        setMessage(`Policy version ${version.version} ${action} request completed.`);
+        if (action === "analyze") {
+          await api.post(`/system/policy-sets/versions/${version.id}/analyze`, {
+            sample_source: "history",
+            limit: report?.policy_sets?.config?.replay_limit || 25,
+          });
+          setMessage(`Policy version ${version.version} analysis completed.`);
+        } else {
+          await api.post(`/system/policy-sets/versions/${version.id}/${action}`, {
+            note: `Policy version ${action}`,
+            comment: `Policy version ${action}`,
+          });
+          setMessage(`Policy version ${version.version} ${action} request completed.`);
+        }
       }
       loadReport();
     } catch (err: any) {
@@ -150,6 +181,8 @@ function PolicyEnginePanel() {
   const invalidRules = enabledRules.filter((rule) => !rule.valid).length;
   const policySets = report.policy_sets;
   const versions = policySets?.versions || [];
+  const analysisSummary = policySets?.analysis_summary;
+  const recentAnalyses = policySets?.recent_analyses || [];
 
   return (
     <div className="space-y-3 rounded-md border border-gray-200 bg-white p-4">
@@ -235,6 +268,16 @@ function PolicyEnginePanel() {
           <div>Pending {policySets?.summary?.pending_approval_count ?? 0}</div>
           <div>Simulations {policySets?.summary?.simulation_count ?? 0}</div>
         </div>
+        <div className="mt-3 grid gap-3 text-sm sm:grid-cols-5">
+          <div>Analyses {analysisSummary?.total_analyses ?? 0}</div>
+          <div>Risk {analysisSummary?.last_risk_level || "none"}</div>
+          <div>Samples {analysisSummary?.last_sample_count ?? 0}</div>
+          <div>Changes {analysisSummary?.last_decision_change_count ?? 0}</div>
+          <div>
+            Shadow {analysisSummary?.last_shadowed_rule_count ?? 0}/
+            {analysisSummary?.last_ineffective_rule_count ?? 0}
+          </div>
+        </div>
         <div className="mt-3 overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-gray-200 text-gray-500">
@@ -280,6 +323,9 @@ function PolicyEnginePanel() {
                         {version.status === "superseded" && (
                           <button type="button" className="rounded-md border border-gray-300 px-2 py-1" disabled={!!busy} onClick={() => void runVersionAction("rollback", version)}>Rollback</button>
                         )}
+                        {version.status !== "active" && (
+                          <button type="button" className="rounded-md border border-gray-300 px-2 py-1" disabled={!!busy} onClick={() => void runVersionAction("analyze", version)}>Analyze</button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -288,6 +334,22 @@ function PolicyEnginePanel() {
             </tbody>
           </table>
         </div>
+        {recentAnalyses.length > 0 && (
+          <div className="mt-3 rounded-md border border-gray-200 p-3 text-sm">
+            <div className="font-semibold text-gray-900">Recent Analysis</div>
+            <div className="mt-2 grid gap-2">
+              {recentAnalyses.slice(0, 3).map((analysis) => (
+                <div key={analysis.analysis_id} className="flex flex-wrap justify-between gap-2 border-b border-gray-100 pb-2 last:border-b-0 last:pb-0">
+                  <span className="font-mono text-xs">{analysis.analysis_id}</span>
+                  <span>risk {analysis.risk_level}</span>
+                  <span>{analysis.decision_change_count}/{analysis.sample_count} changed</span>
+                  <span>{analysis.shadowed_rule_count} shadowed</span>
+                  <span>{analysis.ineffective_rule_count} ineffective</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

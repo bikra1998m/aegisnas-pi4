@@ -86,6 +86,25 @@ func TestPolicySetVersionApprovalActivationSimulationAndRollback(t *testing.T) {
 	require.Equal(t, http.StatusOK, compareRec.Code, compareRec.Body.String())
 	assert.Contains(t, compareRec.Body.String(), "deny-risk")
 
+	analyzeRec := httptest.NewRecorder()
+	HandleAnalyzePolicySetVersion(analyzeRec, policySetRequest(http.MethodPost, "/api/v1/system/policy-sets/versions/"+strconv.Itoa(second.ID)+"/analyze", "ops", `{"sample_source":"manual","requests":[{"authenticated":true,"groups":["employees"],"risk_score":95}],"include_trace":true}`))
+	require.Equal(t, http.StatusOK, analyzeRec.Code, analyzeRec.Body.String())
+	var analysis policy.PolicySimulationAnalysis
+	require.NoError(t, json.Unmarshal(analyzeRec.Body.Bytes(), &analysis))
+	assert.Equal(t, 1, analysis.SampleCount)
+	assert.Equal(t, 1, analysis.AllowToDenyCount)
+	assert.Equal(t, "critical", analysis.RiskLevel)
+
+	analysisSummary, err := db.SummarizePolicySimulationAnalyses()
+	require.NoError(t, err)
+	assert.Equal(t, 1, analysisSummary.TotalAnalyses)
+	assert.Equal(t, "critical", analysisSummary.LastRiskLevel)
+
+	listAnalysesRec := httptest.NewRecorder()
+	HandleListPolicySimulationAnalyses(listAnalysesRec, policySetRequest(http.MethodGet, "/api/v1/system/policy-sets/analyses", "viewer", ``))
+	require.Equal(t, http.StatusOK, listAnalysesRec.Code, listAnalysesRec.Body.String())
+	assert.Contains(t, listAnalysesRec.Body.String(), analysis.AnalysisID)
+
 	activateSecondRec := httptest.NewRecorder()
 	HandleActivatePolicySetVersion(activateSecondRec, policySetRequest(http.MethodPost, "/api/v1/system/policy-sets/versions/"+strconv.Itoa(second.ID)+"/activate", "admin", `{"note":"activate second"}`))
 	require.Equal(t, http.StatusOK, activateSecondRec.Code, activateSecondRec.Body.String())
@@ -103,8 +122,10 @@ func TestPolicySetAuthorization(t *testing.T) {
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/policy-sets"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/policy-sets/versions"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/policy-sets/versions/1/simulate"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/policy-sets/versions/1/analyze"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/policy-sets/versions/1/approve"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleSuperAdmin}, "POST", "/api/v1/system/policy-sets/versions/1/approve"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/policy-sets/analyses"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/policy-sets/versions/1/compare/2"))
 }
 

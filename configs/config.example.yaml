@@ -783,6 +783,8 @@ policy:
   version_maker_checker: true
   max_policy_set_depth: 8
   version_retention_limit: 1000
+  simulation_replay_limit: 100
+  simulation_retention_limit: 1000
 
 telemetry:
   enabled: true

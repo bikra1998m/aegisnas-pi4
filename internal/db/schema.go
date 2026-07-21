@@ -159,7 +159,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{32, schemaV32},
 		{33, schemaV33},
 		{34, schemaV34},
-		{LatestSchemaVersion(), schemaV35},
+		{35, schemaV35},
+		{LatestSchemaVersion(), schemaV36},
 	}
 
 	for _, m := range migrations {
@@ -234,8 +235,33 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensurePolicySetVersionTables(handle); err != nil {
 		return fmt.Errorf("repair policy set version schema: %w", err)
 	}
+	if err := ensurePolicySimulationAnalysisTables(handle); err != nil {
+		return fmt.Errorf("repair policy simulation analysis schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensurePolicySimulationAnalysisTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	if exists, err := tableExists(handle, "policy_engine_evaluations"); err != nil {
+		return err
+	} else if exists {
+		hasColumn, err := tableHasColumn(handle, "policy_engine_evaluations", "request_replay_json")
+		if err != nil {
+			return err
+		}
+		if !hasColumn {
+			if _, err := handle.Exec(SQLForDialect(`ALTER TABLE policy_engine_evaluations ADD COLUMN request_replay_json TEXT NOT NULL DEFAULT '{}'`, dialect)); err != nil {
+				return err
+			}
+		}
+	}
+	_, err := handle.Exec(SQLForDialect(policySimulationAnalysisTablesSQL, dialect))
+	return err
 }
 
 func ensurePolicySetVersionTables(handle *sql.DB) error {

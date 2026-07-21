@@ -272,16 +272,23 @@ POST /api/v1/system/policy-sets/versions/{id}/reject
 POST /api/v1/system/policy-sets/versions/{id}/activate
 POST /api/v1/system/policy-sets/versions/{id}/rollback
 POST /api/v1/system/policy-sets/versions/{id}/simulate
+POST /api/v1/system/policy-sets/versions/{id}/analyze
+/api/v1/system/policy-sets/analyses
 /api/v1/system/policy-sets/versions/{fromID}/compare/{toID}
 ```
 
 Use these endpoints to create immutable policy-set versions, submit them for
 maker-checker approval, activate approved versions, compare flattened rule
-changes, simulate draft decisions, and roll back to prior approved versions.
+changes, simulate draft decisions, analyze candidate blast radius against
+retained replay samples, and roll back to prior approved versions.
 The same state appears in `/api/v1/system/status` under `radius.policy_sets`,
 inside `/api/v1/system/policy-engine` as `policy_sets`, in production readiness
 as `policy_set_governance`, and in support bundles as `api/policy-sets.json`.
-See [versioned-policy-sets.md](versioned-policy-sets.md).
+Persisted analysis evidence is available in production readiness as
+`policy_simulation_analysis` and support bundles as
+`api/policy-simulation-analyses.json`. See
+[versioned-policy-sets.md](versioned-policy-sets.md) and
+[policy-simulation-analysis.md](policy-simulation-analysis.md).
 
 Identity source failover state is exposed at:
 

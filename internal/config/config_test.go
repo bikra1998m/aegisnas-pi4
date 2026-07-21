@@ -2245,6 +2245,8 @@ func TestConfigValidationTypedPolicyEngine(t *testing.T) {
 			VersionMakerChecker:      true,
 			MaxPolicySetDepth:        8,
 			VersionRetentionLimit:    1000,
+			SimulationReplayLimit:    100,
+			SimulationRetentionLimit: 1000,
 		},
 	}
 	require.NoError(t, cfg.Validate())
@@ -2264,6 +2266,10 @@ func TestConfigValidationTypedPolicyEngine(t *testing.T) {
 	badApproval := *cfg
 	badApproval.Policy.VersionMinApprovals = 0
 	assert.ErrorContains(t, badApproval.Validate(), "version_approval_required")
+
+	badSimulation := *cfg
+	badSimulation.Policy.SimulationReplayLimit = 0
+	assert.ErrorContains(t, badSimulation.Validate(), "simulation_replay_limit")
 }
 
 func TestConfigValidationPhase4Integrations(t *testing.T) {

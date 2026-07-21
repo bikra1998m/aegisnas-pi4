@@ -231,6 +231,78 @@ type EvaluationResult struct {
 	InvalidRuleCount int              `json:"invalid_rule_count"`
 }
 
+type ReplaySample struct {
+	Source                   string            `json:"source,omitempty"`
+	EvaluationID             string            `json:"evaluation_id,omitempty"`
+	EvaluatedAt              string            `json:"evaluated_at,omitempty"`
+	HistoricalPolicySetHash  string            `json:"historical_policy_set_hash,omitempty"`
+	HistoricalDecision       string            `json:"historical_decision,omitempty"`
+	HistoricalAllowed        bool              `json:"historical_allowed,omitempty"`
+	HistoricalQuarantine     bool              `json:"historical_quarantine,omitempty"`
+	HistoricalMatchedRules   []MatchedRule     `json:"historical_matched_rules,omitempty"`
+	HistoricalConflictCount  int               `json:"historical_conflict_count,omitempty"`
+	HistoricalTraceNodeCount int               `json:"historical_trace_node_count,omitempty"`
+	Request                  Request           `json:"request"`
+	RequestSummary           map[string]any    `json:"request_summary,omitempty"`
+	Labels                   map[string]string `json:"labels,omitempty"`
+}
+
+type SimulationAnalysisOptions struct {
+	MaxSamples        int  `json:"max_samples,omitempty"`
+	MaxExamples       int  `json:"max_examples,omitempty"`
+	IncludeTrace      bool `json:"include_trace,omitempty"`
+	AnalyzeRuleImpact bool `json:"analyze_rule_impact,omitempty"`
+}
+
+type PolicySimulationAnalysis struct {
+	SchemaVersion               int             `json:"schema_version"`
+	AnalysisID                  string          `json:"analysis_id"`
+	GeneratedAt                 string          `json:"generated_at"`
+	ActivePolicySetHash         string          `json:"active_policy_set_hash"`
+	CandidatePolicySetHash      string          `json:"candidate_policy_set_hash"`
+	SampleCount                 int             `json:"sample_count"`
+	DecisionChangeCount         int             `json:"decision_change_count"`
+	AllowToDenyCount            int             `json:"allow_to_deny_count"`
+	DenyToAllowCount            int             `json:"deny_to_allow_count"`
+	QuarantineChangeCount       int             `json:"quarantine_change_count"`
+	VLANChangeCount             int             `json:"vlan_change_count"`
+	BandwidthProfileChangeCount int             `json:"bandwidth_profile_change_count"`
+	ACLPolicyChangeCount        int             `json:"acl_policy_change_count"`
+	PortalProfileChangeCount    int             `json:"portal_profile_change_count"`
+	SessionTimeoutChangeCount   int             `json:"session_timeout_change_count"`
+	ConflictCount               int             `json:"conflict_count"`
+	InvalidRuleCount            int             `json:"invalid_rule_count"`
+	ShadowedRules               []RuleImpact    `json:"shadowed_rules,omitempty"`
+	IneffectiveRules            []RuleImpact    `json:"ineffective_rules,omitempty"`
+	Deltas                      []DecisionDelta `json:"deltas,omitempty"`
+	RiskLevel                   string          `json:"risk_level"`
+	Recommendation              string          `json:"recommendation"`
+}
+
+type DecisionDelta struct {
+	Index              int               `json:"index"`
+	Source             string            `json:"source,omitempty"`
+	EvaluationID       string            `json:"evaluation_id,omitempty"`
+	RequestHash        string            `json:"request_hash"`
+	ChangedFields      []string          `json:"changed_fields"`
+	ActiveDecision     Decision          `json:"active_decision"`
+	CandidateDecision  Decision          `json:"candidate_decision"`
+	ActiveMatched      []MatchedRule     `json:"active_matched_rules,omitempty"`
+	CandidateMatched   []MatchedRule     `json:"candidate_matched_rules,omitempty"`
+	ActiveConflicts    []string          `json:"active_conflicts,omitempty"`
+	CandidateConflicts []string          `json:"candidate_conflicts,omitempty"`
+	Labels             map[string]string `json:"labels,omitempty"`
+}
+
+type RuleImpact struct {
+	Name         string `json:"name"`
+	Priority     int    `json:"priority"`
+	Enabled      bool   `json:"enabled"`
+	MatchedCount int    `json:"matched_count"`
+	ImpactCount  int    `json:"impact_count"`
+	Reason       string `json:"reason"`
+}
+
 type FieldSpec struct {
 	Name        string `json:"name"`
 	Type        string `json:"type"`

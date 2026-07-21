@@ -24,6 +24,7 @@ type PolicyEngineEvaluation struct {
 	ConflictsJSON      string `json:"conflicts_json"`
 	TraceJSON          string `json:"trace_json"`
 	RequestSummaryJSON string `json:"request_summary_json"`
+	RequestReplayJSON  string `json:"request_replay_json"`
 	LegacyRuleCount    int    `json:"legacy_rule_count"`
 	TypedRuleCount     int    `json:"typed_rule_count"`
 	InvalidRuleCount   int    `json:"invalid_rule_count"`
@@ -73,12 +74,13 @@ func RecordPolicyEngineEvaluation(record PolicyEngineEvaluation, retentionLimit 
 	record.ConflictsJSON = defaultJSONObjectArray(record.ConflictsJSON)
 	record.TraceJSON = defaultJSONObjectArray(record.TraceJSON)
 	record.RequestSummaryJSON = defaultJSONObject(record.RequestSummaryJSON)
+	record.RequestReplayJSON = defaultJSONObject(record.RequestReplayJSON)
 
 	_, err := DB.Exec(`INSERT INTO policy_engine_evaluations (
 		evaluation_id, evaluated_at, policy_set_hash, request_hash, username_hash, calling_station_hash,
 		tenant, decision, allowed, quarantine, matched_rules_json, conflicts_json, trace_json,
-		request_summary_json, legacy_rule_count, typed_rule_count, invalid_rule_count, latency_ms
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		request_summary_json, request_replay_json, legacy_rule_count, typed_rule_count, invalid_rule_count, latency_ms
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(evaluation_id) DO UPDATE SET
 		evaluated_at = excluded.evaluated_at,
 		policy_set_hash = excluded.policy_set_hash,
@@ -93,6 +95,7 @@ func RecordPolicyEngineEvaluation(record PolicyEngineEvaluation, retentionLimit 
 		conflicts_json = excluded.conflicts_json,
 		trace_json = excluded.trace_json,
 		request_summary_json = excluded.request_summary_json,
+		request_replay_json = excluded.request_replay_json,
 		legacy_rule_count = excluded.legacy_rule_count,
 		typed_rule_count = excluded.typed_rule_count,
 		invalid_rule_count = excluded.invalid_rule_count,
@@ -100,6 +103,7 @@ func RecordPolicyEngineEvaluation(record PolicyEngineEvaluation, retentionLimit 
 		record.EvaluationID, record.EvaluatedAt, record.PolicySetHash, record.RequestHash, nullIfEmpty(record.UsernameHash),
 		nullIfEmpty(record.CallingStationHash), nullIfEmpty(record.Tenant), record.Decision, record.Allowed, record.Quarantine,
 		record.MatchedRulesJSON, record.ConflictsJSON, record.TraceJSON, record.RequestSummaryJSON,
+		record.RequestReplayJSON,
 		record.LegacyRuleCount, record.TypedRuleCount, record.InvalidRuleCount, record.LatencyMS)
 	if err != nil {
 		return err
@@ -117,7 +121,7 @@ func ListPolicyEngineEvaluations(limit int) ([]PolicyEngineEvaluation, error) {
 	rows, err := DB.Query(`SELECT id, evaluation_id, evaluated_at, policy_set_hash, request_hash,
 		COALESCE(username_hash, ''), COALESCE(calling_station_hash, ''), COALESCE(tenant, ''),
 		decision, allowed, quarantine, matched_rules_json, conflicts_json, trace_json, request_summary_json,
-		legacy_rule_count, typed_rule_count, invalid_rule_count, latency_ms, created_at
+		COALESCE(request_replay_json, '{}'), legacy_rule_count, typed_rule_count, invalid_rule_count, latency_ms, created_at
 		FROM policy_engine_evaluations ORDER BY evaluated_at DESC, id DESC LIMIT ?`, limit)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no such table") {
@@ -212,6 +216,7 @@ func scanPolicyEngineEvaluation(rows interface {
 	err := rows.Scan(&record.ID, &record.EvaluationID, &record.EvaluatedAt, &record.PolicySetHash, &record.RequestHash,
 		&record.UsernameHash, &record.CallingStationHash, &record.Tenant, &record.Decision, &record.Allowed, &record.Quarantine,
 		&record.MatchedRulesJSON, &record.ConflictsJSON, &record.TraceJSON, &record.RequestSummaryJSON,
+		&record.RequestReplayJSON,
 		&record.LegacyRuleCount, &record.TypedRuleCount, &record.InvalidRuleCount, &record.LatencyMS, &record.CreatedAt)
 	return record, err
 }

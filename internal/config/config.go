@@ -945,6 +945,8 @@ type PolicyConfig struct {
 	VersionMakerChecker      bool   `mapstructure:"version_maker_checker"`
 	MaxPolicySetDepth        int    `mapstructure:"max_policy_set_depth"`
 	VersionRetentionLimit    int    `mapstructure:"version_retention_limit"`
+	SimulationReplayLimit    int    `mapstructure:"simulation_replay_limit"`
+	SimulationRetentionLimit int    `mapstructure:"simulation_retention_limit"`
 }
 
 type TelemetryConfig struct {
@@ -1950,6 +1952,8 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("policy.version_maker_checker", true)
 	v.SetDefault("policy.max_policy_set_depth", 8)
 	v.SetDefault("policy.version_retention_limit", 1000)
+	v.SetDefault("policy.simulation_replay_limit", 100)
+	v.SetDefault("policy.simulation_retention_limit", 1000)
 	v.SetDefault("wireless.enabled", false)
 	v.SetDefault("wireless.country_code", "US")
 	v.SetDefault("wireless.driver", "nl80211")
@@ -5449,6 +5453,12 @@ func validatePolicyEngineConfig(policy PolicyConfig) error {
 	if policy.VersionRetentionLimit < 0 || policy.VersionRetentionLimit > 1000000 {
 		return fmt.Errorf("policy.version_retention_limit must be between 100 and 1000000 when set")
 	}
+	if policy.SimulationReplayLimit < 0 || policy.SimulationReplayLimit > 10000 {
+		return fmt.Errorf("policy.simulation_replay_limit must be between 1 and 10000 when set")
+	}
+	if policy.SimulationRetentionLimit < 0 || policy.SimulationRetentionLimit > 1000000 {
+		return fmt.Errorf("policy.simulation_retention_limit must be between 100 and 1000000 when set")
+	}
 	if policy.TypedEngineEnabled {
 		if policy.MaxExpressionDepth == 0 || policy.MaxExpressionNodes == 0 || policy.MaxListValues == 0 {
 			return errors.New("policy.typed_engine_enabled requires positive max_expression_depth, max_expression_nodes, and max_list_values")
@@ -5461,6 +5471,12 @@ func validatePolicyEngineConfig(policy PolicyConfig) error {
 		}
 		if policy.VersionRetentionLimit > 0 && policy.VersionRetentionLimit < 100 {
 			return fmt.Errorf("policy.version_retention_limit must be between 100 and 1000000")
+		}
+		if policy.SimulationReplayLimit == 0 {
+			return errors.New("policy.typed_engine_enabled requires positive simulation_replay_limit")
+		}
+		if policy.SimulationRetentionLimit > 0 && policy.SimulationRetentionLimit < 100 {
+			return fmt.Errorf("policy.simulation_retention_limit must be between 100 and 1000000")
 		}
 		if policy.RequireTypedRules && policy.AllowLegacyConditions {
 			return errors.New("policy.require_typed_rules cannot be combined with policy.allow_legacy_conditions")

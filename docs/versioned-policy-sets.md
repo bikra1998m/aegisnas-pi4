@@ -15,6 +15,7 @@ and roll back. Versioned policy sets provide:
 - maker-checker approval before activation
 - activation events and rollback evidence
 - simulation against a draft or historical version without changing live policy
+- replay-based blast-radius analysis before activation
 - support bundle, dashboard, production readiness, and OpenAPI evidence
 
 ## Policy Set Shape
@@ -93,12 +94,14 @@ POST /api/v1/system/policy-sets/versions/{id}/reject
 POST /api/v1/system/policy-sets/versions/{id}/activate
 POST /api/v1/system/policy-sets/versions/{id}/rollback
 POST /api/v1/system/policy-sets/versions/{id}/simulate
+POST /api/v1/system/policy-sets/versions/{id}/analyze
+GET  /api/v1/system/policy-sets/analyses
 GET  /api/v1/system/policy-sets/versions/{fromID}/compare/{toID}
 ```
 
-Read-only users can inspect policy-set state. Ops administrators can create,
-submit, and simulate versions. Super administrators approve, reject, activate,
-and roll back versions.
+Read-only users can inspect policy-set state and persisted analyses. Ops
+administrators can create, submit, simulate, and analyze versions. Super
+administrators approve, reject, activate, and roll back versions.
 
 ## Configuration
 
@@ -109,6 +112,8 @@ policy:
   version_maker_checker: true
   max_policy_set_depth: 8
   version_retention_limit: 1000
+  simulation_replay_limit: 100
+  simulation_retention_limit: 1000
 ```
 
 Production readiness requires approval to be enabled, at least one approval,
@@ -123,6 +128,11 @@ NAS-0030 adds schema v35:
 - `policy_set_activation_events`
 - `policy_set_simulations`
 
+NAS-0031 adds schema v36:
+
+- `policy_engine_evaluations.request_replay_json`
+- `policy_simulation_analyses`
+
 The active policy version is unique per `set_key`. The default active key is
 `default`.
 
@@ -134,5 +144,10 @@ The current governance state appears in:
 - `/api/v1/system/policy-engine` under `policy_sets`
 - `/api/v1/system/status` under `radius.policy_sets`
 - production readiness as `policy_set_governance`
+- production readiness as `policy_simulation_analysis`
 - support bundles as `api/policy-sets.json`
+- support bundles as `api/policy-simulation-analyses.json`
 - the Policies page and Dashboard
+
+See [policy-simulation-analysis.md](policy-simulation-analysis.md) for the
+replay analysis workflow.

@@ -147,7 +147,7 @@ func (e *Engine) loadRules() ([]Rule, error) {
 		}
 		maxDepth := 0
 		if cfg := config.Get(); cfg != nil {
-			maxDepth = cfg.Policy.MaxExpressionDepth
+			maxDepth = cfg.Policy.MaxPolicySetDepth
 		}
 		return FlattenPolicySet(set, maxDepth)
 	}

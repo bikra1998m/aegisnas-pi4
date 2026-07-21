@@ -670,6 +670,14 @@ type PolicyEngineReport = {
       active_version?: number;
       simulation_count: number;
     };
+    analysis_summary?: {
+      total_analyses: number;
+      last_risk_level?: string;
+      last_sample_count: number;
+      last_decision_change_count: number;
+      last_shadowed_rule_count: number;
+      last_ineffective_rule_count: number;
+    };
     active?: {
       version: number;
       status: string;
@@ -2677,6 +2685,25 @@ export default function Dashboard() {
                         ; versions{" "}
                         {policyEngine.policy_sets?.summary?.total_versions ??
                           0}
+                        .
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Analysis risk{" "}
+                        {policyEngine.policy_sets?.analysis_summary
+                          ?.last_risk_level || "none"}
+                        ; analyses{" "}
+                        {policyEngine.policy_sets?.analysis_summary
+                          ?.total_analyses ?? 0}
+                        ; changes{" "}
+                        {policyEngine.policy_sets?.analysis_summary
+                          ?.last_decision_change_count ?? 0}
+                        /{policyEngine.policy_sets?.analysis_summary
+                          ?.last_sample_count ?? 0}
+                        ; shadow{" "}
+                        {policyEngine.policy_sets?.analysis_summary
+                          ?.last_shadowed_rule_count ?? 0}
+                        /{policyEngine.policy_sets?.analysis_summary
+                          ?.last_ineffective_rule_count ?? 0}
                         .
                       </div>
                       {policyEngine.policy_sets?.active ? (

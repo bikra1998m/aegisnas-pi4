@@ -132,6 +132,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionSIMAKACheck(&report, cfg)
 	addProductionPolicyEngineCheck(&report, cfg)
 	addProductionPolicySetGovernanceCheck(&report, cfg)
+	addProductionPolicySimulationAnalysisCheck(&report, cfg)
 	addProductionCertificateLifecycleCheck(&report, cfg)
 	addProductionSupplicantLifecycleCheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
@@ -826,6 +827,42 @@ func addProductionPolicySetGovernanceCheck(report *productionReadinessReport, cf
 		Summary:        summary,
 		Recommendation: "Keep policy.version_approval_required=true, version_min_approvals>=1, version_maker_checker=true, activate only approved immutable versions, and complete the NAS-0030 release certification checklist before production claims.",
 		Dependencies:   []string{"policy_set_versions", "policy_set_approvals", "policy_set_activation_events", "/api/v1/system/policy-sets", "/api/v1/system/policy-sets/versions"},
+	})
+}
+
+func addProductionPolicySimulationAnalysisCheck(report *productionReadinessReport, cfg *config.Config) {
+	summary, err := db.SummarizePolicySimulationAnalyses()
+	status := "passed"
+	message := "Policy simulation, conflict, and shadow analysis is recording blast-radius evidence."
+	if err != nil {
+		status = "blocked"
+		message = fmt.Sprintf("Policy simulation analysis summary failed: %v", err)
+	} else {
+		switch {
+		case cfg.Policy.SimulationReplayLimit <= 0 || cfg.Policy.SimulationRetentionLimit <= 0:
+			status = "blocked"
+			message = "Policy simulation analysis requires positive replay and retention limits."
+		case summary.TotalAnalyses == 0:
+			status = "degraded"
+			message = "No policy simulation analysis records exist yet; run analysis before activating candidate policy versions."
+		case summary.LastRiskLevel == "critical" || summary.LastRiskLevel == "high":
+			status = "degraded"
+			message = fmt.Sprintf("Last policy analysis %s has %s risk with %d decision change(s).",
+				summary.LastAnalysisID, summary.LastRiskLevel, summary.LastDecisionChangeCount)
+		default:
+			message = fmt.Sprintf("Last policy analysis %s has %s risk across %d sample(s), %d decision change(s), %d shadowed rule(s), and %d ineffective rule(s).",
+				summary.LastAnalysisID, summary.LastRiskLevel, summary.LastSampleCount, summary.LastDecisionChangeCount,
+				summary.LastShadowedRuleCount, summary.LastIneffectiveRuleCount)
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "policy_simulation_analysis",
+		Category:       "policy",
+		Label:          "Policy Simulation Conflict And Shadow Analysis",
+		Status:         status,
+		Summary:        message,
+		Recommendation: "Run /api/v1/system/policy-sets/versions/{id}/analyze against retained and manual samples before activation, review high-risk deltas, and complete the NAS-0031 release certification checklist before production claims.",
+		Dependencies:   []string{"policy_simulation_analyses", "policy_engine_evaluations.request_replay_json", "/api/v1/system/policy-sets/versions/{id}/analyze", "/api/v1/system/policy-sets/analyses"},
 	})
 }
 
