@@ -2610,6 +2610,85 @@ func TestConfigValidationPhase4Integrations(t *testing.T) {
 	assert.ErrorContains(t, badTenant.Validate(), "governance.multi_tenant_enabled requires governance.tenant_claim when admin SSO is enabled")
 }
 
+func TestConfigValidationTenantIsolation(t *testing.T) {
+	base := func() *Config {
+		return &Config{
+			Mode: "two-nic",
+			WAN:  InterfaceConfig{Name: "eth0"},
+			LAN:  InterfaceConfig{Name: "eth1"},
+			Database: DatabaseConfig{
+				Path: "/tmp/aegis.db",
+			},
+			Health: HealthConfig{Port: 8080},
+			Telemetry: TelemetryConfig{
+				Enabled:        true,
+				PrometheusPort: 9090,
+			},
+			Radius: RadiusConfig{
+				AuthPort:              1812,
+				AcctPort:              1813,
+				RequestTimeoutSeconds: 5,
+			},
+			Deployment: DeploymentConfig{
+				Profile: "enterprise",
+				Hardware: DeploymentHardwareConfig{
+					MemoryMB: 8192,
+					CPUCores: 4,
+				},
+			},
+			LDAP: LDAPConfig{
+				Enabled:     true,
+				URL:         "ldaps://ldap.example.test",
+				BaseDN:      "dc=example,dc=test",
+				BindDN:      "cn=svc,dc=example,dc=test",
+				UserFilter:  "(uid=%s)",
+				GroupFilter: "(memberUid=%s)",
+			},
+			Governance: GovernanceConfig{
+				DelegatedAdminEnabled:     true,
+				RBACMode:                  "local",
+				MultiTenantEnabled:        true,
+				IsolationMode:             "enforce",
+				FailClosed:                true,
+				MaxTenants:                256,
+				TenantProfileRequired:     true,
+				EnforcePolicySetOwnership: true,
+				EnforceResourceOwnership:  true,
+				ResourceAuditEnabled:      true,
+				ResourceRetentionLimit:    10000,
+				SharedResourceTypes:       []string{"system_status", "support_bundle"},
+			},
+		}
+	}
+
+	valid := base()
+	require.NoError(t, valid.Validate())
+
+	badMode := base()
+	badMode.Governance.IsolationMode = "audit-only"
+	assert.ErrorContains(t, badMode.Validate(), "governance.isolation_mode")
+
+	noPolicyOwnership := base()
+	noPolicyOwnership.Governance.EnforcePolicySetOwnership = false
+	assert.ErrorContains(t, noPolicyOwnership.Validate(), "governance.enforce_policy_set_ownership")
+
+	noResourceOwnership := base()
+	noResourceOwnership.Governance.EnforceResourceOwnership = false
+	assert.ErrorContains(t, noResourceOwnership.Validate(), "governance.enforce_resource_ownership")
+
+	tooSmallRetention := base()
+	tooSmallRetention.Governance.ResourceRetentionLimit = 50
+	assert.ErrorContains(t, tooSmallRetention.Validate(), "governance.resource_retention_limit")
+
+	duplicateSharedType := base()
+	duplicateSharedType.Governance.SharedResourceTypes = []string{"system_status", "System_Status"}
+	assert.ErrorContains(t, duplicateSharedType.Validate(), "duplicates")
+
+	badDefaultTenant := base()
+	badDefaultTenant.Governance.DefaultTenant = "bad tenant"
+	assert.ErrorContains(t, badDefaultTenant.Validate(), "governance.default_tenant")
+}
+
 func TestConfigValidationHighAvailability(t *testing.T) {
 	base := func() *Config {
 		return &Config{

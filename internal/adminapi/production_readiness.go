@@ -137,6 +137,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionPolicySimulationAnalysisCheck(&report, cfg)
 	addProductionSubscriberServiceChainsCheck(&report, cfg)
 	addProductionTACACSCheck(&report, cfg)
+	addProductionTenantIsolationCheck(&report, cfg)
 	addProductionCertificateLifecycleCheck(&report, cfg)
 	addProductionSupplicantLifecycleCheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
@@ -943,6 +944,48 @@ func addProductionTACACSCheck(report *productionReadinessReport, cfg *config.Con
 			tacacsReport.DBSummary.AccountingRecords),
 		Recommendation: "Set tacacs.enabled=true, tacacs.mode=enforce, require known clients, use secret refs, keep encrypted packets only, define command sets, audit accounting evidence, and complete the NAS-0033 release certification checklist with Cisco, Juniper, HPE, Dell, Brocade, Extreme, and Arista devices.",
 		Dependencies:   []string{"tacacs", "tacacs_command_sets", "tacacs_authorization_events", "tacacs_accounting_records", "/api/v1/system/tacacs", "RFC 8907"},
+	})
+}
+
+func addProductionTenantIsolationCheck(report *productionReadinessReport, cfg *config.Config) {
+	isolation, err := buildTenantIsolationReport(cfg, 0)
+	status := "passed"
+	message := "Tenant isolation is enforced with delegated policy ownership."
+	if err != nil {
+		status = "blocked"
+		message = fmt.Sprintf("Tenant isolation report failed: %v", err)
+	} else {
+		switch isolation.Status {
+		case "blocked":
+			status = "blocked"
+		case "disabled", "degraded":
+			status = "degraded"
+		}
+		if cfg.Governance.MultiTenantEnabled {
+			if isolation.Config.IsolationMode != "enforce" ||
+				!isolation.Config.FailClosed ||
+				!isolation.Config.EnforcePolicySetOwnership ||
+				!isolation.Config.EnforceResourceOwnership ||
+				!isolation.Config.ResourceAuditEnabled {
+				status = "blocked"
+			}
+			if isolation.Config.TenantProfileRequired && isolation.Summary.ActiveTenantCount == 0 {
+				status = "blocked"
+			}
+		}
+		message = fmt.Sprintf("Tenant isolation schema %d is %s with %d active tenant(s), %d owned resource binding(s), %d tenant policy scope(s), and %d denied decision(s).",
+			isolation.SchemaVersion, isolation.Status, isolation.Summary.ActiveTenantCount,
+			isolation.Summary.ResourceBindingCount, isolation.Summary.PolicySetTenantCount,
+			isolation.Summary.DeniedEventCount)
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "tenant_isolation",
+		Category:       "policy",
+		Label:          "Hard Tenant Isolation And Delegated Policy Trees",
+		Status:         status,
+		Summary:        message,
+		Recommendation: "Set governance.multi_tenant_enabled=true, isolation_mode=enforce, fail_closed=true, create active tenant profiles, bind tenant-owned resources, keep decision audit enabled, and complete the NAS-0034 release certification checklist for external tenant-boundary evidence.",
+		Dependencies:   []string{"governance.multi_tenant_enabled", "governance.isolation_mode", "tenant_profiles", "tenant_resource_bindings", "tenant_isolation_events", "/api/v1/system/tenant-isolation"},
 	})
 }
 

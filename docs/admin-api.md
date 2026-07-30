@@ -90,6 +90,26 @@ embedded in `/api/v1/system/status` as `radius.tacacs`, production readiness as
 `tacacs_command_authorization`, support bundles as `api/tacacs.json`, and
 Access Settings. See [tacacs-command-authorization.md](tacacs-command-authorization.md).
 
+## Tenant Isolation
+
+Tenant isolation and delegated policy ownership are exposed through:
+
+```text
+GET  /api/v1/system/tenant-isolation
+POST /api/v1/system/tenant-isolation/evaluate
+POST /api/v1/system/tenant-isolation/tenants
+PUT  /api/v1/system/tenant-isolation/tenants/{tenant}
+POST /api/v1/system/tenant-isolation/resources
+```
+
+Read-only roles can inspect tenant isolation status. `ops_admin` and
+`super_admin` can save tenant profiles, bind tenant-owned resources, and
+evaluate resource access. Tenant-scoped delegated admins can only operate inside
+their assigned tenant list. The report is also embedded in
+`/api/v1/system/status` as `radius.tenant_isolation`, production readiness as
+`tenant_isolation`, support bundles as `api/tenant-isolation.json`, and Access
+Settings. See [tenant-isolation-delegation.md](tenant-isolation-delegation.md).
+
 ## MAC Authentication Bypass
 
 MAB state, endpoint inventory, and audit history are exposed through:

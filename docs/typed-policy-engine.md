@@ -95,6 +95,12 @@ tables.
 Schema v38 adds TACACS+ command authorization and device-admin accounting
 evidence tables.
 
+Schema v39 adds tenant-scoped active policy-set lookup, tenant policy evidence,
+and tenant isolation event tables. When `governance.multi_tenant_enabled` is
+true and a policy request includes `tenant`, the engine loads that tenant's
+active immutable policy set. If no active tenant policy exists, the decision
+remains default deny; global policy is not used as a fallback.
+
 Stored evidence includes evaluation ID, policy-set hash, request hash, redacted username/calling-station hashes, decision, matched rules, conflict list, explain trace, request summary, replay-safe request facts, rule counts, and latency.
 
 Policy decisions can include `service_chain`, an ordered list of service
@@ -113,12 +119,15 @@ Operators should check:
 - `/api/v1/system/policy-sets/analyses` for retained blast-radius evidence
 - `/api/v1/system/subscriber-service-chains` for service activation, rollback, and accounting evidence
 - `/api/v1/system/tacacs` for TACACS+ command authorization, privilege, and accounting evidence
+- `/api/v1/system/tenant-isolation` for tenant profiles, resource bindings, and scoped policy ownership evidence
 - production readiness key `typed_policy_engine`
 - production readiness key `subscriber_service_chains`
 - production readiness key `tacacs_command_authorization`
+- production readiness key `tenant_isolation`
 - support bundle capture `api/policy-engine.json`
 - support bundle capture `api/subscriber-service-chains.json`
 - support bundle capture `api/tacacs.json`
+- support bundle capture `api/tenant-isolation.json`
 - Dashboard "Typed Policy Engine"
 - Policies page `Typed`, `Legacy`, and `Valid` columns
 

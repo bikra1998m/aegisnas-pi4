@@ -143,6 +143,7 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	require.Contains(t, entries, "api/database.json")
 	require.Contains(t, entries, "api/certificate-lifecycle.json")
 	require.Contains(t, entries, "api/supplicant-lifecycle.json")
+	require.Contains(t, entries, "api/tenant-isolation.json")
 	require.Contains(t, entries, "api/openapi.json")
 	require.Contains(t, entries, "runtime/runtime-statuses.json")
 	require.Contains(t, entries, "system/database-backend.txt")

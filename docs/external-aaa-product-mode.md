@@ -101,6 +101,7 @@ When `radius.upstream.enabled: true`:
 - nested policy changes are governed through `/api/v1/system/policy-sets`; operators create immutable versions, submit them for maker-checker approval, simulate representative requests, activate approved content, and keep rollback evidence before changing live access behavior
 - subscriber service chains are available through `/api/v1/system/subscriber-service-chains`; operators can preview policy-derived services, activate evidence for a session, record rollback, and review hashed service-level history
 - TACACS+ command authorization is available through `/api/v1/system/tacacs`; operators can evaluate device-admin commands, manage command sets, enforce privilege/role/vendor constraints, and retain command accounting evidence for Cisco, Juniper, HPE, Dell, Brocade, Extreme, and Arista workflows
+- tenant isolation is available through `/api/v1/system/tenant-isolation`; operators can create tenant profiles, bind tenant-owned resources, evaluate scope decisions, and keep delegated policy trees from falling back to global policy or crossing tenant boundaries
 - the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
 - the vendor reply preview can render vendor-neutral ACL intent into `NAS-Filter-Rule`, Cisco `Cisco-AVPair`, Aruba filter rules, MikroTik address-list hints, and AegisNAS ACL VSAs
 - MAB endpoints can be approved, denied, quarantined, expired, or left pending; approved and quarantined endpoints render MAC variants into FreeRADIUS `files/authorize`

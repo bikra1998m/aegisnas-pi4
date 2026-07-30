@@ -1284,6 +1284,27 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/policy-sets/versions/{fromID}/compare/{toID}", "get", securedOperation("Compare policy set versions", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Added, removed, and changed flattened rules between two immutable versions."),
 	}))
+	addOperation(paths, "/api/v1/system/tenant-isolation", "get", securedOperationWithParameters("Read tenant isolation state", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional recent resource and event limit. Defaults to 25 and caps at 1000.", false),
+	}, map[string]any{
+		"200": responseJSON("Tenant isolation configuration, profile inventory, resource bindings, decision history, and readiness checks."),
+	}))
+	addOperation(paths, "/api/v1/system/tenant-isolation/evaluate", "post", securedOperationWithBody("Evaluate tenant isolation", "Policies", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Tenant, resource_type, resource_id, and action to evaluate against tenant ownership rules."), map[string]any{
+		"200": responseJSON("Tenant isolation decision in monitor or enforce mode."),
+		"403": responseText("Tenant isolation rejected the request in enforce mode."),
+	}))
+	addOperation(paths, "/api/v1/system/tenant-isolation/tenants", "post", securedOperationWithBody("Create tenant profile", "Policies", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Tenant key, display name, status, residency, secret, CA, dictionary, quota, controller, and billing scope."), map[string]any{
+		"200":     responseJSON("Saved tenant profile."),
+		"default": responseText("Tenant profile validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/tenant-isolation/tenants/{tenant}", "put", securedOperationWithParametersAndBody("Update tenant profile", "Policies", []string{"ops_admin", "super_admin"}, []map[string]any{idParameter("tenant", "Tenant key.")}, genericJSONObjectRequest("Replacement tenant profile fields."), map[string]any{
+		"200":     responseJSON("Saved tenant profile."),
+		"default": responseText("Tenant profile validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/tenant-isolation/resources", "post", securedOperationWithBody("Bind tenant resource owner", "Policies", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Tenant, resource_type, resource_id, owner_kind, status, and evidence."), map[string]any{
+		"200":     responseJSON("Saved tenant resource ownership binding."),
+		"default": responseText("Tenant resource validation error."),
+	}))
 	addOperation(paths, "/api/v1/system/subscriber-service-chains", "get", securedOperationWithParameters("Read subscriber service-chain history", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("limit", "Optional recent chain and event limit. Defaults to 100 and caps at 1000.", false),
 	}, map[string]any{

@@ -81,3 +81,93 @@ func TestPolicySetVersionLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, events)
 }
+
+func TestPolicySetTenantScopedActivation(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", "policy-set-tenant-*.db")
+	require.NoError(t, err)
+	defer os.Remove(tmpfile.Name())
+	require.NoError(t, tmpfile.Close())
+	require.NoError(t, Init(tmpfile.Name()))
+	t.Cleanup(func() { _ = Close() })
+	require.NoError(t, Migrate())
+
+	globalContent := `{"schema_version":1,"key":"default","name":"Global","enabled":true,"rules":[{"name":"global-allow","priority":100,"enabled":true,"match_conditions":{"field":"authenticated","op":"eq","value":true},"action":"allow"}]}`
+	tenantContent := `{"schema_version":1,"key":"default","tenant":"tenant-a","name":"Tenant A","enabled":true,"rules":[{"name":"tenant-a-allow","priority":100,"enabled":true,"match_conditions":{"field":"tenant","op":"eq","value":"tenant-a"},"action":"allow"}]}`
+
+	global, err := CreatePolicySetVersion(context.Background(), CreatePolicySetVersionRequest{
+		SetKey:           "default",
+		ContentJSON:      globalContent,
+		ContentSHA256:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		PolicySHA256:     "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		RuleCount:        1,
+		MaxDepth:         1,
+		ApprovalRequired: false,
+		Status:           PolicySetStatusApproved,
+		CreatedBy:        "maker",
+	})
+	require.NoError(t, err)
+	tenant, err := CreatePolicySetVersion(context.Background(), CreatePolicySetVersionRequest{
+		SetKey:           "default",
+		Tenant:           "Tenant-A",
+		ContentJSON:      tenantContent,
+		ContentSHA256:    "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+		PolicySHA256:     "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+		RuleCount:        1,
+		MaxDepth:         1,
+		ApprovalRequired: false,
+		Status:           PolicySetStatusApproved,
+		CreatedBy:        "maker",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "tenant-a", tenant.Tenant)
+
+	tx, err := DB.BeginTx(context.Background(), nil)
+	require.NoError(t, err)
+	_, err = MarkPolicySetVersionActiveTx(tx, global.ID, "admin", "activate global")
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit())
+
+	tx, err = DB.BeginTx(context.Background(), nil)
+	require.NoError(t, err)
+	_, err = MarkPolicySetVersionActiveTx(tx, tenant.ID, "admin", "activate tenant")
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit())
+
+	activeGlobal, err := GetActivePolicySetVersion("default")
+	require.NoError(t, err)
+	require.NotNil(t, activeGlobal)
+	assert.Equal(t, global.ID, activeGlobal.ID)
+	assert.Empty(t, activeGlobal.Tenant)
+
+	activeTenant, err := GetActivePolicySetVersionForTenant("default", "TENANT-A")
+	require.NoError(t, err)
+	require.NotNil(t, activeTenant)
+	assert.Equal(t, tenant.ID, activeTenant.ID)
+	assert.Equal(t, "tenant-a", activeTenant.Tenant)
+
+	allTenant, err := ListPolicySetVersionsForTenants(10, []string{"tenant-a"})
+	require.NoError(t, err)
+	require.Len(t, allTenant, 1)
+	assert.Equal(t, tenant.ID, allTenant[0].ID)
+
+	require.NoError(t, RecordPolicySetSimulation(PolicySetSimulation{
+		VersionID:        tenant.ID,
+		Tenant:           "tenant-a",
+		EvaluationID:     "eval-tenant-a",
+		PolicySHA256:     tenant.PolicySHA256,
+		RequestHash:      "request-tenant-a",
+		Decision:         "allow",
+		Allowed:          true,
+		MatchedRuleCount: 1,
+		TraceNodeCount:   1,
+		ResultJSON:       `{"ok":true}`,
+	}))
+
+	events, err := ListPolicySetActivationEvents(10)
+	require.NoError(t, err)
+	require.Len(t, events, 4)
+	assert.Equal(t, "activated", events[0].EventType)
+	assert.Equal(t, "tenant-a", events[0].Tenant)
+	assert.Equal(t, "activated", events[1].EventType)
+	assert.Empty(t, events[1].Tenant)
+}

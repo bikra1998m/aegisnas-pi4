@@ -114,6 +114,23 @@ Role visibility is now enforced in the UI for:
 - `guest_admin`
 - `read_only`
 
+## Tenant Isolation Operations
+
+Use [tenant-isolation-delegation.md](tenant-isolation-delegation.md) for the
+NAS-0034 architecture and API details. Before enabling
+`governance.isolation_mode: enforce`, create active tenant profiles, bind
+tenant-owned resources, and run monitor-mode evaluations:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/tenant-isolation | jq '.status, .summary, .checks'
+```
+
+Production operations should keep `fail_closed`, policy-set ownership, resource
+ownership, and resource audit enabled. Support bundles include
+`api/tenant-isolation.json`; use that artifact when investigating delegated
+admin scope, policy activation, rollback, or missing resource binding issues.
+
 ## Runtime Monitoring
 
 Health endpoints are registered by each daemon. In a package-based deployment, the common checks are:

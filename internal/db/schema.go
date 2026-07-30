@@ -162,7 +162,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{35, schemaV35},
 		{36, schemaV36},
 		{37, schemaV37},
-		{LatestSchemaVersion(), schemaV38},
+		{38, schemaV38},
+		{LatestSchemaVersion(), schemaV39},
 	}
 
 	for _, m := range migrations {
@@ -246,7 +247,185 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureTACACSTables(handle); err != nil {
 		return fmt.Errorf("repair TACACS+ schema: %w", err)
 	}
+	if err := ensureTenantIsolationTables(handle); err != nil {
+		return fmt.Errorf("repair tenant isolation schema: %w", err)
+	}
 
+	return nil
+}
+
+func ensureTenantIsolationTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	for _, column := range []struct {
+		table string
+		name  string
+		sql   string
+	}{
+		{"policy_set_versions", "tenant", `ALTER TABLE policy_set_versions ADD COLUMN tenant TEXT`},
+		{"policy_set_activation_events", "tenant", `ALTER TABLE policy_set_activation_events ADD COLUMN tenant TEXT`},
+		{"policy_set_simulations", "tenant", `ALTER TABLE policy_set_simulations ADD COLUMN tenant TEXT`},
+		{"policy_simulation_analyses", "tenant", `ALTER TABLE policy_simulation_analyses ADD COLUMN tenant TEXT`},
+	} {
+		exists, err := tableExists(handle, column.table)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			continue
+		}
+		hasColumn, err := tableHasColumn(handle, column.table, column.name)
+		if err != nil {
+			return err
+		}
+		if !hasColumn {
+			if _, err := handle.Exec(SQLForDialect(column.sql, dialect)); err != nil {
+				return err
+			}
+		}
+	}
+	if err := ensurePolicySetTenantScope(handle, dialect); err != nil {
+		return err
+	}
+	_, err := handle.Exec(SQLForDialect(tenantIsolationTablesSQL, dialect))
+	return err
+}
+
+func ensurePolicySetTenantScope(handle *sql.DB, dialect Dialect) error {
+	exists, err := tableExists(handle, "policy_set_versions")
+	if err != nil || !exists {
+		return err
+	}
+	switch dialect {
+	case DialectPostgreSQL:
+		return ensurePostgreSQLPolicySetTenantScope(handle)
+	default:
+		return ensureSQLitePolicySetTenantScope(handle)
+	}
+}
+
+func ensurePostgreSQLPolicySetTenantScope(handle *sql.DB) error {
+	_, err := handle.Exec(`
+UPDATE policy_set_versions SET tenant = '' WHERE tenant IS NULL;
+ALTER TABLE policy_set_versions ALTER COLUMN tenant SET DEFAULT '';
+ALTER TABLE policy_set_versions ALTER COLUMN tenant SET NOT NULL;
+ALTER TABLE policy_set_versions DROP CONSTRAINT IF EXISTS policy_set_versions_set_key_version_key;
+DROP INDEX IF EXISTS idx_policy_set_versions_one_active;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_policy_set_versions_unique_tenant_version ON policy_set_versions(set_key, tenant, version);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_policy_set_versions_one_active ON policy_set_versions(set_key, tenant) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_policy_set_versions_tenant_status ON policy_set_versions(tenant, set_key, status, version DESC);
+`)
+	return err
+}
+
+func ensureSQLitePolicySetTenantScope(handle *sql.DB) error {
+	var ddl string
+	err := handle.QueryRow(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'policy_set_versions'`).Scan(&ddl)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	normalizedDDL := strings.ToLower(strings.Join(strings.Fields(ddl), " "))
+	if strings.Contains(normalizedDDL, "unique (set_key, tenant, version)") {
+		return nil
+	}
+	if _, err := handle.Exec(`PRAGMA foreign_keys=OFF`); err != nil {
+		return err
+	}
+	defer handle.Exec(`PRAGMA foreign_keys=ON`)
+
+	tx, err := handle.Begin()
+	if err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+	if _, err := tx.Exec(`DROP TABLE IF EXISTS policy_set_versions_v39`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`CREATE TABLE policy_set_versions_v39 (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	set_key TEXT NOT NULL DEFAULT 'default',
+	tenant TEXT NOT NULL DEFAULT '',
+	version INTEGER NOT NULL,
+	status TEXT NOT NULL DEFAULT 'draft',
+	description TEXT,
+	parent_version_id INTEGER,
+	rollback_of_version_id INTEGER,
+	content_json TEXT NOT NULL,
+	content_sha256 TEXT NOT NULL,
+	policy_sha256 TEXT NOT NULL,
+	rule_count INTEGER DEFAULT 0,
+	child_set_count INTEGER DEFAULT 0,
+	max_depth INTEGER DEFAULT 1,
+	approval_required BOOLEAN DEFAULT 1,
+	min_approvals INTEGER DEFAULT 1,
+	created_by TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	submitted_by TEXT,
+	submitted_at DATETIME,
+	activated_by TEXT,
+	activated_at DATETIME,
+	superseded_at DATETIME,
+	rejected_by TEXT,
+	rejected_at DATETIME,
+	rejection_reason TEXT,
+	activation_note TEXT,
+	CHECK (status IN ('draft', 'pending_approval', 'approved', 'active', 'superseded', 'rejected')),
+	CHECK (version > 0),
+	CHECK (rule_count >= 0),
+	CHECK (child_set_count >= 0),
+	CHECK (max_depth >= 1),
+	CHECK (min_approvals >= 0),
+	CHECK (length(content_sha256) = 64),
+	CHECK (length(policy_sha256) = 64),
+	UNIQUE (set_key, tenant, version)
+)`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`INSERT INTO policy_set_versions_v39 (
+	id, set_key, tenant, version, status, description, parent_version_id, rollback_of_version_id,
+	content_json, content_sha256, policy_sha256, rule_count, child_set_count, max_depth,
+	approval_required, min_approvals, created_by, created_at, submitted_by, submitted_at,
+	activated_by, activated_at, superseded_at, rejected_by, rejected_at, rejection_reason, activation_note
+)
+SELECT id, set_key, COALESCE(tenant, ''), version, status, description, parent_version_id, rollback_of_version_id,
+	content_json, content_sha256, policy_sha256, rule_count, child_set_count, max_depth,
+	approval_required, min_approvals, created_by, created_at, submitted_by, submitted_at,
+	activated_by, activated_at, superseded_at, rejected_by, rejected_at, rejection_reason, activation_note
+FROM policy_set_versions`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DROP TABLE policy_set_versions`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`ALTER TABLE policy_set_versions_v39 RENAME TO policy_set_versions`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_policy_set_versions_one_active ON policy_set_versions(set_key, tenant) WHERE status = 'active'`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_policy_set_versions_unique_tenant_version ON policy_set_versions(set_key, tenant, version)`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_policy_set_versions_tenant_status ON policy_set_versions(tenant, set_key, status, version DESC)`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_policy_set_versions_content_hash ON policy_set_versions(content_sha256)`); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
 	return nil
 }
 

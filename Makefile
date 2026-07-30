@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-transport-policy test-radius-proxy-policy test-radius-accounting-spool test-radius-fallback-policy test-active-directory test-identity-failover test-mfa test-admin-webauthn test-eap-framework test-eap-teap test-eap-machine-user test-eap-fast-pwd test-eap-sim-aka test-certificate-lifecycle test-supplicant-lifecycle test-typed-policy-engine test-policy-set-governance test-policy-simulation-analysis test-subscriber-service-chains test-tacacs test-mab test-dynamic-nas-clients test-radsec-credentials install-radius-dictionary scan-radius-dictionaries
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-transport-policy test-radius-proxy-policy test-radius-accounting-spool test-radius-fallback-policy test-active-directory test-identity-failover test-mfa test-admin-webauthn test-eap-framework test-eap-teap test-eap-machine-user test-eap-fast-pwd test-eap-sim-aka test-certificate-lifecycle test-supplicant-lifecycle test-typed-policy-engine test-policy-set-governance test-policy-simulation-analysis test-subscriber-service-chains test-tacacs test-tenant-isolation test-mab test-dynamic-nas-clients test-radsec-credentials install-radius-dictionary scan-radius-dictionaries
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -145,6 +145,13 @@ test-tacacs:
 	go test -p=1 -timeout=600s ./internal/config -run 'ConfigValidationTACACS' -count=1
 	go test -p=1 -timeout=600s ./internal/db -run 'TACACS' -count=1
 	go test -p=1 -timeout=600s ./internal/adminapi -run 'TestTACACS|TestOpenAPIIncludesTACACS' -count=1
+	cd web/admin-ui && npm run build
+
+test-tenant-isolation:
+	go test -p=1 -timeout=600s ./internal/config -run 'TenantIsolation' -count=1
+	go test -p=1 -timeout=600s ./internal/db -run 'TenantIsolation|PolicySetTenant|Migrate' -count=1
+	go test -p=1 -timeout=600s ./internal/policy -run 'Tenant' -count=1
+	go test -p=1 -timeout=600s ./internal/adminapi -run 'TenantIsolation|PolicySetTenant|OpenAPIAndSupportBundleIncludeTenantIsolation|AuthorizeTenantIsolation|ProductionReadinessIncludesTenantIsolation' -count=1
 	cd web/admin-ui && npm run build
 
 test-mab:

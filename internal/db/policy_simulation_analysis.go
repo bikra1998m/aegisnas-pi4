@@ -9,6 +9,7 @@ type PolicySimulationAnalysisRecord struct {
 	ID                          int    `json:"id"`
 	AnalysisID                  string `json:"analysis_id"`
 	VersionID                   int    `json:"version_id"`
+	Tenant                      string `json:"tenant,omitempty"`
 	ActiveVersionID             int    `json:"active_version_id,omitempty"`
 	ActivePolicySHA256          string `json:"active_policy_sha256"`
 	CandidatePolicySHA256       string `json:"candidate_policy_sha256"`
@@ -71,6 +72,7 @@ func RecordPolicySimulationAnalysis(record PolicySimulationAnalysisRecord, reten
 		return nil
 	}
 	record.AnalysisID = strings.TrimSpace(record.AnalysisID)
+	record.Tenant = NormalizeTenantKey(record.Tenant)
 	record.ActivePolicySHA256 = strings.TrimSpace(record.ActivePolicySHA256)
 	record.CandidatePolicySHA256 = strings.TrimSpace(record.CandidatePolicySHA256)
 	record.SampleSource = strings.TrimSpace(record.SampleSource)
@@ -89,14 +91,15 @@ func RecordPolicySimulationAnalysis(record PolicySimulationAnalysisRecord, reten
 	record.SummaryJSON = defaultJSONObject(record.SummaryJSON)
 	record.ResultJSON = defaultJSONObject(record.ResultJSON)
 	_, err := DB.Exec(`INSERT INTO policy_simulation_analyses (
-		analysis_id, version_id, active_version_id, active_policy_sha256, candidate_policy_sha256,
+		analysis_id, version_id, tenant, active_version_id, active_policy_sha256, candidate_policy_sha256,
 		sample_source, sample_count, decision_change_count, allow_to_deny_count, deny_to_allow_count,
 		quarantine_change_count, vlan_change_count, bandwidth_profile_change_count, acl_policy_change_count,
 		portal_profile_change_count, session_timeout_change_count, service_chain_change_count, conflict_count, invalid_rule_count,
 		shadowed_rule_count, ineffective_rule_count, risk_level, actor, summary_json, result_json
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(analysis_id) DO UPDATE SET
 		version_id = excluded.version_id,
+		tenant = excluded.tenant,
 		active_version_id = excluded.active_version_id,
 		active_policy_sha256 = excluded.active_policy_sha256,
 		candidate_policy_sha256 = excluded.candidate_policy_sha256,
@@ -120,7 +123,7 @@ func RecordPolicySimulationAnalysis(record PolicySimulationAnalysisRecord, reten
 		actor = excluded.actor,
 		summary_json = excluded.summary_json,
 		result_json = excluded.result_json`,
-		record.AnalysisID, record.VersionID, intOrNull(record.ActiveVersionID), record.ActivePolicySHA256, record.CandidatePolicySHA256,
+		record.AnalysisID, record.VersionID, nullIfEmpty(record.Tenant), intOrNull(record.ActiveVersionID), record.ActivePolicySHA256, record.CandidatePolicySHA256,
 		record.SampleSource, nonNegative(record.SampleCount), nonNegative(record.DecisionChangeCount), nonNegative(record.AllowToDenyCount), nonNegative(record.DenyToAllowCount),
 		nonNegative(record.QuarantineChangeCount), nonNegative(record.VLANChangeCount), nonNegative(record.BandwidthProfileChangeCount), nonNegative(record.ACLPolicyChangeCount),
 		nonNegative(record.PortalProfileChangeCount), nonNegative(record.SessionTimeoutChangeCount), nonNegative(record.ServiceChainChangeCount), nonNegative(record.ConflictCount), nonNegative(record.InvalidRuleCount),
@@ -138,13 +141,57 @@ func ListPolicySimulationAnalyses(limit int) ([]PolicySimulationAnalysisRecord, 
 	if limit <= 0 || limit > 1000 {
 		limit = 100
 	}
-	rows, err := DB.Query(`SELECT id, analysis_id, version_id, COALESCE(active_version_id, 0),
+	rows, err := DB.Query(`SELECT id, analysis_id, version_id, COALESCE(tenant, ''), COALESCE(active_version_id, 0),
 		active_policy_sha256, candidate_policy_sha256, sample_source, sample_count, decision_change_count,
 		allow_to_deny_count, deny_to_allow_count, quarantine_change_count, vlan_change_count,
 		bandwidth_profile_change_count, acl_policy_change_count, portal_profile_change_count,
 		session_timeout_change_count, COALESCE(service_chain_change_count, 0), conflict_count, invalid_rule_count, shadowed_rule_count,
 		ineffective_rule_count, risk_level, COALESCE(actor, ''), summary_json, result_json, created_at
 		FROM policy_simulation_analyses ORDER BY created_at DESC, id DESC LIMIT ?`, limit)
+	if err != nil {
+		if tableMissing(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+	var out []PolicySimulationAnalysisRecord
+	for rows.Next() {
+		item, err := scanPolicySimulationAnalysis(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func ListPolicySimulationAnalysesForTenants(limit int, tenants []string) ([]PolicySimulationAnalysisRecord, error) {
+	tenants = normalizeTenantScopes(tenants)
+	if len(tenants) == 0 {
+		return ListPolicySimulationAnalyses(limit)
+	}
+	if DB == nil {
+		return nil, nil
+	}
+	if limit <= 0 || limit > 1000 {
+		limit = 100
+	}
+	placeholders := make([]string, len(tenants))
+	args := make([]any, 0, len(tenants)+1)
+	for i, tenant := range tenants {
+		placeholders[i] = "?"
+		args = append(args, tenant)
+	}
+	args = append(args, limit)
+	rows, err := DB.Query(`SELECT id, analysis_id, version_id, COALESCE(tenant, ''), COALESCE(active_version_id, 0),
+		active_policy_sha256, candidate_policy_sha256, sample_source, sample_count, decision_change_count,
+		allow_to_deny_count, deny_to_allow_count, quarantine_change_count, vlan_change_count,
+		bandwidth_profile_change_count, acl_policy_change_count, portal_profile_change_count,
+		session_timeout_change_count, COALESCE(service_chain_change_count, 0), conflict_count, invalid_rule_count, shadowed_rule_count,
+		ineffective_rule_count, risk_level, COALESCE(actor, ''), summary_json, result_json, created_at
+		FROM policy_simulation_analyses WHERE COALESCE(tenant, '') IN (`+strings.Join(placeholders, ",")+`)
+		ORDER BY created_at DESC, id DESC LIMIT ?`, args...)
 	if err != nil {
 		if tableMissing(err) {
 			return nil, nil
@@ -245,7 +292,7 @@ func scanPolicySimulationAnalysis(rows interface {
 	Scan(dest ...any) error
 }) (PolicySimulationAnalysisRecord, error) {
 	var item PolicySimulationAnalysisRecord
-	err := rows.Scan(&item.ID, &item.AnalysisID, &item.VersionID, &item.ActiveVersionID,
+	err := rows.Scan(&item.ID, &item.AnalysisID, &item.VersionID, &item.Tenant, &item.ActiveVersionID,
 		&item.ActivePolicySHA256, &item.CandidatePolicySHA256, &item.SampleSource, &item.SampleCount,
 		&item.DecisionChangeCount, &item.AllowToDenyCount, &item.DenyToAllowCount, &item.QuarantineChangeCount,
 		&item.VLANChangeCount, &item.BandwidthProfileChangeCount, &item.ACLPolicyChangeCount, &item.PortalProfileChangeCount,

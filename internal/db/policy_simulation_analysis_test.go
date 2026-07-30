@@ -54,6 +54,7 @@ func TestPolicySimulationAnalysisPersistenceAndReplaySamples(t *testing.T) {
 	require.NoError(t, RecordPolicySimulationAnalysis(PolicySimulationAnalysisRecord{
 		AnalysisID:            "psa-test",
 		VersionID:             version.ID,
+		Tenant:                "tenant-a",
 		ActiveVersionID:       version.ID,
 		ActivePolicySHA256:    version.PolicySHA256,
 		CandidatePolicySHA256: version.PolicySHA256,
@@ -71,6 +72,16 @@ func TestPolicySimulationAnalysisPersistenceAndReplaySamples(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	assert.Equal(t, "psa-test", records[0].AnalysisID)
+	assert.Equal(t, "tenant-a", records[0].Tenant)
+
+	tenantRecords, err := ListPolicySimulationAnalysesForTenants(10, []string{"tenant-a"})
+	require.NoError(t, err)
+	require.Len(t, tenantRecords, 1)
+	assert.Equal(t, "psa-test", tenantRecords[0].AnalysisID)
+
+	otherTenantRecords, err := ListPolicySimulationAnalysesForTenants(10, []string{"tenant-b"})
+	require.NoError(t, err)
+	assert.Empty(t, otherTenantRecords)
 
 	summary, err := SummarizePolicySimulationAnalyses()
 	require.NoError(t, err)

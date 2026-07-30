@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 38
+	return 39
 }
 
 func Migrate() error {
@@ -1554,6 +1554,7 @@ const schemaV35 = `
 CREATE TABLE IF NOT EXISTS policy_set_versions (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	set_key TEXT NOT NULL DEFAULT 'default',
+	tenant TEXT NOT NULL DEFAULT '',
 	version INTEGER NOT NULL,
 	status TEXT NOT NULL DEFAULT 'draft',
 	description TEXT,
@@ -1586,13 +1587,13 @@ CREATE TABLE IF NOT EXISTS policy_set_versions (
 	CHECK (min_approvals >= 0),
 	CHECK (length(content_sha256) = 64),
 	CHECK (length(policy_sha256) = 64),
-	UNIQUE (set_key, version)
+	UNIQUE (set_key, tenant, version)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_policy_set_versions_one_active
-	ON policy_set_versions(set_key) WHERE status = 'active';
+	ON policy_set_versions(set_key, tenant) WHERE status = 'active';
 CREATE INDEX IF NOT EXISTS idx_policy_set_versions_status
-	ON policy_set_versions(set_key, status, version DESC);
+	ON policy_set_versions(tenant, set_key, status, version DESC);
 CREATE INDEX IF NOT EXISTS idx_policy_set_versions_content_hash
 	ON policy_set_versions(content_sha256);
 
@@ -1613,6 +1614,7 @@ CREATE TABLE IF NOT EXISTS policy_set_activation_events (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	version_id INTEGER NOT NULL,
 	previous_version_id INTEGER,
+	tenant TEXT,
 	event_type TEXT NOT NULL,
 	status TEXT NOT NULL,
 	actor TEXT,
@@ -1626,10 +1628,13 @@ CREATE INDEX IF NOT EXISTS idx_policy_set_activation_events_version
 	ON policy_set_activation_events(version_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_policy_set_activation_events_created
 	ON policy_set_activation_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_policy_set_activation_events_tenant
+	ON policy_set_activation_events(tenant, created_at);
 
 CREATE TABLE IF NOT EXISTS policy_set_simulations (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	version_id INTEGER NOT NULL,
+	tenant TEXT,
 	evaluation_id TEXT NOT NULL,
 	policy_sha256 TEXT NOT NULL,
 	request_hash TEXT NOT NULL,
@@ -1651,6 +1656,8 @@ CREATE INDEX IF NOT EXISTS idx_policy_set_simulations_version
 	ON policy_set_simulations(version_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_policy_set_simulations_decision
 	ON policy_set_simulations(decision, created_at);
+CREATE INDEX IF NOT EXISTS idx_policy_set_simulations_tenant
+	ON policy_set_simulations(tenant, created_at);
 `
 
 const policySimulationAnalysisTablesSQL = `
@@ -1659,6 +1666,7 @@ CREATE TABLE IF NOT EXISTS policy_simulation_analyses (
 	analysis_id TEXT UNIQUE NOT NULL,
 	version_id INTEGER NOT NULL,
 	active_version_id INTEGER,
+	tenant TEXT,
 	active_policy_sha256 TEXT NOT NULL,
 	candidate_policy_sha256 TEXT NOT NULL,
 	sample_source TEXT NOT NULL,
@@ -1695,6 +1703,8 @@ CREATE INDEX IF NOT EXISTS idx_policy_simulation_analyses_risk
 	ON policy_simulation_analyses(risk_level, created_at);
 CREATE INDEX IF NOT EXISTS idx_policy_simulation_analyses_candidate_hash
 	ON policy_simulation_analyses(candidate_policy_sha256, created_at);
+CREATE INDEX IF NOT EXISTS idx_policy_simulation_analyses_tenant
+	ON policy_simulation_analyses(tenant, created_at);
 `
 
 const schemaV36 = `
@@ -1908,3 +1918,76 @@ CREATE INDEX IF NOT EXISTS idx_tacacs_protocol_status ON tacacs_protocol_events(
 `
 
 const schemaV38 = tacacsTablesSQL
+
+const tenantIsolationCoreTablesSQL = `
+CREATE TABLE IF NOT EXISTS tenant_profiles (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	tenant_key TEXT UNIQUE NOT NULL,
+	display_name TEXT,
+	status TEXT NOT NULL DEFAULT 'active',
+	data_residency_region TEXT,
+	secret_namespace TEXT,
+	ca_namespace TEXT,
+	dictionary_profile TEXT,
+	quota_json TEXT NOT NULL DEFAULT '{}',
+	controller_scope_json TEXT NOT NULL DEFAULT '{}',
+	billing_account_ref TEXT,
+	created_by TEXT,
+	updated_by TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('active', 'suspended', 'disabled'))
+);
+
+CREATE TABLE IF NOT EXISTS tenant_resource_bindings (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	tenant TEXT NOT NULL,
+	resource_type TEXT NOT NULL,
+	resource_id TEXT NOT NULL,
+	owner_kind TEXT NOT NULL DEFAULT 'tenant',
+	status TEXT NOT NULL DEFAULT 'active',
+	evidence_json TEXT NOT NULL DEFAULT '{}',
+	created_by TEXT,
+	updated_by TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE (resource_type, resource_id),
+	CHECK (owner_kind IN ('tenant', 'shared')),
+	CHECK (status IN ('active', 'retired', 'blocked'))
+);
+
+CREATE TABLE IF NOT EXISTS tenant_isolation_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	tenant TEXT,
+	resource_type TEXT NOT NULL,
+	resource_id TEXT,
+	action TEXT NOT NULL,
+	decision TEXT NOT NULL,
+	reason TEXT,
+	actor TEXT,
+	request_tenants_json TEXT NOT NULL DEFAULT '[]',
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (decision IN ('allow', 'deny', 'monitor', 'error'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_tenant_profiles_status ON tenant_profiles(status, tenant_key);
+CREATE INDEX IF NOT EXISTS idx_tenant_resource_bindings_tenant ON tenant_resource_bindings(tenant, resource_type, status);
+CREATE INDEX IF NOT EXISTS idx_tenant_resource_bindings_resource ON tenant_resource_bindings(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_isolation_events_tenant ON tenant_isolation_events(tenant, created_at);
+CREATE INDEX IF NOT EXISTS idx_tenant_isolation_events_resource ON tenant_isolation_events(resource_type, resource_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_tenant_isolation_events_decision ON tenant_isolation_events(decision, created_at);
+`
+
+const tenantIsolationTablesSQL = tenantIsolationCoreTablesSQL + `
+DROP INDEX IF EXISTS idx_policy_set_versions_one_active;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_policy_set_versions_one_active ON policy_set_versions(set_key, tenant) WHERE status = 'active';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_policy_set_versions_unique_tenant_version ON policy_set_versions(set_key, tenant, version);
+CREATE INDEX IF NOT EXISTS idx_policy_set_versions_tenant_status ON policy_set_versions(tenant, set_key, status, version DESC);
+CREATE INDEX IF NOT EXISTS idx_policy_set_activation_events_tenant ON policy_set_activation_events(tenant, created_at);
+CREATE INDEX IF NOT EXISTS idx_policy_set_simulations_tenant ON policy_set_simulations(tenant, created_at);
+CREATE INDEX IF NOT EXISTS idx_policy_simulation_analyses_tenant ON policy_simulation_analyses(tenant, created_at);
+`
+
+const schemaV39 = tenantIsolationCoreTablesSQL

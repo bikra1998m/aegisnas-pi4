@@ -1100,6 +1100,22 @@ governance:
   external_groups_enabled: false
   multi_tenant_enabled: false
   tenant_claim: ""
+  isolation_mode: "monitor" # monitor or enforce. Use enforce with fail_closed=true after tenant profiles and resource bindings exist.
+  fail_closed: true
+  default_tenant: "" # Optional fallback tenant for single-tenant migrations; leave empty for strict delegated administration.
+  max_tenants: 256
+  tenant_profile_required: true
+  enforce_policy_set_ownership: true
+  enforce_resource_ownership: true
+  resource_audit_enabled: true
+  resource_retention_limit: 10000
+  shared_resource_types:
+    - system_status
+    - production_readiness
+    - support_bundle
+    - dictionary_catalog
+    - vendor_compatibility
+    - runtime_status
 
 high_availability:
   enabled: false

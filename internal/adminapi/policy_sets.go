@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -19,6 +20,7 @@ import (
 )
 
 var syncRuntimeEnforcementForPolicySetFn = enforcement.SyncRuntimeEnforcement
+var errPolicySetTenantForbidden = errors.New("policy set tenant is outside admin scope")
 
 type policySetGovernanceReport struct {
 	SchemaVersion   int                                `json:"schema_version"`
@@ -53,6 +55,7 @@ type policySetActivationEvent struct {
 	ID                int    `json:"id"`
 	VersionID         int    `json:"version_id"`
 	PreviousVersionID int    `json:"previous_version_id,omitempty"`
+	Tenant            string `json:"tenant,omitempty"`
 	EventType         string `json:"event_type"`
 	Status            string `json:"status"`
 	Actor             string `json:"actor,omitempty"`
@@ -63,6 +66,7 @@ type policySetActivationEvent struct {
 
 type createPolicySetVersionRequest struct {
 	SetKey              string            `json:"set_key"`
+	Tenant              string            `json:"tenant"`
 	Description         string            `json:"description"`
 	Content             *policy.PolicySet `json:"content"`
 	FromCurrent         bool              `json:"from_current"`
@@ -97,7 +101,7 @@ func HandleGetPolicySets(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "configuration not loaded", http.StatusInternalServerError)
 		return
 	}
-	report, err := buildPolicySetGovernanceReport(cfg, 25)
+	report, err := buildPolicySetGovernanceReportForRequest(r, cfg, 25)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -107,7 +111,7 @@ func HandleGetPolicySets(w http.ResponseWriter, r *http.Request) {
 
 func HandleListPolicySetVersions(w http.ResponseWriter, r *http.Request) {
 	limit := intQuery(r, "limit", 100, 1, 1000)
-	versions, err := db.ListPolicySetVersions(limit)
+	versions, err := db.ListPolicySetVersionsForTenants(limit, tenantScopesForPolicySetRequest(r))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -122,7 +126,7 @@ func HandleListPolicySetVersions(w http.ResponseWriter, r *http.Request) {
 
 func HandleListPolicySimulationAnalyses(w http.ResponseWriter, r *http.Request) {
 	limit := intQuery(r, "limit", 25, 1, 1000)
-	records, err := db.ListPolicySimulationAnalyses(limit)
+	records, err := db.ListPolicySimulationAnalysesForTenants(limit, tenantScopesForPolicySetRequest(r))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -141,8 +145,12 @@ func HandleCreatePolicySetVersion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	set, err := policySetFromCreateRequest(req, cfg)
+	set, err := policySetFromCreateRequest(r, req, cfg)
 	if err != nil {
+		if errors.Is(err, errPolicySetTenantForbidden) {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -157,6 +165,7 @@ func HandleCreatePolicySetVersion(w http.ResponseWriter, r *http.Request) {
 	}
 	version, err := db.CreatePolicySetVersion(r.Context(), db.CreatePolicySetVersionRequest{
 		SetKey:              summary.Key,
+		Tenant:              summary.Tenant,
 		Description:         req.Description,
 		ParentVersionID:     req.ParentVersionID,
 		RollbackOfVersionID: req.RollbackOfVersionID,
@@ -194,6 +203,11 @@ func HandleGetPolicySetVersion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "policy set version not found", http.StatusNotFound)
 		return
 	}
+	if !policySetVersionAllowedForRequest(r, *version) {
+		recordTenantIsolationDecision(r, version.Tenant, "policy_set_version", strconv.Itoa(version.ID), "read", "deny", "policy set version is outside tenant scope")
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	view, err := policySetVersionViewFromVersion(*version, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -206,6 +220,10 @@ func HandleSubmitPolicySetVersion(w http.ResponseWriter, r *http.Request) {
 	id, err := policySetVersionIDFromRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !policySetVersionIDAllowedForRequest(r, id) {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	version, err := db.SubmitPolicySetVersion(r.Context(), id, userFromRequest(r))
@@ -228,6 +246,10 @@ func HandleApprovePolicySetVersion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if !policySetVersionIDAllowedForRequest(r, id) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var req policySetActionRequest
 	_ = decodeOptionalBody(r, &req)
 	version, err := db.ApprovePolicySetVersion(r.Context(), id, userFromRequest(r), req.Comment, cfg.Policy.VersionMinApprovals, cfg.Policy.VersionMakerChecker)
@@ -245,6 +267,10 @@ func HandleRejectPolicySetVersion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if !policySetVersionIDAllowedForRequest(r, id) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var req policySetActionRequest
 	_ = decodeOptionalBody(r, &req)
 	version, err := db.RejectPolicySetVersion(r.Context(), id, userFromRequest(r), req.Reason)
@@ -260,6 +286,10 @@ func HandleActivatePolicySetVersion(w http.ResponseWriter, r *http.Request) {
 	id, err := policySetVersionIDFromRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !policySetVersionIDAllowedForRequest(r, id) {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	var req policySetActionRequest
@@ -280,6 +310,10 @@ func HandleRollbackPolicySetVersion(w http.ResponseWriter, r *http.Request) {
 	id, err := policySetVersionIDFromRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !policySetVersionIDAllowedForRequest(r, id) {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	var req policySetActionRequest
@@ -322,6 +356,11 @@ func HandleComparePolicySetVersions(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "policy set version not found", http.StatusNotFound)
 		return
 	}
+	if !policySetVersionAllowedForRequest(r, *from) || !policySetVersionAllowedForRequest(r, *to) || !samePolicySetTenant(*from, *to) {
+		recordTenantIsolationDecision(r, firstNonEmpty(from.Tenant, to.Tenant), "policy_set_compare", fmt.Sprintf("%d:%d", from.ID, to.ID), "compare", "deny", "policy set comparison crosses tenant scope")
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	fromSet, err := policy.ParsePolicySet(from.ContentJSON)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -355,10 +394,18 @@ func HandleSimulatePolicySetVersion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "policy set version not found", http.StatusNotFound)
 		return
 	}
+	if !policySetVersionAllowedForRequest(r, *version) {
+		recordTenantIsolationDecision(r, version.Tenant, "policy_set_version", strconv.Itoa(version.ID), "simulate", "deny", "policy set version is outside tenant scope")
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var req policy.Request
 	if err := decodeBody(r, &req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
+	}
+	if strings.TrimSpace(req.Tenant) == "" {
+		req.Tenant = version.Tenant
 	}
 	set, err := policy.ParsePolicySet(version.ContentJSON)
 	if err != nil {
@@ -386,6 +433,7 @@ func HandleSimulatePolicySetVersion(w http.ResponseWriter, r *http.Request) {
 	resultJSON, _ := json.Marshal(result)
 	_ = db.RecordPolicySetSimulation(db.PolicySetSimulation{
 		VersionID:        version.ID,
+		Tenant:           version.Tenant,
 		EvaluationID:     result.EvaluationID,
 		PolicySHA256:     result.PolicySetHash,
 		RequestHash:      result.RequestHash,
@@ -416,12 +464,17 @@ func HandleAnalyzePolicySetVersion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "policy set version not found", http.StatusNotFound)
 		return
 	}
+	if !policySetVersionAllowedForRequest(r, *version) {
+		recordTenantIsolationDecision(r, version.Tenant, "policy_set_version", strconv.Itoa(version.ID), "analyze", "deny", "policy set version is outside tenant scope")
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var req policySetAnalysisRequest
 	if err := decodeOptionalBody(r, &req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	activeVersion, activeRules, err := activePolicyRulesForAnalysis(cfg)
+	activeVersion, activeRules, err := activePolicyRulesForAnalysis(cfg, version.Tenant)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -436,7 +489,7 @@ func HandleAnalyzePolicySetVersion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	samples, sampleSource, err := policyReplaySamples(req, cfg)
+	samples, sampleSource, err := policyReplaySamples(req, cfg, version.Tenant)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -456,11 +509,19 @@ func HandleAnalyzePolicySetVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildPolicySetGovernanceReport(cfg *config.Config, limit int) (policySetGovernanceReport, error) {
+	return buildPolicySetGovernanceReportForScopes(cfg, limit, nil)
+}
+
+func buildPolicySetGovernanceReportForRequest(r *http.Request, cfg *config.Config, limit int) (policySetGovernanceReport, error) {
+	return buildPolicySetGovernanceReportForScopes(cfg, limit, tenantScopesForPolicySetRequest(r))
+}
+
+func buildPolicySetGovernanceReportForScopes(cfg *config.Config, limit int, tenantScopes []string) (policySetGovernanceReport, error) {
 	summary, err := db.SummarizePolicySetVersions()
 	if err != nil {
 		return policySetGovernanceReport{}, err
 	}
-	versions, err := db.ListPolicySetVersions(limit)
+	versions, err := db.ListPolicySetVersionsForTenants(limit, tenantScopes)
 	if err != nil {
 		return policySetGovernanceReport{}, err
 	}
@@ -476,11 +537,16 @@ func buildPolicySetGovernanceReport(cfg *config.Config, limit int) (policySetGov
 	if err != nil {
 		return policySetGovernanceReport{}, err
 	}
-	analysisRecords, err := db.ListPolicySimulationAnalyses(limit)
+	analysisRecords, err := db.ListPolicySimulationAnalysesForTenants(limit, tenantScopes)
 	if err != nil {
 		return policySetGovernanceReport{}, err
 	}
-	activeVersion, err := db.GetActivePolicySetVersion("default")
+	var activeVersion *db.PolicySetVersion
+	if len(tenantScopes) == 1 {
+		activeVersion, err = db.GetActivePolicySetVersionForTenant("default", tenantScopes[0])
+	} else {
+		activeVersion, err = db.GetActivePolicySetVersion("default")
+	}
 	if err != nil {
 		return policySetGovernanceReport{}, err
 	}
@@ -532,13 +598,107 @@ func policySetGovernanceStatus(report policySetGovernanceReport) (string, string
 	}
 }
 
-func policySetFromCreateRequest(req createPolicySetVersionRequest, cfg *config.Config) (policy.PolicySet, error) {
+func tenantScopesForPolicySetRequest(r *http.Request) []string {
+	if isTenantScopedRequest(r) {
+		return adminTenantScopesFromRequest(r)
+	}
+	return nil
+}
+
+func policySetTenantForRequest(r *http.Request, cfg *config.Config, requestedTenant string) (string, error) {
+	tenant := db.NormalizeTenantKey(requestedTenant)
+	if tenant == "" && cfg.Governance.MultiTenantEnabled && isTenantScopedRequest(r) {
+		scopes := adminTenantScopesFromRequest(r)
+		if len(scopes) == 1 {
+			tenant = db.NormalizeTenantKey(scopes[0])
+		} else {
+			return "", fmt.Errorf("tenant is required when admin identity has multiple tenant scopes")
+		}
+	}
+	if tenant != "" && !tenantAllowed(r, tenant) {
+		recordTenantIsolationDecision(r, tenant, "policy_set", tenant, "create", "deny", "tenant is outside admin scope")
+		return "", fmt.Errorf("%w: %q", errPolicySetTenantForbidden, tenant)
+	}
+	if cfg.Governance.MultiTenantEnabled && cfg.Governance.TenantProfileRequired && tenant != "" && !db.TenantProfileExists(tenant) {
+		recordTenantIsolationDecision(r, tenant, "policy_set", tenant, "create", "deny", "tenant profile is required")
+		return "", fmt.Errorf("tenant profile %q is required", tenant)
+	}
+	return tenant, nil
+}
+
+func policySetVersionAllowedForRequest(r *http.Request, version db.PolicySetVersion) bool {
+	if tenantAllowed(r, version.Tenant) {
+		return true
+	}
+	return false
+}
+
+func policySetVersionIDAllowedForRequest(r *http.Request, id int) bool {
+	version, err := db.GetPolicySetVersion(id)
+	if err != nil || version == nil {
+		return true
+	}
+	if policySetVersionAllowedForRequest(r, *version) {
+		return true
+	}
+	recordTenantIsolationDecision(r, version.Tenant, "policy_set_version", strconv.Itoa(version.ID), "access", "deny", "policy set version is outside tenant scope")
+	return false
+}
+
+func samePolicySetTenant(a, b db.PolicySetVersion) bool {
+	return db.NormalizeTenantKey(a.Tenant) == db.NormalizeTenantKey(b.Tenant)
+}
+
+func recordTenantIsolationDecision(r *http.Request, tenant, resourceType, resourceID, action, decision, reason string) {
+	cfg := config.Get()
+	retention := 10000
+	if cfg != nil {
+		retention = cfg.Governance.ResourceRetentionLimit
+		if !cfg.Governance.ResourceAuditEnabled {
+			return
+		}
+	}
+	details, _ := json.Marshal(map[string]any{
+		"path":   r.URL.Path,
+		"method": r.Method,
+	})
+	_ = db.RecordTenantIsolationEvent(db.TenantIsolationEvent{
+		Tenant:         tenant,
+		ResourceType:   resourceType,
+		ResourceID:     resourceID,
+		Action:         action,
+		Decision:       decision,
+		Reason:         reason,
+		Actor:          userFromRequest(r),
+		RequestTenants: adminTenantScopesFromRequest(r),
+		DetailsJSON:    string(details),
+	}, retention)
+}
+
+func policySetFromCreateRequest(r *http.Request, req createPolicySetVersionRequest, cfg *config.Config) (policy.PolicySet, error) {
+	requestedTenant := db.NormalizeTenantKey(req.Tenant)
 	if req.Content != nil {
 		set := policy.NormalizePolicySet(*req.Content)
+		setTenant := db.NormalizeTenantKey(set.Tenant)
+		if requestedTenant != "" && setTenant != "" && requestedTenant != setTenant {
+			return policy.PolicySet{}, fmt.Errorf("request tenant %q does not match policy set tenant %q", requestedTenant, setTenant)
+		}
+		if requestedTenant == "" {
+			requestedTenant = setTenant
+		}
+		tenant, err := policySetTenantForRequest(r, cfg, requestedTenant)
+		if err != nil {
+			return policy.PolicySet{}, err
+		}
+		set.Tenant = tenant
 		if err := policy.ValidatePolicySet(set, cfg.Policy.MaxPolicySetDepth); err != nil {
 			return policy.PolicySet{}, err
 		}
 		return set, nil
+	}
+	tenant, err := policySetTenantForRequest(r, cfg, requestedTenant)
+	if err != nil {
+		return policy.PolicySet{}, err
 	}
 	rules, err := loadPolicyRulesForVersion()
 	if err != nil {
@@ -547,7 +707,9 @@ func policySetFromCreateRequest(req createPolicySetVersionRequest, cfg *config.C
 	if len(rules) == 0 {
 		return policy.PolicySet{}, fmt.Errorf("no policy rules are available to version")
 	}
-	return policy.PolicySetFromRules(req.SetKey, "Default Policy Set", req.Description, rules), nil
+	set := policy.PolicySetFromRules(req.SetKey, "Default Policy Set", req.Description, rules)
+	set.Tenant = tenant
+	return set, nil
 }
 
 func summarizePolicySetForStorage(set policy.PolicySet, cfg *config.Config) (policy.PolicySetSummary, string, error) {
@@ -606,8 +768,14 @@ func replacePolicyRulesTx(tx *sql.Tx, rules []policy.Rule) error {
 	return nil
 }
 
-func activePolicyRulesForAnalysis(cfg *config.Config) (*db.PolicySetVersion, []policy.Rule, error) {
-	activeVersion, err := db.GetActivePolicySetVersion("default")
+func activePolicyRulesForAnalysis(cfg *config.Config, tenant string) (*db.PolicySetVersion, []policy.Rule, error) {
+	var activeVersion *db.PolicySetVersion
+	var err error
+	if cfg.Governance.MultiTenantEnabled && strings.TrimSpace(tenant) != "" {
+		activeVersion, err = db.GetActivePolicySetVersionForTenant("default", tenant)
+	} else {
+		activeVersion, err = db.GetActivePolicySetVersion("default")
+	}
 	if err != nil {
 		return nil, nil, err
 	}
@@ -622,6 +790,9 @@ func activePolicyRulesForAnalysis(cfg *config.Config) (*db.PolicySetVersion, []p
 		}
 		return activeVersion, rules, nil
 	}
+	if cfg.Governance.MultiTenantEnabled && strings.TrimSpace(tenant) != "" {
+		return nil, nil, fmt.Errorf("no active policy set is available for tenant %q", tenant)
+	}
 	rules, err := loadPolicyRulesForVersion()
 	if err != nil {
 		return nil, nil, err
@@ -632,7 +803,7 @@ func activePolicyRulesForAnalysis(cfg *config.Config) (*db.PolicySetVersion, []p
 	return nil, rules, nil
 }
 
-func policyReplaySamples(req policySetAnalysisRequest, cfg *config.Config) ([]policy.ReplaySample, string, error) {
+func policyReplaySamples(req policySetAnalysisRequest, cfg *config.Config, tenant string) ([]policy.ReplaySample, string, error) {
 	limit := req.Limit
 	if limit <= 0 {
 		limit = cfg.Policy.SimulationReplayLimit
@@ -654,6 +825,9 @@ func policyReplaySamples(req policySetAnalysisRequest, cfg *config.Config) ([]po
 			if len(samples) >= limit {
 				break
 			}
+			if strings.TrimSpace(request.Tenant) == "" {
+				request.Tenant = tenant
+			}
 			samples = append(samples, policy.ReplaySample{
 				Source:  "manual",
 				Request: policyReplayRequest(request),
@@ -671,6 +845,9 @@ func policyReplaySamples(req policySetAnalysisRequest, cfg *config.Config) ([]po
 			for _, record := range records {
 				sample, err := replaySampleFromRecord(record)
 				if err != nil {
+					continue
+				}
+				if strings.TrimSpace(tenant) != "" && db.NormalizeTenantKey(sample.Request.Tenant) != db.NormalizeTenantKey(tenant) {
 					continue
 				}
 				samples = append(samples, sample)
@@ -729,6 +906,7 @@ func recordPolicySimulationAnalysis(version db.PolicySetVersion, active *db.Poli
 	return db.RecordPolicySimulationAnalysis(db.PolicySimulationAnalysisRecord{
 		AnalysisID:                  analysis.AnalysisID,
 		VersionID:                   version.ID,
+		Tenant:                      version.Tenant,
 		ActiveVersionID:             activeID,
 		ActivePolicySHA256:          analysis.ActivePolicySetHash,
 		CandidatePolicySHA256:       analysis.CandidatePolicySetHash,
@@ -788,6 +966,10 @@ func activatePolicySetVersion(r *http.Request, id int, note string, rollback boo
 	if version == nil {
 		return fmt.Errorf("policy set version not found")
 	}
+	if !policySetVersionAllowedForRequest(r, *version) {
+		recordTenantIsolationDecision(r, version.Tenant, "policy_set_version", strconv.Itoa(version.ID), "activate", "deny", "policy set version is outside tenant scope")
+		return fmt.Errorf("policy set version is outside tenant scope")
+	}
 	if cfg.Policy.VersionApprovalRequired && version.ApprovalCount < cfg.Policy.VersionMinApprovals {
 		return fmt.Errorf("policy set version %d has %d approval(s), requires %d", id, version.ApprovalCount, cfg.Policy.VersionMinApprovals)
 	}
@@ -807,8 +989,10 @@ func activatePolicySetVersion(r *http.Request, id int, note string, rollback boo
 	if err := saveConfigSnapshot(tx, userFromRequest(r)); err != nil {
 		return fmt.Errorf("save pre-activation snapshot: %w", err)
 	}
-	if err := replacePolicyRulesTx(tx, rules); err != nil {
-		return fmt.Errorf("replace policy rules: %w", err)
+	if strings.TrimSpace(version.Tenant) == "" {
+		if err := replacePolicyRulesTx(tx, rules); err != nil {
+			return fmt.Errorf("replace policy rules: %w", err)
+		}
 	}
 	previousID, err := db.MarkPolicySetVersionActiveTx(tx, id, userFromRequest(r), note)
 	if err != nil {
@@ -868,7 +1052,7 @@ func policySetActivationEventViews(events []db.PolicySetActivationEvent) []polic
 		}
 		out = append(out, policySetActivationEvent{
 			ID: event.ID, VersionID: event.VersionID, PreviousVersionID: event.PreviousVersionID,
-			EventType: event.EventType, Status: event.Status, Actor: event.Actor, Summary: event.Summary,
+			Tenant: event.Tenant, EventType: event.EventType, Status: event.Status, Actor: event.Actor, Summary: event.Summary,
 			Details: details, CreatedAt: event.CreatedAt,
 		})
 	}

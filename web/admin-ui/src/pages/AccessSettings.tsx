@@ -288,6 +288,38 @@ type TACACSReport = {
   warnings?: string[];
 };
 
+type TenantIsolationReport = {
+  schema_version: number;
+  status: string;
+  message: string;
+  config: {
+    multi_tenant_enabled: boolean;
+    delegated_admin_enabled: boolean;
+    isolation_mode: string;
+    fail_closed: boolean;
+    tenant_profile_required: boolean;
+    enforce_policy_set_ownership: boolean;
+    enforce_resource_ownership: boolean;
+    resource_audit_enabled: boolean;
+    resource_retention_limit: number;
+    shared_resource_types: string[];
+  };
+  summary: {
+    tenant_count: number;
+    active_tenant_count: number;
+    resource_binding_count: number;
+    policy_set_tenant_count: number;
+    denied_event_count: number;
+    monitor_event_count: number;
+  };
+  checks: Array<{
+    key: string;
+    status: string;
+    detail: string;
+    required: boolean;
+  }>;
+};
+
 const certificateLifecycleDefaults: JsonMap = {
   enabled: false,
   mode: "monitor",
@@ -664,6 +696,23 @@ const defaultSettings: JsonMap = {
     external_groups_enabled: false,
     multi_tenant_enabled: false,
     tenant_claim: "",
+    isolation_mode: "monitor",
+    fail_closed: true,
+    default_tenant: "",
+    max_tenants: 256,
+    tenant_profile_required: true,
+    enforce_policy_set_ownership: true,
+    enforce_resource_ownership: true,
+    resource_audit_enabled: true,
+    resource_retention_limit: 10000,
+    shared_resource_types: [
+      "system_status",
+      "production_readiness",
+      "support_bundle",
+      "dictionary_catalog",
+      "vendor_compatibility",
+      "runtime_status",
+    ],
   },
   high_availability: {
     enabled: false,
@@ -1406,6 +1455,11 @@ const rbacModeOptions: Option[] = [
   { value: "hybrid", label: "Hybrid" },
 ];
 
+const tenantIsolationModeOptions: Option[] = [
+  { value: "monitor", label: "Monitor" },
+  { value: "enforce", label: "Enforce" },
+];
+
 const firewallChainOptions: Option[] = [
   { value: "input", label: "Input" },
   { value: "forward", label: "Forward" },
@@ -1486,6 +1540,29 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.integrations.siem = next.integrations.siem || {};
   next.integrations.controller = next.integrations.controller || {};
   next.governance = next.governance || {};
+  next.governance.isolation_mode = next.governance.isolation_mode || "monitor";
+  next.governance.fail_closed = next.governance.fail_closed ?? true;
+  next.governance.default_tenant = next.governance.default_tenant || "";
+  next.governance.max_tenants = next.governance.max_tenants || 256;
+  next.governance.tenant_profile_required =
+    next.governance.tenant_profile_required ?? true;
+  next.governance.enforce_policy_set_ownership =
+    next.governance.enforce_policy_set_ownership ?? true;
+  next.governance.enforce_resource_ownership =
+    next.governance.enforce_resource_ownership ?? true;
+  next.governance.resource_audit_enabled =
+    next.governance.resource_audit_enabled ?? true;
+  next.governance.resource_retention_limit =
+    next.governance.resource_retention_limit || 10000;
+  next.governance.shared_resource_types =
+    next.governance.shared_resource_types || [
+      "system_status",
+      "production_readiness",
+      "support_bundle",
+      "dictionary_catalog",
+      "vendor_compatibility",
+      "runtime_status",
+    ];
   next.portal = next.portal || {};
   next.portal.guest_workflows = next.portal.guest_workflows || {};
   next.identity = next.identity || {};
@@ -1872,6 +1949,8 @@ export default function AccessSettings() {
   const [subscriberServiceChains, setSubscriberServiceChains] =
     useState<SubscriberServiceChainsReport | null>(null);
   const [tacacsReport, setTacacsReport] = useState<TACACSReport | null>(null);
+  const [tenantIsolationReport, setTenantIsolationReport] =
+    useState<TenantIsolationReport | null>(null);
   const [confirmingNetworkRecovery, setConfirmingNetworkRecovery] =
     useState(false);
   const [selectedRollbackId, setSelectedRollbackId] = useState("");
@@ -2040,6 +2119,21 @@ export default function AccessSettings() {
     }
   };
 
+  const loadTenantIsolationReport = async () => {
+    try {
+      const { data } = await api.get("/system/tenant-isolation", {
+        params: { limit: 5 },
+      });
+      setTenantIsolationReport(data || null);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load tenant isolation state.",
+      );
+    }
+  };
+
   const loadSettings = async () => {
     setLoading(true);
     setError("");
@@ -2057,6 +2151,7 @@ export default function AccessSettings() {
       await loadNetworkObservability();
       await loadSubscriberServiceChains();
       await loadTACACSReport();
+      await loadTenantIsolationReport();
     } catch (err: any) {
       setError(
         err.response?.data || err.message || "Could not load access settings.",
@@ -2135,6 +2230,7 @@ export default function AccessSettings() {
       await loadNetworkObservability();
       await loadSubscriberServiceChains();
       await loadTACACSReport();
+      await loadTenantIsolationReport();
     } catch (err: any) {
       setError(err.response?.data || err.message || "Could not save settings.");
     } finally {
@@ -2431,6 +2527,16 @@ export default function AccessSettings() {
         : "border-amber-200 bg-amber-50 text-amber-800";
   const tacacsSummary = tacacsReport?.summary;
   const tacacsDBSummary = tacacsReport?.db_summary;
+  const tenantIsolationStatus = tenantIsolationReport?.status || "unknown";
+  const tenantIsolationTone =
+    tenantIsolationStatus === "passed"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : tenantIsolationStatus === "blocked"
+        ? "border-red-200 bg-red-50 text-red-800"
+        : tenantIsolationStatus === "disabled"
+          ? "border-gray-200 bg-gray-50 text-gray-700"
+          : "border-amber-200 bg-amber-50 text-amber-800";
+  const tenantIsolationSummary = tenantIsolationReport?.summary;
 
   const riskyNetworkApply: NetworkApplyRisk | null =
     networkPreview?.risk || null;
@@ -9295,6 +9401,181 @@ export default function AccessSettings() {
             }
             placeholder="tenant"
           />
+        </div>
+        <div className="mt-6 border-t border-gray-200 pt-5">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="font-semibold text-gray-900">
+                Tenant Isolation
+              </h4>
+              <p className="mt-1 text-sm text-gray-600">
+                Keep tenant policy trees, resource ownership, and delegated
+                administration bounded before enforcement is enabled.
+              </p>
+            </div>
+            <button
+              onClick={loadTenantIsolationReport}
+              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
+            >
+              Refresh Isolation
+            </button>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-4">
+            <SelectField
+              label="Isolation Mode"
+              value={settings.governance?.isolation_mode || "monitor"}
+              onChange={(value) =>
+                updateField(["governance", "isolation_mode"], value)
+              }
+              options={tenantIsolationModeOptions}
+            />
+            <TextField
+              label="Default Tenant"
+              value={settings.governance?.default_tenant || ""}
+              onChange={(value) =>
+                updateField(["governance", "default_tenant"], value)
+              }
+              placeholder="tenant-a"
+            />
+            <TextField
+              label="Max Tenants"
+              type="number"
+              value={settings.governance?.max_tenants || 256}
+              onChange={(value) =>
+                updateField(["governance", "max_tenants"], Number(value))
+              }
+            />
+            <TextField
+              label="Isolation Event Retention"
+              type="number"
+              value={settings.governance?.resource_retention_limit || 10000}
+              onChange={(value) =>
+                updateField(
+                  ["governance", "resource_retention_limit"],
+                  Number(value),
+                )
+              }
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={settings.governance?.fail_closed !== false}
+              onChange={(value) =>
+                updateField(["governance", "fail_closed"], value)
+              }
+            />
+            <ToggleField
+              label="Require Tenant Profiles"
+              checked={settings.governance?.tenant_profile_required !== false}
+              onChange={(value) =>
+                updateField(["governance", "tenant_profile_required"], value)
+              }
+            />
+            <ToggleField
+              label="Policy Ownership"
+              checked={
+                settings.governance?.enforce_policy_set_ownership !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["governance", "enforce_policy_set_ownership"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Resource Ownership"
+              checked={settings.governance?.enforce_resource_ownership !== false}
+              onChange={(value) =>
+                updateField(["governance", "enforce_resource_ownership"], value)
+              }
+            />
+            <ToggleField
+              label="Audit Isolation Decisions"
+              checked={settings.governance?.resource_audit_enabled !== false}
+              onChange={(value) =>
+                updateField(["governance", "resource_audit_enabled"], value)
+              }
+            />
+            <TextField
+              label="Shared Resource Types"
+              value={listToCSV(settings.governance?.shared_resource_types)}
+              onChange={(value) =>
+                updateField(
+                  ["governance", "shared_resource_types"],
+                  csvToList(value),
+                )
+              }
+              placeholder="system_status, production_readiness"
+            />
+            <div className="rounded-md border border-gray-200 px-4 py-3">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Status
+              </div>
+              <div
+                className={`mt-2 inline-flex rounded-md border px-2 py-1 text-xs font-semibold uppercase ${tenantIsolationTone}`}
+              >
+                {tenantIsolationStatus}
+              </div>
+              <div className="mt-2 text-sm text-gray-600">
+                {tenantIsolationReport?.message ||
+                  "Tenant isolation state has not loaded yet."}
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-4 py-3">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Active Tenants
+              </div>
+              <div className="mt-2 text-2xl font-semibold text-gray-900">
+                {tenantIsolationSummary?.active_tenant_count || 0}
+              </div>
+              <div className="mt-1 text-sm text-gray-600">
+                {tenantIsolationSummary?.tenant_count || 0} total profiles
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-4 py-3">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Owned Resources
+              </div>
+              <div className="mt-2 text-2xl font-semibold text-gray-900">
+                {tenantIsolationSummary?.resource_binding_count || 0}
+              </div>
+              <div className="mt-1 text-sm text-gray-600">
+                {tenantIsolationSummary?.policy_set_tenant_count || 0} policy
+                scope(s)
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-4 py-3">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Decision Evidence
+              </div>
+              <div className="mt-2 text-2xl font-semibold text-gray-900">
+                {tenantIsolationSummary?.denied_event_count || 0}
+              </div>
+              <div className="mt-1 text-sm text-gray-600">
+                {tenantIsolationSummary?.monitor_event_count || 0} monitor
+                event(s)
+              </div>
+            </div>
+          </div>
+          {tenantIsolationReport?.checks?.length ? (
+            <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {tenantIsolationReport.checks.map((check) => (
+                <div
+                  key={check.key}
+                  className={`rounded-md border px-3 py-2 text-sm ${
+                    check.status === "passed"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                      : check.status === "blocked"
+                        ? "border-red-200 bg-red-50 text-red-900"
+                        : "border-amber-200 bg-amber-50 text-amber-900"
+                  }`}
+                >
+                  <div className="font-semibold">{check.key}</div>
+                  <div className="mt-1">{check.detail}</div>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
           <div className="mb-4">

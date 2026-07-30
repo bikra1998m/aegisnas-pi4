@@ -81,6 +81,12 @@ rules, so broad overlays can intentionally outrank base policy.
 6. Rollback reactivates a previously approved or superseded version and records
    rollback evidence.
 
+With NAS-0034, a version may also carry `tenant`. Tenant-owned versions are
+unique and active per `(set_key, tenant)`. Global versions keep the legacy
+activation behavior and mirror flattened rules back into `policy_rules`;
+tenant-owned activation records policy evidence and supersedes only that
+tenant's active version without overwriting global runtime rules.
+
 ## APIs
 
 ```text
@@ -136,6 +142,19 @@ NAS-0031 adds schema v36:
 The active policy version is unique per `set_key`. The default active key is
 `default`.
 
+NAS-0034 adds schema v39:
+
+- `policy_set_versions.tenant`
+- `policy_set_activation_events.tenant`
+- `policy_set_simulations.tenant`
+- `policy_simulation_analyses.tenant`
+- `tenant_profiles`
+- `tenant_resource_bindings`
+- `tenant_isolation_events`
+
+The active policy version is unique per `(set_key, tenant)`. Empty tenant is
+the global policy scope.
+
 ## Operational Evidence
 
 The current governance state appears in:
@@ -143,11 +162,16 @@ The current governance state appears in:
 - `/api/v1/system/policy-sets`
 - `/api/v1/system/policy-engine` under `policy_sets`
 - `/api/v1/system/status` under `radius.policy_sets`
+- `/api/v1/system/tenant-isolation`
 - production readiness as `policy_set_governance`
 - production readiness as `policy_simulation_analysis`
+- production readiness as `tenant_isolation`
 - support bundles as `api/policy-sets.json`
 - support bundles as `api/policy-simulation-analyses.json`
+- support bundles as `api/tenant-isolation.json`
 - the Policies page and Dashboard
 
 See [policy-simulation-analysis.md](policy-simulation-analysis.md) for the
 replay analysis workflow.
+See [tenant-isolation-delegation.md](tenant-isolation-delegation.md) for
+delegated tenant ownership and release certification boundaries.

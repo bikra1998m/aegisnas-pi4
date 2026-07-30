@@ -1203,11 +1203,21 @@ type ControllerConfig struct {
 }
 
 type GovernanceConfig struct {
-	DelegatedAdminEnabled bool   `mapstructure:"delegated_admin_enabled"`
-	RBACMode              string `mapstructure:"rbac_mode"`
-	ExternalGroupsEnabled bool   `mapstructure:"external_groups_enabled"`
-	MultiTenantEnabled    bool   `mapstructure:"multi_tenant_enabled"`
-	TenantClaim           string `mapstructure:"tenant_claim"`
+	DelegatedAdminEnabled     bool     `mapstructure:"delegated_admin_enabled"`
+	RBACMode                  string   `mapstructure:"rbac_mode"`
+	ExternalGroupsEnabled     bool     `mapstructure:"external_groups_enabled"`
+	MultiTenantEnabled        bool     `mapstructure:"multi_tenant_enabled"`
+	TenantClaim               string   `mapstructure:"tenant_claim"`
+	IsolationMode             string   `mapstructure:"isolation_mode"`
+	FailClosed                bool     `mapstructure:"fail_closed"`
+	DefaultTenant             string   `mapstructure:"default_tenant"`
+	MaxTenants                int      `mapstructure:"max_tenants"`
+	TenantProfileRequired     bool     `mapstructure:"tenant_profile_required"`
+	EnforcePolicySetOwnership bool     `mapstructure:"enforce_policy_set_ownership"`
+	EnforceResourceOwnership  bool     `mapstructure:"enforce_resource_ownership"`
+	ResourceAuditEnabled      bool     `mapstructure:"resource_audit_enabled"`
+	ResourceRetentionLimit    int      `mapstructure:"resource_retention_limit"`
+	SharedResourceTypes       []string `mapstructure:"shared_resource_types"`
 }
 
 type SecurityConfig struct {
@@ -1568,6 +1578,16 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("integrations.siem.batch_size", 100)
 	v.SetDefault("integrations.controller.sync_mode", "monitor")
 	v.SetDefault("governance.rbac_mode", "local")
+	v.SetDefault("governance.isolation_mode", "monitor")
+	v.SetDefault("governance.fail_closed", true)
+	v.SetDefault("governance.default_tenant", "")
+	v.SetDefault("governance.max_tenants", 256)
+	v.SetDefault("governance.tenant_profile_required", true)
+	v.SetDefault("governance.enforce_policy_set_ownership", true)
+	v.SetDefault("governance.enforce_resource_ownership", true)
+	v.SetDefault("governance.resource_audit_enabled", true)
+	v.SetDefault("governance.resource_retention_limit", 10000)
+	v.SetDefault("governance.shared_resource_types", []string{"system_status", "production_readiness", "support_bundle", "dictionary_catalog", "vendor_compatibility", "runtime_status"})
 	v.SetDefault("security.secrets.enabled", true)
 	v.SetDefault("security.secrets.providers", []string{"env", "file"})
 	v.SetDefault("security.secrets.file_base_dir", "/etc/aegisnas/secrets")
@@ -3238,6 +3258,32 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("governance.rbac_mode %q is invalid", c.Governance.RBACMode)
 	}
+	switch strings.ToLower(strings.TrimSpace(c.Governance.IsolationMode)) {
+	case "", "monitor", "enforce":
+	default:
+		return fmt.Errorf("governance.isolation_mode %q is invalid", c.Governance.IsolationMode)
+	}
+	if c.Governance.MaxTenants < 0 || c.Governance.MaxTenants > 100000 {
+		return fmt.Errorf("governance.max_tenants must be between 1 and 100000 when set")
+	}
+	if c.Governance.ResourceRetentionLimit < 0 || c.Governance.ResourceRetentionLimit > 1000000 {
+		return fmt.Errorf("governance.resource_retention_limit must be between 100 and 1000000 when set")
+	}
+	if tenant := strings.TrimSpace(c.Governance.DefaultTenant); tenant != "" && !validGovernanceToken(tenant) {
+		return fmt.Errorf("governance.default_tenant %q is invalid", c.Governance.DefaultTenant)
+	}
+	seenSharedTypes := map[string]struct{}{}
+	for i, resourceType := range c.Governance.SharedResourceTypes {
+		resourceType = strings.TrimSpace(resourceType)
+		if resourceType == "" || !validGovernanceToken(resourceType) {
+			return fmt.Errorf("governance.shared_resource_types[%d] %q is invalid", i, c.Governance.SharedResourceTypes[i])
+		}
+		key := strings.ToLower(resourceType)
+		if _, exists := seenSharedTypes[key]; exists {
+			return fmt.Errorf("governance.shared_resource_types[%d] %q duplicates an earlier resource type", i, resourceType)
+		}
+		seenSharedTypes[key] = struct{}{}
+	}
 	if c.Governance.DelegatedAdminEnabled {
 		if profile == "lite" {
 			return errors.New("governance.delegated_admin_enabled is not supported on the lite deployment profile")
@@ -3258,6 +3304,20 @@ func (c *Config) Validate() error {
 		}
 		if c.Integrations.AdminSSO.Enabled && strings.TrimSpace(c.Governance.TenantClaim) == "" {
 			return errors.New("governance.multi_tenant_enabled requires governance.tenant_claim when admin SSO is enabled")
+		}
+		if strings.EqualFold(strings.TrimSpace(c.Governance.IsolationMode), "enforce") {
+			if !c.Governance.EnforcePolicySetOwnership {
+				return errors.New("governance.isolation_mode=enforce requires governance.enforce_policy_set_ownership")
+			}
+			if !c.Governance.EnforceResourceOwnership {
+				return errors.New("governance.isolation_mode=enforce requires governance.enforce_resource_ownership")
+			}
+			if c.Governance.TenantProfileRequired && c.Governance.MaxTenants == 0 {
+				return errors.New("governance.tenant_profile_required requires governance.max_tenants when isolation is enforced")
+			}
+		}
+		if c.Governance.ResourceAuditEnabled && c.Governance.ResourceRetentionLimit > 0 && c.Governance.ResourceRetentionLimit < 100 {
+			return fmt.Errorf("governance.resource_retention_limit must be between 100 and 1000000")
 		}
 	}
 	switch strings.ToLower(strings.TrimSpace(c.HighAvailability.Role)) {
@@ -5711,6 +5771,24 @@ func validateTACACSConfig(tac TACACSConfig) error {
 		}
 	}
 	return nil
+}
+
+func validGovernanceToken(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 128 {
+		return false
+	}
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '-', r == '_', r == '.', r == ':':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func validateTACACSCommandPattern(pattern string) error {

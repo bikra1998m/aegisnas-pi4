@@ -60,7 +60,7 @@ func (e *Engine) EvaluateDetailed(req *Request) (*EvaluationResult, error) {
 	}
 
 	// Load rules from DB
-	rules, err := e.loadRules()
+	rules, err := e.loadRulesForTenant(req.Tenant)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (e *Engine) EvaluateDetailed(req *Request) (*EvaluationResult, error) {
 }
 
 func (e *Engine) LoadRules() ([]Rule, error) {
-	return e.loadRules()
+	return e.loadRulesForTenant("")
 }
 
 // EvaluateRules evaluates a caller-provided policy set. It is intentionally
@@ -138,6 +138,25 @@ func EvaluateRules(req *Request, rules []Rule, logger *zap.Logger) *EvaluationRe
 }
 
 func (e *Engine) loadRules() ([]Rule, error) {
+	return e.loadRulesForTenant("")
+}
+
+func (e *Engine) loadRulesForTenant(tenant string) ([]Rule, error) {
+	cfg := config.Get()
+	if cfg != nil && cfg.Governance.MultiTenantEnabled && strings.TrimSpace(tenant) != "" {
+		active, err := db.GetActivePolicySetVersionForTenant("default", tenant)
+		if err != nil {
+			return nil, err
+		}
+		if active == nil {
+			return nil, nil
+		}
+		set, err := ParsePolicySet(active.ContentJSON)
+		if err != nil {
+			return nil, fmt.Errorf("active tenant policy set version %d is invalid: %w", active.ID, err)
+		}
+		return FlattenPolicySet(set, cfg.Policy.MaxPolicySetDepth)
+	}
 	if active, err := db.GetActivePolicySetVersion("default"); err != nil {
 		return nil, err
 	} else if active != nil {
@@ -150,6 +169,9 @@ func (e *Engine) loadRules() ([]Rule, error) {
 			maxDepth = cfg.Policy.MaxPolicySetDepth
 		}
 		return FlattenPolicySet(set, maxDepth)
+	}
+	if cfg != nil && cfg.Governance.MultiTenantEnabled && strings.TrimSpace(tenant) != "" {
+		return nil, nil
 	}
 	rows, err := db.DB.Query(`SELECT id, name, description, priority, enabled, match_conditions, action,
 		vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine, COALESCE(service_chain_json, '[]')

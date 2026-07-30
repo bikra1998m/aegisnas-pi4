@@ -170,6 +170,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	policyAnalyses, _ := db.SummarizePolicySimulationAnalyses()
 	subscriberServiceChains, _ := buildSubscriberServiceChainsReport(cfg, 5)
 	tacacsReport := tacacs.BuildReport(cfg, 5)
+	tenantIsolation, _ := buildTenantIsolationReport(cfg, 5)
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":           cfg.Radius.Upstream.Enabled,
@@ -194,6 +195,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"policy_simulation_analyses": policyAnalyses,
 		"subscriber_service_chains":  subscriberServiceChains,
 		"tacacs":                     tacacsReport,
+		"tenant_isolation":           tenantIsolation,
 		"enabled_radius_clients":     enabledRadiusClients,
 		"broker_auth":                runtimeMap["radius_broker_auth"],
 		"broker_accounting":          runtimeMap["radius_broker_accounting"],
