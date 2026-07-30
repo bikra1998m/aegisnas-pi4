@@ -1302,6 +1302,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Rolled-back chain record and rollback events."),
 		"default": responseText("Rollback error."),
 	}))
+	addOperation(paths, "/api/v1/system/tacacs", "get", securedOperationWithParameters("Read TACACS+ command authorization state", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional recent authorization/accounting limit. Defaults to 25 and caps at 100.", false),
+	}, map[string]any{
+		"200": responseJSON("TACACS+ configuration, command sets, runtime readiness, authorization decisions, and accounting evidence."),
+	}))
+	addOperation(paths, "/api/v1/system/tacacs/evaluate", "post", securedOperationWithBody("Evaluate TACACS+ command authorization", "Policies", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Device-admin username, client, command, args, privilege level, and context."), map[string]any{
+		"200":     responseJSON("Command authorization decision with matched command set and typed policy evidence."),
+		"default": responseText("Evaluation error."),
+	}))
+	addOperation(paths, "/api/v1/system/tacacs/command-sets", "post", securedOperationWithBody("Create TACACS+ command set", "Policies", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Command set name, permit/deny globs, role, tenant, vendor, and privilege constraints."), map[string]any{
+		"200":     responseJSON("Saved TACACS+ command set."),
+		"default": responseText("Command set validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/tacacs/command-sets/{name}", "put", securedOperationWithParametersAndBody("Update TACACS+ command set", "Policies", []string{"ops_admin", "super_admin"}, []map[string]any{idParameter("name", "Command set name.")}, genericJSONObjectRequest("Replacement command set fields."), map[string]any{
+		"200":     responseJSON("Saved TACACS+ command set."),
+		"default": responseText("Command set validation error."),
+	}))
 	addOperation(paths, "/api/v1/system/identity-failover", "get", securedOperationWithParameters("Read identity source failover state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("source", "Optional identity source name filter such as local or ldap-primary.", false),
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "not_found", "failed", "skipped", "stale_accepted", "split_denied"}, false),

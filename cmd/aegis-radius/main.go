@@ -12,6 +12,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/health"
 	"github.com/yourorg/aegisnas-pi4/internal/logging"
 	"github.com/yourorg/aegisnas-pi4/internal/radius"
+	"github.com/yourorg/aegisnas-pi4/internal/tacacs"
 	"go.uber.org/zap"
 )
 
@@ -63,10 +64,17 @@ var runCmd = &cobra.Command{
 		// Start health server on a dedicated port so it does not collide with gateway health.
 		go health.StartServer(cfg.Health.Port+5, logger)
 		go radius.StartAccountingSpoolReplayer(context.Background(), cfg)
+		go func() {
+			if err := tacacs.StartServer(context.Background(), cfg, logger); err != nil {
+				logger.Error("tacacs server stopped", zap.Error(err))
+			}
+		}()
 
 		logger.Info("aegis-radius running",
 			zap.Int("auth_port", cfg.Radius.AuthPort),
-			zap.Int("acct_port", cfg.Radius.AcctPort))
+			zap.Int("acct_port", cfg.Radius.AcctPort),
+			zap.Bool("tacacs_enabled", cfg.TACACS.Enabled),
+			zap.Int("tacacs_port", cfg.TACACS.Port))
 
 		// Wait indefinitely (or until signal)
 		select {}

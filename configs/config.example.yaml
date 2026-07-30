@@ -593,6 +593,55 @@ radius:
       audit_enabled: true
       retention_limit: 6000
 
+tacacs:
+  enabled: false # Enable after command sets and client secrets are configured.
+  listen_address: "0.0.0.0"
+  port: 49
+  mode: "monitor" # Use enforce for production device-admin authorization.
+  fail_closed: true
+  secret_ref: "env:AEGIS_SECRET_TACACS_SHARED"
+  max_packet_bytes: 65535
+  max_args: 64
+  max_command_bytes: 512
+  max_connections: 256
+  idle_timeout_seconds: 300
+  read_timeout_seconds: 15
+  audit_enabled: true
+  retention_limit: 10000
+  require_known_client: true
+  allow_unencrypted: false
+  authentication_source: "local"
+  clients:
+    - name: "core-switch-01"
+      address: "192.0.2.10"
+      secret_ref: "env:AEGIS_SECRET_TACACS_CORE_SWITCH_01"
+      vendor: "cisco"
+      model: "ios-xe"
+      tenant: "default"
+      enabled: true
+  command_sets:
+    - name: "ops-show"
+      description: "Permit operational show commands and deny configuration reads."
+      enabled: true
+      default_action: "deny"
+      permit:
+        - "show *"
+        - "ping *"
+        - "traceroute *"
+      deny:
+        - "show running-config"
+        - "configure *"
+      roles:
+        - "ops"
+      privilege_levels:
+        - 5
+        - 15
+      vendors:
+        - "cisco"
+        - "arista"
+      tenants:
+        - "default"
+
 portal:
   enabled: true
   port: 8081

@@ -47,6 +47,7 @@ jobs:
       - run: make test-policy-set-governance
       - run: make test-policy-simulation-analysis
       - run: make test-subscriber-service-chains
+      - run: make test-tacacs
       - run: make test-mab
       - run: make test-dynamic-nas-clients
       - run: make test-radsec-credentials

@@ -161,7 +161,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{34, schemaV34},
 		{35, schemaV35},
 		{36, schemaV36},
-		{LatestSchemaVersion(), schemaV37},
+		{37, schemaV37},
+		{LatestSchemaVersion(), schemaV38},
 	}
 
 	for _, m := range migrations {
@@ -242,8 +243,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureSubscriberServiceChainTables(handle); err != nil {
 		return fmt.Errorf("repair subscriber service chain schema: %w", err)
 	}
+	if err := ensureTACACSTables(handle); err != nil {
+		return fmt.Errorf("repair TACACS+ schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureTACACSTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(tacacsTablesSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensurePolicySimulationAnalysisTables(handle *sql.DB) error {

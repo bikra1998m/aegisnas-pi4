@@ -263,6 +263,31 @@ type SubscriberServiceChainsReport = {
   recent_chains: SubscriberServiceChainRecord[];
 };
 
+type TACACSSummary = {
+  configured_clients: number;
+  enabled_clients: number;
+  effective_sets: number;
+  enabled_sets: number;
+};
+
+type TACACSDBSummary = {
+  authorization_events: number;
+  permit_count: number;
+  deny_count: number;
+  accounting_records: number;
+  last_authorization_state?: string;
+};
+
+type TACACSReport = {
+  schema_version: number;
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary: TACACSSummary;
+  db_summary: TACACSDBSummary;
+  warnings?: string[];
+};
+
 const certificateLifecycleDefaults: JsonMap = {
   enabled: false,
   mode: "monitor",
@@ -389,6 +414,27 @@ const defaultSettings: JsonMap = {
     default_role: "",
     runtime_shaping_enabled: true,
     max_service_chain_length: 16,
+  },
+  tacacs: {
+    enabled: false,
+    listen_address: "0.0.0.0",
+    port: 49,
+    mode: "monitor",
+    fail_closed: true,
+    secret_ref: "",
+    max_packet_bytes: 65535,
+    max_args: 64,
+    max_command_bytes: 512,
+    max_connections: 256,
+    idle_timeout_seconds: 300,
+    read_timeout_seconds: 15,
+    audit_enabled: true,
+    retention_limit: 10000,
+    require_known_client: true,
+    allow_unencrypted: false,
+    authentication_source: "local",
+    clients: [],
+    command_sets: [],
   },
   telemetry: {
     enabled: true,
@@ -1454,6 +1500,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.admin_webauthn = next.admin_webauthn || {};
   next.mab = next.mab || {};
   next.radius = next.radius || {};
+  next.tacacs = next.tacacs || {};
   next.radius.eap = next.radius.eap || {};
   next.radius.eap.teap = next.radius.eap.teap || {};
   next.radius.eap.machine_user = next.radius.eap.machine_user || {};
@@ -1474,6 +1521,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.telemetry.enabled = false;
     next.policy.runtime_shaping_enabled = false;
     next.policy.max_service_chain_length = 8;
+    next.tacacs.enabled = false;
+    next.tacacs.mode = "monitor";
+    next.tacacs.max_connections = 32;
+    next.tacacs.retention_limit = 1000;
     next.radius.max_sessions = 256;
     next.radius.interim_update_seconds = 600;
     next.radius.eap.framework.enabled = true;
@@ -1533,6 +1584,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.telemetry.enabled = true;
     next.policy.runtime_shaping_enabled = true;
     next.policy.max_service_chain_length = 32;
+    next.tacacs.enabled = next.tacacs.enabled || false;
+    next.tacacs.mode = "enforce";
+    next.tacacs.max_connections = next.tacacs.max_connections || 2048;
+    next.tacacs.retention_limit = next.tacacs.retention_limit || 100000;
     next.radius.max_sessions = 4096;
     next.radius.interim_update_seconds = 300;
     next.radius.eap.framework.enabled = true;
@@ -1589,6 +1644,8 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.max_sessions = next.radius.max_sessions || 1024;
     next.policy.max_service_chain_length =
       next.policy.max_service_chain_length || 16;
+    next.tacacs.max_connections = next.tacacs.max_connections || 256;
+    next.tacacs.retention_limit = next.tacacs.retention_limit || 10000;
     next.ailite.mode = next.ailite.mode || "lite";
     next.ailite.provider = next.ailite.provider || "local";
     next.ailite.recommendation_limit = next.ailite.recommendation_limit || 100;
@@ -1600,6 +1657,10 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.telemetry.enabled = true;
     next.policy.runtime_shaping_enabled = true;
     next.policy.max_service_chain_length = 16;
+    next.tacacs.enabled = next.tacacs.enabled || false;
+    next.tacacs.mode = next.tacacs.mode || "monitor";
+    next.tacacs.max_connections = next.tacacs.max_connections || 256;
+    next.tacacs.retention_limit = next.tacacs.retention_limit || 10000;
     next.radius.max_sessions = 1024;
     next.radius.interim_update_seconds = 300;
     next.radius.eap.framework.enabled = true;
@@ -1810,6 +1871,7 @@ export default function AccessSettings() {
     useState<NetworkObservabilityResponse | null>(null);
   const [subscriberServiceChains, setSubscriberServiceChains] =
     useState<SubscriberServiceChainsReport | null>(null);
+  const [tacacsReport, setTacacsReport] = useState<TACACSReport | null>(null);
   const [confirmingNetworkRecovery, setConfirmingNetworkRecovery] =
     useState(false);
   const [selectedRollbackId, setSelectedRollbackId] = useState("");
@@ -1963,6 +2025,21 @@ export default function AccessSettings() {
     }
   };
 
+  const loadTACACSReport = async () => {
+    try {
+      const { data } = await api.get("/system/tacacs", {
+        params: { limit: 5 },
+      });
+      setTacacsReport(data || null);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load TACACS+ command authorization state.",
+      );
+    }
+  };
+
   const loadSettings = async () => {
     setLoading(true);
     setError("");
@@ -1979,6 +2056,7 @@ export default function AccessSettings() {
       await loadNetworkPreview();
       await loadNetworkObservability();
       await loadSubscriberServiceChains();
+      await loadTACACSReport();
     } catch (err: any) {
       setError(
         err.response?.data || err.message || "Could not load access settings.",
@@ -2056,6 +2134,7 @@ export default function AccessSettings() {
       await loadNetworkPreview();
       await loadNetworkObservability();
       await loadSubscriberServiceChains();
+      await loadTACACSReport();
     } catch (err: any) {
       setError(err.response?.data || err.message || "Could not save settings.");
     } finally {
@@ -2343,6 +2422,15 @@ export default function AccessSettings() {
       : serviceChainStatus === "blocked"
         ? "border-red-200 bg-red-50 text-red-800"
         : "border-amber-200 bg-amber-50 text-amber-800";
+  const tacacsStatus = tacacsReport?.status || "unknown";
+  const tacacsTone =
+    tacacsStatus === "ready"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : tacacsStatus === "blocked"
+        ? "border-red-200 bg-red-50 text-red-800"
+        : "border-amber-200 bg-amber-50 text-amber-800";
+  const tacacsSummary = tacacsReport?.summary;
+  const tacacsDBSummary = tacacsReport?.db_summary;
 
   const riskyNetworkApply: NetworkApplyRisk | null =
     networkPreview?.risk || null;
@@ -2839,6 +2927,164 @@ export default function AccessSettings() {
               )}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              TACACS+ Device Admin
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Command authorization, privilege control, and accounting evidence
+              for managed switches, routers, and controllers.
+            </p>
+          </div>
+          <button
+            onClick={loadTACACSReport}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
+          >
+            Refresh TACACS+
+          </button>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-4">
+          <ToggleField
+            label="Enable TACACS+"
+            checked={Boolean(settings.tacacs?.enabled)}
+            onChange={(value) => updateField(["tacacs", "enabled"], value)}
+          />
+          <SelectField
+            label="Mode"
+            value={settings.tacacs?.mode || "monitor"}
+            options={[
+              { value: "monitor", label: "Monitor" },
+              { value: "enforce", label: "Enforce" },
+            ]}
+            onChange={(value) => updateField(["tacacs", "mode"], value)}
+          />
+          <TextField
+            label="Listen Address"
+            value={settings.tacacs?.listen_address || "0.0.0.0"}
+            onChange={(value) =>
+              updateField(["tacacs", "listen_address"], value)
+            }
+          />
+          <TextField
+            label="Port"
+            type="number"
+            value={settings.tacacs?.port || 49}
+            onChange={(value) => updateField(["tacacs", "port"], Number(value))}
+          />
+          <TextField
+            label="Secret Ref"
+            value={settings.tacacs?.secret_ref || ""}
+            onChange={(value) =>
+              updateField(["tacacs", "secret_ref"], value)
+            }
+          />
+          <TextField
+            label="Max Connections"
+            type="number"
+            value={settings.tacacs?.max_connections || 256}
+            onChange={(value) =>
+              updateField(["tacacs", "max_connections"], Number(value))
+            }
+          />
+          <TextField
+            label="Max Command Bytes"
+            type="number"
+            value={settings.tacacs?.max_command_bytes || 512}
+            onChange={(value) =>
+              updateField(["tacacs", "max_command_bytes"], Number(value))
+            }
+          />
+          <TextField
+            label="Retention Limit"
+            type="number"
+            value={settings.tacacs?.retention_limit || 10000}
+            onChange={(value) =>
+              updateField(["tacacs", "retention_limit"], Number(value))
+            }
+          />
+          <ToggleField
+            label="Require Known Clients"
+            checked={settings.tacacs?.require_known_client !== false}
+            onChange={(value) =>
+              updateField(["tacacs", "require_known_client"], value)
+            }
+          />
+          <ToggleField
+            label="Fail Closed"
+            checked={settings.tacacs?.fail_closed !== false}
+            onChange={(value) =>
+              updateField(["tacacs", "fail_closed"], value)
+            }
+          />
+          <ToggleField
+            label="Audit Decisions"
+            checked={settings.tacacs?.audit_enabled !== false}
+            onChange={(value) =>
+              updateField(["tacacs", "audit_enabled"], value)
+            }
+          />
+          <ToggleField
+            label="Allow Unencrypted Lab Packets"
+            checked={Boolean(settings.tacacs?.allow_unencrypted)}
+            onChange={(value) =>
+              updateField(["tacacs", "allow_unencrypted"], value)
+            }
+          />
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-4">
+          <div className="rounded-md border border-gray-200 px-4 py-3">
+            <div className="text-xs font-semibold uppercase text-gray-500">
+              Status
+            </div>
+            <div
+              className={`mt-2 inline-flex rounded-md border px-2 py-1 text-xs font-semibold uppercase ${tacacsTone}`}
+            >
+              {tacacsStatus}
+            </div>
+            <div className="mt-2 text-sm text-gray-600">
+              {tacacsReport?.message || "TACACS+ state has not loaded yet."}
+            </div>
+          </div>
+          <div className="rounded-md border border-gray-200 px-4 py-3">
+            <div className="text-xs font-semibold uppercase text-gray-500">
+              Command Sets
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-gray-900">
+              {tacacsSummary?.effective_sets || 0}
+            </div>
+            <div className="mt-1 text-sm text-gray-600">
+              {tacacsSummary?.enabled_sets || 0} enabled
+            </div>
+          </div>
+          <div className="rounded-md border border-gray-200 px-4 py-3">
+            <div className="text-xs font-semibold uppercase text-gray-500">
+              Clients
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-gray-900">
+              {tacacsSummary?.enabled_clients || 0}
+            </div>
+            <div className="mt-1 text-sm text-gray-600">
+              {tacacsSummary?.configured_clients || 0} configured
+            </div>
+          </div>
+          <div className="rounded-md border border-gray-200 px-4 py-3">
+            <div className="text-xs font-semibold uppercase text-gray-500">
+              Evidence
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-gray-900">
+              {tacacsDBSummary?.authorization_events || 0}
+            </div>
+            <div className="mt-1 text-sm text-gray-600">
+              {tacacsDBSummary?.permit_count || 0} permit,{" "}
+              {tacacsDBSummary?.deny_count || 0} deny,{" "}
+              {tacacsDBSummary?.accounting_records || 0} accounting
+            </div>
+          </div>
         </div>
       </section>
 

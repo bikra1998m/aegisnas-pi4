@@ -72,6 +72,24 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
 
+## TACACS+ Command Authorization
+
+Device-administration TACACS+ state is exposed through:
+
+```text
+GET  /api/v1/system/tacacs
+POST /api/v1/system/tacacs/evaluate
+POST /api/v1/system/tacacs/command-sets
+PUT  /api/v1/system/tacacs/command-sets/{name}
+```
+
+Read-only roles can inspect TACACS+ status, command sets, recent
+authorization decisions, and accounting evidence. `ops_admin` and
+`super_admin` can evaluate commands and save command sets. The report is also
+embedded in `/api/v1/system/status` as `radius.tacacs`, production readiness as
+`tacacs_command_authorization`, support bundles as `api/tacacs.json`, and
+Access Settings. See [tacacs-command-authorization.md](tacacs-command-authorization.md).
+
 ## MAC Authentication Bypass
 
 MAB state, endpoint inventory, and audit history are exposed through:

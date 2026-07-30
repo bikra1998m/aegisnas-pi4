@@ -22,6 +22,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/radius"
 	"github.com/yourorg/aegisnas-pi4/internal/secrets"
 	"github.com/yourorg/aegisnas-pi4/internal/supplicantprofile"
+	"github.com/yourorg/aegisnas-pi4/internal/tacacs"
 	webauthnpkg "github.com/yourorg/aegisnas-pi4/internal/webauthn"
 )
 
@@ -135,6 +136,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionPolicySetGovernanceCheck(&report, cfg)
 	addProductionPolicySimulationAnalysisCheck(&report, cfg)
 	addProductionSubscriberServiceChainsCheck(&report, cfg)
+	addProductionTACACSCheck(&report, cfg)
 	addProductionCertificateLifecycleCheck(&report, cfg)
 	addProductionSupplicantLifecycleCheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
@@ -899,6 +901,57 @@ func addProductionSubscriberServiceChainsCheck(report *productionReadinessReport
 		Recommendation: "Model chained services in policy service_chain intents, preview before activation, preserve rollback/accounting evidence, and complete the NAS-0032 release certification checklist for real BRAS, BNG, WLAN, and controller smoke tests.",
 		Dependencies:   []string{"policy.max_service_chain_length", "policy_rules.service_chain_json", "subscriber_service_chains", "subscriber_service_events", "subscriber_service_accounting", "/api/v1/system/subscriber-service-chains"},
 	})
+}
+
+func addProductionTACACSCheck(report *productionReadinessReport, cfg *config.Config) {
+	tacacsReport := tacacs.BuildReport(cfg, 0)
+	status := "passed"
+	switch tacacsReport.Status {
+	case "blocked":
+		status = "blocked"
+	case "disabled", "degraded":
+		status = "degraded"
+	}
+	if cfg.TACACS.Enabled {
+		if !strings.EqualFold(strings.TrimSpace(cfg.TACACS.Mode), "enforce") {
+			status = maxReadinessStatus(status, "degraded")
+		}
+		if cfg.TACACS.RequireKnownClient && tacacsReport.Summary.EnabledClients == 0 {
+			status = "blocked"
+		}
+		if strings.TrimSpace(cfg.TACACS.SecretRef) == "" && tacacsReport.Summary.EnabledClients == 0 {
+			status = "blocked"
+		}
+		if cfg.TACACS.AllowUnencrypted {
+			status = "blocked"
+		}
+		if tacacsReport.Summary.EnabledSets == 0 {
+			status = "blocked"
+		}
+		if !cfg.TACACS.AuditEnabled {
+			status = maxReadinessStatus(status, "degraded")
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "tacacs_command_authorization",
+		Category: "policy",
+		Label:    "Command Authorization And TACACS+",
+		Status:   status,
+		Summary: fmt.Sprintf("TACACS+ schema %d is %s with %d enabled client(s), %d effective command set(s), %d authorization event(s), and %d accounting record(s).",
+			tacacsReport.SchemaVersion, tacacsReport.Status, tacacsReport.Summary.EnabledClients,
+			tacacsReport.Summary.EffectiveSets, tacacsReport.DBSummary.AuthorizationEvents,
+			tacacsReport.DBSummary.AccountingRecords),
+		Recommendation: "Set tacacs.enabled=true, tacacs.mode=enforce, require known clients, use secret refs, keep encrypted packets only, define command sets, audit accounting evidence, and complete the NAS-0033 release certification checklist with Cisco, Juniper, HPE, Dell, Brocade, Extreme, and Arista devices.",
+		Dependencies:   []string{"tacacs", "tacacs_command_sets", "tacacs_authorization_events", "tacacs_accounting_records", "/api/v1/system/tacacs", "RFC 8907"},
+	})
+}
+
+func maxReadinessStatus(current, candidate string) string {
+	weight := map[string]int{"passed": 0, "degraded": 1, "blocked": 2}
+	if weight[candidate] > weight[current] {
+		return candidate
+	}
+	return current
 }
 
 func enabledTypedPolicyRules(rules []policyRuleStatus) int {

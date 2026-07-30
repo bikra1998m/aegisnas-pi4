@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 37
+	return 38
 }
 
 func Migrate() error {
@@ -1804,3 +1804,107 @@ const schemaV37 = `
 ALTER TABLE policy_rules ADD COLUMN service_chain_json TEXT NOT NULL DEFAULT '[]';
 ALTER TABLE policy_simulation_analyses ADD COLUMN service_chain_change_count INTEGER DEFAULT 0;
 ` + subscriberServiceChainTablesSQL
+
+const tacacsTablesSQL = `
+CREATE TABLE IF NOT EXISTS tacacs_command_sets (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	name TEXT UNIQUE NOT NULL,
+	description TEXT,
+	enabled BOOLEAN DEFAULT 1,
+	default_action TEXT NOT NULL DEFAULT 'deny',
+	permit_json TEXT NOT NULL DEFAULT '[]',
+	deny_json TEXT NOT NULL DEFAULT '[]',
+	roles_json TEXT NOT NULL DEFAULT '[]',
+	privilege_levels_json TEXT NOT NULL DEFAULT '[]',
+	vendors_json TEXT NOT NULL DEFAULT '[]',
+	tenants_json TEXT NOT NULL DEFAULT '[]',
+	source TEXT NOT NULL DEFAULT 'api',
+	content_hash TEXT NOT NULL,
+	created_by TEXT,
+	updated_by TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (default_action IN ('permit', 'deny')),
+	CHECK (source IN ('api', 'config', 'migration'))
+);
+
+CREATE TABLE IF NOT EXISTS tacacs_authorization_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	session_id INTEGER NOT NULL,
+	username_hash TEXT,
+	role TEXT,
+	tenant TEXT,
+	client_name TEXT,
+	client_ip TEXT,
+	vendor TEXT,
+	service TEXT,
+	port TEXT,
+	remote_address TEXT,
+	command TEXT NOT NULL,
+	command_hash TEXT NOT NULL,
+	privilege_level INTEGER DEFAULT 0,
+	decision TEXT NOT NULL,
+	reason TEXT,
+	matched_command_set TEXT,
+	policy_evaluation_id TEXT,
+	args_json TEXT NOT NULL DEFAULT '[]',
+	request_json TEXT NOT NULL DEFAULT '{}',
+	response_json TEXT NOT NULL DEFAULT '{}',
+	latency_ms INTEGER DEFAULT 0,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (decision IN ('permit', 'deny', 'error'))
+);
+
+CREATE TABLE IF NOT EXISTS tacacs_accounting_records (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	record_id TEXT UNIQUE NOT NULL,
+	session_id INTEGER NOT NULL,
+	task_id TEXT,
+	username_hash TEXT,
+	role TEXT,
+	tenant TEXT,
+	client_name TEXT,
+	client_ip TEXT,
+	vendor TEXT,
+	service TEXT,
+	port TEXT,
+	remote_address TEXT,
+	command TEXT,
+	command_hash TEXT,
+	privilege_level INTEGER DEFAULT 0,
+	flags INTEGER DEFAULT 0,
+	status TEXT NOT NULL DEFAULT 'recorded',
+	args_json TEXT NOT NULL DEFAULT '[]',
+	request_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('recorded', 'duplicate', 'error'))
+);
+
+CREATE TABLE IF NOT EXISTS tacacs_protocol_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	session_id INTEGER NOT NULL,
+	client_name TEXT,
+	client_ip TEXT,
+	event_type TEXT NOT NULL,
+	status TEXT NOT NULL,
+	summary TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (event_type IN ('connection', 'authentication', 'authorization', 'accounting', 'protocol_error')),
+	CHECK (status IN ('ok', 'denied', 'failed', 'error'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_tacacs_command_sets_enabled ON tacacs_command_sets(enabled, name);
+CREATE INDEX IF NOT EXISTS idx_tacacs_authorization_created ON tacacs_authorization_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_tacacs_authorization_decision ON tacacs_authorization_events(decision, created_at);
+CREATE INDEX IF NOT EXISTS idx_tacacs_authorization_client ON tacacs_authorization_events(client_ip, created_at);
+CREATE INDEX IF NOT EXISTS idx_tacacs_authorization_command ON tacacs_authorization_events(command_hash, created_at);
+CREATE INDEX IF NOT EXISTS idx_tacacs_accounting_created ON tacacs_accounting_records(created_at);
+CREATE INDEX IF NOT EXISTS idx_tacacs_accounting_session ON tacacs_accounting_records(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_tacacs_protocol_created ON tacacs_protocol_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_tacacs_protocol_status ON tacacs_protocol_events(status, created_at);
+`
+
+const schemaV38 = tacacsTablesSQL

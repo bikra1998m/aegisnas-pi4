@@ -18,6 +18,7 @@ import (
 	mfapkg "github.com/yourorg/aegisnas-pi4/internal/mfa"
 	"github.com/yourorg/aegisnas-pi4/internal/radius"
 	"github.com/yourorg/aegisnas-pi4/internal/supplicantprofile"
+	"github.com/yourorg/aegisnas-pi4/internal/tacacs"
 	webauthnpkg "github.com/yourorg/aegisnas-pi4/internal/webauthn"
 )
 
@@ -168,6 +169,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	policySets, _ := buildPolicySetGovernanceReport(cfg, 5)
 	policyAnalyses, _ := db.SummarizePolicySimulationAnalyses()
 	subscriberServiceChains, _ := buildSubscriberServiceChainsReport(cfg, 5)
+	tacacsReport := tacacs.BuildReport(cfg, 5)
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":           cfg.Radius.Upstream.Enabled,
@@ -191,6 +193,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"policy_sets":                policySets,
 		"policy_simulation_analyses": policyAnalyses,
 		"subscriber_service_chains":  subscriberServiceChains,
+		"tacacs":                     tacacsReport,
 		"enabled_radius_clients":     enabledRadiusClients,
 		"broker_auth":                runtimeMap["radius_broker_auth"],
 		"broker_accounting":          runtimeMap["radius_broker_accounting"],

@@ -216,6 +216,15 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return method == http.MethodPost && identity.Role == adminRoleSuperAdmin
 	case strings.HasPrefix(path, "/api/v1/system/subscriber-service-chains"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/tacacs/evaluate"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/tacacs/command-sets"):
+		if readonly {
+			return true
+		}
+		return (method == http.MethodPost || method == http.MethodPut) && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/tacacs"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/policy-engine/evaluate"):
 		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
 	case strings.HasPrefix(path, "/api/v1/system/policy-engine/validate"):

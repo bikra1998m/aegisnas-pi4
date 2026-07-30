@@ -28,6 +28,7 @@ type Config struct {
 	Logging          LoggingConfig          `mapstructure:"logging"`
 	Health           HealthConfig           `mapstructure:"health"`
 	Radius           RadiusConfig           `mapstructure:"radius"`
+	TACACS           TACACSConfig           `mapstructure:"tacacs"`
 	Portal           PortalConfig           `mapstructure:"portal"`
 	Identity         IdentityConfig         `mapstructure:"identity"`
 	ActiveDirectory  ActiveDirectoryConfig  `mapstructure:"active_directory"`
@@ -266,6 +267,62 @@ type RadiusClient struct {
 	RadSecCertificateCN     string `mapstructure:"radsec_certificate_cn"`
 	RadSecCertificateIssuer string `mapstructure:"radsec_certificate_issuer"`
 	RadSecRadiusV11         string `mapstructure:"radsec_radius_v11"`
+}
+
+type TACACSConfig struct {
+	Enabled              bool                     `mapstructure:"enabled"`
+	ListenAddress        string                   `mapstructure:"listen_address"`
+	Port                 int                      `mapstructure:"port"`
+	Mode                 string                   `mapstructure:"mode"`
+	FailClosed           bool                     `mapstructure:"fail_closed"`
+	Secret               string                   `mapstructure:"secret"`
+	SecretRef            string                   `mapstructure:"secret_ref"`
+	MaxPacketBytes       int                      `mapstructure:"max_packet_bytes"`
+	MaxArgs              int                      `mapstructure:"max_args"`
+	MaxCommandBytes      int                      `mapstructure:"max_command_bytes"`
+	MaxConnections       int                      `mapstructure:"max_connections"`
+	IdleTimeoutSeconds   int                      `mapstructure:"idle_timeout_seconds"`
+	ReadTimeoutSeconds   int                      `mapstructure:"read_timeout_seconds"`
+	AuditEnabled         bool                     `mapstructure:"audit_enabled"`
+	RetentionLimit       int                      `mapstructure:"retention_limit"`
+	RequireKnownClient   bool                     `mapstructure:"require_known_client"`
+	AllowUnencrypted     bool                     `mapstructure:"allow_unencrypted"`
+	AuthenticationSource string                   `mapstructure:"authentication_source"`
+	Clients              []TACACSClientConfig     `mapstructure:"clients"`
+	CommandSets          []TACACSCommandSetConfig `mapstructure:"command_sets"`
+	VendorProfiles       []TACACSVendorProfile    `mapstructure:"vendor_profiles"`
+}
+
+type TACACSClientConfig struct {
+	Name      string `mapstructure:"name"`
+	Address   string `mapstructure:"address"`
+	Secret    string `mapstructure:"secret"`
+	SecretRef string `mapstructure:"secret_ref"`
+	Vendor    string `mapstructure:"vendor"`
+	Model     string `mapstructure:"model"`
+	Tenant    string `mapstructure:"tenant"`
+	Enabled   bool   `mapstructure:"enabled"`
+}
+
+type TACACSCommandSetConfig struct {
+	Name            string   `mapstructure:"name"`
+	Description     string   `mapstructure:"description"`
+	Enabled         bool     `mapstructure:"enabled"`
+	DefaultAction   string   `mapstructure:"default_action"`
+	Permit          []string `mapstructure:"permit"`
+	Deny            []string `mapstructure:"deny"`
+	Roles           []string `mapstructure:"roles"`
+	PrivilegeLevels []int    `mapstructure:"privilege_levels"`
+	Vendors         []string `mapstructure:"vendors"`
+	Tenants         []string `mapstructure:"tenants"`
+}
+
+type TACACSVendorProfile struct {
+	Vendor          string   `mapstructure:"vendor"`
+	PrivilegeModel  string   `mapstructure:"privilege_model"`
+	CommandServices []string `mapstructure:"command_services"`
+	Enabled         bool     `mapstructure:"enabled"`
+	Description     string   `mapstructure:"description"`
 }
 
 // RadiusRadSecConfig controls the inbound RFC 6614 listener. Client
@@ -1745,6 +1802,35 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.eap.sim_aka.require_kdf", true)
 	v.SetDefault("radius.eap.sim_aka.fail_on_provider_unavailable", true)
 	v.SetDefault("radius.eap.sim_aka.event_retention_limit", 6000)
+	v.SetDefault("tacacs.enabled", false)
+	v.SetDefault("tacacs.listen_address", "0.0.0.0")
+	v.SetDefault("tacacs.port", 49)
+	v.SetDefault("tacacs.mode", "monitor")
+	v.SetDefault("tacacs.fail_closed", true)
+	v.SetDefault("tacacs.secret", "")
+	v.SetDefault("tacacs.secret_ref", "")
+	v.SetDefault("tacacs.max_packet_bytes", 65535)
+	v.SetDefault("tacacs.max_args", 64)
+	v.SetDefault("tacacs.max_command_bytes", 512)
+	v.SetDefault("tacacs.max_connections", 256)
+	v.SetDefault("tacacs.idle_timeout_seconds", 300)
+	v.SetDefault("tacacs.read_timeout_seconds", 15)
+	v.SetDefault("tacacs.audit_enabled", true)
+	v.SetDefault("tacacs.retention_limit", 10000)
+	v.SetDefault("tacacs.require_known_client", true)
+	v.SetDefault("tacacs.allow_unencrypted", false)
+	v.SetDefault("tacacs.authentication_source", "local")
+	v.SetDefault("tacacs.clients", []map[string]any{})
+	v.SetDefault("tacacs.command_sets", []map[string]any{})
+	v.SetDefault("tacacs.vendor_profiles", []map[string]any{
+		{"vendor": "cisco", "privilege_model": "ios", "command_services": []string{"shell"}, "enabled": true, "description": "Cisco IOS/NX-OS shell command authorization"},
+		{"vendor": "juniper", "privilege_model": "junos", "command_services": []string{"shell"}, "enabled": true, "description": "Juniper Junos shell command authorization"},
+		{"vendor": "hpe", "privilege_model": "procurve", "command_services": []string{"shell"}, "enabled": true, "description": "HPE/ArubaOS-Switch command authorization"},
+		{"vendor": "dell", "privilege_model": "dellos", "command_services": []string{"shell"}, "enabled": true, "description": "Dell/Force10 command authorization"},
+		{"vendor": "brocade", "privilege_model": "fastiron", "command_services": []string{"shell"}, "enabled": true, "description": "Brocade/Foundry command authorization"},
+		{"vendor": "extreme", "privilege_model": "exos", "command_services": []string{"shell"}, "enabled": true, "description": "Extreme Networks command authorization"},
+		{"vendor": "arista", "privilege_model": "eos", "command_services": []string{"shell"}, "enabled": true, "description": "Arista EOS command authorization"},
+	})
 	v.SetDefault("radius.eap.framework.enabled", true)
 	v.SetDefault("radius.eap.framework.mode", "monitor")
 	v.SetDefault("radius.eap.framework.fail_closed", true)
@@ -4417,6 +4503,9 @@ func (c *Config) Validate() error {
 	if err := validatePolicyEngineConfig(c.Policy); err != nil {
 		return err
 	}
+	if err := validateTACACSConfig(c.TACACS); err != nil {
+		return err
+	}
 
 	if c.Wireless.Enabled {
 		if EffectiveDeploymentForm(c.Deployment.Form) == "virtual" && !c.Deployment.Hardware.WirelessPassthrough {
@@ -5185,6 +5274,9 @@ func validateConfiguredSecretReferences(c *Config) error {
 	if err := validateSecretPair("radius.secret", c.Radius.Secret, "radius.secret_ref", c.Radius.SecretRef); err != nil {
 		return err
 	}
+	if err := validateSecretPair("tacacs.secret", c.TACACS.Secret, "tacacs.secret_ref", c.TACACS.SecretRef); err != nil {
+		return err
+	}
 	if ref := strings.TrimSpace(EffectiveMFAConfig(c.MFA).OTP.SealingKeyRef); ref != "" {
 		if err := validateSecretRefField("mfa.otp.sealing_key_ref", ref); err != nil {
 			return err
@@ -5197,6 +5289,11 @@ func validateConfiguredSecretReferences(c *Config) error {
 	}
 	for i, client := range c.Radius.Clients {
 		if err := validateSecretPair(fmt.Sprintf("radius.clients[%d].secret", i), client.Secret, fmt.Sprintf("radius.clients[%d].secret_ref", i), client.SecretRef); err != nil {
+			return err
+		}
+	}
+	for i, client := range c.TACACS.Clients {
+		if err := validateSecretPair(fmt.Sprintf("tacacs.clients[%d].secret", i), client.Secret, fmt.Sprintf("tacacs.clients[%d].secret_ref", i), client.SecretRef); err != nil {
 			return err
 		}
 	}
@@ -5485,6 +5582,147 @@ func validatePolicyEngineConfig(policy PolicyConfig) error {
 		if policy.RequireTypedRules && policy.AllowLegacyConditions {
 			return errors.New("policy.require_typed_rules cannot be combined with policy.allow_legacy_conditions")
 		}
+	}
+	return nil
+}
+
+func validateTACACSConfig(tac TACACSConfig) error {
+	mode := strings.ToLower(strings.TrimSpace(tac.Mode))
+	if mode == "" {
+		mode = "monitor"
+	}
+	if mode != "monitor" && mode != "enforce" {
+		return fmt.Errorf("tacacs.mode %q must be monitor or enforce", tac.Mode)
+	}
+	source := strings.ToLower(strings.TrimSpace(tac.AuthenticationSource))
+	if source == "" {
+		source = "local"
+	}
+	switch source {
+	case "local", "disabled":
+	default:
+		return fmt.Errorf("tacacs.authentication_source %q must be local or disabled", tac.AuthenticationSource)
+	}
+	if tac.Port != 0 && (tac.Port < 1 || tac.Port > 65535) {
+		return fmt.Errorf("tacacs.port %d out of range", tac.Port)
+	}
+	if tac.MaxPacketBytes < 0 || tac.MaxPacketBytes > 65535 {
+		return fmt.Errorf("tacacs.max_packet_bytes must be between 1 and 65535 when set")
+	}
+	if tac.MaxArgs < 0 || tac.MaxArgs > 255 {
+		return fmt.Errorf("tacacs.max_args must be between 1 and 255 when set")
+	}
+	if tac.MaxCommandBytes < 0 || tac.MaxCommandBytes > 4096 {
+		return fmt.Errorf("tacacs.max_command_bytes must be between 1 and 4096 when set")
+	}
+	if tac.MaxConnections < 0 || tac.MaxConnections > 100000 {
+		return fmt.Errorf("tacacs.max_connections must be between 1 and 100000 when set")
+	}
+	if tac.IdleTimeoutSeconds < 0 || tac.IdleTimeoutSeconds > 86400 {
+		return fmt.Errorf("tacacs.idle_timeout_seconds must be between 1 and 86400 when set")
+	}
+	if tac.ReadTimeoutSeconds < 0 || tac.ReadTimeoutSeconds > 3600 {
+		return fmt.Errorf("tacacs.read_timeout_seconds must be between 1 and 3600 when set")
+	}
+	if tac.RetentionLimit < 0 || tac.RetentionLimit > 1000000 {
+		return fmt.Errorf("tacacs.retention_limit must be between 100 and 1000000 when set")
+	}
+	if tac.Enabled {
+		if strings.TrimSpace(tac.Secret) == "" && strings.TrimSpace(tac.SecretRef) == "" && len(tac.Clients) == 0 {
+			return errors.New("tacacs.enabled requires tacacs.secret_ref, tacacs.secret, or at least one client secret")
+		}
+		if tac.RequireKnownClient && len(tac.Clients) == 0 {
+			return errors.New("tacacs.require_known_client requires at least one tacacs.client")
+		}
+		if tac.MaxPacketBytes == 0 || tac.MaxArgs == 0 || tac.MaxCommandBytes == 0 ||
+			tac.MaxConnections == 0 || tac.IdleTimeoutSeconds == 0 || tac.ReadTimeoutSeconds == 0 {
+			return errors.New("tacacs.enabled requires positive packet, argument, command, connection, and timeout limits")
+		}
+		if tac.AuditEnabled && tac.RetentionLimit > 0 && tac.RetentionLimit < 100 {
+			return fmt.Errorf("tacacs.retention_limit must be between 100 and 1000000")
+		}
+	}
+	seenClients := map[string]bool{}
+	for i, client := range tac.Clients {
+		name := strings.TrimSpace(client.Name)
+		address := strings.TrimSpace(client.Address)
+		if name == "" {
+			return fmt.Errorf("tacacs.clients[%d].name cannot be empty", i)
+		}
+		if address == "" {
+			return fmt.Errorf("tacacs.clients[%d].address cannot be empty", i)
+		}
+		if net.ParseIP(address) == nil {
+			if _, _, err := net.ParseCIDR(address); err != nil {
+				return fmt.Errorf("tacacs.clients[%d].address %q must be an IP address or CIDR", i, address)
+			}
+		}
+		key := strings.ToLower(name)
+		if seenClients[key] {
+			return fmt.Errorf("tacacs.clients[%d].name %q duplicates an earlier client", i, name)
+		}
+		seenClients[key] = true
+		if client.Enabled && strings.TrimSpace(client.Secret) == "" && strings.TrimSpace(client.SecretRef) == "" &&
+			strings.TrimSpace(tac.Secret) == "" && strings.TrimSpace(tac.SecretRef) == "" {
+			return fmt.Errorf("tacacs.clients[%d] requires secret or secret_ref when no global TACACS+ secret is configured", i)
+		}
+	}
+	seenCommandSets := map[string]bool{}
+	for i, set := range tac.CommandSets {
+		name := strings.TrimSpace(set.Name)
+		if name == "" {
+			return fmt.Errorf("tacacs.command_sets[%d].name cannot be empty", i)
+		}
+		key := strings.ToLower(name)
+		if seenCommandSets[key] {
+			return fmt.Errorf("tacacs.command_sets[%d].name %q duplicates an earlier command set", i, name)
+		}
+		seenCommandSets[key] = true
+		defaultAction := strings.ToLower(strings.TrimSpace(set.DefaultAction))
+		if defaultAction == "" {
+			defaultAction = "deny"
+		}
+		if defaultAction != "permit" && defaultAction != "deny" {
+			return fmt.Errorf("tacacs.command_sets[%d].default_action %q must be permit or deny", i, set.DefaultAction)
+		}
+		for j, level := range set.PrivilegeLevels {
+			if level < 0 || level > 15 {
+				return fmt.Errorf("tacacs.command_sets[%d].privilege_levels[%d] must be between 0 and 15", i, j)
+			}
+		}
+		for j, pattern := range append(append([]string{}, set.Permit...), set.Deny...) {
+			if err := validateTACACSCommandPattern(pattern); err != nil {
+				return fmt.Errorf("tacacs.command_sets[%d] pattern[%d]: %w", i, j, err)
+			}
+		}
+	}
+	seenProfiles := map[string]bool{}
+	for i, profile := range tac.VendorProfiles {
+		vendor := strings.ToLower(strings.TrimSpace(profile.Vendor))
+		if vendor == "" {
+			return fmt.Errorf("tacacs.vendor_profiles[%d].vendor cannot be empty", i)
+		}
+		if seenProfiles[vendor] {
+			return fmt.Errorf("tacacs.vendor_profiles[%d].vendor %q duplicates an earlier profile", i, profile.Vendor)
+		}
+		seenProfiles[vendor] = true
+		if strings.TrimSpace(profile.PrivilegeModel) == "" {
+			return fmt.Errorf("tacacs.vendor_profiles[%d].privilege_model cannot be empty", i)
+		}
+	}
+	return nil
+}
+
+func validateTACACSCommandPattern(pattern string) error {
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" {
+		return errors.New("command pattern cannot be empty")
+	}
+	if len(pattern) > 512 {
+		return errors.New("command pattern is longer than 512 bytes")
+	}
+	if strings.ContainsAny(pattern, "\x00\r\n") {
+		return errors.New("command pattern contains a control character")
 	}
 	return nil
 }

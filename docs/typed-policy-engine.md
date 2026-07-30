@@ -92,6 +92,9 @@ Schema v37 adds `policy_rules.service_chain_json`, service-chain delta
 tracking in policy simulation analyses, and subscriber service-chain evidence
 tables.
 
+Schema v38 adds TACACS+ command authorization and device-admin accounting
+evidence tables.
+
 Stored evidence includes evaluation ID, policy-set hash, request hash, redacted username/calling-station hashes, decision, matched rules, conflict list, explain trace, request summary, replay-safe request facts, rule counts, and latency.
 
 Policy decisions can include `service_chain`, an ordered list of service
@@ -109,10 +112,13 @@ Operators should check:
 - `/api/v1/system/policy-sets/versions/{id}/analyze` before activation
 - `/api/v1/system/policy-sets/analyses` for retained blast-radius evidence
 - `/api/v1/system/subscriber-service-chains` for service activation, rollback, and accounting evidence
+- `/api/v1/system/tacacs` for TACACS+ command authorization, privilege, and accounting evidence
 - production readiness key `typed_policy_engine`
 - production readiness key `subscriber_service_chains`
+- production readiness key `tacacs_command_authorization`
 - support bundle capture `api/policy-engine.json`
 - support bundle capture `api/subscriber-service-chains.json`
+- support bundle capture `api/tacacs.json`
 - Dashboard "Typed Policy Engine"
 - Policies page `Typed`, `Legacy`, and `Valid` columns
 
