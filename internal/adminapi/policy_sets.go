@@ -569,7 +569,7 @@ func summarizePolicySetForStorage(set policy.PolicySet, cfg *config.Config) (pol
 
 func loadPolicyRulesForVersion() ([]policy.Rule, error) {
 	rows, err := db.DB.Query(`SELECT id, name, COALESCE(description, ''), priority, enabled, match_conditions, action,
-		vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine
+		vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine, COALESCE(service_chain_json, '[]')
 		FROM policy_rules ORDER BY priority DESC, name`)
 	if err != nil {
 		return nil, err
@@ -594,12 +594,12 @@ func replacePolicyRulesTx(tx *sql.Tx, rules []policy.Rule) error {
 		match := string(policy.NormalizeRule(rule).MatchConditions)
 		if _, err := tx.Exec(`INSERT INTO policy_rules (
 			name, description, priority, enabled, match_conditions, action, vlan, bandwidth_profile,
-			session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine, service_chain_json
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			rule.Name, rule.Description, rule.Priority, rule.Enabled, match, rule.Action,
 			intPtrOrNull(rule.VLAN), stringPtrOrNull(rule.BandwidthProfile), intPtrOrNull(rule.SessionTimeout),
 			intPtrOrNull(rule.IdleTimeout), stringPtrOrNull(rule.PortalProfile), stringPtrOrNull(rule.ACLPolicyName),
-			rule.Quarantine); err != nil {
+			rule.Quarantine, serviceChainJSON(rule.ServiceChain)); err != nil {
 			return err
 		}
 	}
@@ -718,6 +718,7 @@ func recordPolicySimulationAnalysis(version db.PolicySetVersion, active *db.Poli
 		"recommendation":         analysis.Recommendation,
 		"sample_count":           analysis.SampleCount,
 		"decision_change_count":  analysis.DecisionChangeCount,
+		"service_chain_changes":  analysis.ServiceChainChangeCount,
 		"shadowed_rule_count":    len(analysis.ShadowedRules),
 		"ineffective_rule_count": len(analysis.IneffectiveRules),
 	})
@@ -742,6 +743,7 @@ func recordPolicySimulationAnalysis(version db.PolicySetVersion, active *db.Poli
 		ACLPolicyChangeCount:        analysis.ACLPolicyChangeCount,
 		PortalProfileChangeCount:    analysis.PortalProfileChangeCount,
 		SessionTimeoutChangeCount:   analysis.SessionTimeoutChangeCount,
+		ServiceChainChangeCount:     analysis.ServiceChainChangeCount,
 		ConflictCount:               analysis.ConflictCount,
 		InvalidRuleCount:            analysis.InvalidRuleCount,
 		ShadowedRuleCount:           len(analysis.ShadowedRules),
@@ -879,9 +881,9 @@ func scanPolicyRule(rows interface {
 	var rule policy.Rule
 	var vlan, sessionTimeout, idleTimeout sql.NullInt64
 	var bandwidthProfile, portalProfile, aclPolicyName sql.NullString
-	var matchConditions string
+	var matchConditions, serviceChainRaw string
 	if err := rows.Scan(&rule.ID, &rule.Name, &rule.Description, &rule.Priority, &rule.Enabled, &matchConditions, &rule.Action,
-		&vlan, &bandwidthProfile, &sessionTimeout, &idleTimeout, &portalProfile, &aclPolicyName, &rule.Quarantine); err != nil {
+		&vlan, &bandwidthProfile, &sessionTimeout, &idleTimeout, &portalProfile, &aclPolicyName, &rule.Quarantine, &serviceChainRaw); err != nil {
 		return policy.Rule{}, err
 	}
 	rule.MatchConditions = json.RawMessage(matchConditions)
@@ -909,7 +911,24 @@ func scanPolicyRule(rows interface {
 		value := aclPolicyName.String
 		rule.ACLPolicyName = &value
 	}
+	if strings.TrimSpace(serviceChainRaw) != "" {
+		if err := json.Unmarshal([]byte(serviceChainRaw), &rule.ServiceChain); err != nil {
+			return policy.Rule{}, fmt.Errorf("decode service_chain for policy rule %q: %w", rule.Name, err)
+		}
+	}
 	return policy.NormalizeRule(rule), nil
+}
+
+func serviceChainJSON(chain []policy.ServiceIntent) string {
+	chain = policy.NormalizeServiceChain(chain)
+	if len(chain) == 0 {
+		return "[]"
+	}
+	data, err := json.Marshal(chain)
+	if err != nil {
+		return "[]"
+	}
+	return string(data)
 }
 
 func policySetVersionFromRequest(r *http.Request) (*db.PolicySetVersion, error) {

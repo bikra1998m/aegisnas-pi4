@@ -160,7 +160,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{33, schemaV33},
 		{34, schemaV34},
 		{35, schemaV35},
-		{LatestSchemaVersion(), schemaV36},
+		{36, schemaV36},
+		{LatestSchemaVersion(), schemaV37},
 	}
 
 	for _, m := range migrations {
@@ -238,6 +239,9 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensurePolicySimulationAnalysisTables(handle); err != nil {
 		return fmt.Errorf("repair policy simulation analysis schema: %w", err)
 	}
+	if err := ensureSubscriberServiceChainTables(handle); err != nil {
+		return fmt.Errorf("repair subscriber service chain schema: %w", err)
+	}
 
 	return nil
 }
@@ -261,6 +265,41 @@ func ensurePolicySimulationAnalysisTables(handle *sql.DB) error {
 		}
 	}
 	_, err := handle.Exec(SQLForDialect(policySimulationAnalysisTablesSQL, dialect))
+	return err
+}
+
+func ensureSubscriberServiceChainTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	if exists, err := tableExists(handle, "policy_rules"); err != nil {
+		return err
+	} else if exists {
+		hasColumn, err := tableHasColumn(handle, "policy_rules", "service_chain_json")
+		if err != nil {
+			return err
+		}
+		if !hasColumn {
+			if _, err := handle.Exec(SQLForDialect(`ALTER TABLE policy_rules ADD COLUMN service_chain_json TEXT NOT NULL DEFAULT '[]'`, dialect)); err != nil {
+				return err
+			}
+		}
+	}
+	if exists, err := tableExists(handle, "policy_simulation_analyses"); err != nil {
+		return err
+	} else if exists {
+		hasColumn, err := tableHasColumn(handle, "policy_simulation_analyses", "service_chain_change_count")
+		if err != nil {
+			return err
+		}
+		if !hasColumn {
+			if _, err := handle.Exec(SQLForDialect(`ALTER TABLE policy_simulation_analyses ADD COLUMN service_chain_change_count INTEGER DEFAULT 0`, dialect)); err != nil {
+				return err
+			}
+		}
+	}
+	_, err := handle.Exec(SQLForDialect(subscriberServiceChainTablesSQL, dialect))
 	return err
 }
 

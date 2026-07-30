@@ -60,6 +60,7 @@ policy:
   max_expression_nodes: 128
   max_list_values: 128
   evaluation_retention_limit: 10000
+  max_service_chain_length: 16
 ```
 
 Production migration path:
@@ -87,8 +88,17 @@ The standalone policy service also exposes:
 Schema v34 adds `policy_engine_evaluations`. Schema v36 adds
 `request_replay_json` to retained evaluations so candidate policy versions can
 be replayed without storing usernames or supplicant MAC addresses.
+Schema v37 adds `policy_rules.service_chain_json`, service-chain delta
+tracking in policy simulation analyses, and subscriber service-chain evidence
+tables.
 
 Stored evidence includes evaluation ID, policy-set hash, request hash, redacted username/calling-station hashes, decision, matched rules, conflict list, explain trace, request summary, replay-safe request facts, rule counts, and latency.
+
+Policy decisions can include `service_chain`, an ordered list of service
+intents with dependencies and optional service-level attributes. Use this for
+BNG, broadband, WLAN, and controller workflows that need several authorized
+services on one subscriber session. See
+[subscriber-service-chains.md](subscriber-service-chains.md).
 
 ## Operations
 
@@ -98,8 +108,11 @@ Operators should check:
 - `/api/v1/system/policy-sets` for immutable versions, approvals, activation, simulation, and rollback evidence
 - `/api/v1/system/policy-sets/versions/{id}/analyze` before activation
 - `/api/v1/system/policy-sets/analyses` for retained blast-radius evidence
+- `/api/v1/system/subscriber-service-chains` for service activation, rollback, and accounting evidence
 - production readiness key `typed_policy_engine`
+- production readiness key `subscriber_service_chains`
 - support bundle capture `api/policy-engine.json`
+- support bundle capture `api/subscriber-service-chains.json`
 - Dashboard "Typed Policy Engine"
 - Policies page `Typed`, `Legacy`, and `Valid` columns
 

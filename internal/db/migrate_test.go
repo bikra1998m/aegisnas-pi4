@@ -26,7 +26,7 @@ func TestMigrate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, LatestSchemaVersion(), version)
 
-	tables := []string{"local_users", "roles", "bandwidth_profiles", "sessions", "runtime_status", "guest_registrations", "device_inventory", "device_certificates", "admin_principals", "admin_sessions", "network_apply_history", "dhcp_lease_history", "ha_history", "integration_history", "upstream_aaa_history", "vendor_observability", "acl_policies", "vendor_identity_assignments", "vendor_identity_migrations", "database_backend_events", "radius_packet_hardening_events", "radius_accounting_spool", "radius_accounting_spool_attempts", "nas_client_enrollments", "nas_client_capability_templates", "nas_client_events", "radius_fallback_events", "identity_source_events", "identity_source_cache", "mfa_totp_secrets", "mfa_recovery_codes", "mfa_challenges", "mfa_events", "active_directory_events", "active_directory_group_cache", "active_directory_health_checks", "mab_endpoints", "mab_events", "admin_webauthn_credentials", "admin_webauthn_challenges", "admin_webauthn_events", "eap_method_events", "eap_teap_chain_events", "eap_fast_pwd_events", "eap_sim_aka_events", "eap_machine_user_correlations", "eap_machine_user_session_state", "certificate_lifecycle_events", "certificate_lifecycle_inventory", "supplicant_lifecycle_events", "supplicant_profile_deliveries", "policy_engine_evaluations", "policy_set_versions", "policy_set_approvals", "policy_set_activation_events", "policy_set_simulations", "policy_simulation_analyses"}
+	tables := []string{"local_users", "roles", "bandwidth_profiles", "sessions", "runtime_status", "guest_registrations", "device_inventory", "device_certificates", "admin_principals", "admin_sessions", "network_apply_history", "dhcp_lease_history", "ha_history", "integration_history", "upstream_aaa_history", "vendor_observability", "acl_policies", "vendor_identity_assignments", "vendor_identity_migrations", "database_backend_events", "radius_packet_hardening_events", "radius_accounting_spool", "radius_accounting_spool_attempts", "nas_client_enrollments", "nas_client_capability_templates", "nas_client_events", "radius_fallback_events", "identity_source_events", "identity_source_cache", "mfa_totp_secrets", "mfa_recovery_codes", "mfa_challenges", "mfa_events", "active_directory_events", "active_directory_group_cache", "active_directory_health_checks", "mab_endpoints", "mab_events", "admin_webauthn_credentials", "admin_webauthn_challenges", "admin_webauthn_events", "eap_method_events", "eap_teap_chain_events", "eap_fast_pwd_events", "eap_sim_aka_events", "eap_machine_user_correlations", "eap_machine_user_session_state", "certificate_lifecycle_events", "certificate_lifecycle_inventory", "supplicant_lifecycle_events", "supplicant_profile_deliveries", "policy_engine_evaluations", "policy_set_versions", "policy_set_approvals", "policy_set_activation_events", "policy_set_simulations", "policy_simulation_analyses", "subscriber_service_chains", "subscriber_service_events", "subscriber_service_accounting"}
 	for _, tbl := range tables {
 		var count int
 		err = DB.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", tbl).Scan(&count)
@@ -47,6 +47,14 @@ func TestMigrate(t *testing.T) {
 	err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('policy_engine_evaluations') WHERE name='request_replay_json'").Scan(&replayColumnCount)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, replayColumnCount)
+	var serviceChainColumnCount int
+	err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('policy_rules') WHERE name='service_chain_json'").Scan(&serviceChainColumnCount)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, serviceChainColumnCount)
+	var serviceChainChangeColumnCount int
+	err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('policy_simulation_analyses') WHERE name='service_chain_change_count'").Scan(&serviceChainChangeColumnCount)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, serviceChainChangeColumnCount)
 	for _, column := range []string{"transport", "radsec_certificate_cn", "radsec_certificate_issuer", "radsec_radius_v11", "secret_ref", "dynamic_source", "enrollment_id", "capabilities_json", "vendor", "model", "firmware_version", "serial_number", "lifecycle_status", "last_seen_at", "approved_at", "approved_by", "owner_tenant", "template_name"} {
 		var count int
 		err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('radius_clients') WHERE name=?", column).Scan(&count)

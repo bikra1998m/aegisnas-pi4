@@ -161,14 +161,16 @@ func PolicySetHash(rules []Rule) string {
 		PortalProfile   *string         `json:"portal_profile,omitempty"`
 		ACLPolicyName   *string         `json:"acl_policy_name,omitempty"`
 		Quarantine      bool            `json:"quarantine"`
+		ServiceChain    []ServiceIntent `json:"service_chain,omitempty"`
 	}
 	normalized := make([]normalizedRule, 0, len(rules))
 	for _, rule := range rules {
+		rule = NormalizeRule(rule)
 		normalized = append(normalized, normalizedRule{
 			Name: rule.Name, Priority: rule.Priority, Enabled: rule.Enabled, MatchConditions: canonicalJSON(rule.MatchConditions),
 			Action: strings.ToLower(strings.TrimSpace(rule.Action)), VLAN: rule.VLAN, Bandwidth: rule.BandwidthProfile,
 			SessionTimeout: rule.SessionTimeout, IdleTimeout: rule.IdleTimeout, PortalProfile: rule.PortalProfile,
-			ACLPolicyName: rule.ACLPolicyName, Quarantine: rule.Quarantine,
+			ACLPolicyName: rule.ACLPolicyName, Quarantine: rule.Quarantine, ServiceChain: rule.ServiceChain,
 		})
 	}
 	sort.Slice(normalized, func(i, j int) bool {
@@ -210,6 +212,14 @@ func ValidateRule(rule Rule) error {
 	case "allow", "deny", "quarantine":
 	default:
 		return fmt.Errorf("policy action %q must be allow, deny, or quarantine", rule.Action)
+	}
+	if len(rule.ServiceChain) > 0 {
+		if action == "deny" {
+			return fmt.Errorf("policy rule %q cannot activate service_chain with deny action", rule.Name)
+		}
+		if err := ValidateServiceChain(rule.ServiceChain); err != nil {
+			return err
+		}
 	}
 	_, _, err := CompileMatchConditions(rule.MatchConditions)
 	return err

@@ -138,6 +138,9 @@ func changedDecisionFields(active, candidate Decision) []string {
 	if stringPtrValue(active.Tenant) != stringPtrValue(candidate.Tenant) {
 		fields = append(fields, "tenant")
 	}
+	if ServiceChainHash(active.ServiceChain) != ServiceChainHash(candidate.ServiceChain) {
+		fields = append(fields, "service_chain")
+	}
 	return fields
 }
 
@@ -162,6 +165,8 @@ func incrementChangeCounters(analysis *PolicySimulationAnalysis, active, candida
 			analysis.PortalProfileChangeCount++
 		case "session_timeout", "idle_timeout":
 			analysis.SessionTimeoutChangeCount++
+		case "service_chain":
+			analysis.ServiceChainChangeCount++
 		}
 	}
 }
@@ -267,6 +272,7 @@ func decisionFingerprint(decision Decision) string {
 		ACLPolicyName    string   `json:"acl_policy_name,omitempty"`
 		DeviceGroup      string   `json:"device_group,omitempty"`
 		Tenant           string   `json:"tenant,omitempty"`
+		ServiceChainHash string   `json:"service_chain_hash,omitempty"`
 		Notes            []string `json:"notes,omitempty"`
 	}{
 		Allow:            decision.Allow,
@@ -282,6 +288,7 @@ func decisionFingerprint(decision Decision) string {
 		ACLPolicyName:    stringPtrValue(decision.ACLPolicyName),
 		DeviceGroup:      stringPtrValue(decision.DeviceGroup),
 		Tenant:           stringPtrValue(decision.Tenant),
+		ServiceChainHash: ServiceChainHash(decision.ServiceChain),
 		Notes:            append([]string(nil), decision.Notes...),
 	})
 	sum := sha256.Sum256(data)

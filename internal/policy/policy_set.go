@@ -95,6 +95,7 @@ func NormalizeRule(rule Rule) Rule {
 			rule.ACLPolicyName = &value
 		}
 	}
+	rule.ServiceChain = NormalizeServiceChain(rule.ServiceChain)
 	return rule
 }
 

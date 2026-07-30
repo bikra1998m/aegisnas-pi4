@@ -220,6 +220,49 @@ type NetworkObservabilityResponse = {
   recovery?: NetworkRecoveryState | null;
 };
 
+type SubscriberServiceChainSummary = {
+  total_chains: number;
+  active_chains: number;
+  failed_chains: number;
+  rolled_back_chains: number;
+  total_services: number;
+  activated_services: number;
+  failed_services: number;
+  rolled_back_services: number;
+  total_events: number;
+  failed_events: number;
+  started_accounting: number;
+  last_chain_id?: string;
+  last_status?: string;
+  last_updated_at?: string;
+};
+
+type SubscriberServiceChainRecord = {
+  chain_id: string;
+  session_id: string;
+  status: string;
+  service_count: number;
+  activated_count: number;
+  failed_count: number;
+  rolled_back_count: number;
+  activation_mode: string;
+  updated_at: string;
+};
+
+type SubscriberServiceChainsReport = {
+  schema_version: number;
+  status: string;
+  message: string;
+  config: {
+    typed_engine_enabled: boolean;
+    fail_closed: boolean;
+    audit_enabled: boolean;
+    max_service_chain_length: number;
+  };
+  summary: SubscriberServiceChainSummary;
+  recent_chains: SubscriberServiceChainRecord[];
+};
+
 const certificateLifecycleDefaults: JsonMap = {
   enabled: false,
   mode: "monitor",
@@ -345,6 +388,7 @@ const defaultSettings: JsonMap = {
   policy: {
     default_role: "",
     runtime_shaping_enabled: true,
+    max_service_chain_length: 16,
   },
   telemetry: {
     enabled: true,
@@ -1429,6 +1473,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.ailite.recommendation_limit = 25;
     next.telemetry.enabled = false;
     next.policy.runtime_shaping_enabled = false;
+    next.policy.max_service_chain_length = 8;
     next.radius.max_sessions = 256;
     next.radius.interim_update_seconds = 600;
     next.radius.eap.framework.enabled = true;
@@ -1487,6 +1532,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.ailite.recommendation_limit = 250;
     next.telemetry.enabled = true;
     next.policy.runtime_shaping_enabled = true;
+    next.policy.max_service_chain_length = 32;
     next.radius.max_sessions = 4096;
     next.radius.interim_update_seconds = 300;
     next.radius.eap.framework.enabled = true;
@@ -1541,6 +1587,8 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.governance.rbac_mode = next.governance.rbac_mode || "local";
   } else if (profile === "custom") {
     next.radius.max_sessions = next.radius.max_sessions || 1024;
+    next.policy.max_service_chain_length =
+      next.policy.max_service_chain_length || 16;
     next.ailite.mode = next.ailite.mode || "lite";
     next.ailite.provider = next.ailite.provider || "local";
     next.ailite.recommendation_limit = next.ailite.recommendation_limit || 100;
@@ -1551,6 +1599,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.ailite.recommendation_limit = 100;
     next.telemetry.enabled = true;
     next.policy.runtime_shaping_enabled = true;
+    next.policy.max_service_chain_length = 16;
     next.radius.max_sessions = 1024;
     next.radius.interim_update_seconds = 300;
     next.radius.eap.framework.enabled = true;
@@ -1759,6 +1808,8 @@ export default function AccessSettings() {
     useState<NetworkRecoveryState | null>(null);
   const [networkObservability, setNetworkObservability] =
     useState<NetworkObservabilityResponse | null>(null);
+  const [subscriberServiceChains, setSubscriberServiceChains] =
+    useState<SubscriberServiceChainsReport | null>(null);
   const [confirmingNetworkRecovery, setConfirmingNetworkRecovery] =
     useState(false);
   const [selectedRollbackId, setSelectedRollbackId] = useState("");
@@ -1897,6 +1948,21 @@ export default function AccessSettings() {
     }
   };
 
+  const loadSubscriberServiceChains = async () => {
+    try {
+      const { data } = await api.get("/system/subscriber-service-chains", {
+        params: { limit: 5 },
+      });
+      setSubscriberServiceChains(data || null);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load subscriber service-chain history.",
+      );
+    }
+  };
+
   const loadSettings = async () => {
     setLoading(true);
     setError("");
@@ -1912,6 +1978,7 @@ export default function AccessSettings() {
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
+      await loadSubscriberServiceChains();
     } catch (err: any) {
       setError(
         err.response?.data || err.message || "Could not load access settings.",
@@ -1988,6 +2055,7 @@ export default function AccessSettings() {
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
+      await loadSubscriberServiceChains();
     } catch (err: any) {
       setError(err.response?.data || err.message || "Could not save settings.");
     } finally {
@@ -2266,6 +2334,15 @@ export default function AccessSettings() {
           value: snapshot.id,
           label: `${snapshot.created_at} · ${snapshot.id}`,
         }));
+
+  const serviceChainSummary = subscriberServiceChains?.summary;
+  const serviceChainStatus = subscriberServiceChains?.status || "unknown";
+  const serviceChainTone =
+    serviceChainStatus === "passed"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : serviceChainStatus === "blocked"
+        ? "border-red-200 bg-red-50 text-red-800"
+        : "border-amber-200 bg-amber-50 text-amber-800";
 
   const riskyNetworkApply: NetworkApplyRisk | null =
     networkPreview?.risk || null;
@@ -2658,6 +2735,110 @@ export default function AccessSettings() {
               ))
             )}
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Subscriber Service Chains
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Per-session service activation, rollback evidence, and
+              service-level accounting for vendor-neutral authorization.
+            </p>
+          </div>
+          <button
+            onClick={loadSubscriberServiceChains}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
+          >
+            Refresh Chains
+          </button>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-4">
+          <TextField
+            label="Max Chain Length"
+            type="number"
+            value={settings.policy?.max_service_chain_length || 16}
+            onChange={(value) =>
+              updateField(["policy", "max_service_chain_length"], Number(value))
+            }
+          />
+          <div className="rounded-md border border-gray-200 px-4 py-3">
+            <div className="text-xs font-semibold uppercase text-gray-500">
+              Status
+            </div>
+            <div
+              className={`mt-2 inline-flex rounded-md border px-2 py-1 text-xs font-semibold uppercase ${serviceChainTone}`}
+            >
+              {serviceChainStatus}
+            </div>
+            <div className="mt-2 text-sm text-gray-600">
+              {subscriberServiceChains?.message ||
+                "Service-chain history has not loaded yet."}
+            </div>
+          </div>
+          <div className="rounded-md border border-gray-200 px-4 py-3">
+            <div className="text-xs font-semibold uppercase text-gray-500">
+              Chains
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-gray-900">
+              {serviceChainSummary?.total_chains || 0}
+            </div>
+            <div className="mt-1 text-sm text-gray-600">
+              {serviceChainSummary?.active_chains || 0} active,{" "}
+              {serviceChainSummary?.rolled_back_chains || 0} rolled back
+            </div>
+          </div>
+          <div className="rounded-md border border-gray-200 px-4 py-3">
+            <div className="text-xs font-semibold uppercase text-gray-500">
+              Services
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-gray-900">
+              {serviceChainSummary?.activated_services || 0}
+            </div>
+            <div className="mt-1 text-sm text-gray-600">
+              {serviceChainSummary?.failed_events || 0} failed event(s),{" "}
+              {serviceChainSummary?.started_accounting || 0} accounting rows
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="text-xs uppercase text-gray-500">
+              <tr>
+                <th className="px-3 py-2">Chain</th>
+                <th className="px-3 py-2">Session</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Services</th>
+                <th className="px-3 py-2">Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(subscriberServiceChains?.recent_chains || []).length === 0 ? (
+                <tr>
+                  <td className="px-3 py-3 text-gray-500" colSpan={5}>
+                    No subscriber service chains have been recorded.
+                  </td>
+                </tr>
+              ) : (
+                (subscriberServiceChains?.recent_chains || []).map((chain) => (
+                  <tr key={chain.chain_id} className="border-t border-gray-100">
+                    <td className="px-3 py-2 font-mono text-xs">
+                      {chain.chain_id}
+                    </td>
+                    <td className="px-3 py-2">{chain.session_id}</td>
+                    <td className="px-3 py-2">{chain.status}</td>
+                    <td className="px-3 py-2">
+                      {chain.activated_count}/{chain.service_count}
+                    </td>
+                    <td className="px-3 py-2">{chain.updated_at}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
 

@@ -947,6 +947,7 @@ type PolicyConfig struct {
 	VersionRetentionLimit    int    `mapstructure:"version_retention_limit"`
 	SimulationReplayLimit    int    `mapstructure:"simulation_replay_limit"`
 	SimulationRetentionLimit int    `mapstructure:"simulation_retention_limit"`
+	MaxServiceChainLength    int    `mapstructure:"max_service_chain_length"`
 }
 
 type TelemetryConfig struct {
@@ -5458,6 +5459,9 @@ func validatePolicyEngineConfig(policy PolicyConfig) error {
 	}
 	if policy.SimulationRetentionLimit < 0 || policy.SimulationRetentionLimit > 1000000 {
 		return fmt.Errorf("policy.simulation_retention_limit must be between 100 and 1000000 when set")
+	}
+	if policy.MaxServiceChainLength < 0 || policy.MaxServiceChainLength > 32 {
+		return fmt.Errorf("policy.max_service_chain_length must be between 1 and 32 when set")
 	}
 	if policy.TypedEngineEnabled {
 		if policy.MaxExpressionDepth == 0 || policy.MaxExpressionNodes == 0 || policy.MaxListValues == 0 {

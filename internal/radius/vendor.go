@@ -26,6 +26,8 @@ const (
 	AegisNASVendorAttrTenant           byte = 11
 	AegisNASVendorAttrACLName          byte = 12
 	AegisNASVendorAttrACLRule          byte = 13
+	AegisNASVendorAttrServiceChain     byte = 14
+	AegisNASVendorAttrServiceName      byte = 15
 )
 
 type inboundVendorValueKind string

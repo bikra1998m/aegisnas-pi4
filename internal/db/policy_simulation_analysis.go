@@ -23,6 +23,7 @@ type PolicySimulationAnalysisRecord struct {
 	ACLPolicyChangeCount        int    `json:"acl_policy_change_count"`
 	PortalProfileChangeCount    int    `json:"portal_profile_change_count"`
 	SessionTimeoutChangeCount   int    `json:"session_timeout_change_count"`
+	ServiceChainChangeCount     int    `json:"service_chain_change_count"`
 	ConflictCount               int    `json:"conflict_count"`
 	InvalidRuleCount            int    `json:"invalid_rule_count"`
 	ShadowedRuleCount           int    `json:"shadowed_rule_count"`
@@ -91,9 +92,9 @@ func RecordPolicySimulationAnalysis(record PolicySimulationAnalysisRecord, reten
 		analysis_id, version_id, active_version_id, active_policy_sha256, candidate_policy_sha256,
 		sample_source, sample_count, decision_change_count, allow_to_deny_count, deny_to_allow_count,
 		quarantine_change_count, vlan_change_count, bandwidth_profile_change_count, acl_policy_change_count,
-		portal_profile_change_count, session_timeout_change_count, conflict_count, invalid_rule_count,
+		portal_profile_change_count, session_timeout_change_count, service_chain_change_count, conflict_count, invalid_rule_count,
 		shadowed_rule_count, ineffective_rule_count, risk_level, actor, summary_json, result_json
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(analysis_id) DO UPDATE SET
 		version_id = excluded.version_id,
 		active_version_id = excluded.active_version_id,
@@ -110,6 +111,7 @@ func RecordPolicySimulationAnalysis(record PolicySimulationAnalysisRecord, reten
 		acl_policy_change_count = excluded.acl_policy_change_count,
 		portal_profile_change_count = excluded.portal_profile_change_count,
 		session_timeout_change_count = excluded.session_timeout_change_count,
+		service_chain_change_count = excluded.service_chain_change_count,
 		conflict_count = excluded.conflict_count,
 		invalid_rule_count = excluded.invalid_rule_count,
 		shadowed_rule_count = excluded.shadowed_rule_count,
@@ -121,7 +123,7 @@ func RecordPolicySimulationAnalysis(record PolicySimulationAnalysisRecord, reten
 		record.AnalysisID, record.VersionID, intOrNull(record.ActiveVersionID), record.ActivePolicySHA256, record.CandidatePolicySHA256,
 		record.SampleSource, nonNegative(record.SampleCount), nonNegative(record.DecisionChangeCount), nonNegative(record.AllowToDenyCount), nonNegative(record.DenyToAllowCount),
 		nonNegative(record.QuarantineChangeCount), nonNegative(record.VLANChangeCount), nonNegative(record.BandwidthProfileChangeCount), nonNegative(record.ACLPolicyChangeCount),
-		nonNegative(record.PortalProfileChangeCount), nonNegative(record.SessionTimeoutChangeCount), nonNegative(record.ConflictCount), nonNegative(record.InvalidRuleCount),
+		nonNegative(record.PortalProfileChangeCount), nonNegative(record.SessionTimeoutChangeCount), nonNegative(record.ServiceChainChangeCount), nonNegative(record.ConflictCount), nonNegative(record.InvalidRuleCount),
 		nonNegative(record.ShadowedRuleCount), nonNegative(record.IneffectiveRuleCount), record.RiskLevel, nullIfEmpty(record.Actor), record.SummaryJSON, record.ResultJSON)
 	if err != nil {
 		return err
@@ -140,7 +142,7 @@ func ListPolicySimulationAnalyses(limit int) ([]PolicySimulationAnalysisRecord, 
 		active_policy_sha256, candidate_policy_sha256, sample_source, sample_count, decision_change_count,
 		allow_to_deny_count, deny_to_allow_count, quarantine_change_count, vlan_change_count,
 		bandwidth_profile_change_count, acl_policy_change_count, portal_profile_change_count,
-		session_timeout_change_count, conflict_count, invalid_rule_count, shadowed_rule_count,
+		session_timeout_change_count, COALESCE(service_chain_change_count, 0), conflict_count, invalid_rule_count, shadowed_rule_count,
 		ineffective_rule_count, risk_level, COALESCE(actor, ''), summary_json, result_json, created_at
 		FROM policy_simulation_analyses ORDER BY created_at DESC, id DESC LIMIT ?`, limit)
 	if err != nil {
@@ -247,7 +249,7 @@ func scanPolicySimulationAnalysis(rows interface {
 		&item.ActivePolicySHA256, &item.CandidatePolicySHA256, &item.SampleSource, &item.SampleCount,
 		&item.DecisionChangeCount, &item.AllowToDenyCount, &item.DenyToAllowCount, &item.QuarantineChangeCount,
 		&item.VLANChangeCount, &item.BandwidthProfileChangeCount, &item.ACLPolicyChangeCount, &item.PortalProfileChangeCount,
-		&item.SessionTimeoutChangeCount, &item.ConflictCount, &item.InvalidRuleCount, &item.ShadowedRuleCount,
+		&item.SessionTimeoutChangeCount, &item.ServiceChainChangeCount, &item.ConflictCount, &item.InvalidRuleCount, &item.ShadowedRuleCount,
 		&item.IneffectiveRuleCount, &item.RiskLevel, &item.Actor, &item.SummaryJSON, &item.ResultJSON, &item.CreatedAt)
 	return item, err
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/identity"
 	mabpkg "github.com/yourorg/aegisnas-pi4/internal/mab"
 	mfapkg "github.com/yourorg/aegisnas-pi4/internal/mfa"
+	"github.com/yourorg/aegisnas-pi4/internal/policy"
 	"github.com/yourorg/aegisnas-pi4/internal/radius"
 	"github.com/yourorg/aegisnas-pi4/internal/secrets"
 	"github.com/yourorg/aegisnas-pi4/internal/supplicantprofile"
@@ -133,6 +134,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionPolicyEngineCheck(&report, cfg)
 	addProductionPolicySetGovernanceCheck(&report, cfg)
 	addProductionPolicySimulationAnalysisCheck(&report, cfg)
+	addProductionSubscriberServiceChainsCheck(&report, cfg)
 	addProductionCertificateLifecycleCheck(&report, cfg)
 	addProductionSupplicantLifecycleCheck(&report, cfg)
 	addProductionMABCheck(&report, cfg)
@@ -863,6 +865,39 @@ func addProductionPolicySimulationAnalysisCheck(report *productionReadinessRepor
 		Summary:        message,
 		Recommendation: "Run /api/v1/system/policy-sets/versions/{id}/analyze against retained and manual samples before activation, review high-risk deltas, and complete the NAS-0031 release certification checklist before production claims.",
 		Dependencies:   []string{"policy_simulation_analyses", "policy_engine_evaluations.request_replay_json", "/api/v1/system/policy-sets/versions/{id}/analyze", "/api/v1/system/policy-sets/analyses"},
+	})
+}
+
+func addProductionSubscriberServiceChainsCheck(report *productionReadinessReport, cfg *config.Config) {
+	chainReport, err := buildSubscriberServiceChainsReport(cfg, 0)
+	status := "passed"
+	message := "Per-service authorization and subscriber chain evidence is ready."
+	if err != nil {
+		status = "blocked"
+		message = fmt.Sprintf("Subscriber service chain report failed: %v", err)
+	} else {
+		switch chainReport.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		}
+		if cfg.Policy.MaxServiceChainLength < 0 || cfg.Policy.MaxServiceChainLength > policy.MaxServiceChainLength {
+			status = "blocked"
+		}
+		message = fmt.Sprintf("Subscriber service-chain schema %d is %s with max length %d, %d active chain(s), %d rolled back chain(s), %d failed event(s), and %d started accounting record(s).",
+			chainReport.SchemaVersion, chainReport.Status, chainReport.Config.MaxServiceChainLength,
+			chainReport.Summary.ActiveChains, chainReport.Summary.RolledBackChains,
+			chainReport.Summary.FailedEvents, chainReport.Summary.StartedAccounting)
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "subscriber_service_chains",
+		Category:       "policy",
+		Label:          "Per-Service Authorization And Subscriber Chains",
+		Status:         status,
+		Summary:        message,
+		Recommendation: "Model chained services in policy service_chain intents, preview before activation, preserve rollback/accounting evidence, and complete the NAS-0032 release certification checklist for real BRAS, BNG, WLAN, and controller smoke tests.",
+		Dependencies:   []string{"policy.max_service_chain_length", "policy_rules.service_chain_json", "subscriber_service_chains", "subscriber_service_events", "subscriber_service_accounting", "/api/v1/system/subscriber-service-chains"},
 	})
 }
 

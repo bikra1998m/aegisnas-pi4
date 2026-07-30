@@ -290,6 +290,25 @@ Persisted analysis evidence is available in production readiness as
 [versioned-policy-sets.md](versioned-policy-sets.md) and
 [policy-simulation-analysis.md](policy-simulation-analysis.md).
 
+Per-service authorization and subscriber chain evidence is exposed at:
+
+```text
+/api/v1/system/subscriber-service-chains
+POST /api/v1/system/subscriber-service-chains/preview
+POST /api/v1/system/subscriber-service-chains/activate
+POST /api/v1/system/subscriber-service-chains/{chainID}/rollback
+```
+
+Use these endpoints to preview ordered service intents from the active policy
+engine, activate service-chain evidence for a subscriber session, retain
+service-level accounting start records, and record rollback events. Stored
+history hashes usernames and Calling-Station-Ids. Operators can review the
+same summary in `/api/v1/system/status` under
+`radius.subscriber_service_chains`, in production readiness as
+`subscriber_service_chains`, in support bundles as
+`api/subscriber-service-chains.json`, and in Access Settings. See
+[subscriber-service-chains.md](subscriber-service-chains.md).
+
 Identity source failover state is exposed at:
 
 ```text

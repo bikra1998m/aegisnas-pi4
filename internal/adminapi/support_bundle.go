@@ -297,6 +297,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/policy-engine.json", requestPath: "/api/v1/system/policy-engine", label: "Typed policy expression engine", handler: HandleGetPolicyEngine},
 		{archivePath: "api/policy-sets.json", requestPath: "/api/v1/system/policy-sets", label: "Versioned policy set governance", handler: HandleGetPolicySets},
 		{archivePath: "api/policy-simulation-analyses.json", requestPath: "/api/v1/system/policy-sets/analyses", label: "Policy simulation analyses", handler: HandleListPolicySimulationAnalyses},
+		{archivePath: "api/subscriber-service-chains.json", requestPath: "/api/v1/system/subscriber-service-chains", label: "Subscriber service-chain activation and rollback evidence", handler: HandleGetSubscriberServiceChains},
 		{archivePath: "api/identity-failover.json", requestPath: "/api/v1/system/identity-failover", label: "Identity source failover", handler: HandleGetIdentityFailover},
 		{archivePath: "api/active-directory.json", requestPath: "/api/v1/system/active-directory", label: "Active Directory identity", handler: HandleGetActiveDirectory},
 		{archivePath: "api/mfa.json", requestPath: "/api/v1/system/mfa", label: "MFA challenge and OTP state", handler: HandleGetMFA},

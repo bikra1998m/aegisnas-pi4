@@ -410,20 +410,24 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 		if err := validatePolicyRuleForApply(data, matchJSON); err != nil {
 			return err
 		}
+		serviceChainRaw, err := serviceChainField(data)
+		if err != nil {
+			return fmt.Errorf("service_chain: %w", err)
+		}
 		fields := []fieldValue{
 			{"name", data["name"]}, {"description", data["description"]}, {"priority", data["priority"]},
 			{"enabled", data["enabled"]}, {"match_conditions", matchJSON}, {"action", data["action"]},
 			{"vlan", nullIfEmpty(data["vlan"])}, {"bandwidth_profile", nullIfEmpty(data["bandwidth_profile"])},
 			{"session_timeout", nullIfEmpty(data["session_timeout"])}, {"idle_timeout", nullIfEmpty(data["idle_timeout"])},
 			{"portal_profile", nullIfEmpty(data["portal_profile"])}, {"acl_policy_name", nullIfEmpty(data["acl_policy_name"])},
-			{"quarantine", data["quarantine"]},
+			{"quarantine", data["quarantine"]}, {"service_chain_json", serviceChainRaw},
 		}
 		switch change.Operation {
 		case "create":
-			_, err := tx.Exec(`INSERT INTO policy_rules (name, description, priority, enabled, match_conditions, action, vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, data["name"], data["description"], data["priority"], data["enabled"], matchJSON, data["action"],
+			_, err := tx.Exec(`INSERT INTO policy_rules (name, description, priority, enabled, match_conditions, action, vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine, service_chain_json)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, data["name"], data["description"], data["priority"], data["enabled"], matchJSON, data["action"],
 				nullIfEmpty(data["vlan"]), nullIfEmpty(data["bandwidth_profile"]), nullIfEmpty(data["session_timeout"]), nullIfEmpty(data["idle_timeout"]),
-				nullIfEmpty(data["portal_profile"]), nullIfEmpty(data["acl_policy_name"]), data["quarantine"])
+				nullIfEmpty(data["portal_profile"]), nullIfEmpty(data["acl_policy_name"]), data["quarantine"], serviceChainRaw)
 			return err
 		case "update":
 			return updateByID(tx, "policy_rules", change.ResourceID, fields)
@@ -833,7 +837,7 @@ func HandleDeleteRole(w http.ResponseWriter, r *http.Request) {
 // ---------- Policy Handlers ----------
 
 func HandleListPolicies(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.DB.Query(`SELECT id, name, COALESCE(description, ''), priority, enabled, match_conditions, action, vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine FROM policy_rules ORDER BY priority DESC, name`)
+	rows, err := db.DB.Query(`SELECT id, name, COALESCE(description, ''), priority, enabled, match_conditions, action, vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine, COALESCE(service_chain_json, '[]') FROM policy_rules ORDER BY priority DESC, name`)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -843,16 +847,22 @@ func HandleListPolicies(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var id, priority int
 		var name, desc, matchCond, action string
+		var serviceChainRaw string
 		var enabled, quarantine bool
 		var vlan, sessionTimeout, idleTimeout sql.NullInt64
 		var bandwidthProfile, portalProfile, aclPolicyName sql.NullString
-		if err := rows.Scan(&id, &name, &desc, &priority, &enabled, &matchCond, &action, &vlan, &bandwidthProfile, &sessionTimeout, &idleTimeout, &portalProfile, &aclPolicyName, &quarantine); err != nil {
+		if err := rows.Scan(&id, &name, &desc, &priority, &enabled, &matchCond, &action, &vlan, &bandwidthProfile, &sessionTimeout, &idleTimeout, &portalProfile, &aclPolicyName, &quarantine, &serviceChainRaw); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		policy := map[string]any{
 			"id": id, "name": name, "description": desc, "priority": priority, "enabled": enabled,
 			"match_conditions": rawJSON(matchCond), "action": action, "quarantine": quarantine,
+			"service_chain": rawJSON(defaultString(serviceChainRaw, "[]")),
+		}
+		var serviceChain []policypkg.ServiceIntent
+		if err := json.Unmarshal([]byte(defaultString(serviceChainRaw, "[]")), &serviceChain); err == nil {
+			policy["service_chain_summary"] = policypkg.SummarizeServiceChain(serviceChain)
 		}
 		if expr, legacy, err := policypkg.CompileMatchConditions(json.RawMessage(matchCond)); err == nil {
 			policy["typed_expression"] = expr
@@ -899,10 +909,17 @@ func HandleDeletePolicy(w http.ResponseWriter, r *http.Request) {
 }
 
 func validatePolicyRuleForApply(data map[string]any, matchJSON string) error {
+	serviceChainRaw, err := serviceChainField(data)
+	if err != nil {
+		return err
+	}
 	rule := policypkg.Rule{
 		Name:            stringValue(data, "name"),
 		Action:          stringValue(data, "action"),
 		MatchConditions: json.RawMessage(matchJSON),
+	}
+	if err := json.Unmarshal([]byte(serviceChainRaw), &rule.ServiceChain); err != nil {
+		return fmt.Errorf("decode service_chain: %w", err)
 	}
 	expr, legacy, err := policypkg.CompileMatchConditions(rule.MatchConditions)
 	if err != nil {
@@ -922,6 +939,33 @@ func validatePolicyRuleForApply(data map[string]any, matchJSON string) error {
 		}
 	}
 	return nil
+}
+
+func serviceChainField(data map[string]any) (string, error) {
+	if data == nil {
+		return "[]", nil
+	}
+	value, ok := data["service_chain"]
+	if !ok {
+		value = data["service_chain_json"]
+	}
+	raw, err := jsonField(value, "[]")
+	if err != nil {
+		return "", err
+	}
+	var chain []policypkg.ServiceIntent
+	if err := json.Unmarshal([]byte(raw), &chain); err != nil {
+		return "", err
+	}
+	chain = policypkg.NormalizeServiceChain(chain)
+	if err := policypkg.ValidateServiceChain(chain); err != nil {
+		return "", err
+	}
+	encoded, err := json.Marshal(chain)
+	if err != nil {
+		return "", err
+	}
+	return string(encoded), nil
 }
 
 // ---------- Identity Sources ----------

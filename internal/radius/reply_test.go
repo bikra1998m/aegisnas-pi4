@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
+	"github.com/yourorg/aegisnas-pi4/internal/policy"
 )
 
 func TestRenderReplyAttributesPreservesDefaultPacks(t *testing.T) {
@@ -57,6 +58,10 @@ func TestRenderReplyAttributesForVendorPacks(t *testing.T) {
 			{Action: "permit", Direction: "in", Protocol: "tcp", Source: "any", Destination: "any", DestinationPort: "443"},
 		},
 	}
+	ApplyServiceChainReplyAttributes(attrs, []policy.ServiceIntent{
+		{Key: "data", Type: "data", Sequence: 10},
+		{Key: "qos", Type: "qos", Sequence: 20, Optional: true},
+	})
 
 	items := BuildReplyAttributeItems(attrs, []string{"standard", "aegisnas", "aruba", "ruckus", "fortinet", "cisco", "ubnt", "unknown"})
 	require.NotEmpty(t, items)
@@ -76,6 +81,9 @@ func TestRenderReplyAttributesForVendorPacks(t *testing.T) {
 	assert.Contains(t, rendered, "\tAegisNAS-Tenant = \"tenant-a\"\n")
 	assert.Contains(t, rendered, "\tAegisNAS-ACL-Name = \"guest-internet\"\n")
 	assert.Contains(t, rendered, "\tAegisNAS-ACL-Rule = \"permit in tcp from any to any 443\"\n")
+	assert.Contains(t, rendered, "\tAegisNAS-Service-Chain = \"data:data;qos:qos:optional\"\n")
+	assert.Contains(t, rendered, "\tAegisNAS-Service-Name = \"data\"\n")
+	assert.Contains(t, rendered, "\tAegisNAS-Service-Name = \"qos\"\n")
 	assert.Contains(t, rendered, "\tAruba-User-Role = \"guest \\\"premium\\\"\"\n")
 	assert.Contains(t, rendered, "\tAruba-User-Vlan = 20\n")
 	assert.Contains(t, rendered, "\tAruba-NAS-Filter-Rule = \"permit in tcp from any to any 443\"\n")

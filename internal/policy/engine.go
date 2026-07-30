@@ -152,7 +152,7 @@ func (e *Engine) loadRules() ([]Rule, error) {
 		return FlattenPolicySet(set, maxDepth)
 	}
 	rows, err := db.DB.Query(`SELECT id, name, description, priority, enabled, match_conditions, action,
-		vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine
+		vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine, COALESCE(service_chain_json, '[]')
 		FROM policy_rules ORDER BY priority DESC, name`)
 	if err != nil {
 		return nil, err
@@ -165,9 +165,9 @@ func (e *Engine) loadRules() ([]Rule, error) {
 		var vlan sql.NullInt32
 		var description, bwProfile, portalProfile, aclPolicyName sql.NullString
 		var sessionTO, idleTO sql.NullInt32
-		var matchConditions string
+		var matchConditions, serviceChainJSON string
 		err := rows.Scan(&r.ID, &r.Name, &description, &r.Priority, &r.Enabled, &matchConditions, &r.Action,
-			&vlan, &bwProfile, &sessionTO, &idleTO, &portalProfile, &aclPolicyName, &r.Quarantine)
+			&vlan, &bwProfile, &sessionTO, &idleTO, &portalProfile, &aclPolicyName, &r.Quarantine, &serviceChainJSON)
 		if err != nil {
 			return nil, err
 		}
@@ -199,6 +199,10 @@ func (e *Engine) loadRules() ([]Rule, error) {
 			p := aclPolicyName.String
 			r.ACLPolicyName = &p
 		}
+		if err := json.Unmarshal([]byte(serviceChainJSON), &r.ServiceChain); err != nil {
+			return nil, fmt.Errorf("decode service_chain for policy rule %q: %w", r.Name, err)
+		}
+		r.ServiceChain = NormalizeServiceChain(r.ServiceChain)
 		rules = append(rules, r)
 	}
 	// Sort by priority descending (already done by ORDER BY, but just in case)
@@ -229,6 +233,7 @@ func ruleToDecision(rule *Rule) *Decision {
 		IdleTimeout:      rule.IdleTimeout,
 		PortalProfile:    rule.PortalProfile,
 		ACLPolicyName:    rule.ACLPolicyName,
+		ServiceChain:     NormalizeServiceChain(rule.ServiceChain),
 		MatchedRule:      rule.Name,
 	}
 	if action == "deny" {
@@ -265,6 +270,26 @@ func decisionConflicts(current, next *Decision, ruleName string) []string {
 	}
 	if current.PortalProfile != nil && next.PortalProfile != nil && !strings.EqualFold(*current.PortalProfile, *next.PortalProfile) {
 		conflicts = append(conflicts, fmt.Sprintf("rule %s overrides portal profile %s with %s", ruleName, *current.PortalProfile, *next.PortalProfile))
+	}
+	for _, conflict := range serviceChainConflicts(current.ServiceChain, next.ServiceChain, ruleName) {
+		conflicts = append(conflicts, conflict)
+	}
+	return conflicts
+}
+
+func serviceChainConflicts(current, next []ServiceIntent, ruleName string) []string {
+	if len(current) == 0 || len(next) == 0 {
+		return nil
+	}
+	byKey := map[string]string{}
+	for _, service := range NormalizeServiceChain(current) {
+		byKey[service.Key] = ServiceChainHash([]ServiceIntent{service})
+	}
+	var conflicts []string
+	for _, service := range NormalizeServiceChain(next) {
+		if existing, ok := byKey[service.Key]; ok && existing != ServiceChainHash([]ServiceIntent{service}) {
+			conflicts = append(conflicts, fmt.Sprintf("rule %s overrides service %s in subscriber service chain", ruleName, service.Key))
+		}
 	}
 	return conflicts
 }

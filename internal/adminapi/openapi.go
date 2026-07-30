@@ -1284,6 +1284,24 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/policy-sets/versions/{fromID}/compare/{toID}", "get", securedOperation("Compare policy set versions", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Added, removed, and changed flattened rules between two immutable versions."),
 	}))
+	addOperation(paths, "/api/v1/system/subscriber-service-chains", "get", securedOperationWithParameters("Read subscriber service-chain history", "Policies", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional recent chain and event limit. Defaults to 100 and caps at 1000.", false),
+	}, map[string]any{
+		"200": responseJSON("Subscriber service-chain readiness, activation history, rollback events, and service-level accounting evidence."),
+	}))
+	addOperation(paths, "/api/v1/system/subscriber-service-chains/preview", "post", securedOperationWithBody("Preview subscriber service-chain activation", "Policies", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Policy request context plus optional explicit service intents."), map[string]any{
+		"200":     responseJSON("Policy decision, derived service-chain intents, validation result, hashes, and deterministic chain identifier."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/subscriber-service-chains/activate", "post", securedOperationWithBody("Activate subscriber service-chain evidence", "Policies", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Session identifier, policy request context, and optional explicit service intents."), map[string]any{
+		"200":     responseJSON("Activated chain record and activation events."),
+		"403":     responseText("Policy decision denied activation."),
+		"default": responseText("Activation error."),
+	}))
+	addOperation(paths, "/api/v1/system/subscriber-service-chains/{chainID}/rollback", "post", securedOperationWithParametersAndBody("Rollback subscriber service-chain", "Policies", []string{"super_admin"}, []map[string]any{idParameter("chainID", "Subscriber service-chain identifier.")}, genericJSONObjectRequest("Rollback reason."), map[string]any{
+		"200":     responseJSON("Rolled-back chain record and rollback events."),
+		"default": responseText("Rollback error."),
+	}))
 	addOperation(paths, "/api/v1/system/identity-failover", "get", securedOperationWithParameters("Read identity source failover state", "Authentication", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("source", "Optional identity source name filter such as local or ldap-primary.", false),
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"accepted", "rejected", "not_found", "failed", "skipped", "stale_accepted", "split_denied"}, false),

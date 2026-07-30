@@ -46,20 +46,21 @@ type Request struct {
 
 // Decision represents the outcome of policy evaluation.
 type Decision struct {
-	Allow            bool     `json:"allow"`
-	Quarantine       bool     `json:"quarantine"`
-	Role             *string  `json:"role,omitempty"`
-	FilterID         *string  `json:"filter_id,omitempty"`
-	PolicyTag        *string  `json:"policy_tag,omitempty"`
-	VLAN             *int     `json:"vlan,omitempty"`
-	BandwidthProfile *string  `json:"bandwidth_profile,omitempty"`
-	SessionTimeout   *int     `json:"session_timeout,omitempty"`
-	IdleTimeout      *int     `json:"idle_timeout,omitempty"`
-	PortalProfile    *string  `json:"portal_profile,omitempty"`
-	ACLPolicyName    *string  `json:"acl_policy_name,omitempty"`
-	DeviceGroup      *string  `json:"device_group,omitempty"`
-	Tenant           *string  `json:"tenant,omitempty"`
-	Notes            []string `json:"notes,omitempty"`
+	Allow            bool            `json:"allow"`
+	Quarantine       bool            `json:"quarantine"`
+	Role             *string         `json:"role,omitempty"`
+	FilterID         *string         `json:"filter_id,omitempty"`
+	PolicyTag        *string         `json:"policy_tag,omitempty"`
+	VLAN             *int            `json:"vlan,omitempty"`
+	BandwidthProfile *string         `json:"bandwidth_profile,omitempty"`
+	SessionTimeout   *int            `json:"session_timeout,omitempty"`
+	IdleTimeout      *int            `json:"idle_timeout,omitempty"`
+	PortalProfile    *string         `json:"portal_profile,omitempty"`
+	ACLPolicyName    *string         `json:"acl_policy_name,omitempty"`
+	DeviceGroup      *string         `json:"device_group,omitempty"`
+	Tenant           *string         `json:"tenant,omitempty"`
+	ServiceChain     []ServiceIntent `json:"service_chain,omitempty"`
+	Notes            []string        `json:"notes,omitempty"`
 
 	// Rule that matched (for auditing)
 	MatchedRule string `json:"matched_rule,omitempty"`
@@ -109,6 +110,9 @@ func (d *Decision) Merge(other *Decision) {
 	if other.Tenant != nil {
 		d.Tenant = other.Tenant
 	}
+	if len(other.ServiceChain) > 0 {
+		d.ServiceChain = MergeServiceChains(d.ServiceChain, other.ServiceChain)
+	}
 	if other.MatchedRule != "" {
 		if d.MatchedRule == "" {
 			d.MatchedRule = other.MatchedRule
@@ -135,6 +139,7 @@ type Rule struct {
 	PortalProfile    *string         `json:"portal_profile,omitempty"`
 	ACLPolicyName    *string         `json:"acl_policy_name,omitempty"`
 	Quarantine       bool            `json:"quarantine"`
+	ServiceChain     []ServiceIntent `json:"service_chain,omitempty"`
 }
 
 // PolicySet is the NAS-0030 immutable policy tree. A version stores exactly
@@ -270,6 +275,7 @@ type PolicySimulationAnalysis struct {
 	ACLPolicyChangeCount        int             `json:"acl_policy_change_count"`
 	PortalProfileChangeCount    int             `json:"portal_profile_change_count"`
 	SessionTimeoutChangeCount   int             `json:"session_timeout_change_count"`
+	ServiceChainChangeCount     int             `json:"service_chain_change_count"`
 	ConflictCount               int             `json:"conflict_count"`
 	InvalidRuleCount            int             `json:"invalid_rule_count"`
 	ShadowedRules               []RuleImpact    `json:"shadowed_rules,omitempty"`

@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 36
+	return 37
 }
 
 func Migrate() error {
@@ -1700,3 +1700,107 @@ CREATE INDEX IF NOT EXISTS idx_policy_simulation_analyses_candidate_hash
 const schemaV36 = `
 ALTER TABLE policy_engine_evaluations ADD COLUMN request_replay_json TEXT NOT NULL DEFAULT '{}';
 ` + policySimulationAnalysisTablesSQL
+
+const subscriberServiceChainTablesSQL = `
+CREATE TABLE IF NOT EXISTS subscriber_service_chains (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	chain_id TEXT UNIQUE NOT NULL,
+	session_id TEXT NOT NULL,
+	username_hash TEXT,
+	calling_station_hash TEXT,
+	tenant TEXT,
+	status TEXT NOT NULL,
+	policy_set_hash TEXT NOT NULL,
+	request_hash TEXT NOT NULL,
+	service_chain_hash TEXT NOT NULL,
+	service_count INTEGER NOT NULL DEFAULT 0,
+	required_count INTEGER NOT NULL DEFAULT 0,
+	optional_count INTEGER NOT NULL DEFAULT 0,
+	activated_count INTEGER NOT NULL DEFAULT 0,
+	failed_count INTEGER NOT NULL DEFAULT 0,
+	rolled_back_count INTEGER NOT NULL DEFAULT 0,
+	activation_mode TEXT NOT NULL DEFAULT 'policy',
+	decision_json TEXT NOT NULL DEFAULT '{}',
+	services_json TEXT NOT NULL DEFAULT '[]',
+	failure_reason TEXT,
+	actor TEXT,
+	started_at DATETIME NOT NULL,
+	updated_at DATETIME NOT NULL,
+	completed_at DATETIME,
+	rolled_back_at DATETIME,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('previewed', 'active', 'partial', 'failed', 'rolled_back')),
+	CHECK (service_count >= 0),
+	CHECK (required_count >= 0),
+	CHECK (optional_count >= 0),
+	CHECK (activated_count >= 0),
+	CHECK (failed_count >= 0),
+	CHECK (rolled_back_count >= 0),
+	CHECK (length(policy_set_hash) = 64),
+	CHECK (length(request_hash) = 64),
+	CHECK (length(service_chain_hash) = 64)
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscriber_service_chains_session ON subscriber_service_chains(session_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_service_chains_status ON subscriber_service_chains(status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_service_chains_tenant ON subscriber_service_chains(tenant, updated_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_service_chains_username ON subscriber_service_chains(username_hash, updated_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_service_chains_policy ON subscriber_service_chains(policy_set_hash, updated_at);
+
+CREATE TABLE IF NOT EXISTS subscriber_service_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	chain_id TEXT NOT NULL,
+	session_id TEXT NOT NULL,
+	service_key TEXT,
+	service_sequence INTEGER DEFAULT 0,
+	service_type TEXT,
+	vendor_pack TEXT,
+	event_type TEXT NOT NULL,
+	status TEXT NOT NULL,
+	actor TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	observed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(chain_id) REFERENCES subscriber_service_chains(chain_id),
+	CHECK (event_type IN ('preview', 'activate', 'rollback', 'accounting', 'failure')),
+	CHECK (status IN ('success', 'skipped', 'failed', 'pending'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscriber_service_events_chain ON subscriber_service_events(chain_id, observed_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_service_events_session ON subscriber_service_events(session_id, observed_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_service_events_service ON subscriber_service_events(service_key, observed_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_service_events_status ON subscriber_service_events(status, observed_at);
+
+CREATE TABLE IF NOT EXISTS subscriber_service_accounting (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	chain_id TEXT NOT NULL,
+	session_id TEXT NOT NULL,
+	service_key TEXT NOT NULL,
+	accounting_class TEXT,
+	status TEXT NOT NULL DEFAULT 'started',
+	started_at DATETIME NOT NULL,
+	last_interim_at DATETIME,
+	stopped_at DATETIME,
+	input_octets INTEGER NOT NULL DEFAULT 0,
+	output_octets INTEGER NOT NULL DEFAULT 0,
+	interim_count INTEGER NOT NULL DEFAULT 0,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(chain_id) REFERENCES subscriber_service_chains(chain_id),
+	UNIQUE (chain_id, service_key),
+	CHECK (status IN ('started', 'interim', 'stopped')),
+	CHECK (input_octets >= 0),
+	CHECK (output_octets >= 0),
+	CHECK (interim_count >= 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscriber_service_accounting_chain ON subscriber_service_accounting(chain_id, service_key);
+CREATE INDEX IF NOT EXISTS idx_subscriber_service_accounting_session ON subscriber_service_accounting(session_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_service_accounting_status ON subscriber_service_accounting(status, updated_at);
+`
+
+const schemaV37 = `
+ALTER TABLE policy_rules ADD COLUMN service_chain_json TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE policy_simulation_analyses ADD COLUMN service_chain_change_count INTEGER DEFAULT 0;
+` + subscriberServiceChainTablesSQL

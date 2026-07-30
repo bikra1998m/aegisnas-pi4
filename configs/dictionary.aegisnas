@@ -23,4 +23,6 @@ ATTRIBUTE AegisNAS-Device-Group 10 string
 ATTRIBUTE AegisNAS-Tenant 11 string
 ATTRIBUTE AegisNAS-ACL-Name 12 string
 ATTRIBUTE AegisNAS-ACL-Rule 13 string
+ATTRIBUTE AegisNAS-Service-Chain 14 string
+ATTRIBUTE AegisNAS-Service-Name 15 string
 END-VENDOR AegisNAS

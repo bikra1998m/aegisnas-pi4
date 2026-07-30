@@ -78,6 +78,7 @@ The implementation now does these things end to end:
 21. generates opt-in EAP-FAST and EAP-PWD policy with PAC governance, cryptobinding checks, PWD group and password-proof validation, replay rejection, API evaluation, dashboard status, and support-bundle evidence
 22. generates opt-in EAP-SIM, EAP-AKA, and EAP-AKA-prime policy with vector-provider freshness, pseudonym/reauth privacy, resync, AKA-prime network binding, API evaluation, dashboard status, and support-bundle evidence
 23. governs enterprise certificate lifecycle with EST/SCEP/BYOD entry points, CSR proof-of-possession, device binding, template and issuer policy, renewal, CRL/OCSP readiness, escrow controls, API evaluation, dashboard status, and support-bundle evidence
+24. authorizes ordered subscriber service chains with dependency validation, per-session activation evidence, rollback events, service-level accounting rows, AegisNAS service-chain VSAs, API/status/readiness visibility, and support-bundle evidence
 
 ## Current Behavior
 
@@ -98,6 +99,7 @@ When `radius.upstream.enabled: true`:
 - fallback policy exposes local/LDAP outage behavior through `/api/v1/system/fallback-policy`; enforce mode denies fallback unless source, identity allowlist, and outage window policy all match
 - typed authorization policy state is available through `/api/v1/system/policy-engine`; AegisNAS compiles legacy `match_conditions` and new `all`/`any`/`not` expressions into a typed AST, records redacted decision evidence, and exposes explain traces for policy migration and vendor interoperability
 - nested policy changes are governed through `/api/v1/system/policy-sets`; operators create immutable versions, submit them for maker-checker approval, simulate representative requests, activate approved content, and keep rollback evidence before changing live access behavior
+- subscriber service chains are available through `/api/v1/system/subscriber-service-chains`; operators can preview policy-derived services, activate evidence for a session, record rollback, and review hashed service-level history
 - the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
 - the vendor reply preview can render vendor-neutral ACL intent into `NAS-Filter-Rule`, Cisco `Cisco-AVPair`, Aruba filter rules, MikroTik address-list hints, and AegisNAS ACL VSAs
 - MAB endpoints can be approved, denied, quarantined, expired, or left pending; approved and quarantined endpoints render MAC variants into FreeRADIUS `files/authorize`

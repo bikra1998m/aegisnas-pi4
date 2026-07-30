@@ -208,6 +208,14 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/policy-sets"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/subscriber-service-chains/preview"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/subscriber-service-chains/activate"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/subscriber-service-chains/") && strings.HasSuffix(path, "/rollback"):
+		return method == http.MethodPost && identity.Role == adminRoleSuperAdmin
+	case strings.HasPrefix(path, "/api/v1/system/subscriber-service-chains"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/policy-engine/evaluate"):
 		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
 	case strings.HasPrefix(path, "/api/v1/system/policy-engine/validate"):

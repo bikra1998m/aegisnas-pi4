@@ -126,6 +126,8 @@ policy:
 	require.NoError(t, cfg.Validate())
 	require.NoError(t, db.Init(dbPath))
 	t.Cleanup(func() { _ = db.Close() })
+	_, _ = db.DB.Exec("PRAGMA synchronous = OFF")
+	_, _ = db.DB.Exec("PRAGMA journal_mode = MEMORY")
 	require.NoError(t, db.Migrate())
 	return cfg
 }

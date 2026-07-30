@@ -785,6 +785,7 @@ policy:
   version_retention_limit: 1000
   simulation_replay_limit: 100
   simulation_retention_limit: 1000
+  max_service_chain_length: 16
 
 telemetry:
   enabled: true

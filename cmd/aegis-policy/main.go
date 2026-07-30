@@ -115,7 +115,7 @@ var runCmd = &cobra.Command{
 		// Rule management endpoints
 		r.Get("/api/v1/rules", func(w http.ResponseWriter, r *http.Request) {
 			rows, err := db.DB.Query(`SELECT id, name, description, priority, enabled, match_conditions, action,
-				vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine
+				vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name, quarantine, COALESCE(service_chain_json, '[]')
 				FROM policy_rules ORDER BY priority DESC`)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -128,9 +128,9 @@ var runCmd = &cobra.Command{
 				var vlan sql.NullInt32
 				var desc, bw, portal, aclPolicyName sql.NullString
 				var st, it sql.NullInt32
-				var matchConditions string
+				var matchConditions, serviceChainRaw string
 				err := rows.Scan(&rl.ID, &rl.Name, &desc, &rl.Priority, &rl.Enabled, &matchConditions, &rl.Action,
-					&vlan, &bw, &st, &it, &portal, &aclPolicyName, &rl.Quarantine)
+					&vlan, &bw, &st, &it, &portal, &aclPolicyName, &rl.Quarantine, &serviceChainRaw)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
@@ -162,6 +162,10 @@ var runCmd = &cobra.Command{
 				if aclPolicyName.Valid {
 					p := aclPolicyName.String
 					rl.ACLPolicyName = &p
+				}
+				if err := json.Unmarshal([]byte(serviceChainRaw), &rl.ServiceChain); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
 				}
 				rules = append(rules, rl)
 			}

@@ -38,6 +38,7 @@ type policyEngineConfigView struct {
 	MaxExpressionNodes       int    `json:"max_expression_nodes"`
 	MaxListValues            int    `json:"max_list_values"`
 	EvaluationRetentionLimit int    `json:"evaluation_retention_limit"`
+	MaxServiceChainLength    int    `json:"max_service_chain_length"`
 }
 
 type policyRuleStatus struct {
@@ -185,6 +186,7 @@ func policyEngineConfigFromConfig(cfg *config.Config) policyEngineConfigView {
 		MaxExpressionNodes:       policyCfg.MaxExpressionNodes,
 		MaxListValues:            policyCfg.MaxListValues,
 		EvaluationRetentionLimit: policyCfg.EvaluationRetentionLimit,
+		MaxServiceChainLength:    effectiveMaxServiceChainLength(cfg),
 	}
 }
 

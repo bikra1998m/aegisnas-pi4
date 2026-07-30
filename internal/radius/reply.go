@@ -10,6 +10,7 @@ import (
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
+	"github.com/yourorg/aegisnas-pi4/internal/policy"
 )
 
 // ReplyAttributes contains RADIUS reply attributes for a user.
@@ -36,6 +37,7 @@ type ReplyAttributes struct {
 	InboundACL            string
 	OutboundACL           string
 	ACLRules              []ACLRule
+	ServiceChain          []policy.ServiceIntent
 }
 
 type ReplyAttributeItem struct {
@@ -400,6 +402,56 @@ func appendAegisNASReplyAttributes(attrs *ReplyAttributes, appendItem func(strin
 	for _, value := range renderNASFilterRules(attrs.ACLRules) {
 		appendItem("AegisNAS-ACL-Rule", value, true)
 	}
+	if summary := renderAegisNASServiceChain(attrs.ServiceChain); summary != "" {
+		appendItem("AegisNAS-Service-Chain", summary, true)
+	}
+	for _, service := range policy.NormalizeServiceChain(attrs.ServiceChain) {
+		appendItem("AegisNAS-Service-Name", service.Key, true)
+	}
+}
+
+func ApplyServiceChainReplyAttributes(attrs *ReplyAttributes, services []policy.ServiceIntent) {
+	if attrs == nil {
+		return
+	}
+	attrs.ServiceChain = policy.NormalizeServiceChain(services)
+}
+
+func renderAegisNASServiceChain(chain []policy.ServiceIntent) string {
+	services := policy.NormalizeServiceChain(chain)
+	if len(services) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(services))
+	for _, service := range services {
+		key := strings.TrimSpace(service.Key)
+		if key == "" {
+			continue
+		}
+		segment := key
+		if service.Type != "" {
+			segment += ":" + service.Type
+		}
+		if service.Action != "" && service.Action != "activate" {
+			segment += ":" + service.Action
+		}
+		if service.Optional {
+			segment += ":optional"
+		}
+		candidate := strings.Join(append(parts, segment), ";")
+		if len(candidate) > 240 {
+			remaining := len(services) - len(parts)
+			if remaining > 0 {
+				overflow := fmt.Sprintf("+%d", remaining)
+				if len(strings.Join(append(parts, overflow), ";")) <= 240 {
+					parts = append(parts, overflow)
+				}
+			}
+			break
+		}
+		parts = append(parts, segment)
+	}
+	return strings.Join(parts, ";")
 }
 
 func normalizeReplyPackKeys(packKeys []string) []string {
