@@ -681,6 +681,13 @@ func TestConfigValidationRadiusSQLAccounting(t *testing.T) {
 				OverflowPolicy:        "saturate",
 				RetentionDays:         365,
 			},
+			AccountingIP: RadiusAccountingIPConfig{
+				Enabled:                true,
+				IPv6Enabled:            true,
+				RouteAccountingEnabled: true,
+				DelegatedPrefixEnabled: true,
+				RetentionDays:          365,
+			},
 		},
 	}
 	require.NoError(t, cfg.Validate())
@@ -730,6 +737,19 @@ func TestConfigValidationRadiusSQLAccounting(t *testing.T) {
 	badGigawords := *cfg
 	badGigawords.Radius.AccountingCounters.MaxCounterBits = 32
 	assert.ErrorContains(t, badGigawords.Validate(), "gigawords_enabled")
+
+	accountingIP := EffectiveRadiusAccountingIPConfig(RadiusAccountingIPConfig{Enabled: true})
+	assert.Equal(t, 365, accountingIP.RetentionDays)
+
+	badIPRetention := *cfg
+	badIPRetention.Radius.AccountingIP.RetentionDays = 3651
+	assert.ErrorContains(t, badIPRetention.Validate(), "accounting_ip.retention_days")
+
+	badIPFamilies := *cfg
+	badIPFamilies.Radius.AccountingIP.IPv6Enabled = false
+	badIPFamilies.Radius.AccountingIP.RouteAccountingEnabled = false
+	badIPFamilies.Radius.AccountingIP.DelegatedPrefixEnabled = false
+	assert.ErrorContains(t, badIPFamilies.Validate(), "accounting_ip requires at least one")
 }
 
 func TestConfigValidationRadiusDynamicClients(t *testing.T) {

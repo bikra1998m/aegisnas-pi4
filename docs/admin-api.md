@@ -327,6 +327,23 @@ The same summary appears in `/api/v1/system/status` under
 `api/accounting-counters.json`. See
 [accounting-counters-gigawords.md](accounting-counters-gigawords.md).
 
+IPv6, delegated-prefix, and route accounting is exposed at:
+
+```text
+/api/v1/system/accounting-ip
+/api/v1/system/accounting-ip?validation_status=invalid&limit=100
+/api/v1/system/accounting-ip?session_key=sess-1&limit=100
+```
+
+Use this endpoint to review `Framed-IP-Address`,
+`Framed-IPv6-Address`, `Framed-IPv6-Prefix`, `Framed-Interface-Id`,
+`Delegated-IPv6-Prefix`, `Framed-Route`, `Framed-IPv6-Route`, active and
+closed assignment rows, invalid prefix/route evidence, and current session
+mirroring. The same summary appears in `/api/v1/system/status` under
+`radius.accounting_ip`, in production readiness as `radius_accounting_ip`, and
+in support bundles as `api/accounting-ip.json`. See
+[accounting-ipv6-routes.md](accounting-ipv6-routes.md).
+
 Upstream outage fallback policy is exposed at:
 
 ```text

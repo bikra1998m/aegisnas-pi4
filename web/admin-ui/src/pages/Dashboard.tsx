@@ -344,6 +344,23 @@ type RadiusAccountingCountersReport = {
   };
 };
 
+type RadiusAccountingIPReport = {
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary?: {
+    assignment_rows: number;
+    active_assignments: number;
+    ipv6_address_rows: number;
+    delegated_prefix_rows: number;
+    ipv4_route_rows: number;
+    ipv6_route_rows: number;
+    invalid_rows: number;
+    session_rows_with_ipv6: number;
+    session_rows_with_route: number;
+  };
+};
+
 type RadiusFallbackPolicyReport = {
   enabled: boolean;
   status: string;
@@ -941,6 +958,7 @@ type SystemStatus = {
     sql_accounting?: RadiusSQLAccountingReport;
     accounting_ordering?: RadiusAccountingOrderingReport;
     accounting_counters?: RadiusAccountingCountersReport;
+    accounting_ip?: RadiusAccountingIPReport;
     fallback_policy?: RadiusFallbackPolicyReport;
     eap_framework?: EAPFrameworkReport;
     eap_teap?: TEAPReport;
@@ -1495,6 +1513,7 @@ export default function Dashboard() {
   const sqlAccounting = systemStatus.radius?.sql_accounting;
   const accountingOrdering = systemStatus.radius?.accounting_ordering;
   const accountingCounters = systemStatus.radius?.accounting_counters;
+  const accountingIP = systemStatus.radius?.accounting_ip;
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
   const eapFramework = systemStatus.radius?.eap_framework;
   const teapReport = systemStatus.radius?.eap_teap;
@@ -3578,6 +3597,46 @@ export default function Dashboard() {
                     <StatusBadge
                       status={accountingCounters.status || "unknown"}
                     />
+                  </div>
+                </div>
+              ) : null}
+              {accountingIP ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        IPv6 And Route Accounting
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {accountingIP.message ||
+                          "IP assignment state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-4">
+                        <div>
+                          Assignments{" "}
+                          {accountingIP.summary?.assignment_rows ?? 0}
+                        </div>
+                        <div>
+                          Active {accountingIP.summary?.active_assignments ?? 0}
+                        </div>
+                        <div>
+                          IPv6 {accountingIP.summary?.ipv6_address_rows ?? 0}
+                        </div>
+                        <div>
+                          Invalid {accountingIP.summary?.invalid_rows ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Delegated{" "}
+                        {accountingIP.summary?.delegated_prefix_rows ?? 0};
+                        routes{" "}
+                        {(accountingIP.summary?.ipv4_route_rows ?? 0) +
+                          (accountingIP.summary?.ipv6_route_rows ?? 0)};
+                        session route rows{" "}
+                        {accountingIP.summary?.session_rows_with_route ?? 0}
+                      </div>
+                    </div>
+                    <StatusBadge status={accountingIP.status || "unknown"} />
                   </div>
                 </div>
               ) : null}

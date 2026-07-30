@@ -359,6 +359,32 @@ type AccountingCountersReport = {
   warnings?: string[];
 };
 
+type AccountingIPReport = {
+  schema_version: number;
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary: {
+    assignment_rows: number;
+    active_assignments: number;
+    closed_assignments: number;
+    ipv4_address_rows: number;
+    ipv6_address_rows: number;
+    ipv6_prefix_rows: number;
+    delegated_prefix_rows: number;
+    ipv4_route_rows: number;
+    ipv6_route_rows: number;
+    invalid_rows: number;
+    session_rows_with_ipv6: number;
+    session_rows_with_delegated_prefix: number;
+    session_rows_with_route: number;
+    last_assignment_at?: string;
+    last_validation_status?: string;
+    last_validation_error?: string;
+  };
+  warnings?: string[];
+};
+
 type TenantIsolationReport = {
   schema_version: number;
   status: string;
@@ -1276,6 +1302,14 @@ const defaultSettings: JsonMap = {
       overflow_policy: "saturate",
       retention_days: 365,
     },
+    accounting_ip: {
+      enabled: true,
+      ipv6_enabled: true,
+      route_accounting_enabled: true,
+      delegated_prefix_enabled: true,
+      reject_invalid: false,
+      retention_days: 365,
+    },
     upstream: {
       enabled: false,
       realm: "aegis-upstream",
@@ -1684,6 +1718,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.radius.sql_accounting = next.radius.sql_accounting || {};
   next.radius.accounting_ordering = next.radius.accounting_ordering || {};
   next.radius.accounting_counters = next.radius.accounting_counters || {};
+  next.radius.accounting_ip = next.radius.accounting_ip || {};
   next.radius.upstream = next.radius.upstream || {};
   next.radius.upstream.fallback_policy =
     next.radius.upstream.fallback_policy || {};
@@ -1722,6 +1757,12 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.accounting_counters.max_counter_bits = 64;
     next.radius.accounting_counters.overflow_policy = "saturate";
     next.radius.accounting_counters.retention_days = 30;
+    next.radius.accounting_ip.enabled = true;
+    next.radius.accounting_ip.ipv6_enabled = true;
+    next.radius.accounting_ip.route_accounting_enabled = true;
+    next.radius.accounting_ip.delegated_prefix_enabled = true;
+    next.radius.accounting_ip.reject_invalid = false;
+    next.radius.accounting_ip.retention_days = 30;
     next.radius.eap.framework.enabled = true;
     next.radius.eap.framework.mode = "monitor";
     next.radius.eap.framework.max_concurrent_sessions = 256;
@@ -1815,6 +1856,14 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.accounting_counters.overflow_policy || "saturate";
     next.radius.accounting_counters.retention_days =
       next.radius.accounting_counters.retention_days || 730;
+    next.radius.accounting_ip.enabled = true;
+    next.radius.accounting_ip.ipv6_enabled = true;
+    next.radius.accounting_ip.route_accounting_enabled = true;
+    next.radius.accounting_ip.delegated_prefix_enabled = true;
+    next.radius.accounting_ip.reject_invalid =
+      next.radius.accounting_ip.reject_invalid ?? false;
+    next.radius.accounting_ip.retention_days =
+      next.radius.accounting_ip.retention_days || 730;
     next.radius.eap.framework.enabled = true;
     next.radius.eap.framework.max_concurrent_sessions =
       next.radius.eap.framework.max_concurrent_sessions || 4096;
@@ -1912,6 +1961,18 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.accounting_counters.overflow_policy || "saturate";
     next.radius.accounting_counters.retention_days =
       next.radius.accounting_counters.retention_days || 365;
+    next.radius.accounting_ip.enabled =
+      next.radius.accounting_ip.enabled ?? true;
+    next.radius.accounting_ip.ipv6_enabled =
+      next.radius.accounting_ip.ipv6_enabled ?? true;
+    next.radius.accounting_ip.route_accounting_enabled =
+      next.radius.accounting_ip.route_accounting_enabled ?? true;
+    next.radius.accounting_ip.delegated_prefix_enabled =
+      next.radius.accounting_ip.delegated_prefix_enabled ?? true;
+    next.radius.accounting_ip.reject_invalid =
+      next.radius.accounting_ip.reject_invalid ?? false;
+    next.radius.accounting_ip.retention_days =
+      next.radius.accounting_ip.retention_days || 365;
   } else {
     next.ailite.enabled = true;
     next.ailite.mode = "lite";
@@ -1956,6 +2017,14 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.accounting_counters.overflow_policy || "saturate";
     next.radius.accounting_counters.retention_days =
       next.radius.accounting_counters.retention_days || 365;
+    next.radius.accounting_ip.enabled = true;
+    next.radius.accounting_ip.ipv6_enabled = true;
+    next.radius.accounting_ip.route_accounting_enabled = true;
+    next.radius.accounting_ip.delegated_prefix_enabled = true;
+    next.radius.accounting_ip.reject_invalid =
+      next.radius.accounting_ip.reject_invalid ?? false;
+    next.radius.accounting_ip.retention_days =
+      next.radius.accounting_ip.retention_days || 365;
     next.radius.eap.framework.enabled = true;
     next.radius.eap.framework.max_concurrent_sessions =
       next.radius.eap.framework.max_concurrent_sessions || 1024;
@@ -2171,6 +2240,8 @@ export default function AccessSettings() {
     useState<AccountingOrderingReport | null>(null);
   const [accountingCountersReport, setAccountingCountersReport] =
     useState<AccountingCountersReport | null>(null);
+  const [accountingIPReport, setAccountingIPReport] =
+    useState<AccountingIPReport | null>(null);
   const [tenantIsolationReport, setTenantIsolationReport] =
     useState<TenantIsolationReport | null>(null);
   const [reconcilingSQLAccounting, setReconcilingSQLAccounting] =
@@ -2388,6 +2459,19 @@ export default function AccessSettings() {
     }
   };
 
+  const loadAccountingIPReport = async () => {
+    try {
+      const { data } = await api.get("/system/accounting-ip");
+      setAccountingIPReport(data?.report || null);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load accounting IP assignment state.",
+      );
+    }
+  };
+
   const loadTenantIsolationReport = async () => {
     try {
       const { data } = await api.get("/system/tenant-isolation", {
@@ -2423,6 +2507,7 @@ export default function AccessSettings() {
       await loadSQLAccountingReport();
       await loadAccountingOrderingReport();
       await loadAccountingCountersReport();
+      await loadAccountingIPReport();
       await loadTenantIsolationReport();
     } catch (err: any) {
       setError(
@@ -2505,6 +2590,7 @@ export default function AccessSettings() {
       await loadSQLAccountingReport();
       await loadAccountingOrderingReport();
       await loadAccountingCountersReport();
+      await loadAccountingIPReport();
       await loadTenantIsolationReport();
     } catch (err: any) {
       setError(err.response?.data || err.message || "Could not save settings.");
@@ -2741,6 +2827,7 @@ export default function AccessSettings() {
       await loadSQLAccountingReport();
       await loadAccountingOrderingReport();
       await loadAccountingCountersReport();
+      await loadAccountingIPReport();
     } catch (err: any) {
       setError(
         err.response?.data ||
@@ -2766,6 +2853,7 @@ export default function AccessSettings() {
       await loadAccountingOrderingReport();
       await loadSQLAccountingReport();
       await loadAccountingCountersReport();
+      await loadAccountingIPReport();
     } catch (err: any) {
       setError(
         err.response?.data ||
@@ -14885,6 +14973,144 @@ export default function AccessSettings() {
           {(accountingCountersReport?.warnings || []).length > 0 && (
             <ul className="mt-2 space-y-1 text-xs text-amber-700">
               {(accountingCountersReport?.warnings || []).map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="mt-4">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                IPv6 And Route Accounting
+              </h4>
+              <p className="mt-1 text-xs text-gray-500">
+                Track IPv6 addresses, delegated prefixes, and framed routes from
+                accounting packets.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadAccountingIPReport}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+            >
+              Refresh Assignments
+            </button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Assignment Tracking"
+              checked={settings.radius?.accounting_ip?.enabled !== false}
+              onChange={(value) =>
+                updateField(["radius", "accounting_ip", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="IPv6 Attributes"
+              checked={settings.radius?.accounting_ip?.ipv6_enabled !== false}
+              onChange={(value) =>
+                updateField(["radius", "accounting_ip", "ipv6_enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Delegated Prefix"
+              checked={
+                settings.radius?.accounting_ip?.delegated_prefix_enabled !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ip", "delegated_prefix_enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Route Attributes"
+              checked={
+                settings.radius?.accounting_ip?.route_accounting_enabled !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ip", "route_accounting_enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Reject Invalid"
+              checked={Boolean(settings.radius?.accounting_ip?.reject_invalid)}
+              onChange={(value) =>
+                updateField(["radius", "accounting_ip", "reject_invalid"], value)
+              }
+            />
+            <TextField
+              label="Evidence Retention (d)"
+              type="number"
+              value={settings.radius?.accounting_ip?.retention_days || 365}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ip", "retention_days"],
+                  Number(value),
+                )
+              }
+            />
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-5">
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Status
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingIPReport?.status || "unknown"}
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Assignments
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingIPReport?.summary?.assignment_rows || 0} total,{" "}
+                {accountingIPReport?.summary?.active_assignments || 0} active
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                IPv6
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingIPReport?.summary?.ipv6_address_rows || 0} address,{" "}
+                {accountingIPReport?.summary?.ipv6_prefix_rows || 0} prefix
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Delegated
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingIPReport?.summary?.delegated_prefix_rows || 0} prefix
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Routes
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingIPReport?.summary?.ipv4_route_rows || 0} IPv4,{" "}
+                {accountingIPReport?.summary?.ipv6_route_rows || 0} IPv6,{" "}
+                {accountingIPReport?.summary?.invalid_rows || 0} invalid
+              </div>
+            </div>
+          </div>
+          {accountingIPReport?.message && (
+            <p className="mt-2 text-xs text-gray-500">
+              {accountingIPReport.message}
+            </p>
+          )}
+          {(accountingIPReport?.warnings || []).length > 0 && (
+            <ul className="mt-2 space-y-1 text-xs text-amber-700">
+              {(accountingIPReport?.warnings || []).map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
             </ul>

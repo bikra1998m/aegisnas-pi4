@@ -43,6 +43,8 @@ Files involved:
 - [accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting.go)
 - [sql_accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/sql_accounting.go)
 - [accounting_ordering.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting_ordering.go)
+- [accounting_counters.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting_counters.go)
+- [accounting_ip.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting_ip.go)
 - [accounting_events.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/accounting_events.go)
 - [freeradius_accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/freeradius_accounting.go)
 - [mapping.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/mapping.go)
@@ -250,6 +252,20 @@ radius:
     late_stop_window_seconds: 86400
     max_replay_batch: 1000
     duplicate_retention_days: 365
+  accounting_counters:
+    enabled: true
+    gigawords_enabled: true
+    reset_detection_enabled: true
+    max_counter_bits: 64
+    overflow_policy: saturate
+    retention_days: 365
+  accounting_ip:
+    enabled: true
+    ipv6_enabled: true
+    route_accounting_enabled: true
+    delegated_prefix_enabled: true
+    reject_invalid: false
+    retention_days: 365
   upstream:
     enabled: true
     realm: "aegis-upstream"

@@ -216,6 +216,7 @@ type RadiusConfig struct {
 	SQLAccounting         RadiusSQLAccountingConfig      `mapstructure:"sql_accounting"`
 	AccountingOrdering    RadiusAccountingOrderingConfig `mapstructure:"accounting_ordering"`
 	AccountingCounters    RadiusAccountingCountersConfig `mapstructure:"accounting_counters"`
+	AccountingIP          RadiusAccountingIPConfig       `mapstructure:"accounting_ip"`
 	DynamicAuth           DynamicAuthConfig              `mapstructure:"dynamic_auth"`
 	DynamicClients        RadiusDynamicClientsConfig     `mapstructure:"dynamic_clients"`
 	PacketHardening       RadiusPacketHardeningConfig    `mapstructure:"packet_hardening"`
@@ -298,6 +299,15 @@ type RadiusAccountingCountersConfig struct {
 	MaxCounterBits        int    `mapstructure:"max_counter_bits"`
 	OverflowPolicy        string `mapstructure:"overflow_policy"`
 	RetentionDays         int    `mapstructure:"retention_days"`
+}
+
+type RadiusAccountingIPConfig struct {
+	Enabled                bool `mapstructure:"enabled"`
+	IPv6Enabled            bool `mapstructure:"ipv6_enabled"`
+	RouteAccountingEnabled bool `mapstructure:"route_accounting_enabled"`
+	DelegatedPrefixEnabled bool `mapstructure:"delegated_prefix_enabled"`
+	RejectInvalid          bool `mapstructure:"reject_invalid"`
+	RetentionDays          int  `mapstructure:"retention_days"`
 }
 
 type TACACSConfig struct {
@@ -1542,6 +1552,12 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.accounting_counters.max_counter_bits", 64)
 	v.SetDefault("radius.accounting_counters.overflow_policy", "saturate")
 	v.SetDefault("radius.accounting_counters.retention_days", 365)
+	v.SetDefault("radius.accounting_ip.enabled", true)
+	v.SetDefault("radius.accounting_ip.ipv6_enabled", true)
+	v.SetDefault("radius.accounting_ip.route_accounting_enabled", true)
+	v.SetDefault("radius.accounting_ip.delegated_prefix_enabled", true)
+	v.SetDefault("radius.accounting_ip.reject_invalid", false)
+	v.SetDefault("radius.accounting_ip.retention_days", 365)
 	v.SetDefault("portal.port", 8081)
 	v.SetDefault("telemetry.enabled", true)
 	v.SetDefault("telemetry.prometheus_port", 9090)
@@ -4170,6 +4186,9 @@ func (c *Config) Validate() error {
 	if err := validateRadiusAccountingCounters(c.Radius.AccountingCounters); err != nil {
 		return err
 	}
+	if err := validateRadiusAccountingIP(c.Radius.AccountingIP); err != nil {
+		return err
+	}
 	if c.Radius.DynamicAuth.Enabled && (c.Radius.DynamicAuth.Port < 1 || c.Radius.DynamicAuth.Port > 65535) {
 		return fmt.Errorf("radius.dynamic_auth.port %d out of range", c.Radius.DynamicAuth.Port)
 	}
@@ -6261,6 +6280,31 @@ func validateRadiusAccountingCounters(raw RadiusAccountingCountersConfig) error 
 	}
 	if effective.RetentionDays < 1 || effective.RetentionDays > 3650 {
 		return fmt.Errorf("radius.accounting_counters.retention_days must be between 1 and 3650")
+	}
+	return nil
+}
+
+func EffectiveRadiusAccountingIPConfig(raw RadiusAccountingIPConfig) RadiusAccountingIPConfig {
+	effective := raw
+	if effective.RetentionDays == 0 {
+		effective.RetentionDays = 365
+	}
+	return effective
+}
+
+func validateRadiusAccountingIP(raw RadiusAccountingIPConfig) error {
+	if raw.RetentionDays < 0 {
+		return fmt.Errorf("radius.accounting_ip.retention_days %d cannot be negative", raw.RetentionDays)
+	}
+	if !raw.Enabled {
+		return nil
+	}
+	effective := EffectiveRadiusAccountingIPConfig(raw)
+	if effective.RetentionDays < 1 || effective.RetentionDays > 3650 {
+		return fmt.Errorf("radius.accounting_ip.retention_days must be between 1 and 3650")
+	}
+	if !effective.IPv6Enabled && !effective.RouteAccountingEnabled && !effective.DelegatedPrefixEnabled {
+		return fmt.Errorf("radius.accounting_ip requires at least one of ipv6_enabled, route_accounting_enabled, or delegated_prefix_enabled")
 	}
 	return nil
 }

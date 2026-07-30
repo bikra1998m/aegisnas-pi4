@@ -166,7 +166,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{39, schemaV39},
 		{40, schemaV40},
 		{41, schemaV41},
-		{LatestSchemaVersion(), schemaV42},
+		{42, schemaV42},
+		{LatestSchemaVersion(), schemaV43},
 	}
 
 	for _, m := range migrations {
@@ -262,8 +263,90 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureAccountingCounterColumns(handle); err != nil {
 		return fmt.Errorf("repair accounting counter schema: %w", err)
 	}
+	if err := ensureAccountingIPAssignmentSchema(handle); err != nil {
+		return fmt.Errorf("repair accounting IP assignment schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureAccountingIPAssignmentSchema(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	for _, column := range []struct {
+		table string
+		name  string
+		sql   string
+	}{
+		{"sessions", "ipv6_address", `ALTER TABLE sessions ADD COLUMN ipv6_address TEXT`},
+		{"sessions", "framed_ipv6_prefix", `ALTER TABLE sessions ADD COLUMN framed_ipv6_prefix TEXT`},
+		{"sessions", "delegated_ipv6_prefix", `ALTER TABLE sessions ADD COLUMN delegated_ipv6_prefix TEXT`},
+		{"sessions", "framed_interface_id", `ALTER TABLE sessions ADD COLUMN framed_interface_id TEXT`},
+		{"sessions", "framed_route", `ALTER TABLE sessions ADD COLUMN framed_route TEXT`},
+		{"sessions", "framed_ipv6_route", `ALTER TABLE sessions ADD COLUMN framed_ipv6_route TEXT`},
+		{"radacct", "framedroute", `ALTER TABLE radacct ADD COLUMN framedroute TEXT`},
+		{"radacct", "framedipv6route", `ALTER TABLE radacct ADD COLUMN framedipv6route TEXT`},
+		{"radacct", "aegis_route_status", `ALTER TABLE radacct ADD COLUMN aegis_route_status TEXT NOT NULL DEFAULT 'ok'`},
+		{"radacct", "aegis_route_error", `ALTER TABLE radacct ADD COLUMN aegis_route_error TEXT`},
+		{"radacct", "aegis_last_route_event_id", `ALTER TABLE radacct ADD COLUMN aegis_last_route_event_id TEXT`},
+		{"radius_accounting_events", "framed_interface_id", `ALTER TABLE radius_accounting_events ADD COLUMN framed_interface_id TEXT`},
+		{"radius_accounting_events", "framed_route", `ALTER TABLE radius_accounting_events ADD COLUMN framed_route TEXT`},
+		{"radius_accounting_events", "framed_ipv6_route", `ALTER TABLE radius_accounting_events ADD COLUMN framed_ipv6_route TEXT`},
+		{"radius_accounting_events", "ip_assignment_status", `ALTER TABLE radius_accounting_events ADD COLUMN ip_assignment_status TEXT NOT NULL DEFAULT 'ok'`},
+		{"radius_accounting_events", "ip_assignment_error", `ALTER TABLE radius_accounting_events ADD COLUMN ip_assignment_error TEXT`},
+	} {
+		exists, err := tableExists(handle, column.table)
+		if err != nil || !exists {
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		hasColumn, err := tableHasColumn(handle, column.table, column.name)
+		if err != nil {
+			return err
+		}
+		if hasColumn {
+			continue
+		}
+		if _, err := handle.Exec(SQLForDialect(column.sql, dialect)); err != nil {
+			return err
+		}
+	}
+	_, err := handle.Exec(SQLForDialect(`CREATE TABLE IF NOT EXISTS radius_accounting_ip_assignments (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	session_key TEXT NOT NULL,
+	event_id TEXT UNIQUE NOT NULL,
+	acct_unique_id TEXT NOT NULL DEFAULT '',
+	acct_session_id TEXT NOT NULL DEFAULT '',
+	status_type TEXT NOT NULL,
+	event_time DATETIME NOT NULL,
+	username TEXT,
+	nas_ip_address TEXT,
+	framed_ip_address TEXT,
+	framed_ipv6_address TEXT,
+	framed_ipv6_prefix TEXT,
+	delegated_ipv6_prefix TEXT,
+	framed_interface_id TEXT,
+	framed_route TEXT,
+	framed_ipv6_route TEXT,
+	assignment_status TEXT NOT NULL DEFAULT 'active',
+	validation_status TEXT NOT NULL DEFAULT 'ok',
+	validation_error TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (assignment_status IN ('active', 'closed', 'unknown')),
+	CHECK (validation_status IN ('ok', 'invalid'))
+);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ip_assignments_session ON radius_accounting_ip_assignments(session_key, event_time, id);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ip_assignments_status ON radius_accounting_ip_assignments(assignment_status, event_time);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ip_assignments_validation ON radius_accounting_ip_assignments(validation_status, event_time);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ip_assignments_ipv6 ON radius_accounting_ip_assignments(framed_ipv6_address, delegated_ipv6_prefix);
+CREATE INDEX IF NOT EXISTS idx_radacct_route_status ON radacct(aegis_route_status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_events_ip_assignment ON radius_accounting_events(ip_assignment_status, event_time);`, dialect))
+	return err
 }
 
 func ensureAccountingCounterColumns(handle *sql.DB) error {

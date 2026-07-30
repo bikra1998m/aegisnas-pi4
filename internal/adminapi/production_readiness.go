@@ -125,6 +125,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionSQLAccountingCheck(&report, cfg)
 	addProductionAccountingOrderingCheck(&report, cfg)
 	addProductionAccountingCountersCheck(&report, cfg)
+	addProductionAccountingIPCheck(&report, cfg)
 	addProductionFallbackPolicyCheck(&report, cfg)
 	addProductionIdentityFailoverCheck(&report, cfg)
 	addProductionActiveDirectoryCheck(&report, cfg)
@@ -454,6 +455,37 @@ func addProductionAccountingCountersCheck(report *productionReadinessReport, cfg
 			counters.Summary.CounterErrorRows, counters.Summary.MaxInputOctets64, counters.Summary.MaxOutputOctets64),
 		Recommendation: "Keep radius.accounting_counters enabled with gigawords and reset detection, monitor /api/v1/system/accounting-counters, reconcile after FreeRADIUS SQL imports, and complete the NAS-0037 release certification checklist before production claims.",
 		Dependencies:   []string{"radius.accounting_counters", "/api/v1/system/accounting-counters", "Acct-Input-Gigawords", "Acct-Output-Gigawords", "radacct", "radius_accounting_events"},
+	})
+}
+
+func addProductionAccountingIPCheck(report *productionReadinessReport, cfg *config.Config) {
+	accountingIP := radius.BuildAccountingIPReport(cfg)
+	status := "passed"
+	switch accountingIP.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "blocked"
+	}
+	if !accountingIP.Enabled || !accountingIP.Policy.IPv6Enabled || !accountingIP.Policy.RouteAccountingEnabled || !accountingIP.Policy.DelegatedPrefixEnabled {
+		status = "blocked"
+	}
+	if accountingIP.Summary.InvalidRows > 0 {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_accounting_ip",
+		Category: "radius",
+		Label:    "IPv6, Prefix, And Route Accounting",
+		Status:   status,
+		Summary: fmt.Sprintf("Accounting IP schema %d is %s with %d assignment row(s), %d IPv6 address row(s), %d delegated prefix row(s), %d IPv4 route row(s), %d IPv6 route row(s), and %d invalid row(s).",
+			accountingIP.SchemaVersion, accountingIP.Status, accountingIP.Summary.AssignmentRows,
+			accountingIP.Summary.IPv6AddressRows, accountingIP.Summary.DelegatedPrefixRows,
+			accountingIP.Summary.IPv4RouteRows, accountingIP.Summary.IPv6RouteRows, accountingIP.Summary.InvalidRows),
+		Recommendation: "Keep radius.accounting_ip enabled with IPv6, delegated-prefix, and route accounting; monitor /api/v1/system/accounting-ip; reconcile after FreeRADIUS SQL imports; and complete the NAS-0038 release certification checklist before production claims.",
+		Dependencies:   []string{"radius.accounting_ip", "/api/v1/system/accounting-ip", "Framed-IPv6-Address", "Framed-IPv6-Prefix", "Delegated-IPv6-Prefix", "Framed-Route", "Framed-IPv6-Route", "radacct", "radius_accounting_ip_assignments"},
 	})
 }
 

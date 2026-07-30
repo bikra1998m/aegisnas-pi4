@@ -13,26 +13,32 @@ import (
 
 // AccountingRecord represents a RADIUS accounting packet.
 type AccountingRecord struct {
-	SessionID        string
-	Username         string
-	NASIPAddress     string
-	NASPort          int
-	AcctStatusType   string // Start, Stop, Interim-Update
-	AcctInputOctets  uint64
-	AcctOutputOctets uint64
-	AcctSessionTime  int
-	CalledStationID  string
-	CallingStationID string
-	FramedIPAddress  string
-	StopReason       string
-	Role             string
-	BandwidthProfile string
-	FilterID         string
-	RadiusClass      string
-	VLAN             int
-	SessionTimeout   int
-	IdleTimeout      int
-	Timestamp        time.Time
+	SessionID           string
+	Username            string
+	NASIPAddress        string
+	NASPort             int
+	AcctStatusType      string // Start, Stop, Interim-Update
+	AcctInputOctets     uint64
+	AcctOutputOctets    uint64
+	AcctSessionTime     int
+	CalledStationID     string
+	CallingStationID    string
+	FramedIPAddress     string
+	FramedIPv6Address   string
+	FramedIPv6Prefix    string
+	FramedInterfaceID   string
+	DelegatedIPv6Prefix string
+	FramedRoute         string
+	FramedIPv6Route     string
+	StopReason          string
+	Role                string
+	BandwidthProfile    string
+	FilterID            string
+	RadiusClass         string
+	VLAN                int
+	SessionTimeout      int
+	IdleTimeout         int
+	Timestamp           time.Time
 }
 
 // ProcessAccounting stores an accounting record in the database.
@@ -79,24 +85,30 @@ func ProcessAccounting(rec *AccountingRecord) error {
 func accountingEventFromAccounting(rec *AccountingRecord) db.AccountingEventRecord {
 	record := freeRADIUSRecordFromAccounting(rec)
 	return db.AccountingEventRecord{
-		AcctSessionID:      record.AcctSessionID,
-		AcctUniqueID:       record.AcctUniqueID,
-		SessionKey:         strings.TrimSpace(rec.SessionID),
-		StatusType:         rec.AcctStatusType,
-		EventTime:          rec.Timestamp.UTC().Format(time.RFC3339Nano),
-		ArrivalTime:        time.Now().UTC().Format(time.RFC3339Nano),
-		Username:           rec.Username,
-		NASIPAddress:       rec.NASIPAddress,
-		NASPortID:          record.NASPortID,
-		CallingStationID:   rec.CallingStationID,
-		CalledStationID:    rec.CalledStationID,
-		FramedIPAddress:    rec.FramedIPAddress,
-		Class:              rec.RadiusClass,
-		AcctInputOctets:    rec.AcctInputOctets,
-		AcctOutputOctets:   rec.AcctOutputOctets,
-		AcctSessionTime:    int64(rec.AcctSessionTime),
-		AcctTerminateCause: rec.StopReason,
-		Source:             "aegis-broker",
+		AcctSessionID:       record.AcctSessionID,
+		AcctUniqueID:        record.AcctUniqueID,
+		SessionKey:          strings.TrimSpace(rec.SessionID),
+		StatusType:          rec.AcctStatusType,
+		EventTime:           rec.Timestamp.UTC().Format(time.RFC3339Nano),
+		ArrivalTime:         time.Now().UTC().Format(time.RFC3339Nano),
+		Username:            rec.Username,
+		NASIPAddress:        rec.NASIPAddress,
+		NASPortID:           record.NASPortID,
+		CallingStationID:    rec.CallingStationID,
+		CalledStationID:     rec.CalledStationID,
+		FramedIPAddress:     rec.FramedIPAddress,
+		FramedIPv6Address:   rec.FramedIPv6Address,
+		FramedIPv6Prefix:    rec.FramedIPv6Prefix,
+		FramedInterfaceID:   rec.FramedInterfaceID,
+		DelegatedIPv6Prefix: rec.DelegatedIPv6Prefix,
+		FramedRoute:         rec.FramedRoute,
+		FramedIPv6Route:     rec.FramedIPv6Route,
+		Class:               rec.RadiusClass,
+		AcctInputOctets:     rec.AcctInputOctets,
+		AcctOutputOctets:    rec.AcctOutputOctets,
+		AcctSessionTime:     int64(rec.AcctSessionTime),
+		AcctTerminateCause:  rec.StopReason,
+		Source:              "aegis-broker",
 	}
 }
 
@@ -120,6 +132,12 @@ func freeRADIUSRecordFromAccounting(rec *AccountingRecord) db.FreeRADIUSAccounti
 		CallingStationID:     strings.TrimSpace(rec.CallingStationID),
 		AcctTerminateCause:   strings.TrimSpace(rec.StopReason),
 		FramedIPAddress:      strings.TrimSpace(rec.FramedIPAddress),
+		FramedIPv6Address:    strings.TrimSpace(rec.FramedIPv6Address),
+		FramedIPv6Prefix:     strings.TrimSpace(rec.FramedIPv6Prefix),
+		FramedInterfaceID:    strings.TrimSpace(rec.FramedInterfaceID),
+		DelegatedIPv6Prefix:  strings.TrimSpace(rec.DelegatedIPv6Prefix),
+		FramedRoute:          strings.TrimSpace(rec.FramedRoute),
+		FramedIPv6Route:      strings.TrimSpace(rec.FramedIPv6Route),
 		Class:                strings.TrimSpace(rec.RadiusClass),
 		AegisSessionID:       strings.TrimSpace(rec.SessionID),
 		AegisSource:          "aegis-broker",

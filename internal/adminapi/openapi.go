@@ -1241,6 +1241,13 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/accounting-counters", "get", securedOperation("Read 64-bit accounting counter and gigaword state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Accounting counter policy, normalized gigaword attributes, rollover/reset summary, maximum 64-bit totals, and warnings."),
 	}))
+	addOperation(paths, "/api/v1/system/accounting-ip", "get", securedOperationWithParameters("Read IPv6, delegated-prefix, and route accounting assignment state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("validation_status", "Optional IP assignment validation status filter.", []string{"ok", "invalid"}, false),
+		queryStringParameter("session_key", "Optional session key filter.", false),
+		queryStringParameter("limit", "Assignment record limit from 1 to 1000.", false),
+	}, map[string]any{
+		"200": responseJSON("Accounting IP policy, assignment summary, recent IPv4/IPv6/prefix/route evidence, and validation warnings."),
+	}))
 	addOperation(paths, "/api/v1/system/fallback-policy", "get", securedOperationWithParameters("Read upstream outage fallback policy", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"allowed", "denied"}, false),
 		queryStringParameter("source", "Optional fallback source filter such as portal.", false),

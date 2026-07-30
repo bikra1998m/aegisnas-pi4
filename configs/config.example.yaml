@@ -397,6 +397,13 @@ radius:
     max_counter_bits: 64
     overflow_policy: saturate
     retention_days: 365
+  accounting_ip:
+    enabled: true
+    ipv6_enabled: true
+    route_accounting_enabled: true
+    delegated_prefix_enabled: true
+    reject_invalid: false
+    retention_days: 365
   vendor:
     enabled: false
     name: "AegisNAS"

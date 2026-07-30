@@ -297,6 +297,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/sql-accounting.json", requestPath: "/api/v1/system/sql-accounting", label: "FreeRADIUS SQL accounting reconciliation", handler: HandleGetSQLAccounting},
 		{archivePath: "api/accounting-ordering.json", requestPath: "/api/v1/system/accounting-ordering", label: "Accounting idempotency and ordering", handler: HandleGetAccountingOrdering},
 		{archivePath: "api/accounting-counters.json", requestPath: "/api/v1/system/accounting-counters", label: "64-bit accounting counters and gigawords", handler: HandleGetAccountingCounters},
+		{archivePath: "api/accounting-ip.json", requestPath: "/api/v1/system/accounting-ip", label: "IPv6 prefix and route accounting", handler: HandleGetAccountingIP},
 		{archivePath: "api/policy-engine.json", requestPath: "/api/v1/system/policy-engine", label: "Typed policy expression engine", handler: HandleGetPolicyEngine},
 		{archivePath: "api/policy-sets.json", requestPath: "/api/v1/system/policy-sets", label: "Versioned policy set governance", handler: HandleGetPolicySets},
 		{archivePath: "api/policy-simulation-analyses.json", requestPath: "/api/v1/system/policy-sets/analyses", label: "Policy simulation analyses", handler: HandleListPolicySimulationAnalyses},

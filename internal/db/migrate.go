@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 42
+	return 43
 }
 
 func Migrate() error {
@@ -2171,3 +2171,59 @@ CREATE INDEX IF NOT EXISTS idx_radius_accounting_events_counter ON radius_accoun
 `
 
 const schemaV42 = accountingCounterColumnsSQL
+
+const accountingIPAssignmentSQL = `
+ALTER TABLE sessions ADD COLUMN ipv6_address TEXT;
+ALTER TABLE sessions ADD COLUMN framed_ipv6_prefix TEXT;
+ALTER TABLE sessions ADD COLUMN delegated_ipv6_prefix TEXT;
+ALTER TABLE sessions ADD COLUMN framed_interface_id TEXT;
+ALTER TABLE sessions ADD COLUMN framed_route TEXT;
+ALTER TABLE sessions ADD COLUMN framed_ipv6_route TEXT;
+
+ALTER TABLE radacct ADD COLUMN framedroute TEXT;
+ALTER TABLE radacct ADD COLUMN framedipv6route TEXT;
+ALTER TABLE radacct ADD COLUMN aegis_route_status TEXT NOT NULL DEFAULT 'ok';
+ALTER TABLE radacct ADD COLUMN aegis_route_error TEXT;
+ALTER TABLE radacct ADD COLUMN aegis_last_route_event_id TEXT;
+
+ALTER TABLE radius_accounting_events ADD COLUMN framed_interface_id TEXT;
+ALTER TABLE radius_accounting_events ADD COLUMN framed_route TEXT;
+ALTER TABLE radius_accounting_events ADD COLUMN framed_ipv6_route TEXT;
+ALTER TABLE radius_accounting_events ADD COLUMN ip_assignment_status TEXT NOT NULL DEFAULT 'ok';
+ALTER TABLE radius_accounting_events ADD COLUMN ip_assignment_error TEXT;
+
+CREATE TABLE IF NOT EXISTS radius_accounting_ip_assignments (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	session_key TEXT NOT NULL,
+	event_id TEXT UNIQUE NOT NULL,
+	acct_unique_id TEXT NOT NULL DEFAULT '',
+	acct_session_id TEXT NOT NULL DEFAULT '',
+	status_type TEXT NOT NULL,
+	event_time DATETIME NOT NULL,
+	username TEXT,
+	nas_ip_address TEXT,
+	framed_ip_address TEXT,
+	framed_ipv6_address TEXT,
+	framed_ipv6_prefix TEXT,
+	delegated_ipv6_prefix TEXT,
+	framed_interface_id TEXT,
+	framed_route TEXT,
+	framed_ipv6_route TEXT,
+	assignment_status TEXT NOT NULL DEFAULT 'active',
+	validation_status TEXT NOT NULL DEFAULT 'ok',
+	validation_error TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (assignment_status IN ('active', 'closed', 'unknown')),
+	CHECK (validation_status IN ('ok', 'invalid'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ip_assignments_session ON radius_accounting_ip_assignments(session_key, event_time, id);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ip_assignments_status ON radius_accounting_ip_assignments(assignment_status, event_time);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ip_assignments_validation ON radius_accounting_ip_assignments(validation_status, event_time);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ip_assignments_ipv6 ON radius_accounting_ip_assignments(framed_ipv6_address, delegated_ipv6_prefix);
+CREATE INDEX IF NOT EXISTS idx_radacct_route_status ON radacct(aegis_route_status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_events_ip_assignment ON radius_accounting_events(ip_assignment_status, event_time);
+`
+
+const schemaV43 = accountingIPAssignmentSQL

@@ -32,6 +32,9 @@ type AccountingEventRecord struct {
 	FramedIPv6Address       string `json:"framed_ipv6_address,omitempty"`
 	FramedIPv6Prefix        string `json:"framed_ipv6_prefix,omitempty"`
 	DelegatedIPv6Prefix     string `json:"delegated_ipv6_prefix,omitempty"`
+	FramedInterfaceID       string `json:"framed_interface_id,omitempty"`
+	FramedRoute             string `json:"framed_route,omitempty"`
+	FramedIPv6Route         string `json:"framed_ipv6_route,omitempty"`
 	Class                   string `json:"class,omitempty"`
 	AcctInputOctets         uint64 `json:"acct_input_octets"`
 	AcctOutputOctets        uint64 `json:"acct_output_octets"`
@@ -50,6 +53,8 @@ type AccountingEventRecord struct {
 	CounterResetDetected    bool   `json:"counter_reset_detected"`
 	CounterRolloverDetected bool   `json:"counter_rollover_detected"`
 	CounterError            string `json:"counter_error,omitempty"`
+	IPAssignmentStatus      string `json:"ip_assignment_status"`
+	IPAssignmentError       string `json:"ip_assignment_error,omitempty"`
 	DuplicateCount          int64  `json:"duplicate_count"`
 	LastSeenAt              string `json:"last_seen_at,omitempty"`
 	AppliedAt               string `json:"applied_at,omitempty"`
@@ -110,6 +115,12 @@ type accountingSessionSnapshot struct {
 	calledStationID string
 	nasIdentifier   string
 	radiusClass     string
+	ipv6Address     string
+	ipv6Prefix      string
+	delegatedPrefix string
+	interfaceID     string
+	framedRoute     string
+	framedIPv6Route string
 }
 
 func IngestAccountingEvent(ctx context.Context, event AccountingEventRecord) (AccountingEventIngestResult, error) {
@@ -134,13 +145,15 @@ func IngestAccountingEvent(ctx context.Context, event AccountingEventRecord) (Ac
 		event_id, acct_unique_id, acct_session_id, session_key, status_type, event_time,
 		arrival_time, ordinal, username, realm, nas_ip_address, nas_port_id, nas_port_type,
 		calling_station_id, called_station_id, framed_ip_address, framed_ipv6_address,
-		framed_ipv6_prefix, delegated_ipv6_prefix, class, acct_input_octets, acct_output_octets,
+		framed_ipv6_prefix, delegated_ipv6_prefix, framed_interface_id, framed_route,
+		framed_ipv6_route, class, acct_input_octets, acct_output_octets,
 		acct_input_gigawords, acct_output_gigawords, acct_input_octets_64,
 		acct_output_octets_64, acct_session_time, acct_terminate_cause, source,
 		fingerprint, payload_json, apply_status, ordering_status, counter_status,
 		counter_reset_detected, counter_rollover_detected, counter_error,
+		ip_assignment_status, ip_assignment_error,
 		duplicate_count, last_seen_at, applied_at, last_error, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(event_id) DO UPDATE SET
 		duplicate_count = radius_accounting_events.duplicate_count + 1,
 		last_seen_at = excluded.last_seen_at,
@@ -150,12 +163,14 @@ func IngestAccountingEvent(ctx context.Context, event AccountingEventRecord) (Ac
 		nullIfEmpty(event.NASIPAddress), nullIfEmpty(event.NASPortID), nullIfEmpty(event.NASPortType),
 		nullIfEmpty(event.CallingStationID), nullIfEmpty(event.CalledStationID), nullIfEmpty(event.FramedIPAddress),
 		nullIfEmpty(event.FramedIPv6Address), nullIfEmpty(event.FramedIPv6Prefix), nullIfEmpty(event.DelegatedIPv6Prefix),
+		nullIfEmpty(event.FramedInterfaceID), nullIfEmpty(event.FramedRoute), nullIfEmpty(event.FramedIPv6Route),
 		nullIfEmpty(event.Class), boundedUint64ToInt64(event.AcctInputOctets), boundedUint64ToInt64(event.AcctOutputOctets),
 		boundedUint64ToInt64(event.AcctInputGigawords), boundedUint64ToInt64(event.AcctOutputGigawords),
 		event.AcctInputOctets64, event.AcctOutputOctets64, event.AcctSessionTime,
 		nullIfEmpty(event.AcctTerminateCause), event.Source, event.Fingerprint, event.PayloadJSON,
 		event.ApplyStatus, event.OrderingStatus, event.CounterStatus, event.CounterResetDetected,
-		event.CounterRolloverDetected, nullIfEmpty(event.CounterError), event.DuplicateCount,
+		event.CounterRolloverDetected, nullIfEmpty(event.CounterError), event.IPAssignmentStatus,
+		nullIfEmpty(event.IPAssignmentError), event.DuplicateCount,
 		event.LastSeenAt, nullIfEmpty(event.AppliedAt), nullIfEmpty(event.LastError), event.CreatedAt, event.UpdatedAt)
 	if err != nil {
 		return AccountingEventIngestResult{}, fmt.Errorf("ingest accounting event: %w", err)
@@ -383,6 +398,9 @@ func FreeRADIUSAccountingEventFromRecord(record FreeRADIUSAccountingRecord) Acco
 		FramedIPv6Address:   record.FramedIPv6Address,
 		FramedIPv6Prefix:    record.FramedIPv6Prefix,
 		DelegatedIPv6Prefix: record.DelegatedIPv6Prefix,
+		FramedInterfaceID:   record.FramedInterfaceID,
+		FramedRoute:         record.FramedRoute,
+		FramedIPv6Route:     record.FramedIPv6Route,
 		Class:               record.Class,
 		AcctInputOctets:     record.AcctInputOctets,
 		AcctOutputOctets:    record.AcctOutputOctets,
@@ -395,6 +413,8 @@ func FreeRADIUSAccountingEventFromRecord(record FreeRADIUSAccountingRecord) Acco
 		Source:              firstNonEmptyString(record.AegisSource, "freeradius-sql"),
 		CounterStatus:       record.AegisCounterStatus,
 		CounterError:        record.AegisCounterError,
+		IPAssignmentStatus:  record.AegisRouteStatus,
+		IPAssignmentError:   record.AegisRouteError,
 	}
 	return normalizeAccountingEventRecord(event)
 }
@@ -411,6 +431,13 @@ func AccountingEventID(event AccountingEventRecord) string {
 		event.NASPortID,
 		event.CallingStationID,
 		event.CalledStationID,
+		event.FramedIPAddress,
+		event.FramedIPv6Address,
+		event.FramedIPv6Prefix,
+		event.DelegatedIPv6Prefix,
+		event.FramedInterfaceID,
+		event.FramedRoute,
+		event.FramedIPv6Route,
 		fmt.Sprint(event.AcctInputOctets),
 		fmt.Sprint(event.AcctInputGigawords),
 		event.AcctInputOctets64,
@@ -470,11 +497,18 @@ func applyAccountingEventRecord(ctx context.Context, event AccountingEventRecord
 	orderingStatus := classifyAccountingEventOrdering(event)
 	sessionBefore := loadAccountingSessionSnapshot(event.SessionKey)
 	event = classifyAccountingEventCounters(sessionBefore, event)
+	event = normalizeAccountingEventIPFields(event)
 	after := mergeAccountingSessionSnapshot(sessionBefore, event)
 	if err := updateAccountingEventCounterFields(event); err != nil {
 		return accountingApplyRowResult{}, err
 	}
+	if err := updateAccountingEventIPAssignmentFields(event); err != nil {
+		return accountingApplyRowResult{}, err
+	}
 	if err := upsertAccountingSession(ctx, event.SessionKey, after, sessionBefore.exists); err != nil {
+		return accountingApplyRowResult{}, err
+	}
+	if err := RecordAccountingIPAssignment(ctx, event); err != nil {
 		return accountingApplyRowResult{}, err
 	}
 	radacct := freeRADIUSRecordFromAccountingEvent(event, after)
@@ -582,6 +616,8 @@ func loadAccountingSessionSnapshot(sessionID string) accountingSessionSnapshot {
 	var (
 		username, mac, ip, authMethod, startTime, lastActivity, endTime, stopReason sql.NullString
 		radiusSessionID, calledStationID, nasIdentifier, radiusClass                sql.NullString
+		ipv6Address, ipv6Prefix, delegatedPrefix, interfaceID                       sql.NullString
+		framedRoute, framedIPv6Route                                                sql.NullString
 		bytesIn, bytesOut, acctSessionTime                                          sql.NullInt64
 	)
 	err := DB.QueryRow(`SELECT COALESCE(username, ''), COALESCE(mac, ''), COALESCE(ip, ''),
@@ -589,10 +625,14 @@ func loadAccountingSessionSnapshot(sessionID string) accountingSessionSnapshot {
 		COALESCE(CAST(last_activity AS TEXT), ''), COALESCE(CAST(end_time AS TEXT), ''),
 		COALESCE(stop_reason, ''), COALESCE(radius_session_id, ''),
 		COALESCE(bytes_in, 0), COALESCE(bytes_out, 0), COALESCE(acct_session_time, 0),
-		COALESCE(called_station_id, ''), COALESCE(nas_identifier, ''), COALESCE(radius_class, '')
+		COALESCE(called_station_id, ''), COALESCE(nas_identifier, ''), COALESCE(radius_class, ''),
+		COALESCE(ipv6_address, ''), COALESCE(framed_ipv6_prefix, ''),
+		COALESCE(delegated_ipv6_prefix, ''), COALESCE(framed_interface_id, ''),
+		COALESCE(framed_route, ''), COALESCE(framed_ipv6_route, '')
 		FROM sessions WHERE id = ?`, sessionID).Scan(&username, &mac, &ip, &authMethod, &startTime, &lastActivity,
 		&endTime, &stopReason, &radiusSessionID, &bytesIn, &bytesOut, &acctSessionTime,
-		&calledStationID, &nasIdentifier, &radiusClass)
+		&calledStationID, &nasIdentifier, &radiusClass, &ipv6Address, &ipv6Prefix,
+		&delegatedPrefix, &interfaceID, &framedRoute, &framedIPv6Route)
 	if err != nil {
 		return out
 	}
@@ -612,6 +652,12 @@ func loadAccountingSessionSnapshot(sessionID string) accountingSessionSnapshot {
 	out.calledStationID = calledStationID.String
 	out.nasIdentifier = nasIdentifier.String
 	out.radiusClass = radiusClass.String
+	out.ipv6Address = ipv6Address.String
+	out.ipv6Prefix = ipv6Prefix.String
+	out.delegatedPrefix = delegatedPrefix.String
+	out.interfaceID = interfaceID.String
+	out.framedRoute = framedRoute.String
+	out.framedIPv6Route = framedIPv6Route.String
 	return out
 }
 
@@ -664,6 +710,12 @@ func mergeAccountingSessionSnapshot(current accountingSessionSnapshot, event Acc
 		calledStationID: firstNonEmptyString(event.CalledStationID, current.calledStationID),
 		nasIdentifier:   firstNonEmptyString(event.NASIPAddress, current.nasIdentifier),
 		radiusClass:     firstNonEmptyString(event.Class, current.radiusClass),
+		ipv6Address:     firstNonEmptyString(event.FramedIPv6Address, current.ipv6Address),
+		ipv6Prefix:      firstNonEmptyString(event.FramedIPv6Prefix, current.ipv6Prefix),
+		delegatedPrefix: firstNonEmptyString(event.DelegatedIPv6Prefix, current.delegatedPrefix),
+		interfaceID:     firstNonEmptyString(event.FramedInterfaceID, current.interfaceID),
+		framedRoute:     firstNonEmptyString(event.FramedRoute, current.framedRoute),
+		framedIPv6Route: firstNonEmptyString(event.FramedIPv6Route, current.framedIPv6Route),
 	}
 }
 
@@ -678,25 +730,32 @@ func upsertAccountingSession(ctx context.Context, sessionID string, session acco
 	if !existed {
 		_, err := DB.ExecContext(ctx, `INSERT INTO sessions (
 			id, username, mac, ip, auth_method, start_time, last_activity, end_time, stop_reason,
-			radius_session_id, bytes_in, bytes_out, acct_session_time, called_station_id, nas_identifier, radius_class
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			radius_session_id, bytes_in, bytes_out, acct_session_time, called_station_id, nas_identifier, radius_class,
+			ipv6_address, framed_ipv6_prefix, delegated_ipv6_prefix, framed_interface_id, framed_route, framed_ipv6_route
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			sessionID, firstNonEmptyString(session.username, "unknown"), nullIfEmpty(session.mac), nullIfEmpty(session.ip),
 			nullIfEmpty(session.authMethod), session.startTime, nullIfEmpty(session.lastActivity), nullIfEmpty(session.endTime),
 			nullIfEmpty(session.stopReason), nullIfEmpty(session.radiusSessionID), boundedUint64ToInt64(session.bytesIn),
 			boundedUint64ToInt64(session.bytesOut), session.acctSessionTime, nullIfEmpty(session.calledStationID),
-			nullIfEmpty(session.nasIdentifier), nullIfEmpty(session.radiusClass))
+			nullIfEmpty(session.nasIdentifier), nullIfEmpty(session.radiusClass), nullIfEmpty(session.ipv6Address),
+			nullIfEmpty(session.ipv6Prefix), nullIfEmpty(session.delegatedPrefix), nullIfEmpty(session.interfaceID),
+			nullIfEmpty(session.framedRoute), nullIfEmpty(session.framedIPv6Route))
 		return err
 	}
 	_, err := DB.ExecContext(ctx, `UPDATE sessions SET
 		username = ?, mac = ?, ip = ?, auth_method = ?, start_time = ?, last_activity = ?,
 		end_time = ?, stop_reason = ?, radius_session_id = ?, bytes_in = ?, bytes_out = ?,
-		acct_session_time = ?, called_station_id = ?, nas_identifier = ?, radius_class = ?
+		acct_session_time = ?, called_station_id = ?, nas_identifier = ?, radius_class = ?,
+		ipv6_address = ?, framed_ipv6_prefix = ?, delegated_ipv6_prefix = ?,
+		framed_interface_id = ?, framed_route = ?, framed_ipv6_route = ?
 		WHERE id = ?`,
 		firstNonEmptyString(session.username, "unknown"), nullIfEmpty(session.mac), nullIfEmpty(session.ip),
 		nullIfEmpty(session.authMethod), session.startTime, nullIfEmpty(session.lastActivity), nullIfEmpty(session.endTime),
 		nullIfEmpty(session.stopReason), nullIfEmpty(session.radiusSessionID), boundedUint64ToInt64(session.bytesIn),
 		boundedUint64ToInt64(session.bytesOut), session.acctSessionTime, nullIfEmpty(session.calledStationID),
-		nullIfEmpty(session.nasIdentifier), nullIfEmpty(session.radiusClass), sessionID)
+		nullIfEmpty(session.nasIdentifier), nullIfEmpty(session.radiusClass), nullIfEmpty(session.ipv6Address),
+		nullIfEmpty(session.ipv6Prefix), nullIfEmpty(session.delegatedPrefix), nullIfEmpty(session.interfaceID),
+		nullIfEmpty(session.framedRoute), nullIfEmpty(session.framedIPv6Route), sessionID)
 	return err
 }
 
@@ -733,6 +792,24 @@ func updateAccountingEventCounterFields(event AccountingEventRecord) error {
 	return err
 }
 
+func updateAccountingEventIPAssignmentFields(event AccountingEventRecord) error {
+	if DB == nil || event.ID == 0 {
+		return nil
+	}
+	_, err := DB.Exec(`UPDATE radius_accounting_events
+		SET framed_ip_address = ?, framed_ipv6_address = ?, framed_ipv6_prefix = ?,
+			delegated_ipv6_prefix = ?, framed_interface_id = ?, framed_route = ?,
+			framed_ipv6_route = ?, ip_assignment_status = ?, ip_assignment_error = ?,
+			updated_at = ?
+		WHERE id = ?`,
+		nullIfEmpty(event.FramedIPAddress), nullIfEmpty(event.FramedIPv6Address),
+		nullIfEmpty(event.FramedIPv6Prefix), nullIfEmpty(event.DelegatedIPv6Prefix),
+		nullIfEmpty(event.FramedInterfaceID), nullIfEmpty(event.FramedRoute),
+		nullIfEmpty(event.FramedIPv6Route), event.IPAssignmentStatus,
+		nullIfEmpty(event.IPAssignmentError), formatAccountingTime(time.Now().UTC()), event.ID)
+	return err
+}
+
 func freeRADIUSRecordFromAccountingEvent(event AccountingEventRecord, session accountingSessionSnapshot) FreeRADIUSAccountingRecord {
 	record := FreeRADIUSAccountingRecord{
 		AcctSessionID:           event.AcctSessionID,
@@ -753,9 +830,12 @@ func freeRADIUSRecordFromAccountingEvent(event AccountingEventRecord, session ac
 		CallingStationID:        event.CallingStationID,
 		AcctTerminateCause:      event.AcctTerminateCause,
 		FramedIPAddress:         event.FramedIPAddress,
-		FramedIPv6Address:       event.FramedIPv6Address,
-		FramedIPv6Prefix:        event.FramedIPv6Prefix,
-		DelegatedIPv6Prefix:     event.DelegatedIPv6Prefix,
+		FramedIPv6Address:       firstNonEmptyString(event.FramedIPv6Address, session.ipv6Address),
+		FramedIPv6Prefix:        firstNonEmptyString(event.FramedIPv6Prefix, session.ipv6Prefix),
+		FramedInterfaceID:       firstNonEmptyString(event.FramedInterfaceID, session.interfaceID),
+		DelegatedIPv6Prefix:     firstNonEmptyString(event.DelegatedIPv6Prefix, session.delegatedPrefix),
+		FramedRoute:             firstNonEmptyString(event.FramedRoute, session.framedRoute),
+		FramedIPv6Route:         firstNonEmptyString(event.FramedIPv6Route, session.framedIPv6Route),
 		Class:                   event.Class,
 		AegisSessionID:          event.SessionKey,
 		AegisSource:             event.Source,
@@ -764,6 +844,9 @@ func freeRADIUSRecordFromAccountingEvent(event AccountingEventRecord, session ac
 		AegisCounterError:       event.CounterError,
 		AegisCounterResetCount:  accountingCounterResetCountForSession(event.SessionKey),
 		AegisLastCounterEventID: event.EventID,
+		AegisRouteStatus:        event.IPAssignmentStatus,
+		AegisRouteError:         event.IPAssignmentError,
+		AegisLastRouteEventID:   event.EventID,
 	}
 	record.AcctInputOctets, record.AcctInputGigawords, record.AegisInputOctets64,
 		record.AcctOutputOctets, record.AcctOutputGigawords, record.AegisOutputOctets64,
@@ -797,6 +880,8 @@ func accountingEventSelectSQL() string {
 		COALESCE(calling_station_id, ''), COALESCE(called_station_id, ''),
 		COALESCE(framed_ip_address, ''), COALESCE(framed_ipv6_address, ''),
 		COALESCE(framed_ipv6_prefix, ''), COALESCE(delegated_ipv6_prefix, ''),
+		COALESCE(framed_interface_id, ''), COALESCE(framed_route, ''),
+		COALESCE(framed_ipv6_route, ''),
 		COALESCE(class, ''), COALESCE(acct_input_octets, 0), COALESCE(acct_output_octets, 0),
 		COALESCE(acct_input_gigawords, 0), COALESCE(acct_output_gigawords, 0),
 		COALESCE(acct_input_octets_64, '0'), COALESCE(acct_output_octets_64, '0'),
@@ -804,6 +889,7 @@ func accountingEventSelectSQL() string {
 		fingerprint, COALESCE(payload_json, '{}'), apply_status, ordering_status,
 		COALESCE(counter_status, 'ok'), COALESCE(counter_reset_detected, 0),
 		COALESCE(counter_rollover_detected, 0), COALESCE(counter_error, ''),
+		COALESCE(ip_assignment_status, 'ok'), COALESCE(ip_assignment_error, ''),
 		COALESCE(duplicate_count, 0), COALESCE(CAST(last_seen_at AS TEXT), ''),
 		COALESCE(CAST(applied_at AS TEXT), ''), COALESCE(last_error, ''),
 		COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), '')
@@ -819,13 +905,15 @@ func scanAccountingEventRows(rows *sql.Rows) ([]AccountingEventRecord, error) {
 			&event.SessionKey, &event.StatusType, &event.EventTime, &event.ArrivalTime,
 			&event.Ordinal, &event.Username, &event.Realm, &event.NASIPAddress, &event.NASPortID,
 			&event.NASPortType, &event.CallingStationID, &event.CalledStationID, &event.FramedIPAddress,
-			&event.FramedIPv6Address, &event.FramedIPv6Prefix, &event.DelegatedIPv6Prefix, &event.Class,
+			&event.FramedIPv6Address, &event.FramedIPv6Prefix, &event.DelegatedIPv6Prefix,
+			&event.FramedInterfaceID, &event.FramedRoute, &event.FramedIPv6Route, &event.Class,
 			&inputOctets, &outputOctets, &inputGigawords, &outputGigawords,
 			&event.AcctInputOctets64, &event.AcctOutputOctets64,
 			&event.AcctSessionTime, &event.AcctTerminateCause, &event.Source,
 			&event.Fingerprint, &event.PayloadJSON, &event.ApplyStatus, &event.OrderingStatus,
 			&event.CounterStatus, &event.CounterResetDetected, &event.CounterRolloverDetected,
-			&event.CounterError, &event.DuplicateCount, &event.LastSeenAt, &event.AppliedAt, &event.LastError,
+			&event.CounterError, &event.IPAssignmentStatus, &event.IPAssignmentError,
+			&event.DuplicateCount, &event.LastSeenAt, &event.AppliedAt, &event.LastError,
 			&event.CreatedAt, &event.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan accounting event: %w", err)
 		}
@@ -882,6 +970,9 @@ func normalizeAccountingEventRecord(event AccountingEventRecord) AccountingEvent
 	if event.CounterStatus == "" {
 		event.CounterStatus = "ok"
 	}
+	if event.IPAssignmentStatus == "" {
+		event.IPAssignmentStatus = "ok"
+	}
 	if event.LastSeenAt == "" {
 		event.LastSeenAt = event.ArrivalTime
 	}
@@ -911,6 +1002,9 @@ func normalizeAccountingEventRecordForHash(event AccountingEventRecord) Accounti
 	event.FramedIPv6Address = strings.TrimSpace(event.FramedIPv6Address)
 	event.FramedIPv6Prefix = strings.TrimSpace(event.FramedIPv6Prefix)
 	event.DelegatedIPv6Prefix = strings.TrimSpace(event.DelegatedIPv6Prefix)
+	event.FramedInterfaceID = strings.TrimSpace(event.FramedInterfaceID)
+	event.FramedRoute = strings.TrimSpace(event.FramedRoute)
+	event.FramedIPv6Route = strings.TrimSpace(event.FramedIPv6Route)
 	event.Class = strings.TrimSpace(event.Class)
 	event.AcctTerminateCause = strings.TrimSpace(event.AcctTerminateCause)
 	event.Source = firstNonEmptyString(event.Source, "aegis")
@@ -918,10 +1012,13 @@ func normalizeAccountingEventRecordForHash(event AccountingEventRecord) Accounti
 	event.OrderingStatus = strings.TrimSpace(event.OrderingStatus)
 	event.CounterStatus = strings.TrimSpace(event.CounterStatus)
 	event.CounterError = strings.TrimSpace(event.CounterError)
+	event.IPAssignmentStatus = strings.TrimSpace(event.IPAssignmentStatus)
+	event.IPAssignmentError = strings.TrimSpace(event.IPAssignmentError)
 	if event.AcctSessionTime < 0 {
 		event.AcctSessionTime = 0
 	}
 	event = normalizeAccountingEventCounterFields(event)
+	event = normalizeAccountingEventIPFields(event)
 	return event
 }
 
@@ -942,6 +1039,41 @@ func normalizeAccountingEventCounterFields(event AccountingEventRecord) Accounti
 		event.CounterStatus = "ok"
 	}
 	return event
+}
+
+func normalizeAccountingEventIPFields(event AccountingEventRecord) AccountingEventRecord {
+	existingStatus := event.IPAssignmentStatus
+	existingError := event.IPAssignmentError
+	fields := accountingIPFieldsFromEvent(event)
+	event.FramedIPAddress = fields.FramedIPAddress
+	event.FramedIPv6Address = fields.FramedIPv6Address
+	event.FramedIPv6Prefix = fields.FramedIPv6Prefix
+	event.DelegatedIPv6Prefix = fields.DelegatedIPv6Prefix
+	event.FramedInterfaceID = fields.FramedInterfaceID
+	event.FramedRoute = fields.FramedRoute
+	event.FramedIPv6Route = fields.FramedIPv6Route
+	event.IPAssignmentStatus = combineIPAssignmentStatus(existingStatus, fields.ValidationStatus)
+	event.IPAssignmentError = firstNonEmptyString(existingError, fields.ValidationError)
+	if event.IPAssignmentStatus == "" {
+		event.IPAssignmentStatus = "ok"
+	}
+	return event
+}
+
+func combineIPAssignmentStatus(values ...string) string {
+	status := "ok"
+	for _, value := range values {
+		switch strings.ToLower(strings.TrimSpace(value)) {
+		case "invalid", "error":
+			return "invalid"
+		case "warn", "warning", "degraded":
+			status = "degraded"
+		case "", "ok":
+		default:
+			status = strings.ToLower(strings.TrimSpace(value))
+		}
+	}
+	return status
 }
 
 func canonicalAccountingStatus(value string) string {
@@ -980,6 +1112,8 @@ func accountingEventFingerprint(event AccountingEventRecord) string {
 	sum := sha256.Sum256([]byte(strings.Join([]string{
 		event.AcctUniqueID, event.StatusType, event.EventTime, event.Username, event.NASIPAddress,
 		event.NASPortID, event.CallingStationID, event.CalledStationID, event.FramedIPAddress,
+		event.FramedIPv6Address, event.FramedIPv6Prefix, event.DelegatedIPv6Prefix,
+		event.FramedInterfaceID, event.FramedRoute, event.FramedIPv6Route,
 		fmt.Sprint(event.AcctInputOctets), fmt.Sprint(event.AcctInputGigawords), event.AcctInputOctets64,
 		fmt.Sprint(event.AcctOutputOctets), fmt.Sprint(event.AcctOutputGigawords), event.AcctOutputOctets64,
 		fmt.Sprint(event.AcctSessionTime),
@@ -1004,6 +1138,9 @@ func accountingEventPayloadJSON(event AccountingEventRecord) string {
 		"framed_ipv6_address":       event.FramedIPv6Address,
 		"framed_ipv6_prefix":        event.FramedIPv6Prefix,
 		"delegated_ipv6_prefix":     event.DelegatedIPv6Prefix,
+		"framed_interface_id":       event.FramedInterfaceID,
+		"framed_route":              event.FramedRoute,
+		"framed_ipv6_route":         event.FramedIPv6Route,
 		"acct_input_octets":         event.AcctInputOctets,
 		"acct_output_octets":        event.AcctOutputOctets,
 		"acct_input_gigawords":      event.AcctInputGigawords,
@@ -1016,6 +1153,9 @@ func accountingEventPayloadJSON(event AccountingEventRecord) string {
 		"counter_status":            event.CounterStatus,
 		"counter_reset_detected":    event.CounterResetDetected,
 		"counter_rollover_detected": event.CounterRolloverDetected,
+		"ip_assignment_status":      event.IPAssignmentStatus,
+		"ip_assignment_error":       event.IPAssignmentError,
+		"nas_0038_schema_version":   1,
 		"nas_0037_schema_version":   1,
 	}
 	encoded, err := json.Marshal(payload)

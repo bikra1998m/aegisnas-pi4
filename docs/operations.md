@@ -134,6 +134,20 @@ Production readiness blocks when 64-bit counters are disabled, gigawords are
 disabled, reset detection is disabled, max counter width is not 64 bits, or
 overflow/error rows remain.
 
+NAS-0038 IPv6, delegated-prefix, and route accounting details are exposed at:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/accounting-ip | jq '.report.status, .report.summary'
+```
+
+After SQL reconciliation, accounting replay, dual-stack AP tests, or BNG/BRAS
+route tests, confirm `invalid_rows` is zero, expected IPv6 address or prefix
+rows are present, delegated prefixes are visible for subscriber sessions, and
+Stop or Accounting-Off drills close active assignment rows. Support bundles
+include `api/accounting-ip.json`; external packet captures and hardware drills
+are tracked in `nas-0038-release-certification-checklist.md`.
+
 ## Admin Access Workflow
 
 Operators can now sign in with either:

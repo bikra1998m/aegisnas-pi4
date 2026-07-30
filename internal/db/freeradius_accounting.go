@@ -46,6 +46,8 @@ type FreeRADIUSAccountingRecord struct {
 	FramedIPv6Prefix        string `json:"framedipv6prefix,omitempty"`
 	FramedInterfaceID       string `json:"framedinterfaceid,omitempty"`
 	DelegatedIPv6Prefix     string `json:"delegatedipv6prefix,omitempty"`
+	FramedRoute             string `json:"framedroute,omitempty"`
+	FramedIPv6Route         string `json:"framedipv6route,omitempty"`
 	Class                   string `json:"class,omitempty"`
 	AegisSessionID          string `json:"aegis_session_id,omitempty"`
 	AegisSource             string `json:"aegis_source,omitempty"`
@@ -56,6 +58,9 @@ type FreeRADIUSAccountingRecord struct {
 	AegisCounterError       string `json:"aegis_counter_error,omitempty"`
 	AegisCounterResetCount  int64  `json:"aegis_counter_reset_count"`
 	AegisLastCounterEventID string `json:"aegis_last_counter_event_id,omitempty"`
+	AegisRouteStatus        string `json:"aegis_route_status,omitempty"`
+	AegisRouteError         string `json:"aegis_route_error,omitempty"`
+	AegisLastRouteEventID   string `json:"aegis_last_route_event_id,omitempty"`
 	CreatedAt               string `json:"created_at,omitempty"`
 	UpdatedAt               string `json:"updated_at,omitempty"`
 }
@@ -135,11 +140,13 @@ func UpsertFreeRADIUSAccountingRecord(ctx context.Context, rec FreeRADIUSAccount
 		connectinfo_start, connectinfo_stop, acctinputoctets, acctoutputoctets, acctinputgigawords,
 		acctoutputgigawords, aegis_input_octets_64, aegis_output_octets_64, calledstationid,
 		callingstationid, acctterminatecause, servicetype, framedprotocol, framedipaddress,
-		framedipv6address, framedipv6prefix, framedinterfaceid, delegatedipv6prefix, class,
+		framedipv6address, framedipv6prefix, framedinterfaceid, delegatedipv6prefix,
+		framedroute, framedipv6route, class,
 		aegis_session_id, aegis_source, aegis_reconcile_status, aegis_reconcile_error,
 		aegis_reconciled_at, aegis_counter_status, aegis_counter_error, aegis_counter_reset_count,
-		aegis_last_counter_event_id, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		aegis_last_counter_event_id, aegis_route_status, aegis_route_error,
+		aegis_last_route_event_id, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(acctuniqueid) DO UPDATE SET
 		acctsessionid = excluded.acctsessionid,
 		username = excluded.username,
@@ -171,6 +178,8 @@ func UpsertFreeRADIUSAccountingRecord(ctx context.Context, rec FreeRADIUSAccount
 		framedipv6prefix = excluded.framedipv6prefix,
 		framedinterfaceid = excluded.framedinterfaceid,
 		delegatedipv6prefix = excluded.delegatedipv6prefix,
+		framedroute = excluded.framedroute,
+		framedipv6route = excluded.framedipv6route,
 		class = excluded.class,
 		aegis_session_id = COALESCE(excluded.aegis_session_id, radacct.aegis_session_id),
 		aegis_source = excluded.aegis_source,
@@ -181,6 +190,9 @@ func UpsertFreeRADIUSAccountingRecord(ctx context.Context, rec FreeRADIUSAccount
 		aegis_counter_error = excluded.aegis_counter_error,
 		aegis_counter_reset_count = excluded.aegis_counter_reset_count,
 		aegis_last_counter_event_id = COALESCE(excluded.aegis_last_counter_event_id, radacct.aegis_last_counter_event_id),
+		aegis_route_status = excluded.aegis_route_status,
+		aegis_route_error = excluded.aegis_route_error,
+		aegis_last_route_event_id = COALESCE(excluded.aegis_last_route_event_id, radacct.aegis_last_route_event_id),
 		updated_at = excluded.updated_at`
 	if _, err := DB.ExecContext(ctx, query, freeRADIUSAccountingArgs(rec)...); err != nil {
 		return FreeRADIUSAccountingRecord{}, fmt.Errorf("upsert radacct: %w", err)
@@ -419,8 +431,9 @@ func applyFreeRADIUSAccountingRecord(record FreeRADIUSAccountingRecord) (freeRAD
 	_ = DB.QueryRow(`SELECT COUNT(*) FROM sessions WHERE id = ?`, sessionID).Scan(&before)
 	_, err := DB.Exec(`INSERT INTO sessions (
 		id, username, mac, ip, auth_method, start_time, last_activity, end_time, stop_reason,
-		radius_session_id, bytes_in, bytes_out, acct_session_time, called_station_id, nas_identifier, radius_class
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		radius_session_id, bytes_in, bytes_out, acct_session_time, called_station_id, nas_identifier, radius_class,
+		ipv6_address, framed_ipv6_prefix, delegated_ipv6_prefix, framed_interface_id, framed_route, framed_ipv6_route
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(id) DO UPDATE SET
 		username = COALESCE(NULLIF(excluded.username, ''), sessions.username),
 		mac = COALESCE(NULLIF(excluded.mac, ''), sessions.mac),
@@ -435,13 +448,24 @@ func applyFreeRADIUSAccountingRecord(record FreeRADIUSAccountingRecord) (freeRAD
 		acct_session_time = excluded.acct_session_time,
 		called_station_id = COALESCE(NULLIF(excluded.called_station_id, ''), sessions.called_station_id),
 		nas_identifier = COALESCE(NULLIF(excluded.nas_identifier, ''), sessions.nas_identifier),
-		radius_class = COALESCE(NULLIF(excluded.radius_class, ''), sessions.radius_class)`,
+		radius_class = COALESCE(NULLIF(excluded.radius_class, ''), sessions.radius_class),
+		ipv6_address = COALESCE(NULLIF(excluded.ipv6_address, ''), sessions.ipv6_address),
+		framed_ipv6_prefix = COALESCE(NULLIF(excluded.framed_ipv6_prefix, ''), sessions.framed_ipv6_prefix),
+		delegated_ipv6_prefix = COALESCE(NULLIF(excluded.delegated_ipv6_prefix, ''), sessions.delegated_ipv6_prefix),
+		framed_interface_id = COALESCE(NULLIF(excluded.framed_interface_id, ''), sessions.framed_interface_id),
+		framed_route = COALESCE(NULLIF(excluded.framed_route, ''), sessions.framed_route),
+		framed_ipv6_route = COALESCE(NULLIF(excluded.framed_ipv6_route, ''), sessions.framed_ipv6_route)`,
 		sessionID, strings.TrimSpace(record.Username), strings.TrimSpace(record.CallingStationID), strings.TrimSpace(record.FramedIPAddress),
 		"radius-accounting", startTime, lastActivity, nullIfEmpty(endTime), nullIfEmpty(stopReason),
 		strings.TrimSpace(record.AcctSessionID), boundedUint64ToInt64(record.AcctInputOctets), boundedUint64ToInt64(record.AcctOutputOctets),
-		record.AcctSessionTime, nullIfEmpty(record.CalledStationID), nullIfEmpty(record.NASIPAddress), nullIfEmpty(record.Class))
+		record.AcctSessionTime, nullIfEmpty(record.CalledStationID), nullIfEmpty(record.NASIPAddress), nullIfEmpty(record.Class),
+		nullIfEmpty(record.FramedIPv6Address), nullIfEmpty(record.FramedIPv6Prefix), nullIfEmpty(record.DelegatedIPv6Prefix),
+		nullIfEmpty(record.FramedInterfaceID), nullIfEmpty(record.FramedRoute), nullIfEmpty(record.FramedIPv6Route))
 	if err != nil {
 		return freeRADIUSAccountingApplyResult{}, fmt.Errorf("apply radacctid %d to sessions: %w", record.RadAcctID, err)
+	}
+	if err := RecordAccountingIPAssignment(context.Background(), FreeRADIUSAccountingEventFromRecord(record)); err != nil {
+		return freeRADIUSAccountingApplyResult{}, err
 	}
 	if err := markFreeRADIUSAccountingReconciled(record.RadAcctID, sessionID, "reconciled", "", formatAccountingTime(time.Now().UTC())); err != nil {
 		return freeRADIUSAccountingApplyResult{}, err
@@ -504,11 +528,14 @@ func freeRADIUSAccountingSelectSQL() string {
 		COALESCE(callingstationid, ''), COALESCE(acctterminatecause, ''), COALESCE(servicetype, ''),
 		COALESCE(framedprotocol, ''), COALESCE(framedipaddress, ''), COALESCE(framedipv6address, ''),
 		COALESCE(framedipv6prefix, ''), COALESCE(framedinterfaceid, ''), COALESCE(delegatedipv6prefix, ''),
+		COALESCE(framedroute, ''), COALESCE(framedipv6route, ''),
 		COALESCE(class, ''), COALESCE(aegis_session_id, ''), COALESCE(aegis_source, ''),
 		COALESCE(aegis_reconcile_status, ''), COALESCE(aegis_reconcile_error, ''),
 		COALESCE(CAST(aegis_reconciled_at AS TEXT), ''), COALESCE(aegis_counter_status, ''),
 		COALESCE(aegis_counter_error, ''), COALESCE(aegis_counter_reset_count, 0),
-		COALESCE(aegis_last_counter_event_id, ''), COALESCE(CAST(created_at AS TEXT), ''),
+		COALESCE(aegis_last_counter_event_id, ''), COALESCE(aegis_route_status, 'ok'),
+		COALESCE(aegis_route_error, ''), COALESCE(aegis_last_route_event_id, ''),
+		COALESCE(CAST(created_at AS TEXT), ''),
 		COALESCE(CAST(updated_at AS TEXT), '') FROM radacct`
 }
 
@@ -524,9 +551,10 @@ func scanFreeRADIUSAccountingRows(rows *sql.Rows) ([]FreeRADIUSAccountingRecord,
 			&record.AegisInputOctets64, &record.AegisOutputOctets64, &record.CalledStationID, &record.CallingStationID,
 			&record.AcctTerminateCause, &record.ServiceType, &record.FramedProtocol, &record.FramedIPAddress,
 			&record.FramedIPv6Address, &record.FramedIPv6Prefix, &record.FramedInterfaceID, &record.DelegatedIPv6Prefix,
-			&record.Class, &record.AegisSessionID, &record.AegisSource, &record.AegisReconcileStatus,
+			&record.FramedRoute, &record.FramedIPv6Route, &record.Class, &record.AegisSessionID, &record.AegisSource, &record.AegisReconcileStatus,
 			&record.AegisReconcileError, &record.AegisReconciledAt, &record.AegisCounterStatus,
 			&record.AegisCounterError, &record.AegisCounterResetCount, &record.AegisLastCounterEventID,
+			&record.AegisRouteStatus, &record.AegisRouteError, &record.AegisLastRouteEventID,
 			&record.CreatedAt, &record.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan radacct: %w", err)
 		}
@@ -558,10 +586,12 @@ func freeRADIUSAccountingArgs(rec FreeRADIUSAccountingRecord) []any {
 		nullIfEmpty(rec.CalledStationID), nullIfEmpty(rec.CallingStationID),
 		nullIfEmpty(rec.AcctTerminateCause), nullIfEmpty(rec.ServiceType), nullIfEmpty(rec.FramedProtocol),
 		nullIfEmpty(rec.FramedIPAddress), nullIfEmpty(rec.FramedIPv6Address), nullIfEmpty(rec.FramedIPv6Prefix),
-		nullIfEmpty(rec.FramedInterfaceID), nullIfEmpty(rec.DelegatedIPv6Prefix), nullIfEmpty(rec.Class),
+		nullIfEmpty(rec.FramedInterfaceID), nullIfEmpty(rec.DelegatedIPv6Prefix),
+		nullIfEmpty(rec.FramedRoute), nullIfEmpty(rec.FramedIPv6Route), nullIfEmpty(rec.Class),
 		nullIfEmpty(rec.AegisSessionID), rec.AegisSource, rec.AegisReconcileStatus, nullIfEmpty(rec.AegisReconcileError),
 		nullIfEmpty(rec.AegisReconciledAt), rec.AegisCounterStatus, nullIfEmpty(rec.AegisCounterError),
-		rec.AegisCounterResetCount, nullIfEmpty(rec.AegisLastCounterEventID), rec.CreatedAt, rec.UpdatedAt,
+		rec.AegisCounterResetCount, nullIfEmpty(rec.AegisLastCounterEventID), rec.AegisRouteStatus,
+		nullIfEmpty(rec.AegisRouteError), nullIfEmpty(rec.AegisLastRouteEventID), rec.CreatedAt, rec.UpdatedAt,
 	}
 }
 
@@ -599,6 +629,26 @@ func normalizeFreeRADIUSAccountingRecord(rec FreeRADIUSAccountingRecord) FreeRAD
 	rec.FramedIPv6Prefix = strings.TrimSpace(rec.FramedIPv6Prefix)
 	rec.FramedInterfaceID = strings.TrimSpace(rec.FramedInterfaceID)
 	rec.DelegatedIPv6Prefix = strings.TrimSpace(rec.DelegatedIPv6Prefix)
+	rec.FramedRoute = strings.TrimSpace(rec.FramedRoute)
+	rec.FramedIPv6Route = strings.TrimSpace(rec.FramedIPv6Route)
+	ipFields := NormalizeAccountingIPFields(AccountingIPFields{
+		FramedIPAddress:     rec.FramedIPAddress,
+		FramedIPv6Address:   rec.FramedIPv6Address,
+		FramedIPv6Prefix:    rec.FramedIPv6Prefix,
+		DelegatedIPv6Prefix: rec.DelegatedIPv6Prefix,
+		FramedInterfaceID:   rec.FramedInterfaceID,
+		FramedRoute:         rec.FramedRoute,
+		FramedIPv6Route:     rec.FramedIPv6Route,
+	})
+	rec.FramedIPAddress = ipFields.FramedIPAddress
+	rec.FramedIPv6Address = ipFields.FramedIPv6Address
+	rec.FramedIPv6Prefix = ipFields.FramedIPv6Prefix
+	rec.FramedInterfaceID = ipFields.FramedInterfaceID
+	rec.DelegatedIPv6Prefix = ipFields.DelegatedIPv6Prefix
+	rec.FramedRoute = ipFields.FramedRoute
+	rec.FramedIPv6Route = ipFields.FramedIPv6Route
+	rec.AegisRouteStatus = combineIPAssignmentStatus(rec.AegisRouteStatus, ipFields.ValidationStatus)
+	rec.AegisRouteError = firstNonEmptyString(rec.AegisRouteError, ipFields.ValidationError)
 	rec.Class = strings.TrimSpace(rec.Class)
 	rec.AegisSessionID = strings.TrimSpace(rec.AegisSessionID)
 	rec.AegisSource = strings.TrimSpace(rec.AegisSource)
@@ -611,6 +661,9 @@ func normalizeFreeRADIUSAccountingRecord(rec FreeRADIUSAccountingRecord) FreeRAD
 	}
 	if rec.AegisCounterStatus == "" {
 		rec.AegisCounterStatus = "ok"
+	}
+	if rec.AegisRouteStatus == "" {
+		rec.AegisRouteStatus = "ok"
 	}
 	if rec.AcctUniqueID == "" {
 		rec.AcctUniqueID = FreeRADIUSAcctUniqueID(rec.AcctSessionID, rec.Username, rec.NASIPAddress, rec.NASPortID, rec.CallingStationID)

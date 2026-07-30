@@ -65,9 +65,10 @@ func TestProductionReadinessIncludesSQLAccounting(t *testing.T) {
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_sql_accounting"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_ordering"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_counters"))
+	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_ip"))
 }
 
-func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingAndCounters(t *testing.T) {
+func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingCountersAndIP(t *testing.T) {
 	spec := buildOpenAPISpec(httptest.NewRequest(http.MethodGet, "/api/v1/openapi.json", nil), nil)
 	paths := spec["paths"].(map[string]any)
 	assert.Contains(t, paths, "/api/v1/system/sql-accounting")
@@ -75,8 +76,9 @@ func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingAndCounters(t *testi
 	assert.Contains(t, paths, "/api/v1/system/accounting-ordering")
 	assert.Contains(t, paths, "/api/v1/system/accounting-ordering/replay")
 	assert.Contains(t, paths, "/api/v1/system/accounting-counters")
+	assert.Contains(t, paths, "/api/v1/system/accounting-ip")
 
-	var foundSQL, foundOrdering, foundCounters bool
+	var foundSQL, foundOrdering, foundCounters, foundIP bool
 	for _, capture := range supportBundleAPICaptures() {
 		if capture.archivePath == "api/sql-accounting.json" {
 			foundSQL = true
@@ -90,10 +92,15 @@ func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingAndCounters(t *testi
 			foundCounters = true
 			assert.Equal(t, "/api/v1/system/accounting-counters", capture.requestPath)
 		}
+		if capture.archivePath == "api/accounting-ip.json" {
+			foundIP = true
+			assert.Equal(t, "/api/v1/system/accounting-ip", capture.requestPath)
+		}
 	}
 	assert.True(t, foundSQL)
 	assert.True(t, foundOrdering)
 	assert.True(t, foundCounters)
+	assert.True(t, foundIP)
 }
 
 func TestAuthorizeSQLAccounting(t *testing.T) {
@@ -104,6 +111,7 @@ func TestAuthorizeSQLAccounting(t *testing.T) {
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/accounting-ordering/replay"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/accounting-ordering/replay"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/accounting-counters"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/accounting-ip"))
 }
 
 func TestHandleAccountingOrderingReportAndReplay(t *testing.T) {
@@ -173,6 +181,41 @@ func TestHandleAccountingCountersReport(t *testing.T) {
 	assert.Equal(t, float64(1), summary["rollover_events"])
 }
 
+func TestHandleAccountingIPReport(t *testing.T) {
+	prepareSQLAccountingAPIConfig(t)
+	_, err := db.IngestAccountingEvent(t.Context(), db.AccountingEventRecord{
+		AcctUniqueID:        "api-ip-1",
+		AcctSessionID:       "api-ip-1",
+		SessionKey:          "api-ip-1",
+		StatusType:          "Interim-Update",
+		EventTime:           time.Now().UTC().Format(time.RFC3339Nano),
+		Username:            "helen",
+		NASIPAddress:        "10.0.0.14",
+		NASPortID:           "14",
+		FramedIPv6Address:   "2001:db8::14",
+		DelegatedIPv6Prefix: "2001:db8:1400::/56",
+		FramedIPv6Route:     "2001:db8:1401::/64 fe80::1",
+		Source:              "api-test",
+	})
+	require.NoError(t, err)
+	_, err = db.ApplyPendingAccountingEvents(t.Context(), 10)
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/accounting-ip?limit=5", nil)
+	HandleGetAccountingIP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	report := payload["report"].(map[string]any)
+	assert.Equal(t, "ready", report["status"])
+	summary := report["summary"].(map[string]any)
+	assert.Equal(t, float64(1), summary["assignment_rows"])
+	assert.Equal(t, float64(1), summary["ipv6_route_rows"])
+	records := payload["records"].([]any)
+	assert.Len(t, records, 1)
+}
+
 func prepareSQLAccountingAPIConfig(t *testing.T) *config.Config {
 	t.Helper()
 	require.NoError(t, db.Init(":memory:"))
@@ -215,6 +258,13 @@ radius:
     reset_detection_enabled: true
     max_counter_bits: 64
     overflow_policy: saturate
+    retention_days: 365
+  accounting_ip:
+    enabled: true
+    ipv6_enabled: true
+    route_accounting_enabled: true
+    delegated_prefix_enabled: true
+    reject_invalid: false
     retention_days: 365
 `
 	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0644))
