@@ -290,6 +290,28 @@ The same summary appears in `/api/v1/system/status` under
 and in support bundles as `api/sql-accounting.json`. See
 [freeradius-sql-accounting.md](freeradius-sql-accounting.md).
 
+Accounting idempotency and ordering is exposed at:
+
+```text
+/api/v1/system/accounting-ordering
+/api/v1/system/accounting-ordering?status=pending&session_key=sess-1&limit=100
+```
+
+Use these endpoints to review `radius_accounting_events`, duplicate packet
+suppression, pending/stale/error events, reordered packet merges, late Stop
+merges, and replay readiness. Manual replay is available to `ops_admin` and
+`super_admin`:
+
+```text
+POST /api/v1/system/accounting-ordering/replay
+```
+
+The same summary appears in `/api/v1/system/status` under
+`radius.accounting_ordering`, in production readiness as
+`radius_accounting_ordering`, and in support bundles as
+`api/accounting-ordering.json`. See
+[accounting-idempotency-ordering.md](accounting-idempotency-ordering.md).
+
 Upstream outage fallback policy is exposed at:
 
 ```text

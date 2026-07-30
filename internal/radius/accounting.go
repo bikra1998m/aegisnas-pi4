@@ -48,57 +48,56 @@ func ProcessAccounting(rec *AccountingRecord) error {
 		rec.Timestamp = time.Now().UTC()
 	}
 
-	mirrored := false
 	switch rec.AcctStatusType {
-	case "Start":
-		_, err := db.DB.Exec(`INSERT INTO sessions (id, username, mac, ip, start_time, last_activity, radius_session_id)
-			VALUES (?, ?, ?, ?, ?, ?, ?)
-			ON CONFLICT(id) DO UPDATE SET
-				username = excluded.username,
-				mac = excluded.mac,
-				ip = excluded.ip,
-				last_activity = excluded.last_activity,
-				radius_session_id = excluded.radius_session_id`,
-			rec.SessionID, rec.Username, rec.CallingStationID, rec.FramedIPAddress,
-			rec.Timestamp, rec.Timestamp, rec.SessionID)
-		if err != nil {
-			logger.Error("accounting start insert failed", zap.Error(err))
-			return err
-		}
-		mirrored = true
-	case "Stop":
-		stopReason := strings.TrimSpace(rec.StopReason)
-		if stopReason == "" {
-			stopReason = "user"
-		}
-		_, err := db.DB.Exec(`UPDATE sessions SET end_time = ?, stop_reason = ?, bytes_in = ?, bytes_out = ?, acct_session_time = ?, last_activity = ?
-			WHERE radius_session_id = ? OR id = ?`,
-			rec.Timestamp, stopReason, rec.AcctInputOctets, rec.AcctOutputOctets, rec.AcctSessionTime, rec.Timestamp, rec.SessionID, rec.SessionID)
-		if err != nil {
-			logger.Error("accounting stop update failed", zap.Error(err))
-			return err
-		}
-		mirrored = true
-	case "Interim-Update":
-		_, err := db.DB.Exec(`UPDATE sessions SET bytes_in = ?, bytes_out = ?, acct_session_time = ?, last_activity = ?
-			WHERE radius_session_id = ? OR id = ?`,
-			rec.AcctInputOctets, rec.AcctOutputOctets, rec.AcctSessionTime, rec.Timestamp, rec.SessionID, rec.SessionID)
-		if err != nil {
-			logger.Error("accounting interim update failed", zap.Error(err))
-			return err
-		}
-		mirrored = true
+	case "Start", "Stop", "Interim-Update":
+	default:
+		logger.Info("accounting ignored",
+			zap.String("session_id", rec.SessionID),
+			zap.String("status", rec.AcctStatusType))
+		return nil
 	}
-	if mirrored {
-		if _, err := db.UpsertFreeRADIUSAccountingRecord(context.Background(), freeRADIUSRecordFromAccounting(rec)); err != nil {
-			logger.Error("accounting radacct mirror failed", zap.Error(err))
-			return err
-		}
+
+	ingested, err := db.IngestAccountingEvent(context.Background(), accountingEventFromAccounting(rec))
+	if err != nil {
+		logger.Error("accounting event ingest failed", zap.Error(err))
+		return err
+	}
+	applied, err := db.ApplyAccountingEventByID(context.Background(), ingested.Event.EventID)
+	if err != nil {
+		logger.Error("accounting event apply failed", zap.Error(err))
+		return err
 	}
 	logger.Info("accounting processed",
 		zap.String("session_id", rec.SessionID),
-		zap.String("status", rec.AcctStatusType))
+		zap.String("status", rec.AcctStatusType),
+		zap.String("event_id", ingested.Event.EventID),
+		zap.Bool("duplicate", ingested.Duplicate),
+		zap.Int("applied", applied.Applied))
 	return nil
+}
+
+func accountingEventFromAccounting(rec *AccountingRecord) db.AccountingEventRecord {
+	record := freeRADIUSRecordFromAccounting(rec)
+	return db.AccountingEventRecord{
+		AcctSessionID:      record.AcctSessionID,
+		AcctUniqueID:       record.AcctUniqueID,
+		SessionKey:         strings.TrimSpace(rec.SessionID),
+		StatusType:         rec.AcctStatusType,
+		EventTime:          rec.Timestamp.UTC().Format(time.RFC3339Nano),
+		ArrivalTime:        time.Now().UTC().Format(time.RFC3339Nano),
+		Username:           rec.Username,
+		NASIPAddress:       rec.NASIPAddress,
+		NASPortID:          record.NASPortID,
+		CallingStationID:   rec.CallingStationID,
+		CalledStationID:    rec.CalledStationID,
+		FramedIPAddress:    rec.FramedIPAddress,
+		Class:              rec.RadiusClass,
+		AcctInputOctets:    rec.AcctInputOctets,
+		AcctOutputOctets:   rec.AcctOutputOctets,
+		AcctSessionTime:    int64(rec.AcctSessionTime),
+		AcctTerminateCause: rec.StopReason,
+		Source:             "aegis-broker",
+	}
 }
 
 func freeRADIUSRecordFromAccounting(rec *AccountingRecord) db.FreeRADIUSAccountingRecord {

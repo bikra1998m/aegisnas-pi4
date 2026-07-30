@@ -665,6 +665,14 @@ func TestConfigValidationRadiusSQLAccounting(t *testing.T) {
 				AccountingRetentionDays:  365,
 				PostAuthRetentionDays:    30,
 			},
+			AccountingOrdering: RadiusAccountingOrderingConfig{
+				Enabled:                true,
+				ReplayEnabled:          true,
+				SequenceWindowSeconds:  300,
+				LateStopWindowSeconds:  86400,
+				MaxReplayBatch:         1000,
+				DuplicateRetentionDays: 365,
+			},
 		},
 	}
 	require.NoError(t, cfg.Validate())
@@ -684,6 +692,19 @@ func TestConfigValidationRadiusSQLAccounting(t *testing.T) {
 	badRetention := *cfg
 	badRetention.Radius.SQLAccounting.PostAuthRetentionDays = 400
 	assert.ErrorContains(t, badRetention.Validate(), "postauth_retention_days")
+
+	ordering := EffectiveRadiusAccountingOrderingConfig(RadiusAccountingOrderingConfig{Enabled: true, ReplayEnabled: true})
+	assert.Equal(t, 300, ordering.SequenceWindowSeconds)
+	assert.Equal(t, 1000, ordering.MaxReplayBatch)
+
+	badOrdering := *cfg
+	badOrdering.Radius.AccountingOrdering.SequenceWindowSeconds = 0
+	badOrdering.Radius.AccountingOrdering.LateStopWindowSeconds = 1
+	assert.ErrorContains(t, badOrdering.Validate(), "late_stop_window_seconds")
+
+	badReplay := *cfg
+	badReplay.Radius.AccountingOrdering.MaxReplayBatch = 10001
+	assert.ErrorContains(t, badReplay.Validate(), "max_replay_batch")
 }
 
 func TestConfigValidationRadiusDynamicClients(t *testing.T) {

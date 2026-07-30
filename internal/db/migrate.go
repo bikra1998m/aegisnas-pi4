@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 40
+	return 41
 }
 
 func Migrate() error {
@@ -2090,3 +2090,59 @@ CREATE INDEX IF NOT EXISTS idx_radius_sql_accounting_reconcile_events_status ON 
 `
 
 const schemaV40 = freeradiusSQLAccountingTablesSQL
+
+const accountingEventLedgerTablesSQL = `
+CREATE TABLE IF NOT EXISTS radius_accounting_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	acct_unique_id TEXT NOT NULL,
+	acct_session_id TEXT NOT NULL DEFAULT '',
+	session_key TEXT NOT NULL,
+	status_type TEXT NOT NULL,
+	event_time DATETIME NOT NULL,
+	arrival_time DATETIME NOT NULL,
+	ordinal INTEGER NOT NULL DEFAULT 0,
+	username TEXT,
+	realm TEXT,
+	nas_ip_address TEXT,
+	nas_port_id TEXT,
+	nas_port_type TEXT,
+	calling_station_id TEXT,
+	called_station_id TEXT,
+	framed_ip_address TEXT,
+	framed_ipv6_address TEXT,
+	framed_ipv6_prefix TEXT,
+	delegated_ipv6_prefix TEXT,
+	class TEXT,
+	acct_input_octets INTEGER NOT NULL DEFAULT 0,
+	acct_output_octets INTEGER NOT NULL DEFAULT 0,
+	acct_session_time INTEGER NOT NULL DEFAULT 0,
+	acct_terminate_cause TEXT,
+	source TEXT NOT NULL DEFAULT 'aegis',
+	fingerprint TEXT NOT NULL,
+	payload_json TEXT NOT NULL DEFAULT '{}',
+	apply_status TEXT NOT NULL DEFAULT 'pending',
+	ordering_status TEXT NOT NULL DEFAULT 'in_order',
+	duplicate_count INTEGER NOT NULL DEFAULT 0,
+	last_seen_at DATETIME NOT NULL,
+	applied_at DATETIME,
+	last_error TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status_type IN ('Start', 'Interim-Update', 'Stop', 'Accounting-On', 'Accounting-Off', 'Unknown')),
+	CHECK (apply_status IN ('pending', 'applied', 'duplicate', 'out_of_order', 'error', 'ignored')),
+	CHECK (ordering_status IN ('in_order', 'reordered', 'late_stop', 'late_start', 'unknown')),
+	CHECK (acct_input_octets >= 0),
+	CHECK (acct_output_octets >= 0),
+	CHECK (acct_session_time >= 0),
+	CHECK (duplicate_count >= 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_events_session ON radius_accounting_events(session_key, event_time, id);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_events_status ON radius_accounting_events(apply_status, event_time, id);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_events_unique ON radius_accounting_events(acct_unique_id, status_type);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_events_source ON radius_accounting_events(source, arrival_time);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_events_ordering ON radius_accounting_events(ordering_status, event_time);
+`
+
+const schemaV41 = accountingEventLedgerTablesSQL

@@ -91,6 +91,30 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
 Production readiness blocks when SQL accounting is disabled, reconciliation is
 disabled, the database is unavailable, or stale/error rows remain.
 
+## Accounting Ordering Operations
+
+Use [accounting-idempotency-ordering.md](accounting-idempotency-ordering.md) for
+NAS-0036 event identity, duplicate suppression, ordered apply, late Stop merge,
+and replay details. Before production sign-off, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/accounting-ordering | jq '.report.status, .report.summary'
+```
+
+Run bounded replay after SQL imports, packet-loss drills, or controlled
+failover recovery:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"limit":1000}' \
+  http://127.0.0.1:8083/api/v1/system/accounting-ordering/replay | jq '.status, .result'
+```
+
+Production readiness blocks when accounting ordering is disabled, replay is
+disabled, the ledger table is unavailable, or stale/error events remain.
+
 ## Admin Access Workflow
 
 Operators can now sign in with either:

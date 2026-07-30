@@ -63,28 +63,74 @@ func TestProductionReadinessIncludesSQLAccounting(t *testing.T) {
 	report := buildProductionReadinessReport(cfg)
 
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_sql_accounting"))
+	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_ordering"))
 }
 
-func TestOpenAPIAndSupportBundleIncludeSQLAccounting(t *testing.T) {
+func TestOpenAPIAndSupportBundleIncludeSQLAccountingAndOrdering(t *testing.T) {
 	spec := buildOpenAPISpec(httptest.NewRequest(http.MethodGet, "/api/v1/openapi.json", nil), nil)
 	paths := spec["paths"].(map[string]any)
 	assert.Contains(t, paths, "/api/v1/system/sql-accounting")
 	assert.Contains(t, paths, "/api/v1/system/sql-accounting/reconcile")
+	assert.Contains(t, paths, "/api/v1/system/accounting-ordering")
+	assert.Contains(t, paths, "/api/v1/system/accounting-ordering/replay")
 
-	var found bool
+	var foundSQL, foundOrdering bool
 	for _, capture := range supportBundleAPICaptures() {
 		if capture.archivePath == "api/sql-accounting.json" {
-			found = true
+			foundSQL = true
 			assert.Equal(t, "/api/v1/system/sql-accounting", capture.requestPath)
 		}
+		if capture.archivePath == "api/accounting-ordering.json" {
+			foundOrdering = true
+			assert.Equal(t, "/api/v1/system/accounting-ordering", capture.requestPath)
+		}
 	}
-	assert.True(t, found)
+	assert.True(t, foundSQL)
+	assert.True(t, foundOrdering)
 }
 
 func TestAuthorizeSQLAccounting(t *testing.T) {
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/sql-accounting"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/sql-accounting/reconcile"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/sql-accounting/reconcile"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/accounting-ordering"))
+	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/accounting-ordering/replay"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/accounting-ordering/replay"))
+}
+
+func TestHandleAccountingOrderingReportAndReplay(t *testing.T) {
+	prepareSQLAccountingAPIConfig(t)
+	ingested, err := db.IngestAccountingEvent(t.Context(), db.AccountingEventRecord{
+		AcctUniqueID:     "api-ordering-1",
+		AcctSessionID:    "api-ordering-1",
+		SessionKey:       "api-ordering-1",
+		StatusType:       "Start",
+		EventTime:        time.Now().UTC().Format(time.RFC3339Nano),
+		Username:         "finn",
+		NASIPAddress:     "10.0.0.12",
+		NASPortID:        "8",
+		CallingStationID: "00-11-22-33-44-66",
+		Source:           "api-test",
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, ingested.Event.EventID)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/accounting-ordering", nil)
+	HandleGetAccountingOrdering(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	report := payload["report"].(map[string]any)
+	assert.Equal(t, "ready", report["status"])
+
+	body := bytes.NewBufferString(`{"limit":5,"session_key":"api-ordering-1"}`)
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/system/accounting-ordering/replay", body)
+	HandleReplayAccountingOrdering(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	assert.Equal(t, "ok", payload["status"])
 }
 
 func prepareSQLAccountingAPIConfig(t *testing.T) *config.Config {
@@ -116,6 +162,13 @@ radius:
     stale_after_seconds: 300
     accounting_retention_days: 365
     postauth_retention_days: 30
+  accounting_ordering:
+    enabled: true
+    replay_enabled: true
+    sequence_window_seconds: 300
+    late_stop_window_seconds: 86400
+    max_replay_batch: 1000
+    duplicate_retention_days: 365
 `
 	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0644))
 	cfg, err := config.Load(cfgPath)

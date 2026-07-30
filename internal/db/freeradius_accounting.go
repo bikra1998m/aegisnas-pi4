@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -264,7 +265,14 @@ func ReconcileFreeRADIUSAccounting(limit int) (FreeRADIUSAccountingReconcileResu
 		CreatedAt: formatAccountingTime(time.Now().UTC()),
 	}
 	for _, record := range records {
-		rowResult, err := applyFreeRADIUSAccountingRecord(record)
+		ingested, err := IngestAccountingEvent(context.Background(), FreeRADIUSAccountingEventFromRecord(record))
+		if err != nil {
+			result.ErrorCount++
+			result.LastError = err.Error()
+			_ = markFreeRADIUSAccountingReconciled(record.RadAcctID, "", "error", err.Error(), "")
+			continue
+		}
+		rowResult, err := ApplyAccountingEventByID(context.Background(), ingested.Event.EventID)
 		if err != nil {
 			result.ErrorCount++
 			result.LastError = err.Error()
@@ -272,9 +280,14 @@ func ReconcileFreeRADIUSAccounting(limit int) (FreeRADIUSAccountingReconcileResu
 			continue
 		}
 		result.Reconciled++
-		result.CreatedSessions += rowResult.created
-		result.UpdatedSessions += rowResult.updated
-		result.ClosedSessions += rowResult.closed
+		result.CreatedSessions += rowResult.CreatedSessions
+		result.UpdatedSessions += rowResult.UpdatedSessions
+		result.ClosedSessions += rowResult.ClosedSessions
+		if err := markFreeRADIUSAccountingReconciled(record.RadAcctID, ingested.Event.SessionKey, "reconciled", "", formatAccountingTime(time.Now().UTC())); err != nil {
+			result.ErrorCount++
+			result.LastError = err.Error()
+			continue
+		}
 	}
 	if result.ErrorCount > 0 {
 		result.Status = "degraded"
@@ -572,7 +585,9 @@ func FreeRADIUSAcctUniqueID(parts ...string) string {
 }
 
 func freeRADIUSAccountingEventID(result FreeRADIUSAccountingReconcileResult) string {
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d:%d:%d", result.CreatedAt, result.Scanned, result.Reconciled, result.ErrorCount, time.Now().UnixNano())))
+	var nonce [16]byte
+	_, _ = rand.Read(nonce[:])
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d:%d:%d:%x", result.CreatedAt, result.Scanned, result.Reconciled, result.ErrorCount, time.Now().UnixNano(), nonce)))
 	return "acct-reconcile-" + hex.EncodeToString(sum[:])[:24]
 }
 

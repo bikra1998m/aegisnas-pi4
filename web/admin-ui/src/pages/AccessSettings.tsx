@@ -318,6 +318,27 @@ type SQLAccountingReport = {
   warnings?: string[];
 };
 
+type AccountingOrderingReport = {
+  schema_version: number;
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary: {
+    total_events: number;
+    pending_events: number;
+    applied_events: number;
+    error_events: number;
+    ignored_events: number;
+    duplicate_events: number;
+    reordered_events: number;
+    late_stop_events: number;
+    stale_pending_events: number;
+    last_event_at?: string;
+    last_applied_at?: string;
+  };
+  warnings?: string[];
+};
+
 type TenantIsolationReport = {
   schema_version: number;
   status: string;
@@ -1219,6 +1240,14 @@ const defaultSettings: JsonMap = {
       accounting_retention_days: 365,
       postauth_retention_days: 30,
     },
+    accounting_ordering: {
+      enabled: true,
+      replay_enabled: true,
+      sequence_window_seconds: 300,
+      late_stop_window_seconds: 86400,
+      max_replay_batch: 1000,
+      duplicate_retention_days: 365,
+    },
     upstream: {
       enabled: false,
       realm: "aegis-upstream",
@@ -1625,6 +1654,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.radius.eap.sim_aka = next.radius.eap.sim_aka || {};
   next.radius.eap.framework = next.radius.eap.framework || {};
   next.radius.sql_accounting = next.radius.sql_accounting || {};
+  next.radius.accounting_ordering = next.radius.accounting_ordering || {};
   next.radius.upstream = next.radius.upstream || {};
   next.radius.upstream.fallback_policy =
     next.radius.upstream.fallback_policy || {};
@@ -1651,6 +1681,12 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.sql_accounting.stale_after_seconds = 600;
     next.radius.sql_accounting.accounting_retention_days = 30;
     next.radius.sql_accounting.postauth_retention_days = 7;
+    next.radius.accounting_ordering.enabled = true;
+    next.radius.accounting_ordering.replay_enabled = true;
+    next.radius.accounting_ordering.sequence_window_seconds = 600;
+    next.radius.accounting_ordering.late_stop_window_seconds = 86400;
+    next.radius.accounting_ordering.max_replay_batch = 250;
+    next.radius.accounting_ordering.duplicate_retention_days = 30;
     next.radius.eap.framework.enabled = true;
     next.radius.eap.framework.mode = "monitor";
     next.radius.eap.framework.max_concurrent_sessions = 256;
@@ -1726,6 +1762,16 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.sql_accounting.accounting_retention_days || 730;
     next.radius.sql_accounting.postauth_retention_days =
       next.radius.sql_accounting.postauth_retention_days || 90;
+    next.radius.accounting_ordering.enabled = true;
+    next.radius.accounting_ordering.replay_enabled = true;
+    next.radius.accounting_ordering.sequence_window_seconds =
+      next.radius.accounting_ordering.sequence_window_seconds || 300;
+    next.radius.accounting_ordering.late_stop_window_seconds =
+      next.radius.accounting_ordering.late_stop_window_seconds || 172800;
+    next.radius.accounting_ordering.max_replay_batch =
+      next.radius.accounting_ordering.max_replay_batch || 2500;
+    next.radius.accounting_ordering.duplicate_retention_days =
+      next.radius.accounting_ordering.duplicate_retention_days || 730;
     next.radius.eap.framework.enabled = true;
     next.radius.eap.framework.max_concurrent_sessions =
       next.radius.eap.framework.max_concurrent_sessions || 4096;
@@ -1799,6 +1845,18 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.sql_accounting.accounting_retention_days || 365;
     next.radius.sql_accounting.postauth_retention_days =
       next.radius.sql_accounting.postauth_retention_days || 30;
+    next.radius.accounting_ordering.enabled =
+      next.radius.accounting_ordering.enabled ?? true;
+    next.radius.accounting_ordering.replay_enabled =
+      next.radius.accounting_ordering.replay_enabled ?? true;
+    next.radius.accounting_ordering.sequence_window_seconds =
+      next.radius.accounting_ordering.sequence_window_seconds || 300;
+    next.radius.accounting_ordering.late_stop_window_seconds =
+      next.radius.accounting_ordering.late_stop_window_seconds || 86400;
+    next.radius.accounting_ordering.max_replay_batch =
+      next.radius.accounting_ordering.max_replay_batch || 1000;
+    next.radius.accounting_ordering.duplicate_retention_days =
+      next.radius.accounting_ordering.duplicate_retention_days || 365;
   } else {
     next.ailite.enabled = true;
     next.ailite.mode = "lite";
@@ -1825,6 +1883,16 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.sql_accounting.accounting_retention_days || 365;
     next.radius.sql_accounting.postauth_retention_days =
       next.radius.sql_accounting.postauth_retention_days || 30;
+    next.radius.accounting_ordering.enabled = true;
+    next.radius.accounting_ordering.replay_enabled = true;
+    next.radius.accounting_ordering.sequence_window_seconds =
+      next.radius.accounting_ordering.sequence_window_seconds || 300;
+    next.radius.accounting_ordering.late_stop_window_seconds =
+      next.radius.accounting_ordering.late_stop_window_seconds || 86400;
+    next.radius.accounting_ordering.max_replay_batch =
+      next.radius.accounting_ordering.max_replay_batch || 1000;
+    next.radius.accounting_ordering.duplicate_retention_days =
+      next.radius.accounting_ordering.duplicate_retention_days || 365;
     next.radius.eap.framework.enabled = true;
     next.radius.eap.framework.max_concurrent_sessions =
       next.radius.eap.framework.max_concurrent_sessions || 1024;
@@ -2036,9 +2104,13 @@ export default function AccessSettings() {
   const [tacacsReport, setTacacsReport] = useState<TACACSReport | null>(null);
   const [sqlAccountingReport, setSQLAccountingReport] =
     useState<SQLAccountingReport | null>(null);
+  const [accountingOrderingReport, setAccountingOrderingReport] =
+    useState<AccountingOrderingReport | null>(null);
   const [tenantIsolationReport, setTenantIsolationReport] =
     useState<TenantIsolationReport | null>(null);
   const [reconcilingSQLAccounting, setReconcilingSQLAccounting] =
+    useState(false);
+  const [replayingAccountingOrdering, setReplayingAccountingOrdering] =
     useState(false);
   const [confirmingNetworkRecovery, setConfirmingNetworkRecovery] =
     useState(false);
@@ -2223,6 +2295,21 @@ export default function AccessSettings() {
     }
   };
 
+  const loadAccountingOrderingReport = async () => {
+    try {
+      const { data } = await api.get("/system/accounting-ordering", {
+        params: { limit: 5 },
+      });
+      setAccountingOrderingReport(data?.report || null);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load accounting ordering state.",
+      );
+    }
+  };
+
   const loadTenantIsolationReport = async () => {
     try {
       const { data } = await api.get("/system/tenant-isolation", {
@@ -2256,6 +2343,7 @@ export default function AccessSettings() {
       await loadSubscriberServiceChains();
       await loadTACACSReport();
       await loadSQLAccountingReport();
+      await loadAccountingOrderingReport();
       await loadTenantIsolationReport();
     } catch (err: any) {
       setError(
@@ -2336,6 +2424,7 @@ export default function AccessSettings() {
       await loadSubscriberServiceChains();
       await loadTACACSReport();
       await loadSQLAccountingReport();
+      await loadAccountingOrderingReport();
       await loadTenantIsolationReport();
     } catch (err: any) {
       setError(err.response?.data || err.message || "Could not save settings.");
@@ -2570,6 +2659,7 @@ export default function AccessSettings() {
         `SQL accounting reconciled ${data.result?.reconciled || 0} row(s); ${data.result?.error_count || 0} error(s) remain.`,
       );
       await loadSQLAccountingReport();
+      await loadAccountingOrderingReport();
     } catch (err: any) {
       setError(
         err.response?.data ||
@@ -2578,6 +2668,30 @@ export default function AccessSettings() {
       );
     } finally {
       setReconcilingSQLAccounting(false);
+    }
+  };
+
+  const replayAccountingOrdering = async () => {
+    setReplayingAccountingOrdering(true);
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/accounting-ordering/replay", {
+        limit: settings.radius?.accounting_ordering?.max_replay_batch || 1000,
+      });
+      setMessage(
+        `Accounting replay applied ${data.result?.applied || 0} event(s); ${data.result?.error_count || 0} error(s) remain.`,
+      );
+      await loadAccountingOrderingReport();
+      await loadSQLAccountingReport();
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not replay accounting events.",
+      );
+    } finally {
+      setReplayingAccountingOrdering(false);
     }
   };
 
@@ -14387,6 +14501,157 @@ export default function AccessSettings() {
           {sqlAccountingReport?.message && (
             <p className="mt-2 text-xs text-gray-500">
               {sqlAccountingReport.message}
+            </p>
+          )}
+        </div>
+        <div className="mt-4">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Accounting Ordering
+              </h4>
+              <p className="mt-1 text-xs text-gray-500">
+                Apply each accounting packet once, then merge reordered packets
+                safely.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={loadAccountingOrderingReport}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+              >
+                Refresh Ordering
+              </button>
+              <button
+                type="button"
+                onClick={replayAccountingOrdering}
+                disabled={replayingAccountingOrdering}
+                className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {replayingAccountingOrdering ? "Replaying..." : "Replay Events"}
+              </button>
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Ordering Engine"
+              checked={settings.radius?.accounting_ordering?.enabled !== false}
+              onChange={(value) =>
+                updateField(["radius", "accounting_ordering", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Replay Enabled"
+              checked={
+                settings.radius?.accounting_ordering?.replay_enabled !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ordering", "replay_enabled"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Sequence Window (s)"
+              type="number"
+              value={
+                settings.radius?.accounting_ordering
+                  ?.sequence_window_seconds || 300
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ordering", "sequence_window_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Late Stop Window (s)"
+              type="number"
+              value={
+                settings.radius?.accounting_ordering
+                  ?.late_stop_window_seconds || 86400
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ordering", "late_stop_window_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Replay Batch"
+              type="number"
+              value={settings.radius?.accounting_ordering?.max_replay_batch || 1000}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ordering", "max_replay_batch"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Duplicate Retention (d)"
+              type="number"
+              value={
+                settings.radius?.accounting_ordering
+                  ?.duplicate_retention_days || 365
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "accounting_ordering",
+                    "duplicate_retention_days",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-4">
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Status
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingOrderingReport?.status || "unknown"}
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Events
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingOrderingReport?.summary?.total_events || 0} total,{" "}
+                {accountingOrderingReport?.summary?.applied_events || 0} applied
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Pending
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingOrderingReport?.summary?.pending_events || 0} pending,{" "}
+                {accountingOrderingReport?.summary?.stale_pending_events || 0} stale
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Recovery
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingOrderingReport?.summary?.duplicate_events || 0} dup,{" "}
+                {accountingOrderingReport?.summary?.reordered_events || 0} reorder,{" "}
+                {accountingOrderingReport?.summary?.late_stop_events || 0} stop
+              </div>
+            </div>
+          </div>
+          {accountingOrderingReport?.message && (
+            <p className="mt-2 text-xs text-gray-500">
+              {accountingOrderingReport.message}
             </p>
           )}
         </div>

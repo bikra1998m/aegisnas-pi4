@@ -101,9 +101,10 @@ NAS-0035 covers the schema bridge for these standard accounting fields:
 
 ## Scope Boundary
 
-NAS-0035 is the schema and reconciliation foundation. Later roadmap items own:
+NAS-0035 is the schema and reconciliation foundation. NAS-0036 now owns
+duplicate, ordering, and late-event semantics through
+`radius_accounting_events`. Later roadmap items own:
 
-- NAS-0036 duplicate, ordering, and late-event semantics
 - NAS-0037 gigaword rollover and 64-bit counter invariants
 - NAS-0038 IPv6, route, and delegated-prefix lifecycle accounting
 - NAS-0039 multi-service and subscriber correlation

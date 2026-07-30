@@ -164,7 +164,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{37, schemaV37},
 		{38, schemaV38},
 		{39, schemaV39},
-		{LatestSchemaVersion(), schemaV40},
+		{40, schemaV40},
+		{LatestSchemaVersion(), schemaV41},
 	}
 
 	for _, m := range migrations {
@@ -254,8 +255,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureFreeRADIUSSQLAccountingTables(handle); err != nil {
 		return fmt.Errorf("repair FreeRADIUS SQL accounting schema: %w", err)
 	}
+	if err := ensureAccountingEventLedgerTables(handle); err != nil {
+		return fmt.Errorf("repair accounting event ledger schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureAccountingEventLedgerTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(accountingEventLedgerTablesSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureFreeRADIUSSQLAccountingTables(handle *sql.DB) error {

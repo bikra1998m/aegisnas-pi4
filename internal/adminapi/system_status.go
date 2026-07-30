@@ -151,6 +151,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	proxyPolicy := radius.BuildProxyPolicyReport(cfg)
 	accountingSpool := radius.BuildAccountingSpoolReport(cfg)
 	sqlAccounting := radius.BuildSQLAccountingReport(cfg)
+	accountingOrdering := radius.BuildAccountingOrderingReport(cfg)
 	fallbackPolicy := radius.BuildFallbackPolicyReport(cfg)
 	eapSummary, _ := db.SummarizeEAPMethodEvents(1000)
 	eapFramework := eappkg.BuildFrameworkReport(cfg, eapRuntimeSummaryFromDB(eapSummary))
@@ -184,6 +185,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"proxy_policy":               proxyPolicy,
 		"accounting_spool":           accountingSpool,
 		"sql_accounting":             sqlAccounting,
+		"accounting_ordering":        accountingOrdering,
 		"fallback_policy":            fallbackPolicy,
 		"eap_framework":              eapFramework,
 		"eap_teap":                   teapFramework,

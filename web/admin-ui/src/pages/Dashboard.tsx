@@ -312,6 +312,22 @@ type RadiusSQLAccountingReport = {
   };
 };
 
+type RadiusAccountingOrderingReport = {
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary?: {
+    total_events: number;
+    pending_events: number;
+    applied_events: number;
+    error_events: number;
+    duplicate_events: number;
+    reordered_events: number;
+    late_stop_events: number;
+    stale_pending_events: number;
+  };
+};
+
 type RadiusFallbackPolicyReport = {
   enabled: boolean;
   status: string;
@@ -907,6 +923,7 @@ type SystemStatus = {
     proxy_policy?: RadiusProxyPolicyReport;
     accounting_spool?: RadiusAccountingSpoolReport;
     sql_accounting?: RadiusSQLAccountingReport;
+    accounting_ordering?: RadiusAccountingOrderingReport;
     fallback_policy?: RadiusFallbackPolicyReport;
     eap_framework?: EAPFrameworkReport;
     eap_teap?: TEAPReport;
@@ -1459,6 +1476,7 @@ export default function Dashboard() {
   const proxyPolicy = systemStatus.radius?.proxy_policy;
   const accountingSpool = systemStatus.radius?.accounting_spool;
   const sqlAccounting = systemStatus.radius?.sql_accounting;
+  const accountingOrdering = systemStatus.radius?.accounting_ordering;
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
   const eapFramework = systemStatus.radius?.eap_framework;
   const teapReport = systemStatus.radius?.eap_teap;
@@ -3452,6 +3470,52 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <StatusBadge status={sqlAccounting.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {accountingOrdering ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Accounting Ordering
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {accountingOrdering.message ||
+                          "Accounting event ordering state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-4">
+                        <div>
+                          Events{" "}
+                          {accountingOrdering.summary?.total_events ?? 0}
+                        </div>
+                        <div>
+                          Applied{" "}
+                          {accountingOrdering.summary?.applied_events ?? 0}
+                        </div>
+                        <div>
+                          Pending{" "}
+                          {accountingOrdering.summary?.pending_events ?? 0}
+                        </div>
+                        <div>
+                          Errors{" "}
+                          {accountingOrdering.summary?.error_events ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Duplicates{" "}
+                        {accountingOrdering.summary?.duplicate_events ?? 0};
+                        reordered{" "}
+                        {accountingOrdering.summary?.reordered_events ?? 0};
+                        late Stop{" "}
+                        {accountingOrdering.summary?.late_stop_events ?? 0};
+                        stale{" "}
+                        {accountingOrdering.summary?.stale_pending_events ?? 0}
+                      </div>
+                    </div>
+                    <StatusBadge
+                      status={accountingOrdering.status || "unknown"}
+                    />
                   </div>
                 </div>
               ) : null}

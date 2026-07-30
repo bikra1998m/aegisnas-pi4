@@ -123,6 +123,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionProxyPolicyCheck(&report, cfg)
 	addProductionAccountingSpoolCheck(&report, cfg)
 	addProductionSQLAccountingCheck(&report, cfg)
+	addProductionAccountingOrderingCheck(&report, cfg)
 	addProductionFallbackPolicyCheck(&report, cfg)
 	addProductionIdentityFailoverCheck(&report, cfg)
 	addProductionActiveDirectoryCheck(&report, cfg)
@@ -389,6 +390,38 @@ func addProductionSQLAccountingCheck(report *productionReadinessReport, cfg *con
 			sqlAccounting.Summary.ReconciledRows),
 		Recommendation: "Keep radius.sql_accounting enabled with automatic reconciliation, monitor /api/v1/system/sql-accounting, run reconcile after FreeRADIUS SQL imports, and complete the NAS-0035 release certification checklist before production claims.",
 		Dependencies:   []string{"radius.sql_accounting", "/api/v1/system/sql-accounting", "/api/v1/system/sql-accounting/reconcile", "radacct", "radpostauth", "radius_sql_accounting_reconcile_events"},
+	})
+}
+
+func addProductionAccountingOrderingCheck(report *productionReadinessReport, cfg *config.Config) {
+	ordering := radius.BuildAccountingOrderingReport(cfg)
+	status := "passed"
+	switch ordering.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "blocked"
+	}
+	if !ordering.Enabled || !ordering.Policy.ReplayEnabled {
+		status = "blocked"
+	}
+	if ordering.Summary.ErrorEvents > 0 || ordering.Summary.StalePendingEvents > 0 {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_accounting_ordering",
+		Category: "radius",
+		Label:    "Accounting Idempotency And Ordering",
+		Status:   status,
+		Summary: fmt.Sprintf("Accounting ordering schema %d is %s with %d event(s), %d pending, %d stale pending, %d error, %d duplicate, %d reordered, and %d late Stop event(s).",
+			ordering.SchemaVersion, ordering.Status, ordering.Summary.TotalEvents,
+			ordering.Summary.PendingEvents, ordering.Summary.StalePendingEvents,
+			ordering.Summary.ErrorEvents, ordering.Summary.DuplicateEvents,
+			ordering.Summary.ReorderedEvents, ordering.Summary.LateStopEvents),
+		Recommendation: "Keep radius.accounting_ordering enabled with replay enabled, monitor /api/v1/system/accounting-ordering, replay after imports or failover, and complete the NAS-0036 release certification checklist before production claims.",
+		Dependencies:   []string{"radius.accounting_ordering", "/api/v1/system/accounting-ordering", "/api/v1/system/accounting-ordering/replay", "radius_accounting_events"},
 	})
 }
 
