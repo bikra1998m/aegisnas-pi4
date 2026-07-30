@@ -122,6 +122,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionTransportPolicyCheck(&report, cfg)
 	addProductionProxyPolicyCheck(&report, cfg)
 	addProductionAccountingSpoolCheck(&report, cfg)
+	addProductionSQLAccountingCheck(&report, cfg)
 	addProductionFallbackPolicyCheck(&report, cfg)
 	addProductionIdentityFailoverCheck(&report, cfg)
 	addProductionActiveDirectoryCheck(&report, cfg)
@@ -356,6 +357,38 @@ func addProductionAccountingSpoolCheck(report *productionReadinessReport, cfg *c
 			spool.Summary.PoisonCount, spool.Summary.ExpiredCount, spool.Summary.QueueUtilization),
 		Recommendation: "Keep radius.upstream.accounting_spool enabled for proxy accounting, monitor /api/v1/system/accounting-spool, and complete the NAS-0012 release certification replay and outage drills.",
 		Dependencies:   []string{"radius.upstream.accounting_spool", "/api/v1/system/accounting-spool", "/api/v1/system/accounting-spool/replay", "radius_accounting_spool", "radius_accounting_spool_attempts"},
+	})
+}
+
+func addProductionSQLAccountingCheck(report *productionReadinessReport, cfg *config.Config) {
+	sqlAccounting := radius.BuildSQLAccountingReport(cfg)
+	status := "passed"
+	switch sqlAccounting.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "blocked"
+	}
+	if !sqlAccounting.Enabled || !sqlAccounting.Policy.ReconcileEnabled {
+		status = "blocked"
+	}
+	if sqlAccounting.Summary.ErrorRows > 0 || sqlAccounting.Summary.StalePendingRows > 0 {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_sql_accounting",
+		Category: "radius",
+		Label:    "FreeRADIUS SQL Accounting Reconciliation",
+		Status:   status,
+		Summary: fmt.Sprintf("SQL accounting schema %d is %s with %d radacct row(s), %d radpostauth row(s), %d pending, %d stale pending, %d error, and %d reconciled row(s).",
+			sqlAccounting.SchemaVersion, sqlAccounting.Status, sqlAccounting.Summary.RadAcctRows,
+			sqlAccounting.Summary.PostAuthRows, sqlAccounting.Summary.PendingRows,
+			sqlAccounting.Summary.StalePendingRows, sqlAccounting.Summary.ErrorRows,
+			sqlAccounting.Summary.ReconciledRows),
+		Recommendation: "Keep radius.sql_accounting enabled with automatic reconciliation, monitor /api/v1/system/sql-accounting, run reconcile after FreeRADIUS SQL imports, and complete the NAS-0035 release certification checklist before production claims.",
+		Dependencies:   []string{"radius.sql_accounting", "/api/v1/system/sql-accounting", "/api/v1/system/sql-accounting/reconcile", "radacct", "radpostauth", "radius_sql_accounting_reconcile_events"},
 	})
 }
 

@@ -1219,6 +1219,15 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/accounting-spool/replay", "post", securedOperation("Replay due durable RADIUS accounting records", "RADIUS", []string{"ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Replay run result with claimed, sent, failed, poisoned, expired, and queue summary counts."),
 	}))
+	addOperation(paths, "/api/v1/system/sql-accounting", "get", securedOperationWithParameters("Read FreeRADIUS SQL accounting reconciliation state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("status", "Optional radacct reconcile status filter.", []string{"pending", "reconciled", "error", "ignored"}, false),
+		queryStringParameter("limit", "Record limit from 1 to 1000.", false),
+	}, map[string]any{
+		"200": responseJSON("FreeRADIUS-compatible radacct and radpostauth schema policy, summary, recent rows, and optional filtered records."),
+	}))
+	addOperation(paths, "/api/v1/system/sql-accounting/reconcile", "post", securedOperationWithBody("Reconcile FreeRADIUS SQL accounting rows", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional batch_size override bounded by policy."), map[string]any{
+		"200": responseJSON("Reconciliation run result with scanned, reconciled, session create/update/close, error, and summary counts."),
+	}))
 	addOperation(paths, "/api/v1/system/fallback-policy", "get", securedOperationWithParameters("Read upstream outage fallback policy", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"allowed", "denied"}, false),
 		queryStringParameter("source", "Optional fallback source filter such as portal.", false),

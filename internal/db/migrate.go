@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 39
+	return 40
 }
 
 func Migrate() error {
@@ -1991,3 +1991,102 @@ CREATE INDEX IF NOT EXISTS idx_policy_simulation_analyses_tenant ON policy_simul
 `
 
 const schemaV39 = tenantIsolationCoreTablesSQL
+
+const freeradiusSQLAccountingTablesSQL = `
+CREATE TABLE IF NOT EXISTS radacct (
+	radacctid INTEGER PRIMARY KEY AUTOINCREMENT,
+	acctsessionid TEXT NOT NULL DEFAULT '',
+	acctuniqueid TEXT NOT NULL UNIQUE,
+	username TEXT,
+	realm TEXT,
+	nasipaddress TEXT,
+	nasportid TEXT,
+	nasporttype TEXT,
+	acctstarttime DATETIME,
+	acctupdatetime DATETIME,
+	acctstoptime DATETIME,
+	acctinterval INTEGER DEFAULT 0,
+	acctsessiontime INTEGER DEFAULT 0,
+	acctauthentic TEXT,
+	connectinfo_start TEXT,
+	connectinfo_stop TEXT,
+	acctinputoctets INTEGER DEFAULT 0,
+	acctoutputoctets INTEGER DEFAULT 0,
+	calledstationid TEXT,
+	callingstationid TEXT,
+	acctterminatecause TEXT,
+	servicetype TEXT,
+	framedprotocol TEXT,
+	framedipaddress TEXT,
+	framedipv6address TEXT,
+	framedipv6prefix TEXT,
+	framedinterfaceid TEXT,
+	delegatedipv6prefix TEXT,
+	class TEXT,
+	aegis_session_id TEXT,
+	aegis_source TEXT NOT NULL DEFAULT 'freeradius-sql',
+	aegis_reconcile_status TEXT NOT NULL DEFAULT 'pending',
+	aegis_reconcile_error TEXT,
+	aegis_reconciled_at DATETIME,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (acctsessiontime >= 0),
+	CHECK (acctinterval >= 0),
+	CHECK (acctinputoctets >= 0),
+	CHECK (acctoutputoctets >= 0),
+	CHECK (aegis_reconcile_status IN ('pending', 'reconciled', 'error', 'ignored'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_radacct_session ON radacct(acctsessionid);
+CREATE INDEX IF NOT EXISTS idx_radacct_username ON radacct(username);
+CREATE INDEX IF NOT EXISTS idx_radacct_start ON radacct(acctstarttime);
+CREATE INDEX IF NOT EXISTS idx_radacct_stop ON radacct(acctstoptime);
+CREATE INDEX IF NOT EXISTS idx_radacct_update ON radacct(acctupdatetime);
+CREATE INDEX IF NOT EXISTS idx_radacct_reconcile ON radacct(aegis_reconcile_status, acctupdatetime, radacctid);
+CREATE INDEX IF NOT EXISTS idx_radacct_aegis_session ON radacct(aegis_session_id);
+
+CREATE TABLE IF NOT EXISTS radpostauth (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	username TEXT NOT NULL DEFAULT '',
+	pass TEXT,
+	reply TEXT,
+	authdate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	class TEXT,
+	calledstationid TEXT,
+	callingstationid TEXT,
+	nasipaddress TEXT,
+	nasidentifier TEXT,
+	packet_type TEXT,
+	realm TEXT,
+	reason TEXT,
+	aegis_source TEXT NOT NULL DEFAULT 'freeradius-sql',
+	aegis_reconcile_status TEXT NOT NULL DEFAULT 'recorded',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (aegis_reconcile_status IN ('recorded', 'ignored'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_radpostauth_username ON radpostauth(username, authdate);
+CREATE INDEX IF NOT EXISTS idx_radpostauth_reply ON radpostauth(reply, authdate);
+CREATE INDEX IF NOT EXISTS idx_radpostauth_authdate ON radpostauth(authdate);
+
+CREATE TABLE IF NOT EXISTS radius_sql_accounting_reconcile_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	status TEXT NOT NULL,
+	scanned INTEGER NOT NULL DEFAULT 0,
+	reconciled INTEGER NOT NULL DEFAULT 0,
+	created_sessions INTEGER NOT NULL DEFAULT 0,
+	updated_sessions INTEGER NOT NULL DEFAULT 0,
+	closed_sessions INTEGER NOT NULL DEFAULT 0,
+	error_count INTEGER NOT NULL DEFAULT 0,
+	last_error TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('ok', 'degraded', 'error'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_radius_sql_accounting_reconcile_events_created ON radius_sql_accounting_reconcile_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_radius_sql_accounting_reconcile_events_status ON radius_sql_accounting_reconcile_events(status, created_at);
+`
+
+const schemaV40 = freeradiusSQLAccountingTablesSQL

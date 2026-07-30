@@ -770,6 +770,7 @@ func (g *Generator) renderModsSQL() (string, error) {
 		return g.renderModsPostgreSQL()
 	}
 	tmpl := `# mods-enabled/sql
+# AegisNAS schema v40 owns radacct/radpostauth and reconciles them through radius.sql_accounting.
 sql {
 	dialect = "sqlite"
 	driver = "rlm_sql_sqlite"
@@ -809,6 +810,7 @@ func (g *Generator) renderModsPostgreSQL() (string, error) {
 		return "", err
 	}
 	tmpl := `# mods-enabled/sql
+# AegisNAS schema v40 owns radacct/radpostauth and reconciles them through radius.sql_accounting.
 sql {
 	dialect = "postgresql"
 	driver = "rlm_sql_postgresql"

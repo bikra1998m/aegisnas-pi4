@@ -163,7 +163,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{36, schemaV36},
 		{37, schemaV37},
 		{38, schemaV38},
-		{LatestSchemaVersion(), schemaV39},
+		{39, schemaV39},
+		{LatestSchemaVersion(), schemaV40},
 	}
 
 	for _, m := range migrations {
@@ -250,8 +251,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureTenantIsolationTables(handle); err != nil {
 		return fmt.Errorf("repair tenant isolation schema: %w", err)
 	}
+	if err := ensureFreeRADIUSSQLAccountingTables(handle); err != nil {
+		return fmt.Errorf("repair FreeRADIUS SQL accounting schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureFreeRADIUSSQLAccountingTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(freeradiusSQLAccountingTablesSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureTenantIsolationTables(handle *sql.DB) error {

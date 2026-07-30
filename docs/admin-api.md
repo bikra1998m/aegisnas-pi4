@@ -269,6 +269,27 @@ POST /api/v1/system/accounting-spool/replay
 
 The same summary appears in `/api/v1/system/status` under `radius.accounting_spool` and in production readiness as `radius_accounting_spool`.
 
+FreeRADIUS SQL accounting reconciliation is exposed at:
+
+```text
+/api/v1/system/sql-accounting
+/api/v1/system/sql-accounting?status=pending&limit=100
+```
+
+Use these endpoints to review `radacct`, `radpostauth`, pending/stale/error
+rows, reconciliation history, and the standard accounting attributes currently
+mapped into AegisNAS sessions. Manual reconciliation is available to
+`ops_admin` and `super_admin`:
+
+```text
+POST /api/v1/system/sql-accounting/reconcile
+```
+
+The same summary appears in `/api/v1/system/status` under
+`radius.sql_accounting`, in production readiness as `radius_sql_accounting`,
+and in support bundles as `api/sql-accounting.json`. See
+[freeradius-sql-accounting.md](freeradius-sql-accounting.md).
+
 Upstream outage fallback policy is exposed at:
 
 ```text

@@ -375,6 +375,14 @@ radius:
     idle_timeout_seconds: 300
     probe_interval_seconds: 30
     certificate_expiry_warning_days: 30
+  sql_accounting:
+    enabled: true
+    reconcile_enabled: true
+    reconcile_interval_seconds: 60
+    batch_size: 500
+    stale_after_seconds: 300
+    accounting_retention_days: 365
+    postauth_retention_days: 30
   vendor:
     enabled: false
     name: "AegisNAS"

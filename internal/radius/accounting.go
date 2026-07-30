@@ -1,7 +1,9 @@
 package radius
 
 import (
+	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,7 +41,14 @@ func ProcessAccounting(rec *AccountingRecord) error {
 	if db.DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
+	if rec == nil {
+		return fmt.Errorf("accounting record is required")
+	}
+	if rec.Timestamp.IsZero() {
+		rec.Timestamp = time.Now().UTC()
+	}
 
+	mirrored := false
 	switch rec.AcctStatusType {
 	case "Start":
 		_, err := db.DB.Exec(`INSERT INTO sessions (id, username, mac, ip, start_time, last_activity, radius_session_id)
@@ -56,6 +65,7 @@ func ProcessAccounting(rec *AccountingRecord) error {
 			logger.Error("accounting start insert failed", zap.Error(err))
 			return err
 		}
+		mirrored = true
 	case "Stop":
 		stopReason := strings.TrimSpace(rec.StopReason)
 		if stopReason == "" {
@@ -68,6 +78,7 @@ func ProcessAccounting(rec *AccountingRecord) error {
 			logger.Error("accounting stop update failed", zap.Error(err))
 			return err
 		}
+		mirrored = true
 	case "Interim-Update":
 		_, err := db.DB.Exec(`UPDATE sessions SET bytes_in = ?, bytes_out = ?, acct_session_time = ?, last_activity = ?
 			WHERE radius_session_id = ? OR id = ?`,
@@ -76,9 +87,58 @@ func ProcessAccounting(rec *AccountingRecord) error {
 			logger.Error("accounting interim update failed", zap.Error(err))
 			return err
 		}
+		mirrored = true
+	}
+	if mirrored {
+		if _, err := db.UpsertFreeRADIUSAccountingRecord(context.Background(), freeRADIUSRecordFromAccounting(rec)); err != nil {
+			logger.Error("accounting radacct mirror failed", zap.Error(err))
+			return err
+		}
 	}
 	logger.Info("accounting processed",
 		zap.String("session_id", rec.SessionID),
 		zap.String("status", rec.AcctStatusType))
 	return nil
+}
+
+func freeRADIUSRecordFromAccounting(rec *AccountingRecord) db.FreeRADIUSAccountingRecord {
+	timestamp := rec.Timestamp
+	if timestamp.IsZero() {
+		timestamp = time.Now().UTC()
+	}
+	formatted := timestamp.UTC().Format(time.RFC3339Nano)
+	record := db.FreeRADIUSAccountingRecord{
+		AcctSessionID:        strings.TrimSpace(rec.SessionID),
+		AcctUniqueID:         db.FreeRADIUSAcctUniqueID(rec.SessionID, rec.Username, rec.NASIPAddress, strconv.Itoa(rec.NASPort), rec.CallingStationID),
+		Username:             strings.TrimSpace(rec.Username),
+		NASIPAddress:         strings.TrimSpace(rec.NASIPAddress),
+		NASPortID:            strings.TrimSpace(strconv.Itoa(rec.NASPort)),
+		AcctSessionTime:      int64(rec.AcctSessionTime),
+		AcctAuthentic:        "RADIUS",
+		AcctInputOctets:      rec.AcctInputOctets,
+		AcctOutputOctets:     rec.AcctOutputOctets,
+		CalledStationID:      strings.TrimSpace(rec.CalledStationID),
+		CallingStationID:     strings.TrimSpace(rec.CallingStationID),
+		AcctTerminateCause:   strings.TrimSpace(rec.StopReason),
+		FramedIPAddress:      strings.TrimSpace(rec.FramedIPAddress),
+		Class:                strings.TrimSpace(rec.RadiusClass),
+		AegisSessionID:       strings.TrimSpace(rec.SessionID),
+		AegisSource:          "aegis-broker",
+		AegisReconcileStatus: "reconciled",
+		AegisReconciledAt:    formatted,
+	}
+	switch rec.AcctStatusType {
+	case "Start":
+		record.AcctStartTime = formatted
+		record.AcctUpdateTime = formatted
+	case "Stop":
+		record.AcctStopTime = formatted
+		record.AcctUpdateTime = formatted
+	case "Interim-Update":
+		record.AcctUpdateTime = formatted
+	}
+	if rec.NASPort <= 0 {
+		record.NASPortID = ""
+	}
+	return record
 }

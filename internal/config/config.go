@@ -213,6 +213,7 @@ type RadiusConfig struct {
 	NASIdentifier         string                      `mapstructure:"nas_identifier"`
 	RequestTimeoutSeconds int                         `mapstructure:"request_timeout_seconds"`
 	InterimUpdateSeconds  int                         `mapstructure:"interim_update_seconds"`
+	SQLAccounting         RadiusSQLAccountingConfig   `mapstructure:"sql_accounting"`
 	DynamicAuth           DynamicAuthConfig           `mapstructure:"dynamic_auth"`
 	DynamicClients        RadiusDynamicClientsConfig  `mapstructure:"dynamic_clients"`
 	PacketHardening       RadiusPacketHardeningConfig `mapstructure:"packet_hardening"`
@@ -267,6 +268,16 @@ type RadiusClient struct {
 	RadSecCertificateCN     string `mapstructure:"radsec_certificate_cn"`
 	RadSecCertificateIssuer string `mapstructure:"radsec_certificate_issuer"`
 	RadSecRadiusV11         string `mapstructure:"radsec_radius_v11"`
+}
+
+type RadiusSQLAccountingConfig struct {
+	Enabled                  bool `mapstructure:"enabled"`
+	ReconcileEnabled         bool `mapstructure:"reconcile_enabled"`
+	ReconcileIntervalSeconds int  `mapstructure:"reconcile_interval_seconds"`
+	BatchSize                int  `mapstructure:"batch_size"`
+	StaleAfterSeconds        int  `mapstructure:"stale_after_seconds"`
+	AccountingRetentionDays  int  `mapstructure:"accounting_retention_days"`
+	PostAuthRetentionDays    int  `mapstructure:"postauth_retention_days"`
 }
 
 type TACACSConfig struct {
@@ -1492,6 +1503,13 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("health.port", 8080)
 	v.SetDefault("radius.auth_port", 1812)
 	v.SetDefault("radius.acct_port", 1813)
+	v.SetDefault("radius.sql_accounting.enabled", true)
+	v.SetDefault("radius.sql_accounting.reconcile_enabled", true)
+	v.SetDefault("radius.sql_accounting.reconcile_interval_seconds", 60)
+	v.SetDefault("radius.sql_accounting.batch_size", 500)
+	v.SetDefault("radius.sql_accounting.stale_after_seconds", 300)
+	v.SetDefault("radius.sql_accounting.accounting_retention_days", 365)
+	v.SetDefault("radius.sql_accounting.postauth_retention_days", 30)
 	v.SetDefault("portal.port", 8081)
 	v.SetDefault("telemetry.enabled", true)
 	v.SetDefault("telemetry.prometheus_port", 9090)
@@ -4111,6 +4129,9 @@ func (c *Config) Validate() error {
 	if c.Radius.InterimUpdateSeconds < 0 {
 		return fmt.Errorf("radius.interim_update_seconds %d cannot be negative", c.Radius.InterimUpdateSeconds)
 	}
+	if err := validateRadiusSQLAccounting(c.Radius.SQLAccounting); err != nil {
+		return err
+	}
 	if c.Radius.DynamicAuth.Enabled && (c.Radius.DynamicAuth.Port < 1 || c.Radius.DynamicAuth.Port > 65535) {
 		return fmt.Errorf("radius.dynamic_auth.port %d out of range", c.Radius.DynamicAuth.Port)
 	}
@@ -6054,6 +6075,64 @@ func validateRadiusAccountingSpool(raw RadiusAccountingSpoolConfig) error {
 	}
 	if effective.PoisonRetentionSeconds < 1 {
 		return fmt.Errorf("radius.upstream.accounting_spool.poison_retention_seconds must be positive")
+	}
+	return nil
+}
+
+func EffectiveRadiusSQLAccountingConfig(raw RadiusSQLAccountingConfig) RadiusSQLAccountingConfig {
+	effective := raw
+	if effective.ReconcileIntervalSeconds == 0 {
+		effective.ReconcileIntervalSeconds = 60
+	}
+	if effective.BatchSize == 0 {
+		effective.BatchSize = 500
+	}
+	if effective.StaleAfterSeconds == 0 {
+		effective.StaleAfterSeconds = 300
+	}
+	if effective.AccountingRetentionDays == 0 {
+		effective.AccountingRetentionDays = 365
+	}
+	if effective.PostAuthRetentionDays == 0 {
+		effective.PostAuthRetentionDays = 30
+	}
+	return effective
+}
+
+func validateRadiusSQLAccounting(raw RadiusSQLAccountingConfig) error {
+	values := map[string]int{
+		"reconcile_interval_seconds": raw.ReconcileIntervalSeconds,
+		"batch_size":                 raw.BatchSize,
+		"stale_after_seconds":        raw.StaleAfterSeconds,
+		"accounting_retention_days":  raw.AccountingRetentionDays,
+		"postauth_retention_days":    raw.PostAuthRetentionDays,
+	}
+	for name, value := range values {
+		if value < 0 {
+			return fmt.Errorf("radius.sql_accounting.%s %d cannot be negative", name, value)
+		}
+	}
+	if !raw.Enabled {
+		return nil
+	}
+	effective := EffectiveRadiusSQLAccountingConfig(raw)
+	if effective.ReconcileEnabled && effective.ReconcileIntervalSeconds < 1 {
+		return fmt.Errorf("radius.sql_accounting.reconcile_interval_seconds must be positive")
+	}
+	if effective.BatchSize < 1 || effective.BatchSize > 5000 {
+		return fmt.Errorf("radius.sql_accounting.batch_size must be between 1 and 5000")
+	}
+	if effective.StaleAfterSeconds < 1 {
+		return fmt.Errorf("radius.sql_accounting.stale_after_seconds must be positive")
+	}
+	if effective.ReconcileEnabled && effective.StaleAfterSeconds < effective.ReconcileIntervalSeconds {
+		return fmt.Errorf("radius.sql_accounting.stale_after_seconds must be greater than or equal to reconcile_interval_seconds")
+	}
+	if effective.AccountingRetentionDays < 1 || effective.AccountingRetentionDays > 3650 {
+		return fmt.Errorf("radius.sql_accounting.accounting_retention_days must be between 1 and 3650")
+	}
+	if effective.PostAuthRetentionDays < 1 || effective.PostAuthRetentionDays > effective.AccountingRetentionDays {
+		return fmt.Errorf("radius.sql_accounting.postauth_retention_days must be between 1 and accounting_retention_days")
 	}
 	return nil
 }

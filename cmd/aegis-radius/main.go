@@ -64,6 +64,7 @@ var runCmd = &cobra.Command{
 		// Start health server on a dedicated port so it does not collide with gateway health.
 		go health.StartServer(cfg.Health.Port+5, logger)
 		go radius.StartAccountingSpoolReplayer(context.Background(), cfg)
+		go radius.StartSQLAccountingReconciler(context.Background(), cfg)
 		go func() {
 			if err := tacacs.StartServer(context.Background(), cfg, logger); err != nil {
 				logger.Error("tacacs server stopped", zap.Error(err))

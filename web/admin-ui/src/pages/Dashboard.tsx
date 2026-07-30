@@ -296,6 +296,22 @@ type RadiusAccountingSpoolReport = {
   };
 };
 
+type RadiusSQLAccountingReport = {
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary?: {
+    radacct_rows: number;
+    radpostauth_rows: number;
+    pending_rows: number;
+    stale_pending_rows: number;
+    error_rows: number;
+    reconciled_rows: number;
+    open_sessions: number;
+    closed_sessions: number;
+  };
+};
+
 type RadiusFallbackPolicyReport = {
   enabled: boolean;
   status: string;
@@ -890,6 +906,7 @@ type SystemStatus = {
     transport_policy?: RadiusTransportPolicyReport;
     proxy_policy?: RadiusProxyPolicyReport;
     accounting_spool?: RadiusAccountingSpoolReport;
+    sql_accounting?: RadiusSQLAccountingReport;
     fallback_policy?: RadiusFallbackPolicyReport;
     eap_framework?: EAPFrameworkReport;
     eap_teap?: TEAPReport;
@@ -1441,6 +1458,7 @@ export default function Dashboard() {
   const transportPolicy = systemStatus.radius?.transport_policy;
   const proxyPolicy = systemStatus.radius?.proxy_policy;
   const accountingSpool = systemStatus.radius?.accounting_spool;
+  const sqlAccounting = systemStatus.radius?.sql_accounting;
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
   const eapFramework = systemStatus.radius?.eap_framework;
   const teapReport = systemStatus.radius?.eap_teap;
@@ -3395,6 +3413,45 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <StatusBadge status={accountingSpool.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {sqlAccounting ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        FreeRADIUS SQL Accounting
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {sqlAccounting.message ||
+                          "SQL accounting reconciliation state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-4">
+                        <div>
+                          radacct {sqlAccounting.summary?.radacct_rows ?? 0}
+                        </div>
+                        <div>
+                          postauth{" "}
+                          {sqlAccounting.summary?.radpostauth_rows ?? 0}
+                        </div>
+                        <div>
+                          Pending{" "}
+                          {sqlAccounting.summary?.pending_rows ?? 0}
+                        </div>
+                        <div>
+                          Errors {sqlAccounting.summary?.error_rows ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Reconciled{" "}
+                        {sqlAccounting.summary?.reconciled_rows ?? 0}; open{" "}
+                        {sqlAccounting.summary?.open_sessions ?? 0}; closed{" "}
+                        {sqlAccounting.summary?.closed_sessions ?? 0}; stale{" "}
+                        {sqlAccounting.summary?.stale_pending_rows ?? 0}
+                      </div>
+                    </div>
+                    <StatusBadge status={sqlAccounting.status || "unknown"} />
                   </div>
                 </div>
               ) : null}

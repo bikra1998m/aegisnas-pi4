@@ -642,6 +642,50 @@ func TestConfigValidationRadiusAccountingSpool(t *testing.T) {
 	assert.ErrorContains(t, cfg.Validate(), "max_retry_seconds")
 }
 
+func TestConfigValidationRadiusSQLAccounting(t *testing.T) {
+	cfg := &Config{
+		Mode:     "two-nic",
+		WAN:      InterfaceConfig{Name: "eth0"},
+		LAN:      InterfaceConfig{Name: "eth1"},
+		Database: DatabaseConfig{Path: "/tmp/aegis.db"},
+		Health:   HealthConfig{Port: 8080},
+		Telemetry: TelemetryConfig{
+			PrometheusPort: 9090,
+		},
+		Radius: RadiusConfig{
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+			SQLAccounting: RadiusSQLAccountingConfig{
+				Enabled:                  true,
+				ReconcileEnabled:         true,
+				ReconcileIntervalSeconds: 30,
+				BatchSize:                250,
+				StaleAfterSeconds:        300,
+				AccountingRetentionDays:  365,
+				PostAuthRetentionDays:    30,
+			},
+		},
+	}
+	require.NoError(t, cfg.Validate())
+
+	effective := EffectiveRadiusSQLAccountingConfig(RadiusSQLAccountingConfig{Enabled: true, ReconcileEnabled: true})
+	assert.Equal(t, 500, effective.BatchSize)
+	assert.Equal(t, 365, effective.AccountingRetentionDays)
+
+	badBatch := *cfg
+	badBatch.Radius.SQLAccounting.BatchSize = 5001
+	assert.ErrorContains(t, badBatch.Validate(), "batch_size")
+
+	badStale := *cfg
+	badStale.Radius.SQLAccounting.StaleAfterSeconds = 10
+	assert.ErrorContains(t, badStale.Validate(), "stale_after_seconds")
+
+	badRetention := *cfg
+	badRetention.Radius.SQLAccounting.PostAuthRetentionDays = 400
+	assert.ErrorContains(t, badRetention.Validate(), "postauth_retention_days")
+}
+
 func TestConfigValidationRadiusDynamicClients(t *testing.T) {
 	cfg := &Config{
 		Mode:     "two-nic",

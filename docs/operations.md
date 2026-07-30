@@ -67,6 +67,30 @@ Production deployments should use `database.backend: postgres`,
 valid for lite/lab deployments but is reported as degraded for enterprise
 readiness.
 
+## FreeRADIUS SQL Accounting Operations
+
+Use [freeradius-sql-accounting.md](freeradius-sql-accounting.md) for NAS-0035
+schema, reconciliation, retention, and API details. Before production sign-off,
+run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/sql-accounting | jq '.report.status, .report.summary'
+```
+
+Run manual reconciliation after importing FreeRADIUS SQL accounting rows or
+after a controlled recovery drill:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"batch_size":500}' \
+  http://127.0.0.1:8083/api/v1/system/sql-accounting/reconcile | jq '.status, .result'
+```
+
+Production readiness blocks when SQL accounting is disabled, reconciliation is
+disabled, the database is unavailable, or stale/error rows remain.
+
 ## Admin Access Workflow
 
 Operators can now sign in with either:

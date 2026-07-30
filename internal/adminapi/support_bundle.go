@@ -294,6 +294,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/dhcp-lease-history.json", requestPath: "/api/v1/system/dhcp-lease-history", label: "DHCP lease history", handler: HandleListDHCPLeaseHistory},
 		{archivePath: "api/upstream-aaa-history.json", requestPath: "/api/v1/system/upstream-aaa-history", label: "Upstream AAA history", handler: HandleListUpstreamAAAHistory},
 		{archivePath: "api/fallback-policy.json", requestPath: "/api/v1/system/fallback-policy", label: "Upstream fallback policy", handler: HandleGetFallbackPolicy},
+		{archivePath: "api/sql-accounting.json", requestPath: "/api/v1/system/sql-accounting", label: "FreeRADIUS SQL accounting reconciliation", handler: HandleGetSQLAccounting},
 		{archivePath: "api/policy-engine.json", requestPath: "/api/v1/system/policy-engine", label: "Typed policy expression engine", handler: HandleGetPolicyEngine},
 		{archivePath: "api/policy-sets.json", requestPath: "/api/v1/system/policy-sets", label: "Versioned policy set governance", handler: HandleGetPolicySets},
 		{archivePath: "api/policy-simulation-analyses.json", requestPath: "/api/v1/system/policy-sets/analyses", label: "Policy simulation analyses", handler: HandleListPolicySimulationAnalyses},

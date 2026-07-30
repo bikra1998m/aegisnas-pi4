@@ -193,7 +193,36 @@ func AuthenticatePAP(ctx context.Context, cfg *config.Config, req BrokerAuthRequ
 		"response_code":    response.Code.String(),
 	})
 	RecordVendorAuthResult(cfg, result, response)
+	recordFreeRADIUSPostAuthResult(cfg, req, result, response.Code.String())
 	return result, nil
+}
+
+func recordFreeRADIUSPostAuthResult(cfg *config.Config, req BrokerAuthRequest, result *BrokerAuthResult, packetType string) {
+	if cfg == nil || result == nil || db.DB == nil {
+		return
+	}
+	if !config.EffectiveRadiusSQLAccountingConfig(cfg.Radius.SQLAccounting).Enabled {
+		return
+	}
+	nasIP := ""
+	if parsed := resolveNASIP(cfg); parsed != nil {
+		nasIP = parsed.String()
+	}
+	_ = db.RecordFreeRADIUSPostAuth(db.FreeRADIUSPostAuthRecord{
+		Username:         req.Username,
+		Pass:             "[redacted]",
+		Reply:            packetType,
+		AuthDate:         time.Now().UTC().Format(time.RFC3339Nano),
+		Class:            result.Class,
+		CalledStationID:  req.CalledStationID,
+		CallingStationID: req.CallingStationID,
+		NASIPAddress:     nasIP,
+		NASIdentifier:    cfg.Radius.NASIdentifier,
+		PacketType:       packetType,
+		Realm:            cfg.Radius.Upstream.Realm,
+		Reason:           result.ReplyMessage,
+		AegisSource:      "aegis-broker",
+	})
 }
 
 func setRADIUSState(packet *layehradius.Packet, state string) error {

@@ -288,6 +288,36 @@ type TACACSReport = {
   warnings?: string[];
 };
 
+type SQLAccountingReport = {
+  schema_version: number;
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary: {
+    radacct_rows: number;
+    radpostauth_rows: number;
+    pending_rows: number;
+    stale_pending_rows: number;
+    error_rows: number;
+    reconciled_rows: number;
+    open_sessions: number;
+    closed_sessions: number;
+    session_rows: number;
+    last_accounting_at?: string;
+    last_reconciled_at?: string;
+  };
+  recent?: Array<{
+    radacctid: number;
+    acctsessionid: string;
+    username?: string;
+    nasipaddress?: string;
+    acctupdatetime?: string;
+    acctstoptime?: string;
+    aegis_reconcile_status: string;
+  }>;
+  warnings?: string[];
+};
+
 type TenantIsolationReport = {
   schema_version: number;
   status: string;
@@ -1180,6 +1210,15 @@ const defaultSettings: JsonMap = {
         ],
       },
     },
+    sql_accounting: {
+      enabled: true,
+      reconcile_enabled: true,
+      reconcile_interval_seconds: 60,
+      batch_size: 500,
+      stale_after_seconds: 300,
+      accounting_retention_days: 365,
+      postauth_retention_days: 30,
+    },
     upstream: {
       enabled: false,
       realm: "aegis-upstream",
@@ -1585,6 +1624,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.radius.eap.pwd = next.radius.eap.pwd || {};
   next.radius.eap.sim_aka = next.radius.eap.sim_aka || {};
   next.radius.eap.framework = next.radius.eap.framework || {};
+  next.radius.sql_accounting = next.radius.sql_accounting || {};
   next.radius.upstream = next.radius.upstream || {};
   next.radius.upstream.fallback_policy =
     next.radius.upstream.fallback_policy || {};
@@ -1604,6 +1644,13 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.tacacs.retention_limit = 1000;
     next.radius.max_sessions = 256;
     next.radius.interim_update_seconds = 600;
+    next.radius.sql_accounting.enabled = true;
+    next.radius.sql_accounting.reconcile_enabled = true;
+    next.radius.sql_accounting.batch_size = 100;
+    next.radius.sql_accounting.reconcile_interval_seconds = 120;
+    next.radius.sql_accounting.stale_after_seconds = 600;
+    next.radius.sql_accounting.accounting_retention_days = 30;
+    next.radius.sql_accounting.postauth_retention_days = 7;
     next.radius.eap.framework.enabled = true;
     next.radius.eap.framework.mode = "monitor";
     next.radius.eap.framework.max_concurrent_sessions = 256;
@@ -1667,6 +1714,18 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.tacacs.retention_limit = next.tacacs.retention_limit || 100000;
     next.radius.max_sessions = 4096;
     next.radius.interim_update_seconds = 300;
+    next.radius.sql_accounting.enabled = true;
+    next.radius.sql_accounting.reconcile_enabled = true;
+    next.radius.sql_accounting.batch_size =
+      next.radius.sql_accounting.batch_size || 1000;
+    next.radius.sql_accounting.reconcile_interval_seconds =
+      next.radius.sql_accounting.reconcile_interval_seconds || 30;
+    next.radius.sql_accounting.stale_after_seconds =
+      next.radius.sql_accounting.stale_after_seconds || 300;
+    next.radius.sql_accounting.accounting_retention_days =
+      next.radius.sql_accounting.accounting_retention_days || 730;
+    next.radius.sql_accounting.postauth_retention_days =
+      next.radius.sql_accounting.postauth_retention_days || 90;
     next.radius.eap.framework.enabled = true;
     next.radius.eap.framework.max_concurrent_sessions =
       next.radius.eap.framework.max_concurrent_sessions || 4096;
@@ -1726,6 +1785,20 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.ailite.mode = next.ailite.mode || "lite";
     next.ailite.provider = next.ailite.provider || "local";
     next.ailite.recommendation_limit = next.ailite.recommendation_limit || 100;
+    next.radius.sql_accounting.enabled =
+      next.radius.sql_accounting.enabled ?? true;
+    next.radius.sql_accounting.reconcile_enabled =
+      next.radius.sql_accounting.reconcile_enabled ?? true;
+    next.radius.sql_accounting.batch_size =
+      next.radius.sql_accounting.batch_size || 500;
+    next.radius.sql_accounting.reconcile_interval_seconds =
+      next.radius.sql_accounting.reconcile_interval_seconds || 60;
+    next.radius.sql_accounting.stale_after_seconds =
+      next.radius.sql_accounting.stale_after_seconds || 300;
+    next.radius.sql_accounting.accounting_retention_days =
+      next.radius.sql_accounting.accounting_retention_days || 365;
+    next.radius.sql_accounting.postauth_retention_days =
+      next.radius.sql_accounting.postauth_retention_days || 30;
   } else {
     next.ailite.enabled = true;
     next.ailite.mode = "lite";
@@ -1740,6 +1813,18 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.tacacs.retention_limit = next.tacacs.retention_limit || 10000;
     next.radius.max_sessions = 1024;
     next.radius.interim_update_seconds = 300;
+    next.radius.sql_accounting.enabled = true;
+    next.radius.sql_accounting.reconcile_enabled = true;
+    next.radius.sql_accounting.batch_size =
+      next.radius.sql_accounting.batch_size || 500;
+    next.radius.sql_accounting.reconcile_interval_seconds =
+      next.radius.sql_accounting.reconcile_interval_seconds || 60;
+    next.radius.sql_accounting.stale_after_seconds =
+      next.radius.sql_accounting.stale_after_seconds || 300;
+    next.radius.sql_accounting.accounting_retention_days =
+      next.radius.sql_accounting.accounting_retention_days || 365;
+    next.radius.sql_accounting.postauth_retention_days =
+      next.radius.sql_accounting.postauth_retention_days || 30;
     next.radius.eap.framework.enabled = true;
     next.radius.eap.framework.max_concurrent_sessions =
       next.radius.eap.framework.max_concurrent_sessions || 1024;
@@ -1949,8 +2034,12 @@ export default function AccessSettings() {
   const [subscriberServiceChains, setSubscriberServiceChains] =
     useState<SubscriberServiceChainsReport | null>(null);
   const [tacacsReport, setTacacsReport] = useState<TACACSReport | null>(null);
+  const [sqlAccountingReport, setSQLAccountingReport] =
+    useState<SQLAccountingReport | null>(null);
   const [tenantIsolationReport, setTenantIsolationReport] =
     useState<TenantIsolationReport | null>(null);
+  const [reconcilingSQLAccounting, setReconcilingSQLAccounting] =
+    useState(false);
   const [confirmingNetworkRecovery, setConfirmingNetworkRecovery] =
     useState(false);
   const [selectedRollbackId, setSelectedRollbackId] = useState("");
@@ -2119,6 +2208,21 @@ export default function AccessSettings() {
     }
   };
 
+  const loadSQLAccountingReport = async () => {
+    try {
+      const { data } = await api.get("/system/sql-accounting", {
+        params: { limit: 5 },
+      });
+      setSQLAccountingReport(data?.report || null);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load SQL accounting state.",
+      );
+    }
+  };
+
   const loadTenantIsolationReport = async () => {
     try {
       const { data } = await api.get("/system/tenant-isolation", {
@@ -2151,6 +2255,7 @@ export default function AccessSettings() {
       await loadNetworkObservability();
       await loadSubscriberServiceChains();
       await loadTACACSReport();
+      await loadSQLAccountingReport();
       await loadTenantIsolationReport();
     } catch (err: any) {
       setError(
@@ -2230,6 +2335,7 @@ export default function AccessSettings() {
       await loadNetworkObservability();
       await loadSubscriberServiceChains();
       await loadTACACSReport();
+      await loadSQLAccountingReport();
       await loadTenantIsolationReport();
     } catch (err: any) {
       setError(err.response?.data || err.message || "Could not save settings.");
@@ -2449,6 +2555,29 @@ export default function AccessSettings() {
       );
     } finally {
       setPublishingHostapd(false);
+    }
+  };
+
+  const reconcileSQLAccounting = async () => {
+    setReconcilingSQLAccounting(true);
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/sql-accounting/reconcile", {
+        batch_size: settings.radius?.sql_accounting?.batch_size || 500,
+      });
+      setMessage(
+        `SQL accounting reconciled ${data.result?.reconciled || 0} row(s); ${data.result?.error_count || 0} error(s) remain.`,
+      );
+      await loadSQLAccountingReport();
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not reconcile SQL accounting rows.",
+      );
+    } finally {
+      setReconcilingSQLAccounting(false);
     }
   };
 
@@ -14101,6 +14230,165 @@ export default function AccessSettings() {
             Enforce mode blocks proxy generation when a route can silently
             downgrade from RadSec to UDP.
           </p>
+        </div>
+        <div className="mt-4">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                FreeRADIUS SQL Accounting
+              </h4>
+              <p className="mt-1 text-xs text-gray-500">
+                Keep radacct, radpostauth, and AegisNAS sessions aligned.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={loadSQLAccountingReport}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+              >
+                Refresh SQL
+              </button>
+              <button
+                type="button"
+                onClick={reconcileSQLAccounting}
+                disabled={reconcilingSQLAccounting}
+                className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {reconcilingSQLAccounting ? "Reconciling..." : "Reconcile"}
+              </button>
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="SQL Accounting"
+              checked={settings.radius?.sql_accounting?.enabled !== false}
+              onChange={(value) =>
+                updateField(["radius", "sql_accounting", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Auto Reconcile"
+              checked={
+                settings.radius?.sql_accounting?.reconcile_enabled !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "sql_accounting", "reconcile_enabled"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Batch Size"
+              type="number"
+              value={settings.radius?.sql_accounting?.batch_size || 500}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "sql_accounting", "batch_size"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Reconcile Interval (s)"
+              type="number"
+              value={
+                settings.radius?.sql_accounting
+                  ?.reconcile_interval_seconds || 60
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "sql_accounting",
+                    "reconcile_interval_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Stale After (s)"
+              type="number"
+              value={settings.radius?.sql_accounting?.stale_after_seconds || 300}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "sql_accounting", "stale_after_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Accounting Retention (d)"
+              type="number"
+              value={
+                settings.radius?.sql_accounting
+                  ?.accounting_retention_days || 365
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "sql_accounting", "accounting_retention_days"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Post-Auth Retention (d)"
+              type="number"
+              value={
+                settings.radius?.sql_accounting?.postauth_retention_days || 30
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "sql_accounting", "postauth_retention_days"],
+                  Number(value),
+                )
+              }
+            />
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-4">
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Status
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {sqlAccountingReport?.status || "unknown"}
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Rows
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {sqlAccountingReport?.summary?.radacct_rows || 0} radacct /{" "}
+                {sqlAccountingReport?.summary?.radpostauth_rows || 0} postauth
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Pending
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {sqlAccountingReport?.summary?.pending_rows || 0} pending,{" "}
+                {sqlAccountingReport?.summary?.stale_pending_rows || 0} stale
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Errors
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {sqlAccountingReport?.summary?.error_rows || 0} error(s),{" "}
+                {sqlAccountingReport?.summary?.reconciled_rows || 0} reconciled
+              </div>
+            </div>
+          </div>
+          {sqlAccountingReport?.message && (
+            <p className="mt-2 text-xs text-gray-500">
+              {sqlAccountingReport.message}
+            </p>
+          )}
         </div>
         <div className="mt-4">
           <h4 className="text-sm font-semibold text-gray-900">

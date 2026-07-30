@@ -41,6 +41,8 @@ Files involved:
 - [client.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/client.go)
 - [vendor.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/vendor.go)
 - [accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting.go)
+- [sql_accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/sql_accounting.go)
+- [freeradius_accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/freeradius_accounting.go)
 - [mapping.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/mapping.go)
 - [dynamic_nas_clients.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/dynamic_nas_clients.go)
 - [manager.go](F:/random_project/Pookie/aegisnas-pi4/internal/sessions/manager.go)
@@ -79,6 +81,7 @@ The implementation now does these things end to end:
 22. generates opt-in EAP-SIM, EAP-AKA, and EAP-AKA-prime policy with vector-provider freshness, pseudonym/reauth privacy, resync, AKA-prime network binding, API evaluation, dashboard status, and support-bundle evidence
 23. governs enterprise certificate lifecycle with EST/SCEP/BYOD entry points, CSR proof-of-possession, device binding, template and issuer policy, renewal, CRL/OCSP readiness, escrow controls, API evaluation, dashboard status, and support-bundle evidence
 24. authorizes ordered subscriber service chains with dependency validation, per-session activation evidence, rollback events, service-level accounting rows, AegisNAS service-chain VSAs, API/status/readiness visibility, and support-bundle evidence
+25. owns FreeRADIUS-compatible `radacct` and `radpostauth` tables, mirrors local accounting and post-auth outcomes, reconciles SQL rows into sessions, prunes by retention policy, and exposes API/UI/readiness/support evidence
 
 ## Current Behavior
 
@@ -102,6 +105,7 @@ When `radius.upstream.enabled: true`:
 - subscriber service chains are available through `/api/v1/system/subscriber-service-chains`; operators can preview policy-derived services, activate evidence for a session, record rollback, and review hashed service-level history
 - TACACS+ command authorization is available through `/api/v1/system/tacacs`; operators can evaluate device-admin commands, manage command sets, enforce privilege/role/vendor constraints, and retain command accounting evidence for Cisco, Juniper, HPE, Dell, Brocade, Extreme, and Arista workflows
 - tenant isolation is available through `/api/v1/system/tenant-isolation`; operators can create tenant profiles, bind tenant-owned resources, evaluate scope decisions, and keep delegated policy trees from falling back to global policy or crossing tenant boundaries
+- FreeRADIUS SQL accounting reconciliation is available through `/api/v1/system/sql-accounting`; AegisNAS creates `radacct` and `radpostauth`, mirrors local accounting, records redacted post-auth outcomes, reconciles pending SQL rows into `sessions`, and records reconcile events
 - the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
 - the vendor reply preview can render vendor-neutral ACL intent into `NAS-Filter-Rule`, Cisco `Cisco-AVPair`, Aruba filter rules, MikroTik address-list hints, and AegisNAS ACL VSAs
 - MAB endpoints can be approved, denied, quarantined, expired, or left pending; approved and quarantined endpoints render MAC variants into FreeRADIUS `files/authorize`
@@ -140,6 +144,7 @@ What this pass still does not change:
 - real FAST/PWD supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, performance, and security validation remains tracked in [nas-0024-release-certification-checklist.md](nas-0024-release-certification-checklist.md)
 - real EST/SCEP, CA, supplicant, AP/controller, packet-capture, FreeRADIUS-on-Linux, HA, performance, and security validation remains tracked in [nas-0027-release-certification-checklist.md](nas-0027-release-certification-checklist.md)
 - real Windows, macOS, iOS, Android, Linux, MDM, AP/controller, password-change, trust-anchor rollover, HA, performance, and security validation remains tracked in [nas-0028-release-certification-checklist.md](nas-0028-release-certification-checklist.md)
+- real FreeRADIUS SQL writer, AP/switch, upstream AAA, PostgreSQL HA, packet-capture, performance, soak, and security validation remains tracked in [nas-0035-release-certification-checklist.md](nas-0035-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 

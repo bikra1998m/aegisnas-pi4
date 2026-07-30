@@ -71,6 +71,7 @@ func TestGenerator(t *testing.T) {
 	assert.Contains(t, fullCfg.ProxyConf, "realm aegis-upstream")
 	assert.Contains(t, fullCfg.SitesDefault, `Proxy-To-Realm := "aegis-upstream"`)
 	assert.Contains(t, fullCfg.SitesInnerTunnel, `Proxy-To-Realm := "aegis-upstream"`)
+	assert.Contains(t, fullCfg.ModsSQL, "schema v40 owns radacct/radpostauth")
 	assert.Contains(t, fullCfg.Dictionary, "$INCLUDE dictionary.aegisnas")
 	assert.Contains(t, fullCfg.VendorDictionary, "VENDOR AegisNAS 55555")
 	assert.Contains(t, fullCfg.VendorDictionary, "Vendor ID source: placeholder")
