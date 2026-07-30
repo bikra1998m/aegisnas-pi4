@@ -12,42 +12,50 @@ import (
 )
 
 type AccountingEventRecord struct {
-	ID                  int    `json:"id"`
-	EventID             string `json:"event_id"`
-	AcctUniqueID        string `json:"acct_unique_id"`
-	AcctSessionID       string `json:"acct_session_id"`
-	SessionKey          string `json:"session_key"`
-	StatusType          string `json:"status_type"`
-	EventTime           string `json:"event_time"`
-	ArrivalTime         string `json:"arrival_time"`
-	Ordinal             int64  `json:"ordinal"`
-	Username            string `json:"username,omitempty"`
-	Realm               string `json:"realm,omitempty"`
-	NASIPAddress        string `json:"nas_ip_address,omitempty"`
-	NASPortID           string `json:"nas_port_id,omitempty"`
-	NASPortType         string `json:"nas_port_type,omitempty"`
-	CallingStationID    string `json:"calling_station_id,omitempty"`
-	CalledStationID     string `json:"called_station_id,omitempty"`
-	FramedIPAddress     string `json:"framed_ip_address,omitempty"`
-	FramedIPv6Address   string `json:"framed_ipv6_address,omitempty"`
-	FramedIPv6Prefix    string `json:"framed_ipv6_prefix,omitempty"`
-	DelegatedIPv6Prefix string `json:"delegated_ipv6_prefix,omitempty"`
-	Class               string `json:"class,omitempty"`
-	AcctInputOctets     uint64 `json:"acct_input_octets"`
-	AcctOutputOctets    uint64 `json:"acct_output_octets"`
-	AcctSessionTime     int64  `json:"acct_session_time"`
-	AcctTerminateCause  string `json:"acct_terminate_cause,omitempty"`
-	Source              string `json:"source"`
-	Fingerprint         string `json:"fingerprint"`
-	PayloadJSON         string `json:"payload_json,omitempty"`
-	ApplyStatus         string `json:"apply_status"`
-	OrderingStatus      string `json:"ordering_status"`
-	DuplicateCount      int64  `json:"duplicate_count"`
-	LastSeenAt          string `json:"last_seen_at,omitempty"`
-	AppliedAt           string `json:"applied_at,omitempty"`
-	LastError           string `json:"last_error,omitempty"`
-	CreatedAt           string `json:"created_at,omitempty"`
-	UpdatedAt           string `json:"updated_at,omitempty"`
+	ID                      int    `json:"id"`
+	EventID                 string `json:"event_id"`
+	AcctUniqueID            string `json:"acct_unique_id"`
+	AcctSessionID           string `json:"acct_session_id"`
+	SessionKey              string `json:"session_key"`
+	StatusType              string `json:"status_type"`
+	EventTime               string `json:"event_time"`
+	ArrivalTime             string `json:"arrival_time"`
+	Ordinal                 int64  `json:"ordinal"`
+	Username                string `json:"username,omitempty"`
+	Realm                   string `json:"realm,omitempty"`
+	NASIPAddress            string `json:"nas_ip_address,omitempty"`
+	NASPortID               string `json:"nas_port_id,omitempty"`
+	NASPortType             string `json:"nas_port_type,omitempty"`
+	CallingStationID        string `json:"calling_station_id,omitempty"`
+	CalledStationID         string `json:"called_station_id,omitempty"`
+	FramedIPAddress         string `json:"framed_ip_address,omitempty"`
+	FramedIPv6Address       string `json:"framed_ipv6_address,omitempty"`
+	FramedIPv6Prefix        string `json:"framed_ipv6_prefix,omitempty"`
+	DelegatedIPv6Prefix     string `json:"delegated_ipv6_prefix,omitempty"`
+	Class                   string `json:"class,omitempty"`
+	AcctInputOctets         uint64 `json:"acct_input_octets"`
+	AcctOutputOctets        uint64 `json:"acct_output_octets"`
+	AcctInputGigawords      uint64 `json:"acct_input_gigawords"`
+	AcctOutputGigawords     uint64 `json:"acct_output_gigawords"`
+	AcctInputOctets64       string `json:"acct_input_octets_64"`
+	AcctOutputOctets64      string `json:"acct_output_octets_64"`
+	AcctSessionTime         int64  `json:"acct_session_time"`
+	AcctTerminateCause      string `json:"acct_terminate_cause,omitempty"`
+	Source                  string `json:"source"`
+	Fingerprint             string `json:"fingerprint"`
+	PayloadJSON             string `json:"payload_json,omitempty"`
+	ApplyStatus             string `json:"apply_status"`
+	OrderingStatus          string `json:"ordering_status"`
+	CounterStatus           string `json:"counter_status"`
+	CounterResetDetected    bool   `json:"counter_reset_detected"`
+	CounterRolloverDetected bool   `json:"counter_rollover_detected"`
+	CounterError            string `json:"counter_error,omitempty"`
+	DuplicateCount          int64  `json:"duplicate_count"`
+	LastSeenAt              string `json:"last_seen_at,omitempty"`
+	AppliedAt               string `json:"applied_at,omitempty"`
+	LastError               string `json:"last_error,omitempty"`
+	CreatedAt               string `json:"created_at,omitempty"`
+	UpdatedAt               string `json:"updated_at,omitempty"`
 }
 
 type AccountingEventIngestResult struct {
@@ -127,10 +135,12 @@ func IngestAccountingEvent(ctx context.Context, event AccountingEventRecord) (Ac
 		arrival_time, ordinal, username, realm, nas_ip_address, nas_port_id, nas_port_type,
 		calling_station_id, called_station_id, framed_ip_address, framed_ipv6_address,
 		framed_ipv6_prefix, delegated_ipv6_prefix, class, acct_input_octets, acct_output_octets,
-		acct_session_time, acct_terminate_cause, source, fingerprint, payload_json,
-		apply_status, ordering_status, duplicate_count, last_seen_at, applied_at, last_error,
-		created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		acct_input_gigawords, acct_output_gigawords, acct_input_octets_64,
+		acct_output_octets_64, acct_session_time, acct_terminate_cause, source,
+		fingerprint, payload_json, apply_status, ordering_status, counter_status,
+		counter_reset_detected, counter_rollover_detected, counter_error,
+		duplicate_count, last_seen_at, applied_at, last_error, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(event_id) DO UPDATE SET
 		duplicate_count = radius_accounting_events.duplicate_count + 1,
 		last_seen_at = excluded.last_seen_at,
@@ -141,9 +151,12 @@ func IngestAccountingEvent(ctx context.Context, event AccountingEventRecord) (Ac
 		nullIfEmpty(event.CallingStationID), nullIfEmpty(event.CalledStationID), nullIfEmpty(event.FramedIPAddress),
 		nullIfEmpty(event.FramedIPv6Address), nullIfEmpty(event.FramedIPv6Prefix), nullIfEmpty(event.DelegatedIPv6Prefix),
 		nullIfEmpty(event.Class), boundedUint64ToInt64(event.AcctInputOctets), boundedUint64ToInt64(event.AcctOutputOctets),
-		event.AcctSessionTime, nullIfEmpty(event.AcctTerminateCause), event.Source, event.Fingerprint, event.PayloadJSON,
-		event.ApplyStatus, event.OrderingStatus, event.DuplicateCount, event.LastSeenAt, nullIfEmpty(event.AppliedAt),
-		nullIfEmpty(event.LastError), event.CreatedAt, event.UpdatedAt)
+		boundedUint64ToInt64(event.AcctInputGigawords), boundedUint64ToInt64(event.AcctOutputGigawords),
+		event.AcctInputOctets64, event.AcctOutputOctets64, event.AcctSessionTime,
+		nullIfEmpty(event.AcctTerminateCause), event.Source, event.Fingerprint, event.PayloadJSON,
+		event.ApplyStatus, event.OrderingStatus, event.CounterStatus, event.CounterResetDetected,
+		event.CounterRolloverDetected, nullIfEmpty(event.CounterError), event.DuplicateCount,
+		event.LastSeenAt, nullIfEmpty(event.AppliedAt), nullIfEmpty(event.LastError), event.CreatedAt, event.UpdatedAt)
 	if err != nil {
 		return AccountingEventIngestResult{}, fmt.Errorf("ingest accounting event: %w", err)
 	}
@@ -373,9 +386,15 @@ func FreeRADIUSAccountingEventFromRecord(record FreeRADIUSAccountingRecord) Acco
 		Class:               record.Class,
 		AcctInputOctets:     record.AcctInputOctets,
 		AcctOutputOctets:    record.AcctOutputOctets,
+		AcctInputGigawords:  record.AcctInputGigawords,
+		AcctOutputGigawords: record.AcctOutputGigawords,
+		AcctInputOctets64:   record.AegisInputOctets64,
+		AcctOutputOctets64:  record.AegisOutputOctets64,
 		AcctSessionTime:     record.AcctSessionTime,
 		AcctTerminateCause:  record.AcctTerminateCause,
 		Source:              firstNonEmptyString(record.AegisSource, "freeradius-sql"),
+		CounterStatus:       record.AegisCounterStatus,
+		CounterError:        record.AegisCounterError,
 	}
 	return normalizeAccountingEventRecord(event)
 }
@@ -393,7 +412,11 @@ func AccountingEventID(event AccountingEventRecord) string {
 		event.CallingStationID,
 		event.CalledStationID,
 		fmt.Sprint(event.AcctInputOctets),
+		fmt.Sprint(event.AcctInputGigawords),
+		event.AcctInputOctets64,
 		fmt.Sprint(event.AcctOutputOctets),
+		fmt.Sprint(event.AcctOutputGigawords),
+		event.AcctOutputOctets64,
 		fmt.Sprint(event.AcctSessionTime),
 		strings.ToLower(event.AcctTerminateCause),
 		strings.ToLower(event.Source),
@@ -446,7 +469,11 @@ func applyAccountingEventRecord(ctx context.Context, event AccountingEventRecord
 	}
 	orderingStatus := classifyAccountingEventOrdering(event)
 	sessionBefore := loadAccountingSessionSnapshot(event.SessionKey)
+	event = classifyAccountingEventCounters(sessionBefore, event)
 	after := mergeAccountingSessionSnapshot(sessionBefore, event)
+	if err := updateAccountingEventCounterFields(event); err != nil {
+		return accountingApplyRowResult{}, err
+	}
 	if err := upsertAccountingSession(ctx, event.SessionKey, after, sessionBefore.exists); err != nil {
 		return accountingApplyRowResult{}, err
 	}
@@ -494,6 +521,57 @@ func classifyAccountingEventOrdering(event AccountingEventRecord) string {
 		return "reordered"
 	}
 	return "in_order"
+}
+
+func classifyAccountingEventCounters(current accountingSessionSnapshot, event AccountingEventRecord) AccountingEventRecord {
+	event = normalizeAccountingEventRecord(event)
+	if !current.exists || event.StatusType == "Start" {
+		return event
+	}
+	inputTotal := accountingEventInputTotal64(event)
+	outputTotal := accountingEventOutputTotal64(event)
+	resetDetected := false
+	if current.bytesIn > inputTotal {
+		resetDetected = true
+	}
+	if current.bytesOut > outputTotal {
+		resetDetected = true
+	}
+	if !resetDetected {
+		return event
+	}
+	event.CounterResetDetected = true
+	event.CounterStatus = combineCounterStatus(event.CounterStatus, "reset_detected")
+	if strings.TrimSpace(event.CounterError) == "" {
+		event.CounterError = fmt.Sprintf("counter reset detected for session %s: current input/output %d/%d exceeds event input/output %d/%d",
+			event.SessionKey, current.bytesIn, current.bytesOut, inputTotal, outputTotal)
+	}
+	return event
+}
+
+func accountingEventInputTotal64(event AccountingEventRecord) uint64 {
+	if total := uint64FromCounterText(event.AcctInputOctets64); total > 0 {
+		return total
+	}
+	return (event.AcctInputGigawords << 32) + (event.AcctInputOctets & accountingCounterLow32Mask)
+}
+
+func accountingEventOutputTotal64(event AccountingEventRecord) uint64 {
+	if total := uint64FromCounterText(event.AcctOutputOctets64); total > 0 {
+		return total
+	}
+	return (event.AcctOutputGigawords << 32) + (event.AcctOutputOctets & accountingCounterLow32Mask)
+}
+
+func accountingCounterResetCountForSession(sessionKey string) int64 {
+	if DB == nil || strings.TrimSpace(sessionKey) == "" {
+		return 0
+	}
+	var count int64
+	_ = DB.QueryRow(`SELECT COALESCE(COUNT(*), 0)
+		FROM radius_accounting_events
+		WHERE session_key = ? AND counter_reset_detected = 1`, strings.TrimSpace(sessionKey)).Scan(&count)
+	return count
 }
 
 func loadAccountingSessionSnapshot(sessionID string) accountingSessionSnapshot {
@@ -580,8 +658,8 @@ func mergeAccountingSessionSnapshot(current accountingSessionSnapshot, event Acc
 		endTime:         endTime,
 		stopReason:      stopReason,
 		radiusSessionID: firstNonEmptyString(event.AcctSessionID, current.radiusSessionID),
-		bytesIn:         maxUint64(current.bytesIn, event.AcctInputOctets),
-		bytesOut:        maxUint64(current.bytesOut, event.AcctOutputOctets),
+		bytesIn:         maxUint64(current.bytesIn, accountingEventInputTotal64(event)),
+		bytesOut:        maxUint64(current.bytesOut, accountingEventOutputTotal64(event)),
 		acctSessionTime: maxInt64(current.acctSessionTime, event.AcctSessionTime),
 		calledStationID: firstNonEmptyString(event.CalledStationID, current.calledStationID),
 		nasIdentifier:   firstNonEmptyString(event.NASIPAddress, current.nasIdentifier),
@@ -636,32 +714,60 @@ func markAccountingEventApplied(id int, applyStatus, orderingStatus, appliedAt, 
 	return err
 }
 
+func updateAccountingEventCounterFields(event AccountingEventRecord) error {
+	if DB == nil || event.ID == 0 {
+		return nil
+	}
+	_, err := DB.Exec(`UPDATE radius_accounting_events
+		SET acct_input_octets = ?, acct_output_octets = ?,
+			acct_input_gigawords = ?, acct_output_gigawords = ?,
+			acct_input_octets_64 = ?, acct_output_octets_64 = ?,
+			counter_status = ?, counter_reset_detected = ?, counter_rollover_detected = ?,
+			counter_error = ?, updated_at = ?
+		WHERE id = ?`,
+		boundedUint64ToInt64(event.AcctInputOctets), boundedUint64ToInt64(event.AcctOutputOctets),
+		boundedUint64ToInt64(event.AcctInputGigawords), boundedUint64ToInt64(event.AcctOutputGigawords),
+		event.AcctInputOctets64, event.AcctOutputOctets64, event.CounterStatus,
+		event.CounterResetDetected, event.CounterRolloverDetected, nullIfEmpty(event.CounterError),
+		formatAccountingTime(time.Now().UTC()), event.ID)
+	return err
+}
+
 func freeRADIUSRecordFromAccountingEvent(event AccountingEventRecord, session accountingSessionSnapshot) FreeRADIUSAccountingRecord {
 	record := FreeRADIUSAccountingRecord{
-		AcctSessionID:        event.AcctSessionID,
-		AcctUniqueID:         event.AcctUniqueID,
-		Username:             event.Username,
-		Realm:                event.Realm,
-		NASIPAddress:         event.NASIPAddress,
-		NASPortID:            event.NASPortID,
-		NASPortType:          event.NASPortType,
-		AcctUpdateTime:       event.EventTime,
-		AcctSessionTime:      event.AcctSessionTime,
-		AcctAuthentic:        "RADIUS",
-		AcctInputOctets:      session.bytesIn,
-		AcctOutputOctets:     session.bytesOut,
-		CalledStationID:      event.CalledStationID,
-		CallingStationID:     event.CallingStationID,
-		AcctTerminateCause:   event.AcctTerminateCause,
-		FramedIPAddress:      event.FramedIPAddress,
-		FramedIPv6Address:    event.FramedIPv6Address,
-		FramedIPv6Prefix:     event.FramedIPv6Prefix,
-		DelegatedIPv6Prefix:  event.DelegatedIPv6Prefix,
-		Class:                event.Class,
-		AegisSessionID:       event.SessionKey,
-		AegisSource:          event.Source,
-		AegisReconcileStatus: "pending",
+		AcctSessionID:           event.AcctSessionID,
+		AcctUniqueID:            event.AcctUniqueID,
+		Username:                event.Username,
+		Realm:                   event.Realm,
+		NASIPAddress:            event.NASIPAddress,
+		NASPortID:               event.NASPortID,
+		NASPortType:             event.NASPortType,
+		AcctUpdateTime:          event.EventTime,
+		AcctSessionTime:         event.AcctSessionTime,
+		AcctAuthentic:           "RADIUS",
+		AcctInputOctets:         session.bytesIn,
+		AcctOutputOctets:        session.bytesOut,
+		AegisInputOctets64:      fmt.Sprint(session.bytesIn),
+		AegisOutputOctets64:     fmt.Sprint(session.bytesOut),
+		CalledStationID:         event.CalledStationID,
+		CallingStationID:        event.CallingStationID,
+		AcctTerminateCause:      event.AcctTerminateCause,
+		FramedIPAddress:         event.FramedIPAddress,
+		FramedIPv6Address:       event.FramedIPv6Address,
+		FramedIPv6Prefix:        event.FramedIPv6Prefix,
+		DelegatedIPv6Prefix:     event.DelegatedIPv6Prefix,
+		Class:                   event.Class,
+		AegisSessionID:          event.SessionKey,
+		AegisSource:             event.Source,
+		AegisReconcileStatus:    "pending",
+		AegisCounterStatus:      event.CounterStatus,
+		AegisCounterError:       event.CounterError,
+		AegisCounterResetCount:  accountingCounterResetCountForSession(event.SessionKey),
+		AegisLastCounterEventID: event.EventID,
 	}
+	record.AcctInputOctets, record.AcctInputGigawords, record.AegisInputOctets64,
+		record.AcctOutputOctets, record.AcctOutputGigawords, record.AegisOutputOctets64,
+		_, _, _ = NormalizeAccountingCounters(session.bytesIn, 0, session.bytesOut, 0)
 	if record.AcctSessionID == "" {
 		record.AcctSessionID = event.SessionKey
 	}
@@ -692,8 +798,12 @@ func accountingEventSelectSQL() string {
 		COALESCE(framed_ip_address, ''), COALESCE(framed_ipv6_address, ''),
 		COALESCE(framed_ipv6_prefix, ''), COALESCE(delegated_ipv6_prefix, ''),
 		COALESCE(class, ''), COALESCE(acct_input_octets, 0), COALESCE(acct_output_octets, 0),
+		COALESCE(acct_input_gigawords, 0), COALESCE(acct_output_gigawords, 0),
+		COALESCE(acct_input_octets_64, '0'), COALESCE(acct_output_octets_64, '0'),
 		COALESCE(acct_session_time, 0), COALESCE(acct_terminate_cause, ''), source,
 		fingerprint, COALESCE(payload_json, '{}'), apply_status, ordering_status,
+		COALESCE(counter_status, 'ok'), COALESCE(counter_reset_detected, 0),
+		COALESCE(counter_rollover_detected, 0), COALESCE(counter_error, ''),
 		COALESCE(duplicate_count, 0), COALESCE(CAST(last_seen_at AS TEXT), ''),
 		COALESCE(CAST(applied_at AS TEXT), ''), COALESCE(last_error, ''),
 		COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), '')
@@ -704,15 +814,18 @@ func scanAccountingEventRows(rows *sql.Rows) ([]AccountingEventRecord, error) {
 	events := []AccountingEventRecord{}
 	for rows.Next() {
 		var event AccountingEventRecord
-		var inputOctets, outputOctets int64
+		var inputOctets, outputOctets, inputGigawords, outputGigawords int64
 		if err := rows.Scan(&event.ID, &event.EventID, &event.AcctUniqueID, &event.AcctSessionID,
 			&event.SessionKey, &event.StatusType, &event.EventTime, &event.ArrivalTime,
 			&event.Ordinal, &event.Username, &event.Realm, &event.NASIPAddress, &event.NASPortID,
 			&event.NASPortType, &event.CallingStationID, &event.CalledStationID, &event.FramedIPAddress,
 			&event.FramedIPv6Address, &event.FramedIPv6Prefix, &event.DelegatedIPv6Prefix, &event.Class,
-			&inputOctets, &outputOctets, &event.AcctSessionTime, &event.AcctTerminateCause, &event.Source,
+			&inputOctets, &outputOctets, &inputGigawords, &outputGigawords,
+			&event.AcctInputOctets64, &event.AcctOutputOctets64,
+			&event.AcctSessionTime, &event.AcctTerminateCause, &event.Source,
 			&event.Fingerprint, &event.PayloadJSON, &event.ApplyStatus, &event.OrderingStatus,
-			&event.DuplicateCount, &event.LastSeenAt, &event.AppliedAt, &event.LastError,
+			&event.CounterStatus, &event.CounterResetDetected, &event.CounterRolloverDetected,
+			&event.CounterError, &event.DuplicateCount, &event.LastSeenAt, &event.AppliedAt, &event.LastError,
 			&event.CreatedAt, &event.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan accounting event: %w", err)
 		}
@@ -721,6 +834,12 @@ func scanAccountingEventRows(rows *sql.Rows) ([]AccountingEventRecord, error) {
 		}
 		if outputOctets > 0 {
 			event.AcctOutputOctets = uint64(outputOctets)
+		}
+		if inputGigawords > 0 {
+			event.AcctInputGigawords = uint64(inputGigawords)
+		}
+		if outputGigawords > 0 {
+			event.AcctOutputGigawords = uint64(outputGigawords)
 		}
 		events = append(events, event)
 	}
@@ -760,6 +879,9 @@ func normalizeAccountingEventRecord(event AccountingEventRecord) AccountingEvent
 	if event.OrderingStatus == "" {
 		event.OrderingStatus = "in_order"
 	}
+	if event.CounterStatus == "" {
+		event.CounterStatus = "ok"
+	}
 	if event.LastSeenAt == "" {
 		event.LastSeenAt = event.ArrivalTime
 	}
@@ -794,8 +916,30 @@ func normalizeAccountingEventRecordForHash(event AccountingEventRecord) Accounti
 	event.Source = firstNonEmptyString(event.Source, "aegis")
 	event.ApplyStatus = strings.TrimSpace(event.ApplyStatus)
 	event.OrderingStatus = strings.TrimSpace(event.OrderingStatus)
+	event.CounterStatus = strings.TrimSpace(event.CounterStatus)
+	event.CounterError = strings.TrimSpace(event.CounterError)
 	if event.AcctSessionTime < 0 {
 		event.AcctSessionTime = 0
+	}
+	event = normalizeAccountingEventCounterFields(event)
+	return event
+}
+
+func normalizeAccountingEventCounterFields(event AccountingEventRecord) AccountingEventRecord {
+	existingStatus := event.CounterStatus
+	existingError := event.CounterError
+	var computedStatus, computedError string
+	var rollover bool
+	event.AcctInputOctets, event.AcctInputGigawords, event.AcctInputOctets64,
+		event.AcctOutputOctets, event.AcctOutputGigawords, event.AcctOutputOctets64,
+		computedStatus, computedError, rollover = NormalizeAccountingCounters(
+		event.AcctInputOctets, event.AcctInputGigawords, event.AcctOutputOctets, event.AcctOutputGigawords,
+	)
+	event.CounterStatus = combineCounterStatus(existingStatus, computedStatus)
+	event.CounterError = firstNonEmptyString(existingError, computedError)
+	event.CounterRolloverDetected = event.CounterRolloverDetected || rollover
+	if event.CounterStatus == "" {
+		event.CounterStatus = "ok"
 	}
 	return event
 }
@@ -836,7 +980,9 @@ func accountingEventFingerprint(event AccountingEventRecord) string {
 	sum := sha256.Sum256([]byte(strings.Join([]string{
 		event.AcctUniqueID, event.StatusType, event.EventTime, event.Username, event.NASIPAddress,
 		event.NASPortID, event.CallingStationID, event.CalledStationID, event.FramedIPAddress,
-		fmt.Sprint(event.AcctInputOctets), fmt.Sprint(event.AcctOutputOctets), fmt.Sprint(event.AcctSessionTime),
+		fmt.Sprint(event.AcctInputOctets), fmt.Sprint(event.AcctInputGigawords), event.AcctInputOctets64,
+		fmt.Sprint(event.AcctOutputOctets), fmt.Sprint(event.AcctOutputGigawords), event.AcctOutputOctets64,
+		fmt.Sprint(event.AcctSessionTime),
 		event.AcctTerminateCause,
 	}, "\x00")))
 	return hex.EncodeToString(sum[:])
@@ -844,26 +990,33 @@ func accountingEventFingerprint(event AccountingEventRecord) string {
 
 func accountingEventPayloadJSON(event AccountingEventRecord) string {
 	payload := map[string]any{
-		"acct_unique_id":          event.AcctUniqueID,
-		"acct_session_id":         event.AcctSessionID,
-		"status_type":             event.StatusType,
-		"event_time":              event.EventTime,
-		"username":                event.Username,
-		"realm":                   event.Realm,
-		"nas_ip_address":          event.NASIPAddress,
-		"nas_port_id":             event.NASPortID,
-		"calling_station_id":      event.CallingStationID,
-		"called_station_id":       event.CalledStationID,
-		"framed_ip_address":       event.FramedIPAddress,
-		"framed_ipv6_address":     event.FramedIPv6Address,
-		"framed_ipv6_prefix":      event.FramedIPv6Prefix,
-		"delegated_ipv6_prefix":   event.DelegatedIPv6Prefix,
-		"acct_input_octets":       event.AcctInputOctets,
-		"acct_output_octets":      event.AcctOutputOctets,
-		"acct_session_time":       event.AcctSessionTime,
-		"acct_terminate_cause":    event.AcctTerminateCause,
-		"source":                  event.Source,
-		"nas_0036_schema_version": 1,
+		"acct_unique_id":            event.AcctUniqueID,
+		"acct_session_id":           event.AcctSessionID,
+		"status_type":               event.StatusType,
+		"event_time":                event.EventTime,
+		"username":                  event.Username,
+		"realm":                     event.Realm,
+		"nas_ip_address":            event.NASIPAddress,
+		"nas_port_id":               event.NASPortID,
+		"calling_station_id":        event.CallingStationID,
+		"called_station_id":         event.CalledStationID,
+		"framed_ip_address":         event.FramedIPAddress,
+		"framed_ipv6_address":       event.FramedIPv6Address,
+		"framed_ipv6_prefix":        event.FramedIPv6Prefix,
+		"delegated_ipv6_prefix":     event.DelegatedIPv6Prefix,
+		"acct_input_octets":         event.AcctInputOctets,
+		"acct_output_octets":        event.AcctOutputOctets,
+		"acct_input_gigawords":      event.AcctInputGigawords,
+		"acct_output_gigawords":     event.AcctOutputGigawords,
+		"acct_input_octets_64":      event.AcctInputOctets64,
+		"acct_output_octets_64":     event.AcctOutputOctets64,
+		"acct_session_time":         event.AcctSessionTime,
+		"acct_terminate_cause":      event.AcctTerminateCause,
+		"source":                    event.Source,
+		"counter_status":            event.CounterStatus,
+		"counter_reset_detected":    event.CounterResetDetected,
+		"counter_rollover_detected": event.CounterRolloverDetected,
+		"nas_0037_schema_version":   1,
 	}
 	encoded, err := json.Marshal(payload)
 	if err != nil {

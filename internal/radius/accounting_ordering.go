@@ -165,6 +165,11 @@ func ReplayAccountingOrdering(ctx context.Context, cfg *config.Config, limit int
 		report.Message = err.Error()
 		return report, err
 	}
+	if err := PruneAccountingCounterEvidence(cfg, time.Now().UTC()); err != nil {
+		report.Status = "degraded"
+		report.Message = err.Error()
+		return report, err
+	}
 	summary, err := db.GetAccountingEventSummary(time.Duration(policy.SequenceWindowSeconds) * time.Second)
 	if err != nil {
 		return report, err

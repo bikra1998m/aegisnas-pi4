@@ -33,6 +33,7 @@ jobs:
       - run: make test-radius-accounting-spool
       - run: make test-radius-sql-accounting
       - run: make test-radius-accounting-ordering
+      - run: make test-radius-accounting-counters
       - run: make test-radius-fallback-policy
       - run: make test-active-directory
       - run: make test-identity-failover

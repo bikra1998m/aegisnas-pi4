@@ -165,7 +165,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{38, schemaV38},
 		{39, schemaV39},
 		{40, schemaV40},
-		{LatestSchemaVersion(), schemaV41},
+		{41, schemaV41},
+		{LatestSchemaVersion(), schemaV42},
 	}
 
 	for _, m := range migrations {
@@ -258,8 +259,61 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureAccountingEventLedgerTables(handle); err != nil {
 		return fmt.Errorf("repair accounting event ledger schema: %w", err)
 	}
+	if err := ensureAccountingCounterColumns(handle); err != nil {
+		return fmt.Errorf("repair accounting counter schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureAccountingCounterColumns(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	for _, column := range []struct {
+		table string
+		name  string
+		sql   string
+	}{
+		{"radacct", "acctinputgigawords", `ALTER TABLE radacct ADD COLUMN acctinputgigawords INTEGER NOT NULL DEFAULT 0`},
+		{"radacct", "acctoutputgigawords", `ALTER TABLE radacct ADD COLUMN acctoutputgigawords INTEGER NOT NULL DEFAULT 0`},
+		{"radacct", "aegis_input_octets_64", `ALTER TABLE radacct ADD COLUMN aegis_input_octets_64 TEXT NOT NULL DEFAULT '0'`},
+		{"radacct", "aegis_output_octets_64", `ALTER TABLE radacct ADD COLUMN aegis_output_octets_64 TEXT NOT NULL DEFAULT '0'`},
+		{"radacct", "aegis_counter_status", `ALTER TABLE radacct ADD COLUMN aegis_counter_status TEXT NOT NULL DEFAULT 'ok'`},
+		{"radacct", "aegis_counter_error", `ALTER TABLE radacct ADD COLUMN aegis_counter_error TEXT`},
+		{"radacct", "aegis_counter_reset_count", `ALTER TABLE radacct ADD COLUMN aegis_counter_reset_count INTEGER NOT NULL DEFAULT 0`},
+		{"radacct", "aegis_last_counter_event_id", `ALTER TABLE radacct ADD COLUMN aegis_last_counter_event_id TEXT`},
+		{"radius_accounting_events", "acct_input_gigawords", `ALTER TABLE radius_accounting_events ADD COLUMN acct_input_gigawords INTEGER NOT NULL DEFAULT 0`},
+		{"radius_accounting_events", "acct_output_gigawords", `ALTER TABLE radius_accounting_events ADD COLUMN acct_output_gigawords INTEGER NOT NULL DEFAULT 0`},
+		{"radius_accounting_events", "acct_input_octets_64", `ALTER TABLE radius_accounting_events ADD COLUMN acct_input_octets_64 TEXT NOT NULL DEFAULT '0'`},
+		{"radius_accounting_events", "acct_output_octets_64", `ALTER TABLE radius_accounting_events ADD COLUMN acct_output_octets_64 TEXT NOT NULL DEFAULT '0'`},
+		{"radius_accounting_events", "counter_status", `ALTER TABLE radius_accounting_events ADD COLUMN counter_status TEXT NOT NULL DEFAULT 'ok'`},
+		{"radius_accounting_events", "counter_reset_detected", `ALTER TABLE radius_accounting_events ADD COLUMN counter_reset_detected BOOLEAN NOT NULL DEFAULT 0`},
+		{"radius_accounting_events", "counter_rollover_detected", `ALTER TABLE radius_accounting_events ADD COLUMN counter_rollover_detected BOOLEAN NOT NULL DEFAULT 0`},
+		{"radius_accounting_events", "counter_error", `ALTER TABLE radius_accounting_events ADD COLUMN counter_error TEXT`},
+	} {
+		exists, err := tableExists(handle, column.table)
+		if err != nil || !exists {
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		hasColumn, err := tableHasColumn(handle, column.table, column.name)
+		if err != nil {
+			return err
+		}
+		if hasColumn {
+			continue
+		}
+		if _, err := handle.Exec(SQLForDialect(column.sql, dialect)); err != nil {
+			return err
+		}
+	}
+	_, err := handle.Exec(SQLForDialect(`CREATE INDEX IF NOT EXISTS idx_radacct_counter_status ON radacct(aegis_counter_status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_events_counter ON radius_accounting_events(counter_status, event_time);`, dialect))
+	return err
 }
 
 func ensureAccountingEventLedgerTables(handle *sql.DB) error {

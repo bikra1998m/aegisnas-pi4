@@ -215,6 +215,7 @@ type RadiusConfig struct {
 	InterimUpdateSeconds  int                            `mapstructure:"interim_update_seconds"`
 	SQLAccounting         RadiusSQLAccountingConfig      `mapstructure:"sql_accounting"`
 	AccountingOrdering    RadiusAccountingOrderingConfig `mapstructure:"accounting_ordering"`
+	AccountingCounters    RadiusAccountingCountersConfig `mapstructure:"accounting_counters"`
 	DynamicAuth           DynamicAuthConfig              `mapstructure:"dynamic_auth"`
 	DynamicClients        RadiusDynamicClientsConfig     `mapstructure:"dynamic_clients"`
 	PacketHardening       RadiusPacketHardeningConfig    `mapstructure:"packet_hardening"`
@@ -288,6 +289,15 @@ type RadiusAccountingOrderingConfig struct {
 	LateStopWindowSeconds  int  `mapstructure:"late_stop_window_seconds"`
 	MaxReplayBatch         int  `mapstructure:"max_replay_batch"`
 	DuplicateRetentionDays int  `mapstructure:"duplicate_retention_days"`
+}
+
+type RadiusAccountingCountersConfig struct {
+	Enabled               bool   `mapstructure:"enabled"`
+	GigawordsEnabled      bool   `mapstructure:"gigawords_enabled"`
+	ResetDetectionEnabled bool   `mapstructure:"reset_detection_enabled"`
+	MaxCounterBits        int    `mapstructure:"max_counter_bits"`
+	OverflowPolicy        string `mapstructure:"overflow_policy"`
+	RetentionDays         int    `mapstructure:"retention_days"`
 }
 
 type TACACSConfig struct {
@@ -1526,6 +1536,12 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.accounting_ordering.late_stop_window_seconds", 86400)
 	v.SetDefault("radius.accounting_ordering.max_replay_batch", 1000)
 	v.SetDefault("radius.accounting_ordering.duplicate_retention_days", 365)
+	v.SetDefault("radius.accounting_counters.enabled", true)
+	v.SetDefault("radius.accounting_counters.gigawords_enabled", true)
+	v.SetDefault("radius.accounting_counters.reset_detection_enabled", true)
+	v.SetDefault("radius.accounting_counters.max_counter_bits", 64)
+	v.SetDefault("radius.accounting_counters.overflow_policy", "saturate")
+	v.SetDefault("radius.accounting_counters.retention_days", 365)
 	v.SetDefault("portal.port", 8081)
 	v.SetDefault("telemetry.enabled", true)
 	v.SetDefault("telemetry.prometheus_port", 9090)
@@ -4151,6 +4167,9 @@ func (c *Config) Validate() error {
 	if err := validateRadiusAccountingOrdering(c.Radius.AccountingOrdering); err != nil {
 		return err
 	}
+	if err := validateRadiusAccountingCounters(c.Radius.AccountingCounters); err != nil {
+		return err
+	}
 	if c.Radius.DynamicAuth.Enabled && (c.Radius.DynamicAuth.Port < 1 || c.Radius.DynamicAuth.Port > 65535) {
 		return fmt.Errorf("radius.dynamic_auth.port %d out of range", c.Radius.DynamicAuth.Port)
 	}
@@ -6200,6 +6219,48 @@ func validateRadiusAccountingOrdering(raw RadiusAccountingOrderingConfig) error 
 	}
 	if effective.DuplicateRetentionDays < 1 || effective.DuplicateRetentionDays > 3650 {
 		return fmt.Errorf("radius.accounting_ordering.duplicate_retention_days must be between 1 and 3650")
+	}
+	return nil
+}
+
+func EffectiveRadiusAccountingCountersConfig(raw RadiusAccountingCountersConfig) RadiusAccountingCountersConfig {
+	effective := raw
+	if effective.MaxCounterBits == 0 {
+		effective.MaxCounterBits = 64
+	}
+	if strings.TrimSpace(effective.OverflowPolicy) == "" {
+		effective.OverflowPolicy = "saturate"
+	}
+	if effective.RetentionDays == 0 {
+		effective.RetentionDays = 365
+	}
+	return effective
+}
+
+func validateRadiusAccountingCounters(raw RadiusAccountingCountersConfig) error {
+	if raw.MaxCounterBits < 0 {
+		return fmt.Errorf("radius.accounting_counters.max_counter_bits %d cannot be negative", raw.MaxCounterBits)
+	}
+	if raw.RetentionDays < 0 {
+		return fmt.Errorf("radius.accounting_counters.retention_days %d cannot be negative", raw.RetentionDays)
+	}
+	if !raw.Enabled {
+		return nil
+	}
+	effective := EffectiveRadiusAccountingCountersConfig(raw)
+	if effective.MaxCounterBits != 32 && effective.MaxCounterBits != 64 {
+		return fmt.Errorf("radius.accounting_counters.max_counter_bits must be 32 or 64")
+	}
+	switch strings.ToLower(strings.TrimSpace(effective.OverflowPolicy)) {
+	case "saturate", "reject":
+	default:
+		return fmt.Errorf("radius.accounting_counters.overflow_policy must be saturate or reject")
+	}
+	if effective.GigawordsEnabled && effective.MaxCounterBits != 64 {
+		return fmt.Errorf("radius.accounting_counters.gigawords_enabled requires max_counter_bits=64")
+	}
+	if effective.RetentionDays < 1 || effective.RetentionDays > 3650 {
+		return fmt.Errorf("radius.accounting_counters.retention_days must be between 1 and 3650")
 	}
 	return nil
 }

@@ -110,6 +110,7 @@ When `radius.upstream.enabled: true`:
 - tenant isolation is available through `/api/v1/system/tenant-isolation`; operators can create tenant profiles, bind tenant-owned resources, evaluate scope decisions, and keep delegated policy trees from falling back to global policy or crossing tenant boundaries
 - FreeRADIUS SQL accounting reconciliation is available through `/api/v1/system/sql-accounting`; AegisNAS creates `radacct` and `radpostauth`, mirrors local accounting, records redacted post-auth outcomes, reconciles pending SQL rows into `sessions`, and records reconcile events
 - accounting idempotency and ordering is available through `/api/v1/system/accounting-ordering`; AegisNAS stores deterministic accounting event IDs, duplicate counts, ordering status, late Stop merges, and bounded replay evidence
+- 64-bit accounting counters and gigaword rollover are available through `/api/v1/system/accounting-counters`; AegisNAS normalizes `Acct-Input-Octets`, `Acct-Input-Gigawords`, `Acct-Output-Octets`, and `Acct-Output-Gigawords` into durable 64-bit totals and records reset/overflow evidence
 - the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
 - the vendor reply preview can render vendor-neutral ACL intent into `NAS-Filter-Rule`, Cisco `Cisco-AVPair`, Aruba filter rules, MikroTik address-list hints, and AegisNAS ACL VSAs
 - MAB endpoints can be approved, denied, quarantined, expired, or left pending; approved and quarantined endpoints render MAC variants into FreeRADIUS `files/authorize`
@@ -763,12 +764,17 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/accounting-ordering | jq '.report.summary'
+
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/accounting-counters | jq '.report.summary'
 ```
 
 Duplicate packet retries should increase `duplicate_events` without increasing
 the session count. Reordered `Start`/`Interim-Update`/`Stop` delivery should
 increase `reordered_events` or `late_stop_events` without reopening a closed
-session.
+session. Large-session tests should increase `rollover_events` or
+`gigaword_rows`, and controlled NAS counter resets should increase
+`reset_events` without decreasing session byte totals.
 
 ### 12. Test Dynamic Authorization
 

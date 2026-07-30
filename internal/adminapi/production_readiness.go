@@ -124,6 +124,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionAccountingSpoolCheck(&report, cfg)
 	addProductionSQLAccountingCheck(&report, cfg)
 	addProductionAccountingOrderingCheck(&report, cfg)
+	addProductionAccountingCountersCheck(&report, cfg)
 	addProductionFallbackPolicyCheck(&report, cfg)
 	addProductionIdentityFailoverCheck(&report, cfg)
 	addProductionActiveDirectoryCheck(&report, cfg)
@@ -422,6 +423,37 @@ func addProductionAccountingOrderingCheck(report *productionReadinessReport, cfg
 			ordering.Summary.ReorderedEvents, ordering.Summary.LateStopEvents),
 		Recommendation: "Keep radius.accounting_ordering enabled with replay enabled, monitor /api/v1/system/accounting-ordering, replay after imports or failover, and complete the NAS-0036 release certification checklist before production claims.",
 		Dependencies:   []string{"radius.accounting_ordering", "/api/v1/system/accounting-ordering", "/api/v1/system/accounting-ordering/replay", "radius_accounting_events"},
+	})
+}
+
+func addProductionAccountingCountersCheck(report *productionReadinessReport, cfg *config.Config) {
+	counters := radius.BuildAccountingCountersReport(cfg)
+	status := "passed"
+	switch counters.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "blocked"
+	}
+	if !counters.Enabled || !counters.Policy.GigawordsEnabled || !counters.Policy.ResetDetection || counters.Policy.MaxCounterBits != 64 {
+		status = "blocked"
+	}
+	if counters.Summary.CounterErrorRows > 0 {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_accounting_counters",
+		Category: "radius",
+		Label:    "64-bit Accounting Counters And Gigawords",
+		Status:   status,
+		Summary: fmt.Sprintf("Accounting counters schema %d is %s with %d radacct row(s), %d event(s), %d gigaword row(s), %d rollover event(s), %d reset event(s), %d counter error row(s), max input %s, and max output %s.",
+			counters.SchemaVersion, counters.Status, counters.Summary.RadAcctRows, counters.Summary.EventRows,
+			counters.Summary.GigawordRows, counters.Summary.RolloverEvents, counters.Summary.ResetEvents,
+			counters.Summary.CounterErrorRows, counters.Summary.MaxInputOctets64, counters.Summary.MaxOutputOctets64),
+		Recommendation: "Keep radius.accounting_counters enabled with gigawords and reset detection, monitor /api/v1/system/accounting-counters, reconcile after FreeRADIUS SQL imports, and complete the NAS-0037 release certification checklist before production claims.",
+		Dependencies:   []string{"radius.accounting_counters", "/api/v1/system/accounting-counters", "Acct-Input-Gigawords", "Acct-Output-Gigawords", "radacct", "radius_accounting_events"},
 	})
 }
 

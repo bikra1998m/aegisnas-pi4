@@ -239,6 +239,7 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Post("/system/sql-accounting/reconcile", adminapi.HandleReconcileSQLAccounting)
 			r.Get("/system/accounting-ordering", adminapi.HandleGetAccountingOrdering)
 			r.Post("/system/accounting-ordering/replay", adminapi.HandleReplayAccountingOrdering)
+			r.Get("/system/accounting-counters", adminapi.HandleGetAccountingCounters)
 			r.Get("/system/fallback-policy", adminapi.HandleGetFallbackPolicy)
 			r.Get("/system/policy-engine", adminapi.HandleGetPolicyEngine)
 			r.Post("/system/policy-engine/validate", adminapi.HandleValidatePolicyExpression)

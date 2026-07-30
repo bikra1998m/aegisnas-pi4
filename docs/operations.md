@@ -115,6 +115,25 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
 Production readiness blocks when accounting ordering is disabled, replay is
 disabled, the ledger table is unavailable, or stale/error events remain.
 
+## Accounting Counter Operations
+
+Use [accounting-counters-gigawords.md](accounting-counters-gigawords.md) for
+NAS-0037 64-bit counter, gigaword rollover, reset detection, and overflow
+details. Before production sign-off, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/accounting-counters | jq '.report.status, .report.summary'
+```
+
+After SQL reconciliation, replay, NAS reboot drills, or large transfer tests,
+confirm `counter_error_rows` is zero, expected rollover events are present, and
+any reset evidence has a known operational cause.
+
+Production readiness blocks when 64-bit counters are disabled, gigawords are
+disabled, reset detection is disabled, max counter width is not 64 bits, or
+overflow/error rows remain.
+
 ## Admin Access Workflow
 
 Operators can now sign in with either:

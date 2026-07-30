@@ -673,6 +673,14 @@ func TestConfigValidationRadiusSQLAccounting(t *testing.T) {
 				MaxReplayBatch:         1000,
 				DuplicateRetentionDays: 365,
 			},
+			AccountingCounters: RadiusAccountingCountersConfig{
+				Enabled:               true,
+				GigawordsEnabled:      true,
+				ResetDetectionEnabled: true,
+				MaxCounterBits:        64,
+				OverflowPolicy:        "saturate",
+				RetentionDays:         365,
+			},
 		},
 	}
 	require.NoError(t, cfg.Validate())
@@ -705,6 +713,23 @@ func TestConfigValidationRadiusSQLAccounting(t *testing.T) {
 	badReplay := *cfg
 	badReplay.Radius.AccountingOrdering.MaxReplayBatch = 10001
 	assert.ErrorContains(t, badReplay.Validate(), "max_replay_batch")
+
+	counters := EffectiveRadiusAccountingCountersConfig(RadiusAccountingCountersConfig{Enabled: true})
+	assert.Equal(t, 64, counters.MaxCounterBits)
+	assert.Equal(t, "saturate", counters.OverflowPolicy)
+	assert.Equal(t, 365, counters.RetentionDays)
+
+	badCounters := *cfg
+	badCounters.Radius.AccountingCounters.MaxCounterBits = 48
+	assert.ErrorContains(t, badCounters.Validate(), "max_counter_bits")
+
+	badCounterPolicy := *cfg
+	badCounterPolicy.Radius.AccountingCounters.OverflowPolicy = "wrap"
+	assert.ErrorContains(t, badCounterPolicy.Validate(), "overflow_policy")
+
+	badGigawords := *cfg
+	badGigawords.Radius.AccountingCounters.MaxCounterBits = 32
+	assert.ErrorContains(t, badGigawords.Validate(), "gigawords_enabled")
 }
 
 func TestConfigValidationRadiusDynamicClients(t *testing.T) {

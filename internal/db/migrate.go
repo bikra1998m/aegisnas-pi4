@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 41
+	return 42
 }
 
 func Migrate() error {
@@ -2146,3 +2146,28 @@ CREATE INDEX IF NOT EXISTS idx_radius_accounting_events_ordering ON radius_accou
 `
 
 const schemaV41 = accountingEventLedgerTablesSQL
+
+const accountingCounterColumnsSQL = `
+ALTER TABLE radacct ADD COLUMN acctinputgigawords INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE radacct ADD COLUMN acctoutputgigawords INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE radacct ADD COLUMN aegis_input_octets_64 TEXT NOT NULL DEFAULT '0';
+ALTER TABLE radacct ADD COLUMN aegis_output_octets_64 TEXT NOT NULL DEFAULT '0';
+ALTER TABLE radacct ADD COLUMN aegis_counter_status TEXT NOT NULL DEFAULT 'ok';
+ALTER TABLE radacct ADD COLUMN aegis_counter_error TEXT;
+ALTER TABLE radacct ADD COLUMN aegis_counter_reset_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE radacct ADD COLUMN aegis_last_counter_event_id TEXT;
+
+ALTER TABLE radius_accounting_events ADD COLUMN acct_input_gigawords INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE radius_accounting_events ADD COLUMN acct_output_gigawords INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE radius_accounting_events ADD COLUMN acct_input_octets_64 TEXT NOT NULL DEFAULT '0';
+ALTER TABLE radius_accounting_events ADD COLUMN acct_output_octets_64 TEXT NOT NULL DEFAULT '0';
+ALTER TABLE radius_accounting_events ADD COLUMN counter_status TEXT NOT NULL DEFAULT 'ok';
+ALTER TABLE radius_accounting_events ADD COLUMN counter_reset_detected BOOLEAN NOT NULL DEFAULT 0;
+ALTER TABLE radius_accounting_events ADD COLUMN counter_rollover_detected BOOLEAN NOT NULL DEFAULT 0;
+ALTER TABLE radius_accounting_events ADD COLUMN counter_error TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_radacct_counter_status ON radacct(aegis_counter_status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_events_counter ON radius_accounting_events(counter_status, event_time);
+`
+
+const schemaV42 = accountingCounterColumnsSQL

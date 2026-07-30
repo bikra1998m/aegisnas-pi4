@@ -312,6 +312,21 @@ The same summary appears in `/api/v1/system/status` under
 `api/accounting-ordering.json`. See
 [accounting-idempotency-ordering.md](accounting-idempotency-ordering.md).
 
+64-bit accounting counters and gigaword rollover are exposed at:
+
+```text
+/api/v1/system/accounting-counters
+```
+
+Use this endpoint to review normalized `Acct-Input-Octets`,
+`Acct-Input-Gigawords`, `Acct-Output-Octets`, `Acct-Output-Gigawords`,
+maximum 64-bit totals, rollover evidence, reset evidence, and overflow status.
+The same summary appears in `/api/v1/system/status` under
+`radius.accounting_counters`, in production readiness as
+`radius_accounting_counters`, and in support bundles as
+`api/accounting-counters.json`. See
+[accounting-counters-gigawords.md](accounting-counters-gigawords.md).
+
 Upstream outage fallback policy is exposed at:
 
 ```text

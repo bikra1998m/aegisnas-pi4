@@ -390,6 +390,13 @@ radius:
     late_stop_window_seconds: 86400
     max_replay_batch: 1000
     duplicate_retention_days: 365
+  accounting_counters:
+    enabled: true
+    gigawords_enabled: true
+    reset_detection_enabled: true
+    max_counter_bits: 64
+    overflow_policy: saturate
+    retention_days: 365
   vendor:
     enabled: false
     name: "AegisNAS"

@@ -1238,6 +1238,9 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/accounting-ordering/replay", "post", securedOperationWithBody("Replay accounting event ledger", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional limit and session_key bounded by policy."), map[string]any{
 		"200": responseJSON("Replay result with scanned, applied, duplicate, reordered, late Stop, session update, error, and summary counts."),
 	}))
+	addOperation(paths, "/api/v1/system/accounting-counters", "get", securedOperation("Read 64-bit accounting counter and gigaword state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Accounting counter policy, normalized gigaword attributes, rollover/reset summary, maximum 64-bit totals, and warnings."),
+	}))
 	addOperation(paths, "/api/v1/system/fallback-policy", "get", securedOperationWithParameters("Read upstream outage fallback policy", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("decision", "Optional audited decision filter.", []string{"allowed", "denied"}, false),
 		queryStringParameter("source", "Optional fallback source filter such as portal.", false),

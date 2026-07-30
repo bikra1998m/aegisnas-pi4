@@ -32,7 +32,7 @@ The apply engine:
 - preserves the earliest known session start
 - preserves the latest known activity
 - merges late `Stop` records without reopening a closed session
-- keeps counters monotonic until NAS-0037 adds gigaword and rollover semantics
+- keeps counters monotonic and delegates gigaword/reset semantics to NAS-0037
 - mirrors applied state into `radacct`
 - supports bounded operator replay
 
@@ -113,7 +113,7 @@ disabled, the ledger table is unavailable, or stale/error events remain.
 ## Scope Boundary
 
 NAS-0036 owns event identity, duplicate suppression, ordered apply, late Stop
-merge, and bounded replay. Later roadmap items own:
+merge, and bounded replay. Adjacent and later roadmap items own:
 
 - NAS-0037 gigaword rollover and 64-bit counter invariants
 - NAS-0038 IPv6, route, and delegated-prefix lifecycle accounting

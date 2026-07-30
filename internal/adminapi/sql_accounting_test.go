@@ -64,17 +64,19 @@ func TestProductionReadinessIncludesSQLAccounting(t *testing.T) {
 
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_sql_accounting"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_ordering"))
+	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_counters"))
 }
 
-func TestOpenAPIAndSupportBundleIncludeSQLAccountingAndOrdering(t *testing.T) {
+func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingAndCounters(t *testing.T) {
 	spec := buildOpenAPISpec(httptest.NewRequest(http.MethodGet, "/api/v1/openapi.json", nil), nil)
 	paths := spec["paths"].(map[string]any)
 	assert.Contains(t, paths, "/api/v1/system/sql-accounting")
 	assert.Contains(t, paths, "/api/v1/system/sql-accounting/reconcile")
 	assert.Contains(t, paths, "/api/v1/system/accounting-ordering")
 	assert.Contains(t, paths, "/api/v1/system/accounting-ordering/replay")
+	assert.Contains(t, paths, "/api/v1/system/accounting-counters")
 
-	var foundSQL, foundOrdering bool
+	var foundSQL, foundOrdering, foundCounters bool
 	for _, capture := range supportBundleAPICaptures() {
 		if capture.archivePath == "api/sql-accounting.json" {
 			foundSQL = true
@@ -84,9 +86,14 @@ func TestOpenAPIAndSupportBundleIncludeSQLAccountingAndOrdering(t *testing.T) {
 			foundOrdering = true
 			assert.Equal(t, "/api/v1/system/accounting-ordering", capture.requestPath)
 		}
+		if capture.archivePath == "api/accounting-counters.json" {
+			foundCounters = true
+			assert.Equal(t, "/api/v1/system/accounting-counters", capture.requestPath)
+		}
 	}
 	assert.True(t, foundSQL)
 	assert.True(t, foundOrdering)
+	assert.True(t, foundCounters)
 }
 
 func TestAuthorizeSQLAccounting(t *testing.T) {
@@ -96,6 +103,7 @@ func TestAuthorizeSQLAccounting(t *testing.T) {
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/accounting-ordering"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/accounting-ordering/replay"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/accounting-ordering/replay"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/accounting-counters"))
 }
 
 func TestHandleAccountingOrderingReportAndReplay(t *testing.T) {
@@ -131,6 +139,38 @@ func TestHandleAccountingOrderingReportAndReplay(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
 	assert.Equal(t, "ok", payload["status"])
+}
+
+func TestHandleAccountingCountersReport(t *testing.T) {
+	prepareSQLAccountingAPIConfig(t)
+	_, err := db.IngestAccountingEvent(t.Context(), db.AccountingEventRecord{
+		AcctUniqueID:     "api-counter-1",
+		AcctSessionID:    "api-counter-1",
+		SessionKey:       "api-counter-1",
+		StatusType:       "Interim-Update",
+		EventTime:        time.Now().UTC().Format(time.RFC3339Nano),
+		Username:         "gale",
+		NASIPAddress:     "10.0.0.13",
+		NASPortID:        "9",
+		AcctInputOctets:  uint64(1<<32) + 44,
+		AcctOutputOctets: uint64(1<<32) + 55,
+		CallingStationID: "00-11-22-33-44-88",
+		Source:           "api-test",
+	})
+	require.NoError(t, err)
+	_, err = db.ApplyPendingAccountingEvents(t.Context(), 10)
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/accounting-counters", nil)
+	HandleGetAccountingCounters(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	report := payload["report"].(map[string]any)
+	assert.Equal(t, "ready", report["status"])
+	summary := report["summary"].(map[string]any)
+	assert.Equal(t, float64(1), summary["rollover_events"])
 }
 
 func prepareSQLAccountingAPIConfig(t *testing.T) *config.Config {
@@ -169,6 +209,13 @@ radius:
     late_stop_window_seconds: 86400
     max_replay_batch: 1000
     duplicate_retention_days: 365
+  accounting_counters:
+    enabled: true
+    gigawords_enabled: true
+    reset_detection_enabled: true
+    max_counter_bits: 64
+    overflow_policy: saturate
+    retention_days: 365
 `
 	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0644))
 	cfg, err := config.Load(cfgPath)

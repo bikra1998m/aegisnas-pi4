@@ -339,6 +339,26 @@ type AccountingOrderingReport = {
   warnings?: string[];
 };
 
+type AccountingCountersReport = {
+  schema_version: number;
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary: {
+    radacct_rows: number;
+    event_rows: number;
+    gigaword_rows: number;
+    rollover_events: number;
+    reset_events: number;
+    counter_error_rows: number;
+    max_input_octets_64: string;
+    max_output_octets_64: string;
+    last_counter_event_at?: string;
+    last_counter_status?: string;
+  };
+  warnings?: string[];
+};
+
 type TenantIsolationReport = {
   schema_version: number;
   status: string;
@@ -1248,6 +1268,14 @@ const defaultSettings: JsonMap = {
       max_replay_batch: 1000,
       duplicate_retention_days: 365,
     },
+    accounting_counters: {
+      enabled: true,
+      gigawords_enabled: true,
+      reset_detection_enabled: true,
+      max_counter_bits: 64,
+      overflow_policy: "saturate",
+      retention_days: 365,
+    },
     upstream: {
       enabled: false,
       realm: "aegis-upstream",
@@ -1655,6 +1683,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.radius.eap.framework = next.radius.eap.framework || {};
   next.radius.sql_accounting = next.radius.sql_accounting || {};
   next.radius.accounting_ordering = next.radius.accounting_ordering || {};
+  next.radius.accounting_counters = next.radius.accounting_counters || {};
   next.radius.upstream = next.radius.upstream || {};
   next.radius.upstream.fallback_policy =
     next.radius.upstream.fallback_policy || {};
@@ -1687,6 +1716,12 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.accounting_ordering.late_stop_window_seconds = 86400;
     next.radius.accounting_ordering.max_replay_batch = 250;
     next.radius.accounting_ordering.duplicate_retention_days = 30;
+    next.radius.accounting_counters.enabled = true;
+    next.radius.accounting_counters.gigawords_enabled = true;
+    next.radius.accounting_counters.reset_detection_enabled = true;
+    next.radius.accounting_counters.max_counter_bits = 64;
+    next.radius.accounting_counters.overflow_policy = "saturate";
+    next.radius.accounting_counters.retention_days = 30;
     next.radius.eap.framework.enabled = true;
     next.radius.eap.framework.mode = "monitor";
     next.radius.eap.framework.max_concurrent_sessions = 256;
@@ -1772,6 +1807,14 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.accounting_ordering.max_replay_batch || 2500;
     next.radius.accounting_ordering.duplicate_retention_days =
       next.radius.accounting_ordering.duplicate_retention_days || 730;
+    next.radius.accounting_counters.enabled = true;
+    next.radius.accounting_counters.gigawords_enabled = true;
+    next.radius.accounting_counters.reset_detection_enabled = true;
+    next.radius.accounting_counters.max_counter_bits = 64;
+    next.radius.accounting_counters.overflow_policy =
+      next.radius.accounting_counters.overflow_policy || "saturate";
+    next.radius.accounting_counters.retention_days =
+      next.radius.accounting_counters.retention_days || 730;
     next.radius.eap.framework.enabled = true;
     next.radius.eap.framework.max_concurrent_sessions =
       next.radius.eap.framework.max_concurrent_sessions || 4096;
@@ -1857,6 +1900,18 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.accounting_ordering.max_replay_batch || 1000;
     next.radius.accounting_ordering.duplicate_retention_days =
       next.radius.accounting_ordering.duplicate_retention_days || 365;
+    next.radius.accounting_counters.enabled =
+      next.radius.accounting_counters.enabled ?? true;
+    next.radius.accounting_counters.gigawords_enabled =
+      next.radius.accounting_counters.gigawords_enabled ?? true;
+    next.radius.accounting_counters.reset_detection_enabled =
+      next.radius.accounting_counters.reset_detection_enabled ?? true;
+    next.radius.accounting_counters.max_counter_bits =
+      next.radius.accounting_counters.max_counter_bits || 64;
+    next.radius.accounting_counters.overflow_policy =
+      next.radius.accounting_counters.overflow_policy || "saturate";
+    next.radius.accounting_counters.retention_days =
+      next.radius.accounting_counters.retention_days || 365;
   } else {
     next.ailite.enabled = true;
     next.ailite.mode = "lite";
@@ -1893,6 +1948,14 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.accounting_ordering.max_replay_batch || 1000;
     next.radius.accounting_ordering.duplicate_retention_days =
       next.radius.accounting_ordering.duplicate_retention_days || 365;
+    next.radius.accounting_counters.enabled = true;
+    next.radius.accounting_counters.gigawords_enabled = true;
+    next.radius.accounting_counters.reset_detection_enabled = true;
+    next.radius.accounting_counters.max_counter_bits = 64;
+    next.radius.accounting_counters.overflow_policy =
+      next.radius.accounting_counters.overflow_policy || "saturate";
+    next.radius.accounting_counters.retention_days =
+      next.radius.accounting_counters.retention_days || 365;
     next.radius.eap.framework.enabled = true;
     next.radius.eap.framework.max_concurrent_sessions =
       next.radius.eap.framework.max_concurrent_sessions || 1024;
@@ -2106,6 +2169,8 @@ export default function AccessSettings() {
     useState<SQLAccountingReport | null>(null);
   const [accountingOrderingReport, setAccountingOrderingReport] =
     useState<AccountingOrderingReport | null>(null);
+  const [accountingCountersReport, setAccountingCountersReport] =
+    useState<AccountingCountersReport | null>(null);
   const [tenantIsolationReport, setTenantIsolationReport] =
     useState<TenantIsolationReport | null>(null);
   const [reconcilingSQLAccounting, setReconcilingSQLAccounting] =
@@ -2310,6 +2375,19 @@ export default function AccessSettings() {
     }
   };
 
+  const loadAccountingCountersReport = async () => {
+    try {
+      const { data } = await api.get("/system/accounting-counters");
+      setAccountingCountersReport(data?.report || null);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load accounting counter state.",
+      );
+    }
+  };
+
   const loadTenantIsolationReport = async () => {
     try {
       const { data } = await api.get("/system/tenant-isolation", {
@@ -2344,6 +2422,7 @@ export default function AccessSettings() {
       await loadTACACSReport();
       await loadSQLAccountingReport();
       await loadAccountingOrderingReport();
+      await loadAccountingCountersReport();
       await loadTenantIsolationReport();
     } catch (err: any) {
       setError(
@@ -2425,6 +2504,7 @@ export default function AccessSettings() {
       await loadTACACSReport();
       await loadSQLAccountingReport();
       await loadAccountingOrderingReport();
+      await loadAccountingCountersReport();
       await loadTenantIsolationReport();
     } catch (err: any) {
       setError(err.response?.data || err.message || "Could not save settings.");
@@ -2660,6 +2740,7 @@ export default function AccessSettings() {
       );
       await loadSQLAccountingReport();
       await loadAccountingOrderingReport();
+      await loadAccountingCountersReport();
     } catch (err: any) {
       setError(
         err.response?.data ||
@@ -2684,6 +2765,7 @@ export default function AccessSettings() {
       );
       await loadAccountingOrderingReport();
       await loadSQLAccountingReport();
+      await loadAccountingCountersReport();
     } catch (err: any) {
       setError(
         err.response?.data ||
@@ -14653,6 +14735,159 @@ export default function AccessSettings() {
             <p className="mt-2 text-xs text-gray-500">
               {accountingOrderingReport.message}
             </p>
+          )}
+        </div>
+        <div className="mt-4">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Accounting Counters
+              </h4>
+              <p className="mt-1 text-xs text-gray-500">
+                Preserve 64-bit octets, gigaword rollover, and counter reset
+                evidence.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadAccountingCountersReport}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+            >
+              Refresh Counters
+            </button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Counter Engine"
+              checked={settings.radius?.accounting_counters?.enabled !== false}
+              onChange={(value) =>
+                updateField(["radius", "accounting_counters", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Gigawords"
+              checked={
+                settings.radius?.accounting_counters?.gigawords_enabled !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_counters", "gigawords_enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Reset Detection"
+              checked={
+                settings.radius?.accounting_counters
+                  ?.reset_detection_enabled !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "accounting_counters",
+                    "reset_detection_enabled",
+                  ],
+                  value,
+                )
+              }
+            />
+            <SelectField
+              label="Max Counter Bits"
+              value={String(
+                settings.radius?.accounting_counters?.max_counter_bits || 64,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_counters", "max_counter_bits"],
+                  Number(value),
+                )
+              }
+              options={[
+                { value: "64", label: "64-bit" },
+                { value: "32", label: "32-bit" },
+              ]}
+            />
+            <SelectField
+              label="Overflow Policy"
+              value={
+                settings.radius?.accounting_counters?.overflow_policy ||
+                "saturate"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_counters", "overflow_policy"],
+                  value,
+                )
+              }
+              options={[
+                { value: "saturate", label: "Saturate" },
+                { value: "reject", label: "Reject" },
+              ]}
+            />
+            <TextField
+              label="Evidence Retention (d)"
+              type="number"
+              value={settings.radius?.accounting_counters?.retention_days || 365}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_counters", "retention_days"],
+                  Number(value),
+                )
+              }
+            />
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-4">
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Status
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingCountersReport?.status || "unknown"}
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Evidence
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingCountersReport?.summary?.event_rows || 0} events,{" "}
+                {accountingCountersReport?.summary?.gigaword_rows || 0} rows
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Recovery
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingCountersReport?.summary?.rollover_events || 0} roll,{" "}
+                {accountingCountersReport?.summary?.reset_events || 0} reset
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Maximums
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                in {accountingCountersReport?.summary?.max_input_octets_64 || "0"}{" "}
+                / out{" "}
+                {accountingCountersReport?.summary?.max_output_octets_64 || "0"}
+              </div>
+            </div>
+          </div>
+          {accountingCountersReport?.message && (
+            <p className="mt-2 text-xs text-gray-500">
+              {accountingCountersReport.message}
+            </p>
+          )}
+          {(accountingCountersReport?.warnings || []).length > 0 && (
+            <ul className="mt-2 space-y-1 text-xs text-amber-700">
+              {(accountingCountersReport?.warnings || []).map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
           )}
         </div>
         <div className="mt-4">

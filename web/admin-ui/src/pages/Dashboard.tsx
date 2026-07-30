@@ -328,6 +328,22 @@ type RadiusAccountingOrderingReport = {
   };
 };
 
+type RadiusAccountingCountersReport = {
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary?: {
+    radacct_rows: number;
+    event_rows: number;
+    gigaword_rows: number;
+    rollover_events: number;
+    reset_events: number;
+    counter_error_rows: number;
+    max_input_octets_64: string;
+    max_output_octets_64: string;
+  };
+};
+
 type RadiusFallbackPolicyReport = {
   enabled: boolean;
   status: string;
@@ -924,6 +940,7 @@ type SystemStatus = {
     accounting_spool?: RadiusAccountingSpoolReport;
     sql_accounting?: RadiusSQLAccountingReport;
     accounting_ordering?: RadiusAccountingOrderingReport;
+    accounting_counters?: RadiusAccountingCountersReport;
     fallback_policy?: RadiusFallbackPolicyReport;
     eap_framework?: EAPFrameworkReport;
     eap_teap?: TEAPReport;
@@ -1477,6 +1494,7 @@ export default function Dashboard() {
   const accountingSpool = systemStatus.radius?.accounting_spool;
   const sqlAccounting = systemStatus.radius?.sql_accounting;
   const accountingOrdering = systemStatus.radius?.accounting_ordering;
+  const accountingCounters = systemStatus.radius?.accounting_counters;
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
   const eapFramework = systemStatus.radius?.eap_framework;
   const teapReport = systemStatus.radius?.eap_teap;
@@ -3515,6 +3533,50 @@ export default function Dashboard() {
                     </div>
                     <StatusBadge
                       status={accountingOrdering.status || "unknown"}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {accountingCounters ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Accounting Counters
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {accountingCounters.message ||
+                          "64-bit counter and gigaword state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-4">
+                        <div>
+                          Events {accountingCounters.summary?.event_rows ?? 0}
+                        </div>
+                        <div>
+                          Gigawords{" "}
+                          {accountingCounters.summary?.gigaword_rows ?? 0}
+                        </div>
+                        <div>
+                          Resets {accountingCounters.summary?.reset_events ?? 0}
+                        </div>
+                        <div>
+                          Errors{" "}
+                          {accountingCounters.summary?.counter_error_rows ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Rollover{" "}
+                        {accountingCounters.summary?.rollover_events ?? 0};
+                        max in{" "}
+                        {accountingCounters.summary?.max_input_octets_64 ??
+                          "0"};
+                        max out{" "}
+                        {accountingCounters.summary?.max_output_octets_64 ??
+                          "0"}
+                      </div>
+                    </div>
+                    <StatusBadge
+                      status={accountingCounters.status || "unknown"}
                     />
                   </div>
                 </div>

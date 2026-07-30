@@ -178,6 +178,11 @@ func ReconcileSQLAccounting(ctx context.Context, cfg *config.Config, batchSize i
 		report.Message = err.Error()
 		return report, err
 	}
+	if err := PruneAccountingCounterEvidence(cfg, time.Now().UTC()); err != nil {
+		report.Status = "degraded"
+		report.Message = err.Error()
+		return report, err
+	}
 	summary, err := db.GetFreeRADIUSAccountingSummary(time.Duration(policy.StaleAfterSeconds) * time.Second)
 	if err != nil {
 		return report, err

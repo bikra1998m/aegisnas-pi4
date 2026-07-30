@@ -194,6 +194,8 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
 	case strings.HasPrefix(path, "/api/v1/system/accounting-ordering"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/accounting-counters"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/fallback-policy"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/policy-sets/versions/") && strings.Contains(path, "/compare/"):
