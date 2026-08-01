@@ -217,6 +217,7 @@ type RadiusConfig struct {
 	AccountingOrdering    RadiusAccountingOrderingConfig `mapstructure:"accounting_ordering"`
 	AccountingCounters    RadiusAccountingCountersConfig `mapstructure:"accounting_counters"`
 	AccountingIP          RadiusAccountingIPConfig       `mapstructure:"accounting_ip"`
+	AccountingServices    RadiusAccountingServicesConfig `mapstructure:"accounting_services"`
 	DynamicAuth           DynamicAuthConfig              `mapstructure:"dynamic_auth"`
 	DynamicClients        RadiusDynamicClientsConfig     `mapstructure:"dynamic_clients"`
 	PacketHardening       RadiusPacketHardeningConfig    `mapstructure:"packet_hardening"`
@@ -308,6 +309,16 @@ type RadiusAccountingIPConfig struct {
 	DelegatedPrefixEnabled bool `mapstructure:"delegated_prefix_enabled"`
 	RejectInvalid          bool `mapstructure:"reject_invalid"`
 	RetentionDays          int  `mapstructure:"retention_days"`
+}
+
+type RadiusAccountingServicesConfig struct {
+	Enabled                      bool `mapstructure:"enabled"`
+	CorrelateSubscriberChains    bool `mapstructure:"correlate_subscriber_chains"`
+	DeriveFromClass              bool `mapstructure:"derive_from_class"`
+	DeriveFromAcctMultiSessionID bool `mapstructure:"derive_from_acct_multi_session_id"`
+	RetainUnmatched              bool `mapstructure:"retain_unmatched"`
+	RetentionDays                int  `mapstructure:"retention_days"`
+	MaxRecentServices            int  `mapstructure:"max_recent_services"`
 }
 
 type TACACSConfig struct {
@@ -4189,6 +4200,9 @@ func (c *Config) Validate() error {
 	if err := validateRadiusAccountingIP(c.Radius.AccountingIP); err != nil {
 		return err
 	}
+	if err := validateRadiusAccountingServices(c.Radius.AccountingServices); err != nil {
+		return err
+	}
 	if c.Radius.DynamicAuth.Enabled && (c.Radius.DynamicAuth.Port < 1 || c.Radius.DynamicAuth.Port > 65535) {
 		return fmt.Errorf("radius.dynamic_auth.port %d out of range", c.Radius.DynamicAuth.Port)
 	}
@@ -6305,6 +6319,45 @@ func validateRadiusAccountingIP(raw RadiusAccountingIPConfig) error {
 	}
 	if !effective.IPv6Enabled && !effective.RouteAccountingEnabled && !effective.DelegatedPrefixEnabled {
 		return fmt.Errorf("radius.accounting_ip requires at least one of ipv6_enabled, route_accounting_enabled, or delegated_prefix_enabled")
+	}
+	return nil
+}
+
+func EffectiveRadiusAccountingServicesConfig(raw RadiusAccountingServicesConfig) RadiusAccountingServicesConfig {
+	effective := raw
+	if !effective.CorrelateSubscriberChains && !effective.DeriveFromClass && !effective.DeriveFromAcctMultiSessionID {
+		effective.CorrelateSubscriberChains = true
+		effective.DeriveFromClass = true
+		effective.DeriveFromAcctMultiSessionID = true
+	}
+	if effective.RetentionDays == 0 {
+		effective.RetentionDays = 365
+	}
+	if effective.MaxRecentServices == 0 {
+		effective.MaxRecentServices = 25
+	}
+	return effective
+}
+
+func validateRadiusAccountingServices(raw RadiusAccountingServicesConfig) error {
+	if raw.RetentionDays < 0 {
+		return fmt.Errorf("radius.accounting_services.retention_days %d cannot be negative", raw.RetentionDays)
+	}
+	if raw.MaxRecentServices < 0 {
+		return fmt.Errorf("radius.accounting_services.max_recent_services %d cannot be negative", raw.MaxRecentServices)
+	}
+	if !raw.Enabled {
+		return nil
+	}
+	effective := EffectiveRadiusAccountingServicesConfig(raw)
+	if !effective.CorrelateSubscriberChains && !effective.DeriveFromClass && !effective.DeriveFromAcctMultiSessionID {
+		return fmt.Errorf("radius.accounting_services requires at least one correlation source")
+	}
+	if effective.RetentionDays < 1 || effective.RetentionDays > 3650 {
+		return fmt.Errorf("radius.accounting_services.retention_days must be between 1 and 3650")
+	}
+	if effective.MaxRecentServices < 1 || effective.MaxRecentServices > 500 {
+		return fmt.Errorf("radius.accounting_services.max_recent_services must be between 1 and 500")
 	}
 	return nil
 }

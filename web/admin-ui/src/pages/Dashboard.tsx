@@ -361,6 +361,34 @@ type RadiusAccountingIPReport = {
   };
 };
 
+type RadiusAccountingServicesReport = {
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary?: {
+    correlation_rows: number;
+    active_correlations: number;
+    closed_correlations: number;
+    conflict_correlations: number;
+    unmatched_correlations: number;
+    linked_subscriber_services: number;
+    parent_sessions: number;
+    child_sessions: number;
+    data_services: number;
+    voice_services: number;
+    bearer_services: number;
+    reauth_services: number;
+    vpn_services: number;
+    primary_services: number;
+    acct_multi_session_rows: number;
+    call_leg_rows: number;
+    bearer_leg_rows: number;
+    last_correlation_at?: string;
+    last_correlation_status?: string;
+    last_correlation_error?: string;
+  };
+};
+
 type RadiusFallbackPolicyReport = {
   enabled: boolean;
   status: string;
@@ -959,6 +987,7 @@ type SystemStatus = {
     accounting_ordering?: RadiusAccountingOrderingReport;
     accounting_counters?: RadiusAccountingCountersReport;
     accounting_ip?: RadiusAccountingIPReport;
+    accounting_services?: RadiusAccountingServicesReport;
     fallback_policy?: RadiusFallbackPolicyReport;
     eap_framework?: EAPFrameworkReport;
     eap_teap?: TEAPReport;
@@ -1514,6 +1543,7 @@ export default function Dashboard() {
   const accountingOrdering = systemStatus.radius?.accounting_ordering;
   const accountingCounters = systemStatus.radius?.accounting_counters;
   const accountingIP = systemStatus.radius?.accounting_ip;
+  const accountingServices = systemStatus.radius?.accounting_services;
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
   const eapFramework = systemStatus.radius?.eap_framework;
   const teapReport = systemStatus.radius?.eap_teap;
@@ -3637,6 +3667,59 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <StatusBadge status={accountingIP.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {accountingServices ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Multi-Service Accounting
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {accountingServices.message ||
+                          "Service-leg correlation state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-4">
+                        <div>
+                          Correlations{" "}
+                          {accountingServices.summary?.correlation_rows ?? 0}
+                        </div>
+                        <div>
+                          Active{" "}
+                          {accountingServices.summary?.active_correlations ??
+                            0}
+                        </div>
+                        <div>
+                          Linked{" "}
+                          {accountingServices.summary
+                            ?.linked_subscriber_services ?? 0}
+                        </div>
+                        <div>
+                          Conflicts{" "}
+                          {accountingServices.summary
+                            ?.conflict_correlations ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Parents{" "}
+                        {accountingServices.summary?.parent_sessions ?? 0};
+                        children{" "}
+                        {accountingServices.summary?.child_sessions ?? 0};
+                        calls {accountingServices.summary?.call_leg_rows ?? 0};
+                        bearers{" "}
+                        {accountingServices.summary?.bearer_leg_rows ?? 0}.
+                      </div>
+                      {accountingServices.summary?.last_correlation_error ? (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {accountingServices.summary.last_correlation_error}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge
+                      status={accountingServices.status || "unknown"}
+                    />
                   </div>
                 </div>
               ) : null}

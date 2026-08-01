@@ -18,6 +18,8 @@ type AccountingEventRecord struct {
 	AcctSessionID           string `json:"acct_session_id"`
 	SessionKey              string `json:"session_key"`
 	StatusType              string `json:"status_type"`
+	AcctMultiSessionID      string `json:"acct_multi_session_id,omitempty"`
+	AcctLinkCount           int64  `json:"acct_link_count,omitempty"`
 	EventTime               string `json:"event_time"`
 	ArrivalTime             string `json:"arrival_time"`
 	Ordinal                 int64  `json:"ordinal"`
@@ -35,6 +37,8 @@ type AccountingEventRecord struct {
 	FramedInterfaceID       string `json:"framed_interface_id,omitempty"`
 	FramedRoute             string `json:"framed_route,omitempty"`
 	FramedIPv6Route         string `json:"framed_ipv6_route,omitempty"`
+	ServiceType             string `json:"service_type,omitempty"`
+	FramedProtocol          string `json:"framed_protocol,omitempty"`
 	Class                   string `json:"class,omitempty"`
 	AcctInputOctets         uint64 `json:"acct_input_octets"`
 	AcctOutputOctets        uint64 `json:"acct_output_octets"`
@@ -55,6 +59,16 @@ type AccountingEventRecord struct {
 	CounterError            string `json:"counter_error,omitempty"`
 	IPAssignmentStatus      string `json:"ip_assignment_status"`
 	IPAssignmentError       string `json:"ip_assignment_error,omitempty"`
+	ParentSessionKey        string `json:"parent_session_key,omitempty"`
+	ServiceKey              string `json:"service_key,omitempty"`
+	ServiceCategory         string `json:"service_category,omitempty"`
+	ServiceLegID            string `json:"service_leg_id,omitempty"`
+	BearerID                string `json:"bearer_id,omitempty"`
+	CallID                  string `json:"call_id,omitempty"`
+	RoamingID               string `json:"roaming_id,omitempty"`
+	CorrelationID           string `json:"correlation_id,omitempty"`
+	CorrelationStatus       string `json:"correlation_status"`
+	CorrelationError        string `json:"correlation_error,omitempty"`
 	DuplicateCount          int64  `json:"duplicate_count"`
 	LastSeenAt              string `json:"last_seen_at,omitempty"`
 	AppliedAt               string `json:"applied_at,omitempty"`
@@ -143,34 +157,41 @@ func IngestAccountingEvent(ctx context.Context, event AccountingEventRecord) (Ac
 
 	_, err := DB.ExecContext(ctx, `INSERT INTO radius_accounting_events (
 		event_id, acct_unique_id, acct_session_id, session_key, status_type, event_time,
-		arrival_time, ordinal, username, realm, nas_ip_address, nas_port_id, nas_port_type,
+		acct_multi_session_id, acct_link_count, arrival_time, ordinal, username, realm, nas_ip_address, nas_port_id, nas_port_type,
 		calling_station_id, called_station_id, framed_ip_address, framed_ipv6_address,
 		framed_ipv6_prefix, delegated_ipv6_prefix, framed_interface_id, framed_route,
-		framed_ipv6_route, class, acct_input_octets, acct_output_octets,
+		framed_ipv6_route, service_type, framed_protocol, class, acct_input_octets, acct_output_octets,
 		acct_input_gigawords, acct_output_gigawords, acct_input_octets_64,
 		acct_output_octets_64, acct_session_time, acct_terminate_cause, source,
 		fingerprint, payload_json, apply_status, ordering_status, counter_status,
 		counter_reset_detected, counter_rollover_detected, counter_error,
-		ip_assignment_status, ip_assignment_error,
+		ip_assignment_status, ip_assignment_error, parent_session_key, service_key,
+		service_category, service_leg_id, bearer_id, call_id, roaming_id,
+		correlation_id, correlation_status, correlation_error,
 		duplicate_count, last_seen_at, applied_at, last_error, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(event_id) DO UPDATE SET
 		duplicate_count = radius_accounting_events.duplicate_count + 1,
 		last_seen_at = excluded.last_seen_at,
 		updated_at = excluded.updated_at`,
 		event.EventID, event.AcctUniqueID, event.AcctSessionID, event.SessionKey, event.StatusType,
-		event.EventTime, event.ArrivalTime, event.Ordinal, nullIfEmpty(event.Username), nullIfEmpty(event.Realm),
+		event.EventTime, nullIfEmpty(event.AcctMultiSessionID), event.AcctLinkCount,
+		event.ArrivalTime, event.Ordinal, nullIfEmpty(event.Username), nullIfEmpty(event.Realm),
 		nullIfEmpty(event.NASIPAddress), nullIfEmpty(event.NASPortID), nullIfEmpty(event.NASPortType),
 		nullIfEmpty(event.CallingStationID), nullIfEmpty(event.CalledStationID), nullIfEmpty(event.FramedIPAddress),
 		nullIfEmpty(event.FramedIPv6Address), nullIfEmpty(event.FramedIPv6Prefix), nullIfEmpty(event.DelegatedIPv6Prefix),
 		nullIfEmpty(event.FramedInterfaceID), nullIfEmpty(event.FramedRoute), nullIfEmpty(event.FramedIPv6Route),
-		nullIfEmpty(event.Class), boundedUint64ToInt64(event.AcctInputOctets), boundedUint64ToInt64(event.AcctOutputOctets),
+		nullIfEmpty(event.ServiceType), nullIfEmpty(event.FramedProtocol), nullIfEmpty(event.Class),
+		boundedUint64ToInt64(event.AcctInputOctets), boundedUint64ToInt64(event.AcctOutputOctets),
 		boundedUint64ToInt64(event.AcctInputGigawords), boundedUint64ToInt64(event.AcctOutputGigawords),
 		event.AcctInputOctets64, event.AcctOutputOctets64, event.AcctSessionTime,
 		nullIfEmpty(event.AcctTerminateCause), event.Source, event.Fingerprint, event.PayloadJSON,
 		event.ApplyStatus, event.OrderingStatus, event.CounterStatus, event.CounterResetDetected,
 		event.CounterRolloverDetected, nullIfEmpty(event.CounterError), event.IPAssignmentStatus,
-		nullIfEmpty(event.IPAssignmentError), event.DuplicateCount,
+		nullIfEmpty(event.IPAssignmentError), nullIfEmpty(event.ParentSessionKey), nullIfEmpty(event.ServiceKey),
+		nullIfEmpty(event.ServiceCategory), nullIfEmpty(event.ServiceLegID), nullIfEmpty(event.BearerID),
+		nullIfEmpty(event.CallID), nullIfEmpty(event.RoamingID), nullIfEmpty(event.CorrelationID),
+		event.CorrelationStatus, nullIfEmpty(event.CorrelationError), event.DuplicateCount,
 		event.LastSeenAt, nullIfEmpty(event.AppliedAt), nullIfEmpty(event.LastError), event.CreatedAt, event.UpdatedAt)
 	if err != nil {
 		return AccountingEventIngestResult{}, fmt.Errorf("ingest accounting event: %w", err)
@@ -385,6 +406,8 @@ func FreeRADIUSAccountingEventFromRecord(record FreeRADIUSAccountingRecord) Acco
 		AcctSessionID:       strings.TrimSpace(record.AcctSessionID),
 		SessionKey:          firstNonEmptyString(record.AegisSessionID, record.AcctSessionID, record.AcctUniqueID),
 		StatusType:          status,
+		AcctMultiSessionID:  record.AcctMultiSessionID,
+		AcctLinkCount:       record.AcctLinkCount,
 		EventTime:           eventTime,
 		ArrivalTime:         firstAccountingTime(record.UpdatedAt, record.CreatedAt, eventTime),
 		Username:            record.Username,
@@ -401,6 +424,8 @@ func FreeRADIUSAccountingEventFromRecord(record FreeRADIUSAccountingRecord) Acco
 		FramedInterfaceID:   record.FramedInterfaceID,
 		FramedRoute:         record.FramedRoute,
 		FramedIPv6Route:     record.FramedIPv6Route,
+		ServiceType:         record.ServiceType,
+		FramedProtocol:      record.FramedProtocol,
 		Class:               record.Class,
 		AcctInputOctets:     record.AcctInputOctets,
 		AcctOutputOctets:    record.AcctOutputOctets,
@@ -415,6 +440,16 @@ func FreeRADIUSAccountingEventFromRecord(record FreeRADIUSAccountingRecord) Acco
 		CounterError:        record.AegisCounterError,
 		IPAssignmentStatus:  record.AegisRouteStatus,
 		IPAssignmentError:   record.AegisRouteError,
+		ParentSessionKey:    record.AegisParentSessionID,
+		ServiceKey:          record.AegisServiceKey,
+		ServiceCategory:     record.AegisServiceCategory,
+		ServiceLegID:        record.AegisServiceLegID,
+		BearerID:            record.AegisBearerID,
+		CallID:              record.AegisCallID,
+		RoamingID:           record.AegisRoamingID,
+		CorrelationID:       record.AegisCorrelationID,
+		CorrelationStatus:   record.AegisCorrelationStatus,
+		CorrelationError:    record.AegisCorrelationError,
 	}
 	return normalizeAccountingEventRecord(event)
 }
@@ -498,6 +533,19 @@ func applyAccountingEventRecord(ctx context.Context, event AccountingEventRecord
 	sessionBefore := loadAccountingSessionSnapshot(event.SessionKey)
 	event = classifyAccountingEventCounters(sessionBefore, event)
 	event = normalizeAccountingEventIPFields(event)
+	correlationFields := NormalizeAccountingServiceCorrelationFields(event)
+	event.AcctMultiSessionID = correlationFields.AcctMultiSessionID
+	event.AcctLinkCount = correlationFields.AcctLinkCount
+	event.ParentSessionKey = correlationFields.ParentSessionKey
+	event.ServiceKey = correlationFields.ServiceKey
+	event.ServiceCategory = correlationFields.ServiceCategory
+	event.ServiceLegID = correlationFields.ServiceLegID
+	event.BearerID = correlationFields.BearerID
+	event.CallID = correlationFields.CallID
+	event.RoamingID = correlationFields.RoamingID
+	event.CorrelationID = correlationFields.CorrelationID
+	event.CorrelationStatus = correlationFields.CorrelationStatus
+	event.CorrelationError = correlationFields.CorrelationError
 	after := mergeAccountingSessionSnapshot(sessionBefore, event)
 	if err := updateAccountingEventCounterFields(event); err != nil {
 		return accountingApplyRowResult{}, err
@@ -505,11 +553,51 @@ func applyAccountingEventRecord(ctx context.Context, event AccountingEventRecord
 	if err := updateAccountingEventIPAssignmentFields(event); err != nil {
 		return accountingApplyRowResult{}, err
 	}
+	if err := UpdateAccountingEventServiceCorrelationFields(event, correlationFields); err != nil {
+		return accountingApplyRowResult{}, err
+	}
 	if err := upsertAccountingSession(ctx, event.SessionKey, after, sessionBefore.exists); err != nil {
 		return accountingApplyRowResult{}, err
 	}
 	if err := RecordAccountingIPAssignment(ctx, event); err != nil {
 		return accountingApplyRowResult{}, err
+	}
+	correlation, err := RecordAccountingServiceCorrelation(ctx, event)
+	if err != nil {
+		return accountingApplyRowResult{}, err
+	}
+	if correlation.CorrelationID != "" {
+		event.CorrelationID = correlation.CorrelationID
+		event.ParentSessionKey = correlation.ParentSessionKey
+		event.AcctMultiSessionID = correlation.AcctMultiSessionID
+		event.AcctLinkCount = correlation.AcctLinkCount
+		event.ServiceKey = correlation.ServiceKey
+		event.ServiceType = correlation.ServiceType
+		event.ServiceCategory = correlation.ServiceCategory
+		event.ServiceLegID = correlation.ServiceLegID
+		event.BearerID = correlation.BearerID
+		event.CallID = correlation.CallID
+		event.RoamingID = correlation.RoamingID
+		event.CorrelationStatus = correlation.CorrelationStatus
+		event.CorrelationError = correlation.CorrelationError
+		if err := UpdateAccountingEventServiceCorrelationFields(event, AccountingServiceCorrelationFields{
+			CorrelationID:      correlation.CorrelationID,
+			ParentSessionKey:   correlation.ParentSessionKey,
+			ChildSessionKey:    correlation.ChildSessionKey,
+			AcctMultiSessionID: correlation.AcctMultiSessionID,
+			AcctLinkCount:      correlation.AcctLinkCount,
+			ServiceKey:         correlation.ServiceKey,
+			ServiceType:        correlation.ServiceType,
+			ServiceCategory:    correlation.ServiceCategory,
+			ServiceLegID:       correlation.ServiceLegID,
+			BearerID:           correlation.BearerID,
+			CallID:             correlation.CallID,
+			RoamingID:          correlation.RoamingID,
+			CorrelationStatus:  correlation.CorrelationStatus,
+			CorrelationError:   correlation.CorrelationError,
+		}); err != nil {
+			return accountingApplyRowResult{}, err
+		}
 	}
 	radacct := freeRADIUSRecordFromAccountingEvent(event, after)
 	radacct.AegisReconcileStatus = "reconciled"
@@ -812,41 +900,56 @@ func updateAccountingEventIPAssignmentFields(event AccountingEventRecord) error 
 
 func freeRADIUSRecordFromAccountingEvent(event AccountingEventRecord, session accountingSessionSnapshot) FreeRADIUSAccountingRecord {
 	record := FreeRADIUSAccountingRecord{
-		AcctSessionID:           event.AcctSessionID,
-		AcctUniqueID:            event.AcctUniqueID,
-		Username:                event.Username,
-		Realm:                   event.Realm,
-		NASIPAddress:            event.NASIPAddress,
-		NASPortID:               event.NASPortID,
-		NASPortType:             event.NASPortType,
-		AcctUpdateTime:          event.EventTime,
-		AcctSessionTime:         event.AcctSessionTime,
-		AcctAuthentic:           "RADIUS",
-		AcctInputOctets:         session.bytesIn,
-		AcctOutputOctets:        session.bytesOut,
-		AegisInputOctets64:      fmt.Sprint(session.bytesIn),
-		AegisOutputOctets64:     fmt.Sprint(session.bytesOut),
-		CalledStationID:         event.CalledStationID,
-		CallingStationID:        event.CallingStationID,
-		AcctTerminateCause:      event.AcctTerminateCause,
-		FramedIPAddress:         event.FramedIPAddress,
-		FramedIPv6Address:       firstNonEmptyString(event.FramedIPv6Address, session.ipv6Address),
-		FramedIPv6Prefix:        firstNonEmptyString(event.FramedIPv6Prefix, session.ipv6Prefix),
-		FramedInterfaceID:       firstNonEmptyString(event.FramedInterfaceID, session.interfaceID),
-		DelegatedIPv6Prefix:     firstNonEmptyString(event.DelegatedIPv6Prefix, session.delegatedPrefix),
-		FramedRoute:             firstNonEmptyString(event.FramedRoute, session.framedRoute),
-		FramedIPv6Route:         firstNonEmptyString(event.FramedIPv6Route, session.framedIPv6Route),
-		Class:                   event.Class,
-		AegisSessionID:          event.SessionKey,
-		AegisSource:             event.Source,
-		AegisReconcileStatus:    "pending",
-		AegisCounterStatus:      event.CounterStatus,
-		AegisCounterError:       event.CounterError,
-		AegisCounterResetCount:  accountingCounterResetCountForSession(event.SessionKey),
-		AegisLastCounterEventID: event.EventID,
-		AegisRouteStatus:        event.IPAssignmentStatus,
-		AegisRouteError:         event.IPAssignmentError,
-		AegisLastRouteEventID:   event.EventID,
+		AcctSessionID:               event.AcctSessionID,
+		AcctUniqueID:                event.AcctUniqueID,
+		Username:                    event.Username,
+		Realm:                       event.Realm,
+		NASIPAddress:                event.NASIPAddress,
+		NASPortID:                   event.NASPortID,
+		NASPortType:                 event.NASPortType,
+		AcctMultiSessionID:          event.AcctMultiSessionID,
+		AcctLinkCount:               event.AcctLinkCount,
+		AcctUpdateTime:              event.EventTime,
+		AcctSessionTime:             event.AcctSessionTime,
+		AcctAuthentic:               "RADIUS",
+		AcctInputOctets:             session.bytesIn,
+		AcctOutputOctets:            session.bytesOut,
+		AegisInputOctets64:          fmt.Sprint(session.bytesIn),
+		AegisOutputOctets64:         fmt.Sprint(session.bytesOut),
+		CalledStationID:             event.CalledStationID,
+		CallingStationID:            event.CallingStationID,
+		AcctTerminateCause:          event.AcctTerminateCause,
+		ServiceType:                 event.ServiceType,
+		FramedProtocol:              event.FramedProtocol,
+		FramedIPAddress:             event.FramedIPAddress,
+		FramedIPv6Address:           firstNonEmptyString(event.FramedIPv6Address, session.ipv6Address),
+		FramedIPv6Prefix:            firstNonEmptyString(event.FramedIPv6Prefix, session.ipv6Prefix),
+		FramedInterfaceID:           firstNonEmptyString(event.FramedInterfaceID, session.interfaceID),
+		DelegatedIPv6Prefix:         firstNonEmptyString(event.DelegatedIPv6Prefix, session.delegatedPrefix),
+		FramedRoute:                 firstNonEmptyString(event.FramedRoute, session.framedRoute),
+		FramedIPv6Route:             firstNonEmptyString(event.FramedIPv6Route, session.framedIPv6Route),
+		Class:                       event.Class,
+		AegisSessionID:              event.SessionKey,
+		AegisSource:                 event.Source,
+		AegisReconcileStatus:        "pending",
+		AegisCounterStatus:          event.CounterStatus,
+		AegisCounterError:           event.CounterError,
+		AegisCounterResetCount:      accountingCounterResetCountForSession(event.SessionKey),
+		AegisLastCounterEventID:     event.EventID,
+		AegisRouteStatus:            event.IPAssignmentStatus,
+		AegisRouteError:             event.IPAssignmentError,
+		AegisLastRouteEventID:       event.EventID,
+		AegisParentSessionID:        event.ParentSessionKey,
+		AegisServiceKey:             event.ServiceKey,
+		AegisServiceCategory:        event.ServiceCategory,
+		AegisServiceLegID:           event.ServiceLegID,
+		AegisBearerID:               event.BearerID,
+		AegisCallID:                 event.CallID,
+		AegisRoamingID:              event.RoamingID,
+		AegisCorrelationID:          event.CorrelationID,
+		AegisCorrelationStatus:      event.CorrelationStatus,
+		AegisCorrelationError:       event.CorrelationError,
+		AegisLastCorrelationEventID: event.EventID,
 	}
 	record.AcctInputOctets, record.AcctInputGigawords, record.AegisInputOctets64,
 		record.AcctOutputOctets, record.AcctOutputGigawords, record.AegisOutputOctets64,
@@ -874,6 +977,7 @@ func freeRADIUSRecordFromAccountingEvent(event AccountingEventRecord, session ac
 
 func accountingEventSelectSQL() string {
 	return `SELECT id, event_id, acct_unique_id, acct_session_id, session_key, status_type,
+		COALESCE(acct_multi_session_id, ''), COALESCE(acct_link_count, 0),
 		COALESCE(CAST(event_time AS TEXT), ''), COALESCE(CAST(arrival_time AS TEXT), ''),
 		COALESCE(ordinal, 0), COALESCE(username, ''), COALESCE(realm, ''),
 		COALESCE(nas_ip_address, ''), COALESCE(nas_port_id, ''), COALESCE(nas_port_type, ''),
@@ -882,6 +986,7 @@ func accountingEventSelectSQL() string {
 		COALESCE(framed_ipv6_prefix, ''), COALESCE(delegated_ipv6_prefix, ''),
 		COALESCE(framed_interface_id, ''), COALESCE(framed_route, ''),
 		COALESCE(framed_ipv6_route, ''),
+		COALESCE(service_type, ''), COALESCE(framed_protocol, ''),
 		COALESCE(class, ''), COALESCE(acct_input_octets, 0), COALESCE(acct_output_octets, 0),
 		COALESCE(acct_input_gigawords, 0), COALESCE(acct_output_gigawords, 0),
 		COALESCE(acct_input_octets_64, '0'), COALESCE(acct_output_octets_64, '0'),
@@ -890,6 +995,11 @@ func accountingEventSelectSQL() string {
 		COALESCE(counter_status, 'ok'), COALESCE(counter_reset_detected, 0),
 		COALESCE(counter_rollover_detected, 0), COALESCE(counter_error, ''),
 		COALESCE(ip_assignment_status, 'ok'), COALESCE(ip_assignment_error, ''),
+		COALESCE(parent_session_key, ''), COALESCE(service_key, ''),
+		COALESCE(service_category, ''), COALESCE(service_leg_id, ''),
+		COALESCE(bearer_id, ''), COALESCE(call_id, ''), COALESCE(roaming_id, ''),
+		COALESCE(correlation_id, ''), COALESCE(correlation_status, 'active'),
+		COALESCE(correlation_error, ''),
 		COALESCE(duplicate_count, 0), COALESCE(CAST(last_seen_at AS TEXT), ''),
 		COALESCE(CAST(applied_at AS TEXT), ''), COALESCE(last_error, ''),
 		COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), '')
@@ -902,17 +1012,22 @@ func scanAccountingEventRows(rows *sql.Rows) ([]AccountingEventRecord, error) {
 		var event AccountingEventRecord
 		var inputOctets, outputOctets, inputGigawords, outputGigawords int64
 		if err := rows.Scan(&event.ID, &event.EventID, &event.AcctUniqueID, &event.AcctSessionID,
-			&event.SessionKey, &event.StatusType, &event.EventTime, &event.ArrivalTime,
+			&event.SessionKey, &event.StatusType, &event.AcctMultiSessionID, &event.AcctLinkCount,
+			&event.EventTime, &event.ArrivalTime,
 			&event.Ordinal, &event.Username, &event.Realm, &event.NASIPAddress, &event.NASPortID,
 			&event.NASPortType, &event.CallingStationID, &event.CalledStationID, &event.FramedIPAddress,
 			&event.FramedIPv6Address, &event.FramedIPv6Prefix, &event.DelegatedIPv6Prefix,
-			&event.FramedInterfaceID, &event.FramedRoute, &event.FramedIPv6Route, &event.Class,
+			&event.FramedInterfaceID, &event.FramedRoute, &event.FramedIPv6Route,
+			&event.ServiceType, &event.FramedProtocol, &event.Class,
 			&inputOctets, &outputOctets, &inputGigawords, &outputGigawords,
 			&event.AcctInputOctets64, &event.AcctOutputOctets64,
 			&event.AcctSessionTime, &event.AcctTerminateCause, &event.Source,
 			&event.Fingerprint, &event.PayloadJSON, &event.ApplyStatus, &event.OrderingStatus,
 			&event.CounterStatus, &event.CounterResetDetected, &event.CounterRolloverDetected,
 			&event.CounterError, &event.IPAssignmentStatus, &event.IPAssignmentError,
+			&event.ParentSessionKey, &event.ServiceKey, &event.ServiceCategory, &event.ServiceLegID,
+			&event.BearerID, &event.CallID, &event.RoamingID, &event.CorrelationID,
+			&event.CorrelationStatus, &event.CorrelationError,
 			&event.DuplicateCount, &event.LastSeenAt, &event.AppliedAt, &event.LastError,
 			&event.CreatedAt, &event.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan accounting event: %w", err)
@@ -973,6 +1088,9 @@ func normalizeAccountingEventRecord(event AccountingEventRecord) AccountingEvent
 	if event.IPAssignmentStatus == "" {
 		event.IPAssignmentStatus = "ok"
 	}
+	if event.CorrelationStatus == "" {
+		event.CorrelationStatus = "active"
+	}
 	if event.LastSeenAt == "" {
 		event.LastSeenAt = event.ArrivalTime
 	}
@@ -989,6 +1107,10 @@ func normalizeAccountingEventRecordForHash(event AccountingEventRecord) Accounti
 	event.AcctSessionID = strings.TrimSpace(event.AcctSessionID)
 	event.SessionKey = strings.TrimSpace(event.SessionKey)
 	event.StatusType = canonicalAccountingStatus(event.StatusType)
+	event.AcctMultiSessionID = strings.TrimSpace(event.AcctMultiSessionID)
+	if event.AcctLinkCount < 0 {
+		event.AcctLinkCount = 0
+	}
 	event.EventTime = normalizeAccountingTimeString(event.EventTime)
 	event.ArrivalTime = normalizeAccountingTimeString(event.ArrivalTime)
 	event.Username = strings.TrimSpace(event.Username)
@@ -1005,6 +1127,8 @@ func normalizeAccountingEventRecordForHash(event AccountingEventRecord) Accounti
 	event.FramedInterfaceID = strings.TrimSpace(event.FramedInterfaceID)
 	event.FramedRoute = strings.TrimSpace(event.FramedRoute)
 	event.FramedIPv6Route = strings.TrimSpace(event.FramedIPv6Route)
+	event.ServiceType = strings.TrimSpace(event.ServiceType)
+	event.FramedProtocol = strings.TrimSpace(event.FramedProtocol)
 	event.Class = strings.TrimSpace(event.Class)
 	event.AcctTerminateCause = strings.TrimSpace(event.AcctTerminateCause)
 	event.Source = firstNonEmptyString(event.Source, "aegis")
@@ -1014,11 +1138,34 @@ func normalizeAccountingEventRecordForHash(event AccountingEventRecord) Accounti
 	event.CounterError = strings.TrimSpace(event.CounterError)
 	event.IPAssignmentStatus = strings.TrimSpace(event.IPAssignmentStatus)
 	event.IPAssignmentError = strings.TrimSpace(event.IPAssignmentError)
+	event.ParentSessionKey = strings.TrimSpace(event.ParentSessionKey)
+	event.ServiceKey = strings.TrimSpace(event.ServiceKey)
+	event.ServiceCategory = strings.TrimSpace(event.ServiceCategory)
+	event.ServiceLegID = strings.TrimSpace(event.ServiceLegID)
+	event.BearerID = strings.TrimSpace(event.BearerID)
+	event.CallID = strings.TrimSpace(event.CallID)
+	event.RoamingID = strings.TrimSpace(event.RoamingID)
+	event.CorrelationID = strings.TrimSpace(event.CorrelationID)
+	event.CorrelationStatus = normalizeAccountingCorrelationStatus(event.CorrelationStatus)
+	event.CorrelationError = strings.TrimSpace(event.CorrelationError)
 	if event.AcctSessionTime < 0 {
 		event.AcctSessionTime = 0
 	}
 	event = normalizeAccountingEventCounterFields(event)
 	event = normalizeAccountingEventIPFields(event)
+	fields := NormalizeAccountingServiceCorrelationFields(event)
+	event.AcctMultiSessionID = fields.AcctMultiSessionID
+	event.AcctLinkCount = fields.AcctLinkCount
+	event.ParentSessionKey = fields.ParentSessionKey
+	event.ServiceKey = fields.ServiceKey
+	event.ServiceCategory = fields.ServiceCategory
+	event.ServiceLegID = fields.ServiceLegID
+	event.BearerID = fields.BearerID
+	event.CallID = fields.CallID
+	event.RoamingID = fields.RoamingID
+	event.CorrelationID = fields.CorrelationID
+	event.CorrelationStatus = fields.CorrelationStatus
+	event.CorrelationError = fields.CorrelationError
 	return event
 }
 
@@ -1111,9 +1258,12 @@ func accountingEventFingerprint(event AccountingEventRecord) string {
 	event = normalizeAccountingEventRecordForHash(event)
 	sum := sha256.Sum256([]byte(strings.Join([]string{
 		event.AcctUniqueID, event.StatusType, event.EventTime, event.Username, event.NASIPAddress,
-		event.NASPortID, event.CallingStationID, event.CalledStationID, event.FramedIPAddress,
+		event.NASPortID, event.CallingStationID, event.CalledStationID, event.AcctMultiSessionID,
+		fmt.Sprint(event.AcctLinkCount), event.ServiceType, event.FramedProtocol, event.FramedIPAddress,
 		event.FramedIPv6Address, event.FramedIPv6Prefix, event.DelegatedIPv6Prefix,
 		event.FramedInterfaceID, event.FramedRoute, event.FramedIPv6Route,
+		event.ParentSessionKey, event.ServiceKey, event.ServiceCategory, event.ServiceLegID,
+		event.BearerID, event.CallID, event.RoamingID,
 		fmt.Sprint(event.AcctInputOctets), fmt.Sprint(event.AcctInputGigawords), event.AcctInputOctets64,
 		fmt.Sprint(event.AcctOutputOctets), fmt.Sprint(event.AcctOutputGigawords), event.AcctOutputOctets64,
 		fmt.Sprint(event.AcctSessionTime),
@@ -1126,6 +1276,8 @@ func accountingEventPayloadJSON(event AccountingEventRecord) string {
 	payload := map[string]any{
 		"acct_unique_id":            event.AcctUniqueID,
 		"acct_session_id":           event.AcctSessionID,
+		"acct_multi_session_id":     event.AcctMultiSessionID,
+		"acct_link_count":           event.AcctLinkCount,
 		"status_type":               event.StatusType,
 		"event_time":                event.EventTime,
 		"username":                  event.Username,
@@ -1141,6 +1293,18 @@ func accountingEventPayloadJSON(event AccountingEventRecord) string {
 		"framed_interface_id":       event.FramedInterfaceID,
 		"framed_route":              event.FramedRoute,
 		"framed_ipv6_route":         event.FramedIPv6Route,
+		"service_type":              event.ServiceType,
+		"framed_protocol":           event.FramedProtocol,
+		"parent_session_key":        event.ParentSessionKey,
+		"service_key":               event.ServiceKey,
+		"service_category":          event.ServiceCategory,
+		"service_leg_id":            event.ServiceLegID,
+		"bearer_id":                 event.BearerID,
+		"call_id":                   event.CallID,
+		"roaming_id":                event.RoamingID,
+		"correlation_id":            event.CorrelationID,
+		"correlation_status":        event.CorrelationStatus,
+		"correlation_error":         event.CorrelationError,
 		"acct_input_octets":         event.AcctInputOctets,
 		"acct_output_octets":        event.AcctOutputOctets,
 		"acct_input_gigawords":      event.AcctInputGigawords,
@@ -1155,6 +1319,7 @@ func accountingEventPayloadJSON(event AccountingEventRecord) string {
 		"counter_rollover_detected": event.CounterRolloverDetected,
 		"ip_assignment_status":      event.IPAssignmentStatus,
 		"ip_assignment_error":       event.IPAssignmentError,
+		"nas_0039_schema_version":   1,
 		"nas_0038_schema_version":   1,
 		"nas_0037_schema_version":   1,
 	}

@@ -126,6 +126,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionAccountingOrderingCheck(&report, cfg)
 	addProductionAccountingCountersCheck(&report, cfg)
 	addProductionAccountingIPCheck(&report, cfg)
+	addProductionAccountingServicesCheck(&report, cfg)
 	addProductionFallbackPolicyCheck(&report, cfg)
 	addProductionIdentityFailoverCheck(&report, cfg)
 	addProductionActiveDirectoryCheck(&report, cfg)
@@ -486,6 +487,37 @@ func addProductionAccountingIPCheck(report *productionReadinessReport, cfg *conf
 			accountingIP.Summary.IPv4RouteRows, accountingIP.Summary.IPv6RouteRows, accountingIP.Summary.InvalidRows),
 		Recommendation: "Keep radius.accounting_ip enabled with IPv6, delegated-prefix, and route accounting; monitor /api/v1/system/accounting-ip; reconcile after FreeRADIUS SQL imports; and complete the NAS-0038 release certification checklist before production claims.",
 		Dependencies:   []string{"radius.accounting_ip", "/api/v1/system/accounting-ip", "Framed-IPv6-Address", "Framed-IPv6-Prefix", "Delegated-IPv6-Prefix", "Framed-Route", "Framed-IPv6-Route", "radacct", "radius_accounting_ip_assignments"},
+	})
+}
+
+func addProductionAccountingServicesCheck(report *productionReadinessReport, cfg *config.Config) {
+	services := radius.BuildAccountingServicesReport(cfg)
+	status := "passed"
+	switch services.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "blocked"
+	}
+	if !services.Enabled || !services.Policy.CorrelateSubscriberChains || !services.Policy.DeriveFromClass || !services.Policy.DeriveFromAcctMultiSessionID {
+		status = "blocked"
+	}
+	if services.Summary.ConflictCorrelations > 0 {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_accounting_services",
+		Category: "radius",
+		Label:    "Multi-Service Accounting Correlation",
+		Status:   status,
+		Summary: fmt.Sprintf("Accounting service schema %d is %s with %d correlation row(s), %d active, %d closed, %d linked subscriber service(s), %d Acct-Multi-Session row(s), %d bearer leg(s), %d call leg(s), and %d conflict(s).",
+			services.SchemaVersion, services.Status, services.Summary.CorrelationRows,
+			services.Summary.ActiveCorrelations, services.Summary.ClosedCorrelations,
+			services.Summary.LinkedSubscriberServices, services.Summary.AcctMultiSessionRows,
+			services.Summary.BearerLegRows, services.Summary.CallLegRows,
+			services.Summary.ConflictCorrelations),
+		Recommendation: "Keep radius.accounting_services enabled, correlate subscriber chains, Class metadata, and Acct-Multi-Session-Id, monitor /api/v1/system/accounting-services, and complete the NAS-0039 release certification checklist before production claims.",
+		Dependencies:   []string{"radius.accounting_services", "/api/v1/system/accounting-services", "Acct-Multi-Session-Id", "Acct-Link-Count", "Service-Type", "Class", "subscriber_service_accounting", "radius_accounting_service_correlations"},
 	})
 }
 

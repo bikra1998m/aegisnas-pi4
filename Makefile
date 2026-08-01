@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-transport-policy test-radius-proxy-policy test-radius-accounting-spool test-radius-sql-accounting test-radius-accounting-ordering test-radius-accounting-counters test-radius-accounting-ip test-radius-fallback-policy test-active-directory test-identity-failover test-mfa test-admin-webauthn test-eap-framework test-eap-teap test-eap-machine-user test-eap-fast-pwd test-eap-sim-aka test-certificate-lifecycle test-supplicant-lifecycle test-typed-policy-engine test-policy-set-governance test-policy-simulation-analysis test-subscriber-service-chains test-tacacs test-tenant-isolation test-mab test-dynamic-nas-clients test-radsec-credentials install-radius-dictionary scan-radius-dictionaries
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-transport-policy test-radius-proxy-policy test-radius-accounting-spool test-radius-sql-accounting test-radius-accounting-ordering test-radius-accounting-counters test-radius-accounting-ip test-radius-accounting-services test-radius-fallback-policy test-active-directory test-identity-failover test-mfa test-admin-webauthn test-eap-framework test-eap-teap test-eap-machine-user test-eap-fast-pwd test-eap-sim-aka test-certificate-lifecycle test-supplicant-lifecycle test-typed-policy-engine test-policy-set-governance test-policy-simulation-analysis test-subscriber-service-chains test-tacacs test-tenant-isolation test-mab test-dynamic-nas-clients test-radsec-credentials install-radius-dictionary scan-radius-dictionaries
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -83,25 +83,31 @@ test-radius-sql-accounting:
 	go test -p=1 -timeout=600s ./internal/config -run 'ConfigValidationRadiusSQLAccounting' -count=1
 	go test -p=1 -timeout=600s ./internal/db -run 'FreeRADIUSAccounting|TestMigrate' -count=1
 	go test -p=1 -timeout=600s ./internal/radius -run 'SQLAccounting|ProcessAccountingMirrorsRadAcct|Generator' -count=1
-	go test -p=1 -timeout=600s ./internal/adminapi -run 'HandleGetSQLAccounting|HandleReconcileSQLAccounting|OpenAPIAndSupportBundleIncludeSQLAccountingOrderingAndCounters|AuthorizeSQLAccounting|ProductionReadinessIncludesSQLAccounting' -count=1
+	go test -p=1 -timeout=600s ./internal/adminapi -run 'HandleGetSQLAccounting|HandleReconcileSQLAccounting|OpenAPIAndSupportBundleIncludeSQLAccounting|AuthorizeSQLAccounting|ProductionReadinessIncludesSQLAccounting' -count=1
 
 test-radius-accounting-ordering:
 	go test -p=1 -timeout=600s ./internal/config -run 'AccountingOrdering|ConfigValidationRadiusSQLAccounting' -count=1
 	go test -p=1 -timeout=600s ./internal/db -run 'AccountingEvent|FreeRADIUSAccounting|TestMigrate' -count=1
 	go test -p=1 -timeout=600s ./internal/radius -run 'AccountingOrdering|ProcessAccountingMirrorsRadAcct' -count=1
-	go test -p=1 -timeout=600s ./internal/adminapi -run 'AccountingOrdering|OpenAPIAndSupportBundleIncludeSQLAccountingOrderingAndCounters|AuthorizeSQLAccounting|ProductionReadinessIncludesSQLAccounting' -count=1
+	go test -p=1 -timeout=600s ./internal/adminapi -run 'AccountingOrdering|OpenAPIAndSupportBundleIncludeSQLAccounting|AuthorizeSQLAccounting|ProductionReadinessIncludesSQLAccounting' -count=1
 
 test-radius-accounting-counters:
 	go test -p=1 -timeout=600s ./internal/config -run 'ConfigValidationRadiusSQLAccounting' -count=1
 	go test -p=1 -timeout=600s ./internal/db -run 'AccountingCounter|FreeRADIUSAccountingGigaword|AccountingEvent|FreeRADIUSAccounting|TestMigrate' -count=1
 	go test -p=1 -timeout=600s ./internal/radius -run 'AccountingCounters|AccountingOrdering|ProcessAccountingMirrorsRadAcct' -count=1
-	go test -p=1 -timeout=600s ./internal/adminapi -run 'AccountingCounters|OpenAPIAndSupportBundleIncludeSQLAccountingOrderingAndCounters|AuthorizeSQLAccounting|ProductionReadinessIncludesSQLAccounting' -count=1
+	go test -p=1 -timeout=600s ./internal/adminapi -run 'AccountingCounters|OpenAPIAndSupportBundleIncludeSQLAccounting|AuthorizeSQLAccounting|ProductionReadinessIncludesSQLAccounting' -count=1
 
 test-radius-accounting-ip:
 	go test -p=1 -timeout=600s ./internal/config -run 'ConfigValidationRadiusSQLAccounting' -count=1
 	go test -p=1 -timeout=600s ./internal/db -run 'AccountingIP|FreeRADIUSAccountingIPv6|AccountingEvent|FreeRADIUSAccounting|TestMigrate' -count=1
 	go test -p=1 -timeout=600s ./internal/radius -run 'AccountingIP|AccountingCounters|AccountingOrdering|ProcessAccountingMirrorsRadAcct' -count=1
-	go test -p=1 -timeout=600s ./internal/adminapi -run 'AccountingIP|OpenAPIAndSupportBundleIncludeSQLAccountingOrderingCountersAndIP|AuthorizeSQLAccounting|ProductionReadinessIncludesSQLAccounting' -count=1
+	go test -p=1 -timeout=600s ./internal/adminapi -run 'AccountingIP|OpenAPIAndSupportBundleIncludeSQLAccounting|AuthorizeSQLAccounting|ProductionReadinessIncludesSQLAccounting' -count=1
+
+test-radius-accounting-services:
+	go test -p=1 -timeout=600s ./internal/config -run 'ConfigValidationRadiusSQLAccounting' -count=1
+	go test -p=1 -timeout=600s ./internal/db -run 'AccountingService|FreeRADIUSAccountingService|AccountingEvent|FreeRADIUSAccounting|TestMigrate' -count=1
+	go test -p=1 -timeout=600s ./internal/radius -run 'AccountingServices|AccountingIP|AccountingCounters|AccountingOrdering|ProcessAccountingMirrorsRadAcct' -count=1
+	go test -p=1 -timeout=600s ./internal/adminapi -run 'AccountingServices|OpenAPIAndSupportBundleIncludeSQLAccounting|AuthorizeSQLAccounting|ProductionReadinessIncludesSQLAccounting|SupportBundle' -count=1
 
 test-radius-fallback-policy:
 	go test ./internal/config ./internal/db ./internal/radius ./internal/adminapi -run 'FallbackPolicy|RadiusFallback|Migrate|OpenAPI|Authorize|ProductionReadiness|SupportBundle' -count=1

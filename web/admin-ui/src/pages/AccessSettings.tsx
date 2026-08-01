@@ -385,6 +385,36 @@ type AccountingIPReport = {
   warnings?: string[];
 };
 
+type AccountingServicesReport = {
+  schema_version: number;
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary: {
+    correlation_rows: number;
+    active_correlations: number;
+    closed_correlations: number;
+    conflict_correlations: number;
+    unmatched_correlations: number;
+    linked_subscriber_services: number;
+    parent_sessions: number;
+    child_sessions: number;
+    data_services: number;
+    voice_services: number;
+    bearer_services: number;
+    reauth_services: number;
+    vpn_services: number;
+    primary_services: number;
+    acct_multi_session_rows: number;
+    call_leg_rows: number;
+    bearer_leg_rows: number;
+    last_correlation_at?: string;
+    last_correlation_status?: string;
+    last_correlation_error?: string;
+  };
+  warnings?: string[];
+};
+
 type TenantIsolationReport = {
   schema_version: number;
   status: string;
@@ -1309,6 +1339,15 @@ const defaultSettings: JsonMap = {
       delegated_prefix_enabled: true,
       reject_invalid: false,
       retention_days: 365,
+    },
+    accounting_services: {
+      enabled: true,
+      correlate_subscriber_chains: true,
+      derive_from_class: true,
+      derive_from_acct_multi_session_id: true,
+      retain_unmatched: true,
+      retention_days: 365,
+      max_recent_services: 25,
     },
     upstream: {
       enabled: false,
@@ -2242,6 +2281,8 @@ export default function AccessSettings() {
     useState<AccountingCountersReport | null>(null);
   const [accountingIPReport, setAccountingIPReport] =
     useState<AccountingIPReport | null>(null);
+  const [accountingServicesReport, setAccountingServicesReport] =
+    useState<AccountingServicesReport | null>(null);
   const [tenantIsolationReport, setTenantIsolationReport] =
     useState<TenantIsolationReport | null>(null);
   const [reconcilingSQLAccounting, setReconcilingSQLAccounting] =
@@ -2472,6 +2513,19 @@ export default function AccessSettings() {
     }
   };
 
+  const loadAccountingServicesReport = async () => {
+    try {
+      const { data } = await api.get("/system/accounting-services");
+      setAccountingServicesReport(data?.report || null);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load multi-service accounting state.",
+      );
+    }
+  };
+
   const loadTenantIsolationReport = async () => {
     try {
       const { data } = await api.get("/system/tenant-isolation", {
@@ -2508,6 +2562,8 @@ export default function AccessSettings() {
       await loadAccountingOrderingReport();
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
+      await loadAccountingServicesReport();
+      await loadAccountingServicesReport();
       await loadTenantIsolationReport();
     } catch (err: any) {
       setError(
@@ -2591,6 +2647,7 @@ export default function AccessSettings() {
       await loadAccountingOrderingReport();
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
+      await loadAccountingServicesReport();
       await loadTenantIsolationReport();
     } catch (err: any) {
       setError(err.response?.data || err.message || "Could not save settings.");
@@ -2828,6 +2885,7 @@ export default function AccessSettings() {
       await loadAccountingOrderingReport();
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
+      await loadAccountingServicesReport();
     } catch (err: any) {
       setError(
         err.response?.data ||
@@ -2854,6 +2912,7 @@ export default function AccessSettings() {
       await loadSQLAccountingReport();
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
+      await loadAccountingServicesReport();
     } catch (err: any) {
       setError(
         err.response?.data ||
@@ -15111,6 +15170,181 @@ export default function AccessSettings() {
           {(accountingIPReport?.warnings || []).length > 0 && (
             <ul className="mt-2 space-y-1 text-xs text-amber-700">
               {(accountingIPReport?.warnings || []).map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="mt-4">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Multi-Service Accounting
+              </h4>
+              <p className="mt-1 text-xs text-gray-500">
+                Correlate parent sessions, service legs, bearers, calls, VPN
+                legs, and subscriber chain accounting evidence.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadAccountingServicesReport}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+            >
+              Refresh Services
+            </button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Correlation Engine"
+              checked={settings.radius?.accounting_services?.enabled !== false}
+              onChange={(value) =>
+                updateField(["radius", "accounting_services", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Subscriber Chains"
+              checked={
+                settings.radius?.accounting_services
+                  ?.correlate_subscriber_chains !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "accounting_services",
+                    "correlate_subscriber_chains",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Class Metadata"
+              checked={
+                settings.radius?.accounting_services?.derive_from_class !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_services", "derive_from_class"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Multi-Session ID"
+              checked={
+                settings.radius?.accounting_services
+                  ?.derive_from_acct_multi_session_id !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "accounting_services",
+                    "derive_from_acct_multi_session_id",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Retain Unmatched"
+              checked={
+                settings.radius?.accounting_services?.retain_unmatched !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_services", "retain_unmatched"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Evidence Retention (d)"
+              type="number"
+              value={
+                settings.radius?.accounting_services?.retention_days || 365
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_services", "retention_days"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Recent Services"
+              type="number"
+              value={
+                settings.radius?.accounting_services?.max_recent_services || 25
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_services", "max_recent_services"],
+                  Number(value),
+                )
+              }
+            />
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-5">
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Status
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingServicesReport?.status || "unknown"}
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Correlations
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingServicesReport?.summary?.correlation_rows || 0} total,{" "}
+                {accountingServicesReport?.summary?.active_correlations || 0} active
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Services
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingServicesReport?.summary?.data_services || 0} data,{" "}
+                {accountingServicesReport?.summary?.voice_services || 0} voice
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Subscriber Links
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingServicesReport?.summary
+                  ?.linked_subscriber_services || 0} linked,{" "}
+                {accountingServicesReport?.summary
+                  ?.unmatched_correlations || 0} unmatched
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Legs
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingServicesReport?.summary?.bearer_leg_rows || 0} bearer,{" "}
+                {accountingServicesReport?.summary?.call_leg_rows || 0} call,{" "}
+                {accountingServicesReport?.summary?.conflict_correlations || 0} conflict
+              </div>
+            </div>
+          </div>
+          {accountingServicesReport?.message && (
+            <p className="mt-2 text-xs text-gray-500">
+              {accountingServicesReport.message}
+            </p>
+          )}
+          {(accountingServicesReport?.warnings || []).length > 0 && (
+            <ul className="mt-2 space-y-1 text-xs text-amber-700">
+              {(accountingServicesReport?.warnings || []).map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
             </ul>

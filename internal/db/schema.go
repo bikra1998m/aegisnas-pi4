@@ -167,7 +167,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{40, schemaV40},
 		{41, schemaV41},
 		{42, schemaV42},
-		{LatestSchemaVersion(), schemaV43},
+		{43, schemaV43},
+		{LatestSchemaVersion(), schemaV44},
 	}
 
 	for _, m := range migrations {
@@ -266,8 +267,117 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureAccountingIPAssignmentSchema(handle); err != nil {
 		return fmt.Errorf("repair accounting IP assignment schema: %w", err)
 	}
+	if err := ensureAccountingServiceCorrelationSchema(handle); err != nil {
+		return fmt.Errorf("repair accounting service correlation schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureAccountingServiceCorrelationSchema(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	for _, column := range []struct {
+		table string
+		name  string
+		sql   string
+	}{
+		{"radacct", "acctmultisessionid", `ALTER TABLE radacct ADD COLUMN acctmultisessionid TEXT`},
+		{"radacct", "acctlinkcount", `ALTER TABLE radacct ADD COLUMN acctlinkcount INTEGER NOT NULL DEFAULT 0`},
+		{"radacct", "aegis_parent_session_id", `ALTER TABLE radacct ADD COLUMN aegis_parent_session_id TEXT`},
+		{"radacct", "aegis_service_key", `ALTER TABLE radacct ADD COLUMN aegis_service_key TEXT`},
+		{"radacct", "aegis_service_category", `ALTER TABLE radacct ADD COLUMN aegis_service_category TEXT`},
+		{"radacct", "aegis_service_leg_id", `ALTER TABLE radacct ADD COLUMN aegis_service_leg_id TEXT`},
+		{"radacct", "aegis_bearer_id", `ALTER TABLE radacct ADD COLUMN aegis_bearer_id TEXT`},
+		{"radacct", "aegis_call_id", `ALTER TABLE radacct ADD COLUMN aegis_call_id TEXT`},
+		{"radacct", "aegis_roaming_id", `ALTER TABLE radacct ADD COLUMN aegis_roaming_id TEXT`},
+		{"radacct", "aegis_correlation_id", `ALTER TABLE radacct ADD COLUMN aegis_correlation_id TEXT`},
+		{"radacct", "aegis_correlation_status", `ALTER TABLE radacct ADD COLUMN aegis_correlation_status TEXT NOT NULL DEFAULT 'active'`},
+		{"radacct", "aegis_correlation_error", `ALTER TABLE radacct ADD COLUMN aegis_correlation_error TEXT`},
+		{"radacct", "aegis_last_correlation_event_id", `ALTER TABLE radacct ADD COLUMN aegis_last_correlation_event_id TEXT`},
+		{"radius_accounting_events", "acct_multi_session_id", `ALTER TABLE radius_accounting_events ADD COLUMN acct_multi_session_id TEXT`},
+		{"radius_accounting_events", "acct_link_count", `ALTER TABLE radius_accounting_events ADD COLUMN acct_link_count INTEGER NOT NULL DEFAULT 0`},
+		{"radius_accounting_events", "service_type", `ALTER TABLE radius_accounting_events ADD COLUMN service_type TEXT`},
+		{"radius_accounting_events", "framed_protocol", `ALTER TABLE radius_accounting_events ADD COLUMN framed_protocol TEXT`},
+		{"radius_accounting_events", "parent_session_key", `ALTER TABLE radius_accounting_events ADD COLUMN parent_session_key TEXT`},
+		{"radius_accounting_events", "service_key", `ALTER TABLE radius_accounting_events ADD COLUMN service_key TEXT`},
+		{"radius_accounting_events", "service_category", `ALTER TABLE radius_accounting_events ADD COLUMN service_category TEXT`},
+		{"radius_accounting_events", "service_leg_id", `ALTER TABLE radius_accounting_events ADD COLUMN service_leg_id TEXT`},
+		{"radius_accounting_events", "bearer_id", `ALTER TABLE radius_accounting_events ADD COLUMN bearer_id TEXT`},
+		{"radius_accounting_events", "call_id", `ALTER TABLE radius_accounting_events ADD COLUMN call_id TEXT`},
+		{"radius_accounting_events", "roaming_id", `ALTER TABLE radius_accounting_events ADD COLUMN roaming_id TEXT`},
+		{"radius_accounting_events", "correlation_id", `ALTER TABLE radius_accounting_events ADD COLUMN correlation_id TEXT`},
+		{"radius_accounting_events", "correlation_status", `ALTER TABLE radius_accounting_events ADD COLUMN correlation_status TEXT NOT NULL DEFAULT 'active'`},
+		{"radius_accounting_events", "correlation_error", `ALTER TABLE radius_accounting_events ADD COLUMN correlation_error TEXT`},
+	} {
+		exists, err := tableExists(handle, column.table)
+		if err != nil || !exists {
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		hasColumn, err := tableHasColumn(handle, column.table, column.name)
+		if err != nil {
+			return err
+		}
+		if hasColumn {
+			continue
+		}
+		if _, err := handle.Exec(SQLForDialect(column.sql, dialect)); err != nil {
+			return err
+		}
+	}
+	_, err := handle.Exec(SQLForDialect(`CREATE TABLE IF NOT EXISTS radius_accounting_service_correlations (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	correlation_id TEXT UNIQUE NOT NULL,
+	parent_session_key TEXT NOT NULL,
+	child_session_key TEXT NOT NULL,
+	acct_unique_id TEXT NOT NULL DEFAULT '',
+	acct_session_id TEXT NOT NULL DEFAULT '',
+	acct_multi_session_id TEXT,
+	acct_link_count INTEGER NOT NULL DEFAULT 0,
+	service_key TEXT NOT NULL,
+	service_type TEXT,
+	service_category TEXT NOT NULL,
+	service_leg_id TEXT NOT NULL,
+	bearer_id TEXT,
+	call_id TEXT,
+	roaming_id TEXT,
+	username_hash TEXT,
+	calling_station_hash TEXT,
+	nas_ip_address TEXT,
+	linked_chain_id TEXT,
+	linked_chain_status TEXT,
+	linked_service_key TEXT,
+	first_event_id TEXT NOT NULL,
+	last_event_id TEXT NOT NULL,
+	first_seen_at DATETIME NOT NULL,
+	last_seen_at DATETIME NOT NULL,
+	stopped_at DATETIME,
+	acct_session_time INTEGER NOT NULL DEFAULT 0,
+	input_octets_64 TEXT NOT NULL DEFAULT '0',
+	output_octets_64 TEXT NOT NULL DEFAULT '0',
+	correlation_source TEXT NOT NULL,
+	correlation_status TEXT NOT NULL DEFAULT 'active',
+	correlation_error TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (correlation_status IN ('active', 'closed', 'unmatched', 'conflict'))
+);
+CREATE INDEX IF NOT EXISTS idx_radacct_correlation_status ON radacct(aegis_correlation_status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_radacct_acct_multi_session ON radacct(acctmultisessionid);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_events_correlation ON radius_accounting_events(correlation_status, event_time);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_events_parent_session ON radius_accounting_events(parent_session_key, event_time);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_service_correlations_parent ON radius_accounting_service_correlations(parent_session_key, last_seen_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_service_correlations_child ON radius_accounting_service_correlations(child_session_key, last_seen_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_service_correlations_status ON radius_accounting_service_correlations(correlation_status, last_seen_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_service_correlations_chain ON radius_accounting_service_correlations(linked_chain_id, linked_service_key);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_service_correlations_service ON radius_accounting_service_correlations(service_key, service_category, last_seen_at);`, dialect))
+	return err
 }
 
 func ensureAccountingIPAssignmentSchema(handle *sql.DB) error {

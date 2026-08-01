@@ -18,6 +18,8 @@ type AccountingRecord struct {
 	NASIPAddress        string
 	NASPort             int
 	AcctStatusType      string // Start, Stop, Interim-Update
+	AcctMultiSessionID  string
+	AcctLinkCount       int64
 	AcctInputOctets     uint64
 	AcctOutputOctets    uint64
 	AcctSessionTime     int
@@ -30,11 +32,20 @@ type AccountingRecord struct {
 	DelegatedIPv6Prefix string
 	FramedRoute         string
 	FramedIPv6Route     string
+	ServiceType         string
+	FramedProtocol      string
 	StopReason          string
 	Role                string
 	BandwidthProfile    string
 	FilterID            string
 	RadiusClass         string
+	ParentSessionKey    string
+	ServiceKey          string
+	ServiceCategory     string
+	ServiceLegID        string
+	BearerID            string
+	CallID              string
+	RoamingID           string
 	VLAN                int
 	SessionTimeout      int
 	IdleTimeout         int
@@ -89,6 +100,8 @@ func accountingEventFromAccounting(rec *AccountingRecord) db.AccountingEventReco
 		AcctUniqueID:        record.AcctUniqueID,
 		SessionKey:          strings.TrimSpace(rec.SessionID),
 		StatusType:          rec.AcctStatusType,
+		AcctMultiSessionID:  rec.AcctMultiSessionID,
+		AcctLinkCount:       rec.AcctLinkCount,
 		EventTime:           rec.Timestamp.UTC().Format(time.RFC3339Nano),
 		ArrivalTime:         time.Now().UTC().Format(time.RFC3339Nano),
 		Username:            rec.Username,
@@ -103,12 +116,21 @@ func accountingEventFromAccounting(rec *AccountingRecord) db.AccountingEventReco
 		DelegatedIPv6Prefix: rec.DelegatedIPv6Prefix,
 		FramedRoute:         rec.FramedRoute,
 		FramedIPv6Route:     rec.FramedIPv6Route,
+		ServiceType:         rec.ServiceType,
+		FramedProtocol:      rec.FramedProtocol,
 		Class:               rec.RadiusClass,
 		AcctInputOctets:     rec.AcctInputOctets,
 		AcctOutputOctets:    rec.AcctOutputOctets,
 		AcctSessionTime:     int64(rec.AcctSessionTime),
 		AcctTerminateCause:  rec.StopReason,
 		Source:              "aegis-broker",
+		ParentSessionKey:    rec.ParentSessionKey,
+		ServiceKey:          rec.ServiceKey,
+		ServiceCategory:     rec.ServiceCategory,
+		ServiceLegID:        rec.ServiceLegID,
+		BearerID:            rec.BearerID,
+		CallID:              rec.CallID,
+		RoamingID:           rec.RoamingID,
 	}
 }
 
@@ -124,6 +146,8 @@ func freeRADIUSRecordFromAccounting(rec *AccountingRecord) db.FreeRADIUSAccounti
 		Username:             strings.TrimSpace(rec.Username),
 		NASIPAddress:         strings.TrimSpace(rec.NASIPAddress),
 		NASPortID:            strings.TrimSpace(strconv.Itoa(rec.NASPort)),
+		AcctMultiSessionID:   strings.TrimSpace(rec.AcctMultiSessionID),
+		AcctLinkCount:        rec.AcctLinkCount,
 		AcctSessionTime:      int64(rec.AcctSessionTime),
 		AcctAuthentic:        "RADIUS",
 		AcctInputOctets:      rec.AcctInputOctets,
@@ -131,6 +155,8 @@ func freeRADIUSRecordFromAccounting(rec *AccountingRecord) db.FreeRADIUSAccounti
 		CalledStationID:      strings.TrimSpace(rec.CalledStationID),
 		CallingStationID:     strings.TrimSpace(rec.CallingStationID),
 		AcctTerminateCause:   strings.TrimSpace(rec.StopReason),
+		ServiceType:          strings.TrimSpace(rec.ServiceType),
+		FramedProtocol:       strings.TrimSpace(rec.FramedProtocol),
 		FramedIPAddress:      strings.TrimSpace(rec.FramedIPAddress),
 		FramedIPv6Address:    strings.TrimSpace(rec.FramedIPv6Address),
 		FramedIPv6Prefix:     strings.TrimSpace(rec.FramedIPv6Prefix),
@@ -143,6 +169,13 @@ func freeRADIUSRecordFromAccounting(rec *AccountingRecord) db.FreeRADIUSAccounti
 		AegisSource:          "aegis-broker",
 		AegisReconcileStatus: "reconciled",
 		AegisReconciledAt:    formatted,
+		AegisParentSessionID: strings.TrimSpace(rec.ParentSessionKey),
+		AegisServiceKey:      strings.TrimSpace(rec.ServiceKey),
+		AegisServiceCategory: strings.TrimSpace(rec.ServiceCategory),
+		AegisServiceLegID:    strings.TrimSpace(rec.ServiceLegID),
+		AegisBearerID:        strings.TrimSpace(rec.BearerID),
+		AegisCallID:          strings.TrimSpace(rec.CallID),
+		AegisRoamingID:       strings.TrimSpace(rec.RoamingID),
 	}
 	switch rec.AcctStatusType {
 	case "Start":

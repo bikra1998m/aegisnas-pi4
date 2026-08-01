@@ -404,6 +404,14 @@ radius:
     delegated_prefix_enabled: true
     reject_invalid: false
     retention_days: 365
+  accounting_services:
+    enabled: true
+    correlate_subscriber_chains: true
+    derive_from_class: true
+    derive_from_acct_multi_session_id: true
+    retain_unmatched: true
+    retention_days: 365
+    max_recent_services: 25
   vendor:
     enabled: false
     name: "AegisNAS"

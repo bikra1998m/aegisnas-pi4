@@ -45,8 +45,10 @@ Files involved:
 - [accounting_ordering.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting_ordering.go)
 - [accounting_counters.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting_counters.go)
 - [accounting_ip.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting_ip.go)
+- [accounting_services.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting_services.go)
 - [accounting_events.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/accounting_events.go)
 - [freeradius_accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/freeradius_accounting.go)
+- [accounting_services.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/accounting_services.go)
 - [mapping.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/mapping.go)
 - [dynamic_nas_clients.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/dynamic_nas_clients.go)
 - [manager.go](F:/random_project/Pookie/aegisnas-pi4/internal/sessions/manager.go)
@@ -113,6 +115,8 @@ When `radius.upstream.enabled: true`:
 - FreeRADIUS SQL accounting reconciliation is available through `/api/v1/system/sql-accounting`; AegisNAS creates `radacct` and `radpostauth`, mirrors local accounting, records redacted post-auth outcomes, reconciles pending SQL rows into `sessions`, and records reconcile events
 - accounting idempotency and ordering is available through `/api/v1/system/accounting-ordering`; AegisNAS stores deterministic accounting event IDs, duplicate counts, ordering status, late Stop merges, and bounded replay evidence
 - 64-bit accounting counters and gigaword rollover are available through `/api/v1/system/accounting-counters`; AegisNAS normalizes `Acct-Input-Octets`, `Acct-Input-Gigawords`, `Acct-Output-Octets`, and `Acct-Output-Gigawords` into durable 64-bit totals and records reset/overflow evidence
+- IPv6, delegated-prefix, and route accounting is available through `/api/v1/system/accounting-ip`; AegisNAS normalizes `Framed-IPv6-Address`, `Framed-IPv6-Prefix`, `Delegated-IPv6-Prefix`, `Framed-Route`, and `Framed-IPv6-Route` into durable assignment evidence
+- multi-service accounting correlation is available through `/api/v1/system/accounting-services`; AegisNAS preserves `Acct-Multi-Session-Id`, `Acct-Link-Count`, `Service-Type`, `Framed-Protocol`, and Class metadata to correlate parent sessions, child service legs, bearer legs, call legs, VPN legs, and subscriber service-chain accounting
 - the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
 - the vendor reply preview can render vendor-neutral ACL intent into `NAS-Filter-Rule`, Cisco `Cisco-AVPair`, Aruba filter rules, MikroTik address-list hints, and AegisNAS ACL VSAs
 - MAB endpoints can be approved, denied, quarantined, expired, or left pending; approved and quarantined endpoints render MAC variants into FreeRADIUS `files/authorize`
@@ -153,6 +157,9 @@ What this pass still does not change:
 - real Windows, macOS, iOS, Android, Linux, MDM, AP/controller, password-change, trust-anchor rollover, HA, performance, and security validation remains tracked in [nas-0028-release-certification-checklist.md](nas-0028-release-certification-checklist.md)
 - real FreeRADIUS SQL writer, AP/switch, upstream AAA, PostgreSQL HA, packet-capture, performance, soak, and security validation remains tracked in [nas-0035-release-certification-checklist.md](nas-0035-release-certification-checklist.md)
 - real duplicate/reordered packet captures, vendor AP/controller accounting retries, HA replay drills, performance, soak, and security validation remains tracked in [nas-0036-release-certification-checklist.md](nas-0036-release-certification-checklist.md)
+- real FreeRADIUS SQL imports, vendor hardware packet captures, PostgreSQL HA replay, large-session performance, soak, security, and customer validation remains tracked in [nas-0037-release-certification-checklist.md](nas-0037-release-certification-checklist.md)
+- real dual-stack AP/controller, BNG/BRAS, route-accounting, HA failover, performance, soak, security, and customer validation remains tracked in [nas-0038-release-certification-checklist.md](nas-0038-release-certification-checklist.md)
+- real BNG/BRAS, mobile, voice, VPN, subscriber service-chain, HA failover, performance, soak, security, and customer validation remains tracked in [nas-0039-release-certification-checklist.md](nas-0039-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 
@@ -266,6 +273,14 @@ radius:
     delegated_prefix_enabled: true
     reject_invalid: false
     retention_days: 365
+  accounting_services:
+    enabled: true
+    correlate_subscriber_chains: true
+    derive_from_class: true
+    derive_from_acct_multi_session_id: true
+    retain_unmatched: true
+    retention_days: 365
+    max_recent_services: 25
   upstream:
     enabled: true
     realm: "aegis-upstream"
@@ -783,6 +798,12 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/accounting-counters | jq '.report.summary'
+
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/accounting-ip | jq '.report.summary'
+
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/accounting-services | jq '.report.summary'
 ```
 
 Duplicate packet retries should increase `duplicate_events` without increasing
@@ -790,7 +811,11 @@ the session count. Reordered `Start`/`Interim-Update`/`Stop` delivery should
 increase `reordered_events` or `late_stop_events` without reopening a closed
 session. Large-session tests should increase `rollover_events` or
 `gigaword_rows`, and controlled NAS counter resets should increase
-`reset_events` without decreasing session byte totals.
+`reset_events` without decreasing session byte totals. Dual-stack and routed
+subscriber tests should increase accounting-IP address, prefix, or route rows.
+Multi-service tests should increase `correlation_rows`, expected service
+categories, and `linked_subscriber_services` when subscriber service chains are
+active; `conflict_correlations` should remain zero outside controlled drills.
 
 ### 12. Test Dynamic Authorization
 

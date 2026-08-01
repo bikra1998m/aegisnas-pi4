@@ -66,9 +66,10 @@ func TestProductionReadinessIncludesSQLAccounting(t *testing.T) {
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_ordering"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_counters"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_ip"))
+	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_services"))
 }
 
-func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingCountersAndIP(t *testing.T) {
+func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingCountersIPAndServices(t *testing.T) {
 	spec := buildOpenAPISpec(httptest.NewRequest(http.MethodGet, "/api/v1/openapi.json", nil), nil)
 	paths := spec["paths"].(map[string]any)
 	assert.Contains(t, paths, "/api/v1/system/sql-accounting")
@@ -77,8 +78,9 @@ func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingCountersAndIP(t *tes
 	assert.Contains(t, paths, "/api/v1/system/accounting-ordering/replay")
 	assert.Contains(t, paths, "/api/v1/system/accounting-counters")
 	assert.Contains(t, paths, "/api/v1/system/accounting-ip")
+	assert.Contains(t, paths, "/api/v1/system/accounting-services")
 
-	var foundSQL, foundOrdering, foundCounters, foundIP bool
+	var foundSQL, foundOrdering, foundCounters, foundIP, foundServices bool
 	for _, capture := range supportBundleAPICaptures() {
 		if capture.archivePath == "api/sql-accounting.json" {
 			foundSQL = true
@@ -96,11 +98,16 @@ func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingCountersAndIP(t *tes
 			foundIP = true
 			assert.Equal(t, "/api/v1/system/accounting-ip", capture.requestPath)
 		}
+		if capture.archivePath == "api/accounting-services.json" {
+			foundServices = true
+			assert.Equal(t, "/api/v1/system/accounting-services", capture.requestPath)
+		}
 	}
 	assert.True(t, foundSQL)
 	assert.True(t, foundOrdering)
 	assert.True(t, foundCounters)
 	assert.True(t, foundIP)
+	assert.True(t, foundServices)
 }
 
 func TestAuthorizeSQLAccounting(t *testing.T) {
@@ -112,6 +119,7 @@ func TestAuthorizeSQLAccounting(t *testing.T) {
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/accounting-ordering/replay"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/accounting-counters"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/accounting-ip"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/accounting-services"))
 }
 
 func TestHandleAccountingOrderingReportAndReplay(t *testing.T) {
@@ -216,6 +224,46 @@ func TestHandleAccountingIPReport(t *testing.T) {
 	assert.Len(t, records, 1)
 }
 
+func TestHandleAccountingServicesReport(t *testing.T) {
+	prepareSQLAccountingAPIConfig(t)
+	_, err := db.IngestAccountingEvent(t.Context(), db.AccountingEventRecord{
+		AcctUniqueID:       "api-service-1",
+		AcctSessionID:      "api-service-child",
+		SessionKey:         "api-service-child",
+		StatusType:         "Interim-Update",
+		AcctMultiSessionID: "api-service-parent",
+		AcctLinkCount:      2,
+		EventTime:          time.Now().UTC().Format(time.RFC3339Nano),
+		Username:           "irene",
+		NASIPAddress:       "10.0.0.15",
+		NASPortID:          "15",
+		ServiceType:        "Framed-User",
+		FramedProtocol:     "PPP",
+		Class:              "service_key=data;service_leg_id=api-ppp",
+		Source:             "api-test",
+	})
+	require.NoError(t, err)
+	_, err = db.ApplyPendingAccountingEvents(t.Context(), 10)
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/accounting-services?parent_session_key=api-service-parent&limit=5", nil)
+	HandleGetAccountingServices(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	report := payload["report"].(map[string]any)
+	assert.Equal(t, "ready", report["status"])
+	summary := report["summary"].(map[string]any)
+	assert.Equal(t, float64(1), summary["correlation_rows"])
+	assert.Equal(t, float64(1), summary["acct_multi_session_rows"])
+	records := payload["records"].([]any)
+	require.Len(t, records, 1)
+	record := records[0].(map[string]any)
+	assert.Equal(t, "api-service-parent", record["parent_session_key"])
+	assert.Equal(t, "data", record["service_key"])
+}
+
 func prepareSQLAccountingAPIConfig(t *testing.T) *config.Config {
 	t.Helper()
 	require.NoError(t, db.Init(":memory:"))
@@ -266,6 +314,14 @@ radius:
     delegated_prefix_enabled: true
     reject_invalid: false
     retention_days: 365
+  accounting_services:
+    enabled: true
+    correlate_subscriber_chains: true
+    derive_from_class: true
+    derive_from_acct_multi_session_id: true
+    retain_unmatched: true
+    retention_days: 365
+    max_recent_services: 25
 `
 	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0644))
 	cfg, err := config.Load(cfgPath)

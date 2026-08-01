@@ -148,6 +148,36 @@ Stop or Accounting-Off drills close active assignment rows. Support bundles
 include `api/accounting-ip.json`; external packet captures and hardware drills
 are tracked in `nas-0038-release-certification-checklist.md`.
 
+## Multi-Service Accounting Operations
+
+Use [accounting-multi-service-correlation.md](accounting-multi-service-correlation.md)
+for NAS-0039 parent/child session correlation, service-leg evidence,
+subscriber service-chain linkage, and conflict handling. Before production
+sign-off, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/accounting-services | jq '.report.status, .report.summary'
+```
+
+During BNG, mobile, voice, VPN, or multi-link PPP investigations, filter recent
+evidence by parent session or conflict state:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  'http://127.0.0.1:8083/api/v1/system/accounting-services?parent_session_key=sess-1&limit=100' | jq '.records'
+
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  'http://127.0.0.1:8083/api/v1/system/accounting-services?status=conflict&limit=100' | jq '.records'
+```
+
+Production readiness blocks when multi-service correlation is disabled or when
+Class, Acct-Multi-Session-Id, or subscriber service-chain correlation sources
+are disabled. Conflict rows degrade readiness and should be resolved before
+production claims. Support bundles include `api/accounting-services.json`;
+external packet captures and hardware drills are tracked in
+`nas-0039-release-certification-checklist.md`.
+
 ## Admin Access Workflow
 
 Operators can now sign in with either:

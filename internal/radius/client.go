@@ -297,6 +297,20 @@ func sendAccountingDirect(ctx context.Context, cfg *config.Config, rec *Accounti
 	if err := rfc2866.AcctStatusType_Set(packet, accountingStatusType(rec.AcctStatusType)); err != nil {
 		return accountingSendResult{}, accountingBuildError{err: err}
 	}
+	if strings.TrimSpace(rec.AcctMultiSessionID) != "" {
+		if err := rfc2866.AcctMultiSessionID_SetString(packet, strings.TrimSpace(rec.AcctMultiSessionID)); err != nil {
+			return accountingSendResult{}, accountingBuildError{err: err}
+		}
+	}
+	if rec.AcctLinkCount > 0 {
+		linkCount := rec.AcctLinkCount
+		if linkCount > int64(^uint32(0)) {
+			linkCount = int64(^uint32(0))
+		}
+		if err := rfc2866.AcctLinkCount_Set(packet, rfc2866.AcctLinkCount(linkCount)); err != nil {
+			return accountingSendResult{}, accountingBuildError{err: err}
+		}
+	}
 	if err := rfc2865.NASIdentifier_SetString(packet, cfg.Radius.NASIdentifier); err != nil {
 		return accountingSendResult{}, accountingBuildError{err: err}
 	}

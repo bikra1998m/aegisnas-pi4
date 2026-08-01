@@ -344,6 +344,23 @@ mirroring. The same summary appears in `/api/v1/system/status` under
 in support bundles as `api/accounting-ip.json`. See
 [accounting-ipv6-routes.md](accounting-ipv6-routes.md).
 
+Multi-service accounting correlation is exposed at:
+
+```text
+/api/v1/system/accounting-services
+/api/v1/system/accounting-services?status=conflict&limit=100
+/api/v1/system/accounting-services?parent_session_key=sess-1&limit=100
+```
+
+Use this endpoint to review `Acct-Multi-Session-Id`, `Acct-Link-Count`,
+`Service-Type`, `Framed-Protocol`, Class-derived service metadata,
+parent/child service-leg rows, subscriber service-chain links, bearer and call
+leg counts, and conflict evidence. The same summary appears in
+`/api/v1/system/status` under `radius.accounting_services`, in production
+readiness as `radius_accounting_services`, and in support bundles as
+`api/accounting-services.json`. See
+[accounting-multi-service-correlation.md](accounting-multi-service-correlation.md).
+
 Upstream outage fallback policy is exposed at:
 
 ```text

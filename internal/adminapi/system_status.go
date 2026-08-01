@@ -154,6 +154,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	accountingOrdering := radius.BuildAccountingOrderingReport(cfg)
 	accountingCounters := radius.BuildAccountingCountersReport(cfg)
 	accountingIP := radius.BuildAccountingIPReport(cfg)
+	accountingServices := radius.BuildAccountingServicesReport(cfg)
 	fallbackPolicy := radius.BuildFallbackPolicyReport(cfg)
 	eapSummary, _ := db.SummarizeEAPMethodEvents(1000)
 	eapFramework := eappkg.BuildFrameworkReport(cfg, eapRuntimeSummaryFromDB(eapSummary))
@@ -190,6 +191,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"accounting_ordering":        accountingOrdering,
 		"accounting_counters":        accountingCounters,
 		"accounting_ip":              accountingIP,
+		"accounting_services":        accountingServices,
 		"fallback_policy":            fallbackPolicy,
 		"eap_framework":              eapFramework,
 		"eap_teap":                   teapFramework,

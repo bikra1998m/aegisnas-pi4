@@ -688,6 +688,15 @@ func TestConfigValidationRadiusSQLAccounting(t *testing.T) {
 				DelegatedPrefixEnabled: true,
 				RetentionDays:          365,
 			},
+			AccountingServices: RadiusAccountingServicesConfig{
+				Enabled:                      true,
+				CorrelateSubscriberChains:    true,
+				DeriveFromClass:              true,
+				DeriveFromAcctMultiSessionID: true,
+				RetainUnmatched:              true,
+				RetentionDays:                365,
+				MaxRecentServices:            25,
+			},
 		},
 	}
 	require.NoError(t, cfg.Validate())
@@ -750,6 +759,21 @@ func TestConfigValidationRadiusSQLAccounting(t *testing.T) {
 	badIPFamilies.Radius.AccountingIP.RouteAccountingEnabled = false
 	badIPFamilies.Radius.AccountingIP.DelegatedPrefixEnabled = false
 	assert.ErrorContains(t, badIPFamilies.Validate(), "accounting_ip requires at least one")
+
+	accountingServices := EffectiveRadiusAccountingServicesConfig(RadiusAccountingServicesConfig{Enabled: true})
+	assert.Equal(t, 365, accountingServices.RetentionDays)
+	assert.Equal(t, 25, accountingServices.MaxRecentServices)
+	assert.True(t, accountingServices.CorrelateSubscriberChains)
+	assert.True(t, accountingServices.DeriveFromClass)
+	assert.True(t, accountingServices.DeriveFromAcctMultiSessionID)
+
+	badServiceRetention := *cfg
+	badServiceRetention.Radius.AccountingServices.RetentionDays = 3651
+	assert.ErrorContains(t, badServiceRetention.Validate(), "accounting_services.retention_days")
+
+	badServiceRecent := *cfg
+	badServiceRecent.Radius.AccountingServices.MaxRecentServices = 501
+	assert.ErrorContains(t, badServiceRecent.Validate(), "accounting_services.max_recent_services")
 }
 
 func TestConfigValidationRadiusDynamicClients(t *testing.T) {
