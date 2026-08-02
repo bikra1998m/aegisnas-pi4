@@ -75,6 +75,7 @@ var runCmd = &cobra.Command{
 		go mgr.StartCleanupTask(ctx, 1*time.Minute)
 		go mgr.StartTimeoutEnforcer(ctx, 30*time.Second)
 		go radius.StartAccountingIngestSpoolReplayer(ctx, cfg)
+		go radius.StartAccountingChargingReconciler(ctx, cfg)
 		if cfg.Radius.InterimUpdateSeconds > 0 {
 			go mgr.StartInterimAccountingTask(ctx, time.Duration(cfg.Radius.InterimUpdateSeconds)*time.Second)
 		}

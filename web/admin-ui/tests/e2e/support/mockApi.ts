@@ -814,6 +814,25 @@ function createSettings() {
         poison_retention_seconds: 2592000,
         loss_slo_seconds: 300,
       },
+      accounting_charging: {
+        enabled: true,
+        rating_enabled: true,
+        export_enabled: true,
+        reconcile_interval_seconds: 300,
+        batch_size: 1000,
+        max_export_records: 5000,
+        export_format: "jsonl",
+        default_plan: "standard",
+        currency: "USD",
+        input_micros_per_gib: 250000,
+        output_micros_per_gib: 250000,
+        session_micros_per_hour: 0,
+        minimum_charge_micros: 1000,
+        open_retention_days: 90,
+        closed_retention_days: 2555,
+        export_retention_days: 2555,
+        integrity_sample_limit: 500,
+      },
       vendor: {
         enabled: true,
         name: "AegisNAS",
@@ -1089,6 +1108,65 @@ function createSystemStatus() {
           queue_utilization_percent: 0,
           last_applied_at: "2026-05-05T11:59:30Z",
         },
+      },
+      accounting_charging: {
+        schema_version: 1,
+        enabled: true,
+        status: "ready",
+        message:
+          "Charging records are reconciled, rated, and ready for export.",
+        policy: {
+          rating_enabled: true,
+          export_enabled: true,
+          reconcile_interval_seconds: 300,
+          batch_size: 1000,
+          max_export_records: 5000,
+          export_format: "jsonl",
+          default_plan: "standard",
+          currency: "USD",
+          input_micros_per_gib: 250000,
+          output_micros_per_gib: 250000,
+          session_micros_per_hour: 0,
+          minimum_charge_micros: 1000,
+          open_retention_days: 90,
+          closed_retention_days: 2555,
+          export_retention_days: 2555,
+          integrity_sample_limit: 500,
+        },
+        summary: {
+          cdr_rows: 4,
+          open_records: 1,
+          closed_records: 3,
+          rated_records: 3,
+          unrated_records: 1,
+          rating_error_records: 0,
+          pending_export_records: 1,
+          exported_records: 2,
+          export_batch_rows: 1,
+          integrity_error_rows: 0,
+          total_amount_micros: 1234567,
+          last_export_id: "cdr-export-20260505T115930Z",
+          last_export_sha256:
+            "2f35fbf62e3ca5cfcb12504371d5738dc8fe55009981f192457266630492845e",
+          last_manifest_sha256:
+            "b78255b20e51e2f3dc9d58205baf720a66d59f5bb3ab29d0942dcaac1b7124d5",
+          last_exported_at: "2026-05-05T11:59:30Z",
+        },
+        exports: [
+          {
+            export_id: "cdr-export-20260505T115930Z",
+            format: "jsonl",
+            status: "ready",
+            record_count: 2,
+            total_amount_micros: 734567,
+            currency: "USD",
+            payload_sha256:
+              "2f35fbf62e3ca5cfcb12504371d5738dc8fe55009981f192457266630492845e",
+            manifest_sha256:
+              "b78255b20e51e2f3dc9d58205baf720a66d59f5bb3ab29d0942dcaac1b7124d5",
+            created_at: "2026-05-05T11:59:30Z",
+          },
+        ],
       },
     },
     wireless: {
@@ -3950,6 +4028,71 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           expired: 0,
           summary: state.systemStatus.radius.accounting_ingest_spool.summary,
         },
+      });
+      return;
+    }
+
+    if (path === "/system/accounting-charging" && method === "GET") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          report: state.systemStatus.radius.accounting_charging,
+          records: [],
+          exports: state.systemStatus.radius.accounting_charging.exports,
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/accounting-charging/reconcile" && method === "POST") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          status: "ready",
+          message: "Charging reconciliation completed.",
+          result: {
+            scanned: 4,
+            projected: 1,
+            rated: 1,
+            errors: 0,
+            generated_at: "2026-05-05T12:00:00Z",
+          },
+          summary: state.systemStatus.radius.accounting_charging.summary,
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/accounting-charging/export" && method === "POST") {
+      await route.fulfill({
+        json: {
+          export_id: "cdr-export-20260505T120000Z",
+          status: "ready",
+          message: "Charging export created.",
+          format: "jsonl",
+          record_count: 1,
+          total_amount_micros: 500000,
+          currency: "USD",
+          payload_sha256:
+            "c7b624c5b2dbe506c286103639234ad6b2d8170fc9d09304032985b6f6eb6446",
+          manifest_sha256:
+            "6f8ea1c03691028e7acb9c16e6f73baaa702ea0f25b91982b751728b0d8ff8ed",
+          previous_manifest_sha256:
+            "b78255b20e51e2f3dc9d58205baf720a66d59f5bb3ab29d0942dcaac1b7124d5",
+          created_at: "2026-05-05T12:00:00Z",
+        },
+      });
+      return;
+    }
+
+    if (
+      path === "/system/accounting-charging/export/download" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        contentType: "application/x-ndjson",
+        body:
+          '{"cdr_id":"cdr-mock-1","status":"closed","rated_amount_micros":500000}\n',
       });
       return;
     }

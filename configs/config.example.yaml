@@ -426,6 +426,24 @@ radius:
     applied_retention_seconds: 86400
     poison_retention_seconds: 2592000
     loss_slo_seconds: 300
+  accounting_charging:
+    enabled: true
+    rating_enabled: true
+    export_enabled: true
+    reconcile_interval_seconds: 300
+    batch_size: 1000
+    max_export_records: 5000
+    export_format: jsonl # jsonl, json, or csv.
+    default_plan: standard
+    currency: USD
+    input_micros_per_gib: 0 # Set billing rates in micros of the configured currency.
+    output_micros_per_gib: 0
+    session_micros_per_hour: 0
+    minimum_charge_micros: 0
+    open_retention_days: 90
+    closed_retention_days: 2555
+    export_retention_days: 2555
+    integrity_sample_limit: 500
   vendor:
     enabled: false
     name: "AegisNAS"

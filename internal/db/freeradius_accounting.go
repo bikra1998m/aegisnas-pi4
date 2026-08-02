@@ -500,6 +500,9 @@ func applyFreeRADIUSAccountingRecord(record FreeRADIUSAccountingRecord) (freeRAD
 	if _, err := RecordAccountingServiceCorrelation(context.Background(), FreeRADIUSAccountingEventFromRecord(record)); err != nil {
 		return freeRADIUSAccountingApplyResult{}, err
 	}
+	if _, err := ProjectAccountingChargingRecord(context.Background(), FreeRADIUSAccountingEventFromRecord(record)); err != nil {
+		return freeRADIUSAccountingApplyResult{}, err
+	}
 	if err := markFreeRADIUSAccountingReconciled(record.RadAcctID, sessionID, "reconciled", "", formatAccountingTime(time.Now().UTC())); err != nil {
 		return freeRADIUSAccountingApplyResult{}, err
 	}

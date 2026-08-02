@@ -66,6 +66,7 @@ var runCmd = &cobra.Command{
 		go radius.StartAccountingSpoolReplayer(context.Background(), cfg)
 		go radius.StartAccountingIngestSpoolReplayer(context.Background(), cfg)
 		go radius.StartSQLAccountingReconciler(context.Background(), cfg)
+		go radius.StartAccountingChargingReconciler(context.Background(), cfg)
 		go func() {
 			if err := tacacs.StartServer(context.Background(), cfg, logger); err != nil {
 				logger.Error("tacacs server stopped", zap.Error(err))

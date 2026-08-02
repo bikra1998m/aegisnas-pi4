@@ -32,6 +32,8 @@ Recommended direction:
 - disable telemetry
 - disable runtime shaping
 - reduce `radius.max_sessions`
+- keep accounting charging enabled, but use small CDR batches and shorter
+  CDR/export retention
 - prefer external APs on VM builds
 - only turn on local wireless in VMs when `deployment.hardware.wireless_passthrough: true`
 - consider `radius.upstream.status_check: none`
@@ -61,6 +63,8 @@ Recommended direction:
 - runtime shaping on when needed
 - keep full AI blocked until `ailite.endpoint` and `ailite.model` are configured
 - normal upstream AAA probing
+- keep accounting charging, rating, and export enabled with moderate CDR
+  retention
 - guest self-registration is acceptable for pilot production once `portal.local_fallback`, branding, and delivery settings are in place
 - sponsor approval is acceptable when email or SMS transport is configured and tested
 - device inventory is acceptable for pilot production
@@ -86,6 +90,8 @@ Recommended direction:
 - telemetry on
 - runtime shaping on
 - larger `radius.max_sessions`
+- use larger CDR batches, longer CDR/export retention, and a larger integrity
+  verification sample for billing evidence
 - active upstream AAA probing
 - make this the default target for certificate enrollment and EAP-TLS onboarding
 - use posture checks only after MDM or compliance sources are configured and tested
@@ -139,6 +145,7 @@ The profile action updates real config fields such as:
 - `policy.runtime_shaping_enabled`
 - `radius.max_sessions`
 - `radius.interim_update_seconds`
+- `radius.accounting_charging.*`
 - `radius.upstream.status_check`
 - `portal.guest_workflows.*`
 - `onboarding.*`

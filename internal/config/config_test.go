@@ -712,6 +712,24 @@ func TestConfigValidationRadiusSQLAccounting(t *testing.T) {
 				PoisonRetentionSeconds:  2592000,
 				LossSLOSeconds:          300,
 			},
+			AccountingCharging: RadiusAccountingChargingConfig{
+				Enabled:                  true,
+				RatingEnabled:            true,
+				ExportEnabled:            true,
+				ReconcileIntervalSeconds: 300,
+				BatchSize:                1000,
+				MaxExportRecords:         5000,
+				ExportFormat:             "jsonl",
+				DefaultPlan:              "standard",
+				Currency:                 "USD",
+				InputMicrosPerGiB:        1000000,
+				OutputMicrosPerGiB:       1000000,
+				SessionMicrosPerHour:     1000000,
+				OpenRetentionDays:        90,
+				ClosedRetentionDays:      2555,
+				ExportRetentionDays:      2555,
+				IntegritySampleLimit:     500,
+			},
 		},
 	}
 	require.NoError(t, cfg.Validate())
@@ -806,6 +824,28 @@ func TestConfigValidationRadiusSQLAccounting(t *testing.T) {
 	badIngestSLO := *cfg
 	badIngestSLO.Radius.AccountingIngestSpool.LossSLOSeconds = 604801
 	assert.ErrorContains(t, badIngestSLO.Validate(), "accounting_ingest_spool.loss_slo_seconds")
+
+	charging := EffectiveRadiusAccountingChargingConfig(RadiusAccountingChargingConfig{Enabled: true, RatingEnabled: true, ExportEnabled: true})
+	assert.Equal(t, "jsonl", charging.ExportFormat)
+	assert.Equal(t, "standard", charging.DefaultPlan)
+	assert.Equal(t, "USD", charging.Currency)
+	assert.Equal(t, 5000, charging.MaxExportRecords)
+
+	badChargingFormat := *cfg
+	badChargingFormat.Radius.AccountingCharging.ExportFormat = "xml"
+	assert.ErrorContains(t, badChargingFormat.Validate(), "accounting_charging.export_format")
+
+	badChargingCurrency := *cfg
+	badChargingCurrency.Radius.AccountingCharging.Currency = "US1"
+	assert.ErrorContains(t, badChargingCurrency.Validate(), "accounting_charging.currency")
+
+	badChargingRate := *cfg
+	badChargingRate.Radius.AccountingCharging.InputMicrosPerGiB = -1
+	assert.ErrorContains(t, badChargingRate.Validate(), "accounting_charging.input_micros_per_gib")
+
+	badChargingExportLimit := *cfg
+	badChargingExportLimit.Radius.AccountingCharging.MaxExportRecords = 100001
+	assert.ErrorContains(t, badChargingExportLimit.Validate(), "accounting_charging.max_export_records")
 }
 
 func TestConfigValidationRadiusDynamicClients(t *testing.T) {

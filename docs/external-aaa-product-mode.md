@@ -122,6 +122,7 @@ When `radius.upstream.enabled: true`:
 - 64-bit accounting counters and gigaword rollover are available through `/api/v1/system/accounting-counters`; AegisNAS normalizes `Acct-Input-Octets`, `Acct-Input-Gigawords`, `Acct-Output-Octets`, and `Acct-Output-Gigawords` into durable 64-bit totals and records reset/overflow evidence
 - IPv6, delegated-prefix, and route accounting is available through `/api/v1/system/accounting-ip`; AegisNAS normalizes `Framed-IPv6-Address`, `Framed-IPv6-Prefix`, `Delegated-IPv6-Prefix`, `Framed-Route`, and `Framed-IPv6-Route` into durable assignment evidence
 - multi-service accounting correlation is available through `/api/v1/system/accounting-services`; AegisNAS preserves `Acct-Multi-Session-Id`, `Acct-Link-Count`, `Service-Type`, `Framed-Protocol`, and Class metadata to correlate parent sessions, child service legs, bearer legs, call legs, VPN legs, and subscriber service-chain accounting
+- charging records, rating, retention, and export integrity are available through `/api/v1/system/accounting-charging`; AegisNAS projects applied accounting events into CDRs, rates closed records, marks late corrections for re-export, preserves hashed identities, and exports JSON Lines, JSON, or CSV batches with payload and manifest SHA-256 evidence
 - the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
 - the vendor reply preview can render vendor-neutral ACL intent into `NAS-Filter-Rule`, Cisco `Cisco-AVPair`, Aruba filter rules, MikroTik address-list hints, and AegisNAS ACL VSAs
 - MAB endpoints can be approved, denied, quarantined, expired, or left pending; approved and quarantined endpoints render MAC variants into FreeRADIUS `files/authorize`
@@ -810,6 +811,9 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/accounting-services | jq '.report.summary'
+
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/accounting-charging | jq '.report.summary'
 ```
 
 Duplicate packet retries should increase `duplicate_events` without increasing
@@ -822,6 +826,9 @@ subscriber tests should increase accounting-IP address, prefix, or route rows.
 Multi-service tests should increase `correlation_rows`, expected service
 categories, and `linked_subscriber_services` when subscriber service chains are
 active; `conflict_correlations` should remain zero outside controlled drills.
+Charging tests should increase `cdr_rows`, rate closed records, keep
+`integrity_error_rows` at zero, and produce export batches with recorded
+payload and manifest SHA-256 values.
 
 ### 12. Test Dynamic Authorization
 

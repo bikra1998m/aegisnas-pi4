@@ -213,6 +213,52 @@ production claims. Support bundles include `api/accounting-services.json`;
 external packet captures and hardware drills are tracked in
 `nas-0039-release-certification-checklist.md`.
 
+## Accounting Charging Operations
+
+Use
+[accounting-charging-rating-export.md](accounting-charging-rating-export.md) for
+NAS-0041 CDR projection, deterministic rating, retention, export integrity, and
+hash-chain behavior. Before production sign-off, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/accounting-charging | jq '.report.status, .report.summary'
+```
+
+Run bounded reconciliation after SQL imports, ingest-spool replay, failover
+drills, or packet-capture replay:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"batch_size":1000}' \
+  http://127.0.0.1:8083/api/v1/system/accounting-charging/reconcile | jq '.status, .result, .summary'
+```
+
+Export pending closed and rated CDRs for billing or mediation handoff:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"format":"jsonl","limit":5000}' \
+  http://127.0.0.1:8083/api/v1/system/accounting-charging/export | jq '.export_id, .record_count, .payload_sha256, .manifest_sha256'
+```
+
+Download an export payload when downstream systems need the batch body:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  'http://127.0.0.1:8083/api/v1/system/accounting-charging/export/download?export_id=<export-id>' \
+  -o aegisnas-cdr-export.jsonl
+```
+
+Production readiness blocks when charging, rating, or export is disabled.
+Rating errors and integrity mismatches degrade readiness and should be resolved
+before billing claims. Support bundles include `api/accounting-charging.json`;
+external billing mediation, packet captures, hardware drills, HA failover,
+performance, soak, and security validation are tracked in
+`nas-0041-release-certification-checklist.md`.
+
 ## Admin Access Workflow
 
 Operators can now sign in with either:

@@ -346,6 +346,60 @@ type AccountingIngestSpoolReport = {
   warnings?: string[];
 };
 
+type AccountingChargingReport = {
+  schema_version: number;
+  enabled: boolean;
+  status: string;
+  message: string;
+  policy: {
+    rating_enabled: boolean;
+    export_enabled: boolean;
+    reconcile_interval_seconds: number;
+    batch_size: number;
+    max_export_records: number;
+    export_format: string;
+    default_plan: string;
+    currency: string;
+    input_micros_per_gib: number;
+    output_micros_per_gib: number;
+    session_micros_per_hour: number;
+    minimum_charge_micros: number;
+    open_retention_days: number;
+    closed_retention_days: number;
+    export_retention_days: number;
+    integrity_sample_limit: number;
+  };
+  summary: {
+    cdr_rows: number;
+    open_records: number;
+    closed_records: number;
+    rated_records: number;
+    unrated_records: number;
+    rating_error_records: number;
+    pending_export_records: number;
+    exported_records: number;
+    export_batch_rows: number;
+    integrity_error_rows: number;
+    total_amount_micros: number;
+    last_export_id?: string;
+    last_export_sha256?: string;
+    last_manifest_sha256?: string;
+    last_error?: string;
+    last_event_at?: string;
+    last_exported_at?: string;
+  };
+  exports?: Array<{
+    export_id: string;
+    format: string;
+    status: string;
+    record_count: number;
+    payload_sha256: string;
+    manifest_sha256: string;
+    created_at: string;
+  }>;
+  warnings?: string[];
+};
+
 type AccountingOrderingReport = {
   schema_version: number;
   enabled: boolean;
@@ -1359,6 +1413,25 @@ const defaultSettings: JsonMap = {
       poison_retention_seconds: 2592000,
       loss_slo_seconds: 300,
     },
+    accounting_charging: {
+      enabled: true,
+      rating_enabled: true,
+      export_enabled: true,
+      reconcile_interval_seconds: 300,
+      batch_size: 1000,
+      max_export_records: 5000,
+      export_format: "jsonl",
+      default_plan: "standard",
+      currency: "USD",
+      input_micros_per_gib: 0,
+      output_micros_per_gib: 0,
+      session_micros_per_hour: 0,
+      minimum_charge_micros: 0,
+      open_retention_days: 90,
+      closed_retention_days: 2555,
+      export_retention_days: 2555,
+      integrity_sample_limit: 500,
+    },
     accounting_ordering: {
       enabled: true,
       replay_enabled: true,
@@ -1800,6 +1873,7 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.radius.sql_accounting = next.radius.sql_accounting || {};
   next.radius.accounting_ingest_spool =
     next.radius.accounting_ingest_spool || {};
+  next.radius.accounting_charging = next.radius.accounting_charging || {};
   next.radius.accounting_ordering = next.radius.accounting_ordering || {};
   next.radius.accounting_counters = next.radius.accounting_counters || {};
   next.radius.accounting_ip = next.radius.accounting_ip || {};
@@ -1842,6 +1916,29 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.accounting_ingest_spool.applied_retention_seconds = 86400;
     next.radius.accounting_ingest_spool.poison_retention_seconds = 604800;
     next.radius.accounting_ingest_spool.loss_slo_seconds = 600;
+    next.radius.accounting_charging.enabled = true;
+    next.radius.accounting_charging.rating_enabled = true;
+    next.radius.accounting_charging.export_enabled = true;
+    next.radius.accounting_charging.reconcile_interval_seconds = 600;
+    next.radius.accounting_charging.batch_size = 100;
+    next.radius.accounting_charging.max_export_records = 500;
+    next.radius.accounting_charging.export_format = "jsonl";
+    next.radius.accounting_charging.default_plan =
+      next.radius.accounting_charging.default_plan || "standard";
+    next.radius.accounting_charging.currency =
+      next.radius.accounting_charging.currency || "USD";
+    next.radius.accounting_charging.input_micros_per_gib =
+      next.radius.accounting_charging.input_micros_per_gib || 0;
+    next.radius.accounting_charging.output_micros_per_gib =
+      next.radius.accounting_charging.output_micros_per_gib || 0;
+    next.radius.accounting_charging.session_micros_per_hour =
+      next.radius.accounting_charging.session_micros_per_hour || 0;
+    next.radius.accounting_charging.minimum_charge_micros =
+      next.radius.accounting_charging.minimum_charge_micros || 0;
+    next.radius.accounting_charging.open_retention_days = 30;
+    next.radius.accounting_charging.closed_retention_days = 365;
+    next.radius.accounting_charging.export_retention_days = 365;
+    next.radius.accounting_charging.integrity_sample_limit = 100;
     next.radius.accounting_ordering.enabled = true;
     next.radius.accounting_ordering.replay_enabled = true;
     next.radius.accounting_ordering.sequence_window_seconds = 600;
@@ -1959,6 +2056,37 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.accounting_ingest_spool.poison_retention_seconds || 2592000;
     next.radius.accounting_ingest_spool.loss_slo_seconds =
       next.radius.accounting_ingest_spool.loss_slo_seconds || 120;
+    next.radius.accounting_charging.enabled = true;
+    next.radius.accounting_charging.rating_enabled = true;
+    next.radius.accounting_charging.export_enabled = true;
+    next.radius.accounting_charging.reconcile_interval_seconds =
+      next.radius.accounting_charging.reconcile_interval_seconds || 120;
+    next.radius.accounting_charging.batch_size =
+      next.radius.accounting_charging.batch_size || 5000;
+    next.radius.accounting_charging.max_export_records =
+      next.radius.accounting_charging.max_export_records || 25000;
+    next.radius.accounting_charging.export_format =
+      next.radius.accounting_charging.export_format || "jsonl";
+    next.radius.accounting_charging.default_plan =
+      next.radius.accounting_charging.default_plan || "standard";
+    next.radius.accounting_charging.currency =
+      next.radius.accounting_charging.currency || "USD";
+    next.radius.accounting_charging.input_micros_per_gib =
+      next.radius.accounting_charging.input_micros_per_gib || 0;
+    next.radius.accounting_charging.output_micros_per_gib =
+      next.radius.accounting_charging.output_micros_per_gib || 0;
+    next.radius.accounting_charging.session_micros_per_hour =
+      next.radius.accounting_charging.session_micros_per_hour || 0;
+    next.radius.accounting_charging.minimum_charge_micros =
+      next.radius.accounting_charging.minimum_charge_micros || 0;
+    next.radius.accounting_charging.open_retention_days =
+      next.radius.accounting_charging.open_retention_days || 180;
+    next.radius.accounting_charging.closed_retention_days =
+      next.radius.accounting_charging.closed_retention_days || 2555;
+    next.radius.accounting_charging.export_retention_days =
+      next.radius.accounting_charging.export_retention_days || 2555;
+    next.radius.accounting_charging.integrity_sample_limit =
+      next.radius.accounting_charging.integrity_sample_limit || 2000;
     next.radius.accounting_ordering.enabled = true;
     next.radius.accounting_ordering.replay_enabled = true;
     next.radius.accounting_ordering.sequence_window_seconds =
@@ -2084,6 +2212,40 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.accounting_ingest_spool.poison_retention_seconds || 2592000;
     next.radius.accounting_ingest_spool.loss_slo_seconds =
       next.radius.accounting_ingest_spool.loss_slo_seconds || 300;
+    next.radius.accounting_charging.enabled =
+      next.radius.accounting_charging.enabled ?? true;
+    next.radius.accounting_charging.rating_enabled =
+      next.radius.accounting_charging.rating_enabled ?? true;
+    next.radius.accounting_charging.export_enabled =
+      next.radius.accounting_charging.export_enabled ?? true;
+    next.radius.accounting_charging.reconcile_interval_seconds =
+      next.radius.accounting_charging.reconcile_interval_seconds || 300;
+    next.radius.accounting_charging.batch_size =
+      next.radius.accounting_charging.batch_size || 1000;
+    next.radius.accounting_charging.max_export_records =
+      next.radius.accounting_charging.max_export_records || 5000;
+    next.radius.accounting_charging.export_format =
+      next.radius.accounting_charging.export_format || "jsonl";
+    next.radius.accounting_charging.default_plan =
+      next.radius.accounting_charging.default_plan || "standard";
+    next.radius.accounting_charging.currency =
+      next.radius.accounting_charging.currency || "USD";
+    next.radius.accounting_charging.input_micros_per_gib =
+      next.radius.accounting_charging.input_micros_per_gib || 0;
+    next.radius.accounting_charging.output_micros_per_gib =
+      next.radius.accounting_charging.output_micros_per_gib || 0;
+    next.radius.accounting_charging.session_micros_per_hour =
+      next.radius.accounting_charging.session_micros_per_hour || 0;
+    next.radius.accounting_charging.minimum_charge_micros =
+      next.radius.accounting_charging.minimum_charge_micros || 0;
+    next.radius.accounting_charging.open_retention_days =
+      next.radius.accounting_charging.open_retention_days || 90;
+    next.radius.accounting_charging.closed_retention_days =
+      next.radius.accounting_charging.closed_retention_days || 2555;
+    next.radius.accounting_charging.export_retention_days =
+      next.radius.accounting_charging.export_retention_days || 2555;
+    next.radius.accounting_charging.integrity_sample_limit =
+      next.radius.accounting_charging.integrity_sample_limit || 500;
     next.radius.accounting_ordering.enabled =
       next.radius.accounting_ordering.enabled ?? true;
     next.radius.accounting_ordering.replay_enabled =
@@ -2170,6 +2332,37 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.accounting_ingest_spool.poison_retention_seconds || 2592000;
     next.radius.accounting_ingest_spool.loss_slo_seconds =
       next.radius.accounting_ingest_spool.loss_slo_seconds || 300;
+    next.radius.accounting_charging.enabled = true;
+    next.radius.accounting_charging.rating_enabled = true;
+    next.radius.accounting_charging.export_enabled = true;
+    next.radius.accounting_charging.reconcile_interval_seconds =
+      next.radius.accounting_charging.reconcile_interval_seconds || 300;
+    next.radius.accounting_charging.batch_size =
+      next.radius.accounting_charging.batch_size || 1000;
+    next.radius.accounting_charging.max_export_records =
+      next.radius.accounting_charging.max_export_records || 5000;
+    next.radius.accounting_charging.export_format =
+      next.radius.accounting_charging.export_format || "jsonl";
+    next.radius.accounting_charging.default_plan =
+      next.radius.accounting_charging.default_plan || "standard";
+    next.radius.accounting_charging.currency =
+      next.radius.accounting_charging.currency || "USD";
+    next.radius.accounting_charging.input_micros_per_gib =
+      next.radius.accounting_charging.input_micros_per_gib || 0;
+    next.radius.accounting_charging.output_micros_per_gib =
+      next.radius.accounting_charging.output_micros_per_gib || 0;
+    next.radius.accounting_charging.session_micros_per_hour =
+      next.radius.accounting_charging.session_micros_per_hour || 0;
+    next.radius.accounting_charging.minimum_charge_micros =
+      next.radius.accounting_charging.minimum_charge_micros || 0;
+    next.radius.accounting_charging.open_retention_days =
+      next.radius.accounting_charging.open_retention_days || 90;
+    next.radius.accounting_charging.closed_retention_days =
+      next.radius.accounting_charging.closed_retention_days || 2555;
+    next.radius.accounting_charging.export_retention_days =
+      next.radius.accounting_charging.export_retention_days || 2555;
+    next.radius.accounting_charging.integrity_sample_limit =
+      next.radius.accounting_charging.integrity_sample_limit || 500;
     next.radius.accounting_ordering.enabled = true;
     next.radius.accounting_ordering.replay_enabled = true;
     next.radius.accounting_ordering.sequence_window_seconds =
@@ -2262,6 +2455,11 @@ function csvToList(value: string) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function formatMicros(value: number | undefined, currency = "USD") {
+  const amount = (value || 0) / 1_000_000;
+  return `${currency} ${amount.toFixed(6)}`;
 }
 
 function mapToLines(value: any) {
@@ -2409,6 +2607,8 @@ export default function AccessSettings() {
     useState<SQLAccountingReport | null>(null);
   const [accountingIngestSpoolReport, setAccountingIngestSpoolReport] =
     useState<AccountingIngestSpoolReport | null>(null);
+  const [accountingChargingReport, setAccountingChargingReport] =
+    useState<AccountingChargingReport | null>(null);
   const [accountingOrderingReport, setAccountingOrderingReport] =
     useState<AccountingOrderingReport | null>(null);
   const [accountingCountersReport, setAccountingCountersReport] =
@@ -2422,6 +2622,10 @@ export default function AccessSettings() {
   const [reconcilingSQLAccounting, setReconcilingSQLAccounting] =
     useState(false);
   const [replayingAccountingIngestSpool, setReplayingAccountingIngestSpool] =
+    useState(false);
+  const [reconcilingAccountingCharging, setReconcilingAccountingCharging] =
+    useState(false);
+  const [exportingAccountingCharging, setExportingAccountingCharging] =
     useState(false);
   const [replayingAccountingOrdering, setReplayingAccountingOrdering] =
     useState(false);
@@ -2623,6 +2827,21 @@ export default function AccessSettings() {
     }
   };
 
+  const loadAccountingChargingReport = async () => {
+    try {
+      const { data } = await api.get("/system/accounting-charging", {
+        params: { limit: 5 },
+      });
+      setAccountingChargingReport(data?.report || null);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load accounting charging state.",
+      );
+    }
+  };
+
   const loadAccountingOrderingReport = async () => {
     try {
       const { data } = await api.get("/system/accounting-ordering", {
@@ -2711,6 +2930,7 @@ export default function AccessSettings() {
       await loadTACACSReport();
       await loadSQLAccountingReport();
       await loadAccountingIngestSpoolReport();
+      await loadAccountingChargingReport();
       await loadAccountingOrderingReport();
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
@@ -2796,6 +3016,7 @@ export default function AccessSettings() {
       await loadTACACSReport();
       await loadSQLAccountingReport();
       await loadAccountingIngestSpoolReport();
+      await loadAccountingChargingReport();
       await loadAccountingOrderingReport();
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
@@ -3035,6 +3256,7 @@ export default function AccessSettings() {
       );
       await loadSQLAccountingReport();
       await loadAccountingIngestSpoolReport();
+      await loadAccountingChargingReport();
       await loadAccountingOrderingReport();
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
@@ -3063,6 +3285,7 @@ export default function AccessSettings() {
       );
       await loadAccountingIngestSpoolReport();
       await loadSQLAccountingReport();
+      await loadAccountingChargingReport();
       await loadAccountingOrderingReport();
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
@@ -3075,6 +3298,60 @@ export default function AccessSettings() {
       );
     } finally {
       setReplayingAccountingIngestSpool(false);
+    }
+  };
+
+  const reconcileAccountingCharging = async () => {
+    setReconcilingAccountingCharging(true);
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/accounting-charging/reconcile", {
+        batch_size: settings.radius?.accounting_charging?.batch_size || 1000,
+      });
+      setMessage(
+        `Charging reconciliation projected ${data.result?.projected || 0} CDR(s), rated ${data.result?.rated || 0}, and found ${data.summary?.integrity_error_rows || 0} integrity issue(s).`,
+      );
+      await loadAccountingChargingReport();
+      await loadAccountingOrderingReport();
+      await loadAccountingCountersReport();
+      await loadAccountingIPReport();
+      await loadAccountingServicesReport();
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not reconcile charging records.",
+      );
+    } finally {
+      setReconcilingAccountingCharging(false);
+    }
+  };
+
+  const exportAccountingCharging = async () => {
+    setExportingAccountingCharging(true);
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/accounting-charging/export", {
+        format: settings.radius?.accounting_charging?.export_format || "jsonl",
+        limit: settings.radius?.accounting_charging?.max_export_records || 5000,
+      });
+      const hashSuffix = data.payload_sha256
+        ? ` Payload ${String(data.payload_sha256).slice(0, 12)}...`
+        : "";
+      setMessage(
+        `Charging export ${data.export_id || "batch"} captured ${data.record_count || 0} CDR(s) in ${data.format || "jsonl"} format.${hashSuffix}`,
+      );
+      await loadAccountingChargingReport();
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not export charging records.",
+      );
+    } finally {
+      setExportingAccountingCharging(false);
     }
   };
 
@@ -3092,6 +3369,7 @@ export default function AccessSettings() {
       await loadAccountingOrderingReport();
       await loadAccountingIngestSpoolReport();
       await loadSQLAccountingReport();
+      await loadAccountingChargingReport();
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
       await loadAccountingServicesReport();
@@ -15199,6 +15477,391 @@ export default function AccessSettings() {
                 <li key={warning}>{warning}</li>
               ))}
             </ul>
+          )}
+        </div>
+        <div className="mt-4">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Charging Records
+              </h4>
+              <p className="mt-1 text-xs text-gray-500">
+                Build billing-safe CDRs from accounting events, rate closed
+                records, retain evidence, and export hash-verified batches.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={loadAccountingChargingReport}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+              >
+                Refresh Charging
+              </button>
+              <button
+                type="button"
+                onClick={reconcileAccountingCharging}
+                disabled={reconcilingAccountingCharging}
+                className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {reconcilingAccountingCharging
+                  ? "Reconciling..."
+                  : "Reconcile CDRs"}
+              </button>
+              <button
+                type="button"
+                onClick={exportAccountingCharging}
+                disabled={exportingAccountingCharging}
+                className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {exportingAccountingCharging ? "Exporting..." : "Export CDRs"}
+              </button>
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Charging Engine"
+              checked={settings.radius?.accounting_charging?.enabled !== false}
+              onChange={(value) =>
+                updateField(["radius", "accounting_charging", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Rating"
+              checked={
+                settings.radius?.accounting_charging?.rating_enabled !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "rating_enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Export"
+              checked={
+                settings.radius?.accounting_charging?.export_enabled !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "export_enabled"],
+                  value,
+                )
+              }
+            />
+            <SelectField
+              label="Export Format"
+              value={settings.radius?.accounting_charging?.export_format || "jsonl"}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "export_format"],
+                  value,
+                )
+              }
+              options={[
+                { value: "jsonl", label: "JSON Lines" },
+                { value: "json", label: "JSON" },
+                { value: "csv", label: "CSV" },
+              ]}
+            />
+            <TextField
+              label="Reconcile Interval (s)"
+              type="number"
+              value={
+                settings.radius?.accounting_charging
+                  ?.reconcile_interval_seconds || 300
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "accounting_charging",
+                    "reconcile_interval_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Reconcile Batch"
+              type="number"
+              value={settings.radius?.accounting_charging?.batch_size || 1000}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "batch_size"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Export Limit"
+              type="number"
+              value={
+                settings.radius?.accounting_charging?.max_export_records || 5000
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "max_export_records"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Default Plan"
+              value={
+                settings.radius?.accounting_charging?.default_plan || "standard"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "default_plan"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Currency"
+              value={settings.radius?.accounting_charging?.currency || "USD"}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "currency"],
+                  value.toUpperCase(),
+                )
+              }
+            />
+            <TextField
+              label="Input Micros / GiB"
+              type="number"
+              value={
+                settings.radius?.accounting_charging?.input_micros_per_gib || 0
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "input_micros_per_gib"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Output Micros / GiB"
+              type="number"
+              value={
+                settings.radius?.accounting_charging?.output_micros_per_gib || 0
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "output_micros_per_gib"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Session Micros / Hour"
+              type="number"
+              value={
+                settings.radius?.accounting_charging
+                  ?.session_micros_per_hour || 0
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "session_micros_per_hour"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Minimum Micros"
+              type="number"
+              value={
+                settings.radius?.accounting_charging?.minimum_charge_micros || 0
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "minimum_charge_micros"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Open Retention (d)"
+              type="number"
+              value={
+                settings.radius?.accounting_charging?.open_retention_days || 90
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "open_retention_days"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Closed Retention (d)"
+              type="number"
+              value={
+                settings.radius?.accounting_charging?.closed_retention_days ||
+                2555
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "closed_retention_days"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Export Retention (d)"
+              type="number"
+              value={
+                settings.radius?.accounting_charging?.export_retention_days ||
+                2555
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "export_retention_days"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Integrity Sample"
+              type="number"
+              value={
+                settings.radius?.accounting_charging?.integrity_sample_limit ||
+                500
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_charging", "integrity_sample_limit"],
+                  Number(value),
+                )
+              }
+            />
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-5">
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Status
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingChargingReport?.status || "unknown"}
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                CDRs
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingChargingReport?.summary?.cdr_rows || 0} total,{" "}
+                {accountingChargingReport?.summary?.closed_records || 0} closed
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Rating
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingChargingReport?.summary?.rated_records || 0} rated,{" "}
+                {accountingChargingReport?.summary?.unrated_records || 0} open
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Export
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingChargingReport?.summary?.pending_export_records || 0}{" "}
+                pending,{" "}
+                {accountingChargingReport?.summary?.export_batch_rows || 0} batch
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Amount
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {formatMicros(
+                  accountingChargingReport?.summary?.total_amount_micros,
+                  accountingChargingReport?.policy?.currency || "USD",
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Integrity
+              </div>
+              <div className="mt-1 break-all text-sm font-semibold text-gray-900">
+                {accountingChargingReport?.summary?.integrity_error_rows || 0}{" "}
+                error(s)
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Last Export
+              </div>
+              <div className="mt-1 break-all text-sm font-semibold text-gray-900">
+                {accountingChargingReport?.summary?.last_export_id || "none"}
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Payload SHA
+              </div>
+              <div className="mt-1 break-all text-sm font-semibold text-gray-900">
+                {accountingChargingReport?.summary?.last_export_sha256 ||
+                  "none"}
+              </div>
+            </div>
+          </div>
+          {accountingChargingReport?.message && (
+            <p className="mt-2 text-xs text-gray-500">
+              {accountingChargingReport.message}
+            </p>
+          )}
+          {(accountingChargingReport?.warnings || []).length > 0 && (
+            <ul className="mt-2 space-y-1 text-xs text-amber-700">
+              {(accountingChargingReport?.warnings || []).map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          )}
+          {(accountingChargingReport?.exports || []).length > 0 && (
+            <div className="mt-3 overflow-x-auto rounded-md border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
+                  <tr>
+                    <th className="px-3 py-2">Export</th>
+                    <th className="px-3 py-2">Format</th>
+                    <th className="px-3 py-2">Records</th>
+                    <th className="px-3 py-2">Manifest SHA</th>
+                    <th className="px-3 py-2">Created</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {(accountingChargingReport?.exports || []).map((item) => (
+                    <tr key={item.export_id}>
+                      <td className="break-all px-3 py-2 font-medium text-gray-900">
+                        {item.export_id}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.format}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.record_count}
+                      </td>
+                      <td className="break-all px-3 py-2 text-gray-700">
+                        {item.manifest_sha256}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.created_at || "unknown"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
         <div className="mt-4">

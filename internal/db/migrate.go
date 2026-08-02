@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 45
+	return 46
 }
 
 func Migrate() error {
@@ -2362,3 +2362,106 @@ CREATE INDEX IF NOT EXISTS idx_radius_accounting_ingest_spool_attempts_spool ON 
 `
 
 const schemaV45 = accountingIngestSpoolSQL
+
+const accountingChargingSQL = `
+CREATE TABLE IF NOT EXISTS radius_accounting_charging_records (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	cdr_id TEXT UNIQUE NOT NULL,
+	status TEXT NOT NULL DEFAULT 'open',
+	rating_status TEXT NOT NULL DEFAULT 'unrated',
+	export_status TEXT NOT NULL DEFAULT 'pending',
+	revision INTEGER NOT NULL DEFAULT 1,
+	session_key TEXT NOT NULL,
+	correlation_id TEXT,
+	acct_unique_id TEXT,
+	acct_session_id TEXT,
+	acct_multi_session_id TEXT,
+	service_key TEXT NOT NULL DEFAULT 'primary',
+	service_category TEXT NOT NULL DEFAULT 'primary',
+	service_leg_id TEXT NOT NULL DEFAULT 'primary',
+	bearer_id TEXT,
+	call_id TEXT,
+	roaming_id TEXT,
+	username_hash TEXT,
+	calling_station_hash TEXT,
+	realm TEXT,
+	nas_ip_address TEXT,
+	nas_port_id TEXT,
+	framed_ip_address TEXT,
+	framed_ipv6_address TEXT,
+	framed_ipv6_prefix TEXT,
+	delegated_ipv6_prefix TEXT,
+	framed_route TEXT,
+	framed_ipv6_route TEXT,
+	first_event_id TEXT NOT NULL,
+	last_event_id TEXT NOT NULL,
+	start_time DATETIME NOT NULL,
+	last_event_time DATETIME NOT NULL,
+	stop_time DATETIME,
+	duration_seconds INTEGER NOT NULL DEFAULT 0,
+	input_octets_64 TEXT NOT NULL DEFAULT '0',
+	output_octets_64 TEXT NOT NULL DEFAULT '0',
+	total_octets_64 TEXT NOT NULL DEFAULT '0',
+	rating_plan TEXT NOT NULL DEFAULT 'standard',
+	currency TEXT NOT NULL DEFAULT 'USD',
+	input_micros_per_gib INTEGER NOT NULL DEFAULT 0,
+	output_micros_per_gib INTEGER NOT NULL DEFAULT 0,
+	session_micros_per_hour INTEGER NOT NULL DEFAULT 0,
+	minimum_charge_micros INTEGER NOT NULL DEFAULT 0,
+	rated_amount_micros INTEGER NOT NULL DEFAULT 0,
+	chargeable_units_json TEXT NOT NULL DEFAULT '{}',
+	export_batch_id TEXT,
+	export_sha256 TEXT,
+	exported_at DATETIME,
+	integrity_sha256 TEXT NOT NULL,
+	last_error TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('open', 'closed', 'expired')),
+	CHECK (rating_status IN ('unrated', 'rated', 'error')),
+	CHECK (export_status IN ('pending', 'exported', 'suppressed'))
+);
+
+CREATE TABLE IF NOT EXISTS radius_accounting_charging_exports (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	export_id TEXT UNIQUE NOT NULL,
+	format TEXT NOT NULL,
+	status TEXT NOT NULL DEFAULT 'complete',
+	record_count INTEGER NOT NULL DEFAULT 0,
+	total_amount_micros INTEGER NOT NULL DEFAULT 0,
+	currency TEXT NOT NULL DEFAULT 'USD',
+	payload TEXT NOT NULL,
+	payload_sha256 TEXT NOT NULL,
+	manifest_sha256 TEXT NOT NULL,
+	previous_manifest_sha256 TEXT,
+	first_cdr_id TEXT,
+	last_cdr_id TEXT,
+	created_by TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (format IN ('jsonl', 'json', 'csv')),
+	CHECK (status IN ('complete', 'empty', 'error'))
+);
+
+CREATE TABLE IF NOT EXISTS radius_accounting_charging_export_records (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	export_id TEXT NOT NULL,
+	cdr_id TEXT NOT NULL,
+	record_integrity_sha256 TEXT NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE(export_id, cdr_id),
+	FOREIGN KEY(export_id) REFERENCES radius_accounting_charging_exports(export_id),
+	FOREIGN KEY(cdr_id) REFERENCES radius_accounting_charging_records(cdr_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_charging_records_status ON radius_accounting_charging_records(status, rating_status, export_status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_charging_records_session ON radius_accounting_charging_records(session_key, service_key, service_leg_id);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_charging_records_correlation ON radius_accounting_charging_records(correlation_id, last_event_time);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_charging_records_export ON radius_accounting_charging_records(export_status, rating_status, status, last_event_time);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_charging_records_service ON radius_accounting_charging_records(service_key, service_category, last_event_time);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_charging_records_nas ON radius_accounting_charging_records(nas_ip_address, last_event_time);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_charging_exports_created ON radius_accounting_charging_exports(created_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_charging_export_records_export ON radius_accounting_charging_export_records(export_id, cdr_id);
+`
+
+const schemaV46 = accountingChargingSQL

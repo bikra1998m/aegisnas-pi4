@@ -123,6 +123,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionProxyPolicyCheck(&report, cfg)
 	addProductionAccountingSpoolCheck(&report, cfg)
 	addProductionAccountingIngestSpoolCheck(&report, cfg)
+	addProductionAccountingChargingCheck(&report, cfg)
 	addProductionSQLAccountingCheck(&report, cfg)
 	addProductionAccountingOrderingCheck(&report, cfg)
 	addProductionAccountingCountersCheck(&report, cfg)
@@ -393,6 +394,40 @@ func addProductionAccountingIngestSpoolCheck(report *productionReadinessReport, 
 			spool.Summary.LossSLOBreachCount, spool.Summary.QueueUtilization),
 		Recommendation: "Keep radius.accounting_ingest_spool enabled with replay enabled, monitor /api/v1/system/accounting-ingest-spool, and complete the NAS-0040 release certification replay, failover, and outage drills.",
 		Dependencies:   []string{"radius.accounting_ingest_spool", "/api/v1/system/accounting-ingest-spool", "/api/v1/system/accounting-ingest-spool/replay", "radius_accounting_ingest_spool", "radius_accounting_ingest_spool_attempts", "radius_accounting_events"},
+	})
+}
+
+func addProductionAccountingChargingCheck(report *productionReadinessReport, cfg *config.Config) {
+	charging := radius.BuildAccountingChargingReport(cfg)
+	status := "passed"
+	switch charging.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "blocked"
+	}
+	if !charging.Enabled || !charging.Policy.RatingEnabled || !charging.Policy.ExportEnabled ||
+		charging.Policy.BatchSize <= 0 || charging.Policy.MaxExportRecords <= 0 ||
+		charging.Policy.IntegritySampleLimit <= 0 {
+		status = "blocked"
+	}
+	if charging.Summary.RatingErrorRecords > 0 || charging.Summary.IntegrityErrorRows > 0 {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_accounting_charging",
+		Category: "radius",
+		Label:    "Charging Records, Rating, And Export Integrity",
+		Status:   status,
+		Summary: fmt.Sprintf("Charging schema %d is %s with %d CDR(s), %d closed, %d unrated, %d pending export, %d export batch(es), %d rating error(s), and %d integrity error(s).",
+			charging.SchemaVersion, charging.Status, charging.Summary.CDRRows,
+			charging.Summary.ClosedRecords, charging.Summary.UnratedRecords,
+			charging.Summary.PendingExportRecords, charging.Summary.ExportBatchRows,
+			charging.Summary.RatingErrorRecords, charging.Summary.IntegrityErrorRows),
+		Recommendation: "Keep radius.accounting_charging enabled with rating and export enabled, reconcile CDRs, verify hash-chain exports, and complete the NAS-0041 release certification billing, packet-capture, and soak checklist before production claims.",
+		Dependencies:   []string{"radius.accounting_charging", "/api/v1/system/accounting-charging", "/api/v1/system/accounting-charging/reconcile", "/api/v1/system/accounting-charging/export", "radius_accounting_charging_records", "radius_accounting_charging_exports", "radius_accounting_charging_export_records"},
 	})
 }
 

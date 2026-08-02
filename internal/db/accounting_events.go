@@ -599,6 +599,9 @@ func applyAccountingEventRecord(ctx context.Context, event AccountingEventRecord
 			return accountingApplyRowResult{}, err
 		}
 	}
+	if _, err := ProjectAccountingChargingRecord(ctx, event); err != nil {
+		return accountingApplyRowResult{}, err
+	}
 	radacct := freeRADIUSRecordFromAccountingEvent(event, after)
 	radacct.AegisReconcileStatus = "reconciled"
 	radacct.AegisReconciledAt = formatAccountingTime(time.Now().UTC())

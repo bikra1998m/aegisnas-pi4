@@ -1229,6 +1229,27 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/accounting-ingest-spool/replay", "post", securedOperationWithBody("Replay due local accounting ingest records", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional batch_size override bounded by policy."), map[string]any{
 		"200": responseJSON("Replay run result with claimed, applied, failed, poisoned, expired, and queue summary counts."),
 	}))
+	addOperation(paths, "/api/v1/system/accounting-charging", "get", securedOperationWithParameters("Read charging, rating, and export integrity state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("status", "Optional CDR status filter.", []string{"open", "closed", "expired"}, false),
+		queryEnumParameter("rating_status", "Optional rating status filter.", []string{"unrated", "rated", "error"}, false),
+		queryEnumParameter("export_status", "Optional export status filter.", []string{"pending", "exported", "suppressed"}, false),
+		queryStringParameter("session_key", "Optional session key filter.", false),
+		queryStringParameter("export_id", "Optional export batch filter.", false),
+		queryStringParameter("limit", "CDR record limit from 1 to 1000.", false),
+	}, map[string]any{
+		"200": responseJSON("Charging CDR policy, rating/export summary, recent CDRs, export manifests, and integrity warnings."),
+	}))
+	addOperation(paths, "/api/v1/system/accounting-charging/reconcile", "post", securedOperationWithBody("Reconcile and rate charging records", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional batch_size override bounded by policy."), map[string]any{
+		"200": responseJSON("Charging reconcile result with scanned, projected, rated, error, and summary counts."),
+	}))
+	addOperation(paths, "/api/v1/system/accounting-charging/export", "post", securedOperationWithBody("Create a signed charging export batch", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional format and limit bounded by policy."), map[string]any{
+		"200": responseJSON("Charging export result with export ID, record count, payload SHA-256, manifest SHA-256, and previous manifest SHA-256."),
+	}))
+	addOperation(paths, "/api/v1/system/accounting-charging/export/download", "get", securedOperationWithParameters("Download a charging export payload", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("export_id", "Charging export batch ID.", true),
+	}, map[string]any{
+		"200": responseBinary("application/octet-stream", "Charging export payload in jsonl, json, or csv format."),
+	}))
 	addOperation(paths, "/api/v1/system/sql-accounting", "get", securedOperationWithParameters("Read FreeRADIUS SQL accounting reconciliation state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("status", "Optional radacct reconcile status filter.", []string{"pending", "reconciled", "error", "ignored"}, false),
 		queryStringParameter("limit", "Record limit from 1 to 1000.", false),

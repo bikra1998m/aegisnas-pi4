@@ -103,12 +103,86 @@ func TestHandleAccountingIngestSpoolReportAndReplay(t *testing.T) {
 	assert.Equal(t, float64(1), payload["applied"])
 }
 
+func TestHandleAccountingChargingReportReconcileExportAndDownload(t *testing.T) {
+	prepareSQLAccountingAPIConfig(t)
+	now := time.Now().UTC().Truncate(time.Second)
+	_, err := db.IngestAccountingEvent(t.Context(), db.AccountingEventRecord{
+		AcctUniqueID:     "api-charge-1",
+		AcctSessionID:    "api-charge-1",
+		SessionKey:       "api-charge-1",
+		StatusType:       "Stop",
+		EventTime:        now.Format(time.RFC3339Nano),
+		Username:         "charge-api@example.com",
+		NASIPAddress:     "10.0.0.17",
+		NASPortID:        "17",
+		CallingStationID: "00-11-22-33-44-17",
+		AcctInputOctets:  1 << 30,
+		AcctOutputOctets: 1 << 30,
+		AcctSessionTime:  3600,
+		Class:            "service_key=internet;service_category=data;service_leg_id=api-ppp",
+		Source:           "api-test",
+	})
+	require.NoError(t, err)
+	_, err = db.ApplyPendingAccountingEvents(t.Context(), 10)
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/accounting-charging?limit=5", nil)
+	HandleGetAccountingCharging(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	report := payload["report"].(map[string]any)
+	assert.Equal(t, "ready", report["status"])
+	records := payload["records"].([]any)
+	require.Len(t, records, 1)
+	record := records[0].(map[string]any)
+	assert.NotContains(t, record["username_hash"], "charge-api")
+	cdrID := record["cdr_id"].(string)
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/system/accounting-charging?cdr_id="+cdrID, nil)
+	HandleGetAccountingCharging(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	records = payload["records"].([]any)
+	require.Len(t, records, 1)
+	assert.Equal(t, cdrID, records[0].(map[string]any)["cdr_id"])
+
+	body := bytes.NewBufferString(`{"batch_size":5}`)
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/system/accounting-charging/reconcile", body)
+	HandleReconcileAccountingCharging(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	assert.Equal(t, "ok", payload["status"])
+
+	body = bytes.NewBufferString(`{"format":"jsonl","limit":5}`)
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/system/accounting-charging/export", body)
+	HandleExportAccountingCharging(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	assert.Equal(t, "complete", payload["status"])
+	exportID := payload["export_id"].(string)
+	assert.NotEmpty(t, payload["payload_sha256"])
+	assert.NotEmpty(t, payload["manifest_sha256"])
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/system/accounting-charging/export/download?export_id="+exportID, nil)
+	HandleDownloadAccountingChargingExport(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "application/x-ndjson", rec.Header().Get("Content-Type"))
+	assert.Contains(t, rec.Body.String(), "api-charge-1")
+}
+
 func TestProductionReadinessIncludesSQLAccounting(t *testing.T) {
 	cfg := prepareSQLAccountingAPIConfig(t)
 
 	report := buildProductionReadinessReport(cfg)
 
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_ingest_spool"))
+	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_charging"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_sql_accounting"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_ordering"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_counters"))
@@ -121,6 +195,10 @@ func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingCountersIPAndService
 	paths := spec["paths"].(map[string]any)
 	assert.Contains(t, paths, "/api/v1/system/accounting-ingest-spool")
 	assert.Contains(t, paths, "/api/v1/system/accounting-ingest-spool/replay")
+	assert.Contains(t, paths, "/api/v1/system/accounting-charging")
+	assert.Contains(t, paths, "/api/v1/system/accounting-charging/reconcile")
+	assert.Contains(t, paths, "/api/v1/system/accounting-charging/export")
+	assert.Contains(t, paths, "/api/v1/system/accounting-charging/export/download")
 	assert.Contains(t, paths, "/api/v1/system/sql-accounting")
 	assert.Contains(t, paths, "/api/v1/system/sql-accounting/reconcile")
 	assert.Contains(t, paths, "/api/v1/system/accounting-ordering")
@@ -129,11 +207,15 @@ func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingCountersIPAndService
 	assert.Contains(t, paths, "/api/v1/system/accounting-ip")
 	assert.Contains(t, paths, "/api/v1/system/accounting-services")
 
-	var foundIngestSpool, foundSQL, foundOrdering, foundCounters, foundIP, foundServices bool
+	var foundIngestSpool, foundCharging, foundSQL, foundOrdering, foundCounters, foundIP, foundServices bool
 	for _, capture := range supportBundleAPICaptures() {
 		if capture.archivePath == "api/accounting-ingest-spool.json" {
 			foundIngestSpool = true
 			assert.Equal(t, "/api/v1/system/accounting-ingest-spool", capture.requestPath)
+		}
+		if capture.archivePath == "api/accounting-charging.json" {
+			foundCharging = true
+			assert.Equal(t, "/api/v1/system/accounting-charging", capture.requestPath)
 		}
 		if capture.archivePath == "api/sql-accounting.json" {
 			foundSQL = true
@@ -157,6 +239,7 @@ func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingCountersIPAndService
 		}
 	}
 	assert.True(t, foundIngestSpool)
+	assert.True(t, foundCharging)
 	assert.True(t, foundSQL)
 	assert.True(t, foundOrdering)
 	assert.True(t, foundCounters)
@@ -168,6 +251,12 @@ func TestAuthorizeSQLAccounting(t *testing.T) {
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/accounting-ingest-spool"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/accounting-ingest-spool/replay"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/accounting-ingest-spool/replay"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/accounting-charging"))
+	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/accounting-charging/reconcile"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/accounting-charging/reconcile"))
+	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/accounting-charging/export"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/accounting-charging/export"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/accounting-charging/export/download?export_id=cdr-export-1"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/sql-accounting"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/sql-accounting/reconcile"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/sql-accounting/reconcile"))

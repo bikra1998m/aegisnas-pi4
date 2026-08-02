@@ -384,6 +384,31 @@ readiness as `radius_accounting_services`, and in support bundles as
 `api/accounting-services.json`. See
 [accounting-multi-service-correlation.md](accounting-multi-service-correlation.md).
 
+Charging records, rating, retention, and export integrity are exposed at:
+
+```text
+/api/v1/system/accounting-charging
+/api/v1/system/accounting-charging?status=closed&export_status=pending&limit=100
+/api/v1/system/accounting-charging?cdr_id=<cdr-id>
+```
+
+Use this endpoint to review CDR projection from applied accounting events,
+rating status, pending/exported counts, integrity mismatch counts, export hash
+evidence, and recent export batches. Manual reconcile/rating and export are
+available to `ops_admin` and `super_admin`:
+
+```text
+POST /api/v1/system/accounting-charging/reconcile
+POST /api/v1/system/accounting-charging/export
+GET /api/v1/system/accounting-charging/export/download?export_id=<export-id>
+```
+
+The same summary appears in `/api/v1/system/status` under
+`radius.accounting_charging`, in production readiness as
+`radius_accounting_charging`, and in support bundles as
+`api/accounting-charging.json`. See
+[accounting-charging-rating-export.md](accounting-charging-rating-export.md).
+
 Upstream outage fallback policy is exposed at:
 
 ```text

@@ -219,6 +219,7 @@ type RadiusConfig struct {
 	AccountingIP          RadiusAccountingIPConfig          `mapstructure:"accounting_ip"`
 	AccountingServices    RadiusAccountingServicesConfig    `mapstructure:"accounting_services"`
 	AccountingIngestSpool RadiusAccountingIngestSpoolConfig `mapstructure:"accounting_ingest_spool"`
+	AccountingCharging    RadiusAccountingChargingConfig    `mapstructure:"accounting_charging"`
 	DynamicAuth           DynamicAuthConfig                 `mapstructure:"dynamic_auth"`
 	DynamicClients        RadiusDynamicClientsConfig        `mapstructure:"dynamic_clients"`
 	PacketHardening       RadiusPacketHardeningConfig       `mapstructure:"packet_hardening"`
@@ -336,6 +337,26 @@ type RadiusAccountingIngestSpoolConfig struct {
 	AppliedRetentionSeconds int  `mapstructure:"applied_retention_seconds"`
 	PoisonRetentionSeconds  int  `mapstructure:"poison_retention_seconds"`
 	LossSLOSeconds          int  `mapstructure:"loss_slo_seconds"`
+}
+
+type RadiusAccountingChargingConfig struct {
+	Enabled                  bool   `mapstructure:"enabled"`
+	RatingEnabled            bool   `mapstructure:"rating_enabled"`
+	ExportEnabled            bool   `mapstructure:"export_enabled"`
+	ReconcileIntervalSeconds int    `mapstructure:"reconcile_interval_seconds"`
+	BatchSize                int    `mapstructure:"batch_size"`
+	MaxExportRecords         int    `mapstructure:"max_export_records"`
+	ExportFormat             string `mapstructure:"export_format"`
+	DefaultPlan              string `mapstructure:"default_plan"`
+	Currency                 string `mapstructure:"currency"`
+	InputMicrosPerGiB        int64  `mapstructure:"input_micros_per_gib"`
+	OutputMicrosPerGiB       int64  `mapstructure:"output_micros_per_gib"`
+	SessionMicrosPerHour     int64  `mapstructure:"session_micros_per_hour"`
+	MinimumChargeMicros      int64  `mapstructure:"minimum_charge_micros"`
+	OpenRetentionDays        int    `mapstructure:"open_retention_days"`
+	ClosedRetentionDays      int    `mapstructure:"closed_retention_days"`
+	ExportRetentionDays      int    `mapstructure:"export_retention_days"`
+	IntegritySampleLimit     int    `mapstructure:"integrity_sample_limit"`
 }
 
 type TACACSConfig struct {
@@ -1599,6 +1620,23 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.accounting_ingest_spool.applied_retention_seconds", 86400)
 	v.SetDefault("radius.accounting_ingest_spool.poison_retention_seconds", 2592000)
 	v.SetDefault("radius.accounting_ingest_spool.loss_slo_seconds", 300)
+	v.SetDefault("radius.accounting_charging.enabled", true)
+	v.SetDefault("radius.accounting_charging.rating_enabled", true)
+	v.SetDefault("radius.accounting_charging.export_enabled", true)
+	v.SetDefault("radius.accounting_charging.reconcile_interval_seconds", 300)
+	v.SetDefault("radius.accounting_charging.batch_size", 1000)
+	v.SetDefault("radius.accounting_charging.max_export_records", 5000)
+	v.SetDefault("radius.accounting_charging.export_format", "jsonl")
+	v.SetDefault("radius.accounting_charging.default_plan", "standard")
+	v.SetDefault("radius.accounting_charging.currency", "USD")
+	v.SetDefault("radius.accounting_charging.input_micros_per_gib", 0)
+	v.SetDefault("radius.accounting_charging.output_micros_per_gib", 0)
+	v.SetDefault("radius.accounting_charging.session_micros_per_hour", 0)
+	v.SetDefault("radius.accounting_charging.minimum_charge_micros", 0)
+	v.SetDefault("radius.accounting_charging.open_retention_days", 90)
+	v.SetDefault("radius.accounting_charging.closed_retention_days", 2555)
+	v.SetDefault("radius.accounting_charging.export_retention_days", 2555)
+	v.SetDefault("radius.accounting_charging.integrity_sample_limit", 500)
 	v.SetDefault("portal.port", 8081)
 	v.SetDefault("telemetry.enabled", true)
 	v.SetDefault("telemetry.prometheus_port", 9090)
@@ -4236,6 +4274,9 @@ func (c *Config) Validate() error {
 	if err := validateRadiusAccountingIngestSpool(c.Radius.AccountingIngestSpool); err != nil {
 		return err
 	}
+	if err := validateRadiusAccountingCharging(c.Radius.AccountingCharging); err != nil {
+		return err
+	}
 	if c.Radius.DynamicAuth.Enabled && (c.Radius.DynamicAuth.Port < 1 || c.Radius.DynamicAuth.Port > 65535) {
 		return fmt.Errorf("radius.dynamic_auth.port %d out of range", c.Radius.DynamicAuth.Port)
 	}
@@ -6490,6 +6531,137 @@ func validateRadiusAccountingIngestSpool(raw RadiusAccountingIngestSpoolConfig) 
 		return fmt.Errorf("radius.accounting_ingest_spool.loss_slo_seconds must be between 1 and record_ttl_seconds")
 	}
 	return nil
+}
+
+func EffectiveRadiusAccountingChargingConfig(raw RadiusAccountingChargingConfig) RadiusAccountingChargingConfig {
+	effective := raw
+	if effective.ReconcileIntervalSeconds == 0 {
+		effective.ReconcileIntervalSeconds = 300
+	}
+	if effective.BatchSize == 0 {
+		effective.BatchSize = 1000
+	}
+	if effective.MaxExportRecords == 0 {
+		effective.MaxExportRecords = 5000
+	}
+	if strings.TrimSpace(effective.ExportFormat) == "" {
+		effective.ExportFormat = "jsonl"
+	}
+	if strings.TrimSpace(effective.DefaultPlan) == "" {
+		effective.DefaultPlan = "standard"
+	}
+	if strings.TrimSpace(effective.Currency) == "" {
+		effective.Currency = "USD"
+	}
+	if effective.OpenRetentionDays == 0 {
+		effective.OpenRetentionDays = 90
+	}
+	if effective.ClosedRetentionDays == 0 {
+		effective.ClosedRetentionDays = 2555
+	}
+	if effective.ExportRetentionDays == 0 {
+		effective.ExportRetentionDays = 2555
+	}
+	if effective.IntegritySampleLimit == 0 {
+		effective.IntegritySampleLimit = 500
+	}
+	return effective
+}
+
+func validateRadiusAccountingCharging(raw RadiusAccountingChargingConfig) error {
+	intValues := map[string]int{
+		"reconcile_interval_seconds": raw.ReconcileIntervalSeconds,
+		"batch_size":                 raw.BatchSize,
+		"max_export_records":         raw.MaxExportRecords,
+		"open_retention_days":        raw.OpenRetentionDays,
+		"closed_retention_days":      raw.ClosedRetentionDays,
+		"export_retention_days":      raw.ExportRetentionDays,
+		"integrity_sample_limit":     raw.IntegritySampleLimit,
+	}
+	for name, value := range intValues {
+		if value < 0 {
+			return fmt.Errorf("radius.accounting_charging.%s %d cannot be negative", name, value)
+		}
+	}
+	rateValues := map[string]int64{
+		"input_micros_per_gib":    raw.InputMicrosPerGiB,
+		"output_micros_per_gib":   raw.OutputMicrosPerGiB,
+		"session_micros_per_hour": raw.SessionMicrosPerHour,
+		"minimum_charge_micros":   raw.MinimumChargeMicros,
+	}
+	for name, value := range rateValues {
+		if value < 0 {
+			return fmt.Errorf("radius.accounting_charging.%s %d cannot be negative", name, value)
+		}
+	}
+	if !raw.Enabled {
+		return nil
+	}
+	effective := EffectiveRadiusAccountingChargingConfig(raw)
+	if effective.RatingEnabled && strings.TrimSpace(effective.Currency) == "" {
+		return fmt.Errorf("radius.accounting_charging.currency cannot be empty when rating is enabled")
+	}
+	if !validAccountingChargingToken(effective.DefaultPlan) {
+		return fmt.Errorf("radius.accounting_charging.default_plan %q is invalid", effective.DefaultPlan)
+	}
+	if !validAccountingChargingCurrency(effective.Currency) {
+		return fmt.Errorf("radius.accounting_charging.currency %q must be a three-letter ISO-style currency code", effective.Currency)
+	}
+	switch strings.ToLower(strings.TrimSpace(effective.ExportFormat)) {
+	case "jsonl", "json", "csv":
+	default:
+		return fmt.Errorf("radius.accounting_charging.export_format %q must be jsonl, json, or csv", effective.ExportFormat)
+	}
+	if effective.ReconcileIntervalSeconds < 1 {
+		return fmt.Errorf("radius.accounting_charging.reconcile_interval_seconds must be positive")
+	}
+	if effective.BatchSize < 1 || effective.BatchSize > 50000 {
+		return fmt.Errorf("radius.accounting_charging.batch_size must be between 1 and 50000")
+	}
+	if effective.MaxExportRecords < 1 || effective.MaxExportRecords > 100000 {
+		return fmt.Errorf("radius.accounting_charging.max_export_records must be between 1 and 100000")
+	}
+	if effective.OpenRetentionDays < 1 || effective.OpenRetentionDays > 3650 {
+		return fmt.Errorf("radius.accounting_charging.open_retention_days must be between 1 and 3650")
+	}
+	if effective.ClosedRetentionDays < 1 || effective.ClosedRetentionDays > 36500 {
+		return fmt.Errorf("radius.accounting_charging.closed_retention_days must be between 1 and 36500")
+	}
+	if effective.ExportRetentionDays < 1 || effective.ExportRetentionDays > 36500 {
+		return fmt.Errorf("radius.accounting_charging.export_retention_days must be between 1 and 36500")
+	}
+	if effective.IntegritySampleLimit < 1 || effective.IntegritySampleLimit > 100000 {
+		return fmt.Errorf("radius.accounting_charging.integrity_sample_limit must be between 1 and 100000")
+	}
+	return nil
+}
+
+func validAccountingChargingToken(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 96 {
+		return false
+	}
+	for _, ch := range value {
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+			(ch >= '0' && ch <= '9') || ch == '_' || ch == '-' || ch == '.' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func validAccountingChargingCurrency(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) != 3 {
+		return false
+	}
+	for _, ch := range value {
+		if ch < 'A' || ch > 'Z' {
+			return false
+		}
+	}
+	return true
 }
 
 func EffectiveRadiusFallbackPolicyConfig(raw RadiusFallbackPolicyConfig) RadiusFallbackPolicyConfig {

@@ -322,6 +322,32 @@ type RadiusAccountingIngestSpoolReport = {
   };
 };
 
+type RadiusAccountingChargingReport = {
+  enabled: boolean;
+  status: string;
+  message: string;
+  policy?: {
+    currency: string;
+  };
+  summary?: {
+    cdr_rows: number;
+    open_records: number;
+    closed_records: number;
+    rated_records: number;
+    unrated_records: number;
+    rating_error_records: number;
+    pending_export_records: number;
+    exported_records: number;
+    export_batch_rows: number;
+    integrity_error_rows: number;
+    total_amount_micros: number;
+    last_export_id?: string;
+    last_export_sha256?: string;
+    last_manifest_sha256?: string;
+    last_exported_at?: string;
+  };
+};
+
 type RadiusSQLAccountingReport = {
   enabled: boolean;
   status: string;
@@ -1010,6 +1036,7 @@ type SystemStatus = {
     proxy_policy?: RadiusProxyPolicyReport;
     accounting_spool?: RadiusAccountingSpoolReport;
     accounting_ingest_spool?: RadiusAccountingIngestSpoolReport;
+    accounting_charging?: RadiusAccountingChargingReport;
     sql_accounting?: RadiusSQLAccountingReport;
     accounting_ordering?: RadiusAccountingOrderingReport;
     accounting_counters?: RadiusAccountingCountersReport;
@@ -1434,6 +1461,11 @@ function MetricCard({
   );
 }
 
+function formatMicros(value: number | undefined, currency = "USD") {
+  const amount = (value || 0) / 1_000_000;
+  return `${currency} ${amount.toFixed(6)}`;
+}
+
 function StatusBadge({ status }: { status: string }) {
   const tone = statusTone[status] || statusTone.unknown;
   return (
@@ -1567,6 +1599,7 @@ export default function Dashboard() {
   const proxyPolicy = systemStatus.radius?.proxy_policy;
   const accountingSpool = systemStatus.radius?.accounting_spool;
   const accountingIngestSpool = systemStatus.radius?.accounting_ingest_spool;
+  const accountingCharging = systemStatus.radius?.accounting_charging;
   const sqlAccounting = systemStatus.radius?.sql_accounting;
   const accountingOrdering = systemStatus.radius?.accounting_ordering;
   const accountingCounters = systemStatus.radius?.accounting_counters;
@@ -3580,6 +3613,64 @@ export default function Dashboard() {
                     </div>
                     <StatusBadge
                       status={accountingIngestSpool.status || "unknown"}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {accountingCharging ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Charging Records
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {accountingCharging.message ||
+                          "Charging, rating, and export integrity state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          CDRs {accountingCharging.summary?.cdr_rows ?? 0}
+                        </div>
+                        <div>
+                          Closed{" "}
+                          {accountingCharging.summary?.closed_records ?? 0}
+                        </div>
+                        <div>
+                          Rated{" "}
+                          {accountingCharging.summary?.rated_records ?? 0}
+                        </div>
+                        <div>
+                          Pending{" "}
+                          {accountingCharging.summary
+                            ?.pending_export_records ?? 0}
+                        </div>
+                        <div>
+                          Integrity{" "}
+                          {accountingCharging.summary
+                            ?.integrity_error_rows ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Exported{" "}
+                        {accountingCharging.summary?.exported_records ?? 0};
+                        rating errors{" "}
+                        {accountingCharging.summary?.rating_error_records ?? 0};
+                        amount{" "}
+                        {formatMicros(
+                          accountingCharging.summary?.total_amount_micros,
+                          accountingCharging.policy?.currency || "USD",
+                        )}
+                      </div>
+                      {accountingCharging.summary?.last_export_sha256 ? (
+                        <div className="mt-2 break-all text-xs text-gray-500">
+                          Last export SHA{" "}
+                          {accountingCharging.summary.last_export_sha256}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge
+                      status={accountingCharging.status || "unknown"}
                     />
                   </div>
                 </div>

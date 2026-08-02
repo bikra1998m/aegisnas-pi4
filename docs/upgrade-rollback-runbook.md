@@ -195,3 +195,18 @@ Upgrade to schema v15 before migrating from the lab PEN. Backups must include th
 ## Attribute Registry Upgrade
 
 Record the old and new `/api/v1/system/attribute-registry?limit=1` source hashes before rollout. Review every added, removed, renumbered, retyped, or remapped entry. Mixed hashes are not supported in one HA pair. Roll back the binary and generated registry together; NAS-0002 has no database downgrade because the registry is immutable build content.
+
+## Accounting Charging Upgrade
+
+Schema v46 adds `radius_accounting_charging_records`,
+`radius_accounting_charging_exports`, and
+`radius_accounting_charging_export_records`. After upgrade, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/accounting-charging | jq '.report.status, .report.summary'
+```
+
+If the upgraded appliance imports old FreeRADIUS `radacct` data, run a bounded
+charging reconcile before exporting billing data. Roll back the application and
+database together if an older runtime does not understand schema v46.
