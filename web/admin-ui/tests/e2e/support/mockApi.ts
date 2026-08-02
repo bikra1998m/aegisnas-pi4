@@ -799,6 +799,21 @@ function createSettings() {
       request_timeout_seconds: 5,
       interim_update_seconds: 300,
       dynamic_auth: { enabled: true, port: 3799 },
+      accounting_ingest_spool: {
+        enabled: true,
+        replay_enabled: true,
+        max_queue_records: 50000,
+        max_attempts: 10,
+        initial_retry_seconds: 5,
+        max_retry_seconds: 300,
+        record_ttl_seconds: 604800,
+        replay_interval_seconds: 30,
+        batch_size: 500,
+        lock_seconds: 120,
+        applied_retention_seconds: 86400,
+        poison_retention_seconds: 2592000,
+        loss_slo_seconds: 300,
+      },
       vendor: {
         enabled: true,
         name: "AegisNAS",
@@ -1055,6 +1070,26 @@ function createSystemStatus() {
       enabled_radius_clients: 2,
       broker_auth: { status: "ok", message: "Auth path healthy." },
       broker_accounting: { status: "ok", message: "Accounting path healthy." },
+      accounting_ingest_spool: {
+        enabled: true,
+        status: "ready",
+        message: "Accounting ingest spool is active and caught up.",
+        summary: {
+          total_records: 3,
+          queued_count: 0,
+          retrying_count: 0,
+          applied_count: 3,
+          poison_count: 0,
+          expired_count: 0,
+          due_count: 0,
+          attempt_count: 3,
+          loss_slo_breach_count: 0,
+          oldest_active_age_seconds: 0,
+          queue_capacity: 50000,
+          queue_utilization_percent: 0,
+          last_applied_at: "2026-05-05T11:59:30Z",
+        },
+      },
     },
     wireless: {
       enabled: false,
@@ -3884,6 +3919,38 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
 
     if (path === "/system/status" && method === "GET") {
       await route.fulfill({ json: state.systemStatus });
+      return;
+    }
+
+    if (path === "/system/accounting-ingest-spool" && method === "GET") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          report: state.systemStatus.radius.accounting_ingest_spool,
+          records: [],
+          attempts: [],
+        },
+      });
+      return;
+    }
+
+    if (
+      path === "/system/accounting-ingest-spool/replay" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          status: "ok",
+          message: "Accounting ingest spool replay processed 0 record(s).",
+          claimed: 0,
+          applied: 0,
+          failed: 0,
+          poisoned: 0,
+          expired: 0,
+          summary: state.systemStatus.radius.accounting_ingest_spool.summary,
+        },
+      });
       return;
     }
 

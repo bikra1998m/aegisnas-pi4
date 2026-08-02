@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"go.uber.org/zap"
 )
@@ -74,7 +75,20 @@ func ProcessAccounting(rec *AccountingRecord) error {
 		return nil
 	}
 
-	ingested, err := db.IngestAccountingEvent(context.Background(), accountingEventFromAccounting(rec))
+	event := accountingEventFromAccounting(rec)
+	if cfg := config.Get(); cfg != nil && EffectiveAccountingIngestSpoolPolicy(cfg).Enabled {
+		if err := processAccountingWithIngestSpool(context.Background(), cfg, event); err != nil {
+			logger.Error("accounting ingest spool processing failed", zap.Error(err))
+			return err
+		}
+		logger.Info("accounting processed",
+			zap.String("session_id", rec.SessionID),
+			zap.String("status", rec.AcctStatusType),
+			zap.String("path", "ingest_spool"))
+		return nil
+	}
+
+	ingested, err := db.IngestAccountingEvent(context.Background(), event)
 	if err != nil {
 		logger.Error("accounting event ingest failed", zap.Error(err))
 		return err

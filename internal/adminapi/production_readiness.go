@@ -122,6 +122,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionTransportPolicyCheck(&report, cfg)
 	addProductionProxyPolicyCheck(&report, cfg)
 	addProductionAccountingSpoolCheck(&report, cfg)
+	addProductionAccountingIngestSpoolCheck(&report, cfg)
 	addProductionSQLAccountingCheck(&report, cfg)
 	addProductionAccountingOrderingCheck(&report, cfg)
 	addProductionAccountingCountersCheck(&report, cfg)
@@ -361,6 +362,37 @@ func addProductionAccountingSpoolCheck(report *productionReadinessReport, cfg *c
 			spool.Summary.PoisonCount, spool.Summary.ExpiredCount, spool.Summary.QueueUtilization),
 		Recommendation: "Keep radius.upstream.accounting_spool enabled for proxy accounting, monitor /api/v1/system/accounting-spool, and complete the NAS-0012 release certification replay and outage drills.",
 		Dependencies:   []string{"radius.upstream.accounting_spool", "/api/v1/system/accounting-spool", "/api/v1/system/accounting-spool/replay", "radius_accounting_spool", "radius_accounting_spool_attempts"},
+	})
+}
+
+func addProductionAccountingIngestSpoolCheck(report *productionReadinessReport, cfg *config.Config) {
+	spool := radius.BuildAccountingIngestSpoolReport(cfg)
+	status := "passed"
+	switch spool.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded", "disabled":
+		status = "blocked"
+	}
+	if !spool.Enabled || !spool.Policy.ReplayEnabled || spool.Policy.MaxQueueRecords <= 0 || spool.Policy.MaxAttempts <= 0 || spool.Policy.RecordTTLSeconds <= 0 {
+		status = "blocked"
+	}
+	if spool.Summary.QueueUtilization >= 90 || spool.Summary.PoisonCount > 0 || spool.Summary.ExpiredCount > 0 || spool.Summary.LossSLOBreachCount > 0 {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_accounting_ingest_spool",
+		Category: "radius",
+		Label:    "Durable Local Accounting Ingest Spool",
+		Status:   status,
+		Summary: fmt.Sprintf("Accounting ingest spool schema %d is %s with %d queued, %d retrying, %d applied, %d poison, %d expired, %d SLO breach(es), and %d%% queue utilization.",
+			spool.SchemaVersion, spool.Status, spool.Summary.QueuedCount, spool.Summary.RetryingCount,
+			spool.Summary.AppliedCount, spool.Summary.PoisonCount, spool.Summary.ExpiredCount,
+			spool.Summary.LossSLOBreachCount, spool.Summary.QueueUtilization),
+		Recommendation: "Keep radius.accounting_ingest_spool enabled with replay enabled, monitor /api/v1/system/accounting-ingest-spool, and complete the NAS-0040 release certification replay, failover, and outage drills.",
+		Dependencies:   []string{"radius.accounting_ingest_spool", "/api/v1/system/accounting-ingest-spool", "/api/v1/system/accounting-ingest-spool/replay", "radius_accounting_ingest_spool", "radius_accounting_ingest_spool_attempts", "radius_accounting_events"},
 	})
 }
 

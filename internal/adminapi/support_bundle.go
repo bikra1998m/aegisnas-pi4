@@ -294,6 +294,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/dhcp-lease-history.json", requestPath: "/api/v1/system/dhcp-lease-history", label: "DHCP lease history", handler: HandleListDHCPLeaseHistory},
 		{archivePath: "api/upstream-aaa-history.json", requestPath: "/api/v1/system/upstream-aaa-history", label: "Upstream AAA history", handler: HandleListUpstreamAAAHistory},
 		{archivePath: "api/fallback-policy.json", requestPath: "/api/v1/system/fallback-policy", label: "Upstream fallback policy", handler: HandleGetFallbackPolicy},
+		{archivePath: "api/accounting-ingest-spool.json", requestPath: "/api/v1/system/accounting-ingest-spool", label: "Local accounting ingest spool", handler: HandleGetAccountingIngestSpool},
 		{archivePath: "api/sql-accounting.json", requestPath: "/api/v1/system/sql-accounting", label: "FreeRADIUS SQL accounting reconciliation", handler: HandleGetSQLAccounting},
 		{archivePath: "api/accounting-ordering.json", requestPath: "/api/v1/system/accounting-ordering", label: "Accounting idempotency and ordering", handler: HandleGetAccountingOrdering},
 		{archivePath: "api/accounting-counters.json", requestPath: "/api/v1/system/accounting-counters", label: "64-bit accounting counters and gigawords", handler: HandleGetAccountingCounters},

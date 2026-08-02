@@ -318,6 +318,34 @@ type SQLAccountingReport = {
   warnings?: string[];
 };
 
+type AccountingIngestSpoolReport = {
+  schema_version: number;
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary: {
+    total_records: number;
+    queued_count: number;
+    retrying_count: number;
+    applied_count: number;
+    poison_count: number;
+    expired_count: number;
+    due_count: number;
+    attempt_count: number;
+    loss_slo_breach_count: number;
+    oldest_active_age_seconds: number;
+    queue_capacity: number;
+    queue_utilization_percent: number;
+    oldest_queued_at?: string;
+    next_attempt_at?: string;
+    last_applied_at?: string;
+    last_poison_at?: string;
+    last_attempt_at?: string;
+    last_error?: string;
+  };
+  warnings?: string[];
+};
+
 type AccountingOrderingReport = {
   schema_version: number;
   enabled: boolean;
@@ -1316,6 +1344,21 @@ const defaultSettings: JsonMap = {
       accounting_retention_days: 365,
       postauth_retention_days: 30,
     },
+    accounting_ingest_spool: {
+      enabled: true,
+      replay_enabled: true,
+      max_queue_records: 50000,
+      max_attempts: 10,
+      initial_retry_seconds: 5,
+      max_retry_seconds: 300,
+      record_ttl_seconds: 604800,
+      replay_interval_seconds: 30,
+      batch_size: 500,
+      lock_seconds: 120,
+      applied_retention_seconds: 86400,
+      poison_retention_seconds: 2592000,
+      loss_slo_seconds: 300,
+    },
     accounting_ordering: {
       enabled: true,
       replay_enabled: true,
@@ -1755,6 +1798,8 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
   next.radius.eap.sim_aka = next.radius.eap.sim_aka || {};
   next.radius.eap.framework = next.radius.eap.framework || {};
   next.radius.sql_accounting = next.radius.sql_accounting || {};
+  next.radius.accounting_ingest_spool =
+    next.radius.accounting_ingest_spool || {};
   next.radius.accounting_ordering = next.radius.accounting_ordering || {};
   next.radius.accounting_counters = next.radius.accounting_counters || {};
   next.radius.accounting_ip = next.radius.accounting_ip || {};
@@ -1784,6 +1829,19 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.radius.sql_accounting.stale_after_seconds = 600;
     next.radius.sql_accounting.accounting_retention_days = 30;
     next.radius.sql_accounting.postauth_retention_days = 7;
+    next.radius.accounting_ingest_spool.enabled = true;
+    next.radius.accounting_ingest_spool.replay_enabled = true;
+    next.radius.accounting_ingest_spool.max_queue_records = 5000;
+    next.radius.accounting_ingest_spool.max_attempts = 6;
+    next.radius.accounting_ingest_spool.initial_retry_seconds = 10;
+    next.radius.accounting_ingest_spool.max_retry_seconds = 300;
+    next.radius.accounting_ingest_spool.record_ttl_seconds = 604800;
+    next.radius.accounting_ingest_spool.replay_interval_seconds = 60;
+    next.radius.accounting_ingest_spool.batch_size = 100;
+    next.radius.accounting_ingest_spool.lock_seconds = 120;
+    next.radius.accounting_ingest_spool.applied_retention_seconds = 86400;
+    next.radius.accounting_ingest_spool.poison_retention_seconds = 604800;
+    next.radius.accounting_ingest_spool.loss_slo_seconds = 600;
     next.radius.accounting_ordering.enabled = true;
     next.radius.accounting_ordering.replay_enabled = true;
     next.radius.accounting_ordering.sequence_window_seconds = 600;
@@ -1877,6 +1935,30 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.sql_accounting.accounting_retention_days || 730;
     next.radius.sql_accounting.postauth_retention_days =
       next.radius.sql_accounting.postauth_retention_days || 90;
+    next.radius.accounting_ingest_spool.enabled = true;
+    next.radius.accounting_ingest_spool.replay_enabled = true;
+    next.radius.accounting_ingest_spool.max_queue_records =
+      next.radius.accounting_ingest_spool.max_queue_records || 100000;
+    next.radius.accounting_ingest_spool.max_attempts =
+      next.radius.accounting_ingest_spool.max_attempts || 12;
+    next.radius.accounting_ingest_spool.initial_retry_seconds =
+      next.radius.accounting_ingest_spool.initial_retry_seconds || 5;
+    next.radius.accounting_ingest_spool.max_retry_seconds =
+      next.radius.accounting_ingest_spool.max_retry_seconds || 300;
+    next.radius.accounting_ingest_spool.record_ttl_seconds =
+      next.radius.accounting_ingest_spool.record_ttl_seconds || 604800;
+    next.radius.accounting_ingest_spool.replay_interval_seconds =
+      next.radius.accounting_ingest_spool.replay_interval_seconds || 15;
+    next.radius.accounting_ingest_spool.batch_size =
+      next.radius.accounting_ingest_spool.batch_size || 1000;
+    next.radius.accounting_ingest_spool.lock_seconds =
+      next.radius.accounting_ingest_spool.lock_seconds || 120;
+    next.radius.accounting_ingest_spool.applied_retention_seconds =
+      next.radius.accounting_ingest_spool.applied_retention_seconds || 86400;
+    next.radius.accounting_ingest_spool.poison_retention_seconds =
+      next.radius.accounting_ingest_spool.poison_retention_seconds || 2592000;
+    next.radius.accounting_ingest_spool.loss_slo_seconds =
+      next.radius.accounting_ingest_spool.loss_slo_seconds || 120;
     next.radius.accounting_ordering.enabled = true;
     next.radius.accounting_ordering.replay_enabled = true;
     next.radius.accounting_ordering.sequence_window_seconds =
@@ -1976,6 +2058,32 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.sql_accounting.accounting_retention_days || 365;
     next.radius.sql_accounting.postauth_retention_days =
       next.radius.sql_accounting.postauth_retention_days || 30;
+    next.radius.accounting_ingest_spool.enabled =
+      next.radius.accounting_ingest_spool.enabled ?? true;
+    next.radius.accounting_ingest_spool.replay_enabled =
+      next.radius.accounting_ingest_spool.replay_enabled ?? true;
+    next.radius.accounting_ingest_spool.max_queue_records =
+      next.radius.accounting_ingest_spool.max_queue_records || 50000;
+    next.radius.accounting_ingest_spool.max_attempts =
+      next.radius.accounting_ingest_spool.max_attempts || 10;
+    next.radius.accounting_ingest_spool.initial_retry_seconds =
+      next.radius.accounting_ingest_spool.initial_retry_seconds || 5;
+    next.radius.accounting_ingest_spool.max_retry_seconds =
+      next.radius.accounting_ingest_spool.max_retry_seconds || 300;
+    next.radius.accounting_ingest_spool.record_ttl_seconds =
+      next.radius.accounting_ingest_spool.record_ttl_seconds || 604800;
+    next.radius.accounting_ingest_spool.replay_interval_seconds =
+      next.radius.accounting_ingest_spool.replay_interval_seconds || 30;
+    next.radius.accounting_ingest_spool.batch_size =
+      next.radius.accounting_ingest_spool.batch_size || 500;
+    next.radius.accounting_ingest_spool.lock_seconds =
+      next.radius.accounting_ingest_spool.lock_seconds || 120;
+    next.radius.accounting_ingest_spool.applied_retention_seconds =
+      next.radius.accounting_ingest_spool.applied_retention_seconds || 86400;
+    next.radius.accounting_ingest_spool.poison_retention_seconds =
+      next.radius.accounting_ingest_spool.poison_retention_seconds || 2592000;
+    next.radius.accounting_ingest_spool.loss_slo_seconds =
+      next.radius.accounting_ingest_spool.loss_slo_seconds || 300;
     next.radius.accounting_ordering.enabled =
       next.radius.accounting_ordering.enabled ?? true;
     next.radius.accounting_ordering.replay_enabled =
@@ -2038,6 +2146,30 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
       next.radius.sql_accounting.accounting_retention_days || 365;
     next.radius.sql_accounting.postauth_retention_days =
       next.radius.sql_accounting.postauth_retention_days || 30;
+    next.radius.accounting_ingest_spool.enabled = true;
+    next.radius.accounting_ingest_spool.replay_enabled = true;
+    next.radius.accounting_ingest_spool.max_queue_records =
+      next.radius.accounting_ingest_spool.max_queue_records || 50000;
+    next.radius.accounting_ingest_spool.max_attempts =
+      next.radius.accounting_ingest_spool.max_attempts || 10;
+    next.radius.accounting_ingest_spool.initial_retry_seconds =
+      next.radius.accounting_ingest_spool.initial_retry_seconds || 5;
+    next.radius.accounting_ingest_spool.max_retry_seconds =
+      next.radius.accounting_ingest_spool.max_retry_seconds || 300;
+    next.radius.accounting_ingest_spool.record_ttl_seconds =
+      next.radius.accounting_ingest_spool.record_ttl_seconds || 604800;
+    next.radius.accounting_ingest_spool.replay_interval_seconds =
+      next.radius.accounting_ingest_spool.replay_interval_seconds || 30;
+    next.radius.accounting_ingest_spool.batch_size =
+      next.radius.accounting_ingest_spool.batch_size || 500;
+    next.radius.accounting_ingest_spool.lock_seconds =
+      next.radius.accounting_ingest_spool.lock_seconds || 120;
+    next.radius.accounting_ingest_spool.applied_retention_seconds =
+      next.radius.accounting_ingest_spool.applied_retention_seconds || 86400;
+    next.radius.accounting_ingest_spool.poison_retention_seconds =
+      next.radius.accounting_ingest_spool.poison_retention_seconds || 2592000;
+    next.radius.accounting_ingest_spool.loss_slo_seconds =
+      next.radius.accounting_ingest_spool.loss_slo_seconds || 300;
     next.radius.accounting_ordering.enabled = true;
     next.radius.accounting_ordering.replay_enabled = true;
     next.radius.accounting_ordering.sequence_window_seconds =
@@ -2275,6 +2407,8 @@ export default function AccessSettings() {
   const [tacacsReport, setTacacsReport] = useState<TACACSReport | null>(null);
   const [sqlAccountingReport, setSQLAccountingReport] =
     useState<SQLAccountingReport | null>(null);
+  const [accountingIngestSpoolReport, setAccountingIngestSpoolReport] =
+    useState<AccountingIngestSpoolReport | null>(null);
   const [accountingOrderingReport, setAccountingOrderingReport] =
     useState<AccountingOrderingReport | null>(null);
   const [accountingCountersReport, setAccountingCountersReport] =
@@ -2286,6 +2420,8 @@ export default function AccessSettings() {
   const [tenantIsolationReport, setTenantIsolationReport] =
     useState<TenantIsolationReport | null>(null);
   const [reconcilingSQLAccounting, setReconcilingSQLAccounting] =
+    useState(false);
+  const [replayingAccountingIngestSpool, setReplayingAccountingIngestSpool] =
     useState(false);
   const [replayingAccountingOrdering, setReplayingAccountingOrdering] =
     useState(false);
@@ -2472,6 +2608,21 @@ export default function AccessSettings() {
     }
   };
 
+  const loadAccountingIngestSpoolReport = async () => {
+    try {
+      const { data } = await api.get("/system/accounting-ingest-spool", {
+        params: { limit: 5 },
+      });
+      setAccountingIngestSpoolReport(data?.report || null);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load accounting ingest spool state.",
+      );
+    }
+  };
+
   const loadAccountingOrderingReport = async () => {
     try {
       const { data } = await api.get("/system/accounting-ordering", {
@@ -2559,10 +2710,10 @@ export default function AccessSettings() {
       await loadSubscriberServiceChains();
       await loadTACACSReport();
       await loadSQLAccountingReport();
+      await loadAccountingIngestSpoolReport();
       await loadAccountingOrderingReport();
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
-      await loadAccountingServicesReport();
       await loadAccountingServicesReport();
       await loadTenantIsolationReport();
     } catch (err: any) {
@@ -2644,6 +2795,7 @@ export default function AccessSettings() {
       await loadSubscriberServiceChains();
       await loadTACACSReport();
       await loadSQLAccountingReport();
+      await loadAccountingIngestSpoolReport();
       await loadAccountingOrderingReport();
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
@@ -2882,6 +3034,7 @@ export default function AccessSettings() {
         `SQL accounting reconciled ${data.result?.reconciled || 0} row(s); ${data.result?.error_count || 0} error(s) remain.`,
       );
       await loadSQLAccountingReport();
+      await loadAccountingIngestSpoolReport();
       await loadAccountingOrderingReport();
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
@@ -2897,6 +3050,34 @@ export default function AccessSettings() {
     }
   };
 
+  const replayAccountingIngestSpool = async () => {
+    setReplayingAccountingIngestSpool(true);
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/accounting-ingest-spool/replay", {
+        batch_size: settings.radius?.accounting_ingest_spool?.batch_size || 500,
+      });
+      setMessage(
+        `Accounting ingest replay applied ${data.applied || 0} record(s); ${data.failed || 0} failed and ${data.poisoned || 0} require review.`,
+      );
+      await loadAccountingIngestSpoolReport();
+      await loadSQLAccountingReport();
+      await loadAccountingOrderingReport();
+      await loadAccountingCountersReport();
+      await loadAccountingIPReport();
+      await loadAccountingServicesReport();
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not replay accounting ingest spool records.",
+      );
+    } finally {
+      setReplayingAccountingIngestSpool(false);
+    }
+  };
+
   const replayAccountingOrdering = async () => {
     setReplayingAccountingOrdering(true);
     setError("");
@@ -2909,6 +3090,7 @@ export default function AccessSettings() {
         `Accounting replay applied ${data.result?.applied || 0} event(s); ${data.result?.error_count || 0} error(s) remain.`,
       );
       await loadAccountingOrderingReport();
+      await loadAccountingIngestSpoolReport();
       await loadSQLAccountingReport();
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
@@ -14731,6 +14913,292 @@ export default function AccessSettings() {
             <p className="mt-2 text-xs text-gray-500">
               {sqlAccountingReport.message}
             </p>
+          )}
+        </div>
+        <div className="mt-4">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Accounting Ingest Spool
+              </h4>
+              <p className="mt-1 text-xs text-gray-500">
+                Persist local accounting packets before ledger apply and replay
+                after transient database, ordering, or failover interruptions.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={loadAccountingIngestSpoolReport}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+              >
+                Refresh Ingest
+              </button>
+              <button
+                type="button"
+                onClick={replayAccountingIngestSpool}
+                disabled={replayingAccountingIngestSpool}
+                className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {replayingAccountingIngestSpool
+                  ? "Replaying..."
+                  : "Replay Ingest"}
+              </button>
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Ingest Spool"
+              checked={settings.radius?.accounting_ingest_spool?.enabled !== false}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ingest_spool", "enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Auto Replay"
+              checked={
+                settings.radius?.accounting_ingest_spool?.replay_enabled !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ingest_spool", "replay_enabled"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Queue Records"
+              type="number"
+              value={
+                settings.radius?.accounting_ingest_spool?.max_queue_records ||
+                50000
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "accounting_ingest_spool",
+                    "max_queue_records",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Attempts"
+              type="number"
+              value={
+                settings.radius?.accounting_ingest_spool?.max_attempts || 10
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ingest_spool", "max_attempts"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Replay Batch"
+              type="number"
+              value={
+                settings.radius?.accounting_ingest_spool?.batch_size || 500
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ingest_spool", "batch_size"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Replay Interval (s)"
+              type="number"
+              value={
+                settings.radius?.accounting_ingest_spool
+                  ?.replay_interval_seconds || 30
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "accounting_ingest_spool",
+                    "replay_interval_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Initial Retry (s)"
+              type="number"
+              value={
+                settings.radius?.accounting_ingest_spool
+                  ?.initial_retry_seconds || 5
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "accounting_ingest_spool",
+                    "initial_retry_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Retry (s)"
+              type="number"
+              value={
+                settings.radius?.accounting_ingest_spool?.max_retry_seconds ||
+                300
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ingest_spool", "max_retry_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Record TTL (s)"
+              type="number"
+              value={
+                settings.radius?.accounting_ingest_spool?.record_ttl_seconds ||
+                604800
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ingest_spool", "record_ttl_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Lock Window (s)"
+              type="number"
+              value={settings.radius?.accounting_ingest_spool?.lock_seconds || 120}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ingest_spool", "lock_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Applied Retention (s)"
+              type="number"
+              value={
+                settings.radius?.accounting_ingest_spool
+                  ?.applied_retention_seconds || 86400
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "accounting_ingest_spool",
+                    "applied_retention_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Poison Retention (s)"
+              type="number"
+              value={
+                settings.radius?.accounting_ingest_spool
+                  ?.poison_retention_seconds || 2592000
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "accounting_ingest_spool",
+                    "poison_retention_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Loss SLO (s)"
+              type="number"
+              value={
+                settings.radius?.accounting_ingest_spool?.loss_slo_seconds ||
+                300
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "accounting_ingest_spool", "loss_slo_seconds"],
+                  Number(value),
+                )
+              }
+            />
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-5">
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Status
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingIngestSpoolReport?.status || "unknown"}
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Active
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingIngestSpoolReport?.summary?.queued_count || 0} queued,{" "}
+                {accountingIngestSpoolReport?.summary?.retrying_count || 0} retry
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Recovery
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingIngestSpoolReport?.summary?.due_count || 0} due,{" "}
+                {accountingIngestSpoolReport?.summary?.poison_count || 0} poison
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Applied
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingIngestSpoolReport?.summary?.applied_count || 0} done,{" "}
+                {accountingIngestSpoolReport?.summary?.expired_count || 0} expired
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                SLO
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingIngestSpoolReport?.summary
+                  ?.loss_slo_breach_count || 0} breach,{" "}
+                {accountingIngestSpoolReport?.summary
+                  ?.queue_utilization_percent || 0}%
+              </div>
+            </div>
+          </div>
+          {accountingIngestSpoolReport?.message && (
+            <p className="mt-2 text-xs text-gray-500">
+              {accountingIngestSpoolReport.message}
+            </p>
+          )}
+          {(accountingIngestSpoolReport?.warnings || []).length > 0 && (
+            <ul className="mt-2 space-y-1 text-xs text-amber-700">
+              {(accountingIngestSpoolReport?.warnings || []).map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
           )}
         </div>
         <div className="mt-4">

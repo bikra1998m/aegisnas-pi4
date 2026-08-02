@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 44
+	return 45
 }
 
 func Migrate() error {
@@ -2309,3 +2309,56 @@ CREATE INDEX IF NOT EXISTS idx_radius_accounting_service_correlations_service ON
 `
 
 const schemaV44 = accountingServiceCorrelationSQL
+
+const accountingIngestSpoolSQL = `
+CREATE TABLE IF NOT EXISTS radius_accounting_ingest_spool (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	record_id TEXT UNIQUE NOT NULL,
+	status TEXT NOT NULL DEFAULT 'queued',
+	source TEXT NOT NULL DEFAULT 'aegis-broker',
+	session_key TEXT NOT NULL,
+	acct_unique_id TEXT NOT NULL DEFAULT '',
+	acct_session_id TEXT NOT NULL DEFAULT '',
+	acct_status_type TEXT NOT NULL DEFAULT '',
+	username_hash TEXT,
+	nas_ip_address TEXT,
+	payload_json TEXT NOT NULL,
+	payload_sha256 TEXT NOT NULL,
+	attempt_count INTEGER NOT NULL DEFAULT 0,
+	max_attempts INTEGER NOT NULL DEFAULT 10,
+	last_error TEXT,
+	last_event_id TEXT,
+	last_attempt_at DATETIME,
+	next_attempt_at DATETIME,
+	expires_at DATETIME NOT NULL,
+	owner_node TEXT,
+	locked_until DATETIME,
+	applied_at DATETIME,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('queued', 'retrying', 'applied', 'poison', 'expired'))
+);
+
+CREATE TABLE IF NOT EXISTS radius_accounting_ingest_spool_attempts (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	spool_id INTEGER NOT NULL,
+	record_id TEXT NOT NULL,
+	attempt_number INTEGER NOT NULL,
+	result TEXT NOT NULL,
+	error TEXT,
+	event_id TEXT,
+	latency_ms INTEGER NOT NULL DEFAULT 0,
+	attempted_at DATETIME NOT NULL,
+	next_attempt_at DATETIME,
+	FOREIGN KEY(spool_id) REFERENCES radius_accounting_ingest_spool(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ingest_spool_status_next ON radius_accounting_ingest_spool(status, next_attempt_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ingest_spool_expires ON radius_accounting_ingest_spool(expires_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ingest_spool_session ON radius_accounting_ingest_spool(session_key, acct_status_type);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ingest_spool_owner_lock ON radius_accounting_ingest_spool(owner_node, locked_until);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ingest_spool_attempts_record ON radius_accounting_ingest_spool_attempts(record_id, attempted_at);
+CREATE INDEX IF NOT EXISTS idx_radius_accounting_ingest_spool_attempts_spool ON radius_accounting_ingest_spool_attempts(spool_id, attempted_at);
+`
+
+const schemaV45 = accountingIngestSpoolSQL

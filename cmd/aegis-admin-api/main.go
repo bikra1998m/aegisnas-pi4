@@ -235,6 +235,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/proxy-policy", adminapi.HandleGetProxyPolicy)
 			r.Get("/system/accounting-spool", adminapi.HandleGetAccountingSpool)
 			r.Post("/system/accounting-spool/replay", adminapi.HandleReplayAccountingSpool)
+			r.Get("/system/accounting-ingest-spool", adminapi.HandleGetAccountingIngestSpool)
+			r.Post("/system/accounting-ingest-spool/replay", adminapi.HandleReplayAccountingIngestSpool)
 			r.Get("/system/sql-accounting", adminapi.HandleGetSQLAccounting)
 			r.Post("/system/sql-accounting/reconcile", adminapi.HandleReconcileSQLAccounting)
 			r.Get("/system/accounting-ordering", adminapi.HandleGetAccountingOrdering)

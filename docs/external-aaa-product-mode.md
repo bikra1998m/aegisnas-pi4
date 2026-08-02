@@ -41,14 +41,17 @@ Files involved:
 - [client.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/client.go)
 - [vendor.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/vendor.go)
 - [accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting.go)
+- [accounting_ingest_spool.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting_ingest_spool.go)
 - [sql_accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/sql_accounting.go)
 - [accounting_ordering.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting_ordering.go)
 - [accounting_counters.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting_counters.go)
 - [accounting_ip.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting_ip.go)
 - [accounting_services.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/accounting_services.go)
 - [accounting_events.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/accounting_events.go)
+- [accounting_ingest_spool.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/accounting_ingest_spool.go)
 - [freeradius_accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/freeradius_accounting.go)
 - [accounting_services.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/accounting_services.go)
+- [accounting_ingest_spool.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/accounting_ingest_spool.go)
 - [mapping.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/mapping.go)
 - [dynamic_nas_clients.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/dynamic_nas_clients.go)
 - [manager.go](F:/random_project/Pookie/aegisnas-pi4/internal/sessions/manager.go)
@@ -89,6 +92,7 @@ The implementation now does these things end to end:
 24. authorizes ordered subscriber service chains with dependency validation, per-session activation evidence, rollback events, service-level accounting rows, AegisNAS service-chain VSAs, API/status/readiness visibility, and support-bundle evidence
 25. owns FreeRADIUS-compatible `radacct` and `radpostauth` tables, mirrors local accounting and post-auth outcomes, reconciles SQL rows into sessions, prunes by retention policy, and exposes API/UI/readiness/support evidence
 26. records every local or SQL-reconciled accounting update in `radius_accounting_events`, suppresses duplicate packets, applies reordered events deterministically, merges late Stop records without reopening sessions, and exposes bounded replay through API/UI/readiness/support evidence
+27. writes local accounting updates to `radius_accounting_ingest_spool` before ledger apply, replays due records through the same idempotent accounting pipeline, quarantines poison records, reports loss-SLO breaches, and exposes API/UI/readiness/support evidence
 
 ## Current Behavior
 
@@ -113,6 +117,7 @@ When `radius.upstream.enabled: true`:
 - TACACS+ command authorization is available through `/api/v1/system/tacacs`; operators can evaluate device-admin commands, manage command sets, enforce privilege/role/vendor constraints, and retain command accounting evidence for Cisco, Juniper, HPE, Dell, Brocade, Extreme, and Arista workflows
 - tenant isolation is available through `/api/v1/system/tenant-isolation`; operators can create tenant profiles, bind tenant-owned resources, evaluate scope decisions, and keep delegated policy trees from falling back to global policy or crossing tenant boundaries
 - FreeRADIUS SQL accounting reconciliation is available through `/api/v1/system/sql-accounting`; AegisNAS creates `radacct` and `radpostauth`, mirrors local accounting, records redacted post-auth outcomes, reconciles pending SQL rows into `sessions`, and records reconcile events
+- durable local accounting ingest spooling is available through `/api/v1/system/accounting-ingest-spool`; AegisNAS persists local accounting events before ledger apply, replays due records through `radius_accounting_events`, applies explicit queue backpressure, and keeps poison, expiry, and loss-SLO evidence
 - accounting idempotency and ordering is available through `/api/v1/system/accounting-ordering`; AegisNAS stores deterministic accounting event IDs, duplicate counts, ordering status, late Stop merges, and bounded replay evidence
 - 64-bit accounting counters and gigaword rollover are available through `/api/v1/system/accounting-counters`; AegisNAS normalizes `Acct-Input-Octets`, `Acct-Input-Gigawords`, `Acct-Output-Octets`, and `Acct-Output-Gigawords` into durable 64-bit totals and records reset/overflow evidence
 - IPv6, delegated-prefix, and route accounting is available through `/api/v1/system/accounting-ip`; AegisNAS normalizes `Framed-IPv6-Address`, `Framed-IPv6-Prefix`, `Delegated-IPv6-Prefix`, `Framed-Route`, and `Framed-IPv6-Route` into durable assignment evidence
@@ -160,6 +165,7 @@ What this pass still does not change:
 - real FreeRADIUS SQL imports, vendor hardware packet captures, PostgreSQL HA replay, large-session performance, soak, security, and customer validation remains tracked in [nas-0037-release-certification-checklist.md](nas-0037-release-certification-checklist.md)
 - real dual-stack AP/controller, BNG/BRAS, route-accounting, HA failover, performance, soak, security, and customer validation remains tracked in [nas-0038-release-certification-checklist.md](nas-0038-release-certification-checklist.md)
 - real BNG/BRAS, mobile, voice, VPN, subscriber service-chain, HA failover, performance, soak, security, and customer validation remains tracked in [nas-0039-release-certification-checklist.md](nas-0039-release-certification-checklist.md)
+- real local accounting spool packet captures, access-device retry behavior, database outage drills, HA replay continuity, performance, soak, security, and customer validation remains tracked in [nas-0040-release-certification-checklist.md](nas-0040-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 

@@ -412,6 +412,20 @@ radius:
     retain_unmatched: true
     retention_days: 365
     max_recent_services: 25
+  accounting_ingest_spool:
+    enabled: true
+    replay_enabled: true
+    max_queue_records: 50000
+    max_attempts: 10
+    initial_retry_seconds: 5
+    max_retry_seconds: 300
+    record_ttl_seconds: 604800
+    replay_interval_seconds: 30
+    batch_size: 500
+    lock_seconds: 120
+    applied_retention_seconds: 86400
+    poison_retention_seconds: 2592000
+    loss_slo_seconds: 300
   vendor:
     enabled: false
     name: "AegisNAS"

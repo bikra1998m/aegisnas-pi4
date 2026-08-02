@@ -57,11 +57,58 @@ func TestHandleReconcileSQLAccounting(t *testing.T) {
 	assert.Equal(t, float64(1), result["reconciled"])
 }
 
+func TestHandleAccountingIngestSpoolReportAndReplay(t *testing.T) {
+	prepareSQLAccountingAPIConfig(t)
+	now := time.Now().UTC()
+	_, _, err := db.EnqueueAccountingIngestSpool(db.AccountingIngestSpoolCreate{
+		Event: db.AccountingEventRecord{
+			AcctUniqueID:     "api-ingest-1",
+			AcctSessionID:    "api-ingest-1",
+			SessionKey:       "api-ingest-1",
+			StatusType:       "Start",
+			EventTime:        now.Format(time.RFC3339Nano),
+			Username:         "piper",
+			NASIPAddress:     "10.0.0.16",
+			NASPortID:        "16",
+			CallingStationID: "00-11-22-33-44-16",
+			Source:           "api-test",
+		},
+		MaxAttempts:   3,
+		NextAttemptAt: now.Add(-time.Second),
+		ExpiresAt:     now.Add(time.Hour),
+		OwnerNode:     "node-a",
+	}, 10)
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/accounting-ingest-spool?status=queued&limit=5", nil)
+	HandleGetAccountingIngestSpool(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	report := payload["report"].(map[string]any)
+	assert.Equal(t, "ready", report["status"])
+	records := payload["records"].([]any)
+	require.Len(t, records, 1)
+	record := records[0].(map[string]any)
+	assert.NotContains(t, record, "payload_json")
+
+	body := bytes.NewBufferString(`{"batch_size":5}`)
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/system/accounting-ingest-spool/replay", body)
+	HandleReplayAccountingIngestSpool(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	assert.Equal(t, "ok", payload["status"])
+	assert.Equal(t, float64(1), payload["applied"])
+}
+
 func TestProductionReadinessIncludesSQLAccounting(t *testing.T) {
 	cfg := prepareSQLAccountingAPIConfig(t)
 
 	report := buildProductionReadinessReport(cfg)
 
+	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_ingest_spool"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_sql_accounting"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_ordering"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "radius_accounting_counters"))
@@ -72,6 +119,8 @@ func TestProductionReadinessIncludesSQLAccounting(t *testing.T) {
 func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingCountersIPAndServices(t *testing.T) {
 	spec := buildOpenAPISpec(httptest.NewRequest(http.MethodGet, "/api/v1/openapi.json", nil), nil)
 	paths := spec["paths"].(map[string]any)
+	assert.Contains(t, paths, "/api/v1/system/accounting-ingest-spool")
+	assert.Contains(t, paths, "/api/v1/system/accounting-ingest-spool/replay")
 	assert.Contains(t, paths, "/api/v1/system/sql-accounting")
 	assert.Contains(t, paths, "/api/v1/system/sql-accounting/reconcile")
 	assert.Contains(t, paths, "/api/v1/system/accounting-ordering")
@@ -80,8 +129,12 @@ func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingCountersIPAndService
 	assert.Contains(t, paths, "/api/v1/system/accounting-ip")
 	assert.Contains(t, paths, "/api/v1/system/accounting-services")
 
-	var foundSQL, foundOrdering, foundCounters, foundIP, foundServices bool
+	var foundIngestSpool, foundSQL, foundOrdering, foundCounters, foundIP, foundServices bool
 	for _, capture := range supportBundleAPICaptures() {
+		if capture.archivePath == "api/accounting-ingest-spool.json" {
+			foundIngestSpool = true
+			assert.Equal(t, "/api/v1/system/accounting-ingest-spool", capture.requestPath)
+		}
 		if capture.archivePath == "api/sql-accounting.json" {
 			foundSQL = true
 			assert.Equal(t, "/api/v1/system/sql-accounting", capture.requestPath)
@@ -103,6 +156,7 @@ func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingCountersIPAndService
 			assert.Equal(t, "/api/v1/system/accounting-services", capture.requestPath)
 		}
 	}
+	assert.True(t, foundIngestSpool)
 	assert.True(t, foundSQL)
 	assert.True(t, foundOrdering)
 	assert.True(t, foundCounters)
@@ -111,6 +165,9 @@ func TestOpenAPIAndSupportBundleIncludeSQLAccountingOrderingCountersIPAndService
 }
 
 func TestAuthorizeSQLAccounting(t *testing.T) {
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/accounting-ingest-spool"))
+	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/accounting-ingest-spool/replay"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/accounting-ingest-spool/replay"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/sql-accounting"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/sql-accounting/reconcile"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/sql-accounting/reconcile"))
@@ -293,6 +350,20 @@ radius:
     stale_after_seconds: 300
     accounting_retention_days: 365
     postauth_retention_days: 30
+  accounting_ingest_spool:
+    enabled: true
+    replay_enabled: true
+    max_queue_records: 10000
+    max_attempts: 10
+    initial_retry_seconds: 5
+    max_retry_seconds: 300
+    record_ttl_seconds: 604800
+    replay_interval_seconds: 30
+    batch_size: 500
+    lock_seconds: 120
+    applied_retention_seconds: 86400
+    poison_retention_seconds: 2592000
+    loss_slo_seconds: 300
   accounting_ordering:
     enabled: true
     replay_enabled: true

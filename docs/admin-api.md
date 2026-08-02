@@ -269,6 +269,29 @@ POST /api/v1/system/accounting-spool/replay
 
 The same summary appears in `/api/v1/system/status` under `radius.accounting_spool` and in production readiness as `radius_accounting_spool`.
 
+Durable local accounting ingest spool state is exposed at:
+
+```text
+/api/v1/system/accounting-ingest-spool
+/api/v1/system/accounting-ingest-spool?status=queued&limit=100
+/api/v1/system/accounting-ingest-spool?record_id=<record-id>
+```
+
+Use these endpoints to review local accounting records that were persisted
+before ledger apply, retry attempts, poison records, expired records, queue
+utilization, and loss-SLO breaches. Manual replay is available to `ops_admin`
+and `super_admin`:
+
+```text
+POST /api/v1/system/accounting-ingest-spool/replay
+```
+
+The same summary appears in `/api/v1/system/status` under
+`radius.accounting_ingest_spool`, in production readiness as
+`radius_accounting_ingest_spool`, and in support bundles as
+`api/accounting-ingest-spool.json`. See
+[accounting-ingest-spool-replay.md](accounting-ingest-spool-replay.md).
+
 FreeRADIUS SQL accounting reconciliation is exposed at:
 
 ```text

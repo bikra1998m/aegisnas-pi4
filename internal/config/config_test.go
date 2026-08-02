@@ -697,6 +697,21 @@ func TestConfigValidationRadiusSQLAccounting(t *testing.T) {
 				RetentionDays:                365,
 				MaxRecentServices:            25,
 			},
+			AccountingIngestSpool: RadiusAccountingIngestSpoolConfig{
+				Enabled:                 true,
+				ReplayEnabled:           true,
+				MaxQueueRecords:         50000,
+				MaxAttempts:             10,
+				InitialRetrySeconds:     5,
+				MaxRetrySeconds:         300,
+				RecordTTLSeconds:        604800,
+				ReplayIntervalSeconds:   30,
+				BatchSize:               500,
+				LockSeconds:             120,
+				AppliedRetentionSeconds: 86400,
+				PoisonRetentionSeconds:  2592000,
+				LossSLOSeconds:          300,
+			},
 		},
 	}
 	require.NoError(t, cfg.Validate())
@@ -774,6 +789,23 @@ func TestConfigValidationRadiusSQLAccounting(t *testing.T) {
 	badServiceRecent := *cfg
 	badServiceRecent.Radius.AccountingServices.MaxRecentServices = 501
 	assert.ErrorContains(t, badServiceRecent.Validate(), "accounting_services.max_recent_services")
+
+	ingestSpool := EffectiveRadiusAccountingIngestSpoolConfig(RadiusAccountingIngestSpoolConfig{Enabled: true, ReplayEnabled: true})
+	assert.Equal(t, 50000, ingestSpool.MaxQueueRecords)
+	assert.Equal(t, 500, ingestSpool.BatchSize)
+	assert.Equal(t, 300, ingestSpool.LossSLOSeconds)
+
+	badIngestBatch := *cfg
+	badIngestBatch.Radius.AccountingIngestSpool.BatchSize = 50001
+	assert.ErrorContains(t, badIngestBatch.Validate(), "accounting_ingest_spool.batch_size")
+
+	badIngestBackoff := *cfg
+	badIngestBackoff.Radius.AccountingIngestSpool.MaxRetrySeconds = 1
+	assert.ErrorContains(t, badIngestBackoff.Validate(), "accounting_ingest_spool.max_retry_seconds")
+
+	badIngestSLO := *cfg
+	badIngestSLO.Radius.AccountingIngestSpool.LossSLOSeconds = 604801
+	assert.ErrorContains(t, badIngestSLO.Validate(), "accounting_ingest_spool.loss_slo_seconds")
 }
 
 func TestConfigValidationRadiusDynamicClients(t *testing.T) {

@@ -150,6 +150,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	transportPolicy := radius.BuildTransportPolicyReport(cfg)
 	proxyPolicy := radius.BuildProxyPolicyReport(cfg)
 	accountingSpool := radius.BuildAccountingSpoolReport(cfg)
+	accountingIngestSpool := radius.BuildAccountingIngestSpoolReport(cfg)
 	sqlAccounting := radius.BuildSQLAccountingReport(cfg)
 	accountingOrdering := radius.BuildAccountingOrderingReport(cfg)
 	accountingCounters := radius.BuildAccountingCountersReport(cfg)
@@ -187,6 +188,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"transport_policy":           transportPolicy,
 		"proxy_policy":               proxyPolicy,
 		"accounting_spool":           accountingSpool,
+		"accounting_ingest_spool":    accountingIngestSpool,
 		"sql_accounting":             sqlAccounting,
 		"accounting_ordering":        accountingOrdering,
 		"accounting_counters":        accountingCounters,

@@ -91,6 +91,41 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
 Production readiness blocks when SQL accounting is disabled, reconciliation is
 disabled, the database is unavailable, or stale/error rows remain.
 
+## Accounting Ingest Spool Operations
+
+Use [accounting-ingest-spool-replay.md](accounting-ingest-spool-replay.md) for
+NAS-0040 durable local accounting ingest, write-ahead persistence, replay,
+poison records, and loss-SLO behavior. Before production sign-off, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/accounting-ingest-spool | jq '.report.status, .report.summary'
+```
+
+Run bounded replay after database outage drills, service restarts, failover
+drills, or packet replay tests:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"batch_size":500}' \
+  http://127.0.0.1:8083/api/v1/system/accounting-ingest-spool/replay | jq '.status, .applied, .failed, .poisoned'
+```
+
+Investigate poison records before closing an incident:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  'http://127.0.0.1:8083/api/v1/system/accounting-ingest-spool?status=poison&limit=100' | jq '.records'
+```
+
+Production readiness blocks when local accounting ingest spooling or replay is
+disabled. Poison, expired, loss-SLO breach, or high queue-utilization evidence
+degrades readiness. Support bundles include
+`api/accounting-ingest-spool.json`; external packet captures, hardware drills,
+HA failover, performance, soak, and security validation are tracked in
+`nas-0040-release-certification-checklist.md`.
+
 ## Accounting Ordering Operations
 
 Use [accounting-idempotency-ordering.md](accounting-idempotency-ordering.md) for

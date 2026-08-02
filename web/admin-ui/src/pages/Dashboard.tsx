@@ -296,6 +296,32 @@ type RadiusAccountingSpoolReport = {
   };
 };
 
+type RadiusAccountingIngestSpoolReport = {
+  enabled: boolean;
+  status: string;
+  message: string;
+  summary?: {
+    total_records: number;
+    queued_count: number;
+    retrying_count: number;
+    applied_count: number;
+    poison_count: number;
+    expired_count: number;
+    due_count: number;
+    attempt_count: number;
+    loss_slo_breach_count: number;
+    oldest_active_age_seconds: number;
+    queue_capacity: number;
+    queue_utilization_percent: number;
+    oldest_queued_at?: string;
+    next_attempt_at?: string;
+    last_applied_at?: string;
+    last_poison_at?: string;
+    last_attempt_at?: string;
+    last_error?: string;
+  };
+};
+
 type RadiusSQLAccountingReport = {
   enabled: boolean;
   status: string;
@@ -983,6 +1009,7 @@ type SystemStatus = {
     transport_policy?: RadiusTransportPolicyReport;
     proxy_policy?: RadiusProxyPolicyReport;
     accounting_spool?: RadiusAccountingSpoolReport;
+    accounting_ingest_spool?: RadiusAccountingIngestSpoolReport;
     sql_accounting?: RadiusSQLAccountingReport;
     accounting_ordering?: RadiusAccountingOrderingReport;
     accounting_counters?: RadiusAccountingCountersReport;
@@ -1539,6 +1566,7 @@ export default function Dashboard() {
   const transportPolicy = systemStatus.radius?.transport_policy;
   const proxyPolicy = systemStatus.radius?.proxy_policy;
   const accountingSpool = systemStatus.radius?.accounting_spool;
+  const accountingIngestSpool = systemStatus.radius?.accounting_ingest_spool;
   const sqlAccounting = systemStatus.radius?.sql_accounting;
   const accountingOrdering = systemStatus.radius?.accounting_ordering;
   const accountingCounters = systemStatus.radius?.accounting_counters;
@@ -3498,6 +3526,61 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <StatusBadge status={accountingSpool.status || "unknown"} />
+                  </div>
+                </div>
+              ) : null}
+              {accountingIngestSpool ? (
+                <div className="rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        Accounting Ingest Spool
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {accountingIngestSpool.message ||
+                          "Local accounting ingest spool state is available."}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-500 sm:grid-cols-5">
+                        <div>
+                          Queued{" "}
+                          {accountingIngestSpool.summary?.queued_count ?? 0}
+                        </div>
+                        <div>
+                          Retrying{" "}
+                          {accountingIngestSpool.summary?.retrying_count ?? 0}
+                        </div>
+                        <div>
+                          Due {accountingIngestSpool.summary?.due_count ?? 0}
+                        </div>
+                        <div>
+                          Poison{" "}
+                          {accountingIngestSpool.summary?.poison_count ?? 0}
+                        </div>
+                        <div>
+                          SLO{" "}
+                          {accountingIngestSpool.summary
+                            ?.loss_slo_breach_count ?? 0}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Applied{" "}
+                        {accountingIngestSpool.summary?.applied_count ?? 0};
+                        expired{" "}
+                        {accountingIngestSpool.summary?.expired_count ?? 0};
+                        attempts{" "}
+                        {accountingIngestSpool.summary?.attempt_count ?? 0};
+                        used{" "}
+                        {accountingIngestSpool.summary
+                          ?.queue_utilization_percent ?? 0}
+                        %
+                        {accountingIngestSpool.summary?.next_attempt_at
+                          ? `; next ${accountingIngestSpool.summary.next_attempt_at}`
+                          : ""}
+                      </div>
+                    </div>
+                    <StatusBadge
+                      status={accountingIngestSpool.status || "unknown"}
+                    />
                   </div>
                 </div>
               ) : null}

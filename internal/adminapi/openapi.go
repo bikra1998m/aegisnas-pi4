@@ -1219,6 +1219,16 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/accounting-spool/replay", "post", securedOperation("Replay due durable RADIUS accounting records", "RADIUS", []string{"ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Replay run result with claimed, sent, failed, poisoned, expired, and queue summary counts."),
 	}))
+	addOperation(paths, "/api/v1/system/accounting-ingest-spool", "get", securedOperationWithParameters("Read durable local accounting ingest spool state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("status", "Optional ingest spool record status filter.", []string{"queued", "retrying", "applied", "poison", "expired"}, false),
+		queryStringParameter("record_id", "Optional ingest spool record ID for attempt history.", false),
+		queryStringParameter("limit", "Record or attempt limit from 1 to 1000.", false),
+	}, map[string]any{
+		"200": responseJSON("Accounting ingest spool policy, summary, recent records, optional filtered records, and attempt history."),
+	}))
+	addOperation(paths, "/api/v1/system/accounting-ingest-spool/replay", "post", securedOperationWithBody("Replay due local accounting ingest records", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional batch_size override bounded by policy."), map[string]any{
+		"200": responseJSON("Replay run result with claimed, applied, failed, poisoned, expired, and queue summary counts."),
+	}))
 	addOperation(paths, "/api/v1/system/sql-accounting", "get", securedOperationWithParameters("Read FreeRADIUS SQL accounting reconciliation state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("status", "Optional radacct reconcile status filter.", []string{"pending", "reconciled", "error", "ignored"}, false),
 		queryStringParameter("limit", "Record limit from 1 to 1000.", false),

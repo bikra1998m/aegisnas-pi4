@@ -203,28 +203,29 @@ type HealthConfig struct {
 }
 
 type RadiusConfig struct {
-	Clients               []RadiusClient                 `mapstructure:"clients"`
-	Secret                string                         `mapstructure:"secret"`
-	SecretRef             string                         `mapstructure:"secret_ref"`
-	AuthPort              int                            `mapstructure:"auth_port"`
-	AcctPort              int                            `mapstructure:"acct_port"`
-	MaxSessions           int                            `mapstructure:"max_sessions"`
-	CertDir               string                         `mapstructure:"cert_dir"`
-	NASIdentifier         string                         `mapstructure:"nas_identifier"`
-	RequestTimeoutSeconds int                            `mapstructure:"request_timeout_seconds"`
-	InterimUpdateSeconds  int                            `mapstructure:"interim_update_seconds"`
-	SQLAccounting         RadiusSQLAccountingConfig      `mapstructure:"sql_accounting"`
-	AccountingOrdering    RadiusAccountingOrderingConfig `mapstructure:"accounting_ordering"`
-	AccountingCounters    RadiusAccountingCountersConfig `mapstructure:"accounting_counters"`
-	AccountingIP          RadiusAccountingIPConfig       `mapstructure:"accounting_ip"`
-	AccountingServices    RadiusAccountingServicesConfig `mapstructure:"accounting_services"`
-	DynamicAuth           DynamicAuthConfig              `mapstructure:"dynamic_auth"`
-	DynamicClients        RadiusDynamicClientsConfig     `mapstructure:"dynamic_clients"`
-	PacketHardening       RadiusPacketHardeningConfig    `mapstructure:"packet_hardening"`
-	RadSec                RadiusRadSecConfig             `mapstructure:"radsec"`
-	EAP                   RadiusEAPConfig                `mapstructure:"eap"`
-	Upstream              RadiusUpstreamConfig           `mapstructure:"upstream"`
-	Vendor                RadiusVendorConfig             `mapstructure:"vendor"`
+	Clients               []RadiusClient                    `mapstructure:"clients"`
+	Secret                string                            `mapstructure:"secret"`
+	SecretRef             string                            `mapstructure:"secret_ref"`
+	AuthPort              int                               `mapstructure:"auth_port"`
+	AcctPort              int                               `mapstructure:"acct_port"`
+	MaxSessions           int                               `mapstructure:"max_sessions"`
+	CertDir               string                            `mapstructure:"cert_dir"`
+	NASIdentifier         string                            `mapstructure:"nas_identifier"`
+	RequestTimeoutSeconds int                               `mapstructure:"request_timeout_seconds"`
+	InterimUpdateSeconds  int                               `mapstructure:"interim_update_seconds"`
+	SQLAccounting         RadiusSQLAccountingConfig         `mapstructure:"sql_accounting"`
+	AccountingOrdering    RadiusAccountingOrderingConfig    `mapstructure:"accounting_ordering"`
+	AccountingCounters    RadiusAccountingCountersConfig    `mapstructure:"accounting_counters"`
+	AccountingIP          RadiusAccountingIPConfig          `mapstructure:"accounting_ip"`
+	AccountingServices    RadiusAccountingServicesConfig    `mapstructure:"accounting_services"`
+	AccountingIngestSpool RadiusAccountingIngestSpoolConfig `mapstructure:"accounting_ingest_spool"`
+	DynamicAuth           DynamicAuthConfig                 `mapstructure:"dynamic_auth"`
+	DynamicClients        RadiusDynamicClientsConfig        `mapstructure:"dynamic_clients"`
+	PacketHardening       RadiusPacketHardeningConfig       `mapstructure:"packet_hardening"`
+	RadSec                RadiusRadSecConfig                `mapstructure:"radsec"`
+	EAP                   RadiusEAPConfig                   `mapstructure:"eap"`
+	Upstream              RadiusUpstreamConfig              `mapstructure:"upstream"`
+	Vendor                RadiusVendorConfig                `mapstructure:"vendor"`
 }
 
 type RadiusDynamicClientsConfig struct {
@@ -319,6 +320,22 @@ type RadiusAccountingServicesConfig struct {
 	RetainUnmatched              bool `mapstructure:"retain_unmatched"`
 	RetentionDays                int  `mapstructure:"retention_days"`
 	MaxRecentServices            int  `mapstructure:"max_recent_services"`
+}
+
+type RadiusAccountingIngestSpoolConfig struct {
+	Enabled                 bool `mapstructure:"enabled"`
+	ReplayEnabled           bool `mapstructure:"replay_enabled"`
+	MaxQueueRecords         int  `mapstructure:"max_queue_records"`
+	MaxAttempts             int  `mapstructure:"max_attempts"`
+	InitialRetrySeconds     int  `mapstructure:"initial_retry_seconds"`
+	MaxRetrySeconds         int  `mapstructure:"max_retry_seconds"`
+	RecordTTLSeconds        int  `mapstructure:"record_ttl_seconds"`
+	ReplayIntervalSeconds   int  `mapstructure:"replay_interval_seconds"`
+	BatchSize               int  `mapstructure:"batch_size"`
+	LockSeconds             int  `mapstructure:"lock_seconds"`
+	AppliedRetentionSeconds int  `mapstructure:"applied_retention_seconds"`
+	PoisonRetentionSeconds  int  `mapstructure:"poison_retention_seconds"`
+	LossSLOSeconds          int  `mapstructure:"loss_slo_seconds"`
 }
 
 type TACACSConfig struct {
@@ -1569,6 +1586,19 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.accounting_ip.delegated_prefix_enabled", true)
 	v.SetDefault("radius.accounting_ip.reject_invalid", false)
 	v.SetDefault("radius.accounting_ip.retention_days", 365)
+	v.SetDefault("radius.accounting_ingest_spool.enabled", true)
+	v.SetDefault("radius.accounting_ingest_spool.replay_enabled", true)
+	v.SetDefault("radius.accounting_ingest_spool.max_queue_records", 50000)
+	v.SetDefault("radius.accounting_ingest_spool.max_attempts", 10)
+	v.SetDefault("radius.accounting_ingest_spool.initial_retry_seconds", 5)
+	v.SetDefault("radius.accounting_ingest_spool.max_retry_seconds", 300)
+	v.SetDefault("radius.accounting_ingest_spool.record_ttl_seconds", 604800)
+	v.SetDefault("radius.accounting_ingest_spool.replay_interval_seconds", 30)
+	v.SetDefault("radius.accounting_ingest_spool.batch_size", 500)
+	v.SetDefault("radius.accounting_ingest_spool.lock_seconds", 120)
+	v.SetDefault("radius.accounting_ingest_spool.applied_retention_seconds", 86400)
+	v.SetDefault("radius.accounting_ingest_spool.poison_retention_seconds", 2592000)
+	v.SetDefault("radius.accounting_ingest_spool.loss_slo_seconds", 300)
 	v.SetDefault("portal.port", 8081)
 	v.SetDefault("telemetry.enabled", true)
 	v.SetDefault("telemetry.prometheus_port", 9090)
@@ -4203,6 +4233,9 @@ func (c *Config) Validate() error {
 	if err := validateRadiusAccountingServices(c.Radius.AccountingServices); err != nil {
 		return err
 	}
+	if err := validateRadiusAccountingIngestSpool(c.Radius.AccountingIngestSpool); err != nil {
+		return err
+	}
 	if c.Radius.DynamicAuth.Enabled && (c.Radius.DynamicAuth.Port < 1 || c.Radius.DynamicAuth.Port > 65535) {
 		return fmt.Errorf("radius.dynamic_auth.port %d out of range", c.Radius.DynamicAuth.Port)
 	}
@@ -6358,6 +6391,103 @@ func validateRadiusAccountingServices(raw RadiusAccountingServicesConfig) error 
 	}
 	if effective.MaxRecentServices < 1 || effective.MaxRecentServices > 500 {
 		return fmt.Errorf("radius.accounting_services.max_recent_services must be between 1 and 500")
+	}
+	return nil
+}
+
+func EffectiveRadiusAccountingIngestSpoolConfig(raw RadiusAccountingIngestSpoolConfig) RadiusAccountingIngestSpoolConfig {
+	effective := raw
+	if effective.MaxQueueRecords == 0 {
+		effective.MaxQueueRecords = 50000
+	}
+	if effective.MaxAttempts == 0 {
+		effective.MaxAttempts = 10
+	}
+	if effective.InitialRetrySeconds == 0 {
+		effective.InitialRetrySeconds = 5
+	}
+	if effective.MaxRetrySeconds == 0 {
+		effective.MaxRetrySeconds = 300
+	}
+	if effective.RecordTTLSeconds == 0 {
+		effective.RecordTTLSeconds = 604800
+	}
+	if effective.ReplayIntervalSeconds == 0 {
+		effective.ReplayIntervalSeconds = 30
+	}
+	if effective.BatchSize == 0 {
+		effective.BatchSize = 500
+	}
+	if effective.LockSeconds == 0 {
+		effective.LockSeconds = 120
+	}
+	if effective.AppliedRetentionSeconds == 0 {
+		effective.AppliedRetentionSeconds = 86400
+	}
+	if effective.PoisonRetentionSeconds == 0 {
+		effective.PoisonRetentionSeconds = 2592000
+	}
+	if effective.LossSLOSeconds == 0 {
+		effective.LossSLOSeconds = 300
+	}
+	return effective
+}
+
+func validateRadiusAccountingIngestSpool(raw RadiusAccountingIngestSpoolConfig) error {
+	values := map[string]int{
+		"max_queue_records":         raw.MaxQueueRecords,
+		"max_attempts":              raw.MaxAttempts,
+		"initial_retry_seconds":     raw.InitialRetrySeconds,
+		"max_retry_seconds":         raw.MaxRetrySeconds,
+		"record_ttl_seconds":        raw.RecordTTLSeconds,
+		"replay_interval_seconds":   raw.ReplayIntervalSeconds,
+		"batch_size":                raw.BatchSize,
+		"lock_seconds":              raw.LockSeconds,
+		"applied_retention_seconds": raw.AppliedRetentionSeconds,
+		"poison_retention_seconds":  raw.PoisonRetentionSeconds,
+		"loss_slo_seconds":          raw.LossSLOSeconds,
+	}
+	for name, value := range values {
+		if value < 0 {
+			return fmt.Errorf("radius.accounting_ingest_spool.%s %d cannot be negative", name, value)
+		}
+	}
+	if !raw.Enabled {
+		return nil
+	}
+	effective := EffectiveRadiusAccountingIngestSpoolConfig(raw)
+	if effective.MaxQueueRecords < 1 || effective.MaxQueueRecords > 1000000 {
+		return fmt.Errorf("radius.accounting_ingest_spool.max_queue_records must be between 1 and 1000000")
+	}
+	if effective.MaxAttempts < 1 || effective.MaxAttempts > 1000 {
+		return fmt.Errorf("radius.accounting_ingest_spool.max_attempts must be between 1 and 1000")
+	}
+	if effective.InitialRetrySeconds < 1 {
+		return fmt.Errorf("radius.accounting_ingest_spool.initial_retry_seconds must be positive")
+	}
+	if effective.MaxRetrySeconds < effective.InitialRetrySeconds {
+		return fmt.Errorf("radius.accounting_ingest_spool.max_retry_seconds must be greater than or equal to initial_retry_seconds")
+	}
+	if effective.RecordTTLSeconds < effective.MaxRetrySeconds {
+		return fmt.Errorf("radius.accounting_ingest_spool.record_ttl_seconds must be greater than or equal to max_retry_seconds")
+	}
+	if effective.ReplayEnabled && effective.ReplayIntervalSeconds < 1 {
+		return fmt.Errorf("radius.accounting_ingest_spool.replay_interval_seconds must be positive when replay is enabled")
+	}
+	if effective.BatchSize < 1 || effective.BatchSize > effective.MaxQueueRecords {
+		return fmt.Errorf("radius.accounting_ingest_spool.batch_size must be between 1 and max_queue_records")
+	}
+	if effective.LockSeconds < 1 {
+		return fmt.Errorf("radius.accounting_ingest_spool.lock_seconds must be positive")
+	}
+	if effective.AppliedRetentionSeconds < 1 {
+		return fmt.Errorf("radius.accounting_ingest_spool.applied_retention_seconds must be positive")
+	}
+	if effective.PoisonRetentionSeconds < 1 {
+		return fmt.Errorf("radius.accounting_ingest_spool.poison_retention_seconds must be positive")
+	}
+	if effective.LossSLOSeconds < 1 || effective.LossSLOSeconds > effective.RecordTTLSeconds {
+		return fmt.Errorf("radius.accounting_ingest_spool.loss_slo_seconds must be between 1 and record_ttl_seconds")
 	}
 	return nil
 }

@@ -168,7 +168,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{41, schemaV41},
 		{42, schemaV42},
 		{43, schemaV43},
-		{LatestSchemaVersion(), schemaV44},
+		{44, schemaV44},
+		{LatestSchemaVersion(), schemaV45},
 	}
 
 	for _, m := range migrations {
@@ -270,8 +271,20 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureAccountingServiceCorrelationSchema(handle); err != nil {
 		return fmt.Errorf("repair accounting service correlation schema: %w", err)
 	}
+	if err := ensureAccountingIngestSpoolSchema(handle); err != nil {
+		return fmt.Errorf("repair accounting ingest spool schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureAccountingIngestSpoolSchema(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	_, err := handle.Exec(SQLForDialect(accountingIngestSpoolSQL, dialect))
+	return err
 }
 
 func ensureAccountingServiceCorrelationSchema(handle *sql.DB) error {
