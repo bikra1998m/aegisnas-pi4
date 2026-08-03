@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 47
+	return 48
 }
 
 func Migrate() error {
@@ -2539,3 +2539,91 @@ CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_attempts_status ON radius_out
 `
 
 const schemaV47 = outboundDACSQL
+
+const outboundDACQueueSQL = `
+CREATE TABLE IF NOT EXISTS radius_outbound_dac_queue (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	queue_id TEXT UNIQUE NOT NULL,
+	idempotency_key TEXT UNIQUE NOT NULL,
+	action TEXT NOT NULL,
+	status TEXT NOT NULL,
+	target_address TEXT NOT NULL,
+	target_port INTEGER NOT NULL,
+	target_transport TEXT NOT NULL DEFAULT 'udp',
+	nas_identifier TEXT,
+	nas_ip_address TEXT,
+	nas_type TEXT,
+	shortname TEXT,
+	session_id TEXT,
+	username_hash TEXT,
+	calling_station_hash TEXT,
+	framed_ip_address TEXT,
+	attributes_json TEXT NOT NULL DEFAULT '[]',
+	payload_json TEXT NOT NULL,
+	payload_sha256 TEXT NOT NULL,
+	request_code INTEGER NOT NULL,
+	correlation_id TEXT NOT NULL,
+	requested_by TEXT,
+	request_fingerprint TEXT NOT NULL,
+	attempt_count INTEGER NOT NULL DEFAULT 0,
+	max_attempts INTEGER NOT NULL DEFAULT 1,
+	last_error TEXT,
+	last_response_code INTEGER,
+	last_error_cause INTEGER,
+	last_error_cause_name TEXT,
+	last_reply_message TEXT,
+	last_latency_ms INTEGER NOT NULL DEFAULT 0,
+	last_attempt_at DATETIME,
+	next_attempt_at DATETIME,
+	expires_at DATETIME NOT NULL,
+	idempotency_expires_at DATETIME NOT NULL,
+	owner_node TEXT,
+	locked_until DATETIME,
+	sent_at DATETIME,
+	completed_at DATETIME,
+	canceled_at DATETIME,
+	canceled_by TEXT,
+	cancel_reason TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (action IN ('coa', 'disconnect')),
+	CHECK (status IN ('queued', 'retrying', 'ack', 'nak', 'error', 'poison', 'expired', 'canceled')),
+	CHECK (target_transport IN ('udp', 'radsec'))
+);
+
+CREATE TABLE IF NOT EXISTS radius_outbound_dac_queue_attempts (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	queue_id TEXT NOT NULL,
+	attempt_number INTEGER NOT NULL,
+	result TEXT NOT NULL,
+	status TEXT NOT NULL,
+	target_address TEXT NOT NULL,
+	target_port INTEGER NOT NULL,
+	target_transport TEXT NOT NULL DEFAULT 'udp',
+	request_code INTEGER NOT NULL,
+	response_code INTEGER,
+	error_cause INTEGER,
+	error_cause_name TEXT,
+	reply_message TEXT,
+	latency_ms INTEGER NOT NULL DEFAULT 0,
+	packet_identifier INTEGER NOT NULL DEFAULT 0,
+	request_fingerprint TEXT NOT NULL,
+	response_fingerprint TEXT,
+	error_message TEXT,
+	attempted_at DATETIME NOT NULL,
+	next_attempt_at DATETIME,
+	FOREIGN KEY(queue_id) REFERENCES radius_outbound_dac_queue(queue_id),
+	CHECK (result IN ('ack', 'nak', 'failed', 'poison', 'expired', 'canceled')),
+	CHECK (status IN ('queued', 'retrying', 'ack', 'nak', 'error', 'poison', 'expired', 'canceled')),
+	CHECK (target_transport IN ('udp', 'radsec'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_status ON radius_outbound_dac_queue(status, next_attempt_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_target ON radius_outbound_dac_queue(target_address, target_port, created_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_session ON radius_outbound_dac_queue(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_correlation ON radius_outbound_dac_queue(correlation_id);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_attempts_queue ON radius_outbound_dac_queue_attempts(queue_id, attempt_number);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_attempts_result ON radius_outbound_dac_queue_attempts(result, attempted_at);
+`
+
+const schemaV48 = outboundDACQueueSQL

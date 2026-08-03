@@ -65,6 +65,7 @@ var runCmd = &cobra.Command{
 		go health.StartServer(cfg.Health.Port+5, logger)
 		go radius.StartAccountingSpoolReplayer(context.Background(), cfg)
 		go radius.StartAccountingIngestSpoolReplayer(context.Background(), cfg)
+		go radius.StartOutboundDACQueueReplayer(context.Background(), cfg)
 		go radius.StartSQLAccountingReconciler(context.Background(), cfg)
 		go radius.StartAccountingChargingReconciler(context.Background(), cfg)
 		go func() {

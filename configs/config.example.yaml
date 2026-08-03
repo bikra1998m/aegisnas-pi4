@@ -332,6 +332,19 @@ radius:
     outbound_allow_coa: true
     outbound_allow_disconnect: true
     outbound_require_confirmation: true
+    outbound_queue_enabled: true
+    outbound_replay_enabled: true
+    outbound_max_queue_records: 10000
+    outbound_max_attempts: 6
+    outbound_initial_retry_seconds: 5
+    outbound_max_retry_seconds: 300
+    outbound_record_ttl_seconds: 3600
+    outbound_replay_interval_seconds: 15
+    outbound_batch_size: 50
+    outbound_lock_seconds: 60
+    outbound_ack_retention_seconds: 86400
+    outbound_dead_letter_retention_seconds: 2592000
+    outbound_idempotency_window_seconds: 3600
   dynamic_clients:
     enabled: false
     discovery_enabled: false

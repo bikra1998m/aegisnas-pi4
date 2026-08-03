@@ -55,6 +55,46 @@ func TestOutboundDACClientHandlersPreviewSendAndHistory(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &sendResult))
 	assert.Equal(t, "blocked", sendResult["status"])
 
+	enqueueBody := bytes.NewBufferString(`{
+		"action":"coa",
+		"target_address":"192.0.2.10",
+		"acct_session_id":"acct-queued",
+		"filter_id":"employee",
+		"idempotency_key":"ticket-queued",
+		"confirm":true
+	}`)
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/system/dac-client/enqueue", enqueueBody)
+	rec = httptest.NewRecorder()
+	HandleEnqueueOutboundDAC(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var enqueueResult map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &enqueueResult))
+	assert.Equal(t, "queued", enqueueResult["status"])
+	queue := enqueueResult["queue"].(map[string]any)
+	queueID := queue["queue_id"].(string)
+	assert.NotEmpty(t, queueID)
+	assert.Nil(t, queue["payload_json"])
+
+	cancelBody, err := json.Marshal(map[string]any{"queue_id": queueID, "reason": "operator changed policy"})
+	require.NoError(t, err)
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/system/dac-client/cancel", bytes.NewReader(cancelBody))
+	rec = httptest.NewRecorder()
+	HandleCancelOutboundDACQueue(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var cancelResult map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &cancelResult))
+	assert.Equal(t, "canceled", cancelResult["status"])
+
+	retryBody, err := json.Marshal(map[string]any{"queue_id": queueID})
+	require.NoError(t, err)
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/system/dac-client/retry", bytes.NewReader(retryBody))
+	rec = httptest.NewRecorder()
+	HandleRetryOutboundDACQueue(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var retryResult map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &retryResult))
+	assert.Equal(t, "queued", retryResult["status"])
+
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/system/dac-client/history?limit=5", nil)
 	rec = httptest.NewRecorder()
 	HandleListOutboundDACHistory(rec, req)
@@ -64,6 +104,11 @@ func TestOutboundDACClientHandlersPreviewSendAndHistory(t *testing.T) {
 	records := history["records"].([]any)
 	require.Len(t, records, 1)
 	assert.Equal(t, "blocked", records[0].(map[string]any)["status"])
+	queueRecords := history["queue_records"].([]any)
+	require.Len(t, queueRecords, 1)
+	assert.Equal(t, queueID, queueRecords[0].(map[string]any)["queue_id"])
+	queueSummary := history["queue_summary"].(map[string]any)
+	assert.Equal(t, float64(1), queueSummary["queued_count"])
 }
 
 func TestOutboundDACClientOpenAPIRBACReadinessAndSupportBundle(t *testing.T) {
@@ -73,6 +118,10 @@ func TestOutboundDACClientOpenAPIRBACReadinessAndSupportBundle(t *testing.T) {
 	assert.Contains(t, paths, "/api/v1/system/dac-client")
 	assert.Contains(t, paths, "/api/v1/system/dac-client/preview")
 	assert.Contains(t, paths, "/api/v1/system/dac-client/send")
+	assert.Contains(t, paths, "/api/v1/system/dac-client/enqueue")
+	assert.Contains(t, paths, "/api/v1/system/dac-client/replay")
+	assert.Contains(t, paths, "/api/v1/system/dac-client/cancel")
+	assert.Contains(t, paths, "/api/v1/system/dac-client/retry")
 	assert.Contains(t, paths, "/api/v1/system/dac-client/history")
 
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/dac-client"))
@@ -80,6 +129,11 @@ func TestOutboundDACClientOpenAPIRBACReadinessAndSupportBundle(t *testing.T) {
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/dac-client/preview"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/dac-client/send"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/dac-client/send"))
+	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/dac-client/enqueue"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/dac-client/enqueue"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/dac-client/replay"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/dac-client/cancel"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/dac-client/retry"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/dac-client/history"))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/production-readiness", nil)
@@ -139,6 +193,19 @@ radius:
     outbound_allow_coa: true
     outbound_allow_disconnect: true
     outbound_require_confirmation: true
+    outbound_queue_enabled: true
+    outbound_replay_enabled: true
+    outbound_max_queue_records: 100
+    outbound_max_attempts: 6
+    outbound_initial_retry_seconds: 5
+    outbound_max_retry_seconds: 300
+    outbound_record_ttl_seconds: 3600
+    outbound_replay_interval_seconds: 15
+    outbound_batch_size: 10
+    outbound_lock_seconds: 60
+    outbound_ack_retention_seconds: 86400
+    outbound_dead_letter_retention_seconds: 2592000
+    outbound_idempotency_window_seconds: 3600
   clients:
     - ip: 192.0.2.10
       secret: shared-secret

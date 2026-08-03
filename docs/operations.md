@@ -128,13 +128,14 @@ HA failover, performance, soak, and security validation are tracked in
 
 ## Outbound Dynamic Authorization Operations
 
-Use [outbound-dac-client.md](outbound-dac-client.md) for NAS-0042 RFC 5176 CoA
-and Disconnect preview/send behavior, supported vendor-neutral attributes,
-history, and troubleshooting. Before production sign-off, run:
+Use [outbound-dac-client.md](outbound-dac-client.md) for NAS-0042/NAS-0043 RFC
+5176 CoA and Disconnect preview/send/queue/replay behavior, supported
+vendor-neutral attributes, history, and troubleshooting. Before production
+sign-off, run:
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
-  http://127.0.0.1:8083/api/v1/system/dac-client | jq '.report.status, .report.summary'
+  http://127.0.0.1:8083/api/v1/system/dac-client | jq '.report.status, .report.summary, .report.queue_summary'
 ```
 
 Preview before sending:
@@ -146,13 +147,34 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/dac-client/preview | jq .
 ```
 
+Queue a confirmed action when retry should survive restart or transient target
+loss:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"coa","target_address":"192.0.2.10","acct_session_id":"acct-123","filter_id":"quarantine","idempotency_key":"ticket-123:quarantine","confirm":true}' \
+  http://127.0.0.1:8083/api/v1/system/dac-client/enqueue | jq .
+```
+
+Replay due queue records during a recovery drill:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"batch_size":25}' \
+  http://127.0.0.1:8083/api/v1/system/dac-client/replay | jq .
+```
+
 Production readiness blocks when outbound DAC is disabled, known-client gating
-or send confirmation is disabled, the history tables are unavailable, no managed
-NAS clients exist, or no shared secret can be resolved. NAK, error, and blocked
-history degrades readiness until investigated. Support bundles include
+or send confirmation is disabled, durable queue/replay is disabled, the history
+or queue tables are unavailable, no managed NAS clients exist, or no shared
+secret can be resolved. NAK, error, blocked, poison, and expired history
+degrades readiness until investigated. Support bundles include
 `api/dac-client.json` and `api/dac-client-history.json`; external device,
 packet-capture, HA, performance, soak, and security validation are tracked in
-`nas-0042-release-certification-checklist.md`.
+`nas-0042-release-certification-checklist.md` and
+`nas-0043-release-certification-checklist.md`.
 
 ## Accounting Ordering Operations
 

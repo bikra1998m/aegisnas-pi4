@@ -48,6 +48,19 @@ radius:
 	assert.True(t, effective.OutboundAllowCoA)
 	assert.True(t, effective.OutboundAllowDisconnect)
 	assert.True(t, effective.OutboundRequireConfirmation)
+	assert.True(t, effective.OutboundQueueEnabled)
+	assert.True(t, effective.OutboundReplayEnabled)
+	assert.Equal(t, 10000, effective.OutboundMaxQueueRecords)
+	assert.Equal(t, 6, effective.OutboundMaxAttempts)
+	assert.Equal(t, 5, effective.OutboundInitialRetrySeconds)
+	assert.Equal(t, 300, effective.OutboundMaxRetrySeconds)
+	assert.Equal(t, 3600, effective.OutboundRecordTTLSeconds)
+	assert.Equal(t, 15, effective.OutboundReplayIntervalSeconds)
+	assert.Equal(t, 50, effective.OutboundBatchSize)
+	assert.Equal(t, 60, effective.OutboundLockSeconds)
+	assert.Equal(t, 86400, effective.OutboundACKRetentionSeconds)
+	assert.Equal(t, 2592000, effective.OutboundDeadLetterRetentionSeconds)
+	assert.Equal(t, 3600, effective.OutboundIdempotencyWindowSeconds)
 	require.NoError(t, cfg.Validate())
 }
 
@@ -70,17 +83,30 @@ func TestConfigValidationOutboundDynamicAuthBounds(t *testing.T) {
 			MaxSessions:           1024,
 			RequestTimeoutSeconds: 5,
 			DynamicAuth: DynamicAuthConfig{
-				Enabled:                     true,
-				Port:                        3799,
-				OutboundEnabled:             true,
-				OutboundDefaultPort:         3799,
-				OutboundTimeoutSeconds:      5,
-				OutboundRequireKnownClient:  true,
-				OutboundHistoryLimit:        10000,
-				OutboundMaxAttributes:       32,
-				OutboundAllowCoA:            true,
-				OutboundAllowDisconnect:     true,
-				OutboundRequireConfirmation: true,
+				Enabled:                            true,
+				Port:                               3799,
+				OutboundEnabled:                    true,
+				OutboundDefaultPort:                3799,
+				OutboundTimeoutSeconds:             5,
+				OutboundRequireKnownClient:         true,
+				OutboundHistoryLimit:               10000,
+				OutboundMaxAttributes:              32,
+				OutboundAllowCoA:                   true,
+				OutboundAllowDisconnect:            true,
+				OutboundRequireConfirmation:        true,
+				OutboundQueueEnabled:               true,
+				OutboundReplayEnabled:              true,
+				OutboundMaxQueueRecords:            10000,
+				OutboundMaxAttempts:                6,
+				OutboundInitialRetrySeconds:        5,
+				OutboundMaxRetrySeconds:            300,
+				OutboundRecordTTLSeconds:           3600,
+				OutboundReplayIntervalSeconds:      15,
+				OutboundBatchSize:                  50,
+				OutboundLockSeconds:                60,
+				OutboundACKRetentionSeconds:        86400,
+				OutboundDeadLetterRetentionSeconds: 2592000,
+				OutboundIdempotencyWindowSeconds:   3600,
 			},
 		},
 	}
@@ -100,4 +126,16 @@ func TestConfigValidationOutboundDynamicAuthBounds(t *testing.T) {
 	badActions.Radius.DynamicAuth.OutboundAllowCoA = false
 	badActions.Radius.DynamicAuth.OutboundAllowDisconnect = false
 	assert.ErrorContains(t, badActions.Validate(), "outbound must allow")
+
+	badQueue := *base
+	badQueue.Radius.DynamicAuth.OutboundBatchSize = 10001
+	assert.ErrorContains(t, badQueue.Validate(), "outbound_batch_size")
+
+	badRetry := *base
+	badRetry.Radius.DynamicAuth.OutboundMaxRetrySeconds = 4
+	assert.ErrorContains(t, badRetry.Validate(), "outbound_max_retry_seconds")
+
+	badIdempotency := *base
+	badIdempotency.Radius.DynamicAuth.OutboundIdempotencyWindowSeconds = 7200
+	assert.ErrorContains(t, badIdempotency.Validate(), "outbound_idempotency_window_seconds")
 }

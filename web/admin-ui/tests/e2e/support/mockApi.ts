@@ -810,6 +810,19 @@ function createSettings() {
         outbound_allow_coa: true,
         outbound_allow_disconnect: true,
         outbound_require_confirmation: true,
+        outbound_queue_enabled: true,
+        outbound_replay_enabled: true,
+        outbound_max_queue_records: 10000,
+        outbound_max_attempts: 6,
+        outbound_initial_retry_seconds: 5,
+        outbound_max_retry_seconds: 300,
+        outbound_record_ttl_seconds: 3600,
+        outbound_replay_interval_seconds: 15,
+        outbound_batch_size: 50,
+        outbound_lock_seconds: 60,
+        outbound_ack_retention_seconds: 86400,
+        outbound_dead_letter_retention_seconds: 2592000,
+        outbound_idempotency_window_seconds: 3600,
       },
       accounting_ingest_spool: {
         enabled: true,
@@ -1200,6 +1213,21 @@ function createSystemStatus() {
             "NAS-0044 proxy CoA and RadSec reverse CoA routing",
           ],
         },
+        queue_policy: {
+          enabled: true,
+          replay_enabled: true,
+          max_queue_records: 10000,
+          max_attempts: 6,
+          initial_retry_seconds: 5,
+          max_retry_seconds: 300,
+          record_ttl_seconds: 3600,
+          replay_interval_seconds: 15,
+          batch_size: 50,
+          lock_seconds: 60,
+          ack_retention_seconds: 86400,
+          dead_letter_retention_seconds: 2592000,
+          idempotency_window_seconds: 3600,
+        },
         summary: {
           total_requests: 1,
           ack_count: 1,
@@ -1209,6 +1237,21 @@ function createSystemStatus() {
           sent_count: 0,
           attempt_count: 1,
           last_completed_at: "2026-05-05T11:59:45Z",
+        },
+        queue_summary: {
+          total_records: 1,
+          queued_count: 1,
+          retrying_count: 0,
+          ack_count: 0,
+          nak_count: 0,
+          error_count: 0,
+          poison_count: 0,
+          expired_count: 0,
+          canceled_count: 0,
+          due_count: 1,
+          attempt_count: 0,
+          queue_capacity: 10000,
+          queue_utilization_percent: 0,
         },
         recent: [
           {
@@ -1225,6 +1268,25 @@ function createSystemStatus() {
             latency_ms: 12,
             requested_at: "2026-05-05T11:59:45Z",
             completed_at: "2026-05-05T11:59:45Z",
+          },
+        ],
+        queue_recent: [
+          {
+            queue_id: "dacq-20260505-1",
+            idempotency_key:
+              "sha256:6bd401e046c6f7502190a3f0bd94508f6b873dd5a0d8c6d583f2d3d8bcad1111",
+            action: "coa",
+            status: "queued",
+            target_address: "192.0.2.10",
+            target_port: 3799,
+            target_transport: "udp",
+            session_id: "acct-123",
+            correlation_id: "ticket-1",
+            attempt_count: 0,
+            max_attempts: 6,
+            next_attempt_at: "2026-05-05T12:00:05Z",
+            expires_at: "2026-05-05T13:00:00Z",
+            created_at: "2026-05-05T12:00:00Z",
           },
         ],
         warnings: [],
@@ -4175,6 +4237,91 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
+    if (path === "/system/dac-client/enqueue" && method === "POST") {
+      const queue = state.systemStatus.radius.dac_client.queue_recent[0];
+      await route.fulfill({
+        json: {
+          status: "queued",
+          message: `Outbound CoA request queued as ${queue.queue_id}.`,
+          created: true,
+          duplicate: false,
+          preview: {
+            status: "ready",
+            message:
+              "CoA request can be sent to 192.0.2.10:3799 with 3 attribute(s).",
+            action: "coa",
+            request_code: 43,
+            expected_ack_code: 44,
+            expected_nak_code: 45,
+            target: {
+              endpoint: "192.0.2.10:3799",
+              known_client: true,
+              secret_ready: true,
+              resolved_from: "radius_client",
+            },
+            attributes: [],
+            attribute_count: 3,
+            max_attributes: 32,
+            requires_confirm: true,
+            message_authenticator: true,
+            request_fingerprint:
+              "e87f331ef4eeb5cb6ea572969893f4fc1e2ade85f918cc0f3eefdb9d2ed7f6fb",
+          },
+          queue,
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/dac-client/replay" && method === "POST") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:10Z",
+          status: "ok",
+          message:
+            "Outbound DAC queue replay processed 1 record(s): 1 ACK, 0 NAK, 0 failed, 0 poisoned, 0 expired.",
+          claimed: 1,
+          ack: 1,
+          nak: 0,
+          failed: 0,
+          poisoned: 0,
+          expired: 0,
+          summary: state.systemStatus.radius.dac_client.queue_summary,
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/dac-client/cancel" && method === "POST") {
+      const queue = {
+        ...state.systemStatus.radius.dac_client.queue_recent[0],
+        status: "canceled",
+      };
+      await route.fulfill({
+        json: {
+          status: "canceled",
+          message: `Outbound DAC queue record ${queue.queue_id} canceled.`,
+          queue,
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/dac-client/retry" && method === "POST") {
+      const queue = {
+        ...state.systemStatus.radius.dac_client.queue_recent[0],
+        status: "queued",
+      };
+      await route.fulfill({
+        json: {
+          status: "queued",
+          message: `Outbound DAC queue record ${queue.queue_id} is queued for retry.`,
+          queue,
+        },
+      });
+      return;
+    }
+
     if (path === "/system/dac-client/history" && method === "GET") {
       await route.fulfill({
         json: {
@@ -4182,6 +4329,9 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           summary: state.systemStatus.radius.dac_client.summary,
           records: state.systemStatus.radius.dac_client.recent,
           attempts: [],
+          queue_summary: state.systemStatus.radius.dac_client.queue_summary,
+          queue_records: state.systemStatus.radius.dac_client.queue_recent,
+          queue_attempts: [],
         },
       });
       return;

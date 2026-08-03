@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -197,6 +198,134 @@ func TestOutboundDACRejectsUnsupportedVendorActionAttributes(t *testing.T) {
 	assert.Contains(t, preview.Message, "not supported by the NAS-0042 vendor-neutral DAC client")
 }
 
+func TestEnqueueOutboundDACSuppressesDuplicateByIdempotencyKey(t *testing.T) {
+	setupOutboundDACTestDB(t)
+	cfg := outboundDACTestConfig()
+	insertOutboundDACTestClient(t)
+
+	request := OutboundDACRequest{
+		Action:           "coa",
+		TargetAddress:    "192.0.2.10",
+		UserName:         "alice@example.test",
+		AcctSessionID:    "acct-123",
+		CallingStationID: "AA-BB-CC-DD-EE-FF",
+		FilterID:         "employee",
+		IdempotencyKey:   "change-ticket-1",
+		Confirm:          true,
+	}
+	created, err := EnqueueOutboundDAC(context.Background(), cfg, request, "ops@example.test")
+	require.NoError(t, err)
+	assert.Equal(t, "queued", created.Status)
+	assert.True(t, created.Created)
+	assert.False(t, created.Duplicate)
+	assert.NotEmpty(t, created.Queue.QueueID)
+	assert.True(t, strings.HasPrefix(created.Queue.IdempotencyKey, "sha256:"))
+	assert.NotContains(t, outboundDACAttributeValues(created.Queue.Attributes), "alice@example.test")
+
+	duplicate, err := EnqueueOutboundDAC(context.Background(), cfg, request, "ops@example.test")
+	require.NoError(t, err)
+	assert.Equal(t, "duplicate", duplicate.Status)
+	assert.False(t, duplicate.Created)
+	assert.True(t, duplicate.Duplicate)
+	assert.Equal(t, created.Queue.QueueID, duplicate.Queue.QueueID)
+
+	summary, err := db.GetOutboundDACQueueSummary(100)
+	require.NoError(t, err)
+	assert.Equal(t, 1, summary.QueuedCount)
+}
+
+func TestReplayOutboundDACQueueACKRecordsHistoryAndAttempt(t *testing.T) {
+	setupOutboundDACTestDB(t)
+	cfg := outboundDACTestConfig()
+	insertOutboundDACTestClient(t)
+
+	queued, err := EnqueueOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		Action:         "coa",
+		TargetAddress:  "192.0.2.10",
+		AcctSessionID:  "acct-ack",
+		FilterID:       "employee",
+		IdempotencyKey: "ack-1",
+		Confirm:        true,
+	}, "ops@example.test")
+	require.NoError(t, err)
+
+	var captured *layehradius.Packet
+	origSender := outboundDACPacketSender
+	outboundDACPacketSender = func(ctx context.Context, packet *layehradius.Packet, target string, timeout time.Duration) (*layehradius.Packet, time.Duration, error) {
+		captured = packet
+		response := packet.Response(layehradius.CodeCoAACK)
+		require.NoError(t, rfc2865.ReplyMessage_SetString(response, "queued update applied"))
+		return response, 9 * time.Millisecond, nil
+	}
+	t.Cleanup(func() { outboundDACPacketSender = origSender })
+
+	replay, err := ReplayOutboundDACQueue(context.Background(), cfg, 10)
+	require.NoError(t, err)
+	assert.Equal(t, "ok", replay.Status)
+	assert.Equal(t, 1, replay.Claimed)
+	assert.Equal(t, 1, replay.ACK)
+	require.NotNil(t, captured)
+	assert.Equal(t, layehradius.CodeCoARequest, captured.Code)
+
+	record, err := db.GetOutboundDACQueueByQueueID(queued.Queue.QueueID)
+	require.NoError(t, err)
+	assert.Equal(t, db.OutboundDACQueueStatusACK, record.Status)
+
+	history, err := db.GetOutboundDACRequest(queued.Queue.QueueID)
+	require.NoError(t, err)
+	assert.Equal(t, db.OutboundDACStatusACK, history.Status)
+	assert.Equal(t, "queued update applied", history.ReplyMessage)
+
+	attempts, err := db.ListOutboundDACQueueAttempts(queued.Queue.QueueID, 10)
+	require.NoError(t, err)
+	require.Len(t, attempts, 1)
+	assert.Equal(t, db.OutboundDACQueueAttemptACK, attempts[0].Result)
+}
+
+func TestReplayOutboundDACQueueRetriesThenPoisonsTimeout(t *testing.T) {
+	setupOutboundDACTestDB(t)
+	cfg := outboundDACTestConfig()
+	cfg.Radius.DynamicAuth.OutboundMaxAttempts = 2
+	cfg.Radius.DynamicAuth.OutboundInitialRetrySeconds = 1
+	cfg.Radius.DynamicAuth.OutboundMaxRetrySeconds = 2
+	cfg.Radius.DynamicAuth.OutboundRecordTTLSeconds = 60
+	insertOutboundDACTestClient(t)
+
+	queued, err := EnqueueOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		Action:         "disconnect",
+		TargetAddress:  "192.0.2.10",
+		AcctSessionID:  "acct-timeout",
+		IdempotencyKey: "timeout-1",
+		Confirm:        true,
+	}, "ops@example.test")
+	require.NoError(t, err)
+
+	origSender := outboundDACPacketSender
+	outboundDACPacketSender = func(ctx context.Context, packet *layehradius.Packet, target string, timeout time.Duration) (*layehradius.Packet, time.Duration, error) {
+		return nil, 5 * time.Millisecond, errors.New("i/o timeout")
+	}
+	t.Cleanup(func() { outboundDACPacketSender = origSender })
+
+	first, err := ReplayOutboundDACQueue(context.Background(), cfg, 10)
+	require.NoError(t, err)
+	assert.Equal(t, 1, first.Failed)
+	record, err := db.GetOutboundDACQueueByQueueID(queued.Queue.QueueID)
+	require.NoError(t, err)
+	assert.Equal(t, db.OutboundDACQueueStatusQueued, record.Status)
+	assert.Equal(t, 1, record.AttemptCount)
+	assert.Contains(t, record.LastError, "i/o timeout")
+
+	_, err = db.DB.Exec(`UPDATE radius_outbound_dac_queue SET next_attempt_at = ? WHERE queue_id = ?`, time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano), queued.Queue.QueueID)
+	require.NoError(t, err)
+	second, err := ReplayOutboundDACQueue(context.Background(), cfg, 10)
+	require.NoError(t, err)
+	assert.Equal(t, 1, second.Poisoned)
+	record, err = db.GetOutboundDACQueueByQueueID(queued.Queue.QueueID)
+	require.NoError(t, err)
+	assert.Equal(t, db.OutboundDACQueueStatusPoison, record.Status)
+	assert.Equal(t, 2, record.AttemptCount)
+}
+
 func setupOutboundDACTestDB(t *testing.T) {
 	t.Helper()
 	require.NoError(t, db.Init(":memory:"))
@@ -218,17 +347,30 @@ func outboundDACTestConfig() *config.Config {
 		Radius: config.RadiusConfig{
 			Secret: "global-secret",
 			DynamicAuth: config.DynamicAuthConfig{
-				Enabled:                     true,
-				Port:                        3799,
-				OutboundEnabled:             true,
-				OutboundDefaultPort:         3799,
-				OutboundTimeoutSeconds:      5,
-				OutboundRequireKnownClient:  true,
-				OutboundHistoryLimit:        1000,
-				OutboundMaxAttributes:       32,
-				OutboundAllowCoA:            true,
-				OutboundAllowDisconnect:     true,
-				OutboundRequireConfirmation: true,
+				Enabled:                            true,
+				Port:                               3799,
+				OutboundEnabled:                    true,
+				OutboundDefaultPort:                3799,
+				OutboundTimeoutSeconds:             5,
+				OutboundRequireKnownClient:         true,
+				OutboundHistoryLimit:               1000,
+				OutboundMaxAttributes:              32,
+				OutboundAllowCoA:                   true,
+				OutboundAllowDisconnect:            true,
+				OutboundRequireConfirmation:        true,
+				OutboundQueueEnabled:               true,
+				OutboundReplayEnabled:              true,
+				OutboundMaxQueueRecords:            100,
+				OutboundMaxAttempts:                6,
+				OutboundInitialRetrySeconds:        5,
+				OutboundMaxRetrySeconds:            300,
+				OutboundRecordTTLSeconds:           3600,
+				OutboundReplayIntervalSeconds:      15,
+				OutboundBatchSize:                  10,
+				OutboundLockSeconds:                60,
+				OutboundACKRetentionSeconds:        86400,
+				OutboundDeadLetterRetentionSeconds: 2592000,
+				OutboundIdempotencyWindowSeconds:   3600,
 			},
 			Clients: []config.RadiusClient{{
 				IP:        "192.0.2.10",
@@ -247,4 +389,12 @@ func outboundDACPlanNames(attrs []OutboundDACAttributePlan) []string {
 		names = append(names, attr.Name)
 	}
 	return names
+}
+
+func outboundDACAttributeValues(attrs []db.OutboundDACAttribute) string {
+	values := make([]string, 0, len(attrs))
+	for _, attr := range attrs {
+		values = append(values, attr.Value)
+	}
+	return strings.Join(values, "|")
 }

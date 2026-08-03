@@ -703,17 +703,30 @@ type RadiusVendorAttribute struct {
 }
 
 type DynamicAuthConfig struct {
-	Enabled                     bool `mapstructure:"enabled"`
-	Port                        int  `mapstructure:"port"`
-	OutboundEnabled             bool `mapstructure:"outbound_enabled"`
-	OutboundDefaultPort         int  `mapstructure:"outbound_default_port"`
-	OutboundTimeoutSeconds      int  `mapstructure:"outbound_timeout_seconds"`
-	OutboundRequireKnownClient  bool `mapstructure:"outbound_require_known_client"`
-	OutboundHistoryLimit        int  `mapstructure:"outbound_history_limit"`
-	OutboundMaxAttributes       int  `mapstructure:"outbound_max_attributes"`
-	OutboundAllowCoA            bool `mapstructure:"outbound_allow_coa"`
-	OutboundAllowDisconnect     bool `mapstructure:"outbound_allow_disconnect"`
-	OutboundRequireConfirmation bool `mapstructure:"outbound_require_confirmation"`
+	Enabled                            bool `mapstructure:"enabled"`
+	Port                               int  `mapstructure:"port"`
+	OutboundEnabled                    bool `mapstructure:"outbound_enabled"`
+	OutboundDefaultPort                int  `mapstructure:"outbound_default_port"`
+	OutboundTimeoutSeconds             int  `mapstructure:"outbound_timeout_seconds"`
+	OutboundRequireKnownClient         bool `mapstructure:"outbound_require_known_client"`
+	OutboundHistoryLimit               int  `mapstructure:"outbound_history_limit"`
+	OutboundMaxAttributes              int  `mapstructure:"outbound_max_attributes"`
+	OutboundAllowCoA                   bool `mapstructure:"outbound_allow_coa"`
+	OutboundAllowDisconnect            bool `mapstructure:"outbound_allow_disconnect"`
+	OutboundRequireConfirmation        bool `mapstructure:"outbound_require_confirmation"`
+	OutboundQueueEnabled               bool `mapstructure:"outbound_queue_enabled"`
+	OutboundReplayEnabled              bool `mapstructure:"outbound_replay_enabled"`
+	OutboundMaxQueueRecords            int  `mapstructure:"outbound_max_queue_records"`
+	OutboundMaxAttempts                int  `mapstructure:"outbound_max_attempts"`
+	OutboundInitialRetrySeconds        int  `mapstructure:"outbound_initial_retry_seconds"`
+	OutboundMaxRetrySeconds            int  `mapstructure:"outbound_max_retry_seconds"`
+	OutboundRecordTTLSeconds           int  `mapstructure:"outbound_record_ttl_seconds"`
+	OutboundReplayIntervalSeconds      int  `mapstructure:"outbound_replay_interval_seconds"`
+	OutboundBatchSize                  int  `mapstructure:"outbound_batch_size"`
+	OutboundLockSeconds                int  `mapstructure:"outbound_lock_seconds"`
+	OutboundACKRetentionSeconds        int  `mapstructure:"outbound_ack_retention_seconds"`
+	OutboundDeadLetterRetentionSeconds int  `mapstructure:"outbound_dead_letter_retention_seconds"`
+	OutboundIdempotencyWindowSeconds   int  `mapstructure:"outbound_idempotency_window_seconds"`
 }
 
 type RadiusEAPConfig struct {
@@ -1838,6 +1851,19 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.dynamic_auth.outbound_allow_coa", true)
 	v.SetDefault("radius.dynamic_auth.outbound_allow_disconnect", true)
 	v.SetDefault("radius.dynamic_auth.outbound_require_confirmation", true)
+	v.SetDefault("radius.dynamic_auth.outbound_queue_enabled", true)
+	v.SetDefault("radius.dynamic_auth.outbound_replay_enabled", true)
+	v.SetDefault("radius.dynamic_auth.outbound_max_queue_records", 10000)
+	v.SetDefault("radius.dynamic_auth.outbound_max_attempts", 6)
+	v.SetDefault("radius.dynamic_auth.outbound_initial_retry_seconds", 5)
+	v.SetDefault("radius.dynamic_auth.outbound_max_retry_seconds", 300)
+	v.SetDefault("radius.dynamic_auth.outbound_record_ttl_seconds", 3600)
+	v.SetDefault("radius.dynamic_auth.outbound_replay_interval_seconds", 15)
+	v.SetDefault("radius.dynamic_auth.outbound_batch_size", 50)
+	v.SetDefault("radius.dynamic_auth.outbound_lock_seconds", 60)
+	v.SetDefault("radius.dynamic_auth.outbound_ack_retention_seconds", 86400)
+	v.SetDefault("radius.dynamic_auth.outbound_dead_letter_retention_seconds", 2592000)
+	v.SetDefault("radius.dynamic_auth.outbound_idempotency_window_seconds", 3600)
 	v.SetDefault("radius.dynamic_clients.enabled", false)
 	v.SetDefault("radius.dynamic_clients.discovery_enabled", false)
 	v.SetDefault("radius.dynamic_clients.approval_required", true)
@@ -6671,6 +6697,39 @@ func EffectiveDynamicAuthConfig(raw DynamicAuthConfig) DynamicAuthConfig {
 	if effective.OutboundMaxAttributes == 0 {
 		effective.OutboundMaxAttributes = 32
 	}
+	if effective.OutboundMaxQueueRecords == 0 {
+		effective.OutboundMaxQueueRecords = 10000
+	}
+	if effective.OutboundMaxAttempts == 0 {
+		effective.OutboundMaxAttempts = 6
+	}
+	if effective.OutboundInitialRetrySeconds == 0 {
+		effective.OutboundInitialRetrySeconds = 5
+	}
+	if effective.OutboundMaxRetrySeconds == 0 {
+		effective.OutboundMaxRetrySeconds = 300
+	}
+	if effective.OutboundRecordTTLSeconds == 0 {
+		effective.OutboundRecordTTLSeconds = 3600
+	}
+	if effective.OutboundReplayIntervalSeconds == 0 {
+		effective.OutboundReplayIntervalSeconds = 15
+	}
+	if effective.OutboundBatchSize == 0 {
+		effective.OutboundBatchSize = 50
+	}
+	if effective.OutboundLockSeconds == 0 {
+		effective.OutboundLockSeconds = 60
+	}
+	if effective.OutboundACKRetentionSeconds == 0 {
+		effective.OutboundACKRetentionSeconds = 86400
+	}
+	if effective.OutboundDeadLetterRetentionSeconds == 0 {
+		effective.OutboundDeadLetterRetentionSeconds = 2592000
+	}
+	if effective.OutboundIdempotencyWindowSeconds == 0 {
+		effective.OutboundIdempotencyWindowSeconds = 3600
+	}
 	if !raw.OutboundAllowCoA && !raw.OutboundAllowDisconnect && !raw.OutboundEnabled {
 		effective.OutboundAllowCoA = true
 		effective.OutboundAllowDisconnect = true
@@ -6700,6 +6759,41 @@ func validateRadiusDynamicAuth(raw DynamicAuthConfig) error {
 	}
 	if !effective.OutboundAllowCoA && !effective.OutboundAllowDisconnect {
 		return fmt.Errorf("radius.dynamic_auth outbound must allow coa, disconnect, or both")
+	}
+	if effective.OutboundQueueEnabled {
+		if effective.OutboundMaxQueueRecords < 1 || effective.OutboundMaxQueueRecords > 1000000 {
+			return fmt.Errorf("radius.dynamic_auth.outbound_max_queue_records must be between 1 and 1000000")
+		}
+		if effective.OutboundMaxAttempts < 1 || effective.OutboundMaxAttempts > 100 {
+			return fmt.Errorf("radius.dynamic_auth.outbound_max_attempts must be between 1 and 100")
+		}
+		if effective.OutboundInitialRetrySeconds < 1 {
+			return fmt.Errorf("radius.dynamic_auth.outbound_initial_retry_seconds must be positive")
+		}
+		if effective.OutboundMaxRetrySeconds < effective.OutboundInitialRetrySeconds {
+			return fmt.Errorf("radius.dynamic_auth.outbound_max_retry_seconds must be greater than or equal to outbound_initial_retry_seconds")
+		}
+		if effective.OutboundRecordTTLSeconds < effective.OutboundMaxRetrySeconds {
+			return fmt.Errorf("radius.dynamic_auth.outbound_record_ttl_seconds must be greater than or equal to outbound_max_retry_seconds")
+		}
+		if effective.OutboundReplayEnabled && effective.OutboundReplayIntervalSeconds < 1 {
+			return fmt.Errorf("radius.dynamic_auth.outbound_replay_interval_seconds must be positive when outbound replay is enabled")
+		}
+		if effective.OutboundBatchSize < 1 || effective.OutboundBatchSize > effective.OutboundMaxQueueRecords {
+			return fmt.Errorf("radius.dynamic_auth.outbound_batch_size must be between 1 and outbound_max_queue_records")
+		}
+		if effective.OutboundLockSeconds < 1 {
+			return fmt.Errorf("radius.dynamic_auth.outbound_lock_seconds must be positive")
+		}
+		if effective.OutboundACKRetentionSeconds < 1 {
+			return fmt.Errorf("radius.dynamic_auth.outbound_ack_retention_seconds must be positive")
+		}
+		if effective.OutboundDeadLetterRetentionSeconds < 1 {
+			return fmt.Errorf("radius.dynamic_auth.outbound_dead_letter_retention_seconds must be positive")
+		}
+		if effective.OutboundIdempotencyWindowSeconds < 1 || effective.OutboundIdempotencyWindowSeconds > effective.OutboundRecordTTLSeconds {
+			return fmt.Errorf("radius.dynamic_auth.outbound_idempotency_window_seconds must be between 1 and outbound_record_ttl_seconds")
+		}
 	}
 	return nil
 }

@@ -214,14 +214,23 @@ database together if an older runtime does not understand schema v46.
 ## Outbound DAC Client Upgrade
 
 Schema v47 adds `radius_outbound_dac_requests` and
-`radius_outbound_dac_attempts`. After upgrade, run:
+`radius_outbound_dac_attempts`. Schema v48 adds durable retry/idempotency queue
+tables:
+
+- `radius_outbound_dac_queue`
+- `radius_outbound_dac_queue_attempts`
+
+After upgrade, run:
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
-  http://127.0.0.1:8083/api/v1/system/dac-client | jq '.report.status, .report.summary'
+  http://127.0.0.1:8083/api/v1/system/dac-client | jq '.report.status, .report.summary, .report.queue_summary'
 ```
 
 Keep `radius.dynamic_auth.outbound_require_known_client` and
 `radius.dynamic_auth.outbound_require_confirmation` enabled during upgrade.
+Keep `radius.dynamic_auth.outbound_queue_enabled` and
+`radius.dynamic_auth.outbound_replay_enabled` enabled unless an operator is
+intentionally freezing dynamic authorization replay during a maintenance window.
 Roll back the application and database together if an older runtime does not
-understand schema v47.
+understand schema v48.

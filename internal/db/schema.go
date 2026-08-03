@@ -171,7 +171,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{44, schemaV44},
 		{45, schemaV45},
 		{46, schemaV46},
-		{LatestSchemaVersion(), schemaV47},
+		{47, schemaV47},
+		{LatestSchemaVersion(), schemaV48},
 	}
 
 	for _, m := range migrations {
@@ -282,8 +283,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureOutboundDACTables(handle); err != nil {
 		return fmt.Errorf("repair outbound dynamic authorization schema: %w", err)
 	}
+	if err := ensureOutboundDACQueueTables(handle); err != nil {
+		return fmt.Errorf("repair outbound dynamic authorization queue schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureOutboundDACQueueTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(outboundDACQueueSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureOutboundDACTables(handle *sql.DB) error {

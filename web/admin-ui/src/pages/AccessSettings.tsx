@@ -515,6 +515,26 @@ type OutboundDACRequestRecord = {
   completed_at?: string;
 };
 
+type OutboundDACQueueRecord = {
+  queue_id: string;
+  idempotency_key: string;
+  action: string;
+  status: string;
+  target_address: string;
+  target_port: number;
+  target_transport: string;
+  session_id?: string;
+  correlation_id?: string;
+  attempt_count: number;
+  max_attempts: number;
+  last_error?: string;
+  last_error_cause_name?: string;
+  last_reply_message?: string;
+  next_attempt_at?: string;
+  expires_at?: string;
+  created_at?: string;
+};
+
 type OutboundDACReport = {
   schema_version: number;
   status: string;
@@ -532,6 +552,21 @@ type OutboundDACReport = {
     supported_transport?: string[];
     deferred_transport_features?: string[];
   };
+  queue_policy?: {
+    enabled: boolean;
+    replay_enabled: boolean;
+    max_queue_records: number;
+    max_attempts: number;
+    initial_retry_seconds: number;
+    max_retry_seconds: number;
+    record_ttl_seconds: number;
+    replay_interval_seconds: number;
+    batch_size: number;
+    lock_seconds: number;
+    ack_retention_seconds: number;
+    dead_letter_retention_seconds: number;
+    idempotency_window_seconds: number;
+  };
   summary: {
     total_requests: number;
     ack_count: number;
@@ -542,7 +577,24 @@ type OutboundDACReport = {
     attempt_count: number;
     last_failure_reason?: string;
   };
+  queue_summary?: {
+    total_records: number;
+    queued_count: number;
+    retrying_count: number;
+    ack_count: number;
+    nak_count: number;
+    error_count: number;
+    poison_count: number;
+    expired_count: number;
+    canceled_count: number;
+    due_count: number;
+    attempt_count: number;
+    queue_capacity: number;
+    queue_utilization_percent: number;
+    last_error?: string;
+  };
   recent?: OutboundDACRequestRecord[];
+  queue_recent?: OutboundDACQueueRecord[];
   warnings?: string[];
 };
 
@@ -1222,10 +1274,23 @@ const defaultSettings: JsonMap = {
       outbound_require_known_client: true,
       outbound_history_limit: 10000,
       outbound_max_attributes: 32,
-      outbound_allow_coa: true,
-      outbound_allow_disconnect: true,
-      outbound_require_confirmation: true,
-    },
+        outbound_allow_coa: true,
+        outbound_allow_disconnect: true,
+        outbound_require_confirmation: true,
+        outbound_queue_enabled: true,
+        outbound_replay_enabled: true,
+        outbound_max_queue_records: 10000,
+        outbound_max_attempts: 6,
+        outbound_initial_retry_seconds: 5,
+        outbound_max_retry_seconds: 300,
+        outbound_record_ttl_seconds: 3600,
+        outbound_replay_interval_seconds: 15,
+        outbound_batch_size: 50,
+        outbound_lock_seconds: 60,
+        outbound_ack_retention_seconds: 86400,
+        outbound_dead_letter_retention_seconds: 2592000,
+        outbound_idempotency_window_seconds: 3600,
+      },
     dynamic_clients: {
       enabled: false,
       discovery_enabled: false,
@@ -2728,6 +2793,9 @@ export default function AccessSettings() {
   const [outboundDACHistory, setOutboundDACHistory] = useState<
     OutboundDACRequestRecord[]
   >([]);
+  const [outboundDACQueue, setOutboundDACQueue] = useState<
+    OutboundDACQueueRecord[]
+  >([]);
   const [outboundDACDraft, setOutboundDACDraft] = useState<JsonMap>({
     action: "coa",
     target_address: "192.0.2.10",
@@ -2740,6 +2808,7 @@ export default function AccessSettings() {
     session_timeout: 0,
     idle_timeout: 0,
     correlation_id: "",
+    idempotency_key: "",
     confirm: false,
   });
   const [tenantIsolationReport, setTenantIsolationReport] =
@@ -2754,6 +2823,9 @@ export default function AccessSettings() {
     useState(false);
   const [previewingOutboundDAC, setPreviewingOutboundDAC] = useState(false);
   const [sendingOutboundDAC, setSendingOutboundDAC] = useState(false);
+  const [queueingOutboundDAC, setQueueingOutboundDAC] = useState(false);
+  const [replayingOutboundDACQueue, setReplayingOutboundDACQueue] =
+    useState(false);
   const [replayingAccountingOrdering, setReplayingAccountingOrdering] =
     useState(false);
   const [confirmingNetworkRecovery, setConfirmingNetworkRecovery] =
@@ -3031,6 +3103,11 @@ export default function AccessSettings() {
       ]);
       setOutboundDACReport(clientRes.data?.report || null);
       setOutboundDACHistory(historyRes.data?.records || []);
+      setOutboundDACQueue(
+        historyRes.data?.queue_records ||
+          clientRes.data?.report?.queue_recent ||
+          [],
+      );
     } catch (err: any) {
       setError(
         err.response?.data ||
@@ -3545,6 +3622,7 @@ export default function AccessSettings() {
     session_timeout: Number(outboundDACDraft.session_timeout || 0),
     idle_timeout: Number(outboundDACDraft.idle_timeout || 0),
     correlation_id: outboundDACDraft.correlation_id || "",
+    idempotency_key: outboundDACDraft.idempotency_key || "",
     confirm: Boolean(outboundDACDraft.confirm),
   });
 
@@ -3594,6 +3672,85 @@ export default function AccessSettings() {
       );
     } finally {
       setSendingOutboundDAC(false);
+    }
+  };
+
+  const enqueueOutboundDAC = async () => {
+    setQueueingOutboundDAC(true);
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/dac-client/enqueue",
+        outboundDACPayload(),
+      );
+      setOutboundDACPreview(data?.preview || null);
+      setMessage(data?.message || "Outbound dynamic authorization queued.");
+      await loadOutboundDACReport();
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not queue outbound dynamic authorization.",
+      );
+    } finally {
+      setQueueingOutboundDAC(false);
+    }
+  };
+
+  const replayOutboundDACQueue = async () => {
+    setReplayingOutboundDACQueue(true);
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/dac-client/replay", {});
+      setMessage(data?.message || "Outbound dynamic authorization replay ran.");
+      await loadOutboundDACReport();
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not replay outbound dynamic authorization queue.",
+      );
+    } finally {
+      setReplayingOutboundDACQueue(false);
+    }
+  };
+
+  const cancelOutboundDACQueue = async (queueID: string) => {
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/dac-client/cancel", {
+        queue_id: queueID,
+        reason: "Canceled from Access Settings",
+      });
+      setMessage(data?.message || "Outbound DAC queue record canceled.");
+      await loadOutboundDACReport();
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not cancel outbound DAC queue record.",
+      );
+    }
+  };
+
+  const retryOutboundDACQueue = async (queueID: string) => {
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/dac-client/retry", {
+        queue_id: queueID,
+      });
+      setMessage(data?.message || "Outbound DAC queue record queued.");
+      await loadOutboundDACReport();
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not retry outbound DAC queue record.",
+      );
     }
   };
   const applyRadiusConfig = async () => {
@@ -13768,6 +13925,30 @@ export default function AccessSettings() {
                 )
               }
             />
+            <ToggleField
+              label="Durable Queue"
+              checked={
+                settings.radius?.dynamic_auth?.outbound_queue_enabled !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_queue_enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Auto Replay"
+              checked={
+                settings.radius?.dynamic_auth?.outbound_replay_enabled !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_replay_enabled"],
+                  value,
+                )
+              }
+            />
             <TextField
               label="Inbound DAC Port"
               type="number"
@@ -13828,6 +14009,90 @@ export default function AccessSettings() {
                 )
               }
             />
+            <TextField
+              label="Queue Limit"
+              type="number"
+              value={
+                settings.radius?.dynamic_auth?.outbound_max_queue_records ||
+                10000
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_max_queue_records"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Attempts"
+              type="number"
+              value={
+                settings.radius?.dynamic_auth?.outbound_max_attempts || 6
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_max_attempts"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Initial Retry (s)"
+              type="number"
+              value={
+                settings.radius?.dynamic_auth
+                  ?.outbound_initial_retry_seconds || 5
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "dynamic_auth",
+                    "outbound_initial_retry_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Retry (s)"
+              type="number"
+              value={
+                settings.radius?.dynamic_auth?.outbound_max_retry_seconds ||
+                300
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_max_retry_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Record TTL (s)"
+              type="number"
+              value={
+                settings.radius?.dynamic_auth?.outbound_record_ttl_seconds ||
+                3600
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_record_ttl_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Replay Batch"
+              type="number"
+              value={settings.radius?.dynamic_auth?.outbound_batch_size || 50}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_batch_size"],
+                  Number(value),
+                )
+              }
+            />
           </div>
           <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
             <div className={`rounded-md border px-3 py-2 ${outboundDACTone}`}>
@@ -13867,6 +14132,24 @@ export default function AccessSettings() {
               </div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
                 {outboundDACReport?.summary?.attempt_count || 0}
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Queue
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {outboundDACReport?.queue_summary?.queued_count || 0} queued,{" "}
+                {outboundDACReport?.queue_summary?.retrying_count || 0} retrying
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Dead Letter
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {outboundDACReport?.queue_summary?.poison_count || 0} poison,{" "}
+                {outboundDACReport?.queue_summary?.expired_count || 0} expired
               </div>
             </div>
           </div>
@@ -13914,6 +14197,14 @@ export default function AccessSettings() {
               placeholder="change-ticket-123"
               onChange={(value) =>
                 updateOutboundDACDraft("correlation_id", value)
+              }
+            />
+            <TextField
+              label="Idempotency Key"
+              value={String(outboundDACDraft.idempotency_key || "")}
+              placeholder="ticket-or-workflow-id"
+              onChange={(value) =>
+                updateOutboundDACDraft("idempotency_key", value)
               }
             />
             <TextField
@@ -13991,6 +14282,22 @@ export default function AccessSettings() {
             >
               {sendingOutboundDAC ? "Sending..." : "Send DAC"}
             </button>
+            <button
+              type="button"
+              onClick={enqueueOutboundDAC}
+              disabled={queueingOutboundDAC}
+              className="rounded-md border border-gray-900 px-3 py-2 text-sm font-medium text-gray-900 disabled:opacity-50"
+            >
+              {queueingOutboundDAC ? "Queueing..." : "Queue DAC"}
+            </button>
+            <button
+              type="button"
+              onClick={replayOutboundDACQueue}
+              disabled={replayingOutboundDACQueue}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 disabled:opacity-50"
+            >
+              {replayingOutboundDACQueue ? "Replaying..." : "Replay Due"}
+            </button>
           </div>
           {outboundDACPreview && (
             <div
@@ -14055,6 +14362,81 @@ export default function AccessSettings() {
                       </td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.requested_at || "unknown"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {outboundDACQueue.length > 0 && (
+            <div className="mt-3 overflow-x-auto rounded-md border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
+                  <tr>
+                    <th className="px-3 py-2">Queue</th>
+                    <th className="px-3 py-2">Action</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Attempts</th>
+                    <th className="px-3 py-2">Next</th>
+                    <th className="px-3 py-2">Outcome</th>
+                    <th className="px-3 py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {outboundDACQueue.map((item) => (
+                    <tr key={item.queue_id}>
+                      <td className="break-all px-3 py-2 font-medium text-gray-900">
+                        {item.queue_id}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.action}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.status}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.attempt_count}/{item.max_attempts}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.next_attempt_at || item.expires_at || "done"}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.last_reply_message ||
+                          item.last_error_cause_name ||
+                          item.last_error ||
+                          "pending"}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-2">
+                          {(item.status === "queued" ||
+                            item.status === "retrying") && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                cancelOutboundDACQueue(item.queue_id)
+                              }
+                              className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                          {[
+                            "nak",
+                            "error",
+                            "poison",
+                            "expired",
+                            "canceled",
+                          ].includes(item.status) && (
+                            <button
+                              type="button"
+                              onClick={() => retryOutboundDACQueue(item.queue_id)}
+                              className="rounded-md border border-gray-900 px-2 py-1 text-xs font-medium text-gray-900"
+                            >
+                              Retry
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

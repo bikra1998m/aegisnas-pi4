@@ -1,10 +1,11 @@
 # Outbound Dynamic Authorization Client
 
-NAS-0042 adds the production software path for sending RFC 5176 Dynamic
-Authorization from AegisNAS to managed access devices. Operators can preview and
-send vendor-neutral CoA and Disconnect requests, inspect request history, and
+NAS-0042 added the production software path for sending RFC 5176 Dynamic
+Authorization from AegisNAS to managed access devices. NAS-0043 adds durable
+queueing, retry, expiry, dead-letter, and idempotency controls. Operators can
+preview, send immediately, enqueue, replay, cancel, retry, inspect history, and
 collect support evidence without exposing shared secrets or cleartext identity
-selectors in persistent history.
+selectors in API responses or support bundles.
 
 ## Scope
 
@@ -25,11 +26,13 @@ Implemented software scope:
   ACK/NAK/error classification, Error-Cause capture, latency capture, request
   and response fingerprints, runtime status, production readiness, support
   bundle captures, OpenAPI, RBAC, and Access Settings controls.
+- Durable outbound queue with hashed idempotency keys, checksum-verified
+  payload replay, bounded exponential backoff, maximum attempts, expiry,
+  poison/dead-letter state, cancel, manual retry, background replay, queue
+  summaries, and redacted queue history.
 
 Deferred roadmap scope:
 
-- NAS-0043 adds durable retry queues, duplicate suppression, expiry, dead-letter
-  handling, and idempotency controls.
 - NAS-0044 adds proxy CoA and RadSec reverse dynamic authorization routing.
 - NAS-0045 adds certified vendor-specific dynamic action compilers.
 - NAS-0046 adds authoritative NAS capability and session ownership registry.
@@ -51,11 +54,26 @@ radius:
     outbound_allow_coa: true
     outbound_allow_disconnect: true
     outbound_require_confirmation: true
+    outbound_queue_enabled: true
+    outbound_replay_enabled: true
+    outbound_max_queue_records: 10000
+    outbound_max_attempts: 6
+    outbound_initial_retry_seconds: 5
+    outbound_max_retry_seconds: 300
+    outbound_record_ttl_seconds: 3600
+    outbound_replay_interval_seconds: 15
+    outbound_batch_size: 50
+    outbound_lock_seconds: 60
+    outbound_ack_retention_seconds: 86400
+    outbound_dead_letter_retention_seconds: 2592000
+    outbound_idempotency_window_seconds: 3600
 ```
 
 Production deployments should keep `outbound_require_known_client` and
-`outbound_require_confirmation` enabled. Disable CoA or Disconnect only when a
-change window or vendor certification scope requires it.
+`outbound_require_confirmation` enabled. Keep `outbound_queue_enabled` and
+`outbound_replay_enabled` enabled for production change windows where a transient
+NAS timeout should not lose an operator-approved action. Disable CoA or
+Disconnect only when a change window or vendor certification scope requires it.
 
 ## API
 
@@ -63,12 +81,16 @@ change window or vendor certification scope requires it.
 GET  /api/v1/system/dac-client
 POST /api/v1/system/dac-client/preview
 POST /api/v1/system/dac-client/send
+POST /api/v1/system/dac-client/enqueue
+POST /api/v1/system/dac-client/replay
+POST /api/v1/system/dac-client/cancel
+POST /api/v1/system/dac-client/retry
 GET  /api/v1/system/dac-client/history
 ```
 
 Read-only admins can inspect status and history. `ops_admin` and `super_admin`
-can preview and send requests. Send requests require `confirm: true` when
-confirmation policy is enabled.
+can preview, send, enqueue, replay, cancel, and retry requests. Send and enqueue
+requests require `confirm: true` when confirmation policy is enabled.
 
 Example preview:
 
@@ -100,6 +122,46 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/dac-client/send | jq .
 ```
 
+Example durable enqueue with duplicate suppression:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "coa",
+    "target_address": "192.0.2.10",
+    "acct_session_id": "acct-123",
+    "filter_id": "quarantine",
+    "correlation_id": "change-ticket-124",
+    "idempotency_key": "change-ticket-124:quarantine",
+    "confirm": true
+  }' \
+  http://127.0.0.1:8083/api/v1/system/dac-client/enqueue | jq .
+```
+
+Replay due queue records manually:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"batch_size":25}' \
+  http://127.0.0.1:8083/api/v1/system/dac-client/replay | jq .
+```
+
+Cancel or retry one queue record:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"queue_id":"dacq-example","reason":"change window closed"}' \
+  http://127.0.0.1:8083/api/v1/system/dac-client/cancel | jq .
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"queue_id":"dacq-example"}' \
+  http://127.0.0.1:8083/api/v1/system/dac-client/retry | jq .
+```
+
 ## Packet Processing
 
 The client resolves the target in this order:
@@ -121,9 +183,17 @@ Schema v47 adds:
 - `radius_outbound_dac_requests`
 - `radius_outbound_dac_attempts`
 
+Schema v48 adds:
+
+- `radius_outbound_dac_queue`
+- `radius_outbound_dac_queue_attempts`
+
 History stores request identifiers, action, status, target, response code,
 Error-Cause, latency, fingerprints, and correlation. User name, calling station,
 Class, and State values are hashed/redacted in persisted attribute history.
+Queue records store the replay payload internally with a SHA-256 checksum; API
+and support-bundle responses expose only redacted metadata, payload hashes,
+idempotency hashes, retry state, and outcome evidence.
 
 ## Operations
 
@@ -141,9 +211,9 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   'http://127.0.0.1:8083/api/v1/system/dac-client/history?limit=25' | jq '.summary, .records'
 ```
 
-Investigate any `nak`, `error`, or `blocked` entry before claiming the change
-window is complete. Support bundles include `api/dac-client.json` and
-`api/dac-client-history.json`.
+Investigate any `nak`, `error`, `blocked`, `poison`, or `expired` entry before
+claiming the change window is complete. Support bundles include
+`api/dac-client.json` and `api/dac-client-history.json`.
 
 ## Testing
 
@@ -154,10 +224,13 @@ Automated software coverage includes:
 - redacted history tests
 - packet construction tests for CoA and Disconnect
 - ACK, NAK with Error-Cause, and transport error tests
+- durable queue enqueue, duplicate suppression, claim, replay, cancel, manual
+  retry, retry backoff, expiry, and poison tests
 - unsupported vendor dynamic action rejection
 - admin API, RBAC, OpenAPI, readiness, and support bundle tests
 - admin UI build coverage
 
 External device, packet-capture, HA, performance, soak, security, and customer
 acceptance evidence is tracked in
-`nas-0042-release-certification-checklist.md`.
+`nas-0042-release-certification-checklist.md` and
+`nas-0043-release-certification-checklist.md`.

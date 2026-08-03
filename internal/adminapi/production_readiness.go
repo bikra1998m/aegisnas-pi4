@@ -250,10 +250,21 @@ func addProductionOutboundDACClientCheck(report *productionReadinessReport, cfg 
 		policy.OutboundDefaultPort < 1 || policy.OutboundTimeoutSeconds < 1 ||
 		policy.OutboundHistoryLimit < 1 || policy.OutboundMaxAttributes < 1 ||
 		(!policy.OutboundAllowCoA && !policy.OutboundAllowDisconnect) ||
-		!policy.OutboundRequireConfirmation {
+		!policy.OutboundRequireConfirmation || !policy.OutboundQueueEnabled ||
+		!policy.OutboundReplayEnabled || policy.OutboundMaxQueueRecords < 1 ||
+		policy.OutboundMaxAttempts < 1 || policy.OutboundBatchSize < 1 ||
+		policy.OutboundInitialRetrySeconds < 1 ||
+		policy.OutboundMaxRetrySeconds < policy.OutboundInitialRetrySeconds ||
+		policy.OutboundRecordTTLSeconds < policy.OutboundMaxRetrySeconds ||
+		policy.OutboundLockSeconds < 1 {
 		status = "blocked"
 	}
 	if dac.Summary.NAKCount > 0 || dac.Summary.ErrorCount > 0 || dac.Summary.BlockedCount > 0 {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	if dac.QueueSummary.PoisonCount > 0 || dac.QueueSummary.ErrorCount > 0 || dac.QueueSummary.ExpiredCount > 0 || dac.QueueSummary.QueueUtilization >= 90 {
 		if status == "passed" {
 			status = "degraded"
 		}
@@ -263,11 +274,12 @@ func addProductionOutboundDACClientCheck(report *productionReadinessReport, cfg 
 		Category: "radius",
 		Label:    "Outbound CoA And Disconnect Client",
 		Status:   status,
-		Summary: fmt.Sprintf("Outbound DAC schema %d is %s with %d request(s), %d ACK, %d NAK, %d error, %d blocked, and %d attempt(s).",
+		Summary: fmt.Sprintf("Outbound DAC schema %d is %s with %d request(s), %d ACK, %d NAK, %d error, %d blocked, %d immediate attempt(s), %d queued, %d retrying, %d poison, and %d%% queue utilization.",
 			dac.SchemaVersion, dac.Status, dac.Summary.TotalRequests, dac.Summary.ACKCount,
-			dac.Summary.NAKCount, dac.Summary.ErrorCount, dac.Summary.BlockedCount, dac.Summary.AttemptCount),
-		Recommendation: "Keep radius.dynamic_auth outbound enabled with known-client gating, confirmation, bounded attributes, and complete the NAS-0042 release certification packet-capture and vendor-device checklist before production claims.",
-		Dependencies:   []string{"radius.dynamic_auth", "/api/v1/system/dac-client", "/api/v1/system/dac-client/preview", "/api/v1/system/dac-client/send", "/api/v1/system/dac-client/history", "radius_outbound_dac_requests", "radius_outbound_dac_attempts", "RFC 5176"},
+			dac.Summary.NAKCount, dac.Summary.ErrorCount, dac.Summary.BlockedCount, dac.Summary.AttemptCount,
+			dac.QueueSummary.QueuedCount, dac.QueueSummary.RetryingCount, dac.QueueSummary.PoisonCount, dac.QueueSummary.QueueUtilization),
+		Recommendation: "Keep radius.dynamic_auth outbound queue and replay enabled with known-client gating, confirmation, bounded attributes, queue capacity, and complete the NAS-0042/NAS-0043 release certification packet-capture and vendor-device checklist before production claims.",
+		Dependencies:   []string{"radius.dynamic_auth", "/api/v1/system/dac-client", "/api/v1/system/dac-client/preview", "/api/v1/system/dac-client/send", "/api/v1/system/dac-client/enqueue", "/api/v1/system/dac-client/replay", "/api/v1/system/dac-client/history", "radius_outbound_dac_requests", "radius_outbound_dac_attempts", "radius_outbound_dac_queue", "radius_outbound_dac_queue_attempts", "RFC 5176"},
 	})
 }
 

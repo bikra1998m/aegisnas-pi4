@@ -52,6 +52,7 @@ type OutboundDACRequest struct {
 	State            string                    `json:"state,omitempty"`
 	Attributes       []db.OutboundDACAttribute `json:"attributes,omitempty"`
 	CorrelationID    string                    `json:"correlation_id,omitempty"`
+	IdempotencyKey   string                    `json:"idempotency_key,omitempty"`
 	Confirm          bool                      `json:"confirm,omitempty"`
 }
 
@@ -103,6 +104,9 @@ type OutboundDACReport struct {
 	Policy        map[string]any                `json:"policy"`
 	Summary       db.OutboundDACSummary         `json:"summary"`
 	Recent        []db.OutboundDACRequestRecord `json:"recent,omitempty"`
+	QueuePolicy   OutboundDACQueuePolicy        `json:"queue_policy"`
+	QueueSummary  db.OutboundDACQueueSummary    `json:"queue_summary"`
+	QueueRecent   []db.OutboundDACQueueRecord   `json:"queue_recent,omitempty"`
 	RuntimeStatus *db.RuntimeStatus             `json:"runtime_status,omitempty"`
 	Warnings      []string                      `json:"warnings,omitempty"`
 	RFCs          []string                      `json:"rfcs"`
@@ -133,11 +137,14 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 	effective := config.EffectiveDynamicAuthConfig(dynamicAuthConfig(cfg))
 	summary, _ := db.GetOutboundDACSummary(effective.OutboundHistoryLimit)
 	recent, _ := db.ListOutboundDACRequests(db.OutboundDACRequestQuery{Limit: 12})
+	queuePolicy := EffectiveOutboundDACQueuePolicy(cfg)
+	queueSummary, _ := db.GetOutboundDACQueueSummary(queuePolicy.MaxQueueRecords)
+	queueRecent, _ := db.ListOutboundDACQueue("", 12)
 	runtime, _ := db.GetRuntimeStatus(OutboundDACRuntimeComponent)
 	report := OutboundDACReport{
 		SchemaVersion: OutboundDACSchemaVersion,
 		Status:        "ready",
-		Message:       "Outbound RFC 5176 CoA and Disconnect client is ready for immediate UDP sends to known NAS clients.",
+		Message:       "Outbound RFC 5176 CoA and Disconnect client is ready for immediate and durable queued UDP sends to known NAS clients.",
 		Policy: map[string]any{
 			"enabled":                     effective.OutboundEnabled,
 			"default_port":                effective.OutboundDefaultPort,
@@ -153,6 +160,9 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 		},
 		Summary:       summary,
 		Recent:        recent,
+		QueuePolicy:   queuePolicy,
+		QueueSummary:  queueSummary,
+		QueueRecent:   queueRecent,
 		RuntimeStatus: runtime,
 		RFCs:          []string{"RFC 2865", "RFC 2866", "RFC 2868", "RFC 3576", "RFC 3580", "RFC 5176"},
 	}
@@ -165,6 +175,21 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 		report.Status = "blocked"
 		report.Message = "Outbound DAC requires a known RADIUS client but no clients are configured."
 		report.Warnings = append(report.Warnings, "Add managed RADIUS clients with resolvable secrets before production use.")
+	}
+	if effective.OutboundEnabled && !queuePolicy.Enabled {
+		report.Warnings = append(report.Warnings, "Durable outbound DAC queue is disabled; failed immediate sends will not be retried.")
+	}
+	if queueSummary.PoisonCount > 0 || queueSummary.ErrorCount > 0 {
+		if report.Status == "ready" {
+			report.Status = "degraded"
+		}
+		report.Warnings = append(report.Warnings, fmt.Sprintf("%d outbound DAC queue record(s) need operator review.", queueSummary.PoisonCount+queueSummary.ErrorCount))
+	}
+	if queueSummary.QueueUtilization >= 90 {
+		if report.Status == "ready" {
+			report.Status = "degraded"
+		}
+		report.Warnings = append(report.Warnings, fmt.Sprintf("Outbound DAC queue utilization is %d%%.", queueSummary.QueueUtilization))
 	}
 	return report
 }
@@ -769,6 +794,7 @@ func normalizeOutboundDACRequest(request OutboundDACRequest) OutboundDACRequest 
 	request.RadiusClass = strings.TrimSpace(request.RadiusClass)
 	request.State = strings.TrimSpace(request.State)
 	request.CorrelationID = strings.TrimSpace(request.CorrelationID)
+	request.IdempotencyKey = strings.TrimSpace(request.IdempotencyKey)
 	for i := range request.Attributes {
 		request.Attributes[i].Name = strings.TrimSpace(request.Attributes[i].Name)
 		request.Attributes[i].Value = strings.TrimSpace(request.Attributes[i].Value)

@@ -1177,15 +1177,32 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Durable outbound DAC request, attempt outcome, ACK/NAK/Error-Cause detail, and runtime status."),
 		"default": responseText("Send validation or packet error."),
 	}))
+	addOperation(paths, "/api/v1/system/dac-client/enqueue", "post", securedOperationWithBody("Queue outbound CoA or Disconnect", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Confirmed outbound DAC action, target, selectors, optional idempotency key, and vendor-neutral attributes."), map[string]any{
+		"200":     responseJSON("Durable queue result with duplicate suppression state, queue record, preview, payload SHA-256, and next attempt time."),
+		"default": responseText("Validation or enqueue error."),
+	}))
+	addOperation(paths, "/api/v1/system/dac-client/replay", "post", securedOperationWithBody("Replay due outbound DAC queue records", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional batch_size override bounded by policy."), map[string]any{
+		"200": responseJSON("Replay result with claimed, ACK, NAK, failed, poisoned, expired, and queue summary counts."),
+	}))
+	addOperation(paths, "/api/v1/system/dac-client/cancel", "post", securedOperationWithBody("Cancel queued outbound DAC record", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Queue ID and optional reason for a queued or retrying record."), map[string]any{
+		"200":     responseJSON("Canceled queue record with redacted metadata."),
+		"default": responseText("Validation or cancel error."),
+	}))
+	addOperation(paths, "/api/v1/system/dac-client/retry", "post", securedOperationWithBody("Retry outbound DAC queue record", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Queue ID for a terminal or dead-letter record to requeue now."), map[string]any{
+		"200":     responseJSON("Requeued DAC record with redacted metadata."),
+		"default": responseText("Validation or retry error."),
+	}))
 	addOperation(paths, "/api/v1/system/dac-client/history", "get", securedOperationWithParameters("List outbound DAC history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryEnumParameter("status", "Optional outbound DAC request status.", []string{"previewed", "sent", "ack", "nak", "error", "blocked"}, false),
 		queryEnumParameter("action", "Optional outbound DAC action.", []string{"coa", "disconnect"}, false),
 		queryStringParameter("target_address", "Optional exact NAS target address filter.", false),
 		queryStringParameter("session_id", "Optional accounting or local session identifier filter.", false),
 		queryStringParameter("request_id", "Optional request ID for attempt history.", false),
+		queryEnumParameter("queue_status", "Optional durable queue status.", []string{"queued", "retrying", "ack", "nak", "error", "poison", "expired", "canceled"}, false),
+		queryStringParameter("queue_id", "Optional queue ID for durable attempt history.", false),
 		queryStringParameter("limit", "Record or attempt limit from 1 to 1000.", false),
 	}, map[string]any{
-		"200": responseJSON("Outbound DAC summary, request history, and attempt history."),
+		"200": responseJSON("Outbound DAC immediate summary, durable queue summary, request history, queue records, and attempt history."),
 	}))
 	addOperation(paths, "/api/v1/system/nas-clients", "get", securedOperation("Read dynamic NAS client lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Dynamic NAS enrollment policy, approval queue, capability templates, inventory summary, and recent lifecycle events."),
