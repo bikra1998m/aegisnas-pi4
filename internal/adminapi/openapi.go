@@ -1167,18 +1167,18 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200": responseJSON("RadSec mTLS and TLS-PSK credential state, rotation windows, redacted secret references, warnings, and blockers."),
 	}))
 	addOperation(paths, "/api/v1/system/dac-client", "get", securedOperation("Read outbound dynamic authorization client", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
-		"200": responseJSON("Outbound RFC 5176 CoA and Disconnect client policy, proxy routing status, runtime status, history summary, durable queue summary, and recent requests."),
+		"200": responseJSON("Outbound RFC 5176 CoA and Disconnect client policy, proxy routing status, vendor dynamic-action compiler status, runtime status, history summary, durable queue summary, and recent requests."),
 	}))
-	addOperation(paths, "/api/v1/system/dac-client/preview", "post", securedOperationWithBody("Preview outbound CoA or Disconnect", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Outbound DAC action, direct target or proxy route, originating realm, optional home server, selectors, Proxy-State, and vendor-neutral attributes to validate without sending."), map[string]any{
-		"200":     responseJSON("Resolved direct or proxy target, packet codes, proxy policy decision, attribute plan, blockers, warnings, and request fingerprint."),
+	addOperation(paths, "/api/v1/system/dac-client/preview", "post", securedOperationWithBody("Preview outbound CoA or Disconnect", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Outbound DAC action, direct target or proxy route, originating realm, optional home server, selectors, Proxy-State, vendor-neutral attributes, and optional vendor_action/vendor_packs intent to validate without sending."), map[string]any{
+		"200":     responseJSON("Resolved direct or proxy target, packet codes, proxy policy decision, vendor action compiler decision, attribute plan, blockers, warnings, and request fingerprint."),
 		"default": responseText("Preview validation error."),
 	}))
-	addOperation(paths, "/api/v1/system/dac-client/send", "post", securedOperationWithBody("Send outbound CoA or Disconnect", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Confirmed outbound DAC action, direct target or proxy route, originating realm, optional home server, selectors, Proxy-State, and vendor-neutral attributes."), map[string]any{
-		"200":     responseJSON("Durable outbound DAC request, proxy route metadata, attempt outcome, ACK/NAK/Error-Cause detail, and runtime status."),
+	addOperation(paths, "/api/v1/system/dac-client/send", "post", securedOperationWithBody("Send outbound CoA or Disconnect", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Confirmed outbound DAC action, direct target or proxy route, originating realm, optional home server, selectors, Proxy-State, vendor-neutral attributes, and optional vendor_action/vendor_packs intent."), map[string]any{
+		"200":     responseJSON("Durable outbound DAC request, proxy route metadata, vendor compiler evidence, attempt outcome, ACK/NAK/Error-Cause detail, and runtime status."),
 		"default": responseText("Send validation or packet error."),
 	}))
-	addOperation(paths, "/api/v1/system/dac-client/enqueue", "post", securedOperationWithBody("Queue outbound CoA or Disconnect", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Confirmed outbound DAC action, direct target or proxy route, originating realm, optional home server, selectors, Proxy-State, optional idempotency key, and vendor-neutral attributes."), map[string]any{
-		"200":     responseJSON("Durable queue result with proxy route metadata, duplicate suppression state, queue record, preview, payload SHA-256, and next attempt time."),
+	addOperation(paths, "/api/v1/system/dac-client/enqueue", "post", securedOperationWithBody("Queue outbound CoA or Disconnect", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Confirmed outbound DAC action, direct target or proxy route, originating realm, optional home server, selectors, Proxy-State, optional idempotency key, vendor-neutral attributes, and optional vendor_action/vendor_packs intent."), map[string]any{
+		"200":     responseJSON("Durable queue result with proxy route metadata, vendor compiler evidence, duplicate suppression state, queue record, preview, payload SHA-256, and next attempt time."),
 		"default": responseText("Validation or enqueue error."),
 	}))
 	addOperation(paths, "/api/v1/system/dac-client/replay", "post", securedOperationWithBody("Replay due outbound DAC queue records", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional batch_size override bounded by policy."), map[string]any{
@@ -1202,7 +1202,7 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		queryStringParameter("queue_id", "Optional queue ID for durable attempt history.", false),
 		queryStringParameter("limit", "Record or attempt limit from 1 to 1000.", false),
 	}, map[string]any{
-		"200": responseJSON("Outbound DAC immediate summary, proxy route metadata, durable queue summary, request history, queue records, and attempt history."),
+		"200": responseJSON("Outbound DAC immediate summary, proxy route metadata, vendor compiler evidence, durable queue summary, request history, queue records, and attempt history."),
 	}))
 	addOperation(paths, "/api/v1/system/nas-clients", "get", securedOperation("Read dynamic NAS client lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Dynamic NAS enrollment policy, approval queue, capability templates, inventory summary, and recent lifecycle events."),

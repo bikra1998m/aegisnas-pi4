@@ -30,6 +30,9 @@ func TestOutboundDACClientHandlersPreviewSendAndHistory(t *testing.T) {
 	assert.Equal(t, "ready", proxyRouting["status"])
 	proxySummary := proxyRouting["summary"].(map[string]any)
 	assert.Equal(t, float64(1), proxySummary["route_count"])
+	vendorActions := report["vendor_actions"].(map[string]any)
+	assert.Equal(t, "ready", vendorActions["status"])
+	assert.Contains(t, vendorActions["active_packs"], "cisco")
 
 	previewBody := bytes.NewBufferString(`{
 		"action":"coa",
@@ -217,6 +220,8 @@ radius:
     outbound_proxy_loop_marker: aegisnas
     outbound_proxy_add_loop_marker: true
     outbound_proxy_reject_loop_marker: true
+    outbound_vendor_actions_enabled: true
+    outbound_vendor_actions_require_pack: true
   upstream:
     enabled: true
     realm: corp.example.test
@@ -251,6 +256,9 @@ radius:
       shortname: branch-ap
       nas_type: cisco
       transport: udp
+  vendor:
+    enabled: true
+    compatibility_packs: ["standard", "cisco"]
 `
 	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0644))
 	_, err := config.Load(cfgPath)

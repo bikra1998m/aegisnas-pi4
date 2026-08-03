@@ -173,7 +173,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{46, schemaV46},
 		{47, schemaV47},
 		{48, schemaV48},
-		{LatestSchemaVersion(), schemaV49},
+		{49, schemaV49},
+		{LatestSchemaVersion(), schemaV50},
 	}
 
 	for _, m := range migrations {
@@ -290,8 +291,52 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureOutboundDACProxyRouteColumns(handle); err != nil {
 		return fmt.Errorf("repair outbound dynamic authorization proxy route schema: %w", err)
 	}
+	if err := ensureOutboundDACVendorActionColumns(handle); err != nil {
+		return fmt.Errorf("repair outbound dynamic authorization vendor action schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureOutboundDACVendorActionColumns(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	columns := []struct {
+		table string
+		name  string
+		sql   string
+	}{
+		{"radius_outbound_dac_requests", "vendor_action", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN vendor_action TEXT`},
+		{"radius_outbound_dac_requests", "vendor_packs_json", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN vendor_packs_json TEXT NOT NULL DEFAULT '[]'`},
+		{"radius_outbound_dac_requests", "vendor_compiler_status", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN vendor_compiler_status TEXT NOT NULL DEFAULT 'not_requested'`},
+		{"radius_outbound_dac_requests", "vendor_compiler_warnings_json", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN vendor_compiler_warnings_json TEXT NOT NULL DEFAULT '[]'`},
+		{"radius_outbound_dac_queue", "vendor_action", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN vendor_action TEXT`},
+		{"radius_outbound_dac_queue", "vendor_packs_json", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN vendor_packs_json TEXT NOT NULL DEFAULT '[]'`},
+		{"radius_outbound_dac_queue", "vendor_compiler_status", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN vendor_compiler_status TEXT NOT NULL DEFAULT 'not_requested'`},
+		{"radius_outbound_dac_queue", "vendor_compiler_warnings_json", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN vendor_compiler_warnings_json TEXT NOT NULL DEFAULT '[]'`},
+	}
+	for _, column := range columns {
+		exists, err := tableExists(handle, column.table)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			continue
+		}
+		hasColumn, err := tableHasColumn(handle, column.table, column.name)
+		if err != nil {
+			return err
+		}
+		if !hasColumn {
+			if _, err := handle.Exec(SQLForDialect(column.sql, dialect)); err != nil {
+				return err
+			}
+		}
+	}
+	_, err := handle.Exec(SQLForDialect(outboundDACVendorActionIndexesSQL, dialect))
+	return err
 }
 
 func ensureOutboundDACProxyRouteColumns(handle *sql.DB) error {

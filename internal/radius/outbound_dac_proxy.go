@@ -506,27 +506,34 @@ func resolveOutboundDACHomeServerSecret(ctx context.Context, cfg *config.Config,
 	return strings.TrimRight(value, "\r\n")
 }
 
-func prepareOutboundDACPacketForTarget(cfg *config.Config, request OutboundDACRequest, target OutboundDACTarget, secret string, maxAttributes int) (*layehradius.Packet, []db.OutboundDACAttribute, ProxyPolicyDecision, error) {
+func prepareOutboundDACPacketForTarget(cfg *config.Config, request OutboundDACRequest, target OutboundDACTarget, secret string, maxAttributes int) (*layehradius.Packet, []db.OutboundDACAttribute, ProxyPolicyDecision, OutboundDACVendorDecision, error) {
+	vendorDecision := CompileOutboundDACVendorAction(cfg, request, target)
+	if len(vendorDecision.Blockers) > 0 {
+		return nil, nil, ProxyPolicyDecision{}, vendorDecision, fmt.Errorf("%s", strings.Join(vendorDecision.Blockers, "; "))
+	}
+	if len(vendorDecision.Attributes) > 0 {
+		request.Attributes = append(request.Attributes, vendorDecision.Attributes...)
+	}
 	packet, attrs, err := buildOutboundDACPacket(request, secret, maxAttributes)
 	if err != nil {
-		return nil, nil, ProxyPolicyDecision{}, err
+		return nil, nil, ProxyPolicyDecision{}, vendorDecision, err
 	}
 	if target.DeliveryMode != outboundDACDeliveryProxy {
-		return packet, attrs, ProxyPolicyDecision{Allowed: true, Decision: "accepted", Reason: "direct_delivery", Route: "", Direction: "direct"}, nil
+		return packet, attrs, ProxyPolicyDecision{Allowed: true, Decision: "accepted", Reason: "direct_delivery", Route: "", Direction: "direct"}, vendorDecision, nil
 	}
 	decision := evaluateOutboundDACProxyPolicy(cfg, packet, request, target)
 	if !decision.Allowed {
-		return nil, nil, decision, fmt.Errorf("proxy policy rejected outbound dynamic authorization: %s", decision.Reason)
+		return nil, nil, decision, vendorDecision, fmt.Errorf("proxy policy rejected outbound dynamic authorization: %s", decision.Reason)
 	}
 	attrs, err = applyOutboundDACProxyRewrites(packet, attrs, decision.RewriteActions)
 	if err != nil {
-		return nil, nil, decision, err
+		return nil, nil, decision, vendorDecision, err
 	}
 	attrs, err = applyOutboundDACProxyState(packet, attrs, target.ProxyState, maxAttributes)
 	if err != nil {
-		return nil, nil, decision, err
+		return nil, nil, decision, vendorDecision, err
 	}
-	return packet, attrs, decision, nil
+	return packet, attrs, decision, vendorDecision, nil
 }
 
 func evaluateOutboundDACProxyPolicy(cfg *config.Config, packet *layehradius.Packet, request OutboundDACRequest, target OutboundDACTarget) ProxyPolicyDecision {

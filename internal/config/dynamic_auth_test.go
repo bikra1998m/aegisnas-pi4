@@ -68,6 +68,8 @@ radius:
 	assert.Equal(t, "aegisnas", effective.OutboundProxyLoopMarker)
 	assert.True(t, effective.OutboundProxyAddLoopMarker)
 	assert.True(t, effective.OutboundProxyRejectLoopMarker)
+	assert.True(t, effective.OutboundVendorActionsEnabled)
+	assert.True(t, effective.OutboundVendorActionsRequirePack)
 	require.NoError(t, cfg.Validate())
 }
 
@@ -121,6 +123,8 @@ func TestConfigValidationOutboundDynamicAuthBounds(t *testing.T) {
 				OutboundProxyLoopMarker:            "aegisnas",
 				OutboundProxyAddLoopMarker:         true,
 				OutboundProxyRejectLoopMarker:      true,
+				OutboundVendorActionsEnabled:       true,
+				OutboundVendorActionsRequirePack:   true,
 			},
 		},
 	}

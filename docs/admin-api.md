@@ -91,10 +91,15 @@ Read-only roles can inspect client policy and history. `ops_admin` and
 `super_admin` can preview, send, enqueue, replay, cancel, and retry confirmed
 requests. Requests may target a direct NAS or a configured proxy route using
 `delivery_mode`, `proxy_route`, `originating_realm`, `proxy_realm`,
-`proxy_home_server`, and bounded `proxy_state`. History stores target, proxy
-route metadata, status, Error-Cause, latency, fingerprints, queue state, hashed
-idempotency keys, and correlation evidence while redacting sensitive selector
-values. The report is embedded in
+`proxy_home_server`, and bounded `proxy_state`. Requests may also include a
+neutral vendor dynamic-action intent with `vendor_action`, `vendor_packs`,
+`role`, `vlan`, `acl_name`, `bandwidth_profile`, `download_rate_kbps`,
+`upload_rate_kbps`, `policy_tag`, and `portal_profile`. Preview responses
+include `vendor_action_decision` with selected packs, compiled VSA attributes,
+warnings, and blockers. History stores target, proxy route metadata, vendor
+compiler evidence, status, Error-Cause, latency, fingerprints, queue state,
+hashed idempotency keys, and correlation evidence while redacting sensitive
+selector values. The report is embedded in
 `/api/v1/system/status` as `radius.dac_client`, included in production
 readiness as `radius_outbound_dac_client`, and captured in support bundles as
 `api/dac-client.json` and `api/dac-client-history.json`. See

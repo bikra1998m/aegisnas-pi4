@@ -510,6 +510,10 @@ type OutboundDACRequestRecord = {
   proxy_home_server?: string;
   proxy_hop_count?: number;
   proxy_state?: string[];
+  vendor_action?: string;
+  vendor_packs?: string[];
+  vendor_compiler_status?: string;
+  vendor_compiler_warnings?: string[];
   session_id?: string;
   correlation_id?: string;
   response_code?: number;
@@ -535,6 +539,10 @@ type OutboundDACQueueRecord = {
   proxy_home_server?: string;
   proxy_hop_count?: number;
   proxy_state?: string[];
+  vendor_action?: string;
+  vendor_packs?: string[];
+  vendor_compiler_status?: string;
+  vendor_compiler_warnings?: string[];
   session_id?: string;
   correlation_id?: string;
   attempt_count: number;
@@ -567,6 +575,8 @@ type OutboundDACReport = {
     outbound_proxy_allow_udp?: boolean;
     outbound_proxy_allow_radsec?: boolean;
     outbound_proxy_max_hops?: number;
+    outbound_vendor_actions_enabled?: boolean;
+    outbound_vendor_actions_require_pack?: boolean;
   };
   queue_policy?: {
     enabled: boolean;
@@ -641,6 +651,19 @@ type OutboundDACReport = {
     }>;
     warnings?: string[];
   };
+  vendor_actions?: {
+    schema_version: number;
+    status: string;
+    message: string;
+    enabled: boolean;
+    require_pack: boolean;
+    active_packs?: string[];
+    supported_packs?: string[];
+    actions?: string[];
+    warnings?: string[];
+    blockers?: string[];
+    rfcs?: string[];
+  };
   warnings?: string[];
 };
 
@@ -684,6 +707,22 @@ type OutboundDACPreview = {
     route: string;
     direction: string;
     source_realm?: string;
+  };
+  vendor_action_decision?: {
+    schema_version: number;
+    status: string;
+    action?: string;
+    packs?: string[];
+    attributes?: Array<{
+      name: string;
+      value: string;
+      source: string;
+      selector: boolean;
+    }>;
+    attribute_count: number;
+    warnings?: string[];
+    blockers?: string[];
+    rfcs?: string[];
   };
   warnings?: string[];
   blockers?: string[];
@@ -1360,6 +1399,8 @@ const defaultSettings: JsonMap = {
       outbound_proxy_loop_marker: "aegisnas",
       outbound_proxy_add_loop_marker: true,
       outbound_proxy_reject_loop_marker: true,
+      outbound_vendor_actions_enabled: true,
+      outbound_vendor_actions_require_pack: true,
     },
     dynamic_clients: {
       enabled: false,
@@ -2882,6 +2923,15 @@ export default function AccessSettings() {
     framed_ip_address: "",
     filter_id: "employee",
     vlan: 20,
+    vendor_action: "",
+    vendor_packs: "cisco",
+    role: "",
+    bandwidth_profile: "",
+    download_rate_kbps: 0,
+    upload_rate_kbps: 0,
+    acl_name: "",
+    policy_tag: "",
+    portal_profile: "",
     session_timeout: 0,
     idle_timeout: 0,
     correlation_id: "",
@@ -3702,6 +3752,15 @@ export default function AccessSettings() {
     framed_ip_address: outboundDACDraft.framed_ip_address || "",
     filter_id: outboundDACDraft.filter_id || "",
     vlan: Number(outboundDACDraft.vlan || 0),
+    vendor_action: outboundDACDraft.vendor_action || "",
+    vendor_packs: csvToList(String(outboundDACDraft.vendor_packs || "")),
+    role: outboundDACDraft.role || "",
+    bandwidth_profile: outboundDACDraft.bandwidth_profile || "",
+    download_rate_kbps: Number(outboundDACDraft.download_rate_kbps || 0),
+    upload_rate_kbps: Number(outboundDACDraft.upload_rate_kbps || 0),
+    acl_name: outboundDACDraft.acl_name || "",
+    policy_tag: outboundDACDraft.policy_tag || "",
+    portal_profile: outboundDACDraft.portal_profile || "",
     session_timeout: Number(outboundDACDraft.session_timeout || 0),
     idle_timeout: Number(outboundDACDraft.idle_timeout || 0),
     correlation_id: outboundDACDraft.correlation_id || "",
@@ -14100,6 +14159,36 @@ export default function AccessSettings() {
                 )
               }
             />
+            <ToggleField
+              label="Vendor Actions"
+              checked={
+                settings.radius?.dynamic_auth
+                  ?.outbound_vendor_actions_enabled !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_vendor_actions_enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Vendor Pack"
+              checked={
+                settings.radius?.dynamic_auth
+                  ?.outbound_vendor_actions_require_pack !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "dynamic_auth",
+                    "outbound_vendor_actions_require_pack",
+                  ],
+                  value,
+                )
+              }
+            />
             <TextField
               label="Inbound DAC Port"
               type="number"
@@ -14333,6 +14422,20 @@ export default function AccessSettings() {
                 route(s)
               </div>
             </div>
+            <div
+              className={`rounded-md border px-3 py-2 ${statusTone(
+                outboundDACReport?.vendor_actions?.status,
+              )}`}
+            >
+              <div className="text-xs font-semibold uppercase">
+                Vendor Actions
+              </div>
+              <div className="mt-1 text-sm font-semibold">
+                {(outboundDACReport?.vendor_actions?.active_packs || [])
+                  .length || 0}{" "}
+                pack(s)
+              </div>
+            </div>
             <div className="rounded-md border border-gray-200 px-3 py-2">
               <div className="text-xs font-semibold uppercase text-gray-500">
                 RadSec Proxy
@@ -14372,6 +14475,30 @@ export default function AccessSettings() {
             <p className="mt-2 text-xs text-gray-500">
               {outboundDACReport.proxy_routing.message}
             </p>
+          )}
+          {outboundDACReport?.vendor_actions?.message && (
+            <p className="mt-2 text-xs text-gray-500">
+              {outboundDACReport.vendor_actions.message}
+            </p>
+          )}
+          {outboundDACReport?.vendor_actions && (
+            <div className="mt-3 rounded-md border border-gray-200 px-3 py-2 text-xs text-gray-600">
+              <div>
+                Active packs:{" "}
+                {(outboundDACReport.vendor_actions.active_packs || []).join(
+                  ", ",
+                ) || "none"}
+              </div>
+              <div className="mt-1">
+                Actions:{" "}
+                {(outboundDACReport.vendor_actions.actions || []).join(", ") ||
+                  "none"}
+              </div>
+              <div className="mt-1">
+                Explicit pack required:{" "}
+                {outboundDACReport.vendor_actions.require_pack ? "yes" : "no"}
+              </div>
+            </div>
           )}
           {(outboundDACReport?.proxy_routing?.routes || []).length > 0 && (
             <div className="mt-3 overflow-x-auto rounded-md border border-gray-200">
@@ -14432,6 +14559,33 @@ export default function AccessSettings() {
                 { value: "coa", label: "CoA" },
                 { value: "disconnect", label: "Disconnect" },
               ]}
+            />
+            <SelectField
+              label="Vendor Action"
+              value={String(outboundDACDraft.vendor_action || "")}
+              onChange={(value) =>
+                updateOutboundDACDraft("vendor_action", value)
+              }
+              options={[
+                { value: "", label: "None" },
+                { value: "policy-update", label: "Policy Update" },
+                { value: "reauth", label: "Reauth" },
+                { value: "role", label: "Role" },
+                { value: "vlan", label: "VLAN" },
+                { value: "acl", label: "ACL" },
+                { value: "qos", label: "QoS" },
+                { value: "quarantine", label: "Quarantine" },
+                { value: "unquarantine", label: "Unquarantine" },
+                { value: "terminate", label: "Terminate" },
+              ]}
+            />
+            <TextField
+              label="Vendor Packs"
+              value={String(outboundDACDraft.vendor_packs || "")}
+              placeholder="cisco, aruba"
+              onChange={(value) =>
+                updateOutboundDACDraft("vendor_packs", value)
+              }
             />
             <TextField
               label="Target Address"
@@ -14534,11 +14688,61 @@ export default function AccessSettings() {
               onChange={(value) => updateOutboundDACDraft("filter_id", value)}
             />
             <TextField
+              label="Role"
+              value={String(outboundDACDraft.role || "")}
+              placeholder="employee"
+              onChange={(value) => updateOutboundDACDraft("role", value)}
+            />
+            <TextField
               label="VLAN"
               type="number"
               value={Number(outboundDACDraft.vlan || 0)}
               onChange={(value) =>
                 updateOutboundDACDraft("vlan", Number(value))
+              }
+            />
+            <TextField
+              label="Bandwidth Profile"
+              value={String(outboundDACDraft.bandwidth_profile || "")}
+              placeholder="branch-20m"
+              onChange={(value) =>
+                updateOutboundDACDraft("bandwidth_profile", value)
+              }
+            />
+            <TextField
+              label="Download Kbps"
+              type="number"
+              value={Number(outboundDACDraft.download_rate_kbps || 0)}
+              onChange={(value) =>
+                updateOutboundDACDraft("download_rate_kbps", Number(value))
+              }
+            />
+            <TextField
+              label="Upload Kbps"
+              type="number"
+              value={Number(outboundDACDraft.upload_rate_kbps || 0)}
+              onChange={(value) =>
+                updateOutboundDACDraft("upload_rate_kbps", Number(value))
+              }
+            />
+            <TextField
+              label="ACL Name"
+              value={String(outboundDACDraft.acl_name || "")}
+              placeholder="guest-web"
+              onChange={(value) => updateOutboundDACDraft("acl_name", value)}
+            />
+            <TextField
+              label="Policy Tag"
+              value={String(outboundDACDraft.policy_tag || "")}
+              placeholder="ticket-123"
+              onChange={(value) => updateOutboundDACDraft("policy_tag", value)}
+            />
+            <TextField
+              label="Portal Profile"
+              value={String(outboundDACDraft.portal_profile || "")}
+              placeholder="guest-portal"
+              onChange={(value) =>
+                updateOutboundDACDraft("portal_profile", value)
               }
             />
             <TextField
@@ -14632,6 +14836,53 @@ export default function AccessSettings() {
                     : ""}
                 </div>
               )}
+              {outboundDACPreview.vendor_action_decision?.status && (
+                <div className="mt-2 rounded-md border border-current px-2 py-1">
+                  <div className="font-semibold">
+                    Vendor action{" "}
+                    {outboundDACPreview.vendor_action_decision.status}
+                    {outboundDACPreview.vendor_action_decision.action
+                      ? `: ${outboundDACPreview.vendor_action_decision.action}`
+                      : ""}
+                  </div>
+                  <div className="mt-1">
+                    Packs:{" "}
+                    {(
+                      outboundDACPreview.vendor_action_decision.packs || []
+                    ).join(", ") || "none"}
+                  </div>
+                  <div className="mt-1">
+                    Vendor attributes:{" "}
+                    {outboundDACPreview.vendor_action_decision.attribute_count ||
+                      0}
+                  </div>
+                  {(outboundDACPreview.vendor_action_decision.attributes || [])
+                    .length > 0 && (
+                    <div className="mt-1 break-all">
+                      {(
+                        outboundDACPreview.vendor_action_decision.attributes ||
+                        []
+                      )
+                        .map((attribute) => attribute.name)
+                        .join(", ")}
+                    </div>
+                  )}
+                  {(
+                    outboundDACPreview.vendor_action_decision.warnings || []
+                  ).map((warning) => (
+                    <div key={warning} className="mt-1">
+                      {warning}
+                    </div>
+                  ))}
+                  {(
+                    outboundDACPreview.vendor_action_decision.blockers || []
+                  ).map((blocker) => (
+                    <div key={blocker} className="mt-1">
+                      {blocker}
+                    </div>
+                  ))}
+                </div>
+              )}
               {(outboundDACPreview.target?.proxy_state || []).length > 0 && (
                 <div className="mt-1 break-all">
                   Proxy-State:{" "}
@@ -14657,6 +14908,7 @@ export default function AccessSettings() {
                   <tr>
                     <th className="px-3 py-2">Request</th>
                     <th className="px-3 py-2">Action</th>
+                    <th className="px-3 py-2">Vendor</th>
                     <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">Target</th>
                     <th className="px-3 py-2">Outcome</th>
@@ -14671,6 +14923,17 @@ export default function AccessSettings() {
                       </td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.action}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.vendor_action || "standard"}
+                        <div className="text-xs text-gray-500">
+                          {item.vendor_compiler_status || "not requested"}
+                        </div>
+                        {(item.vendor_packs || []).length > 0 && (
+                          <div className="text-xs text-gray-500">
+                            {(item.vendor_packs || []).join(", ")}
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.status}
@@ -14707,6 +14970,7 @@ export default function AccessSettings() {
                   <tr>
                     <th className="px-3 py-2">Queue</th>
                     <th className="px-3 py-2">Action</th>
+                    <th className="px-3 py-2">Vendor</th>
                     <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">Attempts</th>
                     <th className="px-3 py-2">Next</th>
@@ -14722,6 +14986,17 @@ export default function AccessSettings() {
                       </td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.action}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.vendor_action || "standard"}
+                        <div className="text-xs text-gray-500">
+                          {item.vendor_compiler_status || "not requested"}
+                        </div>
+                        {(item.vendor_packs || []).length > 0 && (
+                          <div className="text-xs text-gray-500">
+                            {(item.vendor_packs || []).join(", ")}
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.status}

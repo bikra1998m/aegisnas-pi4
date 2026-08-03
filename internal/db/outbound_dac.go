@@ -31,45 +31,49 @@ type OutboundDACAttribute struct {
 }
 
 type OutboundDACRequestRecord struct {
-	ID                   int                    `json:"id"`
-	RequestID            string                 `json:"request_id"`
-	Action               string                 `json:"action"`
-	Status               string                 `json:"status"`
-	TargetAddress        string                 `json:"target_address"`
-	TargetPort           int                    `json:"target_port"`
-	TargetTransport      string                 `json:"target_transport"`
-	DeliveryMode         string                 `json:"delivery_mode"`
-	ProxyRoute           string                 `json:"proxy_route,omitempty"`
-	ProxyRealm           string                 `json:"proxy_realm,omitempty"`
-	ProxyHomeServer      string                 `json:"proxy_home_server,omitempty"`
-	ProxyHopCount        int                    `json:"proxy_hop_count"`
-	ProxyState           []string               `json:"proxy_state,omitempty"`
-	NASIdentifier        string                 `json:"nas_identifier,omitempty"`
-	NASIPAddress         string                 `json:"nas_ip_address,omitempty"`
-	NASType              string                 `json:"nas_type,omitempty"`
-	ShortName            string                 `json:"shortname,omitempty"`
-	SessionID            string                 `json:"session_id,omitempty"`
-	UsernameHash         string                 `json:"username_hash,omitempty"`
-	CallingStationHash   string                 `json:"calling_station_hash,omitempty"`
-	FramedIPAddress      string                 `json:"framed_ip_address,omitempty"`
-	Attributes           []OutboundDACAttribute `json:"attributes,omitempty"`
-	RequestCode          int                    `json:"request_code"`
-	ResponseCode         int                    `json:"response_code,omitempty"`
-	ErrorCause           int                    `json:"error_cause,omitempty"`
-	ErrorCauseName       string                 `json:"error_cause_name,omitempty"`
-	ReplyMessage         string                 `json:"reply_message,omitempty"`
-	CorrelationID        string                 `json:"correlation_id"`
-	RequestedBy          string                 `json:"requested_by,omitempty"`
-	RequestedAt          string                 `json:"requested_at"`
-	SentAt               string                 `json:"sent_at,omitempty"`
-	CompletedAt          string                 `json:"completed_at,omitempty"`
-	LatencyMS            int64                  `json:"latency_ms"`
-	FailureReason        string                 `json:"failure_reason,omitempty"`
-	MessageAuthenticator bool                   `json:"message_authenticator"`
-	RequestFingerprint   string                 `json:"request_fingerprint"`
-	ResponseFingerprint  string                 `json:"response_fingerprint,omitempty"`
-	CreatedAt            string                 `json:"created_at,omitempty"`
-	UpdatedAt            string                 `json:"updated_at,omitempty"`
+	ID                     int                    `json:"id"`
+	RequestID              string                 `json:"request_id"`
+	Action                 string                 `json:"action"`
+	Status                 string                 `json:"status"`
+	TargetAddress          string                 `json:"target_address"`
+	TargetPort             int                    `json:"target_port"`
+	TargetTransport        string                 `json:"target_transport"`
+	DeliveryMode           string                 `json:"delivery_mode"`
+	ProxyRoute             string                 `json:"proxy_route,omitempty"`
+	ProxyRealm             string                 `json:"proxy_realm,omitempty"`
+	ProxyHomeServer        string                 `json:"proxy_home_server,omitempty"`
+	ProxyHopCount          int                    `json:"proxy_hop_count"`
+	ProxyState             []string               `json:"proxy_state,omitempty"`
+	VendorAction           string                 `json:"vendor_action,omitempty"`
+	VendorPacks            []string               `json:"vendor_packs,omitempty"`
+	VendorCompilerStatus   string                 `json:"vendor_compiler_status"`
+	VendorCompilerWarnings []string               `json:"vendor_compiler_warnings,omitempty"`
+	NASIdentifier          string                 `json:"nas_identifier,omitempty"`
+	NASIPAddress           string                 `json:"nas_ip_address,omitempty"`
+	NASType                string                 `json:"nas_type,omitempty"`
+	ShortName              string                 `json:"shortname,omitempty"`
+	SessionID              string                 `json:"session_id,omitempty"`
+	UsernameHash           string                 `json:"username_hash,omitempty"`
+	CallingStationHash     string                 `json:"calling_station_hash,omitempty"`
+	FramedIPAddress        string                 `json:"framed_ip_address,omitempty"`
+	Attributes             []OutboundDACAttribute `json:"attributes,omitempty"`
+	RequestCode            int                    `json:"request_code"`
+	ResponseCode           int                    `json:"response_code,omitempty"`
+	ErrorCause             int                    `json:"error_cause,omitempty"`
+	ErrorCauseName         string                 `json:"error_cause_name,omitempty"`
+	ReplyMessage           string                 `json:"reply_message,omitempty"`
+	CorrelationID          string                 `json:"correlation_id"`
+	RequestedBy            string                 `json:"requested_by,omitempty"`
+	RequestedAt            string                 `json:"requested_at"`
+	SentAt                 string                 `json:"sent_at,omitempty"`
+	CompletedAt            string                 `json:"completed_at,omitempty"`
+	LatencyMS              int64                  `json:"latency_ms"`
+	FailureReason          string                 `json:"failure_reason,omitempty"`
+	MessageAuthenticator   bool                   `json:"message_authenticator"`
+	RequestFingerprint     string                 `json:"request_fingerprint"`
+	ResponseFingerprint    string                 `json:"response_fingerprint,omitempty"`
+	CreatedAt              string                 `json:"created_at,omitempty"`
+	UpdatedAt              string                 `json:"updated_at,omitempty"`
 }
 
 type OutboundDACAttemptRecord struct {
@@ -131,35 +135,39 @@ type OutboundDACRequestQuery struct {
 }
 
 type OutboundDACCreate struct {
-	RequestID            string
-	Action               string
-	Status               string
-	TargetAddress        string
-	TargetPort           int
-	TargetTransport      string
-	DeliveryMode         string
-	ProxyRoute           string
-	ProxyRealm           string
-	ProxyHomeServer      string
-	ProxyHopCount        int
-	ProxyState           []string
-	NASIdentifier        string
-	NASIPAddress         string
-	NASType              string
-	ShortName            string
-	SessionID            string
-	Username             string
-	CallingStationID     string
-	FramedIPAddress      string
-	Attributes           []OutboundDACAttribute
-	RequestCode          int
-	CorrelationID        string
-	RequestedBy          string
-	MessageAuthenticator bool
-	RequestFingerprint   string
-	RequestedAt          time.Time
-	SentAt               time.Time
-	FailureReason        string
+	RequestID              string
+	Action                 string
+	Status                 string
+	TargetAddress          string
+	TargetPort             int
+	TargetTransport        string
+	DeliveryMode           string
+	ProxyRoute             string
+	ProxyRealm             string
+	ProxyHomeServer        string
+	ProxyHopCount          int
+	ProxyState             []string
+	VendorAction           string
+	VendorPacks            []string
+	VendorCompilerStatus   string
+	VendorCompilerWarnings []string
+	NASIdentifier          string
+	NASIPAddress           string
+	NASType                string
+	ShortName              string
+	SessionID              string
+	Username               string
+	CallingStationID       string
+	FramedIPAddress        string
+	Attributes             []OutboundDACAttribute
+	RequestCode            int
+	CorrelationID          string
+	RequestedBy            string
+	MessageAuthenticator   bool
+	RequestFingerprint     string
+	RequestedAt            time.Time
+	SentAt                 time.Time
+	FailureReason          string
 }
 
 type OutboundDACComplete struct {
@@ -216,17 +224,27 @@ func CreateOutboundDACRequest(create OutboundDACCreate, retentionLimit int) (Out
 	if err != nil {
 		return OutboundDACRequestRecord{}, fmt.Errorf("encode outbound DAC proxy state: %w", err)
 	}
+	vendorPacksJSON, err := json.Marshal(normalizeOutboundDACStringList(create.VendorPacks, 16))
+	if err != nil {
+		return OutboundDACRequestRecord{}, fmt.Errorf("encode outbound DAC vendor packs: %w", err)
+	}
+	vendorWarningsJSON, err := json.Marshal(normalizeOutboundDACStringList(create.VendorCompilerWarnings, 32))
+	if err != nil {
+		return OutboundDACRequestRecord{}, fmt.Errorf("encode outbound DAC vendor compiler warnings: %w", err)
+	}
 	_, err = DB.Exec(`INSERT INTO radius_outbound_dac_requests (
 		request_id, action, status, target_address, target_port, target_transport,
 		delivery_mode, proxy_route, proxy_realm, proxy_home_server, proxy_hop_count, proxy_state_json,
+		vendor_action, vendor_packs_json, vendor_compiler_status, vendor_compiler_warnings_json,
 		nas_identifier, nas_ip_address, nas_type, shortname, session_id, username_hash,
 		calling_station_hash, framed_ip_address, attributes_json, request_code,
 		correlation_id, requested_by, requested_at, sent_at, failure_reason,
 		message_authenticator, request_fingerprint, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		create.RequestID, create.Action, create.Status, create.TargetAddress, create.TargetPort, create.TargetTransport,
 		normalizeOutboundDACDeliveryMode(create.DeliveryMode), nullIfEmpty(create.ProxyRoute), nullIfEmpty(create.ProxyRealm),
 		nullIfEmpty(create.ProxyHomeServer), create.ProxyHopCount, string(proxyStateJSON),
+		nullIfEmpty(create.VendorAction), string(vendorPacksJSON), normalizeOutboundDACVendorCompilerStatus(create.VendorCompilerStatus), string(vendorWarningsJSON),
 		nullIfEmpty(create.NASIdentifier), nullIfEmpty(create.NASIPAddress), nullIfEmpty(create.NASType), nullIfEmpty(create.ShortName),
 		nullIfEmpty(create.SessionID), nullIfEmpty(HashEAPIdentity(create.Username)), nullIfEmpty(HashEAPIdentity(create.CallingStationID)),
 		nullIfEmpty(create.FramedIPAddress), string(attrsJSON), create.RequestCode, create.CorrelationID, nullIfEmpty(create.RequestedBy),
@@ -464,6 +482,10 @@ func normalizeOutboundDACCreate(create OutboundDACCreate) OutboundDACCreate {
 	}
 	create.TargetAddress = strings.TrimSpace(create.TargetAddress)
 	create.TargetTransport = normalizeOutboundDACTransport(create.TargetTransport)
+	create.VendorAction = strings.TrimSpace(strings.ToLower(create.VendorAction))
+	create.VendorPacks = normalizeOutboundDACStringList(create.VendorPacks, 16)
+	create.VendorCompilerStatus = normalizeOutboundDACVendorCompilerStatus(create.VendorCompilerStatus)
+	create.VendorCompilerWarnings = normalizeOutboundDACStringList(create.VendorCompilerWarnings, 32)
 	create.NASIdentifier = strings.TrimSpace(create.NASIdentifier)
 	create.NASIPAddress = strings.TrimSpace(create.NASIPAddress)
 	create.NASType = strings.TrimSpace(strings.ToLower(create.NASType))
@@ -540,10 +562,51 @@ func normalizeOutboundDACProxyState(values []string) []string {
 	return out
 }
 
+func normalizeOutboundDACStringList(values []string, max int) []string {
+	if max <= 0 {
+		max = 16
+	}
+	out := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if len(value) > 253 {
+			value = value[:253]
+		}
+		key := strings.ToLower(value)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, value)
+		if len(out) >= max {
+			break
+		}
+	}
+	return out
+}
+
+func normalizeOutboundDACVendorCompilerStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "not_requested", "compiled", "standards_only", "blocked", "disabled":
+		return strings.ToLower(strings.TrimSpace(status))
+	default:
+		if strings.TrimSpace(status) == "" {
+			return "not_requested"
+		}
+		return strings.ToLower(strings.TrimSpace(status))
+	}
+}
+
 func outboundDACSelectSQL() string {
 	return `SELECT id, request_id, action, status, target_address, target_port, target_transport,
 		COALESCE(delivery_mode, 'direct'), COALESCE(proxy_route, ''), COALESCE(proxy_realm, ''),
 		COALESCE(proxy_home_server, ''), COALESCE(proxy_hop_count, 0), COALESCE(proxy_state_json, '[]'),
+		COALESCE(vendor_action, ''), COALESCE(vendor_packs_json, '[]'),
+		COALESCE(vendor_compiler_status, 'not_requested'), COALESCE(vendor_compiler_warnings_json, '[]'),
 		COALESCE(nas_identifier, ''), COALESCE(nas_ip_address, ''), COALESCE(nas_type, ''),
 		COALESCE(shortname, ''), COALESCE(session_id, ''), COALESCE(username_hash, ''),
 		COALESCE(calling_station_hash, ''), COALESCE(framed_ip_address, ''), attributes_json,
@@ -558,13 +621,16 @@ func scanOutboundDACRequestRows(rows outboundDACRows) ([]OutboundDACRequestRecor
 	records := []OutboundDACRequestRecord{}
 	for rows.Next() {
 		var (
-			record         OutboundDACRequestRecord
-			attrsJSON      string
-			proxyStateJSON string
+			record             OutboundDACRequestRecord
+			attrsJSON          string
+			proxyStateJSON     string
+			vendorPacksJSON    string
+			vendorWarningsJSON string
 		)
 		if err := rows.Scan(&record.ID, &record.RequestID, &record.Action, &record.Status, &record.TargetAddress,
 			&record.TargetPort, &record.TargetTransport, &record.DeliveryMode, &record.ProxyRoute, &record.ProxyRealm,
-			&record.ProxyHomeServer, &record.ProxyHopCount, &proxyStateJSON, &record.NASIdentifier, &record.NASIPAddress,
+			&record.ProxyHomeServer, &record.ProxyHopCount, &proxyStateJSON, &record.VendorAction, &vendorPacksJSON,
+			&record.VendorCompilerStatus, &vendorWarningsJSON, &record.NASIdentifier, &record.NASIPAddress,
 			&record.NASType, &record.ShortName, &record.SessionID, &record.UsernameHash, &record.CallingStationHash,
 			&record.FramedIPAddress, &attrsJSON, &record.RequestCode, &record.ResponseCode, &record.ErrorCause,
 			&record.ErrorCauseName, &record.ReplyMessage, &record.CorrelationID, &record.RequestedBy,
@@ -575,6 +641,8 @@ func scanOutboundDACRequestRows(rows outboundDACRows) ([]OutboundDACRequestRecor
 		}
 		_ = json.Unmarshal([]byte(attrsJSON), &record.Attributes)
 		_ = json.Unmarshal([]byte(proxyStateJSON), &record.ProxyState)
+		_ = json.Unmarshal([]byte(vendorPacksJSON), &record.VendorPacks)
+		_ = json.Unmarshal([]byte(vendorWarningsJSON), &record.VendorCompilerWarnings)
 		records = append(records, record)
 	}
 	return records, rows.Err()

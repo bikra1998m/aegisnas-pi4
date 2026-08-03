@@ -128,14 +128,16 @@ HA failover, performance, soak, and security validation are tracked in
 
 ## Outbound Dynamic Authorization Operations
 
-Use [outbound-dac-client.md](outbound-dac-client.md) for NAS-0042/NAS-0044 RFC
+Use [outbound-dac-client.md](outbound-dac-client.md) for NAS-0042/NAS-0045 RFC
 5176 CoA and Disconnect preview/send/queue/replay behavior, proxy/RadSec
-routing, supported vendor-neutral attributes, history, and troubleshooting.
+routing, vendor dynamic-action compilation, supported vendor-neutral
+attributes, history, and troubleshooting.
 Before production sign-off, run:
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
-  http://127.0.0.1:8083/api/v1/system/dac-client | jq '.report.status, .report.summary, .report.queue_summary, .report.proxy_routing'
+  http://127.0.0.1:8083/api/v1/system/dac-client \
+  | jq '.report.status, .report.summary, .report.queue_summary, .report.proxy_routing, .report.vendor_actions'
 ```
 
 Preview before sending:
@@ -157,6 +159,17 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/dac-client/enqueue | jq .
 ```
 
+Preview vendor-specific action compilation before applying vendor roles, ACLs,
+QoS, quarantine, or reauth:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"coa","target_address":"192.0.2.10","acct_session_id":"acct-123","vendor_action":"acl","vendor_packs":["cisco"],"acl_name":"guest-web"}' \
+  http://127.0.0.1:8083/api/v1/system/dac-client/preview \
+  | jq '.status, .vendor_action_decision'
+```
+
 Replay due queue records during a recovery drill:
 
 ```bash
@@ -169,15 +182,17 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
 Production readiness blocks when outbound DAC is disabled, known-client gating
 or send confirmation is disabled, durable queue/replay is disabled, proxy
 routing is disabled or has no usable home servers, Proxy-State hop limits are
-unsafe, the history or queue tables are unavailable, no managed NAS clients
+unsafe, vendor action compilation is disabled, explicit vendor pack selection is
+disabled, the history or queue tables are unavailable, no managed NAS clients
 exist, or no shared secret can be resolved. NAK, error, blocked, poison,
-expired, and blocked proxy-route history degrades readiness until investigated.
-Support bundles include
+expired, blocked proxy-route history, blocked vendor-action history, and VSA
+compiler warnings degrade readiness until investigated. Support bundles include
 `api/dac-client.json` and `api/dac-client-history.json`; external device,
 packet-capture, HA, performance, soak, and security validation are tracked in
 `nas-0042-release-certification-checklist.md` and
 `nas-0043-release-certification-checklist.md`, and
-`nas-0044-release-certification-checklist.md`.
+`nas-0044-release-certification-checklist.md`, and
+`nas-0045-release-certification-checklist.md`.
 
 ## Accounting Ordering Operations
 

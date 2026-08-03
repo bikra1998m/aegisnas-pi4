@@ -259,7 +259,8 @@ func addProductionOutboundDACClientCheck(report *productionReadinessReport, cfg 
 		policy.OutboundLockSeconds < 1 || !policy.OutboundProxyEnabled ||
 		(!policy.OutboundProxyAllowUDP && !policy.OutboundProxyAllowRadSec) ||
 		policy.OutboundProxyMaxHops < 1 || policy.OutboundProxyMaxHops > 32 ||
-		strings.TrimSpace(policy.OutboundProxyLoopMarker) == "" {
+		strings.TrimSpace(policy.OutboundProxyLoopMarker) == "" ||
+		!policy.OutboundVendorActionsEnabled || !policy.OutboundVendorActionsRequirePack {
 		status = "blocked"
 	}
 	if policy.OutboundProxyEnabled {
@@ -273,6 +274,14 @@ func addProductionOutboundDACClientCheck(report *productionReadinessReport, cfg 
 		}
 		if dac.ProxyRouting.Summary.RouteCount == 0 || dac.ProxyRouting.Summary.HomeServerCount == 0 {
 			status = "blocked"
+		}
+	}
+	switch dac.VendorActions.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded":
+		if status == "passed" {
+			status = "degraded"
 		}
 	}
 	if dac.Summary.NAKCount > 0 || dac.Summary.ErrorCount > 0 || dac.Summary.BlockedCount > 0 {
@@ -290,13 +299,14 @@ func addProductionOutboundDACClientCheck(report *productionReadinessReport, cfg 
 		Category: "radius",
 		Label:    "Outbound CoA And Disconnect Client",
 		Status:   status,
-		Summary: fmt.Sprintf("Outbound DAC schema %d is %s with %d request(s), %d ACK, %d NAK, %d error, %d blocked, %d immediate attempt(s), %d queued, %d retrying, %d poison, %d%% queue utilization, %d proxy route(s), %d RadSec route(s), and %d blocked proxy route(s).",
+		Summary: fmt.Sprintf("Outbound DAC schema %d is %s with %d request(s), %d ACK, %d NAK, %d error, %d blocked, %d immediate attempt(s), %d queued, %d retrying, %d poison, %d%% queue utilization, %d proxy route(s), %d RadSec route(s), %d blocked proxy route(s), and %d active vendor action pack(s).",
 			dac.SchemaVersion, dac.Status, dac.Summary.TotalRequests, dac.Summary.ACKCount,
 			dac.Summary.NAKCount, dac.Summary.ErrorCount, dac.Summary.BlockedCount, dac.Summary.AttemptCount,
 			dac.QueueSummary.QueuedCount, dac.QueueSummary.RetryingCount, dac.QueueSummary.PoisonCount, dac.QueueSummary.QueueUtilization,
-			dac.ProxyRouting.Summary.RouteCount, dac.ProxyRouting.Summary.RadSecRouteCount, dac.ProxyRouting.Summary.BlockedRouteCount),
-		Recommendation: "Keep radius.dynamic_auth outbound queue, replay, proxy routing, confirmation, known-client gates, bounded Proxy-State, and route transport policy enabled; complete the NAS-0042/NAS-0043/NAS-0044 release certification packet-capture and vendor-device checklist before production claims.",
-		Dependencies:   []string{"radius.dynamic_auth", "radius.dynamic_auth.outbound_proxy_enabled", "radius.upstream.routes", "/api/v1/system/dac-client", "/api/v1/system/dac-client/preview", "/api/v1/system/dac-client/send", "/api/v1/system/dac-client/enqueue", "/api/v1/system/dac-client/replay", "/api/v1/system/dac-client/history", "radius_outbound_dac_requests", "radius_outbound_dac_attempts", "radius_outbound_dac_queue", "radius_outbound_dac_queue_attempts", "RFC 5176", "RFC 6614"},
+			dac.ProxyRouting.Summary.RouteCount, dac.ProxyRouting.Summary.RadSecRouteCount, dac.ProxyRouting.Summary.BlockedRouteCount,
+			len(dac.VendorActions.ActivePacks)),
+		Recommendation: "Keep radius.dynamic_auth outbound queue, replay, proxy routing, vendor action compiler, confirmation, known-client gates, bounded Proxy-State, and route transport policy enabled; complete the NAS-0042/NAS-0043/NAS-0044/NAS-0045 release certification packet-capture and vendor-device checklist before production claims.",
+		Dependencies:   []string{"radius.dynamic_auth", "radius.dynamic_auth.outbound_proxy_enabled", "radius.dynamic_auth.outbound_vendor_actions_enabled", "radius.vendor.compatibility_packs", "radius.upstream.routes", "/api/v1/system/dac-client", "/api/v1/system/dac-client/preview", "/api/v1/system/dac-client/send", "/api/v1/system/dac-client/enqueue", "/api/v1/system/dac-client/replay", "/api/v1/system/dac-client/history", "radius_outbound_dac_requests", "radius_outbound_dac_attempts", "radius_outbound_dac_queue", "radius_outbound_dac_queue_attempts", "RFC 5176", "RFC 6614"},
 	})
 }
 

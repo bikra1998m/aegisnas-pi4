@@ -186,7 +186,7 @@ func TestSendOutboundDACStoresTransportError(t *testing.T) {
 	assert.Contains(t, result.Attempts[0].ErrorMessage, "i/o timeout")
 }
 
-func TestOutboundDACRejectsUnsupportedVendorActionAttributes(t *testing.T) {
+func TestOutboundDACRejectsUnknownVendorActionAttributes(t *testing.T) {
 	cfg := outboundDACTestConfig()
 
 	preview, err := PreviewOutboundDAC(context.Background(), cfg, OutboundDACRequest{
@@ -194,12 +194,114 @@ func TestOutboundDACRejectsUnsupportedVendorActionAttributes(t *testing.T) {
 		TargetAddress: "192.0.2.10",
 		AcctSessionID: "acct-123",
 		Attributes: []db.OutboundDACAttribute{
-			{Name: "Cisco-AVPair", Value: "subscriber:command=reauthenticate"},
+			{Name: "Cisco-Unsupported-Action", Value: "subscriber:command=reauthenticate"},
 		},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "blocked", preview.Status)
-	assert.Contains(t, preview.Message, "not supported by the NAS-0042 vendor-neutral DAC client")
+	assert.Contains(t, preview.Message, "not supported")
+}
+
+func TestPreviewOutboundDACCompilesVendorActionAttributes(t *testing.T) {
+	cfg := outboundDACTestConfig()
+
+	preview, err := PreviewOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		Action:        "coa",
+		TargetAddress: "192.0.2.10",
+		AcctSessionID: "acct-123",
+		VendorAction:  "apply-acl",
+		VendorPacks:   []string{"cisco", "aruba"},
+		ACLName:       "guest-web",
+		ACLRules: []ACLRule{{
+			Action:          "permit",
+			Direction:       "in",
+			Protocol:        "tcp",
+			Source:          "any",
+			Destination:     "any",
+			DestinationPort: "443",
+		}},
+		Confirm: true,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "ready", preview.Status)
+	assert.Equal(t, "compiled", preview.VendorActionDecision.Status)
+	assert.Equal(t, "acl", preview.VendorActionDecision.Action)
+	assert.Equal(t, []string{"cisco", "aruba"}, preview.VendorActionDecision.Packs)
+	names := outboundDACPlanNames(preview.Attributes)
+	assert.Contains(t, names, "Cisco-In-ACL")
+	assert.Contains(t, names, "Cisco-Out-ACL")
+	assert.Contains(t, names, "Cisco-AVPair")
+	assert.Contains(t, names, "Aruba-NAS-Filter-Rule")
+	for _, attr := range preview.Attributes {
+		if strings.HasPrefix(attr.Name, "Cisco-") || strings.HasPrefix(attr.Name, "Aruba-") {
+			assert.Equal(t, "vendor-dynamic-action", attr.Source)
+			assert.False(t, attr.Selector)
+		}
+	}
+}
+
+func TestSendOutboundDACVendorActionEncodesVSAsAndPersistsEvidence(t *testing.T) {
+	setupOutboundDACTestDB(t)
+	cfg := outboundDACTestConfig()
+	insertOutboundDACTestClient(t)
+
+	var captured *layehradius.Packet
+	origSender := outboundDACPacketSender
+	outboundDACPacketSender = func(ctx context.Context, packet *layehradius.Packet, target string, timeout time.Duration) (*layehradius.Packet, time.Duration, error) {
+		captured = packet
+		return packet.Response(layehradius.CodeCoAACK), 9 * time.Millisecond, nil
+	}
+	t.Cleanup(func() { outboundDACPacketSender = origSender })
+
+	result, err := SendOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		Action:        "coa",
+		TargetAddress: "192.0.2.10",
+		AcctSessionID: "acct-reauth",
+		VendorAction:  "reauth",
+		VendorPacks:   []string{"cisco"},
+		Confirm:       true,
+	}, "ops@example.test")
+	require.NoError(t, err)
+	require.NotNil(t, captured)
+
+	value, ok := LookupVendorAttributeValue(captured, 9, 1)
+	require.True(t, ok)
+	assert.Equal(t, "subscriber:command=reauthenticate", string(value))
+	assert.Equal(t, db.OutboundDACStatusACK, result.Status)
+	assert.Equal(t, "reauth", result.Preview.VendorActionDecision.Action)
+	assert.Equal(t, "compiled", result.Request.VendorCompilerStatus)
+	assert.Equal(t, "reauth", result.Request.VendorAction)
+	assert.Equal(t, []string{"cisco"}, result.Request.VendorPacks)
+}
+
+func TestPreviewOutboundDACVendorActionFailsClosedWithoutSinglePack(t *testing.T) {
+	cfg := outboundDACTestConfig()
+	cfg.Radius.Clients[0].NASType = "other"
+
+	preview, err := PreviewOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		Action:           "coa",
+		TargetAddress:    "192.0.2.10",
+		AcctSessionID:    "acct-ambiguous",
+		VendorAction:     "qos",
+		BandwidthProfile: "gold",
+		Confirm:          true,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "blocked", preview.Status)
+	assert.Equal(t, "blocked", preview.VendorActionDecision.Status)
+	assert.Contains(t, preview.Message, "vendor_action requires vendor_packs")
+}
+
+func TestBuildOutboundDACVendorActionReport(t *testing.T) {
+	report := BuildOutboundDACVendorActionReport(outboundDACTestConfig())
+
+	assert.Equal(t, "ready", report.Status)
+	assert.True(t, report.Enabled)
+	assert.Contains(t, report.SupportedPacks, "cisco")
+	assert.Contains(t, report.Actions, "reauth")
+	assert.Contains(t, report.Actions, "qos")
 }
 
 func TestPreviewOutboundDACProxyRouteAddsProxyStateAndPolicyDecision(t *testing.T) {
@@ -515,6 +617,12 @@ func outboundDACTestConfig() *config.Config {
 				OutboundACKRetentionSeconds:        86400,
 				OutboundDeadLetterRetentionSeconds: 2592000,
 				OutboundIdempotencyWindowSeconds:   3600,
+				OutboundVendorActionsEnabled:       true,
+				OutboundVendorActionsRequirePack:   true,
+			},
+			Vendor: config.RadiusVendorConfig{
+				Enabled:            true,
+				CompatibilityPacks: []string{"standard", "cisco", "aruba", "juniper", "ruckus", "fortinet", "mikrotik", "huawei", "h3c"},
 			},
 			Clients: []config.RadiusClient{{
 				IP:        "192.0.2.10",

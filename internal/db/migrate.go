@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 49
+	return 50
 }
 
 func Migrate() error {
@@ -2671,3 +2671,25 @@ CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_attempts_proxy ON radiu
 `
 
 const schemaV49 = outboundDACProxyRouteSQL
+
+const outboundDACVendorActionSQL = `
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN vendor_action TEXT;
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN vendor_packs_json TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN vendor_compiler_status TEXT NOT NULL DEFAULT 'not_requested';
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN vendor_compiler_warnings_json TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN vendor_action TEXT;
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN vendor_packs_json TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN vendor_compiler_status TEXT NOT NULL DEFAULT 'not_requested';
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN vendor_compiler_warnings_json TEXT NOT NULL DEFAULT '[]';
+
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_requests_vendor_action ON radius_outbound_dac_requests(vendor_action, vendor_compiler_status, requested_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_vendor_action ON radius_outbound_dac_queue(vendor_action, vendor_compiler_status, next_attempt_at);
+`
+
+const outboundDACVendorActionIndexesSQL = `
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_requests_vendor_action ON radius_outbound_dac_requests(vendor_action, vendor_compiler_status, requested_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_vendor_action ON radius_outbound_dac_queue(vendor_action, vendor_compiler_status, next_attempt_at);
+`
+
+const schemaV50 = outboundDACVendorActionSQL

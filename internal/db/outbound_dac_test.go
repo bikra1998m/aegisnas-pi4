@@ -16,26 +16,30 @@ func TestOutboundDACRequestLifecycleRedactsSensitiveHistory(t *testing.T) {
 	require.NoError(t, Migrate())
 
 	created, err := CreateOutboundDACRequest(OutboundDACCreate{
-		RequestID:        "dac-test-1",
-		Action:           "coa",
-		Status:           OutboundDACStatusSent,
-		TargetAddress:    "192.0.2.10",
-		TargetPort:       3799,
-		TargetTransport:  "udp",
-		DeliveryMode:     "proxy",
-		ProxyRoute:       "corp",
-		ProxyRealm:       "corp.example.test",
-		ProxyHomeServer:  "upstream-1",
-		ProxyHopCount:    2,
-		ProxyState:       []string{"roaming-hop", "aegisnas:corp:node-a:corp.example.test"},
-		NASIdentifier:    "branch-ap",
-		NASIPAddress:     "192.0.2.10",
-		NASType:          "cisco",
-		ShortName:        "branch-ap",
-		SessionID:        "acct-123",
-		Username:         "Alice@example.test",
-		CallingStationID: "AA-BB-CC-DD-EE-FF",
-		FramedIPAddress:  "192.0.2.100",
+		RequestID:              "dac-test-1",
+		Action:                 "coa",
+		Status:                 OutboundDACStatusSent,
+		TargetAddress:          "192.0.2.10",
+		TargetPort:             3799,
+		TargetTransport:        "udp",
+		DeliveryMode:           "proxy",
+		ProxyRoute:             "corp",
+		ProxyRealm:             "corp.example.test",
+		ProxyHomeServer:        "upstream-1",
+		ProxyHopCount:          2,
+		ProxyState:             []string{"roaming-hop", "aegisnas:corp:node-a:corp.example.test"},
+		VendorAction:           "acl",
+		VendorPacks:            []string{"cisco", "aruba"},
+		VendorCompilerStatus:   "compiled",
+		VendorCompilerWarnings: []string{"aruba emitted standards-compatible filter rules"},
+		NASIdentifier:          "branch-ap",
+		NASIPAddress:           "192.0.2.10",
+		NASType:                "cisco",
+		ShortName:              "branch-ap",
+		SessionID:              "acct-123",
+		Username:               "Alice@example.test",
+		CallingStationID:       "AA-BB-CC-DD-EE-FF",
+		FramedIPAddress:        "192.0.2.100",
 		Attributes: []OutboundDACAttribute{
 			{Name: "User-Name", Value: "Alice@example.test"},
 			{Name: "Calling-Station-Id", Value: "AA-BB-CC-DD-EE-FF"},
@@ -58,6 +62,10 @@ func TestOutboundDACRequestLifecycleRedactsSensitiveHistory(t *testing.T) {
 	assert.Equal(t, "upstream-1", created.ProxyHomeServer)
 	assert.Equal(t, 2, created.ProxyHopCount)
 	assert.Equal(t, []string{"roaming-hop", "aegisnas:corp:node-a:corp.example.test"}, created.ProxyState)
+	assert.Equal(t, "acl", created.VendorAction)
+	assert.Equal(t, []string{"cisco", "aruba"}, created.VendorPacks)
+	assert.Equal(t, "compiled", created.VendorCompilerStatus)
+	assert.Equal(t, []string{"aruba emitted standards-compatible filter rules"}, created.VendorCompilerWarnings)
 	assert.Equal(t, HashEAPIdentity("Alice@example.test"), created.UsernameHash)
 	assert.Equal(t, HashEAPIdentity("AA-BB-CC-DD-EE-FF"), created.CallingStationHash)
 	assert.NotContains(t, outboundDACAttributeValues(created.Attributes), "Alice@example.test")
@@ -177,35 +185,39 @@ func TestOutboundDACQueueLifecycleDedupeClaimCompleteAndCancel(t *testing.T) {
 
 	now := time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC)
 	create := OutboundDACQueueCreate{
-		QueueID:              "dacq-test-1",
-		IdempotencyKey:       "sha256:idempotent",
-		Action:               "coa",
-		Status:               OutboundDACQueueStatusQueued,
-		TargetAddress:        "192.0.2.10",
-		TargetPort:           3799,
-		TargetTransport:      "udp",
-		DeliveryMode:         "proxy",
-		ProxyRoute:           "corp",
-		ProxyRealm:           "corp.example.test",
-		ProxyHomeServer:      "upstream-1",
-		ProxyHopCount:        1,
-		ProxyState:           []string{"aegisnas:corp:node-a:corp.example.test"},
-		NASIdentifier:        "branch-ap",
-		SessionID:            "acct-123",
-		Username:             "Alice@example.test",
-		CallingStationID:     "AA-BB-CC-DD-EE-FF",
-		Attributes:           []OutboundDACAttribute{{Name: "User-Name", Value: "Alice@example.test"}, {Name: "Filter-Id", Value: "employee"}},
-		PayloadJSON:          `{"action":"coa","confirm":true}`,
-		PayloadSHA256:        "payload-sha",
-		RequestCode:          43,
-		CorrelationID:        "corr-1",
-		RequestedBy:          "ops@example.test",
-		RequestFingerprint:   "request-fp",
-		MaxAttempts:          2,
-		NextAttemptAt:        now,
-		ExpiresAt:            now.Add(time.Hour),
-		IdempotencyExpiresAt: now.Add(30 * time.Minute),
-		OwnerNode:            "node-a",
+		QueueID:                "dacq-test-1",
+		IdempotencyKey:         "sha256:idempotent",
+		Action:                 "coa",
+		Status:                 OutboundDACQueueStatusQueued,
+		TargetAddress:          "192.0.2.10",
+		TargetPort:             3799,
+		TargetTransport:        "udp",
+		DeliveryMode:           "proxy",
+		ProxyRoute:             "corp",
+		ProxyRealm:             "corp.example.test",
+		ProxyHomeServer:        "upstream-1",
+		ProxyHopCount:          1,
+		ProxyState:             []string{"aegisnas:corp:node-a:corp.example.test"},
+		VendorAction:           "qos",
+		VendorPacks:            []string{"mikrotik"},
+		VendorCompilerStatus:   "compiled",
+		VendorCompilerWarnings: []string{"profile validated in software"},
+		NASIdentifier:          "branch-ap",
+		SessionID:              "acct-123",
+		Username:               "Alice@example.test",
+		CallingStationID:       "AA-BB-CC-DD-EE-FF",
+		Attributes:             []OutboundDACAttribute{{Name: "User-Name", Value: "Alice@example.test"}, {Name: "Filter-Id", Value: "employee"}},
+		PayloadJSON:            `{"action":"coa","confirm":true}`,
+		PayloadSHA256:          "payload-sha",
+		RequestCode:            43,
+		CorrelationID:          "corr-1",
+		RequestedBy:            "ops@example.test",
+		RequestFingerprint:     "request-fp",
+		MaxAttempts:            2,
+		NextAttemptAt:          now,
+		ExpiresAt:              now.Add(time.Hour),
+		IdempotencyExpiresAt:   now.Add(30 * time.Minute),
+		OwnerNode:              "node-a",
 	}
 	record, created, err := EnqueueOutboundDACQueue(create, 10)
 	require.NoError(t, err)
@@ -215,6 +227,10 @@ func TestOutboundDACQueueLifecycleDedupeClaimCompleteAndCancel(t *testing.T) {
 	assert.Equal(t, "corp", record.ProxyRoute)
 	assert.Equal(t, "upstream-1", record.ProxyHomeServer)
 	assert.Equal(t, []string{"aegisnas:corp:node-a:corp.example.test"}, record.ProxyState)
+	assert.Equal(t, "qos", record.VendorAction)
+	assert.Equal(t, []string{"mikrotik"}, record.VendorPacks)
+	assert.Equal(t, "compiled", record.VendorCompilerStatus)
+	assert.Equal(t, []string{"profile validated in software"}, record.VendorCompilerWarnings)
 	assert.NotContains(t, outboundDACAttributeValues(record.Attributes), "Alice@example.test")
 
 	duplicate, created, err := EnqueueOutboundDACQueue(create, 10)

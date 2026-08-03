@@ -220,6 +220,11 @@ func EnqueueOutboundDAC(ctx context.Context, cfg *config.Config, request Outboun
 		ProxyHomeServer:      preview.Target.ProxyHomeServer,
 		ProxyHopCount:        preview.Target.ProxyHopCount,
 		ProxyState:           preview.Target.ProxyState,
+		VendorAction:         preview.VendorActionDecision.Action,
+		VendorPacks:          preview.VendorActionDecision.Packs,
+		VendorCompilerStatus: preview.VendorActionDecision.Status,
+		VendorCompilerWarnings: append([]string(nil),
+			append(preview.VendorActionDecision.Warnings, preview.VendorActionDecision.Blockers...)...),
 		NASIdentifier:        firstNonEmptyString(normalized.NASIdentifier, preview.Target.NASIdentifier),
 		NASIPAddress:         firstNonEmptyString(normalized.NASIPAddress, preview.Target.NASIPAddress),
 		NASType:              firstNonEmptyString(preview.Target.NASType, normalized.NASType),
@@ -454,11 +459,12 @@ func replayOutboundDACQueueRecord(ctx context.Context, cfg *config.Config, polic
 	if len(blockers) > 0 {
 		return nextOutboundDACQueueFailure(record, policy, strings.Join(blockers, "; "), 0, 0, "", "", now)
 	}
-	packet, attrs, decision, err := prepareOutboundDACPacketForTarget(cfg, request, target, secret, config.EffectiveDynamicAuthConfig(dynamicAuthConfig(cfg)).OutboundMaxAttributes)
+	packet, attrs, decision, vendorDecision, err := prepareOutboundDACPacketForTarget(cfg, request, target, secret, config.EffectiveDynamicAuthConfig(dynamicAuthConfig(cfg)).OutboundMaxAttributes)
 	if err != nil {
 		return nextOutboundDACQueueFailure(record, policy, err.Error(), 0, 0, "", "", now)
 	}
 	_ = decision
+	_ = vendorDecision
 	if err := setMessageAuthenticator(packet); err != nil {
 		return nextOutboundDACQueueFailure(record, policy, fmt.Sprintf("set Message-Authenticator: %v", err), 0, 0, "", "", now)
 	}
@@ -640,6 +646,7 @@ func ensureOutboundDACQueueHistoryRequest(cfg *config.Config, requestID string, 
 		return
 	}
 	now := time.Now().UTC()
+	vendorDecision := CompileOutboundDACVendorAction(cfg, request, target)
 	_, _ = db.CreateOutboundDACRequest(db.OutboundDACCreate{
 		RequestID:            requestID,
 		Action:               request.Action,
@@ -653,6 +660,11 @@ func ensureOutboundDACQueueHistoryRequest(cfg *config.Config, requestID string, 
 		ProxyHomeServer:      target.ProxyHomeServer,
 		ProxyHopCount:        target.ProxyHopCount,
 		ProxyState:           target.ProxyState,
+		VendorAction:         vendorDecision.Action,
+		VendorPacks:          vendorDecision.Packs,
+		VendorCompilerStatus: vendorDecision.Status,
+		VendorCompilerWarnings: append([]string(nil),
+			append(vendorDecision.Warnings, vendorDecision.Blockers...)...),
 		NASIdentifier:        firstNonEmptyString(request.NASIdentifier, target.NASIdentifier),
 		NASIPAddress:         firstNonEmptyString(request.NASIPAddress, target.NASIPAddress),
 		NASType:              firstNonEmptyString(target.NASType, request.NASType),

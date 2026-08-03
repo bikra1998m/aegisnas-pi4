@@ -5,6 +5,8 @@ Authorization from AegisNAS to managed access devices. NAS-0043 adds durable
 queueing, retry, expiry, dead-letter, and idempotency controls. NAS-0044 adds
 route-aware proxy delivery, Proxy-State loop protection, and RadSec mTLS
 outbound CoA/Disconnect routing through configured upstream home servers.
+NAS-0045 adds the vendor dynamic-action compiler that converts neutral action
+intent into fail-closed Vendor-Specific Attributes for selected vendor packs.
 Operators can preview, send immediately, enqueue, replay, cancel, retry,
 inspect history, and collect support evidence without exposing shared secrets or
 cleartext identity selectors in API responses or support bundles.
@@ -42,10 +44,19 @@ Implemented software scope:
   controls for multi-hop reverse DAC routing.
 - Route, realm, home-server, hop-count, transport, and Proxy-State evidence in
   immediate history, queue records, and attempt history.
+- Vendor dynamic-action compile decisions for Cisco, Aruba, Juniper, Ruckus,
+  Fortinet, MikroTik, Huawei, and H3C/Comware compatibility packs.
+- Neutral dynamic action intents for `policy-update`, `reauth`, `role`, `vlan`,
+  `acl`, `qos`, `quarantine`, `unquarantine`, and `terminate`, rendered into
+  supported standard attributes and vendor VSAs.
+- Fail-closed validation for unknown actions, ambiguous pack selection, disabled
+  packs, wrong packet code, oversized VSA payloads, invalid VLAN/rate values, and
+  unsupported vendor action attributes.
+- Vendor action status, selected packs, compiled attributes, warnings, and
+  blockers in preview, send, queue, history, readiness, and support bundles.
 
 Deferred roadmap scope:
 
-- NAS-0045 adds certified vendor-specific dynamic action compilers.
 - NAS-0046 adds authoritative NAS capability and session ownership registry.
 - NAS-0047 adds HA-aware cluster handoff.
 
@@ -85,6 +96,11 @@ radius:
     outbound_proxy_loop_marker: aegisnas
     outbound_proxy_add_loop_marker: true
     outbound_proxy_reject_loop_marker: true
+    outbound_vendor_actions_enabled: true
+    outbound_vendor_actions_require_pack: true
+  vendor:
+    enabled: true
+    compatibility_packs: [standard, cisco, aruba, juniper, ruckus, fortinet, mikrotik, huawei, h3c]
   upstream:
     enabled: true
     transport_policy:
@@ -139,6 +155,10 @@ NAS timeout should not lose an operator-approved action. Disable CoA or
 Disconnect only when a change window or vendor certification scope requires it.
 Keep proxy routing enabled for enterprise deployments and make any UDP or
 mixed-transport proxy route an explicit transport-policy decision.
+Keep `outbound_vendor_actions_enabled` and
+`outbound_vendor_actions_require_pack` enabled in production. Explicit pack
+selection prevents accidental cross-vendor VSA spray when several compatibility
+packs are active.
 
 ## API
 
@@ -222,6 +242,43 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/dac-client/preview | jq .
 ```
 
+Example vendor dynamic-action preview:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "coa",
+    "target_address": "192.0.2.10",
+    "acct_session_id": "acct-123",
+    "vendor_action": "acl",
+    "vendor_packs": ["cisco", "aruba"],
+    "acl_name": "guest-web",
+    "policy_tag": "ticket-124"
+  }' \
+  http://127.0.0.1:8083/api/v1/system/dac-client/preview \
+  | jq '.status, .vendor_action_decision'
+```
+
+Example queued QoS update for a MikroTik target:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "coa",
+    "target_address": "192.0.2.10",
+    "acct_session_id": "acct-123",
+    "vendor_action": "qos",
+    "vendor_packs": ["mikrotik"],
+    "download_rate_kbps": 20000,
+    "upload_rate_kbps": 5000,
+    "idempotency_key": "ticket-125:qos",
+    "confirm": true
+  }' \
+  http://127.0.0.1:8083/api/v1/system/dac-client/enqueue | jq .
+```
+
 Replay due queue records manually:
 
 ```bash
@@ -267,6 +324,16 @@ and sends by UDP or RadSec mTLS. RadSec TLS-PSK active sends remain a release
 certification item for the FreeRADIUS runtime path; the Go control path supports
 X.509 mTLS.
 
+When `vendor_action` is present, the request is first normalized into vendor
+intent. The compiler selects the requested `vendor_packs`; when no explicit pack
+is supplied it may infer a single supported pack from the resolved target
+`nas_type`. If several supported packs are active and the target type is not
+specific enough, preview/send/queue are blocked. Compiled attributes are appended
+to the normal packet plan and encoded as RADIUS Type 26 VSAs with dictionary
+compatible vendor IDs, vendor attribute numbers, and string or integer payload
+types. Disconnect-only `terminate` actions require `action: disconnect`; all
+other vendor dynamic actions require `action: coa`.
+
 ## Data Model
 
 Schema v47 adds:
@@ -288,6 +355,14 @@ Schema v49 adds proxy routing evidence to all four tables:
 - `proxy_hop_count`
 - `proxy_state_json`
 
+Schema v50 adds vendor dynamic-action evidence to immediate request and durable
+queue records:
+
+- `vendor_action`
+- `vendor_packs_json`
+- `vendor_compiler_status`
+- `vendor_compiler_warnings_json`
+
 History stores request identifiers, action, status, target, response code,
 Error-Cause, latency, fingerprints, and correlation. User name, calling station,
 Class, and State values are hashed/redacted in persisted attribute history.
@@ -301,7 +376,8 @@ Before a change:
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
-  http://127.0.0.1:8083/api/v1/system/dac-client | jq '.report.status, .report.policy, .report.proxy_routing'
+  http://127.0.0.1:8083/api/v1/system/dac-client \
+  | jq '.report.status, .report.policy, .report.proxy_routing, .report.vendor_actions'
 ```
 
 After a change:
@@ -328,7 +404,8 @@ Automated software coverage includes:
   retry, retry backoff, expiry, and poison tests
 - proxy route preview, Proxy-State insertion, loop-marker rejection, UDP proxy
   ACK history, and RadSec mTLS CoA ACK tests
-- unsupported vendor dynamic action rejection
+- vendor action compiler previews, fail-closed ambiguous pack selection,
+  unsupported VSA rejection, Type 26 VSA packet encoding, and history evidence
 - admin API, RBAC, OpenAPI, readiness, and support bundle tests
 - admin UI build coverage
 
@@ -336,4 +413,5 @@ External device, packet-capture, HA, performance, soak, security, and customer
 acceptance evidence is tracked in
 `nas-0042-release-certification-checklist.md` and
 `nas-0043-release-certification-checklist.md`, and
-`nas-0044-release-certification-checklist.md`.
+`nas-0044-release-certification-checklist.md`, and
+`nas-0045-release-certification-checklist.md`.

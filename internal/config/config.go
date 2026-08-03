@@ -735,6 +735,8 @@ type DynamicAuthConfig struct {
 	OutboundProxyLoopMarker            string `mapstructure:"outbound_proxy_loop_marker"`
 	OutboundProxyAddLoopMarker         bool   `mapstructure:"outbound_proxy_add_loop_marker"`
 	OutboundProxyRejectLoopMarker      bool   `mapstructure:"outbound_proxy_reject_loop_marker"`
+	OutboundVendorActionsEnabled       bool   `mapstructure:"outbound_vendor_actions_enabled"`
+	OutboundVendorActionsRequirePack   bool   `mapstructure:"outbound_vendor_actions_require_pack"`
 }
 
 type RadiusEAPConfig struct {
@@ -1879,6 +1881,8 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.dynamic_auth.outbound_proxy_loop_marker", "aegisnas")
 	v.SetDefault("radius.dynamic_auth.outbound_proxy_add_loop_marker", true)
 	v.SetDefault("radius.dynamic_auth.outbound_proxy_reject_loop_marker", true)
+	v.SetDefault("radius.dynamic_auth.outbound_vendor_actions_enabled", true)
+	v.SetDefault("radius.dynamic_auth.outbound_vendor_actions_require_pack", true)
 	v.SetDefault("radius.dynamic_clients.enabled", false)
 	v.SetDefault("radius.dynamic_clients.discovery_enabled", false)
 	v.SetDefault("radius.dynamic_clients.approval_required", true)

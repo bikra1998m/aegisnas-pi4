@@ -230,11 +230,20 @@ immediate and durable DAC request and attempt tables:
 - `proxy_hop_count`
 - `proxy_state_json`
 
+Schema v50 adds vendor dynamic-action compiler evidence to immediate and
+durable DAC request records:
+
+- `vendor_action`
+- `vendor_packs_json`
+- `vendor_compiler_status`
+- `vendor_compiler_warnings_json`
+
 After upgrade, run:
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
-  http://127.0.0.1:8083/api/v1/system/dac-client | jq '.report.status, .report.summary, .report.queue_summary, .report.proxy_routing'
+  http://127.0.0.1:8083/api/v1/system/dac-client \
+  | jq '.report.status, .report.summary, .report.queue_summary, .report.proxy_routing, .report.vendor_actions'
 ```
 
 Keep `radius.dynamic_auth.outbound_require_known_client` and
@@ -245,5 +254,8 @@ intentionally freezing dynamic authorization replay during a maintenance window.
 Keep `radius.dynamic_auth.outbound_proxy_enabled`,
 `radius.dynamic_auth.outbound_proxy_add_loop_marker`, and
 `radius.dynamic_auth.outbound_proxy_reject_loop_marker` enabled for proxy DAC
-deployments. Roll back the application and database together if an older runtime
-does not understand schema v49.
+deployments. Keep `radius.dynamic_auth.outbound_vendor_actions_enabled` and
+`radius.dynamic_auth.outbound_vendor_actions_require_pack` enabled when using
+vendor-specific reauth, role, VLAN, ACL, QoS, or quarantine actions. Roll back
+the application and database together if an older runtime does not understand
+schema v50.

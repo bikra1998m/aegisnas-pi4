@@ -27,91 +27,99 @@ const (
 )
 
 type OutboundDACQueueCreate struct {
-	QueueID              string
-	IdempotencyKey       string
-	Action               string
-	Status               string
-	TargetAddress        string
-	TargetPort           int
-	TargetTransport      string
-	DeliveryMode         string
-	ProxyRoute           string
-	ProxyRealm           string
-	ProxyHomeServer      string
-	ProxyHopCount        int
-	ProxyState           []string
-	NASIdentifier        string
-	NASIPAddress         string
-	NASType              string
-	ShortName            string
-	SessionID            string
-	Username             string
-	CallingStationID     string
-	FramedIPAddress      string
-	Attributes           []OutboundDACAttribute
-	PayloadJSON          string
-	PayloadSHA256        string
-	RequestCode          int
-	CorrelationID        string
-	RequestedBy          string
-	RequestFingerprint   string
-	MaxAttempts          int
-	NextAttemptAt        time.Time
-	ExpiresAt            time.Time
-	IdempotencyExpiresAt time.Time
-	OwnerNode            string
+	QueueID                string
+	IdempotencyKey         string
+	Action                 string
+	Status                 string
+	TargetAddress          string
+	TargetPort             int
+	TargetTransport        string
+	DeliveryMode           string
+	ProxyRoute             string
+	ProxyRealm             string
+	ProxyHomeServer        string
+	ProxyHopCount          int
+	ProxyState             []string
+	VendorAction           string
+	VendorPacks            []string
+	VendorCompilerStatus   string
+	VendorCompilerWarnings []string
+	NASIdentifier          string
+	NASIPAddress           string
+	NASType                string
+	ShortName              string
+	SessionID              string
+	Username               string
+	CallingStationID       string
+	FramedIPAddress        string
+	Attributes             []OutboundDACAttribute
+	PayloadJSON            string
+	PayloadSHA256          string
+	RequestCode            int
+	CorrelationID          string
+	RequestedBy            string
+	RequestFingerprint     string
+	MaxAttempts            int
+	NextAttemptAt          time.Time
+	ExpiresAt              time.Time
+	IdempotencyExpiresAt   time.Time
+	OwnerNode              string
 }
 
 type OutboundDACQueueRecord struct {
-	ID                   int                    `json:"id"`
-	QueueID              string                 `json:"queue_id"`
-	IdempotencyKey       string                 `json:"idempotency_key"`
-	Action               string                 `json:"action"`
-	Status               string                 `json:"status"`
-	TargetAddress        string                 `json:"target_address"`
-	TargetPort           int                    `json:"target_port"`
-	TargetTransport      string                 `json:"target_transport"`
-	DeliveryMode         string                 `json:"delivery_mode"`
-	ProxyRoute           string                 `json:"proxy_route,omitempty"`
-	ProxyRealm           string                 `json:"proxy_realm,omitempty"`
-	ProxyHomeServer      string                 `json:"proxy_home_server,omitempty"`
-	ProxyHopCount        int                    `json:"proxy_hop_count"`
-	ProxyState           []string               `json:"proxy_state,omitempty"`
-	NASIdentifier        string                 `json:"nas_identifier,omitempty"`
-	NASIPAddress         string                 `json:"nas_ip_address,omitempty"`
-	NASType              string                 `json:"nas_type,omitempty"`
-	ShortName            string                 `json:"shortname,omitempty"`
-	SessionID            string                 `json:"session_id,omitempty"`
-	UsernameHash         string                 `json:"username_hash,omitempty"`
-	CallingStationHash   string                 `json:"calling_station_hash,omitempty"`
-	FramedIPAddress      string                 `json:"framed_ip_address,omitempty"`
-	Attributes           []OutboundDACAttribute `json:"attributes,omitempty"`
-	PayloadJSON          string                 `json:"-"`
-	PayloadSHA256        string                 `json:"payload_sha256"`
-	RequestCode          int                    `json:"request_code"`
-	CorrelationID        string                 `json:"correlation_id"`
-	RequestedBy          string                 `json:"requested_by,omitempty"`
-	RequestFingerprint   string                 `json:"request_fingerprint"`
-	AttemptCount         int                    `json:"attempt_count"`
-	MaxAttempts          int                    `json:"max_attempts"`
-	LastError            string                 `json:"last_error,omitempty"`
-	LastResponseCode     int                    `json:"last_response_code,omitempty"`
-	LastErrorCause       int                    `json:"last_error_cause,omitempty"`
-	LastErrorCauseName   string                 `json:"last_error_cause_name,omitempty"`
-	LastReplyMessage     string                 `json:"last_reply_message,omitempty"`
-	LastLatencyMS        int64                  `json:"last_latency_ms"`
-	NextAttemptAt        string                 `json:"next_attempt_at,omitempty"`
-	ExpiresAt            string                 `json:"expires_at"`
-	IdempotencyExpiresAt string                 `json:"idempotency_expires_at"`
-	OwnerNode            string                 `json:"owner_node,omitempty"`
-	LockedUntil          string                 `json:"locked_until,omitempty"`
-	SentAt               string                 `json:"sent_at,omitempty"`
-	CompletedAt          string                 `json:"completed_at,omitempty"`
-	CanceledAt           string                 `json:"canceled_at,omitempty"`
-	CanceledBy           string                 `json:"canceled_by,omitempty"`
-	CancelReason         string                 `json:"cancel_reason,omitempty"`
-	CreatedAt            string                 `json:"created_at"`
-	UpdatedAt            string                 `json:"updated_at"`
+	ID                     int                    `json:"id"`
+	QueueID                string                 `json:"queue_id"`
+	IdempotencyKey         string                 `json:"idempotency_key"`
+	Action                 string                 `json:"action"`
+	Status                 string                 `json:"status"`
+	TargetAddress          string                 `json:"target_address"`
+	TargetPort             int                    `json:"target_port"`
+	TargetTransport        string                 `json:"target_transport"`
+	DeliveryMode           string                 `json:"delivery_mode"`
+	ProxyRoute             string                 `json:"proxy_route,omitempty"`
+	ProxyRealm             string                 `json:"proxy_realm,omitempty"`
+	ProxyHomeServer        string                 `json:"proxy_home_server,omitempty"`
+	ProxyHopCount          int                    `json:"proxy_hop_count"`
+	ProxyState             []string               `json:"proxy_state,omitempty"`
+	VendorAction           string                 `json:"vendor_action,omitempty"`
+	VendorPacks            []string               `json:"vendor_packs,omitempty"`
+	VendorCompilerStatus   string                 `json:"vendor_compiler_status"`
+	VendorCompilerWarnings []string               `json:"vendor_compiler_warnings,omitempty"`
+	NASIdentifier          string                 `json:"nas_identifier,omitempty"`
+	NASIPAddress           string                 `json:"nas_ip_address,omitempty"`
+	NASType                string                 `json:"nas_type,omitempty"`
+	ShortName              string                 `json:"shortname,omitempty"`
+	SessionID              string                 `json:"session_id,omitempty"`
+	UsernameHash           string                 `json:"username_hash,omitempty"`
+	CallingStationHash     string                 `json:"calling_station_hash,omitempty"`
+	FramedIPAddress        string                 `json:"framed_ip_address,omitempty"`
+	Attributes             []OutboundDACAttribute `json:"attributes,omitempty"`
+	PayloadJSON            string                 `json:"-"`
+	PayloadSHA256          string                 `json:"payload_sha256"`
+	RequestCode            int                    `json:"request_code"`
+	CorrelationID          string                 `json:"correlation_id"`
+	RequestedBy            string                 `json:"requested_by,omitempty"`
+	RequestFingerprint     string                 `json:"request_fingerprint"`
+	AttemptCount           int                    `json:"attempt_count"`
+	MaxAttempts            int                    `json:"max_attempts"`
+	LastError              string                 `json:"last_error,omitempty"`
+	LastResponseCode       int                    `json:"last_response_code,omitempty"`
+	LastErrorCause         int                    `json:"last_error_cause,omitempty"`
+	LastErrorCauseName     string                 `json:"last_error_cause_name,omitempty"`
+	LastReplyMessage       string                 `json:"last_reply_message,omitempty"`
+	LastLatencyMS          int64                  `json:"last_latency_ms"`
+	NextAttemptAt          string                 `json:"next_attempt_at,omitempty"`
+	ExpiresAt              string                 `json:"expires_at"`
+	IdempotencyExpiresAt   string                 `json:"idempotency_expires_at"`
+	OwnerNode              string                 `json:"owner_node,omitempty"`
+	LockedUntil            string                 `json:"locked_until,omitempty"`
+	SentAt                 string                 `json:"sent_at,omitempty"`
+	CompletedAt            string                 `json:"completed_at,omitempty"`
+	CanceledAt             string                 `json:"canceled_at,omitempty"`
+	CanceledBy             string                 `json:"canceled_by,omitempty"`
+	CancelReason           string                 `json:"cancel_reason,omitempty"`
+	CreatedAt              string                 `json:"created_at"`
+	UpdatedAt              string                 `json:"updated_at"`
 }
 
 type OutboundDACQueueAttemptRecord struct {
@@ -226,18 +234,28 @@ func EnqueueOutboundDACQueue(create OutboundDACQueueCreate, maxQueueRecords int)
 	if err != nil {
 		return OutboundDACQueueRecord{}, false, fmt.Errorf("encode outbound DAC queue proxy state: %w", err)
 	}
+	vendorPacksJSON, err := json.Marshal(normalizeOutboundDACStringList(create.VendorPacks, 16))
+	if err != nil {
+		return OutboundDACQueueRecord{}, false, fmt.Errorf("encode outbound DAC queue vendor packs: %w", err)
+	}
+	vendorWarningsJSON, err := json.Marshal(normalizeOutboundDACStringList(create.VendorCompilerWarnings, 32))
+	if err != nil {
+		return OutboundDACQueueRecord{}, false, fmt.Errorf("encode outbound DAC queue vendor compiler warnings: %w", err)
+	}
 	now := time.Now().UTC()
 	_, err = DB.Exec(`INSERT INTO radius_outbound_dac_queue (
 		queue_id, idempotency_key, action, status, target_address, target_port, target_transport,
 		delivery_mode, proxy_route, proxy_realm, proxy_home_server, proxy_hop_count, proxy_state_json,
+		vendor_action, vendor_packs_json, vendor_compiler_status, vendor_compiler_warnings_json,
 		nas_identifier, nas_ip_address, nas_type, shortname, session_id, username_hash,
 		calling_station_hash, framed_ip_address, attributes_json, payload_json, payload_sha256,
 		request_code, correlation_id, requested_by, request_fingerprint, max_attempts,
 		next_attempt_at, expires_at, idempotency_expires_at, owner_node, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		create.QueueID, create.IdempotencyKey, create.Action, create.Status, create.TargetAddress, create.TargetPort,
 		create.TargetTransport, normalizeOutboundDACDeliveryMode(create.DeliveryMode), nullIfEmpty(create.ProxyRoute),
 		nullIfEmpty(create.ProxyRealm), nullIfEmpty(create.ProxyHomeServer), create.ProxyHopCount, string(proxyStateJSON),
+		nullIfEmpty(create.VendorAction), string(vendorPacksJSON), normalizeOutboundDACVendorCompilerStatus(create.VendorCompilerStatus), string(vendorWarningsJSON),
 		nullIfEmpty(create.NASIdentifier), nullIfEmpty(create.NASIPAddress), nullIfEmpty(create.NASType),
 		nullIfEmpty(create.ShortName), nullIfEmpty(create.SessionID), nullIfEmpty(HashEAPIdentity(create.Username)),
 		nullIfEmpty(HashEAPIdentity(create.CallingStationID)), nullIfEmpty(create.FramedIPAddress), string(attrsJSON),
@@ -704,6 +722,10 @@ func normalizeOutboundDACQueueCreate(create OutboundDACQueueCreate) OutboundDACQ
 	create.ProxyRealm = strings.TrimSpace(create.ProxyRealm)
 	create.ProxyHomeServer = strings.TrimSpace(create.ProxyHomeServer)
 	create.ProxyState = normalizeOutboundDACProxyState(create.ProxyState)
+	create.VendorAction = strings.TrimSpace(strings.ToLower(create.VendorAction))
+	create.VendorPacks = normalizeOutboundDACStringList(create.VendorPacks, 16)
+	create.VendorCompilerStatus = normalizeOutboundDACVendorCompilerStatus(create.VendorCompilerStatus)
+	create.VendorCompilerWarnings = normalizeOutboundDACStringList(create.VendorCompilerWarnings, 32)
 	create.NASIdentifier = strings.TrimSpace(create.NASIdentifier)
 	create.NASIPAddress = strings.TrimSpace(create.NASIPAddress)
 	create.NASType = strings.TrimSpace(strings.ToLower(create.NASType))
@@ -761,6 +783,8 @@ func outboundDACQueueSelectSQL() string {
 	return `SELECT id, queue_id, idempotency_key, action, status, target_address, target_port, target_transport,
 		COALESCE(delivery_mode, 'direct'), COALESCE(proxy_route, ''), COALESCE(proxy_realm, ''),
 		COALESCE(proxy_home_server, ''), COALESCE(proxy_hop_count, 0), COALESCE(proxy_state_json, '[]'),
+		COALESCE(vendor_action, ''), COALESCE(vendor_packs_json, '[]'),
+		COALESCE(vendor_compiler_status, 'not_requested'), COALESCE(vendor_compiler_warnings_json, '[]'),
 		COALESCE(nas_identifier, ''), COALESCE(nas_ip_address, ''), COALESCE(nas_type, ''),
 		COALESCE(shortname, ''), COALESCE(session_id, ''), COALESCE(username_hash, ''),
 		COALESCE(calling_station_hash, ''), COALESCE(framed_ip_address, ''), attributes_json,
@@ -779,14 +803,17 @@ func scanOutboundDACQueueRows(rows *sql.Rows) ([]OutboundDACQueueRecord, error) 
 	records := []OutboundDACQueueRecord{}
 	for rows.Next() {
 		var (
-			record         OutboundDACQueueRecord
-			attrsJSON      string
-			proxyStateJSON string
+			record             OutboundDACQueueRecord
+			attrsJSON          string
+			proxyStateJSON     string
+			vendorPacksJSON    string
+			vendorWarningsJSON string
 		)
 		if err := rows.Scan(&record.ID, &record.QueueID, &record.IdempotencyKey, &record.Action,
 			&record.Status, &record.TargetAddress, &record.TargetPort, &record.TargetTransport,
 			&record.DeliveryMode, &record.ProxyRoute, &record.ProxyRealm, &record.ProxyHomeServer,
-			&record.ProxyHopCount, &proxyStateJSON, &record.NASIdentifier, &record.NASIPAddress, &record.NASType, &record.ShortName,
+			&record.ProxyHopCount, &proxyStateJSON, &record.VendorAction, &vendorPacksJSON,
+			&record.VendorCompilerStatus, &vendorWarningsJSON, &record.NASIdentifier, &record.NASIPAddress, &record.NASType, &record.ShortName,
 			&record.SessionID, &record.UsernameHash, &record.CallingStationHash, &record.FramedIPAddress,
 			&attrsJSON, &record.PayloadJSON, &record.PayloadSHA256, &record.RequestCode, &record.CorrelationID,
 			&record.RequestedBy, &record.RequestFingerprint, &record.AttemptCount, &record.MaxAttempts,
@@ -799,6 +826,8 @@ func scanOutboundDACQueueRows(rows *sql.Rows) ([]OutboundDACQueueRecord, error) 
 		}
 		_ = json.Unmarshal([]byte(attrsJSON), &record.Attributes)
 		_ = json.Unmarshal([]byte(proxyStateJSON), &record.ProxyState)
+		_ = json.Unmarshal([]byte(vendorPacksJSON), &record.VendorPacks)
+		_ = json.Unmarshal([]byte(vendorWarningsJSON), &record.VendorCompilerWarnings)
 		records = append(records, record)
 	}
 	return records, rows.Err()

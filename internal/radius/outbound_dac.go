@@ -39,6 +39,16 @@ type OutboundDACRequest struct {
 	SourceRealm      string                    `json:"source_realm,omitempty"`
 	ProxyHomeServer  string                    `json:"proxy_home_server,omitempty"`
 	ProxyState       []string                  `json:"proxy_state,omitempty"`
+	VendorAction     string                    `json:"vendor_action,omitempty"`
+	VendorPacks      []string                  `json:"vendor_packs,omitempty"`
+	Role             string                    `json:"role,omitempty"`
+	BandwidthProfile string                    `json:"bandwidth_profile,omitempty"`
+	DownloadRateKbps int                       `json:"download_rate_kbps,omitempty"`
+	UploadRateKbps   int                       `json:"upload_rate_kbps,omitempty"`
+	ACLName          string                    `json:"acl_name,omitempty"`
+	ACLRules         []ACLRule                 `json:"acl_rules,omitempty"`
+	PolicyTag        string                    `json:"policy_tag,omitempty"`
+	PortalProfile    string                    `json:"portal_profile,omitempty"`
 	Action           string                    `json:"action"`
 	TargetAddress    string                    `json:"target_address,omitempty"`
 	TargetPort       int                       `json:"target_port,omitempty"`
@@ -112,6 +122,7 @@ type OutboundDACPreview struct {
 	MessageAuthenticator bool                       `json:"message_authenticator"`
 	RequestFingerprint   string                     `json:"request_fingerprint"`
 	ProxyPolicyDecision  ProxyPolicyDecision        `json:"proxy_policy_decision,omitempty"`
+	VendorActionDecision OutboundDACVendorDecision  `json:"vendor_action_decision,omitempty"`
 	Warnings             []string                   `json:"warnings,omitempty"`
 	Blockers             []string                   `json:"blockers,omitempty"`
 	RFCs                 []string                   `json:"rfcs"`
@@ -128,6 +139,7 @@ type OutboundDACReport struct {
 	QueueSummary  db.OutboundDACQueueSummary    `json:"queue_summary"`
 	QueueRecent   []db.OutboundDACQueueRecord   `json:"queue_recent,omitempty"`
 	ProxyRouting  OutboundDACProxyRoutingReport `json:"proxy_routing"`
+	VendorActions OutboundDACVendorActionReport `json:"vendor_actions"`
 	RuntimeStatus *db.RuntimeStatus             `json:"runtime_status,omitempty"`
 	Warnings      []string                      `json:"warnings,omitempty"`
 	RFCs          []string                      `json:"rfcs"`
@@ -162,6 +174,7 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 	queueSummary, _ := db.GetOutboundDACQueueSummary(queuePolicy.MaxQueueRecords)
 	queueRecent, _ := db.ListOutboundDACQueue("", 12)
 	proxyRouting := BuildOutboundDACProxyRoutingReport(cfg)
+	vendorActions := BuildOutboundDACVendorActionReport(cfg)
 	runtime, _ := db.GetRuntimeStatus(OutboundDACRuntimeComponent)
 	report := OutboundDACReport{
 		SchemaVersion: OutboundDACSchemaVersion,
@@ -183,6 +196,8 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 			"outbound_proxy_allow_udp":    effective.OutboundProxyAllowUDP,
 			"outbound_proxy_allow_radsec": effective.OutboundProxyAllowRadSec,
 			"outbound_proxy_max_hops":     effective.OutboundProxyMaxHops,
+			"vendor_actions_enabled":      effective.OutboundVendorActionsEnabled,
+			"vendor_actions_require_pack": effective.OutboundVendorActionsRequirePack,
 		},
 		Summary:       summary,
 		Recent:        recent,
@@ -190,6 +205,7 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 		QueueSummary:  queueSummary,
 		QueueRecent:   queueRecent,
 		ProxyRouting:  proxyRouting,
+		VendorActions: vendorActions,
 		RuntimeStatus: runtime,
 		RFCs:          []string{"RFC 2865", "RFC 2866", "RFC 2868", "RFC 3576", "RFC 3580", "RFC 5176"},
 	}
@@ -223,6 +239,12 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 			report.Status = "degraded"
 		}
 		report.Warnings = append(report.Warnings, "Outbound proxy DAC routing is blocked: "+proxyRouting.Message)
+	}
+	if vendorActions.Status == "blocked" && effective.OutboundVendorActionsEnabled {
+		if report.Status == "ready" {
+			report.Status = "degraded"
+		}
+		report.Warnings = append(report.Warnings, "Outbound vendor dynamic-action compiler is blocked: "+vendorActions.Message)
 	}
 	return report
 }
@@ -271,12 +293,15 @@ func PreviewOutboundDAC(ctx context.Context, cfg *config.Config, request Outboun
 	preview.Target = target
 	preview.Warnings = append(preview.Warnings, targetWarnings...)
 	preview.Blockers = append(preview.Blockers, targetBlockers...)
-	attrs, decision, attrErr := outboundDACAttributePlan(cfg, request, target, effective.OutboundMaxAttributes)
+	attrs, decision, vendorDecision, attrErr := outboundDACAttributePlan(cfg, request, target, effective.OutboundMaxAttributes)
 	if attrErr != nil {
 		preview.Status = "blocked"
 		preview.Blockers = append(preview.Blockers, attrErr.Error())
 	}
 	preview.ProxyPolicyDecision = decision
+	preview.VendorActionDecision = vendorDecision
+	preview.Warnings = append(preview.Warnings, vendorDecision.Warnings...)
+	preview.Blockers = append(preview.Blockers, vendorDecision.Blockers...)
 	preview.Attributes = attrs
 	preview.AttributeCount = len(attrs)
 	if effective.OutboundRequireConfirmation && !request.Confirm {
@@ -324,6 +349,11 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 			ProxyHomeServer:      preview.Target.ProxyHomeServer,
 			ProxyHopCount:        preview.Target.ProxyHopCount,
 			ProxyState:           preview.Target.ProxyState,
+			VendorAction:         preview.VendorActionDecision.Action,
+			VendorPacks:          preview.VendorActionDecision.Packs,
+			VendorCompilerStatus: preview.VendorActionDecision.Status,
+			VendorCompilerWarnings: append([]string(nil),
+				append(preview.VendorActionDecision.Warnings, preview.VendorActionDecision.Blockers...)...),
 			NASIdentifier:        request.NASIdentifier,
 			NASIPAddress:         request.NASIPAddress,
 			NASType:              firstNonEmptyString(preview.Target.NASType, request.NASType),
@@ -357,11 +387,12 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 	if len(blockers) > 0 {
 		return OutboundDACSendResult{}, errors.New(strings.Join(blockers, "; "))
 	}
-	packet, attrs, decision, err := prepareOutboundDACPacketForTarget(cfg, request, target, secret, effective.OutboundMaxAttributes)
+	packet, attrs, decision, vendorDecision, err := prepareOutboundDACPacketForTarget(cfg, request, target, secret, effective.OutboundMaxAttributes)
 	if err != nil {
 		return OutboundDACSendResult{}, err
 	}
 	preview.ProxyPolicyDecision = decision
+	preview.VendorActionDecision = vendorDecision
 	if err := setMessageAuthenticator(packet); err != nil {
 		return OutboundDACSendResult{}, fmt.Errorf("set Message-Authenticator: %w", err)
 	}
@@ -383,6 +414,11 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 		ProxyHomeServer:      target.ProxyHomeServer,
 		ProxyHopCount:        target.ProxyHopCount,
 		ProxyState:           target.ProxyState,
+		VendorAction:         vendorDecision.Action,
+		VendorPacks:          vendorDecision.Packs,
+		VendorCompilerStatus: vendorDecision.Status,
+		VendorCompilerWarnings: append([]string(nil),
+			append(vendorDecision.Warnings, vendorDecision.Blockers...)...),
 		NASIdentifier:        firstNonEmptyString(request.NASIdentifier, target.NASIdentifier),
 		NASIPAddress:         firstNonEmptyString(request.NASIPAddress, target.NASIPAddress),
 		NASType:              firstNonEmptyString(target.NASType, request.NASType),
@@ -579,6 +615,9 @@ func applyOutboundDACAttribute(packet *layehradius.Packet, attr db.OutboundDACAt
 	if name == "" || value == "" {
 		return db.OutboundDACAttribute{}, fmt.Errorf("attribute name and value are required")
 	}
+	if applied, handled, err := applyOutboundDACVendorAttribute(packet, attr.Name, value); handled || err != nil {
+		return applied, err
+	}
 	switch name {
 	case "filter-id":
 		return attrWithCanonicalName("Filter-Id", value), rfc2865.FilterID_SetString(packet, value)
@@ -621,11 +660,11 @@ func applyOutboundDACAttribute(packet *layehradius.Packet, attr db.OutboundDACAt
 	}
 }
 
-func outboundDACAttributePlan(cfg *config.Config, request OutboundDACRequest, target OutboundDACTarget, maxAttributes int) ([]OutboundDACAttributePlan, ProxyPolicyDecision, error) {
-	packet, attrs, decision, err := prepareOutboundDACPacketForTarget(cfg, request, target, "preview", maxAttributes)
+func outboundDACAttributePlan(cfg *config.Config, request OutboundDACRequest, target OutboundDACTarget, maxAttributes int) ([]OutboundDACAttributePlan, ProxyPolicyDecision, OutboundDACVendorDecision, error) {
+	packet, attrs, decision, vendorDecision, err := prepareOutboundDACPacketForTarget(cfg, request, target, "preview", maxAttributes)
 	if err != nil {
 		_ = packet
-		return nil, decision, err
+		return nil, decision, vendorDecision, err
 	}
 	plans := make([]OutboundDACAttributePlan, 0, len(attrs))
 	for _, attr := range attrs {
@@ -636,7 +675,7 @@ func outboundDACAttributePlan(cfg *config.Config, request OutboundDACRequest, ta
 			Selector: outboundDACAttributeIsSelector(attr.Name),
 		})
 	}
-	return plans, decision, nil
+	return plans, decision, vendorDecision, nil
 }
 
 func resolveOutboundDACTarget(ctx context.Context, cfg *config.Config, policy config.DynamicAuthConfig, request OutboundDACRequest) (OutboundDACTarget, string, []string, []string) {
@@ -844,6 +883,13 @@ func normalizeOutboundDACRequest(request OutboundDACRequest) OutboundDACRequest 
 	request.SourceRealm = strings.TrimSpace(strings.ToLower(request.SourceRealm))
 	request.ProxyHomeServer = strings.TrimSpace(request.ProxyHomeServer)
 	request.ProxyState = normalizeOutboundDACProxyState(request.ProxyState)
+	request.VendorAction = normalizeOutboundDACVendorAction(request.VendorAction)
+	request.VendorPacks = normalizeOutboundDACVendorPacks(request.VendorPacks)
+	request.Role = strings.TrimSpace(request.Role)
+	request.BandwidthProfile = strings.TrimSpace(request.BandwidthProfile)
+	request.ACLName = strings.TrimSpace(request.ACLName)
+	request.PolicyTag = strings.TrimSpace(request.PolicyTag)
+	request.PortalProfile = strings.TrimSpace(request.PortalProfile)
 	request.Action = strings.ToLower(strings.TrimSpace(request.Action))
 	switch request.Action {
 	case "coa-request", "change-of-authorization":
@@ -908,6 +954,9 @@ func parseOutboundDACVLAN(value string) (int, error) {
 func outboundDACAttributeSource(name string) string {
 	if outboundDACAttributeIsSelector(name) {
 		return "session-selector"
+	}
+	if outboundDACAttributeIsVendorSpecific(name) {
+		return "vendor-dynamic-action"
 	}
 	return "policy"
 }

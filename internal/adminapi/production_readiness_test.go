@@ -132,6 +132,8 @@ radius:
     outbound_proxy_loop_marker: aegisnas
     outbound_proxy_add_loop_marker: true
     outbound_proxy_reject_loop_marker: true
+    outbound_vendor_actions_enabled: true
+    outbound_vendor_actions_require_pack: true
   upstream:
     enabled: true
     realm: corp.example.test

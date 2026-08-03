@@ -93,6 +93,10 @@ The implementation now does these things end to end:
 25. owns FreeRADIUS-compatible `radacct` and `radpostauth` tables, mirrors local accounting and post-auth outcomes, reconciles SQL rows into sessions, prunes by retention policy, and exposes API/UI/readiness/support evidence
 26. records every local or SQL-reconciled accounting update in `radius_accounting_events`, suppresses duplicate packets, applies reordered events deterministically, merges late Stop records without reopening sessions, and exposes bounded replay through API/UI/readiness/support evidence
 27. writes local accounting updates to `radius_accounting_ingest_spool` before ledger apply, replays due records through the same idempotent accounting pipeline, quarantines poison records, reports loss-SLO breaches, and exposes API/UI/readiness/support evidence
+28. compiles neutral outbound dynamic authorization intents into selected Cisco,
+    Aruba, Juniper, Ruckus, Fortinet, MikroTik, Huawei, and H3C/Comware VSAs
+    for role, VLAN, ACL, QoS, quarantine, reauth, and terminate workflows, with
+    fail-closed preview evidence and durable history
 
 ## Current Behavior
 
@@ -110,6 +114,9 @@ When `radius.upstream.enabled: true`:
 - the admin API can preview/send/queue outbound RFC 5176 CoA and Disconnect
   directly to managed NAS clients or through `radius.upstream.routes` using UDP
   or RadSec mTLS home servers
+- outbound DAC requests can include `vendor_action` and explicit
+  `vendor_packs`; the compiler renders dictionary-compatible Type 26 VSAs and
+  blocks ambiguous or unsupported actions before send or queue
 - the dashboard probes each upstream AAA home server directly with `Status-Server` when that mode is enabled
 - TLS-PSK RadSec peers expose credential and rotation state through `/api/v1/system/radsec-credentials`; active transport proof remains part of the release certification checklist because the local Go probe path is mTLS-only
 - transport policy exposes route-level downgrade risk through `/api/v1/system/transport-policy` and prevents proxy generation when enforce mode would be violated
