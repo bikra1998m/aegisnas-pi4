@@ -504,6 +504,12 @@ type OutboundDACRequestRecord = {
   target_address: string;
   target_port: number;
   target_transport: string;
+  delivery_mode?: string;
+  proxy_route?: string;
+  proxy_realm?: string;
+  proxy_home_server?: string;
+  proxy_hop_count?: number;
+  proxy_state?: string[];
   session_id?: string;
   correlation_id?: string;
   response_code?: number;
@@ -523,6 +529,12 @@ type OutboundDACQueueRecord = {
   target_address: string;
   target_port: number;
   target_transport: string;
+  delivery_mode?: string;
+  proxy_route?: string;
+  proxy_realm?: string;
+  proxy_home_server?: string;
+  proxy_hop_count?: number;
+  proxy_state?: string[];
   session_id?: string;
   correlation_id?: string;
   attempt_count: number;
@@ -549,8 +561,12 @@ type OutboundDACReport = {
     allow_coa: boolean;
     allow_disconnect: boolean;
     require_confirmation: boolean;
+    supported_delivery_modes?: string[];
     supported_transport?: string[];
-    deferred_transport_features?: string[];
+    outbound_proxy_enabled?: boolean;
+    outbound_proxy_allow_udp?: boolean;
+    outbound_proxy_allow_radsec?: boolean;
+    outbound_proxy_max_hops?: number;
   };
   queue_policy?: {
     enabled: boolean;
@@ -595,6 +611,36 @@ type OutboundDACReport = {
   };
   recent?: OutboundDACRequestRecord[];
   queue_recent?: OutboundDACQueueRecord[];
+  proxy_routing?: {
+    enabled: boolean;
+    status: string;
+    message: string;
+    summary?: {
+      route_count: number;
+      udp_route_count: number;
+      radsec_route_count: number;
+      mixed_route_count: number;
+      blocked_route_count: number;
+      warning_route_count: number;
+      default_route_count: number;
+      home_server_count: number;
+    };
+    routes?: Array<{
+      name: string;
+      realm: string;
+      match_realms?: string[];
+      default?: boolean;
+      pool_strategy?: string;
+      status_check?: string;
+      server_names?: string[];
+      dynamic_auth_endpoints?: string[];
+      transports?: string[];
+      status: string;
+      message: string;
+      warnings?: string[];
+    }>;
+    warnings?: string[];
+  };
   warnings?: string[];
 };
 
@@ -606,10 +652,19 @@ type OutboundDACPreview = {
   expected_ack_code: number;
   expected_nak_code: number;
   target: {
+    delivery_mode?: string;
     endpoint: string;
     known_client: boolean;
     secret_ready: boolean;
     resolved_from: string;
+    proxy_route?: string;
+    proxy_realm?: string;
+    source_realm?: string;
+    proxy_home_server?: string;
+    proxy_hop_count?: number;
+    proxy_state?: string[];
+    transport?: string;
+    radsec_mode?: string;
   };
   attributes: Array<{
     name: string;
@@ -622,6 +677,14 @@ type OutboundDACPreview = {
   requires_confirm: boolean;
   message_authenticator: boolean;
   request_fingerprint: string;
+  proxy_policy_decision?: {
+    allowed: boolean;
+    decision: string;
+    reason: string;
+    route: string;
+    direction: string;
+    source_realm?: string;
+  };
   warnings?: string[];
   blockers?: string[];
 };
@@ -1274,23 +1337,30 @@ const defaultSettings: JsonMap = {
       outbound_require_known_client: true,
       outbound_history_limit: 10000,
       outbound_max_attributes: 32,
-        outbound_allow_coa: true,
-        outbound_allow_disconnect: true,
-        outbound_require_confirmation: true,
-        outbound_queue_enabled: true,
-        outbound_replay_enabled: true,
-        outbound_max_queue_records: 10000,
-        outbound_max_attempts: 6,
-        outbound_initial_retry_seconds: 5,
-        outbound_max_retry_seconds: 300,
-        outbound_record_ttl_seconds: 3600,
-        outbound_replay_interval_seconds: 15,
-        outbound_batch_size: 50,
-        outbound_lock_seconds: 60,
-        outbound_ack_retention_seconds: 86400,
-        outbound_dead_letter_retention_seconds: 2592000,
-        outbound_idempotency_window_seconds: 3600,
-      },
+      outbound_allow_coa: true,
+      outbound_allow_disconnect: true,
+      outbound_require_confirmation: true,
+      outbound_queue_enabled: true,
+      outbound_replay_enabled: true,
+      outbound_max_queue_records: 10000,
+      outbound_max_attempts: 6,
+      outbound_initial_retry_seconds: 5,
+      outbound_max_retry_seconds: 300,
+      outbound_record_ttl_seconds: 3600,
+      outbound_replay_interval_seconds: 15,
+      outbound_batch_size: 50,
+      outbound_lock_seconds: 60,
+      outbound_ack_retention_seconds: 86400,
+      outbound_dead_letter_retention_seconds: 2592000,
+      outbound_idempotency_window_seconds: 3600,
+      outbound_proxy_enabled: true,
+      outbound_proxy_allow_udp: true,
+      outbound_proxy_allow_radsec: true,
+      outbound_proxy_max_hops: 8,
+      outbound_proxy_loop_marker: "aegisnas",
+      outbound_proxy_add_loop_marker: true,
+      outbound_proxy_reject_loop_marker: true,
+    },
     dynamic_clients: {
       enabled: false,
       discovery_enabled: false,
@@ -1667,6 +1737,7 @@ const defaultSettings: JsonMap = {
         retention_limit: 6000,
       },
       servers: [],
+      routes: [],
     },
   },
   ldap: {
@@ -2797,6 +2868,12 @@ export default function AccessSettings() {
     OutboundDACQueueRecord[]
   >([]);
   const [outboundDACDraft, setOutboundDACDraft] = useState<JsonMap>({
+    delivery_mode: "direct",
+    proxy_route: "",
+    proxy_realm: "",
+    originating_realm: "",
+    proxy_home_server: "",
+    proxy_state: "",
     action: "coa",
     target_address: "192.0.2.10",
     acct_session_id: "acct-123",
@@ -3611,6 +3688,12 @@ export default function AccessSettings() {
   };
 
   const outboundDACPayload = () => ({
+    delivery_mode: outboundDACDraft.delivery_mode || "direct",
+    proxy_route: outboundDACDraft.proxy_route || "",
+    proxy_realm: outboundDACDraft.proxy_realm || "",
+    originating_realm: outboundDACDraft.originating_realm || "",
+    proxy_home_server: outboundDACDraft.proxy_home_server || "",
+    proxy_state: csvToList(String(outboundDACDraft.proxy_state || "")),
     action: outboundDACDraft.action || "coa",
     target_address: outboundDACDraft.target_address || "",
     acct_session_id: outboundDACDraft.acct_session_id || "",
@@ -13949,6 +14032,74 @@ export default function AccessSettings() {
                 )
               }
             />
+            <ToggleField
+              label="Proxy Routes"
+              checked={
+                settings.radius?.dynamic_auth?.outbound_proxy_enabled !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_proxy_enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Proxy UDP"
+              checked={
+                settings.radius?.dynamic_auth?.outbound_proxy_allow_udp !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_proxy_allow_udp"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Proxy RadSec"
+              checked={
+                settings.radius?.dynamic_auth?.outbound_proxy_allow_radsec !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_proxy_allow_radsec"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Add Proxy-State Marker"
+              checked={
+                settings.radius?.dynamic_auth
+                  ?.outbound_proxy_add_loop_marker !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_proxy_add_loop_marker"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Reject Loop Marker"
+              checked={
+                settings.radius?.dynamic_auth
+                  ?.outbound_proxy_reject_loop_marker !== false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "dynamic_auth",
+                    "outbound_proxy_reject_loop_marker",
+                  ],
+                  value,
+                )
+              }
+            />
             <TextField
               label="Inbound DAC Port"
               type="number"
@@ -14093,6 +14244,32 @@ export default function AccessSettings() {
                 )
               }
             />
+            <TextField
+              label="Proxy Max Hops"
+              type="number"
+              value={
+                settings.radius?.dynamic_auth?.outbound_proxy_max_hops || 8
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_proxy_max_hops"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Proxy Loop Marker"
+              value={
+                settings.radius?.dynamic_auth?.outbound_proxy_loop_marker ||
+                "aegisnas"
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_proxy_loop_marker"],
+                  value,
+                )
+              }
+            />
           </div>
           <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
             <div className={`rounded-md border px-3 py-2 ${outboundDACTone}`}>
@@ -14143,6 +14320,32 @@ export default function AccessSettings() {
                 {outboundDACReport?.queue_summary?.retrying_count || 0} retrying
               </div>
             </div>
+            <div
+              className={`rounded-md border px-3 py-2 ${statusTone(
+                outboundDACReport?.proxy_routing?.status,
+              )}`}
+            >
+              <div className="text-xs font-semibold uppercase">
+                Proxy Routes
+              </div>
+              <div className="mt-1 text-sm font-semibold">
+                {outboundDACReport?.proxy_routing?.summary?.route_count || 0}{" "}
+                route(s)
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                RadSec Proxy
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {outboundDACReport?.proxy_routing?.summary
+                  ?.radsec_route_count || 0}{" "}
+                RadSec,{" "}
+                {outboundDACReport?.proxy_routing?.summary
+                  ?.blocked_route_count || 0}{" "}
+                blocked
+              </div>
+            </div>
             <div className="rounded-md border border-gray-200 px-3 py-2">
               <div className="text-xs font-semibold uppercase text-gray-500">
                 Dead Letter
@@ -14165,7 +14368,62 @@ export default function AccessSettings() {
               ))}
             </ul>
           )}
+          {outboundDACReport?.proxy_routing?.message && (
+            <p className="mt-2 text-xs text-gray-500">
+              {outboundDACReport.proxy_routing.message}
+            </p>
+          )}
+          {(outboundDACReport?.proxy_routing?.routes || []).length > 0 && (
+            <div className="mt-3 overflow-x-auto rounded-md border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
+                  <tr>
+                    <th className="px-3 py-2">Proxy Route</th>
+                    <th className="px-3 py-2">Realm</th>
+                    <th className="px-3 py-2">Transport</th>
+                    <th className="px-3 py-2">Dynamic Auth</th>
+                    <th className="px-3 py-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {(outboundDACReport?.proxy_routing?.routes || []).map(
+                    (route) => (
+                      <tr key={route.name}>
+                        <td className="px-3 py-2 font-medium text-gray-900">
+                          {route.name}
+                        </td>
+                        <td className="px-3 py-2 text-gray-700">
+                          {route.realm || "default"}
+                        </td>
+                        <td className="px-3 py-2 text-gray-700">
+                          {(route.transports || []).join(", ") || "unknown"}
+                        </td>
+                        <td className="px-3 py-2 text-gray-700">
+                          {(route.dynamic_auth_endpoints || []).join(", ") ||
+                            "not configured"}
+                        </td>
+                        <td className="px-3 py-2 text-gray-700">
+                          {route.status}
+                        </td>
+                      </tr>
+                    ),
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
           <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <SelectField
+              label="Delivery"
+              value={String(outboundDACDraft.delivery_mode || "direct")}
+              onChange={(value) =>
+                updateOutboundDACDraft("delivery_mode", value)
+              }
+              options={[
+                { value: "direct", label: "Direct NAS" },
+                { value: "proxy", label: "Proxy Route" },
+              ]}
+            />
             <SelectField
               label="Action"
               value={String(outboundDACDraft.action || "coa")}
@@ -14181,6 +14439,46 @@ export default function AccessSettings() {
               placeholder="192.0.2.10"
               onChange={(value) =>
                 updateOutboundDACDraft("target_address", value)
+              }
+            />
+            <TextField
+              label="Proxy Route"
+              value={String(outboundDACDraft.proxy_route || "")}
+              placeholder="corp"
+              onChange={(value) =>
+                updateOutboundDACDraft("proxy_route", value)
+              }
+            />
+            <TextField
+              label="Originating Realm"
+              value={String(outboundDACDraft.originating_realm || "")}
+              placeholder="corp.example.test"
+              onChange={(value) =>
+                updateOutboundDACDraft("originating_realm", value)
+              }
+            />
+            <TextField
+              label="Proxy Realm"
+              value={String(outboundDACDraft.proxy_realm || "")}
+              placeholder="corp.example.test"
+              onChange={(value) =>
+                updateOutboundDACDraft("proxy_realm", value)
+              }
+            />
+            <TextField
+              label="Proxy Home Server"
+              value={String(outboundDACDraft.proxy_home_server || "")}
+              placeholder="upstream-1"
+              onChange={(value) =>
+                updateOutboundDACDraft("proxy_home_server", value)
+              }
+            />
+            <TextField
+              label="Proxy-State"
+              value={String(outboundDACDraft.proxy_state || "")}
+              placeholder="existing-hop, partner-hop"
+              onChange={(value) =>
+                updateOutboundDACDraft("proxy_state", value)
               }
             />
             <TextField
@@ -14314,6 +14612,32 @@ export default function AccessSettings() {
                 {outboundDACPreview.expected_ack_code || 0}, NAK{" "}
                 {outboundDACPreview.expected_nak_code || 0}
               </div>
+              <div className="mt-1">
+                Delivery{" "}
+                {outboundDACPreview.target?.delivery_mode || "direct"} via{" "}
+                {outboundDACPreview.target?.transport || "udp"}
+                {outboundDACPreview.target?.proxy_route
+                  ? `, route ${outboundDACPreview.target.proxy_route}`
+                  : ""}
+                {outboundDACPreview.target?.proxy_home_server
+                  ? `, home server ${outboundDACPreview.target.proxy_home_server}`
+                  : ""}
+              </div>
+              {outboundDACPreview.proxy_policy_decision?.decision && (
+                <div className="mt-1">
+                  Proxy policy{" "}
+                  {outboundDACPreview.proxy_policy_decision.decision}
+                  {outboundDACPreview.proxy_policy_decision.reason
+                    ? `: ${outboundDACPreview.proxy_policy_decision.reason}`
+                    : ""}
+                </div>
+              )}
+              {(outboundDACPreview.target?.proxy_state || []).length > 0 && (
+                <div className="mt-1 break-all">
+                  Proxy-State:{" "}
+                  {(outboundDACPreview.target?.proxy_state || []).join(", ")}
+                </div>
+              )}
               {outboundDACPreview.message && (
                 <div className="mt-1">{outboundDACPreview.message}</div>
               )}
@@ -14353,6 +14677,13 @@ export default function AccessSettings() {
                       </td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.target_address}:{item.target_port}
+                        <div className="text-xs text-gray-500">
+                          {item.delivery_mode || "direct"}
+                          {item.proxy_route ? ` via ${item.proxy_route}` : ""}
+                          {item.proxy_home_server
+                            ? `/${item.proxy_home_server}`
+                            : ""}
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.reply_message ||
@@ -14394,6 +14725,13 @@ export default function AccessSettings() {
                       </td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.status}
+                        <div className="text-xs text-gray-500">
+                          {item.delivery_mode || "direct"}
+                          {item.proxy_route ? ` via ${item.proxy_route}` : ""}
+                          {item.proxy_home_server
+                            ? `/${item.proxy_home_server}`
+                            : ""}
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.attempt_count}/{item.max_attempts}

@@ -220,11 +220,21 @@ tables:
 - `radius_outbound_dac_queue`
 - `radius_outbound_dac_queue_attempts`
 
+Schema v49 adds proxy dynamic authorization route evidence columns to the
+immediate and durable DAC request and attempt tables:
+
+- `delivery_mode`
+- `proxy_route`
+- `proxy_realm`
+- `proxy_home_server`
+- `proxy_hop_count`
+- `proxy_state_json`
+
 After upgrade, run:
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
-  http://127.0.0.1:8083/api/v1/system/dac-client | jq '.report.status, .report.summary, .report.queue_summary'
+  http://127.0.0.1:8083/api/v1/system/dac-client | jq '.report.status, .report.summary, .report.queue_summary, .report.proxy_routing'
 ```
 
 Keep `radius.dynamic_auth.outbound_require_known_client` and
@@ -232,5 +242,8 @@ Keep `radius.dynamic_auth.outbound_require_known_client` and
 Keep `radius.dynamic_auth.outbound_queue_enabled` and
 `radius.dynamic_auth.outbound_replay_enabled` enabled unless an operator is
 intentionally freezing dynamic authorization replay during a maintenance window.
-Roll back the application and database together if an older runtime does not
-understand schema v48.
+Keep `radius.dynamic_auth.outbound_proxy_enabled`,
+`radius.dynamic_auth.outbound_proxy_add_loop_marker`, and
+`radius.dynamic_auth.outbound_proxy_reject_loop_marker` enabled for proxy DAC
+deployments. Roll back the application and database together if an older runtime
+does not understand schema v49.

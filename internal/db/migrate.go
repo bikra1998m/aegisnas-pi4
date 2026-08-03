@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 48
+	return 49
 }
 
 func Migrate() error {
@@ -2627,3 +2627,47 @@ CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_attempts_result ON radi
 `
 
 const schemaV48 = outboundDACQueueSQL
+
+const outboundDACProxyRouteSQL = `
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN delivery_mode TEXT NOT NULL DEFAULT 'direct';
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN proxy_route TEXT;
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN proxy_realm TEXT;
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN proxy_home_server TEXT;
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN proxy_hop_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN proxy_state_json TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE radius_outbound_dac_attempts ADD COLUMN delivery_mode TEXT NOT NULL DEFAULT 'direct';
+ALTER TABLE radius_outbound_dac_attempts ADD COLUMN proxy_route TEXT;
+ALTER TABLE radius_outbound_dac_attempts ADD COLUMN proxy_realm TEXT;
+ALTER TABLE radius_outbound_dac_attempts ADD COLUMN proxy_home_server TEXT;
+ALTER TABLE radius_outbound_dac_attempts ADD COLUMN proxy_hop_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE radius_outbound_dac_attempts ADD COLUMN proxy_state_json TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN delivery_mode TEXT NOT NULL DEFAULT 'direct';
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN proxy_route TEXT;
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN proxy_realm TEXT;
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN proxy_home_server TEXT;
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN proxy_hop_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN proxy_state_json TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE radius_outbound_dac_queue_attempts ADD COLUMN delivery_mode TEXT NOT NULL DEFAULT 'direct';
+ALTER TABLE radius_outbound_dac_queue_attempts ADD COLUMN proxy_route TEXT;
+ALTER TABLE radius_outbound_dac_queue_attempts ADD COLUMN proxy_realm TEXT;
+ALTER TABLE radius_outbound_dac_queue_attempts ADD COLUMN proxy_home_server TEXT;
+ALTER TABLE radius_outbound_dac_queue_attempts ADD COLUMN proxy_hop_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE radius_outbound_dac_queue_attempts ADD COLUMN proxy_state_json TEXT NOT NULL DEFAULT '[]';
+
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_requests_proxy ON radius_outbound_dac_requests(delivery_mode, proxy_route, requested_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_attempts_proxy ON radius_outbound_dac_attempts(delivery_mode, proxy_route, created_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_proxy ON radius_outbound_dac_queue(delivery_mode, proxy_route, next_attempt_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_attempts_proxy ON radius_outbound_dac_queue_attempts(delivery_mode, proxy_route, attempted_at);
+`
+
+const outboundDACProxyRouteIndexesSQL = `
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_requests_proxy ON radius_outbound_dac_requests(delivery_mode, proxy_route, requested_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_attempts_proxy ON radius_outbound_dac_attempts(delivery_mode, proxy_route, created_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_proxy ON radius_outbound_dac_queue(delivery_mode, proxy_route, next_attempt_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_attempts_proxy ON radius_outbound_dac_queue_attempts(delivery_mode, proxy_route, attempted_at);
+`
+
+const schemaV49 = outboundDACProxyRouteSQL

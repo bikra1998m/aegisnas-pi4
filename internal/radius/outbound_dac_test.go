@@ -3,7 +3,11 @@ package radius
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"encoding/binary"
 	"errors"
+	"io"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -198,6 +202,146 @@ func TestOutboundDACRejectsUnsupportedVendorActionAttributes(t *testing.T) {
 	assert.Contains(t, preview.Message, "not supported by the NAS-0042 vendor-neutral DAC client")
 }
 
+func TestPreviewOutboundDACProxyRouteAddsProxyStateAndPolicyDecision(t *testing.T) {
+	cfg := outboundDACProxyTestConfig(config.RadiusHomeServer{
+		Name: "upstream-udp", Address: "203.0.113.20", DynamicAuthPort: 3799, Secret: "proxy-secret", Transport: "udp",
+	})
+
+	preview, err := PreviewOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		DeliveryMode:  "proxy",
+		ProxyRoute:    "corp",
+		Action:        "coa",
+		UserName:      "alice@corp.example.test",
+		AcctSessionID: "acct-proxy",
+		FilterID:      "employee",
+		Confirm:       true,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "ready", preview.Status)
+	assert.Equal(t, "proxy", preview.Target.DeliveryMode)
+	assert.Equal(t, "corp", preview.Target.ProxyRoute)
+	assert.Equal(t, "corp.example.test", preview.Target.ProxyRealm)
+	assert.Equal(t, "corp.example.test", preview.Target.SourceRealm)
+	assert.Equal(t, "upstream-udp", preview.Target.ProxyHomeServer)
+	assert.Equal(t, "udp", preview.Target.Transport)
+	assert.Equal(t, "203.0.113.20:3799", preview.Target.Endpoint)
+	assert.True(t, preview.ProxyPolicyDecision.Allowed)
+	assert.Equal(t, "accepted", preview.ProxyPolicyDecision.Decision)
+	assert.Contains(t, outboundDACPlanNames(preview.Attributes), "Proxy-State")
+	assert.Equal(t, 1, preview.Target.ProxyHopCount)
+	assert.Contains(t, strings.Join(preview.Target.ProxyState, "|"), "aegisnas:corp:node-a:corp.example.test")
+}
+
+func TestSendOutboundDACProxyUDPStoresRoutingHistory(t *testing.T) {
+	setupOutboundDACTestDB(t)
+	cfg := outboundDACProxyTestConfig(config.RadiusHomeServer{
+		Name: "upstream-udp", Address: "203.0.113.20", DynamicAuthPort: 3799, Secret: "proxy-secret", Transport: "udp",
+	})
+
+	var captured *layehradius.Packet
+	var endpoint string
+	origSender := outboundDACPacketSender
+	outboundDACPacketSender = func(ctx context.Context, packet *layehradius.Packet, target string, timeout time.Duration) (*layehradius.Packet, time.Duration, error) {
+		captured = packet
+		endpoint = target
+		response := packet.Response(layehradius.CodeCoAACK)
+		require.NoError(t, rfc2865.ReplyMessage_SetString(response, "proxied policy updated"))
+		return response, 17 * time.Millisecond, nil
+	}
+	t.Cleanup(func() { outboundDACPacketSender = origSender })
+
+	result, err := SendOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		DeliveryMode:  "proxy",
+		ProxyRoute:    "corp",
+		Action:        "coa",
+		UserName:      "alice@corp.example.test",
+		AcctSessionID: "acct-proxy",
+		FilterID:      "employee",
+		CorrelationID: "proxy-ticket-1",
+		Confirm:       true,
+	}, "ops@example.test")
+	require.NoError(t, err)
+
+	require.NotNil(t, captured)
+	assert.Equal(t, "203.0.113.20:3799", endpoint)
+	proxyStates, err := rfc2865.ProxyState_GetStrings(captured)
+	require.NoError(t, err)
+	assert.Contains(t, strings.Join(proxyStates, "|"), "aegisnas:corp:node-a:corp.example.test")
+	assert.Equal(t, db.OutboundDACStatusACK, result.Status)
+	assert.Equal(t, "proxy", result.Request.DeliveryMode)
+	assert.Equal(t, "corp", result.Request.ProxyRoute)
+	assert.Equal(t, "upstream-udp", result.Request.ProxyHomeServer)
+	assert.Equal(t, "proxied policy updated", result.Request.ReplyMessage)
+	require.Len(t, result.Attempts, 1)
+	assert.Equal(t, "proxy", result.Attempts[0].DeliveryMode)
+	assert.Equal(t, "corp", result.Attempts[0].ProxyRoute)
+}
+
+func TestSendOutboundDACProxyRadSecMutualTLS(t *testing.T) {
+	setupOutboundDACTestDB(t)
+	pki := createRadSecTestPKI(t)
+	seen := make(chan *layehradius.Packet, 1)
+	listener := startRadSecDACServer(t, pki, seen)
+	host, portText, err := net.SplitHostPort(listener.Addr().String())
+	require.NoError(t, err)
+	port, err := net.LookupPort("tcp", portText)
+	require.NoError(t, err)
+	cfg := outboundDACProxyTestConfig(config.RadiusHomeServer{
+		Name: "upstream-radsec", Address: host, Transport: "radsec", RadSec: config.RadiusRadSecPeerConfig{
+			Port: port, ServerName: "aaa.example.test", CertificateFile: pki.clientCertFile, PrivateKeyFile: pki.clientKeyFile,
+			CAFile: pki.caFile, TLSMinVersion: "1.2", TLSMaxVersion: "1.3", RadiusV11: "forbid",
+		},
+	})
+
+	result, err := SendOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		DeliveryMode:  "proxy",
+		ProxyRoute:    "corp",
+		Action:        "coa",
+		UserName:      "alice@corp.example.test",
+		AcctSessionID: "acct-radsec",
+		FilterID:      "employee",
+		CorrelationID: "radsec-ticket-1",
+		Confirm:       true,
+	}, "ops@example.test")
+	require.NoError(t, err)
+
+	assert.Equal(t, db.OutboundDACStatusACK, result.Status)
+	assert.Equal(t, "radsec", result.Request.TargetTransport)
+	assert.Equal(t, "proxy", result.Request.DeliveryMode)
+	assert.Equal(t, "upstream-radsec", result.Request.ProxyHomeServer)
+	select {
+	case packet := <-seen:
+		assert.Equal(t, layehradius.CodeCoARequest, packet.Code)
+		proxyStates, stateErr := rfc2865.ProxyState_GetStrings(packet)
+		require.NoError(t, stateErr)
+		assert.Contains(t, strings.Join(proxyStates, "|"), "aegisnas:corp:node-a:corp.example.test")
+	case <-time.After(2 * time.Second):
+		t.Fatal("RadSec DAC server did not receive a packet")
+	}
+}
+
+func TestPreviewOutboundDACProxyRejectsLoopMarker(t *testing.T) {
+	cfg := outboundDACProxyTestConfig(config.RadiusHomeServer{
+		Name: "upstream-udp", Address: "203.0.113.20", DynamicAuthPort: 3799, Secret: "proxy-secret", Transport: "udp",
+	})
+
+	preview, err := PreviewOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		DeliveryMode:  "proxy",
+		ProxyRoute:    "corp",
+		Action:        "coa",
+		UserName:      "alice@corp.example.test",
+		AcctSessionID: "acct-loop",
+		FilterID:      "employee",
+		ProxyState:    []string{"aegisnas:corp:other-node:corp.example.test"},
+		Confirm:       true,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "blocked", preview.Status)
+	assert.Contains(t, preview.Message, "proxy loop marker detected")
+}
+
 func TestEnqueueOutboundDACSuppressesDuplicateByIdempotencyKey(t *testing.T) {
 	setupOutboundDACTestDB(t)
 	cfg := outboundDACTestConfig()
@@ -381,6 +525,98 @@ func outboundDACTestConfig() *config.Config {
 			}},
 		},
 	}
+}
+
+func outboundDACProxyTestConfig(server config.RadiusHomeServer) *config.Config {
+	cfg := outboundDACTestConfig()
+	cfg.Radius.NASIdentifier = "node-a"
+	cfg.Radius.DynamicAuth.OutboundRequireKnownClient = true
+	cfg.Radius.DynamicAuth.OutboundProxyEnabled = true
+	cfg.Radius.DynamicAuth.OutboundProxyAllowUDP = true
+	cfg.Radius.DynamicAuth.OutboundProxyAllowRadSec = true
+	cfg.Radius.DynamicAuth.OutboundProxyMaxHops = 8
+	cfg.Radius.DynamicAuth.OutboundProxyLoopMarker = "aegisnas"
+	cfg.Radius.DynamicAuth.OutboundProxyAddLoopMarker = true
+	cfg.Radius.DynamicAuth.OutboundProxyRejectLoopMarker = true
+	cfg.Radius.Upstream = config.RadiusUpstreamConfig{
+		Enabled:      true,
+		Realm:        "corp.example.test",
+		PoolStrategy: "fail-over",
+		StatusCheck:  "status-server",
+		Servers:      []config.RadiusHomeServer{server},
+		Routes: []config.RadiusProxyRouteConfig{{
+			Name:         "corp",
+			Enabled:      true,
+			Realm:        "corp.example.test",
+			MatchRealms:  []string{"corp.example.test"},
+			Default:      true,
+			PoolStrategy: "fail-over",
+			StatusCheck:  "status-server",
+			Servers:      []string{server.Name},
+		}},
+		TransportPolicy: config.RadiusTransportPolicyConfig{
+			Enabled:                  true,
+			Mode:                     "enforce",
+			FailClosed:               true,
+			DefaultRequiredTransport: "any",
+		},
+	}
+	return cfg
+}
+
+func startRadSecDACServer(t *testing.T, pki radSecTestPKI, seen chan<- *layehradius.Packet) net.Listener {
+	t.Helper()
+	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
+		MinVersion:   tls.VersionTLS12,
+		Certificates: []tls.Certificate{pki.serverCertificate},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    pki.clientCAPool,
+		NextProtos:   []string{"radius/1.0"},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = listener.Close() })
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			go func(conn net.Conn) {
+				defer conn.Close()
+				header := make([]byte, 20)
+				if _, err := io.ReadFull(conn, header); err != nil {
+					return
+				}
+				length := int(binary.BigEndian.Uint16(header[2:4]))
+				wire := append([]byte(nil), header...)
+				if length > 20 {
+					body := make([]byte, length-20)
+					if _, err := io.ReadFull(conn, body); err != nil {
+						return
+					}
+					wire = append(wire, body...)
+				}
+				request, err := layehradius.Parse(wire, []byte(radSecSharedSecret))
+				if err != nil {
+					return
+				}
+				select {
+				case seen <- request:
+				default:
+				}
+				responseCode := layehradius.CodeCoAACK
+				if request.Code == layehradius.CodeDisconnectRequest {
+					responseCode = layehradius.CodeDisconnectACK
+				}
+				response := request.Response(responseCode)
+				encoded, err := response.Encode()
+				if err == nil {
+					_, _ = conn.Write(encoded)
+				}
+			}(conn)
+		}
+	}()
+	return listener
 }
 
 func outboundDACPlanNames(attrs []OutboundDACAttributePlan) []string {

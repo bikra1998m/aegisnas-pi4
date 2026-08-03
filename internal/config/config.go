@@ -560,14 +560,15 @@ type RadiusFallbackPolicyConfig struct {
 }
 
 type RadiusHomeServer struct {
-	Name      string                 `mapstructure:"name"`
-	Address   string                 `mapstructure:"address"`
-	AuthPort  int                    `mapstructure:"auth_port"`
-	AcctPort  int                    `mapstructure:"acct_port"`
-	Secret    string                 `mapstructure:"secret"`
-	SecretRef string                 `mapstructure:"secret_ref"`
-	Transport string                 `mapstructure:"transport"`
-	RadSec    RadiusRadSecPeerConfig `mapstructure:"radsec"`
+	Name            string                 `mapstructure:"name"`
+	Address         string                 `mapstructure:"address"`
+	AuthPort        int                    `mapstructure:"auth_port"`
+	AcctPort        int                    `mapstructure:"acct_port"`
+	DynamicAuthPort int                    `mapstructure:"dynamic_auth_port"`
+	Secret          string                 `mapstructure:"secret"`
+	SecretRef       string                 `mapstructure:"secret_ref"`
+	Transport       string                 `mapstructure:"transport"`
+	RadSec          RadiusRadSecPeerConfig `mapstructure:"radsec"`
 }
 
 // RadiusRadSecPeerConfig contains outbound client identity, trust anchors, and
@@ -703,30 +704,37 @@ type RadiusVendorAttribute struct {
 }
 
 type DynamicAuthConfig struct {
-	Enabled                            bool `mapstructure:"enabled"`
-	Port                               int  `mapstructure:"port"`
-	OutboundEnabled                    bool `mapstructure:"outbound_enabled"`
-	OutboundDefaultPort                int  `mapstructure:"outbound_default_port"`
-	OutboundTimeoutSeconds             int  `mapstructure:"outbound_timeout_seconds"`
-	OutboundRequireKnownClient         bool `mapstructure:"outbound_require_known_client"`
-	OutboundHistoryLimit               int  `mapstructure:"outbound_history_limit"`
-	OutboundMaxAttributes              int  `mapstructure:"outbound_max_attributes"`
-	OutboundAllowCoA                   bool `mapstructure:"outbound_allow_coa"`
-	OutboundAllowDisconnect            bool `mapstructure:"outbound_allow_disconnect"`
-	OutboundRequireConfirmation        bool `mapstructure:"outbound_require_confirmation"`
-	OutboundQueueEnabled               bool `mapstructure:"outbound_queue_enabled"`
-	OutboundReplayEnabled              bool `mapstructure:"outbound_replay_enabled"`
-	OutboundMaxQueueRecords            int  `mapstructure:"outbound_max_queue_records"`
-	OutboundMaxAttempts                int  `mapstructure:"outbound_max_attempts"`
-	OutboundInitialRetrySeconds        int  `mapstructure:"outbound_initial_retry_seconds"`
-	OutboundMaxRetrySeconds            int  `mapstructure:"outbound_max_retry_seconds"`
-	OutboundRecordTTLSeconds           int  `mapstructure:"outbound_record_ttl_seconds"`
-	OutboundReplayIntervalSeconds      int  `mapstructure:"outbound_replay_interval_seconds"`
-	OutboundBatchSize                  int  `mapstructure:"outbound_batch_size"`
-	OutboundLockSeconds                int  `mapstructure:"outbound_lock_seconds"`
-	OutboundACKRetentionSeconds        int  `mapstructure:"outbound_ack_retention_seconds"`
-	OutboundDeadLetterRetentionSeconds int  `mapstructure:"outbound_dead_letter_retention_seconds"`
-	OutboundIdempotencyWindowSeconds   int  `mapstructure:"outbound_idempotency_window_seconds"`
+	Enabled                            bool   `mapstructure:"enabled"`
+	Port                               int    `mapstructure:"port"`
+	OutboundEnabled                    bool   `mapstructure:"outbound_enabled"`
+	OutboundDefaultPort                int    `mapstructure:"outbound_default_port"`
+	OutboundTimeoutSeconds             int    `mapstructure:"outbound_timeout_seconds"`
+	OutboundRequireKnownClient         bool   `mapstructure:"outbound_require_known_client"`
+	OutboundHistoryLimit               int    `mapstructure:"outbound_history_limit"`
+	OutboundMaxAttributes              int    `mapstructure:"outbound_max_attributes"`
+	OutboundAllowCoA                   bool   `mapstructure:"outbound_allow_coa"`
+	OutboundAllowDisconnect            bool   `mapstructure:"outbound_allow_disconnect"`
+	OutboundRequireConfirmation        bool   `mapstructure:"outbound_require_confirmation"`
+	OutboundQueueEnabled               bool   `mapstructure:"outbound_queue_enabled"`
+	OutboundReplayEnabled              bool   `mapstructure:"outbound_replay_enabled"`
+	OutboundMaxQueueRecords            int    `mapstructure:"outbound_max_queue_records"`
+	OutboundMaxAttempts                int    `mapstructure:"outbound_max_attempts"`
+	OutboundInitialRetrySeconds        int    `mapstructure:"outbound_initial_retry_seconds"`
+	OutboundMaxRetrySeconds            int    `mapstructure:"outbound_max_retry_seconds"`
+	OutboundRecordTTLSeconds           int    `mapstructure:"outbound_record_ttl_seconds"`
+	OutboundReplayIntervalSeconds      int    `mapstructure:"outbound_replay_interval_seconds"`
+	OutboundBatchSize                  int    `mapstructure:"outbound_batch_size"`
+	OutboundLockSeconds                int    `mapstructure:"outbound_lock_seconds"`
+	OutboundACKRetentionSeconds        int    `mapstructure:"outbound_ack_retention_seconds"`
+	OutboundDeadLetterRetentionSeconds int    `mapstructure:"outbound_dead_letter_retention_seconds"`
+	OutboundIdempotencyWindowSeconds   int    `mapstructure:"outbound_idempotency_window_seconds"`
+	OutboundProxyEnabled               bool   `mapstructure:"outbound_proxy_enabled"`
+	OutboundProxyAllowUDP              bool   `mapstructure:"outbound_proxy_allow_udp"`
+	OutboundProxyAllowRadSec           bool   `mapstructure:"outbound_proxy_allow_radsec"`
+	OutboundProxyMaxHops               int    `mapstructure:"outbound_proxy_max_hops"`
+	OutboundProxyLoopMarker            string `mapstructure:"outbound_proxy_loop_marker"`
+	OutboundProxyAddLoopMarker         bool   `mapstructure:"outbound_proxy_add_loop_marker"`
+	OutboundProxyRejectLoopMarker      bool   `mapstructure:"outbound_proxy_reject_loop_marker"`
 }
 
 type RadiusEAPConfig struct {
@@ -1864,6 +1872,13 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.dynamic_auth.outbound_ack_retention_seconds", 86400)
 	v.SetDefault("radius.dynamic_auth.outbound_dead_letter_retention_seconds", 2592000)
 	v.SetDefault("radius.dynamic_auth.outbound_idempotency_window_seconds", 3600)
+	v.SetDefault("radius.dynamic_auth.outbound_proxy_enabled", true)
+	v.SetDefault("radius.dynamic_auth.outbound_proxy_allow_udp", true)
+	v.SetDefault("radius.dynamic_auth.outbound_proxy_allow_radsec", true)
+	v.SetDefault("radius.dynamic_auth.outbound_proxy_max_hops", 8)
+	v.SetDefault("radius.dynamic_auth.outbound_proxy_loop_marker", "aegisnas")
+	v.SetDefault("radius.dynamic_auth.outbound_proxy_add_loop_marker", true)
+	v.SetDefault("radius.dynamic_auth.outbound_proxy_reject_loop_marker", true)
 	v.SetDefault("radius.dynamic_clients.enabled", false)
 	v.SetDefault("radius.dynamic_clients.discovery_enabled", false)
 	v.SetDefault("radius.dynamic_clients.approval_required", true)
@@ -4749,6 +4764,9 @@ func (c *Config) Validate() error {
 			if server.AcctPort != 0 && (server.AcctPort < 1 || server.AcctPort > 65535) {
 				return fmt.Errorf("radius.upstream.server[%d] acct_port %d out of range", i, server.AcctPort)
 			}
+			if server.DynamicAuthPort != 0 && (server.DynamicAuthPort < 1 || server.DynamicAuthPort > 65535) {
+				return fmt.Errorf("radius.upstream.server[%d] dynamic_auth_port %d out of range", i, server.DynamicAuthPort)
+			}
 			if err := validateRadSecPeer(i, server); err != nil {
 				return err
 			}
@@ -6730,6 +6748,12 @@ func EffectiveDynamicAuthConfig(raw DynamicAuthConfig) DynamicAuthConfig {
 	if effective.OutboundIdempotencyWindowSeconds == 0 {
 		effective.OutboundIdempotencyWindowSeconds = 3600
 	}
+	if effective.OutboundProxyMaxHops == 0 {
+		effective.OutboundProxyMaxHops = 8
+	}
+	if strings.TrimSpace(effective.OutboundProxyLoopMarker) == "" {
+		effective.OutboundProxyLoopMarker = "aegisnas"
+	}
 	if !raw.OutboundAllowCoA && !raw.OutboundAllowDisconnect && !raw.OutboundEnabled {
 		effective.OutboundAllowCoA = true
 		effective.OutboundAllowDisconnect = true
@@ -6793,6 +6817,17 @@ func validateRadiusDynamicAuth(raw DynamicAuthConfig) error {
 		}
 		if effective.OutboundIdempotencyWindowSeconds < 1 || effective.OutboundIdempotencyWindowSeconds > effective.OutboundRecordTTLSeconds {
 			return fmt.Errorf("radius.dynamic_auth.outbound_idempotency_window_seconds must be between 1 and outbound_record_ttl_seconds")
+		}
+	}
+	if effective.OutboundProxyEnabled {
+		if !effective.OutboundProxyAllowUDP && !effective.OutboundProxyAllowRadSec {
+			return fmt.Errorf("radius.dynamic_auth outbound proxy must allow udp, radsec, or both")
+		}
+		if effective.OutboundProxyMaxHops < 1 || effective.OutboundProxyMaxHops > 32 {
+			return fmt.Errorf("radius.dynamic_auth.outbound_proxy_max_hops must be between 1 and 32")
+		}
+		if strings.ContainsAny(effective.OutboundProxyLoopMarker, "\r\n\x00/\\") || len(strings.TrimSpace(effective.OutboundProxyLoopMarker)) > 64 {
+			return fmt.Errorf("radius.dynamic_auth.outbound_proxy_loop_marker is invalid")
 		}
 	}
 	return nil

@@ -24,13 +24,21 @@ import (
 )
 
 const (
-	OutboundDACSchemaVersion     = 1
-	OutboundDACRuntimeComponent  = "radius_outbound_dac_client"
-	outboundDACDefaultTransport  = "udp"
-	outboundDACUnsupportedRadSec = "outbound RadSec reverse DAC routing is scheduled for NAS-0044"
+	OutboundDACSchemaVersion    = 1
+	OutboundDACRuntimeComponent = "radius_outbound_dac_client"
+	outboundDACDefaultTransport = "udp"
+	outboundDACDeliveryDirect   = "direct"
+	outboundDACDeliveryProxy    = "proxy"
 )
 
 type OutboundDACRequest struct {
+	DeliveryMode     string                    `json:"delivery_mode,omitempty"`
+	ProxyRoute       string                    `json:"proxy_route,omitempty"`
+	ProxyRealm       string                    `json:"proxy_realm,omitempty"`
+	OriginatingRealm string                    `json:"originating_realm,omitempty"`
+	SourceRealm      string                    `json:"source_realm,omitempty"`
+	ProxyHomeServer  string                    `json:"proxy_home_server,omitempty"`
+	ProxyState       []string                  `json:"proxy_state,omitempty"`
 	Action           string                    `json:"action"`
 	TargetAddress    string                    `json:"target_address,omitempty"`
 	TargetPort       int                       `json:"target_port,omitempty"`
@@ -57,17 +65,28 @@ type OutboundDACRequest struct {
 }
 
 type OutboundDACTarget struct {
-	Address       string `json:"address"`
-	Port          int    `json:"port"`
-	Transport     string `json:"transport"`
-	Endpoint      string `json:"endpoint"`
-	ResolvedFrom  string `json:"resolved_from"`
-	NASIdentifier string `json:"nas_identifier,omitempty"`
-	NASIPAddress  string `json:"nas_ip_address,omitempty"`
-	ShortName     string `json:"shortname,omitempty"`
-	NASType       string `json:"nas_type,omitempty"`
-	KnownClient   bool   `json:"known_client"`
-	SecretReady   bool   `json:"secret_ready"`
+	Address          string   `json:"address"`
+	Port             int      `json:"port"`
+	Transport        string   `json:"transport"`
+	DeliveryMode     string   `json:"delivery_mode"`
+	Endpoint         string   `json:"endpoint"`
+	ResolvedFrom     string   `json:"resolved_from"`
+	ProxyRoute       string   `json:"proxy_route,omitempty"`
+	ProxyRealm       string   `json:"proxy_realm,omitempty"`
+	SourceRealm      string   `json:"source_realm,omitempty"`
+	ProxyHomeServer  string   `json:"proxy_home_server,omitempty"`
+	ProxyHopCount    int      `json:"proxy_hop_count,omitempty"`
+	ProxyState       []string `json:"proxy_state,omitempty"`
+	PoolStrategy     string   `json:"pool_strategy,omitempty"`
+	StatusCheck      string   `json:"status_check,omitempty"`
+	RadSecServerName string   `json:"radsec_server_name,omitempty"`
+	RadSecMode       string   `json:"radsec_mode,omitempty"`
+	NASIdentifier    string   `json:"nas_identifier,omitempty"`
+	NASIPAddress     string   `json:"nas_ip_address,omitempty"`
+	ShortName        string   `json:"shortname,omitempty"`
+	NASType          string   `json:"nas_type,omitempty"`
+	KnownClient      bool     `json:"known_client"`
+	SecretReady      bool     `json:"secret_ready"`
 }
 
 type OutboundDACAttributePlan struct {
@@ -92,6 +111,7 @@ type OutboundDACPreview struct {
 	RequiresConfirm      bool                       `json:"requires_confirm"`
 	MessageAuthenticator bool                       `json:"message_authenticator"`
 	RequestFingerprint   string                     `json:"request_fingerprint"`
+	ProxyPolicyDecision  ProxyPolicyDecision        `json:"proxy_policy_decision,omitempty"`
 	Warnings             []string                   `json:"warnings,omitempty"`
 	Blockers             []string                   `json:"blockers,omitempty"`
 	RFCs                 []string                   `json:"rfcs"`
@@ -107,6 +127,7 @@ type OutboundDACReport struct {
 	QueuePolicy   OutboundDACQueuePolicy        `json:"queue_policy"`
 	QueueSummary  db.OutboundDACQueueSummary    `json:"queue_summary"`
 	QueueRecent   []db.OutboundDACQueueRecord   `json:"queue_recent,omitempty"`
+	ProxyRouting  OutboundDACProxyRoutingReport `json:"proxy_routing"`
 	RuntimeStatus *db.RuntimeStatus             `json:"runtime_status,omitempty"`
 	Warnings      []string                      `json:"warnings,omitempty"`
 	RFCs          []string                      `json:"rfcs"`
@@ -140,11 +161,12 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 	queuePolicy := EffectiveOutboundDACQueuePolicy(cfg)
 	queueSummary, _ := db.GetOutboundDACQueueSummary(queuePolicy.MaxQueueRecords)
 	queueRecent, _ := db.ListOutboundDACQueue("", 12)
+	proxyRouting := BuildOutboundDACProxyRoutingReport(cfg)
 	runtime, _ := db.GetRuntimeStatus(OutboundDACRuntimeComponent)
 	report := OutboundDACReport{
 		SchemaVersion: OutboundDACSchemaVersion,
 		Status:        "ready",
-		Message:       "Outbound RFC 5176 CoA and Disconnect client is ready for immediate and durable queued UDP sends to known NAS clients.",
+		Message:       "Outbound RFC 5176 CoA and Disconnect client is ready for direct, proxy, and RadSec-routed dynamic authorization.",
 		Policy: map[string]any{
 			"enabled":                     effective.OutboundEnabled,
 			"default_port":                effective.OutboundDefaultPort,
@@ -155,14 +177,19 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 			"allow_coa":                   effective.OutboundAllowCoA,
 			"allow_disconnect":            effective.OutboundAllowDisconnect,
 			"require_confirmation":        effective.OutboundRequireConfirmation,
-			"supported_transport":         []string{"udp"},
-			"deferred_transport_features": []string{"NAS-0044 proxy CoA and RadSec reverse CoA routing"},
+			"supported_delivery_modes":    []string{outboundDACDeliveryDirect, outboundDACDeliveryProxy},
+			"supported_transport":         []string{"udp", "radsec"},
+			"outbound_proxy_enabled":      effective.OutboundProxyEnabled,
+			"outbound_proxy_allow_udp":    effective.OutboundProxyAllowUDP,
+			"outbound_proxy_allow_radsec": effective.OutboundProxyAllowRadSec,
+			"outbound_proxy_max_hops":     effective.OutboundProxyMaxHops,
 		},
 		Summary:       summary,
 		Recent:        recent,
 		QueuePolicy:   queuePolicy,
 		QueueSummary:  queueSummary,
 		QueueRecent:   queueRecent,
+		ProxyRouting:  proxyRouting,
 		RuntimeStatus: runtime,
 		RFCs:          []string{"RFC 2865", "RFC 2866", "RFC 2868", "RFC 3576", "RFC 3580", "RFC 5176"},
 	}
@@ -190,6 +217,12 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 			report.Status = "degraded"
 		}
 		report.Warnings = append(report.Warnings, fmt.Sprintf("Outbound DAC queue utilization is %d%%.", queueSummary.QueueUtilization))
+	}
+	if proxyRouting.Status == "blocked" && effective.OutboundProxyEnabled {
+		if report.Status == "ready" {
+			report.Status = "degraded"
+		}
+		report.Warnings = append(report.Warnings, "Outbound proxy DAC routing is blocked: "+proxyRouting.Message)
 	}
 	return report
 }
@@ -238,11 +271,12 @@ func PreviewOutboundDAC(ctx context.Context, cfg *config.Config, request Outboun
 	preview.Target = target
 	preview.Warnings = append(preview.Warnings, targetWarnings...)
 	preview.Blockers = append(preview.Blockers, targetBlockers...)
-	attrs, attrErr := outboundDACAttributePlan(request, effective.OutboundMaxAttributes)
+	attrs, decision, attrErr := outboundDACAttributePlan(cfg, request, target, effective.OutboundMaxAttributes)
 	if attrErr != nil {
 		preview.Status = "blocked"
 		preview.Blockers = append(preview.Blockers, attrErr.Error())
 	}
+	preview.ProxyPolicyDecision = decision
 	preview.Attributes = attrs
 	preview.AttributeCount = len(attrs)
 	if effective.OutboundRequireConfirmation && !request.Confirm {
@@ -284,6 +318,12 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 			TargetAddress:        firstNonEmptyString(preview.Target.Address, "unresolved"),
 			TargetPort:           firstNonZeroInt(preview.Target.Port, effective.OutboundDefaultPort),
 			TargetTransport:      firstNonEmptyString(preview.Target.Transport, outboundDACDefaultTransport),
+			DeliveryMode:         preview.Target.DeliveryMode,
+			ProxyRoute:           preview.Target.ProxyRoute,
+			ProxyRealm:           preview.Target.ProxyRealm,
+			ProxyHomeServer:      preview.Target.ProxyHomeServer,
+			ProxyHopCount:        preview.Target.ProxyHopCount,
+			ProxyState:           preview.Target.ProxyState,
 			NASIdentifier:        request.NASIdentifier,
 			NASIPAddress:         request.NASIPAddress,
 			NASType:              firstNonEmptyString(preview.Target.NASType, request.NASType),
@@ -304,17 +344,24 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 		if createErr != nil {
 			return OutboundDACSendResult{}, createErr
 		}
-		_ = db.UpsertRuntimeStatus(OutboundDACRuntimeComponent, "blocked", preview.Message, map[string]any{"request_id": requestID, "action": request.Action})
+		_ = db.UpsertRuntimeStatus(OutboundDACRuntimeComponent, "blocked", preview.Message, map[string]any{
+			"request_id":        requestID,
+			"action":            request.Action,
+			"delivery_mode":     preview.Target.DeliveryMode,
+			"proxy_route":       preview.Target.ProxyRoute,
+			"proxy_home_server": preview.Target.ProxyHomeServer,
+		})
 		return OutboundDACSendResult{Status: "blocked", Message: preview.Message, Preview: preview, Request: record}, nil
 	}
 	target, secret, _, blockers := resolveOutboundDACTarget(ctx, cfg, effective, request)
 	if len(blockers) > 0 {
 		return OutboundDACSendResult{}, errors.New(strings.Join(blockers, "; "))
 	}
-	packet, attrs, err := buildOutboundDACPacket(request, secret, effective.OutboundMaxAttributes)
+	packet, attrs, decision, err := prepareOutboundDACPacketForTarget(cfg, request, target, secret, effective.OutboundMaxAttributes)
 	if err != nil {
 		return OutboundDACSendResult{}, err
 	}
+	preview.ProxyPolicyDecision = decision
 	if err := setMessageAuthenticator(packet); err != nil {
 		return OutboundDACSendResult{}, fmt.Errorf("set Message-Authenticator: %w", err)
 	}
@@ -330,6 +377,12 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 		TargetAddress:        target.Address,
 		TargetPort:           target.Port,
 		TargetTransport:      target.Transport,
+		DeliveryMode:         target.DeliveryMode,
+		ProxyRoute:           target.ProxyRoute,
+		ProxyRealm:           target.ProxyRealm,
+		ProxyHomeServer:      target.ProxyHomeServer,
+		ProxyHopCount:        target.ProxyHopCount,
+		ProxyState:           target.ProxyState,
 		NASIdentifier:        firstNonEmptyString(request.NASIdentifier, target.NASIdentifier),
 		NASIPAddress:         firstNonEmptyString(request.NASIPAddress, target.NASIPAddress),
 		NASType:              firstNonEmptyString(target.NASType, request.NASType),
@@ -350,7 +403,7 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 	if err != nil {
 		return OutboundDACSendResult{}, err
 	}
-	outcome := sendOutboundDACPacket(ctx, packet, target.Endpoint, time.Duration(effective.OutboundTimeoutSeconds)*time.Second, requestWire, requestHash)
+	outcome := sendOutboundDACPacketToTarget(ctx, cfg, packet, target, time.Duration(effective.OutboundTimeoutSeconds)*time.Second, requestWire, requestHash)
 	status, failure, responseCode, errorCause, errorCauseName, replyMessage := classifyOutboundDACResponse(request.Action, outcome.Response, outcome.Err)
 	if err := db.RecordOutboundDACAttempt(db.OutboundDACAttemptCreate{
 		RequestID:           requestID,
@@ -359,6 +412,12 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 		TargetAddress:       target.Address,
 		TargetPort:          target.Port,
 		TargetTransport:     target.Transport,
+		DeliveryMode:        target.DeliveryMode,
+		ProxyRoute:          target.ProxyRoute,
+		ProxyRealm:          target.ProxyRealm,
+		ProxyHomeServer:     target.ProxyHomeServer,
+		ProxyHopCount:       target.ProxyHopCount,
+		ProxyState:          target.ProxyState,
 		RequestCode:         int(packet.Code),
 		ResponseCode:        responseCode,
 		ErrorCause:          errorCause,
@@ -393,6 +452,9 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 		"request_id":            requestID,
 		"action":                request.Action,
 		"target":                target.Endpoint,
+		"delivery_mode":         target.DeliveryMode,
+		"proxy_route":           target.ProxyRoute,
+		"proxy_home_server":     target.ProxyHomeServer,
 		"latency_ms":            outcome.Latency.Milliseconds(),
 		"response_code":         responseCode,
 		"error_cause":           errorCauseName,
@@ -559,12 +621,11 @@ func applyOutboundDACAttribute(packet *layehradius.Packet, attr db.OutboundDACAt
 	}
 }
 
-func outboundDACAttributePlan(request OutboundDACRequest, maxAttributes int) ([]OutboundDACAttributePlan, error) {
-	packet := layehradius.New(layehradius.CodeCoARequest, []byte("preview"))
-	_, attrs, err := buildOutboundDACPacket(request, "preview", maxAttributes)
+func outboundDACAttributePlan(cfg *config.Config, request OutboundDACRequest, target OutboundDACTarget, maxAttributes int) ([]OutboundDACAttributePlan, ProxyPolicyDecision, error) {
+	packet, attrs, decision, err := prepareOutboundDACPacketForTarget(cfg, request, target, "preview", maxAttributes)
 	if err != nil {
 		_ = packet
-		return nil, err
+		return nil, decision, err
 	}
 	plans := make([]OutboundDACAttributePlan, 0, len(attrs))
 	for _, attr := range attrs {
@@ -575,14 +636,18 @@ func outboundDACAttributePlan(request OutboundDACRequest, maxAttributes int) ([]
 			Selector: outboundDACAttributeIsSelector(attr.Name),
 		})
 	}
-	return plans, nil
+	return plans, decision, nil
 }
 
 func resolveOutboundDACTarget(ctx context.Context, cfg *config.Config, policy config.DynamicAuthConfig, request OutboundDACRequest) (OutboundDACTarget, string, []string, []string) {
+	if outboundDACRequestDeliveryMode(request) == outboundDACDeliveryProxy {
+		return resolveOutboundDACProxyTarget(ctx, cfg, policy, request)
+	}
 	target := OutboundDACTarget{
 		Address:       strings.TrimSpace(request.TargetAddress),
 		Port:          firstNonZeroInt(request.TargetPort, policy.OutboundDefaultPort),
 		Transport:     strings.ToLower(strings.TrimSpace(firstNonEmptyString(request.TargetTransport, outboundDACDefaultTransport))),
+		DeliveryMode:  outboundDACDeliveryDirect,
 		NASIdentifier: strings.TrimSpace(request.NASIdentifier),
 		NASIPAddress:  strings.TrimSpace(request.NASIPAddress),
 		ShortName:     strings.TrimSpace(request.ShortName),
@@ -637,9 +702,9 @@ func resolveOutboundDACTarget(ctx context.Context, cfg *config.Config, policy co
 		blockers = append(blockers, "target is not a configured RADIUS client and outbound_require_known_client is enabled")
 	}
 	if target.Transport == "radsec" {
-		blockers = append(blockers, outboundDACUnsupportedRadSec)
+		blockers = append(blockers, "direct RadSec dynamic authorization requires an outbound proxy route with radius.upstream RadSec credentials")
 	} else if target.Transport != outboundDACDefaultTransport {
-		blockers = append(blockers, fmt.Sprintf("transport %q is not supported by NAS-0042", target.Transport))
+		blockers = append(blockers, fmt.Sprintf("transport %q is not supported for direct outbound dynamic authorization", target.Transport))
 	}
 	secret := ""
 	if matched != nil {
@@ -772,6 +837,13 @@ func outboundDACCodes(action string) (request, ack, nak layehradius.Code, err er
 }
 
 func normalizeOutboundDACRequest(request OutboundDACRequest) OutboundDACRequest {
+	request.DeliveryMode = normalizeOutboundDACDeliveryMode(request.DeliveryMode)
+	request.ProxyRoute = strings.TrimSpace(request.ProxyRoute)
+	request.ProxyRealm = strings.TrimSpace(strings.ToLower(request.ProxyRealm))
+	request.OriginatingRealm = strings.TrimSpace(strings.ToLower(request.OriginatingRealm))
+	request.SourceRealm = strings.TrimSpace(strings.ToLower(request.SourceRealm))
+	request.ProxyHomeServer = strings.TrimSpace(request.ProxyHomeServer)
+	request.ProxyState = normalizeOutboundDACProxyState(request.ProxyState)
 	request.Action = strings.ToLower(strings.TrimSpace(request.Action))
 	switch request.Action {
 	case "coa-request", "change-of-authorization":

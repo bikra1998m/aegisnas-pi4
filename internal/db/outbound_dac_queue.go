@@ -34,6 +34,12 @@ type OutboundDACQueueCreate struct {
 	TargetAddress        string
 	TargetPort           int
 	TargetTransport      string
+	DeliveryMode         string
+	ProxyRoute           string
+	ProxyRealm           string
+	ProxyHomeServer      string
+	ProxyHopCount        int
+	ProxyState           []string
 	NASIdentifier        string
 	NASIPAddress         string
 	NASType              string
@@ -65,6 +71,12 @@ type OutboundDACQueueRecord struct {
 	TargetAddress        string                 `json:"target_address"`
 	TargetPort           int                    `json:"target_port"`
 	TargetTransport      string                 `json:"target_transport"`
+	DeliveryMode         string                 `json:"delivery_mode"`
+	ProxyRoute           string                 `json:"proxy_route,omitempty"`
+	ProxyRealm           string                 `json:"proxy_realm,omitempty"`
+	ProxyHomeServer      string                 `json:"proxy_home_server,omitempty"`
+	ProxyHopCount        int                    `json:"proxy_hop_count"`
+	ProxyState           []string               `json:"proxy_state,omitempty"`
 	NASIdentifier        string                 `json:"nas_identifier,omitempty"`
 	NASIPAddress         string                 `json:"nas_ip_address,omitempty"`
 	NASType              string                 `json:"nas_type,omitempty"`
@@ -103,26 +115,32 @@ type OutboundDACQueueRecord struct {
 }
 
 type OutboundDACQueueAttemptRecord struct {
-	ID                  int    `json:"id"`
-	QueueID             string `json:"queue_id"`
-	AttemptNumber       int    `json:"attempt_number"`
-	Result              string `json:"result"`
-	Status              string `json:"status"`
-	TargetAddress       string `json:"target_address"`
-	TargetPort          int    `json:"target_port"`
-	TargetTransport     string `json:"target_transport"`
-	RequestCode         int    `json:"request_code"`
-	ResponseCode        int    `json:"response_code,omitempty"`
-	ErrorCause          int    `json:"error_cause,omitempty"`
-	ErrorCauseName      string `json:"error_cause_name,omitempty"`
-	ReplyMessage        string `json:"reply_message,omitempty"`
-	LatencyMS           int64  `json:"latency_ms"`
-	PacketIdentifier    int    `json:"packet_identifier"`
-	RequestFingerprint  string `json:"request_fingerprint"`
-	ResponseFingerprint string `json:"response_fingerprint,omitempty"`
-	ErrorMessage        string `json:"error_message,omitempty"`
-	AttemptedAt         string `json:"attempted_at"`
-	NextAttemptAt       string `json:"next_attempt_at,omitempty"`
+	ID                  int      `json:"id"`
+	QueueID             string   `json:"queue_id"`
+	AttemptNumber       int      `json:"attempt_number"`
+	Result              string   `json:"result"`
+	Status              string   `json:"status"`
+	TargetAddress       string   `json:"target_address"`
+	TargetPort          int      `json:"target_port"`
+	TargetTransport     string   `json:"target_transport"`
+	DeliveryMode        string   `json:"delivery_mode"`
+	ProxyRoute          string   `json:"proxy_route,omitempty"`
+	ProxyRealm          string   `json:"proxy_realm,omitempty"`
+	ProxyHomeServer     string   `json:"proxy_home_server,omitempty"`
+	ProxyHopCount       int      `json:"proxy_hop_count"`
+	ProxyState          []string `json:"proxy_state,omitempty"`
+	RequestCode         int      `json:"request_code"`
+	ResponseCode        int      `json:"response_code,omitempty"`
+	ErrorCause          int      `json:"error_cause,omitempty"`
+	ErrorCauseName      string   `json:"error_cause_name,omitempty"`
+	ReplyMessage        string   `json:"reply_message,omitempty"`
+	LatencyMS           int64    `json:"latency_ms"`
+	PacketIdentifier    int      `json:"packet_identifier"`
+	RequestFingerprint  string   `json:"request_fingerprint"`
+	ResponseFingerprint string   `json:"response_fingerprint,omitempty"`
+	ErrorMessage        string   `json:"error_message,omitempty"`
+	AttemptedAt         string   `json:"attempted_at"`
+	NextAttemptAt       string   `json:"next_attempt_at,omitempty"`
 }
 
 type OutboundDACQueueAttemptUpdate struct {
@@ -132,6 +150,12 @@ type OutboundDACQueueAttemptUpdate struct {
 	TargetAddress       string
 	TargetPort          int
 	TargetTransport     string
+	DeliveryMode        string
+	ProxyRoute          string
+	ProxyRealm          string
+	ProxyHomeServer     string
+	ProxyHopCount       int
+	ProxyState          []string
 	RequestCode         int
 	ResponseCode        int
 	ErrorCause          int
@@ -198,16 +222,23 @@ func EnqueueOutboundDACQueue(create OutboundDACQueueCreate, maxQueueRecords int)
 	if err != nil {
 		return OutboundDACQueueRecord{}, false, fmt.Errorf("encode outbound DAC queue attributes: %w", err)
 	}
+	proxyStateJSON, err := json.Marshal(normalizeOutboundDACProxyState(create.ProxyState))
+	if err != nil {
+		return OutboundDACQueueRecord{}, false, fmt.Errorf("encode outbound DAC queue proxy state: %w", err)
+	}
 	now := time.Now().UTC()
 	_, err = DB.Exec(`INSERT INTO radius_outbound_dac_queue (
 		queue_id, idempotency_key, action, status, target_address, target_port, target_transport,
+		delivery_mode, proxy_route, proxy_realm, proxy_home_server, proxy_hop_count, proxy_state_json,
 		nas_identifier, nas_ip_address, nas_type, shortname, session_id, username_hash,
 		calling_station_hash, framed_ip_address, attributes_json, payload_json, payload_sha256,
 		request_code, correlation_id, requested_by, request_fingerprint, max_attempts,
 		next_attempt_at, expires_at, idempotency_expires_at, owner_node, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		create.QueueID, create.IdempotencyKey, create.Action, create.Status, create.TargetAddress, create.TargetPort,
-		create.TargetTransport, nullIfEmpty(create.NASIdentifier), nullIfEmpty(create.NASIPAddress), nullIfEmpty(create.NASType),
+		create.TargetTransport, normalizeOutboundDACDeliveryMode(create.DeliveryMode), nullIfEmpty(create.ProxyRoute),
+		nullIfEmpty(create.ProxyRealm), nullIfEmpty(create.ProxyHomeServer), create.ProxyHopCount, string(proxyStateJSON),
+		nullIfEmpty(create.NASIdentifier), nullIfEmpty(create.NASIPAddress), nullIfEmpty(create.NASType),
 		nullIfEmpty(create.ShortName), nullIfEmpty(create.SessionID), nullIfEmpty(HashEAPIdentity(create.Username)),
 		nullIfEmpty(HashEAPIdentity(create.CallingStationID)), nullIfEmpty(create.FramedIPAddress), string(attrsJSON),
 		create.PayloadJSON, create.PayloadSHA256, create.RequestCode, create.CorrelationID, nullIfEmpty(create.RequestedBy),
@@ -325,6 +356,26 @@ func CompleteOutboundDACQueueAttempt(record OutboundDACQueueRecord, update Outbo
 	if update.AttemptedAt.IsZero() {
 		update.AttemptedAt = time.Now().UTC()
 	}
+	update.DeliveryMode = normalizeOutboundDACDeliveryMode(firstNonEmptyString(update.DeliveryMode, record.DeliveryMode))
+	if update.ProxyRoute == "" {
+		update.ProxyRoute = record.ProxyRoute
+	}
+	if update.ProxyRealm == "" {
+		update.ProxyRealm = record.ProxyRealm
+	}
+	if update.ProxyHomeServer == "" {
+		update.ProxyHomeServer = record.ProxyHomeServer
+	}
+	if update.ProxyHopCount == 0 {
+		update.ProxyHopCount = record.ProxyHopCount
+	}
+	if len(update.ProxyState) == 0 {
+		update.ProxyState = record.ProxyState
+	}
+	proxyStateJSON, err := json.Marshal(normalizeOutboundDACProxyState(update.ProxyState))
+	if err != nil {
+		return fmt.Errorf("encode outbound DAC queue attempt proxy state: %w", err)
+	}
 	attemptNumber := record.AttemptCount + 1
 	nextAttempt := ""
 	if !update.NextAttemptAt.IsZero() {
@@ -346,11 +397,14 @@ func CompleteOutboundDACQueueAttempt(record OutboundDACQueueRecord, update Outbo
 	defer tx.Rollback()
 	if _, err := tx.Exec(`INSERT INTO radius_outbound_dac_queue_attempts (
 		queue_id, attempt_number, result, status, target_address, target_port, target_transport,
+		delivery_mode, proxy_route, proxy_realm, proxy_home_server, proxy_hop_count, proxy_state_json,
 		request_code, response_code, error_cause, error_cause_name, reply_message, latency_ms,
 		packet_identifier, request_fingerprint, response_fingerprint, error_message, attempted_at, next_attempt_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		update.QueueID, attemptNumber, update.Result, update.Status, strings.TrimSpace(update.TargetAddress), update.TargetPort,
-		normalizeOutboundDACTransport(update.TargetTransport), update.RequestCode, nullIntIfZero(update.ResponseCode),
+		normalizeOutboundDACTransport(update.TargetTransport), update.DeliveryMode, nullIfEmpty(update.ProxyRoute),
+		nullIfEmpty(update.ProxyRealm), nullIfEmpty(update.ProxyHomeServer), update.ProxyHopCount, string(proxyStateJSON),
+		update.RequestCode, nullIntIfZero(update.ResponseCode),
 		nullIntIfZero(update.ErrorCause), nullIfEmpty(update.ErrorCauseName), nullIfEmpty(update.ReplyMessage),
 		update.LatencyMS, update.PacketIdentifier, update.RequestFingerprint, nullIfEmpty(update.ResponseFingerprint),
 		nullIfEmpty(update.ErrorMessage), formatSpoolTime(update.AttemptedAt), nullIfEmpty(nextAttempt)); err != nil {
@@ -501,7 +555,9 @@ func ListOutboundDACQueueAttempts(queueID string, limit int) ([]OutboundDACQueue
 	queueID = strings.TrimSpace(queueID)
 	args := []any{}
 	query := `SELECT id, queue_id, attempt_number, result, status, target_address, target_port,
-		target_transport, request_code, COALESCE(response_code, 0), COALESCE(error_cause, 0),
+		target_transport, COALESCE(delivery_mode, 'direct'), COALESCE(proxy_route, ''),
+		COALESCE(proxy_realm, ''), COALESCE(proxy_home_server, ''), COALESCE(proxy_hop_count, 0),
+		COALESCE(proxy_state_json, '[]'), request_code, COALESCE(response_code, 0), COALESCE(error_cause, 0),
 		COALESCE(error_cause_name, ''), COALESCE(reply_message, ''), latency_ms, packet_identifier,
 		request_fingerprint, COALESCE(response_fingerprint, ''), COALESCE(error_message, ''),
 		attempted_at, COALESCE(next_attempt_at, '')
@@ -520,13 +576,16 @@ func ListOutboundDACQueueAttempts(queueID string, limit int) ([]OutboundDACQueue
 	attempts := []OutboundDACQueueAttemptRecord{}
 	for rows.Next() {
 		var item OutboundDACQueueAttemptRecord
+		var proxyStateJSON string
 		if err := rows.Scan(&item.ID, &item.QueueID, &item.AttemptNumber, &item.Result, &item.Status,
-			&item.TargetAddress, &item.TargetPort, &item.TargetTransport, &item.RequestCode, &item.ResponseCode,
-			&item.ErrorCause, &item.ErrorCauseName, &item.ReplyMessage, &item.LatencyMS, &item.PacketIdentifier,
+			&item.TargetAddress, &item.TargetPort, &item.TargetTransport, &item.DeliveryMode, &item.ProxyRoute,
+			&item.ProxyRealm, &item.ProxyHomeServer, &item.ProxyHopCount, &proxyStateJSON, &item.RequestCode,
+			&item.ResponseCode, &item.ErrorCause, &item.ErrorCauseName, &item.ReplyMessage, &item.LatencyMS, &item.PacketIdentifier,
 			&item.RequestFingerprint, &item.ResponseFingerprint, &item.ErrorMessage, &item.AttemptedAt,
 			&item.NextAttemptAt); err != nil {
 			return nil, fmt.Errorf("scan outbound DAC queue attempt: %w", err)
 		}
+		_ = json.Unmarshal([]byte(proxyStateJSON), &item.ProxyState)
 		attempts = append(attempts, item)
 	}
 	return attempts, rows.Err()
@@ -640,6 +699,11 @@ func normalizeOutboundDACQueueCreate(create OutboundDACQueueCreate) OutboundDACQ
 	}
 	create.TargetAddress = strings.TrimSpace(create.TargetAddress)
 	create.TargetTransport = normalizeOutboundDACTransport(create.TargetTransport)
+	create.DeliveryMode = normalizeOutboundDACDeliveryMode(create.DeliveryMode)
+	create.ProxyRoute = strings.TrimSpace(create.ProxyRoute)
+	create.ProxyRealm = strings.TrimSpace(create.ProxyRealm)
+	create.ProxyHomeServer = strings.TrimSpace(create.ProxyHomeServer)
+	create.ProxyState = normalizeOutboundDACProxyState(create.ProxyState)
 	create.NASIdentifier = strings.TrimSpace(create.NASIdentifier)
 	create.NASIPAddress = strings.TrimSpace(create.NASIPAddress)
 	create.NASType = strings.TrimSpace(strings.ToLower(create.NASType))
@@ -695,6 +759,8 @@ func normalizeOutboundDACQueueAttemptResult(result string) string {
 
 func outboundDACQueueSelectSQL() string {
 	return `SELECT id, queue_id, idempotency_key, action, status, target_address, target_port, target_transport,
+		COALESCE(delivery_mode, 'direct'), COALESCE(proxy_route, ''), COALESCE(proxy_realm, ''),
+		COALESCE(proxy_home_server, ''), COALESCE(proxy_hop_count, 0), COALESCE(proxy_state_json, '[]'),
 		COALESCE(nas_identifier, ''), COALESCE(nas_ip_address, ''), COALESCE(nas_type, ''),
 		COALESCE(shortname, ''), COALESCE(session_id, ''), COALESCE(username_hash, ''),
 		COALESCE(calling_station_hash, ''), COALESCE(framed_ip_address, ''), attributes_json,
@@ -713,12 +779,14 @@ func scanOutboundDACQueueRows(rows *sql.Rows) ([]OutboundDACQueueRecord, error) 
 	records := []OutboundDACQueueRecord{}
 	for rows.Next() {
 		var (
-			record    OutboundDACQueueRecord
-			attrsJSON string
+			record         OutboundDACQueueRecord
+			attrsJSON      string
+			proxyStateJSON string
 		)
 		if err := rows.Scan(&record.ID, &record.QueueID, &record.IdempotencyKey, &record.Action,
 			&record.Status, &record.TargetAddress, &record.TargetPort, &record.TargetTransport,
-			&record.NASIdentifier, &record.NASIPAddress, &record.NASType, &record.ShortName,
+			&record.DeliveryMode, &record.ProxyRoute, &record.ProxyRealm, &record.ProxyHomeServer,
+			&record.ProxyHopCount, &proxyStateJSON, &record.NASIdentifier, &record.NASIPAddress, &record.NASType, &record.ShortName,
 			&record.SessionID, &record.UsernameHash, &record.CallingStationHash, &record.FramedIPAddress,
 			&attrsJSON, &record.PayloadJSON, &record.PayloadSHA256, &record.RequestCode, &record.CorrelationID,
 			&record.RequestedBy, &record.RequestFingerprint, &record.AttemptCount, &record.MaxAttempts,
@@ -730,6 +798,7 @@ func scanOutboundDACQueueRows(rows *sql.Rows) ([]OutboundDACQueueRecord, error) 
 			return nil, fmt.Errorf("scan outbound DAC queue record: %w", err)
 		}
 		_ = json.Unmarshal([]byte(attrsJSON), &record.Attributes)
+		_ = json.Unmarshal([]byte(proxyStateJSON), &record.ProxyState)
 		records = append(records, record)
 	}
 	return records, rows.Err()

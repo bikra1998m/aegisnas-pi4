@@ -194,7 +194,13 @@ func EnqueueOutboundDAC(ctx context.Context, cfg *config.Config, request Outboun
 	}
 	now := time.Now().UTC()
 	attrs := dbAttributesFromPlan(preview.Attributes)
-	payload, payloadSHA, normalized, err := marshalOutboundDACQueuePayload(request)
+	payloadRequest := request
+	payloadRequest.DeliveryMode = preview.Target.DeliveryMode
+	payloadRequest.ProxyRoute = preview.Target.ProxyRoute
+	payloadRequest.ProxyRealm = preview.Target.ProxyRealm
+	payloadRequest.SourceRealm = preview.Target.SourceRealm
+	payloadRequest.ProxyHomeServer = preview.Target.ProxyHomeServer
+	payload, payloadSHA, normalized, err := marshalOutboundDACQueuePayload(payloadRequest)
 	if err != nil {
 		return OutboundDACEnqueueResult{}, err
 	}
@@ -208,6 +214,12 @@ func EnqueueOutboundDAC(ctx context.Context, cfg *config.Config, request Outboun
 		TargetAddress:        preview.Target.Address,
 		TargetPort:           preview.Target.Port,
 		TargetTransport:      preview.Target.Transport,
+		DeliveryMode:         preview.Target.DeliveryMode,
+		ProxyRoute:           preview.Target.ProxyRoute,
+		ProxyRealm:           preview.Target.ProxyRealm,
+		ProxyHomeServer:      preview.Target.ProxyHomeServer,
+		ProxyHopCount:        preview.Target.ProxyHopCount,
+		ProxyState:           preview.Target.ProxyState,
 		NASIdentifier:        firstNonEmptyString(normalized.NASIdentifier, preview.Target.NASIdentifier),
 		NASIPAddress:         firstNonEmptyString(normalized.NASIPAddress, preview.Target.NASIPAddress),
 		NASType:              firstNonEmptyString(preview.Target.NASType, normalized.NASType),
@@ -240,11 +252,14 @@ func EnqueueOutboundDAC(ctx context.Context, cfg *config.Config, request Outboun
 		message = fmt.Sprintf("Duplicate outbound %s request suppressed by idempotency key; existing queue record is %s.", outboundDACActionLabel(normalized.Action), record.QueueID)
 	}
 	_ = db.UpsertRuntimeStatus(OutboundDACRuntimeComponent, status, message, map[string]any{
-		"queue_id":        record.QueueID,
-		"action":          normalized.Action,
-		"target":          preview.Target.Endpoint,
-		"idempotency_key": idempotencyKey,
-		"duplicate":       duplicate,
+		"queue_id":          record.QueueID,
+		"action":            normalized.Action,
+		"target":            preview.Target.Endpoint,
+		"delivery_mode":     preview.Target.DeliveryMode,
+		"proxy_route":       preview.Target.ProxyRoute,
+		"proxy_home_server": preview.Target.ProxyHomeServer,
+		"idempotency_key":   idempotencyKey,
+		"duplicate":         duplicate,
 	})
 	return OutboundDACEnqueueResult{Status: status, Message: message, Created: created, Preview: preview, Queue: record, Duplicate: duplicate}, nil
 }
@@ -402,6 +417,12 @@ func replayOutboundDACQueueRecord(ctx context.Context, cfg *config.Config, polic
 			TargetAddress:      record.TargetAddress,
 			TargetPort:         record.TargetPort,
 			TargetTransport:    record.TargetTransport,
+			DeliveryMode:       record.DeliveryMode,
+			ProxyRoute:         record.ProxyRoute,
+			ProxyRealm:         record.ProxyRealm,
+			ProxyHomeServer:    record.ProxyHomeServer,
+			ProxyHopCount:      record.ProxyHopCount,
+			ProxyState:         record.ProxyState,
 			RequestCode:        record.RequestCode,
 			RequestFingerprint: record.RequestFingerprint,
 			ErrorMessage:       message,
@@ -433,10 +454,11 @@ func replayOutboundDACQueueRecord(ctx context.Context, cfg *config.Config, polic
 	if len(blockers) > 0 {
 		return nextOutboundDACQueueFailure(record, policy, strings.Join(blockers, "; "), 0, 0, "", "", now)
 	}
-	packet, attrs, err := buildOutboundDACPacket(request, secret, config.EffectiveDynamicAuthConfig(dynamicAuthConfig(cfg)).OutboundMaxAttributes)
+	packet, attrs, decision, err := prepareOutboundDACPacketForTarget(cfg, request, target, secret, config.EffectiveDynamicAuthConfig(dynamicAuthConfig(cfg)).OutboundMaxAttributes)
 	if err != nil {
 		return nextOutboundDACQueueFailure(record, policy, err.Error(), 0, 0, "", "", now)
 	}
+	_ = decision
 	if err := setMessageAuthenticator(packet); err != nil {
 		return nextOutboundDACQueueFailure(record, policy, fmt.Sprintf("set Message-Authenticator: %v", err), 0, 0, "", "", now)
 	}
@@ -446,7 +468,7 @@ func replayOutboundDACQueueRecord(ctx context.Context, cfg *config.Config, polic
 	}
 	requestHash := packetWireSHA256(requestWire)
 	ensureOutboundDACQueueHistoryRequest(cfg, requestID, request, record, target, attrs, int(packet.Code), requestHash)
-	outcome := sendOutboundDACPacket(ctx, packet, target.Endpoint, time.Duration(config.EffectiveDynamicAuthConfig(dynamicAuthConfig(cfg)).OutboundTimeoutSeconds)*time.Second, requestWire, requestHash)
+	outcome := sendOutboundDACPacketToTarget(ctx, cfg, packet, target, time.Duration(config.EffectiveDynamicAuthConfig(dynamicAuthConfig(cfg)).OutboundTimeoutSeconds)*time.Second, requestWire, requestHash)
 	status, failure, responseCode, errorCause, errorCauseName, replyMessage := classifyOutboundDACResponse(request.Action, outcome.Response, outcome.Err)
 	_ = db.RecordOutboundDACAttempt(db.OutboundDACAttemptCreate{
 		RequestID:           requestID,
@@ -455,6 +477,12 @@ func replayOutboundDACQueueRecord(ctx context.Context, cfg *config.Config, polic
 		TargetAddress:       target.Address,
 		TargetPort:          target.Port,
 		TargetTransport:     target.Transport,
+		DeliveryMode:        target.DeliveryMode,
+		ProxyRoute:          target.ProxyRoute,
+		ProxyRealm:          target.ProxyRealm,
+		ProxyHomeServer:     target.ProxyHomeServer,
+		ProxyHopCount:       target.ProxyHopCount,
+		ProxyState:          target.ProxyState,
 		RequestCode:         int(packet.Code),
 		ResponseCode:        responseCode,
 		ErrorCause:          errorCause,
@@ -503,6 +531,12 @@ func replayOutboundDACQueueRecord(ctx context.Context, cfg *config.Config, polic
 		TargetAddress:       target.Address,
 		TargetPort:          target.Port,
 		TargetTransport:     target.Transport,
+		DeliveryMode:        target.DeliveryMode,
+		ProxyRoute:          target.ProxyRoute,
+		ProxyRealm:          target.ProxyRealm,
+		ProxyHomeServer:     target.ProxyHomeServer,
+		ProxyHopCount:       target.ProxyHopCount,
+		ProxyState:          target.ProxyState,
 		RequestCode:         int(packet.Code),
 		ResponseCode:        responseCode,
 		ErrorCause:          errorCause,
@@ -535,6 +569,12 @@ func nextOutboundDACQueueFailure(record db.OutboundDACQueueRecord, policy Outbou
 		TargetAddress:      record.TargetAddress,
 		TargetPort:         record.TargetPort,
 		TargetTransport:    record.TargetTransport,
+		DeliveryMode:       record.DeliveryMode,
+		ProxyRoute:         record.ProxyRoute,
+		ProxyRealm:         record.ProxyRealm,
+		ProxyHomeServer:    record.ProxyHomeServer,
+		ProxyHopCount:      record.ProxyHopCount,
+		ProxyState:         record.ProxyState,
 		RequestCode:        record.RequestCode,
 		ResponseCode:       responseCode,
 		ErrorCause:         errorCause,
@@ -607,6 +647,12 @@ func ensureOutboundDACQueueHistoryRequest(cfg *config.Config, requestID string, 
 		TargetAddress:        target.Address,
 		TargetPort:           target.Port,
 		TargetTransport:      target.Transport,
+		DeliveryMode:         target.DeliveryMode,
+		ProxyRoute:           target.ProxyRoute,
+		ProxyRealm:           target.ProxyRealm,
+		ProxyHomeServer:      target.ProxyHomeServer,
+		ProxyHopCount:        target.ProxyHopCount,
+		ProxyState:           target.ProxyState,
 		NASIdentifier:        firstNonEmptyString(request.NASIdentifier, target.NASIdentifier),
 		NASIPAddress:         firstNonEmptyString(request.NASIPAddress, target.NASIPAddress),
 		NASType:              firstNonEmptyString(target.NASType, request.NASType),

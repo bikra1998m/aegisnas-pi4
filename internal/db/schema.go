@@ -172,7 +172,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{45, schemaV45},
 		{46, schemaV46},
 		{47, schemaV47},
-		{LatestSchemaVersion(), schemaV48},
+		{48, schemaV48},
+		{LatestSchemaVersion(), schemaV49},
 	}
 
 	for _, m := range migrations {
@@ -286,8 +287,68 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureOutboundDACQueueTables(handle); err != nil {
 		return fmt.Errorf("repair outbound dynamic authorization queue schema: %w", err)
 	}
+	if err := ensureOutboundDACProxyRouteColumns(handle); err != nil {
+		return fmt.Errorf("repair outbound dynamic authorization proxy route schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureOutboundDACProxyRouteColumns(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	columns := []struct {
+		table string
+		name  string
+		sql   string
+	}{
+		{"radius_outbound_dac_requests", "delivery_mode", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN delivery_mode TEXT NOT NULL DEFAULT 'direct'`},
+		{"radius_outbound_dac_requests", "proxy_route", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN proxy_route TEXT`},
+		{"radius_outbound_dac_requests", "proxy_realm", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN proxy_realm TEXT`},
+		{"radius_outbound_dac_requests", "proxy_home_server", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN proxy_home_server TEXT`},
+		{"radius_outbound_dac_requests", "proxy_hop_count", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN proxy_hop_count INTEGER NOT NULL DEFAULT 0`},
+		{"radius_outbound_dac_requests", "proxy_state_json", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN proxy_state_json TEXT NOT NULL DEFAULT '[]'`},
+		{"radius_outbound_dac_attempts", "delivery_mode", `ALTER TABLE radius_outbound_dac_attempts ADD COLUMN delivery_mode TEXT NOT NULL DEFAULT 'direct'`},
+		{"radius_outbound_dac_attempts", "proxy_route", `ALTER TABLE radius_outbound_dac_attempts ADD COLUMN proxy_route TEXT`},
+		{"radius_outbound_dac_attempts", "proxy_realm", `ALTER TABLE radius_outbound_dac_attempts ADD COLUMN proxy_realm TEXT`},
+		{"radius_outbound_dac_attempts", "proxy_home_server", `ALTER TABLE radius_outbound_dac_attempts ADD COLUMN proxy_home_server TEXT`},
+		{"radius_outbound_dac_attempts", "proxy_hop_count", `ALTER TABLE radius_outbound_dac_attempts ADD COLUMN proxy_hop_count INTEGER NOT NULL DEFAULT 0`},
+		{"radius_outbound_dac_attempts", "proxy_state_json", `ALTER TABLE radius_outbound_dac_attempts ADD COLUMN proxy_state_json TEXT NOT NULL DEFAULT '[]'`},
+		{"radius_outbound_dac_queue", "delivery_mode", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN delivery_mode TEXT NOT NULL DEFAULT 'direct'`},
+		{"radius_outbound_dac_queue", "proxy_route", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN proxy_route TEXT`},
+		{"radius_outbound_dac_queue", "proxy_realm", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN proxy_realm TEXT`},
+		{"radius_outbound_dac_queue", "proxy_home_server", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN proxy_home_server TEXT`},
+		{"radius_outbound_dac_queue", "proxy_hop_count", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN proxy_hop_count INTEGER NOT NULL DEFAULT 0`},
+		{"radius_outbound_dac_queue", "proxy_state_json", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN proxy_state_json TEXT NOT NULL DEFAULT '[]'`},
+		{"radius_outbound_dac_queue_attempts", "delivery_mode", `ALTER TABLE radius_outbound_dac_queue_attempts ADD COLUMN delivery_mode TEXT NOT NULL DEFAULT 'direct'`},
+		{"radius_outbound_dac_queue_attempts", "proxy_route", `ALTER TABLE radius_outbound_dac_queue_attempts ADD COLUMN proxy_route TEXT`},
+		{"radius_outbound_dac_queue_attempts", "proxy_realm", `ALTER TABLE radius_outbound_dac_queue_attempts ADD COLUMN proxy_realm TEXT`},
+		{"radius_outbound_dac_queue_attempts", "proxy_home_server", `ALTER TABLE radius_outbound_dac_queue_attempts ADD COLUMN proxy_home_server TEXT`},
+		{"radius_outbound_dac_queue_attempts", "proxy_hop_count", `ALTER TABLE radius_outbound_dac_queue_attempts ADD COLUMN proxy_hop_count INTEGER NOT NULL DEFAULT 0`},
+		{"radius_outbound_dac_queue_attempts", "proxy_state_json", `ALTER TABLE radius_outbound_dac_queue_attempts ADD COLUMN proxy_state_json TEXT NOT NULL DEFAULT '[]'`},
+	}
+	for _, column := range columns {
+		exists, err := tableExists(handle, column.table)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			continue
+		}
+		hasColumn, err := tableHasColumn(handle, column.table, column.name)
+		if err != nil {
+			return err
+		}
+		if !hasColumn {
+			if _, err := handle.Exec(SQLForDialect(column.sql, dialect)); err != nil {
+				return err
+			}
+		}
+	}
+	_, err := handle.Exec(SQLForDialect(outboundDACProxyRouteIndexesSQL, dialect))
+	return err
 }
 
 func ensureOutboundDACQueueTables(handle *sql.DB) error {

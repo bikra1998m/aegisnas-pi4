@@ -61,6 +61,13 @@ radius:
 	assert.Equal(t, 86400, effective.OutboundACKRetentionSeconds)
 	assert.Equal(t, 2592000, effective.OutboundDeadLetterRetentionSeconds)
 	assert.Equal(t, 3600, effective.OutboundIdempotencyWindowSeconds)
+	assert.True(t, effective.OutboundProxyEnabled)
+	assert.True(t, effective.OutboundProxyAllowUDP)
+	assert.True(t, effective.OutboundProxyAllowRadSec)
+	assert.Equal(t, 8, effective.OutboundProxyMaxHops)
+	assert.Equal(t, "aegisnas", effective.OutboundProxyLoopMarker)
+	assert.True(t, effective.OutboundProxyAddLoopMarker)
+	assert.True(t, effective.OutboundProxyRejectLoopMarker)
 	require.NoError(t, cfg.Validate())
 }
 
@@ -107,6 +114,13 @@ func TestConfigValidationOutboundDynamicAuthBounds(t *testing.T) {
 				OutboundACKRetentionSeconds:        86400,
 				OutboundDeadLetterRetentionSeconds: 2592000,
 				OutboundIdempotencyWindowSeconds:   3600,
+				OutboundProxyEnabled:               true,
+				OutboundProxyAllowUDP:              true,
+				OutboundProxyAllowRadSec:           true,
+				OutboundProxyMaxHops:               8,
+				OutboundProxyLoopMarker:            "aegisnas",
+				OutboundProxyAddLoopMarker:         true,
+				OutboundProxyRejectLoopMarker:      true,
 			},
 		},
 	}
@@ -138,4 +152,17 @@ func TestConfigValidationOutboundDynamicAuthBounds(t *testing.T) {
 	badIdempotency := *base
 	badIdempotency.Radius.DynamicAuth.OutboundIdempotencyWindowSeconds = 7200
 	assert.ErrorContains(t, badIdempotency.Validate(), "outbound_idempotency_window_seconds")
+
+	badProxyTransport := *base
+	badProxyTransport.Radius.DynamicAuth.OutboundProxyAllowUDP = false
+	badProxyTransport.Radius.DynamicAuth.OutboundProxyAllowRadSec = false
+	assert.ErrorContains(t, badProxyTransport.Validate(), "outbound proxy must allow")
+
+	badProxyHops := *base
+	badProxyHops.Radius.DynamicAuth.OutboundProxyMaxHops = 33
+	assert.ErrorContains(t, badProxyHops.Validate(), "outbound_proxy_max_hops")
+
+	badProxyMarker := *base
+	badProxyMarker.Radius.DynamicAuth.OutboundProxyLoopMarker = "bad\nmarker"
+	assert.ErrorContains(t, badProxyMarker.Validate(), "outbound_proxy_loop_marker")
 }

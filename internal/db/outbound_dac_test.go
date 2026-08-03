@@ -22,6 +22,12 @@ func TestOutboundDACRequestLifecycleRedactsSensitiveHistory(t *testing.T) {
 		TargetAddress:    "192.0.2.10",
 		TargetPort:       3799,
 		TargetTransport:  "udp",
+		DeliveryMode:     "proxy",
+		ProxyRoute:       "corp",
+		ProxyRealm:       "corp.example.test",
+		ProxyHomeServer:  "upstream-1",
+		ProxyHopCount:    2,
+		ProxyState:       []string{"roaming-hop", "aegisnas:corp:node-a:corp.example.test"},
 		NASIdentifier:    "branch-ap",
 		NASIPAddress:     "192.0.2.10",
 		NASType:          "cisco",
@@ -46,6 +52,12 @@ func TestOutboundDACRequestLifecycleRedactsSensitiveHistory(t *testing.T) {
 	}, 100)
 	require.NoError(t, err)
 	assert.Equal(t, OutboundDACStatusSent, created.Status)
+	assert.Equal(t, "proxy", created.DeliveryMode)
+	assert.Equal(t, "corp", created.ProxyRoute)
+	assert.Equal(t, "corp.example.test", created.ProxyRealm)
+	assert.Equal(t, "upstream-1", created.ProxyHomeServer)
+	assert.Equal(t, 2, created.ProxyHopCount)
+	assert.Equal(t, []string{"roaming-hop", "aegisnas:corp:node-a:corp.example.test"}, created.ProxyState)
 	assert.Equal(t, HashEAPIdentity("Alice@example.test"), created.UsernameHash)
 	assert.Equal(t, HashEAPIdentity("AA-BB-CC-DD-EE-FF"), created.CallingStationHash)
 	assert.NotContains(t, outboundDACAttributeValues(created.Attributes), "Alice@example.test")
@@ -59,6 +71,12 @@ func TestOutboundDACRequestLifecycleRedactsSensitiveHistory(t *testing.T) {
 		TargetAddress:       "192.0.2.10",
 		TargetPort:          3799,
 		TargetTransport:     "udp",
+		DeliveryMode:        "proxy",
+		ProxyRoute:          "corp",
+		ProxyRealm:          "corp.example.test",
+		ProxyHomeServer:     "upstream-1",
+		ProxyHopCount:       2,
+		ProxyState:          []string{"roaming-hop", "aegisnas:corp:node-a:corp.example.test"},
 		RequestCode:         43,
 		ResponseCode:        44,
 		LatencyMS:           15,
@@ -89,6 +107,10 @@ func TestOutboundDACRequestLifecycleRedactsSensitiveHistory(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, attempts, 1)
 	assert.Equal(t, OutboundDACStatusACK, attempts[0].Status)
+	assert.Equal(t, "proxy", attempts[0].DeliveryMode)
+	assert.Equal(t, "corp", attempts[0].ProxyRoute)
+	assert.Equal(t, "upstream-1", attempts[0].ProxyHomeServer)
+	assert.Equal(t, []string{"roaming-hop", "aegisnas:corp:node-a:corp.example.test"}, attempts[0].ProxyState)
 
 	summary, err := GetOutboundDACSummary(100)
 	require.NoError(t, err)
@@ -162,6 +184,12 @@ func TestOutboundDACQueueLifecycleDedupeClaimCompleteAndCancel(t *testing.T) {
 		TargetAddress:        "192.0.2.10",
 		TargetPort:           3799,
 		TargetTransport:      "udp",
+		DeliveryMode:         "proxy",
+		ProxyRoute:           "corp",
+		ProxyRealm:           "corp.example.test",
+		ProxyHomeServer:      "upstream-1",
+		ProxyHopCount:        1,
+		ProxyState:           []string{"aegisnas:corp:node-a:corp.example.test"},
 		NASIdentifier:        "branch-ap",
 		SessionID:            "acct-123",
 		Username:             "Alice@example.test",
@@ -183,6 +211,10 @@ func TestOutboundDACQueueLifecycleDedupeClaimCompleteAndCancel(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, created)
 	assert.Equal(t, OutboundDACQueueStatusQueued, record.Status)
+	assert.Equal(t, "proxy", record.DeliveryMode)
+	assert.Equal(t, "corp", record.ProxyRoute)
+	assert.Equal(t, "upstream-1", record.ProxyHomeServer)
+	assert.Equal(t, []string{"aegisnas:corp:node-a:corp.example.test"}, record.ProxyState)
 	assert.NotContains(t, outboundDACAttributeValues(record.Attributes), "Alice@example.test")
 
 	duplicate, created, err := EnqueueOutboundDACQueue(create, 10)
@@ -202,6 +234,12 @@ func TestOutboundDACQueueLifecycleDedupeClaimCompleteAndCancel(t *testing.T) {
 		TargetAddress:      "192.0.2.10",
 		TargetPort:         3799,
 		TargetTransport:    "udp",
+		DeliveryMode:       "proxy",
+		ProxyRoute:         "corp",
+		ProxyRealm:         "corp.example.test",
+		ProxyHomeServer:    "upstream-1",
+		ProxyHopCount:      1,
+		ProxyState:         []string{"aegisnas:corp:node-a:corp.example.test"},
 		RequestCode:        43,
 		RequestFingerprint: "request-fp",
 		ErrorMessage:       "i/o timeout",
@@ -223,6 +261,10 @@ func TestOutboundDACQueueLifecycleDedupeClaimCompleteAndCancel(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, attempts, 2)
 	assert.Equal(t, OutboundDACQueueAttemptCanceled, attempts[0].Result)
+	assert.Equal(t, "proxy", attempts[1].DeliveryMode)
+	assert.Equal(t, "corp", attempts[1].ProxyRoute)
+	assert.Equal(t, "upstream-1", attempts[1].ProxyHomeServer)
+	assert.Equal(t, []string{"aegisnas:corp:node-a:corp.example.test"}, attempts[1].ProxyState)
 
 	summary, err := GetOutboundDACQueueSummary(10)
 	require.NoError(t, err)

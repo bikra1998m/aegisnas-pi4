@@ -2,10 +2,12 @@
 
 NAS-0042 added the production software path for sending RFC 5176 Dynamic
 Authorization from AegisNAS to managed access devices. NAS-0043 adds durable
-queueing, retry, expiry, dead-letter, and idempotency controls. Operators can
-preview, send immediately, enqueue, replay, cancel, retry, inspect history, and
-collect support evidence without exposing shared secrets or cleartext identity
-selectors in API responses or support bundles.
+queueing, retry, expiry, dead-letter, and idempotency controls. NAS-0044 adds
+route-aware proxy delivery, Proxy-State loop protection, and RadSec mTLS
+outbound CoA/Disconnect routing through configured upstream home servers.
+Operators can preview, send immediately, enqueue, replay, cancel, retry,
+inspect history, and collect support evidence without exposing shared secrets or
+cleartext identity selectors in API responses or support bundles.
 
 ## Scope
 
@@ -30,10 +32,19 @@ Implemented software scope:
   payload replay, bounded exponential backoff, maximum attempts, expiry,
   poison/dead-letter state, cancel, manual retry, background replay, queue
   summaries, and redacted queue history.
+- Proxy delivery mode using `radius.upstream.routes`, explicit `proxy_route`,
+  originating realm, username suffix, default route fallback, deterministic
+  pool selection, route-scoped transport policy, and route-scoped proxy policy.
+- UDP proxy CoA/Disconnect to upstream home-server dynamic authorization ports.
+- RadSec mTLS proxy CoA/Disconnect to X.509-authenticated upstream home
+  servers using RFC 6614 RADIUS over TLS on the Go control path.
+- Bounded Proxy-State preservation and AegisNAS loop-marker insertion/reject
+  controls for multi-hop reverse DAC routing.
+- Route, realm, home-server, hop-count, transport, and Proxy-State evidence in
+  immediate history, queue records, and attempt history.
 
 Deferred roadmap scope:
 
-- NAS-0044 adds proxy CoA and RadSec reverse dynamic authorization routing.
 - NAS-0045 adds certified vendor-specific dynamic action compilers.
 - NAS-0046 adds authoritative NAS capability and session ownership registry.
 - NAS-0047 adds HA-aware cluster handoff.
@@ -67,6 +78,58 @@ radius:
     outbound_ack_retention_seconds: 86400
     outbound_dead_letter_retention_seconds: 2592000
     outbound_idempotency_window_seconds: 3600
+    outbound_proxy_enabled: true
+    outbound_proxy_allow_udp: true
+    outbound_proxy_allow_radsec: true
+    outbound_proxy_max_hops: 8
+    outbound_proxy_loop_marker: aegisnas
+    outbound_proxy_add_loop_marker: true
+    outbound_proxy_reject_loop_marker: true
+  upstream:
+    enabled: true
+    transport_policy:
+      enabled: true
+      mode: enforce
+      fail_closed: true
+      default_required_transport: any
+      allow_mixed_transports: false
+    servers:
+      - name: upstream-1
+        address: 203.0.113.20
+        auth_port: 1812
+        acct_port: 1813
+        dynamic_auth_port: 3799
+        secret_ref: env:UPSTREAM_RADIUS_SECRET
+        transport: udp
+      - name: upstream-radsec
+        address: aaa.example.net
+        transport: radsec
+        radsec:
+          port: 2083
+          server_name: aaa.example.net
+          certificate_file: /etc/aegisnas/radsec/client.crt
+          private_key_file: /etc/aegisnas/radsec/client.key
+          ca_file: /etc/aegisnas/radsec/ca.crt
+          check_crl: true
+          tls_min_version: "1.2"
+          tls_max_version: "1.3"
+          radius_v11: forbid
+    routes:
+      - name: corp
+        enabled: true
+        realm: corp.example.test
+        match_realms: [corp.example.test]
+        default: true
+        pool_strategy: fail-over
+        status_check: status-server
+        servers: [upstream-1]
+      - name: secure-corp
+        enabled: true
+        realm: secure.example.test
+        match_realms: [secure.example.test]
+        pool_strategy: fail-over
+        status_check: status-server
+        servers: [upstream-radsec]
 ```
 
 Production deployments should keep `outbound_require_known_client` and
@@ -74,6 +137,8 @@ Production deployments should keep `outbound_require_known_client` and
 `outbound_replay_enabled` enabled for production change windows where a transient
 NAS timeout should not lose an operator-approved action. Disable CoA or
 Disconnect only when a change window or vendor certification scope requires it.
+Keep proxy routing enabled for enterprise deployments and make any UDP or
+mixed-transport proxy route an explicit transport-policy decision.
 
 ## API
 
@@ -139,6 +204,24 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/dac-client/enqueue | jq .
 ```
 
+Example proxy preview through a configured upstream route:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "delivery_mode": "proxy",
+    "proxy_route": "corp",
+    "originating_realm": "corp.example.test",
+    "action": "coa",
+    "user_name": "alice@corp.example.test",
+    "acct_session_id": "acct-123",
+    "filter_id": "quarantine",
+    "confirm": true
+  }' \
+  http://127.0.0.1:8083/api/v1/system/dac-client/preview | jq .
+```
+
 Replay due queue records manually:
 
 ```bash
@@ -164,7 +247,7 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 ## Packet Processing
 
-The client resolves the target in this order:
+For direct delivery, the client resolves the target in this order:
 
 1. Managed RADIUS client match by target address, NAS-IP-Address, shortname, or
    NAS-Identifier.
@@ -175,6 +258,14 @@ Every sent packet is encoded with the resolved shared secret and a
 Message-Authenticator. ACK, NAK, unexpected response code, nil response, and
 transport error outcomes are persisted. NAK packets preserve `Error-Cause` and
 `Reply-Message` when present.
+
+For proxy delivery, the client resolves the route from explicit `proxy_route`,
+`originating_realm`, `proxy_realm`, the `User-Name` suffix, or the default
+upstream route. It then selects a home server, applies transport policy and proxy
+attribute policy, optionally rewrites `User-Name`, appends bounded `Proxy-State`,
+and sends by UDP or RadSec mTLS. RadSec TLS-PSK active sends remain a release
+certification item for the FreeRADIUS runtime path; the Go control path supports
+X.509 mTLS.
 
 ## Data Model
 
@@ -187,6 +278,15 @@ Schema v48 adds:
 
 - `radius_outbound_dac_queue`
 - `radius_outbound_dac_queue_attempts`
+
+Schema v49 adds proxy routing evidence to all four tables:
+
+- `delivery_mode`
+- `proxy_route`
+- `proxy_realm`
+- `proxy_home_server`
+- `proxy_hop_count`
+- `proxy_state_json`
 
 History stores request identifiers, action, status, target, response code,
 Error-Cause, latency, fingerprints, and correlation. User name, calling station,
@@ -201,7 +301,7 @@ Before a change:
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
-  http://127.0.0.1:8083/api/v1/system/dac-client | jq '.report.status, .report.policy'
+  http://127.0.0.1:8083/api/v1/system/dac-client | jq '.report.status, .report.policy, .report.proxy_routing'
 ```
 
 After a change:
@@ -226,6 +326,8 @@ Automated software coverage includes:
 - ACK, NAK with Error-Cause, and transport error tests
 - durable queue enqueue, duplicate suppression, claim, replay, cancel, manual
   retry, retry backoff, expiry, and poison tests
+- proxy route preview, Proxy-State insertion, loop-marker rejection, UDP proxy
+  ACK history, and RadSec mTLS CoA ACK tests
 - unsupported vendor dynamic action rejection
 - admin API, RBAC, OpenAPI, readiness, and support bundle tests
 - admin UI build coverage
@@ -233,4 +335,5 @@ Automated software coverage includes:
 External device, packet-capture, HA, performance, soak, security, and customer
 acceptance evidence is tracked in
 `nas-0042-release-certification-checklist.md` and
-`nas-0043-release-certification-checklist.md`.
+`nas-0043-release-certification-checklist.md`, and
+`nas-0044-release-certification-checklist.md`.

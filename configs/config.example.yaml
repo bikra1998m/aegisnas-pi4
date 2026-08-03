@@ -345,6 +345,13 @@ radius:
     outbound_ack_retention_seconds: 86400
     outbound_dead_letter_retention_seconds: 2592000
     outbound_idempotency_window_seconds: 3600
+    outbound_proxy_enabled: true
+    outbound_proxy_allow_udp: true
+    outbound_proxy_allow_radsec: true
+    outbound_proxy_max_hops: 8
+    outbound_proxy_loop_marker: aegisnas
+    outbound_proxy_add_loop_marker: true
+    outbound_proxy_reject_loop_marker: true
   dynamic_clients:
     enabled: false
     discovery_enabled: false
@@ -548,11 +555,13 @@ radius:
         transport: udp
         auth_port: 1812
         acct_port: 1813
+        dynamic_auth_port: 3799
         secret: ""
         secret_ref: "env:AEGIS_SECRET_UPSTREAM_PRIMARY"
       # - name: "radsec-aaa"
       #   address: "radsec.example.net"
       #   transport: radsec
+      #   dynamic_auth_port: 3799
       #   radsec:
       #     port: 2083
       #     server_name: "radsec.example.net"
@@ -585,6 +594,7 @@ radius:
         transport: udp
         auth_port: 1812
         acct_port: 1813
+        dynamic_auth_port: 3799
         secret: ""
         secret_ref: "env:AEGIS_SECRET_UPSTREAM_SECONDARY"
     routes:

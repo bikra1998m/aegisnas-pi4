@@ -107,6 +107,9 @@ When `radius.upstream.enabled: true`:
 - portal sessions keep a stable `Acct-Session-Id`
 - the session service sends interim accounting on the configured interval
 - the session service listens on `radius.dynamic_auth.port` for dynamic authorization
+- the admin API can preview/send/queue outbound RFC 5176 CoA and Disconnect
+  directly to managed NAS clients or through `radius.upstream.routes` using UDP
+  or RadSec mTLS home servers
 - the dashboard probes each upstream AAA home server directly with `Status-Server` when that mode is enabled
 - TLS-PSK RadSec peers expose credential and rotation state through `/api/v1/system/radsec-credentials`; active transport proof remains part of the release certification checklist because the local Go probe path is mTLS-only
 - transport policy exposes route-level downgrade risk through `/api/v1/system/transport-policy` and prevents proxy generation when enforce mode would be violated
@@ -863,6 +866,12 @@ From the upstream AAA platform or a RADIUS test tool:
 5. confirm the session record updates locally
 
 The default dynamic authorization listener port is `3799/udp`.
+
+For outbound dynamic authorization through an upstream proxy route, use
+`/api/v1/system/dac-client` and set `delivery_mode: proxy` with
+`proxy_route` or an originating realm. The preview response must show the
+resolved route, home server, transport, proxy policy decision, and bounded
+`Proxy-State` before any confirmed send or queue action.
 
 ### 13. Test Failover
 

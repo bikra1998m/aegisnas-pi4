@@ -100,6 +100,66 @@ ailite:
   enabled: false
 radius:
   secret: secret
+  dynamic_auth:
+    enabled: true
+    port: 3799
+    outbound_enabled: true
+    outbound_default_port: 3799
+    outbound_timeout_seconds: 5
+    outbound_require_known_client: true
+    outbound_history_limit: 10000
+    outbound_max_attributes: 32
+    outbound_allow_coa: true
+    outbound_allow_disconnect: true
+    outbound_require_confirmation: true
+    outbound_queue_enabled: true
+    outbound_replay_enabled: true
+    outbound_max_queue_records: 10000
+    outbound_max_attempts: 6
+    outbound_initial_retry_seconds: 5
+    outbound_max_retry_seconds: 300
+    outbound_record_ttl_seconds: 3600
+    outbound_replay_interval_seconds: 15
+    outbound_batch_size: 50
+    outbound_lock_seconds: 60
+    outbound_ack_retention_seconds: 86400
+    outbound_dead_letter_retention_seconds: 2592000
+    outbound_idempotency_window_seconds: 3600
+    outbound_proxy_enabled: true
+    outbound_proxy_allow_udp: true
+    outbound_proxy_allow_radsec: true
+    outbound_proxy_max_hops: 8
+    outbound_proxy_loop_marker: aegisnas
+    outbound_proxy_add_loop_marker: true
+    outbound_proxy_reject_loop_marker: true
+  upstream:
+    enabled: true
+    realm: corp.example.test
+    pool_strategy: fail-over
+    status_check: status-server
+    transport_policy:
+      enabled: true
+      mode: enforce
+      fail_closed: true
+      default_required_transport: any
+      allow_mixed_transports: false
+    servers:
+      - name: upstream-1
+        address: 203.0.113.20
+        auth_port: 1812
+        acct_port: 1813
+        dynamic_auth_port: 3799
+        secret: upstream-secret
+        transport: udp
+    routes:
+      - name: corp
+        enabled: true
+        realm: corp.example.test
+        match_realms: [corp.example.test]
+        default: true
+        pool_strategy: fail-over
+        status_check: status-server
+        servers: [upstream-1]
   vendor:
     enabled: true
     name: AegisNAS

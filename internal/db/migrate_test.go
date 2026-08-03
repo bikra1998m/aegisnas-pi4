@@ -81,6 +81,40 @@ func TestMigrate(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 1, count, "upstream_aaa_history.%s should exist", column)
 	}
+	for _, binding := range []struct {
+		table  string
+		column string
+	}{
+		{"radius_outbound_dac_requests", "delivery_mode"},
+		{"radius_outbound_dac_requests", "proxy_route"},
+		{"radius_outbound_dac_requests", "proxy_realm"},
+		{"radius_outbound_dac_requests", "proxy_home_server"},
+		{"radius_outbound_dac_requests", "proxy_hop_count"},
+		{"radius_outbound_dac_requests", "proxy_state_json"},
+		{"radius_outbound_dac_attempts", "delivery_mode"},
+		{"radius_outbound_dac_attempts", "proxy_route"},
+		{"radius_outbound_dac_attempts", "proxy_realm"},
+		{"radius_outbound_dac_attempts", "proxy_home_server"},
+		{"radius_outbound_dac_attempts", "proxy_hop_count"},
+		{"radius_outbound_dac_attempts", "proxy_state_json"},
+		{"radius_outbound_dac_queue", "delivery_mode"},
+		{"radius_outbound_dac_queue", "proxy_route"},
+		{"radius_outbound_dac_queue", "proxy_realm"},
+		{"radius_outbound_dac_queue", "proxy_home_server"},
+		{"radius_outbound_dac_queue", "proxy_hop_count"},
+		{"radius_outbound_dac_queue", "proxy_state_json"},
+		{"radius_outbound_dac_queue_attempts", "delivery_mode"},
+		{"radius_outbound_dac_queue_attempts", "proxy_route"},
+		{"radius_outbound_dac_queue_attempts", "proxy_realm"},
+		{"radius_outbound_dac_queue_attempts", "proxy_home_server"},
+		{"radius_outbound_dac_queue_attempts", "proxy_hop_count"},
+		{"radius_outbound_dac_queue_attempts", "proxy_state_json"},
+	} {
+		var columnCount int
+		err = DB.QueryRow("SELECT count(*) FROM pragma_table_info(?) WHERE name=?", binding.table, binding.column).Scan(&columnCount)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, columnCount, "%s.%s should exist", binding.table, binding.column)
+	}
 
 	for _, binding := range []struct {
 		table  string

@@ -26,6 +26,10 @@ func TestOutboundDACClientHandlersPreviewSendAndHistory(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &reportPayload))
 	report := reportPayload["report"].(map[string]any)
 	assert.Equal(t, "ready", report["status"])
+	proxyRouting := report["proxy_routing"].(map[string]any)
+	assert.Equal(t, "ready", proxyRouting["status"])
+	proxySummary := proxyRouting["summary"].(map[string]any)
+	assert.Equal(t, float64(1), proxySummary["route_count"])
 
 	previewBody := bytes.NewBufferString(`{
 		"action":"coa",
@@ -206,6 +210,41 @@ radius:
     outbound_ack_retention_seconds: 86400
     outbound_dead_letter_retention_seconds: 2592000
     outbound_idempotency_window_seconds: 3600
+    outbound_proxy_enabled: true
+    outbound_proxy_allow_udp: true
+    outbound_proxy_allow_radsec: true
+    outbound_proxy_max_hops: 8
+    outbound_proxy_loop_marker: aegisnas
+    outbound_proxy_add_loop_marker: true
+    outbound_proxy_reject_loop_marker: true
+  upstream:
+    enabled: true
+    realm: corp.example.test
+    pool_strategy: fail-over
+    status_check: status-server
+    transport_policy:
+      enabled: true
+      mode: enforce
+      fail_closed: true
+      default_required_transport: any
+      allow_mixed_transports: false
+    servers:
+      - name: upstream-1
+        address: 203.0.113.20
+        auth_port: 1812
+        acct_port: 1813
+        dynamic_auth_port: 3799
+        secret: upstream-secret
+        transport: udp
+    routes:
+      - name: corp
+        enabled: true
+        realm: corp.example.test
+        match_realms: [corp.example.test]
+        default: true
+        pool_strategy: fail-over
+        status_check: status-server
+        servers: [upstream-1]
   clients:
     - ip: 192.0.2.10
       secret: shared-secret
