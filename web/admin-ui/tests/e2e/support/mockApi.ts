@@ -798,7 +798,19 @@ function createSettings() {
       nas_identifier: "aegisnas",
       request_timeout_seconds: 5,
       interim_update_seconds: 300,
-      dynamic_auth: { enabled: true, port: 3799 },
+      dynamic_auth: {
+        enabled: true,
+        port: 3799,
+        outbound_enabled: true,
+        outbound_default_port: 3799,
+        outbound_timeout_seconds: 5,
+        outbound_require_known_client: true,
+        outbound_history_limit: 10000,
+        outbound_max_attributes: 32,
+        outbound_allow_coa: true,
+        outbound_allow_disconnect: true,
+        outbound_require_confirmation: true,
+      },
       accounting_ingest_spool: {
         enabled: true,
         replay_enabled: true,
@@ -1168,7 +1180,55 @@ function createSystemStatus() {
           },
         ],
       },
-    },
+      dac_client: {
+        schema_version: 1,
+        status: "ready",
+        message:
+          "Outbound RFC 5176 CoA and Disconnect client is ready for known NAS clients.",
+        policy: {
+          enabled: true,
+          default_port: 3799,
+          timeout_seconds: 5,
+          require_known_client: true,
+          history_limit: 10000,
+          max_attributes: 32,
+          allow_coa: true,
+          allow_disconnect: true,
+          require_confirmation: true,
+          supported_transport: ["udp"],
+          deferred_transport_features: [
+            "NAS-0044 proxy CoA and RadSec reverse CoA routing",
+          ],
+        },
+        summary: {
+          total_requests: 1,
+          ack_count: 1,
+          nak_count: 0,
+          error_count: 0,
+          blocked_count: 0,
+          sent_count: 0,
+          attempt_count: 1,
+          last_completed_at: "2026-05-05T11:59:45Z",
+        },
+        recent: [
+          {
+            request_id: "dac-20260505-1",
+            action: "coa",
+            status: "ack",
+            target_address: "192.0.2.10",
+            target_port: 3799,
+            target_transport: "udp",
+            session_id: "acct-123",
+            correlation_id: "ticket-1",
+            response_code: 44,
+            reply_message: "policy updated",
+            latency_ms: 12,
+            requested_at: "2026-05-05T11:59:45Z",
+            completed_at: "2026-05-05T11:59:45Z",
+          },
+        ],
+        warnings: [],
+      },    },
     wireless: {
       enabled: false,
       interface: "",
@@ -4000,6 +4060,132 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
+    if (path === "/system/dac-client" && method === "GET") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          report: state.systemStatus.radius.dac_client,
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/dac-client/preview" && method === "POST") {
+      await route.fulfill({
+        json: {
+          schema_version: 1,
+          status: "ready",
+          message:
+            "CoA request can be sent to 192.0.2.10:3799 with 3 attribute(s).",
+          action: "coa",
+          request_code: 43,
+          expected_ack_code: 44,
+          expected_nak_code: 45,
+          target: {
+            address: "192.0.2.10",
+            port: 3799,
+            transport: "udp",
+            endpoint: "192.0.2.10:3799",
+            resolved_from: "radius_client",
+            known_client: true,
+            secret_ready: true,
+          },
+          attributes: [
+            {
+              name: "Acct-Session-Id",
+              value: "acct-123",
+              source: "session-selector",
+              selector: true,
+            },
+            {
+              name: "Filter-Id",
+              value: "employee",
+              source: "policy",
+              selector: false,
+            },
+            {
+              name: "Tunnel-Private-Group-Id",
+              value: "20",
+              source: "policy",
+              selector: false,
+            },
+          ],
+          attribute_count: 3,
+          max_attributes: 32,
+          requires_confirm: true,
+          message_authenticator: true,
+          request_fingerprint:
+            "e87f331ef4eeb5cb6ea572969893f4fc1e2ade85f918cc0f3eefdb9d2ed7f6fb",
+          warnings: ["send requires confirm=true"],
+          blockers: [],
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/dac-client/send" && method === "POST") {
+      await route.fulfill({
+        json: {
+          status: "ack",
+          message: "CoA acknowledged by NAS",
+          preview: {
+            status: "ready",
+            message:
+              "CoA request can be sent to 192.0.2.10:3799 with 3 attribute(s).",
+            action: "coa",
+            request_code: 43,
+            expected_ack_code: 44,
+            expected_nak_code: 45,
+            target: {
+              endpoint: "192.0.2.10:3799",
+              known_client: true,
+              secret_ready: true,
+              resolved_from: "radius_client",
+            },
+            attributes: [],
+            attribute_count: 3,
+            max_attributes: 32,
+            requires_confirm: true,
+            message_authenticator: true,
+            request_fingerprint:
+              "e87f331ef4eeb5cb6ea572969893f4fc1e2ade85f918cc0f3eefdb9d2ed7f6fb",
+          },
+          request: state.systemStatus.radius.dac_client.recent[0],
+          attempts: [
+            {
+              request_id: "dac-20260505-1",
+              attempt: 1,
+              status: "ack",
+              target_address: "192.0.2.10",
+              target_port: 3799,
+              target_transport: "udp",
+              request_code: 43,
+              response_code: 44,
+              latency_ms: 12,
+              packet_identifier: 7,
+              request_fingerprint:
+                "e87f331ef4eeb5cb6ea572969893f4fc1e2ade85f918cc0f3eefdb9d2ed7f6fb",
+              response_fingerprint:
+                "919d112ab1b73fd26c115f4884419a2ec31e41c7306a105730f36a7f4413c992",
+              created_at: "2026-05-05T11:59:45Z",
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/dac-client/history" && method === "GET") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          summary: state.systemStatus.radius.dac_client.summary,
+          records: state.systemStatus.radius.dac_client.recent,
+          attempts: [],
+        },
+      });
+      return;
+    }
     if (path === "/system/accounting-ingest-spool" && method === "GET") {
       await route.fulfill({
         json: {

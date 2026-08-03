@@ -38,6 +38,7 @@ jobs:
       - run: make test-radius-accounting-ip
       - run: make test-radius-accounting-services
       - run: make test-radius-accounting-charging
+      - run: make test-radius-outbound-dac-client
       - run: make test-radius-fallback-policy
       - run: make test-active-directory
       - run: make test-identity-failover

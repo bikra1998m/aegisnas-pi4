@@ -146,6 +146,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	packetHardening := radius.BuildPacketHardeningReport(cfg)
 	dynamicNASClients := radius.BuildDynamicNASClientReport(cfg)
 	radSecCredentials := radius.BuildRadSecCredentialReport(cfg)
+	outboundDAC := radius.BuildOutboundDACReport(cfg)
 	proxyRoutes := radius.BuildProxyRoutingReport(cfg)
 	transportPolicy := radius.BuildTransportPolicyReport(cfg)
 	proxyPolicy := radius.BuildProxyPolicyReport(cfg)
@@ -214,6 +215,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broker_auth":                runtimeMap["radius_broker_auth"],
 		"broker_accounting":          runtimeMap["radius_broker_accounting"],
 		"dynamic_authorization":      cfg.Radius.DynamicAuth,
+		"dac_client":                 outboundDAC,
 		"dynamic_nas_clients":        dynamicNASClients,
 		"radsec_credentials":         radSecCredentials,
 		"packet_hardening":           packetHardening,

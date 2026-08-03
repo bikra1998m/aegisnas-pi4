@@ -149,6 +149,12 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/radsec-credentials"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/dac-client/preview"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/dac-client/send"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/dac-client"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/eap-framework/sim-aka/evaluate"):
 		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
 	case strings.HasPrefix(path, "/api/v1/system/eap-framework/machine-user/evaluate"):

@@ -301,6 +301,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/accounting-counters.json", requestPath: "/api/v1/system/accounting-counters", label: "64-bit accounting counters and gigawords", handler: HandleGetAccountingCounters},
 		{archivePath: "api/accounting-ip.json", requestPath: "/api/v1/system/accounting-ip", label: "IPv6 prefix and route accounting", handler: HandleGetAccountingIP},
 		{archivePath: "api/accounting-services.json", requestPath: "/api/v1/system/accounting-services", label: "Multi-service accounting correlation", handler: HandleGetAccountingServices},
+		{archivePath: "api/dac-client.json", requestPath: "/api/v1/system/dac-client", label: "Outbound dynamic authorization client", handler: HandleGetOutboundDACClient},
+		{archivePath: "api/dac-client-history.json", requestPath: "/api/v1/system/dac-client/history", label: "Outbound dynamic authorization history", handler: HandleListOutboundDACHistory},
 		{archivePath: "api/policy-engine.json", requestPath: "/api/v1/system/policy-engine", label: "Typed policy expression engine", handler: HandleGetPolicyEngine},
 		{archivePath: "api/policy-sets.json", requestPath: "/api/v1/system/policy-sets", label: "Versioned policy set governance", handler: HandleGetPolicySets},
 		{archivePath: "api/policy-simulation-analyses.json", requestPath: "/api/v1/system/policy-sets/analyses", label: "Policy simulation analyses", handler: HandleListPolicySimulationAnalyses},

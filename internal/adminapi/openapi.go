@@ -1166,6 +1166,27 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/radsec-credentials", "get", securedOperation("Read RadSec credential and rotation state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("RadSec mTLS and TLS-PSK credential state, rotation windows, redacted secret references, warnings, and blockers."),
 	}))
+	addOperation(paths, "/api/v1/system/dac-client", "get", securedOperation("Read outbound dynamic authorization client", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Outbound RFC 5176 CoA and Disconnect client policy, runtime status, history summary, and recent requests."),
+	}))
+	addOperation(paths, "/api/v1/system/dac-client/preview", "post", securedOperationWithBody("Preview outbound CoA or Disconnect", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Outbound DAC action, target, selectors, and vendor-neutral attributes to validate without sending."), map[string]any{
+		"200":     responseJSON("Resolved target, packet codes, attribute plan, blockers, warnings, and request fingerprint."),
+		"default": responseText("Preview validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/dac-client/send", "post", securedOperationWithBody("Send outbound CoA or Disconnect", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Confirmed outbound DAC action, target, selectors, and vendor-neutral attributes."), map[string]any{
+		"200":     responseJSON("Durable outbound DAC request, attempt outcome, ACK/NAK/Error-Cause detail, and runtime status."),
+		"default": responseText("Send validation or packet error."),
+	}))
+	addOperation(paths, "/api/v1/system/dac-client/history", "get", securedOperationWithParameters("List outbound DAC history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryEnumParameter("status", "Optional outbound DAC request status.", []string{"previewed", "sent", "ack", "nak", "error", "blocked"}, false),
+		queryEnumParameter("action", "Optional outbound DAC action.", []string{"coa", "disconnect"}, false),
+		queryStringParameter("target_address", "Optional exact NAS target address filter.", false),
+		queryStringParameter("session_id", "Optional accounting or local session identifier filter.", false),
+		queryStringParameter("request_id", "Optional request ID for attempt history.", false),
+		queryStringParameter("limit", "Record or attempt limit from 1 to 1000.", false),
+	}, map[string]any{
+		"200": responseJSON("Outbound DAC summary, request history, and attempt history."),
+	}))
 	addOperation(paths, "/api/v1/system/nas-clients", "get", securedOperation("Read dynamic NAS client lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Dynamic NAS enrollment policy, approval queue, capability templates, inventory summary, and recent lifecycle events."),
 	}))

@@ -170,7 +170,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{43, schemaV43},
 		{44, schemaV44},
 		{45, schemaV45},
-		{LatestSchemaVersion(), schemaV46},
+		{46, schemaV46},
+		{LatestSchemaVersion(), schemaV47},
 	}
 
 	for _, m := range migrations {
@@ -278,8 +279,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureAccountingChargingSchema(handle); err != nil {
 		return fmt.Errorf("repair accounting charging schema: %w", err)
 	}
+	if err := ensureOutboundDACTables(handle); err != nil {
+		return fmt.Errorf("repair outbound dynamic authorization schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureOutboundDACTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(outboundDACSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureAccountingChargingSchema(handle *sql.DB) error {

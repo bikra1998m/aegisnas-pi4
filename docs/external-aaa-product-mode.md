@@ -237,6 +237,15 @@ radius:
   dynamic_auth:
     enabled: true
     port: 3799
+    outbound_enabled: true
+    outbound_default_port: 3799
+    outbound_timeout_seconds: 5
+    outbound_require_known_client: true
+    outbound_history_limit: 10000
+    outbound_max_attributes: 32
+    outbound_allow_coa: true
+    outbound_allow_disconnect: true
+    outbound_require_confirmation: true
   vendor:
     enabled: true
     name: "AegisNAS"

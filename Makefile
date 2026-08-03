@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-transport-policy test-radius-proxy-policy test-radius-accounting-spool test-radius-accounting-ingest-spool test-radius-sql-accounting test-radius-accounting-ordering test-radius-accounting-counters test-radius-accounting-ip test-radius-accounting-services test-radius-accounting-charging test-radius-fallback-policy test-active-directory test-identity-failover test-mfa test-admin-webauthn test-eap-framework test-eap-teap test-eap-machine-user test-eap-fast-pwd test-eap-sim-aka test-certificate-lifecycle test-supplicant-lifecycle test-typed-policy-engine test-policy-set-governance test-policy-simulation-analysis test-subscriber-service-chains test-tacacs test-tenant-isolation test-mab test-dynamic-nas-clients test-radsec-credentials install-radius-dictionary scan-radius-dictionaries
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-transport-policy test-radius-proxy-policy test-radius-accounting-spool test-radius-accounting-ingest-spool test-radius-sql-accounting test-radius-accounting-ordering test-radius-accounting-counters test-radius-accounting-ip test-radius-accounting-services test-radius-accounting-charging test-radius-outbound-dac-client test-radius-fallback-policy test-active-directory test-identity-failover test-mfa test-admin-webauthn test-eap-framework test-eap-teap test-eap-machine-user test-eap-fast-pwd test-eap-sim-aka test-certificate-lifecycle test-supplicant-lifecycle test-typed-policy-engine test-policy-set-governance test-policy-simulation-analysis test-subscriber-service-chains test-tacacs test-tenant-isolation test-mab test-dynamic-nas-clients test-radsec-credentials install-radius-dictionary scan-radius-dictionaries
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -120,6 +120,13 @@ test-radius-accounting-charging:
 	go test -p=1 -timeout=600s ./internal/db -run 'AccountingCharging|AccountingEvent|FreeRADIUSAccounting|TestMigrate' -count=1
 	go test -p=1 -timeout=600s ./internal/radius -run 'AccountingCharging|AccountingServices|AccountingCounters|AccountingOrdering|ProcessAccountingMirrorsRadAcct' -count=1
 	go test -p=1 -timeout=600s ./internal/adminapi -run 'AccountingCharging|OpenAPIAndSupportBundleIncludeSQLAccounting|AuthorizeSQLAccounting|ProductionReadinessIncludesSQLAccounting|SupportBundle' -count=1
+
+test-radius-outbound-dac-client:
+	go test -p=1 -timeout=600s ./internal/config -run 'DynamicAuth|ConfigLoad' -count=1
+	go test -p=1 -timeout=600s ./internal/db -run 'OutboundDAC|TestMigrate' -count=1
+	go test -p=1 -timeout=600s ./internal/radius -run 'OutboundDAC' -count=1
+	go test -p=1 -timeout=600s ./internal/adminapi -run 'OutboundDACClient|TestHandleGetOpenAPI|TestAuthorizeRequestByRole|TestHandleDownloadSupportBundle|TestHandleGetSupportBundleSummary|TestHandleGetProductionReadinessReportsVendorBlockers' -count=1
+	cd web/admin-ui && npm run build
 
 test-radius-fallback-policy:
 	go test ./internal/config ./internal/db ./internal/radius ./internal/adminapi -run 'FallbackPolicy|RadiusFallback|Migrate|OpenAPI|Authorize|ProductionReadiness|SupportBundle' -count=1

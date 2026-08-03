@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 46
+	return 47
 }
 
 func Migrate() error {
@@ -2465,3 +2465,77 @@ CREATE INDEX IF NOT EXISTS idx_radius_accounting_charging_export_records_export 
 `
 
 const schemaV46 = accountingChargingSQL
+
+const outboundDACSQL = `
+CREATE TABLE IF NOT EXISTS radius_outbound_dac_requests (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	request_id TEXT UNIQUE NOT NULL,
+	action TEXT NOT NULL,
+	status TEXT NOT NULL,
+	target_address TEXT NOT NULL,
+	target_port INTEGER NOT NULL,
+	target_transport TEXT NOT NULL DEFAULT 'udp',
+	nas_identifier TEXT,
+	nas_ip_address TEXT,
+	nas_type TEXT,
+	shortname TEXT,
+	session_id TEXT,
+	username_hash TEXT,
+	calling_station_hash TEXT,
+	framed_ip_address TEXT,
+	attributes_json TEXT NOT NULL DEFAULT '[]',
+	request_code INTEGER NOT NULL,
+	response_code INTEGER,
+	error_cause INTEGER,
+	error_cause_name TEXT,
+	reply_message TEXT,
+	correlation_id TEXT NOT NULL,
+	requested_by TEXT,
+	requested_at DATETIME NOT NULL,
+	sent_at DATETIME,
+	completed_at DATETIME,
+	latency_ms INTEGER NOT NULL DEFAULT 0,
+	failure_reason TEXT,
+	message_authenticator BOOLEAN NOT NULL DEFAULT 1,
+	request_fingerprint TEXT NOT NULL,
+	response_fingerprint TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (action IN ('coa', 'disconnect')),
+	CHECK (status IN ('previewed', 'sent', 'ack', 'nak', 'error', 'blocked')),
+	CHECK (target_transport IN ('udp', 'radsec'))
+);
+
+CREATE TABLE IF NOT EXISTS radius_outbound_dac_attempts (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	request_id TEXT NOT NULL,
+	attempt INTEGER NOT NULL,
+	status TEXT NOT NULL,
+	target_address TEXT NOT NULL,
+	target_port INTEGER NOT NULL,
+	target_transport TEXT NOT NULL DEFAULT 'udp',
+	request_code INTEGER NOT NULL,
+	response_code INTEGER,
+	error_cause INTEGER,
+	error_cause_name TEXT,
+	reply_message TEXT,
+	latency_ms INTEGER NOT NULL DEFAULT 0,
+	packet_identifier INTEGER NOT NULL DEFAULT 0,
+	request_fingerprint TEXT NOT NULL,
+	response_fingerprint TEXT,
+	error_message TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(request_id) REFERENCES radius_outbound_dac_requests(request_id),
+	CHECK (status IN ('sent', 'ack', 'nak', 'error', 'blocked')),
+	CHECK (target_transport IN ('udp', 'radsec'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_requests_status ON radius_outbound_dac_requests(status, requested_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_requests_target ON radius_outbound_dac_requests(target_address, target_port, requested_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_requests_session ON radius_outbound_dac_requests(session_id, requested_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_requests_correlation ON radius_outbound_dac_requests(correlation_id);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_attempts_request ON radius_outbound_dac_attempts(request_id, attempt);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_attempts_status ON radius_outbound_dac_attempts(status, created_at);
+`
+
+const schemaV47 = outboundDACSQL

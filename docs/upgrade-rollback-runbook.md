@@ -210,3 +210,18 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 If the upgraded appliance imports old FreeRADIUS `radacct` data, run a bounded
 charging reconcile before exporting billing data. Roll back the application and
 database together if an older runtime does not understand schema v46.
+
+## Outbound DAC Client Upgrade
+
+Schema v47 adds `radius_outbound_dac_requests` and
+`radius_outbound_dac_attempts`. After upgrade, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/dac-client | jq '.report.status, .report.summary'
+```
+
+Keep `radius.dynamic_auth.outbound_require_known_client` and
+`radius.dynamic_auth.outbound_require_confirmation` enabled during upgrade.
+Roll back the application and database together if an older runtime does not
+understand schema v47.

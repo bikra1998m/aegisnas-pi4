@@ -703,8 +703,17 @@ type RadiusVendorAttribute struct {
 }
 
 type DynamicAuthConfig struct {
-	Enabled bool `mapstructure:"enabled"`
-	Port    int  `mapstructure:"port"`
+	Enabled                     bool `mapstructure:"enabled"`
+	Port                        int  `mapstructure:"port"`
+	OutboundEnabled             bool `mapstructure:"outbound_enabled"`
+	OutboundDefaultPort         int  `mapstructure:"outbound_default_port"`
+	OutboundTimeoutSeconds      int  `mapstructure:"outbound_timeout_seconds"`
+	OutboundRequireKnownClient  bool `mapstructure:"outbound_require_known_client"`
+	OutboundHistoryLimit        int  `mapstructure:"outbound_history_limit"`
+	OutboundMaxAttributes       int  `mapstructure:"outbound_max_attributes"`
+	OutboundAllowCoA            bool `mapstructure:"outbound_allow_coa"`
+	OutboundAllowDisconnect     bool `mapstructure:"outbound_allow_disconnect"`
+	OutboundRequireConfirmation bool `mapstructure:"outbound_require_confirmation"`
 }
 
 type RadiusEAPConfig struct {
@@ -1820,6 +1829,15 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.interim_update_seconds", 300)
 	v.SetDefault("radius.dynamic_auth.enabled", true)
 	v.SetDefault("radius.dynamic_auth.port", 3799)
+	v.SetDefault("radius.dynamic_auth.outbound_enabled", true)
+	v.SetDefault("radius.dynamic_auth.outbound_default_port", 3799)
+	v.SetDefault("radius.dynamic_auth.outbound_timeout_seconds", 5)
+	v.SetDefault("radius.dynamic_auth.outbound_require_known_client", true)
+	v.SetDefault("radius.dynamic_auth.outbound_history_limit", 10000)
+	v.SetDefault("radius.dynamic_auth.outbound_max_attributes", 32)
+	v.SetDefault("radius.dynamic_auth.outbound_allow_coa", true)
+	v.SetDefault("radius.dynamic_auth.outbound_allow_disconnect", true)
+	v.SetDefault("radius.dynamic_auth.outbound_require_confirmation", true)
 	v.SetDefault("radius.dynamic_clients.enabled", false)
 	v.SetDefault("radius.dynamic_clients.discovery_enabled", false)
 	v.SetDefault("radius.dynamic_clients.approval_required", true)
@@ -4277,8 +4295,8 @@ func (c *Config) Validate() error {
 	if err := validateRadiusAccountingCharging(c.Radius.AccountingCharging); err != nil {
 		return err
 	}
-	if c.Radius.DynamicAuth.Enabled && (c.Radius.DynamicAuth.Port < 1 || c.Radius.DynamicAuth.Port > 65535) {
-		return fmt.Errorf("radius.dynamic_auth.port %d out of range", c.Radius.DynamicAuth.Port)
+	if err := validateRadiusDynamicAuth(c.Radius.DynamicAuth); err != nil {
+		return err
 	}
 	if err := validateRadiusDynamicClients(c.Radius.DynamicClients); err != nil {
 		return err
@@ -6632,6 +6650,56 @@ func validateRadiusAccountingCharging(raw RadiusAccountingChargingConfig) error 
 	}
 	if effective.IntegritySampleLimit < 1 || effective.IntegritySampleLimit > 100000 {
 		return fmt.Errorf("radius.accounting_charging.integrity_sample_limit must be between 1 and 100000")
+	}
+	return nil
+}
+
+func EffectiveDynamicAuthConfig(raw DynamicAuthConfig) DynamicAuthConfig {
+	effective := raw
+	if effective.Port == 0 {
+		effective.Port = 3799
+	}
+	if effective.OutboundDefaultPort == 0 {
+		effective.OutboundDefaultPort = 3799
+	}
+	if effective.OutboundTimeoutSeconds == 0 {
+		effective.OutboundTimeoutSeconds = 5
+	}
+	if effective.OutboundHistoryLimit == 0 {
+		effective.OutboundHistoryLimit = 10000
+	}
+	if effective.OutboundMaxAttributes == 0 {
+		effective.OutboundMaxAttributes = 32
+	}
+	if !raw.OutboundAllowCoA && !raw.OutboundAllowDisconnect && !raw.OutboundEnabled {
+		effective.OutboundAllowCoA = true
+		effective.OutboundAllowDisconnect = true
+	}
+	return effective
+}
+
+func validateRadiusDynamicAuth(raw DynamicAuthConfig) error {
+	effective := EffectiveDynamicAuthConfig(raw)
+	if effective.Enabled && (effective.Port < 1 || effective.Port > 65535) {
+		return fmt.Errorf("radius.dynamic_auth.port %d out of range", effective.Port)
+	}
+	if !effective.OutboundEnabled {
+		return nil
+	}
+	if effective.OutboundDefaultPort < 1 || effective.OutboundDefaultPort > 65535 {
+		return fmt.Errorf("radius.dynamic_auth.outbound_default_port %d out of range", effective.OutboundDefaultPort)
+	}
+	if effective.OutboundTimeoutSeconds < 1 || effective.OutboundTimeoutSeconds > 60 {
+		return fmt.Errorf("radius.dynamic_auth.outbound_timeout_seconds must be between 1 and 60")
+	}
+	if effective.OutboundHistoryLimit < 1 || effective.OutboundHistoryLimit > 1000000 {
+		return fmt.Errorf("radius.dynamic_auth.outbound_history_limit must be between 1 and 1000000")
+	}
+	if effective.OutboundMaxAttributes < 1 || effective.OutboundMaxAttributes > 64 {
+		return fmt.Errorf("radius.dynamic_auth.outbound_max_attributes must be between 1 and 64")
+	}
+	if !effective.OutboundAllowCoA && !effective.OutboundAllowDisconnect {
+		return fmt.Errorf("radius.dynamic_auth outbound must allow coa, disconnect, or both")
 	}
 	return nil
 }

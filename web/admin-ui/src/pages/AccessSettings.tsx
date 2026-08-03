@@ -497,6 +497,82 @@ type AccountingServicesReport = {
   warnings?: string[];
 };
 
+type OutboundDACRequestRecord = {
+  request_id: string;
+  action: string;
+  status: string;
+  target_address: string;
+  target_port: number;
+  target_transport: string;
+  session_id?: string;
+  correlation_id?: string;
+  response_code?: number;
+  error_cause_name?: string;
+  reply_message?: string;
+  latency_ms?: number;
+  failure_reason?: string;
+  requested_at?: string;
+  completed_at?: string;
+};
+
+type OutboundDACReport = {
+  schema_version: number;
+  status: string;
+  message: string;
+  policy: {
+    enabled: boolean;
+    default_port: number;
+    timeout_seconds: number;
+    require_known_client: boolean;
+    history_limit: number;
+    max_attributes: number;
+    allow_coa: boolean;
+    allow_disconnect: boolean;
+    require_confirmation: boolean;
+    supported_transport?: string[];
+    deferred_transport_features?: string[];
+  };
+  summary: {
+    total_requests: number;
+    ack_count: number;
+    nak_count: number;
+    error_count: number;
+    blocked_count: number;
+    sent_count: number;
+    attempt_count: number;
+    last_failure_reason?: string;
+  };
+  recent?: OutboundDACRequestRecord[];
+  warnings?: string[];
+};
+
+type OutboundDACPreview = {
+  status: string;
+  message: string;
+  action: string;
+  request_code: number;
+  expected_ack_code: number;
+  expected_nak_code: number;
+  target: {
+    endpoint: string;
+    known_client: boolean;
+    secret_ready: boolean;
+    resolved_from: string;
+  };
+  attributes: Array<{
+    name: string;
+    value: string;
+    source: string;
+    selector: boolean;
+  }>;
+  attribute_count: number;
+  max_attributes: number;
+  requires_confirm: boolean;
+  message_authenticator: boolean;
+  request_fingerprint: string;
+  warnings?: string[];
+  blockers?: string[];
+};
 type TenantIsolationReport = {
   schema_version: number;
   status: string;
@@ -1137,7 +1213,19 @@ const defaultSettings: JsonMap = {
     nas_identifier: "aegisnas",
     request_timeout_seconds: 5,
     interim_update_seconds: 300,
-    dynamic_auth: { enabled: true, port: 3799 },
+    dynamic_auth: {
+      enabled: true,
+      port: 3799,
+      outbound_enabled: true,
+      outbound_default_port: 3799,
+      outbound_timeout_seconds: 5,
+      outbound_require_known_client: true,
+      outbound_history_limit: 10000,
+      outbound_max_attributes: 32,
+      outbound_allow_coa: true,
+      outbound_allow_disconnect: true,
+      outbound_require_confirmation: true,
+    },
     dynamic_clients: {
       enabled: false,
       discovery_enabled: false,
@@ -2462,6 +2550,22 @@ function formatMicros(value: number | undefined, currency = "USD") {
   return `${currency} ${amount.toFixed(6)}`;
 }
 
+function statusTone(status?: string) {
+  switch ((status || "").toLowerCase()) {
+    case "ready":
+    case "ok":
+    case "ack":
+    case "passed":
+      return "border-emerald-200 bg-emerald-50 text-emerald-800";
+    case "blocked":
+    case "error":
+      return "border-red-200 bg-red-50 text-red-800";
+    case "disabled":
+      return "border-gray-200 bg-gray-50 text-gray-700";
+    default:
+      return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+}
 function mapToLines(value: any) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return "";
@@ -2617,6 +2721,27 @@ export default function AccessSettings() {
     useState<AccountingIPReport | null>(null);
   const [accountingServicesReport, setAccountingServicesReport] =
     useState<AccountingServicesReport | null>(null);
+  const [outboundDACReport, setOutboundDACReport] =
+    useState<OutboundDACReport | null>(null);
+  const [outboundDACPreview, setOutboundDACPreview] =
+    useState<OutboundDACPreview | null>(null);
+  const [outboundDACHistory, setOutboundDACHistory] = useState<
+    OutboundDACRequestRecord[]
+  >([]);
+  const [outboundDACDraft, setOutboundDACDraft] = useState<JsonMap>({
+    action: "coa",
+    target_address: "192.0.2.10",
+    acct_session_id: "acct-123",
+    user_name: "",
+    calling_station_id: "",
+    framed_ip_address: "",
+    filter_id: "employee",
+    vlan: 20,
+    session_timeout: 0,
+    idle_timeout: 0,
+    correlation_id: "",
+    confirm: false,
+  });
   const [tenantIsolationReport, setTenantIsolationReport] =
     useState<TenantIsolationReport | null>(null);
   const [reconcilingSQLAccounting, setReconcilingSQLAccounting] =
@@ -2627,6 +2752,8 @@ export default function AccessSettings() {
     useState(false);
   const [exportingAccountingCharging, setExportingAccountingCharging] =
     useState(false);
+  const [previewingOutboundDAC, setPreviewingOutboundDAC] = useState(false);
+  const [sendingOutboundDAC, setSendingOutboundDAC] = useState(false);
   const [replayingAccountingOrdering, setReplayingAccountingOrdering] =
     useState(false);
   const [confirmingNetworkRecovery, setConfirmingNetworkRecovery] =
@@ -2896,6 +3023,22 @@ export default function AccessSettings() {
     }
   };
 
+  const loadOutboundDACReport = async () => {
+    try {
+      const [clientRes, historyRes] = await Promise.all([
+        api.get("/system/dac-client"),
+        api.get("/system/dac-client/history", { params: { limit: 8 } }),
+      ]);
+      setOutboundDACReport(clientRes.data?.report || null);
+      setOutboundDACHistory(historyRes.data?.records || []);
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not load outbound dynamic authorization state.",
+      );
+    }
+  };
   const loadTenantIsolationReport = async () => {
     try {
       const { data } = await api.get("/system/tenant-isolation", {
@@ -2935,6 +3078,7 @@ export default function AccessSettings() {
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
       await loadAccountingServicesReport();
+      await loadOutboundDACReport();
       await loadTenantIsolationReport();
     } catch (err: any) {
       setError(
@@ -3021,6 +3165,7 @@ export default function AccessSettings() {
       await loadAccountingCountersReport();
       await loadAccountingIPReport();
       await loadAccountingServicesReport();
+      await loadOutboundDACReport();
       await loadTenantIsolationReport();
     } catch (err: any) {
       setError(err.response?.data || err.message || "Could not save settings.");
@@ -3384,6 +3529,73 @@ export default function AccessSettings() {
     }
   };
 
+  const updateOutboundDACDraft = (field: string, value: any) => {
+    setOutboundDACDraft((current) => ({ ...current, [field]: value }));
+  };
+
+  const outboundDACPayload = () => ({
+    action: outboundDACDraft.action || "coa",
+    target_address: outboundDACDraft.target_address || "",
+    acct_session_id: outboundDACDraft.acct_session_id || "",
+    user_name: outboundDACDraft.user_name || "",
+    calling_station_id: outboundDACDraft.calling_station_id || "",
+    framed_ip_address: outboundDACDraft.framed_ip_address || "",
+    filter_id: outboundDACDraft.filter_id || "",
+    vlan: Number(outboundDACDraft.vlan || 0),
+    session_timeout: Number(outboundDACDraft.session_timeout || 0),
+    idle_timeout: Number(outboundDACDraft.idle_timeout || 0),
+    correlation_id: outboundDACDraft.correlation_id || "",
+    confirm: Boolean(outboundDACDraft.confirm),
+  });
+
+  const previewOutboundDAC = async () => {
+    setPreviewingOutboundDAC(true);
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/dac-client/preview",
+        outboundDACPayload(),
+      );
+      setOutboundDACPreview(data || null);
+      setMessage(
+        data?.message || "Outbound dynamic authorization preview completed.",
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview outbound dynamic authorization.",
+      );
+    } finally {
+      setPreviewingOutboundDAC(false);
+    }
+  };
+
+  const sendOutboundDAC = async () => {
+    setSendingOutboundDAC(true);
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/dac-client/send",
+        outboundDACPayload(),
+      );
+      setOutboundDACPreview(data?.preview || null);
+      setMessage(
+        data?.message || "Outbound dynamic authorization request completed.",
+      );
+      await loadOutboundDACReport();
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not send outbound dynamic authorization.",
+      );
+    } finally {
+      setSendingOutboundDAC(false);
+    }
+  };
   const applyRadiusConfig = async () => {
     setApplyingRadius(true);
     setError("");
@@ -3459,6 +3671,9 @@ export default function AccessSettings() {
         : "border-amber-200 bg-amber-50 text-amber-800";
   const tacacsSummary = tacacsReport?.summary;
   const tacacsDBSummary = tacacsReport?.db_summary;
+  const outboundDACStatus = outboundDACReport?.status || "unknown";
+  const outboundDACTone = statusTone(outboundDACStatus);
+  const outboundDACPreviewTone = statusTone(outboundDACPreview?.status);
   const tenantIsolationStatus = tenantIsolationReport?.status || "unknown";
   const tenantIsolationTone =
     tenantIsolationStatus === "passed"
@@ -13459,22 +13674,394 @@ export default function AccessSettings() {
             />
           </div>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <ToggleField
-            label="Dynamic Authorization"
-            checked={Boolean(settings.radius?.dynamic_auth?.enabled)}
-            onChange={(value) =>
-              updateField(["radius", "dynamic_auth", "enabled"], value)
-            }
-          />
-          <TextField
-            label="Dynamic Authorization Port"
-            type="number"
-            value={settings.radius?.dynamic_auth?.port || 3799}
-            onChange={(value) =>
-              updateField(["radius", "dynamic_auth", "port"], Number(value))
-            }
-          />
+        <div className="mt-4 border-t border-gray-200 pt-5">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Dynamic Authorization
+              </h4>
+              <p className="mt-1 text-xs text-gray-500">
+                Send confirmed RFC 5176 CoA and Disconnect requests to known
+                access devices.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadOutboundDACReport}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+            >
+              Refresh DAC
+            </button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Inbound DAC Listener"
+              checked={Boolean(settings.radius?.dynamic_auth?.enabled)}
+              onChange={(value) =>
+                updateField(["radius", "dynamic_auth", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="Outbound DAC Client"
+              checked={settings.radius?.dynamic_auth?.outbound_enabled !== false}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Known NAS"
+              checked={
+                settings.radius?.dynamic_auth?.outbound_require_known_client !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "dynamic_auth",
+                    "outbound_require_known_client",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Require Confirm"
+              checked={
+                settings.radius?.dynamic_auth?.outbound_require_confirmation !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "radius",
+                    "dynamic_auth",
+                    "outbound_require_confirmation",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Allow CoA"
+              checked={settings.radius?.dynamic_auth?.outbound_allow_coa !== false}
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_allow_coa"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Allow Disconnect"
+              checked={
+                settings.radius?.dynamic_auth?.outbound_allow_disconnect !==
+                false
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_allow_disconnect"],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Inbound DAC Port"
+              type="number"
+              value={settings.radius?.dynamic_auth?.port || 3799}
+              onChange={(value) =>
+                updateField(["radius", "dynamic_auth", "port"], Number(value))
+              }
+            />
+            <TextField
+              label="Outbound DAC Port"
+              type="number"
+              value={
+                settings.radius?.dynamic_auth?.outbound_default_port || 3799
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_default_port"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Timeout (s)"
+              type="number"
+              value={
+                settings.radius?.dynamic_auth?.outbound_timeout_seconds || 5
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_timeout_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Max Attributes"
+              type="number"
+              value={
+                settings.radius?.dynamic_auth?.outbound_max_attributes || 32
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_max_attributes"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="History Limit"
+              type="number"
+              value={
+                settings.radius?.dynamic_auth?.outbound_history_limit || 10000
+              }
+              onChange={(value) =>
+                updateField(
+                  ["radius", "dynamic_auth", "outbound_history_limit"],
+                  Number(value),
+                )
+              }
+            />
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+            <div className={`rounded-md border px-3 py-2 ${outboundDACTone}`}>
+              <div className="text-xs font-semibold uppercase">Status</div>
+              <div className="mt-1 text-sm font-semibold">
+                {outboundDACStatus}
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Requests
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {outboundDACReport?.summary?.total_requests || 0} total
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                ACK
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {outboundDACReport?.summary?.ack_count || 0}
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                NAK/Error
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {outboundDACReport?.summary?.nak_count || 0}/
+                {outboundDACReport?.summary?.error_count || 0}
+              </div>
+            </div>
+            <div className="rounded-md border border-gray-200 px-3 py-2">
+              <div className="text-xs font-semibold uppercase text-gray-500">
+                Attempts
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {outboundDACReport?.summary?.attempt_count || 0}
+              </div>
+            </div>
+          </div>
+          {outboundDACReport?.message && (
+            <p className="mt-2 text-xs text-gray-500">
+              {outboundDACReport.message}
+            </p>
+          )}
+          {(outboundDACReport?.warnings || []).length > 0 && (
+            <ul className="mt-2 space-y-1 text-xs text-amber-700">
+              {(outboundDACReport?.warnings || []).map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <SelectField
+              label="Action"
+              value={String(outboundDACDraft.action || "coa")}
+              onChange={(value) => updateOutboundDACDraft("action", value)}
+              options={[
+                { value: "coa", label: "CoA" },
+                { value: "disconnect", label: "Disconnect" },
+              ]}
+            />
+            <TextField
+              label="Target Address"
+              value={String(outboundDACDraft.target_address || "")}
+              placeholder="192.0.2.10"
+              onChange={(value) =>
+                updateOutboundDACDraft("target_address", value)
+              }
+            />
+            <TextField
+              label="Acct Session ID"
+              value={String(outboundDACDraft.acct_session_id || "")}
+              placeholder="acct-123"
+              onChange={(value) =>
+                updateOutboundDACDraft("acct_session_id", value)
+              }
+            />
+            <TextField
+              label="Correlation ID"
+              value={String(outboundDACDraft.correlation_id || "")}
+              placeholder="change-ticket-123"
+              onChange={(value) =>
+                updateOutboundDACDraft("correlation_id", value)
+              }
+            />
+            <TextField
+              label="User Name"
+              value={String(outboundDACDraft.user_name || "")}
+              placeholder="alice@example.test"
+              onChange={(value) => updateOutboundDACDraft("user_name", value)}
+            />
+            <TextField
+              label="Calling Station"
+              value={String(outboundDACDraft.calling_station_id || "")}
+              placeholder="AA-BB-CC-DD-EE-FF"
+              onChange={(value) =>
+                updateOutboundDACDraft("calling_station_id", value)
+              }
+            />
+            <TextField
+              label="Framed IP"
+              value={String(outboundDACDraft.framed_ip_address || "")}
+              placeholder="192.0.2.100"
+              onChange={(value) =>
+                updateOutboundDACDraft("framed_ip_address", value)
+              }
+            />
+            <TextField
+              label="Filter ID"
+              value={String(outboundDACDraft.filter_id || "")}
+              placeholder="employee"
+              onChange={(value) => updateOutboundDACDraft("filter_id", value)}
+            />
+            <TextField
+              label="VLAN"
+              type="number"
+              value={Number(outboundDACDraft.vlan || 0)}
+              onChange={(value) =>
+                updateOutboundDACDraft("vlan", Number(value))
+              }
+            />
+            <TextField
+              label="Session Timeout"
+              type="number"
+              value={Number(outboundDACDraft.session_timeout || 0)}
+              onChange={(value) =>
+                updateOutboundDACDraft("session_timeout", Number(value))
+              }
+            />
+            <TextField
+              label="Idle Timeout"
+              type="number"
+              value={Number(outboundDACDraft.idle_timeout || 0)}
+              onChange={(value) =>
+                updateOutboundDACDraft("idle_timeout", Number(value))
+              }
+            />
+            <ToggleField
+              label="Confirm Send"
+              checked={Boolean(outboundDACDraft.confirm)}
+              onChange={(value) => updateOutboundDACDraft("confirm", value)}
+            />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={previewOutboundDAC}
+              disabled={previewingOutboundDAC}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 disabled:opacity-50"
+            >
+              {previewingOutboundDAC ? "Previewing..." : "Preview DAC"}
+            </button>
+            <button
+              type="button"
+              onClick={sendOutboundDAC}
+              disabled={sendingOutboundDAC}
+              className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {sendingOutboundDAC ? "Sending..." : "Send DAC"}
+            </button>
+          </div>
+          {outboundDACPreview && (
+            <div
+              className={`mt-3 rounded-md border px-3 py-2 text-sm ${outboundDACPreviewTone}`}
+            >
+              <div className="font-semibold">
+                {outboundDACPreview.status} to{" "}
+                {outboundDACPreview.target?.endpoint || "unresolved target"}
+              </div>
+              <div className="mt-1">
+                {outboundDACPreview.attribute_count || 0}/
+                {outboundDACPreview.max_attributes || 0} attribute(s), request{" "}
+                {outboundDACPreview.request_code || 0}, ACK{" "}
+                {outboundDACPreview.expected_ack_code || 0}, NAK{" "}
+                {outboundDACPreview.expected_nak_code || 0}
+              </div>
+              {outboundDACPreview.message && (
+                <div className="mt-1">{outboundDACPreview.message}</div>
+              )}
+              {(outboundDACPreview.blockers || []).length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {(outboundDACPreview.blockers || []).map((blocker) => (
+                    <li key={blocker}>{blocker}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          {outboundDACHistory.length > 0 && (
+            <div className="mt-3 overflow-x-auto rounded-md border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
+                  <tr>
+                    <th className="px-3 py-2">Request</th>
+                    <th className="px-3 py-2">Action</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Target</th>
+                    <th className="px-3 py-2">Outcome</th>
+                    <th className="px-3 py-2">Requested</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {outboundDACHistory.map((item) => (
+                    <tr key={item.request_id}>
+                      <td className="break-all px-3 py-2 font-medium text-gray-900">
+                        {item.request_id}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.action}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.status}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.target_address}:{item.target_port}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.reply_message ||
+                          item.error_cause_name ||
+                          item.failure_reason ||
+                          "pending"}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.requested_at || "unknown"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
           <h4 className="font-semibold text-gray-900">

@@ -72,6 +72,26 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
 
+## Outbound Dynamic Authorization
+
+RFC 5176 CoA and Disconnect client state is exposed through:
+
+```text
+GET  /api/v1/system/dac-client
+POST /api/v1/system/dac-client/preview
+POST /api/v1/system/dac-client/send
+GET  /api/v1/system/dac-client/history
+```
+
+Read-only roles can inspect client policy and history. `ops_admin` and
+`super_admin` can preview and send confirmed requests. History stores target,
+status, Error-Cause, latency, fingerprints, and correlation evidence while
+redacting sensitive selector values. The report is embedded in
+`/api/v1/system/status` as `radius.dac_client`, included in production
+readiness as `radius_outbound_dac_client`, and captured in support bundles as
+`api/dac-client.json` and `api/dac-client-history.json`. See
+[outbound-dac-client.md](outbound-dac-client.md).
+
 ## TACACS+ Command Authorization
 
 Device-administration TACACS+ state is exposed through:

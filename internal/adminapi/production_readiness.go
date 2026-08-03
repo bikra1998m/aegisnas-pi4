@@ -118,6 +118,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionOpaquePassThroughCheck(&report, cfg)
 	addProductionRadiusPacketHardeningCheck(&report, cfg)
 	addProductionDynamicNASClientsCheck(&report, cfg)
+	addProductionOutboundDACClientCheck(&report, cfg)
 	addProductionProxyRoutingCheck(&report, cfg)
 	addProductionTransportPolicyCheck(&report, cfg)
 	addProductionProxyPolicyCheck(&report, cfg)
@@ -232,6 +233,41 @@ func addProductionDynamicNASClientsCheck(report *productionReadinessReport, cfg 
 			dynamicClients.Summary.DynamicClients, dynamicClients.Summary.CapabilityTemplates),
 		Recommendation: "Keep approval required, use radius.dynamic_clients.enrollment_token_ref, restrict discovery CIDRs, approve only credential-backed clients, and complete the NAS-0013 release certification checklist before production claims.",
 		Dependencies:   []string{"radius.dynamic_clients", "/api/v1/nas/enroll", "/api/v1/system/nas-clients", "nas_client_enrollments", "nas_client_capability_templates", "nas_client_events"},
+	})
+}
+
+func addProductionOutboundDACClientCheck(report *productionReadinessReport, cfg *config.Config) {
+	dac := radius.BuildOutboundDACReport(cfg)
+	status := "passed"
+	switch dac.Status {
+	case "blocked":
+		status = "blocked"
+	case "disabled", "degraded":
+		status = "blocked"
+	}
+	policy := config.EffectiveDynamicAuthConfig(cfg.Radius.DynamicAuth)
+	if !policy.OutboundEnabled || !policy.OutboundRequireKnownClient ||
+		policy.OutboundDefaultPort < 1 || policy.OutboundTimeoutSeconds < 1 ||
+		policy.OutboundHistoryLimit < 1 || policy.OutboundMaxAttributes < 1 ||
+		(!policy.OutboundAllowCoA && !policy.OutboundAllowDisconnect) ||
+		!policy.OutboundRequireConfirmation {
+		status = "blocked"
+	}
+	if dac.Summary.NAKCount > 0 || dac.Summary.ErrorCount > 0 || dac.Summary.BlockedCount > 0 {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_outbound_dac_client",
+		Category: "radius",
+		Label:    "Outbound CoA And Disconnect Client",
+		Status:   status,
+		Summary: fmt.Sprintf("Outbound DAC schema %d is %s with %d request(s), %d ACK, %d NAK, %d error, %d blocked, and %d attempt(s).",
+			dac.SchemaVersion, dac.Status, dac.Summary.TotalRequests, dac.Summary.ACKCount,
+			dac.Summary.NAKCount, dac.Summary.ErrorCount, dac.Summary.BlockedCount, dac.Summary.AttemptCount),
+		Recommendation: "Keep radius.dynamic_auth outbound enabled with known-client gating, confirmation, bounded attributes, and complete the NAS-0042 release certification packet-capture and vendor-device checklist before production claims.",
+		Dependencies:   []string{"radius.dynamic_auth", "/api/v1/system/dac-client", "/api/v1/system/dac-client/preview", "/api/v1/system/dac-client/send", "/api/v1/system/dac-client/history", "radius_outbound_dac_requests", "radius_outbound_dac_attempts", "RFC 5176"},
 	})
 }
 

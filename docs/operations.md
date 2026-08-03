@@ -126,6 +126,34 @@ degrades readiness. Support bundles include
 HA failover, performance, soak, and security validation are tracked in
 `nas-0040-release-certification-checklist.md`.
 
+## Outbound Dynamic Authorization Operations
+
+Use [outbound-dac-client.md](outbound-dac-client.md) for NAS-0042 RFC 5176 CoA
+and Disconnect preview/send behavior, supported vendor-neutral attributes,
+history, and troubleshooting. Before production sign-off, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/dac-client | jq '.report.status, .report.summary'
+```
+
+Preview before sending:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"coa","target_address":"192.0.2.10","acct_session_id":"acct-123","filter_id":"employee"}' \
+  http://127.0.0.1:8083/api/v1/system/dac-client/preview | jq .
+```
+
+Production readiness blocks when outbound DAC is disabled, known-client gating
+or send confirmation is disabled, the history tables are unavailable, no managed
+NAS clients exist, or no shared secret can be resolved. NAK, error, and blocked
+history degrades readiness until investigated. Support bundles include
+`api/dac-client.json` and `api/dac-client-history.json`; external device,
+packet-capture, HA, performance, soak, and security validation are tracked in
+`nas-0042-release-certification-checklist.md`.
+
 ## Accounting Ordering Operations
 
 Use [accounting-idempotency-ordering.md](accounting-idempotency-ordering.md) for
