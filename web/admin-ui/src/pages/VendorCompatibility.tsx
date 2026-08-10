@@ -419,6 +419,27 @@ type ACLVendorExport = {
   pack_key: string;
   pack_label: string;
   export_mode: string;
+  compiler_status?: string;
+  compiler_version?: string;
+  certification_state?: string;
+  external_certification_required?: boolean;
+  artifact_fingerprint?: string;
+  lossless?: boolean;
+  decompile_supported?: boolean;
+  diagnostics?: Array<{
+    severity: string;
+    code: string;
+    path?: string;
+    message: string;
+  }>;
+  limits?: {
+    max_rules: number;
+    max_attributes: number;
+    max_attribute_value_bytes: number;
+    supports_line_rules: boolean;
+    supports_profile: boolean;
+    supports_decompile: boolean;
+  };
   attributes: VendorReplyPreviewAttribute[];
   freeradius: string;
   warnings?: string[];
@@ -595,8 +616,10 @@ function evidenceLabel(state: string) {
 
 function aclExportModeLabel(mode: string) {
   switch (mode) {
+    case 'line_rules':
     case 'rules':
       return 'Line rules';
+    case 'profile_reference':
     case 'profile':
       return 'Profile hint';
     case 'mixed':
@@ -604,6 +627,25 @@ function aclExportModeLabel(mode: string) {
     default:
       return mode || 'ACL intent';
   }
+}
+
+function aclCompilerTone(status?: string): 'green' | 'amber' | 'gray' {
+  switch (status) {
+    case 'compiled':
+    case 'ready':
+      return 'green';
+    case 'profile_reference':
+    case 'degraded':
+    case 'blocked':
+    case 'unsupported':
+      return 'amber';
+    default:
+      return 'gray';
+  }
+}
+
+function aclCompilerLabel(status?: string) {
+  return (status || 'not compiled').replace(/_/g, ' ');
 }
 
 export default function VendorCompatibility() {
@@ -1616,13 +1658,48 @@ export default function VendorCompatibility() {
                         <div key={aclExport.pack_key} className="px-4 py-4">
                           <div className="mb-3 flex flex-wrap items-center gap-2">
                             <span className="text-sm font-semibold text-gray-900">{aclExport.pack_label || aclExport.pack_key}</span>
-                            <StatusBadge tone={aclExport.export_mode === 'rules' ? 'green' : aclExport.export_mode === 'mixed' ? 'amber' : 'gray'}>
+                            <StatusBadge tone={aclExport.export_mode === 'line_rules' || aclExport.export_mode === 'rules' ? 'green' : aclExport.export_mode === 'mixed' ? 'amber' : 'gray'}>
                               {aclExportModeLabel(aclExport.export_mode)}
                             </StatusBadge>
+                            <StatusBadge tone={aclCompilerTone(aclExport.compiler_status)}>
+                              {aclCompilerLabel(aclExport.compiler_status)}
+                            </StatusBadge>
+                            {aclExport.certification_state ? (
+                              <StatusBadge tone={aclExport.certification_state === 'software-certified' ? 'green' : 'amber'}>
+                                {aclExport.certification_state}
+                              </StatusBadge>
+                            ) : null}
+                            {typeof aclExport.lossless === 'boolean' ? (
+                              <StatusBadge tone={aclExport.lossless ? 'green' : 'amber'}>{aclExport.lossless ? 'lossless' : 'non-lossless'}</StatusBadge>
+                            ) : null}
+                          </div>
+                          <div className="mb-3 grid gap-2 text-xs text-gray-600 md:grid-cols-2">
+                            <div>Compiler: {aclExport.compiler_version || 'not recorded'}</div>
+                            <div>Decompile: {aclExport.decompile_supported ? 'supported' : 'not supported'}</div>
+                            {aclExport.artifact_fingerprint ? (
+                              <div className="break-words md:col-span-2">Artifact fingerprint: {aclExport.artifact_fingerprint}</div>
+                            ) : null}
+                            {aclExport.external_certification_required ? (
+                              <div className="md:col-span-2 text-amber-700">External device certification is required before vendor parity claims.</div>
+                            ) : null}
+                            {aclExport.limits ? (
+                              <div className="md:col-span-2">
+                                Limits: {aclExport.limits.max_rules} rules, {aclExport.limits.max_attributes} attributes, {aclExport.limits.max_attribute_value_bytes} bytes per value
+                              </div>
+                            ) : null}
                           </div>
                           {aclExport.warnings && aclExport.warnings.length > 0 ? (
                             <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                               {aclExport.warnings.map((warning) => <div key={warning}>{warning}</div>)}
+                            </div>
+                          ) : null}
+                          {aclExport.diagnostics && aclExport.diagnostics.length > 0 ? (
+                            <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                              {aclExport.diagnostics.map((diagnostic) => (
+                                <div key={`${diagnostic.code}-${diagnostic.path || ''}-${diagnostic.message}`}>
+                                  {diagnostic.code}: {diagnostic.message}
+                                </div>
+                              ))}
                             </div>
                           ) : null}
                           <div className="overflow-x-auto">

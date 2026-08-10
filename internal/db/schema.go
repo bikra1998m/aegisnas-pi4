@@ -177,7 +177,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{50, schemaV50},
 		{51, schemaV51},
 		{52, schemaV52},
-		{LatestSchemaVersion(), schemaV53},
+		{53, schemaV53},
+		{LatestSchemaVersion(), schemaV54},
 	}
 
 	for _, m := range migrations {
@@ -206,6 +207,9 @@ func MigrateHandle(handle *sql.DB) error {
 	}
 	if err := ensureACLPolicyASTColumns(handle); err != nil {
 		return fmt.Errorf("repair ACL policy AST schema: %w", err)
+	}
+	if err := ensureACLCompilerEvidenceTable(handle); err != nil {
+		return fmt.Errorf("repair ACL compiler evidence schema: %w", err)
 	}
 	if err := ensureRadiusClientSecretColumns(handle); err != nil {
 		return fmt.Errorf("repair radius client secret schema: %w", err)
@@ -308,6 +312,14 @@ func MigrateHandle(handle *sql.DB) error {
 	}
 
 	return nil
+}
+
+func ensureACLCompilerEvidenceTable(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(aclCompilerEvidenceSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureACLPolicyASTColumns(handle *sql.DB) error {

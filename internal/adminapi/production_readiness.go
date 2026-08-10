@@ -144,6 +144,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionSIMAKACheck(&report, cfg)
 	addProductionPolicyEngineCheck(&report, cfg)
 	addProductionACLASTCheck(&report)
+	addProductionACLCompilerCheck(&report)
 	addProductionPolicySetGovernanceCheck(&report, cfg)
 	addProductionPolicySimulationAnalysisCheck(&report, cfg)
 	addProductionSubscriberServiceChainsCheck(&report, cfg)
@@ -1224,6 +1225,47 @@ func addProductionACLASTCheck(report *productionReadinessReport) {
 		Summary:        summary,
 		Recommendation: "Use ACL AST as the source of truth for reusable policy intent, keep flat rules as compatibility projections, review diagnostics before vendor export, and complete the NAS-0048 release certification checklist before production parity claims.",
 		Dependencies:   []string{"acl_policies.ast_json", "acl_policies.ast_fingerprint", "/api/v1/system/acl-ast", "/api/v1/system/acl-ast/normalize", "/api/v1/system/vendor-reply-preview", "RFC 2865"},
+	})
+}
+
+func addProductionACLCompilerCheck(report *productionReadinessReport) {
+	capabilities := radius.ACLCompilerCapabilities()
+	capabilitySummary := summarizeACLCompilerCapabilities(capabilities)
+	status := "passed"
+	summary := fmt.Sprintf("ACL compiler schema %d has %d software-certified line compiler(s), %d profile-reference compiler(s), %d decompiler(s), and %d unsupported pack(s).",
+		radius.ACLCompilerSchemaVersion,
+		capabilitySummary["line_rule_compilers"].(int),
+		capabilitySummary["profile_reference"].(int),
+		capabilitySummary["decompile_supported"].(int),
+		capabilitySummary["unsupported"].(int),
+	)
+	if capabilitySummary["software_certified"].(int) == 0 {
+		status = "blocked"
+		summary = "No software-certified ACL line compilers are available."
+	}
+	if db.DB == nil {
+		if status == "passed" {
+			status = "degraded"
+		}
+		summary += " Database is not initialized; compiler evidence history cannot be verified."
+	} else if evidence, err := db.GetACLCompilerEventSummary(); err != nil {
+		status = "blocked"
+		summary += " ACL compiler evidence failed: " + err.Error()
+	} else {
+		if evidence.BlockedCount > 0 || evidence.UnsupportedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d compile/decompile event(s), %d blocked, %d unsupported, %d degraded, and %d artifact(s).",
+			evidence.TotalEvents, evidence.BlockedCount, evidence.UnsupportedCount, evidence.DegradedCount, evidence.ArtifactCount)
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "acl_compilers",
+		Category:       "policy",
+		Label:          "Certified Vendor ACL Compilers And Decompilers",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/acl-compilers/compile and /decompile for vendor ACL evidence, block unsupported packs instead of falling back silently, and complete the NAS-0049 release certification checklist before production parity claims.",
+		Dependencies:   []string{"acl_compiler_events", "/api/v1/system/acl-compilers", "/api/v1/system/acl-compilers/compile", "/api/v1/system/acl-compilers/decompile", "RFC 2865"},
 	})
 }
 

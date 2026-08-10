@@ -22,7 +22,8 @@ Implemented software scope:
   revision snapshots.
 - Admin API normalization and reporting endpoints.
 - Vendor reply preview enrichment with ACL AST, fingerprint, diagnostics,
-  round-trip status, and per-pack lossless state.
+  round-trip status, per-pack lossless state, compiler status, artifact
+  fingerprint, and certified compiler diagnostics.
 - Admin UI ACL policy editor support for raw JSON AST input and table-level
   AST/round-trip status.
 - Production readiness and support bundle evidence.
@@ -30,6 +31,11 @@ Implemented software scope:
 External hardware certification for exact controller grammars is tracked in
 `nas-0048-release-certification-checklist.md` and does not block engineering
 completion.
+
+NAS-0049 adds the certified compiler/decompiler layer that consumes this AST and
+the flat compatibility projection. See [acl-compilers.md](acl-compilers.md) for
+the software-certified line-rule packs, profile-reference packs, fail-closed
+unsupported packs, evidence history, and release certification checklist.
 
 ## Data Model
 
@@ -93,6 +99,19 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   | jq '.acl_fingerprint, .acl_round_trip, .acl_exports'
 ```
 
+Compiler-specific APIs are available at:
+
+```text
+GET  /api/v1/system/acl-compilers
+POST /api/v1/system/acl-compilers/compile
+POST /api/v1/system/acl-compilers/decompile
+GET  /api/v1/system/acl-compilers/history
+```
+
+Use these endpoints to inspect the certified compiler catalog, compile ACL
+intent without applying it, decompile vendor ACL attributes back into neutral
+rules or profile references, and review durable compiler evidence.
+
 ## Round-Trip Diagnostics
 
 AegisNAS treats the ACL AST as lossless source intent. Current RADIUS reply
@@ -130,6 +149,8 @@ Automated coverage includes:
 - ACL policy staging, apply, list, status, normalize, and vendor preview.
 - Migration coverage for schema v53.
 - Existing ACL renderer regression tests.
+- Certified ACL compiler/decompiler golden, profile-reference, unsupported, and
+  value-limit tests.
 - Admin UI build validation.
 
 Real AP, switch, controller, FreeRADIUS Linux packet capture, long soak,

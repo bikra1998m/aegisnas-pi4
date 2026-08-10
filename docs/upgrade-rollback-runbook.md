@@ -316,3 +316,32 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 Roll back the application and database together if an older runtime does not
 understand schema v53.
+
+## Schema v54 ACL Compiler Evidence Upgrade
+
+NAS-0049 adds durable compiler and decompiler evidence in
+`acl_compiler_events`. The table records the operation, status, vendor pack,
+policy name, AST fingerprint, artifact fingerprint, artifact and rule counts,
+lossless state, diagnostics, details, actor, and timestamp for ACL compile and
+decompile previews.
+
+After upgrade, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/acl-compilers \
+  | jq '.report.status, .report.summary'
+```
+
+Then compile a known lab policy for `standard` and at least one vendor pack:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"policy_name":"upgrade-smoke","pack_keys":["standard","cisco"],"rules":[{"action":"permit","direction":"in","protocol":"tcp","source":"any","destination":"any","destination_port":"443"}]}' \
+  http://127.0.0.1:8083/api/v1/system/acl-compilers/compile \
+  | jq '.run.status, .run.summary'
+```
+
+Roll back the application and database together if an older runtime does not
+understand schema v54.

@@ -207,6 +207,42 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   | jq '.acl_fingerprint, .acl_round_trip, .acl_diagnostics'
 ```
 
+Audit certified ACL compiler and decompiler coverage:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/acl-compilers \
+  | jq '.report.status, .report.summary'
+```
+
+Compile ACL intent for selected vendor packs without applying it:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"policy_name":"guest-internet","pack_keys":["standard","cisco","mikrotik"],"rules":[{"action":"permit","direction":"in","protocol":"tcp","source":"any","destination":"any","destination_port":"443"}]}' \
+  http://127.0.0.1:8083/api/v1/system/acl-compilers/compile \
+  | jq '.run.status, .run.results[] | {pack_key,status,lossless,artifact_fingerprint,diagnostics}'
+```
+
+Decompile vendor ACL attributes during certification or support review:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"pack_key":"cisco","attributes":[{"name":"Cisco-AVPair","value":"ip:inacl#1=permit tcp any any eq 443","quoted":true}]}' \
+  http://127.0.0.1:8083/api/v1/system/acl-compilers/decompile \
+  | jq '.result.status, .result.rules, .result.profile_references'
+```
+
+Review durable compiler evidence:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/acl-compilers/history \
+  | jq '.summary, .history[0:10]'
+```
+
 For session-owned changes, also inspect the ownership decision:
 
 ```bash

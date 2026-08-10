@@ -140,7 +140,12 @@ When `radius.upstream.enabled: true`:
 - multi-service accounting correlation is available through `/api/v1/system/accounting-services`; AegisNAS preserves `Acct-Multi-Session-Id`, `Acct-Link-Count`, `Service-Type`, `Framed-Protocol`, and Class metadata to correlate parent sessions, child service legs, bearer legs, call legs, VPN legs, and subscriber service-chain accounting
 - charging records, rating, retention, and export integrity are available through `/api/v1/system/accounting-charging`; AegisNAS projects applied accounting events into CDRs, rates closed records, marks late corrections for re-export, preserves hashed identities, and exports JSON Lines, JSON, or CSV batches with payload and manifest SHA-256 evidence
 - the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
-- the vendor reply preview can render vendor-neutral ACL intent into `NAS-Filter-Rule`, Cisco `Cisco-AVPair`, Aruba filter rules, MikroTik address-list hints, and AegisNAS ACL VSAs
+- the vendor reply preview uses the certified ACL compiler/decompiler layer from
+  `acl-compilers.md`; it renders software-certified line-rule outputs for
+  standard `NAS-Filter-Rule`, AegisNAS, Cisco, Aruba, HP/ArubaOS-Switch,
+  D-Link, and Pica8, marks MikroTik/Fortinet/Ruckus/Juniper/Huawei/H3C as
+  profile-reference outputs, and blocks unsupported ACL packs instead of
+  silently falling back
 - MAB endpoints can be approved, denied, quarantined, expired, or left pending; approved and quarantined endpoints render MAC variants into FreeRADIUS `files/authorize`
 - unknown MAB endpoints can deny, enter guest, enter quarantine, or explicitly fail open based on `mab.unknown_endpoint_policy`
 - upstream reply attributes are mapped into local session state:
@@ -183,6 +188,10 @@ What this pass still does not change:
 - real dual-stack AP/controller, BNG/BRAS, route-accounting, HA failover, performance, soak, security, and customer validation remains tracked in [nas-0038-release-certification-checklist.md](nas-0038-release-certification-checklist.md)
 - real BNG/BRAS, mobile, voice, VPN, subscriber service-chain, HA failover, performance, soak, security, and customer validation remains tracked in [nas-0039-release-certification-checklist.md](nas-0039-release-certification-checklist.md)
 - real local accounting spool packet captures, access-device retry behavior, database outage drills, HA replay continuity, performance, soak, security, and customer validation remains tracked in [nas-0040-release-certification-checklist.md](nas-0040-release-certification-checklist.md)
+- real ACL compiler FreeRADIUS packet captures, Cisco/Aruba/HP/D-Link/Pica8
+  line-rule hardware acceptance, profile-reference controller policy matching,
+  HA replay, performance, soak, security, and customer validation remains
+  tracked in [nas-0049-release-certification-checklist.md](nas-0049-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 

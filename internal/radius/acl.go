@@ -37,15 +37,22 @@ type ACLRule struct {
 }
 
 type ACLVendorExport struct {
-	PackKey        string               `json:"pack_key"`
-	PackLabel      string               `json:"pack_label"`
-	ExportMode     string               `json:"export_mode"`
-	Attributes     []ReplyAttributeItem `json:"attributes"`
-	FreeRADIUS     string               `json:"freeradius"`
-	ASTFingerprint string               `json:"ast_fingerprint,omitempty"`
-	Lossless       bool                 `json:"lossless"`
-	Diagnostics    []ACLDiagnostic      `json:"diagnostics,omitempty"`
-	Warnings       []string             `json:"warnings,omitempty"`
+	PackKey                       string               `json:"pack_key"`
+	PackLabel                     string               `json:"pack_label"`
+	ExportMode                    string               `json:"export_mode"`
+	CompilerStatus                string               `json:"compiler_status"`
+	CompilerVersion               string               `json:"compiler_version,omitempty"`
+	CertificationState            string               `json:"certification_state,omitempty"`
+	ExternalCertificationRequired bool                 `json:"external_certification_required"`
+	Attributes                    []ReplyAttributeItem `json:"attributes"`
+	FreeRADIUS                    string               `json:"freeradius"`
+	ASTFingerprint                string               `json:"ast_fingerprint,omitempty"`
+	ArtifactFingerprint           string               `json:"artifact_fingerprint,omitempty"`
+	Lossless                      bool                 `json:"lossless"`
+	DecompileSupported            bool                 `json:"decompile_supported"`
+	Limits                        ACLCompilerLimits    `json:"limits"`
+	Diagnostics                   []ACLDiagnostic      `json:"diagnostics,omitempty"`
+	Warnings                      []string             `json:"warnings,omitempty"`
 }
 
 func ValidateACLRules(rules []ACLRule) error {
@@ -70,24 +77,40 @@ func BuildACLVendorExports(policyName, inboundACL, outboundACL string, rules []A
 }
 
 func BuildACLVendorExportsForAST(policyName, inboundACL, outboundACL string, rules []ACLRule, ast *ACLPolicyAST, packKeys []string) []ACLVendorExport {
-	normalized, err := NormalizeACLPolicyIntent(policyName, "", inboundACL, outboundACL, rules, ast)
+	run, err := CompileACLPolicyForPacks(ACLCompilerRequest{
+		PolicyName:  policyName,
+		InboundACL:  inboundACL,
+		OutboundACL: outboundACL,
+		Rules:       rules,
+		ACLAST:      ast,
+		PackKeys:    packKeys,
+	})
 	if err != nil {
 		return nil
 	}
-	policyName = strings.TrimSpace(policyName)
-	inboundACL = strings.TrimSpace(inboundACL)
-	outboundACL = strings.TrimSpace(outboundACL)
-
-	var out []ACLVendorExport
-	for _, packKey := range normalizeReplyPackKeys(packKeys) {
-		export := buildACLVendorExport(policyName, inboundACL, outboundACL, normalized.Rules, packKey)
-		export.ASTFingerprint = normalized.Fingerprint
-		export.Diagnostics = aclExportDiagnosticsForPack(packKey, normalized)
-		export.Lossless = len(export.Diagnostics) == 0
-		if len(export.Attributes) == 0 && len(export.Warnings) == 0 {
+	out := make([]ACLVendorExport, 0, len(run.Results))
+	for _, result := range run.Results {
+		if len(result.Attributes) == 0 && len(result.Warnings) == 0 && len(result.Diagnostics) == 0 {
 			continue
 		}
-		out = append(out, export)
+		out = append(out, ACLVendorExport{
+			PackKey:                       result.PackKey,
+			PackLabel:                     result.PackLabel,
+			ExportMode:                    result.OutputMode,
+			CompilerStatus:                result.Status,
+			CompilerVersion:               result.CompilerVersion,
+			CertificationState:            result.CertificationState,
+			ExternalCertificationRequired: result.ExternalCertificationRequired,
+			Attributes:                    result.Attributes,
+			FreeRADIUS:                    result.FreeRADIUS,
+			ASTFingerprint:                result.ASTFingerprint,
+			ArtifactFingerprint:           result.ArtifactFingerprint,
+			Lossless:                      result.Lossless,
+			DecompileSupported:            result.DecompileSupported,
+			Limits:                        result.Limits,
+			Diagnostics:                   result.Diagnostics,
+			Warnings:                      result.Warnings,
+		})
 	}
 	return out
 }

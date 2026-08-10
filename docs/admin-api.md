@@ -710,6 +710,32 @@ POST /api/v1/system/acl-ast/normalize
 
 The status endpoint is read-only evidence for production readiness and support bundles. The normalize endpoint accepts `name`, optional `inbound_acl`, optional `outbound_acl`, optional `rules`, and optional `acl_ast`, then returns normalized AST, compatibility rules, fingerprint, diagnostics, and round-trip status without staging a change. See [acl-ast.md](acl-ast.md) for the AST schema and operator workflow.
 
+NAS-0049 adds certified per-vendor ACL compiler and decompiler endpoints:
+
+```text
+GET  /api/v1/system/acl-compilers
+POST /api/v1/system/acl-compilers/compile
+POST /api/v1/system/acl-compilers/decompile
+GET  /api/v1/system/acl-compilers/history
+```
+
+`GET /api/v1/system/acl-compilers` returns the compiler catalog, software
+certification state, supported attributes, limits, recent evidence, and RFC
+scope. `POST /api/v1/system/acl-compilers/compile` accepts the same ACL intent
+fields as reply preview plus `pack_keys` and returns per-pack attributes,
+FreeRADIUS text, artifact fingerprints, lossless state, diagnostics, and
+warnings without applying anything. `POST /api/v1/system/acl-compilers/decompile`
+accepts `pack_key`, optional `policy_name`, and vendor ACL attributes, then
+returns neutral ACL rules or profile references. `GET
+/api/v1/system/acl-compilers/history` lists durable compile/decompile evidence
+from `acl_compiler_events`.
+
+Software-certified line-rule compilers exist for standard `NAS-Filter-Rule`,
+AegisNAS, Cisco, Aruba, HP/ArubaOS-Switch, D-Link, and Pica8. MikroTik,
+Fortinet, Ruckus, Juniper, Huawei, and H3C are explicit profile-reference
+compilers. Unsupported packs fail closed when ACL intent is present. See
+[acl-compilers.md](acl-compilers.md).
+
 Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
 
 After committing a role, user, ACL binding, or EAP framework policy through `/api/v1/apply`, run `POST /api/v1/system/radius-apply` (the **Apply RADIUS Config** action in Access Settings). This regenerates the local-user entries in `mods-config/files/authorize`, the legacy `users` path, and `mods-enabled/eap`, validates the complete FreeRADIUS configuration, and restarts FreeRADIUS. Database-backed portal decisions and CoA updates do not require this regeneration. Local bcrypt credentials support PAP and EAP-TTLS/PAP; CHAP and PEAP-MSCHAPv2 require a compatible cleartext or NT password verifier, while EAP-TLS uses certificates. NAS-0022 blocks enforce-mode generation when policy enables cataloged methods that this release cannot generate.

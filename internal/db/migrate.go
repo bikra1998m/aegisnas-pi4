@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 53
+	return 54
 }
 
 func Migrate() error {
@@ -2881,3 +2881,31 @@ CREATE INDEX IF NOT EXISTS idx_acl_policies_ast_fingerprint ON acl_policies(ast_
 `
 
 const schemaV53 = aclPolicyASTSQL
+
+const aclCompilerEvidenceSQL = `
+CREATE TABLE IF NOT EXISTS acl_compiler_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	pack_key TEXT NOT NULL,
+	policy_name TEXT,
+	ast_fingerprint TEXT,
+	artifact_fingerprint TEXT,
+	artifact_count INTEGER NOT NULL DEFAULT 0,
+	rule_count INTEGER NOT NULL DEFAULT 0,
+	lossless BOOLEAN NOT NULL DEFAULT 0,
+	diagnostics_json TEXT NOT NULL DEFAULT '[]',
+	details_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('compile', 'decompile')),
+	CHECK (status IN ('compiled', 'profile_reference', 'degraded', 'blocked', 'unsupported', 'ready'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_acl_compiler_events_created ON acl_compiler_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_acl_compiler_events_pack_status ON acl_compiler_events(pack_key, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_acl_compiler_events_ast ON acl_compiler_events(ast_fingerprint, created_at);
+`
+
+const schemaV54 = aclCompilerEvidenceSQL

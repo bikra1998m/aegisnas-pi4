@@ -169,6 +169,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 		items = append(items, ReplyAttributeItem{Name: name, Value: value, Quoted: quoted})
 	}
 	for _, packKey := range packKeys {
+		appendACLCompilerReplyAttributes(attrs, packKey, appendItem)
 		switch packKey {
 		case productconfigs.VendorPackStandard:
 			appendStandardReplyAttributes(attrs, appendItem)
@@ -185,18 +186,10 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 				appendItem("WISPr-Bandwidth-Max-Up", fmt.Sprintf("%d", attrs.WISPrBandwidthMaxUp), false)
 			}
 		case productconfigs.VendorPackCisco:
-			appendItem("Cisco-In-ACL", attrs.InboundACL, true)
-			appendItem("Cisco-Out-ACL", attrs.OutboundACL, true)
-			for _, value := range renderCiscoAVPairACLRules(attrs.ACLRules) {
-				appendItem("Cisco-AVPair", value, true)
-			}
 		case productconfigs.VendorPackAruba:
 			appendItem("Aruba-User-Role", replyRole(attrs), true)
 			if vlan := replyVLAN(attrs); vlan > 0 {
 				appendItem("Aruba-User-Vlan", fmt.Sprintf("%d", vlan), false)
-			}
-			for _, value := range renderNASFilterRules(attrs.ACLRules) {
-				appendItem("Aruba-NAS-Filter-Rule", value, true)
 			}
 		case productconfigs.VendorPackRuckus:
 			appendItem("Ruckus-User-Groups", replyRole(attrs), true)
@@ -282,9 +275,6 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendURLItem(attrs, appendItem, "Captive-Portal-URL", attrs.PortalProfile)
 			appendRateKbpsItem(attrs, appendItem, "Bandwidth-Max-Egress", attrs.WISPrBandwidthMaxDown)
 			appendRateKbpsItem(attrs, appendItem, "Bandwidth-Max-Ingress", attrs.WISPrBandwidthMaxUp)
-			for _, value := range renderNASFilterRules(attrs.ACLRules) {
-				appendItem("Ip-Filter-Raw", value, true)
-			}
 			if vlan := replyVLAN(attrs); vlan > 0 {
 				appendItem("Egress-VLANID", fmt.Sprintf("%d", vlan), false)
 			}
@@ -309,10 +299,6 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			if vlan := replyVLAN(attrs); vlan > 0 {
 				appendItem("VLAN-ID", fmt.Sprintf("%d", vlan), true)
 			}
-			appendItem("ACL-Profile", attrs.ACLPolicyName, true)
-			for _, value := range renderNASFilterRules(attrs.ACLRules) {
-				appendItem("ACL-Rule", value, true)
-			}
 			appendNumericRoleItem(attrs, packKey, vendor.RoleMappings, appendItem, "User-Level")
 		case productconfigs.VendorPackSonicWall:
 			appendItem("User-Group", replyRole(attrs), true)
@@ -326,10 +312,6 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendItem("Interface-Profile", attrs.DeviceGroup, true)
 			appendVendorAVPairItems(attrs, packKey, vendor.AVPairMappings, appendItem)
 		case productconfigs.VendorPackPica8:
-			appendItem("IP-Downloadable-ACL-Name", attrs.ACLPolicyName, true)
-			for _, value := range renderNASFilterRules(attrs.ACLRules) {
-				appendItem("IP-Downloadable-ACL-Rule", value, true)
-			}
 			appendURLItem(attrs, appendItem, "Redirect-URL", attrs.PortalProfile)
 			appendItem("AVPair", attrs.PolicyTag, true)
 		case productconfigs.VendorPackZTE:
@@ -351,6 +333,28 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 	return items
 }
 
+func appendACLCompilerReplyAttributes(attrs *ReplyAttributes, packKey string, appendItem func(string, string, bool)) {
+	def := aclCompilerDefinitionForPack(packKey)
+	if def.LineAttribute == "" {
+		return
+	}
+	if attrs == nil || (strings.TrimSpace(attrs.ACLPolicyName) == "" && strings.TrimSpace(attrs.InboundACL) == "" && strings.TrimSpace(attrs.OutboundACL) == "" && len(attrs.ACLRules) == 0) {
+		return
+	}
+	result, err := CompileACLPolicyForPack(ACLCompilerRequest{
+		PolicyName:  attrs.ACLPolicyName,
+		InboundACL:  attrs.InboundACL,
+		OutboundACL: attrs.OutboundACL,
+		Rules:       attrs.ACLRules,
+	}, packKey)
+	if err != nil || result.Status == aclCompilerStatusBlocked || result.Status == aclCompilerStatusUnsupported {
+		return
+	}
+	for _, item := range result.Attributes {
+		appendItem(item.Name, item.Value, item.Quoted)
+	}
+}
+
 func appendStandardReplyAttributes(attrs *ReplyAttributes, appendItem func(string, string, bool)) {
 	if attrs.SessionTimeout > 0 {
 		appendItem("Session-Timeout", fmt.Sprintf("%d", attrs.SessionTimeout), false)
@@ -369,9 +373,6 @@ func appendStandardReplyAttributes(attrs *ReplyAttributes, appendItem func(strin
 		appendItem("Tunnel-Type", tunnelType, false)
 		appendItem("Tunnel-Medium-Type", tunnelMedium, false)
 		appendItem("Tunnel-Private-Group-Id", fmt.Sprintf("%d", vlan), true)
-	}
-	for _, value := range renderNASFilterRules(attrs.ACLRules) {
-		appendItem("NAS-Filter-Rule", value, true)
 	}
 }
 
@@ -398,10 +399,6 @@ func appendAegisNASReplyAttributes(attrs *ReplyAttributes, appendItem func(strin
 	appendItem("AegisNAS-Portal-Profile", attrs.PortalProfile, true)
 	appendItem("AegisNAS-Device-Group", attrs.DeviceGroup, true)
 	appendItem("AegisNAS-Tenant", attrs.Tenant, true)
-	appendItem("AegisNAS-ACL-Name", attrs.ACLPolicyName, true)
-	for _, value := range renderNASFilterRules(attrs.ACLRules) {
-		appendItem("AegisNAS-ACL-Rule", value, true)
-	}
 	if summary := renderAegisNASServiceChain(attrs.ServiceChain); summary != "" {
 		appendItem("AegisNAS-Service-Chain", summary, true)
 	}

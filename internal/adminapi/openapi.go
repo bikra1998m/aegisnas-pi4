@@ -1703,8 +1703,22 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Normalized ACL AST, compatibility rules, fingerprint, diagnostics, and round-trip status."),
 		"default": responseText("ACL AST validation error."),
 	}))
+	addOperation(paths, "/api/v1/system/acl-compilers", "get", securedOperation("Read certified ACL compiler catalog", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Per-vendor ACL compiler capabilities, software certification state, limits, and recent evidence."),
+	}))
+	addOperation(paths, "/api/v1/system/acl-compilers/compile", "post", securedOperationWithBody("Compile ACL intent for vendor packs", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("ACL policy name, optional flat rules, optional acl_ast, and pack_keys to compile without applying."), map[string]any{
+		"200":     responseJSON("Compiled vendor ACL artifacts, diagnostics, fingerprints, decompile evidence, and limits."),
+		"default": responseText("ACL compiler validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/acl-compilers/decompile", "post", securedOperationWithBody("Decompile vendor ACL artifacts", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("pack_key and vendor ACL attributes to decompile back into neutral ACL rules and AST."), map[string]any{
+		"200":     responseJSON("Decompiled neutral ACL rules, AST, fingerprints, diagnostics, and profile references."),
+		"default": responseText("ACL decompiler validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/acl-compilers/history", "get", securedOperation("List ACL compiler evidence history", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Recent ACL compiler and decompiler evidence events."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-reply-preview", "post", securedOperationWithBody("Preview vendor reply attributes", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("NAS type, role, VLAN, bandwidth, timeout, ACL names, flat ACL rules, and optional ACL AST intent to preview."), map[string]any{
-		"200":     responseJSON("Effective compatibility packs, rendered RADIUS reply attributes, normalized ACL AST, diagnostics, and vendor ACL exports."),
+		"200":     responseJSON("Effective compatibility packs, rendered RADIUS reply attributes, normalized ACL AST, certified ACL compiler diagnostics, and vendor ACL exports."),
 		"default": responseText("Preview error."),
 	}))
 

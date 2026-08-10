@@ -405,7 +405,7 @@ func aclUnsupportedRoundTripFields(diagnostics []ACLDiagnostic) []string {
 			continue
 		}
 		switch diagnostic.Code {
-		case "field_not_rendered", "action_degraded", "object_group_expanded", "service_group_expanded", "profile_only_export", "direction_expanded", "compatibility_rules_differ", "flat_rule_limit":
+		case "field_not_rendered", "action_degraded", "object_group_expanded", "service_group_expanded", "profile_only_export", "profile_reference_only", "direction_expanded", "compatibility_rules_differ", "flat_rule_limit":
 			seen[diagnostic.Path] = struct{}{}
 		}
 	}
