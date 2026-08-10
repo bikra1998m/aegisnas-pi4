@@ -1330,6 +1330,64 @@ function createSystemStatus() {
           blockers: [],
           rfcs: ["RFC 5176"],
         },
+        nas_ownership: {
+          schema_version: 1,
+          status: "ready",
+          message: "NAS capability and session ownership registry is ready.",
+          summary: {
+            schema_version: 1,
+            status: "ready",
+            message: "NAS capability and session ownership registry is ready.",
+            enabled_clients: 1,
+            capability_clients: 1,
+            active_sessions: 1,
+            owned_sessions: 1,
+            stale_sessions: 0,
+            unknown_sessions: 0,
+            released_sessions: 0,
+            ownership_coverage_percent: 100,
+            last_ownership_update: "2026-05-05T11:59:40Z",
+          },
+          clients: [
+            {
+              id: 1,
+              shortname: "branch-ap",
+              ipaddr: "192.0.2.10",
+              nas_type: "cisco",
+              transport: "udp",
+              supported_actions: ["coa", "disconnect", "vendor_actions"],
+              supported_transports: ["udp"],
+              enabled: true,
+              secret_set: true,
+              capability_hash:
+                "sha256:94661042fba8ad2efb40f0ff7f79b6cbb7815eea02ecbaaeec1cce13f0123456",
+            },
+          ],
+          session_owners: [
+            {
+              session_id: "acct-123",
+              acct_session_id: "acct-123",
+              nas_identifier: "branch-ap",
+              nas_ip_address: "192.0.2.10",
+              shortname: "branch-ap",
+              nas_type: "cisco",
+              transport: "udp",
+              delivery_mode: "direct",
+              owner_node: "aegisnas-radius",
+              owner_source: "sessions",
+              owner_status: "active",
+              supported_actions: ["coa", "disconnect", "vendor_actions"],
+              supported_transports: ["udp"],
+              capability_hash:
+                "sha256:94661042fba8ad2efb40f0ff7f79b6cbb7815eea02ecbaaeec1cce13f0123456",
+              last_seen_at: "2026-05-05T11:59:40Z",
+              expires_at: "2026-05-05T15:59:40Z",
+            },
+          ],
+          synced: 1,
+          warnings: [],
+          rfcs: ["RFC 2865", "RFC 2866", "RFC 5176", "RFC 6614"],
+        },
         recent: [
           {
             request_id: "dac-20260505-1",
@@ -1339,6 +1397,12 @@ function createSystemStatus() {
             vendor_packs: ["cisco", "aruba"],
             vendor_compiler_status: "compiled",
             vendor_compiler_warnings: [],
+            ownership_session_id: "acct-123",
+            ownership_status: "active",
+            ownership_source: "sessions",
+            ownership_owner_node: "aegisnas-radius",
+            capability_decision: "ready",
+            capability_warnings: [],
             target_address: "192.0.2.10",
             target_port: 3799,
             target_transport: "udp",
@@ -1363,6 +1427,12 @@ function createSystemStatus() {
             vendor_packs: ["cisco"],
             vendor_compiler_status: "compiled",
             vendor_compiler_warnings: [],
+            ownership_session_id: "acct-123",
+            ownership_status: "active",
+            ownership_source: "sessions",
+            ownership_owner_node: "aegisnas-radius",
+            capability_decision: "ready",
+            capability_warnings: [],
             target_address: "192.0.2.10",
             target_port: 3799,
             target_transport: "udp",
@@ -4219,6 +4289,16 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
+    if (path === "/system/nas-ownership" && method === "GET") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          report: state.systemStatus.radius.dac_client.nas_ownership,
+        },
+      });
+      return;
+    }
+
     if (path === "/system/dac-client/preview" && method === "POST") {
       await route.fulfill({
         json: {
@@ -4290,6 +4370,28 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             blockers: [],
             rfcs: ["RFC 5176"],
           },
+          ownership_decision: {
+            schema_version: 1,
+            status: "ready",
+            message: "NAS ownership and capability checks passed.",
+            session_id: "acct-123",
+            ownership_status: "active",
+            ownership_source: "sessions",
+            owner_node: "aegisnas-radius",
+            owner_resolved_from: "nas_session_ownership",
+            capability_hash:
+              "sha256:94661042fba8ad2efb40f0ff7f79b6cbb7815eea02ecbaaeec1cce13f0123456",
+            supported_actions: ["coa", "disconnect", "vendor_actions"],
+            supported_transports: ["udp"],
+            required: [
+              "dynamic_authorization.coa",
+              "dynamic_authorization.transport.udp",
+              "policy.filter_id",
+            ],
+            warnings: [],
+            blockers: [],
+            rfcs: ["RFC 2865", "RFC 5176"],
+          },
           warnings: ["send requires confirm=true"],
           blockers: [],
         },
@@ -4342,6 +4444,28 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
               warnings: [],
               blockers: [],
               rfcs: ["RFC 5176"],
+            },
+            ownership_decision: {
+              schema_version: 1,
+              status: "ready",
+              message: "NAS ownership and capability checks passed.",
+              session_id: "acct-123",
+              ownership_status: "active",
+              ownership_source: "sessions",
+              owner_node: "aegisnas-radius",
+              owner_resolved_from: "nas_session_ownership",
+              capability_hash:
+                "sha256:94661042fba8ad2efb40f0ff7f79b6cbb7815eea02ecbaaeec1cce13f0123456",
+              supported_actions: ["coa", "disconnect", "vendor_actions"],
+              supported_transports: ["udp"],
+              required: [
+                "dynamic_authorization.coa",
+                "dynamic_authorization.transport.udp",
+                "policy.filter_id",
+              ],
+              warnings: [],
+              blockers: [],
+              rfcs: ["RFC 2865", "RFC 5176"],
             },
           },
           request: state.systemStatus.radius.dac_client.recent[0],
@@ -4417,6 +4541,28 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
               warnings: [],
               blockers: [],
               rfcs: ["RFC 5176"],
+            },
+            ownership_decision: {
+              schema_version: 1,
+              status: "ready",
+              message: "NAS ownership and capability checks passed.",
+              session_id: "acct-123",
+              ownership_status: "active",
+              ownership_source: "sessions",
+              owner_node: "aegisnas-radius",
+              owner_resolved_from: "nas_session_ownership",
+              capability_hash:
+                "sha256:94661042fba8ad2efb40f0ff7f79b6cbb7815eea02ecbaaeec1cce13f0123456",
+              supported_actions: ["coa", "disconnect", "vendor_actions"],
+              supported_transports: ["udp"],
+              required: [
+                "dynamic_authorization.coa",
+                "dynamic_authorization.transport.udp",
+                "policy.filter_id",
+              ],
+              warnings: [],
+              blockers: [],
+              rfcs: ["RFC 2865", "RFC 5176"],
             },
           },
           queue,

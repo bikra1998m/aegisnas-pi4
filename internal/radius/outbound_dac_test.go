@@ -55,6 +55,51 @@ func TestPreviewOutboundDACBuildsRFC5176CoAPlan(t *testing.T) {
 	assert.NotEmpty(t, preview.RequestFingerprint)
 }
 
+func TestPreviewOutboundDACResolvesTargetFromSessionOwnership(t *testing.T) {
+	setupOutboundDACTestDB(t)
+	cfg := outboundDACTestConfig()
+	insertOutboundDACTestClient(t)
+	insertOutboundDACTestSession(t, "session-owned", "acct-owned", "branch-ap")
+
+	preview, err := PreviewOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		Action:        "coa",
+		AcctSessionID: "acct-owned",
+		FilterID:      "employee",
+		Confirm:       true,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "ready", preview.Status)
+	assert.Equal(t, "192.0.2.10", preview.Target.Address)
+	assert.Equal(t, "branch-ap", preview.Target.ShortName)
+	assert.Equal(t, "ready", preview.OwnershipDecision.Status)
+	assert.Equal(t, "session-owned", preview.OwnershipDecision.SessionID)
+	assert.Equal(t, db.NASSessionOwnershipStatusActive, preview.OwnershipDecision.OwnershipStatus)
+	assert.Contains(t, preview.OwnershipDecision.SupportedActions, "coa")
+	assert.Contains(t, preview.OwnershipDecision.SupportedTransports, "udp")
+	assert.Contains(t, preview.OwnershipDecision.Required, "dynamic_authorization.coa")
+}
+
+func TestPreviewOutboundDACBlocksConflictingSessionOwnerTarget(t *testing.T) {
+	setupOutboundDACTestDB(t)
+	cfg := outboundDACTestConfig()
+	insertOutboundDACTestClient(t)
+	insertOutboundDACTestSession(t, "session-owned", "acct-owned", "branch-ap")
+
+	preview, err := PreviewOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		Action:        "coa",
+		TargetAddress: "192.0.2.11",
+		AcctSessionID: "acct-owned",
+		FilterID:      "employee",
+		Confirm:       true,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "blocked", preview.Status)
+	assert.Equal(t, "blocked", preview.OwnershipDecision.Status)
+	assert.Contains(t, preview.Message, "session session-owned is owned by NAS branch-ap")
+}
+
 func TestSendOutboundDACRequiresConfirmationAndRecordsBlockedRequest(t *testing.T) {
 	setupOutboundDACTestDB(t)
 	cfg := outboundDACTestConfig()
@@ -131,6 +176,38 @@ func TestSendOutboundDACBuildsPacketAndStoresACKHistory(t *testing.T) {
 	assert.Equal(t, int(layehradius.CodeCoAACK), result.Attempts[0].ResponseCode)
 	assert.NotEmpty(t, result.Request.RequestFingerprint)
 	assert.NotEmpty(t, result.Request.ResponseFingerprint)
+}
+
+func TestSendOutboundDACPersistsNASOwnershipDecision(t *testing.T) {
+	setupOutboundDACTestDB(t)
+	cfg := outboundDACTestConfig()
+	insertOutboundDACTestClient(t)
+	insertOutboundDACTestSession(t, "session-owned", "acct-owned", "branch-ap")
+
+	var endpoint string
+	origSender := outboundDACPacketSender
+	outboundDACPacketSender = func(ctx context.Context, packet *layehradius.Packet, target string, timeout time.Duration) (*layehradius.Packet, time.Duration, error) {
+		endpoint = target
+		return packet.Response(layehradius.CodeCoAACK), 9 * time.Millisecond, nil
+	}
+	t.Cleanup(func() { outboundDACPacketSender = origSender })
+
+	result, err := SendOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		Action:        "coa",
+		AcctSessionID: "acct-owned",
+		FilterID:      "employee",
+		Confirm:       true,
+	}, "ops@example.test")
+	require.NoError(t, err)
+
+	assert.Equal(t, "192.0.2.10:3799", endpoint)
+	assert.Equal(t, db.OutboundDACStatusACK, result.Status)
+	assert.Equal(t, "session-owned", result.Request.OwnershipSessionID)
+	assert.Equal(t, db.NASSessionOwnershipStatusActive, result.Request.OwnershipStatus)
+	assert.Equal(t, "sessions", result.Request.OwnershipSource)
+	assert.Equal(t, OutboundDACRuntimeComponent, result.Request.OwnershipOwnerNode)
+	assert.Equal(t, "ready", result.Request.CapabilityDecision)
+	assert.Empty(t, result.Request.CapabilityWarnings)
 }
 
 func TestSendOutboundDACClassifiesNAKAndErrorCause(t *testing.T) {
@@ -582,9 +659,20 @@ func setupOutboundDACTestDB(t *testing.T) {
 
 func insertOutboundDACTestClient(t *testing.T) {
 	t.Helper()
-	_, err := db.DB.Exec(`INSERT INTO radius_clients (shortname, ipaddr, secret, nas_type, enabled, transport)
-		VALUES (?, ?, ?, ?, ?, ?)`,
-		"branch-ap", "192.0.2.10", "shared-secret", "cisco", true, "udp")
+	capabilitiesJSON := `{"dynamic_authorization":{"coa":true,"disconnect":true,"vendor_actions":true,"transport":{"udp":true,"proxy":false,"radsec":false}},"policy":{"filter_id":true,"vlan":true,"acl":true,"qos":true,"quarantine":true}}`
+	_, err := db.DB.Exec(`INSERT INTO radius_clients (shortname, ipaddr, secret, nas_type, enabled, transport, capabilities_json)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		"branch-ap", "192.0.2.10", "shared-secret", "cisco", true, "udp", capabilitiesJSON)
+	require.NoError(t, err)
+}
+
+func insertOutboundDACTestSession(t *testing.T, sessionID, acctSessionID, nasIdentifier string) {
+	t.Helper()
+	_, err := db.DB.Exec(`INSERT INTO sessions (
+		id, username, mac, ip, auth_method, nas_identifier, radius_session_id, start_time, last_activity
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		sessionID, "alice@example.test", "AA-BB-CC-DD-EE-FF", "192.0.2.100", "dot1x",
+		nasIdentifier, acctSessionID, "2026-05-05T11:00:00Z", "2026-05-05T11:30:00Z")
 	require.NoError(t, err)
 }
 

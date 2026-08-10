@@ -1167,10 +1167,13 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200": responseJSON("RadSec mTLS and TLS-PSK credential state, rotation windows, redacted secret references, warnings, and blockers."),
 	}))
 	addOperation(paths, "/api/v1/system/dac-client", "get", securedOperation("Read outbound dynamic authorization client", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
-		"200": responseJSON("Outbound RFC 5176 CoA and Disconnect client policy, proxy routing status, vendor dynamic-action compiler status, runtime status, history summary, durable queue summary, and recent requests."),
+		"200": responseJSON("Outbound RFC 5176 CoA and Disconnect client policy, proxy routing status, NAS ownership registry status, vendor dynamic-action compiler status, runtime status, history summary, durable queue summary, and recent requests."),
+	}))
+	addOperation(paths, "/api/v1/system/nas-ownership", "get", securedOperation("Read NAS capability and session ownership registry", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS client capabilities, active session ownership, CoA/Disconnect action support, transport support, registry coverage, and warnings used before outbound dynamic authorization."),
 	}))
 	addOperation(paths, "/api/v1/system/dac-client/preview", "post", securedOperationWithBody("Preview outbound CoA or Disconnect", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Outbound DAC action, direct target or proxy route, originating realm, optional home server, selectors, Proxy-State, vendor-neutral attributes, and optional vendor_action/vendor_packs intent to validate without sending."), map[string]any{
-		"200":     responseJSON("Resolved direct or proxy target, packet codes, proxy policy decision, vendor action compiler decision, attribute plan, blockers, warnings, and request fingerprint."),
+		"200":     responseJSON("Resolved direct or proxy target, packet codes, proxy policy decision, NAS ownership decision, vendor action compiler decision, attribute plan, blockers, warnings, and request fingerprint."),
 		"default": responseText("Preview validation error."),
 	}))
 	addOperation(paths, "/api/v1/system/dac-client/send", "post", securedOperationWithBody("Send outbound CoA or Disconnect", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Confirmed outbound DAC action, direct target or proxy route, originating realm, optional home server, selectors, Proxy-State, vendor-neutral attributes, and optional vendor_action/vendor_packs intent."), map[string]any{

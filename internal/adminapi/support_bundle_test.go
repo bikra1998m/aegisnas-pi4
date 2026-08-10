@@ -139,6 +139,7 @@ func TestHandleDownloadSupportBundle(t *testing.T) {
 	require.Contains(t, entries, "api/accounting-ip.json")
 	require.Contains(t, entries, "api/accounting-services.json")
 	require.Contains(t, entries, "api/dac-client.json")
+	require.Contains(t, entries, "api/nas-ownership.json")
 	require.Contains(t, entries, "api/dac-client-history.json")
 	require.Contains(t, entries, "api/policy-engine.json")
 	require.Contains(t, entries, "api/policy-sets.json")

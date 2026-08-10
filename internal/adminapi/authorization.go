@@ -163,6 +163,8 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
 	case strings.HasPrefix(path, "/api/v1/system/dac-client"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/nas-ownership"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/eap-framework/sim-aka/evaluate"):
 		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
 	case strings.HasPrefix(path, "/api/v1/system/eap-framework/machine-user/evaluate"):

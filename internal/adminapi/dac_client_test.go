@@ -33,6 +33,17 @@ func TestOutboundDACClientHandlersPreviewSendAndHistory(t *testing.T) {
 	vendorActions := report["vendor_actions"].(map[string]any)
 	assert.Equal(t, "ready", vendorActions["status"])
 	assert.Contains(t, vendorActions["active_packs"], "cisco")
+	nasOwnership := report["nas_ownership"].(map[string]any)
+	assert.Equal(t, "ready", nasOwnership["status"])
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/system/nas-ownership", nil)
+	rec = httptest.NewRecorder()
+	HandleGetNASOwnership(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var ownershipPayload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &ownershipPayload))
+	ownershipReport := ownershipPayload["report"].(map[string]any)
+	assert.Equal(t, "ready", ownershipReport["status"])
 
 	previewBody := bytes.NewBufferString(`{
 		"action":"coa",
@@ -130,8 +141,10 @@ func TestOutboundDACClientOpenAPIRBACReadinessAndSupportBundle(t *testing.T) {
 	assert.Contains(t, paths, "/api/v1/system/dac-client/cancel")
 	assert.Contains(t, paths, "/api/v1/system/dac-client/retry")
 	assert.Contains(t, paths, "/api/v1/system/dac-client/history")
+	assert.Contains(t, paths, "/api/v1/system/nas-ownership")
 
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/dac-client"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/nas-ownership"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/dac-client/preview"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/dac-client/preview"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/dac-client/send"))
@@ -150,13 +163,19 @@ func TestOutboundDACClientOpenAPIRBACReadinessAndSupportBundle(t *testing.T) {
 	var readiness productionReadinessReport
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &readiness))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(readiness.Checks, "radius_outbound_dac_client"))
+	assert.Equal(t, "passed", productionReadinessCheckStatus(readiness.Checks, "nas_capability_ownership"))
 
 	foundClientCapture := false
 	foundHistoryCapture := false
+	foundOwnershipCapture := false
 	for _, capture := range supportBundleAPICaptures() {
 		if capture.archivePath == "api/dac-client.json" {
 			foundClientCapture = true
 			assert.Equal(t, "/api/v1/system/dac-client", capture.requestPath)
+		}
+		if capture.archivePath == "api/nas-ownership.json" {
+			foundOwnershipCapture = true
+			assert.Equal(t, "/api/v1/system/nas-ownership", capture.requestPath)
 		}
 		if capture.archivePath == "api/dac-client-history.json" {
 			foundHistoryCapture = true
@@ -164,6 +183,7 @@ func TestOutboundDACClientOpenAPIRBACReadinessAndSupportBundle(t *testing.T) {
 		}
 	}
 	assert.True(t, foundClientCapture)
+	assert.True(t, foundOwnershipCapture)
 	assert.True(t, foundHistoryCapture)
 }
 
@@ -266,8 +286,9 @@ radius:
 	require.NoError(t, db.Init(dbPath))
 	db.DB.SetMaxOpenConns(1)
 	require.NoError(t, db.Migrate())
-	_, err = db.DB.Exec(`INSERT INTO radius_clients (shortname, ipaddr, secret, nas_type, enabled, transport)
-		VALUES (?, ?, ?, ?, ?, ?)`, "branch-ap", "192.0.2.10", "shared-secret", "cisco", true, "udp")
+	_, err = db.DB.Exec(`INSERT INTO radius_clients (shortname, ipaddr, secret, nas_type, enabled, transport, capabilities_json)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`, "branch-ap", "192.0.2.10", "shared-secret", "cisco", true, "udp",
+		`{"dynamic_authorization":{"coa":true,"disconnect":true,"vendor_actions":true,"transport":{"udp":true,"proxy":false,"radsec":false}},"policy":{"filter_id":true,"vlan":true,"acl":true,"qos":true}}`)
 	require.NoError(t, err)
 	t.Cleanup(func() { db.Close() })
 }

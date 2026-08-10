@@ -119,6 +119,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionRadiusPacketHardeningCheck(&report, cfg)
 	addProductionDynamicNASClientsCheck(&report, cfg)
 	addProductionOutboundDACClientCheck(&report, cfg)
+	addProductionNASCapabilityOwnershipCheck(&report, cfg)
 	addProductionProxyRoutingCheck(&report, cfg)
 	addProductionTransportPolicyCheck(&report, cfg)
 	addProductionProxyPolicyCheck(&report, cfg)
@@ -305,8 +306,42 @@ func addProductionOutboundDACClientCheck(report *productionReadinessReport, cfg 
 			dac.QueueSummary.QueuedCount, dac.QueueSummary.RetryingCount, dac.QueueSummary.PoisonCount, dac.QueueSummary.QueueUtilization,
 			dac.ProxyRouting.Summary.RouteCount, dac.ProxyRouting.Summary.RadSecRouteCount, dac.ProxyRouting.Summary.BlockedRouteCount,
 			len(dac.VendorActions.ActivePacks)),
-		Recommendation: "Keep radius.dynamic_auth outbound queue, replay, proxy routing, vendor action compiler, confirmation, known-client gates, bounded Proxy-State, and route transport policy enabled; complete the NAS-0042/NAS-0043/NAS-0044/NAS-0045 release certification packet-capture and vendor-device checklist before production claims.",
-		Dependencies:   []string{"radius.dynamic_auth", "radius.dynamic_auth.outbound_proxy_enabled", "radius.dynamic_auth.outbound_vendor_actions_enabled", "radius.vendor.compatibility_packs", "radius.upstream.routes", "/api/v1/system/dac-client", "/api/v1/system/dac-client/preview", "/api/v1/system/dac-client/send", "/api/v1/system/dac-client/enqueue", "/api/v1/system/dac-client/replay", "/api/v1/system/dac-client/history", "radius_outbound_dac_requests", "radius_outbound_dac_attempts", "radius_outbound_dac_queue", "radius_outbound_dac_queue_attempts", "RFC 5176", "RFC 6614"},
+		Recommendation: "Keep radius.dynamic_auth outbound queue, replay, proxy routing, vendor action compiler, NAS ownership checks, confirmation, known-client gates, bounded Proxy-State, and route transport policy enabled; complete the NAS-0042/NAS-0043/NAS-0044/NAS-0045/NAS-0046 release certification packet-capture and vendor-device checklist before production claims.",
+		Dependencies:   []string{"radius.dynamic_auth", "radius.dynamic_auth.outbound_proxy_enabled", "radius.dynamic_auth.outbound_vendor_actions_enabled", "radius.vendor.compatibility_packs", "radius.upstream.routes", "/api/v1/system/dac-client", "/api/v1/system/nas-ownership", "/api/v1/system/dac-client/preview", "/api/v1/system/dac-client/send", "/api/v1/system/dac-client/enqueue", "/api/v1/system/dac-client/replay", "/api/v1/system/dac-client/history", "radius_outbound_dac_requests", "radius_outbound_dac_attempts", "radius_outbound_dac_queue", "radius_outbound_dac_queue_attempts", "nas_session_ownership", "RFC 5176", "RFC 6614"},
+	})
+}
+
+func addProductionNASCapabilityOwnershipCheck(report *productionReadinessReport, cfg *config.Config) {
+	ownership := radius.BuildNASCapabilityOwnershipReport(cfg)
+	status := "passed"
+	switch ownership.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded":
+		status = "degraded"
+	}
+	if db.DB == nil || ownership.Summary.EnabledClients == 0 {
+		status = "blocked"
+	}
+	if ownership.Summary.CapabilityClients == 0 && ownership.Summary.EnabledClients > 0 && status == "passed" {
+		status = "degraded"
+	}
+	if ownership.Summary.StaleSessions > 0 || ownership.Summary.UnknownSessions > 0 {
+		if status == "passed" {
+			status = "degraded"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "nas_capability_ownership",
+		Category: "radius",
+		Label:    "NAS Capability And Session Ownership Registry",
+		Status:   status,
+		Summary: fmt.Sprintf("NAS ownership schema %d is %s with %d enabled client(s), %d capability-backed client(s), %d active session(s), %d owned session(s), %d stale, %d unknown, and %d%% ownership coverage.",
+			ownership.SchemaVersion, ownership.Status, ownership.Summary.EnabledClients, ownership.Summary.CapabilityClients,
+			ownership.Summary.ActiveSessions, ownership.Summary.OwnedSessions, ownership.Summary.StaleSessions,
+			ownership.Summary.UnknownSessions, ownership.Summary.OwnershipCoverage),
+		Recommendation: "Keep NAS clients capability-backed, monitor /api/v1/system/nas-ownership before outbound dynamic authorization, reconcile stale ownership rows, and complete the NAS-0046 release certification packet-capture and failover checklist before production claims.",
+		Dependencies:   []string{"radius_clients.capabilities_json", "nas_session_ownership", "radius_outbound_dac_requests.ownership_session_id", "radius_outbound_dac_queue.ownership_session_id", "/api/v1/system/nas-ownership", "/api/v1/system/dac-client", "RFC 5176", "RFC 6614"},
 	})
 }
 

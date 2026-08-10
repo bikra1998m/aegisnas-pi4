@@ -206,6 +206,13 @@ func TestHandleGetOpenAPI(t *testing.T) {
 	assert.Equal(t, "Read dynamic NAS client lifecycle", nasClientsGet["summary"])
 	assert.Contains(t, nasClientsGet["x-aegisnas-roles"], "read_only")
 
+	nasOwnershipPath, ok := paths["/api/v1/system/nas-ownership"].(map[string]any)
+	require.True(t, ok)
+	nasOwnershipGet, ok := nasOwnershipPath["get"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Read NAS capability and session ownership registry", nasOwnershipGet["summary"])
+	assert.Contains(t, nasOwnershipGet["x-aegisnas-roles"], "read_only")
+
 	proxyRoutesPath, ok := paths["/api/v1/system/proxy-routes"].(map[string]any)
 	require.True(t, ok)
 	proxyRoutesGet, ok := proxyRoutesPath["get"].(map[string]any)

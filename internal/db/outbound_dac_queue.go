@@ -44,6 +44,12 @@ type OutboundDACQueueCreate struct {
 	VendorPacks            []string
 	VendorCompilerStatus   string
 	VendorCompilerWarnings []string
+	OwnershipSessionID     string
+	OwnershipStatus        string
+	OwnershipSource        string
+	OwnershipOwnerNode     string
+	CapabilityDecision     string
+	CapabilityWarnings     []string
 	NASIdentifier          string
 	NASIPAddress           string
 	NASType                string
@@ -85,6 +91,12 @@ type OutboundDACQueueRecord struct {
 	VendorPacks            []string               `json:"vendor_packs,omitempty"`
 	VendorCompilerStatus   string                 `json:"vendor_compiler_status"`
 	VendorCompilerWarnings []string               `json:"vendor_compiler_warnings,omitempty"`
+	OwnershipSessionID     string                 `json:"ownership_session_id,omitempty"`
+	OwnershipStatus        string                 `json:"ownership_status,omitempty"`
+	OwnershipSource        string                 `json:"ownership_source,omitempty"`
+	OwnershipOwnerNode     string                 `json:"ownership_owner_node,omitempty"`
+	CapabilityDecision     string                 `json:"capability_decision"`
+	CapabilityWarnings     []string               `json:"capability_warnings,omitempty"`
 	NASIdentifier          string                 `json:"nas_identifier,omitempty"`
 	NASIPAddress           string                 `json:"nas_ip_address,omitempty"`
 	NASType                string                 `json:"nas_type,omitempty"`
@@ -242,20 +254,27 @@ func EnqueueOutboundDACQueue(create OutboundDACQueueCreate, maxQueueRecords int)
 	if err != nil {
 		return OutboundDACQueueRecord{}, false, fmt.Errorf("encode outbound DAC queue vendor compiler warnings: %w", err)
 	}
+	capabilityWarningsJSON, err := json.Marshal(normalizeOutboundDACStringList(create.CapabilityWarnings, 32))
+	if err != nil {
+		return OutboundDACQueueRecord{}, false, fmt.Errorf("encode outbound DAC queue capability warnings: %w", err)
+	}
 	now := time.Now().UTC()
 	_, err = DB.Exec(`INSERT INTO radius_outbound_dac_queue (
 		queue_id, idempotency_key, action, status, target_address, target_port, target_transport,
 		delivery_mode, proxy_route, proxy_realm, proxy_home_server, proxy_hop_count, proxy_state_json,
 		vendor_action, vendor_packs_json, vendor_compiler_status, vendor_compiler_warnings_json,
+		ownership_session_id, ownership_status, ownership_source, ownership_owner_node, capability_decision, capability_warnings_json,
 		nas_identifier, nas_ip_address, nas_type, shortname, session_id, username_hash,
 		calling_station_hash, framed_ip_address, attributes_json, payload_json, payload_sha256,
 		request_code, correlation_id, requested_by, request_fingerprint, max_attempts,
 		next_attempt_at, expires_at, idempotency_expires_at, owner_node, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		create.QueueID, create.IdempotencyKey, create.Action, create.Status, create.TargetAddress, create.TargetPort,
 		create.TargetTransport, normalizeOutboundDACDeliveryMode(create.DeliveryMode), nullIfEmpty(create.ProxyRoute),
 		nullIfEmpty(create.ProxyRealm), nullIfEmpty(create.ProxyHomeServer), create.ProxyHopCount, string(proxyStateJSON),
 		nullIfEmpty(create.VendorAction), string(vendorPacksJSON), normalizeOutboundDACVendorCompilerStatus(create.VendorCompilerStatus), string(vendorWarningsJSON),
+		nullIfEmpty(create.OwnershipSessionID), nullIfEmpty(create.OwnershipStatus), nullIfEmpty(create.OwnershipSource),
+		nullIfEmpty(create.OwnershipOwnerNode), normalizeOutboundDACCapabilityDecision(create.CapabilityDecision), string(capabilityWarningsJSON),
 		nullIfEmpty(create.NASIdentifier), nullIfEmpty(create.NASIPAddress), nullIfEmpty(create.NASType),
 		nullIfEmpty(create.ShortName), nullIfEmpty(create.SessionID), nullIfEmpty(HashEAPIdentity(create.Username)),
 		nullIfEmpty(HashEAPIdentity(create.CallingStationID)), nullIfEmpty(create.FramedIPAddress), string(attrsJSON),
@@ -726,6 +745,12 @@ func normalizeOutboundDACQueueCreate(create OutboundDACQueueCreate) OutboundDACQ
 	create.VendorPacks = normalizeOutboundDACStringList(create.VendorPacks, 16)
 	create.VendorCompilerStatus = normalizeOutboundDACVendorCompilerStatus(create.VendorCompilerStatus)
 	create.VendorCompilerWarnings = normalizeOutboundDACStringList(create.VendorCompilerWarnings, 32)
+	create.OwnershipSessionID = strings.TrimSpace(create.OwnershipSessionID)
+	create.OwnershipStatus = normalizeOutboundDACOwnershipStatus(create.OwnershipStatus)
+	create.OwnershipSource = strings.TrimSpace(create.OwnershipSource)
+	create.OwnershipOwnerNode = strings.TrimSpace(create.OwnershipOwnerNode)
+	create.CapabilityDecision = normalizeOutboundDACCapabilityDecision(create.CapabilityDecision)
+	create.CapabilityWarnings = normalizeOutboundDACStringList(create.CapabilityWarnings, 32)
 	create.NASIdentifier = strings.TrimSpace(create.NASIdentifier)
 	create.NASIPAddress = strings.TrimSpace(create.NASIPAddress)
 	create.NASType = strings.TrimSpace(strings.ToLower(create.NASType))
@@ -785,6 +810,8 @@ func outboundDACQueueSelectSQL() string {
 		COALESCE(proxy_home_server, ''), COALESCE(proxy_hop_count, 0), COALESCE(proxy_state_json, '[]'),
 		COALESCE(vendor_action, ''), COALESCE(vendor_packs_json, '[]'),
 		COALESCE(vendor_compiler_status, 'not_requested'), COALESCE(vendor_compiler_warnings_json, '[]'),
+		COALESCE(ownership_session_id, ''), COALESCE(ownership_status, ''), COALESCE(ownership_source, ''),
+		COALESCE(ownership_owner_node, ''), COALESCE(capability_decision, 'not_evaluated'), COALESCE(capability_warnings_json, '[]'),
 		COALESCE(nas_identifier, ''), COALESCE(nas_ip_address, ''), COALESCE(nas_type, ''),
 		COALESCE(shortname, ''), COALESCE(session_id, ''), COALESCE(username_hash, ''),
 		COALESCE(calling_station_hash, ''), COALESCE(framed_ip_address, ''), attributes_json,
@@ -808,12 +835,15 @@ func scanOutboundDACQueueRows(rows *sql.Rows) ([]OutboundDACQueueRecord, error) 
 			proxyStateJSON     string
 			vendorPacksJSON    string
 			vendorWarningsJSON string
+			capWarningsJSON    string
 		)
 		if err := rows.Scan(&record.ID, &record.QueueID, &record.IdempotencyKey, &record.Action,
 			&record.Status, &record.TargetAddress, &record.TargetPort, &record.TargetTransport,
 			&record.DeliveryMode, &record.ProxyRoute, &record.ProxyRealm, &record.ProxyHomeServer,
 			&record.ProxyHopCount, &proxyStateJSON, &record.VendorAction, &vendorPacksJSON,
-			&record.VendorCompilerStatus, &vendorWarningsJSON, &record.NASIdentifier, &record.NASIPAddress, &record.NASType, &record.ShortName,
+			&record.VendorCompilerStatus, &vendorWarningsJSON, &record.OwnershipSessionID, &record.OwnershipStatus,
+			&record.OwnershipSource, &record.OwnershipOwnerNode, &record.CapabilityDecision, &capWarningsJSON,
+			&record.NASIdentifier, &record.NASIPAddress, &record.NASType, &record.ShortName,
 			&record.SessionID, &record.UsernameHash, &record.CallingStationHash, &record.FramedIPAddress,
 			&attrsJSON, &record.PayloadJSON, &record.PayloadSHA256, &record.RequestCode, &record.CorrelationID,
 			&record.RequestedBy, &record.RequestFingerprint, &record.AttemptCount, &record.MaxAttempts,
@@ -828,6 +858,7 @@ func scanOutboundDACQueueRows(rows *sql.Rows) ([]OutboundDACQueueRecord, error) 
 		_ = json.Unmarshal([]byte(proxyStateJSON), &record.ProxyState)
 		_ = json.Unmarshal([]byte(vendorPacksJSON), &record.VendorPacks)
 		_ = json.Unmarshal([]byte(vendorWarningsJSON), &record.VendorCompilerWarnings)
+		_ = json.Unmarshal([]byte(capWarningsJSON), &record.CapabilityWarnings)
 		records = append(records, record)
 	}
 	return records, rows.Err()

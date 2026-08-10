@@ -107,25 +107,26 @@ type OutboundDACAttributePlan struct {
 }
 
 type OutboundDACPreview struct {
-	SchemaVersion        int                        `json:"schema_version"`
-	Status               string                     `json:"status"`
-	Message              string                     `json:"message"`
-	Action               string                     `json:"action"`
-	RequestCode          int                        `json:"request_code"`
-	ExpectedACKCode      int                        `json:"expected_ack_code"`
-	ExpectedNAKCode      int                        `json:"expected_nak_code"`
-	Target               OutboundDACTarget          `json:"target"`
-	Attributes           []OutboundDACAttributePlan `json:"attributes"`
-	AttributeCount       int                        `json:"attribute_count"`
-	MaxAttributes        int                        `json:"max_attributes"`
-	RequiresConfirm      bool                       `json:"requires_confirm"`
-	MessageAuthenticator bool                       `json:"message_authenticator"`
-	RequestFingerprint   string                     `json:"request_fingerprint"`
-	ProxyPolicyDecision  ProxyPolicyDecision        `json:"proxy_policy_decision,omitempty"`
-	VendorActionDecision OutboundDACVendorDecision  `json:"vendor_action_decision,omitempty"`
-	Warnings             []string                   `json:"warnings,omitempty"`
-	Blockers             []string                   `json:"blockers,omitempty"`
-	RFCs                 []string                   `json:"rfcs"`
+	SchemaVersion        int                          `json:"schema_version"`
+	Status               string                       `json:"status"`
+	Message              string                       `json:"message"`
+	Action               string                       `json:"action"`
+	RequestCode          int                          `json:"request_code"`
+	ExpectedACKCode      int                          `json:"expected_ack_code"`
+	ExpectedNAKCode      int                          `json:"expected_nak_code"`
+	Target               OutboundDACTarget            `json:"target"`
+	Attributes           []OutboundDACAttributePlan   `json:"attributes"`
+	AttributeCount       int                          `json:"attribute_count"`
+	MaxAttributes        int                          `json:"max_attributes"`
+	RequiresConfirm      bool                         `json:"requires_confirm"`
+	MessageAuthenticator bool                         `json:"message_authenticator"`
+	RequestFingerprint   string                       `json:"request_fingerprint"`
+	ProxyPolicyDecision  ProxyPolicyDecision          `json:"proxy_policy_decision,omitempty"`
+	VendorActionDecision OutboundDACVendorDecision    `json:"vendor_action_decision,omitempty"`
+	OwnershipDecision    OutboundDACOwnershipDecision `json:"ownership_decision,omitempty"`
+	Warnings             []string                     `json:"warnings,omitempty"`
+	Blockers             []string                     `json:"blockers,omitempty"`
+	RFCs                 []string                     `json:"rfcs"`
 }
 
 type OutboundDACReport struct {
@@ -140,6 +141,7 @@ type OutboundDACReport struct {
 	QueueRecent   []db.OutboundDACQueueRecord   `json:"queue_recent,omitempty"`
 	ProxyRouting  OutboundDACProxyRoutingReport `json:"proxy_routing"`
 	VendorActions OutboundDACVendorActionReport `json:"vendor_actions"`
+	NASOwnership  NASCapabilityOwnershipReport  `json:"nas_ownership"`
 	RuntimeStatus *db.RuntimeStatus             `json:"runtime_status,omitempty"`
 	Warnings      []string                      `json:"warnings,omitempty"`
 	RFCs          []string                      `json:"rfcs"`
@@ -175,6 +177,7 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 	queueRecent, _ := db.ListOutboundDACQueue("", 12)
 	proxyRouting := BuildOutboundDACProxyRoutingReport(cfg)
 	vendorActions := BuildOutboundDACVendorActionReport(cfg)
+	nasOwnership := BuildNASCapabilityOwnershipReport(cfg)
 	runtime, _ := db.GetRuntimeStatus(OutboundDACRuntimeComponent)
 	report := OutboundDACReport{
 		SchemaVersion: OutboundDACSchemaVersion,
@@ -206,6 +209,7 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 		QueueRecent:   queueRecent,
 		ProxyRouting:  proxyRouting,
 		VendorActions: vendorActions,
+		NASOwnership:  nasOwnership,
 		RuntimeStatus: runtime,
 		RFCs:          []string{"RFC 2865", "RFC 2866", "RFC 2868", "RFC 3576", "RFC 3580", "RFC 5176"},
 	}
@@ -246,6 +250,13 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 		}
 		report.Warnings = append(report.Warnings, "Outbound vendor dynamic-action compiler is blocked: "+vendorActions.Message)
 	}
+	if nasOwnership.Status == "blocked" {
+		report.Status = "blocked"
+		report.Warnings = append(report.Warnings, "NAS capability ownership is blocked: "+nasOwnership.Message)
+	} else if nasOwnership.Status == "degraded" && report.Status == "ready" {
+		report.Status = "degraded"
+		report.Warnings = append(report.Warnings, "NAS capability ownership is degraded: "+nasOwnership.Message)
+	}
 	return report
 }
 
@@ -285,6 +296,9 @@ func PreviewOutboundDAC(ctx context.Context, cfg *config.Config, request Outboun
 			preview.Blockers = append(preview.Blockers, "Disconnect requests are disabled by radius.dynamic_auth.outbound_allow_disconnect")
 		}
 	}
+	enriched, ownershipWarnings := enrichOutboundDACRequestFromOwnership(request)
+	request = enriched
+	preview.Warnings = append(preview.Warnings, ownershipWarnings...)
 	enriched, hintWarnings := enrichOutboundDACRequestFromSession(request)
 	request = enriched
 	preview.Warnings = append(preview.Warnings, hintWarnings...)
@@ -293,6 +307,10 @@ func PreviewOutboundDAC(ctx context.Context, cfg *config.Config, request Outboun
 	preview.Target = target
 	preview.Warnings = append(preview.Warnings, targetWarnings...)
 	preview.Blockers = append(preview.Blockers, targetBlockers...)
+	ownershipDecision := evaluateOutboundDACOwnershipCapability(cfg, request, target)
+	preview.OwnershipDecision = ownershipDecision
+	preview.Warnings = append(preview.Warnings, ownershipDecision.Warnings...)
+	preview.Blockers = append(preview.Blockers, ownershipDecision.Blockers...)
 	attrs, decision, vendorDecision, attrErr := outboundDACAttributePlan(cfg, request, target, effective.OutboundMaxAttributes)
 	if attrErr != nil {
 		preview.Status = "blocked"
@@ -323,6 +341,7 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 	}
 	effective := config.EffectiveDynamicAuthConfig(dynamicAuthConfig(cfg))
 	request = normalizeOutboundDACRequest(request)
+	request, _ = enrichOutboundDACRequestFromOwnership(request)
 	request, _ = enrichOutboundDACRequestFromSession(request)
 	preview, err := PreviewOutboundDAC(ctx, cfg, request)
 	if err != nil {
@@ -354,6 +373,13 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 			VendorCompilerStatus: preview.VendorActionDecision.Status,
 			VendorCompilerWarnings: append([]string(nil),
 				append(preview.VendorActionDecision.Warnings, preview.VendorActionDecision.Blockers...)...),
+			OwnershipSessionID: preview.OwnershipDecision.SessionID,
+			OwnershipStatus:    preview.OwnershipDecision.OwnershipStatus,
+			OwnershipSource:    preview.OwnershipDecision.OwnershipSource,
+			OwnershipOwnerNode: preview.OwnershipDecision.OwnerNode,
+			CapabilityDecision: preview.OwnershipDecision.Status,
+			CapabilityWarnings: append([]string(nil),
+				append(preview.OwnershipDecision.Warnings, preview.OwnershipDecision.Blockers...)...),
 			NASIdentifier:        request.NASIdentifier,
 			NASIPAddress:         request.NASIPAddress,
 			NASType:              firstNonEmptyString(preview.Target.NASType, request.NASType),
@@ -419,6 +445,13 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 		VendorCompilerStatus: vendorDecision.Status,
 		VendorCompilerWarnings: append([]string(nil),
 			append(vendorDecision.Warnings, vendorDecision.Blockers...)...),
+		OwnershipSessionID: preview.OwnershipDecision.SessionID,
+		OwnershipStatus:    preview.OwnershipDecision.OwnershipStatus,
+		OwnershipSource:    preview.OwnershipDecision.OwnershipSource,
+		OwnershipOwnerNode: preview.OwnershipDecision.OwnerNode,
+		CapabilityDecision: preview.OwnershipDecision.Status,
+		CapabilityWarnings: append([]string(nil),
+			append(preview.OwnershipDecision.Warnings, preview.OwnershipDecision.Blockers...)...),
 		NASIdentifier:        firstNonEmptyString(request.NASIdentifier, target.NASIdentifier),
 		NASIPAddress:         firstNonEmptyString(request.NASIPAddress, target.NASIPAddress),
 		NASType:              firstNonEmptyString(target.NASType, request.NASType),
@@ -807,10 +840,11 @@ func enrichOutboundDACRequestFromSession(request OutboundDACRequest) (OutboundDA
 	if request.FramedIPAddress == "" {
 		request.FramedIPAddress = hint.FramedIPAddress
 	}
-	if request.NASIPAddress == "" && net.ParseIP(hint.NASIdentifier) != nil {
+	targetMatchesHint := request.TargetAddress == "" || targetAddressMatches(request.TargetAddress, hint.NASIdentifier)
+	if targetMatchesHint && request.NASIPAddress == "" && net.ParseIP(hint.NASIdentifier) != nil {
 		request.NASIPAddress = hint.NASIdentifier
 	}
-	if request.NASIdentifier == "" {
+	if targetMatchesHint && request.NASIdentifier == "" {
 		request.NASIdentifier = hint.NASIdentifier
 	}
 	return request, nil

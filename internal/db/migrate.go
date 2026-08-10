@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 50
+	return 51
 }
 
 func Migrate() error {
@@ -2693,3 +2693,72 @@ CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_vendor_action ON radius
 `
 
 const schemaV50 = outboundDACVendorActionSQL
+
+const nasSessionOwnershipSQL = `
+CREATE TABLE IF NOT EXISTS nas_session_ownership (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	session_id TEXT UNIQUE NOT NULL,
+	acct_session_id TEXT,
+	username_hash TEXT,
+	calling_station_hash TEXT,
+	framed_ip_address TEXT,
+	nas_identifier TEXT,
+	nas_ip_address TEXT,
+	radius_client_id INTEGER,
+	shortname TEXT,
+	nas_type TEXT NOT NULL DEFAULT 'other',
+	transport TEXT NOT NULL DEFAULT 'udp',
+	delivery_mode TEXT NOT NULL DEFAULT 'direct',
+	proxy_route TEXT,
+	proxy_realm TEXT,
+	proxy_home_server TEXT,
+	owner_node TEXT NOT NULL DEFAULT 'local',
+	owner_instance TEXT,
+	owner_source TEXT NOT NULL DEFAULT 'session_history',
+	owner_status TEXT NOT NULL DEFAULT 'active',
+	capabilities_json TEXT NOT NULL DEFAULT '{}',
+	supported_actions_json TEXT NOT NULL DEFAULT '[]',
+	supported_transports_json TEXT NOT NULL DEFAULT '[]',
+	capability_hash TEXT NOT NULL DEFAULT '',
+	last_seen_at DATETIME NOT NULL,
+	expires_at DATETIME,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(radius_client_id) REFERENCES radius_clients(id),
+	CHECK (owner_status IN ('active', 'stale', 'released', 'unknown')),
+	CHECK (delivery_mode IN ('direct', 'proxy'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_nas_session_ownership_acct ON nas_session_ownership(acct_session_id);
+CREATE INDEX IF NOT EXISTS idx_nas_session_ownership_target ON nas_session_ownership(nas_ip_address, shortname, nas_identifier);
+CREATE INDEX IF NOT EXISTS idx_nas_session_ownership_owner ON nas_session_ownership(owner_node, owner_status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_nas_session_ownership_status ON nas_session_ownership(owner_status, expires_at);
+
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN ownership_session_id TEXT;
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN ownership_status TEXT;
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN ownership_source TEXT;
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN ownership_owner_node TEXT;
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN capability_decision TEXT NOT NULL DEFAULT 'not_evaluated';
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN capability_warnings_json TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN ownership_session_id TEXT;
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN ownership_status TEXT;
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN ownership_source TEXT;
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN ownership_owner_node TEXT;
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN capability_decision TEXT NOT NULL DEFAULT 'not_evaluated';
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN capability_warnings_json TEXT NOT NULL DEFAULT '[]';
+
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_requests_ownership ON radius_outbound_dac_requests(ownership_session_id, capability_decision, requested_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_ownership ON radius_outbound_dac_queue(ownership_session_id, capability_decision, next_attempt_at);
+`
+
+const nasSessionOwnershipIndexesSQL = `
+CREATE INDEX IF NOT EXISTS idx_nas_session_ownership_acct ON nas_session_ownership(acct_session_id);
+CREATE INDEX IF NOT EXISTS idx_nas_session_ownership_target ON nas_session_ownership(nas_ip_address, shortname, nas_identifier);
+CREATE INDEX IF NOT EXISTS idx_nas_session_ownership_owner ON nas_session_ownership(owner_node, owner_status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_nas_session_ownership_status ON nas_session_ownership(owner_status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_requests_ownership ON radius_outbound_dac_requests(ownership_session_id, capability_decision, requested_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_ownership ON radius_outbound_dac_queue(ownership_session_id, capability_decision, next_attempt_at);
+`
+
+const schemaV51 = nasSessionOwnershipSQL

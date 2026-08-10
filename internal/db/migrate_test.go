@@ -26,7 +26,7 @@ func TestMigrate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, LatestSchemaVersion(), version)
 
-	tables := []string{"local_users", "roles", "bandwidth_profiles", "sessions", "runtime_status", "guest_registrations", "device_inventory", "device_certificates", "admin_principals", "admin_sessions", "network_apply_history", "dhcp_lease_history", "ha_history", "integration_history", "upstream_aaa_history", "vendor_observability", "acl_policies", "vendor_identity_assignments", "vendor_identity_migrations", "database_backend_events", "radius_packet_hardening_events", "radius_accounting_spool", "radius_accounting_spool_attempts", "radius_accounting_ingest_spool", "radius_accounting_ingest_spool_attempts", "radius_accounting_charging_records", "radius_accounting_charging_exports", "radius_accounting_charging_export_records", "radius_outbound_dac_requests", "radius_outbound_dac_attempts", "radius_outbound_dac_queue", "radius_outbound_dac_queue_attempts", "radacct", "radpostauth", "radius_sql_accounting_reconcile_events", "radius_accounting_service_correlations", "nas_client_enrollments", "nas_client_capability_templates", "nas_client_events", "radius_fallback_events", "identity_source_events", "identity_source_cache", "mfa_totp_secrets", "mfa_recovery_codes", "mfa_challenges", "mfa_events", "active_directory_events", "active_directory_group_cache", "active_directory_health_checks", "mab_endpoints", "mab_events", "admin_webauthn_credentials", "admin_webauthn_challenges", "admin_webauthn_events", "eap_method_events", "eap_teap_chain_events", "eap_fast_pwd_events", "eap_sim_aka_events", "eap_machine_user_correlations", "eap_machine_user_session_state", "certificate_lifecycle_events", "certificate_lifecycle_inventory", "supplicant_lifecycle_events", "supplicant_profile_deliveries", "policy_engine_evaluations", "policy_set_versions", "policy_set_approvals", "policy_set_activation_events", "policy_set_simulations", "policy_simulation_analyses", "subscriber_service_chains", "subscriber_service_events", "subscriber_service_accounting", "tacacs_command_sets", "tacacs_authorization_events", "tacacs_accounting_records", "tacacs_protocol_events", "tenant_profiles", "tenant_resource_bindings", "tenant_isolation_events"}
+	tables := []string{"local_users", "roles", "bandwidth_profiles", "sessions", "runtime_status", "guest_registrations", "device_inventory", "device_certificates", "admin_principals", "admin_sessions", "network_apply_history", "dhcp_lease_history", "ha_history", "integration_history", "upstream_aaa_history", "vendor_observability", "acl_policies", "vendor_identity_assignments", "vendor_identity_migrations", "database_backend_events", "radius_packet_hardening_events", "radius_accounting_spool", "radius_accounting_spool_attempts", "radius_accounting_ingest_spool", "radius_accounting_ingest_spool_attempts", "radius_accounting_charging_records", "radius_accounting_charging_exports", "radius_accounting_charging_export_records", "radius_outbound_dac_requests", "radius_outbound_dac_attempts", "radius_outbound_dac_queue", "radius_outbound_dac_queue_attempts", "nas_session_ownership", "radacct", "radpostauth", "radius_sql_accounting_reconcile_events", "radius_accounting_service_correlations", "nas_client_enrollments", "nas_client_capability_templates", "nas_client_events", "radius_fallback_events", "identity_source_events", "identity_source_cache", "mfa_totp_secrets", "mfa_recovery_codes", "mfa_challenges", "mfa_events", "active_directory_events", "active_directory_group_cache", "active_directory_health_checks", "mab_endpoints", "mab_events", "admin_webauthn_credentials", "admin_webauthn_challenges", "admin_webauthn_events", "eap_method_events", "eap_teap_chain_events", "eap_fast_pwd_events", "eap_sim_aka_events", "eap_machine_user_correlations", "eap_machine_user_session_state", "certificate_lifecycle_events", "certificate_lifecycle_inventory", "supplicant_lifecycle_events", "supplicant_profile_deliveries", "policy_engine_evaluations", "policy_set_versions", "policy_set_approvals", "policy_set_activation_events", "policy_set_simulations", "policy_simulation_analyses", "subscriber_service_chains", "subscriber_service_events", "subscriber_service_accounting", "tacacs_command_sets", "tacacs_authorization_events", "tacacs_accounting_records", "tacacs_protocol_events", "tenant_profiles", "tenant_resource_bindings", "tenant_isolation_events"}
 	for _, tbl := range tables {
 		var count int
 		err = DB.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", tbl).Scan(&count)
@@ -95,6 +95,12 @@ func TestMigrate(t *testing.T) {
 		{"radius_outbound_dac_requests", "vendor_packs_json"},
 		{"radius_outbound_dac_requests", "vendor_compiler_status"},
 		{"radius_outbound_dac_requests", "vendor_compiler_warnings_json"},
+		{"radius_outbound_dac_requests", "ownership_session_id"},
+		{"radius_outbound_dac_requests", "ownership_status"},
+		{"radius_outbound_dac_requests", "ownership_source"},
+		{"radius_outbound_dac_requests", "ownership_owner_node"},
+		{"radius_outbound_dac_requests", "capability_decision"},
+		{"radius_outbound_dac_requests", "capability_warnings_json"},
 		{"radius_outbound_dac_attempts", "delivery_mode"},
 		{"radius_outbound_dac_attempts", "proxy_route"},
 		{"radius_outbound_dac_attempts", "proxy_realm"},
@@ -111,6 +117,12 @@ func TestMigrate(t *testing.T) {
 		{"radius_outbound_dac_queue", "vendor_packs_json"},
 		{"radius_outbound_dac_queue", "vendor_compiler_status"},
 		{"radius_outbound_dac_queue", "vendor_compiler_warnings_json"},
+		{"radius_outbound_dac_queue", "ownership_session_id"},
+		{"radius_outbound_dac_queue", "ownership_status"},
+		{"radius_outbound_dac_queue", "ownership_source"},
+		{"radius_outbound_dac_queue", "ownership_owner_node"},
+		{"radius_outbound_dac_queue", "capability_decision"},
+		{"radius_outbound_dac_queue", "capability_warnings_json"},
 		{"radius_outbound_dac_queue_attempts", "delivery_mode"},
 		{"radius_outbound_dac_queue_attempts", "proxy_route"},
 		{"radius_outbound_dac_queue_attempts", "proxy_realm"},
@@ -122,6 +134,13 @@ func TestMigrate(t *testing.T) {
 		err = DB.QueryRow("SELECT count(*) FROM pragma_table_info(?) WHERE name=?", binding.table, binding.column).Scan(&columnCount)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, columnCount, "%s.%s should exist", binding.table, binding.column)
+	}
+
+	for _, column := range []string{"session_id", "acct_session_id", "nas_identifier", "nas_ip_address", "radius_client_id", "shortname", "nas_type", "transport", "delivery_mode", "proxy_route", "owner_node", "owner_source", "owner_status", "capabilities_json", "supported_actions_json", "supported_transports_json", "capability_hash", "last_seen_at", "expires_at"} {
+		var columnCount int
+		err = DB.QueryRow("SELECT count(*) FROM pragma_table_info('nas_session_ownership') WHERE name=?", column).Scan(&columnCount)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, columnCount, "nas_session_ownership.%s should exist", column)
 	}
 
 	for _, binding := range []struct {

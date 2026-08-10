@@ -179,6 +179,7 @@ func EnqueueOutboundDAC(ctx context.Context, cfg *config.Config, request Outboun
 	}
 	effective := config.EffectiveDynamicAuthConfig(dynamicAuthConfig(cfg))
 	request = normalizeOutboundDACRequest(request)
+	request, _ = enrichOutboundDACRequestFromOwnership(request)
 	request, _ = enrichOutboundDACRequestFromSession(request)
 	preview, err := PreviewOutboundDAC(ctx, cfg, request)
 	if err != nil {
@@ -225,6 +226,13 @@ func EnqueueOutboundDAC(ctx context.Context, cfg *config.Config, request Outboun
 		VendorCompilerStatus: preview.VendorActionDecision.Status,
 		VendorCompilerWarnings: append([]string(nil),
 			append(preview.VendorActionDecision.Warnings, preview.VendorActionDecision.Blockers...)...),
+		OwnershipSessionID: preview.OwnershipDecision.SessionID,
+		OwnershipStatus:    preview.OwnershipDecision.OwnershipStatus,
+		OwnershipSource:    preview.OwnershipDecision.OwnershipSource,
+		OwnershipOwnerNode: preview.OwnershipDecision.OwnerNode,
+		CapabilityDecision: preview.OwnershipDecision.Status,
+		CapabilityWarnings: append([]string(nil),
+			append(preview.OwnershipDecision.Warnings, preview.OwnershipDecision.Blockers...)...),
 		NASIdentifier:        firstNonEmptyString(normalized.NASIdentifier, preview.Target.NASIdentifier),
 		NASIPAddress:         firstNonEmptyString(normalized.NASIPAddress, preview.Target.NASIPAddress),
 		NASType:              firstNonEmptyString(preview.Target.NASType, normalized.NASType),
@@ -665,6 +673,12 @@ func ensureOutboundDACQueueHistoryRequest(cfg *config.Config, requestID string, 
 		VendorCompilerStatus: vendorDecision.Status,
 		VendorCompilerWarnings: append([]string(nil),
 			append(vendorDecision.Warnings, vendorDecision.Blockers...)...),
+		OwnershipSessionID:   record.OwnershipSessionID,
+		OwnershipStatus:      record.OwnershipStatus,
+		OwnershipSource:      record.OwnershipSource,
+		OwnershipOwnerNode:   record.OwnershipOwnerNode,
+		CapabilityDecision:   record.CapabilityDecision,
+		CapabilityWarnings:   record.CapabilityWarnings,
 		NASIdentifier:        firstNonEmptyString(request.NASIdentifier, target.NASIdentifier),
 		NASIPAddress:         firstNonEmptyString(request.NASIPAddress, target.NASIPAddress),
 		NASType:              firstNonEmptyString(target.NASType, request.NASType),

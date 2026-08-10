@@ -174,7 +174,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{47, schemaV47},
 		{48, schemaV48},
 		{49, schemaV49},
-		{LatestSchemaVersion(), schemaV50},
+		{50, schemaV50},
+		{LatestSchemaVersion(), schemaV51},
 	}
 
 	for _, m := range migrations {
@@ -294,8 +295,91 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureOutboundDACVendorActionColumns(handle); err != nil {
 		return fmt.Errorf("repair outbound dynamic authorization vendor action schema: %w", err)
 	}
+	if err := ensureNASSessionOwnershipSchema(handle); err != nil {
+		return fmt.Errorf("repair NAS session ownership schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureNASSessionOwnershipSchema(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	if _, err := handle.Exec(SQLForDialect(`CREATE TABLE IF NOT EXISTS nas_session_ownership (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		session_id TEXT UNIQUE NOT NULL,
+		acct_session_id TEXT,
+		username_hash TEXT,
+		calling_station_hash TEXT,
+		framed_ip_address TEXT,
+		nas_identifier TEXT,
+		nas_ip_address TEXT,
+		radius_client_id INTEGER,
+		shortname TEXT,
+		nas_type TEXT NOT NULL DEFAULT 'other',
+		transport TEXT NOT NULL DEFAULT 'udp',
+		delivery_mode TEXT NOT NULL DEFAULT 'direct',
+		proxy_route TEXT,
+		proxy_realm TEXT,
+		proxy_home_server TEXT,
+		owner_node TEXT NOT NULL DEFAULT 'local',
+		owner_instance TEXT,
+		owner_source TEXT NOT NULL DEFAULT 'session_history',
+		owner_status TEXT NOT NULL DEFAULT 'active',
+		capabilities_json TEXT NOT NULL DEFAULT '{}',
+		supported_actions_json TEXT NOT NULL DEFAULT '[]',
+		supported_transports_json TEXT NOT NULL DEFAULT '[]',
+		capability_hash TEXT NOT NULL DEFAULT '',
+		last_seen_at DATETIME NOT NULL,
+		expires_at DATETIME,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY(radius_client_id) REFERENCES radius_clients(id),
+		CHECK (owner_status IN ('active', 'stale', 'released', 'unknown')),
+		CHECK (delivery_mode IN ('direct', 'proxy'))
+	)`, dialect)); err != nil {
+		return err
+	}
+	columns := []struct {
+		table string
+		name  string
+		sql   string
+	}{
+		{"radius_outbound_dac_requests", "ownership_session_id", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN ownership_session_id TEXT`},
+		{"radius_outbound_dac_requests", "ownership_status", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN ownership_status TEXT`},
+		{"radius_outbound_dac_requests", "ownership_source", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN ownership_source TEXT`},
+		{"radius_outbound_dac_requests", "ownership_owner_node", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN ownership_owner_node TEXT`},
+		{"radius_outbound_dac_requests", "capability_decision", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN capability_decision TEXT NOT NULL DEFAULT 'not_evaluated'`},
+		{"radius_outbound_dac_requests", "capability_warnings_json", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN capability_warnings_json TEXT NOT NULL DEFAULT '[]'`},
+		{"radius_outbound_dac_queue", "ownership_session_id", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN ownership_session_id TEXT`},
+		{"radius_outbound_dac_queue", "ownership_status", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN ownership_status TEXT`},
+		{"radius_outbound_dac_queue", "ownership_source", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN ownership_source TEXT`},
+		{"radius_outbound_dac_queue", "ownership_owner_node", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN ownership_owner_node TEXT`},
+		{"radius_outbound_dac_queue", "capability_decision", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN capability_decision TEXT NOT NULL DEFAULT 'not_evaluated'`},
+		{"radius_outbound_dac_queue", "capability_warnings_json", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN capability_warnings_json TEXT NOT NULL DEFAULT '[]'`},
+	}
+	for _, column := range columns {
+		exists, err := tableExists(handle, column.table)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			continue
+		}
+		hasColumn, err := tableHasColumn(handle, column.table, column.name)
+		if err != nil {
+			return err
+		}
+		if !hasColumn {
+			if _, err := handle.Exec(SQLForDialect(column.sql, dialect)); err != nil {
+				return err
+			}
+		}
+	}
+	_, err := handle.Exec(SQLForDialect(nasSessionOwnershipIndexesSQL, dialect))
+	return err
 }
 
 func ensureOutboundDACVendorActionColumns(handle *sql.DB) error {

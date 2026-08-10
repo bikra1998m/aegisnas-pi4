@@ -7,6 +7,9 @@ route-aware proxy delivery, Proxy-State loop protection, and RadSec mTLS
 outbound CoA/Disconnect routing through configured upstream home servers.
 NAS-0045 adds the vendor dynamic-action compiler that converts neutral action
 intent into fail-closed Vendor-Specific Attributes for selected vendor packs.
+NAS-0046 adds the NAS capability and session ownership registry that binds
+active sessions to the owning NAS/client/node and validates requested
+CoA/Disconnect actions against declared capability and transport limits.
 Operators can preview, send immediately, enqueue, replay, cancel, retry,
 inspect history, and collect support evidence without exposing shared secrets or
 cleartext identity selectors in API responses or support bundles.
@@ -54,10 +57,20 @@ Implemented software scope:
   unsupported vendor action attributes.
 - Vendor action status, selected packs, compiled attributes, warnings, and
   blockers in preview, send, queue, history, readiness, and support bundles.
+- NAS capability clients from `radius_clients.capabilities_json`, active session
+  ownership rows in `nas_session_ownership`, and ownership summaries in status,
+  readiness, support bundles, and the admin UI.
+- Session-owned DAC target resolution from active session/accounting rows before
+  falling back to local session hints.
+- Fail-closed ownership validation when an operator targets a different NAS than
+  the one that owns the selected session.
+- Capability validation for CoA, Disconnect, vendor actions, direct UDP, proxy,
+  RadSec proxy, role, VLAN, Filter-Id, ACL, QoS, and quarantine intents.
+- Ownership and capability decision evidence in preview responses, immediate DAC
+  history, durable queue records, and replay-created history.
 
 Deferred roadmap scope:
 
-- NAS-0046 adds authoritative NAS capability and session ownership registry.
 - NAS-0047 adds HA-aware cluster handoff.
 
 ## Configuration
@@ -164,6 +177,7 @@ packs are active.
 
 ```text
 GET  /api/v1/system/dac-client
+GET  /api/v1/system/nas-ownership
 POST /api/v1/system/dac-client/preview
 POST /api/v1/system/dac-client/send
 POST /api/v1/system/dac-client/enqueue
@@ -176,6 +190,9 @@ GET  /api/v1/system/dac-client/history
 Read-only admins can inspect status and history. `ops_admin` and `super_admin`
 can preview, send, enqueue, replay, cancel, and retry requests. Send and enqueue
 requests require `confirm: true` when confirmation policy is enabled.
+`GET /api/v1/system/nas-ownership` returns capability-backed NAS clients,
+recent session owners, registry coverage, stale/unknown counts, supported
+actions/transports, and RFC references.
 
 Example preview:
 
@@ -363,6 +380,22 @@ queue records:
 - `vendor_compiler_status`
 - `vendor_compiler_warnings_json`
 
+Schema v51 adds NAS ownership and capability evidence:
+
+- `nas_session_ownership`
+- `radius_outbound_dac_requests.ownership_session_id`
+- `radius_outbound_dac_requests.ownership_status`
+- `radius_outbound_dac_requests.ownership_source`
+- `radius_outbound_dac_requests.ownership_owner_node`
+- `radius_outbound_dac_requests.capability_decision`
+- `radius_outbound_dac_requests.capability_warnings_json`
+- `radius_outbound_dac_queue.ownership_session_id`
+- `radius_outbound_dac_queue.ownership_status`
+- `radius_outbound_dac_queue.ownership_source`
+- `radius_outbound_dac_queue.ownership_owner_node`
+- `radius_outbound_dac_queue.capability_decision`
+- `radius_outbound_dac_queue.capability_warnings_json`
+
 History stores request identifiers, action, status, target, response code,
 Error-Cause, latency, fingerprints, and correlation. User name, calling station,
 Class, and State values are hashed/redacted in persisted attribute history.
@@ -377,7 +410,7 @@ Before a change:
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/dac-client \
-  | jq '.report.status, .report.policy, .report.proxy_routing, .report.vendor_actions'
+  | jq '.report.status, .report.policy, .report.proxy_routing, .report.vendor_actions, .report.nas_ownership'
 ```
 
 After a change:
@@ -389,7 +422,8 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 Investigate any `nak`, `error`, `blocked`, `poison`, or `expired` entry before
 claiming the change window is complete. Support bundles include
-`api/dac-client.json` and `api/dac-client-history.json`.
+`api/dac-client.json`, `api/nas-ownership.json`, and
+`api/dac-client-history.json`.
 
 ## Testing
 
@@ -397,6 +431,7 @@ Automated software coverage includes:
 
 - config default and validation tests
 - schema v47 migration and retention tests
+- schema v51 NAS ownership migration and sync tests
 - redacted history tests
 - packet construction tests for CoA and Disconnect
 - ACK, NAK with Error-Cause, and transport error tests
@@ -406,6 +441,9 @@ Automated software coverage includes:
   ACK history, and RadSec mTLS CoA ACK tests
 - vendor action compiler previews, fail-closed ambiguous pack selection,
   unsupported VSA rejection, Type 26 VSA packet encoding, and history evidence
+- NAS ownership sync, session-owned target resolution, conflicting target
+  fail-closed behavior, capability decision persistence, API, readiness, and UI
+  evidence tests
 - admin API, RBAC, OpenAPI, readiness, and support bundle tests
 - admin UI build coverage
 
@@ -414,4 +452,5 @@ acceptance evidence is tracked in
 `nas-0042-release-certification-checklist.md` and
 `nas-0043-release-certification-checklist.md`, and
 `nas-0044-release-certification-checklist.md`, and
-`nas-0045-release-certification-checklist.md`.
+`nas-0045-release-certification-checklist.md`, and
+`nas-0046-release-certification-checklist.md`.

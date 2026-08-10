@@ -514,6 +514,12 @@ type OutboundDACRequestRecord = {
   vendor_packs?: string[];
   vendor_compiler_status?: string;
   vendor_compiler_warnings?: string[];
+  ownership_session_id?: string;
+  ownership_status?: string;
+  ownership_source?: string;
+  ownership_owner_node?: string;
+  capability_decision?: string;
+  capability_warnings?: string[];
   session_id?: string;
   correlation_id?: string;
   response_code?: number;
@@ -543,6 +549,12 @@ type OutboundDACQueueRecord = {
   vendor_packs?: string[];
   vendor_compiler_status?: string;
   vendor_compiler_warnings?: string[];
+  ownership_session_id?: string;
+  ownership_status?: string;
+  ownership_source?: string;
+  ownership_owner_node?: string;
+  capability_decision?: string;
+  capability_warnings?: string[];
   session_id?: string;
   correlation_id?: string;
   attempt_count: number;
@@ -553,6 +565,78 @@ type OutboundDACQueueRecord = {
   next_attempt_at?: string;
   expires_at?: string;
   created_at?: string;
+};
+
+type NASOwnershipReport = {
+  schema_version: number;
+  status: string;
+  message: string;
+  summary?: {
+    schema_version: number;
+    status: string;
+    message: string;
+    enabled_clients: number;
+    capability_clients: number;
+    active_sessions: number;
+    owned_sessions: number;
+    stale_sessions: number;
+    unknown_sessions: number;
+    released_sessions: number;
+    ownership_coverage_percent: number;
+    last_ownership_update?: string;
+  };
+  clients?: Array<{
+    id: number;
+    shortname?: string;
+    ipaddr: string;
+    nas_type?: string;
+    transport?: string;
+    supported_actions?: string[];
+    supported_transports?: string[];
+    last_seen_at?: string;
+    enabled: boolean;
+    secret_set: boolean;
+    capability_hash?: string;
+  }>;
+  session_owners?: Array<{
+    session_id: string;
+    acct_session_id?: string;
+    nas_identifier?: string;
+    nas_ip_address?: string;
+    shortname?: string;
+    nas_type?: string;
+    transport?: string;
+    delivery_mode?: string;
+    owner_node?: string;
+    owner_source?: string;
+    owner_status?: string;
+    supported_actions?: string[];
+    supported_transports?: string[];
+    capability_hash?: string;
+    last_seen_at?: string;
+    expires_at?: string;
+  }>;
+  synced?: number;
+  warnings?: string[];
+  rfcs?: string[];
+};
+
+type OutboundDACOwnershipDecision = {
+  schema_version: number;
+  status: string;
+  message: string;
+  session_id?: string;
+  ownership_status?: string;
+  ownership_source?: string;
+  owner_node?: string;
+  owner_resolved_from?: string;
+  capability_hash?: string;
+  supported_actions?: string[];
+  supported_transports?: string[];
+  required?: string[];
+  warnings?: string[];
+  blockers?: string[];
+  rfcs?: string[];
 };
 
 type OutboundDACReport = {
@@ -664,6 +748,7 @@ type OutboundDACReport = {
     blockers?: string[];
     rfcs?: string[];
   };
+  nas_ownership?: NASOwnershipReport;
   warnings?: string[];
 };
 
@@ -724,6 +809,7 @@ type OutboundDACPreview = {
     blockers?: string[];
     rfcs?: string[];
   };
+  ownership_decision?: OutboundDACOwnershipDecision;
   warnings?: string[];
   blockers?: string[];
 };
@@ -14436,6 +14522,23 @@ export default function AccessSettings() {
                 pack(s)
               </div>
             </div>
+            <div
+              className={`rounded-md border px-3 py-2 ${statusTone(
+                outboundDACReport?.nas_ownership?.status,
+              )}`}
+            >
+              <div className="text-xs font-semibold uppercase">
+                NAS Owners
+              </div>
+              <div className="mt-1 text-sm font-semibold">
+                {outboundDACReport?.nas_ownership?.summary?.owned_sessions ||
+                  0}
+                /
+                {outboundDACReport?.nas_ownership?.summary?.active_sessions ||
+                  0}{" "}
+                active
+              </div>
+            </div>
             <div className="rounded-md border border-gray-200 px-3 py-2">
               <div className="text-xs font-semibold uppercase text-gray-500">
                 RadSec Proxy
@@ -14481,6 +14584,11 @@ export default function AccessSettings() {
               {outboundDACReport.vendor_actions.message}
             </p>
           )}
+          {outboundDACReport?.nas_ownership?.message && (
+            <p className="mt-2 text-xs text-gray-500">
+              {outboundDACReport.nas_ownership.message}
+            </p>
+          )}
           {outboundDACReport?.vendor_actions && (
             <div className="mt-3 rounded-md border border-gray-200 px-3 py-2 text-xs text-gray-600">
               <div>
@@ -14498,6 +14606,37 @@ export default function AccessSettings() {
                 Explicit pack required:{" "}
                 {outboundDACReport.vendor_actions.require_pack ? "yes" : "no"}
               </div>
+            </div>
+          )}
+          {outboundDACReport?.nas_ownership && (
+            <div className="mt-3 rounded-md border border-gray-200 px-3 py-2 text-xs text-gray-600">
+              <div>
+                Capability clients:{" "}
+                {outboundDACReport.nas_ownership.summary
+                  ?.capability_clients || 0}
+                /
+                {outboundDACReport.nas_ownership.summary?.enabled_clients || 0}
+              </div>
+              <div className="mt-1">
+                Ownership coverage:{" "}
+                {outboundDACReport.nas_ownership.summary
+                  ?.ownership_coverage_percent || 0}
+                %
+              </div>
+              <div className="mt-1">
+                Stale or unknown:{" "}
+                {outboundDACReport.nas_ownership.summary?.stale_sessions || 0}
+                /
+                {outboundDACReport.nas_ownership.summary?.unknown_sessions ||
+                  0}
+              </div>
+              {(outboundDACReport.nas_ownership.warnings || []).map(
+                (warning) => (
+                  <div key={warning} className="mt-1 text-amber-700">
+                    {warning}
+                  </div>
+                ),
+              )}
             </div>
           )}
           {(outboundDACReport?.proxy_routing?.routes || []).length > 0 && (
@@ -14836,6 +14975,62 @@ export default function AccessSettings() {
                     : ""}
                 </div>
               )}
+              {outboundDACPreview.ownership_decision?.status && (
+                <div className="mt-2 rounded-md border border-current px-2 py-1">
+                  <div className="font-semibold">
+                    NAS ownership{" "}
+                    {outboundDACPreview.ownership_decision.status}
+                    {outboundDACPreview.ownership_decision.session_id
+                      ? `: ${outboundDACPreview.ownership_decision.session_id}`
+                      : ""}
+                  </div>
+                  <div className="mt-1">
+                    Owner:{" "}
+                    {outboundDACPreview.ownership_decision.owner_node ||
+                      outboundDACPreview.ownership_decision
+                        .owner_resolved_from ||
+                      "registry"}
+                  </div>
+                  <div className="mt-1">
+                    Actions:{" "}
+                    {(
+                      outboundDACPreview.ownership_decision.supported_actions ||
+                      []
+                    ).join(", ") || "none"}
+                  </div>
+                  <div className="mt-1">
+                    Transport:{" "}
+                    {(
+                      outboundDACPreview.ownership_decision
+                        .supported_transports || []
+                    ).join(", ") || "none"}
+                  </div>
+                  {(
+                    outboundDACPreview.ownership_decision.required || []
+                  ).length > 0 && (
+                    <div className="mt-1 break-all">
+                      Required:{" "}
+                      {(
+                        outboundDACPreview.ownership_decision.required || []
+                      ).join(", ")}
+                    </div>
+                  )}
+                  {(
+                    outboundDACPreview.ownership_decision.warnings || []
+                  ).map((warning) => (
+                    <div key={warning} className="mt-1">
+                      {warning}
+                    </div>
+                  ))}
+                  {(
+                    outboundDACPreview.ownership_decision.blockers || []
+                  ).map((blocker) => (
+                    <div key={blocker} className="mt-1">
+                      {blocker}
+                    </div>
+                  ))}
+                </div>
+              )}
               {outboundDACPreview.vendor_action_decision?.status && (
                 <div className="mt-2 rounded-md border border-current px-2 py-1">
                   <div className="font-semibold">
@@ -14909,6 +15104,7 @@ export default function AccessSettings() {
                     <th className="px-3 py-2">Request</th>
                     <th className="px-3 py-2">Action</th>
                     <th className="px-3 py-2">Vendor</th>
+                    <th className="px-3 py-2">Ownership</th>
                     <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">Target</th>
                     <th className="px-3 py-2">Outcome</th>
@@ -14932,6 +15128,20 @@ export default function AccessSettings() {
                         {(item.vendor_packs || []).length > 0 && (
                           <div className="text-xs text-gray-500">
                             {(item.vendor_packs || []).join(", ")}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.capability_decision || "not evaluated"}
+                        <div className="text-xs text-gray-500">
+                          {item.ownership_session_id || item.session_id || ""}
+                        </div>
+                        {item.ownership_status && (
+                          <div className="text-xs text-gray-500">
+                            {item.ownership_status}
+                            {item.ownership_owner_node
+                              ? ` on ${item.ownership_owner_node}`
+                              : ""}
                           </div>
                         )}
                       </td>
@@ -14971,6 +15181,7 @@ export default function AccessSettings() {
                     <th className="px-3 py-2">Queue</th>
                     <th className="px-3 py-2">Action</th>
                     <th className="px-3 py-2">Vendor</th>
+                    <th className="px-3 py-2">Ownership</th>
                     <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">Attempts</th>
                     <th className="px-3 py-2">Next</th>
@@ -14995,6 +15206,20 @@ export default function AccessSettings() {
                         {(item.vendor_packs || []).length > 0 && (
                           <div className="text-xs text-gray-500">
                             {(item.vendor_packs || []).join(", ")}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {item.capability_decision || "not evaluated"}
+                        <div className="text-xs text-gray-500">
+                          {item.ownership_session_id || item.session_id || ""}
+                        </div>
+                        {item.ownership_status && (
+                          <div className="text-xs text-gray-500">
+                            {item.ownership_status}
+                            {item.ownership_owner_node
+                              ? ` on ${item.ownership_owner_node}`
+                              : ""}
                           </div>
                         )}
                       </td>

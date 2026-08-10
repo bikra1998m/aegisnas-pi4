@@ -128,16 +128,25 @@ HA failover, performance, soak, and security validation are tracked in
 
 ## Outbound Dynamic Authorization Operations
 
-Use [outbound-dac-client.md](outbound-dac-client.md) for NAS-0042/NAS-0045 RFC
+Use [outbound-dac-client.md](outbound-dac-client.md) for NAS-0042/NAS-0046 RFC
 5176 CoA and Disconnect preview/send/queue/replay behavior, proxy/RadSec
-routing, vendor dynamic-action compilation, supported vendor-neutral
-attributes, history, and troubleshooting.
+routing, vendor dynamic-action compilation, NAS capability/session ownership,
+supported vendor-neutral attributes, history, and troubleshooting.
 Before production sign-off, run:
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/dac-client \
-  | jq '.report.status, .report.summary, .report.queue_summary, .report.proxy_routing, .report.vendor_actions'
+  | jq '.report.status, .report.summary, .report.queue_summary, .report.proxy_routing, .report.vendor_actions, .report.nas_ownership'
+```
+
+Review the ownership registry directly when session-scoped changes depend on
+the owning NAS:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/nas-ownership \
+  | jq '.report.status, .report.summary, .report.session_owners'
 ```
 
 Preview before sending:
@@ -170,6 +179,16 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   | jq '.status, .vendor_action_decision'
 ```
 
+For session-owned changes, also inspect the ownership decision:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"coa","acct_session_id":"acct-123","filter_id":"employee","confirm":true}' \
+  http://127.0.0.1:8083/api/v1/system/dac-client/preview \
+  | jq '.status, .target, .ownership_decision'
+```
+
 Replay due queue records during a recovery drill:
 
 ```bash
@@ -183,16 +202,20 @@ Production readiness blocks when outbound DAC is disabled, known-client gating
 or send confirmation is disabled, durable queue/replay is disabled, proxy
 routing is disabled or has no usable home servers, Proxy-State hop limits are
 unsafe, vendor action compilation is disabled, explicit vendor pack selection is
-disabled, the history or queue tables are unavailable, no managed NAS clients
+disabled, NAS ownership tables are unavailable, the history or queue tables are
+unavailable, no managed NAS clients exist, no capability-backed NAS clients
 exist, or no shared secret can be resolved. NAK, error, blocked, poison,
-expired, blocked proxy-route history, blocked vendor-action history, and VSA
-compiler warnings degrade readiness until investigated. Support bundles include
-`api/dac-client.json` and `api/dac-client-history.json`; external device,
-packet-capture, HA, performance, soak, and security validation are tracked in
-`nas-0042-release-certification-checklist.md` and
-`nas-0043-release-certification-checklist.md`, and
-`nas-0044-release-certification-checklist.md`, and
-`nas-0045-release-certification-checklist.md`.
+expired, stale ownership, unknown ownership, blocked proxy-route history,
+blocked vendor-action history, blocked ownership decisions, and VSA compiler
+warnings degrade readiness until investigated. Support bundles include
+`api/dac-client.json`, `api/nas-ownership.json`, and
+`api/dac-client-history.json`; external device, packet-capture, HA,
+performance, soak, and security validation are tracked in
+`nas-0042-release-certification-checklist.md`,
+`nas-0043-release-certification-checklist.md`,
+`nas-0044-release-certification-checklist.md`,
+`nas-0045-release-certification-checklist.md`, and
+`nas-0046-release-certification-checklist.md`.
 
 ## Accounting Ordering Operations
 
