@@ -210,6 +210,48 @@ func TestSendOutboundDACPersistsNASOwnershipDecision(t *testing.T) {
 	assert.Empty(t, result.Request.CapabilityWarnings)
 }
 
+func TestPreviewAndSendOutboundDACBlockStandbyHandoff(t *testing.T) {
+	setupOutboundDACTestDB(t)
+	cfg := outboundDACTestConfig()
+	cfg.Radius.NASIdentifier = "node-b"
+	cfg.HighAvailability = config.HighAvailabilityConfig{
+		Enabled:                     true,
+		Role:                        "standby",
+		PeerAPIURL:                  "https://active.example.test:8083",
+		VirtualIP:                   "192.0.2.254/24",
+		HeartbeatIntervalSeconds:    5,
+		FailoverTimeoutSeconds:      30,
+		SplitBrainProtectionEnabled: true,
+	}
+	insertOutboundDACTestClient(t)
+
+	preview, err := PreviewOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		Action:        "coa",
+		TargetAddress: "192.0.2.10",
+		AcctSessionID: "acct-standby",
+		FilterID:      "employee",
+		Confirm:       true,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "blocked", preview.Status)
+	assert.Equal(t, "blocked", preview.HandoffDecision.Status)
+	assert.False(t, preview.HandoffDecision.CanSend)
+	assert.Contains(t, preview.Message, "standby")
+
+	result, err := SendOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		Action:        "coa",
+		TargetAddress: "192.0.2.10",
+		AcctSessionID: "acct-standby",
+		FilterID:      "employee",
+		Confirm:       true,
+	}, "ops@example.test")
+	require.NoError(t, err)
+	assert.Equal(t, db.OutboundDACStatusBlocked, result.Status)
+	assert.Equal(t, "blocked", result.Request.HandoffDecision)
+	assert.Equal(t, "node-b", result.Request.HandoffOwnerNode)
+	assert.NotEmpty(t, result.Request.HandoffLeaseID)
+}
+
 func TestSendOutboundDACClassifiesNAKAndErrorCause(t *testing.T) {
 	setupOutboundDACTestDB(t)
 	cfg := outboundDACTestConfig()
@@ -603,6 +645,91 @@ func TestReplayOutboundDACQueueACKRecordsHistoryAndAttempt(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, attempts, 1)
 	assert.Equal(t, db.OutboundDACQueueAttemptACK, attempts[0].Result)
+}
+
+func TestReplayOutboundDACQueueDoesNotClaimOnStandby(t *testing.T) {
+	setupOutboundDACTestDB(t)
+	cfg := outboundDACTestConfig()
+	insertOutboundDACTestClient(t)
+
+	queued, err := EnqueueOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		Action:         "coa",
+		TargetAddress:  "192.0.2.10",
+		AcctSessionID:  "acct-ha-queued",
+		FilterID:       "employee",
+		IdempotencyKey: "ha-standby-1",
+		Confirm:        true,
+	}, "ops@example.test")
+	require.NoError(t, err)
+
+	cfg.Radius.NASIdentifier = "node-b"
+	cfg.HighAvailability = config.HighAvailabilityConfig{
+		Enabled:                     true,
+		Role:                        "standby",
+		PeerAPIURL:                  "https://active.example.test:8083",
+		VirtualIP:                   "192.0.2.254/24",
+		HeartbeatIntervalSeconds:    5,
+		FailoverTimeoutSeconds:      30,
+		SplitBrainProtectionEnabled: true,
+	}
+	replay, err := ReplayOutboundDACQueue(context.Background(), cfg, 10)
+	require.NoError(t, err)
+	assert.Equal(t, "blocked", replay.Status)
+	assert.Equal(t, 0, replay.Claimed)
+	assert.Equal(t, "blocked", replay.HandoffDecision.Status)
+
+	record, err := db.GetOutboundDACQueueByQueueID(queued.Queue.QueueID)
+	require.NoError(t, err)
+	assert.Equal(t, db.OutboundDACQueueStatusQueued, record.Status)
+	assert.Empty(t, record.LockedUntil)
+}
+
+func TestReplayOutboundDACQueueAllowsPromotedStandby(t *testing.T) {
+	setupOutboundDACTestDB(t)
+	cfg := outboundDACTestConfig()
+	insertOutboundDACTestClient(t)
+
+	queued, err := EnqueueOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		Action:         "coa",
+		TargetAddress:  "192.0.2.10",
+		AcctSessionID:  "acct-ha-promoted",
+		FilterID:       "employee",
+		IdempotencyKey: "ha-promoted-1",
+		Confirm:        true,
+	}, "ops@example.test")
+	require.NoError(t, err)
+
+	cfg.Radius.NASIdentifier = "node-b"
+	cfg.HighAvailability = config.HighAvailabilityConfig{
+		Enabled:                     true,
+		Role:                        "standby",
+		PeerAPIURL:                  "https://active.example.test:8083",
+		VirtualIP:                   "192.0.2.254/24",
+		HeartbeatIntervalSeconds:    5,
+		FailoverTimeoutSeconds:      30,
+		SplitBrainProtectionEnabled: true,
+	}
+	require.NoError(t, db.UpsertRuntimeStatus("high_availability", "ok", "standby promoted", map[string]any{
+		"effective_role":  "active",
+		"failover_active": true,
+	}))
+	origSender := outboundDACPacketSender
+	outboundDACPacketSender = func(ctx context.Context, packet *layehradius.Packet, target string, timeout time.Duration) (*layehradius.Packet, time.Duration, error) {
+		return packet.Response(layehradius.CodeCoAACK), 8 * time.Millisecond, nil
+	}
+	t.Cleanup(func() { outboundDACPacketSender = origSender })
+
+	replay, err := ReplayOutboundDACQueue(context.Background(), cfg, 10)
+	require.NoError(t, err)
+	assert.Equal(t, "ok", replay.Status)
+	assert.Equal(t, 1, replay.Claimed)
+	assert.Equal(t, 1, replay.ACK)
+	assert.Equal(t, "ready", replay.HandoffDecision.Status)
+	assert.Equal(t, "active", replay.HandoffDecision.EffectiveRole)
+
+	record, err := db.GetOutboundDACQueueByQueueID(queued.Queue.QueueID)
+	require.NoError(t, err)
+	assert.Equal(t, db.OutboundDACQueueStatusACK, record.Status)
 }
 
 func TestReplayOutboundDACQueueRetriesThenPoisonsTimeout(t *testing.T) {

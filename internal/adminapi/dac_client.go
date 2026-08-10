@@ -46,6 +46,18 @@ func HandleGetNASOwnership(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func HandleGetDACHandoff(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Get()
+	if cfg == nil {
+		http.Error(w, "configuration not loaded", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"generated_at": time.Now().UTC().Format(time.RFC3339),
+		"report":       radius.BuildOutboundDACHandoffReport(cfg),
+	})
+}
+
 func HandlePreviewOutboundDAC(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	if cfg == nil {

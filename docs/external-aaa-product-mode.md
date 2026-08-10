@@ -120,6 +120,9 @@ When `radius.upstream.enabled: true`:
 - outbound DAC previews include `ownership_decision`; session-scoped requests
   can resolve the owning NAS from `nas_session_ownership`, and conflicting
   target/session ownership is blocked before send or queue
+- outbound DAC previews include `handoff_decision`; HA deployments allow send,
+  queue, and replay only from the active node or a runtime-promoted standby,
+  with lease and fencing evidence visible through `/api/v1/system/dac-handoff`
 - the dashboard probes each upstream AAA home server directly with `Status-Server` when that mode is enabled
 - TLS-PSK RadSec peers expose credential and rotation state through `/api/v1/system/radsec-credentials`; active transport proof remains part of the release certification checklist because the local Go probe path is mTLS-only
 - transport policy exposes route-level downgrade risk through `/api/v1/system/transport-policy` and prevents proxy generation when enforce mode would be violated
@@ -888,6 +891,11 @@ For session-owned outbound authorization, inspect
 owner with the required CoA/Disconnect action and transport capability. The DAC
 preview must show `ownership_decision.status` as `ready` or an explicitly
 accepted warning before production change windows.
+
+For HA-aware outbound authorization, inspect `/api/v1/system/dac-handoff` and
+confirm the local node has `can_send`, `can_queue`, and `can_replay` authority
+for the intended operation. A standby without runtime promotion must block
+preview/send/queue/replay before packet transmission or queue mutation.
 
 ### 13. Test Failover
 

@@ -128,16 +128,17 @@ HA failover, performance, soak, and security validation are tracked in
 
 ## Outbound Dynamic Authorization Operations
 
-Use [outbound-dac-client.md](outbound-dac-client.md) for NAS-0042/NAS-0046 RFC
+Use [outbound-dac-client.md](outbound-dac-client.md) for NAS-0042/NAS-0047 RFC
 5176 CoA and Disconnect preview/send/queue/replay behavior, proxy/RadSec
 routing, vendor dynamic-action compilation, NAS capability/session ownership,
-supported vendor-neutral attributes, history, and troubleshooting.
+HA-aware cluster handoff, supported vendor-neutral attributes, history, and
+troubleshooting.
 Before production sign-off, run:
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/dac-client \
-  | jq '.report.status, .report.summary, .report.queue_summary, .report.proxy_routing, .report.vendor_actions, .report.nas_ownership'
+  | jq '.report.status, .report.summary, .report.queue_summary, .report.proxy_routing, .report.vendor_actions, .report.nas_ownership, .report.handoff'
 ```
 
 Review the ownership registry directly when session-scoped changes depend on
@@ -147,6 +148,15 @@ the owning NAS:
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/nas-ownership \
   | jq '.report.status, .report.summary, .report.session_owners'
+```
+
+Review HA handoff authority directly before running CoA from an active/standby
+pair:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/dac-handoff \
+  | jq '.report.status, .report.decision, .report.summary'
 ```
 
 Preview before sending:

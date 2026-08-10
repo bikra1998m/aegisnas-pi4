@@ -303,6 +303,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/accounting-services.json", requestPath: "/api/v1/system/accounting-services", label: "Multi-service accounting correlation", handler: HandleGetAccountingServices},
 		{archivePath: "api/dac-client.json", requestPath: "/api/v1/system/dac-client", label: "Outbound dynamic authorization client", handler: HandleGetOutboundDACClient},
 		{archivePath: "api/nas-ownership.json", requestPath: "/api/v1/system/nas-ownership", label: "NAS capability and session ownership registry", handler: HandleGetNASOwnership},
+		{archivePath: "api/dac-handoff.json", requestPath: "/api/v1/system/dac-handoff", label: "HA-aware outbound DAC handoff", handler: HandleGetDACHandoff},
 		{archivePath: "api/dac-client-history.json", requestPath: "/api/v1/system/dac-client/history", label: "Outbound dynamic authorization history", handler: HandleListOutboundDACHistory},
 		{archivePath: "api/policy-engine.json", requestPath: "/api/v1/system/policy-engine", label: "Typed policy expression engine", handler: HandleGetPolicyEngine},
 		{archivePath: "api/policy-sets.json", requestPath: "/api/v1/system/policy-sets", label: "Versioned policy set governance", handler: HandleGetPolicySets},

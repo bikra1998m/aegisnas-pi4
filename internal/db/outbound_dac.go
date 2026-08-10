@@ -54,6 +54,11 @@ type OutboundDACRequestRecord struct {
 	OwnershipOwnerNode     string                 `json:"ownership_owner_node,omitempty"`
 	CapabilityDecision     string                 `json:"capability_decision"`
 	CapabilityWarnings     []string               `json:"capability_warnings,omitempty"`
+	HandoffDecision        string                 `json:"handoff_decision"`
+	HandoffOwnerNode       string                 `json:"handoff_owner_node,omitempty"`
+	HandoffLeaseID         string                 `json:"handoff_lease_id,omitempty"`
+	HandoffFencingToken    string                 `json:"handoff_fencing_token,omitempty"`
+	HandoffWarnings        []string               `json:"handoff_warnings,omitempty"`
 	NASIdentifier          string                 `json:"nas_identifier,omitempty"`
 	NASIPAddress           string                 `json:"nas_ip_address,omitempty"`
 	NASType                string                 `json:"nas_type,omitempty"`
@@ -163,6 +168,11 @@ type OutboundDACCreate struct {
 	OwnershipOwnerNode     string
 	CapabilityDecision     string
 	CapabilityWarnings     []string
+	HandoffDecision        string
+	HandoffOwnerNode       string
+	HandoffLeaseID         string
+	HandoffFencingToken    string
+	HandoffWarnings        []string
 	NASIdentifier          string
 	NASIPAddress           string
 	NASType                string
@@ -248,22 +258,29 @@ func CreateOutboundDACRequest(create OutboundDACCreate, retentionLimit int) (Out
 	if err != nil {
 		return OutboundDACRequestRecord{}, fmt.Errorf("encode outbound DAC capability warnings: %w", err)
 	}
+	handoffWarningsJSON, err := json.Marshal(normalizeOutboundDACStringList(create.HandoffWarnings, 32))
+	if err != nil {
+		return OutboundDACRequestRecord{}, fmt.Errorf("encode outbound DAC handoff warnings: %w", err)
+	}
 	_, err = DB.Exec(`INSERT INTO radius_outbound_dac_requests (
 		request_id, action, status, target_address, target_port, target_transport,
 		delivery_mode, proxy_route, proxy_realm, proxy_home_server, proxy_hop_count, proxy_state_json,
 		vendor_action, vendor_packs_json, vendor_compiler_status, vendor_compiler_warnings_json,
 		ownership_session_id, ownership_status, ownership_source, ownership_owner_node, capability_decision, capability_warnings_json,
+		handoff_decision, handoff_owner_node, handoff_lease_id, handoff_fencing_token, handoff_warnings_json,
 		nas_identifier, nas_ip_address, nas_type, shortname, session_id, username_hash,
 		calling_station_hash, framed_ip_address, attributes_json, request_code,
 		correlation_id, requested_by, requested_at, sent_at, failure_reason,
 		message_authenticator, request_fingerprint, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		create.RequestID, create.Action, create.Status, create.TargetAddress, create.TargetPort, create.TargetTransport,
 		normalizeOutboundDACDeliveryMode(create.DeliveryMode), nullIfEmpty(create.ProxyRoute), nullIfEmpty(create.ProxyRealm),
 		nullIfEmpty(create.ProxyHomeServer), create.ProxyHopCount, string(proxyStateJSON),
 		nullIfEmpty(create.VendorAction), string(vendorPacksJSON), normalizeOutboundDACVendorCompilerStatus(create.VendorCompilerStatus), string(vendorWarningsJSON),
 		nullIfEmpty(create.OwnershipSessionID), nullIfEmpty(create.OwnershipStatus), nullIfEmpty(create.OwnershipSource),
 		nullIfEmpty(create.OwnershipOwnerNode), normalizeOutboundDACCapabilityDecision(create.CapabilityDecision), string(capabilityWarningsJSON),
+		normalizeOutboundDACHandoffDecision(create.HandoffDecision), nullIfEmpty(create.HandoffOwnerNode), nullIfEmpty(create.HandoffLeaseID),
+		nullIfEmpty(create.HandoffFencingToken), string(handoffWarningsJSON),
 		nullIfEmpty(create.NASIdentifier), nullIfEmpty(create.NASIPAddress), nullIfEmpty(create.NASType), nullIfEmpty(create.ShortName),
 		nullIfEmpty(create.SessionID), nullIfEmpty(HashEAPIdentity(create.Username)), nullIfEmpty(HashEAPIdentity(create.CallingStationID)),
 		nullIfEmpty(create.FramedIPAddress), string(attrsJSON), create.RequestCode, create.CorrelationID, nullIfEmpty(create.RequestedBy),
@@ -511,6 +528,11 @@ func normalizeOutboundDACCreate(create OutboundDACCreate) OutboundDACCreate {
 	create.OwnershipOwnerNode = strings.TrimSpace(create.OwnershipOwnerNode)
 	create.CapabilityDecision = normalizeOutboundDACCapabilityDecision(create.CapabilityDecision)
 	create.CapabilityWarnings = normalizeOutboundDACStringList(create.CapabilityWarnings, 32)
+	create.HandoffDecision = normalizeOutboundDACHandoffDecision(create.HandoffDecision)
+	create.HandoffOwnerNode = strings.TrimSpace(create.HandoffOwnerNode)
+	create.HandoffLeaseID = strings.TrimSpace(create.HandoffLeaseID)
+	create.HandoffFencingToken = strings.TrimSpace(create.HandoffFencingToken)
+	create.HandoffWarnings = normalizeOutboundDACStringList(create.HandoffWarnings, 32)
 	create.NASIdentifier = strings.TrimSpace(create.NASIdentifier)
 	create.NASIPAddress = strings.TrimSpace(create.NASIPAddress)
 	create.NASType = strings.TrimSpace(strings.ToLower(create.NASType))
@@ -529,6 +551,18 @@ func normalizeOutboundDACCreate(create OutboundDACCreate) OutboundDACCreate {
 	}
 	create.RequestedAt = create.RequestedAt.UTC()
 	return create
+}
+
+func normalizeOutboundDACHandoffDecision(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "ready", "active", "standby", "blocked", "disabled", "degraded", "not_required":
+		return strings.ToLower(strings.TrimSpace(status))
+	default:
+		if strings.TrimSpace(status) == "" {
+			return "not_evaluated"
+		}
+		return strings.ToLower(strings.TrimSpace(status))
+	}
 }
 
 func normalizeOutboundDACAction(action string) string {
@@ -655,6 +689,8 @@ func outboundDACSelectSQL() string {
 		COALESCE(vendor_compiler_status, 'not_requested'), COALESCE(vendor_compiler_warnings_json, '[]'),
 		COALESCE(ownership_session_id, ''), COALESCE(ownership_status, ''), COALESCE(ownership_source, ''),
 		COALESCE(ownership_owner_node, ''), COALESCE(capability_decision, 'not_evaluated'), COALESCE(capability_warnings_json, '[]'),
+		COALESCE(handoff_decision, 'not_evaluated'), COALESCE(handoff_owner_node, ''), COALESCE(handoff_lease_id, ''),
+		COALESCE(handoff_fencing_token, ''), COALESCE(handoff_warnings_json, '[]'),
 		COALESCE(nas_identifier, ''), COALESCE(nas_ip_address, ''), COALESCE(nas_type, ''),
 		COALESCE(shortname, ''), COALESCE(session_id, ''), COALESCE(username_hash, ''),
 		COALESCE(calling_station_hash, ''), COALESCE(framed_ip_address, ''), attributes_json,
@@ -669,18 +705,21 @@ func scanOutboundDACRequestRows(rows outboundDACRows) ([]OutboundDACRequestRecor
 	records := []OutboundDACRequestRecord{}
 	for rows.Next() {
 		var (
-			record             OutboundDACRequestRecord
-			attrsJSON          string
-			proxyStateJSON     string
-			vendorPacksJSON    string
-			vendorWarningsJSON string
-			capWarningsJSON    string
+			record              OutboundDACRequestRecord
+			attrsJSON           string
+			proxyStateJSON      string
+			vendorPacksJSON     string
+			vendorWarningsJSON  string
+			capWarningsJSON     string
+			handoffWarningsJSON string
 		)
 		if err := rows.Scan(&record.ID, &record.RequestID, &record.Action, &record.Status, &record.TargetAddress,
 			&record.TargetPort, &record.TargetTransport, &record.DeliveryMode, &record.ProxyRoute, &record.ProxyRealm,
 			&record.ProxyHomeServer, &record.ProxyHopCount, &proxyStateJSON, &record.VendorAction, &vendorPacksJSON,
 			&record.VendorCompilerStatus, &vendorWarningsJSON, &record.OwnershipSessionID, &record.OwnershipStatus,
-			&record.OwnershipSource, &record.OwnershipOwnerNode, &record.CapabilityDecision, &capWarningsJSON, &record.NASIdentifier, &record.NASIPAddress,
+			&record.OwnershipSource, &record.OwnershipOwnerNode, &record.CapabilityDecision, &capWarningsJSON,
+			&record.HandoffDecision, &record.HandoffOwnerNode, &record.HandoffLeaseID, &record.HandoffFencingToken, &handoffWarningsJSON,
+			&record.NASIdentifier, &record.NASIPAddress,
 			&record.NASType, &record.ShortName, &record.SessionID, &record.UsernameHash, &record.CallingStationHash,
 			&record.FramedIPAddress, &attrsJSON, &record.RequestCode, &record.ResponseCode, &record.ErrorCause,
 			&record.ErrorCauseName, &record.ReplyMessage, &record.CorrelationID, &record.RequestedBy,
@@ -694,6 +733,7 @@ func scanOutboundDACRequestRows(rows outboundDACRows) ([]OutboundDACRequestRecor
 		_ = json.Unmarshal([]byte(vendorPacksJSON), &record.VendorPacks)
 		_ = json.Unmarshal([]byte(vendorWarningsJSON), &record.VendorCompilerWarnings)
 		_ = json.Unmarshal([]byte(capWarningsJSON), &record.CapabilityWarnings)
+		_ = json.Unmarshal([]byte(handoffWarningsJSON), &record.HandoffWarnings)
 		records = append(records, record)
 	}
 	return records, rows.Err()

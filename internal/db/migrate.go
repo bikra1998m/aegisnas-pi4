@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 51
+	return 52
 }
 
 func Migrate() error {
@@ -2762,3 +2762,107 @@ CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_ownership ON radius_out
 `
 
 const schemaV51 = nasSessionOwnershipSQL
+
+const outboundDACHandoffSQL = `
+CREATE TABLE IF NOT EXISTS radius_dac_handoff_leases (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	lease_id TEXT UNIQUE NOT NULL,
+	node_id TEXT NOT NULL,
+	instance_id TEXT,
+	ha_role TEXT NOT NULL DEFAULT 'standalone',
+	status TEXT NOT NULL,
+	can_send BOOLEAN NOT NULL DEFAULT 0,
+	can_queue BOOLEAN NOT NULL DEFAULT 0,
+	can_replay BOOLEAN NOT NULL DEFAULT 0,
+	term INTEGER NOT NULL DEFAULT 1,
+	fencing_token TEXT NOT NULL DEFAULT '',
+	lease_expires_at DATETIME,
+	last_heartbeat_at DATETIME NOT NULL,
+	message TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('active', 'standby', 'disabled', 'blocked', 'degraded', 'expired'))
+);
+
+CREATE TABLE IF NOT EXISTS radius_dac_handoff_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	event_type TEXT NOT NULL,
+	status TEXT NOT NULL,
+	node_id TEXT NOT NULL,
+	lease_id TEXT,
+	ha_role TEXT NOT NULL DEFAULT 'standalone',
+	message TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	observed_at DATETIME NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN handoff_decision TEXT NOT NULL DEFAULT 'not_evaluated';
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN handoff_owner_node TEXT;
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN handoff_lease_id TEXT;
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN handoff_fencing_token TEXT;
+ALTER TABLE radius_outbound_dac_requests ADD COLUMN handoff_warnings_json TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN handoff_decision TEXT NOT NULL DEFAULT 'not_evaluated';
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN handoff_owner_node TEXT;
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN handoff_lease_id TEXT;
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN handoff_fencing_token TEXT;
+ALTER TABLE radius_outbound_dac_queue ADD COLUMN handoff_warnings_json TEXT NOT NULL DEFAULT '[]';
+
+CREATE INDEX IF NOT EXISTS idx_radius_dac_handoff_leases_node ON radius_dac_handoff_leases(node_id, status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_radius_dac_handoff_leases_status ON radius_dac_handoff_leases(status, lease_expires_at);
+CREATE INDEX IF NOT EXISTS idx_radius_dac_handoff_events_node ON radius_dac_handoff_events(node_id, observed_at);
+CREATE INDEX IF NOT EXISTS idx_radius_dac_handoff_events_status ON radius_dac_handoff_events(status, observed_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_requests_handoff ON radius_outbound_dac_requests(handoff_decision, handoff_owner_node, requested_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_handoff ON radius_outbound_dac_queue(handoff_decision, handoff_owner_node, next_attempt_at);
+`
+
+const outboundDACHandoffTablesSQL = `
+CREATE TABLE IF NOT EXISTS radius_dac_handoff_leases (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	lease_id TEXT UNIQUE NOT NULL,
+	node_id TEXT NOT NULL,
+	instance_id TEXT,
+	ha_role TEXT NOT NULL DEFAULT 'standalone',
+	status TEXT NOT NULL,
+	can_send BOOLEAN NOT NULL DEFAULT 0,
+	can_queue BOOLEAN NOT NULL DEFAULT 0,
+	can_replay BOOLEAN NOT NULL DEFAULT 0,
+	term INTEGER NOT NULL DEFAULT 1,
+	fencing_token TEXT NOT NULL DEFAULT '',
+	lease_expires_at DATETIME,
+	last_heartbeat_at DATETIME NOT NULL,
+	message TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('active', 'standby', 'disabled', 'blocked', 'degraded', 'expired'))
+);
+
+CREATE TABLE IF NOT EXISTS radius_dac_handoff_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	event_type TEXT NOT NULL,
+	status TEXT NOT NULL,
+	node_id TEXT NOT NULL,
+	lease_id TEXT,
+	ha_role TEXT NOT NULL DEFAULT 'standalone',
+	message TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	observed_at DATETIME NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+`
+
+const outboundDACHandoffIndexesSQL = `
+CREATE INDEX IF NOT EXISTS idx_radius_dac_handoff_leases_node ON radius_dac_handoff_leases(node_id, status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_radius_dac_handoff_leases_status ON radius_dac_handoff_leases(status, lease_expires_at);
+CREATE INDEX IF NOT EXISTS idx_radius_dac_handoff_events_node ON radius_dac_handoff_events(node_id, observed_at);
+CREATE INDEX IF NOT EXISTS idx_radius_dac_handoff_events_status ON radius_dac_handoff_events(status, observed_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_requests_handoff ON radius_outbound_dac_requests(handoff_decision, handoff_owner_node, requested_at);
+CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_handoff ON radius_outbound_dac_queue(handoff_decision, handoff_owner_node, next_attempt_at);
+`
+
+const schemaV52 = outboundDACHandoffSQL

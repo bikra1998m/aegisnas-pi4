@@ -124,6 +124,7 @@ type OutboundDACPreview struct {
 	ProxyPolicyDecision  ProxyPolicyDecision          `json:"proxy_policy_decision,omitempty"`
 	VendorActionDecision OutboundDACVendorDecision    `json:"vendor_action_decision,omitempty"`
 	OwnershipDecision    OutboundDACOwnershipDecision `json:"ownership_decision,omitempty"`
+	HandoffDecision      OutboundDACHandoffDecision   `json:"handoff_decision,omitempty"`
 	Warnings             []string                     `json:"warnings,omitempty"`
 	Blockers             []string                     `json:"blockers,omitempty"`
 	RFCs                 []string                     `json:"rfcs"`
@@ -142,6 +143,7 @@ type OutboundDACReport struct {
 	ProxyRouting  OutboundDACProxyRoutingReport `json:"proxy_routing"`
 	VendorActions OutboundDACVendorActionReport `json:"vendor_actions"`
 	NASOwnership  NASCapabilityOwnershipReport  `json:"nas_ownership"`
+	Handoff       OutboundDACHandoffReport      `json:"handoff"`
 	RuntimeStatus *db.RuntimeStatus             `json:"runtime_status,omitempty"`
 	Warnings      []string                      `json:"warnings,omitempty"`
 	RFCs          []string                      `json:"rfcs"`
@@ -178,6 +180,7 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 	proxyRouting := BuildOutboundDACProxyRoutingReport(cfg)
 	vendorActions := BuildOutboundDACVendorActionReport(cfg)
 	nasOwnership := BuildNASCapabilityOwnershipReport(cfg)
+	handoff := BuildOutboundDACHandoffReport(cfg)
 	runtime, _ := db.GetRuntimeStatus(OutboundDACRuntimeComponent)
 	report := OutboundDACReport{
 		SchemaVersion: OutboundDACSchemaVersion,
@@ -210,6 +213,7 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 		ProxyRouting:  proxyRouting,
 		VendorActions: vendorActions,
 		NASOwnership:  nasOwnership,
+		Handoff:       handoff,
 		RuntimeStatus: runtime,
 		RFCs:          []string{"RFC 2865", "RFC 2866", "RFC 2868", "RFC 3576", "RFC 3580", "RFC 5176"},
 	}
@@ -256,6 +260,13 @@ func BuildOutboundDACReport(cfg *config.Config) OutboundDACReport {
 	} else if nasOwnership.Status == "degraded" && report.Status == "ready" {
 		report.Status = "degraded"
 		report.Warnings = append(report.Warnings, "NAS capability ownership is degraded: "+nasOwnership.Message)
+	}
+	if handoff.Status == "blocked" {
+		report.Status = "blocked"
+		report.Warnings = append(report.Warnings, "Outbound DAC HA handoff is blocked: "+handoff.Message)
+	} else if handoff.Status == "degraded" && report.Status == "ready" {
+		report.Status = "degraded"
+		report.Warnings = append(report.Warnings, "Outbound DAC HA handoff is degraded: "+handoff.Message)
 	}
 	return report
 }
@@ -311,6 +322,13 @@ func PreviewOutboundDAC(ctx context.Context, cfg *config.Config, request Outboun
 	preview.OwnershipDecision = ownershipDecision
 	preview.Warnings = append(preview.Warnings, ownershipDecision.Warnings...)
 	preview.Blockers = append(preview.Blockers, ownershipDecision.Blockers...)
+	handoffDecision := evaluateOutboundDACHandoff(cfg, "send")
+	preview.HandoffDecision = handoffDecision
+	preview.Warnings = append(preview.Warnings, handoffDecision.Warnings...)
+	preview.Blockers = append(preview.Blockers, handoffDecision.Blockers...)
+	if _, err := persistOutboundDACHandoffDecision(handoffDecision, "preview"); err != nil {
+		preview.Warnings = append(preview.Warnings, "outbound DAC handoff evidence could not be persisted: "+err.Error())
+	}
 	attrs, decision, vendorDecision, attrErr := outboundDACAttributePlan(cfg, request, target, effective.OutboundMaxAttributes)
 	if attrErr != nil {
 		preview.Status = "blocked"
@@ -380,6 +398,12 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 			CapabilityDecision: preview.OwnershipDecision.Status,
 			CapabilityWarnings: append([]string(nil),
 				append(preview.OwnershipDecision.Warnings, preview.OwnershipDecision.Blockers...)...),
+			HandoffDecision:     preview.HandoffDecision.Status,
+			HandoffOwnerNode:    preview.HandoffDecision.NodeID,
+			HandoffLeaseID:      preview.HandoffDecision.LeaseID,
+			HandoffFencingToken: preview.HandoffDecision.FencingToken,
+			HandoffWarnings: append([]string(nil),
+				append(preview.HandoffDecision.Warnings, preview.HandoffDecision.Blockers...)...),
 			NASIdentifier:        request.NASIdentifier,
 			NASIPAddress:         request.NASIPAddress,
 			NASType:              firstNonEmptyString(preview.Target.NASType, request.NASType),
@@ -452,6 +476,12 @@ func SendOutboundDAC(ctx context.Context, cfg *config.Config, request OutboundDA
 		CapabilityDecision: preview.OwnershipDecision.Status,
 		CapabilityWarnings: append([]string(nil),
 			append(preview.OwnershipDecision.Warnings, preview.OwnershipDecision.Blockers...)...),
+		HandoffDecision:     preview.HandoffDecision.Status,
+		HandoffOwnerNode:    preview.HandoffDecision.NodeID,
+		HandoffLeaseID:      preview.HandoffDecision.LeaseID,
+		HandoffFencingToken: preview.HandoffDecision.FencingToken,
+		HandoffWarnings: append([]string(nil),
+			append(preview.HandoffDecision.Warnings, preview.HandoffDecision.Blockers...)...),
 		NASIdentifier:        firstNonEmptyString(request.NASIdentifier, target.NASIdentifier),
 		NASIPAddress:         firstNonEmptyString(request.NASIPAddress, target.NASIPAddress),
 		NASType:              firstNonEmptyString(target.NASType, request.NASType),

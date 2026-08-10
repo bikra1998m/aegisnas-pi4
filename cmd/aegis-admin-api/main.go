@@ -207,6 +207,7 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/radsec-credentials", adminapi.HandleGetRadSecCredentials)
 			r.Get("/system/dac-client", adminapi.HandleGetOutboundDACClient)
 			r.Get("/system/nas-ownership", adminapi.HandleGetNASOwnership)
+			r.Get("/system/dac-handoff", adminapi.HandleGetDACHandoff)
 			r.Post("/system/dac-client/preview", adminapi.HandlePreviewOutboundDAC)
 			r.Post("/system/dac-client/send", adminapi.HandleSendOutboundDAC)
 			r.Post("/system/dac-client/enqueue", adminapi.HandleEnqueueOutboundDAC)

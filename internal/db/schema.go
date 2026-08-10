@@ -175,7 +175,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{48, schemaV48},
 		{49, schemaV49},
 		{50, schemaV50},
-		{LatestSchemaVersion(), schemaV51},
+		{51, schemaV51},
+		{LatestSchemaVersion(), schemaV52},
 	}
 
 	for _, m := range migrations {
@@ -298,8 +299,57 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureNASSessionOwnershipSchema(handle); err != nil {
 		return fmt.Errorf("repair NAS session ownership schema: %w", err)
 	}
+	if err := ensureOutboundDACHandoffSchema(handle); err != nil {
+		return fmt.Errorf("repair outbound dynamic authorization handoff schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureOutboundDACHandoffSchema(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	if _, err := handle.Exec(SQLForDialect(outboundDACHandoffTablesSQL, dialect)); err != nil {
+		return err
+	}
+	columns := []struct {
+		table string
+		name  string
+		sql   string
+	}{
+		{"radius_outbound_dac_requests", "handoff_decision", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN handoff_decision TEXT NOT NULL DEFAULT 'not_evaluated'`},
+		{"radius_outbound_dac_requests", "handoff_owner_node", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN handoff_owner_node TEXT`},
+		{"radius_outbound_dac_requests", "handoff_lease_id", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN handoff_lease_id TEXT`},
+		{"radius_outbound_dac_requests", "handoff_fencing_token", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN handoff_fencing_token TEXT`},
+		{"radius_outbound_dac_requests", "handoff_warnings_json", `ALTER TABLE radius_outbound_dac_requests ADD COLUMN handoff_warnings_json TEXT NOT NULL DEFAULT '[]'`},
+		{"radius_outbound_dac_queue", "handoff_decision", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN handoff_decision TEXT NOT NULL DEFAULT 'not_evaluated'`},
+		{"radius_outbound_dac_queue", "handoff_owner_node", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN handoff_owner_node TEXT`},
+		{"radius_outbound_dac_queue", "handoff_lease_id", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN handoff_lease_id TEXT`},
+		{"radius_outbound_dac_queue", "handoff_fencing_token", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN handoff_fencing_token TEXT`},
+		{"radius_outbound_dac_queue", "handoff_warnings_json", `ALTER TABLE radius_outbound_dac_queue ADD COLUMN handoff_warnings_json TEXT NOT NULL DEFAULT '[]'`},
+	}
+	for _, column := range columns {
+		exists, err := tableExists(handle, column.table)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			continue
+		}
+		hasColumn, err := tableHasColumn(handle, column.table, column.name)
+		if err != nil {
+			return err
+		}
+		if !hasColumn {
+			if _, err := handle.Exec(SQLForDialect(column.sql, dialect)); err != nil {
+				return err
+			}
+		}
+	}
+	_, err := handle.Exec(SQLForDialect(outboundDACHandoffIndexesSQL, dialect))
+	return err
 }
 
 func ensureNASSessionOwnershipSchema(handle *sql.DB) error {

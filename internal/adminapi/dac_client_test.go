@@ -35,6 +35,8 @@ func TestOutboundDACClientHandlersPreviewSendAndHistory(t *testing.T) {
 	assert.Contains(t, vendorActions["active_packs"], "cisco")
 	nasOwnership := report["nas_ownership"].(map[string]any)
 	assert.Equal(t, "ready", nasOwnership["status"])
+	handoff := report["handoff"].(map[string]any)
+	assert.Equal(t, "ready", handoff["status"])
 
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/system/nas-ownership", nil)
 	rec = httptest.NewRecorder()
@@ -44,6 +46,15 @@ func TestOutboundDACClientHandlersPreviewSendAndHistory(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &ownershipPayload))
 	ownershipReport := ownershipPayload["report"].(map[string]any)
 	assert.Equal(t, "ready", ownershipReport["status"])
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/system/dac-handoff", nil)
+	rec = httptest.NewRecorder()
+	HandleGetDACHandoff(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var handoffPayload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &handoffPayload))
+	handoffReport := handoffPayload["report"].(map[string]any)
+	assert.Equal(t, "ready", handoffReport["status"])
 
 	previewBody := bytes.NewBufferString(`{
 		"action":"coa",
@@ -142,9 +153,11 @@ func TestOutboundDACClientOpenAPIRBACReadinessAndSupportBundle(t *testing.T) {
 	assert.Contains(t, paths, "/api/v1/system/dac-client/retry")
 	assert.Contains(t, paths, "/api/v1/system/dac-client/history")
 	assert.Contains(t, paths, "/api/v1/system/nas-ownership")
+	assert.Contains(t, paths, "/api/v1/system/dac-handoff")
 
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/dac-client"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/nas-ownership"))
+	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "GET", "/api/v1/system/dac-handoff"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/dac-client/preview"))
 	assert.True(t, authorizeRequest(AdminIdentity{Role: adminRoleOpsAdmin}, "POST", "/api/v1/system/dac-client/preview"))
 	assert.False(t, authorizeRequest(AdminIdentity{Role: adminRoleReadOnly}, "POST", "/api/v1/system/dac-client/send"))
@@ -164,10 +177,12 @@ func TestOutboundDACClientOpenAPIRBACReadinessAndSupportBundle(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &readiness))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(readiness.Checks, "radius_outbound_dac_client"))
 	assert.Equal(t, "passed", productionReadinessCheckStatus(readiness.Checks, "nas_capability_ownership"))
+	assert.Equal(t, "passed", productionReadinessCheckStatus(readiness.Checks, "radius_dac_handoff"))
 
 	foundClientCapture := false
 	foundHistoryCapture := false
 	foundOwnershipCapture := false
+	foundHandoffCapture := false
 	for _, capture := range supportBundleAPICaptures() {
 		if capture.archivePath == "api/dac-client.json" {
 			foundClientCapture = true
@@ -177,6 +192,10 @@ func TestOutboundDACClientOpenAPIRBACReadinessAndSupportBundle(t *testing.T) {
 			foundOwnershipCapture = true
 			assert.Equal(t, "/api/v1/system/nas-ownership", capture.requestPath)
 		}
+		if capture.archivePath == "api/dac-handoff.json" {
+			foundHandoffCapture = true
+			assert.Equal(t, "/api/v1/system/dac-handoff", capture.requestPath)
+		}
 		if capture.archivePath == "api/dac-client-history.json" {
 			foundHistoryCapture = true
 			assert.Equal(t, "/api/v1/system/dac-client/history", capture.requestPath)
@@ -184,6 +203,7 @@ func TestOutboundDACClientOpenAPIRBACReadinessAndSupportBundle(t *testing.T) {
 	}
 	assert.True(t, foundClientCapture)
 	assert.True(t, foundOwnershipCapture)
+	assert.True(t, foundHandoffCapture)
 	assert.True(t, foundHistoryCapture)
 }
 

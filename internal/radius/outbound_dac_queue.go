@@ -57,16 +57,17 @@ type OutboundDACEnqueueResult struct {
 }
 
 type OutboundDACReplayReport struct {
-	GeneratedAt string                     `json:"generated_at"`
-	Status      string                     `json:"status"`
-	Message     string                     `json:"message"`
-	Claimed     int                        `json:"claimed"`
-	ACK         int                        `json:"ack"`
-	NAK         int                        `json:"nak"`
-	Failed      int                        `json:"failed"`
-	Poisoned    int                        `json:"poisoned"`
-	Expired     int                        `json:"expired"`
-	Summary     db.OutboundDACQueueSummary `json:"summary"`
+	GeneratedAt     string                     `json:"generated_at"`
+	Status          string                     `json:"status"`
+	Message         string                     `json:"message"`
+	HandoffDecision OutboundDACHandoffDecision `json:"handoff_decision"`
+	Claimed         int                        `json:"claimed"`
+	ACK             int                        `json:"ack"`
+	NAK             int                        `json:"nak"`
+	Failed          int                        `json:"failed"`
+	Poisoned        int                        `json:"poisoned"`
+	Expired         int                        `json:"expired"`
+	Summary         db.OutboundDACQueueSummary `json:"summary"`
 }
 
 type OutboundDACQueueActionResult struct {
@@ -185,12 +186,23 @@ func EnqueueOutboundDAC(ctx context.Context, cfg *config.Config, request Outboun
 	if err != nil {
 		return OutboundDACEnqueueResult{}, err
 	}
+	queueHandoff := evaluateOutboundDACHandoff(cfg, "queue")
+	preview.HandoffDecision = queueHandoff
+	preview.Warnings = append(preview.Warnings, queueHandoff.Warnings...)
+	preview.Blockers = append(preview.Blockers, queueHandoff.Blockers...)
+	if _, err := persistOutboundDACHandoffDecision(queueHandoff, "queue"); err != nil {
+		preview.Warnings = append(preview.Warnings, "outbound DAC handoff evidence could not be persisted: "+err.Error())
+	}
 	if effective.OutboundRequireConfirmation && !request.Confirm && len(preview.Blockers) == 0 {
 		preview.Status = "blocked"
 		preview.Blockers = append(preview.Blockers, "confirm=true is required before queueing outbound dynamic authorization")
 		preview.Message = "confirm=true is required before queueing outbound dynamic authorization."
 	}
 	if len(preview.Blockers) > 0 {
+		preview.Status = "blocked"
+		if preview.Message == "" {
+			preview.Message = strings.Join(preview.Blockers, "; ")
+		}
 		return OutboundDACEnqueueResult{Status: "blocked", Message: preview.Message, Preview: preview}, nil
 	}
 	now := time.Now().UTC()
@@ -233,6 +245,12 @@ func EnqueueOutboundDAC(ctx context.Context, cfg *config.Config, request Outboun
 		CapabilityDecision: preview.OwnershipDecision.Status,
 		CapabilityWarnings: append([]string(nil),
 			append(preview.OwnershipDecision.Warnings, preview.OwnershipDecision.Blockers...)...),
+		HandoffDecision:     preview.HandoffDecision.Status,
+		HandoffOwnerNode:    preview.HandoffDecision.NodeID,
+		HandoffLeaseID:      preview.HandoffDecision.LeaseID,
+		HandoffFencingToken: preview.HandoffDecision.FencingToken,
+		HandoffWarnings: append([]string(nil),
+			append(preview.HandoffDecision.Warnings, preview.HandoffDecision.Blockers...)...),
 		NASIdentifier:        firstNonEmptyString(normalized.NASIdentifier, preview.Target.NASIdentifier),
 		NASIPAddress:         firstNonEmptyString(normalized.NASIPAddress, preview.Target.NASIPAddress),
 		NASType:              firstNonEmptyString(preview.Target.NASType, normalized.NASType),
@@ -299,6 +317,25 @@ func ReplayOutboundDACQueue(ctx context.Context, cfg *config.Config, batchSize i
 		report.Status = "blocked"
 		report.Message = "Database is not initialized."
 		return report, fmt.Errorf("database not initialized")
+	}
+	handoff := evaluateOutboundDACHandoff(cfg, "replay")
+	report.HandoffDecision = handoff
+	if _, err := persistOutboundDACHandoffDecision(handoff, "replay"); err != nil {
+		zap.L().Warn("failed to persist outbound DAC handoff decision", zap.Error(err))
+	}
+	if len(handoff.Blockers) > 0 || !handoff.CanReplay {
+		report.Status = "blocked"
+		report.Message = handoff.Message
+		summary, _ := db.GetOutboundDACQueueSummary(policy.MaxQueueRecords)
+		report.Summary = summary
+		_ = db.UpsertRuntimeStatus(OutboundDACRuntimeComponent, "blocked", report.Message, map[string]any{
+			"handoff_node":           handoff.NodeID,
+			"handoff_lease_id":       handoff.LeaseID,
+			"handoff_effective_role": handoff.EffectiveRole,
+			"queued":                 summary.QueuedCount,
+			"retrying":               summary.RetryingCount,
+		})
+		return report, nil
 	}
 	if batchSize <= 0 {
 		batchSize = policy.BatchSize
@@ -405,6 +442,13 @@ func RetryOutboundDACQueue(ctx context.Context, cfg *config.Config, queueID stri
 	if !policy.Enabled {
 		return OutboundDACQueueActionResult{Status: "disabled", Message: "Durable outbound DAC queue is disabled."}, nil
 	}
+	handoff := evaluateOutboundDACHandoff(cfg, "queue")
+	if _, err := persistOutboundDACHandoffDecision(handoff, "retry"); err != nil {
+		zap.L().Warn("failed to persist outbound DAC handoff decision", zap.Error(err))
+	}
+	if len(handoff.Blockers) > 0 || !handoff.CanQueue {
+		return OutboundDACQueueActionResult{Status: "blocked", Message: handoff.Message}, nil
+	}
 	now := time.Now().UTC()
 	record, err := db.RequeueOutboundDACQueue(
 		queueID,
@@ -415,6 +459,12 @@ func RetryOutboundDACQueue(ctx context.Context, cfg *config.Config, queueID stri
 	)
 	if err != nil {
 		return OutboundDACQueueActionResult{}, err
+	}
+	if err := db.UpdateOutboundDACQueueHandoff(record.QueueID, handoff.Status, handoff.NodeID, handoff.LeaseID, handoff.FencingToken,
+		append([]string(nil), append(handoff.Warnings, handoff.Blockers...)...)); err != nil {
+		zap.L().Warn("failed to persist outbound DAC queue handoff evidence", zap.String("queue_id", record.QueueID), zap.Error(err))
+	} else if updated, err := db.GetOutboundDACQueueByQueueID(record.QueueID); err == nil {
+		record = updated
 	}
 	message := fmt.Sprintf("Outbound DAC queue record %s is queued for retry.", record.QueueID)
 	_ = db.UpsertRuntimeStatus(OutboundDACRuntimeComponent, "queued", message, map[string]any{"queue_id": record.QueueID})
@@ -679,6 +729,11 @@ func ensureOutboundDACQueueHistoryRequest(cfg *config.Config, requestID string, 
 		OwnershipOwnerNode:   record.OwnershipOwnerNode,
 		CapabilityDecision:   record.CapabilityDecision,
 		CapabilityWarnings:   record.CapabilityWarnings,
+		HandoffDecision:      record.HandoffDecision,
+		HandoffOwnerNode:     record.HandoffOwnerNode,
+		HandoffLeaseID:       record.HandoffLeaseID,
+		HandoffFencingToken:  record.HandoffFencingToken,
+		HandoffWarnings:      record.HandoffWarnings,
 		NASIdentifier:        firstNonEmptyString(request.NASIdentifier, target.NASIdentifier),
 		NASIPAddress:         firstNonEmptyString(request.NASIPAddress, target.NASIPAddress),
 		NASType:              firstNonEmptyString(target.NASType, request.NASType),

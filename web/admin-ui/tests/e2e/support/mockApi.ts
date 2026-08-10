@@ -1388,6 +1388,86 @@ function createSystemStatus() {
           warnings: [],
           rfcs: ["RFC 2865", "RFC 2866", "RFC 5176", "RFC 6614"],
         },
+        handoff: {
+          schema_version: 1,
+          status: "ready",
+          message:
+            "Standby is promoted by HA runtime and may own outbound DAC handoff.",
+          decision: {
+            schema_version: 1,
+            status: "ready",
+            message:
+              "Standby is promoted by HA runtime and may own outbound DAC handoff.",
+            enabled: true,
+            mode: "cluster",
+            role: "standby",
+            effective_role: "active",
+            node_id: "aegisnas-radius",
+            instance_id: "aegisnas-radius:pid-101",
+            lease_id: "dac-handoff-aegisnas-radius",
+            fencing_token:
+              "sha256:15f28b3b8c063f854133f138fa91f8f7",
+            lease_expires_at: "2026-05-05T12:00:20Z",
+            can_send: true,
+            can_queue: true,
+            can_replay: true,
+            split_brain_guard: true,
+            ha_status: "ready",
+            ha_message: "Failover promotion is active for this node.",
+            warnings: [],
+            blockers: [],
+            rfcs: ["RFC 5176"],
+          },
+          summary: {
+            schema_version: 1,
+            total_leases: 1,
+            active_leases: 1,
+            standby_leases: 0,
+            blocked_leases: 0,
+            degraded_leases: 0,
+            disabled_leases: 0,
+            expired_leases: 0,
+            send_capable_leases: 1,
+            queue_capable_leases: 1,
+            replay_capable_leases: 1,
+            last_heartbeat_at: "2026-05-05T12:00:00Z",
+            last_event_at: "2026-05-05T12:00:00Z",
+            last_fencing_token_hash:
+              "sha256:15f28b3b8c063f854133f138fa91f8f7",
+          },
+          leases: [
+            {
+              lease_id: "dac-handoff-aegisnas-radius",
+              node_id: "aegisnas-radius",
+              instance_id: "aegisnas-radius:pid-101",
+              ha_role: "standby",
+              status: "active",
+              can_send: true,
+              can_queue: true,
+              can_replay: true,
+              term: 3,
+              lease_expires_at: "2026-05-05T12:00:20Z",
+              last_heartbeat_at: "2026-05-05T12:00:00Z",
+              message:
+                "Standby is promoted by HA runtime and may own outbound DAC handoff.",
+            },
+          ],
+          events: [
+            {
+              event_id: "dach-20260505-1",
+              event_type: "heartbeat",
+              status: "active",
+              node_id: "aegisnas-radius",
+              lease_id: "dac-handoff-aegisnas-radius",
+              ha_role: "standby",
+              message:
+                "Standby is promoted by HA runtime and may own outbound DAC handoff.",
+              observed_at: "2026-05-05T12:00:00Z",
+            },
+          ],
+          warnings: [],
+          rfcs: ["RFC 5176"],
+        },
         recent: [
           {
             request_id: "dac-20260505-1",
@@ -1403,6 +1483,12 @@ function createSystemStatus() {
             ownership_owner_node: "aegisnas-radius",
             capability_decision: "ready",
             capability_warnings: [],
+            handoff_decision: "ready",
+            handoff_owner_node: "aegisnas-radius",
+            handoff_lease_id: "dac-handoff-aegisnas-radius",
+            handoff_fencing_token:
+              "sha256:15f28b3b8c063f854133f138fa91f8f7",
+            handoff_warnings: [],
             target_address: "192.0.2.10",
             target_port: 3799,
             target_transport: "udp",
@@ -1433,6 +1519,12 @@ function createSystemStatus() {
             ownership_owner_node: "aegisnas-radius",
             capability_decision: "ready",
             capability_warnings: [],
+            handoff_decision: "ready",
+            handoff_owner_node: "aegisnas-radius",
+            handoff_lease_id: "dac-handoff-aegisnas-radius",
+            handoff_fencing_token:
+              "sha256:15f28b3b8c063f854133f138fa91f8f7",
+            handoff_warnings: [],
             target_address: "192.0.2.10",
             target_port: 3799,
             target_transport: "udp",
@@ -4299,6 +4391,16 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
+    if (path === "/system/dac-handoff" && method === "GET") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          report: state.systemStatus.radius.dac_client.handoff,
+        },
+      });
+      return;
+    }
+
     if (path === "/system/dac-client/preview" && method === "POST") {
       await route.fulfill({
         json: {
@@ -4392,6 +4494,8 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             blockers: [],
             rfcs: ["RFC 2865", "RFC 5176"],
           },
+          handoff_decision:
+            state.systemStatus.radius.dac_client.handoff.decision,
           warnings: ["send requires confirm=true"],
           blockers: [],
         },
@@ -4467,6 +4571,8 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
               blockers: [],
               rfcs: ["RFC 2865", "RFC 5176"],
             },
+            handoff_decision:
+              state.systemStatus.radius.dac_client.handoff.decision,
           },
           request: state.systemStatus.radius.dac_client.recent[0],
           attempts: [
@@ -4564,6 +4670,8 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
               blockers: [],
               rfcs: ["RFC 2865", "RFC 5176"],
             },
+            handoff_decision:
+              state.systemStatus.radius.dac_client.handoff.decision,
           },
           queue,
         },
@@ -4584,6 +4692,8 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           failed: 0,
           poisoned: 0,
           expired: 0,
+          handoff_decision:
+            state.systemStatus.radius.dac_client.handoff.decision,
           summary: state.systemStatus.radius.dac_client.queue_summary,
         },
       });

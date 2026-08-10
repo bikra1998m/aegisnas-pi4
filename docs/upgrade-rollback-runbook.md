@@ -254,12 +254,28 @@ Schema v51 adds NAS capability and session ownership evidence:
 - `radius_outbound_dac_queue.capability_decision`
 - `radius_outbound_dac_queue.capability_warnings_json`
 
+Schema v52 adds HA-aware DAC handoff leases, events, and request/queue
+evidence:
+
+- `radius_dac_handoff_leases`
+- `radius_dac_handoff_events`
+- `radius_outbound_dac_requests.handoff_decision`
+- `radius_outbound_dac_requests.handoff_owner_node`
+- `radius_outbound_dac_requests.handoff_lease_id`
+- `radius_outbound_dac_requests.handoff_fencing_token`
+- `radius_outbound_dac_requests.handoff_warnings_json`
+- `radius_outbound_dac_queue.handoff_decision`
+- `radius_outbound_dac_queue.handoff_owner_node`
+- `radius_outbound_dac_queue.handoff_lease_id`
+- `radius_outbound_dac_queue.handoff_fencing_token`
+- `radius_outbound_dac_queue.handoff_warnings_json`
+
 After upgrade, run:
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/dac-client \
-  | jq '.report.status, .report.summary, .report.queue_summary, .report.proxy_routing, .report.vendor_actions, .report.nas_ownership'
+  | jq '.report.status, .report.summary, .report.queue_summary, .report.proxy_routing, .report.vendor_actions, .report.nas_ownership, .report.handoff'
 ```
 
 Keep `radius.dynamic_auth.outbound_require_known_client` and
@@ -274,4 +290,4 @@ deployments. Keep `radius.dynamic_auth.outbound_vendor_actions_enabled` and
 `radius.dynamic_auth.outbound_vendor_actions_require_pack` enabled when using
 vendor-specific reauth, role, VLAN, ACL, QoS, or quarantine actions. Roll back
 the application and database together if an older runtime does not understand
-schema v51.
+schema v52.

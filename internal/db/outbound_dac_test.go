@@ -332,6 +332,86 @@ func TestOutboundDACQueueExpireAndManualRetry(t *testing.T) {
 	assert.Equal(t, now.Add(time.Hour).Format(time.RFC3339Nano), requeued.ExpiresAt)
 }
 
+func TestOutboundDACHandoffLeaseEventAndSummary(t *testing.T) {
+	require.NoError(t, Init(":memory:"))
+	DB.SetMaxOpenConns(1)
+	t.Cleanup(func() { Close() })
+	require.NoError(t, Migrate())
+
+	now := time.Now().UTC().Truncate(time.Second)
+	lease, err := UpsertOutboundDACHandoffLease(OutboundDACHandoffLeaseInput{
+		LeaseID:         "dac-handoff-node-a",
+		NodeID:          "node-a",
+		InstanceID:      "node-a:pid-100",
+		HARole:          "active",
+		Status:          OutboundDACHandoffStatusActive,
+		CanSend:         true,
+		CanQueue:        true,
+		CanReplay:       true,
+		FencingToken:    "sha256:fence",
+		LeaseExpiresAt:  now.Add(time.Minute),
+		LastHeartbeatAt: now,
+		Message:         "active owns handoff",
+		Details:         map[string]any{"effective_role": "active"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "node-a", lease.NodeID)
+	assert.True(t, lease.CanSend)
+	assert.Equal(t, 1, lease.Term)
+
+	lease, err = UpsertOutboundDACHandoffLease(OutboundDACHandoffLeaseInput{
+		LeaseID:         "dac-handoff-node-a",
+		NodeID:          "node-a",
+		InstanceID:      "node-a:pid-101",
+		HARole:          "active",
+		Status:          OutboundDACHandoffStatusActive,
+		CanSend:         true,
+		CanQueue:        true,
+		CanReplay:       true,
+		FencingToken:    "sha256:fence-2",
+		LeaseExpiresAt:  now.Add(2 * time.Minute),
+		LastHeartbeatAt: now.Add(time.Second),
+		Message:         "renewed",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 2, lease.Term)
+	assert.Equal(t, "node-a:pid-101", lease.InstanceID)
+
+	require.NoError(t, RecordOutboundDACHandoffEvent(OutboundDACHandoffEventCreate{
+		EventID:    "evt-1",
+		EventType:  OutboundDACHandoffEventBlocked,
+		Status:     OutboundDACHandoffStatusBlocked,
+		NodeID:     "node-b",
+		LeaseID:    "dac-handoff-node-b",
+		HARole:     "standby",
+		Message:    "standby blocked",
+		ObservedAt: now.Add(2 * time.Second),
+	}, 100))
+	require.NoError(t, RecordOutboundDACHandoffEvent(OutboundDACHandoffEventCreate{
+		EventID:    "evt-2",
+		EventType:  OutboundDACHandoffEventHeartbeat,
+		Status:     OutboundDACHandoffStatusActive,
+		NodeID:     "node-a",
+		LeaseID:    "dac-handoff-node-a",
+		HARole:     "active",
+		Message:    "heartbeat",
+		ObservedAt: now.Add(3 * time.Second),
+	}, 1))
+
+	events, err := ListOutboundDACHandoffEvents(10)
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, "evt-2", events[0].EventID)
+
+	summary, err := GetOutboundDACHandoffSummary()
+	require.NoError(t, err)
+	assert.Equal(t, 1, summary.TotalLeases)
+	assert.Equal(t, 1, summary.ActiveLeases)
+	assert.Equal(t, 1, summary.SendCapableLeases)
+	assert.Equal(t, 1, summary.ReplayCapableLeases)
+	assert.NotEmpty(t, summary.LastFencingTokenHash)
+}
+
 func outboundDACAttributeValues(attrs []OutboundDACAttribute) string {
 	values := make([]string, 0, len(attrs))
 	for _, attr := range attrs {

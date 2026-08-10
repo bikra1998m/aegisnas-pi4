@@ -520,6 +520,11 @@ type OutboundDACRequestRecord = {
   ownership_owner_node?: string;
   capability_decision?: string;
   capability_warnings?: string[];
+  handoff_decision?: string;
+  handoff_owner_node?: string;
+  handoff_lease_id?: string;
+  handoff_fencing_token?: string;
+  handoff_warnings?: string[];
   session_id?: string;
   correlation_id?: string;
   response_code?: number;
@@ -555,6 +560,11 @@ type OutboundDACQueueRecord = {
   ownership_owner_node?: string;
   capability_decision?: string;
   capability_warnings?: string[];
+  handoff_decision?: string;
+  handoff_owner_node?: string;
+  handoff_lease_id?: string;
+  handoff_fencing_token?: string;
+  handoff_warnings?: string[];
   session_id?: string;
   correlation_id?: string;
   attempt_count: number;
@@ -636,6 +646,80 @@ type OutboundDACOwnershipDecision = {
   required?: string[];
   warnings?: string[];
   blockers?: string[];
+  rfcs?: string[];
+};
+
+type OutboundDACHandoffDecision = {
+  schema_version: number;
+  status: string;
+  message: string;
+  enabled: boolean;
+  mode: string;
+  role: string;
+  effective_role: string;
+  node_id: string;
+  instance_id?: string;
+  lease_id?: string;
+  fencing_token?: string;
+  lease_expires_at?: string;
+  can_send: boolean;
+  can_queue: boolean;
+  can_replay: boolean;
+  split_brain_guard: boolean;
+  ha_status?: string;
+  ha_message?: string;
+  warnings?: string[];
+  blockers?: string[];
+  rfcs?: string[];
+};
+
+type OutboundDACHandoffReport = {
+  schema_version: number;
+  status: string;
+  message: string;
+  decision: OutboundDACHandoffDecision;
+  summary?: {
+    schema_version: number;
+    total_leases: number;
+    active_leases: number;
+    standby_leases: number;
+    blocked_leases: number;
+    degraded_leases: number;
+    disabled_leases: number;
+    expired_leases: number;
+    send_capable_leases: number;
+    queue_capable_leases: number;
+    replay_capable_leases: number;
+    last_heartbeat_at?: string;
+    last_blocked_at?: string;
+    last_event_at?: string;
+    last_fencing_token_hash?: string;
+  };
+  leases?: Array<{
+    lease_id: string;
+    node_id: string;
+    instance_id?: string;
+    ha_role: string;
+    status: string;
+    can_send: boolean;
+    can_queue: boolean;
+    can_replay: boolean;
+    term: number;
+    lease_expires_at?: string;
+    last_heartbeat_at: string;
+    message?: string;
+  }>;
+  events?: Array<{
+    event_id: string;
+    event_type: string;
+    status: string;
+    node_id: string;
+    lease_id?: string;
+    ha_role: string;
+    message?: string;
+    observed_at: string;
+  }>;
+  warnings?: string[];
   rfcs?: string[];
 };
 
@@ -749,6 +833,7 @@ type OutboundDACReport = {
     rfcs?: string[];
   };
   nas_ownership?: NASOwnershipReport;
+  handoff?: OutboundDACHandoffReport;
   warnings?: string[];
 };
 
@@ -810,6 +895,7 @@ type OutboundDACPreview = {
     rfcs?: string[];
   };
   ownership_decision?: OutboundDACOwnershipDecision;
+  handoff_decision?: OutboundDACHandoffDecision;
   warnings?: string[];
   blockers?: string[];
 };
@@ -14539,6 +14625,20 @@ export default function AccessSettings() {
                 active
               </div>
             </div>
+            <div
+              className={`rounded-md border px-3 py-2 ${statusTone(
+                outboundDACReport?.handoff?.status,
+              )}`}
+            >
+              <div className="text-xs font-semibold uppercase">
+                HA Handoff
+              </div>
+              <div className="mt-1 text-sm font-semibold">
+                {outboundDACReport?.handoff?.decision?.effective_role ||
+                  outboundDACReport?.handoff?.decision?.role ||
+                  "standalone"}
+              </div>
+            </div>
             <div className="rounded-md border border-gray-200 px-3 py-2">
               <div className="text-xs font-semibold uppercase text-gray-500">
                 RadSec Proxy
@@ -14589,6 +14689,11 @@ export default function AccessSettings() {
               {outboundDACReport.nas_ownership.message}
             </p>
           )}
+          {outboundDACReport?.handoff?.message && (
+            <p className="mt-2 text-xs text-gray-500">
+              {outboundDACReport.handoff.message}
+            </p>
+          )}
           {outboundDACReport?.vendor_actions && (
             <div className="mt-3 rounded-md border border-gray-200 px-3 py-2 text-xs text-gray-600">
               <div>
@@ -14634,6 +14739,51 @@ export default function AccessSettings() {
                 (warning) => (
                   <div key={warning} className="mt-1 text-amber-700">
                     {warning}
+                  </div>
+                ),
+              )}
+            </div>
+          )}
+          {outboundDACReport?.handoff && (
+            <div className="mt-3 rounded-md border border-gray-200 px-3 py-2 text-xs text-gray-600">
+              <div>
+                Node:{" "}
+                {outboundDACReport.handoff.decision?.node_id || "local"}
+              </div>
+              <div className="mt-1">
+                Role: {outboundDACReport.handoff.decision?.role || "unknown"}
+                {outboundDACReport.handoff.decision?.effective_role
+                  ? `, effective ${outboundDACReport.handoff.decision.effective_role}`
+                  : ""}
+              </div>
+              <div className="mt-1">
+                Authority: send{" "}
+                {outboundDACReport.handoff.decision?.can_send ? "yes" : "no"},
+                queue{" "}
+                {outboundDACReport.handoff.decision?.can_queue ? "yes" : "no"},
+                replay{" "}
+                {outboundDACReport.handoff.decision?.can_replay ? "yes" : "no"}
+              </div>
+              <div className="mt-1">
+                Leases:{" "}
+                {outboundDACReport.handoff.summary?.active_leases || 0} active,{" "}
+                {outboundDACReport.handoff.summary?.standby_leases || 0} standby,{" "}
+                {outboundDACReport.handoff.summary?.blocked_leases || 0} blocked
+              </div>
+              {outboundDACReport.handoff.decision?.lease_id && (
+                <div className="mt-1 break-all">
+                  Lease: {outboundDACReport.handoff.decision.lease_id}
+                </div>
+              )}
+              {(outboundDACReport.handoff.warnings || []).map((warning) => (
+                <div key={warning} className="mt-1 text-amber-700">
+                  {warning}
+                </div>
+              ))}
+              {(outboundDACReport.handoff.decision?.blockers || []).map(
+                (blocker) => (
+                  <div key={blocker} className="mt-1 text-red-700">
+                    {blocker}
                   </div>
                 ),
               )}
@@ -15031,6 +15181,56 @@ export default function AccessSettings() {
                   ))}
                 </div>
               )}
+              {outboundDACPreview.handoff_decision?.status && (
+                <div className="mt-2 rounded-md border border-current px-2 py-1">
+                  <div className="font-semibold">
+                    HA handoff {outboundDACPreview.handoff_decision.status}
+                  </div>
+                  <div className="mt-1">
+                    Node:{" "}
+                    {outboundDACPreview.handoff_decision.node_id || "local"}
+                  </div>
+                  <div className="mt-1">
+                    Role: {outboundDACPreview.handoff_decision.role}
+                    {outboundDACPreview.handoff_decision.effective_role
+                      ? `, effective ${outboundDACPreview.handoff_decision.effective_role}`
+                      : ""}
+                  </div>
+                  <div className="mt-1">
+                    Authority: send{" "}
+                    {outboundDACPreview.handoff_decision.can_send
+                      ? "yes"
+                      : "no"}
+                    , queue{" "}
+                    {outboundDACPreview.handoff_decision.can_queue
+                      ? "yes"
+                      : "no"}
+                    , replay{" "}
+                    {outboundDACPreview.handoff_decision.can_replay
+                      ? "yes"
+                      : "no"}
+                  </div>
+                  {outboundDACPreview.handoff_decision.lease_id && (
+                    <div className="mt-1 break-all">
+                      Lease: {outboundDACPreview.handoff_decision.lease_id}
+                    </div>
+                  )}
+                  {(
+                    outboundDACPreview.handoff_decision.warnings || []
+                  ).map((warning) => (
+                    <div key={warning} className="mt-1">
+                      {warning}
+                    </div>
+                  ))}
+                  {(
+                    outboundDACPreview.handoff_decision.blockers || []
+                  ).map((blocker) => (
+                    <div key={blocker} className="mt-1">
+                      {blocker}
+                    </div>
+                  ))}
+                </div>
+              )}
               {outboundDACPreview.vendor_action_decision?.status && (
                 <div className="mt-2 rounded-md border border-current px-2 py-1">
                   <div className="font-semibold">
@@ -15144,6 +15344,19 @@ export default function AccessSettings() {
                               : ""}
                           </div>
                         )}
+                        {item.handoff_decision && (
+                          <div className="text-xs text-gray-500">
+                            HA {item.handoff_decision}
+                            {item.handoff_owner_node
+                              ? ` on ${item.handoff_owner_node}`
+                              : ""}
+                          </div>
+                        )}
+                        {(item.handoff_warnings || []).map((warning) => (
+                          <div key={warning} className="text-xs text-amber-700">
+                            {warning}
+                          </div>
+                        ))}
                       </td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.status}
@@ -15222,6 +15435,19 @@ export default function AccessSettings() {
                               : ""}
                           </div>
                         )}
+                        {item.handoff_decision && (
+                          <div className="text-xs text-gray-500">
+                            HA {item.handoff_decision}
+                            {item.handoff_owner_node
+                              ? ` on ${item.handoff_owner_node}`
+                              : ""}
+                          </div>
+                        )}
+                        {(item.handoff_warnings || []).map((warning) => (
+                          <div key={warning} className="text-xs text-amber-700">
+                            {warning}
+                          </div>
+                        ))}
                       </td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.status}

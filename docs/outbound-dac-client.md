@@ -10,6 +10,8 @@ intent into fail-closed Vendor-Specific Attributes for selected vendor packs.
 NAS-0046 adds the NAS capability and session ownership registry that binds
 active sessions to the owning NAS/client/node and validates requested
 CoA/Disconnect actions against declared capability and transport limits.
+NAS-0047 adds HA-aware cluster handoff so only the active or runtime-promoted
+node can originate, queue, or replay outbound dynamic authorization.
 Operators can preview, send immediately, enqueue, replay, cancel, retry,
 inspect history, and collect support evidence without exposing shared secrets or
 cleartext identity selectors in API responses or support bundles.
@@ -68,10 +70,12 @@ Implemented software scope:
   RadSec proxy, role, VLAN, Filter-Id, ACL, QoS, and quarantine intents.
 - Ownership and capability decision evidence in preview responses, immediate DAC
   history, durable queue records, and replay-created history.
-
-Deferred roadmap scope:
-
-- NAS-0047 adds HA-aware cluster handoff.
+- HA-aware outbound DAC handoff decisions for standalone, active, standby, and
+  runtime-promoted standby nodes.
+- Persistent handoff leases, fencing tokens, heartbeat/block events, readiness
+  checks, support-bundle capture, and Access Settings visibility.
+- Fail-closed send, queue, and replay behavior when a standby or misconfigured
+  cluster node does not own the DAC handoff lease.
 
 ## Configuration
 
@@ -178,6 +182,7 @@ packs are active.
 ```text
 GET  /api/v1/system/dac-client
 GET  /api/v1/system/nas-ownership
+GET  /api/v1/system/dac-handoff
 POST /api/v1/system/dac-client/preview
 POST /api/v1/system/dac-client/send
 POST /api/v1/system/dac-client/enqueue
@@ -192,7 +197,11 @@ can preview, send, enqueue, replay, cancel, and retry requests. Send and enqueue
 requests require `confirm: true` when confirmation policy is enabled.
 `GET /api/v1/system/nas-ownership` returns capability-backed NAS clients,
 recent session owners, registry coverage, stale/unknown counts, supported
-actions/transports, and RFC references.
+actions/transports, and RFC references. `GET /api/v1/system/dac-handoff`
+returns the local HA role, effective runtime role, node ID, current lease,
+fencing token evidence, send/queue/replay authority, lease summary, and recent
+handoff events. Preview, send, enqueue, replay, immediate history, and durable
+queue records include handoff decision evidence.
 
 Example preview:
 
@@ -305,6 +314,14 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/dac-client/replay | jq .
 ```
 
+Inspect HA handoff authority:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/dac-handoff \
+  | jq '.report.status, .report.decision, .report.summary'
+```
+
 Cancel or retry one queue record:
 
 ```bash
@@ -351,6 +368,15 @@ compatible vendor IDs, vendor attribute numbers, and string or integer payload
 types. Disconnect-only `terminate` actions require `action: disconnect`; all
 other vendor dynamic actions require `action: coa`.
 
+Before preview, send, queue, retry, or replay performs a mutating dynamic
+authorization action, the HA handoff evaluator determines the local node's DAC
+authority. Standalone deployments are authorized locally. In HA deployments, an
+active node or standby node promoted by HA runtime owns the lease. A standby
+without runtime promotion, an unknown role, or a failed HA authority check blocks
+the operation before packet send or queue mutation. Each accepted or blocked
+decision records a bounded lease heartbeat or blocked event for audit and
+failover analysis.
+
 ## Data Model
 
 Schema v47 adds:
@@ -396,6 +422,21 @@ Schema v51 adds NAS ownership and capability evidence:
 - `radius_outbound_dac_queue.capability_decision`
 - `radius_outbound_dac_queue.capability_warnings_json`
 
+Schema v52 adds HA-aware DAC handoff evidence:
+
+- `radius_dac_handoff_leases`
+- `radius_dac_handoff_events`
+- `radius_outbound_dac_requests.handoff_decision`
+- `radius_outbound_dac_requests.handoff_owner_node`
+- `radius_outbound_dac_requests.handoff_lease_id`
+- `radius_outbound_dac_requests.handoff_fencing_token`
+- `radius_outbound_dac_requests.handoff_warnings_json`
+- `radius_outbound_dac_queue.handoff_decision`
+- `radius_outbound_dac_queue.handoff_owner_node`
+- `radius_outbound_dac_queue.handoff_lease_id`
+- `radius_outbound_dac_queue.handoff_fencing_token`
+- `radius_outbound_dac_queue.handoff_warnings_json`
+
 History stores request identifiers, action, status, target, response code,
 Error-Cause, latency, fingerprints, and correlation. User name, calling station,
 Class, and State values are hashed/redacted in persisted attribute history.
@@ -410,7 +451,7 @@ Before a change:
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/dac-client \
-  | jq '.report.status, .report.policy, .report.proxy_routing, .report.vendor_actions, .report.nas_ownership'
+  | jq '.report.status, .report.policy, .report.proxy_routing, .report.vendor_actions, .report.nas_ownership, .report.handoff'
 ```
 
 After a change:
@@ -422,7 +463,7 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 Investigate any `nak`, `error`, `blocked`, `poison`, or `expired` entry before
 claiming the change window is complete. Support bundles include
-`api/dac-client.json`, `api/nas-ownership.json`, and
+`api/dac-client.json`, `api/nas-ownership.json`, `api/dac-handoff.json`, and
 `api/dac-client-history.json`.
 
 ## Testing
@@ -432,6 +473,7 @@ Automated software coverage includes:
 - config default and validation tests
 - schema v47 migration and retention tests
 - schema v51 NAS ownership migration and sync tests
+- schema v52 HA DAC handoff lease/event migration and summary tests
 - redacted history tests
 - packet construction tests for CoA and Disconnect
 - ACK, NAK with Error-Cause, and transport error tests
@@ -444,6 +486,8 @@ Automated software coverage includes:
 - NAS ownership sync, session-owned target resolution, conflicting target
   fail-closed behavior, capability decision persistence, API, readiness, and UI
   evidence tests
+- HA handoff standby blocking, promoted-standby replay authority, handoff
+  decision persistence, readiness, API, support-bundle, and UI build tests
 - admin API, RBAC, OpenAPI, readiness, and support bundle tests
 - admin UI build coverage
 
@@ -453,4 +497,5 @@ acceptance evidence is tracked in
 `nas-0043-release-certification-checklist.md`, and
 `nas-0044-release-certification-checklist.md`, and
 `nas-0045-release-certification-checklist.md`, and
-`nas-0046-release-certification-checklist.md`.
+`nas-0046-release-certification-checklist.md`, and
+`nas-0047-release-certification-checklist.md`.

@@ -120,6 +120,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionDynamicNASClientsCheck(&report, cfg)
 	addProductionOutboundDACClientCheck(&report, cfg)
 	addProductionNASCapabilityOwnershipCheck(&report, cfg)
+	addProductionDACHandoffCheck(&report, cfg)
 	addProductionProxyRoutingCheck(&report, cfg)
 	addProductionTransportPolicyCheck(&report, cfg)
 	addProductionProxyPolicyCheck(&report, cfg)
@@ -306,8 +307,8 @@ func addProductionOutboundDACClientCheck(report *productionReadinessReport, cfg 
 			dac.QueueSummary.QueuedCount, dac.QueueSummary.RetryingCount, dac.QueueSummary.PoisonCount, dac.QueueSummary.QueueUtilization,
 			dac.ProxyRouting.Summary.RouteCount, dac.ProxyRouting.Summary.RadSecRouteCount, dac.ProxyRouting.Summary.BlockedRouteCount,
 			len(dac.VendorActions.ActivePacks)),
-		Recommendation: "Keep radius.dynamic_auth outbound queue, replay, proxy routing, vendor action compiler, NAS ownership checks, confirmation, known-client gates, bounded Proxy-State, and route transport policy enabled; complete the NAS-0042/NAS-0043/NAS-0044/NAS-0045/NAS-0046 release certification packet-capture and vendor-device checklist before production claims.",
-		Dependencies:   []string{"radius.dynamic_auth", "radius.dynamic_auth.outbound_proxy_enabled", "radius.dynamic_auth.outbound_vendor_actions_enabled", "radius.vendor.compatibility_packs", "radius.upstream.routes", "/api/v1/system/dac-client", "/api/v1/system/nas-ownership", "/api/v1/system/dac-client/preview", "/api/v1/system/dac-client/send", "/api/v1/system/dac-client/enqueue", "/api/v1/system/dac-client/replay", "/api/v1/system/dac-client/history", "radius_outbound_dac_requests", "radius_outbound_dac_attempts", "radius_outbound_dac_queue", "radius_outbound_dac_queue_attempts", "nas_session_ownership", "RFC 5176", "RFC 6614"},
+		Recommendation: "Keep radius.dynamic_auth outbound queue, replay, proxy routing, vendor action compiler, NAS ownership checks, HA handoff, confirmation, known-client gates, bounded Proxy-State, and route transport policy enabled; complete the NAS-0042/NAS-0043/NAS-0044/NAS-0045/NAS-0046/NAS-0047 release certification packet-capture and vendor-device checklist before production claims.",
+		Dependencies:   []string{"radius.dynamic_auth", "radius.dynamic_auth.outbound_proxy_enabled", "radius.dynamic_auth.outbound_vendor_actions_enabled", "radius.vendor.compatibility_packs", "radius.upstream.routes", "/api/v1/system/dac-client", "/api/v1/system/nas-ownership", "/api/v1/system/dac-handoff", "/api/v1/system/dac-client/preview", "/api/v1/system/dac-client/send", "/api/v1/system/dac-client/enqueue", "/api/v1/system/dac-client/replay", "/api/v1/system/dac-client/history", "radius_outbound_dac_requests", "radius_outbound_dac_attempts", "radius_outbound_dac_queue", "radius_outbound_dac_queue_attempts", "nas_session_ownership", "radius_dac_handoff_leases", "radius_dac_handoff_events", "RFC 5176", "RFC 6614"},
 	})
 }
 
@@ -342,6 +343,43 @@ func addProductionNASCapabilityOwnershipCheck(report *productionReadinessReport,
 			ownership.Summary.UnknownSessions, ownership.Summary.OwnershipCoverage),
 		Recommendation: "Keep NAS clients capability-backed, monitor /api/v1/system/nas-ownership before outbound dynamic authorization, reconcile stale ownership rows, and complete the NAS-0046 release certification packet-capture and failover checklist before production claims.",
 		Dependencies:   []string{"radius_clients.capabilities_json", "nas_session_ownership", "radius_outbound_dac_requests.ownership_session_id", "radius_outbound_dac_queue.ownership_session_id", "/api/v1/system/nas-ownership", "/api/v1/system/dac-client", "RFC 5176", "RFC 6614"},
+	})
+}
+
+func addProductionDACHandoffCheck(report *productionReadinessReport, cfg *config.Config) {
+	handoff := radius.BuildOutboundDACHandoffReport(cfg)
+	status := "passed"
+	switch handoff.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded":
+		status = "degraded"
+	}
+	if db.DB == nil {
+		status = "blocked"
+	}
+	if cfg != nil && cfg.HighAvailability.Enabled {
+		if !handoff.Decision.CanSend || !handoff.Decision.CanQueue || !handoff.Decision.CanReplay {
+			status = "blocked"
+		}
+		if !cfg.HighAvailability.SplitBrainProtectionEnabled {
+			status = "blocked"
+		}
+		if strings.TrimSpace(handoff.Decision.LeaseID) == "" || handoff.Summary.TotalLeases == 0 {
+			status = "blocked"
+		}
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:      "radius_dac_handoff",
+		Category: "radius",
+		Label:    "HA-Aware CoA Cluster Handoff",
+		Status:   status,
+		Summary: fmt.Sprintf("Outbound DAC handoff schema %d is %s for node %s role %s effective %s with %d active, %d standby, %d blocked, and %d replay-capable lease(s).",
+			handoff.SchemaVersion, handoff.Status, handoff.Decision.NodeID, handoff.Decision.Role,
+			handoff.Decision.EffectiveRole, handoff.Summary.ActiveLeases, handoff.Summary.StandbyLeases,
+			handoff.Summary.BlockedLeases, handoff.Summary.ReplayCapableLeases),
+		Recommendation: "For HA deployments, keep split-brain protection enabled, monitor /api/v1/system/dac-handoff before replay, verify only the effective active node can send or replay DAC, and complete the NAS-0047 release certification failover checklist before production cluster claims.",
+		Dependencies:   []string{"high_availability", "high_availability.split_brain_protection_enabled", "/api/v1/system/dac-handoff", "radius_dac_handoff_leases", "radius_dac_handoff_events", "radius_outbound_dac_requests.handoff_decision", "radius_outbound_dac_queue.handoff_decision", "RFC 5176"},
 	})
 }
 

@@ -1172,6 +1172,9 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/nas-ownership", "get", securedOperation("Read NAS capability and session ownership registry", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("NAS client capabilities, active session ownership, CoA/Disconnect action support, transport support, registry coverage, and warnings used before outbound dynamic authorization."),
 	}))
+	addOperation(paths, "/api/v1/system/dac-handoff", "get", securedOperation("Read HA-aware DAC handoff state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Outbound DAC cluster handoff decision, active/standby lease evidence, fencing token hash, replay authority, recent lease heartbeats, and blocked handoff events."),
+	}))
 	addOperation(paths, "/api/v1/system/dac-client/preview", "post", securedOperationWithBody("Preview outbound CoA or Disconnect", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Outbound DAC action, direct target or proxy route, originating realm, optional home server, selectors, Proxy-State, vendor-neutral attributes, and optional vendor_action/vendor_packs intent to validate without sending."), map[string]any{
 		"200":     responseJSON("Resolved direct or proxy target, packet codes, proxy policy decision, NAS ownership decision, vendor action compiler decision, attribute plan, blockers, warnings, and request fingerprint."),
 		"default": responseText("Preview validation error."),
