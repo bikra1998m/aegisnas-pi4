@@ -291,3 +291,28 @@ deployments. Keep `radius.dynamic_auth.outbound_vendor_actions_enabled` and
 vendor-specific reauth, role, VLAN, ACL, QoS, or quarantine actions. Roll back
 the application and database together if an older runtime does not understand
 schema v52.
+
+## Schema v53 ACL AST Upgrade
+
+NAS-0048 adds lossless ACL AST persistence to `acl_policies`:
+
+- `ast_schema_version`
+- `ast_json`
+- `ast_fingerprint`
+- `ast_diagnostics_json`
+
+Existing flat `rules_json` policies remain valid. On read, AegisNAS derives a
+schema v1 ACL AST from flat rules when no stored AST exists. New or updated ACL
+policies that submit `acl_ast` keep the AST as source of truth and regenerate
+flat rules as the current RADIUS compatibility projection.
+
+After upgrade, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/acl-ast \
+  | jq '.report.status, .report.summary'
+```
+
+Roll back the application and database together if an older runtime does not
+understand schema v53.

@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 52
+	return 53
 }
 
 func Migrate() error {
@@ -2866,3 +2866,18 @@ CREATE INDEX IF NOT EXISTS idx_radius_outbound_dac_queue_handoff ON radius_outbo
 `
 
 const schemaV52 = outboundDACHandoffSQL
+
+const aclPolicyASTSQL = `
+ALTER TABLE acl_policies ADD COLUMN ast_schema_version INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE acl_policies ADD COLUMN ast_json TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE acl_policies ADD COLUMN ast_fingerprint TEXT NOT NULL DEFAULT '';
+ALTER TABLE acl_policies ADD COLUMN ast_diagnostics_json TEXT NOT NULL DEFAULT '[]';
+
+CREATE INDEX IF NOT EXISTS idx_acl_policies_ast_fingerprint ON acl_policies(ast_fingerprint);
+`
+
+const aclPolicyASTIndexesSQL = `
+CREATE INDEX IF NOT EXISTS idx_acl_policies_ast_fingerprint ON acl_policies(ast_fingerprint);
+`
+
+const schemaV53 = aclPolicyASTSQL

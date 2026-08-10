@@ -143,6 +143,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionFASTPWDCheck(&report, cfg)
 	addProductionSIMAKACheck(&report, cfg)
 	addProductionPolicyEngineCheck(&report, cfg)
+	addProductionACLASTCheck(&report)
 	addProductionPolicySetGovernanceCheck(&report, cfg)
 	addProductionPolicySimulationAnalysisCheck(&report, cfg)
 	addProductionSubscriberServiceChainsCheck(&report, cfg)
@@ -1170,6 +1171,59 @@ func addProductionPolicyEngineCheck(report *productionReadinessReport, cfg *conf
 		Summary:        summary,
 		Recommendation: "Keep policy.typed_engine_enabled=true, fail_closed=true, audit_enabled=true, migrate legacy match_conditions to typed all/any/not expressions, and complete the NAS-0029 release certification checklist for real-device evidence.",
 		Dependencies:   []string{"policy.typed_engine_enabled", "/api/v1/system/policy-engine", "/api/v1/system/policy-engine/evaluate", "policy_engine_evaluations"},
+	})
+}
+
+func addProductionACLASTCheck(report *productionReadinessReport) {
+	status := "passed"
+	summary := "ACL AST normalization is ready."
+	if db.DB == nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key:            "acl_ast",
+			Category:       "policy",
+			Label:          "Lossless Vendor-Neutral ACL AST",
+			Status:         "blocked",
+			Summary:        "Database is not initialized; ACL AST policy coverage cannot be verified.",
+			Recommendation: "Initialize the database before using ACL AST readiness as release evidence.",
+			Dependencies:   []string{"acl_policies", "/api/v1/system/acl-ast", "/api/v1/system/acl-ast/normalize", "RFC 2865"},
+		})
+		return
+	}
+	policies, err := loadACLASTPolicyStatuses()
+	if err != nil {
+		status = "blocked"
+		summary = "ACL AST policy status failed: " + err.Error()
+	} else {
+		nonLossless := 0
+		diagnostics := 0
+		rules := 0
+		astRules := 0
+		objectGroups := 0
+		serviceGroups := 0
+		for _, policy := range policies {
+			if !policy.Lossless {
+				nonLossless++
+			}
+			diagnostics += len(policy.Diagnostics)
+			rules += policy.RuleCount
+			astRules += policy.ASTRuleCount
+			objectGroups += policy.ObjectGroups
+			serviceGroups += policy.ServiceGroups
+		}
+		if nonLossless > 0 {
+			status = "degraded"
+		}
+		summary = fmt.Sprintf("ACL AST schema %d has %d policy/policies, %d AST rule(s), %d compatibility rule(s), %d object group(s), %d service group(s), %d diagnostic(s), and %d non-lossless policy projection(s).",
+			radius.ACLASTSchemaVersion, len(policies), astRules, rules, objectGroups, serviceGroups, diagnostics, nonLossless)
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "acl_ast",
+		Category:       "policy",
+		Label:          "Lossless Vendor-Neutral ACL AST",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use ACL AST as the source of truth for reusable policy intent, keep flat rules as compatibility projections, review diagnostics before vendor export, and complete the NAS-0048 release certification checklist before production parity claims.",
+		Dependencies:   []string{"acl_policies.ast_json", "acl_policies.ast_fingerprint", "/api/v1/system/acl-ast", "/api/v1/system/acl-ast/normalize", "/api/v1/system/vendor-reply-preview", "RFC 2865"},
 	})
 }
 

@@ -20,6 +20,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	"github.com/yourorg/aegisnas-pi4/internal/enforcement"
 	policypkg "github.com/yourorg/aegisnas-pi4/internal/policy"
+	"github.com/yourorg/aegisnas-pi4/internal/radius"
 	"github.com/yourorg/aegisnas-pi4/internal/secrets"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -449,8 +450,9 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 		}
 		switch change.Operation {
 		case "create":
-			_, err := tx.Exec(`INSERT INTO acl_policies (name, description, inbound_acl, outbound_acl, rules_json, enabled)
-				VALUES (?, ?, ?, ?, ?, ?)`, policy.Name, policy.Description, nullIfEmpty(policy.InboundACL), nullIfEmpty(policy.OutboundACL), policy.RulesJSON, policy.Enabled)
+			_, err := tx.Exec(`INSERT INTO acl_policies (name, description, inbound_acl, outbound_acl, rules_json, ast_schema_version, ast_json, ast_fingerprint, ast_diagnostics_json, enabled)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, policy.Name, policy.Description, nullIfEmpty(policy.InboundACL), nullIfEmpty(policy.OutboundACL),
+				policy.RulesJSON, radius.ACLASTSchemaVersion, policy.ACLASTJSON, policy.ASTFingerprint, policy.ASTDiagnosticsJSON, policy.Enabled)
 			return err
 		case "update":
 			if err := validateACLPolicyMutation(tx, change.ResourceID, policy.Name, policy.Enabled); err != nil {
@@ -458,7 +460,8 @@ func applyChange(tx *sql.Tx, change stagedChange) error {
 			}
 			return updateByID(tx, "acl_policies", change.ResourceID, []fieldValue{
 				{"name", policy.Name}, {"description", policy.Description}, {"inbound_acl", nullIfEmpty(policy.InboundACL)},
-				{"outbound_acl", nullIfEmpty(policy.OutboundACL)}, {"rules_json", policy.RulesJSON}, {"enabled", policy.Enabled},
+				{"outbound_acl", nullIfEmpty(policy.OutboundACL)}, {"rules_json", policy.RulesJSON}, {"ast_schema_version", radius.ACLASTSchemaVersion},
+				{"ast_json", policy.ACLASTJSON}, {"ast_fingerprint", policy.ASTFingerprint}, {"ast_diagnostics_json", policy.ASTDiagnosticsJSON}, {"enabled", policy.Enabled},
 				{"updated_at", time.Now().UTC()},
 			})
 		}

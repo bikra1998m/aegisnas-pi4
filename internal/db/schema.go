@@ -176,7 +176,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{49, schemaV49},
 		{50, schemaV50},
 		{51, schemaV51},
-		{LatestSchemaVersion(), schemaV52},
+		{52, schemaV52},
+		{LatestSchemaVersion(), schemaV53},
 	}
 
 	for _, m := range migrations {
@@ -202,6 +203,9 @@ func MigrateHandle(handle *sql.DB) error {
 	}
 	if err := ensureACLPolicyBindingColumns(handle); err != nil {
 		return fmt.Errorf("repair ACL policy binding schema: %w", err)
+	}
+	if err := ensureACLPolicyASTColumns(handle); err != nil {
+		return fmt.Errorf("repair ACL policy AST schema: %w", err)
 	}
 	if err := ensureRadiusClientSecretColumns(handle); err != nil {
 		return fmt.Errorf("repair radius client secret schema: %w", err)
@@ -304,6 +308,39 @@ func MigrateHandle(handle *sql.DB) error {
 	}
 
 	return nil
+}
+
+func ensureACLPolicyASTColumns(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	exists, err := tableExists(handle, "acl_policies")
+	if err != nil || !exists {
+		return err
+	}
+	dialect := DialectForHandle(handle)
+	columns := []struct {
+		name string
+		sql  string
+	}{
+		{"ast_schema_version", `ALTER TABLE acl_policies ADD COLUMN ast_schema_version INTEGER NOT NULL DEFAULT 1`},
+		{"ast_json", `ALTER TABLE acl_policies ADD COLUMN ast_json TEXT NOT NULL DEFAULT '{}'`},
+		{"ast_fingerprint", `ALTER TABLE acl_policies ADD COLUMN ast_fingerprint TEXT NOT NULL DEFAULT ''`},
+		{"ast_diagnostics_json", `ALTER TABLE acl_policies ADD COLUMN ast_diagnostics_json TEXT NOT NULL DEFAULT '[]'`},
+	}
+	for _, column := range columns {
+		hasColumn, err := tableHasColumn(handle, "acl_policies", column.name)
+		if err != nil {
+			return err
+		}
+		if !hasColumn {
+			if _, err := handle.Exec(SQLForDialect(column.sql, dialect)); err != nil {
+				return err
+			}
+		}
+	}
+	_, err = handle.Exec(SQLForDialect(aclPolicyASTIndexesSQL, dialect))
+	return err
 }
 
 func ensureOutboundDACHandoffSchema(handle *sql.DB) error {

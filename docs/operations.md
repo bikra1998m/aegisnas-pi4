@@ -189,6 +189,24 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   | jq '.status, .vendor_action_decision'
 ```
 
+Audit lossless ACL AST status before enabling rich ACL intent in production:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/acl-ast \
+  | jq '.report.status, .report.summary'
+```
+
+Normalize an ACL AST without staging a change:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data @acl-policy.json \
+  http://127.0.0.1:8083/api/v1/system/acl-ast/normalize \
+  | jq '.acl_fingerprint, .acl_round_trip, .acl_diagnostics'
+```
+
 For session-owned changes, also inspect the ownership decision:
 
 ```bash

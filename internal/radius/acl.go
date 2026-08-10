@@ -8,24 +8,44 @@ import (
 )
 
 type ACLRule struct {
-	Action          string `json:"action"`
-	Direction       string `json:"direction"`
-	Protocol        string `json:"protocol"`
-	Source          string `json:"source"`
-	SourcePort      string `json:"source_port,omitempty"`
-	Destination     string `json:"destination"`
-	DestinationPort string `json:"destination_port,omitempty"`
-	Remark          string `json:"remark,omitempty"`
-	Log             bool   `json:"log,omitempty"`
+	ID                 string   `json:"id,omitempty"`
+	Sequence           int      `json:"sequence,omitempty"`
+	Action             string   `json:"action"`
+	Direction          string   `json:"direction"`
+	AddressFamily      string   `json:"address_family,omitempty"`
+	Protocol           string   `json:"protocol"`
+	Source             string   `json:"source"`
+	Sources            []string `json:"sources,omitempty"`
+	SourceObjects      []string `json:"source_objects,omitempty"`
+	SourcePort         string   `json:"source_port,omitempty"`
+	SourcePorts        []string `json:"source_ports,omitempty"`
+	Destination        string   `json:"destination"`
+	Destinations       []string `json:"destinations,omitempty"`
+	DestinationObjects []string `json:"destination_objects,omitempty"`
+	DestinationPort    string   `json:"destination_port,omitempty"`
+	DestinationPorts   []string `json:"destination_ports,omitempty"`
+	Applications       []string `json:"applications,omitempty"`
+	URLCategories      []string `json:"url_categories,omitempty"`
+	States             []string `json:"states,omitempty"`
+	TCPFlags           []string `json:"tcp_flags,omitempty"`
+	ICMPTypes          []string `json:"icmp_types,omitempty"`
+	DSCP               []string `json:"dscp,omitempty"`
+	TimeRange          string   `json:"time_range,omitempty"`
+	Remark             string   `json:"remark,omitempty"`
+	Log                bool     `json:"log,omitempty"`
+	Tags               []string `json:"tags,omitempty"`
 }
 
 type ACLVendorExport struct {
-	PackKey    string               `json:"pack_key"`
-	PackLabel  string               `json:"pack_label"`
-	ExportMode string               `json:"export_mode"`
-	Attributes []ReplyAttributeItem `json:"attributes"`
-	FreeRADIUS string               `json:"freeradius"`
-	Warnings   []string             `json:"warnings,omitempty"`
+	PackKey        string               `json:"pack_key"`
+	PackLabel      string               `json:"pack_label"`
+	ExportMode     string               `json:"export_mode"`
+	Attributes     []ReplyAttributeItem `json:"attributes"`
+	FreeRADIUS     string               `json:"freeradius"`
+	ASTFingerprint string               `json:"ast_fingerprint,omitempty"`
+	Lossless       bool                 `json:"lossless"`
+	Diagnostics    []ACLDiagnostic      `json:"diagnostics,omitempty"`
+	Warnings       []string             `json:"warnings,omitempty"`
 }
 
 func ValidateACLRules(rules []ACLRule) error {
@@ -46,7 +66,11 @@ func NormalizeACLRules(rules []ACLRule) ([]ACLRule, error) {
 }
 
 func BuildACLVendorExports(policyName, inboundACL, outboundACL string, rules []ACLRule, packKeys []string) []ACLVendorExport {
-	normalizedRules, err := NormalizeACLRules(rules)
+	return BuildACLVendorExportsForAST(policyName, inboundACL, outboundACL, rules, nil, packKeys)
+}
+
+func BuildACLVendorExportsForAST(policyName, inboundACL, outboundACL string, rules []ACLRule, ast *ACLPolicyAST, packKeys []string) []ACLVendorExport {
+	normalized, err := NormalizeACLPolicyIntent(policyName, "", inboundACL, outboundACL, rules, ast)
 	if err != nil {
 		return nil
 	}
@@ -56,7 +80,10 @@ func BuildACLVendorExports(policyName, inboundACL, outboundACL string, rules []A
 
 	var out []ACLVendorExport
 	for _, packKey := range normalizeReplyPackKeys(packKeys) {
-		export := buildACLVendorExport(policyName, inboundACL, outboundACL, normalizedRules, packKey)
+		export := buildACLVendorExport(policyName, inboundACL, outboundACL, normalized.Rules, packKey)
+		export.ASTFingerprint = normalized.Fingerprint
+		export.Diagnostics = aclExportDiagnosticsForPack(packKey, normalized)
+		export.Lossless = len(export.Diagnostics) == 0
 		if len(export.Attributes) == 0 && len(export.Warnings) == 0 {
 			continue
 		}
@@ -264,18 +291,68 @@ func normalizeACLRule(rule ACLRule) (ACLRule, bool) {
 	if rule.Protocol == "" {
 		rule.Protocol = "ip"
 	}
+	rule.ID = normalizeACLToken(rule.ID)
+	rule.AddressFamily = normalizeACLAddressFamily(rule.AddressFamily)
+	if !validACLAddressFamily(rule.AddressFamily) {
+		return ACLRule{}, false
+	}
 	rule.Source = normalizeACLAddress(rule.Source)
 	rule.Destination = normalizeACLAddress(rule.Destination)
 	rule.SourcePort = normalizeACLToken(rule.SourcePort)
 	rule.DestinationPort = normalizeACLToken(rule.DestinationPort)
+	rule.Sources = normalizeACLTokenList(rule.Sources, 32)
+	rule.SourceObjects = normalizeACLTokenList(rule.SourceObjects, 32)
+	rule.SourcePorts = normalizeACLTokenList(rule.SourcePorts, 32)
+	rule.Destinations = normalizeACLTokenList(rule.Destinations, 32)
+	rule.DestinationObjects = normalizeACLTokenList(rule.DestinationObjects, 32)
+	rule.DestinationPorts = normalizeACLTokenList(rule.DestinationPorts, 32)
+	rule.Applications = normalizeACLTokenList(rule.Applications, 32)
+	rule.URLCategories = normalizeACLTokenList(rule.URLCategories, 32)
+	rule.States = normalizeACLTokenList(rule.States, 16)
+	rule.TCPFlags = normalizeACLTokenList(rule.TCPFlags, 16)
+	rule.ICMPTypes = normalizeACLTokenList(rule.ICMPTypes, 16)
+	rule.DSCP = normalizeACLTokenList(rule.DSCP, 16)
+	rule.TimeRange = normalizeACLToken(rule.TimeRange)
 	rule.Remark = strings.TrimSpace(rule.Remark)
+	rule.Tags = normalizeACLTokenList(rule.Tags, 16)
 
-	for _, token := range []string{rule.Protocol, rule.Source, rule.Destination, rule.SourcePort, rule.DestinationPort} {
+	for _, token := range aclRuleTokens(rule) {
 		if token != "" && !validACLToken(token) {
 			return ACLRule{}, false
 		}
 	}
 	return rule, true
+}
+
+func aclRuleTokens(rule ACLRule) []string {
+	tokens := []string{
+		rule.ID,
+		rule.AddressFamily,
+		rule.Protocol,
+		rule.Source,
+		rule.Destination,
+		rule.SourcePort,
+		rule.DestinationPort,
+		rule.TimeRange,
+	}
+	for _, values := range [][]string{
+		rule.Sources,
+		rule.SourceObjects,
+		rule.SourcePorts,
+		rule.Destinations,
+		rule.DestinationObjects,
+		rule.DestinationPorts,
+		rule.Applications,
+		rule.URLCategories,
+		rule.States,
+		rule.TCPFlags,
+		rule.ICMPTypes,
+		rule.DSCP,
+		rule.Tags,
+	} {
+		tokens = append(tokens, values...)
+	}
+	return tokens
 }
 
 func normalizeACLAddress(value string) string {
@@ -288,6 +365,50 @@ func normalizeACLAddress(value string) string {
 
 func normalizeACLToken(value string) string {
 	return strings.TrimSpace(value)
+}
+
+func normalizeACLTokenList(values []string, limit int) []string {
+	if limit <= 0 {
+		limit = len(values)
+	}
+	out := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		value = normalizeACLToken(value)
+		if value == "" {
+			continue
+		}
+		key := strings.ToLower(value)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, value)
+		if len(out) >= limit {
+			break
+		}
+	}
+	return out
+}
+
+func normalizeACLAddressFamily(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "any":
+		return ""
+	case "ipv4", "ipv6":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+}
+
+func validACLAddressFamily(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "ipv4", "ipv6":
+		return true
+	default:
+		return false
+	}
 }
 
 func validACLToken(value string) bool {

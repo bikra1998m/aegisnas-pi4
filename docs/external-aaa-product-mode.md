@@ -462,9 +462,31 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/vendor-reply-preview | jq '.nas_type, .effective_packs, .attributes, .warnings'
 ```
 
-Dynamic ACL intent uses the same preview endpoint. Submit `acl_policy_name`, optional named inbound/outbound ACLs, and `acl_rules`; the response includes `normalized_acl_rules` and `acl_exports` for each effective pack. Rule-based exports include standard `NAS-Filter-Rule`, Cisco `Cisco-AVPair` downloadable ACL lines, Aruba filter rules, AegisNAS product ACL rules, and vendors such as D-Link/Pica8/HP where line rules are represented directly. Profile-style exports such as MikroTik address lists, Fortinet access profiles, and Ruckus user groups return profile hints with warnings when line rules still need controller-side policy.
+Dynamic ACL intent uses the same preview endpoint. Submit `acl_policy_name`,
+optional named inbound/outbound ACLs, flat `acl_rules`, and optional lossless
+`acl_ast`; the response includes `normalized_acl_rules`, `acl_ast`,
+`acl_fingerprint`, `acl_diagnostics`, `acl_round_trip`, and `acl_exports` for
+each effective pack. Rule-based exports include standard `NAS-Filter-Rule`,
+Cisco `Cisco-AVPair` downloadable ACL lines, Aruba filter rules, AegisNAS
+product ACL rules, and vendors such as D-Link/Pica8/HP where line rules are
+represented directly. Profile-style exports such as MikroTik address lists,
+Fortinet access profiles, and Ruckus user groups return profile hints with
+warnings when line rules still need controller-side policy.
 
-Applied ACL intent can also be kept in the ACL Policies admin page or managed through `/api/v1/acl-policies`. Create or update operations are staged, validated, and committed through `/api/v1/apply`; revision snapshots include the policy library for rollback. After apply, a preview request can supply only `acl_policy_name` to load its rules and named vendor profiles. The response field `acl_policy_loaded` confirms whether persisted content was used.
+Applied ACL intent can also be kept in the ACL Policies admin page or managed
+through `/api/v1/acl-policies`. Create or update operations are staged,
+validated, and committed through `/api/v1/apply`; revision snapshots include
+the policy library for rollback. After apply, a preview request can supply only
+`acl_policy_name` to load its AST, compatibility rules, diagnostics, and named
+vendor profiles. The response field `acl_policy_loaded` confirms whether
+persisted content was used.
+
+Use `/api/v1/system/acl-ast` to audit stored ACL policy round-trip status and
+`/api/v1/system/acl-ast/normalize` to validate object groups, service groups,
+applications, URL categories, state, TCP flags, ICMP types, DSCP, time ranges,
+tags, and metadata before staging. A `lossless: false` round-trip means the AST
+is preserved in AegisNAS but one or more rich fields cannot yet be carried
+exactly by the current flat RADIUS reply projection.
 
 Assign a stored ACL to a role or policy rule with `acl_policy_name`. Policy evaluation returns the binding, portal sessions persist it, and inbound CoA maps vendor ACL names back to a stored policy when possible. Role bindings also feed generated local FreeRADIUS user entries, including `NAS-Filter-Rule` and every enabled compatibility-pack attribute. Run **Apply RADIUS Config** after changing local users, roles, ACL contents, or compatibility packs; staged database apply alone does not rewrite `mods-config/files/authorize`. Bcrypt-backed local users authenticate with PAP or EAP-TTLS/PAP, not CHAP or PEAP-MSCHAPv2.
 

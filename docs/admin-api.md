@@ -697,7 +697,18 @@ POST   /api/v1/validate
 POST   /api/v1/apply
 ```
 
-Each policy stores a stable name, optional vendor inbound/outbound ACL names, and up to 64 normalized rules. ACL policy changes are included in config revision snapshots and rollback. A vendor reply preview containing only `acl_policy_name` loads an enabled applied policy and reports `acl_policy_loaded: true`; explicit `acl_rules` remain available for one-off previews.
+Each policy stores a stable name, optional vendor inbound/outbound ACL names, a lossless ACL AST, and a flat `acl_rules` compatibility projection. ACL policy changes are included in config revision snapshots and rollback. A vendor reply preview containing only `acl_policy_name` loads an enabled applied policy and reports `acl_policy_loaded: true`; explicit `acl_rules` and optional `acl_ast` remain available for one-off previews.
+
+NAS-0048 makes `acl_ast` the source of truth when it is supplied. The flat rules remain backward-compatible output for `NAS-Filter-Rule`, Cisco `Cisco-AVPair`, Aruba filter rules, AegisNAS ACL VSAs, and profile-style vendor hints. Responses include `acl_ast`, `ast_fingerprint`, `ast_diagnostics`, and `acl_round_trip` so operators can see whether rich intent such as object groups, service groups, applications, URL categories, state, ICMP/TCP fields, DSCP, or time ranges can be represented losslessly by current RADIUS attributes.
+
+ACL AST health and ad hoc normalization are available at:
+
+```text
+GET  /api/v1/system/acl-ast
+POST /api/v1/system/acl-ast/normalize
+```
+
+The status endpoint is read-only evidence for production readiness and support bundles. The normalize endpoint accepts `name`, optional `inbound_acl`, optional `outbound_acl`, optional `rules`, and optional `acl_ast`, then returns normalized AST, compatibility rules, fingerprint, diagnostics, and round-trip status without staging a change. See [acl-ast.md](acl-ast.md) for the AST schema and operator workflow.
 
 Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
 

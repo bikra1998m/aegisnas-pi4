@@ -289,6 +289,10 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
 	case strings.HasPrefix(path, "/api/v1/system/policy-engine"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/acl-ast/normalize"):
+		return method == http.MethodPost && (identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/acl-ast"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/identity-failover"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/active-directory/check"):

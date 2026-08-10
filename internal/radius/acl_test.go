@@ -1,6 +1,7 @@
 package radius
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -99,6 +100,123 @@ func TestRenderCiscoDownloadableACLOmitsOutboundRules(t *testing.T) {
 	assert.Equal(t, 1, omitted)
 }
 
+func TestNormalizeACLPolicyIntentBuildsLosslessASTFromFlatRules(t *testing.T) {
+	normalization, err := NormalizeACLPolicyIntent("ipv6-web", "dual-stack web", "web-in", "", []ACLRule{{
+		Action:          "permit",
+		Direction:       "in",
+		Protocol:        "tcp",
+		Source:          "2001:db8:10::/64",
+		Destination:     "any",
+		DestinationPort: "443",
+		Log:             true,
+	}}, nil)
+
+	require.NoError(t, err)
+	require.Len(t, normalization.Rules, 1)
+	require.Len(t, normalization.AST.Rules, 1)
+	assert.Equal(t, ACLASTSchemaVersion, normalization.AST.SchemaVersion)
+	assert.Equal(t, "ipv6", normalization.AST.Rules[0].Match.AddressFamily)
+	assert.True(t, normalization.RoundTrip.Lossless)
+	assert.NotEmpty(t, normalization.Fingerprint)
+}
+
+func TestNormalizeACLPolicyIntentPreservesRichASTWithDiagnostics(t *testing.T) {
+	ast := ACLPolicyAST{
+		SchemaVersion: ACLASTSchemaVersion,
+		Name:          "corp-apps",
+		ObjectGroups: []ACLObjectGroup{{
+			Name:   "corp-nets",
+			Values: []string{"10.0.0.0/8", "2001:db8::/32"},
+		}},
+		ServiceGroups: []ACLServiceGroup{{
+			Name:      "web",
+			Protocols: []string{"tcp"},
+			Ports:     []string{"443"},
+		}},
+		Rules: []ACLASTRule{{
+			ID:        "allow-managed-web",
+			Sequence:  10,
+			Action:    "reject",
+			Direction: "both",
+			Match: ACLASTMatch{
+				Protocols: []string{"tcp"},
+				Source: ACLEndpoint{
+					ObjectGroups: []string{"corp-nets"},
+					PortGroups:   []string{"web"},
+				},
+				Destination:   ACLEndpoint{Any: true},
+				Applications:  []string{"web-browsing"},
+				URLCategories: []string{"business"},
+				States:        []string{"established"},
+			},
+			Log: true,
+		}},
+	}
+
+	normalization, err := NormalizeACLPolicyIntent("corp-apps", "", "", "", nil, &ast)
+
+	require.NoError(t, err)
+	assert.False(t, normalization.RoundTrip.Lossless)
+	assert.NotEmpty(t, normalization.RoundTrip.UnsupportedFields)
+	assert.GreaterOrEqual(t, len(normalization.Rules), 4)
+	assert.Equal(t, "deny", normalization.Rules[0].Action)
+	assert.Contains(t, aclDiagnosticCodes(normalization.Diagnostics), "action_degraded")
+	assert.Contains(t, aclDiagnosticCodes(normalization.Diagnostics), "field_not_rendered")
+}
+
+func TestNormalizeACLPolicyIntentReportsFlatProjectionTruncation(t *testing.T) {
+	values := make([]string, 65)
+	for idx := range values {
+		values[idx] = fmt.Sprintf("10.10.%d.0/24", idx)
+	}
+	ast := ACLPolicyAST{
+		SchemaVersion: ACLASTSchemaVersion,
+		ObjectGroups: []ACLObjectGroup{{
+			Name:   "many-sources",
+			Values: values,
+		}},
+		Rules: []ACLASTRule{{
+			ID:        "allow-web",
+			Sequence:  10,
+			Action:    "permit",
+			Direction: "in",
+			Match: ACLASTMatch{
+				Protocols:   []string{"tcp"},
+				Source:      ACLEndpoint{ObjectGroups: []string{"many-sources"}},
+				Destination: ACLEndpoint{Any: true, Ports: []string{"443"}},
+			},
+		}},
+	}
+
+	normalization, err := NormalizeACLPolicyIntent("wide-policy", "", "", "", nil, &ast)
+
+	require.NoError(t, err)
+	require.Len(t, normalization.Rules, 64)
+	assert.False(t, normalization.RoundTrip.Lossless)
+	assert.Contains(t, aclDiagnosticCodes(normalization.Diagnostics), "flat_rule_limit")
+	assert.Contains(t, normalization.RoundTrip.UnsupportedFields, "rules")
+}
+
+func TestNormalizeACLPolicyIntentRejectsInvalidAddressFamily(t *testing.T) {
+	_, err := NormalizeACLPolicyIntent("bad-family", "", "", "", nil, &ACLPolicyAST{
+		SchemaVersion: ACLASTSchemaVersion,
+		Rules: []ACLASTRule{{
+			ID:        "bad-family",
+			Action:    "permit",
+			Direction: "in",
+			Match: ACLASTMatch{
+				AddressFamily: "ipx",
+				Protocols:     []string{"tcp"},
+				Source:        ACLEndpoint{Any: true},
+				Destination:   ACLEndpoint{Any: true},
+			},
+		}},
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "address_family")
+}
+
 func aclExportsByPack(exports []ACLVendorExport) map[string]ACLVendorExport {
 	out := map[string]ACLVendorExport{}
 	for _, export := range exports {
@@ -115,4 +233,12 @@ func assertACLExportContains(t *testing.T, export ACLVendorExport, name, value s
 		}
 	}
 	t.Fatalf("attribute %s=%s not found in %#v", name, value, export.Attributes)
+}
+
+func aclDiagnosticCodes(diagnostics []ACLDiagnostic) []string {
+	out := make([]string, 0, len(diagnostics))
+	for _, diagnostic := range diagnostics {
+		out = append(out, diagnostic.Code)
+	}
+	return out
 }

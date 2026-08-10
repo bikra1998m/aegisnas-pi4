@@ -1696,8 +1696,15 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 			},
 		},
 	}))
-	addOperation(paths, "/api/v1/system/vendor-reply-preview", "post", securedOperationWithBody("Preview vendor reply attributes", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("NAS type, role, VLAN, bandwidth, timeout, ACL names, and ACL rule intent to preview."), map[string]any{
-		"200":     responseJSON("Effective compatibility packs and rendered RADIUS reply attributes."),
+	addOperation(paths, "/api/v1/system/acl-ast", "get", securedOperation("Read ACL AST normalization status", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Stored ACL policy AST coverage, fingerprints, diagnostics, object groups, service groups, and round-trip status."),
+	}))
+	addOperation(paths, "/api/v1/system/acl-ast/normalize", "post", securedOperationWithBody("Normalize ACL AST intent", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("ACL policy name, optional flat rules, and optional acl_ast to normalize without staging a change."), map[string]any{
+		"200":     responseJSON("Normalized ACL AST, compatibility rules, fingerprint, diagnostics, and round-trip status."),
+		"default": responseText("ACL AST validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/vendor-reply-preview", "post", securedOperationWithBody("Preview vendor reply attributes", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("NAS type, role, VLAN, bandwidth, timeout, ACL names, flat ACL rules, and optional ACL AST intent to preview."), map[string]any{
+		"200":     responseJSON("Effective compatibility packs, rendered RADIUS reply attributes, normalized ACL AST, diagnostics, and vendor ACL exports."),
 		"default": responseText("Preview error."),
 	}))
 

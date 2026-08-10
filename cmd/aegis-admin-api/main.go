@@ -262,6 +262,8 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Get("/system/policy-engine", adminapi.HandleGetPolicyEngine)
 			r.Post("/system/policy-engine/validate", adminapi.HandleValidatePolicyExpression)
 			r.Post("/system/policy-engine/evaluate", adminapi.HandleEvaluatePolicyEngine)
+			r.Get("/system/acl-ast", adminapi.HandleGetACLASTReport)
+			r.Post("/system/acl-ast/normalize", adminapi.HandleNormalizeACLAST)
 			r.Get("/system/policy-sets", adminapi.HandleGetPolicySets)
 			r.Get("/system/policy-sets/analyses", adminapi.HandleListPolicySimulationAnalyses)
 			r.Get("/system/policy-sets/versions", adminapi.HandleListPolicySetVersions)

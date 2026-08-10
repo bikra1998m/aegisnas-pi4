@@ -4160,6 +4160,42 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
 					destination_port: "443",
 				},
 			],
+			acl_ast: {
+				schema_version: 1,
+				name: "guest-internet",
+				default_action: "deny",
+				object_groups: [],
+				service_groups: [],
+				rules: [
+					{
+						id: "rule-0010",
+						sequence: 10,
+						enabled: true,
+						action: "permit",
+						direction: "in",
+						match: {
+							address_family: "any",
+							protocols: ["tcp"],
+							source: { any: true, addresses: ["any"] },
+							destination: {
+								any: true,
+								addresses: ["any"],
+								ports: ["443"],
+							},
+						},
+					},
+				],
+			},
+			ast_fingerprint:
+				"sha256:b30e1f00d5be70561665b23612abcd34b30e1f00d5be70561665b23612abcd34",
+			ast_diagnostics: [],
+			acl_round_trip: {
+				lossless: true,
+				ast_fingerprint:
+					"sha256:b30e1f00d5be70561665b23612abcd34b30e1f00d5be70561665b23612abcd34",
+				ast_rule_count: 1,
+				rule_count: 1,
+			},
 		},
 	],
     sessionHistory: [
@@ -4368,6 +4404,65 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
 
     if (path === "/system/status" && method === "GET") {
       await route.fulfill({ json: state.systemStatus });
+      return;
+    }
+
+    if (path === "/system/acl-ast" && method === "GET") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          report: {
+            schema_version: 1,
+            status: "ready",
+            message: "ACL AST policy normalization is ready.",
+            summary: {
+              total_policies: state.aclPolicies.length,
+              ast_backed_policies: state.aclPolicies.length,
+              non_lossless_policies: 0,
+              diagnostic_count: 0,
+              rule_count: 1,
+              ast_rule_count: 1,
+              object_group_count: 0,
+              service_group_count: 0,
+            },
+            policies: state.aclPolicies.map((policy) => ({
+              id: policy.id,
+              name: policy.name,
+              enabled: policy.enabled,
+              rule_count: Array.isArray(policy.rules) ? policy.rules.length : 0,
+              ast_rule_count: Array.isArray(policy.acl_ast?.rules)
+                ? policy.acl_ast.rules.length
+                : 0,
+              object_groups: Array.isArray(policy.acl_ast?.object_groups)
+                ? policy.acl_ast.object_groups.length
+                : 0,
+              service_groups: Array.isArray(policy.acl_ast?.service_groups)
+                ? policy.acl_ast.service_groups.length
+                : 0,
+              lossless: policy.acl_round_trip?.lossless !== false,
+              ast_fingerprint: policy.ast_fingerprint,
+              diagnostics: policy.ast_diagnostics || [],
+            })),
+            rfcs: ["RFC 2865"],
+          },
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/acl-ast/normalize" && method === "POST") {
+      const body = parseBody(route);
+      const policy = state.aclPolicies[0];
+      await route.fulfill({
+        json: {
+          schema_version: 1,
+          acl_ast: body.acl_ast || policy.acl_ast,
+          normalized_rules: body.rules || policy.rules,
+          acl_fingerprint: policy.ast_fingerprint,
+          acl_diagnostics: [],
+          acl_round_trip: policy.acl_round_trip,
+        },
+      });
       return;
     }
 

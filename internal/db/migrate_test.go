@@ -160,6 +160,10 @@ func TestMigrate(t *testing.T) {
 		{"roles", "acl_policy_name"},
 		{"policy_rules", "acl_policy_name"},
 		{"sessions", "acl_policy_name"},
+		{"acl_policies", "ast_schema_version"},
+		{"acl_policies", "ast_json"},
+		{"acl_policies", "ast_fingerprint"},
+		{"acl_policies", "ast_diagnostics_json"},
 	} {
 		var columnCount int
 		err = DB.QueryRow("SELECT count(*) FROM pragma_table_info(?) WHERE name=?", binding.table, binding.column).Scan(&columnCount)

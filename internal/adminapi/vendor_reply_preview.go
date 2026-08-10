@@ -11,29 +11,30 @@ import (
 )
 
 type vendorReplyPreviewRequest struct {
-	NASType               string           `json:"nas_type"`
-	CompatibilityPacks    []string         `json:"compatibility_packs"`
-	Role                  string           `json:"role"`
-	BandwidthProfile      string           `json:"bandwidth_profile"`
-	FilterID              string           `json:"filter_id"`
-	PolicyTag             string           `json:"policy_tag"`
-	SessionTimeout        int              `json:"session_timeout"`
-	IdleTimeout           int              `json:"idle_timeout"`
-	VLAN                  int              `json:"vlan"`
-	DownloadKbps          int              `json:"download_kbps"`
-	UploadKbps            int              `json:"upload_kbps"`
-	MikrotikRateLimit     string           `json:"mikrotik_rate_limit"`
-	WISPrBandwidthMaxDown int              `json:"wispr_bandwidth_max_down"`
-	WISPrBandwidthMaxUp   int              `json:"wispr_bandwidth_max_up"`
-	HasQuarantine         bool             `json:"has_quarantine"`
-	Quarantine            bool             `json:"quarantine"`
-	PortalProfile         string           `json:"portal_profile"`
-	DeviceGroup           string           `json:"device_group"`
-	Tenant                string           `json:"tenant"`
-	ACLPolicyName         string           `json:"acl_policy_name"`
-	InboundACL            string           `json:"inbound_acl"`
-	OutboundACL           string           `json:"outbound_acl"`
-	ACLRules              []radius.ACLRule `json:"acl_rules"`
+	NASType               string               `json:"nas_type"`
+	CompatibilityPacks    []string             `json:"compatibility_packs"`
+	Role                  string               `json:"role"`
+	BandwidthProfile      string               `json:"bandwidth_profile"`
+	FilterID              string               `json:"filter_id"`
+	PolicyTag             string               `json:"policy_tag"`
+	SessionTimeout        int                  `json:"session_timeout"`
+	IdleTimeout           int                  `json:"idle_timeout"`
+	VLAN                  int                  `json:"vlan"`
+	DownloadKbps          int                  `json:"download_kbps"`
+	UploadKbps            int                  `json:"upload_kbps"`
+	MikrotikRateLimit     string               `json:"mikrotik_rate_limit"`
+	WISPrBandwidthMaxDown int                  `json:"wispr_bandwidth_max_down"`
+	WISPrBandwidthMaxUp   int                  `json:"wispr_bandwidth_max_up"`
+	HasQuarantine         bool                 `json:"has_quarantine"`
+	Quarantine            bool                 `json:"quarantine"`
+	PortalProfile         string               `json:"portal_profile"`
+	DeviceGroup           string               `json:"device_group"`
+	Tenant                string               `json:"tenant"`
+	ACLPolicyName         string               `json:"acl_policy_name"`
+	InboundACL            string               `json:"inbound_acl"`
+	OutboundACL           string               `json:"outbound_acl"`
+	ACLRules              []radius.ACLRule     `json:"acl_rules"`
+	ACLAST                *radius.ACLPolicyAST `json:"acl_ast,omitempty"`
 }
 
 type vendorReplyPreviewResponse struct {
@@ -45,6 +46,10 @@ type vendorReplyPreviewResponse struct {
 	Attributes         []vendorReplyPreviewAttributeItem   `json:"attributes"`
 	FreeRADIUS         string                              `json:"freeradius"`
 	NormalizedACLRules []radius.ACLRule                    `json:"normalized_acl_rules,omitempty"`
+	ACLAST             radius.ACLPolicyAST                 `json:"acl_ast,omitempty"`
+	ACLFingerprint     string                              `json:"acl_fingerprint,omitempty"`
+	ACLDiagnostics     []radius.ACLDiagnostic              `json:"acl_diagnostics,omitempty"`
+	ACLRoundTrip       radius.ACLRoundTrip                 `json:"acl_round_trip,omitempty"`
 	ACLExports         []radius.ACLVendorExport            `json:"acl_exports,omitempty"`
 	Warnings           []string                            `json:"warnings,omitempty"`
 	Semantics          []vendorReplyPreviewSemanticMapping `json:"semantics,omitempty"`
@@ -91,7 +96,13 @@ func HandlePreviewVendorReply(w http.ResponseWriter, r *http.Request) {
 	effectivePacks := radius.ReplyCompatibilityPacksForNASType(vendor, nasType)
 	attrs := vendorReplyPreviewAttributes(req)
 	items := radius.BuildReplyAttributeItemsForVendorConfig(attrs, effectivePacks, vendor)
-	normalizedACLRules, _ := radius.NormalizeACLRules(attrs.ACLRules)
+	aclNormalization, err := radius.NormalizeACLPolicyIntent(req.ACLPolicyName, "", req.InboundACL, req.OutboundACL, attrs.ACLRules, req.ACLAST)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	attrs.ACLRules = aclNormalization.Rules
+	items = radius.BuildReplyAttributeItemsForVendorConfig(attrs, effectivePacks, vendor)
 
 	warnings := vendorReplyPreviewWarnings(req, nasType, effectivePacks)
 	if strings.TrimSpace(req.ACLPolicyName) != "" && !aclPolicyLoaded && req.InboundACL == "" && req.OutboundACL == "" && len(req.ACLRules) == 0 {
@@ -105,8 +116,12 @@ func HandlePreviewVendorReply(w http.ResponseWriter, r *http.Request) {
 		EffectivePacks:     effectivePacks,
 		Attributes:         vendorReplyPreviewItems(items),
 		FreeRADIUS:         radius.RenderReplyAttributesForVendorConfigAndPacks(attrs, effectivePacks, vendor),
-		NormalizedACLRules: normalizedACLRules,
-		ACLExports:         radius.BuildACLVendorExports(attrs.ACLPolicyName, attrs.InboundACL, attrs.OutboundACL, attrs.ACLRules, effectivePacks),
+		NormalizedACLRules: aclNormalization.Rules,
+		ACLAST:             aclNormalization.AST,
+		ACLFingerprint:     aclNormalization.Fingerprint,
+		ACLDiagnostics:     aclNormalization.Diagnostics,
+		ACLRoundTrip:       aclNormalization.RoundTrip,
+		ACLExports:         radius.BuildACLVendorExportsForAST(attrs.ACLPolicyName, attrs.InboundACL, attrs.OutboundACL, attrs.ACLRules, &aclNormalization.AST, effectivePacks),
 		Warnings:           warnings,
 		Semantics:          vendorReplyPreviewSemantics(effectivePacks),
 	})
@@ -128,6 +143,9 @@ func hydrateVendorReplyACLPolicy(req *vendorReplyPreviewRequest) (bool, error) {
 	}
 	if len(req.ACLRules) == 0 {
 		req.ACLRules = append([]radius.ACLRule(nil), policy.Rules...)
+	}
+	if req.ACLAST == nil {
+		req.ACLAST = &policy.ACLAST
 	}
 	return true, nil
 }
@@ -160,7 +178,7 @@ func validateVendorReplyPreviewRequest(req vendorReplyPreviewRequest) error {
 	case len(req.ACLRules) > 64:
 		return errVendorReplyPreview("acl_rules cannot contain more than 64 rules")
 	}
-	if err := radius.ValidateACLRules(req.ACLRules); err != nil {
+	if _, err := radius.NormalizeACLPolicyIntent(req.ACLPolicyName, "", req.InboundACL, req.OutboundACL, req.ACLRules, req.ACLAST); err != nil {
 		return errVendorReplyPreview(err.Error())
 	}
 	return nil

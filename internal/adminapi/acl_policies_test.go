@@ -99,6 +99,104 @@ func TestACLPolicyStagingApplyListAndPreview(t *testing.T) {
 	assert.Contains(t, preview.FreeRADIUS, `AegisNAS-ACL-Name = "guest-internet"`)
 }
 
+func TestACLPolicyASTStagingReportNormalizeAndPreview(t *testing.T) {
+	prepareACLPolicyTestDB(t)
+
+	body := `{
+		"name":"corp-apps",
+		"description":"Rich ACL AST with object and service groups",
+		"enabled":true,
+		"inbound_acl":"corp-in",
+		"acl_ast":{
+			"schema_version":1,
+			"object_groups":[{"name":"corp-nets","values":["10.0.0.0/8","2001:db8::/32"]}],
+			"service_groups":[{"name":"web","protocols":["tcp"],"ports":["443"]}],
+			"rules":[{
+				"id":"allow-managed-web",
+				"sequence":10,
+				"action":"permit",
+				"direction":"in",
+				"match":{
+					"protocols":["tcp"],
+					"source":{"object_groups":["corp-nets"],"port_groups":["web"]},
+					"destination":{"any":true},
+					"applications":["web-browsing"],
+					"url_categories":["business"],
+					"states":["established"]
+				},
+				"log":true
+			}]
+		}
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/acl-policies", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+	HandleCreateACLPolicy(rec, req)
+	require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
+
+	tx, err := db.DB.Begin()
+	require.NoError(t, err)
+	changes, err := pendingChanges(tx)
+	require.NoError(t, err)
+	require.Len(t, changes, 1)
+	require.NoError(t, applyChange(tx, changes[0]))
+	require.NoError(t, tx.Commit())
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/acl-policies", nil)
+	listRec := httptest.NewRecorder()
+	HandleListACLPolicies(listRec, listReq)
+	require.Equal(t, http.StatusOK, listRec.Code, listRec.Body.String())
+	var policies []struct {
+		Name           string `json:"name"`
+		ASTFingerprint string `json:"ast_fingerprint"`
+		Rules          []any  `json:"rules"`
+		ACLAST         struct {
+			ObjectGroups []any `json:"object_groups"`
+			Rules        []any `json:"rules"`
+		} `json:"acl_ast"`
+		Diagnostics []struct {
+			Code string `json:"code"`
+		} `json:"ast_diagnostics"`
+		RoundTrip struct {
+			Lossless bool `json:"lossless"`
+		} `json:"acl_round_trip"`
+	}
+	require.NoError(t, json.Unmarshal(listRec.Body.Bytes(), &policies))
+	require.Len(t, policies, 1)
+	assert.Equal(t, "corp-apps", policies[0].Name)
+	assert.NotEmpty(t, policies[0].ASTFingerprint)
+	assert.Len(t, policies[0].ACLAST.ObjectGroups, 1)
+	assert.GreaterOrEqual(t, len(policies[0].Rules), 2)
+	assert.False(t, policies[0].RoundTrip.Lossless)
+	assert.NotEmpty(t, policies[0].Diagnostics)
+
+	reportReq := httptest.NewRequest(http.MethodGet, "/api/v1/system/acl-ast", nil)
+	reportRec := httptest.NewRecorder()
+	HandleGetACLASTReport(reportRec, reportReq)
+	require.Equal(t, http.StatusOK, reportRec.Code, reportRec.Body.String())
+	assert.Contains(t, reportRec.Body.String(), `"status":"degraded"`)
+	assert.Contains(t, reportRec.Body.String(), `"non_lossless_policies":1`)
+
+	normalizeReq := httptest.NewRequest(http.MethodPost, "/api/v1/system/acl-ast/normalize", bytes.NewBufferString(body))
+	normalizeRec := httptest.NewRecorder()
+	HandleNormalizeACLAST(normalizeRec, normalizeReq)
+	require.Equal(t, http.StatusOK, normalizeRec.Code, normalizeRec.Body.String())
+	assert.Contains(t, normalizeRec.Body.String(), `"acl_fingerprint":"sha256:`)
+	assert.Contains(t, normalizeRec.Body.String(), `"field_not_rendered"`)
+
+	previewReq := httptest.NewRequest(http.MethodPost, "/api/v1/system/vendor-reply-preview", bytes.NewBufferString(`{
+		"nas_type":"aruba",
+		"compatibility_packs":["standard","aruba"],
+		"acl_policy_name":"corp-apps"
+	}`))
+	previewRec := httptest.NewRecorder()
+	HandlePreviewVendorReply(previewRec, previewReq)
+	require.Equal(t, http.StatusOK, previewRec.Code, previewRec.Body.String())
+	assert.Contains(t, previewRec.Body.String(), `"acl_policy_loaded":true`)
+	assert.Contains(t, previewRec.Body.String(), `"acl_fingerprint":"sha256:`)
+	assert.Contains(t, previewRec.Body.String(), `"acl_diagnostics"`)
+	assert.Contains(t, previewRec.Body.String(), `Aruba-NAS-Filter-Rule`)
+}
+
 func TestACLPolicyStagingRejectsInvalidRule(t *testing.T) {
 	prepareACLPolicyTestDB(t)
 
