@@ -140,6 +140,10 @@ When `radius.upstream.enabled: true`:
 - multi-service accounting correlation is available through `/api/v1/system/accounting-services`; AegisNAS preserves `Acct-Multi-Session-Id`, `Acct-Link-Count`, `Service-Type`, `Framed-Protocol`, and Class metadata to correlate parent sessions, child service legs, bearer legs, call legs, VPN legs, and subscriber service-chain accounting
 - charging records, rating, retention, and export integrity are available through `/api/v1/system/accounting-charging`; AegisNAS projects applied accounting events into CDRs, rates closed records, marks late corrections for re-export, preserves hashed identities, and exports JSON Lines, JSON, or CSV batches with payload and manifest SHA-256 evidence
 - the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
+- the gateway compiles active session ACL policies and quarantine state into
+  the owned nftables table `aegis_runtime`; `/api/v1/system/runtime-firewall`
+  exposes preview, apply, rollback, history, diagnostics, fingerprints, and
+  snapshot evidence for IPv4 and IPv6 sessions
 - the vendor reply preview uses the certified ACL compiler/decompiler layer from
   `acl-compilers.md`; it renders software-certified line-rule outputs for
   standard `NAS-Filter-Rule`, AegisNAS, Cisco, Aruba, HP/ArubaOS-Switch,
@@ -171,7 +175,6 @@ When `radius.upstream.enabled: true`:
 What this pass still does not change:
 
 - storage NAS services such as Samba, NFS, RAID, ZFS, and share management are still separate workstreams
-- reusable ACL policies are not yet persisted as first-class database objects
 - `CoA-Request` can now trigger immediate gateway quarantine enforcement, immediate timeout expiry, live bandwidth profile reshaping, and VLAN-change reauthentication, but live controller/device ACL push still needs per-vendor smoke testing
 - `scripts/vendor-certification-lab.sh` provides the repeatable per-pack API, RADIUS, packet-capture, real-device, controller, upgrade, and rollback evidence workflow for that smoke testing
 - real AP/switch/controller certification for MAB remains tracked in [nas-0017-release-certification-checklist.md](nas-0017-release-certification-checklist.md)
@@ -192,6 +195,10 @@ What this pass still does not change:
   line-rule hardware acceptance, profile-reference controller policy matching,
   HA replay, performance, soak, security, and customer validation remains
   tracked in [nas-0049-release-certification-checklist.md](nas-0049-release-certification-checklist.md)
+- real nftables host validation, local firewall packet captures, AP/switch
+  policy assignment smoke tests, HA snapshot replication, performance, soak,
+  security, and customer validation remains tracked in
+  [nas-0050-release-certification-checklist.md](nas-0050-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 

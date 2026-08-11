@@ -1069,6 +1069,27 @@ type SystemStatus = {
     shaping_interface: string;
     shaped_sessions: number;
     shaper: RuntimeStatus;
+    local_firewall?: {
+      status: string;
+      message: string;
+      table_name?: string;
+      ruleset_fingerprint?: string;
+      diagnostic_count?: number;
+      summary?: {
+        managed_sessions: number;
+        quarantine_sessions: number;
+        ipv4_sessions: number;
+        ipv6_sessions: number;
+        applied_rule_count: number;
+      };
+      evidence_summary?: {
+        active_snapshot_id?: string;
+        applied_count?: number;
+        rolled_back_count?: number;
+        failed_count?: number;
+      };
+      runtime_status?: RuntimeStatus;
+    };
   };
   high_availability: {
     enabled: boolean;
@@ -1630,6 +1651,7 @@ export default function Dashboard() {
   const sessionMethods = Object.entries(
     systemStatus.summary?.session_methods || {},
   );
+  const localFirewall = systemStatus.enforcement.local_firewall;
   const networkObservability = systemStatus.network_observability;
   const vendorObservability = networkObservability?.vendor_observability;
   const readinessSummary =
@@ -4148,6 +4170,44 @@ export default function Dashboard() {
                       (systemStatus.enforcement.shaping_enabled
                         ? "unknown"
                         : "disabled")
+                    }
+                  />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      Local Firewall Policy
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {localFirewall?.summary
+                        ? `${localFirewall.summary.managed_sessions} managed, ${localFirewall.summary.quarantine_sessions} quarantined, ${localFirewall.summary.applied_rule_count} active nftables rules.`
+                        : "No local firewall plan has been evaluated yet."}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {localFirewall?.message ||
+                        "Preview and apply local firewall policy from the runtime firewall API."}
+                    </div>
+                    {localFirewall?.evidence_summary?.active_snapshot_id ? (
+                      <div className="mt-1 text-xs text-gray-500 break-all">
+                        Active snapshot:{" "}
+                        {localFirewall.evidence_summary.active_snapshot_id}
+                      </div>
+                    ) : null}
+                    {localFirewall?.summary ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        IPv4 {localFirewall.summary.ipv4_sessions}, IPv6{" "}
+                        {localFirewall.summary.ipv6_sessions}, diagnostics{" "}
+                        {localFirewall.diagnostic_count || 0}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    status={
+                      localFirewall?.runtime_status?.status ||
+                      localFirewall?.status ||
+                      "unknown"
                     }
                   />
                 </div>

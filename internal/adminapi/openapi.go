@@ -1717,6 +1717,28 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	addOperation(paths, "/api/v1/system/acl-compilers/history", "get", securedOperation("List ACL compiler evidence history", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Recent ACL compiler and decompiler evidence events."),
 	}))
+	addOperation(paths, "/api/v1/system/runtime-firewall", "get", securedOperation("Read stateful per-session local firewall policy", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Current local firewall plan, nftables fingerprint, managed sessions, diagnostics, snapshots, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/runtime-firewall/preview", "post", securedOperationWithBody("Preview local firewall apply", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; no nftables state is changed."), map[string]any{
+		"200":     responseJSON("Runtime firewall plan and preview evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/runtime-firewall/apply", "post", securedOperationWithBody("Apply local firewall policy", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; applies the compiled nftables ruleset."), map[string]any{
+		"200":     responseJSON("Applied runtime firewall snapshot, previous snapshot, event ID, and plan."),
+		"409":     responseText("Blocked or failed apply."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/runtime-firewall/rollback", "post", securedOperationWithBody("Rollback local firewall policy", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional snapshot_id; if omitted the newest previous applied snapshot is restored."), map[string]any{
+		"200":     responseJSON("Runtime firewall rollback snapshot, restored snapshot, previous snapshot, and event ID."),
+		"409":     responseText("Rollback target unavailable or failed."),
+		"default": responseText("Rollback error."),
+	}))
+	addOperation(paths, "/api/v1/system/runtime-firewall/history", "get", securedOperationWithParameters("List runtime firewall history", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Maximum number of snapshots and events to return.", false),
+	}, map[string]any{
+		"200": responseJSON("Runtime firewall summary, snapshots, and event history."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-reply-preview", "post", securedOperationWithBody("Preview vendor reply attributes", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("NAS type, role, VLAN, bandwidth, timeout, ACL names, flat ACL rules, and optional ACL AST intent to preview."), map[string]any{
 		"200":     responseJSON("Effective compatibility packs, rendered RADIUS reply attributes, normalized ACL AST, certified ACL compiler diagnostics, and vendor ACL exports."),
 		"default": responseText("Preview error."),

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,15 +16,12 @@ import (
 func prepareACLPolicyTestDB(t *testing.T) {
 	t.Helper()
 	previousDB := db.DB
-	tmpfile, err := os.CreateTemp("", "acl-policies-*.db")
-	require.NoError(t, err)
-	require.NoError(t, tmpfile.Close())
-	require.NoError(t, db.Init(tmpfile.Name()))
+	require.NoError(t, db.Init(":memory:"))
+	db.DB.SetMaxOpenConns(1)
 	require.NoError(t, db.Migrate())
 	t.Cleanup(func() {
 		_ = db.Close()
 		db.DB = previousDB
-		_ = os.Remove(tmpfile.Name())
 	})
 }
 

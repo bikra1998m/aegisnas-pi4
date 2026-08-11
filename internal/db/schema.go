@@ -178,7 +178,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{51, schemaV51},
 		{52, schemaV52},
 		{53, schemaV53},
-		{LatestSchemaVersion(), schemaV54},
+		{54, schemaV54},
+		{LatestSchemaVersion(), schemaV55},
 	}
 
 	for _, m := range migrations {
@@ -310,8 +311,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureOutboundDACHandoffSchema(handle); err != nil {
 		return fmt.Errorf("repair outbound dynamic authorization handoff schema: %w", err)
 	}
+	if err := ensureRuntimeFirewallEvidenceTables(handle); err != nil {
+		return fmt.Errorf("repair runtime firewall evidence schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureRuntimeFirewallEvidenceTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(runtimeFirewallEvidenceSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureACLCompilerEvidenceTable(handle *sql.DB) error {

@@ -482,6 +482,16 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/network-observability"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/runtime-firewall/apply"):
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/runtime-firewall/rollback"):
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/runtime-firewall/preview"):
+		return identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/runtime-firewall/history"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/runtime-firewall"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/network-exports/download"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/network-exports"):

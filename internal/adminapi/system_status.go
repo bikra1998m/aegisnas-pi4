@@ -134,6 +134,26 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	if enforcement.RuntimeShapingEnabled(cfg) {
 		shapedSessions, _ = enforcement.CountShapedSessions()
 	}
+	runtimeFirewallStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Runtime firewall status has not been evaluated.",
+	}
+	if firewallPlan, err := enforcement.PreviewRuntimeFirewall(); err == nil {
+		firewallSummary, _ := db.GetRuntimeFirewallEventSummary()
+		runtimeFirewallStatus = map[string]any{
+			"schema_version":      enforcement.RuntimeFirewallSchemaVersion,
+			"status":              firewallPlan.Status,
+			"message":             firewallPlan.Message,
+			"table_name":          firewallPlan.TableName,
+			"ruleset_fingerprint": firewallPlan.RulesetFingerprint,
+			"summary":             firewallPlan.Summary,
+			"diagnostic_count":    len(firewallPlan.Diagnostics),
+			"evidence_summary":    firewallSummary,
+			"runtime_status":      runtimeMap["runtime_firewall"],
+		}
+	} else {
+		runtimeFirewallStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["runtime_firewall"]}
+	}
 
 	healthyServices := 0
 	for _, service := range services {
@@ -254,6 +274,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"shaping_interface": enforcement.ShapingInterface(cfg),
 		"shaped_sessions":   shapedSessions,
 		"shaper":            runtimeMap["runtime_shaper"],
+		"local_firewall":    runtimeFirewallStatus,
 	}
 	if !enforcement.RuntimeShapingEnabled(cfg) {
 		enforcementStatus["shaper"] = map[string]any{"status": "disabled", "message": "Runtime shaping is disabled by deployment or policy config"}

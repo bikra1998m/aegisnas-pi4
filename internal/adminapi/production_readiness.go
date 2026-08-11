@@ -15,6 +15,7 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 	eappkg "github.com/yourorg/aegisnas-pi4/internal/eap"
+	"github.com/yourorg/aegisnas-pi4/internal/enforcement"
 	"github.com/yourorg/aegisnas-pi4/internal/identity"
 	mabpkg "github.com/yourorg/aegisnas-pi4/internal/mab"
 	mfapkg "github.com/yourorg/aegisnas-pi4/internal/mfa"
@@ -145,6 +146,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionPolicyEngineCheck(&report, cfg)
 	addProductionACLASTCheck(&report)
 	addProductionACLCompilerCheck(&report)
+	addProductionRuntimeFirewallCheck(&report)
 	addProductionPolicySetGovernanceCheck(&report, cfg)
 	addProductionPolicySimulationAnalysisCheck(&report, cfg)
 	addProductionSubscriberServiceChainsCheck(&report, cfg)
@@ -1266,6 +1268,49 @@ func addProductionACLCompilerCheck(report *productionReadinessReport) {
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/acl-compilers/compile and /decompile for vendor ACL evidence, block unsupported packs instead of falling back silently, and complete the NAS-0049 release certification checklist before production parity claims.",
 		Dependencies:   []string{"acl_compiler_events", "/api/v1/system/acl-compilers", "/api/v1/system/acl-compilers/compile", "/api/v1/system/acl-compilers/decompile", "RFC 2865"},
+	})
+}
+
+func addProductionRuntimeFirewallCheck(report *productionReadinessReport) {
+	status := "passed"
+	summary := "Stateful per-session local firewall policy is ready."
+	plan, err := enforcement.PreviewRuntimeFirewall()
+	if err != nil {
+		status = "blocked"
+		summary = "Runtime firewall preview failed: " + err.Error()
+	} else {
+		switch plan.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		}
+		summary = fmt.Sprintf("Runtime firewall schema %d plans %d managed session(s), %d quarantined session(s), %d IPv4 address(es), %d IPv6 address(es), %d ACL rule(s), %d nftable rule(s), and %d diagnostic(s).",
+			plan.SchemaVersion, plan.Summary.ManagedSessions, plan.Summary.QuarantineSessions,
+			plan.Summary.IPv4Sessions, plan.Summary.IPv6Sessions, plan.Summary.RuleCount,
+			plan.Summary.AppliedRuleCount, len(plan.Diagnostics))
+	}
+	if db.DB == nil {
+		status = "blocked"
+		summary = "Database is not initialized; runtime firewall snapshots and history cannot be verified."
+	} else if evidence, err := db.GetRuntimeFirewallEventSummary(); err != nil {
+		status = "blocked"
+		summary += " Runtime firewall evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d applied, %d rolled back, %d failed, active snapshot=%s.",
+			evidence.TotalEvents, evidence.AppliedCount, evidence.RolledBackCount, evidence.FailedCount, firstNonEmptyAdminString(evidence.ActiveSnapshotID, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "stateful_local_firewall",
+		Category:       "policy",
+		Label:          "Stateful Per-Session Local Firewall Policy",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/runtime-firewall/preview before apply, keep ACL policies normalized through ACL AST and compiler checks, retain snapshots for rollback, and complete the NAS-0050 release certification checklist for nftables, HA, packet-capture, and vendor-device proof.",
+		Dependencies:   []string{"runtime_firewall_snapshots", "runtime_firewall_events", "/api/v1/system/runtime-firewall", "/api/v1/system/runtime-firewall/preview", "/api/v1/system/runtime-firewall/apply", "/api/v1/system/runtime-firewall/rollback", "nftables", "RFC 2865"},
 	})
 }
 

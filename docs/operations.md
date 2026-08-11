@@ -243,6 +243,36 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   | jq '.summary, .history[0:10]'
 ```
 
+Preview local per-session firewall enforcement before changing nftables:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/runtime-firewall/preview \
+  | jq '.plan.status, .plan.summary, .plan.diagnostics'
+```
+
+Apply the owned runtime firewall ruleset and record a rollback snapshot:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/runtime-firewall/apply \
+  | jq '.result.status, .result.snapshot_id, .result.previous_snapshot_id'
+```
+
+Rollback to a known snapshot:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"snapshot_id":"fw-snap-id"}' \
+  http://127.0.0.1:8083/api/v1/system/runtime-firewall/rollback \
+  | jq '.result.status, .result.restored_snapshot_id'
+```
+
 For session-owned changes, also inspect the ownership decision:
 
 ```bash

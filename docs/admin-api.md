@@ -736,6 +736,32 @@ Fortinet, Ruckus, Juniper, Huawei, and H3C are explicit profile-reference
 compilers. Unsupported packs fail closed when ACL intent is present. See
 [acl-compilers.md](acl-compilers.md).
 
+NAS-0050 adds stateful per-session local firewall policy endpoints:
+
+```text
+GET  /api/v1/system/runtime-firewall
+POST /api/v1/system/runtime-firewall/preview
+POST /api/v1/system/runtime-firewall/apply
+POST /api/v1/system/runtime-firewall/rollback
+GET  /api/v1/system/runtime-firewall/history
+```
+
+`GET /api/v1/system/runtime-firewall` returns the current compiled nftables
+plan, session coverage, diagnostics, ruleset fingerprint, and recent evidence.
+`POST /api/v1/system/runtime-firewall/preview` records a preview event without
+changing nftables. `POST /api/v1/system/runtime-firewall/apply` applies the
+owned `table inet aegis_runtime` ruleset, stores an active snapshot, and links
+the previous snapshot for rollback. `POST /api/v1/system/runtime-firewall/rollback`
+restores a selected snapshot, or the newest previous applied snapshot when no
+snapshot is specified. `GET /api/v1/system/runtime-firewall/history` lists
+runtime firewall snapshots and events.
+
+Runtime firewall status is included in `/api/v1/system/status` under
+`enforcement.local_firewall`, production readiness as `stateful_local_firewall`,
+and support bundles as `api/runtime-firewall.json` and
+`api/runtime-firewall-history.json`. See
+[local-firewall-policy.md](local-firewall-policy.md).
+
 Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
 
 After committing a role, user, ACL binding, or EAP framework policy through `/api/v1/apply`, run `POST /api/v1/system/radius-apply` (the **Apply RADIUS Config** action in Access Settings). This regenerates the local-user entries in `mods-config/files/authorize`, the legacy `users` path, and `mods-enabled/eap`, validates the complete FreeRADIUS configuration, and restarts FreeRADIUS. Database-backed portal decisions and CoA updates do not require this regeneration. Local bcrypt credentials support PAP and EAP-TTLS/PAP; CHAP and PEAP-MSCHAPv2 require a compatible cleartext or NT password verifier, while EAP-TLS uses certificates. NAS-0022 blocks enforce-mode generation when policy enables cataloged methods that this release cannot generate.

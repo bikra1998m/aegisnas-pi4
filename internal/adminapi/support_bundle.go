@@ -309,6 +309,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/acl-ast.json", requestPath: "/api/v1/system/acl-ast", label: "Lossless ACL AST normalization", handler: HandleGetACLASTReport},
 		{archivePath: "api/acl-compilers.json", requestPath: "/api/v1/system/acl-compilers", label: "Certified vendor ACL compilers and decompilers", handler: HandleGetACLCompilers},
 		{archivePath: "api/acl-compiler-history.json", requestPath: "/api/v1/system/acl-compilers/history", label: "ACL compiler evidence history", handler: HandleListACLCompilerHistory},
+		{archivePath: "api/runtime-firewall.json", requestPath: "/api/v1/system/runtime-firewall", label: "Stateful per-session local firewall policy", handler: HandleGetRuntimeFirewall},
+		{archivePath: "api/runtime-firewall-history.json", requestPath: "/api/v1/system/runtime-firewall/history", label: "Runtime firewall apply and rollback history", handler: HandleListRuntimeFirewallHistory},
 		{archivePath: "api/policy-sets.json", requestPath: "/api/v1/system/policy-sets", label: "Versioned policy set governance", handler: HandleGetPolicySets},
 		{archivePath: "api/policy-simulation-analyses.json", requestPath: "/api/v1/system/policy-sets/analyses", label: "Policy simulation analyses", handler: HandleListPolicySimulationAnalyses},
 		{archivePath: "api/subscriber-service-chains.json", requestPath: "/api/v1/system/subscriber-service-chains", label: "Subscriber service-chain activation and rollback evidence", handler: HandleGetSubscriberServiceChains},

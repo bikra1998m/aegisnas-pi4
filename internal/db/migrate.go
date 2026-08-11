@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 54
+	return 55
 }
 
 func Migrate() error {
@@ -2909,3 +2909,61 @@ CREATE INDEX IF NOT EXISTS idx_acl_compiler_events_ast ON acl_compiler_events(as
 `
 
 const schemaV54 = aclCompilerEvidenceSQL
+
+const runtimeFirewallEvidenceSQL = `
+CREATE TABLE IF NOT EXISTS runtime_firewall_snapshots (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	snapshot_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	active BOOLEAN NOT NULL DEFAULT 0,
+	session_count INTEGER NOT NULL DEFAULT 0,
+	managed_session_count INTEGER NOT NULL DEFAULT 0,
+	quarantine_session_count INTEGER NOT NULL DEFAULT 0,
+	ipv4_session_count INTEGER NOT NULL DEFAULT 0,
+	ipv6_session_count INTEGER NOT NULL DEFAULT 0,
+	rule_count INTEGER NOT NULL DEFAULT 0,
+	applied_rule_count INTEGER NOT NULL DEFAULT 0,
+	diagnostics_json TEXT NOT NULL DEFAULT '[]',
+	ruleset_fingerprint TEXT NOT NULL,
+	ruleset_text TEXT NOT NULL,
+	previous_snapshot_id TEXT,
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	applied_at DATETIME,
+	rolled_back_at DATETIME,
+	CHECK (operation IN ('preview', 'apply', 'rollback', 'sync')),
+	CHECK (status IN ('previewed', 'applied', 'rolled_back', 'degraded', 'blocked', 'failed'))
+);
+
+CREATE TABLE IF NOT EXISTS runtime_firewall_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	snapshot_id TEXT,
+	previous_snapshot_id TEXT,
+	session_count INTEGER NOT NULL DEFAULT 0,
+	managed_session_count INTEGER NOT NULL DEFAULT 0,
+	quarantine_session_count INTEGER NOT NULL DEFAULT 0,
+	ipv4_session_count INTEGER NOT NULL DEFAULT 0,
+	ipv6_session_count INTEGER NOT NULL DEFAULT 0,
+	rule_count INTEGER NOT NULL DEFAULT 0,
+	applied_rule_count INTEGER NOT NULL DEFAULT 0,
+	diagnostics_json TEXT NOT NULL DEFAULT '[]',
+	details_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'rollback', 'sync')),
+	CHECK (status IN ('previewed', 'applied', 'rolled_back', 'degraded', 'blocked', 'failed', 'skipped'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_runtime_firewall_snapshots_active ON runtime_firewall_snapshots(active, created_at);
+CREATE INDEX IF NOT EXISTS idx_runtime_firewall_snapshots_status ON runtime_firewall_snapshots(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_runtime_firewall_snapshots_fingerprint ON runtime_firewall_snapshots(ruleset_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_runtime_firewall_events_created ON runtime_firewall_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_runtime_firewall_events_status ON runtime_firewall_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_runtime_firewall_events_snapshot ON runtime_firewall_events(snapshot_id, created_at);
+`
+
+const schemaV55 = runtimeFirewallEvidenceSQL

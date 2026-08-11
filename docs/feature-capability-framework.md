@@ -240,14 +240,15 @@ This is where dictionary support becomes product behavior.
 | Vendor compatibility packs | enabled | enabled | enabled | metadata and conservative reply rendering are low resource |
 | Runtime shaping | warned | enabled | enabled | depends on downstream interface and hardware |
 | Quarantine enforcement | enabled | enabled | enabled | already present |
-| ACL-like policy language | available | available | enabled | persisted policies feed live decisions, RADIUS replies, and controller reconciliation |
+| Stateful local firewall policy | available | enabled | enabled | owned nftables table enforces per-session ACL and quarantine policy with IPv4/IPv6 snapshots |
+| ACL-like policy language | available | enabled | enabled | persisted policies feed live decisions, RADIUS replies, local firewall enforcement, and controller reconciliation |
 | Vendor-aware enforcement adapters | available | enabled | enabled | conservative RADIUS mappings and native controller clients are selected per NAS profile |
 
 Rules:
 
 - shaping should be `blocked` if no shaping interface exists
 - vendor dictionary parsing should stay read-only and cheap on lite hardware
-- ACL-like policy should be presented as preview/rendering-ready until persisted policies and device-side enforcement adapters are certified
+- local ACL enforcement should require runtime firewall preview/apply evidence before production use; device-side enforcement adapters still need release certification evidence
 
 ### 7. Identity And Enterprise Integrations
 
