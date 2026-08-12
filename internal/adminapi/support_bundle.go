@@ -313,6 +313,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/runtime-firewall-history.json", requestPath: "/api/v1/system/runtime-firewall/history", label: "Runtime firewall apply and rollback history", handler: HandleListRuntimeFirewallHistory},
 		{archivePath: "api/qos-scheduler.json", requestPath: "/api/v1/system/qos-scheduler", label: "Hierarchical QoS scheduler policy", handler: HandleGetRuntimeQoS},
 		{archivePath: "api/qos-scheduler-history.json", requestPath: "/api/v1/system/qos-scheduler/history", label: "Runtime QoS scheduler apply and rollback history", handler: HandleListRuntimeQoSHistory},
+		{archivePath: "api/rate-compiler.json", requestPath: "/api/v1/system/rate-compiler", label: "Dual-stack shaping and vendor rate compiler evidence", handler: HandleGetRateCompiler},
 		{archivePath: "api/policy-sets.json", requestPath: "/api/v1/system/policy-sets", label: "Versioned policy set governance", handler: HandleGetPolicySets},
 		{archivePath: "api/policy-simulation-analyses.json", requestPath: "/api/v1/system/policy-sets/analyses", label: "Policy simulation analyses", handler: HandleListPolicySimulationAnalyses},
 		{archivePath: "api/subscriber-service-chains.json", requestPath: "/api/v1/system/subscriber-service-chains", label: "Subscriber service-chain activation and rollback evidence", handler: HandleGetSubscriberServiceChains},

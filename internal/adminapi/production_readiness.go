@@ -148,6 +148,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionACLCompilerCheck(&report)
 	addProductionRuntimeFirewallCheck(&report)
 	addProductionRuntimeQoSCheck(&report, cfg)
+	addProductionRateCompilerCheck(&report)
 	addProductionPolicySetGovernanceCheck(&report, cfg)
 	addProductionPolicySimulationAnalysisCheck(&report, cfg)
 	addProductionSubscriberServiceChainsCheck(&report, cfg)
@@ -1355,6 +1356,52 @@ func addProductionRuntimeQoSCheck(report *productionReadinessReport, cfg *config
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/qos-scheduler/preview before apply, store aggregate scheduler overrides in qos_scheduler_profiles, retain snapshots for rollback, and complete the NAS-0051 release certification checklist for tc, controller, packet-capture, HA, and throughput proof.",
 		Dependencies:   []string{"bandwidth_profiles", "qos_scheduler_profiles", "runtime_qos_snapshots", "runtime_qos_events", "/api/v1/system/qos-scheduler", "/api/v1/system/qos-scheduler/preview", "/api/v1/system/qos-scheduler/apply", "/api/v1/system/qos-scheduler/rollback", "tc", "ifb", "RFC 2865"},
+	})
+}
+
+func addProductionRateCompilerCheck(report *productionReadinessReport) {
+	status := "passed"
+	compilerReport := radius.BuildRateCompilerReport()
+	sample := radius.CompileVendorRates(radius.RateCompilerRequest{
+		PackKeys:                   []string{productconfigs.VendorPackMikroTik, productconfigs.VendorPackWISPr, productconfigs.VendorPackUBNT, productconfigs.VendorPackHuawei, productconfigs.VendorPackH3C, productconfigs.VendorPackTPLink, productconfigs.VendorPackZTE},
+		DownloadRateKbps:           50000,
+		UploadRateKbps:             20000,
+		DownloadBurstRateKbps:      80000,
+		UploadBurstRateKbps:        30000,
+		DownloadBurstThresholdKbps: 40000,
+		UploadBurstThresholdKbps:   10000,
+		DownloadBurstTimeSeconds:   10,
+		UploadBurstTimeSeconds:     10,
+		Priority:                   3,
+		DownloadMinRateKbps:        10000,
+		UploadMinRateKbps:          5000,
+	})
+	if sample.Status == "blocked" {
+		status = "blocked"
+	}
+	summary := fmt.Sprintf("Rate compiler version %d covers %d vendor unit profile(s) and compiled %d sample attribute(s) with %d diagnostic(s).",
+		compilerReport.CompilerVersion, len(compilerReport.Capabilities), sample.AttributeCount, len(sample.Diagnostics))
+	if db.DB == nil {
+		status = "blocked"
+		summary = "Database is not initialized; rate compiler evidence cannot be verified."
+	} else if evidence, err := db.GetRateCompilerEventSummary(); err != nil {
+		status = "blocked"
+		summary += " Rate compiler evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d compiler event(s), %d compiled, %d decompiled, %d blocked, %d failed.",
+			evidence.TotalEvents, evidence.CompiledCount, evidence.DecompiledCount, evidence.BlockedCount, evidence.FailedCount)
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "vendor_rate_compiler",
+		Category:       "policy",
+		Label:          "Dual-stack Shaping And Vendor Rate Compiler",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/rate-compiler/compile for vendor-safe kbps, bps, and MikroTik grammar previews, retain rate_compiler_events evidence, and complete the NAS-0052 release certification checklist for packet capture, controller reconciliation, HA, and throughput proof.",
+		Dependencies:   []string{"rate_compiler_events", "/api/v1/system/rate-compiler", "/api/v1/system/rate-compiler/compile", "Mikrotik-Rate-Limit", "WISPr-Bandwidth-Max-Down", "UBNT-Data-Rate-DL", "tc flower", "IPv6", "RFC 2865", "RFC 2866", "RFC 5176"},
 	})
 }
 

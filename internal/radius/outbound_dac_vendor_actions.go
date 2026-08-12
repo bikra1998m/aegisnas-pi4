@@ -523,7 +523,7 @@ func compileMikroTikOutboundDACVendorAction(intent outboundDACVendorActionIntent
 		appendAttr("Mikrotik-Address-List", firstNonEmptyString(intent.ACLName, intent.PolicyTag, intent.Role, intent.FilterID))
 	case "qos":
 		if intent.DownloadRateKbps > 0 || intent.UploadRateKbps > 0 {
-			appendAttr("Mikrotik-Rate-Limit", fmt.Sprintf("%dk/%dk", intent.DownloadRateKbps, intent.UploadRateKbps))
+			appendAttr("Mikrotik-Rate-Limit", FormatMikroTikRateLimit(intent.DownloadRateKbps, intent.UploadRateKbps))
 		} else {
 			appendAttr("Mikrotik-Rate-Limit", intent.BandwidthProfile)
 		}
@@ -544,10 +544,10 @@ func compileHuaweiOutboundDACVendorAction(intent outboundDACVendorActionIntent, 
 		appendAttr("Huawei-Qos-Profile-Name", firstNonEmptyString(intent.BandwidthProfile, intent.PolicyTag))
 		appendAttr("Huawei-Down-QOS-Profile-Name", firstNonEmptyString(intent.BandwidthProfile, intent.PolicyTag))
 		if intent.DownloadRateKbps > 0 {
-			appendAttr("Huawei-Output-Average-Rate", strconv.Itoa(intent.DownloadRateKbps))
+			appendAttr("Huawei-Output-Average-Rate", FormatRateKbps(intent.DownloadRateKbps))
 		}
 		if intent.UploadRateKbps > 0 {
-			appendAttr("Huawei-Input-Average-Rate", strconv.Itoa(intent.UploadRateKbps))
+			appendAttr("Huawei-Input-Average-Rate", FormatRateKbps(intent.UploadRateKbps))
 		}
 	case "reauth", "vlan":
 	}
@@ -565,10 +565,10 @@ func compileH3COutboundDACVendorAction(intent outboundDACVendorActionIntent, app
 	case "qos":
 		appendAttr("H3C-Ita-Policy", firstNonEmptyString(intent.PolicyTag, intent.BandwidthProfile))
 		if intent.DownloadRateKbps > 0 {
-			appendAttr("H3C-Output-Average-Rate", strconv.Itoa(intent.DownloadRateKbps))
+			appendAttr("H3C-Output-Average-Rate", FormatRateKbps(intent.DownloadRateKbps))
 		}
 		if intent.UploadRateKbps > 0 {
-			appendAttr("H3C-Input-Average-Rate", strconv.Itoa(intent.UploadRateKbps))
+			appendAttr("H3C-Input-Average-Rate", FormatRateKbps(intent.UploadRateKbps))
 		}
 	case "reauth", "vlan":
 	}

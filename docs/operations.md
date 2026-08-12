@@ -283,6 +283,37 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   | jq '.plan.status, .plan.summary, .plan.diagnostics'
 ```
 
+Compile vendor-safe rate attributes before applying a bandwidth policy:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"pack_keys":["mikrotik","wispr","ubnt","huawei","h3c","tplink","zte"],"download_rate_kbps":50000,"upload_rate_kbps":20000}' \
+  http://127.0.0.1:8083/api/v1/system/rate-compiler/compile \
+  | jq '.event_id, .result.status, .result.attributes'
+```
+
+Decompile observed vendor values during a drift or support review:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"pack_key":"ubnt","attributes":[{"name":"UBNT-Data-Rate-DL","value":"50000000"},{"name":"UBNT-Data-Rate-UL","value":"20000000"}]}' \
+  http://127.0.0.1:8083/api/v1/system/rate-compiler/decompile \
+  | jq '.event_id, .result.intent'
+```
+
+For dual-stack shaping, confirm the QoS preview includes IPv6 session counts
+and `flower` filters before applying:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/qos-scheduler/preview \
+  | jq '.plan.summary.ipv6_sessions, .plan.commands[] | select(test("protocol ipv6|flower"))'
+```
+
 Create an aggregate scheduler override for an existing bandwidth profile:
 
 ```bash

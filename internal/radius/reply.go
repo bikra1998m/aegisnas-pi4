@@ -93,7 +93,7 @@ func GetReplyAttributes(username, role string) (*ReplyAttributes, error) {
 		err = db.DB.QueryRow(`SELECT download_rate_kbps, upload_rate_kbps FROM bandwidth_profiles WHERE name = ?`,
 			bwProfile.String).Scan(&down, &up)
 		if err == nil {
-			attrs.MikrotikRateLimit = fmt.Sprintf("%dk/%dk", down, up)
+			attrs.MikrotikRateLimit = FormatMikroTikRateLimit(down, up)
 			attrs.WISPrBandwidthMaxDown = down
 			attrs.WISPrBandwidthMaxUp = up
 		}
@@ -180,10 +180,10 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendItem("Mikrotik-Address-List", attrs.ACLPolicyName, true)
 		case productconfigs.VendorPackWISPr:
 			if attrs.WISPrBandwidthMaxDown > 0 {
-				appendItem("WISPr-Bandwidth-Max-Down", fmt.Sprintf("%d", attrs.WISPrBandwidthMaxDown), false)
+				appendItem("WISPr-Bandwidth-Max-Down", FormatRateKbps(attrs.WISPrBandwidthMaxDown), false)
 			}
 			if attrs.WISPrBandwidthMaxUp > 0 {
-				appendItem("WISPr-Bandwidth-Max-Up", fmt.Sprintf("%d", attrs.WISPrBandwidthMaxUp), false)
+				appendItem("WISPr-Bandwidth-Max-Up", FormatRateKbps(attrs.WISPrBandwidthMaxUp), false)
 			}
 		case productconfigs.VendorPackCisco:
 		case productconfigs.VendorPackAruba:
@@ -201,10 +201,10 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendItem("Fortinet-Access-Profile", firstReplyValue(attrs.PolicyTag, attrs.FilterID, attrs.ACLPolicyName), true)
 		case productconfigs.VendorPackUBNT:
 			if attrs.WISPrBandwidthMaxDown > 0 {
-				appendItem("UBNT-Data-Rate-DL", fmt.Sprintf("%d", attrs.WISPrBandwidthMaxDown*1000), false)
+				appendItem("UBNT-Data-Rate-DL", FormatRateBpsFromKbps(attrs.WISPrBandwidthMaxDown), false)
 			}
 			if attrs.WISPrBandwidthMaxUp > 0 {
-				appendItem("UBNT-Data-Rate-UL", fmt.Sprintf("%d", attrs.WISPrBandwidthMaxUp*1000), false)
+				appendItem("UBNT-Data-Rate-UL", FormatRateBpsFromKbps(attrs.WISPrBandwidthMaxUp), false)
 			}
 		case productconfigs.VendorPackCambium:
 			if vlan := replyVLAN(attrs); vlan > 0 {
@@ -502,7 +502,7 @@ func appendRateKbpsItem(attrs *ReplyAttributes, appendItem func(string, string, 
 	if attrs == nil || value <= 0 {
 		return
 	}
-	appendItem(name, fmt.Sprintf("%d", value), false)
+	appendItem(name, FormatRateKbps(value), false)
 }
 
 func appendURLItem(_ *ReplyAttributes, appendItem func(string, string, bool), name, value string) {

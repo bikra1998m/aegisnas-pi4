@@ -15,6 +15,7 @@ import (
 
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
+	"github.com/yourorg/aegisnas-pi4/internal/qos"
 )
 
 const (
@@ -47,6 +48,7 @@ type RuntimeQoSSummary struct {
 	ShapedSessions        int `json:"shaped_sessions"`
 	UnshapedSessions      int `json:"unshaped_sessions"`
 	IPv4Sessions          int `json:"ipv4_sessions"`
+	IPv6Sessions          int `json:"ipv6_sessions"`
 	IPv6OnlySessions      int `json:"ipv6_only_sessions"`
 	AggregateClassCount   int `json:"aggregate_class_count"`
 	LeafClassCount        int `json:"leaf_class_count"`
@@ -83,6 +85,8 @@ type RuntimeQoSClass struct {
 	DSCPClassification bool   `json:"dscp_classification"`
 	SessionID          string `json:"session_id,omitempty"`
 	IP                 string `json:"ip,omitempty"`
+	IPv6               string `json:"ipv6,omitempty"`
+	AddressFamily      string `json:"address_family,omitempty"`
 }
 
 type RuntimeQoSSessionPlan struct {
@@ -393,6 +397,9 @@ func buildRuntimeQoSPlan(cfg *config.Config, sessions []shapedSession, overrides
 		RFCs:          []string{"RFC 2865", "RFC 2866", "RFC 2868", "RFC 5176"},
 		FreeRADIUSAttributes: []string{
 			"Filter-Id",
+			"Framed-IP-Address",
+			"Framed-IPv6-Address",
+			"Framed-IPv6-Prefix",
 			"AegisNAS-Bandwidth-Profile",
 			"Mikrotik-Rate-Limit",
 			"Huawei-Qos-Profile-Name",
@@ -442,7 +449,11 @@ func buildRuntimeQoSPlan(cfg *config.Config, sessions []shapedSession, overrides
 	for _, session := range sessions {
 		if strings.TrimSpace(session.IP) != "" {
 			plan.Summary.IPv4Sessions++
-		} else if strings.TrimSpace(session.IPv6) != "" {
+		}
+		if strings.TrimSpace(session.IPv6) != "" {
+			plan.Summary.IPv6Sessions++
+		}
+		if strings.TrimSpace(session.IP) == "" && strings.TrimSpace(session.IPv6) != "" {
 			plan.Summary.IPv6OnlySessions++
 		}
 	}
@@ -514,35 +525,61 @@ func buildRuntimeQoSProfiles(sessions []shapedSession, overrides []db.QoSSchedul
 			sessionPlans = append(sessionPlans, plan)
 			continue
 		}
-		if strings.TrimSpace(session.IP) == "" {
-			if strings.TrimSpace(session.IPv6) != "" {
-				diagnostics = append(diagnostics, RuntimeQoSDiagnostic{
-					Severity: "warning",
-					Code:     "ipv6_shaping_deferred",
-					Message:  "session has only IPv6 address; dual-stack tc classifiers are scheduled under NAS-0052",
-					Session:  session.SessionID,
-					Profile:  session.BandwidthProfile,
-				})
-				plan.Status = "deferred"
-				plan.Message = "IPv6-only shaping is tracked for NAS-0052"
-			} else {
-				plan.Message = "session has no address"
-			}
+		session.IP = strings.TrimSpace(session.IP)
+		session.IPv6 = strings.TrimSpace(session.IPv6)
+		if session.IP == "" && session.IPv6 == "" {
+			plan.Message = "session has no address"
 			sessionPlans = append(sessionPlans, plan)
 			continue
 		}
-		ip := net.ParseIP(strings.TrimSpace(session.IP))
-		if ip == nil || ip.To4() == nil {
+		if session.IP != "" {
+			ip := net.ParseIP(session.IP)
+			if ip == nil || ip.To4() == nil {
+				diagnostics = append(diagnostics, RuntimeQoSDiagnostic{
+					Severity: "error",
+					Code:     "invalid_ipv4_address",
+					Message:  "runtime QoS requires a valid IPv4 address for IPv4 local tc enforcement",
+					Session:  session.SessionID,
+					Profile:  session.BandwidthProfile,
+					Field:    "ip",
+				})
+				plan.Status = "blocked"
+				plan.Message = "invalid IPv4 address"
+				sessionPlans = append(sessionPlans, plan)
+				continue
+			}
+			session.IP = ip.To4().String()
+			plan.IP = session.IP
+		}
+		if session.IPv6 != "" {
+			ip := net.ParseIP(session.IPv6)
+			if ip == nil || ip.To4() != nil || ip.To16() == nil {
+				diagnostics = append(diagnostics, RuntimeQoSDiagnostic{
+					Severity: "error",
+					Code:     "invalid_ipv6_address",
+					Message:  "runtime QoS requires a valid IPv6 address for IPv6 local tc enforcement",
+					Session:  session.SessionID,
+					Profile:  session.BandwidthProfile,
+					Field:    "ipv6_address",
+				})
+				plan.Status = "blocked"
+				plan.Message = "invalid IPv6 address"
+				sessionPlans = append(sessionPlans, plan)
+				continue
+			}
+			session.IPv6 = ip.String()
+			plan.IPv6 = session.IPv6
+		}
+		if session.IP == "" && session.IPv6 == "" {
 			diagnostics = append(diagnostics, RuntimeQoSDiagnostic{
 				Severity: "error",
-				Code:     "invalid_ipv4_address",
-				Message:  "runtime QoS requires a valid IPv4 address for local tc enforcement",
+				Code:     "missing_shaping_address",
+				Message:  "runtime QoS requires at least one valid IPv4 or IPv6 address for local tc enforcement",
 				Session:  session.SessionID,
 				Profile:  session.BandwidthProfile,
-				Field:    "ip",
 			})
 			plan.Status = "blocked"
-			plan.Message = "invalid IPv4 address"
+			plan.Message = "missing shaping address"
 			sessionPlans = append(sessionPlans, plan)
 			continue
 		}
@@ -708,13 +745,14 @@ func buildRuntimeQoSCommands(interfaceName string, profiles []qosProfileRuntime,
 		{"tc", "qdisc", "del", "dev", interfaceName, "ingress"},
 		{"tc", "qdisc", "del", "dev", runtimeIFBDevice, "root"},
 		{"tc", "qdisc", "replace", "dev", interfaceName, "root", "handle", "1:", "htb", "default", "999"},
-		{"tc", "class", "replace", "dev", interfaceName, "parent", "1:", "classid", "1:1", "htb", "rate", fmt.Sprintf("%dkbit", defaultShaperRateKbit), "ceil", fmt.Sprintf("%dkbit", defaultShaperRateKbit)},
-		{"tc", "class", "replace", "dev", interfaceName, "parent", "1:1", "classid", "1:999", "htb", "rate", fmt.Sprintf("%dkbit", defaultShaperRateKbit), "ceil", fmt.Sprintf("%dkbit", defaultShaperRateKbit)},
+		{"tc", "class", "replace", "dev", interfaceName, "parent", "1:", "classid", "1:1", "htb", "rate", qos.TCRateKbit(defaultShaperRateKbit, defaultShaperRateKbit), "ceil", qos.TCRateKbit(defaultShaperRateKbit, defaultShaperRateKbit)},
+		{"tc", "class", "replace", "dev", interfaceName, "parent", "1:1", "classid", "1:999", "htb", "rate", qos.TCRateKbit(defaultShaperRateKbit, defaultShaperRateKbit), "ceil", qos.TCRateKbit(defaultShaperRateKbit, defaultShaperRateKbit)},
 		{"tc", "qdisc", "replace", "dev", interfaceName, "handle", "ffff:", "ingress"},
 		{"tc", "filter", "replace", "dev", interfaceName, "parent", "ffff:", "protocol", "ip", "u32", "match", "u32", "0", "0", "action", "mirred", "egress", "redirect", "dev", runtimeIFBDevice},
+		{"tc", "filter", "replace", "dev", interfaceName, "parent", "ffff:", "protocol", "ipv6", "flower", "action", "mirred", "egress", "redirect", "dev", runtimeIFBDevice},
 		{"tc", "qdisc", "replace", "dev", runtimeIFBDevice, "root", "handle", "2:", "htb", "default", "999"},
-		{"tc", "class", "replace", "dev", runtimeIFBDevice, "parent", "2:", "classid", "2:1", "htb", "rate", fmt.Sprintf("%dkbit", defaultShaperRateKbit), "ceil", fmt.Sprintf("%dkbit", defaultShaperRateKbit)},
-		{"tc", "class", "replace", "dev", runtimeIFBDevice, "parent", "2:1", "classid", "2:999", "htb", "rate", fmt.Sprintf("%dkbit", defaultShaperRateKbit), "ceil", fmt.Sprintf("%dkbit", defaultShaperRateKbit)},
+		{"tc", "class", "replace", "dev", runtimeIFBDevice, "parent", "2:", "classid", "2:1", "htb", "rate", qos.TCRateKbit(defaultShaperRateKbit, defaultShaperRateKbit), "ceil", qos.TCRateKbit(defaultShaperRateKbit, defaultShaperRateKbit)},
+		{"tc", "class", "replace", "dev", runtimeIFBDevice, "parent", "2:1", "classid", "2:999", "htb", "rate", qos.TCRateKbit(defaultShaperRateKbit, defaultShaperRateKbit), "ceil", qos.TCRateKbit(defaultShaperRateKbit, defaultShaperRateKbit)},
 	}
 	var classes []RuntimeQoSClass
 	profileByName := map[string]qosProfileRuntime{}
@@ -751,28 +789,62 @@ func buildRuntimeQoSCommands(interfaceName string, profiles []qosProfileRuntime,
 		uploadClass := fmt.Sprintf("2:%d", classID)
 		downloadParent := fmt.Sprintf("1:%d", profile.ProfileMinor)
 		uploadParent := fmt.Sprintf("2:%d", profile.ProfileMinor)
+		prio := strconv.Itoa(10 + profile.Priority)
 		commands = append(commands,
 			qosHTBClassCommand(interfaceName, downloadParent, downloadClass, profile.DownloadSessionRate, profile.DownloadSessionCeil, profile.BurstKB, profile.CBurstKB, profile.Priority, profile.QuantumBytes),
 			[]string{"tc", "qdisc", "replace", "dev", interfaceName, "parent", downloadClass, "handle", fmt.Sprintf("%d:", classID), "fq_codel"},
-			[]string{"tc", "filter", "replace", "dev", interfaceName, "protocol", "ip", "parent", "1:", "prio", strconv.Itoa(10 + profile.Priority), "u32", "match", "ip", "dst", session.IP + "/32", "flowid", downloadClass},
 			qosHTBClassCommand(runtimeIFBDevice, uploadParent, uploadClass, profile.UploadSessionRate, profile.UploadSessionCeil, profile.BurstKB, profile.CBurstKB, profile.Priority, profile.QuantumBytes),
 			[]string{"tc", "qdisc", "replace", "dev", runtimeIFBDevice, "parent", uploadClass, "handle", fmt.Sprintf("%d:", classID+20000), "fq_codel"},
-			[]string{"tc", "filter", "replace", "dev", runtimeIFBDevice, "protocol", "ip", "parent", "2:", "prio", strconv.Itoa(10 + profile.Priority), "u32", "match", "ip", "src", session.IP + "/32", "flowid", uploadClass},
 		)
+		if session.IP != "" {
+			commands = append(commands,
+				[]string{"tc", "filter", "replace", "dev", interfaceName, "protocol", "ip", "parent", "1:", "prio", prio, "u32", "match", "ip", "dst", session.IP + "/32", "flowid", downloadClass},
+				[]string{"tc", "filter", "replace", "dev", runtimeIFBDevice, "protocol", "ip", "parent", "2:", "prio", prio, "u32", "match", "ip", "src", session.IP + "/32", "flowid", uploadClass},
+			)
+		}
+		if session.IPv6 != "" {
+			commands = append(commands,
+				[]string{"tc", "filter", "replace", "dev", interfaceName, "protocol", "ipv6", "parent", "1:", "prio", prio, "flower", "dst_ip", session.IPv6, "flowid", downloadClass},
+				[]string{"tc", "filter", "replace", "dev", runtimeIFBDevice, "protocol", "ipv6", "parent", "2:", "prio", prio, "flower", "src_ip", session.IPv6, "flowid", uploadClass},
+			)
+		}
+		addressFamily := runtimeQoSSessionAddressFamily(session)
 		classes = append(classes,
-			RuntimeQoSClass{Direction: "download", Kind: "leaf", Profile: profile.Name, ParentClassID: downloadParent, ClassID: downloadClass, RateKbps: profile.DownloadSessionRate, CeilKbps: profile.DownloadSessionCeil, BurstKB: profile.BurstKB, CBurstKB: profile.CBurstKB, Priority: profile.Priority, Scheduler: profile.Scheduler, LeafQdisc: "fq_codel", DSCPMark: profile.DSCPMark, DSCPClassification: profile.DSCPMark != nil, SessionID: session.SessionID, IP: session.IP},
-			RuntimeQoSClass{Direction: "upload", Kind: "leaf", Profile: profile.Name, ParentClassID: uploadParent, ClassID: uploadClass, RateKbps: profile.UploadSessionRate, CeilKbps: profile.UploadSessionCeil, BurstKB: profile.BurstKB, CBurstKB: profile.CBurstKB, Priority: profile.Priority, Scheduler: profile.Scheduler, LeafQdisc: "fq_codel", DSCPMark: profile.DSCPMark, DSCPClassification: profile.DSCPMark != nil, SessionID: session.SessionID, IP: session.IP},
+			RuntimeQoSClass{Direction: "download", Kind: "leaf", Profile: profile.Name, ParentClassID: downloadParent, ClassID: downloadClass, RateKbps: profile.DownloadSessionRate, CeilKbps: profile.DownloadSessionCeil, BurstKB: profile.BurstKB, CBurstKB: profile.CBurstKB, Priority: profile.Priority, Scheduler: profile.Scheduler, LeafQdisc: "fq_codel", DSCPMark: profile.DSCPMark, DSCPClassification: profile.DSCPMark != nil, SessionID: session.SessionID, IP: session.IP, IPv6: session.IPv6, AddressFamily: addressFamily},
+			RuntimeQoSClass{Direction: "upload", Kind: "leaf", Profile: profile.Name, ParentClassID: uploadParent, ClassID: uploadClass, RateKbps: profile.UploadSessionRate, CeilKbps: profile.UploadSessionCeil, BurstKB: profile.BurstKB, CBurstKB: profile.CBurstKB, Priority: profile.Priority, Scheduler: profile.Scheduler, LeafQdisc: "fq_codel", DSCPMark: profile.DSCPMark, DSCPClassification: profile.DSCPMark != nil, SessionID: session.SessionID, IP: session.IP, IPv6: session.IPv6, AddressFamily: addressFamily},
 		)
 	}
 	return commands, classes
 }
 
 func qosHTBClassCommand(dev, parent, classID string, rate, ceil, burst, cburst, priority, quantum int) []string {
-	cmd := []string{"tc", "class", "replace", "dev", dev, "parent", parent, "classid", classID, "htb", "rate", fmt.Sprintf("%dkbit", positiveOr(rate, defaultShaperRateKbit)), "ceil", fmt.Sprintf("%dkbit", positiveOr(ceil, positiveOr(rate, defaultShaperRateKbit))), "burst", fmt.Sprintf("%dk", positiveOr(burst, defaultBurstKB)), "cburst", fmt.Sprintf("%dk", positiveOr(cburst, positiveOr(burst, defaultCBurstKB))), "prio", strconv.Itoa(clampInt(priority, 0, 7))}
+	cmd := []string{
+		"tc", "class", "replace", "dev", dev, "parent", parent, "classid", classID, "htb",
+		"rate", qos.TCRateKbit(rate, defaultShaperRateKbit),
+		"ceil", qos.TCRateKbit(ceil, positiveOr(rate, defaultShaperRateKbit)),
+		"burst", qos.TCBurstK(burst, defaultBurstKB),
+		"cburst", qos.TCBurstK(cburst, positiveOr(burst, defaultCBurstKB)),
+		"prio", strconv.Itoa(clampInt(priority, 0, 7)),
+	}
 	if quantum > 0 {
 		cmd = append(cmd, "quantum", strconv.Itoa(quantum))
 	}
 	return cmd
+}
+
+func runtimeQoSSessionAddressFamily(session shapedSession) string {
+	hasIPv4 := strings.TrimSpace(session.IP) != ""
+	hasIPv6 := strings.TrimSpace(session.IPv6) != ""
+	switch {
+	case hasIPv4 && hasIPv6:
+		return "dual_stack"
+	case hasIPv6:
+		return "ipv6"
+	case hasIPv4:
+		return "ipv4"
+	default:
+		return ""
+	}
 }
 
 func applyRuntimeQoSCommands(commands [][]string) error {
@@ -837,7 +909,7 @@ func CountShapedSessions() (int, error) {
 		FROM sessions s
 		JOIN bandwidth_profiles bp ON bp.name = s.bandwidth_profile
 		WHERE s.end_time IS NULL
-		AND COALESCE(TRIM(s.ip), '') <> ''`).Scan(&count)
+		AND (COALESCE(TRIM(s.ip), '') <> '' OR COALESCE(TRIM(s.ipv6_address), '') <> '')`).Scan(&count)
 	return count, err
 }
 
@@ -967,23 +1039,26 @@ func runtimeQoSPlanFromSnapshot(snapshot db.RuntimeQoSSnapshot, commands [][]str
 		CommandPreview:       preview,
 		PlanFingerprint:      snapshot.PlanFingerprint,
 		RFCs:                 []string{"RFC 2865", "RFC 2866", "RFC 2868", "RFC 5176"},
-		FreeRADIUSAttributes: []string{"Filter-Id", "AegisNAS-Bandwidth-Profile", "Mikrotik-Rate-Limit", "Huawei-Qos-Profile-Name"},
+		FreeRADIUSAttributes: []string{"Filter-Id", "Framed-IP-Address", "Framed-IPv6-Address", "Framed-IPv6-Prefix", "AegisNAS-Bandwidth-Profile", "Mikrotik-Rate-Limit", "Huawei-Qos-Profile-Name"},
 	}
 }
 
 func runtimeQoSStatusDetails(plan RuntimeQoSPlan, extra map[string]any) map[string]any {
 	details := map[string]any{
-		"schema_version":    plan.SchemaVersion,
-		"interface":         plan.InterfaceName,
-		"ifb_device":        plan.IFBDevice,
-		"status":            plan.Status,
-		"profile_count":     plan.Summary.ProfileCount,
-		"class_count":       plan.Summary.ClassCount,
-		"shaped_sessions":   plan.Summary.ShapedSessions,
-		"unshaped_sessions": plan.Summary.UnshapedSessions,
-		"command_count":     plan.Summary.CommandCount,
-		"diagnostic_count":  len(plan.Diagnostics),
-		"plan_fingerprint":  plan.PlanFingerprint,
+		"schema_version":     plan.SchemaVersion,
+		"interface":          plan.InterfaceName,
+		"ifb_device":         plan.IFBDevice,
+		"status":             plan.Status,
+		"profile_count":      plan.Summary.ProfileCount,
+		"class_count":        plan.Summary.ClassCount,
+		"shaped_sessions":    plan.Summary.ShapedSessions,
+		"unshaped_sessions":  plan.Summary.UnshapedSessions,
+		"ipv4_sessions":      plan.Summary.IPv4Sessions,
+		"ipv6_sessions":      plan.Summary.IPv6Sessions,
+		"ipv6_only_sessions": plan.Summary.IPv6OnlySessions,
+		"command_count":      plan.Summary.CommandCount,
+		"diagnostic_count":   len(plan.Diagnostics),
+		"plan_fingerprint":   plan.PlanFingerprint,
 	}
 	for key, value := range extra {
 		details[key] = value

@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 56
+	return 57
 }
 
 func Migrate() error {
@@ -3048,3 +3048,29 @@ CREATE INDEX IF NOT EXISTS idx_runtime_qos_events_snapshot ON runtime_qos_events
 `
 
 const schemaV56 = runtimeQoSEvidenceSQL
+
+const rateCompilerEvidenceSQL = `
+CREATE TABLE IF NOT EXISTS rate_compiler_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	pack_keys_json TEXT NOT NULL DEFAULT '[]',
+	download_rate_kbps INTEGER NOT NULL DEFAULT 0,
+	upload_rate_kbps INTEGER NOT NULL DEFAULT 0,
+	attribute_count INTEGER NOT NULL DEFAULT 0,
+	diagnostic_count INTEGER NOT NULL DEFAULT 0,
+	request_json TEXT NOT NULL DEFAULT '{}',
+	response_json TEXT NOT NULL DEFAULT '{}',
+	diagnostics_json TEXT NOT NULL DEFAULT '[]',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('compile', 'decompile', 'preview')),
+	CHECK (status IN ('compiled', 'decompiled', 'blocked', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_compiler_events_created ON rate_compiler_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_rate_compiler_events_status ON rate_compiler_events(status, created_at);
+`
+
+const schemaV57 = rateCompilerEvidenceSQL

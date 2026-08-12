@@ -141,9 +141,11 @@ When `radius.upstream.enabled: true`:
 - charging records, rating, retention, and export integrity are available through `/api/v1/system/accounting-charging`; AegisNAS projects applied accounting events into CDRs, rates closed records, marks late corrections for re-export, preserves hashed identities, and exports JSON Lines, JSON, or CSV batches with payload and manifest SHA-256 evidence
 - the gateway compiles active sessions with a named bandwidth profile into
   hierarchical Linux `tc`/IFB scheduling with aggregate profile classes,
-  per-session leaf classes, priority, burst, aggregate caps, fingerprints, and
-  rollback evidence; `/api/v1/system/qos-scheduler` exposes preview, apply,
-  rollback, history, and scheduler profile overrides
+  per-session leaf classes, IPv4 and IPv6 classifiers, priority, burst,
+  aggregate caps, fingerprints, and rollback evidence;
+  `/api/v1/system/qos-scheduler` exposes preview, apply, rollback, history, and
+  scheduler profile overrides; `/api/v1/system/rate-compiler` exposes
+  vendor-safe kbps, bps, and MikroTik grammar compilation evidence
 - the gateway compiles active session ACL policies and quarantine state into
   the owned nftables table `aegis_runtime`; `/api/v1/system/runtime-firewall`
   exposes preview, apply, rollback, history, diagnostics, fingerprints, and
@@ -208,6 +210,10 @@ What this pass still does not change:
   rollback, performance, soak, security, and customer validation remains
   tracked in
   [nas-0051-release-certification-checklist.md](nas-0051-release-certification-checklist.md)
+- real IPv6 `tc flower` validation, vendor rate-unit packet captures,
+  FreeRADIUS-on-Linux interop, AP/controller smoke tests, HA rollback,
+  performance, soak, security, and customer validation remains tracked in
+  [nas-0052-release-certification-checklist.md](nas-0052-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 

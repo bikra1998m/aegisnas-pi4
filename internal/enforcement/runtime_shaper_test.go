@@ -67,6 +67,53 @@ func TestBuildRuntimeQoSPlanAppliesAggregateSchedulerOverrides(t *testing.T) {
 	assert.Equal(t, "2:1001", plan.Sessions[1].UploadClassID)
 }
 
+func TestBuildRuntimeQoSPlanShapesIPv6OnlySessions(t *testing.T) {
+	plan, err := buildRuntimeQoSPlan(&config.Config{
+		Policy: config.PolicyConfig{RuntimeShapingEnabled: true},
+		LAN:    config.InterfaceConfig{Name: "eth1"},
+	}, []shapedSession{
+		{SessionID: "s-ipv6", Username: "alice", IPv6: "2001:db8::50", BandwidthProfile: "guest", DownloadRateKbps: 50000, UploadRateKbps: 20000, BurstKB: 128},
+	}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "ready", plan.Status)
+	assert.Equal(t, 1, plan.Summary.ShapedSessions)
+	assert.Equal(t, 0, plan.Summary.IPv4Sessions)
+	assert.Equal(t, 1, plan.Summary.IPv6Sessions)
+	assert.Equal(t, 1, plan.Summary.IPv6OnlySessions)
+	require.Len(t, plan.Sessions, 1)
+	assert.Equal(t, "shaped", plan.Sessions[0].Status)
+	assert.Equal(t, "1:1000", plan.Sessions[0].DownloadClassID)
+	assert.Equal(t, "2:1000", plan.Sessions[0].UploadClassID)
+
+	preview := strings.Join(plan.CommandPreview, "\n")
+	assert.Contains(t, preview, "protocol ipv6 flower action mirred egress redirect dev ifb-aegis0")
+	assert.Contains(t, preview, "protocol ipv6 parent 1: prio 14 flower dst_ip 2001:db8::50 flowid 1:1000")
+	assert.Contains(t, preview, "protocol ipv6 parent 2: prio 14 flower src_ip 2001:db8::50 flowid 2:1000")
+	assert.NotContains(t, preview, "ipv6_shaping_deferred")
+	require.Len(t, plan.Classes, 4)
+	assert.Equal(t, "ipv6", plan.Classes[2].AddressFamily)
+	assert.Equal(t, "2001:db8::50", plan.Classes[2].IPv6)
+}
+
+func TestBuildRuntimeQoSPlanShapesDualStackSessions(t *testing.T) {
+	plan, err := buildRuntimeQoSPlan(&config.Config{
+		Policy: config.PolicyConfig{RuntimeShapingEnabled: true},
+		LAN:    config.InterfaceConfig{Name: "eth1"},
+	}, []shapedSession{
+		{SessionID: "s-dual", Username: "alice", IP: "192.0.2.50", IPv6: "2001:db8::51", BandwidthProfile: "guest", DownloadRateKbps: 50000, UploadRateKbps: 20000, BurstKB: 128},
+	}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "ready", plan.Status)
+	assert.Equal(t, 1, plan.Summary.IPv4Sessions)
+	assert.Equal(t, 1, plan.Summary.IPv6Sessions)
+	assert.Equal(t, 0, plan.Summary.IPv6OnlySessions)
+	preview := strings.Join(plan.CommandPreview, "\n")
+	assert.Contains(t, preview, "match ip dst 192.0.2.50/32 flowid 1:1000")
+	assert.Contains(t, preview, "flower dst_ip 2001:db8::51 flowid 1:1000")
+	require.Len(t, plan.Classes, 4)
+	assert.Equal(t, "dual_stack", plan.Classes[2].AddressFamily)
+}
+
 func TestShapingInterface(t *testing.T) {
 	assert.Equal(t, "eth1", ShapingInterface(&config.Config{
 		Mode: "two-nic",

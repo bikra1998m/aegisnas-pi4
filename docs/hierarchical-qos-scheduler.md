@@ -27,11 +27,12 @@ Implemented software scope:
 - Admin API, OpenAPI, RBAC, production-readiness, support-bundle, system-status,
   and Dashboard visibility.
 
-Dual-stack classifier expansion, exact vendor rate-unit compilers, and
-controller reconciliation are handled by later roadmap features. External
-Linux `tc` validation, packet captures, vendor/controller labs, HA,
-performance, soak, security, production deployment, and customer validation are
-tracked in `nas-0051-release-certification-checklist.md`.
+NAS-0052 extends this scheduler with IPv6-only and dual-stack `tc flower`
+classifiers plus a vendor unit-safe rate compiler. Controller reconciliation
+remains a later roadmap feature. External Linux `tc` validation, packet
+captures, vendor/controller labs, HA, performance, soak, security, production
+deployment, and customer validation are tracked in the NAS-0051 and NAS-0052
+release certification checklists.
 
 ## Scheduler Model
 
@@ -139,9 +140,10 @@ Support bundles include:
 
 - `api/qos-scheduler.json`
 - `api/qos-scheduler-history.json`
+- `api/rate-compiler.json`
 
 Dashboard includes a Hierarchical QoS Scheduler card under runtime
-enforcement.
+enforcement and a Vendor Rate Compiler card for unit-safe vendor output.
 
 ## Database
 
@@ -163,6 +165,7 @@ Automated software validation covers:
 - migration and schema repair
 - scheduler profile CRUD persistence
 - profile aggregate and per-session class compilation
+- IPv6-only and dual-stack class planning through NAS-0052
 - deterministic plan fingerprints
 - preview event recording
 - API status/history/profile/RBAC/OpenAPI/support-bundle behavior

@@ -202,6 +202,8 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	accountingIP := radius.BuildAccountingIPReport(cfg)
 	accountingServices := radius.BuildAccountingServicesReport(cfg)
 	fallbackPolicy := radius.BuildFallbackPolicyReport(cfg)
+	rateCompiler := radius.BuildRateCompilerReport()
+	rateCompilerSummary, rateCompilerErr := db.GetRateCompilerEventSummary()
 	eapSummary, _ := db.SummarizeEAPMethodEvents(1000)
 	eapFramework := eappkg.BuildFrameworkReport(cfg, eapRuntimeSummaryFromDB(eapSummary))
 	teapSummary, _ := db.SummarizeTEAPChainEvents(1000)
@@ -224,23 +226,31 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	tenantIsolation, _ := buildTenantIsolationReport(cfg, 5)
 
 	radiusStatus := map[string]any{
-		"upstream_enabled":           cfg.Radius.Upstream.Enabled,
-		"realm":                      cfg.Radius.Upstream.Realm,
-		"pool_strategy":              cfg.Radius.Upstream.PoolStrategy,
-		"configured_servers":         cfg.Radius.Upstream.Servers,
-		"server_statuses":            upstreamStatuses,
-		"proxy_routes":               proxyRoutes,
-		"transport_policy":           transportPolicy,
-		"proxy_policy":               proxyPolicy,
-		"accounting_spool":           accountingSpool,
-		"accounting_ingest_spool":    accountingIngestSpool,
-		"accounting_charging":        accountingCharging,
-		"sql_accounting":             sqlAccounting,
-		"accounting_ordering":        accountingOrdering,
-		"accounting_counters":        accountingCounters,
-		"accounting_ip":              accountingIP,
-		"accounting_services":        accountingServices,
-		"fallback_policy":            fallbackPolicy,
+		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
+		"realm":                   cfg.Radius.Upstream.Realm,
+		"pool_strategy":           cfg.Radius.Upstream.PoolStrategy,
+		"configured_servers":      cfg.Radius.Upstream.Servers,
+		"server_statuses":         upstreamStatuses,
+		"proxy_routes":            proxyRoutes,
+		"transport_policy":        transportPolicy,
+		"proxy_policy":            proxyPolicy,
+		"accounting_spool":        accountingSpool,
+		"accounting_ingest_spool": accountingIngestSpool,
+		"accounting_charging":     accountingCharging,
+		"sql_accounting":          sqlAccounting,
+		"accounting_ordering":     accountingOrdering,
+		"accounting_counters":     accountingCounters,
+		"accounting_ip":           accountingIP,
+		"accounting_services":     accountingServices,
+		"fallback_policy":         fallbackPolicy,
+		"rate_compiler": map[string]any{
+			"status":           firstNonEmptyAdminString(rateCompiler.Status, "ready"),
+			"message":          "Vendor rate compiler is ready for unit-safe RADIUS reply and CoA previews.",
+			"compiler_version": rateCompiler.CompilerVersion,
+			"capability_count": len(rateCompiler.Capabilities),
+			"evidence_summary": rateCompilerSummary,
+			"evidence_error":   rateCompilerErrorString(rateCompilerErr),
+		},
 		"eap_framework":              eapFramework,
 		"eap_teap":                   teapFramework,
 		"eap_machine_user":           machineUserFramework,
@@ -1157,4 +1167,11 @@ func ssidAuthModes(ssids []config.SSIDConfig) []string {
 		modes = append(modes, mode)
 	}
 	return modes
+}
+
+func rateCompilerErrorString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }

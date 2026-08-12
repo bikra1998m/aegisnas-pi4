@@ -1043,6 +1043,21 @@ type SystemStatus = {
     accounting_ip?: RadiusAccountingIPReport;
     accounting_services?: RadiusAccountingServicesReport;
     fallback_policy?: RadiusFallbackPolicyReport;
+    rate_compiler?: {
+      status?: string;
+      message?: string;
+      compiler_version?: number;
+      capability_count?: number;
+      evidence_summary?: {
+        total_events?: number;
+        compiled_count?: number;
+        decompiled_count?: number;
+        blocked_count?: number;
+        failed_count?: number;
+        last_status?: string;
+      };
+      evidence_error?: string;
+    };
     eap_framework?: EAPFrameworkReport;
     eap_teap?: TEAPReport;
     eap_machine_user?: MachineUserReport;
@@ -1081,6 +1096,9 @@ type SystemStatus = {
         class_count: number;
         shaped_sessions: number;
         unshaped_sessions: number;
+        ipv4_sessions?: number;
+        ipv6_sessions?: number;
+        ipv6_only_sessions?: number;
         aggregate_class_count: number;
         leaf_class_count: number;
         command_count: number;
@@ -1653,6 +1671,7 @@ export default function Dashboard() {
   const accountingIP = systemStatus.radius?.accounting_ip;
   const accountingServices = systemStatus.radius?.accounting_services;
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
+  const rateCompiler = systemStatus.radius?.rate_compiler;
   const eapFramework = systemStatus.radius?.eap_framework;
   const teapReport = systemStatus.radius?.eap_teap;
   const machineUserReport = systemStatus.radius?.eap_machine_user;
@@ -4230,6 +4249,13 @@ export default function Dashboard() {
                         {qosScheduler.diagnostic_count || 0}
                       </div>
                     ) : null}
+                    {qosScheduler?.summary ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        IPv4 {qosScheduler.summary.ipv4_sessions || 0}, IPv6{" "}
+                        {qosScheduler.summary.ipv6_sessions || 0}, IPv6-only{" "}
+                        {qosScheduler.summary.ipv6_only_sessions || 0}
+                      </div>
+                    ) : null}
                   </div>
                   <StatusBadge
                     status={
@@ -4238,6 +4264,30 @@ export default function Dashboard() {
                       "unknown"
                     }
                   />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      Vendor Rate Compiler
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {rateCompiler
+                        ? `${rateCompiler.capability_count || 0} vendor unit profiles with compiler version ${rateCompiler.compiler_version || 0}.`
+                        : "No rate compiler status has been evaluated yet."}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {rateCompiler?.message ||
+                        "Compile vendor-safe rate attributes before changing bandwidth policy."}
+                    </div>
+                    {rateCompiler?.evidence_summary ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {`Evidence ${rateCompiler.evidence_summary.total_events || 0}, compiled ${rateCompiler.evidence_summary.compiled_count || 0}, decompiled ${rateCompiler.evidence_summary.decompiled_count || 0}, blocked ${rateCompiler.evidence_summary.blocked_count || 0}, failed ${rateCompiler.evidence_summary.failed_count || 0}`}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge status={rateCompiler?.status || "unknown"} />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">

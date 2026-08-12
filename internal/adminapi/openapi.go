@@ -1772,6 +1772,17 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Deleted QoS scheduler profile override."),
 		"default": responseText("Validation error."),
 	}))
+	addOperation(paths, "/api/v1/system/rate-compiler", "get", securedOperation("Read vendor rate compiler coverage", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Rate compiler capabilities, supported vendor units, RFC references, summary counters, and recent evidence events."),
+	}))
+	addOperation(paths, "/api/v1/system/rate-compiler/compile", "post", securedOperationWithBody("Compile vendor-safe rate attributes", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Normalized kbps rates, optional MikroTik burst grammar fields, and vendor pack keys."), map[string]any{
+		"200":     responseJSON("Compiled RADIUS vendor attributes, unit diagnostics, and evidence event ID."),
+		"default": responseText("Compile error."),
+	}))
+	addOperation(paths, "/api/v1/system/rate-compiler/decompile", "post", securedOperationWithBody("Decompile vendor rate attributes", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Vendor pack key plus observed rate attributes to normalize back into kbps intent."), map[string]any{
+		"200":     responseJSON("Normalized kbps intent, unit diagnostics, and evidence event ID."),
+		"default": responseText("Decompile error."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-reply-preview", "post", securedOperationWithBody("Preview vendor reply attributes", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("NAS type, role, VLAN, bandwidth, timeout, ACL names, flat ACL rules, and optional ACL AST intent to preview."), map[string]any{
 		"200":     responseJSON("Effective compatibility packs, rendered RADIUS reply attributes, normalized ACL AST, certified ACL compiler diagnostics, and vendor ACL exports."),
 		"default": responseText("Preview error."),
