@@ -139,7 +139,11 @@ When `radius.upstream.enabled: true`:
 - IPv6, delegated-prefix, and route accounting is available through `/api/v1/system/accounting-ip`; AegisNAS normalizes `Framed-IPv6-Address`, `Framed-IPv6-Prefix`, `Delegated-IPv6-Prefix`, `Framed-Route`, and `Framed-IPv6-Route` into durable assignment evidence
 - multi-service accounting correlation is available through `/api/v1/system/accounting-services`; AegisNAS preserves `Acct-Multi-Session-Id`, `Acct-Link-Count`, `Service-Type`, `Framed-Protocol`, and Class metadata to correlate parent sessions, child service legs, bearer legs, call legs, VPN legs, and subscriber service-chain accounting
 - charging records, rating, retention, and export integrity are available through `/api/v1/system/accounting-charging`; AegisNAS projects applied accounting events into CDRs, rates closed records, marks late corrections for re-export, preserves hashed identities, and exports JSON Lines, JSON, or CSV batches with payload and manifest SHA-256 evidence
-- the gateway rebuilds Linux `tc` shaping for any active session with a named bandwidth profile
+- the gateway compiles active sessions with a named bandwidth profile into
+  hierarchical Linux `tc`/IFB scheduling with aggregate profile classes,
+  per-session leaf classes, priority, burst, aggregate caps, fingerprints, and
+  rollback evidence; `/api/v1/system/qos-scheduler` exposes preview, apply,
+  rollback, history, and scheduler profile overrides
 - the gateway compiles active session ACL policies and quarantine state into
   the owned nftables table `aegis_runtime`; `/api/v1/system/runtime-firewall`
   exposes preview, apply, rollback, history, diagnostics, fingerprints, and
@@ -199,6 +203,11 @@ What this pass still does not change:
   policy assignment smoke tests, HA snapshot replication, performance, soak,
   security, and customer validation remains tracked in
   [nas-0050-release-certification-checklist.md](nas-0050-release-certification-checklist.md)
+- real Linux `tc`/IFB validation, QoS packet captures, throughput and latency
+  measurements, CoA reshaping drills, vendor/controller smoke tests, HA
+  rollback, performance, soak, security, and customer validation remains
+  tracked in
+  [nas-0051-release-certification-checklist.md](nas-0051-release-certification-checklist.md)
 
 That means the product is now a strong Network Access Server / AAA edge appliance, but not yet a full storage NAS distribution by itself.
 

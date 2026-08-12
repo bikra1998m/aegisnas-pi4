@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 55
+	return 56
 }
 
 func Migrate() error {
@@ -2967,3 +2967,84 @@ CREATE INDEX IF NOT EXISTS idx_runtime_firewall_events_snapshot ON runtime_firew
 `
 
 const schemaV55 = runtimeFirewallEvidenceSQL
+
+const runtimeQoSEvidenceSQL = `
+CREATE TABLE IF NOT EXISTS qos_scheduler_profiles (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	profile_name TEXT UNIQUE NOT NULL,
+	enabled BOOLEAN DEFAULT 1,
+	parent_profile_name TEXT,
+	scheduler TEXT DEFAULT 'htb',
+	priority INTEGER DEFAULT 4,
+	dscp_mark INTEGER,
+	download_min_rate_kbps INTEGER DEFAULT 0,
+	download_ceil_rate_kbps INTEGER DEFAULT 0,
+	upload_min_rate_kbps INTEGER DEFAULT 0,
+	upload_ceil_rate_kbps INTEGER DEFAULT 0,
+	burst_kb INTEGER DEFAULT 0,
+	cburst_kb INTEGER DEFAULT 0,
+	quantum_bytes INTEGER DEFAULT 0,
+	metadata_json TEXT DEFAULT '{}',
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS runtime_qos_snapshots (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	snapshot_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	active BOOLEAN DEFAULT 0,
+	interface_name TEXT,
+	ifb_device TEXT,
+	profile_count INTEGER DEFAULT 0,
+	class_count INTEGER DEFAULT 0,
+	session_count INTEGER DEFAULT 0,
+	shaped_session_count INTEGER DEFAULT 0,
+	unshaped_session_count INTEGER DEFAULT 0,
+	command_count INTEGER DEFAULT 0,
+	diagnostic_count INTEGER DEFAULT 0,
+	plan_fingerprint TEXT NOT NULL,
+	command_text TEXT NOT NULL,
+	diagnostics_json TEXT DEFAULT '[]',
+	summary_json TEXT DEFAULT '{}',
+	previous_snapshot_id TEXT,
+	actor TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	applied_at DATETIME,
+	rolled_back_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS runtime_qos_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	snapshot_id TEXT,
+	previous_snapshot_id TEXT,
+	interface_name TEXT,
+	ifb_device TEXT,
+	profile_count INTEGER DEFAULT 0,
+	class_count INTEGER DEFAULT 0,
+	session_count INTEGER DEFAULT 0,
+	shaped_session_count INTEGER DEFAULT 0,
+	unshaped_session_count INTEGER DEFAULT 0,
+	command_count INTEGER DEFAULT 0,
+	diagnostic_count INTEGER DEFAULT 0,
+	plan_fingerprint TEXT,
+	diagnostics_json TEXT DEFAULT '[]',
+	details_json TEXT DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_qos_scheduler_profiles_enabled ON qos_scheduler_profiles(enabled, profile_name);
+CREATE INDEX IF NOT EXISTS idx_qos_scheduler_profiles_parent ON qos_scheduler_profiles(parent_profile_name);
+CREATE INDEX IF NOT EXISTS idx_runtime_qos_snapshots_active ON runtime_qos_snapshots(active, created_at);
+CREATE INDEX IF NOT EXISTS idx_runtime_qos_snapshots_status ON runtime_qos_snapshots(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_runtime_qos_snapshots_fingerprint ON runtime_qos_snapshots(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_runtime_qos_events_operation_status ON runtime_qos_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_runtime_qos_events_snapshot ON runtime_qos_events(snapshot_id, created_at);
+`
+
+const schemaV56 = runtimeQoSEvidenceSQL

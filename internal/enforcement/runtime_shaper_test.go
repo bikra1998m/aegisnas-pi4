@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
+	"github.com/yourorg/aegisnas-pi4/internal/db"
 )
 
 func TestBuildRuntimeShaperCommands(t *testing.T) {
@@ -28,10 +30,41 @@ func TestBuildRuntimeShaperCommands(t *testing.T) {
 
 	assert.Contains(t, preview, "tc qdisc replace dev eth1 root handle 1: htb default 999")
 	assert.Contains(t, preview, "tc qdisc replace dev ifb-aegis0 root handle 2: htb default 999")
-	assert.Contains(t, preview, "match ip dst 10.20.0.50/32 flowid 1:10")
-	assert.Contains(t, preview, "match ip src 10.20.0.50/32 flowid 2:10")
+	assert.Contains(t, preview, "parent 1:1 classid 1:10 htb rate 2048kbit ceil 2048kbit")
+	assert.Contains(t, preview, "parent 1:10 classid 1:1000 htb rate 2048kbit ceil 2048kbit")
+	assert.Contains(t, preview, "parent 2:10 classid 2:1000 htb rate 1024kbit ceil 1024kbit")
+	assert.Contains(t, preview, "match ip dst 10.20.0.50/32 flowid 1:1000")
+	assert.Contains(t, preview, "match ip src 10.20.0.50/32 flowid 2:1000")
 	assert.Contains(t, preview, "rate 2048kbit ceil 2048kbit burst 128k cburst 128k")
 	assert.Contains(t, preview, "rate 1024kbit ceil 1024kbit burst 128k cburst 128k")
+}
+
+func TestBuildRuntimeQoSPlanAppliesAggregateSchedulerOverrides(t *testing.T) {
+	voiceDSCP := 46
+	plan, err := buildRuntimeQoSPlan(&config.Config{
+		Policy: config.PolicyConfig{RuntimeShapingEnabled: true},
+		LAN:    config.InterfaceConfig{Name: "eth1"},
+	}, []shapedSession{
+		{SessionID: "s1", Username: "alice", IP: "10.20.0.50", BandwidthProfile: "voice", DownloadRateKbps: 2048, UploadRateKbps: 1024, BurstKB: 64},
+		{SessionID: "s2", Username: "bob", IP: "10.20.0.51", BandwidthProfile: "voice", DownloadRateKbps: 2048, UploadRateKbps: 1024, BurstKB: 64},
+	}, []db.QoSSchedulerProfile{
+		{ProfileName: "voice", Enabled: true, Scheduler: "htb", Priority: 1, DSCPMark: &voiceDSCP, DownloadCeilRateKbps: 3000, UploadCeilRateKbps: 1500, BurstKB: 128, CBurstKB: 128},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "ready", plan.Status)
+	assert.Equal(t, 1, plan.Summary.ProfileCount)
+	assert.Equal(t, 6, plan.Summary.ClassCount)
+	assert.Equal(t, 2, plan.Summary.ShapedSessions)
+	assert.Equal(t, 3000, plan.Summary.DownloadAggregateKbps)
+	assert.Equal(t, 1500, plan.Summary.UploadAggregateKbps)
+	assert.NotEmpty(t, plan.PlanFingerprint)
+
+	preview := strings.Join(plan.CommandPreview, "\n")
+	assert.Contains(t, preview, "parent 1:1 classid 1:10 htb rate 3000kbit ceil 3000kbit burst 128k cburst 128k prio 1")
+	assert.Contains(t, preview, "parent 1:10 classid 1:1000 htb rate 2048kbit ceil 3000kbit")
+	assert.Contains(t, preview, "parent 1:10 classid 1:1001 htb rate 2048kbit ceil 3000kbit")
+	assert.Equal(t, "1:1000", plan.Sessions[0].DownloadClassID)
+	assert.Equal(t, "2:1001", plan.Sessions[1].UploadClassID)
 }
 
 func TestShapingInterface(t *testing.T) {

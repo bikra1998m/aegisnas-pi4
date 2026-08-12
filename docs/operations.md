@@ -273,6 +273,45 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   | jq '.result.status, .result.restored_snapshot_id'
 ```
 
+Preview hierarchical QoS scheduling before changing `tc` state:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/qos-scheduler/preview \
+  | jq '.plan.status, .plan.summary, .plan.diagnostics'
+```
+
+Create an aggregate scheduler override for an existing bandwidth profile:
+
+```bash
+curl -fsS -X PUT -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled":true,"scheduler":"htb","priority":1,"download_ceil_rate_kbps":30000,"upload_ceil_rate_kbps":10000,"burst_kb":256,"cburst_kb":256}' \
+  http://127.0.0.1:8083/api/v1/system/qos-scheduler/profiles/voice
+```
+
+Apply the compiled QoS scheduler plan and record a rollback snapshot:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/qos-scheduler/apply \
+  | jq '.result.status, .result.snapshot_id, .result.previous_snapshot_id'
+```
+
+Rollback QoS scheduling to a known snapshot:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"snapshot_id":"qos-snap-id"}' \
+  http://127.0.0.1:8083/api/v1/system/qos-scheduler/rollback \
+  | jq '.result.status, .result.restored_snapshot_id'
+```
+
 For session-owned changes, also inspect the ownership decision:
 
 ```bash

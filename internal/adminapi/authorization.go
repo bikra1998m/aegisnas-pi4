@@ -492,6 +492,21 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/runtime-firewall"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/qos-scheduler/apply"):
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/qos-scheduler/rollback"):
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/qos-scheduler/preview"):
+		return identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/qos-scheduler/history"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/qos-scheduler/profiles"):
+		if method == http.MethodGet {
+			return readonly
+		}
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/qos-scheduler"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/network-exports/download"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/network-exports"):

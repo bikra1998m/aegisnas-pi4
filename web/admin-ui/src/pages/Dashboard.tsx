@@ -1069,6 +1069,32 @@ type SystemStatus = {
     shaping_interface: string;
     shaped_sessions: number;
     shaper: RuntimeStatus;
+    qos_scheduler?: {
+      status: string;
+      message: string;
+      interface_name?: string;
+      ifb_device?: string;
+      plan_fingerprint?: string;
+      diagnostic_count?: number;
+      summary?: {
+        profile_count: number;
+        class_count: number;
+        shaped_sessions: number;
+        unshaped_sessions: number;
+        aggregate_class_count: number;
+        leaf_class_count: number;
+        command_count: number;
+        download_aggregate_kbps: number;
+        upload_aggregate_kbps: number;
+      };
+      evidence_summary?: {
+        active_snapshot_id?: string;
+        applied_count?: number;
+        rolled_back_count?: number;
+        failed_count?: number;
+      };
+      runtime_status?: RuntimeStatus;
+    };
     local_firewall?: {
       status: string;
       message: string;
@@ -1652,6 +1678,7 @@ export default function Dashboard() {
     systemStatus.summary?.session_methods || {},
   );
   const localFirewall = systemStatus.enforcement.local_firewall;
+  const qosScheduler = systemStatus.enforcement.qos_scheduler;
   const networkObservability = systemStatus.network_observability;
   const vendorObservability = networkObservability?.vendor_observability;
   const readinessSummary =
@@ -4170,6 +4197,45 @@ export default function Dashboard() {
                       (systemStatus.enforcement.shaping_enabled
                         ? "unknown"
                         : "disabled")
+                    }
+                  />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      Hierarchical QoS Scheduler
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {qosScheduler?.summary
+                        ? `${qosScheduler.summary.profile_count} profiles, ${qosScheduler.summary.class_count} classes, ${qosScheduler.summary.shaped_sessions} shaped sessions.`
+                        : "No QoS scheduler plan has been evaluated yet."}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {qosScheduler?.message ||
+                        "Preview and apply the scheduler plan from the QoS scheduler API."}
+                    </div>
+                    {qosScheduler?.evidence_summary?.active_snapshot_id ? (
+                      <div className="mt-1 text-xs text-gray-500 break-all">
+                        Active snapshot:{" "}
+                        {qosScheduler.evidence_summary.active_snapshot_id}
+                      </div>
+                    ) : null}
+                    {qosScheduler?.summary ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Aggregate {qosScheduler.summary.aggregate_class_count},
+                        leaf {qosScheduler.summary.leaf_class_count}, commands{" "}
+                        {qosScheduler.summary.command_count}, diagnostics{" "}
+                        {qosScheduler.diagnostic_count || 0}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    status={
+                      qosScheduler?.runtime_status?.status ||
+                      qosScheduler?.status ||
+                      "unknown"
                     }
                   />
                 </div>

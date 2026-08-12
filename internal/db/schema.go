@@ -179,7 +179,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{52, schemaV52},
 		{53, schemaV53},
 		{54, schemaV54},
-		{LatestSchemaVersion(), schemaV55},
+		{55, schemaV55},
+		{LatestSchemaVersion(), schemaV56},
 	}
 
 	for _, m := range migrations {
@@ -314,8 +315,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureRuntimeFirewallEvidenceTables(handle); err != nil {
 		return fmt.Errorf("repair runtime firewall evidence schema: %w", err)
 	}
+	if err := ensureRuntimeQoSEvidenceTables(handle); err != nil {
+		return fmt.Errorf("repair runtime QoS evidence schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureRuntimeQoSEvidenceTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(runtimeQoSEvidenceSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureRuntimeFirewallEvidenceTables(handle *sql.DB) error {

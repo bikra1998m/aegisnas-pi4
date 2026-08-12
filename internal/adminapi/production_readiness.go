@@ -147,6 +147,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionACLASTCheck(&report)
 	addProductionACLCompilerCheck(&report)
 	addProductionRuntimeFirewallCheck(&report)
+	addProductionRuntimeQoSCheck(&report, cfg)
 	addProductionPolicySetGovernanceCheck(&report, cfg)
 	addProductionPolicySimulationAnalysisCheck(&report, cfg)
 	addProductionSubscriberServiceChainsCheck(&report, cfg)
@@ -1311,6 +1312,49 @@ func addProductionRuntimeFirewallCheck(report *productionReadinessReport) {
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/runtime-firewall/preview before apply, keep ACL policies normalized through ACL AST and compiler checks, retain snapshots for rollback, and complete the NAS-0050 release certification checklist for nftables, HA, packet-capture, and vendor-device proof.",
 		Dependencies:   []string{"runtime_firewall_snapshots", "runtime_firewall_events", "/api/v1/system/runtime-firewall", "/api/v1/system/runtime-firewall/preview", "/api/v1/system/runtime-firewall/apply", "/api/v1/system/runtime-firewall/rollback", "nftables", "RFC 2865"},
+	})
+}
+
+func addProductionRuntimeQoSCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "Hierarchical QoS scheduler model is ready."
+	plan, err := enforcement.PreviewRuntimeQoS(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Runtime QoS scheduler preview failed: " + err.Error()
+	} else {
+		switch plan.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded", "skipped":
+			status = "degraded"
+		}
+		summary = fmt.Sprintf("Runtime QoS schema %d plans %d profile(s), %d class(es), %d shaped session(s), %d unshaped session(s), %d command(s), and %d diagnostic(s) on interface %s.",
+			plan.SchemaVersion, plan.Summary.ProfileCount, plan.Summary.ClassCount,
+			plan.Summary.ShapedSessions, plan.Summary.UnshapedSessions, plan.Summary.CommandCount,
+			len(plan.Diagnostics), firstNonEmptyAdminString(plan.InterfaceName, "unset"))
+	}
+	if db.DB == nil {
+		status = "blocked"
+		summary = "Database is not initialized; runtime QoS scheduler snapshots and history cannot be verified."
+	} else if evidence, err := db.GetRuntimeQoSEventSummary(); err != nil {
+		status = "blocked"
+		summary += " Runtime QoS evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d applied, %d rolled back, %d failed, active snapshot=%s.",
+			evidence.TotalEvents, evidence.AppliedCount, evidence.RolledBackCount, evidence.FailedCount, firstNonEmptyAdminString(evidence.ActiveSnapshotID, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "hierarchical_qos_scheduler",
+		Category:       "policy",
+		Label:          "Hierarchical QoS And Scheduler Model",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/qos-scheduler/preview before apply, store aggregate scheduler overrides in qos_scheduler_profiles, retain snapshots for rollback, and complete the NAS-0051 release certification checklist for tc, controller, packet-capture, HA, and throughput proof.",
+		Dependencies:   []string{"bandwidth_profiles", "qos_scheduler_profiles", "runtime_qos_snapshots", "runtime_qos_events", "/api/v1/system/qos-scheduler", "/api/v1/system/qos-scheduler/preview", "/api/v1/system/qos-scheduler/apply", "/api/v1/system/qos-scheduler/rollback", "tc", "ifb", "RFC 2865"},
 	})
 }
 

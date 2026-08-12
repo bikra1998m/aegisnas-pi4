@@ -239,6 +239,7 @@ This is where dictionary support becomes product behavior.
 | Vendor dictionary catalog | enabled | enabled | enabled | read-only parser and semantic registry are low resource |
 | Vendor compatibility packs | enabled | enabled | enabled | metadata and conservative reply rendering are low resource |
 | Runtime shaping | warned | enabled | enabled | depends on downstream interface and hardware |
+| Hierarchical QoS scheduler | available | enabled | enabled | compiles bandwidth profiles into aggregate and per-session `tc`/IFB classes with snapshots and rollback |
 | Quarantine enforcement | enabled | enabled | enabled | already present |
 | Stateful local firewall policy | available | enabled | enabled | owned nftables table enforces per-session ACL and quarantine policy with IPv4/IPv6 snapshots |
 | ACL-like policy language | available | enabled | enabled | persisted policies feed live decisions, RADIUS replies, local firewall enforcement, and controller reconciliation |

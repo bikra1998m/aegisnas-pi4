@@ -154,6 +154,27 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		runtimeFirewallStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["runtime_firewall"]}
 	}
+	runtimeQoSStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Runtime QoS scheduler status has not been evaluated.",
+	}
+	if qosPlan, err := enforcement.PreviewRuntimeQoS(cfg); err == nil {
+		qosSummary, _ := db.GetRuntimeQoSEventSummary()
+		runtimeQoSStatus = map[string]any{
+			"schema_version":   enforcement.RuntimeQoSSchemaVersion,
+			"status":           qosPlan.Status,
+			"message":          qosPlan.Message,
+			"interface_name":   qosPlan.InterfaceName,
+			"ifb_device":       qosPlan.IFBDevice,
+			"plan_fingerprint": qosPlan.PlanFingerprint,
+			"summary":          qosPlan.Summary,
+			"diagnostic_count": len(qosPlan.Diagnostics),
+			"evidence_summary": qosSummary,
+			"runtime_status":   runtimeMap["runtime_qos_scheduler"],
+		}
+	} else {
+		runtimeQoSStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["runtime_qos_scheduler"]}
+	}
 
 	healthyServices := 0
 	for _, service := range services {
@@ -274,6 +295,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"shaping_interface": enforcement.ShapingInterface(cfg),
 		"shaped_sessions":   shapedSessions,
 		"shaper":            runtimeMap["runtime_shaper"],
+		"qos_scheduler":     runtimeQoSStatus,
 		"local_firewall":    runtimeFirewallStatus,
 	}
 	if !enforcement.RuntimeShapingEnabled(cfg) {

@@ -1739,6 +1739,39 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Runtime firewall summary, snapshots, and event history."),
 	}))
+	addOperation(paths, "/api/v1/system/qos-scheduler", "get", securedOperation("Read hierarchical QoS scheduler policy", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Current QoS scheduler plan, tc command fingerprint, active classes, sessions, profile overrides, snapshots, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/qos-scheduler/preview", "post", securedOperationWithBody("Preview QoS scheduler apply", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; no tc state is changed."), map[string]any{
+		"200":     responseJSON("Runtime QoS scheduler plan and preview evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/qos-scheduler/apply", "post", securedOperationWithBody("Apply QoS scheduler policy", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; applies the compiled tc/ifb plan."), map[string]any{
+		"200":     responseJSON("Applied runtime QoS scheduler snapshot, previous snapshot, event ID, and plan."),
+		"409":     responseText("Blocked or failed apply."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/qos-scheduler/rollback", "post", securedOperationWithBody("Rollback QoS scheduler policy", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional snapshot_id; if omitted the newest previous applied snapshot is restored."), map[string]any{
+		"200":     responseJSON("Runtime QoS scheduler rollback snapshot, restored snapshot, previous snapshot, and event ID."),
+		"409":     responseText("Rollback target unavailable or failed."),
+		"default": responseText("Rollback error."),
+	}))
+	addOperation(paths, "/api/v1/system/qos-scheduler/history", "get", securedOperationWithParameters("List QoS scheduler history", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Maximum number of snapshots and events to return.", false),
+	}, map[string]any{
+		"200": responseJSON("QoS scheduler summary, snapshots, and event history."),
+	}))
+	addOperation(paths, "/api/v1/system/qos-scheduler/profiles", "get", securedOperation("List QoS scheduler profile overrides", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Configured QoS hierarchy, scheduler, priority, aggregate cap, burst, DSCP, and metadata overrides."),
+	}))
+	addOperation(paths, "/api/v1/system/qos-scheduler/profiles/{name}", "put", securedOperationWithBody("Upsert QoS scheduler profile override", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Scheduler override for a bandwidth profile, including parent profile, priority, aggregate caps, burst, DSCP, and metadata."), map[string]any{
+		"200":     responseJSON("Saved QoS scheduler profile override."),
+		"default": responseText("Validation error."),
+	}))
+	addOperation(paths, "/api/v1/system/qos-scheduler/profiles/{name}", "delete", securedOperation("Delete QoS scheduler profile override", "Policy", []string{"ops_admin", "super_admin"}, map[string]any{
+		"200":     responseJSON("Deleted QoS scheduler profile override."),
+		"default": responseText("Validation error."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-reply-preview", "post", securedOperationWithBody("Preview vendor reply attributes", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("NAS type, role, VLAN, bandwidth, timeout, ACL names, flat ACL rules, and optional ACL AST intent to preview."), map[string]any{
 		"200":     responseJSON("Effective compatibility packs, rendered RADIUS reply attributes, normalized ACL AST, certified ACL compiler diagnostics, and vendor ACL exports."),
 		"default": responseText("Preview error."),
