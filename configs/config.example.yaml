@@ -920,6 +920,7 @@ ldap:
 policy:
   default_role: guest-basic
   runtime_shaping_enabled: true
+  runtime_vlan_lifecycle_enabled: true # Creates managed VLAN bridges/subinterfaces and hostapd VLAN file entries from VLAN intent.
   typed_engine_enabled: true
   mode: "monitor" # monitor during rule migration; use enforce for production sign-off.
   fail_closed: true
@@ -1296,6 +1297,7 @@ wireless:
   ht_enabled: true
   ctrl_interface: /var/run/hostapd
   hostapd_config_path: /etc/hostapd/hostapd.conf
+  hostapd_vlan_file_path: /etc/hostapd/aegisnas-vlans.conf
   ssids:
     - name: "Aegis Guest"
       auth_mode: "captive-portal"

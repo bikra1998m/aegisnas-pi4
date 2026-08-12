@@ -1888,7 +1888,7 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	}
 
 	capabilities := EvaluateFeatureCapabilities(cfg)
-	require.Len(t, capabilities, 21)
+	require.Len(t, capabilities, 22)
 
 	byKey := make(map[string]FeatureCapability, len(capabilities))
 	for _, capability := range capabilities {
@@ -1896,6 +1896,7 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	}
 
 	assert.Equal(t, CapabilityBlocked, byKey["local_wireless"].State)
+	assert.Equal(t, CapabilityAvailable, byKey["dynamic_vlan_lifecycle"].State)
 	assert.Equal(t, CapabilityEnabled, byKey["runtime_shaping"].State)
 	assert.Equal(t, CapabilityBlocked, byKey["ai_mode"].State)
 	assert.Equal(t, CapabilityEnabled, byKey["telemetry"].State)

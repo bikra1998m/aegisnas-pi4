@@ -815,6 +815,30 @@ support bundles as `api/rate-compiler.json`. The QoS scheduler summary now also
 reports IPv4, IPv6, and IPv6-only shaped session counts. See
 [dual-stack-rate-compiler.md](dual-stack-rate-compiler.md).
 
+NAS-0053 adds dynamic VLAN bridge and subinterface lifecycle endpoints:
+
+```text
+GET  /api/v1/system/vlan-lifecycle
+POST /api/v1/system/vlan-lifecycle/preview
+POST /api/v1/system/vlan-lifecycle/apply
+POST /api/v1/system/vlan-lifecycle/rollback
+GET  /api/v1/system/vlan-lifecycle/history
+```
+
+`GET /api/v1/system/vlan-lifecycle` returns normalized VLAN intent, Linux
+bridge and subinterface plans, hostapd VLAN file preview, command fingerprint,
+diagnostics, active snapshot, and recent evidence. Preview records an event
+without changing host state. Apply executes the owned `ip link` command plan,
+writes the managed hostapd VLAN file atomically, stores an active snapshot, and
+links the previous snapshot. Rollback restores a selected snapshot or the newest
+previous restorable snapshot. History returns snapshot and event evidence.
+
+Dynamic VLAN lifecycle status is included in `/api/v1/system/status` under
+`enforcement.vlan_lifecycle`, production readiness as
+`dynamic_vlan_lifecycle`, and support bundles as `api/vlan-lifecycle.json` and
+`api/vlan-lifecycle-history.json`. See
+[dynamic-vlan-lifecycle.md](dynamic-vlan-lifecycle.md).
+
 Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
 
 After committing a role, user, ACL binding, or EAP framework policy through `/api/v1/apply`, run `POST /api/v1/system/radius-apply` (the **Apply RADIUS Config** action in Access Settings). This regenerates the local-user entries in `mods-config/files/authorize`, the legacy `users` path, and `mods-enabled/eap`, validates the complete FreeRADIUS configuration, and restarts FreeRADIUS. Database-backed portal decisions and CoA updates do not require this regeneration. Local bcrypt credentials support PAP and EAP-TTLS/PAP; CHAP and PEAP-MSCHAPv2 require a compatible cleartext or NT password verifier, while EAP-TLS uses certificates. NAS-0022 blocks enforce-mode generation when policy enables cataloged methods that this release cannot generate.

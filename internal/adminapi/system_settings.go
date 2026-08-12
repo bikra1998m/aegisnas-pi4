@@ -70,12 +70,13 @@ func HandlePreviewHostapdConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"enabled":     cfg.Wireless.Enabled,
-		"path":        cfg.Wireless.HostapdConfigPath,
-		"config":      text,
-		"radio":       cfg.Wireless.Interface,
-		"ssid_count":  len(cfg.Wireless.SSIDs),
-		"restart_tip": "Write the file and restart hostapd on the appliance after saving, or use the publish action from the UI.",
+		"enabled":        cfg.Wireless.Enabled,
+		"path":           cfg.Wireless.HostapdConfigPath,
+		"vlan_file_path": wireless.HostapdVLANFilePath(cfg),
+		"config":         text,
+		"radio":          cfg.Wireless.Interface,
+		"ssid_count":     len(cfg.Wireless.SSIDs),
+		"restart_tip":    "Write the file and restart hostapd on the appliance after saving, or use the publish action from the UI.",
 	})
 }
 

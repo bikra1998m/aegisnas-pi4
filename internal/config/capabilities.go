@@ -40,6 +40,23 @@ func RuntimeShapingEnabled(cfg *Config) bool {
 	return cfg != nil && cfg.Policy.RuntimeShapingEnabled
 }
 
+func VLANLifecycleInterface(cfg *Config) string {
+	if cfg == nil || !cfg.Policy.RuntimeVLANLifecycleEnabled {
+		return ""
+	}
+	if name := strings.TrimSpace(cfg.LAN.Name); name != "" {
+		return name
+	}
+	if cfg.Mode == "trunk" {
+		return strings.TrimSpace(cfg.WAN.Name)
+	}
+	return ""
+}
+
+func RuntimeVLANLifecycleEnabled(cfg *Config) bool {
+	return cfg != nil && cfg.Policy.RuntimeVLANLifecycleEnabled
+}
+
 func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 	if cfg == nil {
 		return nil
@@ -51,6 +68,7 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 
 	capabilities := []FeatureCapability{
 		evaluateLocalWirelessCapability(cfg, preset),
+		evaluateDynamicVLANLifecycleCapability(cfg, preset),
 		evaluateRuntimeShapingCapability(cfg, preset),
 		evaluateAIModeCapability(cfg),
 		evaluateTelemetryCapability(cfg),
@@ -73,6 +91,43 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 		evaluateMultiTenantCapability(cfg),
 	}
 	return applyHardwareScalingGates(cfg, capabilities)
+}
+
+func evaluateDynamicVLANLifecycleCapability(cfg *Config, preset deploymentPreset) FeatureCapability {
+	active := cfg.Policy.RuntimeVLANLifecycleEnabled
+	capability := FeatureCapability{
+		Key:    "dynamic_vlan_lifecycle",
+		Label:  "Dynamic VLAN Lifecycle",
+		Active: active,
+	}
+	hasVLANIntent := len(cfg.VLANs) > 0
+	for _, ssid := range cfg.Wireless.SSIDs {
+		if ssid.VLAN > 0 || ssid.DynamicVLAN {
+			hasVLANIntent = true
+			break
+		}
+	}
+	switch {
+	case !active:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Dynamic VLAN bridge lifecycle is supported but disabled."
+		capability.Dependencies = []string{"policy.runtime_vlan_lifecycle_enabled"}
+	case VLANLifecycleInterface(cfg) == "":
+		capability.State = CapabilityBlocked
+		capability.Summary = "Dynamic VLAN lifecycle needs a downstream LAN or trunk interface."
+		capability.Dependencies = []string{"lan.name", "wan.name", "mode"}
+	case active && !hasVLANIntent:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Dynamic VLAN lifecycle is ready; no VLAN intent is configured yet."
+	case constrainedPlatform(cfg, preset):
+		capability.State = CapabilityWarned
+		capability.Summary = "Dynamic VLAN lifecycle is enabled on constrained hardware."
+		capability.Recommendation = "Keep VLAN count and hostapd dynamic VLAN inventory small on lite hardware."
+	default:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Dynamic VLAN bridge and subinterface lifecycle is enabled."
+	}
+	return capability
 }
 
 func applyHardwareScalingGates(cfg *Config, capabilities []FeatureCapability) []FeatureCapability {

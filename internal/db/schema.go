@@ -181,7 +181,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{54, schemaV54},
 		{55, schemaV55},
 		{56, schemaV56},
-		{LatestSchemaVersion(), schemaV57},
+		{57, schemaV57},
+		{LatestSchemaVersion(), schemaV58},
 	}
 
 	for _, m := range migrations {
@@ -322,8 +323,33 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureRateCompilerEvidenceTables(handle); err != nil {
 		return fmt.Errorf("repair rate compiler evidence schema: %w", err)
 	}
+	if err := ensureVLANLifecycleEvidenceTables(handle); err != nil {
+		return fmt.Errorf("repair VLAN lifecycle evidence schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureVLANLifecycleEvidenceTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	dialect := DialectForHandle(handle)
+	if _, err := handle.Exec(SQLForDialect(vlanLifecycleEvidenceSQL, dialect)); err != nil {
+		return err
+	}
+	exists, err := tableExists(handle, "vlan_lifecycle_snapshots")
+	if err != nil || !exists {
+		return err
+	}
+	hasColumn, err := tableHasColumn(handle, "vlan_lifecycle_snapshots", "plan_json")
+	if err != nil {
+		return err
+	}
+	if !hasColumn {
+		_, err = handle.Exec(SQLForDialect(`ALTER TABLE vlan_lifecycle_snapshots ADD COLUMN plan_json TEXT DEFAULT '{}'`, dialect))
+	}
+	return err
 }
 
 func ensureRateCompilerEvidenceTables(handle *sql.DB) error {

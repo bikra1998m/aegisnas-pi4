@@ -164,7 +164,7 @@ These features depend heavily on physical platform shape.
 | Local `hostapd` radio mode | warned | enabled | enabled | requires supported physical radio |
 | Wireless enabled on plain VM NIC | blocked | blocked | blocked | not a real radio |
 | Multi-SSID local appliance mode | warned | enabled | enabled | capacity depends on radio and CPU |
-| Dynamic VLAN SSIDs | available | enabled | enabled | strongest on enterprise gear |
+| Dynamic VLAN SSIDs | available | enabled | enabled | strongest on enterprise gear; hostapd config points to the managed VLAN file |
 
 Rules:
 
@@ -241,6 +241,7 @@ This is where dictionary support becomes product behavior.
 | Runtime shaping | warned | enabled | enabled | depends on downstream interface and hardware |
 | Hierarchical QoS scheduler | available | enabled | enabled | compiles bandwidth profiles into aggregate and per-session `tc`/IFB classes with snapshots and rollback |
 | Dual-stack shaping and rate compiler | available | enabled | enabled | adds IPv6-only/dual-stack `tc flower` classifiers and vendor-safe kbps, bps, and MikroTik grammar rendering |
+| Dynamic VLAN lifecycle | available | enabled | enabled | creates owned Linux bridges, VLAN subinterfaces, hostapd VLAN file entries, snapshots, history, and rollback from VLAN intent |
 | Quarantine enforcement | enabled | enabled | enabled | already present |
 | Stateful local firewall policy | available | enabled | enabled | owned nftables table enforces per-session ACL and quarantine policy with IPv4/IPv6 snapshots |
 | ACL-like policy language | available | enabled | enabled | persisted policies feed live decisions, RADIUS replies, local firewall enforcement, and controller reconciliation |
@@ -250,7 +251,7 @@ Rules:
 
 - shaping should be `blocked` if no shaping interface exists
 - vendor dictionary parsing should stay read-only and cheap on lite hardware
-- local ACL enforcement should require runtime firewall preview/apply evidence before production use; device-side enforcement adapters still need release certification evidence
+- local ACL and VLAN lifecycle enforcement should require preview/apply evidence before production use; device-side enforcement adapters still need release certification evidence
 
 ### 7. Identity And Enterprise Integrations
 

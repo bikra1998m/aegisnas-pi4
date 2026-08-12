@@ -314,6 +314,41 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   | jq '.plan.summary.ipv6_sessions, .plan.commands[] | select(test("protocol ipv6|flower"))'
 ```
 
+Preview dynamic VLAN bridge, subinterface, and hostapd VLAN file changes before
+changing host network state:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/vlan-lifecycle/preview \
+  | jq '.plan.status, .plan.summary, .plan.diagnostics'
+```
+
+Apply the owned VLAN lifecycle after a clean preview:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"operation":"apply"}' \
+  http://127.0.0.1:8083/api/v1/system/vlan-lifecycle/apply \
+  | jq '.result.status, .result.snapshot_id, .result.previous_snapshot_id'
+```
+
+Rollback a VLAN lifecycle snapshot:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"snapshot_id":"vlan-snap-id"}' \
+  http://127.0.0.1:8083/api/v1/system/vlan-lifecycle/rollback \
+  | jq '.result.status, .result.restored_snapshot_id'
+```
+
+Use `/api/v1/system/vlan-lifecycle/history` and the support bundle files
+`api/vlan-lifecycle.json` and `api/vlan-lifecycle-history.json` during bridge,
+VLAN, hostapd, CoA VLAN-change, or rollback investigations.
+
 Create an aggregate scheduler override for an existing bandwidth profile:
 
 ```bash

@@ -1974,6 +1974,7 @@ const defaultSettings: JsonMap = {
     ht_enabled: true,
     ctrl_interface: "/var/run/hostapd",
     hostapd_config_path: "/etc/hostapd/hostapd.conf",
+    hostapd_vlan_file_path: "/etc/hostapd/aegisnas-vlans.conf",
     ssids: [],
   },
 };
@@ -19105,6 +19106,13 @@ export default function AccessSettings() {
             value={settings.wireless?.hostapd_config_path || ""}
             onChange={(value) =>
               updateField(["wireless", "hostapd_config_path"], value)
+            }
+          />
+          <TextField
+            label="hostapd VLAN File"
+            value={settings.wireless?.hostapd_vlan_file_path || ""}
+            onChange={(value) =>
+              updateField(["wireless", "hostapd_vlan_file_path"], value)
             }
           />
         </div>

@@ -1772,6 +1772,28 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("Deleted QoS scheduler profile override."),
 		"default": responseText("Validation error."),
 	}))
+	addOperation(paths, "/api/v1/system/vlan-lifecycle", "get", securedOperation("Read dynamic VLAN bridge lifecycle", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Dynamic VLAN intent, bridge/subinterface command plan, hostapd VLAN file preview, diagnostics, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/vlan-lifecycle/preview", "post", securedOperationWithBody("Preview dynamic VLAN lifecycle apply", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; no Linux link or hostapd VLAN file state is changed."), map[string]any{
+		"200":     responseJSON("Previewed VLAN lifecycle plan and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/vlan-lifecycle/apply", "post", securedOperationWithBody("Apply dynamic VLAN lifecycle", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; creates managed bridges/subinterfaces and writes the hostapd VLAN file."), map[string]any{
+		"200":     responseJSON("Applied dynamic VLAN lifecycle snapshot and event."),
+		"409":     responseText("Blocked or failed apply."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/vlan-lifecycle/rollback", "post", securedOperationWithBody("Rollback dynamic VLAN lifecycle", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional snapshot_id; if omitted the newest previous applied snapshot is restored."), map[string]any{
+		"200":     responseJSON("Rolled back dynamic VLAN lifecycle to a stored snapshot."),
+		"409":     responseText("Rollback target unavailable or failed."),
+		"default": responseText("Rollback error."),
+	}))
+	addOperation(paths, "/api/v1/system/vlan-lifecycle/history", "get", securedOperationWithParameters("List dynamic VLAN lifecycle history", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event and snapshot limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("Dynamic VLAN lifecycle snapshot and event history with active evidence summary."),
+	}))
 	addOperation(paths, "/api/v1/system/rate-compiler", "get", securedOperation("Read vendor rate compiler coverage", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Rate compiler capabilities, supported vendor units, RFC references, summary counters, and recent evidence events."),
 	}))

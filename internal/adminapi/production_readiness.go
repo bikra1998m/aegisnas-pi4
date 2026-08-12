@@ -148,6 +148,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionACLCompilerCheck(&report)
 	addProductionRuntimeFirewallCheck(&report)
 	addProductionRuntimeQoSCheck(&report, cfg)
+	addProductionVLANLifecycleCheck(&report, cfg)
 	addProductionRateCompilerCheck(&report)
 	addProductionPolicySetGovernanceCheck(&report, cfg)
 	addProductionPolicySimulationAnalysisCheck(&report, cfg)
@@ -1356,6 +1357,49 @@ func addProductionRuntimeQoSCheck(report *productionReadinessReport, cfg *config
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/qos-scheduler/preview before apply, store aggregate scheduler overrides in qos_scheduler_profiles, retain snapshots for rollback, and complete the NAS-0051 release certification checklist for tc, controller, packet-capture, HA, and throughput proof.",
 		Dependencies:   []string{"bandwidth_profiles", "qos_scheduler_profiles", "runtime_qos_snapshots", "runtime_qos_events", "/api/v1/system/qos-scheduler", "/api/v1/system/qos-scheduler/preview", "/api/v1/system/qos-scheduler/apply", "/api/v1/system/qos-scheduler/rollback", "tc", "ifb", "RFC 2865"},
+	})
+}
+
+func addProductionVLANLifecycleCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "Dynamic VLAN lifecycle model is ready."
+	plan, err := enforcement.PreviewVLANLifecycle(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Dynamic VLAN lifecycle preview failed: " + err.Error()
+	} else {
+		switch plan.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded", "skipped":
+			status = "degraded"
+		}
+		summary = fmt.Sprintf("VLAN lifecycle schema %d plans %d VLAN(s), %d bridge(s), %d subinterface(s), %d hostapd VLAN entries, %d command(s), and %d diagnostic(s) on interface %s.",
+			plan.SchemaVersion, plan.Summary.VLANCount, plan.Summary.BridgeCount,
+			plan.Summary.SubinterfaceCount, plan.Summary.HostapdVLANEntryCount, plan.Summary.CommandCount,
+			len(plan.Diagnostics), firstNonEmptyAdminString(plan.ParentInterface, "unset"))
+	}
+	if db.DB == nil {
+		status = "blocked"
+		summary = "Database is not initialized; dynamic VLAN lifecycle snapshots and history cannot be verified."
+	} else if evidence, err := db.GetVLANLifecycleEventSummary(); err != nil {
+		status = "blocked"
+		summary += " Dynamic VLAN lifecycle evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d applied, %d rolled back, %d failed, active snapshot=%s.",
+			evidence.TotalEvents, evidence.AppliedCount, evidence.RolledBackCount, evidence.FailedCount, firstNonEmptyAdminString(evidence.ActiveSnapshotID, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "dynamic_vlan_lifecycle",
+		Category:       "policy",
+		Label:          "Dynamic VLAN Bridge And Subinterface Lifecycle",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/vlan-lifecycle/preview before apply, keep VLAN catalog, role VLANs, policy VLANs, and hostapd dynamic VLAN entries in one evidence-backed lifecycle, and complete the NAS-0053 release certification checklist for Linux bridge/VLAN, hostapd, FreeRADIUS, HA, and vendor-device proof.",
+		Dependencies:   []string{"vlans", "roles.vlan", "policy_rules.vlan", "wireless.ssids.dynamic_vlan", "vlan_lifecycle_snapshots", "vlan_lifecycle_events", "/api/v1/system/vlan-lifecycle", "/api/v1/system/vlan-lifecycle/preview", "/api/v1/system/vlan-lifecycle/apply", "/api/v1/system/vlan-lifecycle/rollback", "ip link", "hostapd vlan_file", "RFC 2868"},
 	})
 }
 

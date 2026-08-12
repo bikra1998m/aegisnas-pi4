@@ -587,6 +587,15 @@ radius:
 
 AegisNAS validates VLAN IDs, rejects duplicates, and enforces Extreme's ten-VLAN limit. The example renders `Extreme-Netlogin-Extended-Vlan = "U20;T30;T40"`. When a matching mapping exists, the extended VSA replaces the lower-priority Extreme VLAN name and VLAN tag attributes. Inbound numeric VSA 211 assignments are parsed back into one untagged VLAN and the tagged VLAN list; name and wildcard forms remain untouched because they cannot be mapped safely into numeric policy intent.
 
+Local appliance dynamic VLAN enforcement is handled by the NAS-0053 lifecycle.
+Use `/api/v1/system/vlan-lifecycle/preview` before enabling apply mode on a
+downstream trunk. The planner combines VLAN catalog entries, role VLANs, policy
+rule VLANs, dynamic hostapd SSIDs, and vendor extended VLAN mappings into one
+evidence-backed Linux bridge/subinterface and hostapd VLAN-file plan. Apply
+writes only owned local artifacts and records rollback snapshots; external APs
+and controllers still receive the standard or vendor-specific RADIUS VLAN
+attributes through the reply renderer.
+
 Juniper, Huawei, H3C, and Arista AVPair strings vary by device family and firmware. Configure only values validated against the target device:
 
 ```yaml

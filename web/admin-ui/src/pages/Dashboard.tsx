@@ -1076,14 +1076,43 @@ type SystemStatus = {
     country_code: string;
     channel: number;
     hostapd_config_path: string;
+    hostapd_vlan_file_path?: string;
     ssid_count: number;
     auth_modes: string[];
   };
   enforcement: {
     shaping_enabled: boolean;
     shaping_interface: string;
+    vlan_lifecycle_enabled?: boolean;
+    vlan_lifecycle_interface?: string;
     shaped_sessions: number;
     shaper: RuntimeStatus;
+    vlan_lifecycle?: {
+      status: string;
+      message: string;
+      parent_interface?: string;
+      hostapd_vlan_file_path?: string;
+      hostapd_vlan_file_sha256?: string;
+      plan_fingerprint?: string;
+      diagnostic_count?: number;
+      summary?: {
+        vlan_count: number;
+        bridge_count: number;
+        subinterface_count: number;
+        static_vlan_count?: number;
+        dynamic_vlan_count?: number;
+        tagged_vlan_count?: number;
+        hostapd_vlan_entry_count: number;
+        command_count: number;
+      };
+      evidence_summary?: {
+        active_snapshot_id?: string;
+        applied_count?: number;
+        rolled_back_count?: number;
+        failed_count?: number;
+      };
+      runtime_status?: RuntimeStatus;
+    };
     qos_scheduler?: {
       status: string;
       message: string;
@@ -1698,6 +1727,7 @@ export default function Dashboard() {
   );
   const localFirewall = systemStatus.enforcement.local_firewall;
   const qosScheduler = systemStatus.enforcement.qos_scheduler;
+  const vlanLifecycle = systemStatus.enforcement.vlan_lifecycle;
   const networkObservability = systemStatus.network_observability;
   const vendorObservability = networkObservability?.vendor_observability;
   const readinessSummary =
@@ -4288,6 +4318,52 @@ export default function Dashboard() {
                     ) : null}
                   </div>
                   <StatusBadge status={rateCompiler?.status || "unknown"} />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      Dynamic VLAN Lifecycle
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {vlanLifecycle?.summary
+                        ? `${vlanLifecycle.summary.vlan_count} VLANs, ${vlanLifecycle.summary.bridge_count} bridges, ${vlanLifecycle.summary.subinterface_count} subinterfaces.`
+                        : "No dynamic VLAN lifecycle plan has been evaluated yet."}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {vlanLifecycle?.message ||
+                        "Preview and apply bridge, subinterface, and hostapd VLAN file changes from the VLAN lifecycle API."}
+                    </div>
+                    {vlanLifecycle?.evidence_summary?.active_snapshot_id ? (
+                      <div className="mt-1 text-xs text-gray-500 break-all">
+                        Active snapshot:{" "}
+                        {vlanLifecycle.evidence_summary.active_snapshot_id}
+                      </div>
+                    ) : null}
+                    {vlanLifecycle?.summary ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Dynamic {vlanLifecycle.summary.dynamic_vlan_count || 0},
+                        tagged {vlanLifecycle.summary.tagged_vlan_count || 0},
+                        hostapd entries{" "}
+                        {vlanLifecycle.summary.hostapd_vlan_entry_count},
+                        commands {vlanLifecycle.summary.command_count},
+                        diagnostics {vlanLifecycle.diagnostic_count || 0}
+                      </div>
+                    ) : null}
+                    {vlanLifecycle?.hostapd_vlan_file_path ? (
+                      <div className="mt-1 text-xs text-gray-500 break-all">
+                        {vlanLifecycle.hostapd_vlan_file_path}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    status={
+                      vlanLifecycle?.runtime_status?.status ||
+                      vlanLifecycle?.status ||
+                      "unknown"
+                    }
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">

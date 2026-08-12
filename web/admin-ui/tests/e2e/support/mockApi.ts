@@ -933,6 +933,7 @@ function createSettings() {
       ht_enabled: true,
       ctrl_interface: "/var/run/hostapd",
       hostapd_config_path: "/etc/hostapd/hostapd.conf",
+      hostapd_vlan_file_path: "/etc/hostapd/aegisnas-vlans.conf",
       ssids: [],
     },
   };
@@ -1546,14 +1547,49 @@ function createSystemStatus() {
       country_code: "US",
       channel: 6,
       hostapd_config_path: "/etc/hostapd/hostapd.conf",
+      hostapd_vlan_file_path: "/etc/hostapd/aegisnas-vlans.conf",
       ssid_count: 0,
       auth_modes: [],
     },
     enforcement: {
       shaping_enabled: true,
       shaping_interface: "ens37",
+      vlan_lifecycle_enabled: true,
+      vlan_lifecycle_interface: "ens37",
       shaped_sessions: 2,
       shaper: { status: "ok", message: "Runtime shaper healthy." },
+      vlan_lifecycle: {
+        status: "ready",
+        message:
+          "Dynamic VLAN lifecycle plans 3 VLANs, 3 bridges, and 3 subinterfaces.",
+        parent_interface: "ens37",
+        hostapd_vlan_file_path: "/etc/hostapd/aegisnas-vlans.conf",
+        hostapd_vlan_file_sha256:
+          "sha256:9ad60f5ac7da5ee767d8120101b65a1bc5a31706456e746160c3ce7d50a63e51",
+        plan_fingerprint:
+          "sha256:4593f6c1d87cfca7261690c8ec0b39ecb3940f7ea127a2e3f9d1b9c22b5a2000",
+        summary: {
+          vlan_count: 3,
+          bridge_count: 3,
+          subinterface_count: 3,
+          static_vlan_count: 0,
+          dynamic_vlan_count: 3,
+          tagged_vlan_count: 0,
+          hostapd_vlan_entry_count: 3,
+          command_count: 12,
+        },
+        diagnostic_count: 0,
+        evidence_summary: {
+          active_snapshot_id: "vlan-snap-20260505",
+          applied_count: 1,
+          rolled_back_count: 0,
+          failed_count: 0,
+        },
+        runtime_status: {
+          status: "ok",
+          message: "Dynamic VLAN lifecycle is applied.",
+        },
+      },
     },
     high_availability: {
       enabled: true,

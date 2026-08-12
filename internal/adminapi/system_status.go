@@ -175,6 +175,28 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		runtimeQoSStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["runtime_qos_scheduler"]}
 	}
+	vlanLifecycleStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Dynamic VLAN lifecycle status has not been evaluated.",
+	}
+	if vlanPlan, err := enforcement.PreviewVLANLifecycle(cfg); err == nil {
+		vlanSummary, _ := db.GetVLANLifecycleEventSummary()
+		vlanLifecycleStatus = map[string]any{
+			"schema_version":           enforcement.VLANLifecycleSchemaVersion,
+			"status":                   vlanPlan.Status,
+			"message":                  vlanPlan.Message,
+			"parent_interface":         vlanPlan.ParentInterface,
+			"hostapd_vlan_file_path":   vlanPlan.HostapdVLANFilePath,
+			"hostapd_vlan_file_sha256": vlanPlan.HostapdVLANFileSHA256,
+			"plan_fingerprint":         vlanPlan.PlanFingerprint,
+			"summary":                  vlanPlan.Summary,
+			"diagnostic_count":         len(vlanPlan.Diagnostics),
+			"evidence_summary":         vlanSummary,
+			"runtime_status":           runtimeMap["vlan_lifecycle"],
+		}
+	} else {
+		vlanLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["vlan_lifecycle"]}
+	}
 
 	healthyServices := 0
 	for _, service := range services {
@@ -291,22 +313,26 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	wirelessStatus := map[string]any{
-		"enabled":             cfg.Wireless.Enabled,
-		"interface":           cfg.Wireless.Interface,
-		"country_code":        cfg.Wireless.CountryCode,
-		"channel":             cfg.Wireless.Channel,
-		"hostapd_config_path": cfg.Wireless.HostapdConfigPath,
-		"ssid_count":          len(cfg.Wireless.SSIDs),
-		"auth_modes":          ssidAuthModes(cfg.Wireless.SSIDs),
+		"enabled":                cfg.Wireless.Enabled,
+		"interface":              cfg.Wireless.Interface,
+		"country_code":           cfg.Wireless.CountryCode,
+		"channel":                cfg.Wireless.Channel,
+		"hostapd_config_path":    cfg.Wireless.HostapdConfigPath,
+		"hostapd_vlan_file_path": cfg.Wireless.HostapdVLANFilePath,
+		"ssid_count":             len(cfg.Wireless.SSIDs),
+		"auth_modes":             ssidAuthModes(cfg.Wireless.SSIDs),
 	}
 
 	enforcementStatus := map[string]any{
-		"shaping_enabled":   enforcement.RuntimeShapingEnabled(cfg) && enforcement.ShapingInterface(cfg) != "",
-		"shaping_interface": enforcement.ShapingInterface(cfg),
-		"shaped_sessions":   shapedSessions,
-		"shaper":            runtimeMap["runtime_shaper"],
-		"qos_scheduler":     runtimeQoSStatus,
-		"local_firewall":    runtimeFirewallStatus,
+		"shaping_enabled":          enforcement.RuntimeShapingEnabled(cfg) && enforcement.ShapingInterface(cfg) != "",
+		"shaping_interface":        enforcement.ShapingInterface(cfg),
+		"vlan_lifecycle_enabled":   enforcement.RuntimeVLANLifecycleEnabled(cfg) && enforcement.VLANLifecycleInterface(cfg) != "",
+		"vlan_lifecycle_interface": enforcement.VLANLifecycleInterface(cfg),
+		"shaped_sessions":          shapedSessions,
+		"shaper":                   runtimeMap["runtime_shaper"],
+		"qos_scheduler":            runtimeQoSStatus,
+		"vlan_lifecycle":           vlanLifecycleStatus,
+		"local_firewall":           runtimeFirewallStatus,
 	}
 	if !enforcement.RuntimeShapingEnabled(cfg) {
 		enforcementStatus["shaper"] = map[string]any{"status": "disabled", "message": "Runtime shaping is disabled by deployment or policy config"}

@@ -1107,26 +1107,27 @@ type LDAPConfig struct {
 }
 
 type PolicyConfig struct {
-	DefaultRole              string `mapstructure:"default_role"`
-	RuntimeShapingEnabled    bool   `mapstructure:"runtime_shaping_enabled"`
-	TypedEngineEnabled       bool   `mapstructure:"typed_engine_enabled"`
-	Mode                     string `mapstructure:"mode"`
-	FailClosed               bool   `mapstructure:"fail_closed"`
-	AuditEnabled             bool   `mapstructure:"audit_enabled"`
-	AllowLegacyConditions    bool   `mapstructure:"allow_legacy_conditions"`
-	RequireTypedRules        bool   `mapstructure:"require_typed_rules"`
-	MaxExpressionDepth       int    `mapstructure:"max_expression_depth"`
-	MaxExpressionNodes       int    `mapstructure:"max_expression_nodes"`
-	MaxListValues            int    `mapstructure:"max_list_values"`
-	EvaluationRetentionLimit int    `mapstructure:"evaluation_retention_limit"`
-	VersionApprovalRequired  bool   `mapstructure:"version_approval_required"`
-	VersionMinApprovals      int    `mapstructure:"version_min_approvals"`
-	VersionMakerChecker      bool   `mapstructure:"version_maker_checker"`
-	MaxPolicySetDepth        int    `mapstructure:"max_policy_set_depth"`
-	VersionRetentionLimit    int    `mapstructure:"version_retention_limit"`
-	SimulationReplayLimit    int    `mapstructure:"simulation_replay_limit"`
-	SimulationRetentionLimit int    `mapstructure:"simulation_retention_limit"`
-	MaxServiceChainLength    int    `mapstructure:"max_service_chain_length"`
+	DefaultRole                 string `mapstructure:"default_role"`
+	RuntimeShapingEnabled       bool   `mapstructure:"runtime_shaping_enabled"`
+	RuntimeVLANLifecycleEnabled bool   `mapstructure:"runtime_vlan_lifecycle_enabled"`
+	TypedEngineEnabled          bool   `mapstructure:"typed_engine_enabled"`
+	Mode                        string `mapstructure:"mode"`
+	FailClosed                  bool   `mapstructure:"fail_closed"`
+	AuditEnabled                bool   `mapstructure:"audit_enabled"`
+	AllowLegacyConditions       bool   `mapstructure:"allow_legacy_conditions"`
+	RequireTypedRules           bool   `mapstructure:"require_typed_rules"`
+	MaxExpressionDepth          int    `mapstructure:"max_expression_depth"`
+	MaxExpressionNodes          int    `mapstructure:"max_expression_nodes"`
+	MaxListValues               int    `mapstructure:"max_list_values"`
+	EvaluationRetentionLimit    int    `mapstructure:"evaluation_retention_limit"`
+	VersionApprovalRequired     bool   `mapstructure:"version_approval_required"`
+	VersionMinApprovals         int    `mapstructure:"version_min_approvals"`
+	VersionMakerChecker         bool   `mapstructure:"version_maker_checker"`
+	MaxPolicySetDepth           int    `mapstructure:"max_policy_set_depth"`
+	VersionRetentionLimit       int    `mapstructure:"version_retention_limit"`
+	SimulationReplayLimit       int    `mapstructure:"simulation_replay_limit"`
+	SimulationRetentionLimit    int    `mapstructure:"simulation_retention_limit"`
+	MaxServiceChainLength       int    `mapstructure:"max_service_chain_length"`
 }
 
 type TelemetryConfig struct {
@@ -1410,18 +1411,19 @@ type HighAvailabilityConfig struct {
 }
 
 type WirelessConfig struct {
-	Enabled           bool         `mapstructure:"enabled"`
-	CountryCode       string       `mapstructure:"country_code"`
-	Interface         string       `mapstructure:"interface"`
-	Driver            string       `mapstructure:"driver"`
-	HWMode            string       `mapstructure:"hw_mode"`
-	Channel           int          `mapstructure:"channel"`
-	BeaconInterval    int          `mapstructure:"beacon_interval"`
-	WMMEnabled        bool         `mapstructure:"wmm_enabled"`
-	HTEnabled         bool         `mapstructure:"ht_enabled"`
-	CtrlInterface     string       `mapstructure:"ctrl_interface"`
-	HostapdConfigPath string       `mapstructure:"hostapd_config_path"`
-	SSIDs             []SSIDConfig `mapstructure:"ssids"`
+	Enabled             bool         `mapstructure:"enabled"`
+	CountryCode         string       `mapstructure:"country_code"`
+	Interface           string       `mapstructure:"interface"`
+	Driver              string       `mapstructure:"driver"`
+	HWMode              string       `mapstructure:"hw_mode"`
+	Channel             int          `mapstructure:"channel"`
+	BeaconInterval      int          `mapstructure:"beacon_interval"`
+	WMMEnabled          bool         `mapstructure:"wmm_enabled"`
+	HTEnabled           bool         `mapstructure:"ht_enabled"`
+	CtrlInterface       string       `mapstructure:"ctrl_interface"`
+	HostapdConfigPath   string       `mapstructure:"hostapd_config_path"`
+	HostapdVLANFilePath string       `mapstructure:"hostapd_vlan_file_path"`
+	SSIDs               []SSIDConfig `mapstructure:"ssids"`
 }
 
 func normalizeWitnessURLs(primary string, urls []string) []string {
@@ -2252,6 +2254,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("mab.audit_enabled", true)
 	v.SetDefault("mab.retention_limit", 6000)
 	v.SetDefault("policy.runtime_shaping_enabled", true)
+	v.SetDefault("policy.runtime_vlan_lifecycle_enabled", true)
 	v.SetDefault("policy.typed_engine_enabled", true)
 	v.SetDefault("policy.mode", "monitor")
 	v.SetDefault("policy.fail_closed", true)
@@ -2279,6 +2282,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("wireless.ht_enabled", true)
 	v.SetDefault("wireless.ctrl_interface", "/var/run/hostapd")
 	v.SetDefault("wireless.hostapd_config_path", "/etc/hostapd/hostapd.conf")
+	v.SetDefault("wireless.hostapd_vlan_file_path", "/etc/hostapd/aegisnas-vlans.conf")
 
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

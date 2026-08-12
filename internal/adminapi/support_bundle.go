@@ -313,6 +313,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/runtime-firewall-history.json", requestPath: "/api/v1/system/runtime-firewall/history", label: "Runtime firewall apply and rollback history", handler: HandleListRuntimeFirewallHistory},
 		{archivePath: "api/qos-scheduler.json", requestPath: "/api/v1/system/qos-scheduler", label: "Hierarchical QoS scheduler policy", handler: HandleGetRuntimeQoS},
 		{archivePath: "api/qos-scheduler-history.json", requestPath: "/api/v1/system/qos-scheduler/history", label: "Runtime QoS scheduler apply and rollback history", handler: HandleListRuntimeQoSHistory},
+		{archivePath: "api/vlan-lifecycle.json", requestPath: "/api/v1/system/vlan-lifecycle", label: "Dynamic VLAN bridge and subinterface lifecycle", handler: HandleGetVLANLifecycle},
+		{archivePath: "api/vlan-lifecycle-history.json", requestPath: "/api/v1/system/vlan-lifecycle/history", label: "Dynamic VLAN lifecycle apply and rollback history", handler: HandleListVLANLifecycleHistory},
 		{archivePath: "api/rate-compiler.json", requestPath: "/api/v1/system/rate-compiler", label: "Dual-stack shaping and vendor rate compiler evidence", handler: HandleGetRateCompiler},
 		{archivePath: "api/policy-sets.json", requestPath: "/api/v1/system/policy-sets", label: "Versioned policy set governance", handler: HandleGetPolicySets},
 		{archivePath: "api/policy-simulation-analyses.json", requestPath: "/api/v1/system/policy-sets/analyses", label: "Policy simulation analyses", handler: HandleListPolicySimulationAnalyses},

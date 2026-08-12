@@ -2,6 +2,7 @@ package wireless
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/yourorg/aegisnas-pi4/internal/config"
@@ -115,7 +116,10 @@ func renderSSID(cfg *config.Config, ssid config.SSIDConfig) []string {
 			fmt.Sprintf("acct_server_shared_secret=%s", cfg.Radius.Secret),
 		)
 		if ssid.DynamicVLAN {
-			lines = append(lines, "dynamic_vlan=1")
+			lines = append(lines,
+				"dynamic_vlan=1",
+				fmt.Sprintf("vlan_file=%s", HostapdVLANFilePath(cfg)),
+			)
 		}
 	case "wpa3-enterprise":
 		lines = append(lines,
@@ -134,11 +138,35 @@ func renderSSID(cfg *config.Config, ssid config.SSIDConfig) []string {
 			fmt.Sprintf("acct_server_shared_secret=%s", cfg.Radius.Secret),
 		)
 		if ssid.DynamicVLAN {
-			lines = append(lines, "dynamic_vlan=1")
+			lines = append(lines,
+				"dynamic_vlan=1",
+				fmt.Sprintf("vlan_file=%s", HostapdVLANFilePath(cfg)),
+			)
 		}
 	}
 
 	return lines
+}
+
+func HostapdVLANFilePath(cfg *config.Config) string {
+	if cfg == nil {
+		return "/etc/hostapd/aegisnas-vlans.conf"
+	}
+	if path := strings.TrimSpace(cfg.Wireless.HostapdVLANFilePath); path != "" {
+		return path
+	}
+	if configPath := strings.TrimSpace(cfg.Wireless.HostapdConfigPath); configPath != "" {
+		return filepath.Join(filepath.Dir(configPath), "aegisnas-vlans.conf")
+	}
+	return "/etc/hostapd/aegisnas-vlans.conf"
+}
+
+func HostapdWirelessVLANInterface(wirelessInterface string, vlan int) string {
+	wirelessInterface = strings.TrimSpace(wirelessInterface)
+	if wirelessInterface == "" || vlan <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("%s.%d", wirelessInterface, vlan)
 }
 
 func boolAsInt(value bool) int {

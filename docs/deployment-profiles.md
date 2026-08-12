@@ -11,6 +11,8 @@ The current implementation adds a profile-aware control plane through:
 - `ailite.enabled`
 - `ailite.mode`
 - `policy.runtime_shaping_enabled`
+- `policy.runtime_vlan_lifecycle_enabled`
+- `wireless.hostapd_vlan_file_path`
 
 Use this guide together with:
 
@@ -31,6 +33,7 @@ Recommended direction:
 - keep `ailite.mode: lite` when AI is off
 - disable telemetry
 - disable runtime shaping
+- disable runtime VLAN lifecycle unless the appliance owns the downstream trunk
 - reduce `radius.max_sessions`
 - keep accounting charging enabled, but use small CDR batches and shorter
   CDR/export retention
@@ -203,6 +206,7 @@ ailite:
 
 policy:
   runtime_shaping_enabled: false
+  runtime_vlan_lifecycle_enabled: false
 ```
 
 Example virtual appliance:

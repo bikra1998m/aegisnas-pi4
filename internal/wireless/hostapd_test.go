@@ -40,15 +40,16 @@ func TestGenerateHostapdConfigEnterpriseAndPortal(t *testing.T) {
 			Enabled: true,
 		},
 		Wireless: config.WirelessConfig{
-			Enabled:        true,
-			Interface:      "wlan0",
-			CountryCode:    "US",
-			Driver:         "nl80211",
-			HWMode:         "g",
-			Channel:        6,
-			BeaconInterval: 100,
-			WMMEnabled:     true,
-			HTEnabled:      true,
+			Enabled:             true,
+			Interface:           "wlan0",
+			CountryCode:         "US",
+			Driver:              "nl80211",
+			HWMode:              "g",
+			Channel:             6,
+			BeaconInterval:      100,
+			WMMEnabled:          true,
+			HTEnabled:           true,
+			HostapdVLANFilePath: "/tmp/aegisnas-vlans.conf",
 			SSIDs: []config.SSIDConfig{
 				{
 					Name:            "Guest",
@@ -82,6 +83,7 @@ func TestGenerateHostapdConfigEnterpriseAndPortal(t *testing.T) {
 	assert.Contains(t, text, "ssid=Corp")
 	assert.Contains(t, text, "auth_server_addr=127.0.0.1")
 	assert.Contains(t, text, "dynamic_vlan=1")
+	assert.Contains(t, text, "vlan_file=/tmp/aegisnas-vlans.conf")
 	assert.Contains(t, text, "# captive portal access is enforced by the AegisNAS gateway and portal services")
 	assert.Contains(t, text, "# aegisnas_identity_source=ldap-main")
 	assert.Contains(t, text, "wpa_key_mgmt=SAE")

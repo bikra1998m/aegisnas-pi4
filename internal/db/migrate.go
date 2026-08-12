@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 57
+	return 58
 }
 
 func Migrate() error {
@@ -3074,3 +3074,62 @@ CREATE INDEX IF NOT EXISTS idx_rate_compiler_events_status ON rate_compiler_even
 `
 
 const schemaV57 = rateCompilerEvidenceSQL
+
+const vlanLifecycleEvidenceSQL = `
+CREATE TABLE IF NOT EXISTS vlan_lifecycle_snapshots (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	snapshot_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	active BOOLEAN DEFAULT 0,
+	parent_interface TEXT,
+	vlan_count INTEGER DEFAULT 0,
+	bridge_count INTEGER DEFAULT 0,
+	subinterface_count INTEGER DEFAULT 0,
+	hostapd_vlan_entry_count INTEGER DEFAULT 0,
+	command_count INTEGER DEFAULT 0,
+	diagnostic_count INTEGER DEFAULT 0,
+	plan_fingerprint TEXT NOT NULL,
+	command_text TEXT NOT NULL,
+	hostapd_vlan_file_path TEXT,
+	hostapd_vlan_file_text TEXT,
+	hostapd_vlan_file_sha256 TEXT,
+	diagnostics_json TEXT DEFAULT '[]',
+	summary_json TEXT DEFAULT '{}',
+	plan_json TEXT DEFAULT '{}',
+	previous_snapshot_id TEXT,
+	actor TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	applied_at DATETIME,
+	rolled_back_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS vlan_lifecycle_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	snapshot_id TEXT,
+	previous_snapshot_id TEXT,
+	parent_interface TEXT,
+	vlan_count INTEGER DEFAULT 0,
+	bridge_count INTEGER DEFAULT 0,
+	subinterface_count INTEGER DEFAULT 0,
+	hostapd_vlan_entry_count INTEGER DEFAULT 0,
+	command_count INTEGER DEFAULT 0,
+	diagnostic_count INTEGER DEFAULT 0,
+	plan_fingerprint TEXT,
+	diagnostics_json TEXT DEFAULT '[]',
+	details_json TEXT DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_vlan_lifecycle_snapshots_active ON vlan_lifecycle_snapshots(active, created_at);
+CREATE INDEX IF NOT EXISTS idx_vlan_lifecycle_snapshots_status ON vlan_lifecycle_snapshots(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_vlan_lifecycle_snapshots_fingerprint ON vlan_lifecycle_snapshots(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_vlan_lifecycle_events_operation_status ON vlan_lifecycle_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_vlan_lifecycle_events_snapshot ON vlan_lifecycle_events(snapshot_id, created_at);
+`
+
+const schemaV58 = vlanLifecycleEvidenceSQL
