@@ -226,6 +226,8 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	fallbackPolicy := radius.BuildFallbackPolicyReport(cfg)
 	rateCompiler := radius.BuildRateCompilerReport()
 	rateCompilerSummary, rateCompilerErr := db.GetRateCompilerEventSummary()
+	vlanPolicy := radius.BuildVLANPolicyReport(cfg)
+	vlanPolicySummary, vlanPolicyErr := db.GetVLANPolicyEventSummary()
 	eapSummary, _ := db.SummarizeEAPMethodEvents(1000)
 	eapFramework := eappkg.BuildFrameworkReport(cfg, eapRuntimeSummaryFromDB(eapSummary))
 	teapSummary, _ := db.SummarizeTEAPChainEvents(1000)
@@ -272,6 +274,21 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"capability_count": len(rateCompiler.Capabilities),
 			"evidence_summary": rateCompilerSummary,
 			"evidence_error":   rateCompilerErrorString(rateCompilerErr),
+		},
+		"vlan_policy": map[string]any{
+			"status":           vlanPolicyStatus(vlanPolicy),
+			"message":          vlanPolicyMessage(vlanPolicy),
+			"compiler_version": vlanPolicy.CompilerVersion,
+			"enabled":          vlanPolicy.Enabled,
+			"policy_count":     vlanPolicy.Summary.PolicyCount,
+			"pool_count":       vlanPolicy.Summary.PoolCount,
+			"pool_vlan_count":  vlanPolicy.Summary.PoolVLANCount,
+			"voice_policies":   vlanPolicy.Summary.VoicePolicyCount,
+			"qinq_policies":    vlanPolicy.Summary.QinQPolicyCount,
+			"fallback_count":   vlanPolicy.Summary.FallbackCount,
+			"auth_fail_count":  vlanPolicy.Summary.AuthFailCount,
+			"evidence_summary": vlanPolicySummary,
+			"evidence_error":   rateCompilerErrorString(vlanPolicyErr),
 		},
 		"eap_framework":              eapFramework,
 		"eap_teap":                   teapFramework,
@@ -1200,4 +1217,31 @@ func rateCompilerErrorString(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+func vlanPolicyStatus(report radius.VLANPolicyReport) string {
+	switch {
+	case !report.Enabled:
+		return "disabled"
+	case report.Summary.PolicyCount == 0 && report.Summary.PoolCount == 0:
+		return "ready"
+	case report.Summary.VoicePolicyCount > 0 || report.Summary.QinQPolicyCount > 0 || report.Summary.PoolCount > 0:
+		return "ok"
+	default:
+		return "ready"
+	}
+}
+
+func vlanPolicyMessage(report radius.VLANPolicyReport) string {
+	if !report.Enabled {
+		return "Tagged VLAN policy compiler is disabled in config."
+	}
+	if report.Summary.PolicyCount == 0 && report.Summary.PoolCount == 0 {
+		return "Tagged VLAN policy compiler is ready; no role policy or pool is configured yet."
+	}
+	return fmt.Sprintf("Tagged VLAN policy compiler has %d role policy(s), %d pool(s), %d voice policy(s), and %d QinQ policy(s).",
+		report.Summary.PolicyCount,
+		report.Summary.PoolCount,
+		report.Summary.VoicePolicyCount,
+		report.Summary.QinQPolicyCount)
 }

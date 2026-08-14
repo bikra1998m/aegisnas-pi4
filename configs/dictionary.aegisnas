@@ -25,4 +25,13 @@ ATTRIBUTE AegisNAS-ACL-Name 12 string
 ATTRIBUTE AegisNAS-ACL-Rule 13 string
 ATTRIBUTE AegisNAS-Service-Chain 14 string
 ATTRIBUTE AegisNAS-Service-Name 15 string
+ATTRIBUTE AegisNAS-Data-VLAN 16 integer
+ATTRIBUTE AegisNAS-Voice-VLAN 17 integer
+ATTRIBUTE AegisNAS-Tagged-VLAN 18 integer
+ATTRIBUTE AegisNAS-QinQ-Outer-VLAN 19 integer
+ATTRIBUTE AegisNAS-QinQ-Inner-VLAN 20 integer
+ATTRIBUTE AegisNAS-VLAN-Pool 21 string
+ATTRIBUTE AegisNAS-Fallback-VLAN 22 integer
+ATTRIBUTE AegisNAS-Auth-Fail-VLAN 23 integer
+ATTRIBUTE AegisNAS-VLAN-Policy 24 string
 END-VENDOR AegisNAS

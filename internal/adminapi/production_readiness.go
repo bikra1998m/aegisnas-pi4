@@ -149,6 +149,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionRuntimeFirewallCheck(&report)
 	addProductionRuntimeQoSCheck(&report, cfg)
 	addProductionVLANLifecycleCheck(&report, cfg)
+	addProductionVLANPolicyCheck(&report, cfg)
 	addProductionRateCompilerCheck(&report)
 	addProductionPolicySetGovernanceCheck(&report, cfg)
 	addProductionPolicySimulationAnalysisCheck(&report, cfg)
@@ -1401,6 +1402,89 @@ func addProductionVLANLifecycleCheck(report *productionReadinessReport, cfg *con
 		Recommendation: "Use /api/v1/system/vlan-lifecycle/preview before apply, keep VLAN catalog, role VLANs, policy VLANs, and hostapd dynamic VLAN entries in one evidence-backed lifecycle, and complete the NAS-0053 release certification checklist for Linux bridge/VLAN, hostapd, FreeRADIUS, HA, and vendor-device proof.",
 		Dependencies:   []string{"vlans", "roles.vlan", "policy_rules.vlan", "wireless.ssids.dynamic_vlan", "vlan_lifecycle_snapshots", "vlan_lifecycle_events", "/api/v1/system/vlan-lifecycle", "/api/v1/system/vlan-lifecycle/preview", "/api/v1/system/vlan-lifecycle/apply", "/api/v1/system/vlan-lifecycle/rollback", "ip link", "hostapd vlan_file", "RFC 2868"},
 	})
+}
+
+func addProductionVLANPolicyCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	compilerReport := radius.BuildVLANPolicyReport(cfg)
+	sample := radius.CompileVLANPolicy(cfg, radius.VLANPolicyCompileRequest{
+		Role:             firstProductionVLANPolicyRole(cfg),
+		VLAN:             firstProductionVLANPolicyFallbackVLAN(cfg),
+		CallingStationID: "00:11:22:33:44:55",
+		NASIdentifier:    "production-readiness",
+		PackKeys:         []string{productconfigs.VendorPackStandard, productconfigs.VendorPackAegisNAS, productconfigs.VendorPackExtreme, productconfigs.VendorPackHP},
+	})
+	switch sample.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded":
+		status = "degraded"
+	}
+	summary := fmt.Sprintf("Tagged VLAN policy compiler version %d has %d role policy(s), %d pool(s), %d voice policy(s), %d QinQ policy(s), and compiled %d sample attribute(s) with %d diagnostic(s).",
+		compilerReport.CompilerVersion,
+		compilerReport.Summary.PolicyCount,
+		compilerReport.Summary.PoolCount,
+		compilerReport.Summary.VoicePolicyCount,
+		compilerReport.Summary.QinQPolicyCount,
+		len(sample.Attributes),
+		len(sample.Diagnostics))
+	if db.DB == nil {
+		status = "blocked"
+		summary = "Database is not initialized; tagged VLAN policy evidence cannot be verified."
+	} else if evidence, err := db.GetVLANPolicyEventSummary(); err != nil {
+		status = "blocked"
+		summary += " Tagged VLAN policy evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d compiler event(s), %d compiled, %d decompiled, %d blocked, %d failed.",
+			evidence.TotalEvents, evidence.CompiledCount, evidence.DecompiledCount, evidence.BlockedCount, evidence.FailedCount)
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "tagged_vlan_qinq_policy",
+		Category:       "policy",
+		Label:          "Tagged Voice/Data VLAN, QinQ, Pool, And Fallback Policy",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/vlan-policy/preview before changing role VLAN intent, keep role pools and fallback/auth-fail VLANs explicit, retain vlan_policy_events evidence, and complete the NAS-0054 release certification checklist for FreeRADIUS packet captures and vendor-device proof.",
+		Dependencies:   []string{"radius.vlan_policy", "vlan_policy_events", "/api/v1/system/vlan-policy", "/api/v1/system/vlan-policy/preview", "/api/v1/system/vlan-policy/decompile", "Tunnel-Private-Group-Id", "Egress-VLANID", "Extreme-Netlogin-Extended-Vlan", "AegisNAS-Voice-VLAN", "AegisNAS-QinQ-Outer-VLAN", "RFC 2868", "RFC 4675"},
+	})
+}
+
+func firstProductionVLANPolicyRole(cfg *config.Config) string {
+	if cfg != nil {
+		for _, policy := range cfg.Radius.VLANPolicy.RolePolicies {
+			if strings.TrimSpace(policy.Role) != "" {
+				return strings.TrimSpace(policy.Role)
+			}
+		}
+	}
+	return "default"
+}
+
+func firstProductionVLANPolicyFallbackVLAN(cfg *config.Config) int {
+	if cfg != nil {
+		if cfg.Radius.VLANPolicy.DefaultFallbackVLAN > 0 {
+			return cfg.Radius.VLANPolicy.DefaultFallbackVLAN
+		}
+		for _, policy := range cfg.Radius.VLANPolicy.RolePolicies {
+			switch {
+			case policy.DataVLAN > 0:
+				return policy.DataVLAN
+			case policy.FallbackVLAN > 0:
+				return policy.FallbackVLAN
+			}
+		}
+		for _, pool := range cfg.Radius.VLANPolicy.Pools {
+			for _, vlan := range pool.VLANs {
+				if vlan > 0 {
+					return vlan
+				}
+			}
+		}
+	}
+	return 10
 }
 
 func addProductionRateCompilerCheck(report *productionReadinessReport) {

@@ -1794,6 +1794,26 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Dynamic VLAN lifecycle snapshot and event history with active evidence summary."),
 	}))
+	addOperation(paths, "/api/v1/system/vlan-policy", "get", securedOperation("Read tagged VLAN and QinQ policy coverage", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Voice/data VLAN, tagged VLAN, QinQ, pool, fallback, auth-fail, capability, RFC, and evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/vlan-policy/preview", "post", securedOperationWithBody("Preview tagged VLAN and QinQ policy", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Role, optional request VLAN, calling station, NAS identifier, auth failure, quarantine state, and vendor pack keys."), map[string]any{
+		"200":     responseJSON("Previewed normalized VLAN decision, rendered RADIUS attributes, diagnostics, fingerprint, and evidence event ID."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/vlan-policy/compile", "post", securedOperationWithBody("Compile tagged VLAN and QinQ attributes", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Role, optional request VLAN, calling station, NAS identifier, auth failure, quarantine state, and vendor pack keys."), map[string]any{
+		"200":     responseJSON("Compiled VLAN RADIUS attributes, diagnostics, fingerprint, and evidence event ID."),
+		"default": responseText("Compile error."),
+	}))
+	addOperation(paths, "/api/v1/system/vlan-policy/decompile", "post", securedOperationWithBody("Decompile VLAN RADIUS attributes", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Vendor pack key and observed VLAN-related RADIUS attributes."), map[string]any{
+		"200":     responseJSON("Normalized VLAN decision reconstructed from observed RADIUS attributes."),
+		"default": responseText("Decompile error."),
+	}))
+	addOperation(paths, "/api/v1/system/vlan-policy/history", "get", securedOperationWithParameters("List tagged VLAN policy evidence history", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("Tagged VLAN/QinQ compiler and decompiler evidence history."),
+	}))
 	addOperation(paths, "/api/v1/system/rate-compiler", "get", securedOperation("Read vendor rate compiler coverage", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Rate compiler capabilities, supported vendor units, RFC references, summary counters, and recent evidence events."),
 	}))

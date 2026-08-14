@@ -25,6 +25,16 @@ func TestApplyVendorAttributesParsesAegisNASVSAs(t *testing.T) {
 	require.NoError(t, addVendorString(packet, uint32(vendor.ID), AegisNASVendorAttrPolicyTag, "premium"))
 	require.NoError(t, addVendorInteger(packet, uint32(vendor.ID), AegisNASVendorAttrSessionTimeout, 3600))
 	require.NoError(t, addVendorInteger(packet, uint32(vendor.ID), AegisNASVendorAttrIdleTimeout, 600))
+	require.NoError(t, addVendorInteger(packet, uint32(vendor.ID), AegisNASVendorAttrDataVLAN, 21))
+	require.NoError(t, addVendorInteger(packet, uint32(vendor.ID), AegisNASVendorAttrVoiceVLAN, 30))
+	require.NoError(t, addVendorInteger(packet, uint32(vendor.ID), AegisNASVendorAttrTaggedVLAN, 40))
+	require.NoError(t, addVendorInteger(packet, uint32(vendor.ID), AegisNASVendorAttrTaggedVLAN, 50))
+	require.NoError(t, addVendorInteger(packet, uint32(vendor.ID), AegisNASVendorAttrQinQOuterVLAN, 3000))
+	require.NoError(t, addVendorInteger(packet, uint32(vendor.ID), AegisNASVendorAttrQinQInnerVLAN, 21))
+	require.NoError(t, addVendorString(packet, uint32(vendor.ID), AegisNASVendorAttrVLANPool, "branch-data"))
+	require.NoError(t, addVendorInteger(packet, uint32(vendor.ID), AegisNASVendorAttrFallbackVLAN, 99))
+	require.NoError(t, addVendorInteger(packet, uint32(vendor.ID), AegisNASVendorAttrAuthFailVLAN, 98))
+	require.NoError(t, addVendorString(packet, uint32(vendor.ID), AegisNASVendorAttrVLANPolicy, "voice-data"))
 
 	result := ParseBrokerPacket(packet)
 	ApplyVendorAttributes(result, packet, vendor)
@@ -34,12 +44,41 @@ func TestApplyVendorAttributesParsesAegisNASVSAs(t *testing.T) {
 	assert.Equal(t, "premium", result.VendorPolicyTag)
 	assert.True(t, result.HasVendorVLAN)
 	assert.Equal(t, 20, result.VendorVLAN)
+	assert.True(t, result.HasVendorVoiceVLAN)
+	assert.Equal(t, 30, result.VendorVoiceVLAN)
+	assert.Equal(t, []int{40, 50}, result.VendorTaggedVLANs)
+	assert.True(t, result.HasVendorQinQOuterVLAN)
+	assert.Equal(t, 3000, result.VendorQinQOuterVLAN)
+	assert.True(t, result.HasVendorQinQInnerVLAN)
+	assert.Equal(t, 21, result.VendorQinQInnerVLAN)
+	assert.Equal(t, "branch-data", result.VendorVLANPool)
+	assert.True(t, result.HasVendorFallbackVLAN)
+	assert.Equal(t, 99, result.VendorFallbackVLAN)
+	assert.True(t, result.HasVendorAuthFailVLAN)
+	assert.Equal(t, 98, result.VendorAuthFailVLAN)
+	assert.Equal(t, "voice-data", result.VendorVLANPolicy)
 	assert.True(t, result.HasVendorQuarantine)
 	assert.True(t, result.VendorQuarantine)
 	assert.True(t, result.HasVendorSessionTimeout)
 	assert.Equal(t, 3600, result.VendorSessionTimeout)
 	assert.True(t, result.HasVendorIdleTimeout)
 	assert.Equal(t, 600, result.VendorIdleTimeout)
+}
+
+func TestApplyVendorAttributesParsesAegisNASDataVLANWithoutLegacyVLAN(t *testing.T) {
+	vendor := config.RadiusVendorConfig{
+		Enabled: true,
+		Name:    "AegisNAS",
+		ID:      55555,
+	}
+	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorInteger(packet, uint32(vendor.ID), AegisNASVendorAttrDataVLAN, 21))
+
+	result := ParseBrokerPacket(packet)
+	ApplyVendorAttributes(result, packet, vendor)
+
+	assert.True(t, result.HasVendorVLAN)
+	assert.Equal(t, 21, result.VendorVLAN)
 }
 
 func TestApplyVendorCompatibilityAttributesParsesInboundVSAs(t *testing.T) {

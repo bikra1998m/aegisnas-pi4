@@ -227,6 +227,43 @@ type RadiusConfig struct {
 	EAP                   RadiusEAPConfig                   `mapstructure:"eap"`
 	Upstream              RadiusUpstreamConfig              `mapstructure:"upstream"`
 	Vendor                RadiusVendorConfig                `mapstructure:"vendor"`
+	VLANPolicy            RadiusVLANPolicyConfig            `mapstructure:"vlan_policy"`
+}
+
+type RadiusVLANPolicyConfig struct {
+	Enabled             bool                   `mapstructure:"enabled"`
+	FailClosed          bool                   `mapstructure:"fail_closed"`
+	MaxTaggedVLANs      int                    `mapstructure:"max_tagged_vlans"`
+	DefaultFallbackVLAN int                    `mapstructure:"default_fallback_vlan"`
+	DefaultAuthFailVLAN int                    `mapstructure:"default_auth_fail_vlan"`
+	Pools               []RadiusVLANPoolConfig `mapstructure:"pools"`
+	RolePolicies        []RadiusVLANRolePolicy `mapstructure:"role_policies"`
+}
+
+type RadiusVLANPoolConfig struct {
+	Name     string `mapstructure:"name"`
+	VLANs    []int  `mapstructure:"vlans"`
+	Strategy string `mapstructure:"strategy"`
+}
+
+type RadiusVLANRolePolicy struct {
+	Role         string           `mapstructure:"role"`
+	DataVLAN     int              `mapstructure:"data_vlan"`
+	VoiceVLAN    int              `mapstructure:"voice_vlan"`
+	TaggedVLANs  []int            `mapstructure:"tagged_vlans"`
+	Pool         string           `mapstructure:"pool"`
+	FallbackVLAN int              `mapstructure:"fallback_vlan"`
+	AuthFailVLAN int              `mapstructure:"auth_fail_vlan"`
+	QinQ         RadiusQinQConfig `mapstructure:"qinq"`
+	VendorPacks  []string         `mapstructure:"vendor_packs"`
+	Description  string           `mapstructure:"description"`
+}
+
+type RadiusQinQConfig struct {
+	Enabled   bool   `mapstructure:"enabled"`
+	OuterVLAN int    `mapstructure:"outer_vlan"`
+	InnerVLAN int    `mapstructure:"inner_vlan"`
+	Mode      string `mapstructure:"mode"`
 }
 
 type RadiusDynamicClientsConfig struct {
@@ -2139,6 +2176,13 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.upstream.fallback_policy.allowed_roles", []string{})
 	v.SetDefault("radius.upstream.fallback_policy.audit_enabled", true)
 	v.SetDefault("radius.upstream.fallback_policy.retention_limit", 6000)
+	v.SetDefault("radius.vlan_policy.enabled", true)
+	v.SetDefault("radius.vlan_policy.fail_closed", true)
+	v.SetDefault("radius.vlan_policy.max_tagged_vlans", 10)
+	v.SetDefault("radius.vlan_policy.default_fallback_vlan", 0)
+	v.SetDefault("radius.vlan_policy.default_auth_fail_vlan", 0)
+	v.SetDefault("radius.vlan_policy.pools", []map[string]any{})
+	v.SetDefault("radius.vlan_policy.role_policies", []map[string]any{})
 	productVendor := productconfigs.AegisNASVendorDictionary()
 	v.SetDefault("radius.vendor.enabled", false)
 	v.SetDefault("radius.vendor.name", productVendor.Name)
@@ -4351,6 +4395,9 @@ func (c *Config) Validate() error {
 		return err
 	}
 	if err := validateRadiusPacketHardening(c.Radius.PacketHardening); err != nil {
+		return err
+	}
+	if err := validateRadiusVLANPolicy(c.Radius.VLANPolicy); err != nil {
 		return err
 	}
 	if err := validateRadSecConfig(c); err != nil {
@@ -6704,6 +6751,164 @@ func validateRadiusAccountingCharging(raw RadiusAccountingChargingConfig) error 
 		return fmt.Errorf("radius.accounting_charging.integrity_sample_limit must be between 1 and 100000")
 	}
 	return nil
+}
+
+func validateRadiusVLANPolicy(raw RadiusVLANPolicyConfig) error {
+	if !raw.Enabled && !raw.FailClosed && raw.MaxTaggedVLANs == 0 && raw.DefaultFallbackVLAN == 0 &&
+		raw.DefaultAuthFailVLAN == 0 && len(raw.Pools) == 0 && len(raw.RolePolicies) == 0 {
+		return nil
+	}
+	if raw.MaxTaggedVLANs < 0 || raw.MaxTaggedVLANs > 64 {
+		return fmt.Errorf("radius.vlan_policy.max_tagged_vlans must be between 0 and 64")
+	}
+	maxTagged := raw.MaxTaggedVLANs
+	if maxTagged == 0 {
+		maxTagged = 10
+	}
+	if raw.DefaultFallbackVLAN != 0 && !validPolicyVLAN(raw.DefaultFallbackVLAN) {
+		return fmt.Errorf("radius.vlan_policy.default_fallback_vlan %d is outside the VLAN range 1-4094", raw.DefaultFallbackVLAN)
+	}
+	if raw.DefaultAuthFailVLAN != 0 && !validPolicyVLAN(raw.DefaultAuthFailVLAN) {
+		return fmt.Errorf("radius.vlan_policy.default_auth_fail_vlan %d is outside the VLAN range 1-4094", raw.DefaultAuthFailVLAN)
+	}
+
+	pools := map[string]struct{}{}
+	for i, pool := range raw.Pools {
+		name := strings.TrimSpace(pool.Name)
+		if name == "" {
+			return fmt.Errorf("radius.vlan_policy.pools[%d].name cannot be empty", i)
+		}
+		if len(name) > 128 || strings.ContainsAny(name, "\r\n\x00") {
+			return fmt.Errorf("radius.vlan_policy.pools[%d].name is invalid", i)
+		}
+		key := strings.ToLower(name)
+		if _, exists := pools[key]; exists {
+			return fmt.Errorf("radius.vlan_policy.pools[%d].name %q duplicates an earlier pool", i, name)
+		}
+		pools[key] = struct{}{}
+		strategy := strings.ToLower(strings.TrimSpace(pool.Strategy))
+		switch strategy {
+		case "", "first", "hash-calling-station", "hash-nas", "hash-role":
+		default:
+			return fmt.Errorf("radius.vlan_policy.pools[%d].strategy %q is invalid", i, pool.Strategy)
+		}
+		if len(pool.VLANs) == 0 || len(pool.VLANs) > 256 {
+			return fmt.Errorf("radius.vlan_policy.pools[%d].vlans must contain between 1 and 256 VLAN IDs", i)
+		}
+		seenVLANs := map[int]struct{}{}
+		for vlanIndex, vlan := range pool.VLANs {
+			if !validPolicyVLAN(vlan) {
+				return fmt.Errorf("radius.vlan_policy.pools[%d].vlans[%d] %d is outside the VLAN range 1-4094", i, vlanIndex, vlan)
+			}
+			if _, exists := seenVLANs[vlan]; exists {
+				return fmt.Errorf("radius.vlan_policy.pools[%d].vlans duplicates VLAN %d", i, vlan)
+			}
+			seenVLANs[vlan] = struct{}{}
+		}
+	}
+
+	roles := map[string]struct{}{}
+	for i, rolePolicy := range raw.RolePolicies {
+		role := strings.TrimSpace(rolePolicy.Role)
+		if role == "" {
+			return fmt.Errorf("radius.vlan_policy.role_policies[%d].role cannot be empty", i)
+		}
+		if len(role) > 253 || strings.ContainsAny(role, "\r\n\x00") {
+			return fmt.Errorf("radius.vlan_policy.role_policies[%d].role is invalid", i)
+		}
+		roleKey := strings.ToLower(role)
+		if _, exists := roles[roleKey]; exists {
+			return fmt.Errorf("radius.vlan_policy.role_policies[%d].role %q duplicates an earlier policy", i, role)
+		}
+		roles[roleKey] = struct{}{}
+		if rolePolicy.DataVLAN != 0 && !validPolicyVLAN(rolePolicy.DataVLAN) {
+			return fmt.Errorf("radius.vlan_policy.role_policies[%d].data_vlan %d is outside the VLAN range 1-4094", i, rolePolicy.DataVLAN)
+		}
+		if rolePolicy.VoiceVLAN != 0 && !validPolicyVLAN(rolePolicy.VoiceVLAN) {
+			return fmt.Errorf("radius.vlan_policy.role_policies[%d].voice_vlan %d is outside the VLAN range 1-4094", i, rolePolicy.VoiceVLAN)
+		}
+		if rolePolicy.FallbackVLAN != 0 && !validPolicyVLAN(rolePolicy.FallbackVLAN) {
+			return fmt.Errorf("radius.vlan_policy.role_policies[%d].fallback_vlan %d is outside the VLAN range 1-4094", i, rolePolicy.FallbackVLAN)
+		}
+		if rolePolicy.AuthFailVLAN != 0 && !validPolicyVLAN(rolePolicy.AuthFailVLAN) {
+			return fmt.Errorf("radius.vlan_policy.role_policies[%d].auth_fail_vlan %d is outside the VLAN range 1-4094", i, rolePolicy.AuthFailVLAN)
+		}
+		seenRoleVLANs := map[int]string{}
+		for _, binding := range []struct {
+			vlan  int
+			field string
+		}{
+			{rolePolicy.DataVLAN, "data_vlan"},
+			{rolePolicy.VoiceVLAN, "voice_vlan"},
+		} {
+			if binding.vlan > 0 {
+				if previous := seenRoleVLANs[binding.vlan]; previous != "" {
+					return fmt.Errorf("radius.vlan_policy.role_policies[%d] duplicates VLAN %d in %s and %s", i, binding.vlan, previous, binding.field)
+				}
+				seenRoleVLANs[binding.vlan] = binding.field
+			}
+		}
+		if len(rolePolicy.TaggedVLANs) > maxTagged {
+			return fmt.Errorf("radius.vlan_policy.role_policies[%d].tagged_vlans cannot include more than %d VLANs", i, maxTagged)
+		}
+		for taggedIndex, vlan := range rolePolicy.TaggedVLANs {
+			if !validPolicyVLAN(vlan) {
+				return fmt.Errorf("radius.vlan_policy.role_policies[%d].tagged_vlans[%d] %d is outside the VLAN range 1-4094", i, taggedIndex, vlan)
+			}
+			if previous := seenRoleVLANs[vlan]; previous != "" {
+				return fmt.Errorf("radius.vlan_policy.role_policies[%d] duplicates VLAN %d in %s and tagged_vlans", i, vlan, previous)
+			}
+			seenRoleVLANs[vlan] = "tagged_vlans"
+		}
+		pool := strings.TrimSpace(rolePolicy.Pool)
+		if pool != "" {
+			if _, exists := pools[strings.ToLower(pool)]; !exists {
+				return fmt.Errorf("radius.vlan_policy.role_policies[%d].pool %q does not match a configured pool", i, rolePolicy.Pool)
+			}
+		}
+		if err := validateRadiusQinQPolicy(i, rolePolicy.QinQ); err != nil {
+			return err
+		}
+		for packIndex, pack := range rolePolicy.VendorPacks {
+			key := productconfigs.NormalizeVendorCompatibilityPackKey(pack)
+			if key == "" || !productconfigs.ValidVendorCompatibilityPackKey(key) {
+				return fmt.Errorf("radius.vlan_policy.role_policies[%d].vendor_packs[%d] %q is unknown", i, packIndex, pack)
+			}
+		}
+		if len(rolePolicy.Description) > 512 || strings.ContainsAny(rolePolicy.Description, "\x00") {
+			return fmt.Errorf("radius.vlan_policy.role_policies[%d].description is invalid", i)
+		}
+	}
+	return nil
+}
+
+func validateRadiusQinQPolicy(index int, qinq RadiusQinQConfig) error {
+	mode := strings.ToLower(strings.TrimSpace(qinq.Mode))
+	switch mode {
+	case "", "provider-bridge", "selective-qinq":
+	default:
+		return fmt.Errorf("radius.vlan_policy.role_policies[%d].qinq.mode %q is invalid", index, qinq.Mode)
+	}
+	if !qinq.Enabled && qinq.OuterVLAN == 0 && qinq.InnerVLAN == 0 {
+		return nil
+	}
+	if !qinq.Enabled {
+		return fmt.Errorf("radius.vlan_policy.role_policies[%d].qinq.enabled must be true when QinQ VLANs are configured", index)
+	}
+	if !validPolicyVLAN(qinq.OuterVLAN) {
+		return fmt.Errorf("radius.vlan_policy.role_policies[%d].qinq.outer_vlan %d is outside the VLAN range 1-4094", index, qinq.OuterVLAN)
+	}
+	if qinq.InnerVLAN != 0 && !validPolicyVLAN(qinq.InnerVLAN) {
+		return fmt.Errorf("radius.vlan_policy.role_policies[%d].qinq.inner_vlan %d is outside the VLAN range 1-4094", index, qinq.InnerVLAN)
+	}
+	if qinq.InnerVLAN > 0 && qinq.InnerVLAN == qinq.OuterVLAN {
+		return fmt.Errorf("radius.vlan_policy.role_policies[%d].qinq inner and outer VLANs must differ", index)
+	}
+	return nil
+}
+
+func validPolicyVLAN(vlan int) bool {
+	return vlan >= 1 && vlan <= 4094
 }
 
 func EffectiveDynamicAuthConfig(raw DynamicAuthConfig) DynamicAuthConfig {

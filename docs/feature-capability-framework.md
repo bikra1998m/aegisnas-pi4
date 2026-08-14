@@ -165,6 +165,7 @@ These features depend heavily on physical platform shape.
 | Wireless enabled on plain VM NIC | blocked | blocked | blocked | not a real radio |
 | Multi-SSID local appliance mode | warned | enabled | enabled | capacity depends on radio and CPU |
 | Dynamic VLAN SSIDs | available | enabled | enabled | strongest on enterprise gear; hostapd config points to the managed VLAN file |
+| Tagged VLAN/QinQ policy | available | enabled | enabled | compiler is lightweight; production claims need packet capture and vendor-device certification |
 
 Rules:
 

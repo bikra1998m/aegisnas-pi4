@@ -182,7 +182,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{55, schemaV55},
 		{56, schemaV56},
 		{57, schemaV57},
-		{LatestSchemaVersion(), schemaV58},
+		{58, schemaV58},
+		{59, schemaV59},
 	}
 
 	for _, m := range migrations {
@@ -326,8 +327,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureVLANLifecycleEvidenceTables(handle); err != nil {
 		return fmt.Errorf("repair VLAN lifecycle evidence schema: %w", err)
 	}
+	if err := ensureVLANPolicyEvidenceTables(handle); err != nil {
+		return fmt.Errorf("repair VLAN policy evidence schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureVLANPolicyEvidenceTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(vlanPolicyEvidenceSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureVLANLifecycleEvidenceTables(handle *sql.DB) error {

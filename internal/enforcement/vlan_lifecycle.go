@@ -506,6 +506,39 @@ func collectVLANLifecycleIntents(cfg *config.Config, roleVLANs []vlanPolicySourc
 			add(tagged, fmt.Sprintf("vendor.%s.extended_vlan:%s", pack, role), role, "vendor-tagged", "", true, true, false, []string{vendorExtendedVLANAttribute(pack)})
 		}
 	}
+	for _, pool := range cfg.Radius.VLANPolicy.Pools {
+		source := fmt.Sprintf("radius.vlan_policy.pool:%s", firstNonEmptyString(pool.Name, "unnamed"))
+		for _, vlan := range pool.VLANs {
+			add(vlan, source, pool.Name, "vlan-pool", "", true, false, false, []string{"Tunnel-Private-Group-Id", "AegisNAS-VLAN-Pool"})
+		}
+	}
+	for _, policy := range cfg.Radius.VLANPolicy.RolePolicies {
+		role := strings.TrimSpace(policy.Role)
+		source := fmt.Sprintf("radius.vlan_policy.role:%s", firstNonEmptyString(role, "default"))
+		if policy.DataVLAN > 0 {
+			add(policy.DataVLAN, source, role, "data-vlan", "", true, false, false, []string{"Tunnel-Private-Group-Id", "AegisNAS-Data-VLAN"})
+		}
+		if policy.VoiceVLAN > 0 {
+			add(policy.VoiceVLAN, source, role, "voice-vlan", "", true, true, false, []string{"Egress-VLANID", "AegisNAS-Voice-VLAN"})
+		}
+		for _, tagged := range policy.TaggedVLANs {
+			add(tagged, source, role, "tagged-vlan", "", true, true, false, []string{"Egress-VLANID", "AegisNAS-Tagged-VLAN"})
+		}
+		if policy.QinQ.Enabled {
+			if policy.QinQ.OuterVLAN > 0 {
+				add(policy.QinQ.OuterVLAN, source, role, "qinq-outer", "", true, true, false, []string{"AegisNAS-QinQ-Outer-VLAN"})
+			}
+			if policy.QinQ.InnerVLAN > 0 {
+				add(policy.QinQ.InnerVLAN, source, role, "qinq-inner", "", true, true, false, []string{"AegisNAS-QinQ-Inner-VLAN"})
+			}
+		}
+		if policy.FallbackVLAN > 0 {
+			add(policy.FallbackVLAN, source, role, "fallback-vlan", "", true, false, false, []string{"Tunnel-Private-Group-Id", "AegisNAS-Fallback-VLAN"})
+		}
+		if policy.AuthFailVLAN > 0 {
+			add(policy.AuthFailVLAN, source, role, "auth-fail-vlan", "", true, false, false, []string{"Tunnel-Private-Group-Id", "AegisNAS-Auth-Fail-VLAN"})
+		}
+	}
 	if anyDynamicSSID {
 		for vlan, builder := range intentMap {
 			builder.Dynamic = true

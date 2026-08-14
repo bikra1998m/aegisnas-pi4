@@ -20,6 +20,15 @@ type vendorReplyPreviewRequest struct {
 	SessionTimeout        int                  `json:"session_timeout"`
 	IdleTimeout           int                  `json:"idle_timeout"`
 	VLAN                  int                  `json:"vlan"`
+	DataVLAN              int                  `json:"data_vlan"`
+	VoiceVLAN             int                  `json:"voice_vlan"`
+	TaggedVLANs           []int                `json:"tagged_vlans"`
+	QinQOuterVLAN         int                  `json:"qinq_outer_vlan"`
+	QinQInnerVLAN         int                  `json:"qinq_inner_vlan"`
+	VLANPool              string               `json:"vlan_pool"`
+	FallbackVLAN          int                  `json:"fallback_vlan"`
+	AuthFailVLAN          int                  `json:"auth_fail_vlan"`
+	VLANPolicyMode        string               `json:"vlan_policy_mode"`
 	DownloadKbps          int                  `json:"download_kbps"`
 	UploadKbps            int                  `json:"upload_kbps"`
 	MikrotikRateLimit     string               `json:"mikrotik_rate_limit"`
@@ -167,6 +176,32 @@ func validateVendorReplyPreviewRequest(req vendorReplyPreviewRequest) error {
 		return errVendorReplyPreview("idle_timeout cannot be negative")
 	case req.VLAN < 0:
 		return errVendorReplyPreview("vlan cannot be negative")
+	case req.VLAN > 4094:
+		return errVendorReplyPreview("vlan must be between 1 and 4094")
+	case req.DataVLAN < 0:
+		return errVendorReplyPreview("data_vlan cannot be negative")
+	case req.DataVLAN > 4094:
+		return errVendorReplyPreview("data_vlan must be between 1 and 4094")
+	case req.VoiceVLAN < 0:
+		return errVendorReplyPreview("voice_vlan cannot be negative")
+	case req.VoiceVLAN > 4094:
+		return errVendorReplyPreview("voice_vlan must be between 1 and 4094")
+	case req.QinQOuterVLAN < 0:
+		return errVendorReplyPreview("qinq_outer_vlan cannot be negative")
+	case req.QinQOuterVLAN > 4094:
+		return errVendorReplyPreview("qinq_outer_vlan must be between 1 and 4094")
+	case req.QinQInnerVLAN < 0:
+		return errVendorReplyPreview("qinq_inner_vlan cannot be negative")
+	case req.QinQInnerVLAN > 4094:
+		return errVendorReplyPreview("qinq_inner_vlan must be between 1 and 4094")
+	case req.FallbackVLAN < 0:
+		return errVendorReplyPreview("fallback_vlan cannot be negative")
+	case req.FallbackVLAN > 4094:
+		return errVendorReplyPreview("fallback_vlan must be between 1 and 4094")
+	case req.AuthFailVLAN < 0:
+		return errVendorReplyPreview("auth_fail_vlan cannot be negative")
+	case req.AuthFailVLAN > 4094:
+		return errVendorReplyPreview("auth_fail_vlan must be between 1 and 4094")
 	case req.DownloadKbps < 0:
 		return errVendorReplyPreview("download_kbps cannot be negative")
 	case req.UploadKbps < 0:
@@ -177,6 +212,16 @@ func validateVendorReplyPreviewRequest(req vendorReplyPreviewRequest) error {
 		return errVendorReplyPreview("wispr_bandwidth_max_up cannot be negative")
 	case len(req.ACLRules) > 64:
 		return errVendorReplyPreview("acl_rules cannot contain more than 64 rules")
+	case len(req.TaggedVLANs) > 64:
+		return errVendorReplyPreview("tagged_vlans cannot contain more than 64 VLANs")
+	}
+	for index, vlan := range req.TaggedVLANs {
+		if vlan < 0 {
+			return errVendorReplyPreview("tagged_vlans[" + strconv.Itoa(index) + "] cannot be negative")
+		}
+		if vlan > 4094 {
+			return errVendorReplyPreview("tagged_vlans[" + strconv.Itoa(index) + "] must be between 1 and 4094")
+		}
 	}
 	if _, err := radius.NormalizeACLPolicyIntent(req.ACLPolicyName, "", req.InboundACL, req.OutboundACL, req.ACLRules, req.ACLAST); err != nil {
 		return errVendorReplyPreview(err.Error())
@@ -199,6 +244,15 @@ func vendorReplyPreviewAttributes(req vendorReplyPreviewRequest) *radius.ReplyAt
 		SessionTimeout:        req.SessionTimeout,
 		IdleTimeout:           req.IdleTimeout,
 		VLAN:                  req.VLAN,
+		DataVLAN:              req.DataVLAN,
+		VoiceVLAN:             req.VoiceVLAN,
+		TaggedVLANs:           normalizePreviewVLANs(req.TaggedVLANs),
+		QinQOuterVLAN:         req.QinQOuterVLAN,
+		QinQInnerVLAN:         req.QinQInnerVLAN,
+		VLANPool:              strings.TrimSpace(req.VLANPool),
+		FallbackVLAN:          req.FallbackVLAN,
+		AuthFailVLAN:          req.AuthFailVLAN,
+		VLANPolicyMode:        strings.TrimSpace(req.VLANPolicyMode),
 		MikrotikRateLimit:     strings.TrimSpace(req.MikrotikRateLimit),
 		WISPrBandwidthMaxDown: req.WISPrBandwidthMaxDown,
 		WISPrBandwidthMaxUp:   req.WISPrBandwidthMaxUp,
@@ -217,6 +271,12 @@ func vendorReplyPreviewAttributes(req vendorReplyPreviewRequest) *radius.ReplyAt
 		attrs.TunnelMediumType = "IEEE-802"
 		attrs.TunnelPrivateGroupID = intString(attrs.VLAN)
 	}
+	if attrs.VLAN == 0 && attrs.DataVLAN > 0 {
+		attrs.VLAN = attrs.DataVLAN
+		attrs.TunnelType = "VLAN"
+		attrs.TunnelMediumType = "IEEE-802"
+		attrs.TunnelPrivateGroupID = intString(attrs.DataVLAN)
+	}
 	if attrs.MikrotikRateLimit == "" && req.DownloadKbps > 0 && req.UploadKbps > 0 {
 		attrs.MikrotikRateLimit = intString(req.DownloadKbps) + "k/" + intString(req.UploadKbps) + "k"
 	}
@@ -227,6 +287,22 @@ func vendorReplyPreviewAttributes(req vendorReplyPreviewRequest) *radius.ReplyAt
 		attrs.WISPrBandwidthMaxUp = req.UploadKbps
 	}
 	return attrs
+}
+
+func normalizePreviewVLANs(values []int) []int {
+	seen := map[int]struct{}{}
+	out := make([]int, 0, len(values))
+	for _, vlan := range values {
+		if vlan <= 0 {
+			continue
+		}
+		if _, exists := seen[vlan]; exists {
+			continue
+		}
+		seen[vlan] = struct{}{}
+		out = append(out, vlan)
+	}
+	return out
 }
 
 func intString(value int) string {

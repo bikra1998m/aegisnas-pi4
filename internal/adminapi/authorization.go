@@ -517,6 +517,16 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/vlan-lifecycle"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/vlan-policy/preview"):
+		return method == http.MethodPost && (identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/vlan-policy/compile"):
+		return method == http.MethodPost && (identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/vlan-policy/decompile"):
+		return method == http.MethodPost && (identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/vlan-policy/history"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/vlan-policy"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/rate-compiler/compile"):
 		return method == http.MethodPost && (identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
 	case strings.HasPrefix(path, "/api/v1/system/rate-compiler/decompile"):

@@ -253,6 +253,44 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 Use this before introducing a new AP, switch, or controller profile so you can verify the exact reply attributes and fallback warnings without changing live policy.
 
+## Tagged VLAN And QinQ Policy
+
+NAS-0054 exposes the vendor-neutral VLAN policy compiler at:
+
+```text
+GET  /api/v1/system/vlan-policy
+POST /api/v1/system/vlan-policy/preview
+POST /api/v1/system/vlan-policy/compile
+POST /api/v1/system/vlan-policy/decompile
+GET  /api/v1/system/vlan-policy/history
+```
+
+Read-only roles may inspect, preview, compile, and decompile because these
+operations do not change local bridge, hostapd, controller, or NAS state.
+Responses include compiler version, effective data VLAN, voice VLAN, tagged
+VLANs, pool choice, fallback/auth-fail VLANs, QinQ intent, generated
+attributes, diagnostics, RFC list, and a SHA-256 fingerprint. Evidence is stored
+in `vlan_policy_events`, summarized in `/api/v1/system/status` as
+`radius.vlan_policy`, checked by production readiness as
+`tagged_vlan_qinq_policy`, and captured in support bundles as
+`api/vlan-policy.json` and `api/vlan-policy-history.json`.
+
+Example:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data '{"role":"voice-device","calling_station_id":"aa:bb:cc:dd:ee:ff","pack_keys":["standard","aegisnas","hp","extreme"]}' \
+  http://127.0.0.1:8083/api/v1/system/vlan-policy/compile | jq '.result.attributes'
+```
+
+`/api/v1/system/vendor-reply-preview` also accepts `data_vlan`,
+`voice_vlan`, `tagged_vlans`, `qinq_outer_vlan`, `qinq_inner_vlan`,
+`vlan_pool`, `fallback_vlan`, `auth_fail_vlan`, and `vlan_policy_mode` for
+non-mutating per-pack reply previews.
+
+See [Tagged VLAN And QinQ Policy](tagged-vlan-qinq-policy.md).
+
 The bounded opaque pass-through policy is exposed at:
 
 ```text

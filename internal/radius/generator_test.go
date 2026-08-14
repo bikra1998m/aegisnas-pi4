@@ -2,6 +2,7 @@ package radius
 
 import (
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -80,17 +81,15 @@ func TestGenerator(t *testing.T) {
 }
 
 func TestGeneratorRendersMABAuthorizeEntries(t *testing.T) {
-	tmpfile, err := os.CreateTemp("", "radius-mab-*.db")
-	require.NoError(t, err)
-	dbPath := tmpfile.Name()
-	require.NoError(t, tmpfile.Close())
-	require.NoError(t, db.Init(dbPath))
+	previousDB := db.DB
+	require.NoError(t, db.Init(":memory:"))
+	db.DB.SetMaxOpenConns(1)
 	t.Cleanup(func() {
-		db.Close()
-		_ = os.Remove(dbPath)
+		_ = db.Close()
+		db.DB = previousDB
 	})
 	require.NoError(t, db.Migrate())
-	_, err = db.DB.Exec(`INSERT INTO roles (name, vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name)
+	_, err := db.DB.Exec(`INSERT INTO roles (name, vlan, bandwidth_profile, session_timeout, idle_timeout, portal_profile, acl_policy_name)
 		VALUES ('printer', 30, NULL, NULL, NULL, NULL, NULL)`)
 	require.NoError(t, err)
 	_, err = db.UpsertMABEndpoint(db.MABEndpoint{
@@ -122,7 +121,21 @@ func TestGeneratorRendersMABAuthorizeEntries(t *testing.T) {
 			AuthPort: 1812,
 			AcctPort: 1813,
 			Vendor: config.RadiusVendorConfig{
-				CompatibilityPacks: []string{"standard"},
+				CompatibilityPacks: []string{"standard", "aegisnas", "hp"},
+			},
+			VLANPolicy: config.RadiusVLANPolicyConfig{
+				Enabled:        true,
+				FailClosed:     true,
+				MaxTaggedVLANs: 10,
+				RolePolicies: []config.RadiusVLANRolePolicy{
+					{
+						Role:        "printer",
+						DataVLAN:    30,
+						VoiceVLAN:   40,
+						TaggedVLANs: []int{50},
+						VendorPacks: []string{"standard", "aegisnas", "hp"},
+					},
+				},
 			},
 		},
 	}
@@ -137,6 +150,12 @@ func TestGeneratorRendersMABAuthorizeEntries(t *testing.T) {
 	assert.Contains(t, fullCfg.Users, `"aabbccddeeff" Auth-Type := Accept`)
 	assert.Contains(t, fullCfg.Users, `"aabb.ccdd.eeff" Auth-Type := Accept`)
 	assert.Contains(t, fullCfg.Users, `Tunnel-Private-Group-Id := "30"`)
+	assert.Contains(t, fullCfg.Users, `Egress-VLANID := `+strconv.Itoa(int(EncodeEgressVLANID(40, true))))
+	assert.Contains(t, fullCfg.Users, `Egress-VLANID := `+strconv.Itoa(int(EncodeEgressVLANID(50, true))))
+	assert.Contains(t, fullCfg.Users, `AegisNAS-VLAN-Policy := "voice-data"`)
+	assert.Contains(t, fullCfg.Users, `AegisNAS-Data-VLAN := 30`)
+	assert.Contains(t, fullCfg.Users, `AegisNAS-Voice-VLAN := 40`)
+	assert.Contains(t, fullCfg.Users, `AegisNAS-Tagged-VLAN := 50`)
 }
 
 func TestGeneratorRendersMultiRealmProxyRoutes(t *testing.T) {

@@ -28,6 +28,15 @@ const (
 	AegisNASVendorAttrACLRule          byte = 13
 	AegisNASVendorAttrServiceChain     byte = 14
 	AegisNASVendorAttrServiceName      byte = 15
+	AegisNASVendorAttrDataVLAN         byte = 16
+	AegisNASVendorAttrVoiceVLAN        byte = 17
+	AegisNASVendorAttrTaggedVLAN       byte = 18
+	AegisNASVendorAttrQinQOuterVLAN    byte = 19
+	AegisNASVendorAttrQinQInnerVLAN    byte = 20
+	AegisNASVendorAttrVLANPool         byte = 21
+	AegisNASVendorAttrFallbackVLAN     byte = 22
+	AegisNASVendorAttrAuthFailVLAN     byte = 23
+	AegisNASVendorAttrVLANPolicy       byte = 24
 )
 
 type inboundVendorValueKind string
@@ -392,6 +401,55 @@ func applyProductVendorID(result *BrokerAuthResult, packet *layehradius.Packet, 
 		if value, ok := lookupVendorInteger(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrVLAN)); ok {
 			result.VendorVLAN = int(value)
 			result.HasVendorVLAN = true
+		}
+	}
+	if !result.HasVendorVLAN {
+		if value, ok := lookupVendorInteger(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrDataVLAN)); ok {
+			result.VendorVLAN = int(value)
+			result.HasVendorVLAN = true
+		}
+	}
+	if !result.HasVendorVoiceVLAN {
+		if value, ok := lookupVendorInteger(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrVoiceVLAN)); ok {
+			result.VendorVoiceVLAN = int(value)
+			result.HasVendorVoiceVLAN = true
+		}
+	}
+	if tagged := lookupVendorIntegerList(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTaggedVLAN)); len(tagged) > 0 {
+		result.VendorTaggedVLANs = appendUniqueVLANs(result.VendorTaggedVLANs, 0, tagged...)
+	}
+	if !result.HasVendorQinQOuterVLAN {
+		if value, ok := lookupVendorInteger(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrQinQOuterVLAN)); ok {
+			result.VendorQinQOuterVLAN = int(value)
+			result.HasVendorQinQOuterVLAN = true
+		}
+	}
+	if !result.HasVendorQinQInnerVLAN {
+		if value, ok := lookupVendorInteger(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrQinQInnerVLAN)); ok {
+			result.VendorQinQInnerVLAN = int(value)
+			result.HasVendorQinQInnerVLAN = true
+		}
+	}
+	if result.VendorVLANPool == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrVLANPool)); ok {
+			result.VendorVLANPool = value
+		}
+	}
+	if !result.HasVendorFallbackVLAN {
+		if value, ok := lookupVendorInteger(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrFallbackVLAN)); ok {
+			result.VendorFallbackVLAN = int(value)
+			result.HasVendorFallbackVLAN = true
+		}
+	}
+	if !result.HasVendorAuthFailVLAN {
+		if value, ok := lookupVendorInteger(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrAuthFailVLAN)); ok {
+			result.VendorAuthFailVLAN = int(value)
+			result.HasVendorAuthFailVLAN = true
+		}
+	}
+	if result.VendorVLANPolicy == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrVLANPolicy)); ok {
+			result.VendorVLANPolicy = value
 		}
 	}
 	if !result.HasVendorQuarantine {
@@ -810,6 +868,23 @@ func lookupVendorStrings(packet *layehradius.Packet, vendorID uint32, typ byte) 
 	values := make([]string, 0, len(attrs))
 	for _, attr := range attrs {
 		values = append(values, string(attr))
+	}
+	return values
+}
+
+func lookupVendorIntegerList(packet *layehradius.Packet, vendorID uint32, typ byte) []int {
+	attrs := LookupVendorAttributeValues(packet, vendorID, uint32(typ))
+	values := make([]int, 0, len(attrs))
+	for _, attr := range attrs {
+		switch len(attr) {
+		case 4:
+			values = append(values, int(binary.BigEndian.Uint32(attr)))
+		default:
+			value, err := layehradius.Integer(attr)
+			if err == nil && value >= 0 {
+				values = append(values, int(value))
+			}
+		}
 	}
 	return values
 }

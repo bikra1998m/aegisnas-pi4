@@ -4515,6 +4515,58 @@ func TestConfigValidationRejectsProxyPolicyInvalidRewrite(t *testing.T) {
 	assert.ErrorContains(t, cfg.Validate(), "attribute must be User-Name")
 }
 
+func TestValidateRadiusVLANPolicy(t *testing.T) {
+	valid := RadiusVLANPolicyConfig{
+		Enabled:             true,
+		FailClosed:          true,
+		MaxTaggedVLANs:      10,
+		DefaultFallbackVLAN: 99,
+		DefaultAuthFailVLAN: 98,
+		Pools: []RadiusVLANPoolConfig{
+			{Name: "branch-data", VLANs: []int{20, 21}, Strategy: "hash-calling-station"},
+		},
+		RolePolicies: []RadiusVLANRolePolicy{
+			{
+				Role:         "voice-device",
+				DataVLAN:     20,
+				VoiceVLAN:    30,
+				TaggedVLANs:  []int{40},
+				Pool:         "branch-data",
+				FallbackVLAN: 99,
+				AuthFailVLAN: 98,
+				QinQ:         RadiusQinQConfig{Enabled: true, OuterVLAN: 3000, InnerVLAN: 20, Mode: "provider-bridge"},
+				VendorPacks:  []string{"standard", "aegisnas", "extreme"},
+			},
+		},
+	}
+	assert.NoError(t, validateRadiusVLANPolicy(valid))
+
+	missingPool := valid
+	missingPool.RolePolicies = append([]RadiusVLANRolePolicy(nil), valid.RolePolicies...)
+	missingPool.RolePolicies[0].Pool = "missing"
+	assert.ErrorContains(t, validateRadiusVLANPolicy(missingPool), "does not match a configured pool")
+
+	duplicateTagged := valid
+	duplicateTagged.RolePolicies = append([]RadiusVLANRolePolicy(nil), valid.RolePolicies...)
+	duplicateTagged.RolePolicies[0].TaggedVLANs = []int{30}
+	assert.ErrorContains(t, validateRadiusVLANPolicy(duplicateTagged), "duplicates VLAN")
+
+	duplicateVoice := valid
+	duplicateVoice.RolePolicies = append([]RadiusVLANRolePolicy(nil), valid.RolePolicies...)
+	duplicateVoice.RolePolicies[0].VoiceVLAN = 20
+	assert.ErrorContains(t, validateRadiusVLANPolicy(duplicateVoice), "duplicates VLAN")
+
+	unsafeQinQ := valid
+	unsafeQinQ.RolePolicies = append([]RadiusVLANRolePolicy(nil), valid.RolePolicies...)
+	unsafeQinQ.RolePolicies[0].QinQ = RadiusQinQConfig{Enabled: false, OuterVLAN: 3000}
+	assert.ErrorContains(t, validateRadiusVLANPolicy(unsafeQinQ), "qinq.enabled must be true")
+
+	unknownPack := valid
+	unknownPack.RolePolicies = append([]RadiusVLANRolePolicy(nil), valid.RolePolicies...)
+	unknownPack.RolePolicies[0].VendorPacks = []string{"made-up"}
+	assert.ErrorContains(t, validateRadiusVLANPolicy(unknownPack), "unknown")
+}
+
 func baseProxyRoutingValidationConfig() *Config {
 	return &Config{
 		Mode: "two-nic",

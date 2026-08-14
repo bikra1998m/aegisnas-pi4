@@ -416,6 +416,11 @@ func (g *Generator) renderUsers() (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("build RADIUS reply for %s: %w", user.username, err)
 		}
+		ApplyConfiguredVLANPolicyToReplyAttributes(g.cfg, attrs, VLANPolicyCompileRequest{
+			Role:             user.role,
+			VLAN:             attrs.VLAN,
+			CallingStationID: user.username,
+		})
 		items := BuildReplyAttributeItemsForVendorConfig(attrs, g.cfg.Radius.Vendor.CompatibilityPacks, g.cfg.Radius.Vendor)
 		fmt.Fprintf(&out, "\"%s\" Crypt-Password := \"%s\"\n", escapeReplyValue(user.username), escapeReplyValue(user.passwordHash))
 		for index, item := range items {
@@ -469,7 +474,7 @@ func (g *Generator) renderMABAuthorizeUsers(out *strings.Builder) error {
 		if role == "" {
 			role = policy.DefaultRole
 		}
-		attrs, err := buildMABReplyAttributes(endpoint, role, status)
+		attrs, err := buildMABReplyAttributes(g.cfg, endpoint, role, status)
 		if err != nil {
 			return err
 		}
@@ -509,7 +514,7 @@ func (g *Generator) renderMABAuthorizeUsers(out *strings.Builder) error {
 	return nil
 }
 
-func buildMABReplyAttributes(endpoint db.MABEndpoint, role, status string) (*ReplyAttributes, error) {
+func buildMABReplyAttributes(cfg *config.Config, endpoint db.MABEndpoint, role, status string) (*ReplyAttributes, error) {
 	var attrs *ReplyAttributes
 	var err error
 	if strings.TrimSpace(role) != "" {
@@ -549,6 +554,12 @@ func buildMABReplyAttributes(endpoint db.MABEndpoint, role, status string) (*Rep
 	attrs.DeviceGroup = strings.TrimSpace(endpoint.DeviceGroup)
 	attrs.HasQuarantine = status == "quarantined"
 	attrs.Quarantine = status == "quarantined"
+	ApplyConfiguredVLANPolicyToReplyAttributes(cfg, attrs, VLANPolicyCompileRequest{
+		Role:             role,
+		VLAN:             attrs.VLAN,
+		CallingStationID: endpoint.MAC,
+		Quarantined:      status == "quarantined",
+	})
 	return attrs, nil
 }
 

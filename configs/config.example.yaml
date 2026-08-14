@@ -365,6 +365,31 @@ radius:
     default_nas_type: other
     default_transport: udp
     default_template: default
+  vlan_policy:
+    enabled: true
+    fail_closed: true
+    max_tagged_vlans: 10
+    default_fallback_vlan: 99
+    default_auth_fail_vlan: 98
+    pools:
+      - name: "branch-data"
+        vlans: [21, 22, 23]
+        strategy: "hash-calling-station" # first, hash-calling-station, hash-nas, or hash-role.
+    role_policies:
+      - role: "voice-device"
+        data_vlan: 21 # Optional when pool is used; pool selection wins.
+        voice_vlan: 30
+        tagged_vlans: [40, 50]
+        pool: "branch-data"
+        fallback_vlan: 99
+        auth_fail_vlan: 98
+        qinq:
+          enabled: false
+          outer_vlan: 0
+          inner_vlan: 0
+          mode: "provider-bridge" # provider-bridge or selective-qinq.
+        vendor_packs: ["standard", "aegisnas", "hp", "extreme"]
+        description: "Phones receive tagged voice VLAN and branch data pool."
   packet_hardening:
     enabled: true
     fail_closed: true

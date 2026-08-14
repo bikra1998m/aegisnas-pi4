@@ -349,6 +349,45 @@ Use `/api/v1/system/vlan-lifecycle/history` and the support bundle files
 `api/vlan-lifecycle.json` and `api/vlan-lifecycle-history.json` during bridge,
 VLAN, hostapd, CoA VLAN-change, or rollback investigations.
 
+Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
+before changing role policy:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"role":"voice-device","calling_station_id":"aa:bb:cc:dd:ee:ff","nas_identifier":"branch-ap-01","pack_keys":["standard","aegisnas","hp","extreme"]}' \
+  http://127.0.0.1:8083/api/v1/system/vlan-policy/compile \
+  | jq '.event_id, .result.status, .result.decision, .result.attributes'
+```
+
+Preview auth-fail or fallback behavior without changing live state:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"role":"voice-device","auth_failed":true}' \
+  http://127.0.0.1:8083/api/v1/system/vlan-policy/preview \
+  | jq '.result.status, .result.decision.assignment_mode, .result.diagnostics'
+```
+
+Decompile observed packet attributes during a vendor smoke test or support
+case:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"pack_key":"aegisnas","attributes":[{"name":"AegisNAS-Data-VLAN","value":"21"},{"name":"AegisNAS-Voice-VLAN","value":"30"}]}' \
+  http://127.0.0.1:8083/api/v1/system/vlan-policy/decompile \
+  | jq '.event_id, .result.decision'
+```
+
+Use `/api/v1/system/vlan-policy`, `/api/v1/system/vlan-policy/history`, and
+the support bundle files `api/vlan-policy.json` and
+`api/vlan-policy-history.json` during tagged VLAN, QinQ, pool, fallback, and
+auth-fail investigations. Local Linux bridge and hostapd changes are still
+owned by the VLAN lifecycle API; the VLAN policy compiler owns RADIUS reply
+semantics and evidence.
+
 Create an aggregate scheduler override for an existing bandwidth profile:
 
 ```bash

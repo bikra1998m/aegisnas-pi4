@@ -596,6 +596,49 @@ writes only owned local artifacts and records rollback snapshots; external APs
 and controllers still receive the standard or vendor-specific RADIUS VLAN
 attributes through the reply renderer.
 
+NAS-0054 adds the portable tagged VLAN and QinQ policy compiler. Prefer this
+for new role intent because it covers one data VLAN, one tagged voice VLAN,
+extra tagged VLANs, deterministic VLAN pools, fallback VLANs, auth-fail VLANs,
+and QinQ provider intent with one normalized config model:
+
+```yaml
+radius:
+  vendor:
+    compatibility_packs: [standard, aegisnas, hp, extreme]
+  vlan_policy:
+    enabled: true
+    fail_closed: true
+    max_tagged_vlans: 10
+    default_fallback_vlan: 99
+    default_auth_fail_vlan: 98
+    pools:
+      - name: branch-data
+        vlans: [21, 22, 23]
+        strategy: hash-calling-station
+    role_policies:
+      - role: voice-device
+        voice_vlan: 30
+        tagged_vlans: [40]
+        pool: branch-data
+        fallback_vlan: 99
+        auth_fail_vlan: 98
+        qinq:
+          enabled: true
+          outer_vlan: 3000
+          inner_vlan: 21
+          mode: provider-bridge
+        vendor_packs: [standard, aegisnas, hp, extreme]
+```
+
+The compiler renders RFC 2868 tunnel attributes, RFC 4675 `Egress-VLANID`,
+AegisNAS product VSAs, Extreme extended VLAN output, and HP egress VLAN output
+where the selected pack supports it. Generated FreeRADIUS local-user and MAB
+entries call the same compiler, while `/api/v1/system/vlan-policy/compile` and
+`/api/v1/system/vlan-policy/decompile` store packet evidence in
+`vlan_policy_events`. Native QinQ behavior still requires per-vendor hardware
+certification before release notes claim device parity. See
+[Tagged VLAN And QinQ Policy](tagged-vlan-qinq-policy.md).
+
 Juniper, Huawei, H3C, and Arista AVPair strings vary by device family and firmware. Configure only values validated against the target device:
 
 ```yaml

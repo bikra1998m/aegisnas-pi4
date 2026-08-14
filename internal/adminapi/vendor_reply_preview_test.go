@@ -109,6 +109,36 @@ func TestHandlePreviewVendorReplyForCustomNASProfileUsesGlobalPacks(t *testing.T
 	assert.Contains(t, payload.Warnings, "unknown NAS type uses global compatibility packs")
 }
 
+func TestHandlePreviewVendorReplyRendersAdvancedVLANPolicyFields(t *testing.T) {
+	body := `{
+		"nas_type": "other",
+		"compatibility_packs": ["standard", "aegisnas", "extreme", "hp"],
+		"role": "voice-device",
+		"data_vlan": 21,
+		"voice_vlan": 30,
+		"tagged_vlans": [40, 50, 40],
+		"qinq_outer_vlan": 3000,
+		"qinq_inner_vlan": 21,
+		"vlan_pool": "branch-data",
+		"fallback_vlan": 99,
+		"auth_fail_vlan": 98,
+		"vlan_policy_mode": "voice-data"
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/system/vendor-reply-preview", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+
+	HandlePreviewVendorReply(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"AegisNAS-Data-VLAN"`)
+	assert.Contains(t, rec.Body.String(), `"AegisNAS-Voice-VLAN"`)
+	assert.Contains(t, rec.Body.String(), `"AegisNAS-Tagged-VLAN"`)
+	assert.Contains(t, rec.Body.String(), `"AegisNAS-QinQ-Outer-VLAN"`)
+	assert.Contains(t, rec.Body.String(), `"AegisNAS-VLAN-Pool"`)
+	assert.Contains(t, rec.Body.String(), `"Extreme-Netlogin-Extended-Vlan"`)
+	assert.Contains(t, rec.Body.String(), "Egress-VLANID")
+}
+
 func TestHandlePreviewVendorReplyRejectsInvalidRequest(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/system/vendor-reply-preview", bytes.NewBufferString(`{"vlan": -1}`))
 	rec := httptest.NewRecorder()

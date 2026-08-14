@@ -60,7 +60,19 @@ type BrokerAuthResult struct {
 	VendorAVPairs            []string
 	VendorVLAN               int
 	HasVendorVLAN            bool
+	VendorVoiceVLAN          int
+	HasVendorVoiceVLAN       bool
 	VendorTaggedVLANs        []int
+	VendorQinQOuterVLAN      int
+	HasVendorQinQOuterVLAN   bool
+	VendorQinQInnerVLAN      int
+	HasVendorQinQInnerVLAN   bool
+	VendorVLANPool           string
+	VendorVLANPolicy         string
+	VendorFallbackVLAN       int
+	HasVendorFallbackVLAN    bool
+	VendorAuthFailVLAN       int
+	HasVendorAuthFailVLAN    bool
 	VendorMaxTotalOctets     uint64
 	HasVendorMaxTotalOctets  bool
 	VendorQuarantine         bool

@@ -1058,6 +1058,32 @@ type SystemStatus = {
       };
       evidence_error?: string;
     };
+    vlan_policy?: {
+      status?: string;
+      message?: string;
+      compiler_version?: number;
+      enabled?: boolean;
+      policy_count?: number;
+      pool_count?: number;
+      pool_vlan_count?: number;
+      voice_policies?: number;
+      qinq_policies?: number;
+      fallback_count?: number;
+      auth_fail_count?: number;
+      evidence_summary?: {
+        total_events?: number;
+        compiled_count?: number;
+        previewed_count?: number;
+        decompiled_count?: number;
+        blocked_count?: number;
+        degraded_count?: number;
+        failed_count?: number;
+        last_status?: string;
+        last_role?: string;
+        last_effective_vlan?: number;
+      };
+      evidence_error?: string;
+    };
     eap_framework?: EAPFrameworkReport;
     eap_teap?: TEAPReport;
     eap_machine_user?: MachineUserReport;
@@ -1701,6 +1727,7 @@ export default function Dashboard() {
   const accountingServices = systemStatus.radius?.accounting_services;
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
   const rateCompiler = systemStatus.radius?.rate_compiler;
+  const vlanPolicy = systemStatus.radius?.vlan_policy;
   const eapFramework = systemStatus.radius?.eap_framework;
   const teapReport = systemStatus.radius?.eap_teap;
   const machineUserReport = systemStatus.radius?.eap_machine_user;
@@ -4318,6 +4345,38 @@ export default function Dashboard() {
                     ) : null}
                   </div>
                   <StatusBadge status={rateCompiler?.status || "unknown"} />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      Tagged VLAN And QinQ Policy
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {vlanPolicy
+                        ? `${vlanPolicy.policy_count || 0} role policies, ${vlanPolicy.pool_count || 0} pools, ${vlanPolicy.voice_policies || 0} voice policies, ${vlanPolicy.qinq_policies || 0} QinQ policies.`
+                        : "No tagged VLAN policy status has been evaluated yet."}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {vlanPolicy?.message ||
+                        "Compile VLAN intent before changing voice, trunk, or provider-bridge assignments."}
+                    </div>
+                    {vlanPolicy?.evidence_summary ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {`Evidence ${vlanPolicy.evidence_summary.total_events || 0}, compiled ${vlanPolicy.evidence_summary.compiled_count || 0}, previews ${vlanPolicy.evidence_summary.previewed_count || 0}, decompiled ${vlanPolicy.evidence_summary.decompiled_count || 0}, blocked ${vlanPolicy.evidence_summary.blocked_count || 0}, degraded ${vlanPolicy.evidence_summary.degraded_count || 0}.`}
+                      </div>
+                    ) : null}
+                    {vlanPolicy?.evidence_summary?.last_role ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Last role {vlanPolicy.evidence_summary.last_role},
+                        VLAN{" "}
+                        {vlanPolicy.evidence_summary.last_effective_vlan || 0},
+                        status {vlanPolicy.evidence_summary.last_status}.
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge status={vlanPolicy?.status || "unknown"} />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">

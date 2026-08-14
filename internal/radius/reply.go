@@ -25,6 +25,16 @@ type ReplyAttributes struct {
 	TunnelType            string // "VLAN"
 	TunnelMediumType      string // "IEEE-802"
 	TunnelPrivateGroupID  string // VLAN ID as string
+	DataVLAN              int
+	VoiceVLAN             int
+	TaggedVLANs           []int
+	QinQOuterVLAN         int
+	QinQInnerVLAN         int
+	VLANPool              string
+	FallbackVLAN          int
+	AuthFailVLAN          int
+	VLANPolicyMode        string
+	VLANPolicyFingerprint string
 	MikrotikRateLimit     string // MikroTik specific, but widely used
 	WISPrBandwidthMaxDown int
 	WISPrBandwidthMaxUp   int
@@ -216,7 +226,9 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendNumericRoleItem(attrs, packKey, vendor.RoleMappings, appendItem, "Cambium-Auth-Role")
 		case productconfigs.VendorPackExtreme:
 			appendItem("Extreme-Security-Profile", replyRole(attrs), true)
-			if extendedVLAN, ok := extremeExtendedVLANValue(vendor.ExtendedVLANMappings, replyRole(attrs)); ok {
+			if hasVLANPolicyReplyAttributes(attrs) {
+				// NAS-0054 policy output is appended below as an extended VLAN assignment.
+			} else if extendedVLAN, ok := extremeExtendedVLANValue(vendor.ExtendedVLANMappings, replyRole(attrs)); ok {
 				appendItem("Extreme-Netlogin-Extended-Vlan", extendedVLAN, true)
 			} else if vlan := replyVLAN(attrs); vlan > 0 {
 				appendItem("Extreme-Netlogin-Vlan", fmt.Sprintf("%d", vlan), true)
@@ -275,7 +287,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendURLItem(attrs, appendItem, "Captive-Portal-URL", attrs.PortalProfile)
 			appendRateKbpsItem(attrs, appendItem, "Bandwidth-Max-Egress", attrs.WISPrBandwidthMaxDown)
 			appendRateKbpsItem(attrs, appendItem, "Bandwidth-Max-Ingress", attrs.WISPrBandwidthMaxUp)
-			if vlan := replyVLAN(attrs); vlan > 0 {
+			if vlan := replyVLAN(attrs); vlan > 0 && !hasVLANPolicyReplyAttributes(attrs) {
 				appendItem("Egress-VLANID", fmt.Sprintf("%d", vlan), false)
 			}
 		case productconfigs.VendorPackNomadix:
@@ -329,8 +341,71 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendItem("AVPair", firstReplyValue(attrs.PolicyTag, attrs.ACLPolicyName, attrs.FilterID), true)
 			appendBooleanIntegerItem(attrs.HasQuarantine, attrs.Quarantine, appendItem, "Intercept")
 		}
+		appendVLANPolicyReplyAttributes(attrs, packKey, appendItem)
 	}
 	return items
+}
+
+func appendVLANPolicyReplyAttributes(attrs *ReplyAttributes, packKey string, appendItem func(string, string, bool)) {
+	if !hasVLANPolicyReplyAttributes(attrs) {
+		return
+	}
+	decision := vlanPolicyDecisionFromReplyAttributes(attrs)
+	for _, item := range BuildVLANPolicyAttributes(decision, []string{packKey}) {
+		appendItem(item.Name, item.Value, item.Quoted)
+	}
+}
+
+func hasVLANPolicyReplyAttributes(attrs *ReplyAttributes) bool {
+	if attrs == nil {
+		return false
+	}
+	return attrs.DataVLAN > 0 ||
+		attrs.VoiceVLAN > 0 ||
+		len(attrs.TaggedVLANs) > 0 ||
+		attrs.QinQOuterVLAN > 0 ||
+		attrs.QinQInnerVLAN > 0 ||
+		strings.TrimSpace(attrs.VLANPool) != "" ||
+		attrs.FallbackVLAN > 0 ||
+		attrs.AuthFailVLAN > 0 ||
+		strings.TrimSpace(attrs.VLANPolicyMode) != "" ||
+		strings.TrimSpace(attrs.VLANPolicyFingerprint) != ""
+}
+
+func vlanPolicyDecisionFromReplyAttributes(attrs *ReplyAttributes) VLANPolicyDecision {
+	if attrs == nil {
+		return VLANPolicyDecision{}
+	}
+	dataVLAN := firstPositiveInt(attrs.DataVLAN, replyVLAN(attrs))
+	mode := strings.ToLower(strings.TrimSpace(attrs.VLANPolicyMode))
+	if mode == "" {
+		switch {
+		case attrs.QinQOuterVLAN > 0 || attrs.QinQInnerVLAN > 0:
+			mode = "qinq"
+		case strings.TrimSpace(attrs.VLANPool) != "":
+			mode = "pool"
+		case attrs.VoiceVLAN > 0 || len(attrs.TaggedVLANs) > 0:
+			mode = "voice-data"
+		default:
+			mode = "access"
+		}
+	}
+	return VLANPolicyDecision{
+		Role:           replyRole(attrs),
+		PolicySource:   "reply_attributes",
+		AssignmentMode: mode,
+		EffectiveVLAN:  firstPositiveInt(replyVLAN(attrs), dataVLAN),
+		DataVLAN:       dataVLAN,
+		VoiceVLAN:      attrs.VoiceVLAN,
+		TaggedVLANs:    normalizeVLANList(attrs.TaggedVLANs),
+		PoolName:       strings.TrimSpace(attrs.VLANPool),
+		FallbackVLAN:   attrs.FallbackVLAN,
+		AuthFailVLAN:   attrs.AuthFailVLAN,
+		QinQEnabled:    attrs.QinQOuterVLAN > 0 || attrs.QinQInnerVLAN > 0,
+		QinQMode:       "provider-bridge",
+		QinQOuterVLAN:  attrs.QinQOuterVLAN,
+		QinQInnerVLAN:  attrs.QinQInnerVLAN,
+	}
 }
 
 func appendACLCompilerReplyAttributes(attrs *ReplyAttributes, packKey string, appendItem func(string, string, bool)) {
@@ -367,7 +442,7 @@ func appendStandardReplyAttributes(attrs *ReplyAttributes, appendItem func(strin
 	} else if attrs.Role != "" {
 		appendItem("Filter-Id", attrs.Role, true)
 	}
-	if vlan := replyVLAN(attrs); vlan > 0 {
+	if vlan := replyVLAN(attrs); vlan > 0 && !hasVLANPolicyReplyAttributes(attrs) {
 		tunnelType := firstReplyValue(attrs.TunnelType, "VLAN")
 		tunnelMedium := firstReplyValue(attrs.TunnelMediumType, "IEEE-802")
 		appendItem("Tunnel-Type", tunnelType, false)
@@ -379,7 +454,7 @@ func appendStandardReplyAttributes(attrs *ReplyAttributes, appendItem func(strin
 func appendAegisNASReplyAttributes(attrs *ReplyAttributes, appendItem func(string, string, bool)) {
 	appendItem("AegisNAS-Role", replyRole(attrs), true)
 	appendItem("AegisNAS-Bandwidth-Profile", attrs.BandwidthProfile, true)
-	if vlan := replyVLAN(attrs); vlan > 0 {
+	if vlan := replyVLAN(attrs); vlan > 0 && !hasVLANPolicyReplyAttributes(attrs) {
 		appendItem("AegisNAS-VLAN", fmt.Sprintf("%d", vlan), false)
 	}
 	if attrs.HasQuarantine {

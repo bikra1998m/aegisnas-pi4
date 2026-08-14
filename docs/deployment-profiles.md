@@ -12,6 +12,7 @@ The current implementation adds a profile-aware control plane through:
 - `ailite.mode`
 - `policy.runtime_shaping_enabled`
 - `policy.runtime_vlan_lifecycle_enabled`
+- `radius.vlan_policy`
 - `wireless.hostapd_vlan_file_path`
 
 Use this guide together with:
@@ -34,6 +35,8 @@ Recommended direction:
 - disable telemetry
 - disable runtime shaping
 - disable runtime VLAN lifecycle unless the appliance owns the downstream trunk
+- keep `radius.vlan_policy.enabled: true` for external AP/switch RADIUS
+  replies; keep local apply workflows disabled unless the trunk is owned
 - reduce `radius.max_sessions`
 - keep accounting charging enabled, but use small CDR batches and shorter
   CDR/export retention
@@ -64,6 +67,7 @@ Recommended direction:
 - `ailite.mode: lite`
 - telemetry on
 - runtime shaping on when needed
+- tagged VLAN/QinQ policy enabled for vendor-safe voice/data assignments
 - keep full AI blocked until `ailite.endpoint` and `ailite.model` are configured
 - normal upstream AAA probing
 - keep accounting charging, rating, and export enabled with moderate CDR
@@ -92,6 +96,8 @@ Recommended direction:
 - full AI mode on when a provider endpoint and model are configured
 - telemetry on
 - runtime shaping on
+- tagged VLAN/QinQ policy on with vendor certification evidence for each
+  hardware family in scope
 - larger `radius.max_sessions`
 - use larger CDR batches, longer CDR/export retention, and a larger integrity
   verification sample for billing evidence

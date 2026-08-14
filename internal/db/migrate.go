@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 58
+	return 59
 }
 
 func Migrate() error {
@@ -3133,3 +3133,39 @@ CREATE INDEX IF NOT EXISTS idx_vlan_lifecycle_events_snapshot ON vlan_lifecycle_
 `
 
 const schemaV58 = vlanLifecycleEvidenceSQL
+
+const vlanPolicyEvidenceSQL = `
+CREATE TABLE IF NOT EXISTS vlan_policy_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	role TEXT,
+	pool_name TEXT,
+	effective_vlan INTEGER DEFAULT 0,
+	data_vlan INTEGER DEFAULT 0,
+	voice_vlan INTEGER DEFAULT 0,
+	tagged_vlan_count INTEGER DEFAULT 0,
+	qinq_outer_vlan INTEGER DEFAULT 0,
+	qinq_inner_vlan INTEGER DEFAULT 0,
+	fallback_vlan INTEGER DEFAULT 0,
+	auth_fail_vlan INTEGER DEFAULT 0,
+	attribute_count INTEGER DEFAULT 0,
+	diagnostic_count INTEGER DEFAULT 0,
+	fingerprint TEXT,
+	request_json TEXT NOT NULL DEFAULT '{}',
+	response_json TEXT NOT NULL DEFAULT '{}',
+	diagnostics_json TEXT NOT NULL DEFAULT '[]',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('compile', 'preview', 'decompile')),
+	CHECK (status IN ('compiled', 'previewed', 'decompiled', 'blocked', 'degraded', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_vlan_policy_events_created ON vlan_policy_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_vlan_policy_events_status ON vlan_policy_events(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_vlan_policy_events_role ON vlan_policy_events(role, created_at);
+CREATE INDEX IF NOT EXISTS idx_vlan_policy_events_fingerprint ON vlan_policy_events(fingerprint, created_at);
+`
+
+const schemaV59 = vlanPolicyEvidenceSQL

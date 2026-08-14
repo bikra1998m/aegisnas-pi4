@@ -69,6 +69,7 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 	capabilities := []FeatureCapability{
 		evaluateLocalWirelessCapability(cfg, preset),
 		evaluateDynamicVLANLifecycleCapability(cfg, preset),
+		evaluateTaggedVLANPolicyCapability(cfg, preset),
 		evaluateRuntimeShapingCapability(cfg, preset),
 		evaluateAIModeCapability(cfg),
 		evaluateTelemetryCapability(cfg),
@@ -91,6 +92,60 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 		evaluateMultiTenantCapability(cfg),
 	}
 	return applyHardwareScalingGates(cfg, capabilities)
+}
+
+func evaluateTaggedVLANPolicyCapability(cfg *Config, preset deploymentPreset) FeatureCapability {
+	active := cfg.Radius.VLANPolicy.Enabled
+	capability := FeatureCapability{
+		Key:    "tagged_vlan_qinq_policy",
+		Label:  "Tagged VLAN/QinQ Policy",
+		Active: active,
+	}
+	hasIntent := len(cfg.Radius.VLANPolicy.RolePolicies) > 0 || len(cfg.Radius.VLANPolicy.Pools) > 0
+	advancedIntent := false
+	for _, policy := range cfg.Radius.VLANPolicy.RolePolicies {
+		if policy.VoiceVLAN > 0 || len(policy.TaggedVLANs) > 0 || policy.QinQ.Enabled || policy.Pool != "" || policy.FallbackVLAN > 0 || policy.AuthFailVLAN > 0 {
+			advancedIntent = true
+			break
+		}
+	}
+
+	switch {
+	case !active:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Tagged VLAN and QinQ policy compilation is supported but disabled."
+		capability.Dependencies = []string{"radius.vlan_policy.enabled"}
+	case active && !hasIntent:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Tagged VLAN and QinQ policy compilation is ready; no role policy or pool is configured yet."
+	case active && cfg.Radius.VLANPolicy.FailClosed && cfg.Radius.VLANPolicy.DefaultFallbackVLAN == 0 && !hasRoleVLANPolicyFallback(cfg):
+		capability.State = CapabilityBlocked
+		capability.Summary = "Tagged VLAN policy is fail-closed without a default or per-role fallback VLAN."
+		capability.Dependencies = []string{"radius.vlan_policy.default_fallback_vlan", "radius.vlan_policy.role_policies[].fallback_vlan"}
+	case constrainedPlatform(cfg, preset) && advancedIntent && cfg.Radius.VLANPolicy.MaxTaggedVLANs > 16:
+		capability.State = CapabilityWarned
+		capability.Summary = "Tagged VLAN policy is active with a high tagged-VLAN limit on constrained hardware."
+		capability.Recommendation = "Keep max_tagged_vlans at 16 or lower on lite and small branch appliances."
+	case active && advancedIntent:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail policy compilation is active."
+	default:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Tagged VLAN policy compilation is active for simple data VLAN roles."
+	}
+	return capability
+}
+
+func hasRoleVLANPolicyFallback(cfg *Config) bool {
+	if cfg == nil {
+		return false
+	}
+	for _, policy := range cfg.Radius.VLANPolicy.RolePolicies {
+		if policy.FallbackVLAN > 0 || policy.DataVLAN > 0 || strings.TrimSpace(policy.Pool) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func evaluateDynamicVLANLifecycleCapability(cfg *Config, preset deploymentPreset) FeatureCapability {

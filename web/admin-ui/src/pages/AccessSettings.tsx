@@ -1586,6 +1586,15 @@ const defaultSettings: JsonMap = {
       default_transport: "udp",
       default_template: "default",
     },
+    vlan_policy: {
+      enabled: true,
+      fail_closed: true,
+      max_tagged_vlans: 10,
+      default_fallback_vlan: 0,
+      default_auth_fail_vlan: 0,
+      pools: [],
+      role_policies: [],
+    },
     radsec: {
       enabled: false,
       listen_address: "0.0.0.0",
@@ -2162,6 +2171,18 @@ const quotaPackOptions: Option[] = [
 
 const serviceNamePackOptions: Option[] = [
   { value: "nokia", label: "Nokia" },
+];
+
+const vlanPoolStrategyOptions: Option[] = [
+  { value: "hash-calling-station", label: "Hash Calling Station" },
+  { value: "hash-nas", label: "Hash NAS" },
+  { value: "hash-role", label: "Hash Role" },
+  { value: "first", label: "First VLAN" },
+];
+
+const qinqModeOptions: Option[] = [
+  { value: "provider-bridge", label: "Provider Bridge" },
+  { value: "selective-qinq", label: "Selective QinQ" },
 ];
 
 const mdmProviderOptions: Option[] = [
@@ -2893,6 +2914,12 @@ function csvToList(value: string) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function csvToNumberList(value: string) {
+  return csvToList(value)
+    .map((item) => Number(item))
+    .filter((item) => Number.isFinite(item) && item > 0);
 }
 
 function formatMicros(value: number | undefined, currency = "USD") {
@@ -4102,6 +4129,8 @@ export default function AccessSettings() {
   const vendorQuotaMappings = settings.radius?.vendor?.quota_mappings || [];
   const vendorServiceNameMappings =
     settings.radius?.vendor?.service_name_mappings || [];
+  const vlanPolicyPools = settings.radius?.vlan_policy?.pools || [];
+  const vlanRolePolicies = settings.radius?.vlan_policy?.role_policies || [];
   const ssids = settings.wireless?.ssids || [];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
@@ -15874,6 +15903,475 @@ export default function AccessSettings() {
                 ))}
               </div>
             )}
+          </div>
+          <div className="mb-4 border-t border-gray-100 pt-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h5 className="text-sm font-semibold text-gray-900">
+                  Tagged VLAN And QinQ Policy
+                </h5>
+                <p className="mt-1 text-sm text-gray-600">
+                  Compile data, voice, tagged, pool, fallback, auth-fail, and
+                  QinQ intent into vendor-safe RADIUS replies.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() =>
+                    updateField(
+                      ["radius", "vlan_policy", "pools"],
+                      [
+                        ...vlanPolicyPools,
+                        {
+                          name: "",
+                          vlans: [],
+                          strategy: "hash-calling-station",
+                        },
+                      ],
+                    )
+                  }
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+                >
+                  Add Pool
+                </button>
+                <button
+                  onClick={() =>
+                    updateField(
+                      ["radius", "vlan_policy", "role_policies"],
+                      [
+                        ...vlanRolePolicies,
+                        {
+                          role: "",
+                          data_vlan: 0,
+                          voice_vlan: 0,
+                          tagged_vlans: [],
+                          pool: "",
+                          fallback_vlan: 0,
+                          auth_fail_vlan: 0,
+                          qinq: {
+                            enabled: false,
+                            outer_vlan: 0,
+                            inner_vlan: 0,
+                            mode: "provider-bridge",
+                          },
+                          vendor_packs: [],
+                          description: "",
+                        },
+                      ],
+                    )
+                  }
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+                >
+                  Add Role Policy
+                </button>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-5">
+              <ToggleField
+                label="Compiler Enabled"
+                checked={settings.radius?.vlan_policy?.enabled !== false}
+                onChange={(value) =>
+                  updateField(["radius", "vlan_policy", "enabled"], value)
+                }
+              />
+              <ToggleField
+                label="Fail Closed"
+                checked={settings.radius?.vlan_policy?.fail_closed !== false}
+                onChange={(value) =>
+                  updateField(["radius", "vlan_policy", "fail_closed"], value)
+                }
+              />
+              <TextField
+                label="Max Tagged VLANs"
+                type="number"
+                value={settings.radius?.vlan_policy?.max_tagged_vlans ?? 10}
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "vlan_policy", "max_tagged_vlans"],
+                    Number(value),
+                  )
+                }
+              />
+              <TextField
+                label="Default Fallback VLAN"
+                type="number"
+                value={
+                  settings.radius?.vlan_policy?.default_fallback_vlan ?? 0
+                }
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "vlan_policy", "default_fallback_vlan"],
+                    Number(value),
+                  )
+                }
+              />
+              <TextField
+                label="Default Auth-Fail VLAN"
+                type="number"
+                value={
+                  settings.radius?.vlan_policy?.default_auth_fail_vlan ?? 0
+                }
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "vlan_policy", "default_auth_fail_vlan"],
+                    Number(value),
+                  )
+                }
+              />
+            </div>
+            <div className="mt-4">
+              <div className="mb-2 text-sm font-medium text-gray-900">
+                VLAN Pools
+              </div>
+              {vlanPolicyPools.length === 0 ? (
+                <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                  No VLAN pools configured.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {vlanPolicyPools.map((pool: JsonMap, index: number) => (
+                    <div
+                      key={`vlan-policy-pool-${index}`}
+                      className="grid gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-[1fr_2fr_1fr_auto]"
+                    >
+                      <TextField
+                        label="Pool Name"
+                        value={pool.name || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vlan_policy",
+                              "pools",
+                              String(index),
+                              "name",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="branch-data"
+                      />
+                      <TextField
+                        label="VLANs"
+                        value={listToCSV(pool.vlans)}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vlan_policy",
+                              "pools",
+                              String(index),
+                              "vlans",
+                            ],
+                            csvToNumberList(value),
+                          )
+                        }
+                        placeholder="21, 22, 23"
+                      />
+                      <SelectField
+                        label="Strategy"
+                        value={pool.strategy || "hash-calling-station"}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "vlan_policy",
+                              "pools",
+                              String(index),
+                              "strategy",
+                            ],
+                            value,
+                          )
+                        }
+                        options={vlanPoolStrategyOptions}
+                      />
+                      <div className="flex items-end">
+                        <button
+                          onClick={() =>
+                            updateField(
+                              ["radius", "vlan_policy", "pools"],
+                              vlanPolicyPools.filter(
+                                (_: unknown, itemIndex: number) =>
+                                  itemIndex !== index,
+                              ),
+                            )
+                          }
+                          className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="mt-4">
+              <div className="mb-2 text-sm font-medium text-gray-900">
+                Role Policies
+              </div>
+              {vlanRolePolicies.length === 0 ? (
+                <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                  No role VLAN policies configured.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {vlanRolePolicies.map((policy: JsonMap, index: number) => (
+                    <div
+                      key={`vlan-role-policy-${index}`}
+                      className="rounded-md border border-gray-200 p-3"
+                    >
+                      <div className="grid gap-3 md:grid-cols-4">
+                        <TextField
+                          label="Role"
+                          value={policy.role || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vlan_policy",
+                                "role_policies",
+                                String(index),
+                                "role",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="voice-device"
+                        />
+                        <TextField
+                          label="Data VLAN"
+                          type="number"
+                          value={policy.data_vlan ?? 0}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vlan_policy",
+                                "role_policies",
+                                String(index),
+                                "data_vlan",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Voice VLAN"
+                          type="number"
+                          value={policy.voice_vlan ?? 0}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vlan_policy",
+                                "role_policies",
+                                String(index),
+                                "voice_vlan",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Tagged VLANs"
+                          value={listToCSV(policy.tagged_vlans)}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vlan_policy",
+                                "role_policies",
+                                String(index),
+                                "tagged_vlans",
+                              ],
+                              csvToNumberList(value),
+                            )
+                          }
+                          placeholder="40, 50"
+                        />
+                        <TextField
+                          label="Pool"
+                          value={policy.pool || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vlan_policy",
+                                "role_policies",
+                                String(index),
+                                "pool",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="branch-data"
+                        />
+                        <TextField
+                          label="Fallback VLAN"
+                          type="number"
+                          value={policy.fallback_vlan ?? 0}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vlan_policy",
+                                "role_policies",
+                                String(index),
+                                "fallback_vlan",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Auth-Fail VLAN"
+                          type="number"
+                          value={policy.auth_fail_vlan ?? 0}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vlan_policy",
+                                "role_policies",
+                                String(index),
+                                "auth_fail_vlan",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Vendor Packs"
+                          value={listToCSV(policy.vendor_packs)}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vlan_policy",
+                                "role_policies",
+                                String(index),
+                                "vendor_packs",
+                              ],
+                              csvToList(value),
+                            )
+                          }
+                          placeholder="standard, aegisnas, hp"
+                        />
+                      </div>
+                      <div className="mt-3 grid gap-3 md:grid-cols-5">
+                        <ToggleField
+                          label="QinQ"
+                          checked={Boolean(policy.qinq?.enabled)}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vlan_policy",
+                                "role_policies",
+                                String(index),
+                                "qinq",
+                                "enabled",
+                              ],
+                              value,
+                            )
+                          }
+                        />
+                        <SelectField
+                          label="QinQ Mode"
+                          value={policy.qinq?.mode || "provider-bridge"}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vlan_policy",
+                                "role_policies",
+                                String(index),
+                                "qinq",
+                                "mode",
+                              ],
+                              value,
+                            )
+                          }
+                          options={qinqModeOptions}
+                        />
+                        <TextField
+                          label="Outer VLAN"
+                          type="number"
+                          value={policy.qinq?.outer_vlan ?? 0}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vlan_policy",
+                                "role_policies",
+                                String(index),
+                                "qinq",
+                                "outer_vlan",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Inner VLAN"
+                          type="number"
+                          value={policy.qinq?.inner_vlan ?? 0}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vlan_policy",
+                                "role_policies",
+                                String(index),
+                                "qinq",
+                                "inner_vlan",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <div className="flex items-end">
+                          <button
+                            onClick={() =>
+                              updateField(
+                                ["radius", "vlan_policy", "role_policies"],
+                                vlanRolePolicies.filter(
+                                  (_: unknown, itemIndex: number) =>
+                                    itemIndex !== index,
+                                ),
+                              )
+                            }
+                            className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <TextField
+                          label="Description"
+                          value={policy.description || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "vlan_policy",
+                                "role_policies",
+                                String(index),
+                                "description",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="Phones receive tagged voice VLAN and branch data pool."
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="mb-4 border-t border-gray-100 pt-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
