@@ -388,6 +388,34 @@ auth-fail investigations. Local Linux bridge and hostapd changes are still
 owned by the VLAN lifecycle API; the VLAN policy compiler owns RADIUS reply
 semantics and evidence.
 
+Compile route and VRF intent for a routed subscriber or branch role:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"role":"branch-vpn","session_id":"session-1","acct_session_id":"acct-1","pack_keys":["standard","aegisnas","cisco"]}' \
+  http://127.0.0.1:8083/api/v1/system/route-policy/compile \
+  | jq '.event_id, .result.status, .result.decision.vrf, .result.attributes'
+```
+
+Preview a route withdrawal without changing active ownership:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"role":"branch-vpn","lifecycle_action":"accounting-stop","pack_keys":["aegisnas","cisco"]}' \
+  http://127.0.0.1:8083/api/v1/system/route-policy/preview \
+  | jq '.result.decision.withdraw, .result.attributes'
+```
+
+Use `/api/v1/system/route-policy`, `/api/v1/system/route-policy/history`, and
+the support bundle files `api/route-policy.json` and
+`api/route-policy-history.json` during per-session route, VRF, route-owner,
+CoA update, and Accounting Stop withdrawal investigations. Preview and
+decompile are evidence-only. Compile updates the software ownership ledger, and
+accounting Stop or Accounting-Off withdraws matching active route ownership
+rows.
+
 Create an aggregate scheduler override for an existing bandwidth profile:
 
 ```bash

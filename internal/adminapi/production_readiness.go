@@ -150,6 +150,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionRuntimeQoSCheck(&report, cfg)
 	addProductionVLANLifecycleCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
+	addProductionRoutePolicyCheck(&report, cfg)
 	addProductionRateCompilerCheck(&report)
 	addProductionPolicySetGovernanceCheck(&report, cfg)
 	addProductionPolicySimulationAnalysisCheck(&report, cfg)
@@ -1485,6 +1486,78 @@ func firstProductionVLANPolicyFallbackVLAN(cfg *config.Config) int {
 		}
 	}
 	return 10
+}
+
+func addProductionRoutePolicyCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	compilerReport := radius.BuildRoutePolicyReport(cfg)
+	sample := radius.CompileRoutePolicy(cfg, radius.RoutePolicyCompileRequest{
+		Role:             firstProductionRoutePolicyRole(cfg),
+		SessionID:        "readiness-session",
+		CallingStationID: "00:11:22:33:44:55",
+		NASIdentifier:    "production-readiness",
+		VRF:              compilerReport.DefaultVRF,
+		Routes:           firstProductionRoutePolicyFallbackRoutes(cfg),
+		PackKeys:         []string{productconfigs.VendorPackStandard, productconfigs.VendorPackAegisNAS, productconfigs.VendorPackCisco, productconfigs.VendorPackJuniper, productconfigs.VendorPackHuawei, productconfigs.VendorPackNokia},
+	})
+	switch sample.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded":
+		status = "degraded"
+	}
+	summary := fmt.Sprintf("Route policy compiler version %d has %d role policy(s), %d VRF(s), %d IPv4 route(s), %d IPv6 route(s), and compiled %d sample attribute(s) with %d diagnostic(s).",
+		compilerReport.CompilerVersion,
+		compilerReport.Summary.PolicyCount,
+		compilerReport.Summary.VRFCount,
+		compilerReport.Summary.IPv4RouteCount,
+		compilerReport.Summary.IPv6RouteCount,
+		len(sample.Attributes),
+		len(sample.Diagnostics))
+	if db.DB == nil {
+		status = "blocked"
+		summary = "Database is not initialized; route policy evidence cannot be verified."
+	} else if evidence, err := db.GetRoutePolicyEventSummary(); err != nil {
+		status = "blocked"
+		summary += " Route policy evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d compiler event(s), %d active route(s), %d withdrawn route(s), %d blocked, %d failed.",
+			evidence.TotalEvents, evidence.ActiveRoutes, evidence.WithdrawnRoutes, evidence.BlockedCount, evidence.FailedCount)
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "per_session_route_vrf_policy",
+		Category:       "policy",
+		Label:          "Per-Session Route Injection And VRF Ownership",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/route-policy/preview before changing route or VRF intent, retain route_policy_events and route_policy_ownership evidence, and complete the NAS-0055 release certification checklist for packet captures, vendor-device route installation, CoA update, Stop withdrawal, HA, and rollback proof.",
+		Dependencies:   []string{"radius.route_policy", "route_policy_events", "route_policy_ownership", "/api/v1/system/route-policy", "/api/v1/system/route-policy/preview", "/api/v1/system/route-policy/decompile", "Framed-Route", "Framed-IPv6-Route", "AegisNAS-VRF", "AegisNAS-Route-Owner", "RFC 2865", "RFC 3162", "RFC 5176"},
+	})
+}
+
+func firstProductionRoutePolicyRole(cfg *config.Config) string {
+	if cfg != nil {
+		for _, policy := range cfg.Radius.RoutePolicy.RolePolicies {
+			if strings.TrimSpace(policy.Role) != "" {
+				return strings.TrimSpace(policy.Role)
+			}
+		}
+	}
+	return "default"
+}
+
+func firstProductionRoutePolicyFallbackRoutes(cfg *config.Config) []radius.RoutePolicyRoute {
+	if cfg != nil {
+		for _, policy := range cfg.Radius.RoutePolicy.RolePolicies {
+			if len(policy.IPv4Routes)+len(policy.IPv6Routes) > 0 {
+				return nil
+			}
+		}
+	}
+	return []radius.RoutePolicyRoute{{Family: "ipv4", Destination: "198.51.100.0/24", Gateway: "0.0.0.0", Metric: 1, Install: true}}
 }
 
 func addProductionRateCompilerCheck(report *productionReadinessReport) {

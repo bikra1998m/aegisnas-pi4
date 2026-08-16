@@ -34,4 +34,10 @@ ATTRIBUTE AegisNAS-VLAN-Pool 21 string
 ATTRIBUTE AegisNAS-Fallback-VLAN 22 integer
 ATTRIBUTE AegisNAS-Auth-Fail-VLAN 23 integer
 ATTRIBUTE AegisNAS-VLAN-Policy 24 string
+ATTRIBUTE AegisNAS-Route-Policy 25 string
+ATTRIBUTE AegisNAS-VRF 26 string
+ATTRIBUTE AegisNAS-Route-Owner 27 string
+ATTRIBUTE AegisNAS-Route-Revision 28 string
+ATTRIBUTE AegisNAS-Framed-Route 29 string
+ATTRIBUTE AegisNAS-Framed-IPv6-Route 30 string
 END-VENDOR AegisNAS

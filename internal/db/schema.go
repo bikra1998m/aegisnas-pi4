@@ -184,6 +184,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{57, schemaV57},
 		{58, schemaV58},
 		{59, schemaV59},
+		{60, schemaV60},
 	}
 
 	for _, m := range migrations {
@@ -330,8 +331,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureVLANPolicyEvidenceTables(handle); err != nil {
 		return fmt.Errorf("repair VLAN policy evidence schema: %w", err)
 	}
+	if err := ensureRoutePolicyEvidenceTables(handle); err != nil {
+		return fmt.Errorf("repair route policy evidence schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureRoutePolicyEvidenceTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(routePolicyEvidenceSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureVLANPolicyEvidenceTables(handle *sql.DB) error {

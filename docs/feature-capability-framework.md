@@ -166,6 +166,7 @@ These features depend heavily on physical platform shape.
 | Multi-SSID local appliance mode | warned | enabled | enabled | capacity depends on radio and CPU |
 | Dynamic VLAN SSIDs | available | enabled | enabled | strongest on enterprise gear; hostapd config points to the managed VLAN file |
 | Tagged VLAN/QinQ policy | available | enabled | enabled | compiler is lightweight; production claims need packet capture and vendor-device certification |
+| Per-session route/VRF policy | available | enabled | enabled | compiler is lightweight; active ownership and Stop withdrawal are software-ready; native vendor route behavior needs certification |
 
 Rules:
 

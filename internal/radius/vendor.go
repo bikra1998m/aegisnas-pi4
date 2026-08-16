@@ -37,6 +37,12 @@ const (
 	AegisNASVendorAttrFallbackVLAN     byte = 22
 	AegisNASVendorAttrAuthFailVLAN     byte = 23
 	AegisNASVendorAttrVLANPolicy       byte = 24
+	AegisNASVendorAttrRoutePolicy      byte = 25
+	AegisNASVendorAttrVRF              byte = 26
+	AegisNASVendorAttrRouteOwner       byte = 27
+	AegisNASVendorAttrRouteRevision    byte = 28
+	AegisNASVendorAttrFramedRoute      byte = 29
+	AegisNASVendorAttrFramedIPv6Route  byte = 30
 )
 
 type inboundVendorValueKind string
@@ -452,6 +458,32 @@ func applyProductVendorID(result *BrokerAuthResult, packet *layehradius.Packet, 
 			result.VendorVLANPolicy = value
 		}
 	}
+	if result.VendorRoutePolicy == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrRoutePolicy)); ok {
+			result.VendorRoutePolicy = value
+		}
+	}
+	if result.VendorVRF == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrVRF)); ok {
+			result.VendorVRF = value
+		}
+	}
+	if result.VendorRouteOwner == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrRouteOwner)); ok {
+			result.VendorRouteOwner = value
+		}
+	}
+	if result.VendorRouteRevision == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrRouteRevision)); ok {
+			result.VendorRouteRevision = value
+		}
+	}
+	for _, value := range lookupVendorStrings(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrFramedRoute)) {
+		result.VendorFramedRoutes = appendUniqueVendorString(result.VendorFramedRoutes, value, 32)
+	}
+	for _, value := range lookupVendorStrings(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrFramedIPv6Route)) {
+		result.VendorFramedIPv6Routes = appendUniqueVendorString(result.VendorFramedIPv6Routes, value, 32)
+	}
 	if !result.HasVendorQuarantine {
 		if value, ok := lookupVendorBool(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrQuarantine)); ok {
 			result.VendorQuarantine = value
@@ -716,6 +748,25 @@ func appendUniqueVendorAVPair(result *BrokerAuthResult, value string) {
 		}
 	}
 	result.VendorAVPairs = append(result.VendorAVPairs, value)
+}
+
+func appendUniqueVendorString(values []string, value string, max int) []string {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 240 {
+		return values
+	}
+	if max <= 0 {
+		max = 16
+	}
+	if len(values) >= max {
+		return values
+	}
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	return append(values, value)
 }
 
 func parseExtremeExtendedVLAN(value string) (int, bool, []int, bool) {

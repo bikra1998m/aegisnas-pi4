@@ -70,6 +70,7 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 		evaluateLocalWirelessCapability(cfg, preset),
 		evaluateDynamicVLANLifecycleCapability(cfg, preset),
 		evaluateTaggedVLANPolicyCapability(cfg, preset),
+		evaluateRoutePolicyCapability(cfg, preset),
 		evaluateRuntimeShapingCapability(cfg, preset),
 		evaluateAIModeCapability(cfg),
 		evaluateTelemetryCapability(cfg),
@@ -92,6 +93,50 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 		evaluateMultiTenantCapability(cfg),
 	}
 	return applyHardwareScalingGates(cfg, capabilities)
+}
+
+func evaluateRoutePolicyCapability(cfg *Config, preset deploymentPreset) FeatureCapability {
+	active := cfg.Radius.RoutePolicy.Enabled
+	capability := FeatureCapability{
+		Key:    "per_session_route_vrf_policy",
+		Label:  "Per-Session Route/VRF Policy",
+		Active: active,
+	}
+	hasIntent := len(cfg.Radius.RoutePolicy.RolePolicies) > 0 || len(cfg.Radius.RoutePolicy.VRFs) > 0
+	routeCount := 0
+	emptyFailClosedPolicy := false
+	for _, policy := range cfg.Radius.RoutePolicy.RolePolicies {
+		count := len(policy.IPv4Routes) + len(policy.IPv6Routes)
+		routeCount += count
+		if count == 0 && cfg.Radius.RoutePolicy.FailClosed {
+			emptyFailClosedPolicy = true
+		}
+	}
+
+	switch {
+	case !active:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Per-session route and VRF policy compilation is supported but disabled."
+		capability.Dependencies = []string{"radius.route_policy.enabled"}
+	case active && !hasIntent:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Per-session route and VRF policy compilation is ready; no VRF or role route policy is configured yet."
+	case emptyFailClosedPolicy:
+		capability.State = CapabilityBlocked
+		capability.Summary = "Route policy is fail-closed and at least one role policy has no route intent."
+		capability.Dependencies = []string{"radius.route_policy.role_policies[].ipv4_routes", "radius.route_policy.role_policies[].ipv6_routes"}
+	case constrainedPlatform(cfg, preset) && cfg.Radius.RoutePolicy.MaxRoutes > 64:
+		capability.State = CapabilityWarned
+		capability.Summary = "Route policy is active with a high per-session route limit on constrained hardware."
+		capability.Recommendation = "Keep max_routes at 64 or lower on lite and small branch appliances."
+	case routeCount > 0:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Per-session IPv4/IPv6 route, VRF, owner, and withdrawal policy compilation is active."
+	default:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Per-session route and VRF policy compilation is active."
+	}
+	return capability
 }
 
 func evaluateTaggedVLANPolicyCapability(cfg *Config, preset deploymentPreset) FeatureCapability {

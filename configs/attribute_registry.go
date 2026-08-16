@@ -226,7 +226,23 @@ func runtimeAttributeRegistryAnnotations() []AttributeRegistryEntry {
 	entries := []AttributeRegistryEntry{
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Cisco", PEN: 9, Attribute: "Cisco-AVPair", Number: 1, WireType: "string",
-			PackKey: VendorPackCisco, Semantic: VendorSemanticDynamicACL, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
+			PackKey: VendorPackCisco, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
+		},
+		{
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Juniper", PEN: 2636, Attribute: "Juniper-AV-Pair", Number: 52, WireType: "string",
+			PackKey: VendorPackJuniper, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
+		},
+		{
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Huawei", PEN: 2011, Attribute: "Huawei-AVpair", Number: 188, WireType: "string",
+			PackKey: VendorPackHuawei, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
+		},
+		{
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "H3C", PEN: 25506, Attribute: "H3C-Av-Pair", Number: 210, WireType: "string",
+			PackKey: VendorPackH3C, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
+		},
+		{
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Nokia", PEN: 94, Attribute: "Nokia-AVPair", Number: 1, WireType: "string",
+			PackKey: VendorPackNokia, Semantic: VendorSemanticPolicyTag + "," + VendorSemanticRoute + "," + VendorSemanticVRF, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticPolicyTag,
 		},
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Nomadix", PEN: 3309, Attribute: "Nomadix-Bw-Class-Name", Number: 27, WireType: "string",

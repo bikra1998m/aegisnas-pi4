@@ -69,6 +69,12 @@ type BrokerAuthResult struct {
 	HasVendorQinQInnerVLAN   bool
 	VendorVLANPool           string
 	VendorVLANPolicy         string
+	VendorRoutePolicy        string
+	VendorVRF                string
+	VendorRouteOwner         string
+	VendorRouteRevision      string
+	VendorFramedRoutes       []string
+	VendorFramedIPv6Routes   []string
 	VendorFallbackVLAN       int
 	HasVendorFallbackVLAN    bool
 	VendorAuthFailVLAN       int

@@ -15,39 +15,46 @@ import (
 
 // ReplyAttributes contains RADIUS reply attributes for a user.
 type ReplyAttributes struct {
-	Role                  string
-	BandwidthProfile      string
-	FilterID              string
-	PolicyTag             string
-	SessionTimeout        int
-	IdleTimeout           int
-	VLAN                  int
-	TunnelType            string // "VLAN"
-	TunnelMediumType      string // "IEEE-802"
-	TunnelPrivateGroupID  string // VLAN ID as string
-	DataVLAN              int
-	VoiceVLAN             int
-	TaggedVLANs           []int
-	QinQOuterVLAN         int
-	QinQInnerVLAN         int
-	VLANPool              string
-	FallbackVLAN          int
-	AuthFailVLAN          int
-	VLANPolicyMode        string
-	VLANPolicyFingerprint string
-	MikrotikRateLimit     string // MikroTik specific, but widely used
-	WISPrBandwidthMaxDown int
-	WISPrBandwidthMaxUp   int
-	HasQuarantine         bool
-	Quarantine            bool
-	PortalProfile         string
-	DeviceGroup           string
-	Tenant                string
-	ACLPolicyName         string
-	InboundACL            string
-	OutboundACL           string
-	ACLRules              []ACLRule
-	ServiceChain          []policy.ServiceIntent
+	Role                   string
+	BandwidthProfile       string
+	FilterID               string
+	PolicyTag              string
+	SessionTimeout         int
+	IdleTimeout            int
+	VLAN                   int
+	TunnelType             string // "VLAN"
+	TunnelMediumType       string // "IEEE-802"
+	TunnelPrivateGroupID   string // VLAN ID as string
+	DataVLAN               int
+	VoiceVLAN              int
+	TaggedVLANs            []int
+	QinQOuterVLAN          int
+	QinQInnerVLAN          int
+	VLANPool               string
+	FallbackVLAN           int
+	AuthFailVLAN           int
+	VLANPolicyMode         string
+	VLANPolicyFingerprint  string
+	VRF                    string
+	RouteOwner             string
+	RouteRevision          string
+	RoutePolicyMode        string
+	RoutePolicyFingerprint string
+	FramedRoutes           []string
+	FramedIPv6Routes       []string
+	MikrotikRateLimit      string // MikroTik specific, but widely used
+	WISPrBandwidthMaxDown  int
+	WISPrBandwidthMaxUp    int
+	HasQuarantine          bool
+	Quarantine             bool
+	PortalProfile          string
+	DeviceGroup            string
+	Tenant                 string
+	ACLPolicyName          string
+	InboundACL             string
+	OutboundACL            string
+	ACLRules               []ACLRule
+	ServiceChain           []policy.ServiceIntent
 }
 
 type ReplyAttributeItem struct {
@@ -342,6 +349,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendBooleanIntegerItem(attrs.HasQuarantine, attrs.Quarantine, appendItem, "Intercept")
 		}
 		appendVLANPolicyReplyAttributes(attrs, packKey, appendItem)
+		appendRoutePolicyReplyAttributes(attrs, packKey, appendItem)
 	}
 	return items
 }
@@ -406,6 +414,64 @@ func vlanPolicyDecisionFromReplyAttributes(attrs *ReplyAttributes) VLANPolicyDec
 		QinQOuterVLAN:  attrs.QinQOuterVLAN,
 		QinQInnerVLAN:  attrs.QinQInnerVLAN,
 	}
+}
+
+func appendRoutePolicyReplyAttributes(attrs *ReplyAttributes, packKey string, appendItem func(string, string, bool)) {
+	if !hasRoutePolicyReplyAttributes(attrs) {
+		return
+	}
+	decision := routePolicyDecisionFromReplyAttributes(attrs)
+	for _, item := range BuildRoutePolicyAttributes(decision, []string{packKey}) {
+		appendItem(item.Name, item.Value, item.Quoted)
+	}
+}
+
+func hasRoutePolicyReplyAttributes(attrs *ReplyAttributes) bool {
+	if attrs == nil {
+		return false
+	}
+	return strings.TrimSpace(attrs.VRF) != "" ||
+		strings.TrimSpace(attrs.RouteOwner) != "" ||
+		strings.TrimSpace(attrs.RouteRevision) != "" ||
+		strings.TrimSpace(attrs.RoutePolicyMode) != "" ||
+		strings.TrimSpace(attrs.RoutePolicyFingerprint) != "" ||
+		len(attrs.FramedRoutes) > 0 ||
+		len(attrs.FramedIPv6Routes) > 0
+}
+
+func routePolicyDecisionFromReplyAttributes(attrs *ReplyAttributes) RoutePolicyDecision {
+	if attrs == nil {
+		return RoutePolicyDecision{}
+	}
+	decision := RoutePolicyDecision{
+		Role:            replyRole(attrs),
+		PolicySource:    "reply_attributes",
+		LifecycleAction: firstReplyValue(strings.ToLower(strings.TrimSpace(attrs.RoutePolicyMode)), "authorize"),
+		VRF:             firstReplyValue(strings.TrimSpace(attrs.VRF), "default"),
+		Owner:           firstReplyValue(strings.TrimSpace(attrs.RouteOwner), "aegisnas"),
+		Revision:        strings.TrimSpace(attrs.RouteRevision),
+	}
+	for _, value := range attrs.FramedRoutes {
+		route, diagnostics := parseFramedRouteValue(value, "ipv4", "framed_routes")
+		if len(diagnostics) == 0 && route.Destination != "" {
+			route.Source = "reply_attributes"
+			route.Install = true
+			decision.IPv4Routes = append(decision.IPv4Routes, route)
+		}
+	}
+	for _, value := range attrs.FramedIPv6Routes {
+		route, diagnostics := parseFramedRouteValue(value, "ipv6", "framed_ipv6_routes")
+		if len(diagnostics) == 0 && route.Destination != "" {
+			route.Source = "reply_attributes"
+			route.Install = true
+			decision.IPv6Routes = append(decision.IPv6Routes, route)
+		}
+	}
+	if decision.Revision == "" {
+		decision.Revision = routePolicyRevision(decision)
+	}
+	decision.OwnershipKey = routePolicyOwnershipKey(decision)
+	return decision
 }
 
 func appendACLCompilerReplyAttributes(attrs *ReplyAttributes, packKey string, appendItem func(string, string, bool)) {

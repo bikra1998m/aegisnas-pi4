@@ -152,6 +152,9 @@ func RecordAccountingIPAssignment(ctx context.Context, event AccountingEventReco
 			formatAccountingTime(time.Now().UTC()), event.SessionKey); err != nil && !tableMissing(err) {
 			return fmt.Errorf("close accounting IP assignments: %w", err)
 		}
+		if _, err := WithdrawRoutePolicyOwnershipForSession(ctx, event.SessionKey, event.AcctSessionID, event.EventID, "accounting-stop"); err != nil && !tableMissing(err) {
+			return fmt.Errorf("withdraw route policy ownership: %w", err)
+		}
 	}
 	if !accountingIPFieldsPresent(fields) && assignmentStatus != "closed" {
 		return nil

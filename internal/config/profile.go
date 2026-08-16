@@ -553,7 +553,7 @@ func deploymentWarnings(cfg *Config, preset deploymentPreset, capabilities []Fea
 	for _, capability := range capabilities {
 		capabilityIndex[capability.Key] = capability
 	}
-	for _, key := range []string{"local_wireless", "runtime_shaping", "ai_mode", "telemetry", "upstream_status_probes", "guest_self_registration", "sponsor_approval", "guest_delivery", "device_registration_inventory", "onboarding_portal", "certificate_enrollment", "eap_tls_onboarding", "passive_profiling", "posture_checks", "mdm_uem_integration", "siem_webhook_export", "controller_automation", "high_availability_failover", "admin_sso", "delegated_admin_rbac", "multi_tenant_governance"} {
+	for _, key := range []string{"local_wireless", "dynamic_vlan_lifecycle", "tagged_vlan_qinq_policy", "per_session_route_vrf_policy", "runtime_shaping", "ai_mode", "telemetry", "upstream_status_probes", "guest_self_registration", "sponsor_approval", "guest_delivery", "device_registration_inventory", "onboarding_portal", "certificate_enrollment", "eap_tls_onboarding", "passive_profiling", "posture_checks", "mdm_uem_integration", "siem_webhook_export", "controller_automation", "high_availability_failover", "admin_sso", "delegated_admin_rbac", "multi_tenant_governance"} {
 		capability, ok := capabilityIndex[key]
 		if !ok || !capability.Active {
 			continue

@@ -18,17 +18,36 @@ ATTRIBUTE AegisNAS-Quarantine 4 integer
 ATTRIBUTE AegisNAS-Policy-Tag 5 string
 ATTRIBUTE AegisNAS-Session-Timeout 6 integer
 ATTRIBUTE AegisNAS-Idle-Timeout 7 integer
+ATTRIBUTE AegisNAS-Session-Action 8 string
 ATTRIBUTE AegisNAS-Portal-Profile 9 string
 ATTRIBUTE AegisNAS-Device-Group 10 string
 ATTRIBUTE AegisNAS-Tenant 11 string
 ATTRIBUTE AegisNAS-ACL-Name 12 string
 ATTRIBUTE AegisNAS-ACL-Rule 13 string
+ATTRIBUTE AegisNAS-Service-Chain 14 string
+ATTRIBUTE AegisNAS-Service-Name 15 string
+ATTRIBUTE AegisNAS-Data-VLAN 16 integer
+ATTRIBUTE AegisNAS-Voice-VLAN 17 integer
+ATTRIBUTE AegisNAS-Tagged-VLAN 18 integer
+ATTRIBUTE AegisNAS-QinQ-Outer-VLAN 19 integer
+ATTRIBUTE AegisNAS-QinQ-Inner-VLAN 20 integer
+ATTRIBUTE AegisNAS-VLAN-Pool 21 string
+ATTRIBUTE AegisNAS-Fallback-VLAN 22 integer
+ATTRIBUTE AegisNAS-Auth-Fail-VLAN 23 integer
+ATTRIBUTE AegisNAS-VLAN-Policy 24 string
+ATTRIBUTE AegisNAS-Route-Policy 25 string
+ATTRIBUTE AegisNAS-VRF 26 string
+ATTRIBUTE AegisNAS-Route-Owner 27 string
+ATTRIBUTE AegisNAS-Route-Revision 28 string
+ATTRIBUTE AegisNAS-Framed-Route 29 string
+ATTRIBUTE AegisNAS-Framed-IPv6-Route 30 string
 END-VENDOR AegisNAS
 
 VENDOR Cisco 9
 BEGIN-VENDOR Cisco
 ATTRIBUTE Cisco-In-ACL 1 string
 ATTRIBUTE Cisco-Out-ACL 2 string
+ATTRIBUTE Cisco-AVPair 3 string
 END-VENDOR Cisco
 `)
 
@@ -36,7 +55,7 @@ END-VENDOR Cisco
 	require.NotEmpty(t, report.Rows)
 	assert.Equal(t, "combined-fixture", report.Source)
 	assert.Equal(t, 2, report.CatalogVendorCount)
-	assert.Equal(t, 14, report.CatalogAttributeCount)
+	assert.Equal(t, 33, report.CatalogAttributeCount)
 	assert.Equal(t, 3, report.ActivePackCount)
 	assert.Greater(t, report.DictionaryMatchedAttributeCount, 0)
 	assert.Greater(t, report.MissingDictionaryAttributeCount, 0)
@@ -55,9 +74,9 @@ END-VENDOR Cisco
 
 	cisco := rows[VendorPackCisco]
 	assert.True(t, cisco.Active)
-	assert.Equal(t, "partial-dictionary", cisco.CoverageState)
-	assert.Equal(t, 2, cisco.DictionaryMatchedAttributeCount)
-	assert.Equal(t, 1, cisco.MissingDictionaryAttributeCount)
+	assert.Equal(t, "dictionary-backed", cisco.CoverageState)
+	assert.Equal(t, 5, cisco.DictionaryMatchedAttributeCount)
+	assert.Zero(t, cisco.MissingDictionaryAttributeCount)
 
 	aruba := rows[VendorPackAruba]
 	assert.False(t, aruba.DictionaryVendorFound)

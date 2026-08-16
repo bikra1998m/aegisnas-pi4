@@ -390,6 +390,34 @@ radius:
           mode: "provider-bridge" # provider-bridge or selective-qinq.
         vendor_packs: ["standard", "aegisnas", "hp", "extreme"]
         description: "Phones receive tagged voice VLAN and branch data pool."
+  route_policy:
+    enabled: true
+    fail_closed: false
+    max_routes: 32
+    default_vrf: "default"
+    default_owner: "aegisnas"
+    conflict_mode: "block" # block, prefer-role, prefer-request, or warn.
+    stop_withdrawal: true
+    vrfs:
+      - name: "corp"
+        route_distinguisher: "65000:10"
+        description: "Corporate routed subscriber domain."
+    role_policies:
+      - role: "branch-vpn"
+        vrf: "corp"
+        owner: "network-team"
+        ipv4_routes:
+          - destination: "10.80.0.0/16"
+            gateway: "192.0.2.1"
+            metric: 10
+            interface: "pppoe0"
+            tag: "branch"
+        ipv6_routes:
+          - destination: "2001:db8:80::/48"
+            gateway: "2001:db8::1"
+            metric: 20
+        vendor_packs: ["standard", "aegisnas", "cisco", "juniper", "huawei", "nokia"]
+        description: "Inject branch service routes and VRF metadata for routed access sessions."
   packet_hardening:
     enabled: true
     fail_closed: true

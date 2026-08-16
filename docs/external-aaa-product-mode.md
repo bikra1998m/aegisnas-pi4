@@ -639,6 +639,48 @@ entries call the same compiler, while `/api/v1/system/vlan-policy/compile` and
 certification before release notes claim device parity. See
 [Tagged VLAN And QinQ Policy](tagged-vlan-qinq-policy.md).
 
+NAS-0055 adds the portable route and VRF policy compiler for routed subscriber,
+VPN, branch, and BNG access sessions. It emits standards-based
+`Framed-Route` and `Framed-IPv6-Route`, AegisNAS route/VRF/owner/revision VSAs,
+and route AVPair strings for Cisco, Juniper, Huawei, H3C, and Nokia packs:
+
+```yaml
+radius:
+  vendor:
+    compatibility_packs: [standard, aegisnas, cisco, juniper, huawei, nokia]
+  route_policy:
+    enabled: true
+    fail_closed: false
+    max_routes: 32
+    default_vrf: default
+    default_owner: aegisnas
+    conflict_mode: block
+    stop_withdrawal: true
+    vrfs:
+      - name: corp
+        route_distinguisher: "65000:10"
+    role_policies:
+      - role: branch-vpn
+        vrf: corp
+        owner: network-team
+        ipv4_routes:
+          - destination: "10.80.0.0/16"
+            gateway: "192.0.2.1"
+            metric: 10
+        ipv6_routes:
+          - destination: "2001:db8:80::/48"
+            gateway: "2001:db8::1"
+            metric: 20
+        vendor_packs: [standard, aegisnas, cisco]
+```
+
+`/api/v1/system/route-policy/preview` and `/decompile` record evidence only.
+`/api/v1/system/route-policy/compile` updates the software route ownership
+ledger in `route_policy_ownership`, and Accounting Stop or Accounting-Off
+withdraws active ownership rows. Native route installation and withdrawal on
+each vendor device remains release-certified per product and firmware. See
+[Per-Session Route And VRF Policy](per-session-route-vrf-policy.md).
+
 Juniper, Huawei, H3C, and Arista AVPair strings vary by device family and firmware. Configure only values validated against the target device:
 
 ```yaml

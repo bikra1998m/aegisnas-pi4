@@ -19,6 +19,8 @@ const (
 	VendorSemanticDynamicACL            = "enforcement.dynamic_acl"
 	VendorSemanticAccountingIdentity    = "accounting.identity"
 	VendorSemanticAccountingCounters    = "accounting.counters"
+	VendorSemanticRoute                 = "routing.framed_route"
+	VendorSemanticVRF                   = "routing.vrf"
 	VendorSemanticCoAReauth             = "coa.reauth"
 	VendorSemanticCoADisconnect         = "coa.disconnect"
 	VendorSemanticControllerPolicySync  = "controller.policy_sync"
@@ -284,6 +286,30 @@ func AegisNASSemanticRegistry() []VendorSemanticCapability {
 			Directions:         []string{"accounting"},
 			StandardAttributes: []string{"Acct-Input-Octets", "Acct-Output-Octets", "Acct-Input-Gigawords", "Acct-Output-Gigawords", "Acct-Session-Time", "Acct-Terminate-Cause"},
 			HardwareScope:      "all profiles; retention can be reduced on lite",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticRoute,
+			Label:              "Framed Route",
+			Description:        "Carries per-session IPv4 and IPv6 route intent from AAA policy into NAS route ownership and accounting evidence.",
+			ValueType:          "route",
+			Directions:         []string{"inbound", "outbound", "accounting"},
+			ProductAttribute:   "AegisNAS-Framed-Route",
+			ProductNumber:      29,
+			StandardAttributes: []string{"Framed-Route", "Framed-IPv6-Route"},
+			HardwareScope:      "branch and enterprise preferred",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticVRF,
+			Label:              "VRF Ownership",
+			Description:        "Carries the routing table, owner, and revision metadata required to safely install, update, or withdraw subscriber routes.",
+			ValueType:          "record",
+			Directions:         []string{"inbound", "outbound", "accounting"},
+			ProductAttribute:   "AegisNAS-VRF",
+			ProductNumber:      26,
+			StandardAttributes: []string{"Vendor-Specific", "Class"},
+			HardwareScope:      "branch and enterprise preferred",
 			CompatibilityState: "implemented",
 		},
 		{

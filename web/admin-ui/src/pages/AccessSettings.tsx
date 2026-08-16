@@ -1595,6 +1595,17 @@ const defaultSettings: JsonMap = {
       pools: [],
       role_policies: [],
     },
+    route_policy: {
+      enabled: true,
+      fail_closed: false,
+      max_routes: 32,
+      default_vrf: "default",
+      default_owner: "aegisnas",
+      conflict_mode: "block",
+      stop_withdrawal: true,
+      vrfs: [],
+      role_policies: [],
+    },
     radsec: {
       enabled: false,
       listen_address: "0.0.0.0",
@@ -2183,6 +2194,13 @@ const vlanPoolStrategyOptions: Option[] = [
 const qinqModeOptions: Option[] = [
   { value: "provider-bridge", label: "Provider Bridge" },
   { value: "selective-qinq", label: "Selective QinQ" },
+];
+
+const routeConflictModeOptions: Option[] = [
+  { value: "block", label: "Block conflicts" },
+  { value: "prefer-role", label: "Prefer role policy" },
+  { value: "prefer-request", label: "Prefer request routes" },
+  { value: "warn", label: "Warn and keep first" },
 ];
 
 const mdmProviderOptions: Option[] = [
@@ -4131,6 +4149,8 @@ export default function AccessSettings() {
     settings.radius?.vendor?.service_name_mappings || [];
   const vlanPolicyPools = settings.radius?.vlan_policy?.pools || [];
   const vlanRolePolicies = settings.radius?.vlan_policy?.role_policies || [];
+  const routePolicyVRFs = settings.radius?.route_policy?.vrfs || [];
+  const routeRolePolicies = settings.radius?.route_policy?.role_policies || [];
   const ssids = settings.wireless?.ssids || [];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
@@ -16369,6 +16389,577 @@ export default function AccessSettings() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="mb-4 border-t border-gray-100 pt-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h5 className="text-sm font-semibold text-gray-900">
+                  Per-Session Route And VRF Policy
+                </h5>
+                <p className="mt-1 text-sm text-gray-600">
+                  Compile framed IPv4 and IPv6 routes, VRF context, and route
+                  ownership into standard and vendor-specific RADIUS replies.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() =>
+                    updateField(
+                      ["radius", "route_policy", "vrfs"],
+                      [
+                        ...routePolicyVRFs,
+                        { name: "", route_distinguisher: "", description: "" },
+                      ],
+                    )
+                  }
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+                >
+                  Add VRF
+                </button>
+                <button
+                  onClick={() =>
+                    updateField(
+                      ["radius", "route_policy", "role_policies"],
+                      [
+                        ...routeRolePolicies,
+                        {
+                          role: "",
+                          vrf: "",
+                          owner: "",
+                          ipv4_routes: [],
+                          ipv6_routes: [],
+                          vendor_packs: [],
+                          description: "",
+                        },
+                      ],
+                    )
+                  }
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+                >
+                  Add Route Policy
+                </button>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-4">
+              <ToggleField
+                label="Compiler Enabled"
+                checked={settings.radius?.route_policy?.enabled !== false}
+                onChange={(value) =>
+                  updateField(["radius", "route_policy", "enabled"], value)
+                }
+              />
+              <ToggleField
+                label="Fail Closed"
+                checked={Boolean(settings.radius?.route_policy?.fail_closed)}
+                onChange={(value) =>
+                  updateField(["radius", "route_policy", "fail_closed"], value)
+                }
+              />
+              <ToggleField
+                label="Withdraw On Stop"
+                checked={settings.radius?.route_policy?.stop_withdrawal !== false}
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "route_policy", "stop_withdrawal"],
+                    value,
+                  )
+                }
+              />
+              <TextField
+                label="Max Routes"
+                type="number"
+                value={settings.radius?.route_policy?.max_routes ?? 32}
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "route_policy", "max_routes"],
+                    Number(value),
+                  )
+                }
+              />
+              <TextField
+                label="Default VRF"
+                value={settings.radius?.route_policy?.default_vrf || "default"}
+                onChange={(value) =>
+                  updateField(["radius", "route_policy", "default_vrf"], value)
+                }
+                placeholder="default"
+              />
+              <TextField
+                label="Default Owner"
+                value={
+                  settings.radius?.route_policy?.default_owner || "aegisnas"
+                }
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "route_policy", "default_owner"],
+                    value,
+                  )
+                }
+                placeholder="aegisnas"
+              />
+              <SelectField
+                label="Conflict Mode"
+                value={settings.radius?.route_policy?.conflict_mode || "block"}
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "route_policy", "conflict_mode"],
+                    value,
+                  )
+                }
+                options={routeConflictModeOptions}
+              />
+            </div>
+            <div className="mt-4">
+              <div className="mb-2 text-sm font-medium text-gray-900">
+                VRFs
+              </div>
+              {routePolicyVRFs.length === 0 ? (
+                <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                  No VRFs configured.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {routePolicyVRFs.map((vrf: JsonMap, index: number) => (
+                    <div
+                      key={`route-policy-vrf-${index}`}
+                      className="grid gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-[1fr_1fr_2fr_auto]"
+                    >
+                      <TextField
+                        label="VRF Name"
+                        value={vrf.name || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "route_policy",
+                              "vrfs",
+                              String(index),
+                              "name",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="guest"
+                      />
+                      <TextField
+                        label="Route Distinguisher"
+                        value={vrf.route_distinguisher || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "route_policy",
+                              "vrfs",
+                              String(index),
+                              "route_distinguisher",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="65000:10"
+                      />
+                      <TextField
+                        label="Description"
+                        value={vrf.description || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "route_policy",
+                              "vrfs",
+                              String(index),
+                              "description",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="Guest subscriber routing domain"
+                      />
+                      <div className="flex items-end">
+                        <button
+                          onClick={() =>
+                            updateField(
+                              ["radius", "route_policy", "vrfs"],
+                              routePolicyVRFs.filter(
+                                (_: unknown, itemIndex: number) =>
+                                  itemIndex !== index,
+                              ),
+                            )
+                          }
+                          className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="mt-4">
+              <div className="mb-2 text-sm font-medium text-gray-900">
+                Role Route Policies
+              </div>
+              {routeRolePolicies.length === 0 ? (
+                <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                  No role route policies configured.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {routeRolePolicies.map((policy: JsonMap, index: number) => {
+                    const ipv4Routes = Array.isArray(policy.ipv4_routes)
+                      ? policy.ipv4_routes
+                      : [];
+                    const ipv6Routes = Array.isArray(policy.ipv6_routes)
+                      ? policy.ipv6_routes
+                      : [];
+                    return (
+                      <div
+                        key={`route-role-policy-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="grid gap-3 md:grid-cols-5">
+                          <TextField
+                            label="Role"
+                            value={policy.role || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "role",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="branch-vpn"
+                          />
+                          <TextField
+                            label="VRF"
+                            value={policy.vrf || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "vrf",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="guest"
+                          />
+                          <TextField
+                            label="Owner"
+                            value={policy.owner || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "owner",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="aegisnas"
+                          />
+                          <TextField
+                            label="Vendor Packs"
+                            value={listToCSV(policy.vendor_packs)}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "vendor_packs",
+                                ],
+                                csvToList(value),
+                              )
+                            }
+                            placeholder="standard, aegisnas, cisco"
+                          />
+                          <div className="flex items-end">
+                            <button
+                              onClick={() =>
+                                updateField(
+                                  ["radius", "route_policy", "role_policies"],
+                                  routeRolePolicies.filter(
+                                    (_: unknown, itemIndex: number) =>
+                                      itemIndex !== index,
+                                  ),
+                                )
+                              }
+                              className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <TextField
+                            label="Description"
+                            value={policy.description || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "description",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="Inject branch service routes for this role."
+                          />
+                        </div>
+                        {[
+                          {
+                            family: "ipv4",
+                            label: "IPv4 Routes",
+                            path: "ipv4_routes",
+                            routes: ipv4Routes,
+                            placeholder: "10.80.0.0/16",
+                          },
+                          {
+                            family: "ipv6",
+                            label: "IPv6 Routes",
+                            path: "ipv6_routes",
+                            routes: ipv6Routes,
+                            placeholder: "2001:db8:80::/48",
+                          },
+                        ].map((group) => (
+                          <div className="mt-4" key={group.path}>
+                            <div className="mb-2 flex items-center justify-between gap-3">
+                              <div className="text-sm font-medium text-gray-900">
+                                {group.label}
+                              </div>
+                              <button
+                                onClick={() =>
+                                  updateField(
+                                    [
+                                      "radius",
+                                      "route_policy",
+                                      "role_policies",
+                                      String(index),
+                                      group.path,
+                                    ],
+                                    [
+                                      ...group.routes,
+                                      {
+                                        destination: "",
+                                        gateway: "",
+                                        metric: 0,
+                                        preference: 0,
+                                        interface: "",
+                                        tag: "",
+                                        owner: "",
+                                        description: "",
+                                      },
+                                    ],
+                                  )
+                                }
+                                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+                              >
+                                Add {group.family.toUpperCase()} Route
+                              </button>
+                            </div>
+                            {group.routes.length === 0 ? (
+                              <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                                No {group.family.toUpperCase()} routes.
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                {group.routes.map(
+                                  (route: JsonMap, routeIndex: number) => (
+                                    <div
+                                      key={`route-policy-${group.path}-${index}-${routeIndex}`}
+                                      className="grid gap-3 rounded-md border border-gray-100 p-3 md:grid-cols-4"
+                                    >
+                                      <TextField
+                                        label="Destination"
+                                        value={route.destination || ""}
+                                        onChange={(value) =>
+                                          updateField(
+                                            [
+                                              "radius",
+                                              "route_policy",
+                                              "role_policies",
+                                              String(index),
+                                              group.path,
+                                              String(routeIndex),
+                                              "destination",
+                                            ],
+                                            value,
+                                          )
+                                        }
+                                        placeholder={group.placeholder}
+                                      />
+                                      <TextField
+                                        label="Gateway"
+                                        value={route.gateway || ""}
+                                        onChange={(value) =>
+                                          updateField(
+                                            [
+                                              "radius",
+                                              "route_policy",
+                                              "role_policies",
+                                              String(index),
+                                              group.path,
+                                              String(routeIndex),
+                                              "gateway",
+                                            ],
+                                            value,
+                                          )
+                                        }
+                                        placeholder={
+                                          group.family === "ipv4"
+                                            ? "10.0.0.1"
+                                            : "2001:db8::1"
+                                        }
+                                      />
+                                      <TextField
+                                        label="Metric"
+                                        type="number"
+                                        value={route.metric ?? 0}
+                                        onChange={(value) =>
+                                          updateField(
+                                            [
+                                              "radius",
+                                              "route_policy",
+                                              "role_policies",
+                                              String(index),
+                                              group.path,
+                                              String(routeIndex),
+                                              "metric",
+                                            ],
+                                            Number(value),
+                                          )
+                                        }
+                                      />
+                                      <TextField
+                                        label="Preference"
+                                        type="number"
+                                        value={route.preference ?? 0}
+                                        onChange={(value) =>
+                                          updateField(
+                                            [
+                                              "radius",
+                                              "route_policy",
+                                              "role_policies",
+                                              String(index),
+                                              group.path,
+                                              String(routeIndex),
+                                              "preference",
+                                            ],
+                                            Number(value),
+                                          )
+                                        }
+                                      />
+                                      <TextField
+                                        label="Interface"
+                                        value={route.interface || ""}
+                                        onChange={(value) =>
+                                          updateField(
+                                            [
+                                              "radius",
+                                              "route_policy",
+                                              "role_policies",
+                                              String(index),
+                                              group.path,
+                                              String(routeIndex),
+                                              "interface",
+                                            ],
+                                            value,
+                                          )
+                                        }
+                                        placeholder="pppoe0"
+                                      />
+                                      <TextField
+                                        label="Tag"
+                                        value={route.tag || ""}
+                                        onChange={(value) =>
+                                          updateField(
+                                            [
+                                              "radius",
+                                              "route_policy",
+                                              "role_policies",
+                                              String(index),
+                                              group.path,
+                                              String(routeIndex),
+                                              "tag",
+                                            ],
+                                            value,
+                                          )
+                                        }
+                                        placeholder="branch"
+                                      />
+                                      <TextField
+                                        label="Owner Override"
+                                        value={route.owner || ""}
+                                        onChange={(value) =>
+                                          updateField(
+                                            [
+                                              "radius",
+                                              "route_policy",
+                                              "role_policies",
+                                              String(index),
+                                              group.path,
+                                              String(routeIndex),
+                                              "owner",
+                                            ],
+                                            value,
+                                          )
+                                        }
+                                        placeholder="network-team"
+                                      />
+                                      <div className="flex items-end">
+                                        <button
+                                          onClick={() =>
+                                            updateField(
+                                              [
+                                                "radius",
+                                                "route_policy",
+                                                "role_policies",
+                                                String(index),
+                                                group.path,
+                                              ],
+                                              group.routes.filter(
+                                                (
+                                                  _route: unknown,
+                                                  itemIndex: number,
+                                                ) => itemIndex !== routeIndex,
+                                              ),
+                                            )
+                                          }
+                                          className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

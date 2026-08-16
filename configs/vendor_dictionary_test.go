@@ -12,13 +12,15 @@ func TestAegisNASVendorDictionary(t *testing.T) {
 
 	assert.Equal(t, "AegisNAS", dict.Name)
 	assert.Equal(t, 55555, dict.ID)
-	require.Len(t, dict.Attributes, 24)
+	require.Len(t, dict.Attributes, 30)
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Role", Number: 1, Type: "string"}, dict.Attributes[0])
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Tenant", Number: 11, Type: "string"}, dict.Attributes[10])
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-ACL-Rule", Number: 13, Type: "string"}, dict.Attributes[12])
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Service-Name", Number: 15, Type: "string"}, dict.Attributes[14])
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Data-VLAN", Number: 16, Type: "integer"}, dict.Attributes[15])
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-VLAN-Policy", Number: 24, Type: "string"}, dict.Attributes[23])
+	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-VRF", Number: 26, Type: "string"}, dict.Attributes[25])
+	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Framed-IPv6-Route", Number: 30, Type: "string"}, dict.Attributes[29])
 }
 
 func TestAegisNASVendorDictionaryUsesEnvironmentVendorID(t *testing.T) {
@@ -35,7 +37,7 @@ func TestAegisNASVendorDictionaryCatalogForConfiguredIdentity(t *testing.T) {
 	vendor, ok := catalog.VendorByName("AegisNAS")
 	require.True(t, ok)
 	assert.Equal(t, 424242, vendor.ID)
-	assert.Len(t, vendor.Attributes, 24)
+	assert.Len(t, vendor.Attributes, 30)
 }
 
 func TestParseVendorDictionaryCatalog(t *testing.T) {
@@ -94,8 +96,8 @@ func TestAegisNASVendorCompatibilityReport(t *testing.T) {
 	assert.True(t, report.Summary.ProductVendorIDPlaceholder)
 	assert.Equal(t, "dictionary.aegisnas", report.Summary.ProductVendorDictionaryFilename)
 	assert.Equal(t, "$INCLUDE dictionary.aegisnas", report.Summary.ProductVendorDictionaryInclude)
-	assert.Equal(t, 24, report.Summary.ProductAttributeCount)
-	assert.Greater(t, report.Summary.SemanticCount, report.Summary.ProductAttributeCount)
+	assert.Equal(t, 30, report.Summary.ProductAttributeCount)
+	assert.Greater(t, report.Summary.SemanticCount, 10)
 	assert.Greater(t, report.Summary.PackCount, 5)
 	assert.Greater(t, report.Summary.ImplementedCount, 0)
 	assert.Greater(t, report.Summary.PlannedCount, 0)

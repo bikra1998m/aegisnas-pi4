@@ -291,6 +291,44 @@ non-mutating per-pack reply previews.
 
 See [Tagged VLAN And QinQ Policy](tagged-vlan-qinq-policy.md).
 
+## Per-Session Route And VRF Policy
+
+NAS-0055 exposes the vendor-neutral route and VRF policy compiler at:
+
+```text
+GET  /api/v1/system/route-policy
+POST /api/v1/system/route-policy/preview
+POST /api/v1/system/route-policy/compile
+POST /api/v1/system/route-policy/decompile
+GET  /api/v1/system/route-policy/history
+```
+
+Read-only roles may inspect, preview, and decompile. `ops_admin` and
+`super_admin` may compile because compile records active or withdrawn route
+ownership. Responses include compiler version, VRF, route owner, revision,
+IPv4/IPv6 route lists, generated standard and vendor attributes, diagnostics,
+RFC list, evidence event ID, and a SHA-256 fingerprint.
+
+Evidence is stored in `route_policy_events` and `route_policy_ownership`,
+summarized in `/api/v1/system/status` as `radius.route_policy`, checked by
+production readiness as `per_session_route_vrf_policy`, and captured in support bundles as
+`api/route-policy.json` and `api/route-policy-history.json`.
+
+Example:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data '{"role":"branch-vpn","session_id":"session-1","acct_session_id":"acct-1","pack_keys":["standard","aegisnas","cisco"]}' \
+  http://127.0.0.1:8083/api/v1/system/route-policy/compile | jq '.result.attributes'
+```
+
+Preview and decompile are evidence-only. They do not update active route
+ownership. Compile updates the software ownership ledger, and Accounting Stop
+or Accounting-Off withdraws matching active ownership rows.
+
+See [Per-Session Route And VRF Policy](per-session-route-vrf-policy.md).
+
 The bounded opaque pass-through policy is exposed at:
 
 ```text

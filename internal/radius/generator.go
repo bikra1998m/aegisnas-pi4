@@ -421,6 +421,11 @@ func (g *Generator) renderUsers() (string, error) {
 			VLAN:             attrs.VLAN,
 			CallingStationID: user.username,
 		})
+		ApplyConfiguredRoutePolicyToReplyAttributes(g.cfg, attrs, RoutePolicyCompileRequest{
+			Role:             user.role,
+			CallingStationID: user.username,
+			NASIdentifier:    g.cfg.Radius.NASIdentifier,
+		})
 		items := BuildReplyAttributeItemsForVendorConfig(attrs, g.cfg.Radius.Vendor.CompatibilityPacks, g.cfg.Radius.Vendor)
 		fmt.Fprintf(&out, "\"%s\" Crypt-Password := \"%s\"\n", escapeReplyValue(user.username), escapeReplyValue(user.passwordHash))
 		for index, item := range items {
@@ -559,6 +564,11 @@ func buildMABReplyAttributes(cfg *config.Config, endpoint db.MABEndpoint, role, 
 		VLAN:             attrs.VLAN,
 		CallingStationID: endpoint.MAC,
 		Quarantined:      status == "quarantined",
+	})
+	ApplyConfiguredRoutePolicyToReplyAttributes(cfg, attrs, RoutePolicyCompileRequest{
+		Role:             role,
+		CallingStationID: endpoint.MAC,
+		NASIdentifier:    cfg.Radius.NASIdentifier,
 	})
 	return attrs, nil
 }

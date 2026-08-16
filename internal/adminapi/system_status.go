@@ -228,6 +228,8 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	rateCompilerSummary, rateCompilerErr := db.GetRateCompilerEventSummary()
 	vlanPolicy := radius.BuildVLANPolicyReport(cfg)
 	vlanPolicySummary, vlanPolicyErr := db.GetVLANPolicyEventSummary()
+	routePolicy := radius.BuildRoutePolicyReport(cfg)
+	routePolicySummary, routePolicyErr := db.GetRoutePolicyEventSummary()
 	eapSummary, _ := db.SummarizeEAPMethodEvents(1000)
 	eapFramework := eappkg.BuildFrameworkReport(cfg, eapRuntimeSummaryFromDB(eapSummary))
 	teapSummary, _ := db.SummarizeTEAPChainEvents(1000)
@@ -289,6 +291,20 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"auth_fail_count":  vlanPolicy.Summary.AuthFailCount,
 			"evidence_summary": vlanPolicySummary,
 			"evidence_error":   rateCompilerErrorString(vlanPolicyErr),
+		},
+		"route_policy": map[string]any{
+			"status":           routePolicyStatus(routePolicy),
+			"message":          routePolicyMessage(routePolicy, routePolicySummary),
+			"compiler_version": routePolicy.CompilerVersion,
+			"enabled":          routePolicy.Enabled,
+			"policy_count":     routePolicy.Summary.PolicyCount,
+			"vrf_count":        routePolicy.Summary.VRFCount,
+			"ipv4_route_count": routePolicy.Summary.IPv4RouteCount,
+			"ipv6_route_count": routePolicy.Summary.IPv6RouteCount,
+			"active_routes":    routePolicySummary.ActiveRoutes,
+			"withdrawn_routes": routePolicySummary.WithdrawnRoutes,
+			"evidence_summary": routePolicySummary,
+			"evidence_error":   rateCompilerErrorString(routePolicyErr),
 		},
 		"eap_framework":              eapFramework,
 		"eap_teap":                   teapFramework,
@@ -1244,4 +1260,32 @@ func vlanPolicyMessage(report radius.VLANPolicyReport) string {
 		report.Summary.PoolCount,
 		report.Summary.VoicePolicyCount,
 		report.Summary.QinQPolicyCount)
+}
+
+func routePolicyStatus(report radius.RoutePolicyReport) string {
+	switch {
+	case !report.Enabled:
+		return "disabled"
+	case report.Summary.PolicyCount == 0 && report.Summary.IPv4RouteCount == 0 && report.Summary.IPv6RouteCount == 0:
+		return "ready"
+	case report.Summary.IPv4RouteCount > 0 || report.Summary.IPv6RouteCount > 0:
+		return "ok"
+	default:
+		return "ready"
+	}
+}
+
+func routePolicyMessage(report radius.RoutePolicyReport, summary db.RoutePolicyEventSummary) string {
+	if !report.Enabled {
+		return "Route policy compiler is disabled in config."
+	}
+	if report.Summary.PolicyCount == 0 {
+		return "Route policy compiler is ready; no role route policy is configured yet."
+	}
+	return fmt.Sprintf("Route policy compiler has %d role policy(s), %d VRF(s), %d IPv4 route(s), %d IPv6 route(s), and %d active ownership row(s).",
+		report.Summary.PolicyCount,
+		report.Summary.VRFCount,
+		report.Summary.IPv4RouteCount,
+		report.Summary.IPv6RouteCount,
+		summary.ActiveRoutes)
 }

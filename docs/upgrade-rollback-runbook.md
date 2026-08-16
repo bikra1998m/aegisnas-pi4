@@ -345,3 +345,33 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 Roll back the application and database together if an older runtime does not
 understand schema v54.
+
+## Schema v60 Route Policy Evidence Upgrade
+
+NAS-0055 adds durable route compiler and ownership evidence:
+
+- `route_policy_events`
+- `route_policy_ownership`
+
+After upgrade, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/route-policy \
+  | jq '.report.enabled, .report.summary, .evidence_summary'
+```
+
+Then compile a lab role that has one IPv4 route and one IPv6 route:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"role":"branch-vpn","session_id":"upgrade-smoke","acct_session_id":"upgrade-acct","pack_keys":["standard","aegisnas"]}' \
+  http://127.0.0.1:8083/api/v1/system/route-policy/compile \
+  | jq '.result.status, .result.summary, .event_id'
+```
+
+Confirm `/api/v1/system/route-policy/history` shows active ownership rows. A
+subsequent Accounting Stop or Accounting-Off event should withdraw rows for the
+matching session or accounting session ID. Roll back the application and
+database together if an older runtime does not understand schema v60.

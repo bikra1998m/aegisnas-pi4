@@ -1888,7 +1888,7 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	}
 
 	capabilities := EvaluateFeatureCapabilities(cfg)
-	require.Len(t, capabilities, 22)
+	require.Len(t, capabilities, 24)
 
 	byKey := make(map[string]FeatureCapability, len(capabilities))
 	for _, capability := range capabilities {
@@ -1897,6 +1897,8 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 
 	assert.Equal(t, CapabilityBlocked, byKey["local_wireless"].State)
 	assert.Equal(t, CapabilityAvailable, byKey["dynamic_vlan_lifecycle"].State)
+	assert.Equal(t, CapabilityAvailable, byKey["tagged_vlan_qinq_policy"].State)
+	assert.Equal(t, CapabilityAvailable, byKey["per_session_route_vrf_policy"].State)
 	assert.Equal(t, CapabilityEnabled, byKey["runtime_shaping"].State)
 	assert.Equal(t, CapabilityBlocked, byKey["ai_mode"].State)
 	assert.Equal(t, CapabilityEnabled, byKey["telemetry"].State)
@@ -4565,6 +4567,63 @@ func TestValidateRadiusVLANPolicy(t *testing.T) {
 	unknownPack.RolePolicies = append([]RadiusVLANRolePolicy(nil), valid.RolePolicies...)
 	unknownPack.RolePolicies[0].VendorPacks = []string{"made-up"}
 	assert.ErrorContains(t, validateRadiusVLANPolicy(unknownPack), "unknown")
+}
+
+func TestValidateRadiusRoutePolicy(t *testing.T) {
+	valid := RadiusRoutePolicyConfig{
+		Enabled:        true,
+		FailClosed:     true,
+		MaxRoutes:      8,
+		DefaultVRF:     "default",
+		DefaultOwner:   "aegisnas",
+		ConflictMode:   "block",
+		StopWithdrawal: true,
+		VRFs: []RadiusVRFConfig{
+			{Name: "corp", RouteDistinguisher: "65000:10", Description: "Corp routing domain"},
+		},
+		RolePolicies: []RadiusRouteRolePolicy{
+			{
+				Role:  "branch-vpn",
+				VRF:   "corp",
+				Owner: "network-team",
+				IPv4Routes: []RadiusRouteConfig{
+					{Destination: "10.80.0.0/16", Gateway: "192.0.2.1", Metric: 10, Interface: "pppoe0", Tag: "branch"},
+				},
+				IPv6Routes: []RadiusRouteConfig{
+					{Destination: "2001:db8:80::/48", Gateway: "2001:db8::1", Preference: 20},
+				},
+				VendorPacks: []string{"standard", "aegisnas", "cisco", "juniper", "huawei", "nokia"},
+				Description: "Branch VPN static route injection",
+			},
+		},
+	}
+	assert.NoError(t, validateRadiusRoutePolicy(valid))
+
+	missingVRF := valid
+	missingVRF.RolePolicies = append([]RadiusRouteRolePolicy(nil), valid.RolePolicies...)
+	missingVRF.RolePolicies[0].VRF = "missing"
+	assert.ErrorContains(t, validateRadiusRoutePolicy(missingVRF), "does not match a configured VRF")
+
+	badIPv6Gateway := valid
+	badIPv6Gateway.RolePolicies = append([]RadiusRouteRolePolicy(nil), valid.RolePolicies...)
+	badIPv6Gateway.RolePolicies[0].IPv6Routes = append([]RadiusRouteConfig(nil), valid.RolePolicies[0].IPv6Routes...)
+	badIPv6Gateway.RolePolicies[0].IPv6Routes[0].Gateway = "192.0.2.10"
+	assert.ErrorContains(t, validateRadiusRoutePolicy(badIPv6Gateway), "gateway must be IPv6")
+
+	duplicateRoute := valid
+	duplicateRoute.RolePolicies = append([]RadiusRouteRolePolicy(nil), valid.RolePolicies...)
+	duplicateRoute.RolePolicies[0].IPv4Routes = append([]RadiusRouteConfig(nil), valid.RolePolicies[0].IPv4Routes...)
+	duplicateRoute.RolePolicies[0].IPv4Routes = append(duplicateRoute.RolePolicies[0].IPv4Routes, RadiusRouteConfig{Destination: "10.80.0.0/16", Gateway: "192.0.2.254"})
+	assert.ErrorContains(t, validateRadiusRoutePolicy(duplicateRoute), "duplicates")
+
+	unknownPack := valid
+	unknownPack.RolePolicies = append([]RadiusRouteRolePolicy(nil), valid.RolePolicies...)
+	unknownPack.RolePolicies[0].VendorPacks = []string{"made-up"}
+	assert.ErrorContains(t, validateRadiusRoutePolicy(unknownPack), "unknown")
+
+	badMode := valid
+	badMode.ConflictMode = "replace-everything"
+	assert.ErrorContains(t, validateRadiusRoutePolicy(badMode), "invalid")
 }
 
 func baseProxyRoutingValidationConfig() *Config {

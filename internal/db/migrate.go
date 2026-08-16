@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 59
+	return 60
 }
 
 func Migrate() error {
@@ -3169,3 +3169,73 @@ CREATE INDEX IF NOT EXISTS idx_vlan_policy_events_fingerprint ON vlan_policy_eve
 `
 
 const schemaV59 = vlanPolicyEvidenceSQL
+
+const routePolicyEvidenceSQL = `
+CREATE TABLE IF NOT EXISTS route_policy_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	role TEXT,
+	session_id TEXT,
+	acct_session_id TEXT,
+	vrf TEXT,
+	owner TEXT,
+	revision TEXT,
+	ipv4_route_count INTEGER DEFAULT 0,
+	ipv6_route_count INTEGER DEFAULT 0,
+	withdraw_count INTEGER DEFAULT 0,
+	attribute_count INTEGER DEFAULT 0,
+	diagnostic_count INTEGER DEFAULT 0,
+	fingerprint TEXT,
+	request_json TEXT NOT NULL DEFAULT '{}',
+	response_json TEXT NOT NULL DEFAULT '{}',
+	diagnostics_json TEXT NOT NULL DEFAULT '[]',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('compile', 'preview', 'decompile')),
+	CHECK (status IN ('compiled', 'previewed', 'decompiled', 'blocked', 'degraded', 'failed'))
+);
+
+CREATE TABLE IF NOT EXISTS route_policy_ownership (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	route_key TEXT UNIQUE NOT NULL,
+	ownership_key TEXT NOT NULL,
+	event_id TEXT NOT NULL,
+	session_id TEXT,
+	acct_session_id TEXT,
+	role TEXT,
+	vrf TEXT NOT NULL,
+	owner TEXT NOT NULL,
+	revision TEXT NOT NULL,
+	family TEXT NOT NULL,
+	destination TEXT NOT NULL,
+	gateway TEXT,
+	metric INTEGER DEFAULT 0,
+	preference INTEGER DEFAULT 0,
+	interface_name TEXT,
+	tag TEXT,
+	source TEXT,
+	status TEXT NOT NULL DEFAULT 'active',
+	compiled_fingerprint TEXT,
+	installed_at DATETIME,
+	withdrawn_at DATETIME,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (family IN ('ipv4', 'ipv6')),
+	CHECK (status IN ('active', 'withdrawn', 'replaced', 'stale', 'observed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_route_policy_events_created ON route_policy_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_route_policy_events_status ON route_policy_events(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_route_policy_events_role ON route_policy_events(role, created_at);
+CREATE INDEX IF NOT EXISTS idx_route_policy_events_vrf ON route_policy_events(vrf, created_at);
+CREATE INDEX IF NOT EXISTS idx_route_policy_events_fingerprint ON route_policy_events(fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_route_policy_ownership_status ON route_policy_ownership(status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_route_policy_ownership_session ON route_policy_ownership(session_id, acct_session_id, status);
+CREATE INDEX IF NOT EXISTS idx_route_policy_ownership_vrf ON route_policy_ownership(vrf, family, destination);
+CREATE INDEX IF NOT EXISTS idx_route_policy_ownership_owner ON route_policy_ownership(owner, status, updated_at);
+`
+
+const schemaV60 = routePolicyEvidenceSQL

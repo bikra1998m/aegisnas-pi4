@@ -1814,6 +1814,26 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Tagged VLAN/QinQ compiler and decompiler evidence history."),
 	}))
+	addOperation(paths, "/api/v1/system/route-policy", "get", securedOperation("Read per-session route and VRF policy coverage", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Framed route, IPv6 route, VRF ownership, vendor AVPair, RFC, and evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/route-policy/preview", "post", securedOperationWithBody("Preview per-session route and VRF policy", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Role, session identifiers, requested routes, VRF, owner, lifecycle action, and vendor pack keys."), map[string]any{
+		"200":     responseJSON("Previewed route decision, rendered RADIUS attributes, diagnostics, fingerprint, and evidence event ID."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/route-policy/compile", "post", securedOperationWithBody("Compile per-session route and VRF attributes", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Role, session identifiers, requested routes, VRF, owner, lifecycle action, and vendor pack keys."), map[string]any{
+		"200":     responseJSON("Compiled route and VRF RADIUS attributes, diagnostics, fingerprint, ownership ledger updates, and evidence event ID."),
+		"default": responseText("Compile error."),
+	}))
+	addOperation(paths, "/api/v1/system/route-policy/decompile", "post", securedOperationWithBody("Decompile route and VRF RADIUS attributes", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Vendor pack key and observed route/VRF RADIUS attributes."), map[string]any{
+		"200":     responseJSON("Normalized route decision reconstructed from observed RADIUS attributes."),
+		"default": responseText("Decompile error."),
+	}))
+	addOperation(paths, "/api/v1/system/route-policy/history", "get", securedOperationWithParameters("List route and VRF policy evidence history", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event and ownership limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("Route compiler, decompiler, and ownership evidence history."),
+	}))
 	addOperation(paths, "/api/v1/system/rate-compiler", "get", securedOperation("Read vendor rate compiler coverage", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Rate compiler capabilities, supported vendor units, RFC references, summary counters, and recent evidence events."),
 	}))

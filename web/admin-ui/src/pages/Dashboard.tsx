@@ -1084,6 +1084,33 @@ type SystemStatus = {
       };
       evidence_error?: string;
     };
+    route_policy?: {
+      status?: string;
+      message?: string;
+      compiler_version?: number;
+      enabled?: boolean;
+      policy_count?: number;
+      vrf_count?: number;
+      ipv4_route_count?: number;
+      ipv6_route_count?: number;
+      active_routes?: number;
+      withdrawn_routes?: number;
+      evidence_summary?: {
+        total_events?: number;
+        compiled_count?: number;
+        previewed_count?: number;
+        decompiled_count?: number;
+        blocked_count?: number;
+        degraded_count?: number;
+        failed_count?: number;
+        active_routes?: number;
+        withdrawn_routes?: number;
+        last_status?: string;
+        last_role?: string;
+        last_vrf?: string;
+      };
+      evidence_error?: string;
+    };
     eap_framework?: EAPFrameworkReport;
     eap_teap?: TEAPReport;
     eap_machine_user?: MachineUserReport;
@@ -1728,6 +1755,7 @@ export default function Dashboard() {
   const fallbackPolicy = systemStatus.radius?.fallback_policy;
   const rateCompiler = systemStatus.radius?.rate_compiler;
   const vlanPolicy = systemStatus.radius?.vlan_policy;
+  const routePolicy = systemStatus.radius?.route_policy;
   const eapFramework = systemStatus.radius?.eap_framework;
   const teapReport = systemStatus.radius?.eap_teap;
   const machineUserReport = systemStatus.radius?.eap_machine_user;
@@ -4377,6 +4405,37 @@ export default function Dashboard() {
                     ) : null}
                   </div>
                   <StatusBadge status={vlanPolicy?.status || "unknown"} />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      Route And VRF Policy
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {routePolicy
+                        ? `${routePolicy.policy_count || 0} role policies, ${routePolicy.vrf_count || 0} VRFs, ${routePolicy.ipv4_route_count || 0} IPv4 routes, ${routePolicy.ipv6_route_count || 0} IPv6 routes.`
+                        : "No route policy status has been evaluated yet."}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {routePolicy?.message ||
+                        "Compile route and VRF intent before injecting per-session Framed-Route attributes."}
+                    </div>
+                    {routePolicy?.evidence_summary ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {`Evidence ${routePolicy.evidence_summary.total_events || 0}, compiled ${routePolicy.evidence_summary.compiled_count || 0}, previews ${routePolicy.evidence_summary.previewed_count || 0}, decompiled ${routePolicy.evidence_summary.decompiled_count || 0}, blocked ${routePolicy.evidence_summary.blocked_count || 0}, active ${routePolicy.evidence_summary.active_routes || 0}, withdrawn ${routePolicy.evidence_summary.withdrawn_routes || 0}.`}
+                      </div>
+                    ) : null}
+                    {routePolicy?.evidence_summary?.last_role ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Last role {routePolicy.evidence_summary.last_role}, VRF{" "}
+                        {routePolicy.evidence_summary.last_vrf || "default"},
+                        status {routePolicy.evidence_summary.last_status}.
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge status={routePolicy?.status || "unknown"} />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">

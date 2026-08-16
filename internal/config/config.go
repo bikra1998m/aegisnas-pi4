@@ -228,6 +228,7 @@ type RadiusConfig struct {
 	Upstream              RadiusUpstreamConfig              `mapstructure:"upstream"`
 	Vendor                RadiusVendorConfig                `mapstructure:"vendor"`
 	VLANPolicy            RadiusVLANPolicyConfig            `mapstructure:"vlan_policy"`
+	RoutePolicy           RadiusRoutePolicyConfig           `mapstructure:"route_policy"`
 }
 
 type RadiusVLANPolicyConfig struct {
@@ -264,6 +265,46 @@ type RadiusQinQConfig struct {
 	OuterVLAN int    `mapstructure:"outer_vlan"`
 	InnerVLAN int    `mapstructure:"inner_vlan"`
 	Mode      string `mapstructure:"mode"`
+}
+
+type RadiusRoutePolicyConfig struct {
+	Enabled        bool                    `mapstructure:"enabled"`
+	FailClosed     bool                    `mapstructure:"fail_closed"`
+	MaxRoutes      int                     `mapstructure:"max_routes"`
+	DefaultVRF     string                  `mapstructure:"default_vrf"`
+	DefaultOwner   string                  `mapstructure:"default_owner"`
+	ConflictMode   string                  `mapstructure:"conflict_mode"`
+	StopWithdrawal bool                    `mapstructure:"stop_withdrawal"`
+	VRFs           []RadiusVRFConfig       `mapstructure:"vrfs"`
+	RolePolicies   []RadiusRouteRolePolicy `mapstructure:"role_policies"`
+}
+
+type RadiusVRFConfig struct {
+	Name               string `mapstructure:"name"`
+	RouteDistinguisher string `mapstructure:"route_distinguisher"`
+	Description        string `mapstructure:"description"`
+}
+
+type RadiusRouteRolePolicy struct {
+	Role        string              `mapstructure:"role"`
+	VRF         string              `mapstructure:"vrf"`
+	Owner       string              `mapstructure:"owner"`
+	IPv4Routes  []RadiusRouteConfig `mapstructure:"ipv4_routes"`
+	IPv6Routes  []RadiusRouteConfig `mapstructure:"ipv6_routes"`
+	VendorPacks []string            `mapstructure:"vendor_packs"`
+	Description string              `mapstructure:"description"`
+}
+
+type RadiusRouteConfig struct {
+	Destination string `mapstructure:"destination"`
+	Gateway     string `mapstructure:"gateway"`
+	Metric      int    `mapstructure:"metric"`
+	Preference  int    `mapstructure:"preference"`
+	Interface   string `mapstructure:"interface"`
+	Tag         string `mapstructure:"tag"`
+	Owner       string `mapstructure:"owner"`
+	Install     bool   `mapstructure:"install"`
+	Description string `mapstructure:"description"`
 }
 
 type RadiusDynamicClientsConfig struct {
@@ -1678,6 +1719,13 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.accounting_ip.delegated_prefix_enabled", true)
 	v.SetDefault("radius.accounting_ip.reject_invalid", false)
 	v.SetDefault("radius.accounting_ip.retention_days", 365)
+	v.SetDefault("radius.route_policy.enabled", true)
+	v.SetDefault("radius.route_policy.fail_closed", false)
+	v.SetDefault("radius.route_policy.max_routes", 32)
+	v.SetDefault("radius.route_policy.default_vrf", "default")
+	v.SetDefault("radius.route_policy.default_owner", "aegisnas")
+	v.SetDefault("radius.route_policy.conflict_mode", "block")
+	v.SetDefault("radius.route_policy.stop_withdrawal", true)
 	v.SetDefault("radius.accounting_ingest_spool.enabled", true)
 	v.SetDefault("radius.accounting_ingest_spool.replay_enabled", true)
 	v.SetDefault("radius.accounting_ingest_spool.max_queue_records", 50000)
@@ -4400,6 +4448,9 @@ func (c *Config) Validate() error {
 	if err := validateRadiusVLANPolicy(c.Radius.VLANPolicy); err != nil {
 		return err
 	}
+	if err := validateRadiusRoutePolicy(c.Radius.RoutePolicy); err != nil {
+		return err
+	}
 	if err := validateRadSecConfig(c); err != nil {
 		return err
 	}
@@ -6878,6 +6929,183 @@ func validateRadiusVLANPolicy(raw RadiusVLANPolicyConfig) error {
 		if len(rolePolicy.Description) > 512 || strings.ContainsAny(rolePolicy.Description, "\x00") {
 			return fmt.Errorf("radius.vlan_policy.role_policies[%d].description is invalid", i)
 		}
+	}
+	return nil
+}
+
+func validateRadiusRoutePolicy(raw RadiusRoutePolicyConfig) error {
+	if !raw.Enabled && !raw.FailClosed && raw.MaxRoutes == 0 && strings.TrimSpace(raw.DefaultVRF) == "" &&
+		strings.TrimSpace(raw.DefaultOwner) == "" && strings.TrimSpace(raw.ConflictMode) == "" &&
+		!raw.StopWithdrawal && len(raw.VRFs) == 0 && len(raw.RolePolicies) == 0 {
+		return nil
+	}
+	if raw.MaxRoutes < 0 || raw.MaxRoutes > 256 {
+		return fmt.Errorf("radius.route_policy.max_routes must be between 0 and 256")
+	}
+	if err := validateRoutePolicyToken("radius.route_policy.default_vrf", raw.DefaultVRF, 128, true); err != nil {
+		return err
+	}
+	if err := validateRoutePolicyToken("radius.route_policy.default_owner", raw.DefaultOwner, 128, true); err != nil {
+		return err
+	}
+	switch strings.ToLower(strings.TrimSpace(raw.ConflictMode)) {
+	case "", "block", "prefer-role", "prefer-request", "warn":
+	default:
+		return fmt.Errorf("radius.route_policy.conflict_mode %q is invalid", raw.ConflictMode)
+	}
+
+	vrfs := map[string]struct{}{}
+	defaultVRF := strings.TrimSpace(raw.DefaultVRF)
+	for i, vrf := range raw.VRFs {
+		name := strings.TrimSpace(vrf.Name)
+		if err := validateRoutePolicyToken(fmt.Sprintf("radius.route_policy.vrfs[%d].name", i), name, 128, false); err != nil {
+			return err
+		}
+		key := strings.ToLower(name)
+		if _, exists := vrfs[key]; exists {
+			return fmt.Errorf("radius.route_policy.vrfs[%d].name %q duplicates an earlier VRF", i, name)
+		}
+		vrfs[key] = struct{}{}
+		if len(vrf.RouteDistinguisher) > 128 || strings.ContainsAny(vrf.RouteDistinguisher, "\r\n\x00") {
+			return fmt.Errorf("radius.route_policy.vrfs[%d].route_distinguisher is invalid", i)
+		}
+		if len(vrf.Description) > 512 || strings.ContainsAny(vrf.Description, "\x00") {
+			return fmt.Errorf("radius.route_policy.vrfs[%d].description is invalid", i)
+		}
+	}
+
+	maxRoutes := raw.MaxRoutes
+	if maxRoutes == 0 {
+		maxRoutes = 32
+	}
+	roles := map[string]struct{}{}
+	for i, policy := range raw.RolePolicies {
+		role := strings.TrimSpace(policy.Role)
+		if err := validateRoutePolicyToken(fmt.Sprintf("radius.route_policy.role_policies[%d].role", i), role, 253, false); err != nil {
+			return err
+		}
+		roleKey := strings.ToLower(role)
+		if _, exists := roles[roleKey]; exists {
+			return fmt.Errorf("radius.route_policy.role_policies[%d].role %q duplicates an earlier policy", i, role)
+		}
+		roles[roleKey] = struct{}{}
+		vrf := strings.TrimSpace(policy.VRF)
+		if vrf != "" {
+			if err := validateRoutePolicyToken(fmt.Sprintf("radius.route_policy.role_policies[%d].vrf", i), vrf, 128, false); err != nil {
+				return err
+			}
+			if len(raw.VRFs) > 0 {
+				_, explicit := vrfs[strings.ToLower(vrf)]
+				if !explicit && !strings.EqualFold(vrf, defaultVRF) {
+					return fmt.Errorf("radius.route_policy.role_policies[%d].vrf %q does not match a configured VRF", i, vrf)
+				}
+			}
+		}
+		if err := validateRoutePolicyToken(fmt.Sprintf("radius.route_policy.role_policies[%d].owner", i), policy.Owner, 128, true); err != nil {
+			return err
+		}
+		totalRoutes := len(policy.IPv4Routes) + len(policy.IPv6Routes)
+		if totalRoutes > maxRoutes {
+			return fmt.Errorf("radius.route_policy.role_policies[%d] cannot include more than %d routes", i, maxRoutes)
+		}
+		seenRoutes := map[string]string{}
+		for routeIndex, route := range policy.IPv4Routes {
+			if err := validateRadiusRoutePolicyRoute(fmt.Sprintf("radius.route_policy.role_policies[%d].ipv4_routes[%d]", i, routeIndex), route, 4, seenRoutes); err != nil {
+				return err
+			}
+		}
+		for routeIndex, route := range policy.IPv6Routes {
+			if err := validateRadiusRoutePolicyRoute(fmt.Sprintf("radius.route_policy.role_policies[%d].ipv6_routes[%d]", i, routeIndex), route, 6, seenRoutes); err != nil {
+				return err
+			}
+		}
+		for packIndex, pack := range policy.VendorPacks {
+			key := productconfigs.NormalizeVendorCompatibilityPackKey(pack)
+			if key == "" || !productconfigs.ValidVendorCompatibilityPackKey(key) {
+				return fmt.Errorf("radius.route_policy.role_policies[%d].vendor_packs[%d] %q is unknown", i, packIndex, pack)
+			}
+		}
+		if len(policy.Description) > 512 || strings.ContainsAny(policy.Description, "\x00") {
+			return fmt.Errorf("radius.route_policy.role_policies[%d].description is invalid", i)
+		}
+	}
+	return nil
+}
+
+func validateRadiusRoutePolicyRoute(field string, route RadiusRouteConfig, family int, seen map[string]string) error {
+	destination := strings.TrimSpace(route.Destination)
+	if destination == "" {
+		return fmt.Errorf("%s.destination cannot be empty", field)
+	}
+	if strings.ContainsAny(destination, "\r\n\x00") {
+		return fmt.Errorf("%s.destination is invalid", field)
+	}
+	ip, network, err := net.ParseCIDR(destination)
+	if err != nil {
+		return fmt.Errorf("%s.destination %q is invalid: %w", field, route.Destination, err)
+	}
+	if family == 4 && ip.To4() == nil {
+		return fmt.Errorf("%s.destination must be IPv4", field)
+	}
+	if family == 6 && (ip.To4() != nil || ip.To16() == nil) {
+		return fmt.Errorf("%s.destination must be IPv6", field)
+	}
+	normalizedDestination := strings.ToLower(network.String())
+	seenKey := fmt.Sprintf("%d:%s", family, normalizedDestination)
+	if previous := seen[seenKey]; previous != "" {
+		return fmt.Errorf("%s.destination duplicates %s", field, previous)
+	}
+	seen[seenKey] = field
+
+	gateway := strings.TrimSpace(route.Gateway)
+	if gateway != "" {
+		if strings.ContainsAny(gateway, "\r\n\x00") {
+			return fmt.Errorf("%s.gateway is invalid", field)
+		}
+		parsedGateway := net.ParseIP(gateway)
+		if parsedGateway == nil {
+			return fmt.Errorf("%s.gateway %q is invalid", field, route.Gateway)
+		}
+		if family == 4 && parsedGateway.To4() == nil {
+			return fmt.Errorf("%s.gateway must be IPv4", field)
+		}
+		if family == 6 && (parsedGateway.To4() != nil || parsedGateway.To16() == nil) {
+			return fmt.Errorf("%s.gateway must be IPv6", field)
+		}
+	}
+	if route.Metric < 0 || route.Metric > 16777215 {
+		return fmt.Errorf("%s.metric must be between 0 and 16777215", field)
+	}
+	if route.Preference < 0 || route.Preference > 16777215 {
+		return fmt.Errorf("%s.preference must be between 0 and 16777215", field)
+	}
+	for _, binding := range []struct {
+		name  string
+		value string
+		limit int
+	}{
+		{"interface", route.Interface, 128},
+		{"tag", route.Tag, 128},
+		{"owner", route.Owner, 128},
+		{"description", route.Description, 512},
+	} {
+		if len(binding.value) > binding.limit || strings.ContainsAny(binding.value, "\r\n\x00") {
+			return fmt.Errorf("%s.%s is invalid", field, binding.name)
+		}
+	}
+	return nil
+}
+
+func validateRoutePolicyToken(field, value string, limit int, optional bool) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		if optional {
+			return nil
+		}
+		return fmt.Errorf("%s cannot be empty", field)
+	}
+	if len(value) > limit || strings.ContainsAny(value, "\r\n\x00") {
+		return fmt.Errorf("%s is invalid", field)
 	}
 	return nil
 }
