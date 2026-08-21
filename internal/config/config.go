@@ -231,6 +231,7 @@ type RadiusConfig struct {
 	VLANPolicy            RadiusVLANPolicyConfig            `mapstructure:"vlan_policy"`
 	RoutePolicy           RadiusRoutePolicyConfig           `mapstructure:"route_policy"`
 	AddressPolicy         RadiusAddressPolicyConfig         `mapstructure:"address_policy"`
+	TranslationPolicy     RadiusTranslationPolicyConfig     `mapstructure:"translation_policy"`
 }
 
 type RadiusVLANPolicyConfig struct {
@@ -380,6 +381,58 @@ type RadiusAddressRolePolicy struct {
 	RAMode              string   `mapstructure:"ra_mode"`
 	VendorPacks         []string `mapstructure:"vendor_packs"`
 	Description         string   `mapstructure:"description"`
+}
+
+type RadiusTranslationPolicyConfig struct {
+	Enabled               bool                          `mapstructure:"enabled"`
+	FailClosed            bool                          `mapstructure:"fail_closed"`
+	MaxMappings           int                           `mapstructure:"max_mappings"`
+	DefaultOwner          string                        `mapstructure:"default_owner"`
+	ConflictMode          string                        `mapstructure:"conflict_mode"`
+	StopWithdrawal        bool                          `mapstructure:"stop_withdrawal"`
+	AllocationMode        string                        `mapstructure:"allocation_mode"`
+	DefaultPortBlockSize  int                           `mapstructure:"default_port_block_size"`
+	MinPort               int                           `mapstructure:"min_port"`
+	MaxPort               int                           `mapstructure:"max_port"`
+	DefaultNAT64Prefix    string                        `mapstructure:"default_nat64_prefix"`
+	LoggingRequired       bool                          `mapstructure:"logging_required"`
+	AccountingCorrelation bool                          `mapstructure:"accounting_correlation"`
+	Pools                 []RadiusTranslationPoolConfig `mapstructure:"pools"`
+	RolePolicies          []RadiusTranslationRolePolicy `mapstructure:"role_policies"`
+}
+
+type RadiusTranslationPoolConfig struct {
+	Name          string   `mapstructure:"name"`
+	Family        string   `mapstructure:"family"`
+	CIDR          string   `mapstructure:"cidr"`
+	Start         string   `mapstructure:"start"`
+	End           string   `mapstructure:"end"`
+	PortStart     int      `mapstructure:"port_start"`
+	PortEnd       int      `mapstructure:"port_end"`
+	PortBlockSize int      `mapstructure:"port_block_size"`
+	Mode          string   `mapstructure:"mode"`
+	VendorPacks   []string `mapstructure:"vendor_packs"`
+	Description   string   `mapstructure:"description"`
+}
+
+type RadiusTranslationRolePolicy struct {
+	Role                  string   `mapstructure:"role"`
+	Owner                 string   `mapstructure:"owner"`
+	TranslationMode       string   `mapstructure:"translation_mode"`
+	PublicPool            string   `mapstructure:"public_pool"`
+	PublicIPv4            string   `mapstructure:"public_ipv4"`
+	PrivateIPv4Prefix     string   `mapstructure:"private_ipv4_prefix"`
+	SubscriberIPv6Prefix  string   `mapstructure:"subscriber_ipv6_prefix"`
+	NAT64Prefix           string   `mapstructure:"nat64_prefix"`
+	PortBlockStart        int      `mapstructure:"port_block_start"`
+	PortBlockEnd          int      `mapstructure:"port_block_end"`
+	PortBlockSize         int      `mapstructure:"port_block_size"`
+	LoggingProfile        string   `mapstructure:"logging_profile"`
+	AccountingKey         string   `mapstructure:"accounting_key"`
+	QuotaCorrelation      bool     `mapstructure:"quota_correlation"`
+	AccountingCorrelation bool     `mapstructure:"accounting_correlation"`
+	VendorPacks           []string `mapstructure:"vendor_packs"`
+	Description           string   `mapstructure:"description"`
 }
 
 type RadiusDynamicClientsConfig struct {
@@ -1821,6 +1874,19 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.address_policy.ra.default_router_preference", "medium")
 	v.SetDefault("radius.address_policy.ra.valid_lifetime_seconds", 7200)
 	v.SetDefault("radius.address_policy.ra.preferred_lifetime_seconds", 3600)
+	v.SetDefault("radius.translation_policy.enabled", true)
+	v.SetDefault("radius.translation_policy.fail_closed", false)
+	v.SetDefault("radius.translation_policy.max_mappings", 256)
+	v.SetDefault("radius.translation_policy.default_owner", "aegisnas")
+	v.SetDefault("radius.translation_policy.conflict_mode", "block")
+	v.SetDefault("radius.translation_policy.stop_withdrawal", true)
+	v.SetDefault("radius.translation_policy.allocation_mode", "deterministic")
+	v.SetDefault("radius.translation_policy.default_port_block_size", 512)
+	v.SetDefault("radius.translation_policy.min_port", 1024)
+	v.SetDefault("radius.translation_policy.max_port", 65535)
+	v.SetDefault("radius.translation_policy.default_nat64_prefix", "64:ff9b::/96")
+	v.SetDefault("radius.translation_policy.logging_required", true)
+	v.SetDefault("radius.translation_policy.accounting_correlation", true)
 	v.SetDefault("radius.accounting_ingest_spool.enabled", true)
 	v.SetDefault("radius.accounting_ingest_spool.replay_enabled", true)
 	v.SetDefault("radius.accounting_ingest_spool.max_queue_records", 50000)
@@ -4547,6 +4613,9 @@ func (c *Config) Validate() error {
 		return err
 	}
 	if err := validateRadiusAddressPolicy(c.Radius.AddressPolicy); err != nil {
+		return err
+	}
+	if err := validateRadiusTranslationPolicy(c.Radius.TranslationPolicy); err != nil {
 		return err
 	}
 	if err := validateRadSecConfig(c); err != nil {
@@ -7321,6 +7390,340 @@ func validateRadiusAddressPolicy(raw RadiusAddressPolicyConfig) error {
 		}
 	}
 	return nil
+}
+
+type radiusTranslationPoolFacts struct {
+	name      string
+	family    string
+	prefix    netip.Prefix
+	portStart int
+	portEnd   int
+	blockSize int
+}
+
+func validateRadiusTranslationPolicy(raw RadiusTranslationPolicyConfig) error {
+	if !raw.Enabled && !raw.FailClosed && raw.MaxMappings == 0 &&
+		strings.TrimSpace(raw.DefaultOwner) == "" && strings.TrimSpace(raw.ConflictMode) == "" &&
+		strings.TrimSpace(raw.AllocationMode) == "" && raw.DefaultPortBlockSize == 0 &&
+		raw.MinPort == 0 && raw.MaxPort == 0 && strings.TrimSpace(raw.DefaultNAT64Prefix) == "" &&
+		!raw.StopWithdrawal && !raw.LoggingRequired && !raw.AccountingCorrelation &&
+		len(raw.Pools) == 0 && len(raw.RolePolicies) == 0 {
+		return nil
+	}
+	if raw.MaxMappings < 0 || raw.MaxMappings > 1048576 {
+		return fmt.Errorf("radius.translation_policy.max_mappings must be between 0 and 1048576")
+	}
+	if err := validateRoutePolicyToken("radius.translation_policy.default_owner", raw.DefaultOwner, 128, true); err != nil {
+		return err
+	}
+	switch strings.ToLower(strings.TrimSpace(raw.ConflictMode)) {
+	case "", "block", "prefer-role", "prefer-request", "warn":
+	default:
+		return fmt.Errorf("radius.translation_policy.conflict_mode %q is invalid", raw.ConflictMode)
+	}
+	switch strings.ToLower(strings.TrimSpace(raw.AllocationMode)) {
+	case "", "deterministic", "sticky", "dynamic":
+	default:
+		return fmt.Errorf("radius.translation_policy.allocation_mode %q is invalid", raw.AllocationMode)
+	}
+	minPort := raw.MinPort
+	if minPort == 0 {
+		minPort = 1024
+	}
+	maxPort := raw.MaxPort
+	if maxPort == 0 {
+		maxPort = 65535
+	}
+	if minPort < 1 || minPort > 65535 {
+		return fmt.Errorf("radius.translation_policy.min_port must be between 1 and 65535")
+	}
+	if maxPort < 1 || maxPort > 65535 {
+		return fmt.Errorf("radius.translation_policy.max_port must be between 1 and 65535")
+	}
+	if minPort > maxPort {
+		return fmt.Errorf("radius.translation_policy.min_port cannot exceed max_port")
+	}
+	if raw.DefaultPortBlockSize < 0 || raw.DefaultPortBlockSize > 65535 {
+		return fmt.Errorf("radius.translation_policy.default_port_block_size must be between 0 and 65535")
+	}
+	if raw.DefaultPortBlockSize > 0 && raw.DefaultPortBlockSize > maxPort-minPort+1 {
+		return fmt.Errorf("radius.translation_policy.default_port_block_size exceeds configured port range")
+	}
+	if strings.TrimSpace(raw.DefaultNAT64Prefix) != "" {
+		if err := validateTranslationNAT64Prefix("radius.translation_policy.default_nat64_prefix", raw.DefaultNAT64Prefix); err != nil {
+			return err
+		}
+	}
+
+	pools := map[string]radiusTranslationPoolFacts{}
+	poolList := make([]radiusTranslationPoolFacts, 0, len(raw.Pools))
+	for i, pool := range raw.Pools {
+		facts, err := validateRadiusTranslationPool(fmt.Sprintf("radius.translation_policy.pools[%d]", i), pool, minPort, maxPort, raw.DefaultPortBlockSize)
+		if err != nil {
+			return err
+		}
+		key := strings.ToLower(facts.name)
+		if _, exists := pools[key]; exists {
+			return fmt.Errorf("radius.translation_policy.pools[%d].name %q duplicates an earlier pool", i, facts.name)
+		}
+		for _, existing := range poolList {
+			if existing.family == facts.family && addressPolicyPrefixesOverlap(existing.prefix, facts.prefix) {
+				return fmt.Errorf("radius.translation_policy.pools[%d].cidr %q overlaps pool %q", i, facts.prefix.String(), existing.name)
+			}
+		}
+		pools[key] = facts
+		poolList = append(poolList, facts)
+	}
+
+	roles := map[string]struct{}{}
+	for i, policy := range raw.RolePolicies {
+		role := strings.TrimSpace(policy.Role)
+		if err := validateRoutePolicyToken(fmt.Sprintf("radius.translation_policy.role_policies[%d].role", i), role, 253, false); err != nil {
+			return err
+		}
+		roleKey := strings.ToLower(role)
+		if _, exists := roles[roleKey]; exists {
+			return fmt.Errorf("radius.translation_policy.role_policies[%d].role %q duplicates an earlier policy", i, role)
+		}
+		roles[roleKey] = struct{}{}
+		if err := validateRoutePolicyToken(fmt.Sprintf("radius.translation_policy.role_policies[%d].owner", i), policy.Owner, 128, true); err != nil {
+			return err
+		}
+		switch strings.ToLower(strings.TrimSpace(policy.TranslationMode)) {
+		case "", "inherit", "cgnat", "nat44", "nat64", "dual-stack", "ds-lite", "map-t":
+		default:
+			return fmt.Errorf("radius.translation_policy.role_policies[%d].translation_mode %q is invalid", i, policy.TranslationMode)
+		}
+		if err := validateTranslationPoolReference(fmt.Sprintf("radius.translation_policy.role_policies[%d].public_pool", i), policy.PublicPool, pools); err != nil {
+			return err
+		}
+		if err := validateTranslationIPv4InPool(fmt.Sprintf("radius.translation_policy.role_policies[%d].public_ipv4", i), policy.PublicIPv4, policy.PublicPool, pools); err != nil {
+			return err
+		}
+		if err := validateTranslationPrefix(fmt.Sprintf("radius.translation_policy.role_policies[%d].private_ipv4_prefix", i), policy.PrivateIPv4Prefix, "ipv4"); err != nil {
+			return err
+		}
+		if err := validateTranslationPrefix(fmt.Sprintf("radius.translation_policy.role_policies[%d].subscriber_ipv6_prefix", i), policy.SubscriberIPv6Prefix, "ipv6"); err != nil {
+			return err
+		}
+		if strings.TrimSpace(policy.NAT64Prefix) != "" {
+			if err := validateTranslationNAT64Prefix(fmt.Sprintf("radius.translation_policy.role_policies[%d].nat64_prefix", i), policy.NAT64Prefix); err != nil {
+				return err
+			}
+		}
+		rolePortStart := policy.PortBlockStart
+		if rolePortStart == 0 {
+			rolePortStart = minPort
+		}
+		rolePortEnd := policy.PortBlockEnd
+		if rolePortEnd == 0 {
+			rolePortEnd = maxPort
+		}
+		roleBlockSize := policy.PortBlockSize
+		if roleBlockSize == 0 {
+			roleBlockSize = raw.DefaultPortBlockSize
+		}
+		if err := validateTranslationPortIntent(fmt.Sprintf("radius.translation_policy.role_policies[%d]", i), rolePortStart, rolePortEnd, roleBlockSize, minPort, maxPort); err != nil {
+			return err
+		}
+		if err := validateAddressPolicyText(fmt.Sprintf("radius.translation_policy.role_policies[%d].logging_profile", i), policy.LoggingProfile, 128); err != nil && strings.TrimSpace(policy.LoggingProfile) != "" {
+			return err
+		}
+		if err := validateAddressPolicyText(fmt.Sprintf("radius.translation_policy.role_policies[%d].accounting_key", i), policy.AccountingKey, 253); err != nil && strings.TrimSpace(policy.AccountingKey) != "" {
+			return err
+		}
+		for packIndex, pack := range policy.VendorPacks {
+			key := productconfigs.NormalizeVendorCompatibilityPackKey(pack)
+			if key == "" || !productconfigs.ValidVendorCompatibilityPackKey(key) {
+				return fmt.Errorf("radius.translation_policy.role_policies[%d].vendor_packs[%d] %q is unknown", i, packIndex, pack)
+			}
+		}
+		if len(policy.Description) > 512 || strings.ContainsAny(policy.Description, "\x00") {
+			return fmt.Errorf("radius.translation_policy.role_policies[%d].description is invalid", i)
+		}
+	}
+	return nil
+}
+
+func validateRadiusTranslationPool(field string, pool RadiusTranslationPoolConfig, defaultMinPort, defaultMaxPort, defaultBlockSize int) (radiusTranslationPoolFacts, error) {
+	name := strings.TrimSpace(pool.Name)
+	if err := validateRoutePolicyToken(field+".name", name, 128, false); err != nil {
+		return radiusTranslationPoolFacts{}, err
+	}
+	cidr := strings.TrimSpace(pool.CIDR)
+	if cidr == "" {
+		return radiusTranslationPoolFacts{}, fmt.Errorf("%s.cidr cannot be empty", field)
+	}
+	prefix, err := netip.ParsePrefix(cidr)
+	if err != nil {
+		return radiusTranslationPoolFacts{}, fmt.Errorf("%s.cidr %q is invalid: %w", field, pool.CIDR, err)
+	}
+	prefix = prefix.Masked()
+	family := normalizeTranslationPoolFamily(pool.Family, prefix)
+	if family == "" {
+		return radiusTranslationPoolFacts{}, fmt.Errorf("%s.family %q is invalid", field, pool.Family)
+	}
+	if family != "ipv4" || !prefix.Addr().Is4() {
+		return radiusTranslationPoolFacts{}, fmt.Errorf("%s.cidr must be IPv4 for CGNAT public pools", field)
+	}
+	switch strings.ToLower(strings.TrimSpace(pool.Mode)) {
+	case "", "cgnat", "nat44", "nat64", "dual-stack", "deterministic":
+	default:
+		return radiusTranslationPoolFacts{}, fmt.Errorf("%s.mode %q is invalid", field, pool.Mode)
+	}
+	for _, binding := range []struct {
+		name  string
+		value string
+	}{
+		{"start", pool.Start},
+		{"end", pool.End},
+	} {
+		if strings.TrimSpace(binding.value) == "" {
+			continue
+		}
+		if err := validateAddressPolicyIP(field+"."+binding.name, binding.value, "ipv4"); err != nil {
+			return radiusTranslationPoolFacts{}, err
+		}
+		addr, _ := netip.ParseAddr(strings.TrimSpace(binding.value))
+		if !prefix.Contains(addr) {
+			return radiusTranslationPoolFacts{}, fmt.Errorf("%s.%s %q is outside %s", field, binding.name, binding.value, prefix.String())
+		}
+	}
+	if strings.TrimSpace(pool.Start) != "" && strings.TrimSpace(pool.End) != "" {
+		start, _ := netip.ParseAddr(strings.TrimSpace(pool.Start))
+		end, _ := netip.ParseAddr(strings.TrimSpace(pool.End))
+		if compareAddressPolicyAddr(start, end) > 0 {
+			return radiusTranslationPoolFacts{}, fmt.Errorf("%s.start cannot be after end", field)
+		}
+	}
+	portStart := pool.PortStart
+	if portStart == 0 {
+		portStart = defaultMinPort
+	}
+	portEnd := pool.PortEnd
+	if portEnd == 0 {
+		portEnd = defaultMaxPort
+	}
+	blockSize := pool.PortBlockSize
+	if blockSize == 0 {
+		blockSize = defaultBlockSize
+	}
+	if err := validateTranslationPortIntent(field, portStart, portEnd, blockSize, 1, 65535); err != nil {
+		return radiusTranslationPoolFacts{}, err
+	}
+	for packIndex, pack := range pool.VendorPacks {
+		key := productconfigs.NormalizeVendorCompatibilityPackKey(pack)
+		if key == "" || !productconfigs.ValidVendorCompatibilityPackKey(key) {
+			return radiusTranslationPoolFacts{}, fmt.Errorf("%s.vendor_packs[%d] %q is unknown", field, packIndex, pack)
+		}
+	}
+	if len(pool.Description) > 512 || strings.ContainsAny(pool.Description, "\x00") {
+		return radiusTranslationPoolFacts{}, fmt.Errorf("%s.description is invalid", field)
+	}
+	return radiusTranslationPoolFacts{name: name, family: family, prefix: prefix, portStart: portStart, portEnd: portEnd, blockSize: blockSize}, nil
+}
+
+func validateTranslationPoolReference(field, name string, pools map[string]radiusTranslationPoolFacts) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	if err := validateRoutePolicyToken(field, name, 128, false); err != nil {
+		return err
+	}
+	if _, ok := pools[strings.ToLower(name)]; !ok {
+		return fmt.Errorf("%s %q does not match a configured translation pool", field, name)
+	}
+	return nil
+}
+
+func validateTranslationIPv4InPool(field, value, poolName string, pools map[string]radiusTranslationPoolFacts) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	if err := validateAddressPolicyIP(field, value, "ipv4"); err != nil {
+		return err
+	}
+	if strings.TrimSpace(poolName) == "" {
+		return nil
+	}
+	pool := pools[strings.ToLower(strings.TrimSpace(poolName))]
+	addr, _ := netip.ParseAddr(value)
+	if !pool.prefix.Contains(addr) {
+		return fmt.Errorf("%s %q is outside pool %q", field, value, pool.name)
+	}
+	return nil
+}
+
+func validateTranslationPrefix(field, value, family string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	prefix, err := netip.ParsePrefix(value)
+	if err != nil {
+		return fmt.Errorf("%s %q is invalid: %w", field, value, err)
+	}
+	prefix = prefix.Masked()
+	if family == "ipv4" && !prefix.Addr().Is4() {
+		return fmt.Errorf("%s must be IPv4", field)
+	}
+	if family == "ipv6" && !prefix.Addr().Is6() {
+		return fmt.Errorf("%s must be IPv6", field)
+	}
+	return nil
+}
+
+func validateTranslationNAT64Prefix(field, value string) error {
+	value = strings.TrimSpace(value)
+	prefix, err := netip.ParsePrefix(value)
+	if err != nil {
+		return fmt.Errorf("%s %q is invalid: %w", field, value, err)
+	}
+	prefix = prefix.Masked()
+	if !prefix.Addr().Is6() {
+		return fmt.Errorf("%s must be IPv6", field)
+	}
+	switch prefix.Bits() {
+	case 32, 40, 48, 56, 64, 96:
+		return nil
+	default:
+		return fmt.Errorf("%s must use RFC 6052 prefix length /32, /40, /48, /56, /64, or /96", field)
+	}
+}
+
+func validateTranslationPortIntent(field string, portStart, portEnd, blockSize, minAllowed, maxAllowed int) error {
+	if portStart < minAllowed || portStart > maxAllowed {
+		return fmt.Errorf("%s.port_start must be between %d and %d", field, minAllowed, maxAllowed)
+	}
+	if portEnd < minAllowed || portEnd > maxAllowed {
+		return fmt.Errorf("%s.port_end must be between %d and %d", field, minAllowed, maxAllowed)
+	}
+	if portStart > portEnd {
+		return fmt.Errorf("%s.port_start cannot exceed port_end", field)
+	}
+	if blockSize < 0 || blockSize > maxAllowed {
+		return fmt.Errorf("%s.port_block_size must be between 0 and %d", field, maxAllowed)
+	}
+	if blockSize > 0 && blockSize > portEnd-portStart+1 {
+		return fmt.Errorf("%s.port_block_size exceeds configured port range", field)
+	}
+	return nil
+}
+
+func normalizeTranslationPoolFamily(value string, prefix netip.Prefix) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "ipv4", "public-ipv4", "cgnat":
+		if prefix.IsValid() && prefix.Addr().Is6() {
+			return "ipv6"
+		}
+		return "ipv4"
+	case "ipv6":
+		return "ipv6"
+	default:
+		return ""
+	}
 }
 
 func validateRadiusDHCPv6Policy(raw RadiusDHCPv6PolicyConfig) error {

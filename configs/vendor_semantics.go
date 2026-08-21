@@ -27,6 +27,11 @@ const (
 	VendorSemanticDelegatedIPv6Prefix   = "address.delegated_ipv6_prefix"
 	VendorSemanticRouterAdvertisement   = "address.router_advertisement"
 	VendorSemanticDHCPv6                = "address.dhcpv6"
+	VendorSemanticTranslationPolicy     = "translation.policy"
+	VendorSemanticTranslationPublicIPv4 = "translation.public_ipv4"
+	VendorSemanticTranslationPortBlock  = "translation.port_block"
+	VendorSemanticNAT64Prefix           = "translation.nat64_prefix"
+	VendorSemanticTranslationLogging    = "translation.logging"
 	VendorSemanticCoAReauth             = "coa.reauth"
 	VendorSemanticCoADisconnect         = "coa.disconnect"
 	VendorSemanticControllerPolicySync  = "controller.policy_sync"
@@ -387,6 +392,66 @@ func AegisNASSemanticRegistry() []VendorSemanticCapability {
 			ProductAttribute:   "AegisNAS-DHCPv6-Mode",
 			ProductNumber:      43,
 			StandardAttributes: []string{"Vendor-Specific"},
+			HardwareScope:      "branch and enterprise preferred",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticTranslationPolicy,
+			Label:              "Subscriber Translation Policy",
+			Description:        "Carries CGNAT, NAT44, NAT64, DS-Lite, MAP-T, owner, and revision intent for subscriber translation lifecycle.",
+			ValueType:          "record",
+			Directions:         []string{"inbound", "outbound", "accounting"},
+			ProductAttribute:   "AegisNAS-Translation-Policy",
+			ProductNumber:      45,
+			StandardAttributes: []string{"Vendor-Specific"},
+			HardwareScope:      "branch and enterprise preferred",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticTranslationPublicIPv4,
+			Label:              "Translation Public IPv4",
+			Description:        "Carries public IPv4 address or pool selection for CGNAT/NAT44 subscriber translation.",
+			ValueType:          "ipaddr",
+			Directions:         []string{"inbound", "outbound", "accounting"},
+			ProductAttribute:   "AegisNAS-Translation-Public-IPv4-Address",
+			ProductNumber:      50,
+			StandardAttributes: []string{"Vendor-Specific"},
+			HardwareScope:      "branch and enterprise preferred",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticTranslationPortBlock,
+			Label:              "Translation Port Block",
+			Description:        "Carries deterministic TCP/UDP source-port block allocation used by CGNAT logging, quota correlation, and HA ownership.",
+			ValueType:          "record",
+			Directions:         []string{"inbound", "outbound", "accounting"},
+			ProductAttribute:   "AegisNAS-Translation-Port-Block-Start",
+			ProductNumber:      54,
+			StandardAttributes: []string{"Vendor-Specific"},
+			HardwareScope:      "branch and enterprise preferred",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticNAT64Prefix,
+			Label:              "NAT64 Prefix",
+			Description:        "Carries RFC 6052/RFC 6146 NAT64 prefix intent for IPv6-only subscriber access.",
+			ValueType:          "ipv6prefix",
+			Directions:         []string{"inbound", "outbound", "accounting"},
+			ProductAttribute:   "AegisNAS-Translation-NAT64-Prefix",
+			ProductNumber:      53,
+			StandardAttributes: []string{"Vendor-Specific"},
+			HardwareScope:      "branch and enterprise preferred",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticTranslationLogging,
+			Label:              "Translation Logging",
+			Description:        "Carries logging profile and accounting correlation key for deterministic translation evidence.",
+			ValueType:          "record",
+			Directions:         []string{"inbound", "outbound", "accounting"},
+			ProductAttribute:   "AegisNAS-Translation-Logging-Profile",
+			ProductNumber:      57,
+			StandardAttributes: []string{"Class", "Acct-Session-Id", "Vendor-Specific"},
 			HardwareScope:      "branch and enterprise preferred",
 			CompatibilityState: "implemented",
 		},

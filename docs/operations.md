@@ -969,3 +969,32 @@ intended. Accounting Stop and Accounting-Off withdraw matching active
 assignments when `stop_withdrawal` is enabled. Release claims for native DHCPv6
 server behavior, router advertisement packet emission, and device-specific pool
 enforcement must be backed by the NAS-0056 release certification checklist.
+
+## Translation Policy Operations
+
+For CGNAT, NAT44, NAT64, DS-Lite, MAP-T, or dual-stack subscriber roles,
+configure `radius.translation_policy` before enabling vendor packs that consume
+translation AVPairs, NAT pool names, public IPv4 selectors, or deterministic
+port-block metadata. Validate public pool CIDRs, start/end ranges, NAT64
+prefixes, role references, and port limits through Access Settings or:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/translation-policy | jq '.report.enabled, .report.summary'
+```
+
+Preview a risky change before saving controller or NAS-side configuration:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"role":"branch-dualstack","session_id":"dry-run","pack_keys":["aegisnas","cisco","starent"]}' \
+  http://127.0.0.1:8083/api/v1/system/translation-policy/preview | jq '.result.status, .result.summary'
+```
+
+Use `compile` only when recording active or withdrawn software ownership is
+intended. Accounting Stop and Accounting-Off withdraw matching active
+translation mappings when `stop_withdrawal` is enabled. Release claims for
+native CGNAT/NAT64 dataplane behavior, lawful logging, and device-specific
+translation enforcement must be backed by the NAS-0057 release certification
+checklist.

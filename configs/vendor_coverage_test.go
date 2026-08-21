@@ -55,6 +55,20 @@ ATTRIBUTE AegisNAS-Delegated-IPv6-Prefix 41 string
 ATTRIBUTE AegisNAS-RA-Prefix 42 string
 ATTRIBUTE AegisNAS-DHCPv6-Mode 43 string
 ATTRIBUTE AegisNAS-RA-Mode 44 string
+ATTRIBUTE AegisNAS-Translation-Policy 45 string
+ATTRIBUTE AegisNAS-Translation-Owner 46 string
+ATTRIBUTE AegisNAS-Translation-Revision 47 string
+ATTRIBUTE AegisNAS-Translation-Mode 48 string
+ATTRIBUTE AegisNAS-Translation-Public-IPv4-Pool 49 string
+ATTRIBUTE AegisNAS-Translation-Public-IPv4-Address 50 string
+ATTRIBUTE AegisNAS-Translation-Private-IPv4-Prefix 51 string
+ATTRIBUTE AegisNAS-Translation-Subscriber-IPv6-Prefix 52 string
+ATTRIBUTE AegisNAS-Translation-NAT64-Prefix 53 string
+ATTRIBUTE AegisNAS-Translation-Port-Block-Start 54 integer
+ATTRIBUTE AegisNAS-Translation-Port-Block-End 55 integer
+ATTRIBUTE AegisNAS-Translation-Port-Block-Size 56 integer
+ATTRIBUTE AegisNAS-Translation-Logging-Profile 57 string
+ATTRIBUTE AegisNAS-Translation-Accounting-Key 58 string
 END-VENDOR AegisNAS
 
 VENDOR Cisco 9
@@ -69,7 +83,7 @@ END-VENDOR Cisco
 	require.NotEmpty(t, report.Rows)
 	assert.Equal(t, "combined-fixture", report.Source)
 	assert.Equal(t, 2, report.CatalogVendorCount)
-	assert.Equal(t, 47, report.CatalogAttributeCount)
+	assert.Equal(t, 61, report.CatalogAttributeCount)
 	assert.Equal(t, 3, report.ActivePackCount)
 	assert.Greater(t, report.DictionaryMatchedAttributeCount, 0)
 	assert.Greater(t, report.MissingDictionaryAttributeCount, 0)
@@ -89,7 +103,7 @@ END-VENDOR Cisco
 	cisco := rows[VendorPackCisco]
 	assert.True(t, cisco.Active)
 	assert.Equal(t, "dictionary-backed", cisco.CoverageState)
-	assert.Equal(t, 8, cisco.DictionaryMatchedAttributeCount)
+	assert.Equal(t, 12, cisco.DictionaryMatchedAttributeCount)
 	assert.Zero(t, cisco.MissingDictionaryAttributeCount)
 
 	aruba := rows[VendorPackAruba]

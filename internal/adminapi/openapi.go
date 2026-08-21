@@ -1855,6 +1855,27 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Address compiler, decompiler, and ownership evidence history."),
 	}))
+	addOperation(paths, "/api/v1/system/translation-policy", "get", securedOperation("Read CGNAT, NAT64, deterministic port-block, and translation ownership policy coverage", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Translation pools, role policies, vendor attributes, RFC references, and ownership evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/translation-policy/preview", "post", securedOperationWithBody("Preview subscriber translation policy", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Role, session identifiers, requested public pool or IP, NAT64 prefix, port block, lifecycle action, logging profile, accounting key, and vendor pack keys."), map[string]any{
+		"200":     responseJSON("Previewed translation decision, rendered RADIUS attributes, diagnostics, fingerprint, and evidence event ID."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/translation-policy/compile", "post", securedOperationWithBody("Compile subscriber translation attributes", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Role, session identifiers, requested public pool or IP, NAT64 prefix, port block, lifecycle action, logging profile, accounting key, and vendor pack keys."), map[string]any{
+		"200":     responseJSON("Compiled translation RADIUS attributes, diagnostics, fingerprint, ownership ledger updates, and evidence event ID."),
+		"default": responseText("Compile error."),
+	}))
+	addOperation(paths, "/api/v1/system/translation-policy/decompile", "post", securedOperationWithBody("Decompile subscriber translation RADIUS attributes", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Vendor pack key and observed translation, NAT64, public address, or port-block RADIUS attributes."), map[string]any{
+		"200":     responseJSON("Normalized translation decision reconstructed from observed RADIUS attributes."),
+		"default": responseText("Decompile error."),
+	}))
+	addOperation(paths, "/api/v1/system/translation-policy/history", "get", securedOperationWithParameters("List translation policy evidence history", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event and ownership limit. Defaults to 100 and caps at 500.", false),
+		queryStringParameter("status", "Optional ownership status filter such as active or withdrawn.", false),
+	}, map[string]any{
+		"200": responseJSON("Translation compiler, decompiler, and ownership evidence history."),
+	}))
 	addOperation(paths, "/api/v1/system/rate-compiler", "get", securedOperation("Read vendor rate compiler coverage", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Rate compiler capabilities, supported vendor units, RFC references, summary counters, and recent evidence events."),
 	}))

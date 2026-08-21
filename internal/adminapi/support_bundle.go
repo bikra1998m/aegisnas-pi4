@@ -321,6 +321,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/route-policy-history.json", requestPath: "/api/v1/system/route-policy/history", label: "Route injection compiler, decompiler, and ownership evidence", handler: HandleListRoutePolicyHistory},
 		{archivePath: "api/address-policy.json", requestPath: "/api/v1/system/address-policy", label: "IPv4/IPv6 pools, DHCPv6, RA, and prefix-delegation policy", handler: HandleGetAddressPolicy},
 		{archivePath: "api/address-policy-history.json", requestPath: "/api/v1/system/address-policy/history", label: "Address policy compiler, decompiler, and ownership evidence", handler: HandleListAddressPolicyHistory},
+		{archivePath: "api/translation-policy.json", requestPath: "/api/v1/system/translation-policy", label: "CGNAT, NAT64, deterministic port-block, and translation ownership policy", handler: HandleGetTranslationPolicy},
+		{archivePath: "api/translation-policy-history.json", requestPath: "/api/v1/system/translation-policy/history", label: "Translation compiler, decompiler, and ownership evidence", handler: HandleListTranslationPolicyHistory},
 		{archivePath: "api/rate-compiler.json", requestPath: "/api/v1/system/rate-compiler", label: "Dual-stack shaping and vendor rate compiler evidence", handler: HandleGetRateCompiler},
 		{archivePath: "api/policy-sets.json", requestPath: "/api/v1/system/policy-sets", label: "Versioned policy set governance", handler: HandleGetPolicySets},
 		{archivePath: "api/policy-simulation-analyses.json", requestPath: "/api/v1/system/policy-sets/analyses", label: "Policy simulation analyses", handler: HandleListPolicySimulationAnalyses},

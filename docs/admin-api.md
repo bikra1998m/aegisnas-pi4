@@ -369,6 +369,47 @@ or Accounting-Off withdraws matching active ownership rows.
 
 See [IPv4 / IPv6 Pools, DHCPv6, RA, And Prefix Delegation](ipv4-ipv6-pools-dhcpv6-ra-prefix-delegation.md).
 
+## CGNAT, NAT64, And Deterministic Subscriber Translation
+
+NAS-0057 exposes the vendor-neutral translation policy compiler at:
+
+```text
+GET  /api/v1/system/translation-policy
+POST /api/v1/system/translation-policy/preview
+POST /api/v1/system/translation-policy/compile
+POST /api/v1/system/translation-policy/decompile
+GET  /api/v1/system/translation-policy/history
+```
+
+Read-only roles may inspect, preview, and decompile. `ops_admin` and
+`super_admin` may compile because compile records active or withdrawn
+translation ownership. Responses include compiler version, selected translation
+mode, public IPv4 pool, public IPv4 address, private IPv4 prefix, subscriber
+IPv6 prefix, NAT64 prefix, deterministic port block, logging profile,
+accounting key, generated product and vendor attributes, diagnostics, RFC list,
+evidence event ID, and a SHA-256 fingerprint.
+
+Evidence is stored in `translation_policy_events` and
+`translation_policy_ownership`, summarized in `/api/v1/system/status` as
+`radius.translation_policy`, checked by production readiness as
+`cgnat_nat64_deterministic_translation`, and captured in support bundles as
+`api/translation-policy.json` and `api/translation-policy-history.json`.
+
+Example:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data '{"role":"branch-dualstack","session_id":"session-1","acct_session_id":"acct-1","pack_keys":["aegisnas","cisco","juniper","huawei","h3c","nokia","starent","erx"]}' \
+  http://127.0.0.1:8083/api/v1/system/translation-policy/compile | jq '.result.attributes'
+```
+
+Preview and decompile are evidence-only. They do not update active translation
+ownership. Compile updates the software ownership ledger, and Accounting Stop
+or Accounting-Off withdraws matching active ownership rows.
+
+See [CGNAT, NAT64, And Deterministic Subscriber Translation](cgnat-nat64-deterministic-translation.md).
+
 The bounded opaque pass-through policy is exposed at:
 
 ```text

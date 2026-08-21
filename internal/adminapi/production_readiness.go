@@ -152,6 +152,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionVLANPolicyCheck(&report, cfg)
 	addProductionRoutePolicyCheck(&report, cfg)
 	addProductionAddressPolicyCheck(&report, cfg)
+	addProductionTranslationPolicyCheck(&report, cfg)
 	addProductionRateCompilerCheck(&report)
 	addProductionPolicySetGovernanceCheck(&report, cfg)
 	addProductionPolicySimulationAnalysisCheck(&report, cfg)
@@ -1645,6 +1646,125 @@ func addressRolePolicyHasIntent(policy config.RadiusAddressRolePolicy) bool {
 		}
 	}
 	return false
+}
+
+func addProductionTranslationPolicyCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	compilerReport := radius.BuildTranslationPolicyReport(cfg)
+	sample := radius.CompileTranslationPolicy(cfg, firstProductionTranslationPolicySample(cfg))
+	switch sample.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded":
+		status = "degraded"
+	}
+	summary := fmt.Sprintf("Translation policy compiler version %d has %d role policy(s), %d pool(s), %d CGNAT policy(s), %d NAT64 policy(s), %d deterministic port-block policy(s), and compiled %d sample attribute(s) with %d diagnostic(s).",
+		compilerReport.CompilerVersion,
+		compilerReport.Summary.PolicyCount,
+		compilerReport.Summary.PoolCount,
+		compilerReport.Summary.CGNATPolicies,
+		compilerReport.Summary.NAT64Policies,
+		compilerReport.Summary.PortBlockPolicies,
+		len(sample.Attributes),
+		len(sample.Diagnostics))
+	if db.DB == nil {
+		status = "blocked"
+		summary = "Database is not initialized; translation policy evidence cannot be verified."
+	} else if evidence, err := db.GetTranslationPolicyEventSummary(); err != nil {
+		status = "blocked"
+		summary += " Translation policy evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d compiler event(s), %d active mapping(s), %d withdrawn mapping(s), %d active port block(s), %d active NAT64 mapping(s), %d blocked, %d failed.",
+			evidence.TotalEvents, evidence.ActiveMappings, evidence.WithdrawnMappings, evidence.ActivePortBlocks, evidence.ActiveNAT64Mappings, evidence.BlockedCount, evidence.FailedCount)
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "cgnat_nat64_deterministic_translation",
+		Category:       "policy",
+		Label:          "CGNAT, NAT64, And Deterministic Subscriber Translation",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/translation-policy/preview before changing subscriber translation intent, retain translation_policy_events and translation_policy_ownership evidence, and complete the NAS-0057 release certification checklist for FreeRADIUS, vendor-device, CGNAT/NAT64 dataplane, lawful logging, HA, performance, and rollback proof.",
+		Dependencies: []string{
+			"radius.translation_policy", "translation_policy_events", "translation_policy_ownership",
+			"/api/v1/system/translation-policy", "/api/v1/system/translation-policy/preview", "/api/v1/system/translation-policy/decompile",
+			"AegisNAS-Translation-Policy", "AegisNAS-Translation-Public-IPv4-Address", "AegisNAS-Translation-Port-Block-Start",
+			"Cisco-AVPair", "Juniper-AV-Pair", "Huawei-AVpair", "H3C-Av-Pair", "Nokia-AVPair", "SN-NAT-IP-Address",
+			"RFC 2865", "RFC 5176", "RFC 6052", "RFC 6146", "RFC 6888",
+		},
+	})
+}
+
+func firstProductionTranslationPolicySample(cfg *config.Config) radius.TranslationPolicyCompileRequest {
+	req := radius.TranslationPolicyCompileRequest{
+		Role:                  "default",
+		SessionID:             "readiness-session",
+		AcctSessionID:         "readiness-acct",
+		CallingStationID:      "00:11:22:33:44:55",
+		NASIdentifier:         "production-readiness",
+		TranslationMode:       "dual-stack",
+		PublicIPv4:            "198.51.100.10",
+		PrivateIPv4Prefix:     "100.64.0.0/10",
+		SubscriberIPv6Prefix:  "2001:db8:57::/64",
+		NAT64Prefix:           "64:ff9b::/96",
+		PortBlockStart:        10000,
+		PortBlockEnd:          10511,
+		PortBlockSize:         512,
+		LoggingProfile:        "readiness-cgnat",
+		AccountingCorrelation: true,
+		PackKeys: []string{
+			productconfigs.VendorPackAegisNAS,
+			productconfigs.VendorPackCisco,
+			productconfigs.VendorPackJuniper,
+			productconfigs.VendorPackHuawei,
+			productconfigs.VendorPackH3C,
+			productconfigs.VendorPackNokia,
+			productconfigs.VendorPackStarent,
+			productconfigs.VendorPackERX,
+		},
+	}
+	if cfg == nil {
+		return req
+	}
+	for _, policy := range cfg.Radius.TranslationPolicy.RolePolicies {
+		if strings.TrimSpace(policy.Role) == "" {
+			continue
+		}
+		req.Role = strings.TrimSpace(policy.Role)
+		if translationRolePolicyHasIntent(policy) {
+			req.TranslationMode = ""
+			req.PublicIPv4 = ""
+			req.PrivateIPv4Prefix = ""
+			req.SubscriberIPv6Prefix = ""
+			req.NAT64Prefix = ""
+			req.PortBlockStart = 0
+			req.PortBlockEnd = 0
+			req.PortBlockSize = 0
+			req.LoggingProfile = ""
+			return req
+		}
+	}
+	return req
+}
+
+func translationRolePolicyHasIntent(policy config.RadiusTranslationRolePolicy) bool {
+	for _, value := range []string{
+		policy.TranslationMode,
+		policy.PublicPool,
+		policy.PublicIPv4,
+		policy.PrivateIPv4Prefix,
+		policy.SubscriberIPv6Prefix,
+		policy.NAT64Prefix,
+		policy.LoggingProfile,
+		policy.AccountingKey,
+	} {
+		if strings.TrimSpace(value) != "" {
+			return true
+		}
+	}
+	return policy.PortBlockStart > 0 || policy.PortBlockEnd > 0 || policy.PortBlockSize > 0 || policy.QuotaCorrelation || policy.AccountingCorrelation
 }
 
 func addProductionRateCompilerCheck(report *productionReadinessReport) {

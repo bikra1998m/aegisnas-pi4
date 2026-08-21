@@ -158,6 +158,9 @@ func RecordAccountingIPAssignment(ctx context.Context, event AccountingEventReco
 		if _, err := WithdrawAddressPolicyOwnershipForSession(ctx, event.SessionKey, event.AcctSessionID, event.EventID, "accounting-stop"); err != nil && !tableMissing(err) {
 			return fmt.Errorf("withdraw address policy ownership: %w", err)
 		}
+		if _, err := WithdrawTranslationPolicyOwnershipForSession(ctx, event.SessionKey, event.AcctSessionID, event.EventID, "accounting-stop"); err != nil && !tableMissing(err) {
+			return fmt.Errorf("withdraw translation policy ownership: %w", err)
+		}
 	}
 	if !accountingIPFieldsPresent(fields) && assignmentStatus != "closed" {
 		return nil

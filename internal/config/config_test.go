@@ -4702,6 +4702,74 @@ func TestValidateRadiusAddressPolicy(t *testing.T) {
 	assert.ErrorContains(t, validateRadiusAddressPolicy(unknownPack), "unknown")
 }
 
+func TestValidateRadiusTranslationPolicy(t *testing.T) {
+	valid := RadiusTranslationPolicyConfig{
+		Enabled:               true,
+		FailClosed:            true,
+		MaxMappings:           16,
+		DefaultOwner:          "aegisnas",
+		ConflictMode:          "block",
+		StopWithdrawal:        true,
+		AllocationMode:        "deterministic",
+		DefaultPortBlockSize:  512,
+		MinPort:               10000,
+		MaxPort:               12047,
+		DefaultNAT64Prefix:    "64:ff9b::/96",
+		LoggingRequired:       true,
+		AccountingCorrelation: true,
+		Pools: []RadiusTranslationPoolConfig{
+			{Name: "cgnat-public", Family: "ipv4", CIDR: "198.51.100.0/29", Start: "198.51.100.2", End: "198.51.100.6", PortStart: 10000, PortEnd: 12047, PortBlockSize: 512, Mode: "cgnat"},
+		},
+		RolePolicies: []RadiusTranslationRolePolicy{
+			{
+				Role:                  "branch-dualstack",
+				Owner:                 "nat-team",
+				TranslationMode:       "dual-stack",
+				PublicPool:            "cgnat-public",
+				PrivateIPv4Prefix:     "100.64.1.0/24",
+				SubscriberIPv6Prefix:  "2001:db8:57::/64",
+				NAT64Prefix:           "64:ff9b::/96",
+				PortBlockSize:         512,
+				LoggingProfile:        "lawful-cgnat",
+				AccountingCorrelation: true,
+				VendorPacks:           []string{"aegisnas", "cisco", "starent"},
+			},
+		},
+	}
+
+	assert.NoError(t, validateRadiusTranslationPolicy(valid))
+
+	overlap := valid
+	overlap.Pools = append(append([]RadiusTranslationPoolConfig{}, valid.Pools...), RadiusTranslationPoolConfig{Name: "overlap", Family: "ipv4", CIDR: "198.51.100.4/30", Mode: "cgnat"})
+	assert.ErrorContains(t, validateRadiusTranslationPolicy(overlap), "overlaps")
+
+	badNAT64 := valid
+	badNAT64.DefaultNAT64Prefix = "100.64.0.0/10"
+	assert.ErrorContains(t, validateRadiusTranslationPolicy(badNAT64), "must be IPv6")
+
+	badPoolFamily := valid
+	badPoolFamily.Pools = append([]RadiusTranslationPoolConfig{}, valid.Pools...)
+	badPoolFamily.Pools[0].CIDR = "2001:db8::/64"
+	badPoolFamily.Pools[0].Family = "ipv6"
+	assert.ErrorContains(t, validateRadiusTranslationPolicy(badPoolFamily), "must be IPv4")
+
+	missingPool := valid
+	missingPool.RolePolicies = append([]RadiusTranslationRolePolicy{}, valid.RolePolicies...)
+	missingPool.RolePolicies[0].PublicPool = "missing"
+	assert.ErrorContains(t, validateRadiusTranslationPolicy(missingPool), "does not match a configured translation pool")
+
+	badPortRange := valid
+	badPortRange.RolePolicies = append([]RadiusTranslationRolePolicy{}, valid.RolePolicies...)
+	badPortRange.RolePolicies[0].PortBlockStart = 12000
+	badPortRange.RolePolicies[0].PortBlockEnd = 11000
+	assert.ErrorContains(t, validateRadiusTranslationPolicy(badPortRange), "cannot exceed")
+
+	unknownPack := valid
+	unknownPack.RolePolicies = append([]RadiusTranslationRolePolicy{}, valid.RolePolicies...)
+	unknownPack.RolePolicies[0].VendorPacks = []string{"mystery"}
+	assert.ErrorContains(t, validateRadiusTranslationPolicy(unknownPack), "unknown")
+}
+
 func baseProxyRoutingValidationConfig() *Config {
 	return &Config{
 		Mode: "two-nic",

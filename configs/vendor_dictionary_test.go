@@ -12,7 +12,7 @@ func TestAegisNASVendorDictionary(t *testing.T) {
 
 	assert.Equal(t, "AegisNAS", dict.Name)
 	assert.Equal(t, 55555, dict.ID)
-	require.Len(t, dict.Attributes, 44)
+	require.Len(t, dict.Attributes, 58)
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Role", Number: 1, Type: "string"}, dict.Attributes[0])
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Tenant", Number: 11, Type: "string"}, dict.Attributes[10])
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-ACL-Rule", Number: 13, Type: "string"}, dict.Attributes[12])
@@ -23,6 +23,9 @@ func TestAegisNASVendorDictionary(t *testing.T) {
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Framed-IPv6-Route", Number: 30, Type: "string"}, dict.Attributes[29])
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Framed-IP-Address", Number: 38, Type: "string"}, dict.Attributes[37])
 	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-RA-Mode", Number: 44, Type: "string"}, dict.Attributes[43])
+	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Translation-Policy", Number: 45, Type: "string"}, dict.Attributes[44])
+	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Translation-Port-Block-Start", Number: 54, Type: "integer"}, dict.Attributes[53])
+	assert.Equal(t, VendorDictionaryAttribute{Name: "AegisNAS-Translation-Accounting-Key", Number: 58, Type: "string"}, dict.Attributes[57])
 }
 
 func TestAegisNASVendorDictionaryUsesEnvironmentVendorID(t *testing.T) {
@@ -39,7 +42,7 @@ func TestAegisNASVendorDictionaryCatalogForConfiguredIdentity(t *testing.T) {
 	vendor, ok := catalog.VendorByName("AegisNAS")
 	require.True(t, ok)
 	assert.Equal(t, 424242, vendor.ID)
-	assert.Len(t, vendor.Attributes, 44)
+	assert.Len(t, vendor.Attributes, 58)
 }
 
 func TestParseVendorDictionaryCatalog(t *testing.T) {
@@ -98,7 +101,7 @@ func TestAegisNASVendorCompatibilityReport(t *testing.T) {
 	assert.True(t, report.Summary.ProductVendorIDPlaceholder)
 	assert.Equal(t, "dictionary.aegisnas", report.Summary.ProductVendorDictionaryFilename)
 	assert.Equal(t, "$INCLUDE dictionary.aegisnas", report.Summary.ProductVendorDictionaryInclude)
-	assert.Equal(t, 44, report.Summary.ProductAttributeCount)
+	assert.Equal(t, 58, report.Summary.ProductAttributeCount)
 	assert.Greater(t, report.Summary.SemanticCount, 10)
 	assert.Greater(t, report.Summary.PackCount, 5)
 	assert.Greater(t, report.Summary.ImplementedCount, 0)

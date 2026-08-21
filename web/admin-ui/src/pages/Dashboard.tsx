@@ -1143,6 +1143,41 @@ type SystemStatus = {
       };
       evidence_error?: string;
     };
+    translation_policy?: {
+      status?: string;
+      message?: string;
+      compiler_version?: number;
+      enabled?: boolean;
+      policy_count?: number;
+      pool_count?: number;
+      public_ipv4_pools?: number;
+      cgnat_policies?: number;
+      nat64_policies?: number;
+      port_block_policies?: number;
+      active_mappings?: number;
+      withdrawn_mappings?: number;
+      active_port_blocks?: number;
+      active_nat64_mappings?: number;
+      active_cgnat_mappings?: number;
+      evidence_summary?: {
+        total_events?: number;
+        compiled_count?: number;
+        previewed_count?: number;
+        decompiled_count?: number;
+        blocked_count?: number;
+        degraded_count?: number;
+        failed_count?: number;
+        active_mappings?: number;
+        withdrawn_mappings?: number;
+        active_port_blocks?: number;
+        active_nat64_mappings?: number;
+        active_cgnat_mappings?: number;
+        last_status?: string;
+        last_role?: string;
+        last_translation_mode?: string;
+      };
+      evidence_error?: string;
+    };
     eap_framework?: EAPFrameworkReport;
     eap_teap?: TEAPReport;
     eap_machine_user?: MachineUserReport;
@@ -1789,6 +1824,7 @@ export default function Dashboard() {
   const vlanPolicy = systemStatus.radius?.vlan_policy;
   const routePolicy = systemStatus.radius?.route_policy;
   const addressPolicy = systemStatus.radius?.address_policy;
+  const translationPolicy = systemStatus.radius?.translation_policy;
   const eapFramework = systemStatus.radius?.eap_framework;
   const teapReport = systemStatus.radius?.eap_teap;
   const machineUserReport = systemStatus.radius?.eap_machine_user;
@@ -4504,6 +4540,45 @@ export default function Dashboard() {
                     ) : null}
                   </div>
                   <StatusBadge status={addressPolicy?.status || "unknown"} />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      CGNAT And NAT64 Translation
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {translationPolicy
+                        ? `${translationPolicy.policy_count || 0} role policies, ${translationPolicy.pool_count || 0} pools, ${translationPolicy.cgnat_policies || 0} CGNAT policies, ${translationPolicy.nat64_policies || 0} NAT64 policies.`
+                        : "No translation policy status has been evaluated yet."}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {translationPolicy?.message ||
+                        "Compile subscriber translation intent before changing public IPv4, NAT64, port-block, or logging assignments."}
+                    </div>
+                    {translationPolicy?.evidence_summary ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {`Evidence ${translationPolicy.evidence_summary.total_events || 0}, compiled ${translationPolicy.evidence_summary.compiled_count || 0}, previews ${translationPolicy.evidence_summary.previewed_count || 0}, decompiled ${translationPolicy.evidence_summary.decompiled_count || 0}, blocked ${translationPolicy.evidence_summary.blocked_count || 0}, active ${translationPolicy.evidence_summary.active_mappings || 0}, withdrawn ${translationPolicy.evidence_summary.withdrawn_mappings || 0}.`}
+                      </div>
+                    ) : null}
+                    {translationPolicy?.evidence_summary?.last_role ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Last role{" "}
+                        {translationPolicy.evidence_summary.last_role}, mode{" "}
+                        {translationPolicy.evidence_summary
+                          .last_translation_mode || "unknown"}
+                        , port blocks{" "}
+                        {translationPolicy.evidence_summary
+                          .active_port_blocks || 0}
+                        , status{" "}
+                        {translationPolicy.evidence_summary.last_status}.
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    status={translationPolicy?.status || "unknown"}
+                  />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">

@@ -408,3 +408,38 @@ Accounting-Off event should withdraw rows for the matching session or
 accounting session ID when `radius.address_policy.stop_withdrawal` is enabled.
 Roll back the application and database together if an older runtime does not
 understand schema v61.
+
+## Schema v62 Translation Policy Evidence Upgrade
+
+NAS-0057 adds durable CGNAT, NAT64, deterministic port-block, and translation
+ownership evidence:
+
+- `translation_policy_events`
+- `translation_policy_ownership`
+
+After upgrade, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/translation-policy \
+  | jq '.report.enabled, .report.summary, .evidence.summary'
+```
+
+Then compile a lab role that has public IPv4, NAT64, deterministic port-block,
+and logging intent:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"role":"branch-dualstack","session_id":"upgrade-translation-smoke","acct_session_id":"upgrade-translation-acct","pack_keys":["aegisnas","cisco","starent"]}' \
+  http://127.0.0.1:8083/api/v1/system/translation-policy/compile \
+  | jq '.result.status, .result.summary, .event_id'
+```
+
+Confirm `/api/v1/system/translation-policy/history` shows active ownership rows
+for the selected public IPv4 address, NAT64 prefix, and port block. A
+subsequent Accounting Stop or Accounting-Off event should withdraw rows for the
+matching session or accounting session ID when
+`radius.translation_policy.stop_withdrawal` is enabled. Roll back the
+application and database together if an older runtime does not understand schema
+v62.

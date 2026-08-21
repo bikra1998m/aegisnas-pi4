@@ -15,60 +15,77 @@ import (
 
 // ReplyAttributes contains RADIUS reply attributes for a user.
 type ReplyAttributes struct {
-	Role                     string
-	BandwidthProfile         string
-	FilterID                 string
-	PolicyTag                string
-	SessionTimeout           int
-	IdleTimeout              int
-	VLAN                     int
-	TunnelType               string // "VLAN"
-	TunnelMediumType         string // "IEEE-802"
-	TunnelPrivateGroupID     string // VLAN ID as string
-	DataVLAN                 int
-	VoiceVLAN                int
-	TaggedVLANs              []int
-	QinQOuterVLAN            int
-	QinQInnerVLAN            int
-	VLANPool                 string
-	FallbackVLAN             int
-	AuthFailVLAN             int
-	VLANPolicyMode           string
-	VLANPolicyFingerprint    string
-	VRF                      string
-	RouteOwner               string
-	RouteRevision            string
-	RoutePolicyMode          string
-	RoutePolicyFingerprint   string
-	FramedRoutes             []string
-	FramedIPv6Routes         []string
-	AddressOwner             string
-	AddressRevision          string
-	AddressPolicyMode        string
-	AddressPolicyFingerprint string
-	FramedIPAddress          string
-	FramedIPNetmask          string
-	FramedPool               string
-	FramedIPv6Address        string
-	FramedIPv6Prefix         string
-	DelegatedIPv6Prefix      string
-	FramedIPv6Pool           string
-	RAPrefix                 string
-	DHCPv6Mode               string
-	RAMode                   string
-	MikrotikRateLimit        string // MikroTik specific, but widely used
-	WISPrBandwidthMaxDown    int
-	WISPrBandwidthMaxUp      int
-	HasQuarantine            bool
-	Quarantine               bool
-	PortalProfile            string
-	DeviceGroup              string
-	Tenant                   string
-	ACLPolicyName            string
-	InboundACL               string
-	OutboundACL              string
-	ACLRules                 []ACLRule
-	ServiceChain             []policy.ServiceIntent
+	Role                             string
+	BandwidthProfile                 string
+	FilterID                         string
+	PolicyTag                        string
+	SessionTimeout                   int
+	IdleTimeout                      int
+	VLAN                             int
+	TunnelType                       string // "VLAN"
+	TunnelMediumType                 string // "IEEE-802"
+	TunnelPrivateGroupID             string // VLAN ID as string
+	DataVLAN                         int
+	VoiceVLAN                        int
+	TaggedVLANs                      []int
+	QinQOuterVLAN                    int
+	QinQInnerVLAN                    int
+	VLANPool                         string
+	FallbackVLAN                     int
+	AuthFailVLAN                     int
+	VLANPolicyMode                   string
+	VLANPolicyFingerprint            string
+	VRF                              string
+	RouteOwner                       string
+	RouteRevision                    string
+	RoutePolicyMode                  string
+	RoutePolicyFingerprint           string
+	FramedRoutes                     []string
+	FramedIPv6Routes                 []string
+	AddressOwner                     string
+	AddressRevision                  string
+	AddressPolicyMode                string
+	AddressPolicyFingerprint         string
+	FramedIPAddress                  string
+	FramedIPNetmask                  string
+	FramedPool                       string
+	FramedIPv6Address                string
+	FramedIPv6Prefix                 string
+	DelegatedIPv6Prefix              string
+	FramedIPv6Pool                   string
+	RAPrefix                         string
+	DHCPv6Mode                       string
+	RAMode                           string
+	TranslationOwner                 string
+	TranslationRevision              string
+	TranslationPolicyMode            string
+	TranslationPolicyFingerprint     string
+	TranslationMode                  string
+	TranslationPublicPool            string
+	TranslationPublicIPv4            string
+	TranslationPrivateIPv4Prefix     string
+	TranslationSubscriberIPv6Prefix  string
+	TranslationNAT64Prefix           string
+	TranslationPortBlockStart        int
+	TranslationPortBlockEnd          int
+	TranslationPortBlockSize         int
+	TranslationLoggingProfile        string
+	TranslationAccountingKey         string
+	TranslationQuotaCorrelation      bool
+	TranslationAccountingCorrelation bool
+	MikrotikRateLimit                string // MikroTik specific, but widely used
+	WISPrBandwidthMaxDown            int
+	WISPrBandwidthMaxUp              int
+	HasQuarantine                    bool
+	Quarantine                       bool
+	PortalProfile                    string
+	DeviceGroup                      string
+	Tenant                           string
+	ACLPolicyName                    string
+	InboundACL                       string
+	OutboundACL                      string
+	ACLRules                         []ACLRule
+	ServiceChain                     []policy.ServiceIntent
 }
 
 type ReplyAttributeItem struct {
@@ -365,6 +382,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 		appendVLANPolicyReplyAttributes(attrs, packKey, appendItem)
 		appendRoutePolicyReplyAttributes(attrs, packKey, appendItem)
 		appendAddressPolicyReplyAttributes(attrs, packKey, appendItem)
+		appendTranslationPolicyReplyAttributes(attrs, packKey, appendItem)
 	}
 	return items
 }
@@ -544,6 +562,70 @@ func addressPolicyDecisionFromReplyAttributes(attrs *ReplyAttributes) AddressPol
 		decision.Revision = addressPolicyRevision(decision)
 	}
 	decision.OwnershipKey = addressPolicyOwnershipKey(decision)
+	return decision
+}
+
+func appendTranslationPolicyReplyAttributes(attrs *ReplyAttributes, packKey string, appendItem func(string, string, bool)) {
+	if !hasTranslationPolicyReplyAttributes(attrs) {
+		return
+	}
+	decision := translationPolicyDecisionFromReplyAttributes(attrs)
+	for _, item := range BuildTranslationPolicyAttributes(decision, []string{packKey}) {
+		appendItem(item.Name, item.Value, item.Quoted)
+	}
+}
+
+func hasTranslationPolicyReplyAttributes(attrs *ReplyAttributes) bool {
+	if attrs == nil {
+		return false
+	}
+	return strings.TrimSpace(attrs.TranslationOwner) != "" ||
+		strings.TrimSpace(attrs.TranslationRevision) != "" ||
+		strings.TrimSpace(attrs.TranslationPolicyMode) != "" ||
+		strings.TrimSpace(attrs.TranslationPolicyFingerprint) != "" ||
+		strings.TrimSpace(attrs.TranslationMode) != "" ||
+		strings.TrimSpace(attrs.TranslationPublicPool) != "" ||
+		strings.TrimSpace(attrs.TranslationPublicIPv4) != "" ||
+		strings.TrimSpace(attrs.TranslationPrivateIPv4Prefix) != "" ||
+		strings.TrimSpace(attrs.TranslationSubscriberIPv6Prefix) != "" ||
+		strings.TrimSpace(attrs.TranslationNAT64Prefix) != "" ||
+		attrs.TranslationPortBlockStart > 0 ||
+		attrs.TranslationPortBlockEnd > 0 ||
+		attrs.TranslationPortBlockSize > 0 ||
+		strings.TrimSpace(attrs.TranslationLoggingProfile) != "" ||
+		strings.TrimSpace(attrs.TranslationAccountingKey) != "" ||
+		attrs.TranslationQuotaCorrelation ||
+		attrs.TranslationAccountingCorrelation
+}
+
+func translationPolicyDecisionFromReplyAttributes(attrs *ReplyAttributes) TranslationPolicyDecision {
+	if attrs == nil {
+		return TranslationPolicyDecision{}
+	}
+	decision := TranslationPolicyDecision{
+		Role:                  replyRole(attrs),
+		PolicySource:          "reply_attributes",
+		LifecycleAction:       firstReplyValue(strings.ToLower(strings.TrimSpace(attrs.TranslationPolicyMode)), "authorize"),
+		Owner:                 firstReplyValue(strings.TrimSpace(attrs.TranslationOwner), "aegisnas"),
+		Revision:              strings.TrimSpace(attrs.TranslationRevision),
+		TranslationMode:       firstReplyValue(normalizeTranslationMode(attrs.TranslationMode), "cgnat"),
+		PublicPool:            strings.TrimSpace(attrs.TranslationPublicPool),
+		PublicIPv4:            strings.TrimSpace(attrs.TranslationPublicIPv4),
+		PrivateIPv4Prefix:     strings.TrimSpace(attrs.TranslationPrivateIPv4Prefix),
+		SubscriberIPv6Prefix:  strings.TrimSpace(attrs.TranslationSubscriberIPv6Prefix),
+		NAT64Prefix:           strings.TrimSpace(attrs.TranslationNAT64Prefix),
+		PortBlockStart:        attrs.TranslationPortBlockStart,
+		PortBlockEnd:          attrs.TranslationPortBlockEnd,
+		PortBlockSize:         attrs.TranslationPortBlockSize,
+		LoggingProfile:        strings.TrimSpace(attrs.TranslationLoggingProfile),
+		AccountingKey:         strings.TrimSpace(attrs.TranslationAccountingKey),
+		QuotaCorrelation:      attrs.TranslationQuotaCorrelation,
+		AccountingCorrelation: attrs.TranslationAccountingCorrelation,
+	}
+	if decision.Revision == "" {
+		decision.Revision = translationPolicyRevision(decision)
+	}
+	decision.OwnershipKey = translationPolicyOwnershipKey(decision)
 	return decision
 }
 

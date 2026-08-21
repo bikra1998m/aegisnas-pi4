@@ -1638,6 +1638,23 @@ const defaultSettings: JsonMap = {
       pools: [],
       role_policies: [],
     },
+    translation_policy: {
+      enabled: true,
+      fail_closed: false,
+      max_mappings: 256,
+      default_owner: "aegisnas",
+      conflict_mode: "block",
+      stop_withdrawal: true,
+      allocation_mode: "deterministic",
+      default_port_block_size: 512,
+      min_port: 1024,
+      max_port: 65535,
+      default_nat64_prefix: "64:ff9b::/96",
+      logging_required: true,
+      accounting_correlation: true,
+      pools: [],
+      role_policies: [],
+    },
     radsec: {
       enabled: false,
       listen_address: "0.0.0.0",
@@ -2254,6 +2271,36 @@ const addressConflictModeOptions: Option[] = [
   { value: "warn", label: "Warn and keep first" },
 ];
 
+const translationConflictModeOptions: Option[] = [
+  { value: "block", label: "Block conflicts" },
+  { value: "prefer-role", label: "Prefer role policy" },
+  { value: "prefer-request", label: "Prefer request mapping" },
+  { value: "warn", label: "Warn and keep first" },
+];
+
+const translationAllocationModeOptions: Option[] = [
+  { value: "deterministic", label: "Deterministic" },
+  { value: "sticky", label: "Sticky" },
+  { value: "dynamic", label: "Dynamic" },
+];
+
+const translationModeOptions: Option[] = [
+  { value: "cgnat", label: "CGNAT" },
+  { value: "nat44", label: "NAT44" },
+  { value: "nat64", label: "NAT64" },
+  { value: "dual-stack", label: "Dual Stack" },
+  { value: "ds-lite", label: "DS-Lite" },
+  { value: "map-t", label: "MAP-T" },
+];
+
+const translationPoolModeOptions: Option[] = [
+  { value: "cgnat", label: "CGNAT Pool" },
+  { value: "nat44", label: "NAT44 Pool" },
+  { value: "nat64", label: "NAT64 Pool" },
+  { value: "dual-stack", label: "Dual Stack Pool" },
+  { value: "deterministic", label: "Deterministic Pool" },
+];
+
 const dhcpv6ModeOptions: Option[] = [
   { value: "", label: "Use Global Default" },
   { value: "stateless", label: "Stateless" },
@@ -2285,6 +2332,18 @@ const addressVendorPackOptions: Option[] = [
   { value: "h3c", label: "H3C" },
   { value: "mikrotik", label: "MikroTik" },
   { value: "nokia", label: "Nokia" },
+];
+
+const translationVendorPackOptions: Option[] = [
+  { value: "aegisnas", label: "AegisNAS" },
+  { value: "cisco", label: "Cisco" },
+  { value: "juniper", label: "Juniper" },
+  { value: "erx", label: "Juniper ERX" },
+  { value: "huawei", label: "Huawei" },
+  { value: "h3c", label: "H3C" },
+  { value: "nokia", label: "Nokia" },
+  { value: "starent", label: "Starent / Cisco ASR" },
+  { value: "ruckus", label: "Ruckus" },
 ];
 
 const mdmProviderOptions: Option[] = [
@@ -4238,6 +4297,10 @@ export default function AccessSettings() {
   const addressPolicyPools = settings.radius?.address_policy?.pools || [];
   const addressRolePolicies =
     settings.radius?.address_policy?.role_policies || [];
+  const translationPolicyPools =
+    settings.radius?.translation_policy?.pools || [];
+  const translationRolePolicies =
+    settings.radius?.translation_policy?.role_policies || [];
   const ssids = settings.wireless?.ssids || [];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
@@ -16472,6 +16535,817 @@ export default function AccessSettings() {
                             )
                           }
                           placeholder="Phones receive tagged voice VLAN and branch data pool."
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="mb-4 border-t border-gray-100 pt-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h5 className="text-sm font-semibold text-gray-900">
+                  CGNAT / NAT64 Translation Policy
+                </h5>
+                <p className="mt-1 text-sm text-gray-600">
+                  Compile subscriber translation mode, public IPv4 pool,
+                  NAT64 prefix, deterministic port blocks, and logging
+                  correlation into vendor-ready RADIUS replies.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() =>
+                    updateField(
+                      ["radius", "translation_policy", "pools"],
+                      [
+                        ...translationPolicyPools,
+                        {
+                          name: "",
+                          family: "ipv4",
+                          cidr: "",
+                          start: "",
+                          end: "",
+                          port_start: 1024,
+                          port_end: 65535,
+                          port_block_size: 512,
+                          mode: "cgnat",
+                          vendor_packs: [],
+                          description: "",
+                        },
+                      ],
+                    )
+                  }
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+                >
+                  Add Translation Pool
+                </button>
+                <button
+                  onClick={() =>
+                    updateField(
+                      ["radius", "translation_policy", "role_policies"],
+                      [
+                        ...translationRolePolicies,
+                        {
+                          role: "",
+                          owner: "",
+                          translation_mode: "cgnat",
+                          public_pool: "",
+                          public_ipv4: "",
+                          private_ipv4_prefix: "",
+                          subscriber_ipv6_prefix: "",
+                          nat64_prefix: "",
+                          port_block_start: 0,
+                          port_block_end: 0,
+                          port_block_size: 512,
+                          logging_profile: "",
+                          accounting_key: "",
+                          quota_correlation: false,
+                          accounting_correlation: true,
+                          vendor_packs: [],
+                          description: "",
+                        },
+                      ],
+                    )
+                  }
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+                >
+                  Add Translation Policy
+                </button>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-4">
+              <ToggleField
+                label="Compiler Enabled"
+                checked={
+                  settings.radius?.translation_policy?.enabled !== false
+                }
+                onChange={(value) =>
+                  updateField(["radius", "translation_policy", "enabled"], value)
+                }
+              />
+              <ToggleField
+                label="Fail Closed"
+                checked={Boolean(
+                  settings.radius?.translation_policy?.fail_closed,
+                )}
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "translation_policy", "fail_closed"],
+                    value,
+                  )
+                }
+              />
+              <ToggleField
+                label="Withdraw On Stop"
+                checked={
+                  settings.radius?.translation_policy?.stop_withdrawal !== false
+                }
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "translation_policy", "stop_withdrawal"],
+                    value,
+                  )
+                }
+              />
+              <ToggleField
+                label="Accounting Key"
+                checked={
+                  settings.radius?.translation_policy
+                    ?.accounting_correlation !== false
+                }
+                onChange={(value) =>
+                  updateField(
+                    [
+                      "radius",
+                      "translation_policy",
+                      "accounting_correlation",
+                    ],
+                    value,
+                  )
+                }
+              />
+              <TextField
+                label="Max Mappings"
+                type="number"
+                value={
+                  settings.radius?.translation_policy?.max_mappings ?? 256
+                }
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "translation_policy", "max_mappings"],
+                    Number(value),
+                  )
+                }
+              />
+              <TextField
+                label="Default Owner"
+                value={
+                  settings.radius?.translation_policy?.default_owner ||
+                  "aegisnas"
+                }
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "translation_policy", "default_owner"],
+                    value,
+                  )
+                }
+                placeholder="aegisnas"
+              />
+              <SelectField
+                label="Conflict Mode"
+                value={
+                  settings.radius?.translation_policy?.conflict_mode || "block"
+                }
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "translation_policy", "conflict_mode"],
+                    value,
+                  )
+                }
+                options={translationConflictModeOptions}
+              />
+              <SelectField
+                label="Allocation"
+                value={
+                  settings.radius?.translation_policy?.allocation_mode ||
+                  "deterministic"
+                }
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "translation_policy", "allocation_mode"],
+                    value,
+                  )
+                }
+                options={translationAllocationModeOptions}
+              />
+              <TextField
+                label="Port Block Size"
+                type="number"
+                value={
+                  settings.radius?.translation_policy
+                    ?.default_port_block_size ?? 512
+                }
+                onChange={(value) =>
+                  updateField(
+                    [
+                      "radius",
+                      "translation_policy",
+                      "default_port_block_size",
+                    ],
+                    Number(value),
+                  )
+                }
+              />
+              <TextField
+                label="Minimum Port"
+                type="number"
+                value={settings.radius?.translation_policy?.min_port ?? 1024}
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "translation_policy", "min_port"],
+                    Number(value),
+                  )
+                }
+              />
+              <TextField
+                label="Maximum Port"
+                type="number"
+                value={settings.radius?.translation_policy?.max_port ?? 65535}
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "translation_policy", "max_port"],
+                    Number(value),
+                  )
+                }
+              />
+              <TextField
+                label="Default NAT64 Prefix"
+                value={
+                  settings.radius?.translation_policy?.default_nat64_prefix ||
+                  "64:ff9b::/96"
+                }
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "translation_policy", "default_nat64_prefix"],
+                    value,
+                  )
+                }
+                placeholder="64:ff9b::/96"
+              />
+              <ToggleField
+                label="Logging Required"
+                checked={
+                  settings.radius?.translation_policy?.logging_required !==
+                  false
+                }
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "translation_policy", "logging_required"],
+                    value,
+                  )
+                }
+              />
+              <div className="md:col-span-3 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-600">
+                Packs:{" "}
+                {translationVendorPackOptions
+                  .map((option) => option.label)
+                  .join(", ")}
+              </div>
+            </div>
+            <div className="mt-4">
+              <h6 className="text-xs font-semibold uppercase text-gray-500">
+                Public Translation Pools
+              </h6>
+              {translationPolicyPools.length === 0 ? (
+                <p className="mt-2 text-sm text-gray-500">
+                  Add a public IPv4 pool to select addresses and deterministic
+                  port ranges per subscriber.
+                </p>
+              ) : (
+                <div className="mt-3 grid gap-3">
+                  {translationPolicyPools.map((pool: any, index: number) => (
+                    <div
+                      key={`translation-pool-${index}`}
+                      className="rounded-md border border-gray-200 p-3"
+                    >
+                      <div className="grid gap-3 md:grid-cols-4">
+                        <TextField
+                          label="Pool Name"
+                          value={pool.name || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "pools",
+                                String(index),
+                                "name",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="cgnat-public"
+                        />
+                        <SelectField
+                          label="Family"
+                          value={pool.family || "ipv4"}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "pools",
+                                String(index),
+                                "family",
+                              ],
+                              value,
+                            )
+                          }
+                          options={addressPoolFamilyOptions}
+                        />
+                        <SelectField
+                          label="Mode"
+                          value={pool.mode || "cgnat"}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "pools",
+                                String(index),
+                                "mode",
+                              ],
+                              value,
+                            )
+                          }
+                          options={translationPoolModeOptions}
+                        />
+                        <TextField
+                          label="CIDR"
+                          value={pool.cidr || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "pools",
+                                String(index),
+                                "cidr",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="198.51.100.0/24"
+                        />
+                        <TextField
+                          label="Start"
+                          value={pool.start || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "pools",
+                                String(index),
+                                "start",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="198.51.100.10"
+                        />
+                        <TextField
+                          label="End"
+                          value={pool.end || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "pools",
+                                String(index),
+                                "end",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="198.51.100.250"
+                        />
+                        <TextField
+                          label="Port Start"
+                          type="number"
+                          value={pool.port_start ?? 1024}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "pools",
+                                String(index),
+                                "port_start",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Port End"
+                          type="number"
+                          value={pool.port_end ?? 65535}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "pools",
+                                String(index),
+                                "port_end",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Port Block Size"
+                          type="number"
+                          value={pool.port_block_size ?? 512}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "pools",
+                                String(index),
+                                "port_block_size",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Vendor Packs"
+                          value={listToCSV(pool.vendor_packs)}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "pools",
+                                String(index),
+                                "vendor_packs",
+                              ],
+                              csvToList(value),
+                            )
+                          }
+                          placeholder="aegisnas, cisco, starent"
+                        />
+                        <TextField
+                          label="Description"
+                          value={pool.description || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "pools",
+                                String(index),
+                                "description",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="Branch CGNAT pool."
+                        />
+                        <div className="flex items-end">
+                          <button
+                            onClick={() =>
+                              updateField(
+                                ["radius", "translation_policy", "pools"],
+                                translationPolicyPools.filter(
+                                  (_: unknown, itemIndex: number) =>
+                                    itemIndex !== index,
+                                ),
+                              )
+                            }
+                            className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="mt-4">
+              <h6 className="text-xs font-semibold uppercase text-gray-500">
+                Role Translation Policies
+              </h6>
+              {translationRolePolicies.length === 0 ? (
+                <p className="mt-2 text-sm text-gray-500">
+                  Add a role policy to emit CGNAT, NAT64, port-block, and
+                  logging attributes for matching subscribers.
+                </p>
+              ) : (
+                <div className="mt-3 grid gap-3">
+                  {translationRolePolicies.map((policy: any, index: number) => (
+                    <div
+                      key={`translation-role-${index}`}
+                      className="rounded-md border border-gray-200 p-3"
+                    >
+                      <div className="grid gap-3 md:grid-cols-4">
+                        <TextField
+                          label="Role"
+                          value={policy.role || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "role",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="subscriber-basic"
+                        />
+                        <TextField
+                          label="Owner"
+                          value={policy.owner || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "owner",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="nat-team"
+                        />
+                        <SelectField
+                          label="Mode"
+                          value={policy.translation_mode || "cgnat"}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "translation_mode",
+                              ],
+                              value,
+                            )
+                          }
+                          options={translationModeOptions}
+                        />
+                        <TextField
+                          label="Public Pool"
+                          value={policy.public_pool || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "public_pool",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="cgnat-public"
+                        />
+                        <TextField
+                          label="Public IPv4"
+                          value={policy.public_ipv4 || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "public_ipv4",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="198.51.100.42"
+                        />
+                        <TextField
+                          label="Private IPv4 Prefix"
+                          value={policy.private_ipv4_prefix || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "private_ipv4_prefix",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="100.64.0.0/10"
+                        />
+                        <TextField
+                          label="Subscriber IPv6 Prefix"
+                          value={policy.subscriber_ipv6_prefix || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "subscriber_ipv6_prefix",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="2001:db8:57::/64"
+                        />
+                        <TextField
+                          label="NAT64 Prefix"
+                          value={policy.nat64_prefix || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "nat64_prefix",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="64:ff9b::/96"
+                        />
+                        <TextField
+                          label="Port Start"
+                          type="number"
+                          value={policy.port_block_start ?? 0}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "port_block_start",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Port End"
+                          type="number"
+                          value={policy.port_block_end ?? 0}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "port_block_end",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Port Block Size"
+                          type="number"
+                          value={policy.port_block_size ?? 512}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "port_block_size",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Logging Profile"
+                          value={policy.logging_profile || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "logging_profile",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="lawful-cgnat"
+                        />
+                        <TextField
+                          label="Accounting Key"
+                          value={policy.accounting_key || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "accounting_key",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="auto when enabled"
+                        />
+                        <TextField
+                          label="Vendor Packs"
+                          value={listToCSV(policy.vendor_packs)}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "vendor_packs",
+                              ],
+                              csvToList(value),
+                            )
+                          }
+                          placeholder="aegisnas, cisco, huawei, nokia"
+                        />
+                        <ToggleField
+                          label="Quota Correlation"
+                          checked={Boolean(policy.quota_correlation)}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "quota_correlation",
+                              ],
+                              value,
+                            )
+                          }
+                        />
+                        <ToggleField
+                          label="Accounting Correlation"
+                          checked={Boolean(policy.accounting_correlation)}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "accounting_correlation",
+                              ],
+                              value,
+                            )
+                          }
+                        />
+                        <div className="flex items-end">
+                          <button
+                            onClick={() =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "translation_policy",
+                                  "role_policies",
+                                ],
+                                translationRolePolicies.filter(
+                                  (_: unknown, itemIndex: number) =>
+                                    itemIndex !== index,
+                                ),
+                              )
+                            }
+                            className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <TextField
+                          label="Description"
+                          value={policy.description || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "translation_policy",
+                                "role_policies",
+                                String(index),
+                                "description",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="CGNAT with deterministic ports and NAT64 correlation."
                         />
                       </div>
                     </div>

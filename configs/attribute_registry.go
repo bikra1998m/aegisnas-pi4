@@ -226,23 +226,27 @@ func runtimeAttributeRegistryAnnotations() []AttributeRegistryEntry {
 	entries := []AttributeRegistryEntry{
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Cisco", PEN: 9, Attribute: "Cisco-AVPair", Number: 1, WireType: "string",
-			PackKey: VendorPackCisco, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
+			PackKey: VendorPackCisco, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement + "," + VendorSemanticTranslationPolicy + "," + VendorSemanticTranslationPublicIPv4 + "," + VendorSemanticTranslationPortBlock + "," + VendorSemanticNAT64Prefix + "," + VendorSemanticTranslationLogging, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
 		},
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Juniper", PEN: 2636, Attribute: "Juniper-AV-Pair", Number: 52, WireType: "string",
-			PackKey: VendorPackJuniper, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
+			PackKey: VendorPackJuniper, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement + "," + VendorSemanticTranslationPolicy + "," + VendorSemanticTranslationPublicIPv4 + "," + VendorSemanticTranslationPortBlock + "," + VendorSemanticNAT64Prefix + "," + VendorSemanticTranslationLogging, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
 		},
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Huawei", PEN: 2011, Attribute: "Huawei-AVpair", Number: 188, WireType: "string",
-			PackKey: VendorPackHuawei, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
+			PackKey: VendorPackHuawei, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement + "," + VendorSemanticTranslationPolicy + "," + VendorSemanticTranslationPublicIPv4 + "," + VendorSemanticTranslationPortBlock + "," + VendorSemanticNAT64Prefix + "," + VendorSemanticTranslationLogging, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
 		},
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "H3C", PEN: 25506, Attribute: "H3C-Av-Pair", Number: 210, WireType: "string",
-			PackKey: VendorPackH3C, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
+			PackKey: VendorPackH3C, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement + "," + VendorSemanticTranslationPolicy + "," + VendorSemanticTranslationPublicIPv4 + "," + VendorSemanticTranslationPortBlock + "," + VendorSemanticNAT64Prefix + "," + VendorSemanticTranslationLogging, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
 		},
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Nokia", PEN: 94, Attribute: "Nokia-AVPair", Number: 1, WireType: "string",
-			PackKey: VendorPackNokia, Semantic: VendorSemanticPolicyTag + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticPolicyTag,
+			PackKey: VendorPackNokia, Semantic: VendorSemanticPolicyTag + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement + "," + VendorSemanticTranslationPolicy + "," + VendorSemanticTranslationPublicIPv4 + "," + VendorSemanticTranslationPortBlock + "," + VendorSemanticNAT64Prefix + "," + VendorSemanticTranslationLogging, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticPolicyTag,
+		},
+		{
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "ERX", PEN: 4874, Attribute: "ERX-Address-Pool-Name", Number: 2, WireType: "string",
+			PackKey: VendorPackERX, Semantic: VendorSemanticAddressPool + "," + VendorSemanticTranslationPublicIPv4, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticAddressPool,
 		},
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Juniper", PEN: 2636, Attribute: "Juniper-Ip-Pool-Name", Number: 36, WireType: "string",
@@ -259,6 +263,10 @@ func runtimeAttributeRegistryAnnotations() []AttributeRegistryEntry {
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Huawei", PEN: 2011, Attribute: "Huawei-Delegated-IPv6-Prefix-Pool", Number: 191, WireType: "string",
 			PackKey: VendorPackHuawei, Semantic: VendorSemanticDelegatedIPv6Prefix, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDelegatedIPv6Prefix,
+		},
+		{
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "H3C", PEN: 25506, Attribute: "H3C-NAT-IP-Address", Number: 32, WireType: "ipaddr",
+			PackKey: VendorPackH3C, Semantic: VendorSemanticTranslationPublicIPv4, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticTranslationPublicIPv4,
 		},
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Mikrotik", PEN: 14988, Attribute: "Mikrotik-Delegated-IPv6-Pool", Number: 22, WireType: "string",
@@ -287,6 +295,14 @@ func runtimeAttributeRegistryAnnotations() []AttributeRegistryEntry {
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Arista", PEN: 30065, Attribute: "Arista-Interface-Profile", Number: 21, WireType: "string",
 			PackKey: VendorPackArista, Semantic: VendorSemanticDeviceGroup, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDeviceGroup,
+		},
+		{
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Starent", PEN: 8164, Attribute: "SN-IP-Pool-Name", Number: 8, WireType: "string",
+			PackKey: VendorPackStarent, Semantic: VendorSemanticAddressPool, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticAddressPool,
+		},
+		{
+			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Starent", PEN: 8164, Attribute: "SN-NAT-IP-Address", Number: 297, WireType: "ipaddr",
+			PackKey: VendorPackStarent, Semantic: VendorSemanticTranslationPublicIPv4, Directions: []string{"outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticTranslationPublicIPv4,
 		},
 		{
 			Source: "aegisnas-runtime", ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Ubiquiti", PEN: 41112, Attribute: "UBNT-Data-Rate-DL", Number: 1,

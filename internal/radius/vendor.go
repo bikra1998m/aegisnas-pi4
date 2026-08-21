@@ -13,50 +13,64 @@ import (
 )
 
 const (
-	AegisNASVendorAttrRole                byte = 1
-	AegisNASVendorAttrBandwidthProfile    byte = 2
-	AegisNASVendorAttrVLAN                byte = 3
-	AegisNASVendorAttrQuarantine          byte = 4
-	AegisNASVendorAttrPolicyTag           byte = 5
-	AegisNASVendorAttrSessionTimeout      byte = 6
-	AegisNASVendorAttrIdleTimeout         byte = 7
-	AegisNASVendorAttrSessionAction       byte = 8
-	AegisNASVendorAttrPortalProfile       byte = 9
-	AegisNASVendorAttrDeviceGroup         byte = 10
-	AegisNASVendorAttrTenant              byte = 11
-	AegisNASVendorAttrACLName             byte = 12
-	AegisNASVendorAttrACLRule             byte = 13
-	AegisNASVendorAttrServiceChain        byte = 14
-	AegisNASVendorAttrServiceName         byte = 15
-	AegisNASVendorAttrDataVLAN            byte = 16
-	AegisNASVendorAttrVoiceVLAN           byte = 17
-	AegisNASVendorAttrTaggedVLAN          byte = 18
-	AegisNASVendorAttrQinQOuterVLAN       byte = 19
-	AegisNASVendorAttrQinQInnerVLAN       byte = 20
-	AegisNASVendorAttrVLANPool            byte = 21
-	AegisNASVendorAttrFallbackVLAN        byte = 22
-	AegisNASVendorAttrAuthFailVLAN        byte = 23
-	AegisNASVendorAttrVLANPolicy          byte = 24
-	AegisNASVendorAttrRoutePolicy         byte = 25
-	AegisNASVendorAttrVRF                 byte = 26
-	AegisNASVendorAttrRouteOwner          byte = 27
-	AegisNASVendorAttrRouteRevision       byte = 28
-	AegisNASVendorAttrFramedRoute         byte = 29
-	AegisNASVendorAttrFramedIPv6Route     byte = 30
-	AegisNASVendorAttrAddressPolicy       byte = 31
-	AegisNASVendorAttrAddressOwner        byte = 32
-	AegisNASVendorAttrAddressRevision     byte = 33
-	AegisNASVendorAttrIPv4Pool            byte = 34
-	AegisNASVendorAttrIPv6Pool            byte = 35
-	AegisNASVendorAttrDelegatedIPv6Pool   byte = 36
-	AegisNASVendorAttrRAPrefixPool        byte = 37
-	AegisNASVendorAttrFramedIPAddress     byte = 38
-	AegisNASVendorAttrFramedIPv6Address   byte = 39
-	AegisNASVendorAttrFramedIPv6Prefix    byte = 40
-	AegisNASVendorAttrDelegatedIPv6Prefix byte = 41
-	AegisNASVendorAttrRAPrefix            byte = 42
-	AegisNASVendorAttrDHCPv6Mode          byte = 43
-	AegisNASVendorAttrRAMode              byte = 44
+	AegisNASVendorAttrRole                            byte = 1
+	AegisNASVendorAttrBandwidthProfile                byte = 2
+	AegisNASVendorAttrVLAN                            byte = 3
+	AegisNASVendorAttrQuarantine                      byte = 4
+	AegisNASVendorAttrPolicyTag                       byte = 5
+	AegisNASVendorAttrSessionTimeout                  byte = 6
+	AegisNASVendorAttrIdleTimeout                     byte = 7
+	AegisNASVendorAttrSessionAction                   byte = 8
+	AegisNASVendorAttrPortalProfile                   byte = 9
+	AegisNASVendorAttrDeviceGroup                     byte = 10
+	AegisNASVendorAttrTenant                          byte = 11
+	AegisNASVendorAttrACLName                         byte = 12
+	AegisNASVendorAttrACLRule                         byte = 13
+	AegisNASVendorAttrServiceChain                    byte = 14
+	AegisNASVendorAttrServiceName                     byte = 15
+	AegisNASVendorAttrDataVLAN                        byte = 16
+	AegisNASVendorAttrVoiceVLAN                       byte = 17
+	AegisNASVendorAttrTaggedVLAN                      byte = 18
+	AegisNASVendorAttrQinQOuterVLAN                   byte = 19
+	AegisNASVendorAttrQinQInnerVLAN                   byte = 20
+	AegisNASVendorAttrVLANPool                        byte = 21
+	AegisNASVendorAttrFallbackVLAN                    byte = 22
+	AegisNASVendorAttrAuthFailVLAN                    byte = 23
+	AegisNASVendorAttrVLANPolicy                      byte = 24
+	AegisNASVendorAttrRoutePolicy                     byte = 25
+	AegisNASVendorAttrVRF                             byte = 26
+	AegisNASVendorAttrRouteOwner                      byte = 27
+	AegisNASVendorAttrRouteRevision                   byte = 28
+	AegisNASVendorAttrFramedRoute                     byte = 29
+	AegisNASVendorAttrFramedIPv6Route                 byte = 30
+	AegisNASVendorAttrAddressPolicy                   byte = 31
+	AegisNASVendorAttrAddressOwner                    byte = 32
+	AegisNASVendorAttrAddressRevision                 byte = 33
+	AegisNASVendorAttrIPv4Pool                        byte = 34
+	AegisNASVendorAttrIPv6Pool                        byte = 35
+	AegisNASVendorAttrDelegatedIPv6Pool               byte = 36
+	AegisNASVendorAttrRAPrefixPool                    byte = 37
+	AegisNASVendorAttrFramedIPAddress                 byte = 38
+	AegisNASVendorAttrFramedIPv6Address               byte = 39
+	AegisNASVendorAttrFramedIPv6Prefix                byte = 40
+	AegisNASVendorAttrDelegatedIPv6Prefix             byte = 41
+	AegisNASVendorAttrRAPrefix                        byte = 42
+	AegisNASVendorAttrDHCPv6Mode                      byte = 43
+	AegisNASVendorAttrRAMode                          byte = 44
+	AegisNASVendorAttrTranslationPolicy               byte = 45
+	AegisNASVendorAttrTranslationOwner                byte = 46
+	AegisNASVendorAttrTranslationRevision             byte = 47
+	AegisNASVendorAttrTranslationMode                 byte = 48
+	AegisNASVendorAttrTranslationPublicIPv4Pool       byte = 49
+	AegisNASVendorAttrTranslationPublicIPv4Address    byte = 50
+	AegisNASVendorAttrTranslationPrivateIPv4Prefix    byte = 51
+	AegisNASVendorAttrTranslationSubscriberIPv6Prefix byte = 52
+	AegisNASVendorAttrTranslationNAT64Prefix          byte = 53
+	AegisNASVendorAttrTranslationPortBlockStart       byte = 54
+	AegisNASVendorAttrTranslationPortBlockEnd         byte = 55
+	AegisNASVendorAttrTranslationPortBlockSize        byte = 56
+	AegisNASVendorAttrTranslationLoggingProfile       byte = 57
+	AegisNASVendorAttrTranslationAccountingKey        byte = 58
 )
 
 type inboundVendorValueKind string
@@ -566,6 +580,79 @@ func applyProductVendorID(result *BrokerAuthResult, packet *layehradius.Packet, 
 	if result.VendorRAMode == "" {
 		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrRAMode)); ok {
 			result.VendorRAMode = value
+		}
+	}
+	if result.VendorTranslationPolicy == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationPolicy)); ok {
+			result.VendorTranslationPolicy = value
+		}
+	}
+	if result.VendorTranslationOwner == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationOwner)); ok {
+			result.VendorTranslationOwner = value
+		}
+	}
+	if result.VendorTranslationRevision == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationRevision)); ok {
+			result.VendorTranslationRevision = value
+		}
+	}
+	if result.VendorTranslationMode == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationMode)); ok {
+			result.VendorTranslationMode = value
+		}
+	}
+	if result.VendorTranslationPublicIPv4Pool == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationPublicIPv4Pool)); ok {
+			result.VendorTranslationPublicIPv4Pool = value
+		}
+	}
+	if result.VendorTranslationPublicIPv4Address == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationPublicIPv4Address)); ok {
+			result.VendorTranslationPublicIPv4Address = value
+		}
+	}
+	if result.VendorTranslationPrivateIPv4Prefix == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationPrivateIPv4Prefix)); ok {
+			result.VendorTranslationPrivateIPv4Prefix = value
+		}
+	}
+	if result.VendorTranslationSubscriberIPv6Prefix == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationSubscriberIPv6Prefix)); ok {
+			result.VendorTranslationSubscriberIPv6Prefix = value
+		}
+	}
+	if result.VendorTranslationNAT64Prefix == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationNAT64Prefix)); ok {
+			result.VendorTranslationNAT64Prefix = value
+		}
+	}
+	if !result.HasVendorTranslationPortBlockStart {
+		if value, ok := lookupVendorInteger(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationPortBlockStart)); ok {
+			result.VendorTranslationPortBlockStart = int(value)
+			result.HasVendorTranslationPortBlockStart = true
+		}
+	}
+	if !result.HasVendorTranslationPortBlockEnd {
+		if value, ok := lookupVendorInteger(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationPortBlockEnd)); ok {
+			result.VendorTranslationPortBlockEnd = int(value)
+			result.HasVendorTranslationPortBlockEnd = true
+		}
+	}
+	if !result.HasVendorTranslationPortBlockSize {
+		if value, ok := lookupVendorInteger(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationPortBlockSize)); ok {
+			result.VendorTranslationPortBlockSize = int(value)
+			result.HasVendorTranslationPortBlockSize = true
+		}
+	}
+	if result.VendorTranslationLoggingProfile == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationLoggingProfile)); ok {
+			result.VendorTranslationLoggingProfile = value
+		}
+	}
+	if result.VendorTranslationAccountingKey == "" {
+		if value, ok := lookupVendorString(packet, vendorID, vendorAttributeNumber(attrs, AegisNASVendorAttrTranslationAccountingKey)); ok {
+			result.VendorTranslationAccountingKey = value
 		}
 	}
 	if !result.HasVendorQuarantine {

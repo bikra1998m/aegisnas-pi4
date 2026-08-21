@@ -16,6 +16,7 @@ const (
 	VendorPackMeraki     = "meraki"
 	VendorPackExtreme    = "extreme"
 	VendorPackJuniper    = "juniper"
+	VendorPackERX        = "erx"
 	VendorPackHuawei     = "huawei"
 	VendorPackH3C        = "h3c"
 	VendorPackPaloAlto   = "paloalto"
@@ -31,6 +32,7 @@ const (
 	VendorPackPica8      = "pica8"
 	VendorPackZTE        = "zte"
 	VendorPackNokia      = "nokia"
+	VendorPackStarent    = "starent"
 	VendorPackMeru       = "meru"
 	VendorPackColubris   = "colubris"
 	VendorPackOpenWiFi   = "openwifi"
@@ -150,6 +152,20 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticRouterAdvertisement, Attribute: "AegisNAS-RA-Prefix", Direction: "outbound_reply", ValueType: "ipv6prefix", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDHCPv6, Attribute: "AegisNAS-DHCPv6-Mode", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticRouterAdvertisement, Attribute: "AegisNAS-RA-Mode", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPolicy, Attribute: "AegisNAS-Translation-Policy", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPolicy, Attribute: "AegisNAS-Translation-Owner", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPolicy, Attribute: "AegisNAS-Translation-Revision", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPolicy, Attribute: "AegisNAS-Translation-Mode", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPublicIPv4, Attribute: "AegisNAS-Translation-Public-IPv4-Pool", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPublicIPv4, Attribute: "AegisNAS-Translation-Public-IPv4-Address", Direction: "outbound_reply", ValueType: "ipaddr", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPolicy, Attribute: "AegisNAS-Translation-Private-IPv4-Prefix", Direction: "outbound_reply", ValueType: "ipv4prefix", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPolicy, Attribute: "AegisNAS-Translation-Subscriber-IPv6-Prefix", Direction: "outbound_reply", ValueType: "ipv6prefix", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticNAT64Prefix, Attribute: "AegisNAS-Translation-NAT64-Prefix", Direction: "outbound_reply", ValueType: "ipv6prefix", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPortBlock, Attribute: "AegisNAS-Translation-Port-Block-Start", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPortBlock, Attribute: "AegisNAS-Translation-Port-Block-End", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPortBlock, Attribute: "AegisNAS-Translation-Port-Block-Size", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationLogging, Attribute: "AegisNAS-Translation-Logging-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationLogging, Attribute: "AegisNAS-Translation-Accounting-Key", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 			},
 			Notes: productIdentity.Warnings,
 		},
@@ -194,6 +210,10 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticAddressPool, Attribute: "Cisco-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDHCPv6, Attribute: "Cisco-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticRouterAdvertisement, Attribute: "Cisco-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPolicy, Attribute: "Cisco-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPublicIPv4, Attribute: "Cisco-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPortBlock, Attribute: "Cisco-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticNAT64Prefix, Attribute: "Cisco-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
 			},
 			Notes: []string{"Cisco dynamic ACL rendering emits one Cisco-AVPair per ACL rule using ip:inacl/ip:outacl numbering."},
 		},
@@ -314,8 +334,26 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticAddressPool, Attribute: "Juniper-Ip-Pool-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticAddressPool, Attribute: "Juniper-AV-Pair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDelegatedIPv6Prefix, Attribute: "Juniper-AV-Pair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPolicy, Attribute: "Juniper-AV-Pair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPublicIPv4, Attribute: "Juniper-AV-Pair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPortBlock, Attribute: "Juniper-AV-Pair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticNAT64Prefix, Attribute: "Juniper-AV-Pair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticAccountingCounters, Attribute: "Juniper-Acct-Request-Reason", Direction: "accounting", ValueType: "integer", CompatibilityState: "implemented"},
 			},
+		},
+		{
+			Key:              VendorPackERX,
+			Label:            "Juniper ERX / E-Series",
+			VendorName:       "ERX",
+			VendorID:         4874,
+			DefaultEnabled:   false,
+			HardwareProfiles: enterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticTranslationPublicIPv4, Attribute: "ERX-Address-Pool-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAddressPool, Attribute: "ERX-Address-Pool-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVRF, Attribute: "ERX-Virtual-Router-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "planned"},
+			},
+			Notes: []string{"ERX dictionaries expose address-pool and virtual-router selectors; deterministic port blocks and NAT64 metadata are carried through AegisNAS product VSAs and release-certified target adapters."},
 		},
 		{
 			Key:              VendorPackHuawei,
@@ -338,6 +376,12 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticIPv6Address, Attribute: "Huawei-Framed-IPv6-Address", Direction: "outbound_reply", ValueType: "ipv6addr", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDelegatedIPv6Prefix, Attribute: "Huawei-Delegated-IPv6-Prefix-Pool", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticAddressPool, Attribute: "Huawei-AVpair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPolicy, Attribute: "Huawei-AVpair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPublicIPv4, Attribute: "Huawei-AVpair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPortBlock, Attribute: "Huawei-AVpair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticNAT64Prefix, Attribute: "Huawei-AVpair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPolicy, Attribute: "Huawei-NAT-Port-Forwarding", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
+				{Semantic: VendorSemanticTranslationPortBlock, Attribute: "Huawei-NAT-Port-Range-Update", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "planned"},
 			},
 			Notes: []string{"Huawei rate attributes are rendered from AegisNAS kbps values; validate unit expectations on the target controller or switch."},
 		},
@@ -359,6 +403,11 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticRoute, Attribute: "H3C-Av-Pair", Direction: "outbound_reply", ValueType: "route", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticVRF, Attribute: "H3C-Av-Pair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticAddressPool, Attribute: "H3C-Av-Pair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPolicy, Attribute: "H3C-Av-Pair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPublicIPv4, Attribute: "H3C-Av-Pair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPublicIPv4, Attribute: "H3C-NAT-IP-Address", Direction: "outbound_reply", ValueType: "ipaddr", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPortBlock, Attribute: "H3C-Av-Pair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticNAT64Prefix, Attribute: "H3C-Av-Pair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
 			},
 		},
 		{
@@ -567,8 +616,26 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticVRF, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticAddressPool, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDelegatedIPv6Prefix, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPolicy, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPublicIPv4, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPortBlock, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticNAT64Prefix, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
 			},
 			Notes: []string{"Nokia Service-Name decimal digits are encoded as swapped-nibble BCD with an F pad nibble for odd lengths."},
+		},
+		{
+			Key:              VendorPackStarent,
+			Label:            "Starent / Cisco ASR Mobile Core",
+			VendorName:       "Starent",
+			VendorID:         8164,
+			DefaultEnabled:   false,
+			HardwareProfiles: enterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticTranslationPublicIPv4, Attribute: "SN-NAT-IP-Address", Direction: "outbound_reply", ValueType: "ipaddr", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAddressPool, Attribute: "SN-IP-Pool-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingCounters, Attribute: "SN-Prepaid-Total-Octets", Direction: "accounting", ValueType: "integer", CompatibilityState: "planned"},
+			},
+			Notes: []string{"Starent exposes SN-NAT-IP-Address for NAT public address selection; deterministic port-block and NAT64 metadata use AegisNAS product VSAs unless a target-specific adapter is certified."},
 		},
 		{
 			Key:              VendorPackMeru,

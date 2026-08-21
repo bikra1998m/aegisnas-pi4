@@ -738,6 +738,58 @@ advertisement packet emission, and per-device pool enforcement remain
 release-certified per product, firmware, and adapter. See
 [IPv4 / IPv6 Pools, DHCPv6, RA, And Prefix Delegation](ipv4-ipv6-pools-dhcpv6-ra-prefix-delegation.md).
 
+NAS-0057 adds the portable translation policy compiler for ISP, BNG, branch,
+and enterprise subscriber sessions. It emits AegisNAS translation lifecycle
+VSAs and vendor-specific AVPair or pool attributes for CGNAT, NAT44, NAT64,
+dual-stack translation, deterministic port blocks, logging profiles, and
+accounting correlation:
+
+```yaml
+radius:
+  vendor:
+    compatibility_packs: [aegisnas, cisco, juniper, huawei, h3c, nokia, starent, erx]
+  translation_policy:
+    enabled: true
+    fail_closed: false
+    max_mappings: 256
+    default_owner: aegisnas
+    conflict_mode: block
+    stop_withdrawal: true
+    allocation_mode: deterministic
+    default_port_block_size: 512
+    min_port: 1024
+    max_port: 65535
+    default_nat64_prefix: "64:ff9b::/96"
+    logging_required: true
+    accounting_correlation: true
+    pools:
+      - name: cgnat-public
+        family: ipv4
+        cidr: "198.51.100.0/24"
+        start: "198.51.100.10"
+        end: "198.51.100.250"
+        port_block_size: 512
+        mode: cgnat
+    role_policies:
+      - role: branch-dualstack
+        owner: nat-team
+        translation_mode: dual-stack
+        public_pool: cgnat-public
+        private_ipv4_prefix: "100.64.0.0/10"
+        subscriber_ipv6_prefix: "2001:db8:57::/64"
+        nat64_prefix: "64:ff9b::/96"
+        logging_profile: lawful-cgnat
+        vendor_packs: [aegisnas, cisco, juniper, huawei, h3c, nokia, starent, erx]
+```
+
+`/api/v1/system/translation-policy/preview` and `/decompile` record evidence
+only. `/api/v1/system/translation-policy/compile` updates the software
+translation ownership ledger in `translation_policy_ownership`, and Accounting
+Stop or Accounting-Off withdraws active ownership rows. Native CGNAT/NAT64
+dataplane installation, lawful logging retention, and exact product behavior
+remain release-certified per product, firmware, and adapter. See
+[CGNAT, NAT64, And Deterministic Subscriber Translation](cgnat-nat64-deterministic-translation.md).
+
 Juniper, Huawei, H3C, and Arista AVPair strings vary by device family and firmware. Configure only values validated against the target device:
 
 ```yaml

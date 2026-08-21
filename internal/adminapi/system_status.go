@@ -232,6 +232,8 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	routePolicySummary, routePolicyErr := db.GetRoutePolicyEventSummary()
 	addressPolicy := radius.BuildAddressPolicyReport(cfg)
 	addressPolicySummary, addressPolicyErr := db.GetAddressPolicyEventSummary()
+	translationPolicy := radius.BuildTranslationPolicyReport(cfg)
+	translationPolicySummary, translationPolicyErr := db.GetTranslationPolicyEventSummary()
 	eapSummary, _ := db.SummarizeEAPMethodEvents(1000)
 	eapFramework := eappkg.BuildFrameworkReport(cfg, eapRuntimeSummaryFromDB(eapSummary))
 	teapSummary, _ := db.SummarizeTEAPChainEvents(1000)
@@ -325,6 +327,25 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"ra_prefixes":            addressPolicySummary.RAPrefixes,
 			"evidence_summary":       addressPolicySummary,
 			"evidence_error":         rateCompilerErrorString(addressPolicyErr),
+		},
+		"translation_policy": map[string]any{
+			"status":                translationPolicyStatus(translationPolicy),
+			"message":               translationPolicyMessage(translationPolicy, translationPolicySummary),
+			"compiler_version":      translationPolicy.CompilerVersion,
+			"enabled":               translationPolicy.Enabled,
+			"policy_count":          translationPolicy.Summary.PolicyCount,
+			"pool_count":            translationPolicy.Summary.PoolCount,
+			"public_ipv4_pools":     translationPolicy.Summary.PublicIPv4Pools,
+			"cgnat_policies":        translationPolicy.Summary.CGNATPolicies,
+			"nat64_policies":        translationPolicy.Summary.NAT64Policies,
+			"port_block_policies":   translationPolicy.Summary.PortBlockPolicies,
+			"active_mappings":       translationPolicySummary.ActiveMappings,
+			"withdrawn_mappings":    translationPolicySummary.WithdrawnMappings,
+			"active_port_blocks":    translationPolicySummary.ActivePortBlocks,
+			"active_nat64_mappings": translationPolicySummary.ActiveNAT64Mappings,
+			"active_cgnat_mappings": translationPolicySummary.ActiveCGNATMappings,
+			"evidence_summary":      translationPolicySummary,
+			"evidence_error":        rateCompilerErrorString(translationPolicyErr),
 		},
 		"eap_framework":              eapFramework,
 		"eap_teap":                   teapFramework,
@@ -1336,4 +1357,33 @@ func addressPolicyMessage(report radius.AddressPolicyReport, summary db.AddressP
 		report.Summary.DelegatedPolicyCount,
 		report.Summary.RAPolicyCount,
 		summary.ActiveAssignments)
+}
+
+func translationPolicyStatus(report radius.TranslationPolicyReport) string {
+	switch {
+	case !report.Enabled:
+		return "disabled"
+	case report.Summary.PolicyCount == 0 && report.Summary.PoolCount == 0:
+		return "ready"
+	case report.Summary.CGNATPolicies > 0 || report.Summary.NAT64Policies > 0 || report.Summary.PortBlockPolicies > 0 || report.Summary.PublicIPv4Pools > 0:
+		return "ok"
+	default:
+		return "ready"
+	}
+}
+
+func translationPolicyMessage(report radius.TranslationPolicyReport, summary db.TranslationPolicyEventSummary) string {
+	if !report.Enabled {
+		return "Translation policy compiler is disabled in config."
+	}
+	if report.Summary.PolicyCount == 0 && report.Summary.PoolCount == 0 {
+		return "Translation policy compiler is ready; no CGNAT, NAT64, public address pool, or deterministic port-block policy is configured yet."
+	}
+	return fmt.Sprintf("Translation policy compiler has %d role policy(s), %d pool(s), %d CGNAT policy(s), %d NAT64 policy(s), %d deterministic port-block policy(s), and %d active ownership row(s).",
+		report.Summary.PolicyCount,
+		report.Summary.PoolCount,
+		report.Summary.CGNATPolicies,
+		report.Summary.NAT64Policies,
+		report.Summary.PortBlockPolicies,
+		summary.ActiveMappings)
 }
