@@ -21,6 +21,12 @@ const (
 	VendorSemanticAccountingCounters    = "accounting.counters"
 	VendorSemanticRoute                 = "routing.framed_route"
 	VendorSemanticVRF                   = "routing.vrf"
+	VendorSemanticAddressPool           = "address.pool"
+	VendorSemanticIPv4Address           = "address.ipv4"
+	VendorSemanticIPv6Address           = "address.ipv6"
+	VendorSemanticDelegatedIPv6Prefix   = "address.delegated_ipv6_prefix"
+	VendorSemanticRouterAdvertisement   = "address.router_advertisement"
+	VendorSemanticDHCPv6                = "address.dhcpv6"
 	VendorSemanticCoAReauth             = "coa.reauth"
 	VendorSemanticCoADisconnect         = "coa.disconnect"
 	VendorSemanticControllerPolicySync  = "controller.policy_sync"
@@ -309,6 +315,78 @@ func AegisNASSemanticRegistry() []VendorSemanticCapability {
 			ProductAttribute:   "AegisNAS-VRF",
 			ProductNumber:      26,
 			StandardAttributes: []string{"Vendor-Specific", "Class"},
+			HardwareScope:      "branch and enterprise preferred",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticAddressPool,
+			Label:              "Address Pool",
+			Description:        "Carries IPv4, IPv6, and delegated-prefix pool selection for subscriber or enterprise access sessions.",
+			ValueType:          "string",
+			Directions:         []string{"inbound", "outbound", "accounting"},
+			ProductAttribute:   "AegisNAS-IPv4-Pool",
+			ProductNumber:      34,
+			StandardAttributes: []string{"Framed-Pool", "Framed-IPv6-Pool"},
+			HardwareScope:      "all profiles; pool size and retention scale with hardware profile",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticIPv4Address,
+			Label:              "IPv4 Address Assignment",
+			Description:        "Carries static or pool-selected IPv4 session address ownership and netmask metadata.",
+			ValueType:          "ipaddr",
+			Directions:         []string{"inbound", "outbound", "accounting"},
+			ProductAttribute:   "AegisNAS-Framed-IP-Address",
+			ProductNumber:      38,
+			StandardAttributes: []string{"Framed-IP-Address", "Framed-IP-Netmask"},
+			HardwareScope:      "all profiles",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticIPv6Address,
+			Label:              "IPv6 Address And Prefix Assignment",
+			Description:        "Carries IPv6 address and framed-prefix ownership for dual-stack access sessions.",
+			ValueType:          "ipv6prefix",
+			Directions:         []string{"inbound", "outbound", "accounting"},
+			ProductAttribute:   "AegisNAS-Framed-IPv6-Prefix",
+			ProductNumber:      40,
+			StandardAttributes: []string{"Framed-IPv6-Address", "Framed-IPv6-Prefix"},
+			HardwareScope:      "branch and enterprise preferred",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticDelegatedIPv6Prefix,
+			Label:              "Delegated IPv6 Prefix",
+			Description:        "Carries DHCPv6 prefix-delegation intent and ownership for broadband, branch, and routed-client sessions.",
+			ValueType:          "ipv6prefix",
+			Directions:         []string{"inbound", "outbound", "accounting"},
+			ProductAttribute:   "AegisNAS-Delegated-IPv6-Prefix",
+			ProductNumber:      41,
+			StandardAttributes: []string{"Delegated-IPv6-Prefix"},
+			HardwareScope:      "branch and enterprise preferred",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticRouterAdvertisement,
+			Label:              "Router Advertisement Prefix",
+			Description:        "Carries router-advertisement prefix and mode metadata for SLAAC or managed IPv6 access designs.",
+			ValueType:          "record",
+			Directions:         []string{"outbound", "accounting"},
+			ProductAttribute:   "AegisNAS-RA-Prefix",
+			ProductNumber:      42,
+			StandardAttributes: []string{"Vendor-Specific"},
+			HardwareScope:      "branch and enterprise preferred",
+			CompatibilityState: "implemented",
+		},
+		{
+			Key:                VendorSemanticDHCPv6,
+			Label:              "DHCPv6 Mode",
+			Description:        "Carries DHCPv6 stateful, stateless, and prefix-delegation mode metadata for NAS/controller adapters.",
+			ValueType:          "string",
+			Directions:         []string{"outbound", "accounting"},
+			ProductAttribute:   "AegisNAS-DHCPv6-Mode",
+			ProductNumber:      43,
+			StandardAttributes: []string{"Vendor-Specific"},
 			HardwareScope:      "branch and enterprise preferred",
 			CompatibilityState: "implemented",
 		},

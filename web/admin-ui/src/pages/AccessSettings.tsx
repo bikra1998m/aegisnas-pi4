@@ -1606,6 +1606,38 @@ const defaultSettings: JsonMap = {
       vrfs: [],
       role_policies: [],
     },
+    address_policy: {
+      enabled: true,
+      fail_closed: false,
+      max_assignments: 128,
+      default_owner: "aegisnas",
+      conflict_mode: "block",
+      stop_withdrawal: true,
+      dhcpv6: {
+        enabled: true,
+        managed_address: true,
+        other_config: true,
+        prefix_delegation: true,
+        default_t1_seconds: 0,
+        default_t2_seconds: 0,
+        valid_lifetime_seconds: 0,
+        preferred_lifetime_seconds: 0,
+        dns_servers: [],
+        domain_search: [],
+      },
+      ra: {
+        enabled: true,
+        managed_flag: false,
+        other_config_flag: true,
+        default_router_preference: "medium",
+        valid_lifetime_seconds: 0,
+        preferred_lifetime_seconds: 0,
+        rdnss: [],
+        dnssl: [],
+      },
+      pools: [],
+      role_policies: [],
+    },
     radsec: {
       enabled: false,
       listen_address: "0.0.0.0",
@@ -2201,6 +2233,58 @@ const routeConflictModeOptions: Option[] = [
   { value: "prefer-role", label: "Prefer role policy" },
   { value: "prefer-request", label: "Prefer request routes" },
   { value: "warn", label: "Warn and keep first" },
+];
+
+const addressPoolFamilyOptions: Option[] = [
+  { value: "ipv4", label: "IPv4" },
+  { value: "ipv6", label: "IPv6" },
+];
+
+const addressPoolModeOptions: Option[] = [
+  { value: "address", label: "Address Pool" },
+  { value: "prefix", label: "Framed IPv6 Prefix" },
+  { value: "delegated-prefix", label: "Delegated IPv6 Prefix" },
+  { value: "ra-prefix", label: "Router Advertisement Prefix" },
+];
+
+const addressConflictModeOptions: Option[] = [
+  { value: "block", label: "Block conflicts" },
+  { value: "prefer-role", label: "Prefer role policy" },
+  { value: "prefer-request", label: "Prefer request address" },
+  { value: "warn", label: "Warn and keep first" },
+];
+
+const dhcpv6ModeOptions: Option[] = [
+  { value: "", label: "Use Global Default" },
+  { value: "stateless", label: "Stateless" },
+  { value: "stateful", label: "Stateful" },
+  { value: "stateful-pd", label: "Stateful + Prefix Delegation" },
+  { value: "pd-only", label: "Prefix Delegation Only" },
+];
+
+const raModeOptions: Option[] = [
+  { value: "", label: "Use Global Default" },
+  { value: "slaac", label: "SLAAC" },
+  { value: "managed", label: "Managed" },
+  { value: "other-config", label: "Other Config" },
+  { value: "disabled", label: "Disabled" },
+];
+
+const routerPreferenceOptions: Option[] = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+];
+
+const addressVendorPackOptions: Option[] = [
+  { value: "standard", label: "Standard RADIUS" },
+  { value: "aegisnas", label: "AegisNAS" },
+  { value: "cisco", label: "Cisco" },
+  { value: "juniper", label: "Juniper" },
+  { value: "huawei", label: "Huawei" },
+  { value: "h3c", label: "H3C" },
+  { value: "mikrotik", label: "MikroTik" },
+  { value: "nokia", label: "Nokia" },
 ];
 
 const mdmProviderOptions: Option[] = [
@@ -4151,6 +4235,9 @@ export default function AccessSettings() {
   const vlanRolePolicies = settings.radius?.vlan_policy?.role_policies || [];
   const routePolicyVRFs = settings.radius?.route_policy?.vrfs || [];
   const routeRolePolicies = settings.radius?.route_policy?.role_policies || [];
+  const addressPolicyPools = settings.radius?.address_policy?.pools || [];
+  const addressRolePolicies =
+    settings.radius?.address_policy?.role_policies || [];
   const ssids = settings.wireless?.ssids || [];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
@@ -16389,6 +16476,963 @@ export default function AccessSettings() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="mb-4 border-t border-gray-100 pt-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h5 className="text-sm font-semibold text-gray-900">
+                  IPv4 / IPv6 Address Policy
+                </h5>
+                <p className="mt-1 text-sm text-gray-600">
+                  Compile framed addresses, address pools, DHCPv6 mode, router
+                  advertisement metadata, and delegated prefixes into
+                  vendor-ready RADIUS replies.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() =>
+                    updateField(
+                      ["radius", "address_policy", "pools"],
+                      [
+                        ...addressPolicyPools,
+                        {
+                          name: "",
+                          family: "ipv4",
+                          cidr: "",
+                          start: "",
+                          end: "",
+                          gateway: "",
+                          prefix_length: 0,
+                          delegated_prefix_length: 0,
+                          mode: "address",
+                          dns_servers: [],
+                          domain_search: [],
+                          valid_lifetime_seconds: 0,
+                          preferred_lifetime_seconds: 0,
+                          vendor_packs: [],
+                          description: "",
+                        },
+                      ],
+                    )
+                  }
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+                >
+                  Add Pool
+                </button>
+                <button
+                  onClick={() =>
+                    updateField(
+                      ["radius", "address_policy", "role_policies"],
+                      [
+                        ...addressRolePolicies,
+                        {
+                          role: "",
+                          owner: "",
+                          ipv4_pool: "",
+                          ipv4_address: "",
+                          ipv6_pool: "",
+                          ipv6_address: "",
+                          ipv6_prefix: "",
+                          delegated_ipv6_pool: "",
+                          delegated_ipv6_prefix: "",
+                          ra_prefix_pool: "",
+                          ra_prefix: "",
+                          dhcpv6_mode: "",
+                          ra_mode: "",
+                          vendor_packs: [],
+                          description: "",
+                        },
+                      ],
+                    )
+                  }
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+                >
+                  Add Address Policy
+                </button>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-4">
+              <ToggleField
+                label="Compiler Enabled"
+                checked={settings.radius?.address_policy?.enabled !== false}
+                onChange={(value) =>
+                  updateField(["radius", "address_policy", "enabled"], value)
+                }
+              />
+              <ToggleField
+                label="Fail Closed"
+                checked={Boolean(settings.radius?.address_policy?.fail_closed)}
+                onChange={(value) =>
+                  updateField(["radius", "address_policy", "fail_closed"], value)
+                }
+              />
+              <ToggleField
+                label="Withdraw On Stop"
+                checked={
+                  settings.radius?.address_policy?.stop_withdrawal !== false
+                }
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "address_policy", "stop_withdrawal"],
+                    value,
+                  )
+                }
+              />
+              <TextField
+                label="Max Assignments"
+                type="number"
+                value={settings.radius?.address_policy?.max_assignments ?? 128}
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "address_policy", "max_assignments"],
+                    Number(value),
+                  )
+                }
+              />
+              <TextField
+                label="Default Owner"
+                value={
+                  settings.radius?.address_policy?.default_owner || "aegisnas"
+                }
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "address_policy", "default_owner"],
+                    value,
+                  )
+                }
+                placeholder="aegisnas"
+              />
+              <SelectField
+                label="Conflict Mode"
+                value={settings.radius?.address_policy?.conflict_mode || "block"}
+                onChange={(value) =>
+                  updateField(
+                    ["radius", "address_policy", "conflict_mode"],
+                    value,
+                  )
+                }
+                options={addressConflictModeOptions}
+              />
+              <div className="md:col-span-2 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-600">
+                Packs: {addressVendorPackOptions.map((option) => option.label).join(", ")}
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              <div className="rounded-md border border-gray-200 p-3">
+                <div className="mb-3 text-sm font-medium text-gray-900">
+                  DHCPv6 Defaults
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <ToggleField
+                    label="DHCPv6 Enabled"
+                    checked={
+                      settings.radius?.address_policy?.dhcpv6?.enabled !== false
+                    }
+                    onChange={(value) =>
+                      updateField(
+                        ["radius", "address_policy", "dhcpv6", "enabled"],
+                        value,
+                      )
+                    }
+                  />
+                  <ToggleField
+                    label="Managed Address"
+                    checked={Boolean(
+                      settings.radius?.address_policy?.dhcpv6?.managed_address,
+                    )}
+                    onChange={(value) =>
+                      updateField(
+                        [
+                          "radius",
+                          "address_policy",
+                          "dhcpv6",
+                          "managed_address",
+                        ],
+                        value,
+                      )
+                    }
+                  />
+                  <ToggleField
+                    label="Other Config"
+                    checked={
+                      settings.radius?.address_policy?.dhcpv6?.other_config !==
+                      false
+                    }
+                    onChange={(value) =>
+                      updateField(
+                        ["radius", "address_policy", "dhcpv6", "other_config"],
+                        value,
+                      )
+                    }
+                  />
+                  <ToggleField
+                    label="Prefix Delegation"
+                    checked={
+                      settings.radius?.address_policy?.dhcpv6
+                        ?.prefix_delegation !== false
+                    }
+                    onChange={(value) =>
+                      updateField(
+                        [
+                          "radius",
+                          "address_policy",
+                          "dhcpv6",
+                          "prefix_delegation",
+                        ],
+                        value,
+                      )
+                    }
+                  />
+                  <TextField
+                    label="T1 Seconds"
+                    type="number"
+                    value={
+                      settings.radius?.address_policy?.dhcpv6
+                        ?.default_t1_seconds ?? 0
+                    }
+                    onChange={(value) =>
+                      updateField(
+                        [
+                          "radius",
+                          "address_policy",
+                          "dhcpv6",
+                          "default_t1_seconds",
+                        ],
+                        Number(value),
+                      )
+                    }
+                  />
+                  <TextField
+                    label="T2 Seconds"
+                    type="number"
+                    value={
+                      settings.radius?.address_policy?.dhcpv6
+                        ?.default_t2_seconds ?? 0
+                    }
+                    onChange={(value) =>
+                      updateField(
+                        [
+                          "radius",
+                          "address_policy",
+                          "dhcpv6",
+                          "default_t2_seconds",
+                        ],
+                        Number(value),
+                      )
+                    }
+                  />
+                  <TextField
+                    label="DNS Servers"
+                    value={listToCSV(
+                      settings.radius?.address_policy?.dhcpv6?.dns_servers,
+                    )}
+                    onChange={(value) =>
+                      updateField(
+                        ["radius", "address_policy", "dhcpv6", "dns_servers"],
+                        csvToList(value),
+                      )
+                    }
+                    placeholder="2001:4860:4860::8888"
+                  />
+                  <TextField
+                    label="Domain Search"
+                    value={listToCSV(
+                      settings.radius?.address_policy?.dhcpv6?.domain_search,
+                    )}
+                    onChange={(value) =>
+                      updateField(
+                        [
+                          "radius",
+                          "address_policy",
+                          "dhcpv6",
+                          "domain_search",
+                        ],
+                        csvToList(value),
+                      )
+                    }
+                    placeholder="corp.example"
+                  />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 p-3">
+                <div className="mb-3 text-sm font-medium text-gray-900">
+                  Router Advertisement Defaults
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <ToggleField
+                    label="RA Enabled"
+                    checked={
+                      settings.radius?.address_policy?.ra?.enabled !== false
+                    }
+                    onChange={(value) =>
+                      updateField(
+                        ["radius", "address_policy", "ra", "enabled"],
+                        value,
+                      )
+                    }
+                  />
+                  <ToggleField
+                    label="Managed Flag"
+                    checked={Boolean(
+                      settings.radius?.address_policy?.ra?.managed_flag,
+                    )}
+                    onChange={(value) =>
+                      updateField(
+                        ["radius", "address_policy", "ra", "managed_flag"],
+                        value,
+                      )
+                    }
+                  />
+                  <ToggleField
+                    label="Other Config Flag"
+                    checked={
+                      settings.radius?.address_policy?.ra?.other_config_flag !==
+                      false
+                    }
+                    onChange={(value) =>
+                      updateField(
+                        [
+                          "radius",
+                          "address_policy",
+                          "ra",
+                          "other_config_flag",
+                        ],
+                        value,
+                      )
+                    }
+                  />
+                  <SelectField
+                    label="Router Preference"
+                    value={
+                      settings.radius?.address_policy?.ra
+                        ?.default_router_preference || "medium"
+                    }
+                    onChange={(value) =>
+                      updateField(
+                        [
+                          "radius",
+                          "address_policy",
+                          "ra",
+                          "default_router_preference",
+                        ],
+                        value,
+                      )
+                    }
+                    options={routerPreferenceOptions}
+                  />
+                  <TextField
+                    label="Valid Lifetime"
+                    type="number"
+                    value={
+                      settings.radius?.address_policy?.ra
+                        ?.valid_lifetime_seconds ?? 0
+                    }
+                    onChange={(value) =>
+                      updateField(
+                        [
+                          "radius",
+                          "address_policy",
+                          "ra",
+                          "valid_lifetime_seconds",
+                        ],
+                        Number(value),
+                      )
+                    }
+                  />
+                  <TextField
+                    label="Preferred Lifetime"
+                    type="number"
+                    value={
+                      settings.radius?.address_policy?.ra
+                        ?.preferred_lifetime_seconds ?? 0
+                    }
+                    onChange={(value) =>
+                      updateField(
+                        [
+                          "radius",
+                          "address_policy",
+                          "ra",
+                          "preferred_lifetime_seconds",
+                        ],
+                        Number(value),
+                      )
+                    }
+                  />
+                  <TextField
+                    label="RDNSS"
+                    value={listToCSV(
+                      settings.radius?.address_policy?.ra?.rdnss,
+                    )}
+                    onChange={(value) =>
+                      updateField(
+                        ["radius", "address_policy", "ra", "rdnss"],
+                        csvToList(value),
+                      )
+                    }
+                    placeholder="2001:4860:4860::8888"
+                  />
+                  <TextField
+                    label="DNSSL"
+                    value={listToCSV(
+                      settings.radius?.address_policy?.ra?.dnssl,
+                    )}
+                    onChange={(value) =>
+                      updateField(
+                        ["radius", "address_policy", "ra", "dnssl"],
+                        csvToList(value),
+                      )
+                    }
+                    placeholder="corp.example"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="mb-2 text-sm font-medium text-gray-900">
+                Address Pools
+              </div>
+              {addressPolicyPools.length === 0 ? (
+                <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                  No address pools configured.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {addressPolicyPools.map((pool: JsonMap, index: number) => (
+                    <div
+                      key={`address-policy-pool-${index}`}
+                      className="rounded-md border border-gray-200 p-3"
+                    >
+                      <div className="grid gap-3 md:grid-cols-4">
+                        <TextField
+                          label="Pool Name"
+                          value={pool.name || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "pools",
+                                String(index),
+                                "name",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="branch-v4"
+                        />
+                        <SelectField
+                          label="Family"
+                          value={pool.family || "ipv4"}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "pools",
+                                String(index),
+                                "family",
+                              ],
+                              value,
+                            )
+                          }
+                          options={addressPoolFamilyOptions}
+                        />
+                        <SelectField
+                          label="Mode"
+                          value={pool.mode || "address"}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "pools",
+                                String(index),
+                                "mode",
+                              ],
+                              value,
+                            )
+                          }
+                          options={addressPoolModeOptions}
+                        />
+                        <div className="flex items-end">
+                          <button
+                            onClick={() =>
+                              updateField(
+                                ["radius", "address_policy", "pools"],
+                                addressPolicyPools.filter(
+                                  (_: unknown, itemIndex: number) =>
+                                    itemIndex !== index,
+                                ),
+                              )
+                            }
+                            className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <TextField
+                          label="CIDR"
+                          value={pool.cidr || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "pools",
+                                String(index),
+                                "cidr",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="198.51.100.0/24"
+                        />
+                        <TextField
+                          label="Start"
+                          value={pool.start || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "pools",
+                                String(index),
+                                "start",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="198.51.100.10"
+                        />
+                        <TextField
+                          label="End"
+                          value={pool.end || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "pools",
+                                String(index),
+                                "end",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="198.51.100.200"
+                        />
+                        <TextField
+                          label="Gateway"
+                          value={pool.gateway || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "pools",
+                                String(index),
+                                "gateway",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="198.51.100.1"
+                        />
+                        <TextField
+                          label="Prefix Length"
+                          type="number"
+                          value={pool.prefix_length ?? 0}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "pools",
+                                String(index),
+                                "prefix_length",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Delegated Prefix Length"
+                          type="number"
+                          value={pool.delegated_prefix_length ?? 0}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "pools",
+                                String(index),
+                                "delegated_prefix_length",
+                              ],
+                              Number(value),
+                            )
+                          }
+                        />
+                        <TextField
+                          label="DNS Servers"
+                          value={listToCSV(pool.dns_servers)}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "pools",
+                                String(index),
+                                "dns_servers",
+                              ],
+                              csvToList(value),
+                            )
+                          }
+                          placeholder="1.1.1.1, 2001:4860:4860::8888"
+                        />
+                        <TextField
+                          label="Vendor Packs"
+                          value={listToCSV(pool.vendor_packs)}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "pools",
+                                String(index),
+                                "vendor_packs",
+                              ],
+                              csvToList(value),
+                            )
+                          }
+                          placeholder="standard, aegisnas, cisco"
+                        />
+                      </div>
+                      <div className="mt-3">
+                        <TextField
+                          label="Description"
+                          value={pool.description || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "pools",
+                                String(index),
+                                "description",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="Subscriber IPv4 pool for branch access."
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="mt-4">
+              <div className="mb-2 text-sm font-medium text-gray-900">
+                Role Address Policies
+              </div>
+              {addressRolePolicies.length === 0 ? (
+                <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                  No role address policies configured.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {addressRolePolicies.map(
+                    (policy: JsonMap, index: number) => (
+                      <div
+                        key={`address-role-policy-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="grid gap-3 md:grid-cols-4">
+                          <TextField
+                            label="Role"
+                            value={policy.role || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "role",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="branch-dualstack"
+                          />
+                          <TextField
+                            label="Owner"
+                            value={policy.owner || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "owner",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="network-team"
+                          />
+                          <SelectField
+                            label="DHCPv6 Mode"
+                            value={policy.dhcpv6_mode || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "dhcpv6_mode",
+                                ],
+                                value,
+                              )
+                            }
+                            options={dhcpv6ModeOptions}
+                          />
+                          <SelectField
+                            label="RA Mode"
+                            value={policy.ra_mode || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "ra_mode",
+                                ],
+                                value,
+                              )
+                            }
+                            options={raModeOptions}
+                          />
+                          <TextField
+                            label="IPv4 Pool"
+                            value={policy.ipv4_pool || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "ipv4_pool",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="branch-v4"
+                          />
+                          <TextField
+                            label="IPv4 Address"
+                            value={policy.ipv4_address || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "ipv4_address",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="198.51.100.42"
+                          />
+                          <TextField
+                            label="IPv6 Pool"
+                            value={policy.ipv6_pool || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "ipv6_pool",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="branch-v6"
+                          />
+                          <TextField
+                            label="IPv6 Address"
+                            value={policy.ipv6_address || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "ipv6_address",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="2001:db8:10::42"
+                          />
+                          <TextField
+                            label="IPv6 Prefix"
+                            value={policy.ipv6_prefix || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "ipv6_prefix",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="2001:db8:10:42::/64"
+                          />
+                          <TextField
+                            label="Delegated Pool"
+                            value={policy.delegated_ipv6_pool || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "delegated_ipv6_pool",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="branch-pd"
+                          />
+                          <TextField
+                            label="Delegated Prefix"
+                            value={policy.delegated_ipv6_prefix || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "delegated_ipv6_prefix",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="2001:db8:100:4200::/56"
+                          />
+                          <TextField
+                            label="RA Prefix Pool"
+                            value={policy.ra_prefix_pool || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "ra_prefix_pool",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="branch-ra"
+                          />
+                          <TextField
+                            label="RA Prefix"
+                            value={policy.ra_prefix || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "ra_prefix",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="2001:db8:200:42::/64"
+                          />
+                          <TextField
+                            label="Vendor Packs"
+                            value={listToCSV(policy.vendor_packs)}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "vendor_packs",
+                                ],
+                                csvToList(value),
+                              )
+                            }
+                            placeholder="standard, aegisnas, cisco, juniper"
+                          />
+                          <div className="flex items-end">
+                            <button
+                              onClick={() =>
+                                updateField(
+                                  [
+                                    "radius",
+                                    "address_policy",
+                                    "role_policies",
+                                  ],
+                                  addressRolePolicies.filter(
+                                    (_: unknown, itemIndex: number) =>
+                                      itemIndex !== index,
+                                  ),
+                                )
+                              }
+                              className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <TextField
+                            label="Description"
+                            value={policy.description || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "address_policy",
+                                  "role_policies",
+                                  String(index),
+                                  "description",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="Dual-stack access with delegated prefix and SLAAC metadata."
+                          />
+                        </div>
+                      </div>
+                    ),
+                  )}
                 </div>
               )}
             </div>

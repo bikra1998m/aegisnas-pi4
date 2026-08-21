@@ -71,6 +71,7 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 		evaluateDynamicVLANLifecycleCapability(cfg, preset),
 		evaluateTaggedVLANPolicyCapability(cfg, preset),
 		evaluateRoutePolicyCapability(cfg, preset),
+		evaluateAddressPolicyCapability(cfg, preset),
 		evaluateRuntimeShapingCapability(cfg, preset),
 		evaluateAIModeCapability(cfg),
 		evaluateTelemetryCapability(cfg),
@@ -93,6 +94,59 @@ func EvaluateFeatureCapabilities(cfg *Config) []FeatureCapability {
 		evaluateMultiTenantCapability(cfg),
 	}
 	return applyHardwareScalingGates(cfg, capabilities)
+}
+
+func evaluateAddressPolicyCapability(cfg *Config, preset deploymentPreset) FeatureCapability {
+	active := cfg.Radius.AddressPolicy.Enabled
+	capability := FeatureCapability{
+		Key:    "ipv4_ipv6_pool_dhcpv6_ra_pd",
+		Label:  "IPv4/IPv6 Pools, DHCPv6, RA, And Prefix Delegation",
+		Active: active,
+	}
+	hasIntent := len(cfg.Radius.AddressPolicy.Pools) > 0 || len(cfg.Radius.AddressPolicy.RolePolicies) > 0
+	assignmentCount := 0
+	emptyFailClosedPolicy := false
+	for _, policy := range cfg.Radius.AddressPolicy.RolePolicies {
+		count := 0
+		for _, value := range []string{
+			policy.IPv4Pool, policy.IPv4Address, policy.IPv6Pool, policy.IPv6Address,
+			policy.IPv6Prefix, policy.DelegatedIPv6Pool, policy.DelegatedIPv6Prefix,
+			policy.RAPrefixPool, policy.RAPrefix,
+		} {
+			if strings.TrimSpace(value) != "" {
+				count++
+			}
+		}
+		assignmentCount += count
+		if count == 0 && cfg.Radius.AddressPolicy.FailClosed {
+			emptyFailClosedPolicy = true
+		}
+	}
+
+	switch {
+	case !active:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Address pool, DHCPv6, RA, and prefix-delegation policy compilation is supported but disabled."
+		capability.Dependencies = []string{"radius.address_policy.enabled"}
+	case active && !hasIntent:
+		capability.State = CapabilityAvailable
+		capability.Summary = "Address-policy compilation is ready; no pools or role assignments are configured yet."
+	case emptyFailClosedPolicy:
+		capability.State = CapabilityBlocked
+		capability.Summary = "Address policy is fail-closed and at least one role policy has no address, pool, RA, or delegated-prefix intent."
+		capability.Dependencies = []string{"radius.address_policy.role_policies[].ipv4_pool", "radius.address_policy.role_policies[].ipv6_pool", "radius.address_policy.role_policies[].delegated_ipv6_pool"}
+	case constrainedPlatform(cfg, preset) && cfg.Radius.AddressPolicy.MaxAssignments > 512:
+		capability.State = CapabilityWarned
+		capability.Summary = "Address policy is active with a high ownership limit on constrained hardware."
+		capability.Recommendation = "Keep max_assignments at 512 or lower on lite and small branch appliances."
+	case assignmentCount > 0:
+		capability.State = CapabilityEnabled
+		capability.Summary = "IPv4/IPv6 pools, DHCPv6 flags, RA prefixes, delegated prefixes, and ownership metadata are active."
+	default:
+		capability.State = CapabilityEnabled
+		capability.Summary = "Address-policy compilation is active."
+	}
+	return capability
 }
 
 func evaluateRoutePolicyCapability(cfg *Config, preset deploymentPreset) FeatureCapability {

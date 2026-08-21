@@ -230,6 +230,8 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	vlanPolicySummary, vlanPolicyErr := db.GetVLANPolicyEventSummary()
 	routePolicy := radius.BuildRoutePolicyReport(cfg)
 	routePolicySummary, routePolicyErr := db.GetRoutePolicyEventSummary()
+	addressPolicy := radius.BuildAddressPolicyReport(cfg)
+	addressPolicySummary, addressPolicyErr := db.GetAddressPolicyEventSummary()
 	eapSummary, _ := db.SummarizeEAPMethodEvents(1000)
 	eapFramework := eappkg.BuildFrameworkReport(cfg, eapRuntimeSummaryFromDB(eapSummary))
 	teapSummary, _ := db.SummarizeTEAPChainEvents(1000)
@@ -305,6 +307,24 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"withdrawn_routes": routePolicySummary.WithdrawnRoutes,
 			"evidence_summary": routePolicySummary,
 			"evidence_error":   rateCompilerErrorString(routePolicyErr),
+		},
+		"address_policy": map[string]any{
+			"status":                 addressPolicyStatus(addressPolicy),
+			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),
+			"compiler_version":       addressPolicy.CompilerVersion,
+			"enabled":                addressPolicy.Enabled,
+			"policy_count":           addressPolicy.Summary.PolicyCount,
+			"pool_count":             addressPolicy.Summary.PoolCount,
+			"ipv4_pool_count":        addressPolicy.Summary.IPv4PoolCount,
+			"ipv6_pool_count":        addressPolicy.Summary.IPv6PoolCount,
+			"delegated_policy_count": addressPolicy.Summary.DelegatedPolicyCount,
+			"ra_policy_count":        addressPolicy.Summary.RAPolicyCount,
+			"active_assignments":     addressPolicySummary.ActiveAssignments,
+			"withdrawn_assignments":  addressPolicySummary.WithdrawnAssignments,
+			"delegated_prefixes":     addressPolicySummary.DelegatedPrefixes,
+			"ra_prefixes":            addressPolicySummary.RAPrefixes,
+			"evidence_summary":       addressPolicySummary,
+			"evidence_error":         rateCompilerErrorString(addressPolicyErr),
 		},
 		"eap_framework":              eapFramework,
 		"eap_teap":                   teapFramework,
@@ -1288,4 +1308,32 @@ func routePolicyMessage(report radius.RoutePolicyReport, summary db.RoutePolicyE
 		report.Summary.IPv4RouteCount,
 		report.Summary.IPv6RouteCount,
 		summary.ActiveRoutes)
+}
+
+func addressPolicyStatus(report radius.AddressPolicyReport) string {
+	switch {
+	case !report.Enabled:
+		return "disabled"
+	case report.Summary.PolicyCount == 0 && report.Summary.PoolCount == 0:
+		return "ready"
+	case report.Summary.DelegatedPolicyCount > 0 || report.Summary.RAPolicyCount > 0 || report.Summary.PoolCount > 0:
+		return "ok"
+	default:
+		return "ready"
+	}
+}
+
+func addressPolicyMessage(report radius.AddressPolicyReport, summary db.AddressPolicyEventSummary) string {
+	if !report.Enabled {
+		return "Address policy compiler is disabled in config."
+	}
+	if report.Summary.PolicyCount == 0 && report.Summary.PoolCount == 0 {
+		return "Address policy compiler is ready; no IPv4/IPv6 pool, DHCPv6, RA, or delegated-prefix policy is configured yet."
+	}
+	return fmt.Sprintf("Address policy compiler has %d role policy(s), %d pool(s), %d delegated-prefix policy(s), %d RA policy(s), and %d active ownership row(s).",
+		report.Summary.PolicyCount,
+		report.Summary.PoolCount,
+		report.Summary.DelegatedPolicyCount,
+		report.Summary.RAPolicyCount,
+		summary.ActiveAssignments)
 }

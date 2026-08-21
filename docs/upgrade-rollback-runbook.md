@@ -375,3 +375,36 @@ Confirm `/api/v1/system/route-policy/history` shows active ownership rows. A
 subsequent Accounting Stop or Accounting-Off event should withdraw rows for the
 matching session or accounting session ID. Roll back the application and
 database together if an older runtime does not understand schema v60.
+
+## Schema v61 Address Policy Evidence Upgrade
+
+NAS-0056 adds durable IPv4/IPv6 address policy and ownership evidence:
+
+- `address_policy_events`
+- `address_policy_ownership`
+
+After upgrade, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/address-policy \
+  | jq '.report.enabled, .report.summary, .evidence.summary'
+```
+
+Then compile a lab role that has IPv4, IPv6, DHCPv6 prefix delegation, and RA
+prefix intent:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"role":"branch-dualstack","session_id":"upgrade-address-smoke","acct_session_id":"upgrade-address-acct","pack_keys":["standard","aegisnas"]}' \
+  http://127.0.0.1:8083/api/v1/system/address-policy/compile \
+  | jq '.result.status, .result.summary, .event_id'
+```
+
+Confirm `/api/v1/system/address-policy/history` shows active ownership rows for
+the selected addresses and prefixes. A subsequent Accounting Stop or
+Accounting-Off event should withdraw rows for the matching session or
+accounting session ID when `radius.address_policy.stop_withdrawal` is enabled.
+Roll back the application and database together if an older runtime does not
+understand schema v61.

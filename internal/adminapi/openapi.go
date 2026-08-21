@@ -1834,6 +1834,27 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Route compiler, decompiler, and ownership evidence history."),
 	}))
+	addOperation(paths, "/api/v1/system/address-policy", "get", securedOperation("Read IPv4/IPv6 pool, DHCPv6, RA, and prefix-delegation policy coverage", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Address pool, DHCPv6, RA, delegated-prefix, vendor attribute, RFC, and evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/address-policy/preview", "post", securedOperationWithBody("Preview address pool and prefix-delegation policy", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Role, session identifiers, requested IPv4/IPv6 addresses, pools, delegated prefixes, RA prefixes, lifecycle action, and vendor pack keys."), map[string]any{
+		"200":     responseJSON("Previewed address decision, rendered RADIUS attributes, diagnostics, fingerprint, and evidence event ID."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/address-policy/compile", "post", securedOperationWithBody("Compile address pool and prefix-delegation attributes", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Role, session identifiers, requested IPv4/IPv6 addresses, pools, delegated prefixes, RA prefixes, lifecycle action, and vendor pack keys."), map[string]any{
+		"200":     responseJSON("Compiled address RADIUS attributes, diagnostics, fingerprint, ownership ledger updates, and evidence event ID."),
+		"default": responseText("Compile error."),
+	}))
+	addOperation(paths, "/api/v1/system/address-policy/decompile", "post", securedOperationWithBody("Decompile address and prefix RADIUS attributes", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Vendor pack key and observed address, pool, DHCPv6, RA, or delegated-prefix RADIUS attributes."), map[string]any{
+		"200":     responseJSON("Normalized address decision reconstructed from observed RADIUS attributes."),
+		"default": responseText("Decompile error."),
+	}))
+	addOperation(paths, "/api/v1/system/address-policy/history", "get", securedOperationWithParameters("List address policy evidence history", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event and ownership limit. Defaults to 100 and caps at 500.", false),
+		queryStringParameter("status", "Optional ownership status filter such as active or withdrawn.", false),
+	}, map[string]any{
+		"200": responseJSON("Address compiler, decompiler, and ownership evidence history."),
+	}))
 	addOperation(paths, "/api/v1/system/rate-compiler", "get", securedOperation("Read vendor rate compiler coverage", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Rate compiler capabilities, supported vendor units, RFC references, summary counters, and recent evidence events."),
 	}))

@@ -681,6 +681,63 @@ withdraws active ownership rows. Native route installation and withdrawal on
 each vendor device remains release-certified per product and firmware. See
 [Per-Session Route And VRF Policy](per-session-route-vrf-policy.md).
 
+NAS-0056 adds the portable IPv4/IPv6 address policy compiler for subscriber,
+branch, VPN, and BNG sessions. It emits standards-based framed address and pool
+attributes, delegated IPv6 prefixes, AegisNAS address lifecycle VSAs, and
+vendor-specific address AVPair or direct attributes for Cisco, Juniper, Huawei,
+H3C, MikroTik, and Nokia packs:
+
+```yaml
+radius:
+  vendor:
+    compatibility_packs: [standard, aegisnas, cisco, juniper, huawei, mikrotik, nokia]
+  address_policy:
+    enabled: true
+    fail_closed: false
+    max_assignments: 128
+    default_owner: aegisnas
+    conflict_mode: block
+    stop_withdrawal: true
+    pools:
+      - name: branch-v4
+        family: ipv4
+        cidr: "198.51.100.0/24"
+        start: "198.51.100.10"
+        end: "198.51.100.200"
+        gateway: "198.51.100.1"
+      - name: branch-v6
+        family: ipv6
+        cidr: "2001:db8:10::/120"
+      - name: branch-pd
+        family: ipv6
+        cidr: "2001:db8:100::/48"
+        mode: delegated-prefix
+        delegated_prefix_length: 56
+      - name: branch-ra
+        family: ipv6
+        cidr: "2001:db8:200::/56"
+        mode: ra-prefix
+        prefix_length: 64
+    role_policies:
+      - role: branch-dualstack
+        owner: network-team
+        ipv4_pool: branch-v4
+        ipv6_pool: branch-v6
+        delegated_ipv6_pool: branch-pd
+        ra_prefix_pool: branch-ra
+        dhcpv6_mode: stateful-pd
+        ra_mode: slaac
+        vendor_packs: [standard, aegisnas, cisco]
+```
+
+`/api/v1/system/address-policy/preview` and `/decompile` record evidence only.
+`/api/v1/system/address-policy/compile` updates the software address ownership
+ledger in `address_policy_ownership`, and Accounting Stop or Accounting-Off
+withdraws active ownership rows. Native DHCPv6 server operation, router
+advertisement packet emission, and per-device pool enforcement remain
+release-certified per product, firmware, and adapter. See
+[IPv4 / IPv6 Pools, DHCPv6, RA, And Prefix Delegation](ipv4-ipv6-pools-dhcpv6-ra-prefix-delegation.md).
+
 Juniper, Huawei, H3C, and Arista AVPair strings vary by device family and firmware. Configure only values validated against the target device:
 
 ```yaml

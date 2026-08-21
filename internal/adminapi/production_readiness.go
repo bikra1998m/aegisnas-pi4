@@ -151,6 +151,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionVLANLifecycleCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
 	addProductionRoutePolicyCheck(&report, cfg)
+	addProductionAddressPolicyCheck(&report, cfg)
 	addProductionRateCompilerCheck(&report)
 	addProductionPolicySetGovernanceCheck(&report, cfg)
 	addProductionPolicySimulationAnalysisCheck(&report, cfg)
@@ -1558,6 +1559,92 @@ func firstProductionRoutePolicyFallbackRoutes(cfg *config.Config) []radius.Route
 		}
 	}
 	return []radius.RoutePolicyRoute{{Family: "ipv4", Destination: "198.51.100.0/24", Gateway: "0.0.0.0", Metric: 1, Install: true}}
+}
+
+func addProductionAddressPolicyCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	compilerReport := radius.BuildAddressPolicyReport(cfg)
+	sample := radius.CompileAddressPolicy(cfg, firstProductionAddressPolicySample(cfg))
+	switch sample.Status {
+	case "blocked":
+		status = "blocked"
+	case "degraded":
+		status = "degraded"
+	}
+	summary := fmt.Sprintf("Address policy compiler version %d has %d role policy(s), %d pool(s), %d delegated-prefix policy(s), %d RA policy(s), and compiled %d sample attribute(s) with %d diagnostic(s).",
+		compilerReport.CompilerVersion,
+		compilerReport.Summary.PolicyCount,
+		compilerReport.Summary.PoolCount,
+		compilerReport.Summary.DelegatedPolicyCount,
+		compilerReport.Summary.RAPolicyCount,
+		len(sample.Attributes),
+		len(sample.Diagnostics))
+	if db.DB == nil {
+		status = "blocked"
+		summary = "Database is not initialized; address policy evidence cannot be verified."
+	} else if evidence, err := db.GetAddressPolicyEventSummary(); err != nil {
+		status = "blocked"
+		summary += " Address policy evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d compiler event(s), %d active assignment(s), %d withdrawn assignment(s), %d delegated prefix(es), %d RA prefix(es), %d blocked, %d failed.",
+			evidence.TotalEvents, evidence.ActiveAssignments, evidence.WithdrawnAssignments, evidence.DelegatedPrefixes, evidence.RAPrefixes, evidence.BlockedCount, evidence.FailedCount)
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "ipv4_ipv6_pool_dhcpv6_ra_pd",
+		Category:       "policy",
+		Label:          "IPv4/IPv6 Pools, DHCPv6, RA, And Prefix Delegation",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/address-policy/preview before changing address or prefix intent, retain address_policy_events and address_policy_ownership evidence, and complete the NAS-0056 release certification checklist for FreeRADIUS, DHCPv6, RA, prefix delegation, vendor-device, HA, performance, and rollback proof.",
+		Dependencies:   []string{"radius.address_policy", "address_policy_events", "address_policy_ownership", "/api/v1/system/address-policy", "/api/v1/system/address-policy/preview", "/api/v1/system/address-policy/decompile", "Framed-IP-Address", "Framed-Pool", "Framed-IPv6-Address", "Framed-IPv6-Prefix", "Delegated-IPv6-Prefix", "Framed-IPv6-Pool", "RFC 2865", "RFC 3162", "RFC 3633", "RFC 4861", "RFC 4862", "RFC 8415"},
+	})
+}
+
+func firstProductionAddressPolicySample(cfg *config.Config) radius.AddressPolicyCompileRequest {
+	req := radius.AddressPolicyCompileRequest{
+		Role:             "default",
+		SessionID:        "readiness-session",
+		CallingStationID: "00:11:22:33:44:55",
+		NASIdentifier:    "production-readiness",
+		PackKeys:         []string{productconfigs.VendorPackStandard, productconfigs.VendorPackAegisNAS, productconfigs.VendorPackCisco, productconfigs.VendorPackJuniper, productconfigs.VendorPackHuawei, productconfigs.VendorPackMikroTik, productconfigs.VendorPackNokia},
+	}
+	if cfg == nil {
+		req.IPv4Address = "198.51.100.10"
+		req.IPv6Address = "2001:db8:10::10"
+		req.DelegatedIPv6Prefix = "2001:db8:100::/56"
+		req.RAPrefix = "2001:db8:200::/64"
+		return req
+	}
+	for _, policy := range cfg.Radius.AddressPolicy.RolePolicies {
+		if strings.TrimSpace(policy.Role) == "" {
+			continue
+		}
+		req.Role = strings.TrimSpace(policy.Role)
+		if addressRolePolicyHasIntent(policy) {
+			return req
+		}
+	}
+	req.IPv4Address = "198.51.100.10"
+	req.IPv6Address = "2001:db8:10::10"
+	req.DelegatedIPv6Prefix = "2001:db8:100::/56"
+	req.RAPrefix = "2001:db8:200::/64"
+	return req
+}
+
+func addressRolePolicyHasIntent(policy config.RadiusAddressRolePolicy) bool {
+	for _, value := range []string{
+		policy.IPv4Pool, policy.IPv4Address, policy.IPv6Pool, policy.IPv6Address,
+		policy.IPv6Prefix, policy.DelegatedIPv6Pool, policy.DelegatedIPv6Prefix,
+		policy.RAPrefixPool, policy.RAPrefix,
+	} {
+		if strings.TrimSpace(value) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func addProductionRateCompilerCheck(report *productionReadinessReport) {

@@ -15,46 +15,60 @@ import (
 
 // ReplyAttributes contains RADIUS reply attributes for a user.
 type ReplyAttributes struct {
-	Role                   string
-	BandwidthProfile       string
-	FilterID               string
-	PolicyTag              string
-	SessionTimeout         int
-	IdleTimeout            int
-	VLAN                   int
-	TunnelType             string // "VLAN"
-	TunnelMediumType       string // "IEEE-802"
-	TunnelPrivateGroupID   string // VLAN ID as string
-	DataVLAN               int
-	VoiceVLAN              int
-	TaggedVLANs            []int
-	QinQOuterVLAN          int
-	QinQInnerVLAN          int
-	VLANPool               string
-	FallbackVLAN           int
-	AuthFailVLAN           int
-	VLANPolicyMode         string
-	VLANPolicyFingerprint  string
-	VRF                    string
-	RouteOwner             string
-	RouteRevision          string
-	RoutePolicyMode        string
-	RoutePolicyFingerprint string
-	FramedRoutes           []string
-	FramedIPv6Routes       []string
-	MikrotikRateLimit      string // MikroTik specific, but widely used
-	WISPrBandwidthMaxDown  int
-	WISPrBandwidthMaxUp    int
-	HasQuarantine          bool
-	Quarantine             bool
-	PortalProfile          string
-	DeviceGroup            string
-	Tenant                 string
-	ACLPolicyName          string
-	InboundACL             string
-	OutboundACL            string
-	ACLRules               []ACLRule
-	ServiceChain           []policy.ServiceIntent
+	Role                     string
+	BandwidthProfile         string
+	FilterID                 string
+	PolicyTag                string
+	SessionTimeout           int
+	IdleTimeout              int
+	VLAN                     int
+	TunnelType               string // "VLAN"
+	TunnelMediumType         string // "IEEE-802"
+	TunnelPrivateGroupID     string // VLAN ID as string
+	DataVLAN                 int
+	VoiceVLAN                int
+	TaggedVLANs              []int
+	QinQOuterVLAN            int
+	QinQInnerVLAN            int
+	VLANPool                 string
+	FallbackVLAN             int
+	AuthFailVLAN             int
+	VLANPolicyMode           string
+	VLANPolicyFingerprint    string
+	VRF                      string
+	RouteOwner               string
+	RouteRevision            string
+	RoutePolicyMode          string
+	RoutePolicyFingerprint   string
+	FramedRoutes             []string
+	FramedIPv6Routes         []string
+	AddressOwner             string
+	AddressRevision          string
+	AddressPolicyMode        string
+	AddressPolicyFingerprint string
+	FramedIPAddress          string
+	FramedIPNetmask          string
+	FramedPool               string
+	FramedIPv6Address        string
+	FramedIPv6Prefix         string
+	DelegatedIPv6Prefix      string
+	FramedIPv6Pool           string
+	RAPrefix                 string
+	DHCPv6Mode               string
+	RAMode                   string
+	MikrotikRateLimit        string // MikroTik specific, but widely used
+	WISPrBandwidthMaxDown    int
+	WISPrBandwidthMaxUp      int
+	HasQuarantine            bool
+	Quarantine               bool
+	PortalProfile            string
+	DeviceGroup              string
+	Tenant                   string
+	ACLPolicyName            string
+	InboundACL               string
+	OutboundACL              string
+	ACLRules                 []ACLRule
+	ServiceChain             []policy.ServiceIntent
 }
 
 type ReplyAttributeItem struct {
@@ -350,6 +364,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 		}
 		appendVLANPolicyReplyAttributes(attrs, packKey, appendItem)
 		appendRoutePolicyReplyAttributes(attrs, packKey, appendItem)
+		appendAddressPolicyReplyAttributes(attrs, packKey, appendItem)
 	}
 	return items
 }
@@ -471,6 +486,64 @@ func routePolicyDecisionFromReplyAttributes(attrs *ReplyAttributes) RoutePolicyD
 		decision.Revision = routePolicyRevision(decision)
 	}
 	decision.OwnershipKey = routePolicyOwnershipKey(decision)
+	return decision
+}
+
+func appendAddressPolicyReplyAttributes(attrs *ReplyAttributes, packKey string, appendItem func(string, string, bool)) {
+	if !hasAddressPolicyReplyAttributes(attrs) {
+		return
+	}
+	decision := addressPolicyDecisionFromReplyAttributes(attrs)
+	for _, item := range BuildAddressPolicyAttributes(decision, []string{packKey}) {
+		appendItem(item.Name, item.Value, item.Quoted)
+	}
+}
+
+func hasAddressPolicyReplyAttributes(attrs *ReplyAttributes) bool {
+	if attrs == nil {
+		return false
+	}
+	return strings.TrimSpace(attrs.AddressOwner) != "" ||
+		strings.TrimSpace(attrs.AddressRevision) != "" ||
+		strings.TrimSpace(attrs.AddressPolicyMode) != "" ||
+		strings.TrimSpace(attrs.AddressPolicyFingerprint) != "" ||
+		strings.TrimSpace(attrs.FramedIPAddress) != "" ||
+		strings.TrimSpace(attrs.FramedIPNetmask) != "" ||
+		strings.TrimSpace(attrs.FramedPool) != "" ||
+		strings.TrimSpace(attrs.FramedIPv6Address) != "" ||
+		strings.TrimSpace(attrs.FramedIPv6Prefix) != "" ||
+		strings.TrimSpace(attrs.DelegatedIPv6Prefix) != "" ||
+		strings.TrimSpace(attrs.FramedIPv6Pool) != "" ||
+		strings.TrimSpace(attrs.RAPrefix) != "" ||
+		strings.TrimSpace(attrs.DHCPv6Mode) != "" ||
+		strings.TrimSpace(attrs.RAMode) != ""
+}
+
+func addressPolicyDecisionFromReplyAttributes(attrs *ReplyAttributes) AddressPolicyDecision {
+	if attrs == nil {
+		return AddressPolicyDecision{}
+	}
+	decision := AddressPolicyDecision{
+		Role:                replyRole(attrs),
+		PolicySource:        "reply_attributes",
+		LifecycleAction:     firstReplyValue(strings.ToLower(strings.TrimSpace(attrs.AddressPolicyMode)), "authorize"),
+		Owner:               firstReplyValue(strings.TrimSpace(attrs.AddressOwner), "aegisnas"),
+		Revision:            strings.TrimSpace(attrs.AddressRevision),
+		IPv4Address:         strings.TrimSpace(attrs.FramedIPAddress),
+		IPv4Pool:            strings.TrimSpace(attrs.FramedPool),
+		IPv4Netmask:         strings.TrimSpace(attrs.FramedIPNetmask),
+		IPv6Address:         strings.TrimSpace(attrs.FramedIPv6Address),
+		IPv6Prefix:          strings.TrimSpace(attrs.FramedIPv6Prefix),
+		DelegatedIPv6Prefix: strings.TrimSpace(attrs.DelegatedIPv6Prefix),
+		IPv6Pool:            strings.TrimSpace(attrs.FramedIPv6Pool),
+		RAPrefix:            strings.TrimSpace(attrs.RAPrefix),
+		DHCPv6Mode:          normalizeAddressPolicyDHCPv6Mode(attrs.DHCPv6Mode),
+		RAMode:              normalizeAddressPolicyRAMode(attrs.RAMode),
+	}
+	if decision.Revision == "" {
+		decision.Revision = addressPolicyRevision(decision)
+	}
+	decision.OwnershipKey = addressPolicyOwnershipKey(decision)
 	return decision
 }
 

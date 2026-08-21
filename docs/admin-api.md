@@ -329,6 +329,46 @@ or Accounting-Off withdraws matching active ownership rows.
 
 See [Per-Session Route And VRF Policy](per-session-route-vrf-policy.md).
 
+## IPv4 / IPv6 Pools, DHCPv6, RA, And Prefix Delegation
+
+NAS-0056 exposes the vendor-neutral address policy compiler at:
+
+```text
+GET  /api/v1/system/address-policy
+POST /api/v1/system/address-policy/preview
+POST /api/v1/system/address-policy/compile
+POST /api/v1/system/address-policy/decompile
+GET  /api/v1/system/address-policy/history
+```
+
+Read-only roles may inspect, preview, and decompile. `ops_admin` and
+`super_admin` may compile because compile records active or withdrawn address
+ownership. Responses include compiler version, selected IPv4/IPv6 address,
+IPv4/IPv6 pool names, delegated IPv6 prefix, RA prefix, DHCPv6/RA modes,
+generated standard and vendor attributes, diagnostics, RFC list, evidence event
+ID, and a SHA-256 fingerprint.
+
+Evidence is stored in `address_policy_events` and
+`address_policy_ownership`, summarized in `/api/v1/system/status` as
+`radius.address_policy`, checked by production readiness as
+`ipv4_ipv6_pool_dhcpv6_ra_pd`, and captured in support bundles as
+`api/address-policy.json` and `api/address-policy-history.json`.
+
+Example:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data '{"role":"branch-dualstack","session_id":"session-1","acct_session_id":"acct-1","pack_keys":["standard","aegisnas","cisco","juniper","huawei","mikrotik","nokia"]}' \
+  http://127.0.0.1:8083/api/v1/system/address-policy/compile | jq '.result.attributes'
+```
+
+Preview and decompile are evidence-only. They do not update active address
+ownership. Compile updates the software ownership ledger, and Accounting Stop
+or Accounting-Off withdraws matching active ownership rows.
+
+See [IPv4 / IPv6 Pools, DHCPv6, RA, And Prefix Delegation](ipv4-ipv6-pools-dhcpv6-ra-prefix-delegation.md).
+
 The bounded opaque pass-through policy is exposed at:
 
 ```text

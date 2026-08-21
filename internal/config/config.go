@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"path/filepath"
 	"slices"
@@ -229,6 +230,7 @@ type RadiusConfig struct {
 	Vendor                RadiusVendorConfig                `mapstructure:"vendor"`
 	VLANPolicy            RadiusVLANPolicyConfig            `mapstructure:"vlan_policy"`
 	RoutePolicy           RadiusRoutePolicyConfig           `mapstructure:"route_policy"`
+	AddressPolicy         RadiusAddressPolicyConfig         `mapstructure:"address_policy"`
 }
 
 type RadiusVLANPolicyConfig struct {
@@ -305,6 +307,79 @@ type RadiusRouteConfig struct {
 	Owner       string `mapstructure:"owner"`
 	Install     bool   `mapstructure:"install"`
 	Description string `mapstructure:"description"`
+}
+
+type RadiusAddressPolicyConfig struct {
+	Enabled        bool                      `mapstructure:"enabled"`
+	FailClosed     bool                      `mapstructure:"fail_closed"`
+	MaxAssignments int                       `mapstructure:"max_assignments"`
+	DefaultOwner   string                    `mapstructure:"default_owner"`
+	ConflictMode   string                    `mapstructure:"conflict_mode"`
+	StopWithdrawal bool                      `mapstructure:"stop_withdrawal"`
+	DHCPv6         RadiusDHCPv6PolicyConfig  `mapstructure:"dhcpv6"`
+	RA             RadiusRAPolicyConfig      `mapstructure:"ra"`
+	Pools          []RadiusAddressPoolConfig `mapstructure:"pools"`
+	RolePolicies   []RadiusAddressRolePolicy `mapstructure:"role_policies"`
+}
+
+type RadiusDHCPv6PolicyConfig struct {
+	Enabled                  bool     `mapstructure:"enabled"`
+	ManagedAddress           bool     `mapstructure:"managed_address"`
+	OtherConfig              bool     `mapstructure:"other_config"`
+	PrefixDelegation         bool     `mapstructure:"prefix_delegation"`
+	DefaultT1Seconds         int      `mapstructure:"default_t1_seconds"`
+	DefaultT2Seconds         int      `mapstructure:"default_t2_seconds"`
+	ValidLifetimeSeconds     int      `mapstructure:"valid_lifetime_seconds"`
+	PreferredLifetimeSeconds int      `mapstructure:"preferred_lifetime_seconds"`
+	DNSServers               []string `mapstructure:"dns_servers"`
+	DomainSearch             []string `mapstructure:"domain_search"`
+}
+
+type RadiusRAPolicyConfig struct {
+	Enabled                  bool     `mapstructure:"enabled"`
+	ManagedFlag              bool     `mapstructure:"managed_flag"`
+	OtherConfigFlag          bool     `mapstructure:"other_config_flag"`
+	DefaultRouterPreference  string   `mapstructure:"default_router_preference"`
+	ValidLifetimeSeconds     int      `mapstructure:"valid_lifetime_seconds"`
+	PreferredLifetimeSeconds int      `mapstructure:"preferred_lifetime_seconds"`
+	RDNSS                    []string `mapstructure:"rdnss"`
+	DNSSL                    []string `mapstructure:"dnssl"`
+}
+
+type RadiusAddressPoolConfig struct {
+	Name                     string   `mapstructure:"name"`
+	Family                   string   `mapstructure:"family"`
+	CIDR                     string   `mapstructure:"cidr"`
+	Start                    string   `mapstructure:"start"`
+	End                      string   `mapstructure:"end"`
+	Gateway                  string   `mapstructure:"gateway"`
+	PrefixLength             int      `mapstructure:"prefix_length"`
+	DelegatedPrefixLength    int      `mapstructure:"delegated_prefix_length"`
+	Mode                     string   `mapstructure:"mode"`
+	DNSServers               []string `mapstructure:"dns_servers"`
+	DomainSearch             []string `mapstructure:"domain_search"`
+	ValidLifetimeSeconds     int      `mapstructure:"valid_lifetime_seconds"`
+	PreferredLifetimeSeconds int      `mapstructure:"preferred_lifetime_seconds"`
+	VendorPacks              []string `mapstructure:"vendor_packs"`
+	Description              string   `mapstructure:"description"`
+}
+
+type RadiusAddressRolePolicy struct {
+	Role                string   `mapstructure:"role"`
+	Owner               string   `mapstructure:"owner"`
+	IPv4Pool            string   `mapstructure:"ipv4_pool"`
+	IPv4Address         string   `mapstructure:"ipv4_address"`
+	IPv6Pool            string   `mapstructure:"ipv6_pool"`
+	IPv6Address         string   `mapstructure:"ipv6_address"`
+	IPv6Prefix          string   `mapstructure:"ipv6_prefix"`
+	DelegatedIPv6Pool   string   `mapstructure:"delegated_ipv6_pool"`
+	DelegatedIPv6Prefix string   `mapstructure:"delegated_ipv6_prefix"`
+	RAPrefixPool        string   `mapstructure:"ra_prefix_pool"`
+	RAPrefix            string   `mapstructure:"ra_prefix"`
+	DHCPv6Mode          string   `mapstructure:"dhcpv6_mode"`
+	RAMode              string   `mapstructure:"ra_mode"`
+	VendorPacks         []string `mapstructure:"vendor_packs"`
+	Description         string   `mapstructure:"description"`
 }
 
 type RadiusDynamicClientsConfig struct {
@@ -1726,6 +1801,26 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.route_policy.default_owner", "aegisnas")
 	v.SetDefault("radius.route_policy.conflict_mode", "block")
 	v.SetDefault("radius.route_policy.stop_withdrawal", true)
+	v.SetDefault("radius.address_policy.enabled", true)
+	v.SetDefault("radius.address_policy.fail_closed", false)
+	v.SetDefault("radius.address_policy.max_assignments", 128)
+	v.SetDefault("radius.address_policy.default_owner", "aegisnas")
+	v.SetDefault("radius.address_policy.conflict_mode", "block")
+	v.SetDefault("radius.address_policy.stop_withdrawal", true)
+	v.SetDefault("radius.address_policy.dhcpv6.enabled", true)
+	v.SetDefault("radius.address_policy.dhcpv6.managed_address", true)
+	v.SetDefault("radius.address_policy.dhcpv6.other_config", true)
+	v.SetDefault("radius.address_policy.dhcpv6.prefix_delegation", true)
+	v.SetDefault("radius.address_policy.dhcpv6.default_t1_seconds", 1800)
+	v.SetDefault("radius.address_policy.dhcpv6.default_t2_seconds", 2880)
+	v.SetDefault("radius.address_policy.dhcpv6.valid_lifetime_seconds", 7200)
+	v.SetDefault("radius.address_policy.dhcpv6.preferred_lifetime_seconds", 3600)
+	v.SetDefault("radius.address_policy.ra.enabled", true)
+	v.SetDefault("radius.address_policy.ra.managed_flag", false)
+	v.SetDefault("radius.address_policy.ra.other_config_flag", true)
+	v.SetDefault("radius.address_policy.ra.default_router_preference", "medium")
+	v.SetDefault("radius.address_policy.ra.valid_lifetime_seconds", 7200)
+	v.SetDefault("radius.address_policy.ra.preferred_lifetime_seconds", 3600)
 	v.SetDefault("radius.accounting_ingest_spool.enabled", true)
 	v.SetDefault("radius.accounting_ingest_spool.replay_enabled", true)
 	v.SetDefault("radius.accounting_ingest_spool.max_queue_records", 50000)
@@ -4451,6 +4546,9 @@ func (c *Config) Validate() error {
 	if err := validateRadiusRoutePolicy(c.Radius.RoutePolicy); err != nil {
 		return err
 	}
+	if err := validateRadiusAddressPolicy(c.Radius.AddressPolicy); err != nil {
+		return err
+	}
 	if err := validateRadSecConfig(c); err != nil {
 		return err
 	}
@@ -7108,6 +7206,432 @@ func validateRoutePolicyToken(field, value string, limit int, optional bool) err
 		return fmt.Errorf("%s is invalid", field)
 	}
 	return nil
+}
+
+type radiusAddressPoolFacts struct {
+	name   string
+	family string
+	prefix netip.Prefix
+}
+
+func validateRadiusAddressPolicy(raw RadiusAddressPolicyConfig) error {
+	if !raw.Enabled && !raw.FailClosed && raw.MaxAssignments == 0 &&
+		strings.TrimSpace(raw.DefaultOwner) == "" && strings.TrimSpace(raw.ConflictMode) == "" &&
+		!raw.StopWithdrawal && len(raw.Pools) == 0 && len(raw.RolePolicies) == 0 &&
+		!raw.DHCPv6.Enabled && !raw.RA.Enabled {
+		return nil
+	}
+	if raw.MaxAssignments < 0 || raw.MaxAssignments > 4096 {
+		return fmt.Errorf("radius.address_policy.max_assignments must be between 0 and 4096")
+	}
+	if err := validateRoutePolicyToken("radius.address_policy.default_owner", raw.DefaultOwner, 128, true); err != nil {
+		return err
+	}
+	switch strings.ToLower(strings.TrimSpace(raw.ConflictMode)) {
+	case "", "block", "prefer-role", "prefer-request", "warn":
+	default:
+		return fmt.Errorf("radius.address_policy.conflict_mode %q is invalid", raw.ConflictMode)
+	}
+	if err := validateRadiusDHCPv6Policy(raw.DHCPv6); err != nil {
+		return err
+	}
+	if err := validateRadiusRAPolicy(raw.RA); err != nil {
+		return err
+	}
+
+	pools := map[string]radiusAddressPoolFacts{}
+	poolList := make([]radiusAddressPoolFacts, 0, len(raw.Pools))
+	for i, pool := range raw.Pools {
+		facts, err := validateRadiusAddressPool(fmt.Sprintf("radius.address_policy.pools[%d]", i), pool)
+		if err != nil {
+			return err
+		}
+		key := strings.ToLower(facts.name)
+		if _, exists := pools[key]; exists {
+			return fmt.Errorf("radius.address_policy.pools[%d].name %q duplicates an earlier pool", i, facts.name)
+		}
+		for _, existing := range poolList {
+			if existing.family == facts.family && addressPolicyPrefixesOverlap(existing.prefix, facts.prefix) {
+				return fmt.Errorf("radius.address_policy.pools[%d].cidr %q overlaps pool %q", i, facts.prefix.String(), existing.name)
+			}
+		}
+		pools[key] = facts
+		poolList = append(poolList, facts)
+	}
+
+	roles := map[string]struct{}{}
+	for i, policy := range raw.RolePolicies {
+		role := strings.TrimSpace(policy.Role)
+		if err := validateRoutePolicyToken(fmt.Sprintf("radius.address_policy.role_policies[%d].role", i), role, 253, false); err != nil {
+			return err
+		}
+		roleKey := strings.ToLower(role)
+		if _, exists := roles[roleKey]; exists {
+			return fmt.Errorf("radius.address_policy.role_policies[%d].role %q duplicates an earlier policy", i, role)
+		}
+		roles[roleKey] = struct{}{}
+		if err := validateRoutePolicyToken(fmt.Sprintf("radius.address_policy.role_policies[%d].owner", i), policy.Owner, 128, true); err != nil {
+			return err
+		}
+		if err := validateAddressRolePoolReference(fmt.Sprintf("radius.address_policy.role_policies[%d].ipv4_pool", i), policy.IPv4Pool, "ipv4", pools); err != nil {
+			return err
+		}
+		if err := validateAddressRolePoolReference(fmt.Sprintf("radius.address_policy.role_policies[%d].ipv6_pool", i), policy.IPv6Pool, "ipv6", pools); err != nil {
+			return err
+		}
+		if err := validateAddressRolePoolReference(fmt.Sprintf("radius.address_policy.role_policies[%d].delegated_ipv6_pool", i), policy.DelegatedIPv6Pool, "ipv6", pools); err != nil {
+			return err
+		}
+		if err := validateAddressRolePoolReference(fmt.Sprintf("radius.address_policy.role_policies[%d].ra_prefix_pool", i), policy.RAPrefixPool, "ipv6", pools); err != nil {
+			return err
+		}
+		if err := validateAddressRoleAddress(fmt.Sprintf("radius.address_policy.role_policies[%d].ipv4_address", i), policy.IPv4Address, "ipv4", policy.IPv4Pool, pools); err != nil {
+			return err
+		}
+		if err := validateAddressRoleAddress(fmt.Sprintf("radius.address_policy.role_policies[%d].ipv6_address", i), policy.IPv6Address, "ipv6", policy.IPv6Pool, pools); err != nil {
+			return err
+		}
+		if err := validateAddressRolePrefix(fmt.Sprintf("radius.address_policy.role_policies[%d].ipv6_prefix", i), policy.IPv6Prefix, policy.IPv6Pool, pools); err != nil {
+			return err
+		}
+		if err := validateAddressRolePrefix(fmt.Sprintf("radius.address_policy.role_policies[%d].delegated_ipv6_prefix", i), policy.DelegatedIPv6Prefix, policy.DelegatedIPv6Pool, pools); err != nil {
+			return err
+		}
+		if err := validateAddressRolePrefix(fmt.Sprintf("radius.address_policy.role_policies[%d].ra_prefix", i), policy.RAPrefix, policy.RAPrefixPool, pools); err != nil {
+			return err
+		}
+		switch strings.ToLower(strings.TrimSpace(policy.DHCPv6Mode)) {
+		case "", "inherit", "disabled", "stateless", "stateful", "prefix-delegation", "stateful-pd":
+		default:
+			return fmt.Errorf("radius.address_policy.role_policies[%d].dhcpv6_mode %q is invalid", i, policy.DHCPv6Mode)
+		}
+		switch strings.ToLower(strings.TrimSpace(policy.RAMode)) {
+		case "", "inherit", "disabled", "slaac", "managed", "other-config":
+		default:
+			return fmt.Errorf("radius.address_policy.role_policies[%d].ra_mode %q is invalid", i, policy.RAMode)
+		}
+		for packIndex, pack := range policy.VendorPacks {
+			key := productconfigs.NormalizeVendorCompatibilityPackKey(pack)
+			if key == "" || !productconfigs.ValidVendorCompatibilityPackKey(key) {
+				return fmt.Errorf("radius.address_policy.role_policies[%d].vendor_packs[%d] %q is unknown", i, packIndex, pack)
+			}
+		}
+		if len(policy.Description) > 512 || strings.ContainsAny(policy.Description, "\x00") {
+			return fmt.Errorf("radius.address_policy.role_policies[%d].description is invalid", i)
+		}
+	}
+	return nil
+}
+
+func validateRadiusDHCPv6Policy(raw RadiusDHCPv6PolicyConfig) error {
+	for _, binding := range []struct {
+		field string
+		value int
+		max   int
+	}{
+		{"default_t1_seconds", raw.DefaultT1Seconds, 604800},
+		{"default_t2_seconds", raw.DefaultT2Seconds, 604800},
+		{"valid_lifetime_seconds", raw.ValidLifetimeSeconds, 31536000},
+		{"preferred_lifetime_seconds", raw.PreferredLifetimeSeconds, 31536000},
+	} {
+		if binding.value < 0 || binding.value > binding.max {
+			return fmt.Errorf("radius.address_policy.dhcpv6.%s must be between 0 and %d", binding.field, binding.max)
+		}
+	}
+	if raw.DefaultT1Seconds > 0 && raw.DefaultT2Seconds > 0 && raw.DefaultT1Seconds > raw.DefaultT2Seconds {
+		return fmt.Errorf("radius.address_policy.dhcpv6.default_t1_seconds cannot exceed default_t2_seconds")
+	}
+	if raw.PreferredLifetimeSeconds > 0 && raw.ValidLifetimeSeconds > 0 && raw.PreferredLifetimeSeconds > raw.ValidLifetimeSeconds {
+		return fmt.Errorf("radius.address_policy.dhcpv6.preferred_lifetime_seconds cannot exceed valid_lifetime_seconds")
+	}
+	for i, server := range raw.DNSServers {
+		if err := validateAddressPolicyIP(fmt.Sprintf("radius.address_policy.dhcpv6.dns_servers[%d]", i), server, "ipv6"); err != nil {
+			return err
+		}
+	}
+	for i, domain := range raw.DomainSearch {
+		if err := validateAddressPolicyText(fmt.Sprintf("radius.address_policy.dhcpv6.domain_search[%d]", i), domain, 253); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateRadiusRAPolicy(raw RadiusRAPolicyConfig) error {
+	switch strings.ToLower(strings.TrimSpace(raw.DefaultRouterPreference)) {
+	case "", "low", "medium", "high":
+	default:
+		return fmt.Errorf("radius.address_policy.ra.default_router_preference %q is invalid", raw.DefaultRouterPreference)
+	}
+	for _, binding := range []struct {
+		field string
+		value int
+		max   int
+	}{
+		{"valid_lifetime_seconds", raw.ValidLifetimeSeconds, 31536000},
+		{"preferred_lifetime_seconds", raw.PreferredLifetimeSeconds, 31536000},
+	} {
+		if binding.value < 0 || binding.value > binding.max {
+			return fmt.Errorf("radius.address_policy.ra.%s must be between 0 and %d", binding.field, binding.max)
+		}
+	}
+	if raw.PreferredLifetimeSeconds > 0 && raw.ValidLifetimeSeconds > 0 && raw.PreferredLifetimeSeconds > raw.ValidLifetimeSeconds {
+		return fmt.Errorf("radius.address_policy.ra.preferred_lifetime_seconds cannot exceed valid_lifetime_seconds")
+	}
+	for i, server := range raw.RDNSS {
+		if err := validateAddressPolicyIP(fmt.Sprintf("radius.address_policy.ra.rdnss[%d]", i), server, "ipv6"); err != nil {
+			return err
+		}
+	}
+	for i, domain := range raw.DNSSL {
+		if err := validateAddressPolicyText(fmt.Sprintf("radius.address_policy.ra.dnssl[%d]", i), domain, 253); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateRadiusAddressPool(field string, pool RadiusAddressPoolConfig) (radiusAddressPoolFacts, error) {
+	name := strings.TrimSpace(pool.Name)
+	if err := validateRoutePolicyToken(field+".name", name, 128, false); err != nil {
+		return radiusAddressPoolFacts{}, err
+	}
+	cidr := strings.TrimSpace(pool.CIDR)
+	if cidr == "" {
+		return radiusAddressPoolFacts{}, fmt.Errorf("%s.cidr cannot be empty", field)
+	}
+	prefix, err := netip.ParsePrefix(cidr)
+	if err != nil {
+		return radiusAddressPoolFacts{}, fmt.Errorf("%s.cidr %q is invalid: %w", field, pool.CIDR, err)
+	}
+	prefix = prefix.Masked()
+	family := normalizeAddressPolicyFamily(pool.Family, prefix)
+	if family == "" {
+		return radiusAddressPoolFacts{}, fmt.Errorf("%s.family %q is invalid", field, pool.Family)
+	}
+	if family == "ipv4" && !prefix.Addr().Is4() {
+		return radiusAddressPoolFacts{}, fmt.Errorf("%s.cidr must be IPv4", field)
+	}
+	if family == "ipv6" && !prefix.Addr().Is6() {
+		return radiusAddressPoolFacts{}, fmt.Errorf("%s.cidr must be IPv6", field)
+	}
+	switch strings.ToLower(strings.TrimSpace(pool.Mode)) {
+	case "", "address", "prefix", "delegated-prefix", "ra-prefix", "mixed":
+	default:
+		return radiusAddressPoolFacts{}, fmt.Errorf("%s.mode %q is invalid", field, pool.Mode)
+	}
+	if pool.PrefixLength < 0 || pool.PrefixLength > 128 {
+		return radiusAddressPoolFacts{}, fmt.Errorf("%s.prefix_length must be between 0 and 128", field)
+	}
+	if pool.PrefixLength > 0 {
+		if family == "ipv4" && pool.PrefixLength > 32 {
+			return radiusAddressPoolFacts{}, fmt.Errorf("%s.prefix_length must be between 0 and 32 for IPv4", field)
+		}
+		if pool.PrefixLength < prefix.Bits() {
+			return radiusAddressPoolFacts{}, fmt.Errorf("%s.prefix_length cannot be shorter than cidr prefix length", field)
+		}
+	}
+	if pool.DelegatedPrefixLength < 0 || pool.DelegatedPrefixLength > 128 {
+		return radiusAddressPoolFacts{}, fmt.Errorf("%s.delegated_prefix_length must be between 0 and 128", field)
+	}
+	if pool.DelegatedPrefixLength > 0 {
+		if family != "ipv6" {
+			return radiusAddressPoolFacts{}, fmt.Errorf("%s.delegated_prefix_length requires an IPv6 pool", field)
+		}
+		if pool.DelegatedPrefixLength < prefix.Bits() {
+			return radiusAddressPoolFacts{}, fmt.Errorf("%s.delegated_prefix_length cannot be shorter than cidr prefix length", field)
+		}
+	}
+	for _, binding := range []struct {
+		name  string
+		value string
+	}{
+		{"gateway", pool.Gateway},
+		{"start", pool.Start},
+		{"end", pool.End},
+	} {
+		if strings.TrimSpace(binding.value) == "" {
+			continue
+		}
+		if err := validateAddressPolicyIP(field+"."+binding.name, binding.value, family); err != nil {
+			return radiusAddressPoolFacts{}, err
+		}
+		addr, _ := netip.ParseAddr(strings.TrimSpace(binding.value))
+		if !prefix.Contains(addr) {
+			return radiusAddressPoolFacts{}, fmt.Errorf("%s.%s %q is outside %s", field, binding.name, binding.value, prefix.String())
+		}
+	}
+	if strings.TrimSpace(pool.Start) != "" && strings.TrimSpace(pool.End) != "" {
+		start, _ := netip.ParseAddr(strings.TrimSpace(pool.Start))
+		end, _ := netip.ParseAddr(strings.TrimSpace(pool.End))
+		if compareAddressPolicyAddr(start, end) > 0 {
+			return radiusAddressPoolFacts{}, fmt.Errorf("%s.start cannot be after end", field)
+		}
+	}
+	for i, server := range pool.DNSServers {
+		if err := validateAddressPolicyIP(fmt.Sprintf("%s.dns_servers[%d]", field, i), server, family); err != nil {
+			return radiusAddressPoolFacts{}, err
+		}
+	}
+	for i, domain := range pool.DomainSearch {
+		if err := validateAddressPolicyText(fmt.Sprintf("%s.domain_search[%d]", field, i), domain, 253); err != nil {
+			return radiusAddressPoolFacts{}, err
+		}
+	}
+	for packIndex, pack := range pool.VendorPacks {
+		key := productconfigs.NormalizeVendorCompatibilityPackKey(pack)
+		if key == "" || !productconfigs.ValidVendorCompatibilityPackKey(key) {
+			return radiusAddressPoolFacts{}, fmt.Errorf("%s.vendor_packs[%d] %q is unknown", field, packIndex, pack)
+		}
+	}
+	if pool.ValidLifetimeSeconds < 0 || pool.ValidLifetimeSeconds > 31536000 {
+		return radiusAddressPoolFacts{}, fmt.Errorf("%s.valid_lifetime_seconds must be between 0 and 31536000", field)
+	}
+	if pool.PreferredLifetimeSeconds < 0 || pool.PreferredLifetimeSeconds > 31536000 {
+		return radiusAddressPoolFacts{}, fmt.Errorf("%s.preferred_lifetime_seconds must be between 0 and 31536000", field)
+	}
+	if pool.PreferredLifetimeSeconds > 0 && pool.ValidLifetimeSeconds > 0 && pool.PreferredLifetimeSeconds > pool.ValidLifetimeSeconds {
+		return radiusAddressPoolFacts{}, fmt.Errorf("%s.preferred_lifetime_seconds cannot exceed valid_lifetime_seconds", field)
+	}
+	if len(pool.Description) > 512 || strings.ContainsAny(pool.Description, "\x00") {
+		return radiusAddressPoolFacts{}, fmt.Errorf("%s.description is invalid", field)
+	}
+	return radiusAddressPoolFacts{name: name, family: family, prefix: prefix}, nil
+}
+
+func validateAddressRolePoolReference(field, name, family string, pools map[string]radiusAddressPoolFacts) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	if err := validateRoutePolicyToken(field, name, 128, false); err != nil {
+		return err
+	}
+	pool, ok := pools[strings.ToLower(name)]
+	if !ok {
+		return fmt.Errorf("%s %q does not match a configured pool", field, name)
+	}
+	if pool.family != family {
+		return fmt.Errorf("%s %q must reference an %s pool", field, name, family)
+	}
+	return nil
+}
+
+func validateAddressRoleAddress(field, value, family, poolName string, pools map[string]radiusAddressPoolFacts) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	if err := validateAddressPolicyIP(field, value, family); err != nil {
+		return err
+	}
+	if strings.TrimSpace(poolName) == "" {
+		return nil
+	}
+	pool := pools[strings.ToLower(strings.TrimSpace(poolName))]
+	addr, _ := netip.ParseAddr(value)
+	if !pool.prefix.Contains(addr) {
+		return fmt.Errorf("%s %q is outside pool %q", field, value, pool.name)
+	}
+	return nil
+}
+
+func validateAddressRolePrefix(field, value, poolName string, pools map[string]radiusAddressPoolFacts) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	prefix, err := netip.ParsePrefix(value)
+	if err != nil {
+		return fmt.Errorf("%s %q is invalid: %w", field, value, err)
+	}
+	prefix = prefix.Masked()
+	if !prefix.Addr().Is6() {
+		return fmt.Errorf("%s must be IPv6", field)
+	}
+	if strings.TrimSpace(poolName) == "" {
+		return nil
+	}
+	pool := pools[strings.ToLower(strings.TrimSpace(poolName))]
+	if !pool.prefix.Contains(prefix.Addr()) || prefix.Bits() < pool.prefix.Bits() {
+		return fmt.Errorf("%s %q is outside pool %q", field, value, pool.name)
+	}
+	return nil
+}
+
+func validateAddressPolicyIP(field, value, family string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fmt.Errorf("%s cannot be empty", field)
+	}
+	if strings.ContainsAny(value, "\r\n\x00") {
+		return fmt.Errorf("%s is invalid", field)
+	}
+	addr, err := netip.ParseAddr(value)
+	if err != nil {
+		return fmt.Errorf("%s %q is invalid: %w", field, value, err)
+	}
+	switch family {
+	case "ipv4":
+		if !addr.Is4() {
+			return fmt.Errorf("%s must be IPv4", field)
+		}
+	case "ipv6":
+		if !addr.Is6() {
+			return fmt.Errorf("%s must be IPv6", field)
+		}
+	default:
+		return fmt.Errorf("%s family %q is invalid", field, family)
+	}
+	return nil
+}
+
+func validateAddressPolicyText(field, value string, limit int) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	if len(value) > limit || strings.ContainsAny(value, "\r\n\x00") {
+		return fmt.Errorf("%s is invalid", field)
+	}
+	return nil
+}
+
+func normalizeAddressPolicyFamily(value string, prefix netip.Prefix) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "ipv4", "4":
+		return "ipv4"
+	case "ipv6", "6":
+		return "ipv6"
+	case "":
+		if prefix.Addr().Is4() {
+			return "ipv4"
+		}
+		if prefix.Addr().Is6() {
+			return "ipv6"
+		}
+	}
+	return ""
+}
+
+func addressPolicyPrefixesOverlap(a, b netip.Prefix) bool {
+	a = a.Masked()
+	b = b.Masked()
+	return a.Contains(b.Addr()) || b.Contains(a.Addr())
+}
+
+func compareAddressPolicyAddr(a, b netip.Addr) int {
+	aa := a.As16()
+	bb := b.As16()
+	for i := 0; i < len(aa); i++ {
+		if aa[i] < bb[i] {
+			return -1
+		}
+		if aa[i] > bb[i] {
+			return 1
+		}
+	}
+	return 0
 }
 
 func validateRadiusQinQPolicy(index int, qinq RadiusQinQConfig) error {

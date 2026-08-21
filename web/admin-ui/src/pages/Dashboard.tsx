@@ -1111,6 +1111,38 @@ type SystemStatus = {
       };
       evidence_error?: string;
     };
+    address_policy?: {
+      status?: string;
+      message?: string;
+      compiler_version?: number;
+      enabled?: boolean;
+      policy_count?: number;
+      pool_count?: number;
+      ipv4_pool_count?: number;
+      ipv6_pool_count?: number;
+      delegated_policy_count?: number;
+      ra_policy_count?: number;
+      active_assignments?: number;
+      withdrawn_assignments?: number;
+      delegated_prefixes?: number;
+      ra_prefixes?: number;
+      evidence_summary?: {
+        total_events?: number;
+        compiled_count?: number;
+        previewed_count?: number;
+        decompiled_count?: number;
+        blocked_count?: number;
+        degraded_count?: number;
+        failed_count?: number;
+        active_assignments?: number;
+        withdrawn_assignments?: number;
+        delegated_prefixes?: number;
+        ra_prefixes?: number;
+        last_status?: string;
+        last_role?: string;
+      };
+      evidence_error?: string;
+    };
     eap_framework?: EAPFrameworkReport;
     eap_teap?: TEAPReport;
     eap_machine_user?: MachineUserReport;
@@ -1756,6 +1788,7 @@ export default function Dashboard() {
   const rateCompiler = systemStatus.radius?.rate_compiler;
   const vlanPolicy = systemStatus.radius?.vlan_policy;
   const routePolicy = systemStatus.radius?.route_policy;
+  const addressPolicy = systemStatus.radius?.address_policy;
   const eapFramework = systemStatus.radius?.eap_framework;
   const teapReport = systemStatus.radius?.eap_teap;
   const machineUserReport = systemStatus.radius?.eap_machine_user;
@@ -4436,6 +4469,41 @@ export default function Dashboard() {
                     ) : null}
                   </div>
                   <StatusBadge status={routePolicy?.status || "unknown"} />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      Address Pools And Prefix Delegation
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {addressPolicy
+                        ? `${addressPolicy.policy_count || 0} role policies, ${addressPolicy.pool_count || 0} pools, ${addressPolicy.ipv4_pool_count || 0} IPv4 pools, ${addressPolicy.ipv6_pool_count || 0} IPv6 pools.`
+                        : "No address policy status has been evaluated yet."}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {addressPolicy?.message ||
+                        "Compile address intent before assigning dual-stack pools, DHCPv6 metadata, RA hints, or delegated prefixes."}
+                    </div>
+                    {addressPolicy?.evidence_summary ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {`Evidence ${addressPolicy.evidence_summary.total_events || 0}, compiled ${addressPolicy.evidence_summary.compiled_count || 0}, previews ${addressPolicy.evidence_summary.previewed_count || 0}, decompiled ${addressPolicy.evidence_summary.decompiled_count || 0}, blocked ${addressPolicy.evidence_summary.blocked_count || 0}, active ${addressPolicy.evidence_summary.active_assignments || 0}, withdrawn ${addressPolicy.evidence_summary.withdrawn_assignments || 0}.`}
+                      </div>
+                    ) : null}
+                    {addressPolicy?.evidence_summary?.last_role ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Last role {addressPolicy.evidence_summary.last_role},
+                        delegated prefixes{" "}
+                        {addressPolicy.evidence_summary.delegated_prefixes ||
+                          0}
+                        , RA prefixes{" "}
+                        {addressPolicy.evidence_summary.ra_prefixes || 0},
+                        status {addressPolicy.evidence_summary.last_status}.
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge status={addressPolicy?.status || "unknown"} />
                 </div>
               </div>
               <div className="rounded-md border border-gray-200 px-4 py-3">

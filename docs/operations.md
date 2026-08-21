@@ -941,3 +941,31 @@ Treat a PEN change as a maintenance-window operation. Take a backup, verify HA h
 ## Attribute Registry Operations
 
 Run `make test-attribute-registry`, `make test-dictionary-release-profiles`, `make test-compatibility-evidence`, `make test-vsa-codec`, and `make test-opaque-passthrough` before packaging or upgrading. Compare `/api/v1/system/dictionary-release-profiles`, `/api/v1/system/compatibility-evidence`, `/api/v1/system/vsa-codec`, `/api/v1/system/opaque-passthrough`, and `/api/v1/system/attribute-registry?limit=1` source hashes across HA nodes and reject mixed hashes or release profile IDs. Upstream dictionary changes require a reviewed generated diff; installed dictionary paths may be scanned for deployment coverage but cannot mutate the embedded packet registry. Full procedure: `attribute-registry.md`, `dictionary-release-profiles.md`, `compatibility-evidence.md`, `vsa-codec.md`, and `opaque-passthrough.md`.
+
+## Address Policy Operations
+
+For dual-stack subscriber or enterprise access roles, configure
+`radius.address_policy` before enabling vendor packs that consume framed
+addresses, DHCPv6 metadata, router advertisement hints, or delegated prefixes.
+Validate pool CIDRs, start/end ranges, DNS values, prefix lengths, and role
+references through Access Settings or:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/address-policy | jq '.report.status, .report.summary'
+```
+
+Preview a risky change before saving controller or NAS-side configuration:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"role":"branch-dualstack","session_id":"dry-run","pack_keys":["standard","aegisnas","cisco"]}' \
+  http://127.0.0.1:8083/api/v1/system/address-policy/preview | jq '.result.status, .result.summary'
+```
+
+Use `compile` only when recording active or withdrawn software ownership is
+intended. Accounting Stop and Accounting-Off withdraw matching active
+assignments when `stop_withdrawal` is enabled. Release claims for native DHCPv6
+server behavior, router advertisement packet emission, and device-specific pool
+enforcement must be backed by the NAS-0056 release certification checklist.

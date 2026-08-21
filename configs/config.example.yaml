@@ -418,6 +418,76 @@ radius:
             metric: 20
         vendor_packs: ["standard", "aegisnas", "cisco", "juniper", "huawei", "nokia"]
         description: "Inject branch service routes and VRF metadata for routed access sessions."
+  address_policy:
+    enabled: true
+    fail_closed: false
+    max_assignments: 128
+    default_owner: "aegisnas"
+    conflict_mode: "block" # block, prefer-role, prefer-request, or warn.
+    stop_withdrawal: true
+    dhcpv6:
+      enabled: true
+      managed_address: true
+      other_config: true
+      prefix_delegation: true
+      default_t1_seconds: 1800
+      default_t2_seconds: 2880
+      valid_lifetime_seconds: 86400
+      preferred_lifetime_seconds: 43200
+      dns_servers: ["2001:4860:4860::8888"]
+      domain_search: ["corp.example"]
+    ra:
+      enabled: true
+      managed_flag: false
+      other_config_flag: true
+      default_router_preference: "medium"
+      valid_lifetime_seconds: 86400
+      preferred_lifetime_seconds: 43200
+      rdnss: ["2001:4860:4860::8888"]
+      dnssl: ["corp.example"]
+    pools:
+      - name: "branch-v4"
+        family: "ipv4"
+        cidr: "198.51.100.0/24"
+        start: "198.51.100.10"
+        end: "198.51.100.200"
+        gateway: "198.51.100.1"
+        mode: "address"
+        dns_servers: ["1.1.1.1", "8.8.8.8"]
+        vendor_packs: ["standard", "aegisnas", "cisco", "juniper", "huawei"]
+        description: "Subscriber IPv4 framed-address pool."
+      - name: "branch-v6"
+        family: "ipv6"
+        cidr: "2001:db8:10::/120"
+        mode: "address"
+        dns_servers: ["2001:4860:4860::8888"]
+        vendor_packs: ["standard", "aegisnas", "cisco", "juniper", "huawei", "nokia"]
+        description: "Subscriber IPv6 framed-address pool."
+      - name: "branch-pd"
+        family: "ipv6"
+        cidr: "2001:db8:100::/48"
+        delegated_prefix_length: 56
+        mode: "delegated-prefix"
+        vendor_packs: ["standard", "aegisnas", "mikrotik", "huawei", "juniper", "nokia"]
+        description: "DHCPv6 prefix delegation pool."
+      - name: "branch-ra"
+        family: "ipv6"
+        cidr: "2001:db8:200::/56"
+        prefix_length: 64
+        mode: "ra-prefix"
+        vendor_packs: ["aegisnas", "cisco", "juniper", "huawei", "nokia"]
+        description: "Router advertisement on-link prefix pool."
+    role_policies:
+      - role: "branch-dualstack"
+        owner: "network-team"
+        ipv4_pool: "branch-v4"
+        ipv6_pool: "branch-v6"
+        delegated_ipv6_pool: "branch-pd"
+        ra_prefix_pool: "branch-ra"
+        dhcpv6_mode: "stateful-pd"
+        ra_mode: "slaac"
+        vendor_packs: ["standard", "aegisnas", "cisco", "juniper", "huawei", "mikrotik", "nokia"]
+        description: "Dual-stack access with IPv4, IPv6, DHCPv6 PD, and SLAAC metadata."
   packet_hardening:
     enabled: true
     fail_closed: true

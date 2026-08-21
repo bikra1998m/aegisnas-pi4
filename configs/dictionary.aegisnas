@@ -40,4 +40,18 @@ ATTRIBUTE AegisNAS-Route-Owner 27 string
 ATTRIBUTE AegisNAS-Route-Revision 28 string
 ATTRIBUTE AegisNAS-Framed-Route 29 string
 ATTRIBUTE AegisNAS-Framed-IPv6-Route 30 string
+ATTRIBUTE AegisNAS-Address-Policy 31 string
+ATTRIBUTE AegisNAS-Address-Owner 32 string
+ATTRIBUTE AegisNAS-Address-Revision 33 string
+ATTRIBUTE AegisNAS-IPv4-Pool 34 string
+ATTRIBUTE AegisNAS-IPv6-Pool 35 string
+ATTRIBUTE AegisNAS-Delegated-IPv6-Pool 36 string
+ATTRIBUTE AegisNAS-RA-Prefix-Pool 37 string
+ATTRIBUTE AegisNAS-Framed-IP-Address 38 string
+ATTRIBUTE AegisNAS-Framed-IPv6-Address 39 string
+ATTRIBUTE AegisNAS-Framed-IPv6-Prefix 40 string
+ATTRIBUTE AegisNAS-Delegated-IPv6-Prefix 41 string
+ATTRIBUTE AegisNAS-RA-Prefix 42 string
+ATTRIBUTE AegisNAS-DHCPv6-Mode 43 string
+ATTRIBUTE AegisNAS-RA-Mode 44 string
 END-VENDOR AegisNAS

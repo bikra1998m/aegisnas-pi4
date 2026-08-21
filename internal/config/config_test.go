@@ -1888,7 +1888,7 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	}
 
 	capabilities := EvaluateFeatureCapabilities(cfg)
-	require.Len(t, capabilities, 24)
+	require.Len(t, capabilities, 25)
 
 	byKey := make(map[string]FeatureCapability, len(capabilities))
 	for _, capability := range capabilities {
@@ -1899,6 +1899,7 @@ func TestEvaluateFeatureCapabilities(t *testing.T) {
 	assert.Equal(t, CapabilityAvailable, byKey["dynamic_vlan_lifecycle"].State)
 	assert.Equal(t, CapabilityAvailable, byKey["tagged_vlan_qinq_policy"].State)
 	assert.Equal(t, CapabilityAvailable, byKey["per_session_route_vrf_policy"].State)
+	assert.Equal(t, CapabilityAvailable, byKey["ipv4_ipv6_pool_dhcpv6_ra_pd"].State)
 	assert.Equal(t, CapabilityEnabled, byKey["runtime_shaping"].State)
 	assert.Equal(t, CapabilityBlocked, byKey["ai_mode"].State)
 	assert.Equal(t, CapabilityEnabled, byKey["telemetry"].State)
@@ -4624,6 +4625,81 @@ func TestValidateRadiusRoutePolicy(t *testing.T) {
 	badMode := valid
 	badMode.ConflictMode = "replace-everything"
 	assert.ErrorContains(t, validateRadiusRoutePolicy(badMode), "invalid")
+}
+
+func TestValidateRadiusAddressPolicy(t *testing.T) {
+	valid := RadiusAddressPolicyConfig{
+		Enabled:        true,
+		FailClosed:     true,
+		MaxAssignments: 16,
+		DefaultOwner:   "aegisnas",
+		ConflictMode:   "block",
+		StopWithdrawal: true,
+		DHCPv6: RadiusDHCPv6PolicyConfig{
+			Enabled:                  true,
+			ManagedAddress:           true,
+			OtherConfig:              true,
+			PrefixDelegation:         true,
+			DefaultT1Seconds:         1800,
+			DefaultT2Seconds:         2880,
+			ValidLifetimeSeconds:     7200,
+			PreferredLifetimeSeconds: 3600,
+			DNSServers:               []string{"2001:db8::53"},
+			DomainSearch:             []string{"example.test"},
+		},
+		RA: RadiusRAPolicyConfig{
+			Enabled:                  true,
+			OtherConfigFlag:          true,
+			DefaultRouterPreference:  "medium",
+			ValidLifetimeSeconds:     7200,
+			PreferredLifetimeSeconds: 3600,
+			RDNSS:                    []string{"2001:db8::53"},
+			DNSSL:                    []string{"example.test"},
+		},
+		Pools: []RadiusAddressPoolConfig{
+			{Name: "branch-v4", Family: "ipv4", CIDR: "198.51.100.0/29", Start: "198.51.100.2", End: "198.51.100.6", Gateway: "198.51.100.1", Mode: "address"},
+			{Name: "branch-v6", Family: "ipv6", CIDR: "2001:db8:10::/120", Mode: "address"},
+			{Name: "branch-pd", Family: "ipv6", CIDR: "2001:db8:100::/48", DelegatedPrefixLength: 56, Mode: "delegated-prefix"},
+			{Name: "branch-ra", Family: "ipv6", CIDR: "2001:db8:200::/56", PrefixLength: 64, Mode: "ra-prefix"},
+		},
+		RolePolicies: []RadiusAddressRolePolicy{
+			{
+				Role:              "branch-dualstack",
+				Owner:             "address-team",
+				IPv4Pool:          "branch-v4",
+				IPv6Pool:          "branch-v6",
+				DelegatedIPv6Pool: "branch-pd",
+				RAPrefixPool:      "branch-ra",
+				VendorPacks:       []string{"standard", "aegisnas", "cisco"},
+			},
+		},
+	}
+
+	assert.NoError(t, validateRadiusAddressPolicy(valid))
+
+	overlap := valid
+	overlap.Pools = append(append([]RadiusAddressPoolConfig{}, valid.Pools...), RadiusAddressPoolConfig{Name: "overlap", Family: "ipv4", CIDR: "198.51.100.4/30"})
+	assert.ErrorContains(t, validateRadiusAddressPolicy(overlap), "overlaps")
+
+	badFamily := valid
+	badFamily.Pools = append([]RadiusAddressPoolConfig{}, valid.Pools...)
+	badFamily.Pools[0].Gateway = "2001:db8::1"
+	assert.ErrorContains(t, validateRadiusAddressPolicy(badFamily), "must be IPv4")
+
+	missingPool := valid
+	missingPool.RolePolicies = append([]RadiusAddressRolePolicy{}, valid.RolePolicies...)
+	missingPool.RolePolicies[0].DelegatedIPv6Pool = "missing"
+	assert.ErrorContains(t, validateRadiusAddressPolicy(missingPool), "does not match a configured pool")
+
+	badLifetime := valid
+	badLifetime.DHCPv6.DefaultT1Seconds = 3000
+	badLifetime.DHCPv6.DefaultT2Seconds = 2000
+	assert.ErrorContains(t, validateRadiusAddressPolicy(badLifetime), "cannot exceed")
+
+	unknownPack := valid
+	unknownPack.RolePolicies = append([]RadiusAddressRolePolicy{}, valid.RolePolicies...)
+	unknownPack.RolePolicies[0].VendorPacks = []string{"mystery"}
+	assert.ErrorContains(t, validateRadiusAddressPolicy(unknownPack), "unknown")
 }
 
 func baseProxyRoutingValidationConfig() *Config {

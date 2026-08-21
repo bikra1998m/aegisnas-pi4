@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 60
+	return 61
 }
 
 func Migrate() error {
@@ -3239,3 +3239,70 @@ CREATE INDEX IF NOT EXISTS idx_route_policy_ownership_owner ON route_policy_owne
 `
 
 const schemaV60 = routePolicyEvidenceSQL
+
+const addressPolicyEvidenceSQL = `
+CREATE TABLE IF NOT EXISTS address_policy_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	role TEXT,
+	session_id TEXT,
+	acct_session_id TEXT,
+	owner TEXT,
+	revision TEXT,
+	ipv4_assignment_count INTEGER DEFAULT 0,
+	ipv6_assignment_count INTEGER DEFAULT 0,
+	delegated_prefix_count INTEGER DEFAULT 0,
+	ra_prefix_count INTEGER DEFAULT 0,
+	withdraw_count INTEGER DEFAULT 0,
+	attribute_count INTEGER DEFAULT 0,
+	diagnostic_count INTEGER DEFAULT 0,
+	fingerprint TEXT,
+	request_json TEXT NOT NULL DEFAULT '{}',
+	response_json TEXT NOT NULL DEFAULT '{}',
+	diagnostics_json TEXT NOT NULL DEFAULT '[]',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('compile', 'preview', 'decompile')),
+	CHECK (status IN ('compiled', 'previewed', 'decompiled', 'blocked', 'degraded', 'failed'))
+);
+
+CREATE TABLE IF NOT EXISTS address_policy_ownership (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	assignment_key TEXT UNIQUE NOT NULL,
+	ownership_key TEXT NOT NULL,
+	event_id TEXT NOT NULL,
+	session_id TEXT,
+	acct_session_id TEXT,
+	role TEXT,
+	owner TEXT NOT NULL,
+	revision TEXT NOT NULL,
+	family TEXT NOT NULL,
+	assignment_type TEXT NOT NULL,
+	pool_name TEXT,
+	address TEXT,
+	prefix TEXT,
+	status TEXT NOT NULL DEFAULT 'active',
+	compiled_fingerprint TEXT,
+	installed_at DATETIME,
+	withdrawn_at DATETIME,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (family IN ('ipv4', 'ipv6')),
+	CHECK (assignment_type IN ('address', 'pool', 'prefix', 'delegated_prefix', 'ra_prefix')),
+	CHECK (status IN ('active', 'withdrawn', 'replaced', 'stale', 'observed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_address_policy_events_created ON address_policy_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_address_policy_events_status ON address_policy_events(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_address_policy_events_role ON address_policy_events(role, created_at);
+CREATE INDEX IF NOT EXISTS idx_address_policy_events_fingerprint ON address_policy_events(fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_address_policy_ownership_status ON address_policy_ownership(status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_address_policy_ownership_session ON address_policy_ownership(session_id, acct_session_id, status);
+CREATE INDEX IF NOT EXISTS idx_address_policy_ownership_owner ON address_policy_ownership(owner, status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_address_policy_ownership_family ON address_policy_ownership(family, assignment_type, pool_name, address, prefix);
+`
+
+const schemaV61 = addressPolicyEvidenceSQL

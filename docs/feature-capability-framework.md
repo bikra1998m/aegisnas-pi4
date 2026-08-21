@@ -167,6 +167,7 @@ These features depend heavily on physical platform shape.
 | Dynamic VLAN SSIDs | available | enabled | enabled | strongest on enterprise gear; hostapd config points to the managed VLAN file |
 | Tagged VLAN/QinQ policy | available | enabled | enabled | compiler is lightweight; production claims need packet capture and vendor-device certification |
 | Per-session route/VRF policy | available | enabled | enabled | compiler is lightweight; active ownership and Stop withdrawal are software-ready; native vendor route behavior needs certification |
+| IPv4/IPv6 pools, DHCPv6, RA, and prefix delegation | available | enabled | enabled | compiler and ownership ledger are software-ready; native DHCPv6/RA/device enforcement needs release certification |
 
 Rules:
 
