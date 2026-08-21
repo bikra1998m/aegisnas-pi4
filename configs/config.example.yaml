@@ -1101,6 +1101,19 @@ policy:
   simulation_replay_limit: 100
   simulation_retention_limit: 1000
   max_service_chain_length: 16
+  enforcement_transactions:
+    enabled: true
+    fail_closed: true
+    targets: ["vlan_lifecycle", "runtime_qos", "runtime_firewall", "controller_sync"]
+    require_preview_before_apply: true
+    auto_rollback_on_failure: true
+    auto_rollback_on_drift: false
+    drift_check_after_apply: true
+    drift_tolerance_seconds: 60
+    apply_timeout_seconds: 120
+    rollback_timeout_seconds: 120
+    history_retention_limit: 5000
+    compensation_retention_limit: 1000
 
 telemetry:
   enabled: true

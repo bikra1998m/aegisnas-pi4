@@ -1283,6 +1283,37 @@ type SystemStatus = {
       };
       runtime_status?: RuntimeStatus;
     };
+    atomic_transactions?: {
+      status: string;
+      message: string;
+      plan_fingerprint?: string;
+      target_count?: number;
+      diagnostic_count?: number;
+      capabilities?: string[];
+      summary?: {
+        target_count: number;
+        ready_targets: number;
+        degraded_targets: number;
+        blocked_targets: number;
+        skipped_targets: number;
+        apply_required: number;
+        rollback_available: number;
+        drifted_targets: number;
+      };
+      evidence_summary?: {
+        total_transactions?: number;
+        apply_transactions?: number;
+        applied_count?: number;
+        compensated_count?: number;
+        rolled_back_count?: number;
+        failed_count?: number;
+        drift_events?: number;
+        open_drift_events?: number;
+        last_operation?: string;
+        last_status?: string;
+      };
+      runtime_status?: RuntimeStatus;
+    };
   };
   high_availability: {
     enabled: boolean;
@@ -1852,6 +1883,7 @@ export default function Dashboard() {
   const localFirewall = systemStatus.enforcement.local_firewall;
   const qosScheduler = systemStatus.enforcement.qos_scheduler;
   const vlanLifecycle = systemStatus.enforcement.vlan_lifecycle;
+  const atomicTransactions = systemStatus.enforcement.atomic_transactions;
   const networkObservability = systemStatus.network_observability;
   const vendorObservability = networkObservability?.vendor_observability;
   const readinessSummary =
@@ -4578,6 +4610,46 @@ export default function Dashboard() {
                   </div>
                   <StatusBadge
                     status={translationPolicy?.status || "unknown"}
+                  />
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      Atomic Enforcement Transactions
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {atomicTransactions?.summary
+                        ? `${atomicTransactions.summary.target_count} targets, ${atomicTransactions.summary.ready_targets} ready, ${atomicTransactions.summary.apply_required} needing apply.`
+                        : "No atomic enforcement transaction plan has been evaluated yet."}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {atomicTransactions?.message ||
+                        "Preview, apply, drift-check, and rollback enforcement as one ordered operation."}
+                    </div>
+                    {atomicTransactions?.evidence_summary ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {`Transactions ${atomicTransactions.evidence_summary.total_transactions || 0}, applied ${atomicTransactions.evidence_summary.applied_count || 0}, compensated ${atomicTransactions.evidence_summary.compensated_count || 0}, rolled back ${atomicTransactions.evidence_summary.rolled_back_count || 0}, failed ${atomicTransactions.evidence_summary.failed_count || 0}.`}
+                      </div>
+                    ) : null}
+                    {atomicTransactions?.evidence_summary ? (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {`Drift events ${atomicTransactions.evidence_summary.drift_events || 0}, open ${atomicTransactions.evidence_summary.open_drift_events || 0}; latest ${atomicTransactions.evidence_summary.last_operation || "none"}/${atomicTransactions.evidence_summary.last_status || "none"}.`}
+                      </div>
+                    ) : null}
+                    {atomicTransactions?.plan_fingerprint ? (
+                      <div className="mt-1 break-all text-xs text-gray-500">
+                        Plan fingerprint: {atomicTransactions.plan_fingerprint}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    status={
+                      atomicTransactions?.runtime_status?.status ||
+                      atomicTransactions?.status ||
+                      "unknown"
+                    }
                   />
                 </div>
               </div>

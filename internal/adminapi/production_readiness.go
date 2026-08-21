@@ -149,6 +149,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionRuntimeFirewallCheck(&report)
 	addProductionRuntimeQoSCheck(&report, cfg)
 	addProductionVLANLifecycleCheck(&report, cfg)
+	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
 	addProductionRoutePolicyCheck(&report, cfg)
 	addProductionAddressPolicyCheck(&report, cfg)
@@ -1404,6 +1405,68 @@ func addProductionVLANLifecycleCheck(report *productionReadinessReport, cfg *con
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/vlan-lifecycle/preview before apply, keep VLAN catalog, role VLANs, policy VLANs, and hostapd dynamic VLAN entries in one evidence-backed lifecycle, and complete the NAS-0053 release certification checklist for Linux bridge/VLAN, hostapd, FreeRADIUS, HA, and vendor-device proof.",
 		Dependencies:   []string{"vlans", "roles.vlan", "policy_rules.vlan", "wireless.ssids.dynamic_vlan", "vlan_lifecycle_snapshots", "vlan_lifecycle_events", "/api/v1/system/vlan-lifecycle", "/api/v1/system/vlan-lifecycle/preview", "/api/v1/system/vlan-lifecycle/apply", "/api/v1/system/vlan-lifecycle/rollback", "ip link", "hostapd vlan_file", "RFC 2868"},
+	})
+}
+
+func addProductionAtomicEnforcementCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	policy := cfg.Policy.EnforcementTransactions
+	plan, err := enforcement.BuildAtomicEnforcementPlan(context.Background(), cfg, enforcement.AtomicEnforcementRequest{})
+	if err != nil {
+		status = "blocked"
+	}
+	summary := "Atomic enforcement transaction layer is ready."
+	if err != nil {
+		summary = "Atomic enforcement transaction preview failed: " + err.Error()
+	} else {
+		switch plan.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded", "skipped":
+			status = "degraded"
+		}
+		summary = fmt.Sprintf("Atomic enforcement schema %d plans %d target(s), %d ready, %d degraded, %d blocked, %d skipped, %d needing apply, and %d rollbackable target(s).",
+			plan.SchemaVersion,
+			plan.Summary.TargetCount,
+			plan.Summary.ReadyTargets,
+			plan.Summary.DegradedTargets,
+			plan.Summary.BlockedTargets,
+			plan.Summary.SkippedTargets,
+			plan.Summary.ApplyRequired,
+			plan.Summary.RollbackAvailable)
+	}
+	if !policy.Enabled || !policy.FailClosed || !policy.RequirePreviewBeforeApply || !policy.AutoRollbackOnFailure || !policy.DriftCheckAfterApply {
+		status = "blocked"
+		summary += " Required safeguards are not all enabled."
+	}
+	if db.DB == nil {
+		status = "blocked"
+		summary = "Database is not initialized; atomic enforcement transactions, steps, and drift history cannot be verified."
+	} else if evidence, err := db.GetEnforcementTransactionSummary(); err != nil {
+		status = "blocked"
+		summary += " Atomic enforcement evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 || evidence.FailedSteps > 0 || evidence.OpenDriftEvents > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d transaction(s), %d applied, %d compensated, %d rolled back, %d failed, %d drift event(s), latest=%s/%s.",
+			evidence.TotalTransactions,
+			evidence.AppliedCount,
+			evidence.CompensatedCount,
+			evidence.RolledBackCount,
+			evidence.FailedCount,
+			evidence.DriftEvents,
+			firstNonEmptyAdminString(evidence.LastOperation, "none"),
+			firstNonEmptyAdminString(evidence.LastStatus, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "atomic_enforcement_transactions",
+		Category:       "policy",
+		Label:          "Atomic Enforcement Transactions And Drift Rollback",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Keep atomic transactions enabled, fail closed, preview before apply, auto-rollback on failed participant apply, and drift verification after apply. Use /api/v1/system/enforcement-transactions for status, /preview for safe review, /apply for ordered enforcement, /drift for verification, and /rollback for reverse-order compensation; complete the NAS-0058 release checklist for physical device, HA, and soak evidence.",
+		Dependencies:   []string{"enforcement_transactions", "enforcement_transaction_steps", "enforcement_drift_events", "runtime_firewall_snapshots", "runtime_qos_snapshots", "vlan_lifecycle_snapshots", "/api/v1/system/enforcement-transactions", "/api/v1/system/enforcement-transactions/preview", "/api/v1/system/enforcement-transactions/apply", "/api/v1/system/enforcement-transactions/drift", "/api/v1/system/enforcement-transactions/rollback", "RFC 5176"},
 	})
 }
 

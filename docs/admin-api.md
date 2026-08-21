@@ -410,6 +410,33 @@ or Accounting-Off withdraws matching active ownership rows.
 
 See [CGNAT, NAT64, And Deterministic Subscriber Translation](cgnat-nat64-deterministic-translation.md).
 
+## Atomic Enforcement Transactions And Drift Rollback
+
+NAS-0058 exposes the cross-target enforcement coordinator at:
+
+```text
+GET  /api/v1/system/enforcement-transactions
+POST /api/v1/system/enforcement-transactions/preview
+POST /api/v1/system/enforcement-transactions/apply
+POST /api/v1/system/enforcement-transactions/drift
+POST /api/v1/system/enforcement-transactions/rollback
+GET  /api/v1/system/enforcement-transactions/history
+```
+
+Read-only and guest-admin roles may inspect, preview, and drift-check.
+`ops_admin` and `super_admin` may apply and rollback. Responses include the
+ordered target plan, target fingerprints, diagnostics, per-target step results,
+drift findings, compensation steps, transaction IDs, and evidence summaries.
+
+Evidence is stored in `enforcement_transactions`,
+`enforcement_transaction_steps`, and `enforcement_drift_events`, summarized in
+`/api/v1/system/status` as `enforcement.atomic_transactions`, checked by
+production readiness as `atomic_enforcement_transactions`, and captured in
+support bundles as `api/enforcement-transactions.json` and
+`api/enforcement-transactions-history.json`.
+
+See [Atomic Enforcement Transactions And Drift Rollback](atomic-enforcement-transactions.md).
+
 The bounded opaque pass-through policy is exposed at:
 
 ```text

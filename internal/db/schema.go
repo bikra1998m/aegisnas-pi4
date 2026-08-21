@@ -187,6 +187,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{60, schemaV60},
 		{61, schemaV61},
 		{62, schemaV62},
+		{63, schemaV63},
 	}
 
 	for _, m := range migrations {
@@ -342,8 +343,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureTranslationPolicyEvidenceTables(handle); err != nil {
 		return fmt.Errorf("repair translation policy evidence schema: %w", err)
 	}
+	if err := ensureEnforcementTransactionTables(handle); err != nil {
+		return fmt.Errorf("repair enforcement transaction schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureEnforcementTransactionTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(enforcementTransactionSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureTranslationPolicyEvidenceTables(handle *sql.DB) error {

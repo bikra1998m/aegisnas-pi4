@@ -1794,6 +1794,33 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Dynamic VLAN lifecycle snapshot and event history with active evidence summary."),
 	}))
+	addOperation(paths, "/api/v1/system/enforcement-transactions", "get", securedOperation("Read atomic enforcement transaction state", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Atomic cross-target enforcement plan, participant fingerprints, policy settings, drift state, and recent evidence."),
+	}))
+	addOperation(paths, "/api/v1/system/enforcement-transactions/preview", "post", securedOperationWithBody("Preview atomic enforcement transaction", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional targets list. Valid targets are vlan_lifecycle, runtime_qos, runtime_firewall, and controller_sync."), map[string]any{
+		"200":     responseJSON("Previewed atomic transaction plan, target steps, diagnostics, and recorded evidence."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/enforcement-transactions/apply", "post", securedOperationWithBody("Apply atomic enforcement transaction", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional targets list and skip_drift_check flag. Applies participants in dependency order and compensates already-applied targets on failure."), map[string]any{
+		"200":     responseJSON("Applied atomic transaction, per-target steps, drift verification, compensation, and evidence."),
+		"409":     responseText("Blocked preflight, failed apply, or compensation error."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/enforcement-transactions/drift", "post", securedOperationWithBody("Detect atomic enforcement drift", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional targets list. Compares active participant fingerprints against the desired plan and records drift evidence."), map[string]any{
+		"200":     responseJSON("Per-target drift findings and transaction evidence."),
+		"409":     responseText("Drift collection failed."),
+		"default": responseText("Drift error."),
+	}))
+	addOperation(paths, "/api/v1/system/enforcement-transactions/rollback", "post", securedOperationWithBody("Rollback atomic enforcement transaction", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional transaction_id. If omitted the latest rollbackable applied transaction is compensated in reverse target order."), map[string]any{
+		"200":     responseJSON("Atomic rollback result, reverse-order participant steps, restored snapshots, and evidence."),
+		"409":     responseText("Rollback target unavailable or failed."),
+		"default": responseText("Rollback error."),
+	}))
+	addOperation(paths, "/api/v1/system/enforcement-transactions/history", "get", securedOperationWithParameters("List atomic enforcement transaction history", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional transaction and drift-event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("Atomic enforcement transaction summary, transaction ledger, and drift-event history."),
+	}))
 	addOperation(paths, "/api/v1/system/vlan-policy", "get", securedOperation("Read tagged VLAN and QinQ policy coverage", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Voice/data VLAN, tagged VLAN, QinQ, pool, fallback, auth-fail, capability, RFC, and evidence summary."),
 	}))

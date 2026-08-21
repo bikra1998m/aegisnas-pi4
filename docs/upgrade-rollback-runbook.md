@@ -443,3 +443,33 @@ matching session or accounting session ID when
 `radius.translation_policy.stop_withdrawal` is enabled. Roll back the
 application and database together if an older runtime does not understand schema
 v62.
+
+## Schema v63 Atomic Enforcement Transaction Upgrade
+
+NAS-0058 adds durable cross-target enforcement transaction and drift evidence:
+
+- `enforcement_transactions`
+- `enforcement_transaction_steps`
+- `enforcement_drift_events`
+
+After upgrade, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/enforcement-transactions \
+  | jq '.report.status, .report.summary, .report.evidence.summary'
+```
+
+Then run an evidence-only preview:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"targets":["vlan_lifecycle","runtime_qos","runtime_firewall","controller_sync"]}' \
+  http://127.0.0.1:8083/api/v1/system/enforcement-transactions/preview \
+  | jq '.result.status, .result.transaction_id, .result.plan.summary'
+```
+
+Confirm `/api/v1/system/enforcement-transactions/history` shows the preview
+transaction and target steps. Roll back the application and database together
+if an older runtime does not understand schema v63.

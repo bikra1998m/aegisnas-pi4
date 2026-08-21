@@ -197,6 +197,27 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		vlanLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["vlan_lifecycle"]}
 	}
+	atomicEnforcementStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Atomic enforcement transactions have not been evaluated.",
+	}
+	if atomicPlan, err := enforcement.BuildAtomicEnforcementPlan(r.Context(), cfg, enforcement.AtomicEnforcementRequest{}); err == nil {
+		atomicSummary, _ := db.GetEnforcementTransactionSummary()
+		atomicEnforcementStatus = map[string]any{
+			"schema_version":   enforcement.AtomicEnforcementSchemaVersion,
+			"status":           atomicPlan.Status,
+			"message":          atomicPlan.Message,
+			"plan_fingerprint": atomicPlan.PlanFingerprint,
+			"summary":          atomicPlan.Summary,
+			"target_count":     len(atomicPlan.Targets),
+			"diagnostic_count": len(atomicPlan.Diagnostics),
+			"capabilities":     atomicPlan.Capabilities,
+			"evidence_summary": atomicSummary,
+			"runtime_status":   runtimeMap["enforcement_transactions"],
+		}
+	} else {
+		atomicEnforcementStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["enforcement_transactions"]}
+	}
 
 	healthyServices := 0
 	for _, service := range services {
@@ -407,6 +428,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"qos_scheduler":            runtimeQoSStatus,
 		"vlan_lifecycle":           vlanLifecycleStatus,
 		"local_firewall":           runtimeFirewallStatus,
+		"atomic_transactions":      atomicEnforcementStatus,
 	}
 	if !enforcement.RuntimeShapingEnabled(cfg) {
 		enforcementStatus["shaper"] = map[string]any{"status": "disabled", "message": "Runtime shaping is disabled by deployment or policy config"}

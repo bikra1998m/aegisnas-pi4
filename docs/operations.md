@@ -998,3 +998,34 @@ translation mappings when `stop_withdrawal` is enabled. Release claims for
 native CGNAT/NAT64 dataplane behavior, lawful logging, and device-specific
 translation enforcement must be backed by the NAS-0057 release certification
 checklist.
+
+## Atomic Enforcement Transaction Operations
+
+Use the atomic transaction API for coordinated VLAN, QoS, firewall, and
+controller enforcement changes. The coordinator previews each participant,
+applies in dependency order, records one ledger entry, checks drift after
+apply, and compensates already-applied targets in reverse order when a later
+target fails.
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/enforcement-transactions \
+  | jq '.report.status, .report.summary, .report.evidence.summary'
+```
+
+Run preview before an apply:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"targets":["vlan_lifecycle","runtime_qos","runtime_firewall"]}' \
+  http://127.0.0.1:8083/api/v1/system/enforcement-transactions/preview \
+  | jq '.result.plan.status, .result.plan.targets'
+```
+
+Treat `blocked` as fail-closed. Treat `degraded` as review-required; first
+deployment can be degraded when no active snapshots exist. Review
+`/api/v1/system/enforcement-transactions/history` after every apply, drift
+check, compensation, or rollback. Release claims for physical dataplane,
+controller behavior, HA failover, performance, soak, and security must be
+backed by the NAS-0058 release certification checklist.

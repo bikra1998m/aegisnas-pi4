@@ -1056,6 +1056,26 @@ const defaultSettings: JsonMap = {
   policy: {
     default_role: "",
     runtime_shaping_enabled: true,
+    runtime_vlan_lifecycle_enabled: true,
+    enforcement_transactions: {
+      enabled: true,
+      fail_closed: true,
+      targets: [
+        "vlan_lifecycle",
+        "runtime_qos",
+        "runtime_firewall",
+        "controller_sync",
+      ],
+      require_preview_before_apply: true,
+      auto_rollback_on_failure: true,
+      auto_rollback_on_drift: false,
+      drift_check_after_apply: true,
+      drift_tolerance_seconds: 60,
+      apply_timeout_seconds: 120,
+      rollback_timeout_seconds: 120,
+      history_retention_limit: 5000,
+      compensation_retention_limit: 1000,
+    },
     max_service_chain_length: 16,
   },
   tacacs: {
@@ -4610,6 +4630,217 @@ export default function AccessSettings() {
               updateField(["policy", "runtime_shaping_enabled"], value)
             }
           />
+          <ToggleField
+            label="VLAN Lifecycle Enabled"
+            checked={Boolean(settings.policy?.runtime_vlan_lifecycle_enabled)}
+            onChange={(value) =>
+              updateField(["policy", "runtime_vlan_lifecycle_enabled"], value)
+            }
+          />
+        </div>
+        <div className="mt-4 space-y-4 border-t border-gray-200 pt-4">
+          <div>
+            <h4 className="font-semibold text-gray-900">
+              Atomic Enforcement Transactions
+            </h4>
+            <p className="mt-1 text-sm text-gray-600">
+              Apply VLAN, QoS, firewall, and controller changes as one ordered
+              operation with drift checks and rollback evidence.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <ToggleField
+              label="Transactions Enabled"
+              checked={Boolean(
+                settings.policy?.enforcement_transactions?.enabled,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["policy", "enforcement_transactions", "enabled"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={Boolean(
+                settings.policy?.enforcement_transactions?.fail_closed,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["policy", "enforcement_transactions", "fail_closed"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Preview Required"
+              checked={Boolean(
+                settings.policy?.enforcement_transactions
+                  ?.require_preview_before_apply,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "policy",
+                    "enforcement_transactions",
+                    "require_preview_before_apply",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Rollback On Failure"
+              checked={Boolean(
+                settings.policy?.enforcement_transactions
+                  ?.auto_rollback_on_failure,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "policy",
+                    "enforcement_transactions",
+                    "auto_rollback_on_failure",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Rollback On Drift"
+              checked={Boolean(
+                settings.policy?.enforcement_transactions
+                  ?.auto_rollback_on_drift,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "policy",
+                    "enforcement_transactions",
+                    "auto_rollback_on_drift",
+                  ],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="Drift Check After Apply"
+              checked={Boolean(
+                settings.policy?.enforcement_transactions
+                  ?.drift_check_after_apply,
+              )}
+              onChange={(value) =>
+                updateField(
+                  [
+                    "policy",
+                    "enforcement_transactions",
+                    "drift_check_after_apply",
+                  ],
+                  value,
+                )
+              }
+            />
+            <TextField
+              label="Target Order"
+              value={listToCSV(
+                settings.policy?.enforcement_transactions?.targets || [],
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["policy", "enforcement_transactions", "targets"],
+                  csvToList(value),
+                )
+              }
+              placeholder="vlan_lifecycle, runtime_qos, runtime_firewall, controller_sync"
+            />
+            <TextField
+              label="Drift Tolerance Seconds"
+              type="number"
+              value={
+                settings.policy?.enforcement_transactions
+                  ?.drift_tolerance_seconds || 60
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "policy",
+                    "enforcement_transactions",
+                    "drift_tolerance_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Apply Timeout Seconds"
+              type="number"
+              value={
+                settings.policy?.enforcement_transactions
+                  ?.apply_timeout_seconds || 120
+              }
+              onChange={(value) =>
+                updateField(
+                  ["policy", "enforcement_transactions", "apply_timeout_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Rollback Timeout Seconds"
+              type="number"
+              value={
+                settings.policy?.enforcement_transactions
+                  ?.rollback_timeout_seconds || 120
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "policy",
+                    "enforcement_transactions",
+                    "rollback_timeout_seconds",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="History Retention"
+              type="number"
+              value={
+                settings.policy?.enforcement_transactions
+                  ?.history_retention_limit || 5000
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "policy",
+                    "enforcement_transactions",
+                    "history_retention_limit",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Drift Retention"
+              type="number"
+              value={
+                settings.policy?.enforcement_transactions
+                  ?.compensation_retention_limit || 1000
+              }
+              onChange={(value) =>
+                updateField(
+                  [
+                    "policy",
+                    "enforcement_transactions",
+                    "compensation_retention_limit",
+                  ],
+                  Number(value),
+                )
+              }
+            />
+          </div>
         </div>
         <div className="mt-4 rounded-md border border-gray-200 px-4 py-3 text-sm text-gray-600">
           Production preview:{" "}

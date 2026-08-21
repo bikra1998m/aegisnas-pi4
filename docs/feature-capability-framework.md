@@ -169,6 +169,7 @@ These features depend heavily on physical platform shape.
 | Per-session route/VRF policy | available | enabled | enabled | compiler is lightweight; active ownership and Stop withdrawal are software-ready; native vendor route behavior needs certification |
 | IPv4/IPv6 pools, DHCPv6, RA, and prefix delegation | available | enabled | enabled | compiler and ownership ledger are software-ready; native DHCPv6/RA/device enforcement needs release certification |
 | CGNAT, NAT64, and deterministic subscriber translation | warned | available | enabled | compiler and ownership ledger are software-ready; native dataplane, lawful logging, and vendor enforcement need release certification |
+| Atomic enforcement transactions and drift rollback | available | enabled | enabled | transaction ledger, compensation, drift checks, APIs, and UI are software-ready; physical dataplane, controller, HA, and soak evidence need release certification |
 
 Rules:
 

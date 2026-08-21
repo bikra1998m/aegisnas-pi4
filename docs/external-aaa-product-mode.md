@@ -790,6 +790,27 @@ dataplane installation, lawful logging retention, and exact product behavior
 remain release-certified per product, firmware, and adapter. See
 [CGNAT, NAT64, And Deterministic Subscriber Translation](cgnat-nat64-deterministic-translation.md).
 
+NAS-0058 adds atomic enforcement transactions for production changes that span
+local VLAN lifecycle, runtime QoS, runtime firewall, and controller sync. The
+software coordinator previews every target, applies in dependency order,
+records one transaction ledger, performs drift detection, and compensates
+rollback-capable targets in reverse order when a later participant fails:
+
+```yaml
+policy:
+  enforcement_transactions:
+    enabled: true
+    fail_closed: true
+    targets: [vlan_lifecycle, runtime_qos, runtime_firewall, controller_sync]
+    require_preview_before_apply: true
+    auto_rollback_on_failure: true
+    drift_check_after_apply: true
+```
+
+Controller and device-specific enforcement remains release-certified per
+product, firmware, and adapter. See
+[Atomic Enforcement Transactions And Drift Rollback](atomic-enforcement-transactions.md).
+
 Juniper, Huawei, H3C, and Arista AVPair strings vary by device family and firmware. Configure only values validated against the target device:
 
 ```yaml

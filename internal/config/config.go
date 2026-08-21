@@ -1313,27 +1313,43 @@ type LDAPConfig struct {
 }
 
 type PolicyConfig struct {
-	DefaultRole                 string `mapstructure:"default_role"`
-	RuntimeShapingEnabled       bool   `mapstructure:"runtime_shaping_enabled"`
-	RuntimeVLANLifecycleEnabled bool   `mapstructure:"runtime_vlan_lifecycle_enabled"`
-	TypedEngineEnabled          bool   `mapstructure:"typed_engine_enabled"`
-	Mode                        string `mapstructure:"mode"`
-	FailClosed                  bool   `mapstructure:"fail_closed"`
-	AuditEnabled                bool   `mapstructure:"audit_enabled"`
-	AllowLegacyConditions       bool   `mapstructure:"allow_legacy_conditions"`
-	RequireTypedRules           bool   `mapstructure:"require_typed_rules"`
-	MaxExpressionDepth          int    `mapstructure:"max_expression_depth"`
-	MaxExpressionNodes          int    `mapstructure:"max_expression_nodes"`
-	MaxListValues               int    `mapstructure:"max_list_values"`
-	EvaluationRetentionLimit    int    `mapstructure:"evaluation_retention_limit"`
-	VersionApprovalRequired     bool   `mapstructure:"version_approval_required"`
-	VersionMinApprovals         int    `mapstructure:"version_min_approvals"`
-	VersionMakerChecker         bool   `mapstructure:"version_maker_checker"`
-	MaxPolicySetDepth           int    `mapstructure:"max_policy_set_depth"`
-	VersionRetentionLimit       int    `mapstructure:"version_retention_limit"`
-	SimulationReplayLimit       int    `mapstructure:"simulation_replay_limit"`
-	SimulationRetentionLimit    int    `mapstructure:"simulation_retention_limit"`
-	MaxServiceChainLength       int    `mapstructure:"max_service_chain_length"`
+	DefaultRole                 string                             `mapstructure:"default_role"`
+	RuntimeShapingEnabled       bool                               `mapstructure:"runtime_shaping_enabled"`
+	RuntimeVLANLifecycleEnabled bool                               `mapstructure:"runtime_vlan_lifecycle_enabled"`
+	EnforcementTransactions     EnforcementTransactionPolicyConfig `mapstructure:"enforcement_transactions"`
+	TypedEngineEnabled          bool                               `mapstructure:"typed_engine_enabled"`
+	Mode                        string                             `mapstructure:"mode"`
+	FailClosed                  bool                               `mapstructure:"fail_closed"`
+	AuditEnabled                bool                               `mapstructure:"audit_enabled"`
+	AllowLegacyConditions       bool                               `mapstructure:"allow_legacy_conditions"`
+	RequireTypedRules           bool                               `mapstructure:"require_typed_rules"`
+	MaxExpressionDepth          int                                `mapstructure:"max_expression_depth"`
+	MaxExpressionNodes          int                                `mapstructure:"max_expression_nodes"`
+	MaxListValues               int                                `mapstructure:"max_list_values"`
+	EvaluationRetentionLimit    int                                `mapstructure:"evaluation_retention_limit"`
+	VersionApprovalRequired     bool                               `mapstructure:"version_approval_required"`
+	VersionMinApprovals         int                                `mapstructure:"version_min_approvals"`
+	VersionMakerChecker         bool                               `mapstructure:"version_maker_checker"`
+	MaxPolicySetDepth           int                                `mapstructure:"max_policy_set_depth"`
+	VersionRetentionLimit       int                                `mapstructure:"version_retention_limit"`
+	SimulationReplayLimit       int                                `mapstructure:"simulation_replay_limit"`
+	SimulationRetentionLimit    int                                `mapstructure:"simulation_retention_limit"`
+	MaxServiceChainLength       int                                `mapstructure:"max_service_chain_length"`
+}
+
+type EnforcementTransactionPolicyConfig struct {
+	Enabled                    bool     `mapstructure:"enabled"`
+	FailClosed                 bool     `mapstructure:"fail_closed"`
+	Targets                    []string `mapstructure:"targets"`
+	RequirePreviewBeforeApply  bool     `mapstructure:"require_preview_before_apply"`
+	AutoRollbackOnFailure      bool     `mapstructure:"auto_rollback_on_failure"`
+	AutoRollbackOnDrift        bool     `mapstructure:"auto_rollback_on_drift"`
+	DriftCheckAfterApply       bool     `mapstructure:"drift_check_after_apply"`
+	DriftToleranceSeconds      int      `mapstructure:"drift_tolerance_seconds"`
+	ApplyTimeoutSeconds        int      `mapstructure:"apply_timeout_seconds"`
+	RollbackTimeoutSeconds     int      `mapstructure:"rollback_timeout_seconds"`
+	HistoryRetentionLimit      int      `mapstructure:"history_retention_limit"`
+	CompensationRetentionLimit int      `mapstructure:"compensation_retention_limit"`
 }
 
 type TelemetryConfig struct {
@@ -2508,6 +2524,18 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("mab.retention_limit", 6000)
 	v.SetDefault("policy.runtime_shaping_enabled", true)
 	v.SetDefault("policy.runtime_vlan_lifecycle_enabled", true)
+	v.SetDefault("policy.enforcement_transactions.enabled", true)
+	v.SetDefault("policy.enforcement_transactions.fail_closed", true)
+	v.SetDefault("policy.enforcement_transactions.targets", []string{"vlan_lifecycle", "runtime_qos", "runtime_firewall", "controller_sync"})
+	v.SetDefault("policy.enforcement_transactions.require_preview_before_apply", true)
+	v.SetDefault("policy.enforcement_transactions.auto_rollback_on_failure", true)
+	v.SetDefault("policy.enforcement_transactions.auto_rollback_on_drift", false)
+	v.SetDefault("policy.enforcement_transactions.drift_check_after_apply", true)
+	v.SetDefault("policy.enforcement_transactions.drift_tolerance_seconds", 60)
+	v.SetDefault("policy.enforcement_transactions.apply_timeout_seconds", 120)
+	v.SetDefault("policy.enforcement_transactions.rollback_timeout_seconds", 120)
+	v.SetDefault("policy.enforcement_transactions.history_retention_limit", 5000)
+	v.SetDefault("policy.enforcement_transactions.compensation_retention_limit", 1000)
 	v.SetDefault("policy.typed_engine_enabled", true)
 	v.SetDefault("policy.mode", "monitor")
 	v.SetDefault("policy.fail_closed", true)
@@ -6121,6 +6149,9 @@ func validatePolicyEngineConfig(policy PolicyConfig) error {
 	if policy.MaxServiceChainLength < 0 || policy.MaxServiceChainLength > 32 {
 		return fmt.Errorf("policy.max_service_chain_length must be between 1 and 32 when set")
 	}
+	if err := validateEnforcementTransactionPolicy(policy.EnforcementTransactions); err != nil {
+		return err
+	}
 	if policy.TypedEngineEnabled {
 		if policy.MaxExpressionDepth == 0 || policy.MaxExpressionNodes == 0 || policy.MaxListValues == 0 {
 			return errors.New("policy.typed_engine_enabled requires positive max_expression_depth, max_expression_nodes, and max_list_values")
@@ -6145,6 +6176,63 @@ func validatePolicyEngineConfig(policy PolicyConfig) error {
 		}
 	}
 	return nil
+}
+
+func validateEnforcementTransactionPolicy(policy EnforcementTransactionPolicyConfig) error {
+	validTargets := map[string]struct{}{
+		"runtime_firewall": {},
+		"runtime_qos":      {},
+		"vlan_lifecycle":   {},
+		"controller_sync":  {},
+	}
+	seen := map[string]struct{}{}
+	for i, target := range policy.Targets {
+		normalized := normalizeEnforcementTransactionTargetName(target)
+		if normalized == "" {
+			return fmt.Errorf("policy.enforcement_transactions.targets[%d] must not be blank", i)
+		}
+		if _, ok := validTargets[normalized]; !ok {
+			return fmt.Errorf("policy.enforcement_transactions.targets[%d] %q is not supported", i, target)
+		}
+		if _, duplicate := seen[normalized]; duplicate {
+			return fmt.Errorf("policy.enforcement_transactions.targets[%d] %q is duplicated", i, target)
+		}
+		seen[normalized] = struct{}{}
+	}
+	if policy.Enabled && len(policy.Targets) == 0 {
+		return errors.New("policy.enforcement_transactions.enabled requires at least one target")
+	}
+	if policy.ApplyTimeoutSeconds < 0 || policy.ApplyTimeoutSeconds > 3600 {
+		return errors.New("policy.enforcement_transactions.apply_timeout_seconds must be between 1 and 3600 when set")
+	}
+	if policy.RollbackTimeoutSeconds < 0 || policy.RollbackTimeoutSeconds > 3600 {
+		return errors.New("policy.enforcement_transactions.rollback_timeout_seconds must be between 1 and 3600 when set")
+	}
+	if policy.DriftToleranceSeconds < 0 || policy.DriftToleranceSeconds > 86400 {
+		return errors.New("policy.enforcement_transactions.drift_tolerance_seconds must be between 0 and 86400")
+	}
+	if policy.HistoryRetentionLimit < 0 || policy.HistoryRetentionLimit > 1000000 {
+		return errors.New("policy.enforcement_transactions.history_retention_limit must be between 100 and 1000000 when set")
+	}
+	if policy.CompensationRetentionLimit < 0 || policy.CompensationRetentionLimit > 1000000 {
+		return errors.New("policy.enforcement_transactions.compensation_retention_limit must be between 100 and 1000000 when set")
+	}
+	return nil
+}
+
+func normalizeEnforcementTransactionTargetName(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "runtime-firewall", "runtime_firewall", "firewall":
+		return "runtime_firewall"
+	case "runtime-qos", "runtime_qos", "qos", "qos-scheduler", "qos_scheduler":
+		return "runtime_qos"
+	case "vlan-lifecycle", "vlan_lifecycle", "vlan":
+		return "vlan_lifecycle"
+	case "controller-sync", "controller_sync", "controller":
+		return "controller_sync"
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
 }
 
 func validateTACACSConfig(tac TACACSConfig) error {

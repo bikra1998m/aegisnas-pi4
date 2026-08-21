@@ -12,6 +12,7 @@ The current implementation adds a profile-aware control plane through:
 - `ailite.mode`
 - `policy.runtime_shaping_enabled`
 - `policy.runtime_vlan_lifecycle_enabled`
+- `policy.enforcement_transactions`
 - `radius.vlan_policy`
 - `wireless.hostapd_vlan_file_path`
 
@@ -37,6 +38,8 @@ Recommended direction:
 - disable runtime VLAN lifecycle unless the appliance owns the downstream trunk
 - keep `radius.vlan_policy.enabled: true` for external AP/switch RADIUS
   replies; keep local apply workflows disabled unless the trunk is owned
+- keep atomic enforcement transactions enabled for preview/history, but limit
+  targets to externally owned participants when local dataplane apply is off
 - reduce `radius.max_sessions`
 - keep accounting charging enabled, but use small CDR batches and shorter
   CDR/export retention
@@ -67,6 +70,8 @@ Recommended direction:
 - `ailite.mode: lite`
 - telemetry on
 - runtime shaping on when needed
+- atomic enforcement transactions on for preview, drift checks, and rollback
+  evidence before branch production applies
 - tagged VLAN/QinQ policy enabled for vendor-safe voice/data assignments
 - keep full AI blocked until `ailite.endpoint` and `ailite.model` are configured
 - normal upstream AAA probing
@@ -96,6 +101,8 @@ Recommended direction:
 - full AI mode on when a provider endpoint and model are configured
 - telemetry on
 - runtime shaping on
+- atomic enforcement transactions on with fail-closed apply, post-apply drift
+  checks, and rollback evidence for all local and controller targets
 - tagged VLAN/QinQ policy on with vendor certification evidence for each
   hardware family in scope
 - larger `radius.max_sessions`
@@ -152,6 +159,7 @@ The profile action updates real config fields such as:
 - `ailite.mode`
 - `telemetry.enabled`
 - `policy.runtime_shaping_enabled`
+- `policy.enforcement_transactions.*`
 - `radius.max_sessions`
 - `radius.interim_update_seconds`
 - `radius.accounting_charging.*`

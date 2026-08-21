@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 62
+	return 63
 }
 
 func Migrate() error {
@@ -3385,3 +3385,82 @@ CREATE INDEX IF NOT EXISTS idx_translation_policy_ownership_mode ON translation_
 `
 
 const schemaV62 = translationPolicyEvidenceSQL
+
+const enforcementTransactionSQL = `
+CREATE TABLE IF NOT EXISTS enforcement_transactions (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	transaction_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	actor TEXT,
+	target_count INTEGER NOT NULL DEFAULT 0,
+	applied_count INTEGER NOT NULL DEFAULT 0,
+	skipped_count INTEGER NOT NULL DEFAULT 0,
+	failed_count INTEGER NOT NULL DEFAULT 0,
+	rollback_count INTEGER NOT NULL DEFAULT 0,
+	compensation_count INTEGER NOT NULL DEFAULT 0,
+	drift_count INTEGER NOT NULL DEFAULT 0,
+	plan_fingerprint TEXT,
+	previous_transaction_id TEXT,
+	rollback_transaction_id TEXT,
+	summary TEXT,
+	request_json TEXT NOT NULL DEFAULT '{}',
+	plan_json TEXT NOT NULL DEFAULT '{}',
+	result_json TEXT NOT NULL DEFAULT '{}',
+	diagnostics_json TEXT NOT NULL DEFAULT '[]',
+	started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	completed_at DATETIME,
+	CHECK (operation IN ('preview', 'apply', 'drift', 'rollback')),
+	CHECK (status IN ('previewed', 'applied', 'degraded', 'blocked', 'failed', 'compensated', 'rolled_back', 'drifted', 'in_sync', 'skipped'))
+);
+
+CREATE TABLE IF NOT EXISTS enforcement_transaction_steps (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	transaction_id TEXT NOT NULL,
+	step_order INTEGER NOT NULL DEFAULT 0,
+	target TEXT NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	desired_fingerprint TEXT,
+	active_fingerprint TEXT,
+	active_snapshot_id TEXT,
+	previous_snapshot_id TEXT,
+	snapshot_id TEXT,
+	restored_snapshot_id TEXT,
+	rollback_supported BOOLEAN NOT NULL DEFAULT 0,
+	drift_status TEXT,
+	message TEXT,
+	error TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	started_at DATETIME,
+	completed_at DATETIME,
+	CHECK (operation IN ('preview', 'apply', 'drift', 'rollback', 'compensate')),
+	CHECK (status IN ('pending', 'previewed', 'applied', 'degraded', 'blocked', 'failed', 'rolled_back', 'compensated', 'skipped', 'drifted', 'in_sync', 'unknown'))
+);
+
+CREATE TABLE IF NOT EXISTS enforcement_drift_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	drift_id TEXT UNIQUE NOT NULL,
+	transaction_id TEXT,
+	target TEXT NOT NULL,
+	status TEXT NOT NULL,
+	desired_fingerprint TEXT,
+	active_fingerprint TEXT,
+	active_snapshot_id TEXT,
+	message TEXT,
+	details_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	observed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('in_sync', 'drifted', 'unknown', 'skipped', 'blocked'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_enforcement_transactions_created ON enforcement_transactions(started_at);
+CREATE INDEX IF NOT EXISTS idx_enforcement_transactions_status ON enforcement_transactions(operation, status, started_at);
+CREATE INDEX IF NOT EXISTS idx_enforcement_transactions_fingerprint ON enforcement_transactions(plan_fingerprint, started_at);
+CREATE INDEX IF NOT EXISTS idx_enforcement_transaction_steps_tx ON enforcement_transaction_steps(transaction_id, step_order);
+CREATE INDEX IF NOT EXISTS idx_enforcement_transaction_steps_target ON enforcement_transaction_steps(target, status, completed_at);
+CREATE INDEX IF NOT EXISTS idx_enforcement_drift_events_target ON enforcement_drift_events(target, status, observed_at);
+CREATE INDEX IF NOT EXISTS idx_enforcement_drift_events_tx ON enforcement_drift_events(transaction_id, observed_at);
+`
+
+const schemaV63 = enforcementTransactionSQL

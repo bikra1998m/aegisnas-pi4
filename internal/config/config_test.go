@@ -4770,6 +4770,44 @@ func TestValidateRadiusTranslationPolicy(t *testing.T) {
 	assert.ErrorContains(t, validateRadiusTranslationPolicy(unknownPack), "unknown")
 }
 
+func TestValidateEnforcementTransactionPolicy(t *testing.T) {
+	valid := EnforcementTransactionPolicyConfig{
+		Enabled:                    true,
+		FailClosed:                 true,
+		Targets:                    []string{"vlan_lifecycle", "runtime_qos", "runtime_firewall", "controller_sync"},
+		RequirePreviewBeforeApply:  true,
+		AutoRollbackOnFailure:      true,
+		DriftCheckAfterApply:       true,
+		DriftToleranceSeconds:      60,
+		ApplyTimeoutSeconds:        120,
+		RollbackTimeoutSeconds:     120,
+		HistoryRetentionLimit:      5000,
+		CompensationRetentionLimit: 1000,
+	}
+
+	assert.NoError(t, validateEnforcementTransactionPolicy(valid))
+
+	duplicate := valid
+	duplicate.Targets = []string{"runtime_qos", "runtime-qos"}
+	assert.ErrorContains(t, validateEnforcementTransactionPolicy(duplicate), "duplicate")
+
+	unknown := valid
+	unknown.Targets = []string{"runtime_qos", "iptables"}
+	assert.ErrorContains(t, validateEnforcementTransactionPolicy(unknown), "not supported")
+
+	noTargets := valid
+	noTargets.Targets = nil
+	assert.ErrorContains(t, validateEnforcementTransactionPolicy(noTargets), "at least one target")
+
+	badTimeout := valid
+	badTimeout.ApplyTimeoutSeconds = 4000
+	assert.ErrorContains(t, validateEnforcementTransactionPolicy(badTimeout), "apply_timeout_seconds")
+
+	badRetention := valid
+	badRetention.HistoryRetentionLimit = -1
+	assert.ErrorContains(t, validateEnforcementTransactionPolicy(badRetention), "history_retention_limit")
+}
+
 func baseProxyRoutingValidationConfig() *Config {
 	return &Config{
 		Mode: "two-nic",
