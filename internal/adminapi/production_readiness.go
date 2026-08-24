@@ -170,6 +170,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionCompatibilityEvidenceCheck(&report, cfg)
 	addProductionVendorMappingCertificationCheck(&report, cfg)
 	addProductionCiscoFamilyPackCheck(&report)
+	addProductionArubaFamilyPackCheck(&report)
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
@@ -2616,6 +2617,49 @@ func addProductionCiscoFamilyPackCheck(report *productionReadinessReport) {
 			"/api/v1/system/cisco-family-pack",
 			"cisco_family_pack_events",
 			"docs/nas-0061-release-certification-checklist.md",
+		},
+	})
+}
+
+func addProductionArubaFamilyPackCheck(report *productionReadinessReport) {
+	certification, err := buildArubaFamilyPackForRequest()
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "aruba_family_pack", Category: "radius", Label: "NAS-0062 Aruba/HPE Family Pack", Status: "blocked",
+			Summary:        "Aruba/HPE family pack report could not be built: " + err.Error(),
+			Recommendation: "Repair the pinned attribute registry and Aruba/HPE-family certification report before closing NAS-0062.",
+			Dependencies:   []string{"configs/aruba_family_pack.go", "internal/radius/aruba_family.go", "configs/attribute_registry/freeradius-3.2.8-vsa-audit.csv"},
+		})
+		return
+	}
+	if err := productconfigs.ValidateArubaFamilyPackReport(certification); err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "aruba_family_pack", Category: "radius", Label: "NAS-0062 Aruba/HPE Family Pack", Status: "blocked",
+			Summary:        "NAS-0062 software certification is incomplete: " + err.Error(),
+			Recommendation: "Use /api/v1/system/aruba-family-pack to inspect blocked Aruba/HPE-family dimensions; external certification must remain in the release checklist.",
+			Dependencies:   []string{"configs/aruba_family_pack.go", "internal/radius/aruba_family.go", "internal/db/aruba_family_pack.go"},
+		})
+		return
+	}
+	status := "passed"
+	if db.DB == nil {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "aruba_family_pack", Category: "radius", Label: "NAS-0062 Aruba/HPE Family Pack", Status: status,
+		Summary: fmt.Sprintf("NAS-0062 software-certifies %d/%d Aruba/HPE-family dictionary rows across %d vendors, with %d policy grammar rules, %d sensitive redaction mappings, and %d external certification claims.",
+			certification.Summary.SoftwareCertifiedMappings,
+			certification.Summary.AttributeCount,
+			certification.Summary.VendorCount,
+			certification.Summary.GrammarRuleCount,
+			certification.Summary.SensitiveRedactedMappings,
+			certification.Summary.ExternalRequiredMappings,
+		),
+		Recommendation: "Record the current fingerprint with /api/v1/system/aruba-family-pack/record, then execute docs/nas-0062-release-certification-checklist.md before publishing hardware-certified claims.",
+		Dependencies: []string{
+			"/api/v1/system/aruba-family-pack",
+			"aruba_family_pack_events",
+			"docs/nas-0062-release-certification-checklist.md",
 		},
 	})
 }

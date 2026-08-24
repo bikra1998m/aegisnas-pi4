@@ -108,6 +108,10 @@ The current codebase now has a working form of this model through:
 - NAS-0061 Cisco-family pack certification for all 922 pinned Cisco,
   Airespace/WLC, ASA/VPN, Starent, and Meraki rows, with Cisco-AVPair grammar,
   typed pass-through, API/UI evidence, and external release certification split
+- NAS-0062 Aruba/HPE-family pack certification for all 125 pinned Aruba,
+  HP/ArubaOS-Switch, Aerohive/Extreme, and Colubris/MSM rows, with policy
+  grammar, secret redaction, typed pass-through, API/UI evidence, and external
+  release certification split
 
 That work lives primarily in:
 
@@ -115,7 +119,9 @@ That work lives primarily in:
 - `internal/config/config.go`
 - `configs/vendor_mapping_certification.go`
 - `configs/cisco_family_pack.go`
+- `configs/aruba_family_pack.go`
 - `internal/radius/cisco_avpair.go`
+- `internal/radius/aruba_family.go`
 - `web/admin-ui/src/pages/AccessSettings.tsx`
 - `web/admin-ui/src/pages/VendorCompatibility.tsx`
 - `web/admin-ui/src/pages/Dashboard.tsx`

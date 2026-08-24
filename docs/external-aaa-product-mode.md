@@ -53,11 +53,15 @@ Files involved:
 - [accounting_services.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/accounting_services.go)
 - [vendor_mapping_certification.go](F:/random_project/Pookie/aegisnas-pi4/configs/vendor_mapping_certification.go)
 - [cisco_family_pack.go](F:/random_project/Pookie/aegisnas-pi4/configs/cisco_family_pack.go)
+- [aruba_family_pack.go](F:/random_project/Pookie/aegisnas-pi4/configs/aruba_family_pack.go)
 - [vendor_mapping_certification.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/vendor_mapping_certification.go)
 - [cisco_family_pack.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/cisco_family_pack.go)
+- [aruba_family_pack.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/aruba_family_pack.go)
 - [vendor_mapping_certification.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/vendor_mapping_certification.go)
 - [cisco_family_pack.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/cisco_family_pack.go)
+- [aruba_family_pack.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/aruba_family_pack.go)
 - [cisco_avpair.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/cisco_avpair.go)
+- [aruba_family.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/aruba_family.go)
 - [accounting_ingest_spool.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/accounting_ingest_spool.go)
 - [mapping.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/mapping.go)
 - [dynamic_nas_clients.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/dynamic_nas_clients.go)
@@ -115,6 +119,12 @@ The implementation now does these things end to end:
     admin API, Vendor Compatibility UI, readiness checks, system status, and
     support-bundle captures while keeping real-device validation in a separate
     release checklist
+31. certifies the Aruba/HPE-family FreeRADIUS dictionary pack in software
+    through a NAS-0062 report covering 125 Aruba, HP/ArubaOS-Switch,
+    Aerohive/Extreme, and Colubris/MSM rows, policy grammar, secret redaction,
+    typed pass-through, persisted evidence, admin API, Vendor Compatibility UI,
+    readiness checks, system status, and support-bundle captures while keeping
+    real-device validation in a separate release checklist
 
 ## Current Behavior
 

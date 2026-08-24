@@ -371,6 +371,44 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		ciscoFamilyPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
 	}
+	arubaFamilyPackStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0062 Aruba/HPE family pack has not been evaluated.",
+	}
+	if arubaPack, err := buildArubaFamilyPackForRequest(); err == nil {
+		status := "ready"
+		message := fmt.Sprintf("NAS-0062 software certification covers %d/%d Aruba/HPE-family rows across %d vendors.",
+			arubaPack.Summary.SoftwareCertifiedMappings,
+			arubaPack.Summary.AttributeCount,
+			arubaPack.Summary.VendorCount,
+		)
+		if err := productconfigs.ValidateArubaFamilyPackReport(arubaPack); err != nil {
+			status = "blocked"
+			message = "NAS-0062 Aruba/HPE family pack is incomplete: " + err.Error()
+		}
+		historySummary, historyErr := db.GetArubaFamilyPackSummary()
+		arubaFamilyPackStatus = map[string]any{
+			"status":                              status,
+			"message":                             message,
+			"schema_version":                      arubaPack.SchemaVersion,
+			"feature_id":                          arubaPack.FeatureID,
+			"source_sha256":                       arubaPack.SourceSHA256,
+			"attribute_count":                     arubaPack.Summary.AttributeCount,
+			"software_certified_mappings":         arubaPack.Summary.SoftwareCertifiedMappings,
+			"software_blocked_mappings":           arubaPack.Summary.SoftwareBlockedMappings,
+			"external_required_mappings":          arubaPack.Summary.ExternalRequiredMappings,
+			"software_completion_percent":         arubaPack.Summary.SoftwareCompletionPercent,
+			"grammar_rule_count":                  arubaPack.Summary.GrammarRuleCount,
+			"sensitive_redacted_mappings":         arubaPack.Summary.SensitiveRedactedMappings,
+			"fingerprint":                         arubaPack.Summary.Fingerprint,
+			"release_certification_checklist":     "docs/nas-0062-release-certification-checklist.md",
+			"release_certification_external_only": true,
+			"evidence_summary":                    historySummary,
+			"evidence_error":                      rateCompilerErrorString(historyErr),
+		}
+	} else {
+		arubaFamilyPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -430,6 +468,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"subscriber_route_export":      subscriberRouteExportStatus,
 		"vendor_mapping_certification": vendorMappingCertificationStatus,
 		"cisco_family_pack":            ciscoFamilyPackStatus,
+		"aruba_family_pack":            arubaFamilyPackStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),

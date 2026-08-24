@@ -456,6 +456,52 @@ type CiscoFamilyPackPayload = {
   release_certification_checklist: string;
 };
 
+type ArubaFamilyPackSummary = CiscoFamilyPackSummary & {
+  sensitive_redacted_mappings: number;
+};
+
+type ArubaFamilyVendorSummary = CiscoFamilyVendorSummary & {
+  sensitive_redacted_mappings: number;
+};
+
+type ArubaFamilyCapabilitySummary = CiscoFamilyCapabilitySummary & {
+  sensitive_redacted_mappings: number;
+};
+
+type ArubaFamilyGrammarRecord = CiscoFamilyGrammarRecord;
+type ArubaFamilyAttributeRecord = CiscoFamilyAttributeRecord;
+type ArubaFamilyPackEvent = CiscoFamilyPackEvent;
+
+type ArubaFamilyPackPayload = {
+  generated_at: string;
+  report: {
+    schema_version: number;
+    feature_id: string;
+    release_profile_id: string;
+    source_release: string;
+    source_sha256: string;
+    summary: ArubaFamilyPackSummary;
+    vendor_summaries: ArubaFamilyVendorSummary[];
+    capability_summaries: ArubaFamilyCapabilitySummary[];
+    grammar: ArubaFamilyGrammarRecord[];
+    records: ArubaFamilyAttributeRecord[];
+    notes?: string[];
+  };
+  evidence: {
+    summary: {
+      total_events: number;
+      recorded_count: number;
+      blocked_count: number;
+      failed_count: number;
+      last_event_at?: string;
+      last_fingerprint?: string;
+    };
+    recent_events?: ArubaFamilyPackEvent[];
+  };
+  release_scope: string;
+  release_certification_checklist: string;
+};
+
 type VendorDictionaryCoverageRow = {
   pack_key: string;
   pack_label: string;
@@ -909,6 +955,9 @@ export default function VendorCompatibility() {
   const [ciscoFamilyPack, setCiscoFamilyPack] = useState<CiscoFamilyPackPayload | null>(null);
   const [ciscoFamilyPackBusy, setCiscoFamilyPackBusy] = useState(false);
   const [ciscoFamilyPackError, setCiscoFamilyPackError] = useState('');
+  const [arubaFamilyPack, setArubaFamilyPack] = useState<ArubaFamilyPackPayload | null>(null);
+  const [arubaFamilyPackBusy, setArubaFamilyPackBusy] = useState(false);
+  const [arubaFamilyPackError, setArubaFamilyPackError] = useState('');
   const [vsaCodec, setVSACodec] = useState<VSACodecPayload | null>(null);
   const [vsaCodecError, setVSACodecError] = useState('');
   const [opaquePassThrough, setOpaquePassThrough] = useState<OpaquePassThroughPayload | null>(null);
@@ -917,6 +966,7 @@ export default function VendorCompatibility() {
   const canManageIdentity = identity?.role === 'super_admin';
   const canRecordMappingCertification = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
   const canRecordCiscoFamilyPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
+  const canRecordArubaFamilyPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
 
   const fetchVendorIdentity = async () => {
     try {
@@ -1091,6 +1141,31 @@ export default function VendorCompatibility() {
     }
   };
 
+  const fetchArubaFamilyPack = async () => {
+    setArubaFamilyPackError('');
+    try {
+      const { data } = await api.get<ArubaFamilyPackPayload>('/system/aruba-family-pack?history_limit=5');
+      setArubaFamilyPack(data);
+    } catch (err: any) {
+      setArubaFamilyPackError(apiErrorMessage(err, 'Could not load NAS-0062 Aruba/HPE family pack.'));
+    }
+  };
+
+  const recordArubaFamilyPack = async () => {
+    setArubaFamilyPackBusy(true);
+    setArubaFamilyPackError('');
+    setMessage('');
+    try {
+      await api.post('/system/aruba-family-pack/record', {});
+      setMessage('NAS-0062 Aruba/HPE family pack event recorded.');
+      await fetchArubaFamilyPack();
+    } catch (err: any) {
+      setArubaFamilyPackError(apiErrorMessage(err, 'Could not record NAS-0062 Aruba/HPE family pack.'));
+    } finally {
+      setArubaFamilyPackBusy(false);
+    }
+  };
+
   const fetchVSACodec = async () => {
     setVSACodecError('');
     try {
@@ -1197,6 +1272,7 @@ export default function VendorCompatibility() {
     void fetchCompatibilityEvidence(false);
     void fetchMappingCertification();
     void fetchCiscoFamilyPack();
+    void fetchArubaFamilyPack();
     void fetchVSACodec();
     void fetchOpaquePassThrough();
   }, []);
@@ -1221,6 +1297,12 @@ export default function VendorCompatibility() {
   const ciscoFamilyPackVendors = ciscoFamilyPack?.report.vendor_summaries || [];
   const ciscoFamilyPackCapabilities = ciscoFamilyPack?.report.capability_summaries || [];
   const ciscoFamilyPackGrammar = ciscoFamilyPack?.report.grammar || [];
+  const arubaFamilyPackSummary = arubaFamilyPack?.report.summary;
+  const arubaFamilyPackComplete = Boolean(arubaFamilyPackSummary && arubaFamilyPackSummary.software_certified_mappings === arubaFamilyPackSummary.attribute_count && arubaFamilyPackSummary.software_blocked_mappings === 0);
+  const arubaFamilyPackRecords = arubaFamilyPack?.report.records || [];
+  const arubaFamilyPackVendors = arubaFamilyPack?.report.vendor_summaries || [];
+  const arubaFamilyPackCapabilities = arubaFamilyPack?.report.capability_summaries || [];
+  const arubaFamilyPackGrammar = arubaFamilyPack?.report.grammar || [];
   const plannedSemantics = useMemo(
     () => (payload?.semantics || []).filter((item) => item.compatibility_state !== 'implemented'),
     [payload?.semantics],
@@ -1243,7 +1325,7 @@ export default function VendorCompatibility() {
           <p className="mt-1 text-sm text-gray-600">Confirm deployed NAS profiles, reply packs, and vendor dictionary coverage before changing access policy.</p>
         </div>
         <button
-          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
+          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchArubaFamilyPack(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
           disabled={loading}
           className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
@@ -1748,6 +1830,116 @@ export default function VendorCompatibility() {
                   </table>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">{ciscoFamilyPack?.release_certification_checklist} keeps Cisco hardware, firmware, FreeRADIUS Linux, HA, performance, and customer proof outside engineering completion.</p>
+              </>
+            ) : null}
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">NAS-0062 Aruba/HPE Family Pack</h3>
+                <p className="mt-1 text-sm text-gray-600">Certify Aruba, HP/ArubaOS-Switch, Aerohive/Extreme, Colubris/MSM, policy grammar, and secret redaction while keeping device proof in the release checklist.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {arubaFamilyPackSummary ? (
+                  <StatusBadge tone={arubaFamilyPackComplete ? 'green' : 'amber'}>
+                    {formatPercent(arubaFamilyPackSummary.software_completion_percent)} software
+                  </StatusBadge>
+                ) : null}
+                {canRecordArubaFamilyPack ? (
+                  <button
+                    type="button"
+                    onClick={() => void recordArubaFamilyPack()}
+                    disabled={arubaFamilyPackBusy || !arubaFamilyPackComplete}
+                    className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {arubaFamilyPackBusy ? 'Recording...' : 'Record Evidence'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {arubaFamilyPackError ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{arubaFamilyPackError}</div> : null}
+            {arubaFamilyPackSummary ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="Aruba/HPE Rows" value={arubaFamilyPackSummary.attribute_count} hint="Pinned FreeRADIUS 3.2.8 Aruba/HPE-family rows." />
+                  <StatCard label="Software Certified" value={arubaFamilyPackSummary.software_certified_mappings} hint={`${arubaFamilyPackSummary.software_blocked_mappings} software blockers.`} />
+                  <StatCard label="Vendors" value={arubaFamilyPackSummary.vendor_count} hint={`${arubaFamilyPackSummary.native_semantic_mappings} native semantic mappings.`} />
+                  <StatCard label="Typed Pass-Through" value={arubaFamilyPackSummary.typed_passthrough_mappings} hint="Visible, bounded, not silently enforced." />
+                  <StatCard label="Policy Grammar" value={arubaFamilyPackSummary.grammar_rule_count} hint="Parser, compiler, inbound, and outbound states." />
+                  <StatCard label="Secret Redaction" value={arubaFamilyPackSummary.sensitive_redacted_mappings} hint="MPSK, DPP, PPSK, PMK, and credential material." />
+                  <StatCard label="Storage Events" value={arubaFamilyPack?.evidence.summary.total_events || 0} hint={arubaFamilyPack?.evidence.summary.last_event_at ? `Last ${new Date(arubaFamilyPack.evidence.summary.last_event_at).toLocaleString()}` : 'No persisted event yet.'} />
+                  <StatCard label="Ready For Lab" value={arubaFamilyPackSummary.ready_for_external_validation_mappings} hint="Software-ready rows awaiting release proof." />
+                </div>
+
+                <div className="mt-4 rounded-md border border-gray-200 p-4">
+                  <div className="text-xs font-semibold uppercase text-gray-500">Aruba/HPE Family Fingerprint</div>
+                  <div className="mt-2 break-all text-sm font-medium text-gray-900">{arubaFamilyPackSummary.fingerprint}</div>
+                  <p className="mt-2 text-sm text-gray-600">{arubaFamilyPack?.release_scope}</p>
+                </div>
+
+                <div className="mt-4 grid gap-4 xl:grid-cols-3">
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Vendor', 'Rows', 'State'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {arubaFamilyPackVendors.map((vendor) => (
+                          <tr key={`${vendor.vendor}-${vendor.pen}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{vendor.vendor}<div className="text-xs text-gray-500">PEN {vendor.pen}{vendor.pack_key ? ` / ${vendor.pack_key}` : ''}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{vendor.software_certified_mappings}/{vendor.attribute_count}<div className="text-xs text-gray-500">{vendor.sensitive_redacted_mappings} redacted</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{formatPercent(vendor.software_completion_percent)}</StatusBadge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Capability', 'Rows', 'Mapping'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {arubaFamilyPackCapabilities.slice(0, 8).map((capability) => (
+                          <tr key={capability.capability}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{evidenceLabel(capability.capability)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{capability.software_certified_mappings}/{capability.attribute_count}<div className="text-xs text-gray-500">{capability.external_required_mappings} external</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{capability.native_semantic_mappings} native<div className="text-xs text-gray-500">{capability.sensitive_redacted_mappings} redacted</div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Grammar', 'State', 'Example'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {arubaFamilyPackGrammar.slice(0, 8).map((grammar) => (
+                          <tr key={grammar.key}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{grammar.label}<div className="text-xs text-gray-500">{grammar.kind}</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{grammar.parser_state}</StatusBadge><div className="mt-1 text-xs text-gray-500">{grammar.external_state}</div></td>
+                            <td className="px-4 py-3 text-xs text-gray-700">{grammar.examples?.[0] || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="mt-4 overflow-x-auto rounded-md border border-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50"><tr>{['Attribute', 'Capability', 'Software', 'Handling'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {arubaFamilyPackRecords.slice(0, 10).map((record) => (
+                        <tr key={record.id}>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{record.attribute}<div className="text-xs text-gray-500">{record.vendor} / {record.wire_key}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{evidenceLabel(record.capability)}<div className="text-xs text-gray-500">{joinList(record.directions)}</div></td>
+                          <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{evidenceLabel(record.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{record.claim_state}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{evidenceLabel(record.implementation_class)}<div className="text-xs text-gray-500">{evidenceLabel(record.packet_processing)}</div></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">{arubaFamilyPack?.release_certification_checklist} keeps Aruba/HPE hardware, controller, FreeRADIUS Linux, HA, performance, and customer proof outside engineering completion.</p>
               </>
             ) : null}
           </section>

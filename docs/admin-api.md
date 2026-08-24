@@ -70,7 +70,7 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/production-readiness | jq '.status, .checks[] | select(.status != "passed")'
 ```
 
-The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, NAS-0060 vendor mapping certification, NAS-0061 Cisco-family pack certification, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
+The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, NAS-0060 vendor mapping certification, NAS-0061 Cisco-family pack certification, NAS-0062 Aruba/HPE-family pack certification, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
 
 ## Outbound Dynamic Authorization
 
@@ -287,6 +287,34 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/cisco-family-pack/record | jq '.event_id, .status'
+```
+
+NAS-0062 exposes the Aruba/HPE-family software certification report for all 125
+Aruba, HP/ArubaOS-Switch, Aerohive/Extreme, and Colubris/MSM rows from the
+pinned FreeRADIUS 3.2.8 registry:
+
+```text
+GET  /api/v1/system/aruba-family-pack
+POST /api/v1/system/aruba-family-pack/record
+GET  /api/v1/system/aruba-family-pack/history
+```
+
+The report includes policy grammar coverage, vendor rollups, capability
+rollups, native semantic mappings, typed pass-through mappings, sensitive
+redaction counts, bounded software evidence, and release scope. `record`
+persists the current source hash, fingerprint, counts, summary JSON, full
+report JSON, actor, and timestamp in `aruba_family_pack_events`. External
+ArubaOS, Aruba Central, ClearPass, ArubaOS-Switch, Aerohive/Extreme,
+Colubris/MSM, FreeRADIUS-on-Linux, HA, performance, soak, security, production
+deployment, and customer acceptance proof remains in
+[nas-0062-release-certification-checklist.md](nas-0062-release-certification-checklist.md).
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/aruba-family-pack | jq '.report.summary'
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/aruba-family-pack/record | jq '.event_id, .status'
 ```
 
 The API also provides a non-mutating reply preview endpoint:

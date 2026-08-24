@@ -98,6 +98,42 @@ type ReplyAttributes struct {
 	CiscoAuditSessionID              string
 	CiscoChargingProfile             string
 	CiscoAVPairs                     []string
+	ArubaAdminRole                   string
+	ArubaCPPMRole                    string
+	ArubaNamedUserVLAN               string
+	ArubaAPGroup                     string
+	ArubaUserGroup                   string
+	ArubaDeviceType                  string
+	ArubaMDPSDeviceName              string
+	ArubaMDPSDeviceProfile           string
+	ArubaAirGroupUserName            string
+	ArubaAirGroupSharedUser          string
+	ArubaAirGroupSharedRole          string
+	ArubaAirGroupSharedGroup         string
+	ArubaMPSKKeyName                 string
+	ArubaDPPServiceType              int
+	ArubaUBTGatewayRole              string
+	ArubaGatewayZone                 string
+	ArubaQoSTrustMode                int
+	ArubaPoEPriority                 int
+	ArubaDeviceTrafficClass          int
+	ArubaAVPairs                     []string
+	HPPrivilegeLevel                 int
+	HPCPPMSecondaryRole              string
+	HPCos                            string
+	HPBonjourInboundProfile          string
+	HPBonjourOutboundProfile         string
+	HPURIString                      string
+	HPURIAccess                      string
+	HPCommandString                  string
+	HPNasRulesIPv6                   int
+	HPEgressVLANName                 string
+	AerohiveUserLanguage             string
+	AerohiveIDMMessage               int
+	AerohiveClientMonitorProblem     int
+	AerohiveAuthSource               int
+	AerohiveAVPairs                  []string
+	ColubrisAVPairs                  []string
 }
 
 type ReplyAttributeItem struct {
@@ -252,6 +288,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			if vlan := replyVLAN(attrs); vlan > 0 {
 				appendItem("Aruba-User-Vlan", fmt.Sprintf("%d", vlan), false)
 			}
+			appendArubaFamilyReplyAttributes(attrs, packKey, appendItem)
 		case productconfigs.VendorPackRuckus:
 			appendItem("Ruckus-User-Groups", replyRole(attrs), true)
 			if vlan := replyVLAN(attrs); vlan > 0 {
@@ -327,6 +364,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendItem("Extreme-AVPair", firstReplyValue(attrs.PolicyTag, attrs.ACLPolicyName, attrs.FilterID), true)
 			appendURLItem(attrs, appendItem, "Extreme-IDM-Redirect-URL", attrs.PortalProfile)
 			appendNumericRoleItem(attrs, packKey, vendor.RoleMappings, appendItem, "Extreme-User-Profile-Attribute")
+			appendArubaFamilyReplyAttributes(attrs, packKey, appendItem)
 		case productconfigs.VendorPackAirespace:
 			appendItem("Guest-Role-Name", replyRole(attrs), true)
 			appendItem("ACL-Name", firstReplyValue(attrs.ACLPolicyName, attrs.InboundACL, attrs.OutboundACL), true)
@@ -341,6 +379,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			if vlan := replyVLAN(attrs); vlan > 0 && !hasVLANPolicyReplyAttributes(attrs) {
 				appendItem("Egress-VLANID", fmt.Sprintf("%d", vlan), false)
 			}
+			appendArubaFamilyReplyAttributes(attrs, packKey, appendItem)
 		case productconfigs.VendorPackNomadix:
 			appendRateKbpsItem(attrs, appendItem, "Nomadix-Bw-Down", attrs.WISPrBandwidthMaxDown)
 			appendRateKbpsItem(attrs, appendItem, "Nomadix-Bw-Up", attrs.WISPrBandwidthMaxUp)
@@ -391,6 +430,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 		case productconfigs.VendorPackColubris:
 			appendItem("AVPair", firstReplyValue(attrs.PolicyTag, attrs.ACLPolicyName, attrs.FilterID), true)
 			appendBooleanIntegerItem(attrs.HasQuarantine, attrs.Quarantine, appendItem, "Intercept")
+			appendArubaFamilyReplyAttributes(attrs, packKey, appendItem)
 		}
 		appendVLANPolicyReplyAttributes(attrs, packKey, appendItem)
 		appendRoutePolicyReplyAttributes(attrs, packKey, appendItem)

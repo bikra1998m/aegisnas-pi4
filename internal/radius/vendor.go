@@ -768,6 +768,12 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			}
 			return
 		}
+		if isArubaFamilyAVPairRuntimeMapping(mapping) {
+			for _, value := range lookupVendorStrings(packet, mapping.VendorID, mapping.Type) {
+				applyArubaFamilyAttributeString(result, mapping.PackKey, mapping.Attribute, value)
+			}
+			return
+		}
 		value, ok := lookupVendorString(packet, mapping.VendorID, mapping.Type)
 		if !ok {
 			return
@@ -801,7 +807,11 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 	case inboundVendorIntText:
 		value, ok := lookupVendorInteger(packet, mapping.VendorID, mapping.Type)
 		if ok {
-			applyInboundVendorString(result, mapping, strconv.Itoa(int(value)))
+			text := strconv.Itoa(int(value))
+			if isArubaFamilyPackKey(mapping.PackKey) && applyArubaFamilyAttributeString(result, mapping.PackKey, mapping.Attribute, text) {
+				return
+			}
+			applyInboundVendorString(result, mapping, text)
 		}
 	case inboundVendorMappedRole:
 		value, ok := lookupVendorInteger(packet, mapping.VendorID, mapping.Type)
@@ -827,6 +837,9 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 		result.VendorTaggedVLANs = append([]int(nil), tagged...)
 	case inboundVendorAVPairs:
 		for _, value := range lookupVendorStrings(packet, mapping.VendorID, mapping.Type) {
+			if isArubaFamilyPackKey(mapping.PackKey) && applyArubaFamilyAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
+				continue
+			}
 			appendUniqueVendorAVPair(result, value)
 		}
 	case inboundVendorMappedPortal:
@@ -1005,11 +1018,16 @@ func numericVendorRoleName(mappings []config.RadiusVendorRoleMapping, packKey st
 }
 
 func applyInboundVendorString(result *BrokerAuthResult, mapping inboundVendorMapping, value string) {
+	if isArubaFamilyPackKey(mapping.PackKey) && applyArubaFamilyAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
+		return
+	}
 	switch mapping.Semantic {
 	case productconfigs.VendorSemanticRole:
 		setStringIfEmpty(&result.VendorRole, value)
 	case productconfigs.VendorSemanticBandwidthProfile:
 		setStringIfEmpty(&result.VendorBandwidthProfile, value)
+	case productconfigs.VendorSemanticVLAN:
+		setStringIfEmpty(&result.VendorVLANPool, value)
 	case productconfigs.VendorSemanticPolicyTag:
 		setStringIfEmpty(&result.VendorPolicyTag, value)
 	case productconfigs.VendorSemanticPortalProfile:
@@ -1031,6 +1049,19 @@ func applyInboundVendorString(result *BrokerAuthResult, mapping inboundVendorMap
 		}
 		setStringIfEmpty(&result.VendorInboundACL, value)
 	}
+}
+
+func isArubaFamilyPackKey(packKey string) bool {
+	switch productconfigs.NormalizeVendorCompatibilityPackKey(packKey) {
+	case productconfigs.VendorPackAruba, productconfigs.VendorPackHP, productconfigs.VendorPackAerohive, productconfigs.VendorPackColubris:
+		return true
+	default:
+		return false
+	}
+}
+
+func isArubaFamilyAVPairRuntimeMapping(mapping inboundVendorMapping) bool {
+	return isArubaFamilyPackKey(mapping.PackKey) && isArubaFamilyAVPairAttribute(mapping.Attribute)
 }
 
 func applyInboundVendorACL(result *BrokerAuthResult, attribute, value string) {

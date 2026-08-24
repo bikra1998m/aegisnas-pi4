@@ -280,6 +280,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/vendor-mapping-certification-history.json", requestPath: "/api/v1/system/vendor-mapping-certification/history", label: "NAS-0060 vendor mapping certification history", handler: HandleListVendorMappingCertificationHistory},
 		{archivePath: "api/cisco-family-pack.json", requestPath: "/api/v1/system/cisco-family-pack", label: "NAS-0061 Cisco family pack certification", handler: HandleGetCiscoFamilyPack},
 		{archivePath: "api/cisco-family-pack-history.json", requestPath: "/api/v1/system/cisco-family-pack/history", label: "NAS-0061 Cisco family pack certification history", handler: HandleListCiscoFamilyPackHistory},
+		{archivePath: "api/aruba-family-pack.json", requestPath: "/api/v1/system/aruba-family-pack", label: "NAS-0062 Aruba/HPE family pack certification", handler: HandleGetArubaFamilyPack},
+		{archivePath: "api/aruba-family-pack-history.json", requestPath: "/api/v1/system/aruba-family-pack/history", label: "NAS-0062 Aruba/HPE family pack certification history", handler: HandleListArubaFamilyPackHistory},
 		{archivePath: "api/session-history.json", requestPath: "/api/v1/system/session-history", label: "Session and accounting history", handler: HandleListSessionHistory},
 		{archivePath: "api/session-analytics.json", requestPath: "/api/v1/system/session-analytics", label: "Session activity analytics", handler: HandleGetSessionAnalytics},
 		{archivePath: "api/voucher-aging-analytics.json", requestPath: "/api/v1/system/voucher-aging-analytics", label: "Voucher stock aging analytics", handler: HandleGetVoucherAgingAnalytics},
