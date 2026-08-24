@@ -51,6 +51,9 @@ Files involved:
 - [accounting_ingest_spool.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/accounting_ingest_spool.go)
 - [freeradius_accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/freeradius_accounting.go)
 - [accounting_services.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/accounting_services.go)
+- [vendor_mapping_certification.go](F:/random_project/Pookie/aegisnas-pi4/configs/vendor_mapping_certification.go)
+- [vendor_mapping_certification.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/vendor_mapping_certification.go)
+- [vendor_mapping_certification.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/vendor_mapping_certification.go)
 - [accounting_ingest_spool.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/accounting_ingest_spool.go)
 - [mapping.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/mapping.go)
 - [dynamic_nas_clients.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/dynamic_nas_clients.go)
@@ -97,6 +100,11 @@ The implementation now does these things end to end:
     Aruba, Juniper, Ruckus, Fortinet, MikroTik, Huawei, and H3C/Comware VSAs
     for role, VLAN, ACL, QoS, quarantine, reauth, and terminate workflows, with
     fail-closed preview evidence and durable history
+29. certifies the current 141 partial FreeRADIUS vendor mappings in software
+    through a release-hash-bound NAS-0060 report, persisted certification
+    events, admin API, Vendor Compatibility UI, readiness checks, system status,
+    and support-bundle captures while keeping hardware and customer-environment
+    validation in a separate release checklist
 
 ## Current Behavior
 

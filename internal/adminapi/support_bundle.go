@@ -276,6 +276,8 @@ func supportBundleCommandCaptures() []supportBundleCommandCapture {
 func supportBundleAPICaptures() []supportBundleAPICapture {
 	return []supportBundleAPICapture{
 		{archivePath: "api/system-status.json", requestPath: "/api/v1/system/status", label: "System runtime status", handler: HandleGetSystemStatus},
+		{archivePath: "api/vendor-mapping-certification.json", requestPath: "/api/v1/system/vendor-mapping-certification", label: "NAS-0060 vendor mapping certification", handler: HandleGetVendorMappingCertification},
+		{archivePath: "api/vendor-mapping-certification-history.json", requestPath: "/api/v1/system/vendor-mapping-certification/history", label: "NAS-0060 vendor mapping certification history", handler: HandleListVendorMappingCertificationHistory},
 		{archivePath: "api/session-history.json", requestPath: "/api/v1/system/session-history", label: "Session and accounting history", handler: HandleListSessionHistory},
 		{archivePath: "api/session-analytics.json", requestPath: "/api/v1/system/session-analytics", label: "Session activity analytics", handler: HandleGetSessionAnalytics},
 		{archivePath: "api/voucher-aging-analytics.json", requestPath: "/api/v1/system/voucher-aging-analytics", label: "Voucher stock aging analytics", handler: HandleGetVoucherAgingAnalytics},

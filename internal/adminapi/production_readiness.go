@@ -168,6 +168,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionDatabaseDataPlaneCheck(&report, cfg)
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
 	addProductionCompatibilityEvidenceCheck(&report, cfg)
+	addProductionVendorMappingCertificationCheck(&report, cfg)
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
@@ -2532,6 +2533,47 @@ func addProductionCompatibilityEvidenceCheck(report *productionReadinessReport, 
 		Summary: fmt.Sprintf("Evidence schema %d tracks %d mappings: %d software-ready, %d planned, %d blocked (%d active), %d requiring external certification.",
 			evidence.SchemaVersion, evidence.Summary.TotalRecords, evidence.Summary.SoftwareReadyCount, evidence.Summary.SoftwarePlannedCount, evidence.Summary.SoftwareBlockedCount, activeBlocked, evidence.Summary.ExternalRequiredCount),
 		Recommendation: "Use /api/v1/system/compatibility-evidence before publishing vendor compatibility claims.",
+	})
+}
+
+func addProductionVendorMappingCertificationCheck(report *productionReadinessReport, cfg *config.Config) {
+	certification, err := buildVendorMappingCertificationForConfig(cfg)
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "vendor_mapping_certification", Category: "radius", Label: "NAS-0060 Vendor Mapping Certification", Status: "blocked",
+			Summary:        "Vendor mapping certification report could not be built: " + err.Error(),
+			Recommendation: "Regenerate the typed registry and repair the vendor mapping certification report before closing NAS-0060.",
+			Dependencies:   []string{"configs/vendor_mapping_certification.go", "configs/attribute_registry/freeradius-3.2.8-vsa-audit.csv"},
+		})
+		return
+	}
+	if err := productconfigs.ValidateVendorMappingCertificationReport(certification); err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "vendor_mapping_certification", Category: "radius", Label: "NAS-0060 Vendor Mapping Certification", Status: "blocked",
+			Summary:        "NAS-0060 software certification is incomplete: " + err.Error(),
+			Recommendation: "Use /api/v1/system/vendor-mapping-certification to inspect blocked dimensions; external certification must remain in the release checklist.",
+			Dependencies:   []string{"configs/vendor_mapping_certification.go", "internal/db/vendor_mapping_certification.go", "web/admin-ui/src/pages/VendorCompatibility.tsx"},
+		})
+		return
+	}
+	status := "passed"
+	if db.DB == nil {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "vendor_mapping_certification", Category: "radius", Label: "NAS-0060 Vendor Mapping Certification", Status: status,
+		Summary: fmt.Sprintf("NAS-0060 certifies %d/%d audit-source partial mappings in software across %d vendors; %d mappings remain ready for external release certification.",
+			certification.Summary.CertifiedMappings,
+			certification.Summary.BaselinePartialMappings,
+			certification.Summary.VendorCount,
+			certification.Summary.ExternalRequiredMappings,
+		),
+		Recommendation: "Record the current fingerprint with /api/v1/system/vendor-mapping-certification/record, then execute docs/nas-0060-release-certification-checklist.md before publishing hardware-certified claims.",
+		Dependencies: []string{
+			"/api/v1/system/vendor-mapping-certification",
+			"vendor_mapping_certification_events",
+			"docs/nas-0060-release-certification-checklist.md",
+		},
 	})
 }
 

@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 64
+	return 65
 }
 
 func Migrate() error {
@@ -3532,3 +3532,32 @@ CREATE INDEX IF NOT EXISTS idx_subscriber_route_export_events_fingerprint ON sub
 `
 
 const schemaV64 = subscriberRouteExportSQL
+
+const vendorMappingCertificationSQL = `
+CREATE TABLE IF NOT EXISTS vendor_mapping_certification_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	release_profile_id TEXT NOT NULL,
+	source_sha256 TEXT NOT NULL,
+	baseline_partial_mappings INTEGER NOT NULL,
+	certified_mappings INTEGER NOT NULL,
+	software_blocked_mappings INTEGER NOT NULL DEFAULT 0,
+	external_required_mappings INTEGER NOT NULL DEFAULT 0,
+	vendor_count INTEGER NOT NULL DEFAULT 0,
+	fingerprint TEXT NOT NULL,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('record', 'scan', 'release_gate')),
+	CHECK (status IN ('recorded', 'blocked', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_vendor_mapping_certification_events_created ON vendor_mapping_certification_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_vendor_mapping_certification_events_status ON vendor_mapping_certification_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_vendor_mapping_certification_events_fingerprint ON vendor_mapping_certification_events(fingerprint, created_at);
+`
+
+const schemaV65 = vendorMappingCertificationSQL

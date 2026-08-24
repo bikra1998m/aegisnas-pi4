@@ -190,6 +190,7 @@ The phases are ownership lanes. The executable order is the dependency-resolved 
 - [x] NAS-0057 engineering implementation complete; external release evidence is tracked in `nas-0057-release-certification-checklist.md`.
 - [x] NAS-0058 engineering implementation complete; external release evidence is tracked in `nas-0058-release-certification-checklist.md`.
 - [x] NAS-0059 engineering implementation complete; external release evidence is tracked in `nas-0059-release-certification-checklist.md`.
+- [x] NAS-0060 engineering implementation complete; external release evidence is tracked in `nas-0060-release-certification-checklist.md`.
 - [x] Phase 6 exit gate accepted; NAS-0048..NAS-0059 Complete.
 - [ ] Phase 7 exit gate accepted; NAS-0060..NAS-0073 Complete.
 - [ ] Phase 8 exit gate accepted; NAS-0074..NAS-0081 Complete.

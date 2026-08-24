@@ -189,6 +189,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{62, schemaV62},
 		{63, schemaV63},
 		{64, schemaV64},
+		{65, schemaV65},
 	}
 
 	for _, m := range migrations {

@@ -70,7 +70,7 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/production-readiness | jq '.status, .checks[] | select(.status != "passed")'
 ```
 
-The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
+The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, NAS-0060 vendor mapping certification, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
 
 ## Outbound Dynamic Authorization
 
@@ -235,6 +235,32 @@ Use this endpoint when you want to confirm:
 - which semantic policy keys already have product attributes
 - which vendor-compatibility areas are implemented versus planned
 - which pieces are intended for lite, branch, or enterprise appliances
+
+NAS-0060 exposes a stricter software certification report for the 141
+audit-source partial mappings from the pinned FreeRADIUS 3.2.8 registry:
+
+```text
+GET  /api/v1/system/vendor-mapping-certification
+POST /api/v1/system/vendor-mapping-certification/record
+GET  /api/v1/system/vendor-mapping-certification/history
+```
+
+The report is derived from the typed registry, compatibility evidence,
+semantic policy registry, packet codec coverage, storage ledger, enforcement
+owners, API/UI visibility, observability, and release scope. `record` persists
+the current source hash, fingerprint, counts, summary JSON, full report JSON,
+actor, and timestamp in `vendor_mapping_certification_events`. External
+hardware, controller, firmware, FreeRADIUS-on-Linux, HA, performance, soak,
+security, production deployment, and customer acceptance proof remains in
+[nas-0060-release-certification-checklist.md](nas-0060-release-certification-checklist.md).
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/vendor-mapping-certification | jq '.report.summary'
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/vendor-mapping-certification/record | jq '.event_id, .status'
+```
 
 The API also provides a non-mutating reply preview endpoint:
 

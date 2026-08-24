@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 	"github.com/yourorg/aegisnas-pi4/internal/activedirectory"
 	"github.com/yourorg/aegisnas-pi4/internal/certlifecycle"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
@@ -298,6 +299,41 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	subscriberServiceChains, _ := buildSubscriberServiceChainsReport(cfg, 5)
 	tacacsReport := tacacs.BuildReport(cfg, 5)
 	tenantIsolation, _ := buildTenantIsolationReport(cfg, 5)
+	vendorMappingCertificationStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0060 vendor mapping certification has not been evaluated.",
+	}
+	if certification, err := buildVendorMappingCertificationForConfig(cfg); err == nil {
+		status := "ready"
+		message := fmt.Sprintf("NAS-0060 software certification covers %d/%d partial mappings across %d vendors.",
+			certification.Summary.CertifiedMappings,
+			certification.Summary.BaselinePartialMappings,
+			certification.Summary.VendorCount,
+		)
+		if err := productconfigs.ValidateVendorMappingCertificationReport(certification); err != nil {
+			status = "blocked"
+			message = "NAS-0060 vendor mapping certification is incomplete: " + err.Error()
+		}
+		historySummary, historyErr := db.GetVendorMappingCertificationSummary()
+		vendorMappingCertificationStatus = map[string]any{
+			"status":                              status,
+			"message":                             message,
+			"schema_version":                      certification.SchemaVersion,
+			"source_sha256":                       certification.SourceSHA256,
+			"baseline_partial_mappings":           certification.Summary.BaselinePartialMappings,
+			"certified_mappings":                  certification.Summary.CertifiedMappings,
+			"software_blocked_mappings":           certification.Summary.SoftwareBlockedMappings,
+			"external_required_mappings":          certification.Summary.ExternalRequiredMappings,
+			"software_completion_percent":         certification.Summary.SoftwareCompletionPercent,
+			"fingerprint":                         certification.Summary.Fingerprint,
+			"release_certification_checklist":     "docs/nas-0060-release-certification-checklist.md",
+			"release_certification_external_only": true,
+			"evidence_summary":                    historySummary,
+			"evidence_error":                      rateCompilerErrorString(historyErr),
+		}
+	} else {
+		vendorMappingCertificationStatus = map[string]any{"status": "blocked", "message": err.Error()}
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -354,7 +390,8 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"evidence_summary": routePolicySummary,
 			"evidence_error":   rateCompilerErrorString(routePolicyErr),
 		},
-		"subscriber_route_export": subscriberRouteExportStatus,
+		"subscriber_route_export":      subscriberRouteExportStatus,
+		"vendor_mapping_certification": vendorMappingCertificationStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),

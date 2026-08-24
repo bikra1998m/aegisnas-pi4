@@ -232,6 +232,110 @@ type CompatibilityEvidencePayload = {
   notes?: string[];
 };
 
+type VendorMappingCertificationSummary = {
+  baseline_partial_mappings: number;
+  certified_mappings: number;
+  software_blocked_mappings: number;
+  ready_for_external_mappings: number;
+  external_required_mappings: number;
+  vendor_count: number;
+  runtime_decoder_count: number;
+  generic_codec_count: number;
+  reply_renderer_count: number;
+  policy_wired_count: number;
+  storage_wired_count: number;
+  enforcement_wired_count: number;
+  api_ui_wired_count: number;
+  observability_wired_count: number;
+  current_registry_mapped_count: number;
+  current_runtime_mapping_count: number;
+  software_completion_percent: number;
+  fingerprint: string;
+};
+
+type VendorMappingCertificationVendorSummary = {
+  vendor: string;
+  pen: number;
+  pack_key?: string;
+  baseline_partial_mappings: number;
+  certified_mappings: number;
+  software_blocked_mappings: number;
+  external_required_mappings: number;
+  software_completion_percent: number;
+};
+
+type VendorMappingCertificationRecord = {
+  id: string;
+  vendor: string;
+  pen: number;
+  pack_key?: string;
+  pack_label?: string;
+  attribute: string;
+  number?: number;
+  oid?: string;
+  wire_key: string;
+  wire_type: string;
+  capability_family: string;
+  semantic: string;
+  primary_semantic: string;
+  directions: string[];
+  decode_kind?: string;
+  software_state: string;
+  certification_state: string;
+  claim_state: string;
+  software_certified: boolean;
+  ready_for_external_validation: boolean;
+  external_validation_required: boolean;
+  dimensions: CompatibilityEvidenceDimension[];
+  blockers?: string[];
+  next_steps?: string[];
+};
+
+type VendorMappingCertificationEvent = {
+  event_id: string;
+  operation: string;
+  status: string;
+  release_profile_id: string;
+  source_sha256: string;
+  baseline_partial_mappings: number;
+  certified_mappings: number;
+  software_blocked_mappings: number;
+  external_required_mappings: number;
+  vendor_count: number;
+  fingerprint: string;
+  actor?: string;
+  created_at: string;
+};
+
+type VendorMappingCertificationPayload = {
+  generated_at: string;
+  report: {
+    schema_version: number;
+    release_profile_id: string;
+    source_release: string;
+    source_sha256: string;
+    baseline_source: string;
+    baseline_partial_mappings: number;
+    summary: VendorMappingCertificationSummary;
+    vendor_summaries: VendorMappingCertificationVendorSummary[];
+    records: VendorMappingCertificationRecord[];
+    notes?: string[];
+  };
+  evidence: {
+    summary: {
+      total_events: number;
+      recorded_count: number;
+      blocked_count: number;
+      failed_count: number;
+      last_event_at?: string;
+      last_fingerprint?: string;
+    };
+    recent_events?: VendorMappingCertificationEvent[];
+  };
+  release_scope: string;
+  release_certification_checklist: string;
+};
+
 type VendorDictionaryCoverageRow = {
   pack_key: string;
   pack_label: string;
@@ -546,6 +650,13 @@ function joinList(values?: string[]) {
   return values.join(', ');
 }
 
+function formatPercent(value?: number) {
+  if (value === undefined || Number.isNaN(value)) {
+    return '0%';
+  }
+  return `${value.toFixed(value >= 100 ? 0 : 1)}%`;
+}
+
 function apiErrorMessage(err: any, fallback: string) {
   const data = err.response?.data;
   if (typeof data === 'string') {
@@ -672,12 +783,16 @@ export default function VendorCompatibility() {
   const [compatibilityEvidenceBusy, setCompatibilityEvidenceBusy] = useState(false);
   const [compatibilityEvidenceError, setCompatibilityEvidenceError] = useState('');
   const [compatibilityEvidenceFilters, setCompatibilityEvidenceFilters] = useState({ search: '', claim: '' });
+  const [mappingCertification, setMappingCertification] = useState<VendorMappingCertificationPayload | null>(null);
+  const [mappingCertificationBusy, setMappingCertificationBusy] = useState(false);
+  const [mappingCertificationError, setMappingCertificationError] = useState('');
   const [vsaCodec, setVSACodec] = useState<VSACodecPayload | null>(null);
   const [vsaCodecError, setVSACodecError] = useState('');
   const [opaquePassThrough, setOpaquePassThrough] = useState<OpaquePassThroughPayload | null>(null);
   const [opaquePassThroughError, setOpaquePassThroughError] = useState('');
 
   const canManageIdentity = identity?.role === 'super_admin';
+  const canRecordMappingCertification = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
 
   const fetchVendorIdentity = async () => {
     try {
@@ -802,6 +917,31 @@ export default function VendorCompatibility() {
     }
   };
 
+  const fetchMappingCertification = async () => {
+    setMappingCertificationError('');
+    try {
+      const { data } = await api.get<VendorMappingCertificationPayload>('/system/vendor-mapping-certification?history_limit=5');
+      setMappingCertification(data);
+    } catch (err: any) {
+      setMappingCertificationError(apiErrorMessage(err, 'Could not load NAS-0060 mapping certification.'));
+    }
+  };
+
+  const recordMappingCertification = async () => {
+    setMappingCertificationBusy(true);
+    setMappingCertificationError('');
+    setMessage('');
+    try {
+      await api.post('/system/vendor-mapping-certification/record', {});
+      setMessage('NAS-0060 mapping certification event recorded.');
+      await fetchMappingCertification();
+    } catch (err: any) {
+      setMappingCertificationError(apiErrorMessage(err, 'Could not record NAS-0060 mapping certification.'));
+    } finally {
+      setMappingCertificationBusy(false);
+    }
+  };
+
   const fetchVSACodec = async () => {
     setVSACodecError('');
     try {
@@ -906,6 +1046,7 @@ export default function VendorCompatibility() {
     void fetchVendorIdentity();
     void fetchAttributeRegistry(false);
     void fetchCompatibilityEvidence(false);
+    void fetchMappingCertification();
     void fetchVSACodec();
     void fetchOpaquePassThrough();
   }, []);
@@ -920,6 +1061,10 @@ export default function VendorCompatibility() {
   const firmwareProfiles = releaseProfile?.firmware_profiles || [];
   const vendorAliases = releaseProfile?.vendor_aliases || [];
   const evidenceSummary = compatibilityEvidence?.summary || payload?.evidence?.summary;
+  const mappingCertificationSummary = mappingCertification?.report.summary;
+  const mappingCertificationComplete = Boolean(mappingCertificationSummary && mappingCertificationSummary.certified_mappings === mappingCertificationSummary.baseline_partial_mappings && mappingCertificationSummary.software_blocked_mappings === 0);
+  const mappingCertificationRecords = mappingCertification?.report.records || [];
+  const mappingCertificationVendors = mappingCertification?.report.vendor_summaries || [];
   const plannedSemantics = useMemo(
     () => (payload?.semantics || []).filter((item) => item.compatibility_state !== 'implemented'),
     [payload?.semantics],
@@ -942,7 +1087,7 @@ export default function VendorCompatibility() {
           <p className="mt-1 text-sm text-gray-600">Confirm deployed NAS profiles, reply packs, and vendor dictionary coverage before changing access policy.</p>
         </div>
         <button
-          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
+          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
           disabled={loading}
           className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
@@ -1253,6 +1398,90 @@ export default function VendorCompatibility() {
                 </div>
                 {compatibilityEvidence.next_cursor ? <button type="button" disabled={compatibilityEvidenceBusy} onClick={() => void fetchCompatibilityEvidence(true)} className="mt-3 rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 disabled:opacity-50">Load more evidence</button> : null}
                 <p className="mt-2 break-all text-xs text-gray-500">Evidence source SHA-256: {compatibilityEvidence.source_sha256}</p>
+              </>
+            ) : null}
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">NAS-0060 Mapping Certification</h3>
+                <p className="mt-1 text-sm text-gray-600">Certify the 141 audit-source partial mappings in software while keeping vendor hardware proof in the release checklist.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {mappingCertificationSummary ? (
+                  <StatusBadge tone={mappingCertificationComplete ? 'green' : 'amber'}>
+                    {formatPercent(mappingCertificationSummary.software_completion_percent)} software
+                  </StatusBadge>
+                ) : null}
+                {canRecordMappingCertification ? (
+                  <button
+                    type="button"
+                    onClick={() => void recordMappingCertification()}
+                    disabled={mappingCertificationBusy || !mappingCertificationComplete}
+                    className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {mappingCertificationBusy ? 'Recording...' : 'Record Evidence'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {mappingCertificationError ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{mappingCertificationError}</div> : null}
+            {mappingCertificationSummary ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="Baseline Rows" value={mappingCertificationSummary.baseline_partial_mappings} hint="Partial mappings from the pinned audit CSV." />
+                  <StatCard label="Software Certified" value={mappingCertificationSummary.certified_mappings} hint={`${mappingCertificationSummary.software_blocked_mappings} software blockers.`} />
+                  <StatCard label="Vendors" value={mappingCertificationSummary.vendor_count} hint={`${mappingCertificationSummary.current_runtime_mapping_count} runtime registry mappings.`} />
+                  <StatCard label="External Scope" value={mappingCertificationSummary.external_required_mappings} hint="Hardware, firmware, HA, performance, and customer evidence." />
+                  <StatCard label="Packet Paths" value={mappingCertificationSummary.runtime_decoder_count} hint="Inbound or accounting packet dimensions passed." />
+                  <StatCard label="Reply Paths" value={mappingCertificationSummary.reply_renderer_count} hint="Outbound Access-Accept dimensions passed." />
+                  <StatCard label="Storage Events" value={mappingCertification?.evidence.summary.total_events || 0} hint={mappingCertification?.evidence.summary.last_event_at ? `Last ${new Date(mappingCertification.evidence.summary.last_event_at).toLocaleString()}` : 'No persisted event yet.'} />
+                  <StatCard label="API/UI Rows" value={mappingCertificationSummary.api_ui_wired_count} hint="Operator-visible certification dimensions." />
+                </div>
+
+                <div className="mt-4 rounded-md border border-gray-200 p-4">
+                  <div className="text-xs font-semibold uppercase text-gray-500">Certification Fingerprint</div>
+                  <div className="mt-2 break-all text-sm font-medium text-gray-900">{mappingCertificationSummary.fingerprint}</div>
+                  <p className="mt-2 text-sm text-gray-600">{mappingCertification?.release_scope}</p>
+                </div>
+
+                <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Vendor', 'Mappings', 'Status'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {mappingCertificationVendors.slice(0, 8).map((vendor) => (
+                          <tr key={`${vendor.vendor}-${vendor.pen}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{vendor.vendor}<div className="text-xs text-gray-500">PEN {vendor.pen}{vendor.pack_key ? ` / ${vendor.pack_key}` : ''}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{vendor.certified_mappings}/{vendor.baseline_partial_mappings}<div className="text-xs text-gray-500">{vendor.external_required_mappings} external</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone={vendor.software_blocked_mappings === 0 ? 'green' : 'amber'}>{formatPercent(vendor.software_completion_percent)}</StatusBadge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Attribute', 'Software', 'Evidence'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {mappingCertificationRecords.slice(0, 8).map((record) => (
+                          <tr key={record.id}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{record.attribute}<div className="text-xs text-gray-500">{record.vendor} / {record.wire_key}</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone={record.software_certified ? 'green' : 'amber'}>{evidenceLabel(record.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{record.primary_semantic}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              {record.dimensions.slice(0, 3).map((dimension) => (
+                                <div key={`${record.id}-${dimension.key}`} className="mb-1"><span className="font-medium">{dimension.label}:</span> {evidenceLabel(dimension.state)}</div>
+                              ))}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">{mappingCertification?.release_certification_checklist} keeps hardware and production release proof outside engineering completion.</p>
               </>
             ) : null}
           </section>

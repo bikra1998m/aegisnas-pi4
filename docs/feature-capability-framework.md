@@ -102,12 +102,17 @@ The current codebase now has a working form of this model through:
 - profile-driven defaults for AI, telemetry, shaping, and RADIUS scale
 - Access Settings capability preview for phases 1 through 5
 - runtime status surfacing for SSO, SIEM export, and controller automation
+- NAS-0060 vendor mapping certification for the 141 current partial
+  FreeRADIUS mappings, with software completion separated from external
+  hardware and production release certification
 
 That work lives primarily in:
 
 - `internal/config/profile.go`
 - `internal/config/config.go`
+- `configs/vendor_mapping_certification.go`
 - `web/admin-ui/src/pages/AccessSettings.tsx`
+- `web/admin-ui/src/pages/VendorCompatibility.tsx`
 - `web/admin-ui/src/pages/Dashboard.tsx`
 
 This framework explains the product behavior that now exists in the repo and the boundaries that still matter for deployment.
