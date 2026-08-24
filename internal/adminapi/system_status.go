@@ -334,6 +334,43 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		vendorMappingCertificationStatus = map[string]any{"status": "blocked", "message": err.Error()}
 	}
+	ciscoFamilyPackStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0061 Cisco family pack has not been evaluated.",
+	}
+	if ciscoPack, err := buildCiscoFamilyPackForRequest(); err == nil {
+		status := "ready"
+		message := fmt.Sprintf("NAS-0061 software certification covers %d/%d Cisco-family rows across %d vendors.",
+			ciscoPack.Summary.SoftwareCertifiedMappings,
+			ciscoPack.Summary.AttributeCount,
+			ciscoPack.Summary.VendorCount,
+		)
+		if err := productconfigs.ValidateCiscoFamilyPackReport(ciscoPack); err != nil {
+			status = "blocked"
+			message = "NAS-0061 Cisco family pack is incomplete: " + err.Error()
+		}
+		historySummary, historyErr := db.GetCiscoFamilyPackSummary()
+		ciscoFamilyPackStatus = map[string]any{
+			"status":                              status,
+			"message":                             message,
+			"schema_version":                      ciscoPack.SchemaVersion,
+			"feature_id":                          ciscoPack.FeatureID,
+			"source_sha256":                       ciscoPack.SourceSHA256,
+			"attribute_count":                     ciscoPack.Summary.AttributeCount,
+			"software_certified_mappings":         ciscoPack.Summary.SoftwareCertifiedMappings,
+			"software_blocked_mappings":           ciscoPack.Summary.SoftwareBlockedMappings,
+			"external_required_mappings":          ciscoPack.Summary.ExternalRequiredMappings,
+			"software_completion_percent":         ciscoPack.Summary.SoftwareCompletionPercent,
+			"grammar_rule_count":                  ciscoPack.Summary.GrammarRuleCount,
+			"fingerprint":                         ciscoPack.Summary.Fingerprint,
+			"release_certification_checklist":     "docs/nas-0061-release-certification-checklist.md",
+			"release_certification_external_only": true,
+			"evidence_summary":                    historySummary,
+			"evidence_error":                      rateCompilerErrorString(historyErr),
+		}
+	} else {
+		ciscoFamilyPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -392,6 +429,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		},
 		"subscriber_route_export":      subscriberRouteExportStatus,
 		"vendor_mapping_certification": vendorMappingCertificationStatus,
+		"cisco_family_pack":            ciscoFamilyPackStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),

@@ -52,8 +52,12 @@ Files involved:
 - [freeradius_accounting.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/freeradius_accounting.go)
 - [accounting_services.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/accounting_services.go)
 - [vendor_mapping_certification.go](F:/random_project/Pookie/aegisnas-pi4/configs/vendor_mapping_certification.go)
+- [cisco_family_pack.go](F:/random_project/Pookie/aegisnas-pi4/configs/cisco_family_pack.go)
 - [vendor_mapping_certification.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/vendor_mapping_certification.go)
+- [cisco_family_pack.go](F:/random_project/Pookie/aegisnas-pi4/internal/db/cisco_family_pack.go)
 - [vendor_mapping_certification.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/vendor_mapping_certification.go)
+- [cisco_family_pack.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/cisco_family_pack.go)
+- [cisco_avpair.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/cisco_avpair.go)
 - [accounting_ingest_spool.go](F:/random_project/Pookie/aegisnas-pi4/internal/adminapi/accounting_ingest_spool.go)
 - [mapping.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/mapping.go)
 - [dynamic_nas_clients.go](F:/random_project/Pookie/aegisnas-pi4/internal/radius/dynamic_nas_clients.go)
@@ -105,6 +109,12 @@ The implementation now does these things end to end:
     events, admin API, Vendor Compatibility UI, readiness checks, system status,
     and support-bundle captures while keeping hardware and customer-environment
     validation in a separate release checklist
+30. certifies the Cisco-family FreeRADIUS dictionary pack in software through a
+    NAS-0061 report covering 922 Cisco, Airespace/WLC, ASA/VPN, Starent, and
+    Meraki rows, Cisco-AVPair grammar, typed pass-through, persisted evidence,
+    admin API, Vendor Compatibility UI, readiness checks, system status, and
+    support-bundle captures while keeping real-device validation in a separate
+    release checklist
 
 ## Current Behavior
 
@@ -175,6 +185,9 @@ When `radius.upstream.enabled: true`:
   - idle timeout
   - AegisNAS vendor-specific attributes when `radius.vendor.enabled: true`
   - enabled compatibility-pack VSAs such as Aruba role/VLAN, Ruckus groups/VLAN, Fortinet profiles, Cisco/Juniper ACL names, UniFi/UBNT rate hints, Cambium rate/VLAN/quarantine, Meraki context, Extreme Netlogin, Huawei/H3C QoS, Palo Alto context, and TP-Link Omada hints
+  - Cisco `Cisco-AVPair` grammar for ACL, TrustSec SGT, VPN, voice, shell
+    privilege/roles, posture, audit session, route, VRF, pool, translation, and
+    charging hints when the Cisco pack is enabled
 - break-glass local admin auth remains available even when portal RADIUS auth is enabled
 - privileged admin token and SSO sessions can require WebAuthn/passkey assertion before the admin API accepts a verified session token
 - EAP framework state is available through `/api/v1/system/eap-framework`; enforce/fail-closed mode prevents generated FreeRADIUS config when planned methods such as SIM, AKA, or AKA-prime are enabled before their roadmap feature lands

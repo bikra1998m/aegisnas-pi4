@@ -86,6 +86,18 @@ type ReplyAttributes struct {
 	OutboundACL                      string
 	ACLRules                         []ACLRule
 	ServiceChain                     []policy.ServiceIntent
+	CiscoSecurityGroupTag            int
+	CiscoSecurityGroupName           string
+	CiscoVPNGroupPolicy              string
+	CiscoVPNTunnelGroup              string
+	CiscoVPNSplitTunnelList          string
+	CiscoVoiceTrafficClass           string
+	CiscoShellPrivilegeLevel         int
+	CiscoShellRoles                  []string
+	CiscoPostureStatus               string
+	CiscoAuditSessionID              string
+	CiscoChargingProfile             string
+	CiscoAVPairs                     []string
 }
 
 type ReplyAttributeItem struct {
@@ -234,6 +246,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 				appendItem("WISPr-Bandwidth-Max-Up", FormatRateKbps(attrs.WISPrBandwidthMaxUp), false)
 			}
 		case productconfigs.VendorPackCisco:
+			appendCiscoFamilyReplyAttributes(attrs, appendItem)
 		case productconfigs.VendorPackAruba:
 			appendItem("Aruba-User-Role", replyRole(attrs), true)
 			if vlan := replyVLAN(attrs); vlan > 0 {
@@ -385,6 +398,29 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 		appendTranslationPolicyReplyAttributes(attrs, packKey, appendItem)
 	}
 	return items
+}
+
+func appendCiscoFamilyReplyAttributes(attrs *ReplyAttributes, appendItem func(string, string, bool)) {
+	values, err := BuildCiscoAVPairsForIntent(CiscoAVPairIntent{
+		SecurityGroupTag:    attrs.CiscoSecurityGroupTag,
+		SecurityGroupName:   attrs.CiscoSecurityGroupName,
+		VPNGroupPolicy:      attrs.CiscoVPNGroupPolicy,
+		VPNTunnelGroup:      attrs.CiscoVPNTunnelGroup,
+		VPNSplitTunnelList:  attrs.CiscoVPNSplitTunnelList,
+		VoiceTrafficClass:   attrs.CiscoVoiceTrafficClass,
+		ShellPrivilegeLevel: attrs.CiscoShellPrivilegeLevel,
+		ShellRoles:          attrs.CiscoShellRoles,
+		PostureStatus:       attrs.CiscoPostureStatus,
+		AuditSessionID:      attrs.CiscoAuditSessionID,
+		ChargingProfile:     attrs.CiscoChargingProfile,
+		Custom:              attrs.CiscoAVPairs,
+	})
+	if err != nil {
+		return
+	}
+	for _, value := range values {
+		appendItem("Cisco-AVPair", value, true)
+	}
 }
 
 func appendVLANPolicyReplyAttributes(attrs *ReplyAttributes, packKey string, appendItem func(string, string, bool)) {

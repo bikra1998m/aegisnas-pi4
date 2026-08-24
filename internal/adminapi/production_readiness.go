@@ -169,6 +169,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionDictionaryReleaseProfileCheck(&report, cfg)
 	addProductionCompatibilityEvidenceCheck(&report, cfg)
 	addProductionVendorMappingCertificationCheck(&report, cfg)
+	addProductionCiscoFamilyPackCheck(&report)
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
@@ -2573,6 +2574,48 @@ func addProductionVendorMappingCertificationCheck(report *productionReadinessRep
 			"/api/v1/system/vendor-mapping-certification",
 			"vendor_mapping_certification_events",
 			"docs/nas-0060-release-certification-checklist.md",
+		},
+	})
+}
+
+func addProductionCiscoFamilyPackCheck(report *productionReadinessReport) {
+	certification, err := buildCiscoFamilyPackForRequest()
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "cisco_family_pack", Category: "radius", Label: "NAS-0061 Cisco Family Pack", Status: "blocked",
+			Summary:        "Cisco family pack report could not be built: " + err.Error(),
+			Recommendation: "Repair the pinned attribute registry and Cisco-family certification report before closing NAS-0061.",
+			Dependencies:   []string{"configs/cisco_family_pack.go", "internal/radius/cisco_avpair.go", "configs/attribute_registry/freeradius-3.2.8-vsa-audit.csv"},
+		})
+		return
+	}
+	if err := productconfigs.ValidateCiscoFamilyPackReport(certification); err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "cisco_family_pack", Category: "radius", Label: "NAS-0061 Cisco Family Pack", Status: "blocked",
+			Summary:        "NAS-0061 software certification is incomplete: " + err.Error(),
+			Recommendation: "Use /api/v1/system/cisco-family-pack to inspect blocked Cisco-family dimensions; external certification must remain in the release checklist.",
+			Dependencies:   []string{"configs/cisco_family_pack.go", "internal/radius/cisco_avpair.go", "internal/db/cisco_family_pack.go"},
+		})
+		return
+	}
+	status := "passed"
+	if db.DB == nil {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "cisco_family_pack", Category: "radius", Label: "NAS-0061 Cisco Family Pack", Status: status,
+		Summary: fmt.Sprintf("NAS-0061 software-certifies %d/%d Cisco-family dictionary rows across %d vendors, with %d AVPair grammar rules and %d external certification claims.",
+			certification.Summary.SoftwareCertifiedMappings,
+			certification.Summary.AttributeCount,
+			certification.Summary.VendorCount,
+			certification.Summary.GrammarRuleCount,
+			certification.Summary.ExternalRequiredMappings,
+		),
+		Recommendation: "Record the current fingerprint with /api/v1/system/cisco-family-pack/record, then execute docs/nas-0061-release-certification-checklist.md before publishing hardware-certified claims.",
+		Dependencies: []string{
+			"/api/v1/system/cisco-family-pack",
+			"cisco_family_pack_events",
+			"docs/nas-0061-release-certification-checklist.md",
 		},
 	})
 }

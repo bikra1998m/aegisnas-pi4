@@ -762,6 +762,12 @@ func applyVendorCompatibilityAttributes(result *BrokerAuthResult, packet *layehr
 func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Packet, mapping inboundVendorMapping, vendor config.RadiusVendorConfig) {
 	switch mapping.Kind {
 	case inboundVendorString:
+		if mapping.PackKey == productconfigs.VendorPackCisco && strings.EqualFold(mapping.Attribute, "Cisco-AVPair") {
+			for _, value := range lookupVendorStrings(packet, mapping.VendorID, mapping.Type) {
+				applyCiscoAVPairString(result, value)
+			}
+			return
+		}
 		value, ok := lookupVendorString(packet, mapping.VendorID, mapping.Type)
 		if !ok {
 			return
@@ -1019,6 +1025,10 @@ func applyInboundVendorString(result *BrokerAuthResult, mapping inboundVendorMap
 	case productconfigs.VendorSemanticACL:
 		applyInboundVendorACL(result, mapping.Attribute, value)
 	case productconfigs.VendorSemanticDynamicACL:
+		if mapping.PackKey == productconfigs.VendorPackCisco && strings.EqualFold(mapping.Attribute, "Cisco-AVPair") {
+			applyCiscoAVPairString(result, value)
+			return
+		}
 		setStringIfEmpty(&result.VendorInboundACL, value)
 	}
 }

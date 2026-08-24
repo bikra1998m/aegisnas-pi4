@@ -74,6 +74,30 @@ External hardware, controller, FreeRADIUS production Linux, HA, performance,
 soak, security, and customer acceptance proof stays in
 [nas-0060-release-certification-checklist.md](nas-0060-release-certification-checklist.md).
 
+## Cisco Family Pack Operations
+
+Use [cisco-family-pack.md](cisco-family-pack.md) for NAS-0061 software
+certification of the 922 Cisco-family rows from the pinned FreeRADIUS 3.2.8
+registry. Before claiming the software release is ready for external
+validation, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/cisco-family-pack | jq '.report.summary'
+```
+
+After automated tests pass, record the current fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/cisco-family-pack/record | jq '.event_id, .status'
+```
+
+External Cisco IOS/IOS-XE, WLC/Airespace, ASA/VPN, Starent, Meraki,
+FreeRADIUS production Linux, HA, performance, soak, security, and customer
+acceptance proof stays in
+[nas-0061-release-certification-checklist.md](nas-0061-release-certification-checklist.md).
+
 ## PostgreSQL Data-Plane Operations
 
 Use [postgresql-data-plane.md](postgresql-data-plane.md) for NAS-0008

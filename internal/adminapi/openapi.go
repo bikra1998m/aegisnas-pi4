@@ -1168,6 +1168,20 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Persisted certification event summary and recent events."),
 	}))
+	addOperation(paths, "/api/v1/system/cisco-family-pack", "get", securedOperationWithParameters("Read NAS-0061 Cisco family pack certification", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("history_limit", "Recent persisted event count from 1 to 500; defaults to 20.", false),
+	}, map[string]any{
+		"200": responseJSON("Software certification report for Cisco, Airespace, ASA/VPN, Starent, Meraki, AVPair grammar, release scope, and recent certification history."),
+	}))
+	addOperation(paths, "/api/v1/system/cisco-family-pack/record", "post", securedOperationWithBody("Record NAS-0061 Cisco family pack certification evidence", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional operator note; the server derives the Cisco-family report from the pinned FreeRADIUS registry."), map[string]any{
+		"200": responseJSON("Persisted Cisco-family certification event and derived report."),
+		"409": responseJSON("Cisco-family report was recorded as blocked because software coverage is incomplete."),
+	}))
+	addOperation(paths, "/api/v1/system/cisco-family-pack/history", "get", securedOperationWithParameters("Read NAS-0061 Cisco family pack certification history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Event count from 1 to 500; defaults to 100.", false),
+	}, map[string]any{
+		"200": responseJSON("Persisted Cisco-family certification event summary and recent events."),
+	}))
 	addOperation(paths, "/api/v1/system/vsa-codec", "get", securedOperation("Read VSA codec capabilities", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Extended, grouped, tagged, and repeated VSA codec readiness."),
 	}))
