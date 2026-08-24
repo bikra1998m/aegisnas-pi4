@@ -271,15 +271,16 @@ type RadiusQinQConfig struct {
 }
 
 type RadiusRoutePolicyConfig struct {
-	Enabled        bool                    `mapstructure:"enabled"`
-	FailClosed     bool                    `mapstructure:"fail_closed"`
-	MaxRoutes      int                     `mapstructure:"max_routes"`
-	DefaultVRF     string                  `mapstructure:"default_vrf"`
-	DefaultOwner   string                  `mapstructure:"default_owner"`
-	ConflictMode   string                  `mapstructure:"conflict_mode"`
-	StopWithdrawal bool                    `mapstructure:"stop_withdrawal"`
-	VRFs           []RadiusVRFConfig       `mapstructure:"vrfs"`
-	RolePolicies   []RadiusRouteRolePolicy `mapstructure:"role_policies"`
+	Enabled        bool                       `mapstructure:"enabled"`
+	FailClosed     bool                       `mapstructure:"fail_closed"`
+	MaxRoutes      int                        `mapstructure:"max_routes"`
+	DefaultVRF     string                     `mapstructure:"default_vrf"`
+	DefaultOwner   string                     `mapstructure:"default_owner"`
+	ConflictMode   string                     `mapstructure:"conflict_mode"`
+	StopWithdrawal bool                       `mapstructure:"stop_withdrawal"`
+	DynamicRouting RadiusDynamicRoutingConfig `mapstructure:"dynamic_routing"`
+	VRFs           []RadiusVRFConfig          `mapstructure:"vrfs"`
+	RolePolicies   []RadiusRouteRolePolicy    `mapstructure:"role_policies"`
 }
 
 type RadiusVRFConfig struct {
@@ -308,6 +309,40 @@ type RadiusRouteConfig struct {
 	Owner       string `mapstructure:"owner"`
 	Install     bool   `mapstructure:"install"`
 	Description string `mapstructure:"description"`
+}
+
+type RadiusDynamicRoutingConfig struct {
+	Enabled           bool                          `mapstructure:"enabled"`
+	ApplyEnabled      bool                          `mapstructure:"apply_enabled"`
+	Driver            string                        `mapstructure:"driver"`
+	ArtifactPath      string                        `mapstructure:"artifact_path"`
+	VtyshPath         string                        `mapstructure:"vtysh_path"`
+	MaxExportedRoutes int                           `mapstructure:"max_exported_routes"`
+	Dampening         RadiusRouteDampeningConfig    `mapstructure:"dampening"`
+	Protocols         []RadiusDynamicProtocolConfig `mapstructure:"protocols"`
+}
+
+type RadiusRouteDampeningConfig struct {
+	Enabled             bool `mapstructure:"enabled"`
+	MinRouteAgeSeconds  int  `mapstructure:"min_route_age_seconds"`
+	MaxSuppressedRoutes int  `mapstructure:"max_suppressed_routes"`
+}
+
+type RadiusDynamicProtocolConfig struct {
+	Protocol        string   `mapstructure:"protocol"`
+	Enabled         bool     `mapstructure:"enabled"`
+	VRF             string   `mapstructure:"vrf"`
+	ASN             int64    `mapstructure:"asn"`
+	Instance        string   `mapstructure:"instance"`
+	RouterID        string   `mapstructure:"router_id"`
+	Area            string   `mapstructure:"area"`
+	RouteMap        string   `mapstructure:"route_map"`
+	AddressFamilies []string `mapstructure:"address_families"`
+	Communities     []string `mapstructure:"communities"`
+	Metric          int      `mapstructure:"metric"`
+	LocalPreference int      `mapstructure:"local_preference"`
+	MED             int      `mapstructure:"med"`
+	NextHopSelf     bool     `mapstructure:"next_hop_self"`
 }
 
 type RadiusAddressPolicyConfig struct {
@@ -1870,6 +1905,50 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("radius.route_policy.default_owner", "aegisnas")
 	v.SetDefault("radius.route_policy.conflict_mode", "block")
 	v.SetDefault("radius.route_policy.stop_withdrawal", true)
+	v.SetDefault("radius.route_policy.dynamic_routing.enabled", true)
+	v.SetDefault("radius.route_policy.dynamic_routing.apply_enabled", false)
+	v.SetDefault("radius.route_policy.dynamic_routing.driver", "file")
+	v.SetDefault("radius.route_policy.dynamic_routing.artifact_path", "/var/lib/aegisnas/routing/subscriber-routes.frr")
+	v.SetDefault("radius.route_policy.dynamic_routing.vtysh_path", "vtysh")
+	v.SetDefault("radius.route_policy.dynamic_routing.max_exported_routes", 4096)
+	v.SetDefault("radius.route_policy.dynamic_routing.dampening.enabled", true)
+	v.SetDefault("radius.route_policy.dynamic_routing.dampening.min_route_age_seconds", 3)
+	v.SetDefault("radius.route_policy.dynamic_routing.dampening.max_suppressed_routes", 1024)
+	v.SetDefault("radius.route_policy.dynamic_routing.protocols", []map[string]any{
+		{
+			"protocol":         "bgp",
+			"enabled":          true,
+			"vrf":              "all",
+			"asn":              65000,
+			"address_families": []string{"ipv4", "ipv6"},
+			"route_map":        "AEGISNAS-SUBSCRIBER",
+			"metric":           0,
+			"local_preference": 100,
+			"med":              0,
+			"communities":      []string{},
+			"next_hop_self":    false,
+		},
+		{
+			"protocol":         "ospf",
+			"enabled":          false,
+			"vrf":              "all",
+			"instance":         "1",
+			"area":             "0.0.0.0",
+			"address_families": []string{"ipv4"},
+			"route_map":        "AEGISNAS-SUBSCRIBER",
+			"metric":           20,
+		},
+		{
+			"protocol":         "ospf3",
+			"enabled":          false,
+			"vrf":              "all",
+			"instance":         "1",
+			"area":             "0.0.0.0",
+			"address_families": []string{"ipv6"},
+			"route_map":        "AEGISNAS-SUBSCRIBER",
+			"metric":           20,
+		},
+	})
 	v.SetDefault("radius.address_policy.enabled", true)
 	v.SetDefault("radius.address_policy.fail_closed", false)
 	v.SetDefault("radius.address_policy.max_assignments", 128)
@@ -2526,7 +2605,7 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("policy.runtime_vlan_lifecycle_enabled", true)
 	v.SetDefault("policy.enforcement_transactions.enabled", true)
 	v.SetDefault("policy.enforcement_transactions.fail_closed", true)
-	v.SetDefault("policy.enforcement_transactions.targets", []string{"vlan_lifecycle", "runtime_qos", "runtime_firewall", "controller_sync"})
+	v.SetDefault("policy.enforcement_transactions.targets", []string{"vlan_lifecycle", "subscriber_route_export", "runtime_qos", "runtime_firewall", "controller_sync"})
 	v.SetDefault("policy.enforcement_transactions.require_preview_before_apply", true)
 	v.SetDefault("policy.enforcement_transactions.auto_rollback_on_failure", true)
 	v.SetDefault("policy.enforcement_transactions.auto_rollback_on_drift", false)
@@ -6180,10 +6259,11 @@ func validatePolicyEngineConfig(policy PolicyConfig) error {
 
 func validateEnforcementTransactionPolicy(policy EnforcementTransactionPolicyConfig) error {
 	validTargets := map[string]struct{}{
-		"runtime_firewall": {},
-		"runtime_qos":      {},
-		"vlan_lifecycle":   {},
-		"controller_sync":  {},
+		"runtime_firewall":        {},
+		"runtime_qos":             {},
+		"vlan_lifecycle":          {},
+		"subscriber_route_export": {},
+		"controller_sync":         {},
 	}
 	seen := map[string]struct{}{}
 	for i, target := range policy.Targets {
@@ -6228,6 +6308,8 @@ func normalizeEnforcementTransactionTargetName(value string) string {
 		return "runtime_qos"
 	case "vlan-lifecycle", "vlan_lifecycle", "vlan":
 		return "vlan_lifecycle"
+	case "subscriber-route-export", "subscriber_route_export", "route-export", "route_export", "routing", "dynamic-routing":
+		return "subscriber_route_export"
 	case "controller-sync", "controller_sync", "controller":
 		return "controller_sync"
 	default:
@@ -7208,6 +7290,9 @@ func validateRadiusRoutePolicy(raw RadiusRoutePolicyConfig) error {
 	default:
 		return fmt.Errorf("radius.route_policy.conflict_mode %q is invalid", raw.ConflictMode)
 	}
+	if err := validateRadiusDynamicRouting(raw.DynamicRouting); err != nil {
+		return err
+	}
 
 	vrfs := map[string]struct{}{}
 	defaultVRF := strings.TrimSpace(raw.DefaultVRF)
@@ -7285,6 +7370,185 @@ func validateRadiusRoutePolicy(raw RadiusRoutePolicyConfig) error {
 		}
 	}
 	return nil
+}
+
+func validateRadiusDynamicRouting(raw RadiusDynamicRoutingConfig) error {
+	if !raw.Enabled && !raw.ApplyEnabled && strings.TrimSpace(raw.Driver) == "" &&
+		strings.TrimSpace(raw.ArtifactPath) == "" && strings.TrimSpace(raw.VtyshPath) == "" &&
+		raw.MaxExportedRoutes == 0 && !raw.Dampening.Enabled && raw.Dampening.MinRouteAgeSeconds == 0 &&
+		raw.Dampening.MaxSuppressedRoutes == 0 && len(raw.Protocols) == 0 {
+		return nil
+	}
+	driver := strings.ToLower(strings.TrimSpace(raw.Driver))
+	switch driver {
+	case "", "file", "frr-vtysh":
+	default:
+		return fmt.Errorf("radius.route_policy.dynamic_routing.driver %q must be file or frr-vtysh", raw.Driver)
+	}
+	if raw.ApplyEnabled && !raw.Enabled {
+		return fmt.Errorf("radius.route_policy.dynamic_routing.apply_enabled requires enabled")
+	}
+	if raw.MaxExportedRoutes < 0 || raw.MaxExportedRoutes > 1000000 {
+		return fmt.Errorf("radius.route_policy.dynamic_routing.max_exported_routes must be between 0 and 1000000")
+	}
+	if err := validateDynamicRoutingPath("radius.route_policy.dynamic_routing.artifact_path", raw.ArtifactPath, true); err != nil {
+		return err
+	}
+	if err := validateDynamicRoutingPath("radius.route_policy.dynamic_routing.vtysh_path", raw.VtyshPath, true); err != nil {
+		return err
+	}
+	if raw.Dampening.MinRouteAgeSeconds < 0 || raw.Dampening.MinRouteAgeSeconds > 3600 {
+		return fmt.Errorf("radius.route_policy.dynamic_routing.dampening.min_route_age_seconds must be between 0 and 3600")
+	}
+	if raw.Dampening.MaxSuppressedRoutes < 0 || raw.Dampening.MaxSuppressedRoutes > 1000000 {
+		return fmt.Errorf("radius.route_policy.dynamic_routing.dampening.max_suppressed_routes must be between 0 and 1000000")
+	}
+	seen := map[string]struct{}{}
+	for i, protocol := range raw.Protocols {
+		name := strings.ToLower(strings.TrimSpace(protocol.Protocol))
+		switch name {
+		case "bgp", "ospf", "ospf3":
+		default:
+			return fmt.Errorf("radius.route_policy.dynamic_routing.protocols[%d].protocol %q is invalid", i, protocol.Protocol)
+		}
+		vrf := strings.TrimSpace(protocol.VRF)
+		if vrf != "" && !strings.EqualFold(vrf, "all") {
+			if err := validateRoutePolicyToken(fmt.Sprintf("radius.route_policy.dynamic_routing.protocols[%d].vrf", i), vrf, 128, false); err != nil {
+				return err
+			}
+		}
+		if protocol.ASN < 0 || protocol.ASN > 4294967294 {
+			return fmt.Errorf("radius.route_policy.dynamic_routing.protocols[%d].asn must be between 0 and 4294967294", i)
+		}
+		if name == "bgp" && protocol.Enabled && protocol.ASN == 0 {
+			return fmt.Errorf("radius.route_policy.dynamic_routing.protocols[%d].asn is required for enabled BGP", i)
+		}
+		if err := validateDynamicRoutingIdentifier(fmt.Sprintf("radius.route_policy.dynamic_routing.protocols[%d].instance", i), protocol.Instance, true); err != nil {
+			return err
+		}
+		if strings.TrimSpace(protocol.RouterID) != "" {
+			parsed := net.ParseIP(strings.TrimSpace(protocol.RouterID))
+			if parsed == nil || parsed.To4() == nil {
+				return fmt.Errorf("radius.route_policy.dynamic_routing.protocols[%d].router_id must be an IPv4 address", i)
+			}
+		}
+		if err := validateDynamicRoutingIdentifier(fmt.Sprintf("radius.route_policy.dynamic_routing.protocols[%d].area", i), protocol.Area, true); err != nil {
+			return err
+		}
+		if err := validateDynamicRoutingIdentifier(fmt.Sprintf("radius.route_policy.dynamic_routing.protocols[%d].route_map", i), protocol.RouteMap, true); err != nil {
+			return err
+		}
+		if len(protocol.AddressFamilies) == 0 && protocol.Enabled {
+			return fmt.Errorf("radius.route_policy.dynamic_routing.protocols[%d].address_families cannot be empty for an enabled protocol", i)
+		}
+		families := map[string]struct{}{}
+		for familyIndex, family := range protocol.AddressFamilies {
+			normalized := strings.ToLower(strings.TrimSpace(family))
+			switch normalized {
+			case "ipv4", "ipv6":
+			default:
+				return fmt.Errorf("radius.route_policy.dynamic_routing.protocols[%d].address_families[%d] %q is invalid", i, familyIndex, family)
+			}
+			if name == "ospf" && normalized != "ipv4" {
+				return fmt.Errorf("radius.route_policy.dynamic_routing.protocols[%d] OSPF supports only ipv4; use ospf3 for ipv6", i)
+			}
+			if name == "ospf3" && normalized != "ipv6" {
+				return fmt.Errorf("radius.route_policy.dynamic_routing.protocols[%d] OSPF3 supports only ipv6", i)
+			}
+			families[normalized] = struct{}{}
+		}
+		for communityIndex, community := range protocol.Communities {
+			if err := validateDynamicRoutingCommunity(fmt.Sprintf("radius.route_policy.dynamic_routing.protocols[%d].communities[%d]", i, communityIndex), community); err != nil {
+				return err
+			}
+		}
+		if protocol.Metric < 0 || protocol.Metric > 16777215 {
+			return fmt.Errorf("radius.route_policy.dynamic_routing.protocols[%d].metric must be between 0 and 16777215", i)
+		}
+		if protocol.LocalPreference < 0 || protocol.LocalPreference > 2147483647 {
+			return fmt.Errorf("radius.route_policy.dynamic_routing.protocols[%d].local_preference must be between 0 and 2147483647", i)
+		}
+		if protocol.MED < 0 || protocol.MED > 2147483647 {
+			return fmt.Errorf("radius.route_policy.dynamic_routing.protocols[%d].med must be between 0 and 2147483647", i)
+		}
+		key := strings.Join([]string{name, strings.ToLower(firstNonEmptyConfigString(vrf, "all")), strings.TrimSpace(protocol.Instance), strings.Join(sortedStringKeys(families), ",")}, "|")
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("radius.route_policy.dynamic_routing.protocols[%d] duplicates an earlier protocol scope", i)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+func validateDynamicRoutingPath(field, value string, optional bool) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		if optional {
+			return nil
+		}
+		return fmt.Errorf("%s cannot be empty", field)
+	}
+	if len(value) > 512 || strings.ContainsAny(value, "\r\n\x00") {
+		return fmt.Errorf("%s is invalid", field)
+	}
+	if strings.Contains(value, "..") {
+		return fmt.Errorf("%s cannot contain parent-directory traversal", field)
+	}
+	return nil
+}
+
+func validateDynamicRoutingIdentifier(field, value string, optional bool) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		if optional {
+			return nil
+		}
+		return fmt.Errorf("%s cannot be empty", field)
+	}
+	if len(value) > 128 || strings.ContainsAny(value, "\r\n\x00\t ") {
+		return fmt.Errorf("%s is invalid", field)
+	}
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
+			r == '_' || r == '-' || r == '.' || r == ':' {
+			continue
+		}
+		return fmt.Errorf("%s contains unsupported character %q", field, r)
+	}
+	return nil
+}
+
+func validateDynamicRoutingCommunity(field, value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 128 || strings.ContainsAny(value, "\r\n\x00\t ") {
+		return fmt.Errorf("%s is invalid", field)
+	}
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
+			r == '_' || r == '-' || r == ':' {
+			continue
+		}
+		return fmt.Errorf("%s contains unsupported character %q", field, r)
+	}
+	return nil
+}
+
+func firstNonEmptyConfigString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func sortedStringKeys(values map[string]struct{}) []string {
+	out := make([]string, 0, len(values))
+	for value := range values {
+		out = append(out, value)
+	}
+	slices.Sort(out)
+	return out
 }
 
 func validateRadiusRoutePolicyRoute(field string, route RadiusRouteConfig, family int, seen map[string]string) error {

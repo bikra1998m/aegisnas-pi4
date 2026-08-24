@@ -149,6 +149,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionRuntimeFirewallCheck(&report)
 	addProductionRuntimeQoSCheck(&report, cfg)
 	addProductionVLANLifecycleCheck(&report, cfg)
+	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
 	addProductionRoutePolicyCheck(&report, cfg)
@@ -1405,6 +1406,63 @@ func addProductionVLANLifecycleCheck(report *productionReadinessReport, cfg *con
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/vlan-lifecycle/preview before apply, keep VLAN catalog, role VLANs, policy VLANs, and hostapd dynamic VLAN entries in one evidence-backed lifecycle, and complete the NAS-0053 release certification checklist for Linux bridge/VLAN, hostapd, FreeRADIUS, HA, and vendor-device proof.",
 		Dependencies:   []string{"vlans", "roles.vlan", "policy_rules.vlan", "wireless.ssids.dynamic_vlan", "vlan_lifecycle_snapshots", "vlan_lifecycle_events", "/api/v1/system/vlan-lifecycle", "/api/v1/system/vlan-lifecycle/preview", "/api/v1/system/vlan-lifecycle/apply", "/api/v1/system/vlan-lifecycle/rollback", "ip link", "hostapd vlan_file", "RFC 2868"},
+	})
+}
+
+func addProductionSubscriberRouteExportCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "Dynamic BGP/OSPF subscriber route export is ready."
+	plan, err := enforcement.PreviewSubscriberRouteExport(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Subscriber route export preview failed: " + err.Error()
+	} else {
+		switch plan.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded", "skipped":
+			status = "degraded"
+		}
+		summary = fmt.Sprintf("Subscriber route export schema %d plans %d protocol(s), %d active route(s), %d exported route(s), %d suppressed route(s), %d withdrawal(s), %d command(s), and %d diagnostic(s) with driver %s.",
+			plan.SchemaVersion,
+			plan.Summary.ProtocolCount,
+			plan.Summary.RouteCount,
+			plan.Summary.ExportedRoutes,
+			plan.Summary.SuppressedRoutes,
+			plan.Summary.WithdrawRouteCount,
+			plan.Summary.CommandCount,
+			len(plan.Diagnostics),
+			firstNonEmptyAdminString(plan.Driver, "file"))
+		if !plan.ApplyEnabled {
+			summary += " Live routing apply is gated by config; previews, evidence, and rollback snapshots remain active."
+		}
+	}
+	if db.DB == nil {
+		status = "blocked"
+		summary = "Database is not initialized; subscriber route export snapshots and history cannot be verified."
+	} else if evidence, err := db.GetSubscriberRouteExportSummary(); err != nil {
+		status = "blocked"
+		summary += " Subscriber route export evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d applied, %d rolled back, %d skipped, %d failed, active snapshot=%s.",
+			evidence.TotalEvents,
+			evidence.AppliedCount,
+			evidence.RolledBackCount,
+			evidence.SkippedCount,
+			evidence.FailedCount,
+			firstNonEmptyAdminString(evidence.ActiveSnapshotID, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "dynamic_subscriber_route_export",
+		Category:       "policy",
+		Label:          "Dynamic Routing Integration For Subscriber Routes",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/subscriber-route-export/preview before enabling live apply, retain subscriber_route_export_snapshots and subscriber_route_export_events evidence, keep route ownership withdrawal tied to Accounting Stop, and complete the NAS-0059 release certification checklist for FRR, BGP/OSPF convergence, HA, packet captures, and vendor-device proof.",
+		Dependencies:   []string{"radius.route_policy.dynamic_routing", "route_policy_ownership", "subscriber_route_export_snapshots", "subscriber_route_export_events", "/api/v1/system/subscriber-route-export", "/api/v1/system/subscriber-route-export/preview", "/api/v1/system/subscriber-route-export/apply", "/api/v1/system/subscriber-route-export/rollback", "FRRouting", "BGP", "OSPF", "Framed-Route", "Framed-IPv6-Route", "RFC 4271", "RFC 2328", "RFC 5340", "RFC 5176"},
 	})
 }
 

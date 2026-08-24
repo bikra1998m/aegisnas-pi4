@@ -315,6 +315,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/qos-scheduler-history.json", requestPath: "/api/v1/system/qos-scheduler/history", label: "Runtime QoS scheduler apply and rollback history", handler: HandleListRuntimeQoSHistory},
 		{archivePath: "api/vlan-lifecycle.json", requestPath: "/api/v1/system/vlan-lifecycle", label: "Dynamic VLAN bridge and subinterface lifecycle", handler: HandleGetVLANLifecycle},
 		{archivePath: "api/vlan-lifecycle-history.json", requestPath: "/api/v1/system/vlan-lifecycle/history", label: "Dynamic VLAN lifecycle apply and rollback history", handler: HandleListVLANLifecycleHistory},
+		{archivePath: "api/subscriber-route-export.json", requestPath: "/api/v1/system/subscriber-route-export", label: "Dynamic BGP/OSPF subscriber route export", handler: HandleGetSubscriberRouteExport},
+		{archivePath: "api/subscriber-route-export-history.json", requestPath: "/api/v1/system/subscriber-route-export/history", label: "Subscriber route export apply and rollback history", handler: HandleListSubscriberRouteExportHistory},
 		{archivePath: "api/enforcement-transactions.json", requestPath: "/api/v1/system/enforcement-transactions", label: "Atomic enforcement transaction state", handler: HandleGetEnforcementTransactions},
 		{archivePath: "api/enforcement-transactions-history.json", requestPath: "/api/v1/system/enforcement-transactions/history", label: "Atomic enforcement transaction and drift history", handler: HandleListEnforcementTransactionHistory},
 		{archivePath: "api/vlan-policy.json", requestPath: "/api/v1/system/vlan-policy", label: "Tagged voice/data VLAN, QinQ, pool, and fallback policy", handler: HandleGetVLANPolicy},

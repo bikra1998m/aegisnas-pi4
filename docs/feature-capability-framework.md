@@ -167,6 +167,7 @@ These features depend heavily on physical platform shape.
 | Dynamic VLAN SSIDs | available | enabled | enabled | strongest on enterprise gear; hostapd config points to the managed VLAN file |
 | Tagged VLAN/QinQ policy | available | enabled | enabled | compiler is lightweight; production claims need packet capture and vendor-device certification |
 | Per-session route/VRF policy | available | enabled | enabled | compiler is lightweight; active ownership and Stop withdrawal are software-ready; native vendor route behavior needs certification |
+| Dynamic subscriber route export | available | enabled | enabled | publishes owned routes into FRR BGP/OSPF plans with snapshots, withdrawal, and rollback; live routing proof needs release certification |
 | IPv4/IPv6 pools, DHCPv6, RA, and prefix delegation | available | enabled | enabled | compiler and ownership ledger are software-ready; native DHCPv6/RA/device enforcement needs release certification |
 | CGNAT, NAT64, and deterministic subscriber translation | warned | available | enabled | compiler and ownership ledger are software-ready; native dataplane, lawful logging, and vendor enforcement need release certification |
 | Atomic enforcement transactions and drift rollback | available | enabled | enabled | transaction ledger, compensation, drift checks, APIs, and UI are software-ready; physical dataplane, controller, HA, and soak evidence need release certification |
@@ -247,6 +248,7 @@ This is where dictionary support becomes product behavior.
 | Hierarchical QoS scheduler | available | enabled | enabled | compiles bandwidth profiles into aggregate and per-session `tc`/IFB classes with snapshots and rollback |
 | Dual-stack shaping and rate compiler | available | enabled | enabled | adds IPv6-only/dual-stack `tc flower` classifiers and vendor-safe kbps, bps, and MikroTik grammar rendering |
 | Dynamic VLAN lifecycle | available | enabled | enabled | creates owned Linux bridges, VLAN subinterfaces, hostapd VLAN file entries, snapshots, history, and rollback from VLAN intent |
+| Dynamic subscriber route export | available | enabled | enabled | compiles `route_policy_ownership` into BGP/OSPF/OSPF3 FRR artifacts, dampening, withdrawal plans, snapshots, and atomic transaction participation |
 | Quarantine enforcement | enabled | enabled | enabled | already present |
 | Stateful local firewall policy | available | enabled | enabled | owned nftables table enforces per-session ACL and quarantine policy with IPv4/IPv6 snapshots |
 | ACL-like policy language | available | enabled | enabled | persisted policies feed live decisions, RADIUS replies, local firewall enforcement, and controller reconciliation |
@@ -256,7 +258,7 @@ Rules:
 
 - shaping should be `blocked` if no shaping interface exists
 - vendor dictionary parsing should stay read-only and cheap on lite hardware
-- local ACL and VLAN lifecycle enforcement should require preview/apply evidence before production use; device-side enforcement adapters still need release certification evidence
+- local ACL, VLAN lifecycle, and subscriber route export enforcement should require preview/apply evidence before production use; device-side and routing-daemon enforcement still need release certification evidence
 
 ### 7. Identity And Enterprise Integrations
 

@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 63
+	return 64
 }
 
 func Migrate() error {
@@ -3464,3 +3464,71 @@ CREATE INDEX IF NOT EXISTS idx_enforcement_drift_events_tx ON enforcement_drift_
 `
 
 const schemaV63 = enforcementTransactionSQL
+
+const subscriberRouteExportSQL = `
+CREATE TABLE IF NOT EXISTS subscriber_route_export_snapshots (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	snapshot_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	active BOOLEAN NOT NULL DEFAULT 0,
+	driver TEXT NOT NULL DEFAULT 'file',
+	protocol_count INTEGER NOT NULL DEFAULT 0,
+	route_count INTEGER NOT NULL DEFAULT 0,
+	ipv4_route_count INTEGER NOT NULL DEFAULT 0,
+	ipv6_route_count INTEGER NOT NULL DEFAULT 0,
+	withdraw_route_count INTEGER NOT NULL DEFAULT 0,
+	command_count INTEGER NOT NULL DEFAULT 0,
+	diagnostic_count INTEGER NOT NULL DEFAULT 0,
+	plan_fingerprint TEXT NOT NULL,
+	artifact_path TEXT,
+	artifact_sha256 TEXT,
+	artifact_text TEXT NOT NULL DEFAULT '',
+	command_text TEXT NOT NULL DEFAULT '',
+	plan_json TEXT NOT NULL DEFAULT '{}',
+	diagnostics_json TEXT NOT NULL DEFAULT '[]',
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	previous_snapshot_id TEXT,
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	applied_at DATETIME,
+	rolled_back_at DATETIME,
+	CHECK (operation IN ('preview', 'apply', 'sync', 'rollback')),
+	CHECK (status IN ('previewed', 'applied', 'degraded', 'blocked', 'failed', 'skipped', 'rolled_back'))
+);
+
+CREATE TABLE IF NOT EXISTS subscriber_route_export_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	snapshot_id TEXT,
+	previous_snapshot_id TEXT,
+	driver TEXT,
+	protocol_count INTEGER NOT NULL DEFAULT 0,
+	route_count INTEGER NOT NULL DEFAULT 0,
+	ipv4_route_count INTEGER NOT NULL DEFAULT 0,
+	ipv6_route_count INTEGER NOT NULL DEFAULT 0,
+	withdraw_route_count INTEGER NOT NULL DEFAULT 0,
+	command_count INTEGER NOT NULL DEFAULT 0,
+	diagnostic_count INTEGER NOT NULL DEFAULT 0,
+	plan_fingerprint TEXT,
+	artifact_sha256 TEXT,
+	diagnostics_json TEXT NOT NULL DEFAULT '[]',
+	details_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'sync', 'rollback')),
+	CHECK (status IN ('previewed', 'applied', 'degraded', 'blocked', 'failed', 'skipped', 'rolled_back'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscriber_route_export_snapshots_active ON subscriber_route_export_snapshots(active, created_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_route_export_snapshots_status ON subscriber_route_export_snapshots(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_route_export_snapshots_fingerprint ON subscriber_route_export_snapshots(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_route_export_events_created ON subscriber_route_export_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_route_export_events_status ON subscriber_route_export_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_route_export_events_snapshot ON subscriber_route_export_events(snapshot_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_subscriber_route_export_events_fingerprint ON subscriber_route_export_events(plan_fingerprint, created_at);
+`
+
+const schemaV64 = subscriberRouteExportSQL

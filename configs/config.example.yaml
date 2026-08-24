@@ -398,6 +398,45 @@ radius:
     default_owner: "aegisnas"
     conflict_mode: "block" # block, prefer-role, prefer-request, or warn.
     stop_withdrawal: true
+    dynamic_routing:
+      enabled: true
+      apply_enabled: false # keep false until FRRouting and route-domain certification are complete.
+      driver: "file" # file or frr-vtysh.
+      artifact_path: "/var/lib/aegisnas/routing/subscriber-routes.frr"
+      vtysh_path: "vtysh"
+      max_exported_routes: 4096
+      dampening:
+        enabled: true
+        min_route_age_seconds: 3
+        max_suppressed_routes: 1024
+      protocols:
+        - protocol: "bgp"
+          enabled: true
+          vrf: "all"
+          asn: 65000
+          route_map: "AEGISNAS-SUBSCRIBER"
+          address_families: ["ipv4", "ipv6"]
+          communities: ["no-export"]
+          metric: 100
+          local_preference: 100
+        - protocol: "ospf"
+          enabled: false
+          vrf: "default"
+          instance: "1"
+          router_id: "192.0.2.254"
+          area: "0.0.0.0"
+          route_map: "AEGISNAS-SUBSCRIBER"
+          address_families: ["ipv4"]
+          metric: 100
+        - protocol: "ospf3"
+          enabled: false
+          vrf: "default"
+          instance: "1"
+          router_id: "192.0.2.254"
+          area: "0.0.0.0"
+          route_map: "AEGISNAS-SUBSCRIBER"
+          address_families: ["ipv6"]
+          metric: 100
     vrfs:
       - name: "corp"
         route_distinguisher: "65000:10"

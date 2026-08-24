@@ -197,6 +197,29 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		vlanLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["vlan_lifecycle"]}
 	}
+	subscriberRouteExportStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Dynamic subscriber route export status has not been evaluated.",
+	}
+	if routeExportPlan, err := enforcement.PreviewSubscriberRouteExport(cfg); err == nil {
+		routeExportSummary, _ := db.GetSubscriberRouteExportSummary()
+		subscriberRouteExportStatus = map[string]any{
+			"schema_version":   enforcement.SubscriberRouteExportSchemaVersion,
+			"status":           routeExportPlan.Status,
+			"message":          routeExportPlan.Message,
+			"driver":           routeExportPlan.Driver,
+			"apply_enabled":    routeExportPlan.ApplyEnabled,
+			"artifact_path":    routeExportPlan.ArtifactPath,
+			"artifact_sha256":  routeExportPlan.ArtifactSHA256,
+			"plan_fingerprint": routeExportPlan.PlanFingerprint,
+			"summary":          routeExportPlan.Summary,
+			"diagnostic_count": len(routeExportPlan.Diagnostics),
+			"evidence_summary": routeExportSummary,
+			"runtime_status":   runtimeMap["subscriber_route_export"],
+		}
+	} else {
+		subscriberRouteExportStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["subscriber_route_export"]}
+	}
 	atomicEnforcementStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Atomic enforcement transactions have not been evaluated.",
@@ -331,6 +354,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"evidence_summary": routePolicySummary,
 			"evidence_error":   rateCompilerErrorString(routePolicyErr),
 		},
+		"subscriber_route_export": subscriberRouteExportStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),
@@ -427,6 +451,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"shaper":                   runtimeMap["runtime_shaper"],
 		"qos_scheduler":            runtimeQoSStatus,
 		"vlan_lifecycle":           vlanLifecycleStatus,
+		"subscriber_route_export":  subscriberRouteExportStatus,
 		"local_firewall":           runtimeFirewallStatus,
 		"atomic_transactions":      atomicEnforcementStatus,
 	}

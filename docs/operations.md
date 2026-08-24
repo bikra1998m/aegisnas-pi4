@@ -999,13 +999,48 @@ native CGNAT/NAT64 dataplane behavior, lawful logging, and device-specific
 translation enforcement must be backed by the NAS-0057 release certification
 checklist.
 
+## Dynamic Subscriber Route Export Operations
+
+Use the subscriber route export API to publish active route ownership into a
+reviewable BGP/OSPF/OSPF3 plan. Live routing apply is off by default; previews
+and evidence remain available while `apply_enabled` is false.
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/subscriber-route-export \
+  | jq '.report.status, .report.summary, .report.evidence.summary'
+```
+
+Preview before enabling live apply:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/subscriber-route-export/preview \
+  | jq '.plan.artifact_text, .plan.withdrawals, .plan.diagnostics'
+```
+
+Apply only after FRR and routing-domain certification are complete:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/subscriber-route-export/apply \
+  | jq '.result.status, .result.snapshot_id, .result.plan.summary'
+```
+
+Review `/api/v1/system/subscriber-route-export/history` after every preview,
+apply, skipped apply, failed apply, or rollback. Support bundles include
+`api/subscriber-route-export.json` and
+`api/subscriber-route-export-history.json`. Release claims for FRR convergence,
+route reflection, physical FIB installation, HA failover, performance, soak,
+and security must be backed by the NAS-0059 release certification checklist.
+
 ## Atomic Enforcement Transaction Operations
 
-Use the atomic transaction API for coordinated VLAN, QoS, firewall, and
-controller enforcement changes. The coordinator previews each participant,
-applies in dependency order, records one ledger entry, checks drift after
-apply, and compensates already-applied targets in reverse order when a later
-target fails.
+Use the atomic transaction API for coordinated VLAN, route export, QoS,
+firewall, and controller enforcement changes. The coordinator previews each
+participant, applies in dependency order, records one ledger entry, checks
+drift after apply, and compensates already-applied targets in reverse order
+when a later target fails.
 
 ```bash
 curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
@@ -1018,7 +1053,7 @@ Run preview before an apply:
 ```bash
 curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"targets":["vlan_lifecycle","runtime_qos","runtime_firewall"]}' \
+  -d '{"targets":["vlan_lifecycle","subscriber_route_export","runtime_qos","runtime_firewall"]}' \
   http://127.0.0.1:8083/api/v1/system/enforcement-transactions/preview \
   | jq '.result.plan.status, .result.plan.targets'
 ```

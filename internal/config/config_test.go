@@ -4579,6 +4579,23 @@ func TestValidateRadiusRoutePolicy(t *testing.T) {
 		DefaultOwner:   "aegisnas",
 		ConflictMode:   "block",
 		StopWithdrawal: true,
+		DynamicRouting: RadiusDynamicRoutingConfig{
+			Enabled:           true,
+			ApplyEnabled:      false,
+			Driver:            "file",
+			ArtifactPath:      "/var/lib/aegisnas/routing/subscriber-routes.frr",
+			VtyshPath:         "vtysh",
+			MaxExportedRoutes: 4096,
+			Dampening: RadiusRouteDampeningConfig{
+				Enabled:             true,
+				MinRouteAgeSeconds:  3,
+				MaxSuppressedRoutes: 1024,
+			},
+			Protocols: []RadiusDynamicProtocolConfig{
+				{Protocol: "bgp", Enabled: true, VRF: "all", ASN: 65000, RouteMap: "AEGISNAS-SUBSCRIBER", AddressFamilies: []string{"ipv4", "ipv6"}, Communities: []string{"no-export"}},
+				{Protocol: "ospf", Enabled: false, VRF: "default", Instance: "1", RouterID: "192.0.2.254", Area: "0.0.0.0", RouteMap: "AEGISNAS-SUBSCRIBER", AddressFamilies: []string{"ipv4"}},
+			},
+		},
 		VRFs: []RadiusVRFConfig{
 			{Name: "corp", RouteDistinguisher: "65000:10", Description: "Corp routing domain"},
 		},
@@ -4625,6 +4642,35 @@ func TestValidateRadiusRoutePolicy(t *testing.T) {
 	badMode := valid
 	badMode.ConflictMode = "replace-everything"
 	assert.ErrorContains(t, validateRadiusRoutePolicy(badMode), "invalid")
+
+	badDriver := valid
+	badDriver.DynamicRouting.Driver = "bird"
+	assert.ErrorContains(t, validateRadiusRoutePolicy(badDriver), "driver")
+
+	gatedWithoutEnable := valid
+	gatedWithoutEnable.DynamicRouting.Enabled = false
+	gatedWithoutEnable.DynamicRouting.ApplyEnabled = true
+	assert.ErrorContains(t, validateRadiusRoutePolicy(gatedWithoutEnable), "apply_enabled")
+
+	missingBGPASN := valid
+	missingBGPASN.DynamicRouting.Protocols = append([]RadiusDynamicProtocolConfig(nil), valid.DynamicRouting.Protocols...)
+	missingBGPASN.DynamicRouting.Protocols[0].ASN = 0
+	assert.ErrorContains(t, validateRadiusRoutePolicy(missingBGPASN), "asn is required")
+
+	badOSPF := valid
+	badOSPF.DynamicRouting.Protocols = append([]RadiusDynamicProtocolConfig(nil), valid.DynamicRouting.Protocols...)
+	badOSPF.DynamicRouting.Protocols[1].Enabled = true
+	badOSPF.DynamicRouting.Protocols[1].AddressFamilies = []string{"ipv6"}
+	assert.ErrorContains(t, validateRadiusRoutePolicy(badOSPF), "OSPF supports only ipv4")
+
+	duplicateProtocol := valid
+	duplicateProtocol.DynamicRouting.Protocols = append([]RadiusDynamicProtocolConfig(nil), valid.DynamicRouting.Protocols...)
+	duplicateProtocol.DynamicRouting.Protocols = append(duplicateProtocol.DynamicRouting.Protocols, duplicateProtocol.DynamicRouting.Protocols[0])
+	assert.ErrorContains(t, validateRadiusRoutePolicy(duplicateProtocol), "duplicates")
+
+	badArtifactPath := valid
+	badArtifactPath.DynamicRouting.ArtifactPath = "../routes.frr"
+	assert.ErrorContains(t, validateRadiusRoutePolicy(badArtifactPath), "traversal")
 }
 
 func TestValidateRadiusAddressPolicy(t *testing.T) {

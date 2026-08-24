@@ -2,17 +2,17 @@
 
 NAS-0058 makes local and controller enforcement changes run through one
 evidence-backed transaction coordinator. VLAN lifecycle, QoS scheduler,
-runtime firewall, and controller sync participants are previewed in dependency
-order, applied as one operation, checked for drift, and compensated in reverse
-order when a later participant fails.
+subscriber route export, runtime firewall, and controller sync participants
+are previewed in dependency order, applied as one operation, checked for drift,
+and compensated in reverse order when a later participant fails.
 
 ## Scope
 
 Implemented software scope:
 
 - Atomic enforcement planner with schema version `1`.
-- Ordered targets: `vlan_lifecycle`, `runtime_qos`, `runtime_firewall`, and
-  `controller_sync`.
+- Ordered targets: `vlan_lifecycle`, `subscriber_route_export`,
+  `runtime_qos`, `runtime_firewall`, and `controller_sync`.
 - Fail-closed preflight for blocked participants.
 - First-apply support when targets have no active snapshot yet.
 - Reverse-order compensation for participants that publish rollback snapshots.
@@ -36,9 +36,10 @@ The coordinator builds a preview for each configured target, sorts targets into
 the dependency order below, and records a deterministic plan fingerprint:
 
 1. `vlan_lifecycle`
-2. `runtime_qos`
-3. `runtime_firewall`
-4. `controller_sync`
+2. `subscriber_route_export`
+3. `runtime_qos`
+4. `runtime_firewall`
+5. `controller_sync`
 
 `blocked` targets stop apply when `fail_closed` is enabled. `degraded` targets
 can still apply; this is expected during first deployment when no active
@@ -56,6 +57,8 @@ fingerprint exposed by that target:
 - Runtime firewall: active `runtime_firewall_snapshots.ruleset_fingerprint`.
 - Runtime QoS: active `runtime_qos_snapshots.plan_fingerprint`.
 - VLAN lifecycle: active `vlan_lifecycle_snapshots.plan_fingerprint`.
+- Subscriber route export: active
+  `subscriber_route_export_snapshots.plan_fingerprint`.
 - Controller sync: controller runtime status state hash.
 
 Post-apply drift verification is enabled by default. `auto_rollback_on_drift`
@@ -77,7 +80,7 @@ Preview selected targets:
 ```bash
 curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"targets":["vlan_lifecycle","runtime_qos","runtime_firewall"]}' \
+  -d '{"targets":["vlan_lifecycle","subscriber_route_export","runtime_qos","runtime_firewall"]}' \
   http://127.0.0.1:8083/api/v1/system/enforcement-transactions/preview \
   | jq '.result.status, .result.plan.summary, .result.steps'
 ```
@@ -87,7 +90,7 @@ Apply selected targets atomically:
 ```bash
 curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"targets":["vlan_lifecycle","runtime_qos","runtime_firewall"]}' \
+  -d '{"targets":["vlan_lifecycle","subscriber_route_export","runtime_qos","runtime_firewall"]}' \
   http://127.0.0.1:8083/api/v1/system/enforcement-transactions/apply \
   | jq '.result.status, .result.transaction_id, .result.steps, .result.drift'
 ```
@@ -97,7 +100,7 @@ Detect drift:
 ```bash
 curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"targets":["vlan_lifecycle","runtime_qos","runtime_firewall","controller_sync"]}' \
+  -d '{"targets":["vlan_lifecycle","subscriber_route_export","runtime_qos","runtime_firewall","controller_sync"]}' \
   http://127.0.0.1:8083/api/v1/system/enforcement-transactions/drift \
   | jq '.result.status, .result.drift'
 ```
@@ -127,7 +130,7 @@ policy:
   enforcement_transactions:
     enabled: true
     fail_closed: true
-    targets: ["vlan_lifecycle", "runtime_qos", "runtime_firewall", "controller_sync"]
+    targets: ["vlan_lifecycle", "subscriber_route_export", "runtime_qos", "runtime_firewall", "controller_sync"]
     require_preview_before_apply: true
     auto_rollback_on_failure: true
     auto_rollback_on_drift: false

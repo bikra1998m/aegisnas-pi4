@@ -188,6 +188,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{61, schemaV61},
 		{62, schemaV62},
 		{63, schemaV63},
+		{64, schemaV64},
 	}
 
 	for _, m := range migrations {
@@ -346,8 +347,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureEnforcementTransactionTables(handle); err != nil {
 		return fmt.Errorf("repair enforcement transaction schema: %w", err)
 	}
+	if err := ensureSubscriberRouteExportTables(handle); err != nil {
+		return fmt.Errorf("repair subscriber route export schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureSubscriberRouteExportTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(subscriberRouteExportSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureEnforcementTransactionTables(handle *sql.DB) error {

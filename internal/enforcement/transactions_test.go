@@ -196,6 +196,8 @@ func restoreAtomicEnforcementParticipants(t *testing.T) {
 	originalRuntimeQoSRollback := atomicRuntimeQoSRollbackFn
 	originalVLANApply := atomicVLANLifecycleApplyFn
 	originalVLANRollback := atomicVLANLifecycleRollbackFn
+	originalSubscriberRouteExportApply := atomicSubscriberRouteExportApplyFn
+	originalSubscriberRouteExportRollback := atomicSubscriberRouteExportRollbackFn
 	originalControllerApply := atomicControllerApplyFn
 	t.Cleanup(func() {
 		atomicRuntimeFirewallApplyFn = originalRuntimeFirewallApply
@@ -204,6 +206,8 @@ func restoreAtomicEnforcementParticipants(t *testing.T) {
 		atomicRuntimeQoSRollbackFn = originalRuntimeQoSRollback
 		atomicVLANLifecycleApplyFn = originalVLANApply
 		atomicVLANLifecycleRollbackFn = originalVLANRollback
+		atomicSubscriberRouteExportApplyFn = originalSubscriberRouteExportApply
+		atomicSubscriberRouteExportRollbackFn = originalSubscriberRouteExportRollback
 		atomicControllerApplyFn = originalControllerApply
 	})
 }

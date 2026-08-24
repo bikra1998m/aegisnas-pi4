@@ -681,6 +681,38 @@ withdraws active ownership rows. Native route installation and withdrawal on
 each vendor device remains release-certified per product and firmware. See
 [Per-Session Route And VRF Policy](per-session-route-vrf-policy.md).
 
+NAS-0059 turns active route ownership into BGP, OSPF, and OSPF3 route-export
+plans. It reads `route_policy_ownership`, applies route-age dampening, renders
+managed FRR artifacts, plans withdrawals from the active snapshot, and can
+participate in atomic enforcement as `subscriber_route_export`:
+
+```yaml
+radius:
+  route_policy:
+    dynamic_routing:
+      enabled: true
+      apply_enabled: false
+      driver: file
+      artifact_path: /var/lib/aegisnas/routing/subscriber-routes.frr
+      max_exported_routes: 4096
+      protocols:
+        - protocol: bgp
+          enabled: true
+          vrf: all
+          asn: 65000
+          route_map: AEGISNAS-SUBSCRIBER
+          address_families: [ipv4, ipv6]
+          communities: [no-export]
+```
+
+`/api/v1/system/subscriber-route-export/preview` records evidence without
+touching routing state. `/apply` writes the managed artifact or runs the
+configured FRR vtysh driver only when `apply_enabled` is true. BGP/OSPF
+convergence, route reflection, physical FIB installation, HA failover, and
+exact vendor/router behavior remain release-certified per product, firmware,
+and routing domain. See
+[Dynamic Subscriber Route Export](dynamic-subscriber-route-export.md).
+
 NAS-0056 adds the portable IPv4/IPv6 address policy compiler for subscriber,
 branch, VPN, and BNG sessions. It emits standards-based framed address and pool
 attributes, delegated IPv6 prefixes, AegisNAS address lifecycle VSAs, and
@@ -790,18 +822,19 @@ dataplane installation, lawful logging retention, and exact product behavior
 remain release-certified per product, firmware, and adapter. See
 [CGNAT, NAT64, And Deterministic Subscriber Translation](cgnat-nat64-deterministic-translation.md).
 
-NAS-0058 adds atomic enforcement transactions for production changes that span
-local VLAN lifecycle, runtime QoS, runtime firewall, and controller sync. The
-software coordinator previews every target, applies in dependency order,
-records one transaction ledger, performs drift detection, and compensates
-rollback-capable targets in reverse order when a later participant fails:
+NAS-0058 and NAS-0059 provide atomic enforcement transactions for production
+changes that span local VLAN lifecycle, subscriber route export, runtime QoS,
+runtime firewall, and controller sync. The software coordinator previews every
+target, applies in dependency order, records one transaction ledger, performs
+drift detection, and compensates rollback-capable targets in reverse order when
+a later participant fails:
 
 ```yaml
 policy:
   enforcement_transactions:
     enabled: true
     fail_closed: true
-    targets: [vlan_lifecycle, runtime_qos, runtime_firewall, controller_sync]
+    targets: [vlan_lifecycle, subscriber_route_export, runtime_qos, runtime_firewall, controller_sync]
     require_preview_before_apply: true
     auto_rollback_on_failure: true
     drift_check_after_apply: true

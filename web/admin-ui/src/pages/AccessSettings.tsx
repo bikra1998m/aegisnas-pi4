@@ -1623,6 +1623,32 @@ const defaultSettings: JsonMap = {
       default_owner: "aegisnas",
       conflict_mode: "block",
       stop_withdrawal: true,
+      dynamic_routing: {
+        enabled: true,
+        apply_enabled: false,
+        driver: "file",
+        artifact_path: "/var/lib/aegisnas/routing/subscriber-routes.frr",
+        vtysh_path: "vtysh",
+        max_exported_routes: 4096,
+        dampening: {
+          enabled: true,
+          min_route_age_seconds: 3,
+          max_suppressed_routes: 1024,
+        },
+        protocols: [
+          {
+            protocol: "bgp",
+            enabled: true,
+            vrf: "all",
+            asn: 65000,
+            route_map: "AEGISNAS-SUBSCRIBER",
+            address_families: ["ipv4", "ipv6"],
+            communities: ["no-export"],
+            metric: 100,
+            local_preference: 100,
+          },
+        ],
+      },
       vrfs: [],
       role_policies: [],
     },
@@ -2270,6 +2296,17 @@ const routeConflictModeOptions: Option[] = [
   { value: "prefer-role", label: "Prefer role policy" },
   { value: "prefer-request", label: "Prefer request routes" },
   { value: "warn", label: "Warn and keep first" },
+];
+
+const dynamicRoutingDriverOptions: Option[] = [
+  { value: "file", label: "Managed FRR artifact" },
+  { value: "frr-vtysh", label: "FRR vtysh apply" },
+];
+
+const dynamicRoutingProtocolOptions: Option[] = [
+  { value: "bgp", label: "BGP" },
+  { value: "ospf", label: "OSPF" },
+  { value: "ospf3", label: "OSPF3" },
 ];
 
 const addressPoolFamilyOptions: Option[] = [
@@ -4314,6 +4351,8 @@ export default function AccessSettings() {
   const vlanRolePolicies = settings.radius?.vlan_policy?.role_policies || [];
   const routePolicyVRFs = settings.radius?.route_policy?.vrfs || [];
   const routeRolePolicies = settings.radius?.route_policy?.role_policies || [];
+  const dynamicRoutingProtocols =
+    settings.radius?.route_policy?.dynamic_routing?.protocols || [];
   const addressPolicyPools = settings.radius?.address_policy?.pools || [];
   const addressRolePolicies =
     settings.radius?.address_policy?.role_policies || [];
@@ -18660,6 +18699,503 @@ export default function AccessSettings() {
                 }
                 options={routeConflictModeOptions}
               />
+            </div>
+            <div className="mt-4 rounded-md border border-gray-200 p-3">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">
+                    Dynamic Subscriber Route Export
+                  </div>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Publish owned subscriber routes into managed FRR artifacts
+                    or controlled vtysh apply operations.
+                  </p>
+                </div>
+                <button
+                  onClick={() =>
+                    updateField(
+                      [
+                        "radius",
+                        "route_policy",
+                        "dynamic_routing",
+                        "protocols",
+                      ],
+                      [
+                        ...dynamicRoutingProtocols,
+                        {
+                          protocol: "bgp",
+                          enabled: true,
+                          vrf: "all",
+                          asn: 65000,
+                          route_map: "AEGISNAS-SUBSCRIBER",
+                          address_families: ["ipv4", "ipv6"],
+                          communities: [],
+                          metric: 100,
+                        },
+                      ],
+                    )
+                  }
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700"
+                >
+                  Add Protocol
+                </button>
+              </div>
+              <div className="grid gap-3 md:grid-cols-4">
+                <ToggleField
+                  label="Export Enabled"
+                  checked={
+                    settings.radius?.route_policy?.dynamic_routing?.enabled !==
+                    false
+                  }
+                  onChange={(value) =>
+                    updateField(
+                      ["radius", "route_policy", "dynamic_routing", "enabled"],
+                      value,
+                    )
+                  }
+                />
+                <ToggleField
+                  label="Live Apply Enabled"
+                  checked={Boolean(
+                    settings.radius?.route_policy?.dynamic_routing
+                      ?.apply_enabled,
+                  )}
+                  onChange={(value) =>
+                    updateField(
+                      [
+                        "radius",
+                        "route_policy",
+                        "dynamic_routing",
+                        "apply_enabled",
+                      ],
+                      value,
+                    )
+                  }
+                />
+                <SelectField
+                  label="Apply Driver"
+                  value={
+                    settings.radius?.route_policy?.dynamic_routing?.driver ||
+                    "file"
+                  }
+                  onChange={(value) =>
+                    updateField(
+                      ["radius", "route_policy", "dynamic_routing", "driver"],
+                      value,
+                    )
+                  }
+                  options={dynamicRoutingDriverOptions}
+                />
+                <TextField
+                  label="Max Exported Routes"
+                  type="number"
+                  value={
+                    settings.radius?.route_policy?.dynamic_routing
+                      ?.max_exported_routes ?? 4096
+                  }
+                  onChange={(value) =>
+                    updateField(
+                      [
+                        "radius",
+                        "route_policy",
+                        "dynamic_routing",
+                        "max_exported_routes",
+                      ],
+                      Number(value),
+                    )
+                  }
+                />
+                <TextField
+                  label="Artifact Path"
+                  value={
+                    settings.radius?.route_policy?.dynamic_routing
+                      ?.artifact_path ||
+                    "/var/lib/aegisnas/routing/subscriber-routes.frr"
+                  }
+                  onChange={(value) =>
+                    updateField(
+                      [
+                        "radius",
+                        "route_policy",
+                        "dynamic_routing",
+                        "artifact_path",
+                      ],
+                      value,
+                    )
+                  }
+                  placeholder="/var/lib/aegisnas/routing/subscriber-routes.frr"
+                />
+                <TextField
+                  label="vtysh Path"
+                  value={
+                    settings.radius?.route_policy?.dynamic_routing
+                      ?.vtysh_path || "vtysh"
+                  }
+                  onChange={(value) =>
+                    updateField(
+                      [
+                        "radius",
+                        "route_policy",
+                        "dynamic_routing",
+                        "vtysh_path",
+                      ],
+                      value,
+                    )
+                  }
+                  placeholder="vtysh"
+                />
+                <ToggleField
+                  label="Route Dampening"
+                  checked={
+                    settings.radius?.route_policy?.dynamic_routing?.dampening
+                      ?.enabled !== false
+                  }
+                  onChange={(value) =>
+                    updateField(
+                      [
+                        "radius",
+                        "route_policy",
+                        "dynamic_routing",
+                        "dampening",
+                        "enabled",
+                      ],
+                      value,
+                    )
+                  }
+                />
+                <TextField
+                  label="Min Route Age Sec"
+                  type="number"
+                  value={
+                    settings.radius?.route_policy?.dynamic_routing?.dampening
+                      ?.min_route_age_seconds ?? 3
+                  }
+                  onChange={(value) =>
+                    updateField(
+                      [
+                        "radius",
+                        "route_policy",
+                        "dynamic_routing",
+                        "dampening",
+                        "min_route_age_seconds",
+                      ],
+                      Number(value),
+                    )
+                  }
+                />
+                <TextField
+                  label="Max Suppressed"
+                  type="number"
+                  value={
+                    settings.radius?.route_policy?.dynamic_routing?.dampening
+                      ?.max_suppressed_routes ?? 1024
+                  }
+                  onChange={(value) =>
+                    updateField(
+                      [
+                        "radius",
+                        "route_policy",
+                        "dynamic_routing",
+                        "dampening",
+                        "max_suppressed_routes",
+                      ],
+                      Number(value),
+                    )
+                  }
+                />
+              </div>
+              <div className="mt-4 space-y-3">
+                {dynamicRoutingProtocols.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                    No route export protocols configured.
+                  </div>
+                ) : (
+                  dynamicRoutingProtocols.map(
+                    (protocol: JsonMap, protocolIndex: number) => (
+                      <div
+                        key={`dynamic-routing-protocol-${protocolIndex}`}
+                        className="rounded-md border border-gray-100 p-3"
+                      >
+                        <div className="grid gap-3 md:grid-cols-5">
+                          <ToggleField
+                            label="Enabled"
+                            checked={protocol.enabled !== false}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "enabled",
+                                ],
+                                value,
+                              )
+                            }
+                          />
+                          <SelectField
+                            label="Protocol"
+                            value={protocol.protocol || "bgp"}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "protocol",
+                                ],
+                                value,
+                              )
+                            }
+                            options={dynamicRoutingProtocolOptions}
+                          />
+                          <TextField
+                            label="VRF"
+                            value={protocol.vrf || "all"}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "vrf",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="all"
+                          />
+                          <TextField
+                            label="ASN"
+                            type="number"
+                            value={protocol.asn ?? 65000}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "asn",
+                                ],
+                                Number(value),
+                              )
+                            }
+                          />
+                          <TextField
+                            label="Route Map"
+                            value={
+                              protocol.route_map || "AEGISNAS-SUBSCRIBER"
+                            }
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "route_map",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="AEGISNAS-SUBSCRIBER"
+                          />
+                          <TextField
+                            label="Families"
+                            value={listToCSV(protocol.address_families)}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "address_families",
+                                ],
+                                csvToList(value),
+                              )
+                            }
+                            placeholder="ipv4, ipv6"
+                          />
+                          <TextField
+                            label="Communities"
+                            value={listToCSV(protocol.communities)}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "communities",
+                                ],
+                                csvToList(value),
+                              )
+                            }
+                            placeholder="no-export"
+                          />
+                          <TextField
+                            label="Instance"
+                            value={protocol.instance || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "instance",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="1"
+                          />
+                          <TextField
+                            label="Router ID"
+                            value={protocol.router_id || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "router_id",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="192.0.2.254"
+                          />
+                          <TextField
+                            label="Area"
+                            value={protocol.area || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "area",
+                                ],
+                                value,
+                              )
+                            }
+                            placeholder="0.0.0.0"
+                          />
+                          <TextField
+                            label="Metric"
+                            type="number"
+                            value={protocol.metric ?? 0}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "metric",
+                                ],
+                                Number(value),
+                              )
+                            }
+                          />
+                          <TextField
+                            label="Local Preference"
+                            type="number"
+                            value={protocol.local_preference ?? 0}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "local_preference",
+                                ],
+                                Number(value),
+                              )
+                            }
+                          />
+                          <TextField
+                            label="MED"
+                            type="number"
+                            value={protocol.med ?? 0}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "med",
+                                ],
+                                Number(value),
+                              )
+                            }
+                          />
+                          <ToggleField
+                            label="Next Hop Self"
+                            checked={Boolean(protocol.next_hop_self)}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "route_policy",
+                                  "dynamic_routing",
+                                  "protocols",
+                                  String(protocolIndex),
+                                  "next_hop_self",
+                                ],
+                                value,
+                              )
+                            }
+                          />
+                          <div className="flex items-end">
+                            <button
+                              onClick={() =>
+                                updateField(
+                                  [
+                                    "radius",
+                                    "route_policy",
+                                    "dynamic_routing",
+                                    "protocols",
+                                  ],
+                                  dynamicRoutingProtocols.filter(
+                                    (_: unknown, itemIndex: number) =>
+                                      itemIndex !== protocolIndex,
+                                  ),
+                                )
+                              }
+                              className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ),
+                  )
+                )}
+              </div>
             </div>
             <div className="mt-4">
               <div className="mb-2 text-sm font-medium text-gray-900">

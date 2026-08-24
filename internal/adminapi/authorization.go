@@ -541,6 +541,16 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/vlan-lifecycle"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/subscriber-route-export/apply"):
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/subscriber-route-export/rollback"):
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/subscriber-route-export/preview"):
+		return identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/subscriber-route-export/history"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/subscriber-route-export"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/enforcement-transactions/apply"):
 		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
 	case strings.HasPrefix(path, "/api/v1/system/enforcement-transactions/rollback"):

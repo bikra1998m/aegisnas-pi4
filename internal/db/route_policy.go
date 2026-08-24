@@ -274,6 +274,54 @@ func ListRoutePolicyOwnership(limit int, status string) ([]RoutePolicyOwnershipR
 	return out, rows.Err()
 }
 
+func ListRoutePolicyOwnershipForExport(limit int, statuses ...string) ([]RoutePolicyOwnershipRecord, error) {
+	if DB == nil {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 4096
+	}
+	if limit > 100000 {
+		limit = 100000
+	}
+	query := routePolicyOwnershipSelectSQL()
+	args := []any{}
+	normalizedStatuses := make([]string, 0, len(statuses))
+	for _, status := range statuses {
+		status = strings.ToLower(strings.TrimSpace(status))
+		if status != "" {
+			normalizedStatuses = append(normalizedStatuses, status)
+		}
+	}
+	if len(normalizedStatuses) > 0 {
+		placeholders := make([]string, 0, len(normalizedStatuses))
+		for _, status := range normalizedStatuses {
+			placeholders = append(placeholders, "?")
+			args = append(args, status)
+		}
+		query += " WHERE status IN (" + strings.Join(placeholders, ",") + ")"
+	}
+	query += " ORDER BY vrf, family, destination, owner, updated_at DESC, id DESC LIMIT ?"
+	args = append(args, limit)
+	rows, err := DB.Query(query, args...)
+	if err != nil {
+		if tableMissing(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("list route policy ownership for export: %w", err)
+	}
+	defer rows.Close()
+	var out []RoutePolicyOwnershipRecord
+	for rows.Next() {
+		record, err := scanRoutePolicyOwnership(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, record)
+	}
+	return out, rows.Err()
+}
+
 func GetRoutePolicyEventSummary() (RoutePolicyEventSummary, error) {
 	events, err := ListRoutePolicyEvents(1000)
 	if err != nil {

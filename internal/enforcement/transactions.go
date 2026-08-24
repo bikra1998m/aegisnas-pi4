@@ -166,6 +166,55 @@ var (
 		}
 		return step, err
 	}
+	atomicSubscriberRouteExportApplyFn = func(ctx context.Context, cfg *config.Config, actor string) (AtomicEnforcementStep, error) {
+		result, err := ApplySubscriberRouteExport(cfg, actor, "apply")
+		step := AtomicEnforcementStep{
+			Target:             "subscriber_route_export",
+			Operation:          "apply",
+			Status:             result.Status,
+			SnapshotID:         result.SnapshotID,
+			PreviousSnapshotID: result.PreviousSnapshotID,
+			ActiveFingerprint:  result.Plan.PlanFingerprint,
+			DesiredFingerprint: result.Plan.PlanFingerprint,
+			RollbackSupported:  result.PreviousSnapshotID != "",
+			Message:            result.Message,
+			Details: map[string]any{
+				"event_id":      result.EventID,
+				"summary":       result.Plan.Summary,
+				"artifact_path": result.Plan.ArtifactPath,
+			},
+		}
+		if err != nil {
+			step.Status = "failed"
+			step.Error = err.Error()
+		}
+		return step, err
+	}
+	atomicSubscriberRouteExportRollbackFn = func(ctx context.Context, cfg *config.Config, snapshotID, actor string) (AtomicEnforcementStep, error) {
+		result, err := RollbackSubscriberRouteExport(snapshotID, actor)
+		step := AtomicEnforcementStep{
+			Target:             "subscriber_route_export",
+			Operation:          "rollback",
+			Status:             result.Status,
+			SnapshotID:         result.SnapshotID,
+			RestoredSnapshotID: result.RestoredSnapshotID,
+			PreviousSnapshotID: result.PreviousSnapshotID,
+			ActiveFingerprint:  result.Plan.PlanFingerprint,
+			DesiredFingerprint: result.Plan.PlanFingerprint,
+			RollbackSupported:  true,
+			Message:            result.Message,
+			Details: map[string]any{
+				"event_id":      result.EventID,
+				"summary":       result.Plan.Summary,
+				"artifact_path": result.Plan.ArtifactPath,
+			},
+		}
+		if err != nil {
+			step.Status = "failed"
+			step.Error = err.Error()
+		}
+		return step, err
+	}
 	atomicControllerApplyFn = func(ctx context.Context, cfg *config.Config, actor string) (AtomicEnforcementStep, error) {
 		result, err := integrations.ExecuteControllerOperation(ctx, cfg, "push")
 		step := AtomicEnforcementStep{
@@ -711,11 +760,58 @@ func previewAtomicTarget(ctx context.Context, cfg *config.Config, target string)
 		return previewAtomicRuntimeQoS(cfg)
 	case "vlan_lifecycle":
 		return previewAtomicVLANLifecycle(cfg)
+	case "subscriber_route_export":
+		return previewAtomicSubscriberRouteExport(cfg)
 	case "controller_sync":
 		return previewAtomicController(ctx, cfg)
 	default:
 		return blockedAtomicTarget(target, "unsupported enforcement target"), fmt.Errorf("unsupported enforcement target %q", target)
 	}
+}
+
+func previewAtomicSubscriberRouteExport(cfg *config.Config) (AtomicEnforcementTargetPlan, error) {
+	plan, err := PreviewSubscriberRouteExport(cfg)
+	if err != nil {
+		return AtomicEnforcementTargetPlan{}, err
+	}
+	applyEnabled := cfg != nil && cfg.Radius.RoutePolicy.DynamicRouting.ApplyEnabled
+	target := AtomicEnforcementTargetPlan{
+		Target:              "subscriber_route_export",
+		Label:               "Subscriber Route Export",
+		Domain:              "frr/bgp-ospf",
+		Enabled:             plan.Status != "skipped" && applyEnabled,
+		Status:              normalizeAtomicPlanStatus(plan.Status),
+		Message:             plan.Message,
+		DesiredFingerprint:  plan.PlanFingerprint,
+		Local:               true,
+		Dependencies:        []string{"route_policy_ownership", "FRRouting", "BGP/OSPF route policy"},
+		ExternalValidation:  []string{"FRR vtysh show running-config", "BGP/OSPF neighbor convergence", "subscriber route packet capture"},
+		CompensationSupport: "snapshot-rollback",
+		Details: map[string]any{
+			"summary":         plan.Summary,
+			"driver":          plan.Driver,
+			"artifact_path":   plan.ArtifactPath,
+			"artifact_sha256": plan.ArtifactSHA256,
+			"apply_enabled":   plan.ApplyEnabled,
+		},
+	}
+	if !applyEnabled {
+		target.Status = "skipped"
+		target.Message = "Subscriber route export apply is disabled; enable radius.route_policy.dynamic_routing.apply_enabled to join atomic apply."
+		target.DriftStatus = "skipped"
+		target.ApplyRequired = false
+		return target, nil
+	}
+	if active, found, err := db.GetActiveSubscriberRouteExportSnapshot(); err == nil && found {
+		target.ActiveSnapshotID = active.SnapshotID
+		target.ActiveFingerprint = active.PlanFingerprint
+		target.PreviousSnapshotID = active.PreviousSnapshotID
+		target.RollbackSupported = active.PreviousSnapshotID != ""
+	} else if err != nil {
+		return target, err
+	}
+	attachAtomicDriftState(&target)
+	return target, nil
 }
 
 func previewAtomicRuntimeFirewall() (AtomicEnforcementTargetPlan, error) {
@@ -1128,7 +1224,7 @@ func atomicTargetOrder(cfg *config.Config, requested []string) []string {
 		values = cfg.Policy.EnforcementTransactions.Targets
 	}
 	if len(values) == 0 {
-		values = []string{"vlan_lifecycle", "runtime_qos", "runtime_firewall", "controller_sync"}
+		values = []string{"vlan_lifecycle", "subscriber_route_export", "runtime_qos", "runtime_firewall", "controller_sync"}
 	}
 	seen := map[string]struct{}{}
 	targets := make([]string, 0, len(values))
@@ -1149,10 +1245,11 @@ func atomicTargetOrder(cfg *config.Config, requested []string) []string {
 
 func atomicParticipantMap() map[string]atomicParticipant {
 	return map[string]atomicParticipant{
-		"vlan_lifecycle":   {target: "vlan_lifecycle", apply: atomicVLANLifecycleApplyFn, rollback: atomicVLANLifecycleRollbackFn},
-		"runtime_qos":      {target: "runtime_qos", apply: atomicRuntimeQoSApplyFn, rollback: atomicRuntimeQoSRollbackFn},
-		"runtime_firewall": {target: "runtime_firewall", apply: atomicRuntimeFirewallApplyFn, rollback: atomicRuntimeFirewallRollbackFn},
-		"controller_sync":  {target: "controller_sync", apply: atomicControllerApplyFn},
+		"vlan_lifecycle":          {target: "vlan_lifecycle", apply: atomicVLANLifecycleApplyFn, rollback: atomicVLANLifecycleRollbackFn},
+		"subscriber_route_export": {target: "subscriber_route_export", apply: atomicSubscriberRouteExportApplyFn, rollback: atomicSubscriberRouteExportRollbackFn},
+		"runtime_qos":             {target: "runtime_qos", apply: atomicRuntimeQoSApplyFn, rollback: atomicRuntimeQoSRollbackFn},
+		"runtime_firewall":        {target: "runtime_firewall", apply: atomicRuntimeFirewallApplyFn, rollback: atomicRuntimeFirewallRollbackFn},
+		"controller_sync":         {target: "controller_sync", apply: atomicControllerApplyFn},
 	}
 }
 
@@ -1164,6 +1261,8 @@ func normalizeAtomicTarget(value string) string {
 		return "runtime_qos"
 	case "vlan-lifecycle", "vlan_lifecycle", "vlan":
 		return "vlan_lifecycle"
+	case "subscriber-route-export", "subscriber_route_export", "route-export", "route_export", "routing", "dynamic-routing":
+		return "subscriber_route_export"
 	case "controller-sync", "controller_sync", "controller":
 		return "controller_sync"
 	default:
@@ -1175,6 +1274,8 @@ func atomicTargetRank(target string) int {
 	switch normalizeAtomicTarget(target) {
 	case "vlan_lifecycle":
 		return 10
+	case "subscriber_route_export":
+		return 15
 	case "runtime_qos":
 		return 20
 	case "runtime_firewall":
@@ -1282,6 +1383,8 @@ func atomicTargetLabel(target string) string {
 		return "Runtime QoS"
 	case "vlan_lifecycle":
 		return "VLAN Lifecycle"
+	case "subscriber_route_export":
+		return "Subscriber Route Export"
 	case "controller_sync":
 		return "Controller Sync"
 	default:
@@ -1297,6 +1400,8 @@ func atomicTargetDomain(target string) string {
 		return "tc/ifb"
 	case "vlan_lifecycle":
 		return "ip/hostapd"
+	case "subscriber_route_export":
+		return "frr/bgp-ospf"
 	case "controller_sync":
 		return "controller-api"
 	default:

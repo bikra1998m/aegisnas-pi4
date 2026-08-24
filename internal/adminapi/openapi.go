@@ -1794,10 +1794,32 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Dynamic VLAN lifecycle snapshot and event history with active evidence summary."),
 	}))
+	addOperation(paths, "/api/v1/system/subscriber-route-export", "get", securedOperation("Read dynamic subscriber route export state", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("BGP/OSPF subscriber route export plan, route ownership input, FRR artifact preview, withdrawals, diagnostics, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/subscriber-route-export/preview", "post", securedOperationWithBody("Preview dynamic subscriber route export", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; no routing daemon or artifact state is changed."), map[string]any{
+		"200":     responseJSON("Previewed subscriber route export plan and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/subscriber-route-export/apply", "post", securedOperationWithBody("Apply dynamic subscriber route export", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; writes the managed FRR artifact or applies vtysh commands when dynamic routing apply is enabled."), map[string]any{
+		"200":     responseJSON("Applied subscriber route export snapshot and event, or recorded a gated skipped apply."),
+		"409":     responseText("Blocked or failed apply."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/subscriber-route-export/rollback", "post", securedOperationWithBody("Rollback dynamic subscriber route export", "Policy", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional snapshot_id; if omitted the newest previous subscriber route export snapshot is restored."), map[string]any{
+		"200":     responseJSON("Rolled back dynamic subscriber route export to a stored snapshot."),
+		"409":     responseText("Rollback target unavailable or failed."),
+		"default": responseText("Rollback error."),
+	}))
+	addOperation(paths, "/api/v1/system/subscriber-route-export/history", "get", securedOperationWithParameters("List subscriber route export history", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event and snapshot limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("Subscriber route export snapshot and event history with active evidence summary."),
+	}))
 	addOperation(paths, "/api/v1/system/enforcement-transactions", "get", securedOperation("Read atomic enforcement transaction state", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Atomic cross-target enforcement plan, participant fingerprints, policy settings, drift state, and recent evidence."),
 	}))
-	addOperation(paths, "/api/v1/system/enforcement-transactions/preview", "post", securedOperationWithBody("Preview atomic enforcement transaction", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional targets list. Valid targets are vlan_lifecycle, runtime_qos, runtime_firewall, and controller_sync."), map[string]any{
+	addOperation(paths, "/api/v1/system/enforcement-transactions/preview", "post", securedOperationWithBody("Preview atomic enforcement transaction", "Policy", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional targets list. Valid targets are vlan_lifecycle, subscriber_route_export, runtime_qos, runtime_firewall, and controller_sync."), map[string]any{
 		"200":     responseJSON("Previewed atomic transaction plan, target steps, diagnostics, and recorded evidence."),
 		"default": responseText("Preview error."),
 	}))

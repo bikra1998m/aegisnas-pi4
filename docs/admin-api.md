@@ -410,6 +410,36 @@ or Accounting-Off withdraws matching active ownership rows.
 
 See [CGNAT, NAT64, And Deterministic Subscriber Translation](cgnat-nat64-deterministic-translation.md).
 
+## Dynamic Subscriber Route Export
+
+NAS-0059 exposes BGP/OSPF subscriber route export at:
+
+```text
+GET  /api/v1/system/subscriber-route-export
+POST /api/v1/system/subscriber-route-export/preview
+POST /api/v1/system/subscriber-route-export/apply
+POST /api/v1/system/subscriber-route-export/rollback
+GET  /api/v1/system/subscriber-route-export/history
+```
+
+Read-only and guest-admin roles may inspect, preview, and list history.
+`ops_admin` and `super_admin` may apply and rollback. Responses include the
+route ownership input, BGP/OSPF/OSPF3 protocol plan, FRR artifact text, command
+preview, withdrawals, diagnostics, snapshots, event history, and fingerprints.
+
+Evidence is stored in `subscriber_route_export_snapshots` and
+`subscriber_route_export_events`, summarized in `/api/v1/system/status` as
+`radius.subscriber_route_export` and `enforcement.subscriber_route_export`,
+checked by production readiness as `dynamic_subscriber_route_export`, and
+captured in support bundles as `api/subscriber-route-export.json` and
+`api/subscriber-route-export-history.json`.
+
+Live apply is gated by `radius.route_policy.dynamic_routing.apply_enabled`.
+Preview, history, readiness, support bundles, and atomic transaction planning
+remain available while live apply is disabled.
+
+See [Dynamic Subscriber Route Export](dynamic-subscriber-route-export.md).
+
 ## Atomic Enforcement Transactions And Drift Rollback
 
 NAS-0058 exposes the cross-target enforcement coordinator at:
