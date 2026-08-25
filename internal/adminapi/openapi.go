@@ -1196,6 +1196,20 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Persisted Aruba/HPE-family certification event summary and recent events."),
 	}))
+	addOperation(paths, "/api/v1/system/juniper-extreme-pack", "get", securedOperationWithParameters("Read NAS-0063 Juniper/ERX/Extreme/Mist pack certification", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("history_limit", "Recent persisted event count from 1 to 500; defaults to 20.", false),
+	}, map[string]any{
+		"200": responseJSON("Software certification report for Juniper, ERX/E-Series, Extreme, Mist product scope, policy grammar, secret redaction, release scope, and recent certification history."),
+	}))
+	addOperation(paths, "/api/v1/system/juniper-extreme-pack/record", "post", securedOperationWithBody("Record NAS-0063 Juniper/ERX/Extreme/Mist pack certification evidence", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional operator note; the server derives the Juniper/ERX/Extreme report from the pinned FreeRADIUS registry."), map[string]any{
+		"200": responseJSON("Persisted Juniper/ERX/Extreme/Mist certification event and derived report."),
+		"409": responseJSON("Juniper/ERX/Extreme/Mist report was recorded as blocked because software coverage is incomplete."),
+	}))
+	addOperation(paths, "/api/v1/system/juniper-extreme-pack/history", "get", securedOperationWithParameters("Read NAS-0063 Juniper/ERX/Extreme/Mist pack certification history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Event count from 1 to 500; defaults to 100.", false),
+	}, map[string]any{
+		"200": responseJSON("Persisted Juniper/ERX/Extreme/Mist certification event summary and recent events."),
+	}))
 	addOperation(paths, "/api/v1/system/vsa-codec", "get", securedOperation("Read VSA codec capabilities", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Extended, grouped, tagged, and repeated VSA codec readiness."),
 	}))

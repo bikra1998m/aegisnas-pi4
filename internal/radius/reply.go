@@ -134,6 +134,40 @@ type ReplyAttributes struct {
 	AerohiveAuthSource               int
 	AerohiveAVPairs                  []string
 	ColubrisAVPairs                  []string
+	JuniperAllowCommands             string
+	JuniperDenyCommands              string
+	JuniperUserPermissions           string
+	JuniperVoIPVLAN                  string
+	JuniperCoSTrafficControlProfile  string
+	JuniperPolicerParameter          string
+	JuniperAVPairs                   []string
+	ExtremeCLIAuthorization          int
+	ExtremeShellCommand              string
+	ExtremeNetloginURLDesc           string
+	ExtremeUserLocation              string
+	ExtremeVMName                    string
+	ExtremeVMVPPName                 string
+	ExtremeVMIPAddr                  string
+	ExtremeVMVLANID                  int
+	ExtremeVMVRName                  string
+	ERXVirtualRouterName             string
+	ERXAddressPoolName               string
+	ERXRedirectVRName                string
+	ERXQoSProfileName                string
+	ERXPppoeURL                      string
+	ERXServiceBundle                 string
+	ERXServiceActivate               string
+	ERXServiceDeactivate             string
+	ERXServiceTimeout                int
+	ERXClientProfileName             string
+	ERXAPNName                       string
+	ERXCosShapingRate                string
+	ERXInputInterfaceFilter          string
+	ERXOutputInterfaceFilter         string
+	ERXIPv6DelegatedPoolName         string
+	ERXBulkCoATransactionID          int
+	ERXBulkCoAIdentifier             int
+	ERXAdvPcefRuleName               string
 }
 
 type ReplyAttributeItem struct {
@@ -323,12 +357,16 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 				appendItem("Extreme-Netlogin-Vlan-Tag", fmt.Sprintf("%d", vlan), false)
 			}
 			appendURLItem(attrs, appendItem, "Extreme-Netlogin-Url", attrs.PortalProfile)
+			appendJuniperExtremeReplyAttributes(attrs, packKey, appendItem)
 		case productconfigs.VendorPackJuniper:
 			appendItem("Juniper-Local-User-Name", replyRole(attrs), true)
 			appendItem("Juniper-Firewall-filter-name", firstReplyValue(attrs.InboundACL, attrs.OutboundACL, attrs.ACLPolicyName), true)
 			appendItem("Juniper-Switching-Filter", firstReplyValue(attrs.InboundACL, attrs.OutboundACL, attrs.ACLPolicyName), true)
 			appendURLItem(attrs, appendItem, "Juniper-CWA-Redirect", attrs.PortalProfile)
+			appendJuniperExtremeReplyAttributes(attrs, packKey, appendItem)
 			appendVendorAVPairItems(attrs, packKey, vendor.AVPairMappings, appendItem)
+		case productconfigs.VendorPackERX:
+			appendJuniperExtremeReplyAttributes(attrs, packKey, appendItem)
 		case productconfigs.VendorPackHuawei:
 			appendItem("Huawei-User-Class", replyRole(attrs), true)
 			appendItem("Huawei-Qos-Profile-Name", attrs.BandwidthProfile, true)

@@ -409,6 +409,46 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		arubaFamilyPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
 	}
+	juniperExtremePackStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0063 Juniper/ERX/Extreme/Mist pack has not been evaluated.",
+	}
+	if juniperExtremePack, err := buildJuniperExtremePackForRequest(); err == nil {
+		status := "ready"
+		message := fmt.Sprintf("NAS-0063 software certification covers %d/%d Juniper/ERX/Extreme rows across %d dictionary vendors and %d product scopes.",
+			juniperExtremePack.Summary.SoftwareCertifiedMappings,
+			juniperExtremePack.Summary.AttributeCount,
+			juniperExtremePack.Summary.VendorCount,
+			juniperExtremePack.Summary.ProductScopeCount,
+		)
+		if err := productconfigs.ValidateJuniperExtremePackReport(juniperExtremePack); err != nil {
+			status = "blocked"
+			message = "NAS-0063 Juniper/ERX/Extreme/Mist pack is incomplete: " + err.Error()
+		}
+		historySummary, historyErr := db.GetJuniperExtremePackSummary()
+		juniperExtremePackStatus = map[string]any{
+			"status":                              status,
+			"message":                             message,
+			"schema_version":                      juniperExtremePack.SchemaVersion,
+			"feature_id":                          juniperExtremePack.FeatureID,
+			"source_sha256":                       juniperExtremePack.SourceSHA256,
+			"attribute_count":                     juniperExtremePack.Summary.AttributeCount,
+			"software_certified_mappings":         juniperExtremePack.Summary.SoftwareCertifiedMappings,
+			"software_blocked_mappings":           juniperExtremePack.Summary.SoftwareBlockedMappings,
+			"external_required_mappings":          juniperExtremePack.Summary.ExternalRequiredMappings,
+			"software_completion_percent":         juniperExtremePack.Summary.SoftwareCompletionPercent,
+			"grammar_rule_count":                  juniperExtremePack.Summary.GrammarRuleCount,
+			"sensitive_redacted_mappings":         juniperExtremePack.Summary.SensitiveRedactedMappings,
+			"product_scope_count":                 juniperExtremePack.Summary.ProductScopeCount,
+			"fingerprint":                         juniperExtremePack.Summary.Fingerprint,
+			"release_certification_checklist":     "docs/nas-0063-release-certification-checklist.md",
+			"release_certification_external_only": true,
+			"evidence_summary":                    historySummary,
+			"evidence_error":                      rateCompilerErrorString(historyErr),
+		}
+	} else {
+		juniperExtremePackStatus = map[string]any{"status": "blocked", "message": err.Error()}
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -469,6 +509,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"vendor_mapping_certification": vendorMappingCertificationStatus,
 		"cisco_family_pack":            ciscoFamilyPackStatus,
 		"aruba_family_pack":            arubaFamilyPackStatus,
+		"juniper_extreme_pack":         juniperExtremePackStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),

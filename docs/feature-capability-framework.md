@@ -112,6 +112,11 @@ The current codebase now has a working form of this model through:
   HP/ArubaOS-Switch, Aerohive/Extreme, and Colubris/MSM rows, with policy
   grammar, secret redaction, typed pass-through, API/UI evidence, and external
   release certification split
+- NAS-0063 Juniper/ERX/Extreme/Mist pack certification for all 260 pinned
+  Juniper, ERX, and Extreme rows plus Mist product scope, with Juniper AVPair
+  grammar, ERX subscriber and BNG normalization, Extreme netlogin handling,
+  secret redaction, typed pass-through, API/UI evidence, and external release
+  certification split
 
 That work lives primarily in:
 
@@ -120,8 +125,10 @@ That work lives primarily in:
 - `configs/vendor_mapping_certification.go`
 - `configs/cisco_family_pack.go`
 - `configs/aruba_family_pack.go`
+- `configs/juniper_extreme_pack.go`
 - `internal/radius/cisco_avpair.go`
 - `internal/radius/aruba_family.go`
+- `internal/radius/juniper_extreme.go`
 - `web/admin-ui/src/pages/AccessSettings.tsx`
 - `web/admin-ui/src/pages/VendorCompatibility.tsx`
 - `web/admin-ui/src/pages/Dashboard.tsx`

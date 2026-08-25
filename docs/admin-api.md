@@ -317,6 +317,36 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/aruba-family-pack/record | jq '.event_id, .status'
 ```
 
+NAS-0063 exposes the Juniper/ERX/Extreme/Mist software certification report for
+all 260 Juniper, ERX, and Extreme rows from the pinned FreeRADIUS 3.2.8
+registry. Juniper Mist is tracked as a Juniper controller/product scope because
+the pinned registry has no separate Mist VSA namespace:
+
+```text
+GET  /api/v1/system/juniper-extreme-pack
+POST /api/v1/system/juniper-extreme-pack/record
+GET  /api/v1/system/juniper-extreme-pack/history
+```
+
+The report includes Juniper AVPair grammar coverage, ERX subscriber and BNG
+normalization, Extreme netlogin and extended VLAN handling, product-scope
+rollups, vendor rollups, capability rollups, native semantic mappings, typed
+pass-through mappings, sensitive redaction counts, bounded software evidence,
+and release scope. `record` persists the current source hash, fingerprint,
+counts, summary JSON, full report JSON, actor, and timestamp in
+`juniper_extreme_pack_events`. External Junos, ERX/E-Series, ExtremeXOS/Switch
+Engine, Mist controller, FreeRADIUS-on-Linux, HA, performance, soak, security,
+production deployment, and customer acceptance proof remains in
+[nas-0063-release-certification-checklist.md](nas-0063-release-certification-checklist.md).
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/juniper-extreme-pack | jq '.report.summary'
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/juniper-extreme-pack/record | jq '.event_id, .status'
+```
+
 The API also provides a non-mutating reply preview endpoint:
 
 ```text

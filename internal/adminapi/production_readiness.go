@@ -171,6 +171,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionVendorMappingCertificationCheck(&report, cfg)
 	addProductionCiscoFamilyPackCheck(&report)
 	addProductionArubaFamilyPackCheck(&report)
+	addProductionJuniperExtremePackCheck(&report)
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
@@ -2660,6 +2661,50 @@ func addProductionArubaFamilyPackCheck(report *productionReadinessReport) {
 			"/api/v1/system/aruba-family-pack",
 			"aruba_family_pack_events",
 			"docs/nas-0062-release-certification-checklist.md",
+		},
+	})
+}
+
+func addProductionJuniperExtremePackCheck(report *productionReadinessReport) {
+	certification, err := buildJuniperExtremePackForRequest()
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "juniper_extreme_pack", Category: "radius", Label: "NAS-0063 Juniper/ERX/Extreme/Mist Pack", Status: "blocked",
+			Summary:        "Juniper/ERX/Extreme/Mist pack report could not be built: " + err.Error(),
+			Recommendation: "Repair the pinned attribute registry and Juniper/ERX/Extreme/Mist certification report before closing NAS-0063.",
+			Dependencies:   []string{"configs/juniper_extreme_pack.go", "internal/radius/juniper_extreme.go", "configs/attribute_registry/freeradius-3.2.8-vsa-audit.csv"},
+		})
+		return
+	}
+	if err := productconfigs.ValidateJuniperExtremePackReport(certification); err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "juniper_extreme_pack", Category: "radius", Label: "NAS-0063 Juniper/ERX/Extreme/Mist Pack", Status: "blocked",
+			Summary:        "NAS-0063 software certification is incomplete: " + err.Error(),
+			Recommendation: "Use /api/v1/system/juniper-extreme-pack to inspect blocked Juniper/ERX/Extreme/Mist dimensions; external certification must remain in the release checklist.",
+			Dependencies:   []string{"configs/juniper_extreme_pack.go", "internal/radius/juniper_extreme.go", "internal/db/juniper_extreme_pack.go"},
+		})
+		return
+	}
+	status := "passed"
+	if db.DB == nil {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "juniper_extreme_pack", Category: "radius", Label: "NAS-0063 Juniper/ERX/Extreme/Mist Pack", Status: status,
+		Summary: fmt.Sprintf("NAS-0063 software-certifies %d/%d Juniper/ERX/Extreme rows across %d dictionary vendors and %d product scopes, with %d policy grammar rules, %d sensitive redaction mappings, and %d external certification claims.",
+			certification.Summary.SoftwareCertifiedMappings,
+			certification.Summary.AttributeCount,
+			certification.Summary.VendorCount,
+			certification.Summary.ProductScopeCount,
+			certification.Summary.GrammarRuleCount,
+			certification.Summary.SensitiveRedactedMappings,
+			certification.Summary.ExternalRequiredMappings,
+		),
+		Recommendation: "Record the current fingerprint with /api/v1/system/juniper-extreme-pack/record, then execute docs/nas-0063-release-certification-checklist.md before publishing hardware-certified claims.",
+		Dependencies: []string{
+			"/api/v1/system/juniper-extreme-pack",
+			"juniper_extreme_pack_events",
+			"docs/nas-0063-release-certification-checklist.md",
 		},
 	})
 }

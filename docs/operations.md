@@ -939,6 +939,17 @@ For Aruba Central, verify that `site` names the Classic Central group and `radiu
 
 For Juniper Mist, use the regional `api.*.mist.com` endpoint and the site UUID, not the display name. Keep the API token and RADIUS shared secret in separate environment variables. Pull first to verify the site and paginated WLAN inventory; then inspect the redacted preview before push. The adapter never deletes WLANs and leaves guest portal, WxLAN policy, inventory, and non-enterprise security modes untouched.
 
+For NAS-0063 Juniper/ERX/Extreme/Mist certification, inspect
+`/api/v1/system/juniper-extreme-pack`, record software evidence with
+`/api/v1/system/juniper-extreme-pack/record`, and retain support bundle entries
+`api/juniper-extreme-pack.json` and `api/juniper-extreme-pack-history.json`.
+Treat Mist as Juniper product/controller scope for this pack; the pinned
+FreeRADIUS 3.2.8 registry includes Juniper, ERX, and Extreme dictionary rows but
+no separate Mist VSA namespace. Execute
+[nas-0063-release-certification-checklist.md](nas-0063-release-certification-checklist.md)
+before publishing hardware-, firmware-, controller-, or customer-certified
+claims.
+
 For Ruckus SmartZone, verify API v13_1 availability, the zone UUID, and the existing authentication service name. A pull performs session login, paginated WLAN inventory, per-WLAN detail reads, and logout without mutation. Push creates only standard 802.1X WLANs and uses partial PATCH for existing WLANs. It never deletes WLANs or replaces an entire controller object.
 
 For FortiGate, use a least-privilege REST API administrator restricted to the AegisNAS management source and the target VDOM. Verify the existing RADIUS profile before pull. The native adapter manages only FortiAP enterprise VAP objects and never sends the API token in a query parameter.

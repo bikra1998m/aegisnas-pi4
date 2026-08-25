@@ -25,6 +25,7 @@ jobs:
       - run: make test-vendor-mapping-certification
       - run: make test-cisco-family-pack
       - run: make test-aruba-family-pack
+      - run: make test-juniper-extreme-pack
       - run: make test-vsa-codec
       - run: make test-opaque-passthrough
       - run: make test-secret-providers

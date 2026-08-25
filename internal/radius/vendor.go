@@ -774,6 +774,14 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			}
 			return
 		}
+		if isJuniperExtremeAVPairRuntimeMapping(mapping) {
+			for _, value := range lookupVendorStrings(packet, mapping.VendorID, mapping.Type) {
+				if !applyJuniperExtremeAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
+					appendUniqueVendorAVPair(result, value)
+				}
+			}
+			return
+		}
 		value, ok := lookupVendorString(packet, mapping.VendorID, mapping.Type)
 		if !ok {
 			return
@@ -811,6 +819,9 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			if isArubaFamilyPackKey(mapping.PackKey) && applyArubaFamilyAttributeString(result, mapping.PackKey, mapping.Attribute, text) {
 				return
 			}
+			if isJuniperExtremePackKey(mapping.PackKey) && applyJuniperExtremeAttributeString(result, mapping.PackKey, mapping.Attribute, text) {
+				return
+			}
 			applyInboundVendorString(result, mapping, text)
 		}
 	case inboundVendorMappedRole:
@@ -838,6 +849,9 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 	case inboundVendorAVPairs:
 		for _, value := range lookupVendorStrings(packet, mapping.VendorID, mapping.Type) {
 			if isArubaFamilyPackKey(mapping.PackKey) && applyArubaFamilyAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
+				continue
+			}
+			if isJuniperExtremePackKey(mapping.PackKey) && applyJuniperExtremeAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
 				continue
 			}
 			appendUniqueVendorAVPair(result, value)
@@ -1021,6 +1035,9 @@ func applyInboundVendorString(result *BrokerAuthResult, mapping inboundVendorMap
 	if isArubaFamilyPackKey(mapping.PackKey) && applyArubaFamilyAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
 		return
 	}
+	if isJuniperExtremePackKey(mapping.PackKey) && applyJuniperExtremeAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
+		return
+	}
 	switch mapping.Semantic {
 	case productconfigs.VendorSemanticRole:
 		setStringIfEmpty(&result.VendorRole, value)
@@ -1062,6 +1079,19 @@ func isArubaFamilyPackKey(packKey string) bool {
 
 func isArubaFamilyAVPairRuntimeMapping(mapping inboundVendorMapping) bool {
 	return isArubaFamilyPackKey(mapping.PackKey) && isArubaFamilyAVPairAttribute(mapping.Attribute)
+}
+
+func isJuniperExtremePackKey(packKey string) bool {
+	switch productconfigs.NormalizeVendorCompatibilityPackKey(packKey) {
+	case productconfigs.VendorPackJuniper, productconfigs.VendorPackERX, productconfigs.VendorPackExtreme:
+		return true
+	default:
+		return false
+	}
+}
+
+func isJuniperExtremeAVPairRuntimeMapping(mapping inboundVendorMapping) bool {
+	return isJuniperExtremePackKey(mapping.PackKey) && isJuniperExtremeAVPairAttribute(mapping.Attribute)
 }
 
 func applyInboundVendorACL(result *BrokerAuthResult, attribute, value string) {
