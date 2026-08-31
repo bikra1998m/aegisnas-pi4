@@ -133,6 +133,12 @@ The current codebase now has a working form of this model through:
   rows, with Meraki telemetry, OpenWiFi AP identity, UniFi bps rate
   parser/renderer behavior, cloud controller adapter scope, API/UI evidence,
   and external release certification split
+- NAS-0067 Cambium/TP-Link/D-Link access pack certification for all 49 pinned
+  Cambium, TPLink, and Dlink rows, with Cambium cnMaestro/ePMP/PMP role, VLAN,
+  quota, QoS, walled-garden, and TLV evidence, TP-Link Omada rate/site/group,
+  portal, command, and authentication-key redaction evidence, D-Link user-level,
+  bandwidth, priority, VLAN, ACL profile/rule/script handling, API/UI evidence,
+  and external release certification split
 
 That work lives primarily in:
 
@@ -145,6 +151,7 @@ That work lives primarily in:
 - `configs/ruckus_icx_pack.go`
 - `configs/fortinet_paloalto_pack.go`
 - `configs/cloud_controller_pack.go`
+- `configs/access_vendor_pack.go`
 - `internal/radius/cisco_avpair.go`
 - `internal/radius/aruba_family.go`
 - `internal/radius/juniper_extreme.go`

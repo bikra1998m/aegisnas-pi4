@@ -438,6 +438,37 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/cloud-controller-pack/record | jq '.event_id, .status'
 ```
 
+NAS-0067 exposes the Cambium/TP-Link/D-Link access-vendor software
+certification report for all 49 access rows from the pinned FreeRADIUS 3.2.8
+registry:
+
+```text
+GET  /api/v1/system/access-vendor-pack
+POST /api/v1/system/access-vendor-pack/record
+GET  /api/v1/system/access-vendor-pack/history
+```
+
+The report includes Cambium cnMaestro/ePMP/PMP role, VLAN, quota, QoS,
+walled-garden, and TLV accounting coverage, TP-Link Omada rate/site/group,
+portal, command, and authentication-key redaction coverage, D-Link user-level,
+bandwidth, priority, VLAN, ACL profile, ACL rule, and ACL script coverage,
+product-scope rollups, vendor rollups, capability rollups, native semantic
+mappings, bounded software evidence, and release scope. `record` persists the
+current source hash, fingerprint, counts, summary JSON, full report JSON,
+actor, and timestamp in `access_vendor_pack_events`. External Cambium
+cnMaestro/ePMP/PMP, TP-Link Omada, D-Link/Nuclias, access point, switch,
+gateway, FreeRADIUS-on-Linux, HA, performance, soak, security, production
+deployment, and customer acceptance proof remains in
+[nas-0067-release-certification-checklist.md](nas-0067-release-certification-checklist.md).
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/access-vendor-pack | jq '.report.summary'
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/access-vendor-pack/record | jq '.event_id, .status'
+```
+
 The API also provides a non-mutating reply preview endpoint:
 
 ```text

@@ -569,6 +569,46 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		cloudControllerPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
 	}
+	accessVendorPackStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0067 Cambium/TP-Link/D-Link access pack has not been evaluated.",
+	}
+	if accessVendorPack, err := buildAccessVendorPackForRequest(); err == nil {
+		status := "ready"
+		message := fmt.Sprintf("NAS-0067 software certification covers %d/%d Cambium, TP-Link, and D-Link rows across %d dictionary vendors and %d product scopes.",
+			accessVendorPack.Summary.SoftwareCertifiedMappings,
+			accessVendorPack.Summary.AttributeCount,
+			accessVendorPack.Summary.VendorCount,
+			accessVendorPack.Summary.ProductScopeCount,
+		)
+		if err := productconfigs.ValidateAccessVendorPackReport(accessVendorPack); err != nil {
+			status = "blocked"
+			message = "NAS-0067 Cambium/TP-Link/D-Link access pack is incomplete: " + err.Error()
+		}
+		historySummary, historyErr := db.GetAccessVendorPackSummary()
+		accessVendorPackStatus = map[string]any{
+			"status":                              status,
+			"message":                             message,
+			"schema_version":                      accessVendorPack.SchemaVersion,
+			"feature_id":                          accessVendorPack.FeatureID,
+			"source_sha256":                       accessVendorPack.SourceSHA256,
+			"attribute_count":                     accessVendorPack.Summary.AttributeCount,
+			"software_certified_mappings":         accessVendorPack.Summary.SoftwareCertifiedMappings,
+			"software_blocked_mappings":           accessVendorPack.Summary.SoftwareBlockedMappings,
+			"external_required_mappings":          accessVendorPack.Summary.ExternalRequiredMappings,
+			"software_completion_percent":         accessVendorPack.Summary.SoftwareCompletionPercent,
+			"grammar_rule_count":                  accessVendorPack.Summary.GrammarRuleCount,
+			"sensitive_redacted_mappings":         accessVendorPack.Summary.SensitiveRedactedMappings,
+			"product_scope_count":                 accessVendorPack.Summary.ProductScopeCount,
+			"fingerprint":                         accessVendorPack.Summary.Fingerprint,
+			"release_certification_checklist":     "docs/nas-0067-release-certification-checklist.md",
+			"release_certification_external_only": true,
+			"evidence_summary":                    historySummary,
+			"evidence_error":                      rateCompilerErrorString(historyErr),
+		}
+	} else {
+		accessVendorPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -633,6 +673,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"ruckus_icx_pack":              ruckusICXPackStatus,
 		"fortinet_paloalto_pack":       fortinetPaloAltoPackStatus,
 		"cloud_controller_pack":        cloudControllerPackStatus,
+		"access_vendor_pack":           accessVendorPackStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),

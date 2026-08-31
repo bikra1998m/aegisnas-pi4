@@ -151,6 +151,15 @@ The implementation now does these things end to end:
     persisted evidence, admin API, Vendor Compatibility UI, readiness checks,
     system status, and support-bundle captures while keeping real-device and
     cloud-controller validation in a separate release checklist
+35. certifies the Cambium/TP-Link/D-Link access pack in software through a
+    NAS-0067 report covering all 49 pinned Cambium, TPLink, and Dlink rows,
+    Cambium cnMaestro/ePMP/PMP role, VLAN, quota, QoS, walled-garden, and TLV
+    evidence, TP-Link Omada rate/site/group, portal, command, and
+    authentication-key redaction evidence, D-Link user-level, bandwidth,
+    priority, VLAN, ACL profile/rule/script handling, persisted evidence,
+    admin API, Vendor Compatibility UI, readiness checks, system status, and
+    support-bundle captures while keeping real-device and controller
+    validation in a separate release checklist
 
 ## Current Behavior
 
@@ -1018,7 +1027,7 @@ The same enabled compatibility packs are also used for inbound parsing of Vendor
 
 Unknown attributes are not trusted or forwarded by default. If a proxy workflow must preserve a long-tail vendor token before AegisNAS has native semantics for it, configure `radius.vendor.opaque_pass_through` with an explicit `standard`, `vendor`, or `vendor_attribute` allow rule and review `/api/v1/system/opaque-passthrough`. Credential, EAP, tunnel-secret, and packet-integrity attributes are always denied as opaque payloads.
 
-The executable compatibility set includes Meraki AP tags, Palo Alto client OS, Airespace WLAN IDs, Arista profiling, Aerohive client-monitor problem codes, and Meru AP IDs as inbound accounting context. Aerohive problem codes are retained as decimal strings because the vendor dictionary defines the attribute as an integer without portable value labels. Safe outbound additions include HP `Egress-VLANID`, Cambium `Cambium-Walled-Garden-State`, Colubris `Intercept` and `AVPair`, plus Pica8 and Nokia `AVPair` policy tags. These attributes remain opt-in through their vendor packs. Vendor-specific dynamic-ACL grammars remain planned until an operator template or certified encoding is configured.
+The executable compatibility set includes Meraki AP tags, Palo Alto client OS, Airespace WLAN IDs, Arista profiling, Aerohive client-monitor problem codes, Meru AP IDs, Cambium quota/walled-garden state, TP-Link Omada site/group/portal state, and D-Link role/VLAN/ACL state as inbound accounting or policy context. Aerohive problem codes are retained as decimal strings because the vendor dictionary defines the attribute as an integer without portable value labels. Safe outbound additions include HP `Egress-VLANID`, Cambium `Cambium-Walled-Garden-State` and `Cambium-Traffic-Quota-Limit-Total`, Colubris `Intercept` and `AVPair`, D-Link `Dlink-ACL-Profile` and `Dlink-ACL-Rule`, plus Pica8 and Nokia `AVPair` policy tags. These attributes remain opt-in through their vendor packs. Vendor-specific dynamic-ACL grammars remain profile-bound until an operator template or certified encoding is configured.
 
 Example upstream Access-Accept reply:
 
@@ -1093,12 +1102,13 @@ Common values:
 - `mikrotik` sends standards-based attributes plus MikroTik rate-limit replies
 - `ubnt` or `unifi` sends standards-based attributes plus UniFi/UBNT rate replies
 - `ruckus` and `fortinet` select their matching compatibility packs
-- `cambium` sends standards-based attributes plus Cambium ePMP VLAN and burst-rate replies
+- `cambium` sends standards-based attributes plus Cambium role, ePMP VLAN, burst-rate, quota, and walled-garden replies
 - `extreme` sends standards-based attributes plus Extreme Netlogin VLAN and security-profile replies
 - `juniper` or `junos` sends standards-based attributes plus Juniper local-user and filter replies
 - `huawei` and `h3c` send standards-based attributes plus role, QoS/rate, and policy replies for their dictionaries
 - `paloalto` sends standards-based attributes plus Palo Alto admin/user-group context for firewall or VPN use cases
-- `tplink` or `omada` sends standards-based attributes plus TP-Link Omada rate, site, and device-group replies
+- `tplink` or `omada` sends standards-based attributes plus TP-Link Omada rate, site, device-group, redirect, and portal-status replies
+- `dlink` sends standards-based attributes plus D-Link user-level, VLAN, bandwidth, ACL profile, and dynamic ACL rule replies
 - `meraki` sends standards-based RADIUS replies and exposes contextual Meraki accounting attributes; the native Dashboard adapter can reconcile existing same-name enterprise SSID slots
 - `openwifi` uses standards-based RADIUS enforcement; the native OWGW adapter can reconcile existing same-name enterprise SSIDs by AP serial number or venue UUID
 

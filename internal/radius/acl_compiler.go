@@ -693,7 +693,7 @@ func aclCompilerDefinitionForPack(packKey string) aclCompilerDefinition {
 		},
 		productconfigs.VendorPackDLink: {
 			PackKey: packKey, OutputMode: "mixed", Status: aclCompilerStatusCompiled, CertificationState: aclCertificationSoftware,
-			Grammar: "nas-filter-rule-v1", LineAttribute: "ACL-Rule", ProfileAttributes: []string{"ACL-Profile"}, SupportsDecompile: true,
+			Grammar: "nas-filter-rule-v1", LineAttribute: "Dlink-ACL-Rule", ProfileAttributes: []string{"Dlink-ACL-Profile"}, SupportsDecompile: true,
 			Notes: []string{"Compiles D-Link ACL profile and line-rule attributes."},
 		},
 		productconfigs.VendorPackPica8: {

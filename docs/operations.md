@@ -195,6 +195,30 @@ gateway, switch, appliance, FreeRADIUS production Linux, HA, performance, soak,
 security, and customer acceptance proof stays in
 [nas-0066-release-certification-checklist.md](nas-0066-release-certification-checklist.md).
 
+## Cambium/TP-Link/D-Link Access Pack Operations
+
+Use [access-vendor-pack.md](access-vendor-pack.md) for NAS-0067 software
+certification of all 49 Cambium, TPLink, and Dlink rows from the pinned
+FreeRADIUS 3.2.8 registry. Before claiming the software release is ready for
+external validation, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/access-vendor-pack | jq '.report.summary'
+```
+
+After automated tests pass, record the current fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/access-vendor-pack/record | jq '.event_id, .status'
+```
+
+External Cambium cnMaestro/ePMP/PMP, TP-Link Omada, D-Link/Nuclias, access
+point, gateway, switch, FreeRADIUS production Linux, HA, performance, soak,
+security, and customer acceptance proof stays in
+[nas-0067-release-certification-checklist.md](nas-0067-release-certification-checklist.md).
+
 ## PostgreSQL Data-Plane Operations
 
 Use [postgresql-data-plane.md](postgresql-data-plane.md) for NAS-0008

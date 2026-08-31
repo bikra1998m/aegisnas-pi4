@@ -678,6 +678,46 @@ type CloudControllerPackPayload = {
   release_certification_checklist: string;
 };
 
+type AccessVendorPackSummary = RuckusICXPackSummary;
+type AccessVendorVendorSummary = RuckusICXVendorSummary;
+type AccessVendorCapabilitySummary = RuckusICXCapabilitySummary;
+type AccessVendorGrammarRecord = RuckusICXGrammarRecord;
+type AccessVendorAttributeRecord = RuckusICXAttributeRecord;
+type AccessVendorProductScope = RuckusICXProductScope;
+type AccessVendorPackEvent = RuckusICXPackEvent;
+
+type AccessVendorPackPayload = {
+  generated_at: string;
+  report: {
+    schema_version: number;
+    feature_id: string;
+    release_profile_id: string;
+    source_release: string;
+    source_sha256: string;
+    summary: AccessVendorPackSummary;
+    vendor_summaries: AccessVendorVendorSummary[];
+    capability_summaries: AccessVendorCapabilitySummary[];
+    product_scopes: AccessVendorProductScope[];
+    grammar: AccessVendorGrammarRecord[];
+    records: AccessVendorAttributeRecord[];
+    notes?: string[];
+  };
+  evidence: {
+    summary: {
+      total_events: number;
+      recorded_count: number;
+      blocked_count: number;
+      failed_count: number;
+      last_event_at?: string;
+      last_fingerprint?: string;
+      last_product_scope_count?: number;
+    };
+    recent_events?: AccessVendorPackEvent[];
+  };
+  release_scope: string;
+  release_certification_checklist: string;
+};
+
 type VendorDictionaryCoverageRow = {
   pack_key: string;
   pack_label: string;
@@ -1146,6 +1186,9 @@ export default function VendorCompatibility() {
   const [cloudControllerPack, setCloudControllerPack] = useState<CloudControllerPackPayload | null>(null);
   const [cloudControllerPackBusy, setCloudControllerPackBusy] = useState(false);
   const [cloudControllerPackError, setCloudControllerPackError] = useState('');
+  const [accessVendorPack, setAccessVendorPack] = useState<AccessVendorPackPayload | null>(null);
+  const [accessVendorPackBusy, setAccessVendorPackBusy] = useState(false);
+  const [accessVendorPackError, setAccessVendorPackError] = useState('');
   const [vsaCodec, setVSACodec] = useState<VSACodecPayload | null>(null);
   const [vsaCodecError, setVSACodecError] = useState('');
   const [opaquePassThrough, setOpaquePassThrough] = useState<OpaquePassThroughPayload | null>(null);
@@ -1159,6 +1202,7 @@ export default function VendorCompatibility() {
   const canRecordRuckusICXPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
   const canRecordFortinetPaloAltoPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
   const canRecordCloudControllerPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
+  const canRecordAccessVendorPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
 
   const fetchVendorIdentity = async () => {
     try {
@@ -1458,6 +1502,31 @@ export default function VendorCompatibility() {
     }
   };
 
+  const fetchAccessVendorPack = async () => {
+    setAccessVendorPackError('');
+    try {
+      const { data } = await api.get<AccessVendorPackPayload>('/system/access-vendor-pack?history_limit=5');
+      setAccessVendorPack(data);
+    } catch (err: any) {
+      setAccessVendorPackError(apiErrorMessage(err, 'Could not load NAS-0067 Cambium/TP-Link/D-Link access pack.'));
+    }
+  };
+
+  const recordAccessVendorPack = async () => {
+    setAccessVendorPackBusy(true);
+    setAccessVendorPackError('');
+    setMessage('');
+    try {
+      await api.post('/system/access-vendor-pack/record', {});
+      setMessage('NAS-0067 Cambium/TP-Link/D-Link access pack event recorded.');
+      await fetchAccessVendorPack();
+    } catch (err: any) {
+      setAccessVendorPackError(apiErrorMessage(err, 'Could not record NAS-0067 Cambium/TP-Link/D-Link access pack.'));
+    } finally {
+      setAccessVendorPackBusy(false);
+    }
+  };
+
   const fetchVSACodec = async () => {
     setVSACodecError('');
     try {
@@ -1569,6 +1638,7 @@ export default function VendorCompatibility() {
     void fetchRuckusICXPack();
     void fetchFortinetPaloAltoPack();
     void fetchCloudControllerPack();
+    void fetchAccessVendorPack();
     void fetchVSACodec();
     void fetchOpaquePassThrough();
   }, []);
@@ -1627,6 +1697,13 @@ export default function VendorCompatibility() {
   const cloudControllerPackCapabilities = cloudControllerPack?.report.capability_summaries || [];
   const cloudControllerPackGrammar = cloudControllerPack?.report.grammar || [];
   const cloudControllerProductScopes = cloudControllerPack?.report.product_scopes || [];
+  const accessVendorPackSummary = accessVendorPack?.report.summary;
+  const accessVendorPackComplete = Boolean(accessVendorPackSummary && accessVendorPackSummary.software_certified_mappings === accessVendorPackSummary.attribute_count && accessVendorPackSummary.software_blocked_mappings === 0);
+  const accessVendorPackRecords = accessVendorPack?.report.records || [];
+  const accessVendorPackVendors = accessVendorPack?.report.vendor_summaries || [];
+  const accessVendorPackCapabilities = accessVendorPack?.report.capability_summaries || [];
+  const accessVendorPackGrammar = accessVendorPack?.report.grammar || [];
+  const accessVendorProductScopes = accessVendorPack?.report.product_scopes || [];
   const plannedSemantics = useMemo(
     () => (payload?.semantics || []).filter((item) => item.compatibility_state !== 'implemented'),
     [payload?.semantics],
@@ -1649,7 +1726,7 @@ export default function VendorCompatibility() {
           <p className="mt-1 text-sm text-gray-600">Confirm deployed NAS profiles, reply packs, and vendor dictionary coverage before changing access policy.</p>
         </div>
         <button
-          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchArubaFamilyPack(); void fetchJuniperExtremePack(); void fetchRuckusICXPack(); void fetchFortinetPaloAltoPack(); void fetchCloudControllerPack(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
+          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchArubaFamilyPack(); void fetchJuniperExtremePack(); void fetchRuckusICXPack(); void fetchFortinetPaloAltoPack(); void fetchCloudControllerPack(); void fetchAccessVendorPack(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
           disabled={loading}
           className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
@@ -1788,6 +1865,130 @@ export default function VendorCompatibility() {
                 </div>
               ) : null}
             </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">NAS-0067 Cambium/TP-Link/D-Link Access Pack</h3>
+                <p className="mt-1 text-sm text-gray-600">Certify access-vendor role, VLAN, ACL, bandwidth, quota, portal, accounting, and CoA software while hardware proof stays in release certification.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {accessVendorPackSummary ? (
+                  <StatusBadge tone={accessVendorPackComplete ? 'green' : 'amber'}>
+                    {formatPercent(accessVendorPackSummary.software_completion_percent)} software
+                  </StatusBadge>
+                ) : null}
+                {canRecordAccessVendorPack ? (
+                  <button
+                    type="button"
+                    onClick={() => void recordAccessVendorPack()}
+                    disabled={accessVendorPackBusy || !accessVendorPackComplete}
+                    className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {accessVendorPackBusy ? 'Recording...' : 'Record Evidence'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {accessVendorPackError ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{accessVendorPackError}</div> : null}
+            {accessVendorPackSummary ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="Access Rows" value={accessVendorPackSummary.attribute_count} hint="Cambium, TP-Link, and D-Link rows from the pinned FreeRADIUS audit." />
+                  <StatCard label="Software Certified" value={accessVendorPackSummary.software_certified_mappings} hint={`${accessVendorPackSummary.software_blocked_mappings} software blockers.`} />
+                  <StatCard label="Dictionary Vendors" value={accessVendorPackSummary.vendor_count} hint={`${accessVendorPackSummary.native_semantic_mappings} native semantic mappings.`} />
+                  <StatCard label="Product Scopes" value={accessVendorPackSummary.product_scope_count} hint="cnMaestro, Omada, D-Link/Nuclias, and shared CoA lifecycle." />
+                  <StatCard label="Access Grammar" value={accessVendorPackSummary.grammar_rule_count} hint="Role, VLAN, ACL, QoS, quota, portal, TLV, and redaction rules." />
+                  <StatCard label="Storage Events" value={accessVendorPack?.evidence.summary.total_events || 0} hint={accessVendorPack?.evidence.summary.last_event_at ? `Last ${new Date(accessVendorPack.evidence.summary.last_event_at).toLocaleString()}` : 'No persisted event yet.'} />
+                  <StatCard label="Ready For Lab" value={accessVendorPackSummary.ready_for_external_validation_mappings} hint="Software-ready rows awaiting release proof." />
+                  <StatCard label="Redacted Secrets" value={accessVendorPackSummary.sensitive_redacted_mappings} hint="TP-Link authentication key evidence is not stored as cleartext." />
+                </div>
+
+                <div className="mt-4 rounded-md border border-gray-200 p-4">
+                  <div className="text-xs font-semibold uppercase text-gray-500">Access Pack Fingerprint</div>
+                  <div className="mt-2 break-all text-sm font-medium text-gray-900">{accessVendorPackSummary.fingerprint}</div>
+                  <p className="mt-2 text-sm text-gray-600">{accessVendorPack?.release_scope}</p>
+                </div>
+
+                <div className="mt-4 grid gap-4 xl:grid-cols-4">
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Vendor', 'Rows', 'State'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {accessVendorPackVendors.map((vendor) => (
+                          <tr key={`${vendor.vendor}-${vendor.pen}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{vendor.vendor}<div className="text-xs text-gray-500">PEN {vendor.pen}{vendor.pack_key ? ` / ${vendor.pack_key}` : ''}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{vendor.software_certified_mappings}/{vendor.attribute_count}<div className="text-xs text-gray-500">{vendor.external_required_mappings} external</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{formatPercent(vendor.software_completion_percent)}</StatusBadge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Product Scope', 'Dictionary', 'State'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {accessVendorProductScopes.slice(0, 9).map((scope) => (
+                          <tr key={`${scope.key}-${scope.label}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{scope.label}<div className="text-xs text-gray-500">{joinList(scope.products)}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{scope.dictionary}<div className="text-xs text-gray-500">{joinList(scope.vendors)}</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{evidenceLabel(scope.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{evidenceLabel(scope.external_state)}</div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Capability', 'Rows', 'Mapping'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {accessVendorPackCapabilities.slice(0, 8).map((capability) => (
+                          <tr key={capability.capability}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{evidenceLabel(capability.capability)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{capability.software_certified_mappings}/{capability.attribute_count}<div className="text-xs text-gray-500">{capability.external_required_mappings} external</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{capability.native_semantic_mappings} native<div className="text-xs text-gray-500">{capability.typed_passthrough_mappings} pass-through</div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Grammar', 'State', 'Example'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {accessVendorPackGrammar.slice(0, 8).map((grammar) => (
+                          <tr key={grammar.key}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{grammar.label}<div className="text-xs text-gray-500">{grammar.kind}</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{grammar.parser_state}</StatusBadge><div className="mt-1 text-xs text-gray-500">{grammar.external_state}</div></td>
+                            <td className="px-4 py-3 text-xs text-gray-700">{grammar.examples?.[0] || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="mt-4 overflow-x-auto rounded-md border border-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50"><tr>{['Attribute', 'Capability', 'Software', 'Handling'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {accessVendorPackRecords.slice(0, 10).map((record) => (
+                        <tr key={record.id}>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{record.attribute}<div className="text-xs text-gray-500">{record.vendor} / {record.wire_key}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{evidenceLabel(record.capability)}<div className="text-xs text-gray-500">{joinList(record.directions)}</div></td>
+                          <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{evidenceLabel(record.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{record.claim_state}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{evidenceLabel(record.implementation_class)}<div className="text-xs text-gray-500">{evidenceLabel(record.packet_processing)}</div></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">{accessVendorPack?.release_certification_checklist} keeps Cambium cnMaestro/ePMP/PMP, TP-Link Omada, D-Link/Nuclias, FreeRADIUS Linux, HA, performance, and customer proof outside engineering completion.</p>
+              </>
+            ) : null}
           </section>
 
           <section className="mt-6">

@@ -404,6 +404,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			}
 			appendRateKbpsItem(attrs, appendItem, "Cambium-ePMP-Max-Burst-Downlink-Rate", attrs.WISPrBandwidthMaxDown)
 			appendRateKbpsItem(attrs, appendItem, "Cambium-ePMP-Max-Burst-Uplink-Rate", attrs.WISPrBandwidthMaxUp)
+			appendQuotaItem(attrs, packKey, vendor.QuotaMappings, appendItem, "Cambium-Traffic-Quota-Limit-Total")
 			appendBooleanIntegerItem(attrs.HasQuarantine, attrs.Quarantine, appendItem, "Cambium-Walled-Garden-State")
 			appendNumericRoleItem(attrs, packKey, vendor.RoleMappings, appendItem, "Cambium-Auth-Role")
 		case productconfigs.VendorPackExtreme:
@@ -492,12 +493,13 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendItem("ChilliSpot-UAM-Allowed", attrs.PortalProfile, true)
 			appendQuotaItem(attrs, packKey, vendor.QuotaMappings, appendItem, "ChilliSpot-Max-Total-Octets")
 		case productconfigs.VendorPackDLink:
-			appendRateKbpsItem(attrs, appendItem, "Egress-Bandwidth-Assignment", attrs.WISPrBandwidthMaxDown)
-			appendRateKbpsItem(attrs, appendItem, "Ingress-Bandwidth-Assignment", attrs.WISPrBandwidthMaxUp)
+			appendRateKbpsItem(attrs, appendItem, "Dlink-Egress-Bandwidth-Assignment", attrs.WISPrBandwidthMaxDown)
+			appendRateKbpsItem(attrs, appendItem, "Dlink-Ingress-Bandwidth-Assignment", attrs.WISPrBandwidthMaxUp)
 			if vlan := replyVLAN(attrs); vlan > 0 {
-				appendItem("VLAN-ID", fmt.Sprintf("%d", vlan), true)
+				appendItem("Dlink-VLAN-ID", fmt.Sprintf("%d", vlan), true)
 			}
-			appendNumericRoleItem(attrs, packKey, vendor.RoleMappings, appendItem, "User-Level")
+			appendItem("Dlink-ACL-Profile", firstReplyValue(attrs.ACLPolicyName, attrs.InboundACL, attrs.OutboundACL), true)
+			appendNumericRoleItem(attrs, packKey, vendor.RoleMappings, appendItem, "Dlink-User-Level")
 		case productconfigs.VendorPackSonicWall:
 			appendItem("User-Group", replyRole(attrs), true)
 			appendNumericRoleItem(attrs, packKey, vendor.RoleMappings, appendItem, "User-Privilege")

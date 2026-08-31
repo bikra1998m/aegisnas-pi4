@@ -260,6 +260,77 @@ func TestApplyCloudControllerPackAttributes(t *testing.T) {
 	assert.Contains(t, items, ReplyAttributeItem{Name: "UBNT-Data-Rate-UL", Value: "30000000", Quoted: false})
 }
 
+func TestApplyAccessVendorPackAttributes(t *testing.T) {
+	cambiumPacket := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorInteger(cambiumPacket, 17713, 26, 25000))
+	require.NoError(t, addVendorInteger(cambiumPacket, 17713, 27, 75000))
+	require.NoError(t, addVendorInteger(cambiumPacket, 17713, 155, 1_073_741_824))
+	require.NoError(t, addVendorInteger(cambiumPacket, 17713, 160, 1))
+
+	cambiumResult := ParseBrokerPacketWithConfig(cambiumPacket, &config.Config{
+		Radius: config.RadiusConfig{Vendor: vendorConfigForPacks(productconfigs.VendorPackCambium)},
+	})
+	assert.Equal(t, 75000, cambiumResult.WISPrBandwidthMaxDown)
+	assert.Equal(t, 25000, cambiumResult.WISPrBandwidthMaxUp)
+	assert.True(t, cambiumResult.HasVendorMaxTotalOctets)
+	assert.Equal(t, uint64(1_073_741_824), cambiumResult.VendorMaxTotalOctets)
+	assert.True(t, cambiumResult.HasVendorQuarantine)
+	assert.True(t, cambiumResult.VendorQuarantine)
+
+	tplinkPacket := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorInteger(tplinkPacket, 11863, 1, 30000))
+	require.NoError(t, addVendorInteger(tplinkPacket, 11863, 2, 90000))
+	require.NoError(t, addVendorAttribute(tplinkPacket, 11863, 3, layehradius.Attribute{0xca, 0xfe, 0xba, 0xbe}))
+	require.NoError(t, addVendorString(tplinkPacket, 11863, 6, "omada-site-a"))
+	require.NoError(t, addVendorString(tplinkPacket, 11863, 7, "iot-devices"))
+	require.NoError(t, addVendorString(tplinkPacket, 11863, 8, "sponsor-portal"))
+	require.NoError(t, addVendorInteger(tplinkPacket, 11863, 9, 2))
+	tplinkVendor := vendorConfigForPacks(productconfigs.VendorPackTPLink)
+	tplinkVendor.PortalStatusMappings = []config.RadiusVendorPortalStatusMapping{{Pack: productconfigs.VendorPackTPLink, PortalProfile: "approved-portal", Value: 2}}
+	tplinkResult := ParseBrokerPacketWithConfig(tplinkPacket, &config.Config{
+		Radius: config.RadiusConfig{Vendor: tplinkVendor},
+	})
+	assert.Equal(t, 90000, tplinkResult.WISPrBandwidthMaxDown)
+	assert.Equal(t, 30000, tplinkResult.WISPrBandwidthMaxUp)
+	assert.Equal(t, "omada-site-a", tplinkResult.VendorTenant)
+	assert.Equal(t, "iot-devices", tplinkResult.VendorDeviceGroup)
+	assert.Equal(t, "sponsor-portal", tplinkResult.VendorPortalProfile)
+
+	decoded, errs := DecodeVendorAttributes(tplinkPacket, VSADecodeOptions{VendorID: 11863})
+	require.Empty(t, errs)
+	require.NotEmpty(t, decoded)
+	assert.True(t, containsDecodedVendorAttribute(decoded, 11863, 3, []byte{0xca, 0xfe, 0xba, 0xbe}))
+
+	dlinkPacket := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorInteger(dlinkPacket, 171, 1, 7))
+	require.NoError(t, addVendorInteger(dlinkPacket, 171, 2, 20000))
+	require.NoError(t, addVendorInteger(dlinkPacket, 171, 3, 60000))
+	require.NoError(t, addVendorInteger(dlinkPacket, 171, 4, 5))
+	require.NoError(t, addVendorInteger(dlinkPacket, 171, 11, 55))
+	require.NoError(t, addVendorString(dlinkPacket, 171, 12, "branch-in"))
+	dlinkVendor := vendorConfigForPacks(productconfigs.VendorPackDLink)
+	dlinkVendor.RoleMappings = []config.RadiusVendorRoleMapping{{Pack: productconfigs.VendorPackDLink, Role: "switch-admin", Value: 7}}
+	dlinkResult := ParseBrokerPacketWithConfig(dlinkPacket, &config.Config{
+		Radius: config.RadiusConfig{Vendor: dlinkVendor},
+	})
+	assert.Equal(t, "switch-admin", dlinkResult.VendorRole)
+	assert.Equal(t, "branch-in", dlinkResult.VendorInboundACL)
+	assert.Equal(t, 60000, dlinkResult.WISPrBandwidthMaxDown)
+	assert.Equal(t, 20000, dlinkResult.WISPrBandwidthMaxUp)
+	assert.True(t, dlinkResult.HasVendorVLAN)
+	assert.Equal(t, 55, dlinkResult.VendorVLAN)
+	assert.Equal(t, "5", dlinkResult.VendorBandwidthProfile)
+}
+
+func containsDecodedVendorAttribute(decoded []DecodedVendorAttribute, vendorID uint32, typeID uint32, value []byte) bool {
+	for _, item := range decoded {
+		if item.VendorID == vendorID && item.Type == typeID && string(item.Value) == string(value) {
+			return true
+		}
+	}
+	return false
+}
+
 func TestApplyVendorCompatibilityAttributesParsesExtremeExtendedVLAN(t *testing.T) {
 	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
 	require.NoError(t, addVendorString(packet, 1916, 203, "10"))

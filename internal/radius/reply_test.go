@@ -238,9 +238,9 @@ func TestRenderReplyAttributesForAdditionalVendorPacks(t *testing.T) {
 	assert.Contains(t, rendered, "\tChilliSpot-Bandwidth-Max-Down = 60000\n")
 	assert.Contains(t, rendered, "\tChilliSpot-Bandwidth-Max-Up = 15000\n")
 	assert.Contains(t, rendered, "\tChilliSpot-UAM-Allowed = \"https://portal.example.test/start\"\n")
-	assert.Contains(t, rendered, "\tVLAN-ID = \"77\"\n")
-	assert.Contains(t, rendered, "\tACL-Profile = \"guest-acl\"\n")
-	assert.Contains(t, rendered, "\tACL-Rule = \"permit in tcp from any to any 443\"\n")
+	assert.Contains(t, rendered, "\tDlink-VLAN-ID = \"77\"\n")
+	assert.Contains(t, rendered, "\tDlink-ACL-Profile = \"guest-acl\"\n")
+	assert.Contains(t, rendered, "\tDlink-ACL-Rule = \"permit in tcp from any to any 443\"\n")
 	assert.Contains(t, rendered, "\tUser-Group = \"guest\"\n")
 	assert.Contains(t, rendered, "\tSegment-Id = \"77\"\n")
 	assert.Contains(t, rendered, "\tInterface-Profile = \"edge-switches\"\n")
@@ -272,10 +272,21 @@ func TestRenderReplyAttributesUsesNumericRoleMappings(t *testing.T) {
 
 	assert.Contains(t, rendered, "\tCambium-Auth-Role = 2\n")
 	assert.Contains(t, rendered, "\tExtreme-User-Profile-Attribute = 101\n")
-	assert.Contains(t, rendered, "\tUser-Level = 5\n")
+	assert.Contains(t, rendered, "\tDlink-User-Level = 5\n")
 	assert.Contains(t, rendered, "\tUser-Privilege = 7\n")
 	assert.Contains(t, rendered, "\tSW-Privilege = 15\n")
 	assert.NotContains(t, RenderReplyAttributesForPacks(attrs, packs), "Cambium-Auth-Role")
+}
+
+func TestRenderReplyAttributesUsesCambiumQuotaMappings(t *testing.T) {
+	attrs := &ReplyAttributes{Role: "guest"}
+	vendor := config.RadiusVendorConfig{QuotaMappings: []config.RadiusVendorQuotaMapping{
+		{Pack: "cambium", Role: "guest", MaxTotalOctets: 1_073_741_824},
+	}}
+
+	rendered := RenderReplyAttributesForVendorConfigAndPacks(attrs, []string{"cambium"}, vendor)
+
+	assert.Contains(t, rendered, "\tCambium-Traffic-Quota-Limit-Total = 1073741824\n")
 }
 
 func TestRenderReplyAttributesUsesExtremeExtendedVLANMapping(t *testing.T) {

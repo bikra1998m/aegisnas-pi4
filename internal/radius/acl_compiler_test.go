@@ -23,7 +23,7 @@ func TestACLCompilerRoundTripsCertifiedLinePacks(t *testing.T) {
 		{packKey: "cisco", wantAttributes: []string{"Cisco-In-ACL", "Cisco-Out-ACL", "Cisco-AVPair"}, wantGrammar: "cisco-avpair-acl-v1"},
 		{packKey: "aruba", wantAttributes: []string{"Aruba-NAS-Filter-Rule"}, wantGrammar: "nas-filter-rule-v1"},
 		{packKey: "hp", wantAttributes: []string{"Ip-Filter-Raw"}, wantGrammar: "nas-filter-rule-v1"},
-		{packKey: "dlink", wantAttributes: []string{"ACL-Profile", "ACL-Rule"}, wantGrammar: "nas-filter-rule-v1"},
+		{packKey: "dlink", wantAttributes: []string{"Dlink-ACL-Profile", "Dlink-ACL-Rule"}, wantGrammar: "nas-filter-rule-v1"},
 		{packKey: "pica8", wantAttributes: []string{"IP-Downloadable-ACL-Name", "IP-Downloadable-ACL-Rule"}, wantGrammar: "nas-filter-rule-v1"},
 	}
 

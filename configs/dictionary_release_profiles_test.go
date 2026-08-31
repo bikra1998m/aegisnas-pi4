@@ -16,7 +16,7 @@ func TestDictionaryReleaseProfileContract(t *testing.T) {
 	assert.Equal(t, registry.SourceSHA256, profile.RegistrySourceSHA256)
 	assert.Equal(t, registry.SourceAttributeCount, profile.SourceAttributeCount)
 	assert.Equal(t, registry.AttributeCount, profile.EffectiveAttributeCount)
-	assert.Equal(t, 411, profile.RuntimeDecoderCount)
+	assert.Equal(t, 434, profile.RuntimeDecoderCount)
 	assert.GreaterOrEqual(t, profile.VendorAliasCount, 40)
 	assert.GreaterOrEqual(t, profile.AttributeAliasCount, 8)
 	assert.GreaterOrEqual(t, profile.FirmwareProfileCount, 8)

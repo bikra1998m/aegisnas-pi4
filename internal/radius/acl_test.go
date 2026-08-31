@@ -73,7 +73,7 @@ func TestBuildACLVendorExports(t *testing.T) {
 	assertACLExportContains(t, byPack["fortinet"], "Fortinet-Access-Profile", "guest-internet")
 	assertACLExportContains(t, byPack["ruckus"], "Ruckus-User-Groups", "guest-internet")
 	assert.Equal(t, "mixed", byPack["dlink"].ExportMode)
-	assertACLExportContains(t, byPack["dlink"], "ACL-Rule", "deny out udp from any to 10.0.0.0/24 53")
+	assertACLExportContains(t, byPack["dlink"], "Dlink-ACL-Rule", "deny out udp from any to 10.0.0.0/24 53")
 	assertACLExportContains(t, byPack["pica8"], "IP-Downloadable-ACL-Rule", "permit in tcp from any to any 443 log")
 	assert.Contains(t, byPack["cisco"].FreeRADIUS, "Cisco-AVPair = \"ip:inacl#1=permit tcp any any eq 443 log\"")
 }

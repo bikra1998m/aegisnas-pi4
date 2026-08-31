@@ -615,6 +615,7 @@ func (r *AttributeRegistry) applyRuntimeAnnotations(vendors map[string]struct{})
 	}
 	r.applyRuckusICXRuntimeProfile()
 	r.applyFortinetPaloAltoRuntimeProfile()
+	r.applyAccessVendorRuntimeProfile()
 }
 
 func (r *AttributeRegistry) applyRuckusICXRuntimeProfile() {
@@ -954,6 +955,212 @@ func isFortinetPaloAltoRegistrySensitiveAttribute(attribute string) bool {
 }
 
 func containsAnyFortinetPaloAltoRegistryToken(value string, tokens ...string) bool {
+	value = strings.ToLower(value)
+	for _, token := range tokens {
+		if strings.Contains(value, token) {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *AttributeRegistry) applyAccessVendorRuntimeProfile() {
+	if r == nil {
+		return
+	}
+	for idx := range r.Entries {
+		entry := &r.Entries[idx]
+		if !isAccessVendorRegistryVendor(entry.Vendor) {
+			continue
+		}
+		wasMissing := entry.DictionaryStatus == "missing"
+		semantic := accessVendorRegistrySemantic(*entry)
+		entry.PackKey = accessVendorRegistryPack(entry.Vendor)
+		entry.Semantic = mergeRegistrySemantics(entry.Semantic, semantic)
+		entry.SemanticProvenance = mergeRegistrySemantics(entry.SemanticProvenance, "aegisnas-runtime:nas-0067")
+		entry.Directions = accessVendorRegistryDirections(*entry, semantic)
+		entry.Functionality = accessVendorRegistryFunctionality(*entry, semantic)
+		entry.DecodeKind, entry.DecodeSemantic, entry.DecodeScale = accessVendorRegistryDecoder(*entry, semantic)
+		if wasMissing {
+			entry.DictionaryStatus = "partial"
+			r.MappedCount++
+		}
+	}
+}
+
+func isAccessVendorRegistryVendor(vendor string) bool {
+	switch strings.ToLower(strings.TrimSpace(vendor)) {
+	case "cambium", "tplink", "dlink":
+		return true
+	default:
+		return false
+	}
+}
+
+func accessVendorRegistryPack(vendor string) string {
+	switch strings.ToLower(strings.TrimSpace(vendor)) {
+	case "cambium":
+		return VendorPackCambium
+	case "tplink":
+		return VendorPackTPLink
+	default:
+		return VendorPackDLink
+	}
+}
+
+func accessVendorRegistrySemantic(entry AttributeRegistryEntry) string {
+	name := strings.ToLower(entry.Attribute)
+	switch accessVendorRegistryPack(entry.Vendor) {
+	case VendorPackCambium:
+		switch {
+		case containsAnyAccessVendorRegistryToken(name, "auth-role", "userlevel"):
+			return VendorSemanticRole
+		case containsAnyAccessVendorRegistryToken(name, "data-vlan-id", "management-vlan-id", "separate-management-vlan-id", "multicast-vlan-id", "vlan-mapping"):
+			return VendorSemanticVLAN
+		case containsAnyAccessVendorRegistryToken(name, "vlan-pool"):
+			return VendorSemanticVLAN + "," + VendorSemanticAddressPool
+		case containsAnyAccessVendorRegistryToken(name, "vlan-membersip-set"):
+			return VendorSemanticVLAN + "," + VendorSemanticPolicyTag
+		case containsAnyAccessVendorRegistryToken(name, "max-burst-uplink"):
+			return VendorSemanticUploadBandwidth
+		case containsAnyAccessVendorRegistryToken(name, "max-burst-downlink"):
+			return VendorSemanticDownloadBandwidth
+		case containsAnyAccessVendorRegistryToken(name, "traffic-quota-limit"):
+			return VendorSemanticDataQuota
+		case containsAnyAccessVendorRegistryToken(name, "sm-priority", "vlan-priority"):
+			return VendorSemanticBandwidthProfile
+		case containsAnyAccessVendorRegistryToken(name, "authorize-bytes-left"):
+			return VendorSemanticDataQuota
+		case containsAnyAccessVendorRegistryToken(name, "authorize-class-name"):
+			return VendorSemanticBandwidthProfile
+		case containsAnyAccessVendorRegistryToken(name, "authorize-classes"):
+			return VendorSemanticDataQuota + "," + VendorSemanticBandwidthProfile
+		case containsAnyAccessVendorRegistryToken(name, "acct-class-name"):
+			return VendorSemanticAccountingIdentity
+		case containsAnyAccessVendorRegistryToken(name, "traffic-classes-acct", "acct-input", "acct-output"):
+			return VendorSemanticAccountingCounters
+		case containsAnyAccessVendorRegistryToken(name, "walled-garden"):
+			return VendorSemanticQuarantine + "," + VendorSemanticPortalProfile
+		default:
+			return VendorSemanticPolicyTag
+		}
+	case VendorPackTPLink:
+		switch {
+		case containsAnyAccessVendorRegistryToken(name, "recv-limit"):
+			return VendorSemanticUploadBandwidth
+		case containsAnyAccessVendorRegistryToken(name, "xmit-limit"):
+			return VendorSemanticDownloadBandwidth
+		case containsAnyAccessVendorRegistryToken(name, "authentication-findkey", "authentication-foundkey"):
+			return VendorSemanticCertificateOnboarding
+		case containsAnyAccessVendorRegistryToken(name, "user-command"):
+			return VendorSemanticRole
+		case containsAnyAccessVendorRegistryToken(name, "site"):
+			return VendorSemanticTenant
+		case containsAnyAccessVendorRegistryToken(name, "omada"):
+			return VendorSemanticDeviceGroup
+		case containsAnyAccessVendorRegistryToken(name, "redirect-url", "portal-access-status"):
+			return VendorSemanticPortalProfile + "," + VendorSemanticGuestLifecycle
+		default:
+			return VendorSemanticPolicyTag
+		}
+	default:
+		switch {
+		case containsAnyAccessVendorRegistryToken(name, "user-level"):
+			return VendorSemanticRole
+		case containsAnyAccessVendorRegistryToken(name, "ingress-bandwidth"):
+			return VendorSemanticUploadBandwidth
+		case containsAnyAccessVendorRegistryToken(name, "egress-bandwidth"):
+			return VendorSemanticDownloadBandwidth
+		case containsAnyAccessVendorRegistryToken(name, "1p-priority"):
+			return VendorSemanticBandwidthProfile
+		case containsAnyAccessVendorRegistryToken(name, "vlan-id", "vlan-name"):
+			return VendorSemanticVLAN
+		case containsAnyAccessVendorRegistryToken(name, "acl-profile"):
+			return VendorSemanticACL
+		case containsAnyAccessVendorRegistryToken(name, "acl-rule", "acl-script"):
+			return VendorSemanticDynamicACL
+		default:
+			return VendorSemanticPolicyTag
+		}
+	}
+}
+
+func accessVendorRegistryDirections(entry AttributeRegistryEntry, semantic string) []string {
+	name := strings.ToLower(entry.Attribute)
+	switch {
+	case containsAnyAccessVendorRegistryToken(name, "acct-", "traffic-classes-acct"):
+		return []string{"accounting", "inbound"}
+	case containsAnyAccessVendorRegistryToken(name, "authentication-findkey", "authentication-foundkey"):
+		return []string{"inbound"}
+	case registrySemanticContains(semantic, VendorSemanticACL) || registrySemanticContains(semantic, VendorSemanticDynamicACL):
+		return []string{"inbound", "outbound_reply"}
+	case registrySemanticContains(semantic, VendorSemanticDataQuota):
+		return []string{"inbound", "outbound_reply", "accounting"}
+	default:
+		return []string{"inbound", "outbound_reply"}
+	}
+}
+
+func accessVendorRegistryDecoder(entry AttributeRegistryEntry, semantic string) (string, string, int) {
+	if entry.Number == 0 || entry.Number > 255 {
+		return "", "", 0
+	}
+	baseType := baseDictionaryWireType(entry.WireType)
+	decodeSemantic := firstRegistrySemantic(semantic)
+	if baseType == "tlv" || baseType == "group" || baseType == "struct" {
+		return "", "", 0
+	}
+	if baseType == "octets" {
+		return "octets_hex", decodeSemantic, 0
+	}
+	if registrySemanticContains(semantic, VendorSemanticQuarantine) {
+		return "bool", VendorSemanticQuarantine, 0
+	}
+	if accessVendorRegistryPack(entry.Vendor) == VendorPackDLink && containsAnyAccessVendorRegistryToken(strings.ToLower(entry.Attribute), "vlan-id") {
+		return "vlan", VendorSemanticVLAN, 0
+	}
+	if registrySemanticContains(semantic, VendorSemanticVLAN) {
+		if baseType == "string" {
+			return "string", semantic, 0
+		}
+		return "vlan", VendorSemanticVLAN, 0
+	}
+	if containsAnyAccessVendorRegistryToken(strings.ToLower(entry.Attribute), "portal-access-status") {
+		return "mapped_portal_status", VendorSemanticPortalProfile, 0
+	}
+	if registrySemanticContains(semantic, VendorSemanticUploadBandwidth) || registrySemanticContains(semantic, VendorSemanticDownloadBandwidth) {
+		if registryIntegerType(baseType) {
+			return "rate_kbps", decodeSemantic, 1
+		}
+		return "string", decodeSemantic, 0
+	}
+	if registrySemanticContains(semantic, VendorSemanticDataQuota) {
+		if registryIntegerType(baseType) {
+			return "data_quota", VendorSemanticDataQuota, 0
+		}
+		return "string", VendorSemanticDataQuota, 0
+	}
+	if registrySemanticContains(semantic, VendorSemanticRole) && registryIntegerType(baseType) {
+		return "mapped_role", VendorSemanticRole, 0
+	}
+	if registryIntegerType(baseType) {
+		return "integer_text", decodeSemantic, 0
+	}
+	return "string", decodeSemantic, 0
+}
+
+func accessVendorRegistryFunctionality(entry AttributeRegistryEntry, semantic string) string {
+	scope := "Cambium cnMaestro/ePMP/PMP access policy"
+	switch accessVendorRegistryPack(entry.Vendor) {
+	case VendorPackTPLink:
+		scope = "TP-Link Omada controller, AP, switch, and portal policy"
+	case VendorPackDLink:
+		scope = "D-Link access switch, AP, bandwidth, VLAN, and ACL policy"
+	}
+	return fmt.Sprintf("%s carries %s for %s; AegisNAS normalizes stable semantics, safely decodes typed wire values, redacts credential-like evidence, and keeps real device behavior in release certification.", entry.Attribute, strings.ReplaceAll(semantic, ",", "/"), scope)
+}
+
+func containsAnyAccessVendorRegistryToken(value string, tokens ...string) bool {
 	value = strings.ToLower(value)
 	for _, token := range tokens {
 		if strings.Contains(value, token) {

@@ -196,6 +196,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{69, schemaV69},
 		{70, schemaV70},
 		{71, schemaV71},
+		{72, schemaV72},
 	}
 
 	for _, m := range migrations {
@@ -366,8 +367,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureCloudControllerPackTables(handle); err != nil {
 		return fmt.Errorf("repair cloud controller pack schema: %w", err)
 	}
+	if err := ensureAccessVendorPackTables(handle); err != nil {
+		return fmt.Errorf("repair access vendor pack schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureAccessVendorPackTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(accessVendorPackSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureCloudControllerPackTables(handle *sql.DB) error {

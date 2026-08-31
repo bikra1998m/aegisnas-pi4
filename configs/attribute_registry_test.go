@@ -20,9 +20,9 @@ func TestBuiltInAttributeRegistryContract(t *testing.T) {
 	assert.Equal(t, 196, registry.VendorCount)
 	assert.Equal(t, 7654, registry.SourceAttributeCount)
 	assert.Equal(t, 7661, registry.AttributeCount)
-	assert.Equal(t, 439, registry.MappedCount)
+	assert.Equal(t, 469, registry.MappedCount)
 	assert.Len(t, registry.SourceSHA256, 64)
-	assert.Len(t, registry.RuntimeMappings(), 411)
+	assert.Len(t, registry.RuntimeMappings(), 434)
 }
 
 func TestAttributeRegistryIndexesAndRuntimeCodecs(t *testing.T) {
