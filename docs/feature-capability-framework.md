@@ -122,6 +122,12 @@ The current codebase now has a working form of this model through:
   context, QoS/quota, mobile-core accounting, ICX command authorization,
   access-list handling, typed pass-through, API/UI evidence, and external
   release certification split
+- NAS-0065 Fortinet/Palo Alto security pack certification for all 42 pinned
+  Fortinet and PaloAlto rows, with Fortinet VDOM, FAC token/challenge
+  redaction, web filter, application control, FortiWAN and host-port AVPairs,
+  FortiDeceptor/FDD, FPC role, Palo Alto PAN-OS, User-ID, GlobalProtect,
+  Panorama handling, typed pass-through, API/UI evidence, and external release
+  certification split
 
 That work lives primarily in:
 
@@ -132,9 +138,11 @@ That work lives primarily in:
 - `configs/aruba_family_pack.go`
 - `configs/juniper_extreme_pack.go`
 - `configs/ruckus_icx_pack.go`
+- `configs/fortinet_paloalto_pack.go`
 - `internal/radius/cisco_avpair.go`
 - `internal/radius/aruba_family.go`
 - `internal/radius/juniper_extreme.go`
+- `internal/radius/fortinet_paloalto.go`
 - `web/admin-ui/src/pages/AccessSettings.tsx`
 - `web/admin-ui/src/pages/VendorCompatibility.tsx`
 - `web/admin-ui/src/pages/Dashboard.tsx`

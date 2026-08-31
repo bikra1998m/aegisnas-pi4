@@ -8,7 +8,7 @@ Status: engineering implementation complete; ready for external validation.
 
 FreeRADIUS dictionaries define wire names, numbers, types, options, and enumerated values. They do not prove that a NAS can parse an attribute, map it into policy, persist it, enforce it, render it in a reply, or interoperate with a specific device. NAS-0002 provides one versioned typed contract for those distinct concerns and removes packet decoding from the compatibility scanner's separate interpretation.
 
-The pinned FreeRADIUS 3.2.8 source contains 246 dictionary files represented by 7,654 VSA records across 196 namespaces. The effective AegisNAS registry adds runtime annotations for product VSA helpers, Cisco/Juniper/Huawei/H3C translation helpers, Aruba/HPE, Juniper/ERX/Extreme, Ruckus/Foundry/ICX, and two Ubiquiti runtime extensions, producing 7,661 effective entries across 196 namespaces. It records 407 mapped entries and generates 379 unique packet decoders. A mapped entry remains `partial` unless later evidence work proves full behavior.
+The pinned FreeRADIUS 3.2.8 source contains 246 dictionary files represented by 7,654 VSA records across 196 namespaces. The effective AegisNAS registry adds runtime annotations for product VSA helpers, Cisco/Juniper/Huawei/H3C translation helpers, Aruba/HPE, Juniper/ERX/Extreme, Ruckus/Foundry/ICX, Fortinet/Palo Alto security handling, and two Ubiquiti runtime extensions, producing 7,661 effective entries across 196 namespaces. It records 439 mapped entries and generates 411 unique packet decoders. A mapped entry remains `partial` unless later evidence work proves full behavior.
 
 RFC 2865 section 5.26 defines Vendor-Specific Attribute type 26 and its PEN/type/length payload. Attribute-specific RFCs apply to standard attributes; vendor dictionaries remain vendor contracts rather than standards. Cisco, Juniper, Aruba, HPE, Huawei, MikroTik, Ubiquiti, Fortinet, Ruckus, Nokia, Ericsson, broadband vendors, mobile namespaces, and every other namespace in the pinned source use the same registry model.
 
@@ -31,7 +31,7 @@ Indexes support exact vendor/name and PEN/number lookups. PEN/number lookup retu
 
 ### Packet processing
 
-Inbound vendor decoding is generated from `AttributeRegistry.RuntimeMappings()`. Pack enablement remains the enforcement gate. The compiler derives ordinary string, integer, VLAN, boolean, and rate codecs and applies explicit annotations for AVPairs, extended VLANs, portal status, session actions, Nokia BCD, and source-audit discrepancies. Unsupported or missing attributes are metadata only and are never executed.
+Inbound vendor decoding is generated from `AttributeRegistry.RuntimeMappings()`. Pack enablement remains the enforcement gate. The compiler derives ordinary string, integer, VLAN, boolean, and rate codecs and applies explicit annotations for AVPairs, extended VLANs, portal status, session actions, Fortinet/Palo Alto security values, Nokia BCD, and source-audit discrepancies. Unsupported or missing attributes are metadata only and are never executed.
 
 Existing packet tests prove the generated map preserves every pre-registry PEN/type/semantic/codec contract. Product PEN migration continues to use its dynamic AegisNAS dictionary and is not coupled to the pinned third-party release.
 

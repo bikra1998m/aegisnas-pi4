@@ -27,6 +27,7 @@ jobs:
       - run: make test-aruba-family-pack
       - run: make test-juniper-extreme-pack
       - run: make test-ruckus-icx-pack
+      - run: make test-fortinet-paloalto-pack
       - run: make test-vsa-codec
       - run: make test-opaque-passthrough
       - run: make test-secret-providers

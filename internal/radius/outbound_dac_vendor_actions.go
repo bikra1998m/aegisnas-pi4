@@ -106,7 +106,13 @@ var outboundDACVendorAttributeSpecs = map[string]outboundDACVendorAttributeSpec{
 	"ruckus-user-groups":           {Canonical: "Ruckus-User-Groups", VendorID: 25053, Type: 1, Kind: outboundDACVendorWireString},
 	"ruckus-vlan-id":               {Canonical: "Ruckus-VLAN-ID", VendorID: 25053, Type: 9, Kind: outboundDACVendorWireInteger},
 	"fortinet-group-name":          {Canonical: "Fortinet-Group-Name", VendorID: 12356, Type: 1, Kind: outboundDACVendorWireString},
+	"fortinet-vdom-name":           {Canonical: "Fortinet-Vdom-Name", VendorID: 12356, Type: 3, Kind: outboundDACVendorWireString},
 	"fortinet-access-profile":      {Canonical: "Fortinet-Access-Profile", VendorID: 12356, Type: 6, Kind: outboundDACVendorWireString},
+	"fortinet-fortiwan-avpair":     {Canonical: "Fortinet-FortiWAN-AVPair", VendorID: 12356, Type: 26, Kind: outboundDACVendorWireString},
+	"fortinet-fdd-access-profile":  {Canonical: "Fortinet-FDD-Access-Profile", VendorID: 12356, Type: 30, Kind: outboundDACVendorWireString},
+	"fortinet-fpc-user-role":       {Canonical: "Fortinet-Fpc-User-Role", VendorID: 12356, Type: 40, Kind: outboundDACVendorWireString},
+	"fortinet-tenant-id":           {Canonical: "Fortinet-Tenant-Identification", VendorID: 12356, Type: 41, Kind: outboundDACVendorWireString},
+	"fortinet-host-port-avpair":    {Canonical: "Fortinet-Host-Port-AVPair", VendorID: 12356, Type: 42, Kind: outboundDACVendorWireString},
 	"mikrotik-rate-limit":          {Canonical: "Mikrotik-Rate-Limit", VendorID: 14988, Type: 8, Kind: outboundDACVendorWireString},
 	"mikrotik-address-list":        {Canonical: "Mikrotik-Address-List", VendorID: 14988, Type: 19, Kind: outboundDACVendorWireString},
 	"huawei-input-average-rate":    {Canonical: "Huawei-Input-Average-Rate", VendorID: 2011, Type: 2, Kind: outboundDACVendorWireInteger},
@@ -508,13 +514,67 @@ func compileRuckusOutboundDACVendorAction(intent outboundDACVendorActionIntent, 
 }
 
 func compileFortinetOutboundDACVendorAction(intent outboundDACVendorActionIntent, appendAttr func(string, string)) {
+	primaryPolicy := firstNonEmptyString(intent.PolicyTag, intent.ACLName, intent.BandwidthProfile, intent.Role, intent.FilterID)
 	switch intent.Action {
 	case "role", "policy-update", "quarantine", "unquarantine":
-		appendAttr("Fortinet-Group-Name", firstNonEmptyString(intent.Role, intent.FilterID, intent.PolicyTag, intent.ACLName))
+		role := firstNonEmptyString(intent.Role, intent.FilterID, intent.PolicyTag, intent.ACLName)
+		appendAttr("Fortinet-Group-Name", role)
+		appendAttr("Fortinet-Fpc-User-Role", role)
+		appendAttr("Fortinet-Access-Profile", primaryPolicy)
+		appendFortinetDACAVPairs(intent, appendAttr)
 	case "acl", "qos":
-		appendAttr("Fortinet-Access-Profile", firstNonEmptyString(intent.PolicyTag, intent.ACLName, intent.BandwidthProfile, intent.Role))
+		appendAttr("Fortinet-Access-Profile", primaryPolicy)
+		appendAttr("Fortinet-FDD-Access-Profile", primaryPolicy)
+		appendFortinetDACAVPairs(intent, appendAttr)
 	case "reauth", "vlan":
 	}
+}
+
+func appendFortinetDACAVPairs(intent outboundDACVendorActionIntent, appendAttr func(string, string)) {
+	for _, value := range fortinetDACAVPairValues(intent) {
+		appendAttr("Fortinet-FortiWAN-AVPair", value)
+		appendAttr("Fortinet-Host-Port-AVPair", value)
+	}
+}
+
+func fortinetDACAVPairValues(intent outboundDACVendorActionIntent) []string {
+	values := []string{}
+	switch intent.Action {
+	case "role", "policy-update", "quarantine", "unquarantine":
+		if value := firstNonEmptyString(intent.Role, intent.FilterID); value != "" {
+			values = append(values, "role="+value)
+		}
+		if intent.PolicyTag != "" {
+			values = append(values, "policy="+intent.PolicyTag)
+		}
+		if intent.ACLName != "" {
+			values = append(values, "acl="+intent.ACLName)
+		}
+		if intent.Action == "quarantine" {
+			values = append(values, "quarantine=true")
+		}
+		if intent.Action == "unquarantine" {
+			values = append(values, "quarantine=false")
+		}
+	case "acl":
+		if value := firstNonEmptyString(intent.ACLName, intent.PolicyTag); value != "" {
+			values = append(values, "acl="+value)
+		}
+		for _, rule := range renderNASFilterRules(intent.ACLRules) {
+			values = append(values, "filter="+rule)
+		}
+	case "qos":
+		if value := firstNonEmptyString(intent.BandwidthProfile, intent.PolicyTag); value != "" {
+			values = append(values, "qos="+value)
+		}
+		if intent.DownloadRateKbps > 0 {
+			values = append(values, "download_kbps="+strconv.Itoa(intent.DownloadRateKbps))
+		}
+		if intent.UploadRateKbps > 0 {
+			values = append(values, "upload_kbps="+strconv.Itoa(intent.UploadRateKbps))
+		}
+	}
+	return values
 }
 
 func compileMikroTikOutboundDACVendorAction(intent outboundDACVendorActionIntent, appendAttr func(string, string)) {

@@ -2,6 +2,7 @@ package radius
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"strconv"
@@ -87,6 +88,9 @@ const (
 	inboundVendorExtendedVLAN inboundVendorValueKind = "extended_vlan"
 	inboundVendorAVPairs      inboundVendorValueKind = "avpairs"
 	inboundVendorIPAddr       inboundVendorValueKind = "ipaddr"
+	inboundVendorIPv6Addr     inboundVendorValueKind = "ipv6addr"
+	inboundVendorEther        inboundVendorValueKind = "ether"
+	inboundVendorOctetsHex    inboundVendorValueKind = "octets_hex"
 	inboundVendorMappedPortal inboundVendorValueKind = "mapped_portal_status"
 	inboundVendorMappedAction inboundVendorValueKind = "mapped_session_action"
 	inboundVendorQuota        inboundVendorValueKind = "data_quota"
@@ -279,7 +283,7 @@ func generatedInboundVendorMappings() []inboundVendorMapping {
 		case inboundVendorString, inboundVendorVLAN, inboundVendorRateKbps, inboundVendorRateBps,
 			inboundVendorBool, inboundVendorIntText, inboundVendorMappedRole, inboundVendorExtendedVLAN,
 			inboundVendorAVPairs, inboundVendorIPAddr, inboundVendorMappedPortal, inboundVendorMappedAction, inboundVendorQuota,
-			inboundVendorNokiaBCD:
+			inboundVendorNokiaBCD, inboundVendorIPv6Addr, inboundVendorEther, inboundVendorOctetsHex:
 		default:
 			panic(fmt.Sprintf("attribute registry contains unsupported decoder %q for %s", mapping.Kind, mapping.Attribute))
 		}
@@ -797,6 +801,12 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			}
 			return
 		}
+		if isFortinetPaloAltoAVPairRuntimeMapping(mapping) {
+			for _, value := range lookupVendorStrings(packet, mapping.VendorID, mapping.Type) {
+				_ = applyFortinetPaloAltoAttributeString(result, mapping.PackKey, mapping.Attribute, value)
+			}
+			return
+		}
 		value, ok := lookupVendorString(packet, mapping.VendorID, mapping.Type)
 		if !ok {
 			return
@@ -843,6 +853,12 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			if isRuckusICXPackKey(mapping.PackKey) {
 				return
 			}
+			if isFortinetPaloAltoPackKey(mapping.PackKey) && applyFortinetPaloAltoAttributeString(result, mapping.PackKey, mapping.Attribute, text) {
+				return
+			}
+			if isFortinetPaloAltoPackKey(mapping.PackKey) {
+				return
+			}
 			applyInboundVendorString(result, mapping, text)
 		}
 	case inboundVendorMappedRole:
@@ -878,10 +894,31 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			if isRuckusICXPackKey(mapping.PackKey) && applyRuckusICXAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
 				continue
 			}
+			if isFortinetPaloAltoPackKey(mapping.PackKey) && applyFortinetPaloAltoAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
+				continue
+			}
+			if isFortinetPaloAltoPackKey(mapping.PackKey) {
+				continue
+			}
 			appendUniqueVendorAVPair(result, value)
 		}
 	case inboundVendorIPAddr:
 		value, ok := lookupVendorIPAddr(packet, mapping.VendorID, mapping.Type)
+		if ok {
+			applyInboundVendorString(result, mapping, value)
+		}
+	case inboundVendorIPv6Addr:
+		value, ok := lookupVendorIPv6Addr(packet, mapping.VendorID, mapping.Type)
+		if ok {
+			applyInboundVendorString(result, mapping, value)
+		}
+	case inboundVendorEther:
+		value, ok := lookupVendorEther(packet, mapping.VendorID, mapping.Type)
+		if ok {
+			applyInboundVendorString(result, mapping, value)
+		}
+	case inboundVendorOctetsHex:
+		value, ok := lookupVendorOctetsHex(packet, mapping.VendorID, mapping.Type)
 		if ok {
 			applyInboundVendorString(result, mapping, value)
 		}
@@ -1071,6 +1108,10 @@ func applyInboundVendorString(result *BrokerAuthResult, mapping inboundVendorMap
 		_ = applyRuckusICXAttributeString(result, mapping.PackKey, mapping.Attribute, value)
 		return
 	}
+	if isFortinetPaloAltoPackKey(mapping.PackKey) {
+		_ = applyFortinetPaloAltoAttributeString(result, mapping.PackKey, mapping.Attribute, value)
+		return
+	}
 	switch mapping.Semantic {
 	case productconfigs.VendorSemanticRole:
 		setStringIfEmpty(&result.VendorRole, value)
@@ -1138,6 +1179,19 @@ func isRuckusICXPackKey(packKey string) bool {
 
 func isRuckusICXAVPairRuntimeMapping(mapping inboundVendorMapping) bool {
 	return isRuckusICXPackKey(mapping.PackKey) && isRuckusICXAVPairAttribute(mapping.Attribute)
+}
+
+func isFortinetPaloAltoPackKey(packKey string) bool {
+	switch productconfigs.NormalizeVendorCompatibilityPackKey(packKey) {
+	case productconfigs.VendorPackFortinet, productconfigs.VendorPackPaloAlto:
+		return true
+	default:
+		return false
+	}
+}
+
+func isFortinetPaloAltoAVPairRuntimeMapping(mapping inboundVendorMapping) bool {
+	return isFortinetPaloAltoPackKey(mapping.PackKey) && isFortinetPaloAltoAVPairAttribute(mapping.Attribute)
 }
 
 func safeInboundVendorString(value string, maxLength int) bool {
@@ -1273,6 +1327,55 @@ func lookupVendorIPAddr(packet *layehradius.Packet, vendorID uint32, typ byte) (
 		return "", false
 	}
 	return ip.To4().String(), true
+}
+
+func lookupVendorIPv6Addr(packet *layehradius.Packet, vendorID uint32, typ byte) (string, bool) {
+	attr, ok := lookupVendorAttribute(packet, vendorID, typ)
+	if !ok {
+		return "", false
+	}
+	if len(attr) == net.IPv6len {
+		ip := net.IP(attr)
+		if ip.To4() == nil {
+			return ip.String(), true
+		}
+	}
+	text := strings.TrimSpace(layehradius.String(attr))
+	if text == "" {
+		return "", false
+	}
+	ip := net.ParseIP(text)
+	if ip == nil || ip.To4() != nil {
+		return "", false
+	}
+	return ip.String(), true
+}
+
+func lookupVendorEther(packet *layehradius.Packet, vendorID uint32, typ byte) (string, bool) {
+	attr, ok := lookupVendorAttribute(packet, vendorID, typ)
+	if !ok {
+		return "", false
+	}
+	if len(attr) == 6 {
+		return net.HardwareAddr(attr).String(), true
+	}
+	text := strings.ToLower(strings.TrimSpace(layehradius.String(attr)))
+	if text == "" || len(text) > 32 {
+		return "", false
+	}
+	hw, err := net.ParseMAC(text)
+	if err != nil {
+		return "", false
+	}
+	return hw.String(), true
+}
+
+func lookupVendorOctetsHex(packet *layehradius.Packet, vendorID uint32, typ byte) (string, bool) {
+	attr, ok := lookupVendorAttribute(packet, vendorID, typ)
+	if !ok || len(attr) == 0 || len(attr) > FortinetPaloAltoMaxValueLength/2 {
+		return "", false
+	}
+	return "0x" + hex.EncodeToString(attr), true
 }
 
 func lookupVendorRate(packet *layehradius.Packet, vendorID uint32, typ byte, scale int) (int, bool) {

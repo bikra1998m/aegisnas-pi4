@@ -146,6 +146,30 @@ FreeRADIUS production Linux, HA, performance, soak, security, and customer
 acceptance proof stays in
 [nas-0064-release-certification-checklist.md](nas-0064-release-certification-checklist.md).
 
+## Fortinet/Palo Alto Pack Operations
+
+Use [fortinet-paloalto-pack.md](fortinet-paloalto-pack.md) for NAS-0065
+software certification of the 42 Fortinet and PaloAlto rows from the pinned
+FreeRADIUS 3.2.8 registry. Before claiming the software release is ready for
+external validation, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/fortinet-paloalto-pack | jq '.report.summary'
+```
+
+After automated tests pass, record the current fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/fortinet-paloalto-pack/record | jq '.event_id, .status'
+```
+
+External Fortinet appliances/controllers, PAN-OS, GlobalProtect, Panorama,
+FreeRADIUS production Linux, HA, performance, soak, security, and customer
+acceptance proof stays in
+[nas-0065-release-certification-checklist.md](nas-0065-release-certification-checklist.md).
+
 ## PostgreSQL Data-Plane Operations
 
 Use [postgresql-data-plane.md](postgresql-data-plane.md) for NAS-0008
@@ -981,6 +1005,15 @@ For NAS-0064 Ruckus/ICX certification, inspect
 Foundry rows as Ruckus ICX/FastIron product scope for this pack; broader Dell,
 Brocade, Arista, Extreme, and 3Com switching claims remain in NAS-0071. Execute
 [nas-0064-release-certification-checklist.md](nas-0064-release-certification-checklist.md)
+before publishing hardware-, firmware-, controller-, or customer-certified
+claims.
+
+For NAS-0065 Fortinet/Palo Alto certification, inspect
+`/api/v1/system/fortinet-paloalto-pack`, record software evidence with
+`/api/v1/system/fortinet-paloalto-pack/record`, and retain support bundle
+entries `api/fortinet-paloalto-pack.json` and
+`api/fortinet-paloalto-pack-history.json`. Execute
+[nas-0065-release-certification-checklist.md](nas-0065-release-certification-checklist.md)
 before publishing hardware-, firmware-, controller-, or customer-certified
 claims.
 

@@ -327,8 +327,43 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			HardwareProfiles: branchEnterprise,
 			Attributes: []VendorPackAttributeMapping{
 				{Semantic: VendorSemanticRole, Attribute: "Fortinet-Group-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticIPv4Address, Attribute: "Fortinet-Client-IP-Address", Direction: "accounting", ValueType: "ipaddr", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTenant, Attribute: "Fortinet-Vdom-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVRF, Attribute: "Fortinet-Vdom-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticIPv6Address, Attribute: "Fortinet-Client-IPv6-Address", Direction: "accounting", ValueType: "ipv6addr", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Fortinet-Interface-Name", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticPolicyTag, Attribute: "Fortinet-Access-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Fortinet-SSID", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Fortinet-AP-Name", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Fortinet-FAC-Auth-Status", Direction: "inbound", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticCertificateOnboarding, Attribute: "Fortinet-FAC-Token-ID", Direction: "inbound", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticCertificateOnboarding, Attribute: "Fortinet-FAC-Challenge-Code", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Fortinet-Webfilter-Category-Allow", Direction: "outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Fortinet-Webfilter-Category-Block", Direction: "outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Fortinet-Webfilter-Category-Monitor", Direction: "outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Fortinet-AppCtrl-Category-Allow", Direction: "outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Fortinet-AppCtrl-Category-Block", Direction: "outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Fortinet-AppCtrl-Risk-Allow", Direction: "outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Fortinet-AppCtrl-Risk-Block", Direction: "outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "Fortinet-WirelessController-Device-MAC", Direction: "accounting", ValueType: "ether", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "Fortinet-WirelessController-WTP-ID", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "Fortinet-WirelessController-Assoc-Time", Direction: "accounting", ValueType: "date", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Fortinet-FortiWAN-AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRoute, Attribute: "Fortinet-FortiWAN-AVPair", Direction: "outbound_reply", ValueType: "route", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Fortinet-FortiWAN-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Fortinet-FDD-Access-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Fortinet-FDD-Trusted-Hosts", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Fortinet-FDD-SPP-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Fortinet-FDD-Is-System-Admin", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Fortinet-FDD-Is-SPP-Admin", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Fortinet-FDD-SPP-Policy-Group", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Fortinet-FDD-Allow-API-Access", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Fortinet-Fpc-User-Role", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTenant, Attribute: "Fortinet-Tenant-Identification", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Fortinet-Host-Port-AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Fortinet-Host-Port-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
 			},
+			Notes: []string{"Fortinet security pack covers FortiGate/FortiWiFi, FortiAuthenticator, FortiNAC, FortiAP/FortiSwitch controller context, FortiDeceptor FDD, and FortiWAN typed RADIUS evidence. Hardware behavior remains release certification."},
 		},
 		{
 			Key:              VendorPackUBNT,
@@ -528,12 +563,17 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			HardwareProfiles: enterprise,
 			Attributes: []VendorPackAttributeMapping{
 				{Semantic: VendorSemanticRole, Attribute: "PaloAlto-Admin-Role", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDeviceGroup, Attribute: "PaloAlto-User-Group", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticTenant, Attribute: "PaloAlto-Admin-Access-Domain", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "PaloAlto-Panorama-Admin-Role", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTenant, Attribute: "PaloAlto-Panorama-Admin-Access-Domain", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "PaloAlto-User-Group", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTenant, Attribute: "PaloAlto-User-Domain", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticIPv4Address, Attribute: "PaloAlto-Client-Source-IP", Direction: "accounting", ValueType: "ipaddr", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticAccountingIdentity, Attribute: "PaloAlto-Client-Hostname", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDevicePosture, Attribute: "PaloAlto-Client-OS", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "PaloAlto-GlobalProtect-Client-Version", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
 			},
-			Notes: []string{"Palo Alto attributes are primarily firewall/VPN administration and GlobalProtect context rather than wireless AP enforcement."},
+			Notes: []string{"Palo Alto attributes are primarily PAN-OS/Panorama administration, User-ID context, and GlobalProtect posture rather than wireless AP enforcement. Real firewall/VPN behavior remains release certification."},
 		},
 		{
 			Key:              VendorPackTPLink,
@@ -847,6 +887,8 @@ func VendorPackAVPairAttribute(key string) (string, bool) {
 		return "H3C-Av-Pair", true
 	case VendorPackArista:
 		return "Arista-AVPair", true
+	case VendorPackFortinet:
+		return "Fortinet-FortiWAN-AVPair", true
 	default:
 		return "", false
 	}

@@ -194,6 +194,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{67, schemaV67},
 		{68, schemaV68},
 		{69, schemaV69},
+		{70, schemaV70},
 	}
 
 	for _, m := range migrations {
@@ -358,8 +359,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureRuckusICXPackTables(handle); err != nil {
 		return fmt.Errorf("repair Ruckus/ICX pack schema: %w", err)
 	}
+	if err := ensureFortinetPaloAltoPackTables(handle); err != nil {
+		return fmt.Errorf("repair Fortinet/Palo Alto pack schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureFortinetPaloAltoPackTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(fortinetPaloAltoPackSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureRuckusICXPackTables(handle *sql.DB) error {

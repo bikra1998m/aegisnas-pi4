@@ -136,6 +136,14 @@ The implementation now does these things end to end:
     typed pass-through, persisted evidence, admin API, Vendor Compatibility UI,
     readiness checks, system status, and support-bundle captures while keeping
     real-device validation in a separate release checklist
+33. certifies the Fortinet/Palo Alto security dictionary pack in software
+    through a NAS-0065 report covering 42 Fortinet and PaloAlto rows, Fortinet
+    VDOM, FAC token/challenge redaction, web filter, application control,
+    FortiWAN and host-port AVPairs, FortiDeceptor/FDD, FPC role, Palo Alto
+    PAN-OS, User-ID, GlobalProtect, Panorama, persisted evidence, admin API,
+    Vendor Compatibility UI, readiness checks, system status, and support-bundle
+    captures while keeping real-device validation in a separate release
+    checklist
 
 ## Current Behavior
 

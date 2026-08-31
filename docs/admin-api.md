@@ -70,7 +70,7 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/production-readiness | jq '.status, .checks[] | select(.status != "passed")'
 ```
 
-The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, NAS-0060 vendor mapping certification, NAS-0061 Cisco-family pack certification, NAS-0062 Aruba/HPE-family pack certification, NAS-0063 Juniper/ERX/Extreme/Mist pack certification, NAS-0064 Ruckus/ICX pack certification, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
+The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, NAS-0060 vendor mapping certification, NAS-0061 Cisco-family pack certification, NAS-0062 Aruba/HPE-family pack certification, NAS-0063 Juniper/ERX/Extreme/Mist pack certification, NAS-0064 Ruckus/ICX pack certification, NAS-0065 Fortinet/Palo Alto pack certification, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
 
 ## Outbound Dynamic Authorization
 
@@ -375,6 +375,36 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/ruckus-icx-pack/record | jq '.event_id, .status'
+```
+
+NAS-0065 exposes the Fortinet/Palo Alto software certification report for all
+42 Fortinet and PaloAlto rows from the pinned FreeRADIUS 3.2.8 registry:
+
+```text
+GET  /api/v1/system/fortinet-paloalto-pack
+POST /api/v1/system/fortinet-paloalto-pack/record
+GET  /api/v1/system/fortinet-paloalto-pack/history
+```
+
+The report includes Fortinet group, VDOM, tenant, interface, SSID, AP,
+FortiAuthenticator challenge/token redaction, web filter, application control,
+FortiWAN AVPair, host-port AVPair, FortiDeceptor/FDD, FPC role, Palo Alto
+PAN-OS admin role/domain, User-ID, GlobalProtect, Panorama, product-scope
+rollups, vendor rollups, capability rollups, native semantic mappings, typed
+pass-through mappings, bounded software evidence, and release scope. `record`
+persists the current source hash, fingerprint, counts, summary JSON, full
+report JSON, actor, and timestamp in `fortinet_paloalto_pack_events`. External
+Fortinet appliances/controllers, PAN-OS, GlobalProtect, Panorama,
+FreeRADIUS-on-Linux, HA, performance, soak, security, production deployment, and
+customer acceptance proof remains in
+[nas-0065-release-certification-checklist.md](nas-0065-release-certification-checklist.md).
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/fortinet-paloalto-pack | jq '.report.summary'
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/fortinet-paloalto-pack/record | jq '.event_id, .status'
 ```
 
 The API also provides a non-mutating reply preview endpoint:

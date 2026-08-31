@@ -360,6 +360,42 @@ func TestPreviewOutboundDACCompilesVendorActionAttributes(t *testing.T) {
 	}
 }
 
+func TestPreviewOutboundDACCompilesFortinetSecurityPackActions(t *testing.T) {
+	cfg := outboundDACTestConfig()
+
+	preview, err := PreviewOutboundDAC(context.Background(), cfg, OutboundDACRequest{
+		Action:           "coa",
+		TargetAddress:    "192.0.2.10",
+		AcctSessionID:    "acct-fortinet",
+		VendorAction:     "qos",
+		VendorPacks:      []string{"fortinet"},
+		BandwidthProfile: "gold",
+		DownloadRateKbps: 100000,
+		UploadRateKbps:   25000,
+		Confirm:          true,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "ready", preview.Status)
+	assert.Equal(t, "compiled", preview.VendorActionDecision.Status)
+	assert.Equal(t, []string{"fortinet"}, preview.VendorActionDecision.Packs)
+	names := outboundDACPlanNames(preview.Attributes)
+	assert.Contains(t, names, "Fortinet-Access-Profile")
+	assert.Contains(t, names, "Fortinet-FDD-Access-Profile")
+	assert.Contains(t, names, "Fortinet-FortiWAN-AVPair")
+	assert.Contains(t, names, "Fortinet-Host-Port-AVPair")
+	values := outboundDACPlanValues(preview.Attributes)
+	assert.Contains(t, values, "qos=gold")
+	assert.Contains(t, values, "download_kbps=100000")
+	assert.Contains(t, values, "upload_kbps=25000")
+	for _, attr := range preview.Attributes {
+		if strings.HasPrefix(attr.Name, "Fortinet-") {
+			assert.Equal(t, "vendor-dynamic-action", attr.Source)
+			assert.False(t, attr.Selector)
+		}
+	}
+}
+
 func TestSendOutboundDACVendorActionEncodesVSAsAndPersistsEvidence(t *testing.T) {
 	setupOutboundDACTestDB(t)
 	cfg := outboundDACTestConfig()
@@ -948,6 +984,14 @@ func outboundDACPlanNames(attrs []OutboundDACAttributePlan) []string {
 		names = append(names, attr.Name)
 	}
 	return names
+}
+
+func outboundDACPlanValues(attrs []OutboundDACAttributePlan) string {
+	values := make([]string, 0, len(attrs))
+	for _, attr := range attrs {
+		values = append(values, attr.Value)
+	}
+	return strings.Join(values, "|")
 }
 
 func outboundDACAttributeValues(attrs []db.OutboundDACAttribute) string {

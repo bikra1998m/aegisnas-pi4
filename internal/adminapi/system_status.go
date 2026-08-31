@@ -489,6 +489,46 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		ruckusICXPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
 	}
+	fortinetPaloAltoPackStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0065 Fortinet/Palo Alto pack has not been evaluated.",
+	}
+	if fortinetPaloAltoPack, err := buildFortinetPaloAltoPackForRequest(); err == nil {
+		status := "ready"
+		message := fmt.Sprintf("NAS-0065 software certification covers %d/%d Fortinet/Palo Alto rows across %d dictionary vendors and %d product scopes.",
+			fortinetPaloAltoPack.Summary.SoftwareCertifiedMappings,
+			fortinetPaloAltoPack.Summary.AttributeCount,
+			fortinetPaloAltoPack.Summary.VendorCount,
+			fortinetPaloAltoPack.Summary.ProductScopeCount,
+		)
+		if err := productconfigs.ValidateFortinetPaloAltoPackReport(fortinetPaloAltoPack); err != nil {
+			status = "blocked"
+			message = "NAS-0065 Fortinet/Palo Alto pack is incomplete: " + err.Error()
+		}
+		historySummary, historyErr := db.GetFortinetPaloAltoPackSummary()
+		fortinetPaloAltoPackStatus = map[string]any{
+			"status":                              status,
+			"message":                             message,
+			"schema_version":                      fortinetPaloAltoPack.SchemaVersion,
+			"feature_id":                          fortinetPaloAltoPack.FeatureID,
+			"source_sha256":                       fortinetPaloAltoPack.SourceSHA256,
+			"attribute_count":                     fortinetPaloAltoPack.Summary.AttributeCount,
+			"software_certified_mappings":         fortinetPaloAltoPack.Summary.SoftwareCertifiedMappings,
+			"software_blocked_mappings":           fortinetPaloAltoPack.Summary.SoftwareBlockedMappings,
+			"external_required_mappings":          fortinetPaloAltoPack.Summary.ExternalRequiredMappings,
+			"software_completion_percent":         fortinetPaloAltoPack.Summary.SoftwareCompletionPercent,
+			"grammar_rule_count":                  fortinetPaloAltoPack.Summary.GrammarRuleCount,
+			"sensitive_redacted_mappings":         fortinetPaloAltoPack.Summary.SensitiveRedactedMappings,
+			"product_scope_count":                 fortinetPaloAltoPack.Summary.ProductScopeCount,
+			"fingerprint":                         fortinetPaloAltoPack.Summary.Fingerprint,
+			"release_certification_checklist":     "docs/nas-0065-release-certification-checklist.md",
+			"release_certification_external_only": true,
+			"evidence_summary":                    historySummary,
+			"evidence_error":                      rateCompilerErrorString(historyErr),
+		}
+	} else {
+		fortinetPaloAltoPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -551,6 +591,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"aruba_family_pack":            arubaFamilyPackStatus,
 		"juniper_extreme_pack":         juniperExtremePackStatus,
 		"ruckus_icx_pack":              ruckusICXPackStatus,
+		"fortinet_paloalto_pack":       fortinetPaloAltoPackStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),

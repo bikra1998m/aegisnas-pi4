@@ -173,6 +173,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionArubaFamilyPackCheck(&report)
 	addProductionJuniperExtremePackCheck(&report)
 	addProductionRuckusICXPackCheck(&report)
+	addProductionFortinetPaloAltoPackCheck(&report)
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
@@ -2750,6 +2751,50 @@ func addProductionRuckusICXPackCheck(report *productionReadinessReport) {
 			"/api/v1/system/ruckus-icx-pack",
 			"ruckus_icx_pack_events",
 			"docs/nas-0064-release-certification-checklist.md",
+		},
+	})
+}
+
+func addProductionFortinetPaloAltoPackCheck(report *productionReadinessReport) {
+	certification, err := buildFortinetPaloAltoPackForRequest()
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "fortinet_paloalto_pack", Category: "radius", Label: "NAS-0065 Fortinet/Palo Alto Pack", Status: "blocked",
+			Summary:        "Fortinet/Palo Alto pack report could not be built: " + err.Error(),
+			Recommendation: "Repair the pinned attribute registry and Fortinet/Palo Alto certification report before closing NAS-0065.",
+			Dependencies:   []string{"configs/fortinet_paloalto_pack.go", "internal/radius/fortinet_paloalto.go", "configs/attribute_registry/freeradius-3.2.8-vsa-audit.csv"},
+		})
+		return
+	}
+	if err := productconfigs.ValidateFortinetPaloAltoPackReport(certification); err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "fortinet_paloalto_pack", Category: "radius", Label: "NAS-0065 Fortinet/Palo Alto Pack", Status: "blocked",
+			Summary:        "NAS-0065 software certification is incomplete: " + err.Error(),
+			Recommendation: "Use /api/v1/system/fortinet-paloalto-pack to inspect blocked Fortinet/Palo Alto dimensions; external certification must remain in the release checklist.",
+			Dependencies:   []string{"configs/fortinet_paloalto_pack.go", "internal/radius/fortinet_paloalto.go", "internal/db/fortinet_paloalto_pack.go"},
+		})
+		return
+	}
+	status := "passed"
+	if db.DB == nil {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "fortinet_paloalto_pack", Category: "radius", Label: "NAS-0065 Fortinet/Palo Alto Pack", Status: status,
+		Summary: fmt.Sprintf("NAS-0065 software-certifies %d/%d Fortinet/Palo Alto rows across %d dictionary vendors and %d product scopes, with %d policy grammar rules, %d sensitive redaction mappings, and %d external certification claims.",
+			certification.Summary.SoftwareCertifiedMappings,
+			certification.Summary.AttributeCount,
+			certification.Summary.VendorCount,
+			certification.Summary.ProductScopeCount,
+			certification.Summary.GrammarRuleCount,
+			certification.Summary.SensitiveRedactedMappings,
+			certification.Summary.ExternalRequiredMappings,
+		),
+		Recommendation: "Record the current fingerprint with /api/v1/system/fortinet-paloalto-pack/record, then execute docs/nas-0065-release-certification-checklist.md before publishing hardware-certified claims.",
+		Dependencies: []string{
+			"/api/v1/system/fortinet-paloalto-pack",
+			"fortinet_paloalto_pack_events",
+			"docs/nas-0065-release-certification-checklist.md",
 		},
 	})
 }

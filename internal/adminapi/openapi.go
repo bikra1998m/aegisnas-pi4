@@ -1224,6 +1224,20 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Persisted Ruckus/ICX certification event summary and recent events."),
 	}))
+	addOperation(paths, "/api/v1/system/fortinet-paloalto-pack", "get", securedOperationWithParameters("Read NAS-0065 Fortinet/Palo Alto pack certification", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("history_limit", "Recent persisted event count from 1 to 500; defaults to 20.", false),
+	}, map[string]any{
+		"200": responseJSON("Software certification report for Fortinet FortiGate, FortiAuthenticator, FortiNAC, FortiDeceptor, FortiWAN, FortiAP/FortiSwitch, Palo Alto PAN-OS, GlobalProtect, Panorama, policy grammar, secret redaction, release scope, and recent certification history."),
+	}))
+	addOperation(paths, "/api/v1/system/fortinet-paloalto-pack/record", "post", securedOperationWithBody("Record NAS-0065 Fortinet/Palo Alto pack certification evidence", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional operator note; the server derives the Fortinet/Palo Alto report from the pinned FreeRADIUS registry."), map[string]any{
+		"200": responseJSON("Persisted Fortinet/Palo Alto certification event and derived report."),
+		"409": responseJSON("Fortinet/Palo Alto report was recorded as blocked because software coverage is incomplete."),
+	}))
+	addOperation(paths, "/api/v1/system/fortinet-paloalto-pack/history", "get", securedOperationWithParameters("Read NAS-0065 Fortinet/Palo Alto pack certification history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Event count from 1 to 500; defaults to 100.", false),
+	}, map[string]any{
+		"200": responseJSON("Persisted Fortinet/Palo Alto certification event summary and recent events."),
+	}))
 	addOperation(paths, "/api/v1/system/vsa-codec", "get", securedOperation("Read VSA codec capabilities", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Extended, grouped, tagged, and repeated VSA codec readiness."),
 	}))

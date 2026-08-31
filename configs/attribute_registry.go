@@ -614,6 +614,7 @@ func (r *AttributeRegistry) applyRuntimeAnnotations(vendors map[string]struct{})
 		vendors[strings.ToLower(annotation.Vendor)+"\x00"+strconv.FormatUint(uint64(annotation.PEN), 10)] = struct{}{}
 	}
 	r.applyRuckusICXRuntimeProfile()
+	r.applyFortinetPaloAltoRuntimeProfile()
 }
 
 func (r *AttributeRegistry) applyRuckusICXRuntimeProfile() {
@@ -789,6 +790,170 @@ func isRuckusICXRegistrySensitiveAttribute(attribute string) bool {
 }
 
 func containsAnyRuckusICXRegistryToken(value string, tokens ...string) bool {
+	value = strings.ToLower(value)
+	for _, token := range tokens {
+		if strings.Contains(value, token) {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *AttributeRegistry) applyFortinetPaloAltoRuntimeProfile() {
+	if r == nil {
+		return
+	}
+	for idx := range r.Entries {
+		entry := &r.Entries[idx]
+		if !isFortinetPaloAltoRegistryVendor(entry.Vendor) {
+			continue
+		}
+		wasMissing := entry.DictionaryStatus == "missing"
+		semantic := fortinetPaloAltoRegistrySemantic(*entry)
+		entry.PackKey = fortinetPaloAltoRegistryPack(entry.Vendor)
+		entry.Semantic = mergeRegistrySemantics(entry.Semantic, semantic)
+		entry.SemanticProvenance = mergeRegistrySemantics(entry.SemanticProvenance, "aegisnas-runtime:nas-0065")
+		entry.Directions = fortinetPaloAltoRegistryDirections(*entry, semantic)
+		entry.Functionality = fortinetPaloAltoRegistryFunctionality(*entry, semantic)
+		entry.DecodeKind, entry.DecodeSemantic, entry.DecodeScale = fortinetPaloAltoRegistryDecoder(*entry, semantic)
+		if wasMissing {
+			entry.DictionaryStatus = "partial"
+			r.MappedCount++
+		}
+	}
+}
+
+func isFortinetPaloAltoRegistryVendor(vendor string) bool {
+	switch strings.ToLower(strings.TrimSpace(vendor)) {
+	case "fortinet", "paloalto":
+		return true
+	default:
+		return false
+	}
+}
+
+func fortinetPaloAltoRegistryPack(vendor string) string {
+	if strings.EqualFold(strings.TrimSpace(vendor), "PaloAlto") {
+		return VendorPackPaloAlto
+	}
+	return VendorPackFortinet
+}
+
+func fortinetPaloAltoRegistrySemantic(entry AttributeRegistryEntry) string {
+	name := strings.ToLower(entry.Attribute)
+	vendor := strings.ToLower(entry.Vendor)
+	if vendor == "paloalto" {
+		switch {
+		case containsAnyFortinetPaloAltoRegistryToken(name, "admin-role", "panorama-admin-role"):
+			return VendorSemanticRole
+		case containsAnyFortinetPaloAltoRegistryToken(name, "access-domain", "user-domain"):
+			return VendorSemanticTenant
+		case containsAnyFortinetPaloAltoRegistryToken(name, "user-group"):
+			return VendorSemanticDeviceGroup
+		case containsAnyFortinetPaloAltoRegistryToken(name, "source-ip"):
+			return VendorSemanticIPv4Address
+		case containsAnyFortinetPaloAltoRegistryToken(name, "client-os", "globalprotect"):
+			return VendorSemanticDevicePosture
+		case containsAnyFortinetPaloAltoRegistryToken(name, "hostname"):
+			return VendorSemanticAccountingIdentity
+		default:
+			return VendorSemanticPolicyTag
+		}
+	}
+	switch {
+	case containsAnyFortinetPaloAltoRegistryToken(name, "group-name", "user-role", "is-system-admin", "is-spp-admin"):
+		return VendorSemanticRole
+	case containsAnyFortinetPaloAltoRegistryToken(name, "vdom"):
+		return VendorSemanticTenant + "," + VendorSemanticVRF
+	case containsAnyFortinetPaloAltoRegistryToken(name, "tenant"):
+		return VendorSemanticTenant
+	case containsAnyFortinetPaloAltoRegistryToken(name, "client-ip-address"):
+		return VendorSemanticIPv4Address
+	case containsAnyFortinetPaloAltoRegistryToken(name, "client-ipv6-address"):
+		return VendorSemanticIPv6Address
+	case containsAnyFortinetPaloAltoRegistryToken(name, "interface", "ap-name", "ssid"):
+		return VendorSemanticDeviceGroup
+	case containsAnyFortinetPaloAltoRegistryToken(name, "wirelesscontroller-device-mac", "wirelesscontroller-wtp-id", "assoc-time"):
+		return VendorSemanticAccountingIdentity
+	case containsAnyFortinetPaloAltoRegistryToken(name, "fac-auth-status"):
+		return VendorSemanticDevicePosture
+	case containsAnyFortinetPaloAltoRegistryToken(name, "fac-token", "fac-challenge"):
+		return VendorSemanticCertificateOnboarding
+	case containsAnyFortinetPaloAltoRegistryToken(name, "trusted-hosts", "fortiwan-avpair", "host-port-avpair"):
+		return VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticPolicyTag
+	case containsAnyFortinetPaloAltoRegistryToken(name, "appctrl-risk"):
+		return VendorSemanticDevicePosture + "," + VendorSemanticPolicyTag
+	case containsAnyFortinetPaloAltoRegistryToken(name, "webfilter", "appctrl", "access-profile", "fdd-access-profile", "fdd-spp-name", "fdd-spp-policy-group", "allow-api-access"):
+		return VendorSemanticPolicyTag
+	default:
+		return VendorSemanticPolicyTag
+	}
+}
+
+func fortinetPaloAltoRegistryDirections(entry AttributeRegistryEntry, semantic string) []string {
+	name := strings.ToLower(entry.Attribute)
+	switch {
+	case containsAnyFortinetPaloAltoRegistryToken(name, "client-os", "client-hostname", "client-source-ip", "wirelesscontroller", "ap-name", "assoc-time", "device-mac"):
+		return []string{"accounting", "inbound"}
+	case containsAnyFortinetPaloAltoRegistryToken(name, "fac-token", "fac-challenge", "fac-auth"):
+		return []string{"inbound", "outbound_reply"}
+	case registrySemanticContains(semantic, VendorSemanticDynamicACL):
+		return []string{"accounting", "inbound", "outbound_reply"}
+	default:
+		return []string{"accounting", "inbound", "outbound_reply"}
+	}
+}
+
+func fortinetPaloAltoRegistryDecoder(entry AttributeRegistryEntry, semantic string) (string, string, int) {
+	if entry.Number == 0 || entry.Number > 255 {
+		return "", "", 0
+	}
+	baseType := baseDictionaryWireType(entry.WireType)
+	decodeSemantic := firstRegistrySemantic(semantic)
+	if isFortinetPaloAltoRegistrySensitiveAttribute(entry.Attribute) {
+		return "string", decodeSemantic, 0
+	}
+	if strings.EqualFold(entry.Attribute, "Fortinet-Client-IPv6-Address") {
+		return "ipv6addr", VendorSemanticIPv6Address, 0
+	}
+	if strings.EqualFold(entry.Attribute, "PaloAlto-Client-Source-IP") {
+		return "ipaddr", VendorSemanticIPv4Address, 0
+	}
+	if baseType == "ipaddr" {
+		return "ipaddr", decodeSemantic, 0
+	}
+	if baseType == "ether" {
+		return "ether", decodeSemantic, 0
+	}
+	if baseType == "date" {
+		return "integer_text", decodeSemantic, 0
+	}
+	if baseType == "octets" {
+		return "octets_hex", decodeSemantic, 0
+	}
+	if registrySemanticContains(semantic, VendorSemanticDynamicACL) && strings.Contains(strings.ToLower(entry.Attribute), "avpair") {
+		return "avpairs", VendorSemanticDynamicACL, 0
+	}
+	if registryIntegerType(entry.WireType) {
+		return "integer_text", decodeSemantic, 0
+	}
+	return "string", decodeSemantic, 0
+}
+
+func fortinetPaloAltoRegistryFunctionality(entry AttributeRegistryEntry, semantic string) string {
+	scope := "Fortinet FortiGate, FortiAuthenticator, FortiNAC, FortiDeceptor, FortiWAN, FortiAP, and FortiSwitch policy"
+	if strings.EqualFold(entry.Vendor, "PaloAlto") {
+		scope = "Palo Alto PAN-OS, GlobalProtect, User-ID, and Panorama policy"
+	}
+	return fmt.Sprintf("%s carries %s for %s; AegisNAS normalizes known semantics, redacts challenge secrets, and stores bounded evidence until hardware certification is attached.", entry.Attribute, strings.ReplaceAll(semantic, ",", "/"), scope)
+}
+
+func isFortinetPaloAltoRegistrySensitiveAttribute(attribute string) bool {
+	name := strings.ToLower(strings.TrimSpace(attribute))
+	return containsAnyFortinetPaloAltoRegistryToken(name, "fac-token", "fac-challenge")
+}
+
+func containsAnyFortinetPaloAltoRegistryToken(value string, tokens ...string) bool {
 	value = strings.ToLower(value)
 	for _, token := range tokens {
 		if strings.Contains(value, token) {
