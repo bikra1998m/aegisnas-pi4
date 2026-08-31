@@ -168,6 +168,31 @@ type ReplyAttributes struct {
 	ERXBulkCoATransactionID          int
 	ERXBulkCoAIdentifier             int
 	ERXAdvPcefRuleName               string
+	RuckusWLANName                   string
+	RuckusVLANName                   string
+	RuckusGracePeriod                int
+	RuckusStaExpiration              int
+	RuckusTrafficClassAttributeIDs   string
+	RuckusCPToken                    string
+	RuckusClusterName                string
+	RuckusAuthServerID               string
+	RuckusFlexAuthAVPs               []string
+	RuckusMaxDLULQuota               int
+	RuckusSCIRole                    string
+	RuckusSCIResourceGroup           string
+	FoundryPrivilegeLevel            int
+	FoundryINMPrivilege              int
+	FoundryCommandExceptionFlag      int
+	FoundryCommandString             string
+	FoundryAccessList                string
+	FoundryMACAuthentNeeds8021X      int
+	Foundry8021XValidLookup          int
+	FoundryMACBasedVLANQoS           int
+	FoundryINMRoleAORList            string
+	FoundryCOACommand                string
+	FoundrySIContextRole             string
+	FoundrySIRoleTemplate            string
+	FoundryVoicePhoneConfig          string
 }
 
 type ReplyAttributeItem struct {
@@ -324,10 +349,11 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			}
 			appendArubaFamilyReplyAttributes(attrs, packKey, appendItem)
 		case productconfigs.VendorPackRuckus:
-			appendItem("Ruckus-User-Groups", replyRole(attrs), true)
-			if vlan := replyVLAN(attrs); vlan > 0 {
-				appendItem("Ruckus-VLAN-ID", fmt.Sprintf("%d", vlan), false)
-			}
+			appendRuckusICXReplyAttributes(attrs, packKey, appendItem)
+			appendVendorAVPairItems(attrs, packKey, vendor.AVPairMappings, appendItem)
+			appendQuotaItem(attrs, packKey, vendor.QuotaMappings, appendItem, "Ruckus-Max-DL-UL-Quota")
+		case productconfigs.VendorPackFoundry:
+			appendRuckusICXReplyAttributes(attrs, packKey, appendItem)
 		case productconfigs.VendorPackFortinet:
 			appendItem("Fortinet-Group-Name", replyRole(attrs), true)
 			appendItem("Fortinet-Access-Profile", firstReplyValue(attrs.PolicyTag, attrs.FilterID, attrs.ACLPolicyName), true)

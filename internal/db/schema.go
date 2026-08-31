@@ -193,6 +193,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{66, schemaV66},
 		{67, schemaV67},
 		{68, schemaV68},
+		{69, schemaV69},
 	}
 
 	for _, m := range migrations {
@@ -354,8 +355,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureSubscriberRouteExportTables(handle); err != nil {
 		return fmt.Errorf("repair subscriber route export schema: %w", err)
 	}
+	if err := ensureRuckusICXPackTables(handle); err != nil {
+		return fmt.Errorf("repair Ruckus/ICX pack schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureRuckusICXPackTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(ruckusICXPackSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureSubscriberRouteExportTables(handle *sql.DB) error {

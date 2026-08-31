@@ -122,6 +122,30 @@ Colubris/MSM, FreeRADIUS production Linux, HA, performance, soak, security,
 and customer acceptance proof stays in
 [nas-0062-release-certification-checklist.md](nas-0062-release-certification-checklist.md).
 
+## Ruckus/ICX Pack Operations
+
+Use [ruckus-icx-pack.md](ruckus-icx-pack.md) for NAS-0064 software
+certification of the 97 Ruckus and Foundry rows from the pinned FreeRADIUS 3.2.8
+registry. Before claiming the software release is ready for external
+validation, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/ruckus-icx-pack | jq '.report.summary'
+```
+
+After automated tests pass, record the current fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/ruckus-icx-pack/record | jq '.event_id, .status'
+```
+
+External Ruckus SmartZone, ZoneDirector, Unleashed, Ruckus One, ICX/FastIron,
+FreeRADIUS production Linux, HA, performance, soak, security, and customer
+acceptance proof stays in
+[nas-0064-release-certification-checklist.md](nas-0064-release-certification-checklist.md).
+
 ## PostgreSQL Data-Plane Operations
 
 Use [postgresql-data-plane.md](postgresql-data-plane.md) for NAS-0008
@@ -947,6 +971,16 @@ Treat Mist as Juniper product/controller scope for this pack; the pinned
 FreeRADIUS 3.2.8 registry includes Juniper, ERX, and Extreme dictionary rows but
 no separate Mist VSA namespace. Execute
 [nas-0063-release-certification-checklist.md](nas-0063-release-certification-checklist.md)
+before publishing hardware-, firmware-, controller-, or customer-certified
+claims.
+
+For NAS-0064 Ruckus/ICX certification, inspect
+`/api/v1/system/ruckus-icx-pack`, record software evidence with
+`/api/v1/system/ruckus-icx-pack/record`, and retain support bundle entries
+`api/ruckus-icx-pack.json` and `api/ruckus-icx-pack-history.json`. Treat
+Foundry rows as Ruckus ICX/FastIron product scope for this pack; broader Dell,
+Brocade, Arista, Extreme, and 3Com switching claims remain in NAS-0071. Execute
+[nas-0064-release-certification-checklist.md](nas-0064-release-certification-checklist.md)
 before publishing hardware-, firmware-, controller-, or customer-certified
 claims.
 

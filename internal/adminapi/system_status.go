@@ -449,6 +449,46 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		juniperExtremePackStatus = map[string]any{"status": "blocked", "message": err.Error()}
 	}
+	ruckusICXPackStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0064 Ruckus/ICX pack has not been evaluated.",
+	}
+	if ruckusICXPack, err := buildRuckusICXPackForRequest(); err == nil {
+		status := "ready"
+		message := fmt.Sprintf("NAS-0064 software certification covers %d/%d Ruckus/ICX rows across %d dictionary vendors and %d product scopes.",
+			ruckusICXPack.Summary.SoftwareCertifiedMappings,
+			ruckusICXPack.Summary.AttributeCount,
+			ruckusICXPack.Summary.VendorCount,
+			ruckusICXPack.Summary.ProductScopeCount,
+		)
+		if err := productconfigs.ValidateRuckusICXPackReport(ruckusICXPack); err != nil {
+			status = "blocked"
+			message = "NAS-0064 Ruckus/ICX pack is incomplete: " + err.Error()
+		}
+		historySummary, historyErr := db.GetRuckusICXPackSummary()
+		ruckusICXPackStatus = map[string]any{
+			"status":                              status,
+			"message":                             message,
+			"schema_version":                      ruckusICXPack.SchemaVersion,
+			"feature_id":                          ruckusICXPack.FeatureID,
+			"source_sha256":                       ruckusICXPack.SourceSHA256,
+			"attribute_count":                     ruckusICXPack.Summary.AttributeCount,
+			"software_certified_mappings":         ruckusICXPack.Summary.SoftwareCertifiedMappings,
+			"software_blocked_mappings":           ruckusICXPack.Summary.SoftwareBlockedMappings,
+			"external_required_mappings":          ruckusICXPack.Summary.ExternalRequiredMappings,
+			"software_completion_percent":         ruckusICXPack.Summary.SoftwareCompletionPercent,
+			"grammar_rule_count":                  ruckusICXPack.Summary.GrammarRuleCount,
+			"sensitive_redacted_mappings":         ruckusICXPack.Summary.SensitiveRedactedMappings,
+			"product_scope_count":                 ruckusICXPack.Summary.ProductScopeCount,
+			"fingerprint":                         ruckusICXPack.Summary.Fingerprint,
+			"release_certification_checklist":     "docs/nas-0064-release-certification-checklist.md",
+			"release_certification_external_only": true,
+			"evidence_summary":                    historySummary,
+			"evidence_error":                      rateCompilerErrorString(historyErr),
+		}
+	} else {
+		ruckusICXPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -510,6 +550,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"cisco_family_pack":            ciscoFamilyPackStatus,
 		"aruba_family_pack":            arubaFamilyPackStatus,
 		"juniper_extreme_pack":         juniperExtremePackStatus,
+		"ruckus_icx_pack":              ruckusICXPackStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),

@@ -70,7 +70,7 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/production-readiness | jq '.status, .checks[] | select(.status != "passed")'
 ```
 
-The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, NAS-0060 vendor mapping certification, NAS-0061 Cisco-family pack certification, NAS-0062 Aruba/HPE-family pack certification, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
+The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, NAS-0060 vendor mapping certification, NAS-0061 Cisco-family pack certification, NAS-0062 Aruba/HPE-family pack certification, NAS-0063 Juniper/ERX/Extreme/Mist pack certification, NAS-0064 Ruckus/ICX pack certification, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
 
 ## Outbound Dynamic Authorization
 
@@ -345,6 +345,36 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/juniper-extreme-pack/record | jq '.event_id, .status'
+```
+
+NAS-0064 exposes the Ruckus/ICX software certification report for all 97 Ruckus
+and Foundry rows from the pinned FreeRADIUS 3.2.8 registry. Foundry is tracked
+as the Ruckus ICX/FastIron switch product scope:
+
+```text
+GET  /api/v1/system/ruckus-icx-pack
+POST /api/v1/system/ruckus-icx-pack/record
+GET  /api/v1/system/ruckus-icx-pack/history
+```
+
+The report includes Ruckus FlexAuth grammar, DPSK and subscriber redaction,
+WLAN, guest, QoS, quota, NAT pool, mobile-core, accounting, posture, cluster,
+domain, SCI context, ICX command authorization, access-list, 802.1X lookup,
+voice policy, product-scope rollups, vendor rollups, capability rollups, native
+semantic mappings, typed pass-through mappings, bounded software evidence, and
+release scope. `record` persists the current source hash, fingerprint, counts,
+summary JSON, full report JSON, actor, and timestamp in
+`ruckus_icx_pack_events`. External Ruckus controller, ICX/FastIron,
+FreeRADIUS-on-Linux, HA, performance, soak, security, production deployment, and
+customer acceptance proof remains in
+[nas-0064-release-certification-checklist.md](nas-0064-release-certification-checklist.md).
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/ruckus-icx-pack | jq '.report.summary'
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/ruckus-icx-pack/record | jq '.event_id, .status'
 ```
 
 The API also provides a non-mutating reply preview endpoint:

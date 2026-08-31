@@ -3,6 +3,7 @@ package radius
 import (
 	"encoding/binary"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -85,6 +86,7 @@ const (
 	inboundVendorMappedRole   inboundVendorValueKind = "mapped_role"
 	inboundVendorExtendedVLAN inboundVendorValueKind = "extended_vlan"
 	inboundVendorAVPairs      inboundVendorValueKind = "avpairs"
+	inboundVendorIPAddr       inboundVendorValueKind = "ipaddr"
 	inboundVendorMappedPortal inboundVendorValueKind = "mapped_portal_status"
 	inboundVendorMappedAction inboundVendorValueKind = "mapped_session_action"
 	inboundVendorQuota        inboundVendorValueKind = "data_quota"
@@ -276,7 +278,7 @@ func generatedInboundVendorMappings() []inboundVendorMapping {
 		switch kind {
 		case inboundVendorString, inboundVendorVLAN, inboundVendorRateKbps, inboundVendorRateBps,
 			inboundVendorBool, inboundVendorIntText, inboundVendorMappedRole, inboundVendorExtendedVLAN,
-			inboundVendorAVPairs, inboundVendorMappedPortal, inboundVendorMappedAction, inboundVendorQuota,
+			inboundVendorAVPairs, inboundVendorIPAddr, inboundVendorMappedPortal, inboundVendorMappedAction, inboundVendorQuota,
 			inboundVendorNokiaBCD:
 		default:
 			panic(fmt.Sprintf("attribute registry contains unsupported decoder %q for %s", mapping.Kind, mapping.Attribute))
@@ -770,15 +772,28 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 		}
 		if isArubaFamilyAVPairRuntimeMapping(mapping) {
 			for _, value := range lookupVendorStrings(packet, mapping.VendorID, mapping.Type) {
-				applyArubaFamilyAttributeString(result, mapping.PackKey, mapping.Attribute, value)
+				if applyArubaFamilyAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
+					continue
+				}
+				if safeInboundVendorString(value, ArubaFamilyMaxValueLength) {
+					applyInboundVendorString(result, mapping, value)
+				}
 			}
 			return
 		}
 		if isJuniperExtremeAVPairRuntimeMapping(mapping) {
 			for _, value := range lookupVendorStrings(packet, mapping.VendorID, mapping.Type) {
 				if !applyJuniperExtremeAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
-					appendUniqueVendorAVPair(result, value)
+					if safeInboundVendorString(value, JuniperExtremeMaxValueLength) {
+						appendUniqueVendorAVPair(result, value)
+					}
 				}
+			}
+			return
+		}
+		if isRuckusICXAVPairRuntimeMapping(mapping) {
+			for _, value := range lookupVendorStrings(packet, mapping.VendorID, mapping.Type) {
+				_ = applyRuckusICXAttributeString(result, mapping.PackKey, mapping.Attribute, value)
 			}
 			return
 		}
@@ -822,6 +837,12 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			if isJuniperExtremePackKey(mapping.PackKey) && applyJuniperExtremeAttributeString(result, mapping.PackKey, mapping.Attribute, text) {
 				return
 			}
+			if isRuckusICXPackKey(mapping.PackKey) && applyRuckusICXAttributeString(result, mapping.PackKey, mapping.Attribute, text) {
+				return
+			}
+			if isRuckusICXPackKey(mapping.PackKey) {
+				return
+			}
 			applyInboundVendorString(result, mapping, text)
 		}
 	case inboundVendorMappedRole:
@@ -854,7 +875,15 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			if isJuniperExtremePackKey(mapping.PackKey) && applyJuniperExtremeAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
 				continue
 			}
+			if isRuckusICXPackKey(mapping.PackKey) && applyRuckusICXAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
+				continue
+			}
 			appendUniqueVendorAVPair(result, value)
+		}
+	case inboundVendorIPAddr:
+		value, ok := lookupVendorIPAddr(packet, mapping.VendorID, mapping.Type)
+		if ok {
+			applyInboundVendorString(result, mapping, value)
 		}
 	case inboundVendorMappedPortal:
 		value, ok := lookupVendorInteger(packet, mapping.VendorID, mapping.Type)
@@ -1038,6 +1067,10 @@ func applyInboundVendorString(result *BrokerAuthResult, mapping inboundVendorMap
 	if isJuniperExtremePackKey(mapping.PackKey) && applyJuniperExtremeAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
 		return
 	}
+	if isRuckusICXPackKey(mapping.PackKey) {
+		_ = applyRuckusICXAttributeString(result, mapping.PackKey, mapping.Attribute, value)
+		return
+	}
 	switch mapping.Semantic {
 	case productconfigs.VendorSemanticRole:
 		setStringIfEmpty(&result.VendorRole, value)
@@ -1092,6 +1125,24 @@ func isJuniperExtremePackKey(packKey string) bool {
 
 func isJuniperExtremeAVPairRuntimeMapping(mapping inboundVendorMapping) bool {
 	return isJuniperExtremePackKey(mapping.PackKey) && isJuniperExtremeAVPairAttribute(mapping.Attribute)
+}
+
+func isRuckusICXPackKey(packKey string) bool {
+	switch productconfigs.NormalizeVendorCompatibilityPackKey(packKey) {
+	case productconfigs.VendorPackRuckus, productconfigs.VendorPackFoundry:
+		return true
+	default:
+		return false
+	}
+}
+
+func isRuckusICXAVPairRuntimeMapping(mapping inboundVendorMapping) bool {
+	return isRuckusICXPackKey(mapping.PackKey) && isRuckusICXAVPairAttribute(mapping.Attribute)
+}
+
+func safeInboundVendorString(value string, maxLength int) bool {
+	value = strings.TrimSpace(value)
+	return value != "" && len(value) <= maxLength && !containsControlRune(value)
 }
 
 func applyInboundVendorACL(result *BrokerAuthResult, attribute, value string) {
@@ -1203,6 +1254,25 @@ func lookupVendorVLAN(packet *layehradius.Packet, vendorID uint32, typ byte) (in
 		return 0, false
 	}
 	return value, true
+}
+
+func lookupVendorIPAddr(packet *layehradius.Packet, vendorID uint32, typ byte) (string, bool) {
+	attr, ok := lookupVendorAttribute(packet, vendorID, typ)
+	if !ok {
+		return "", false
+	}
+	if len(attr) == 4 {
+		return net.IP(attr).String(), true
+	}
+	text := strings.TrimSpace(layehradius.String(attr))
+	if text == "" {
+		return "", false
+	}
+	ip := net.ParseIP(text)
+	if ip == nil || ip.To4() == nil {
+		return "", false
+	}
+	return ip.To4().String(), true
 }
 
 func lookupVendorRate(packet *layehradius.Packet, vendorID uint32, typ byte, scale int) (int, bool) {

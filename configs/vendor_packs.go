@@ -10,6 +10,7 @@ const (
 	VendorPackCisco      = "cisco"
 	VendorPackAruba      = "aruba"
 	VendorPackRuckus     = "ruckus"
+	VendorPackFoundry    = "foundry"
 	VendorPackFortinet   = "fortinet"
 	VendorPackUBNT       = "ubnt"
 	VendorPackCambium    = "cambium"
@@ -251,7 +252,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 		},
 		{
 			Key:              VendorPackRuckus,
-			Label:            "Ruckus",
+			Label:            "Ruckus SmartZone / ZoneDirector",
 			VendorName:       "Ruckus",
 			VendorID:         25053,
 			DefaultEnabled:   false,
@@ -259,7 +260,63 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			Attributes: []VendorPackAttributeMapping{
 				{Semantic: VendorSemanticRole, Attribute: "Ruckus-User-Groups", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticVLAN, Attribute: "Ruckus-VLAN-ID", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Ruckus-SSID", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Ruckus-Wlan-Id", Direction: "accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTenant, Attribute: "Ruckus-Location", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticSessionTimeout, Attribute: "Ruckus-Grace-Period", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticSessionTimeout, Attribute: "Ruckus-Sta-Expiration", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Ruckus-FlexAuth-AVP", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "Ruckus-IMSI", Direction: "accounting", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "Ruckus-APN-NI", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticBandwidthProfile, Attribute: "Ruckus-QoS", Direction: "outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "Ruckus-Gn-User-Name", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Ruckus-Policy-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticIPv4Address, Attribute: "Ruckus-Client-Local-IP", Direction: "accounting", ValueType: "ipaddr", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Ruckus-Wispr-Redirect-Policy", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Ruckus-Zone-Name", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Ruckus-Wlan-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "Ruckus-Client-Host-Name", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Ruckus-Client-Os-Type", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Ruckus-Client-Os-Class", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Ruckus-Vlan-Pool", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Ruckus-DPSK", Direction: "outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticGuestLifecycle, Attribute: "Ruckus-CP-Token", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDataQuota, Attribute: "Ruckus-Max-DL-UL-Quota", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticBandwidthProfile, Attribute: "Ruckus-Traffic-Class-Attribute-Ids", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAddressPool, Attribute: "Ruckus-Nat-Pool-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingCounters, Attribute: "Ruckus-TC-Acct-Ctrs", Direction: "accounting", ValueType: "tlv", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Ruckus-Cluster-Name", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTenant, Attribute: "Ruckus-Domain-Name", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Ruckus-Client-Device-Type", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Ruckus-Vlan-Name", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Ruckus-SCI-Role", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Ruckus-SCI-Resource-Group", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 			},
+			Notes: []string{"Ruckus DPSK, mobile-core identifiers, and TLV counter families are software-certified as typed evidence with redaction where needed; real SmartZone, ZoneDirector, Unleashed, and Ruckus One behavior remains release certification."},
+		},
+		{
+			Key:              VendorPackFoundry,
+			Label:            "Ruckus ICX / Foundry",
+			VendorName:       "Foundry",
+			VendorID:         1991,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "Foundry-Privilege-Level", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Foundry-Command-String", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Foundry-Command-Exception-Flag", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Foundry-INM-Privilege", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticACL, Attribute: "Foundry-Access-List", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Foundry-MAC-Authent-needs-802.1x", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Foundry-802.1x-Valid-Lookup", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Foundry-MAC-Based-Vlan-QoS", Direction: "outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Foundry-INM-Role-Aor-List", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticCoAReauth, Attribute: "Foundry-COA-Command", Direction: "coa", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Foundry-SI-Context-Role", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Foundry-SI-Role-Template", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Foundry-Voice-Phone-Config", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+			},
+			Notes: []string{"Foundry dictionary rows represent the ICX switch policy surface. Duplicate VSA numbers are treated as multi-semantic wire interpretations and require model/firmware release evidence."},
 		},
 		{
 			Key:              VendorPackFortinet,
@@ -767,7 +824,7 @@ func VendorCompatibilityPackByKey(key string) (VendorCompatibilityPack, bool) {
 
 func VendorPackSupportsNumericRoleMapping(key string) bool {
 	switch NormalizeVendorCompatibilityPackKey(key) {
-	case VendorPackCambium, VendorPackAerohive, VendorPackDLink, VendorPackSonicWall, VendorPackZTE:
+	case VendorPackCambium, VendorPackAerohive, VendorPackDLink, VendorPackSonicWall, VendorPackZTE, VendorPackFoundry:
 		return true
 	default:
 		return false
@@ -780,6 +837,8 @@ func VendorPackSupportsExtendedVLANMapping(key string) bool {
 
 func VendorPackAVPairAttribute(key string) (string, bool) {
 	switch NormalizeVendorCompatibilityPackKey(key) {
+	case VendorPackRuckus:
+		return "Ruckus-FlexAuth-AVP", true
 	case VendorPackJuniper:
 		return "Juniper-AV-Pair", true
 	case VendorPackHuawei:
@@ -802,7 +861,12 @@ func VendorPackSupportsSessionActionMapping(key string) bool {
 }
 
 func VendorPackSupportsQuotaMapping(key string) bool {
-	return NormalizeVendorCompatibilityPackKey(key) == VendorPackChilliSpot
+	switch NormalizeVendorCompatibilityPackKey(key) {
+	case VendorPackChilliSpot, VendorPackRuckus:
+		return true
+	default:
+		return false
+	}
 }
 
 func VendorPackSupportsServiceNameMapping(key string) bool {

@@ -284,6 +284,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/aruba-family-pack-history.json", requestPath: "/api/v1/system/aruba-family-pack/history", label: "NAS-0062 Aruba/HPE family pack certification history", handler: HandleListArubaFamilyPackHistory},
 		{archivePath: "api/juniper-extreme-pack.json", requestPath: "/api/v1/system/juniper-extreme-pack", label: "NAS-0063 Juniper/ERX/Extreme/Mist pack certification", handler: HandleGetJuniperExtremePack},
 		{archivePath: "api/juniper-extreme-pack-history.json", requestPath: "/api/v1/system/juniper-extreme-pack/history", label: "NAS-0063 Juniper/ERX/Extreme/Mist pack certification history", handler: HandleListJuniperExtremePackHistory},
+		{archivePath: "api/ruckus-icx-pack.json", requestPath: "/api/v1/system/ruckus-icx-pack", label: "NAS-0064 Ruckus/ICX pack certification", handler: HandleGetRuckusICXPack},
+		{archivePath: "api/ruckus-icx-pack-history.json", requestPath: "/api/v1/system/ruckus-icx-pack/history", label: "NAS-0064 Ruckus/ICX pack certification history", handler: HandleListRuckusICXPackHistory},
 		{archivePath: "api/session-history.json", requestPath: "/api/v1/system/session-history", label: "Session and accounting history", handler: HandleListSessionHistory},
 		{archivePath: "api/session-analytics.json", requestPath: "/api/v1/system/session-analytics", label: "Session activity analytics", handler: HandleGetSessionAnalytics},
 		{archivePath: "api/voucher-aging-analytics.json", requestPath: "/api/v1/system/voucher-aging-analytics", label: "Voucher stock aging analytics", handler: HandleGetVoucherAgingAnalytics},

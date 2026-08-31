@@ -172,6 +172,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionCiscoFamilyPackCheck(&report)
 	addProductionArubaFamilyPackCheck(&report)
 	addProductionJuniperExtremePackCheck(&report)
+	addProductionRuckusICXPackCheck(&report)
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
@@ -2705,6 +2706,50 @@ func addProductionJuniperExtremePackCheck(report *productionReadinessReport) {
 			"/api/v1/system/juniper-extreme-pack",
 			"juniper_extreme_pack_events",
 			"docs/nas-0063-release-certification-checklist.md",
+		},
+	})
+}
+
+func addProductionRuckusICXPackCheck(report *productionReadinessReport) {
+	certification, err := buildRuckusICXPackForRequest()
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "ruckus_icx_pack", Category: "radius", Label: "NAS-0064 Ruckus/ICX Pack", Status: "blocked",
+			Summary:        "Ruckus/ICX pack report could not be built: " + err.Error(),
+			Recommendation: "Repair the pinned attribute registry and Ruckus/ICX certification report before closing NAS-0064.",
+			Dependencies:   []string{"configs/ruckus_icx_pack.go", "internal/radius/ruckus_icx.go", "configs/attribute_registry/freeradius-3.2.8-vsa-audit.csv"},
+		})
+		return
+	}
+	if err := productconfigs.ValidateRuckusICXPackReport(certification); err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "ruckus_icx_pack", Category: "radius", Label: "NAS-0064 Ruckus/ICX Pack", Status: "blocked",
+			Summary:        "NAS-0064 software certification is incomplete: " + err.Error(),
+			Recommendation: "Use /api/v1/system/ruckus-icx-pack to inspect blocked Ruckus/ICX dimensions; external certification must remain in the release checklist.",
+			Dependencies:   []string{"configs/ruckus_icx_pack.go", "internal/radius/ruckus_icx.go", "internal/db/ruckus_icx_pack.go"},
+		})
+		return
+	}
+	status := "passed"
+	if db.DB == nil {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "ruckus_icx_pack", Category: "radius", Label: "NAS-0064 Ruckus/ICX Pack", Status: status,
+		Summary: fmt.Sprintf("NAS-0064 software-certifies %d/%d Ruckus/ICX rows across %d dictionary vendors and %d product scopes, with %d policy grammar rules, %d sensitive redaction mappings, and %d external certification claims.",
+			certification.Summary.SoftwareCertifiedMappings,
+			certification.Summary.AttributeCount,
+			certification.Summary.VendorCount,
+			certification.Summary.ProductScopeCount,
+			certification.Summary.GrammarRuleCount,
+			certification.Summary.SensitiveRedactedMappings,
+			certification.Summary.ExternalRequiredMappings,
+		),
+		Recommendation: "Record the current fingerprint with /api/v1/system/ruckus-icx-pack/record, then execute docs/nas-0064-release-certification-checklist.md before publishing hardware-certified claims.",
+		Dependencies: []string{
+			"/api/v1/system/ruckus-icx-pack",
+			"ruckus_icx_pack_events",
+			"docs/nas-0064-release-certification-checklist.md",
 		},
 	})
 }

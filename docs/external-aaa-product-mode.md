@@ -129,6 +129,13 @@ The implementation now does these things end to end:
     typed pass-through, persisted evidence, admin API, Vendor Compatibility UI,
     readiness checks, system status, and support-bundle captures while keeping
     real-device validation in a separate release checklist
+32. certifies the Ruckus/ICX FreeRADIUS dictionary pack in software through a
+    NAS-0064 report covering 97 Ruckus and Foundry rows, Ruckus FlexAuth
+    grammar, DPSK/subscriber redaction, WLAN and guest context, QoS/quota,
+    mobile-core accounting, ICX command authorization, access-list handling,
+    typed pass-through, persisted evidence, admin API, Vendor Compatibility UI,
+    readiness checks, system status, and support-bundle captures while keeping
+    real-device validation in a separate release checklist
 
 ## Current Behavior
 
@@ -202,6 +209,11 @@ When `radius.upstream.enabled: true`:
   - Cisco `Cisco-AVPair` grammar for ACL, TrustSec SGT, VPN, voice, shell
     privilege/roles, posture, audit session, route, VRF, pool, translation, and
     charging hints when the Cisco pack is enabled
+  - Ruckus `Ruckus-FlexAuth-AVP` grammar plus Ruckus/Foundry VSAs for role,
+    VLAN, VLAN pool, guest portal, QoS, quota, NAT pool, WLAN context, posture,
+    tenant, accounting identity, ICX command authorization, access-list, CoA,
+    and redacted DPSK/subscriber evidence when the Ruckus or Foundry pack is
+    enabled
 - break-glass local admin auth remains available even when portal RADIUS auth is enabled
 - privileged admin token and SSO sessions can require WebAuthn/passkey assertion before the admin API accepts a verified session token
 - EAP framework state is available through `/api/v1/system/eap-framework`; enforce/fail-closed mode prevents generated FreeRADIUS config when planned methods such as SIM, AKA, or AKA-prime are enabled before their roadmap feature lands

@@ -234,11 +234,11 @@ func runtimeAttributeRegistryAnnotations() []AttributeRegistryEntry {
 		},
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Huawei", PEN: 2011, Attribute: "Huawei-AVpair", Number: 188, WireType: "string",
-			PackKey: VendorPackHuawei, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement + "," + VendorSemanticTranslationPolicy + "," + VendorSemanticTranslationPublicIPv4 + "," + VendorSemanticTranslationPortBlock + "," + VendorSemanticNAT64Prefix + "," + VendorSemanticTranslationLogging, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
+			PackKey: VendorPackHuawei, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement + "," + VendorSemanticTranslationPolicy + "," + VendorSemanticTranslationPublicIPv4 + "," + VendorSemanticTranslationPortBlock + "," + VendorSemanticNAT64Prefix + "," + VendorSemanticTranslationLogging, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "avpairs", DecodeSemantic: VendorSemanticDynamicACL,
 		},
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "H3C", PEN: 25506, Attribute: "H3C-Av-Pair", Number: 210, WireType: "string",
-			PackKey: VendorPackH3C, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement + "," + VendorSemanticTranslationPolicy + "," + VendorSemanticTranslationPublicIPv4 + "," + VendorSemanticTranslationPortBlock + "," + VendorSemanticNAT64Prefix + "," + VendorSemanticTranslationLogging, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "string", DecodeSemantic: VendorSemanticDynamicACL,
+			PackKey: VendorPackH3C, Semantic: VendorSemanticDynamicACL + "," + VendorSemanticRoute + "," + VendorSemanticVRF + "," + VendorSemanticAddressPool + "," + VendorSemanticDelegatedIPv6Prefix + "," + VendorSemanticDHCPv6 + "," + VendorSemanticRouterAdvertisement + "," + VendorSemanticTranslationPolicy + "," + VendorSemanticTranslationPublicIPv4 + "," + VendorSemanticTranslationPortBlock + "," + VendorSemanticNAT64Prefix + "," + VendorSemanticTranslationLogging, Directions: []string{"inbound", "outbound_reply"}, DecodeKind: "avpairs", DecodeSemantic: VendorSemanticDynamicACL,
 		},
 		{
 			ReleaseProfileID: DefaultDictionaryReleaseProfileID, Vendor: "Nokia", PEN: 94, Attribute: "Nokia-AVPair", Number: 1, WireType: "string",
@@ -334,9 +334,9 @@ func arubaFamilyRuntimeAnnotations() []AttributeRegistryEntry {
 		arubaRuntimeAnnotation("Aruba", 14823, "Aruba-Port-Identifier", 7, "string", VendorPackAruba, VendorSemanticAccountingIdentity, "string", VendorSemanticAccountingIdentity),
 		arubaRuntimeAnnotation("Aruba", 14823, "Aruba-Named-User-Vlan", 9, "string", VendorPackAruba, VendorSemanticVLAN, "string", VendorSemanticVLAN),
 		arubaRuntimeAnnotation("Aruba", 14823, "Aruba-AP-Group", 10, "string", VendorPackAruba, VendorSemanticDeviceGroup, "string", VendorSemanticDeviceGroup),
-		arubaRuntimeAnnotation("Aruba", 14823, "Aruba-Device-Type", 12, "string", VendorPackAruba, VendorSemanticDevicePosture, "string", VendorSemanticDevicePosture),
+		withAttributeRegistryDirections(arubaRuntimeAnnotation("Aruba", 14823, "Aruba-Device-Type", 12, "string", VendorPackAruba, VendorSemanticDevicePosture, "string", VendorSemanticDevicePosture), "accounting", "inbound"),
 		arubaRuntimeAnnotation("Aruba", 14823, "Aruba-Mdps-Device-Udid", 15, "string", VendorPackAruba, VendorSemanticAccountingIdentity, "string", VendorSemanticAccountingIdentity),
-		arubaRuntimeAnnotation("Aruba", 14823, "Aruba-Mdps-Device-Name", 19, "string", VendorPackAruba, VendorSemanticAccountingIdentity, "string", VendorSemanticAccountingIdentity),
+		withAttributeRegistryDirections(arubaRuntimeAnnotation("Aruba", 14823, "Aruba-Mdps-Device-Name", 19, "string", VendorPackAruba, VendorSemanticAccountingIdentity, "string", VendorSemanticAccountingIdentity), "accounting", "inbound"),
 		arubaRuntimeAnnotation("Aruba", 14823, "Aruba-Mdps-Device-Product", 20, "string", VendorPackAruba, VendorSemanticDevicePosture, "string", VendorSemanticDevicePosture),
 		arubaRuntimeAnnotation("Aruba", 14823, "Aruba-Mdps-Device-Version", 21, "string", VendorPackAruba, VendorSemanticDevicePosture, "string", VendorSemanticDevicePosture),
 		arubaRuntimeAnnotation("Aruba", 14823, "Aruba-Mdps-Device-Serial", 22, "string", VendorPackAruba, VendorSemanticAccountingIdentity, "string", VendorSemanticAccountingIdentity),
@@ -398,7 +398,7 @@ func arubaFamilyRuntimeAnnotations() []AttributeRegistryEntry {
 		arubaRuntimeAnnotation("Aerohive", 26928, "Extreme-AVPair", 8, "string", VendorPackAerohive, VendorSemanticPolicyTag, "string", VendorSemanticPolicyTag),
 		arubaRuntimeAnnotation("Aerohive", 26928, "Extreme-IDM-Message", 203, "integer", VendorPackAerohive, VendorSemanticPolicyTag, "integer_text", VendorSemanticPolicyTag),
 		arubaRuntimeAnnotation("Aerohive", 26928, "Extreme-User-Language", 205, "string", VendorPackAerohive, VendorSemanticPolicyTag, "string", VendorSemanticPolicyTag),
-		arubaRuntimeAnnotation("Aerohive", 26928, "Extreme-Client-Monitor-Problem", 210, "integer", VendorPackAerohive, VendorSemanticDevicePosture, "integer_text", VendorSemanticDevicePosture),
+		withAttributeRegistryDirections(arubaRuntimeAnnotation("Aerohive", 26928, "Extreme-Client-Monitor-Problem", 210, "integer", VendorPackAerohive, VendorSemanticDevicePosture, "integer_text", VendorSemanticDevicePosture), "accounting", "inbound"),
 		arubaRuntimeAnnotation("Aerohive", 26928, "Extreme-IDM-Redirect-URL", 211, "string", VendorPackAerohive, VendorSemanticPortalProfile, "string", VendorSemanticPortalProfile),
 		arubaRuntimeAnnotation("Aerohive", 26928, "Extreme-Auth-Source", 213, "integer", VendorPackAerohive, VendorSemanticCertificateOnboarding, "integer_text", VendorSemanticCertificateOnboarding),
 		arubaRuntimeAnnotation("Colubris", 8744, "Colubris-Intercept", 1, "integer", VendorPackColubris, VendorSemanticQuarantine, "bool", VendorSemanticQuarantine),
@@ -424,6 +424,11 @@ func arubaRuntimeAnnotation(vendor string, pen uint32, attribute string, number 
 		DecodeSemantic:   decodeSemantic,
 		DecodeScale:      scale,
 	}
+}
+
+func withAttributeRegistryDirections(entry AttributeRegistryEntry, directions ...string) AttributeRegistryEntry {
+	entry.Directions = append([]string(nil), directions...)
+	return entry
 }
 
 func juniperExtremeRuntimeAnnotations() []AttributeRegistryEntry {
@@ -461,7 +466,7 @@ func juniperExtremeRuntimeAnnotations() []AttributeRegistryEntry {
 		juniperExtremeRuntimeAnnotation("Juniper", 2636, "Juniper-DHCPv6-Options", 207, "octets", VendorPackJuniper, VendorSemanticDHCPv6, "string", VendorSemanticDHCPv6),
 		juniperExtremeRuntimeAnnotation("Juniper", 2636, "Juniper-DHCPv4-Packet-Header", 208, "octets", VendorPackJuniper, VendorSemanticAccountingIdentity, "string", VendorSemanticAccountingIdentity),
 		juniperExtremeRuntimeAnnotation("Juniper", 2636, "Juniper-DHCPv6-Packet-Header", 209, "octets", VendorPackJuniper, VendorSemanticDHCPv6, "string", VendorSemanticDHCPv6),
-		juniperExtremeRuntimeAnnotation("Juniper", 2636, "Juniper-Acct-Request-Reason", 210, "uint32", VendorPackJuniper, VendorSemanticAccountingCounters, "integer_text", VendorSemanticAccountingCounters),
+		withAttributeRegistryDirections(juniperExtremeRuntimeAnnotation("Juniper", 2636, "Juniper-Acct-Request-Reason", 210, "uint32", VendorPackJuniper, VendorSemanticAccountingCounters, "integer_text", VendorSemanticAccountingCounters), "accounting", "inbound"),
 
 		juniperExtremeRuntimeAnnotation("Extreme", 1916, "Extreme-CLI-Authorization", 201, "integer", VendorPackExtreme, VendorSemanticRole, "integer_text", VendorSemanticRole),
 		juniperExtremeRuntimeAnnotation("Extreme", 1916, "Extreme-Shell-Command", 202, "string", VendorPackExtreme, VendorSemanticRole, "string", VendorSemanticRole),
@@ -608,6 +613,189 @@ func (r *AttributeRegistry) applyRuntimeAnnotations(vendors map[string]struct{})
 		r.addEntry(annotation)
 		vendors[strings.ToLower(annotation.Vendor)+"\x00"+strconv.FormatUint(uint64(annotation.PEN), 10)] = struct{}{}
 	}
+	r.applyRuckusICXRuntimeProfile()
+}
+
+func (r *AttributeRegistry) applyRuckusICXRuntimeProfile() {
+	if r == nil {
+		return
+	}
+	for idx := range r.Entries {
+		entry := &r.Entries[idx]
+		if !isRuckusICXRegistryVendor(entry.Vendor) {
+			continue
+		}
+		wasMissing := entry.DictionaryStatus == "missing"
+		semantic := ruckusICXRegistrySemantic(*entry)
+		entry.PackKey = ruckusICXRegistryPack(entry.Vendor)
+		entry.Semantic = mergeRegistrySemantics(entry.Semantic, semantic)
+		entry.SemanticProvenance = mergeRegistrySemantics(entry.SemanticProvenance, "aegisnas-runtime:nas-0064")
+		entry.Directions = ruckusICXRegistryDirections(*entry, semantic)
+		entry.Functionality = ruckusICXRegistryFunctionality(*entry, semantic)
+		entry.DecodeKind, entry.DecodeSemantic, entry.DecodeScale = ruckusICXRegistryDecoder(*entry, semantic)
+		if wasMissing {
+			entry.DictionaryStatus = "partial"
+			r.MappedCount++
+		}
+	}
+}
+
+func isRuckusICXRegistryVendor(vendor string) bool {
+	switch strings.ToLower(strings.TrimSpace(vendor)) {
+	case "ruckus", "foundry":
+		return true
+	default:
+		return false
+	}
+}
+
+func ruckusICXRegistryPack(vendor string) string {
+	switch strings.ToLower(strings.TrimSpace(vendor)) {
+	case "foundry":
+		return VendorPackFoundry
+	default:
+		return VendorPackRuckus
+	}
+}
+
+func ruckusICXRegistrySemantic(entry AttributeRegistryEntry) string {
+	name := strings.ToLower(entry.Attribute)
+	vendor := strings.ToLower(entry.Vendor)
+	if vendor == "foundry" {
+		switch {
+		case containsAnyRuckusICXRegistryToken(name, "coa"):
+			return VendorSemanticCoAReauth
+		case containsAnyRuckusICXRegistryToken(name, "access-list"):
+			return VendorSemanticACL
+		case containsAnyRuckusICXRegistryToken(name, "vlan-qos"):
+			return VendorSemanticVLAN + "," + VendorSemanticBandwidthProfile
+		case containsAnyRuckusICXRegistryToken(name, "802.1x", "mac-authent"):
+			return VendorSemanticDevicePosture
+		case containsAnyRuckusICXRegistryToken(name, "voice"):
+			return VendorSemanticPolicyTag
+		case containsAnyRuckusICXRegistryToken(name, "command", "privilege", "role"):
+			return VendorSemanticRole
+		default:
+			return VendorSemanticPolicyTag
+		}
+	}
+	switch {
+	case containsAnyRuckusICXRegistryToken(name, "gn-user-name", "imsi", "msisdn", "apn", "sgsn", "pdp", "charging", "cdr", "cell", "area"):
+		return VendorSemanticAccountingIdentity
+	case containsAnyRuckusICXRegistryToken(name, "dpsk", "triplets", "flexauth", "auth-type", "auth-server"):
+		return VendorSemanticPolicyTag
+	case containsAnyRuckusICXRegistryToken(name, "acct-ctrs", "accounting-status", "session-type", "start-time"):
+		return VendorSemanticAccountingCounters
+	case containsAnyRuckusICXRegistryToken(name, "ssid", "wlan", "bssid", "roamed", "eth-profile", "sta-rssi", "sta-uuid", "sta-inner"):
+		return VendorSemanticDeviceGroup
+	case containsAnyRuckusICXRegistryToken(name, "location", "domain"):
+		return VendorSemanticTenant
+	case containsAnyRuckusICXRegistryToken(name, "wispr", "cp-token"):
+		return VendorSemanticPortalProfile + "," + VendorSemanticGuestLifecycle
+	case containsAnyRuckusICXRegistryToken(name, "vlan"):
+		return VendorSemanticVLAN
+	case containsAnyRuckusICXRegistryToken(name, "quota"):
+		return VendorSemanticDataQuota
+	case containsAnyRuckusICXRegistryToken(name, "qos", "traffic-class", "tc-"):
+		return VendorSemanticBandwidthProfile
+	case containsAnyRuckusICXRegistryToken(name, "nat-pool"):
+		return VendorSemanticAddressPool + "," + VendorSemanticTranslationPublicIPv4
+	case containsAnyRuckusICXRegistryToken(name, "client-local-ip", "aaa-ip"):
+		return VendorSemanticIPv4Address
+	case containsAnyRuckusICXRegistryToken(name, "zone", "cluster", "blade", "nas-type", "aaa-id", "utp", "sci-resource"):
+		return VendorSemanticDeviceGroup
+	case containsAnyRuckusICXRegistryToken(name, "client-host"):
+		return VendorSemanticAccountingIdentity
+	case containsAnyRuckusICXRegistryToken(name, "client-os", "client-device"):
+		return VendorSemanticDevicePosture
+	case containsAnyRuckusICXRegistryToken(name, "user-groups", "policy-name", "sci-role"):
+		return VendorSemanticRole
+	case containsAnyRuckusICXRegistryToken(name, "grace-period", "expiration"):
+		return VendorSemanticSessionTimeout
+	default:
+		return VendorSemanticPolicyTag
+	}
+}
+
+func ruckusICXRegistryDirections(entry AttributeRegistryEntry, semantic string) []string {
+	name := strings.ToLower(entry.Attribute)
+	switch {
+	case containsAnyRuckusICXRegistryToken(name, "acct-ctrs", "accounting-status", "client-host", "client-os", "client-device", "client-local-ip", "client-remote-ip", "imsi", "msisdn", "apn", "sgsn", "cdr", "cell", "area", "start-time"):
+		return []string{"accounting", "inbound"}
+	case containsAnyRuckusICXRegistryToken(name, "coa"):
+		return []string{"coa", "inbound", "outbound_reply"}
+	case registrySemanticContains(semantic, VendorSemanticControllerHealth):
+		return []string{"controller_api", "inbound"}
+	case containsAnyRuckusICXRegistryToken(name, "zone", "cluster", "domain", "blade", "aaa-id", "auth-server", "utp"):
+		return []string{"accounting", "controller_api", "inbound"}
+	default:
+		return []string{"accounting", "inbound", "outbound_reply"}
+	}
+}
+
+func ruckusICXRegistryDecoder(entry AttributeRegistryEntry, semantic string) (string, string, int) {
+	if entry.Number == 0 || entry.Number > 255 {
+		return "", "", 0
+	}
+	baseType := baseDictionaryWireType(entry.WireType)
+	switch baseType {
+	case "tlv", "group", "struct":
+		return "", "", 0
+	}
+	decodeSemantic := firstRegistrySemantic(semantic)
+	if isRuckusICXRegistrySensitiveAttribute(entry.Attribute) {
+		return "string", decodeSemantic, 0
+	}
+	if baseType == "ipaddr" {
+		return "ipaddr", decodeSemantic, 0
+	}
+	if registrySemanticContains(semantic, VendorSemanticDataQuota) && registryIntegerType(entry.WireType) {
+		return "data_quota", VendorSemanticDataQuota, 0
+	}
+	if registrySemanticContains(semantic, VendorSemanticVLAN) {
+		if registryIntegerType(entry.WireType) {
+			return "vlan", VendorSemanticVLAN, 0
+		}
+		return "string", VendorSemanticVLAN, 0
+	}
+	if registrySemanticContains(semantic, VendorSemanticUploadBandwidth) || registrySemanticContains(semantic, VendorSemanticDownloadBandwidth) {
+		if registryIntegerType(entry.WireType) {
+			return "rate_kbps", decodeSemantic, 1
+		}
+		return "string", decodeSemantic, 0
+	}
+	if registryIntegerType(entry.WireType) {
+		return "integer_text", decodeSemantic, 0
+	}
+	return "string", decodeSemantic, 0
+}
+
+func ruckusICXRegistryFunctionality(entry AttributeRegistryEntry, semantic string) string {
+	scope := "Ruckus SmartZone, ZoneDirector, Unleashed, and ICX/Foundry policy"
+	if strings.EqualFold(entry.Vendor, "Foundry") {
+		scope = "Ruckus ICX and Foundry switch policy"
+	}
+	return fmt.Sprintf("%s carries %s for %s; AegisNAS normalizes known semantics, redacts secret or subscriber identifiers, and stores bounded evidence until hardware certification is attached.", entry.Attribute, strings.ReplaceAll(semantic, ",", "/"), scope)
+}
+
+func isRuckusICXRegistrySensitiveAttribute(attribute string) bool {
+	name := strings.ToLower(strings.TrimSpace(attribute))
+	return containsAnyRuckusICXRegistryToken(name,
+		"dpsk", "eapol-key-frame", "triplets", "imsi", "msisdn",
+		"charging-charac", "pdp-type", "dynamic-address-flag",
+		"chch-selection-mode", "sgsn-number", "area-code", "cell-identifier",
+		"read-preference",
+	)
+}
+
+func containsAnyRuckusICXRegistryToken(value string, tokens ...string) bool {
+	value = strings.ToLower(value)
+	for _, token := range tokens {
+		if strings.Contains(value, token) {
+			return true
+		}
+	}
+	return false
 }
 
 func firstRegistrySemantic(value string) string {
@@ -756,7 +944,7 @@ func attributeRegistryDecoder(entry AttributeRegistryEntry) (string, int) {
 		return "mapped_session_action", 0
 	case entry.Semantic == VendorSemanticDataQuota:
 		return "data_quota", 0
-	case entry.Semantic == VendorSemanticDynamicACL && (strings.Contains(name, "avpair") || strings.Contains(name, "av-pair")):
+	case registrySemanticContains(entry.Semantic, VendorSemanticDynamicACL) && (strings.Contains(name, "avpair") || strings.Contains(name, "av-pair")):
 		return "avpairs", 0
 	case entry.Semantic == VendorSemanticVLAN:
 		return "vlan", 0

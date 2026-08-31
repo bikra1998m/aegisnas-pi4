@@ -117,6 +117,11 @@ The current codebase now has a working form of this model through:
   grammar, ERX subscriber and BNG normalization, Extreme netlogin handling,
   secret redaction, typed pass-through, API/UI evidence, and external release
   certification split
+- NAS-0064 Ruckus/ICX pack certification for all 97 pinned Ruckus and Foundry
+  rows, with Ruckus FlexAuth grammar, DPSK/subscriber redaction, WLAN and guest
+  context, QoS/quota, mobile-core accounting, ICX command authorization,
+  access-list handling, typed pass-through, API/UI evidence, and external
+  release certification split
 
 That work lives primarily in:
 
@@ -126,6 +131,7 @@ That work lives primarily in:
 - `configs/cisco_family_pack.go`
 - `configs/aruba_family_pack.go`
 - `configs/juniper_extreme_pack.go`
+- `configs/ruckus_icx_pack.go`
 - `internal/radius/cisco_avpair.go`
 - `internal/radius/aruba_family.go`
 - `internal/radius/juniper_extreme.go`
