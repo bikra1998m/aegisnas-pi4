@@ -223,6 +223,43 @@ func TestApplyVendorCompatibilityAttributesParsesExpandedInboundVSAs(t *testing.
 	assert.Equal(t, "laptop-42", result.VendorAccountingIdentity)
 }
 
+func TestApplyCloudControllerPackAttributes(t *testing.T) {
+	merakiPacket := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorString(merakiPacket, 29671, 1, "mx-branch-a"))
+	require.NoError(t, addVendorString(merakiPacket, 29671, 2, "corp-east"))
+	require.NoError(t, addVendorString(merakiPacket, 29671, 3, "mr36-floor-2"))
+	require.NoError(t, addVendorString(merakiPacket, 29671, 4, "corp,8021x,managed"))
+
+	merakiResult := ParseBrokerPacketWithConfig(merakiPacket, &config.Config{
+		Radius: config.RadiusConfig{Vendor: vendorConfigForPacks(productconfigs.VendorPackMeraki)},
+	})
+	assert.Equal(t, "mx-branch-a", merakiResult.VendorDeviceGroup)
+	assert.Equal(t, "corp-east", merakiResult.VendorTenant)
+	assert.Equal(t, "mr36-floor-2", merakiResult.VendorAccountingIdentity)
+	assert.Equal(t, "corp,8021x,managed", merakiResult.VendorDevicePosture)
+
+	openWiFiPacket := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorString(openWiFiPacket, 58888, 1, "02:11:22:33:44:55"))
+
+	openWiFiResult := ParseBrokerPacketWithConfig(openWiFiPacket, &config.Config{
+		Radius: config.RadiusConfig{Vendor: vendorConfigForPacks(productconfigs.VendorPackOpenWiFi)},
+	})
+	assert.Equal(t, "02:11:22:33:44:55", openWiFiResult.VendorAccountingIdentity)
+
+	ratePacket := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+	require.NoError(t, addVendorInteger64(ratePacket, 41112, 1, 80_000_000))
+	require.NoError(t, addVendorInteger64(ratePacket, 41112, 3, 30_000_000))
+	rateResult := ParseBrokerPacketWithConfig(ratePacket, &config.Config{
+		Radius: config.RadiusConfig{Vendor: vendorConfigForPacks(productconfigs.VendorPackUBNT)},
+	})
+	assert.Equal(t, 80000, rateResult.WISPrBandwidthMaxDown)
+	assert.Equal(t, 30000, rateResult.WISPrBandwidthMaxUp)
+
+	items := BuildReplyAttributeItems(&ReplyAttributes{WISPrBandwidthMaxDown: 80000, WISPrBandwidthMaxUp: 30000}, []string{productconfigs.VendorPackUBNT})
+	assert.Contains(t, items, ReplyAttributeItem{Name: "UBNT-Data-Rate-DL", Value: "80000000", Quoted: false})
+	assert.Contains(t, items, ReplyAttributeItem{Name: "UBNT-Data-Rate-UL", Value: "30000000", Quoted: false})
+}
+
 func TestApplyVendorCompatibilityAttributesParsesExtremeExtendedVLAN(t *testing.T) {
 	packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
 	require.NoError(t, addVendorString(packet, 1916, 203, "10"))

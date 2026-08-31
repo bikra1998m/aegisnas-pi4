@@ -1,4 +1,4 @@
-.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vendor-mapping-certification test-cisco-family-pack test-aruba-family-pack test-juniper-extreme-pack test-ruckus-icx-pack test-fortinet-paloalto-pack test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-transport-policy test-radius-proxy-policy test-radius-accounting-spool test-radius-accounting-ingest-spool test-radius-sql-accounting test-radius-accounting-ordering test-radius-accounting-counters test-radius-accounting-ip test-radius-accounting-services test-radius-accounting-charging test-radius-outbound-dac-client test-radius-fallback-policy test-atomic-enforcement-transactions test-subscriber-route-export test-active-directory test-identity-failover test-mfa test-admin-webauthn test-eap-framework test-eap-teap test-eap-machine-user test-eap-fast-pwd test-eap-sim-aka test-certificate-lifecycle test-supplicant-lifecycle test-typed-policy-engine test-policy-set-governance test-policy-simulation-analysis test-subscriber-service-chains test-tacacs test-tenant-isolation test-mab test-dynamic-nas-clients test-radsec-credentials install-radius-dictionary scan-radius-dictionaries
+.PHONY: build test frontend clean all admin gateway radius portal session policy admin-api ai-lite test-acceptance test-vendor-certification test-vendor-identity test-attribute-registry test-dictionary-release-profiles test-compatibility-evidence test-vendor-mapping-certification test-cisco-family-pack test-aruba-family-pack test-juniper-extreme-pack test-ruckus-icx-pack test-fortinet-paloalto-pack test-cloud-controller-pack test-vsa-codec test-opaque-passthrough test-secret-providers test-postgres-data-plane test-radius-packet-hardening test-radius-proxy-routing test-radius-transport-policy test-radius-proxy-policy test-radius-accounting-spool test-radius-accounting-ingest-spool test-radius-sql-accounting test-radius-accounting-ordering test-radius-accounting-counters test-radius-accounting-ip test-radius-accounting-services test-radius-accounting-charging test-radius-outbound-dac-client test-radius-fallback-policy test-atomic-enforcement-transactions test-subscriber-route-export test-active-directory test-identity-failover test-mfa test-admin-webauthn test-eap-framework test-eap-teap test-eap-machine-user test-eap-fast-pwd test-eap-sim-aka test-certificate-lifecycle test-supplicant-lifecycle test-typed-policy-engine test-policy-set-governance test-policy-simulation-analysis test-subscriber-service-chains test-tacacs test-tenant-isolation test-mab test-dynamic-nas-clients test-radsec-credentials install-radius-dictionary scan-radius-dictionaries
 
 all: build frontend admin gateway radius portal session policy admin-api ai-lite
 
@@ -91,6 +91,13 @@ test-fortinet-paloalto-pack:
 	go test ./internal/radius -run 'FortinetPaloAlto|RenderReplyAttributesIncludesFortinetPaloAltoFamilyFields|GeneratedAttributeRegistry|PreviewOutboundDACCompilesFortinetSecurityPackActions' -count=1
 	go test ./internal/db -run '^TestFortinetPaloAltoPackEventLifecycle$$' -count=1
 	go test ./internal/adminapi -run 'FortinetPaloAltoPackAPIHistoryOpenAPIReadinessSupportBundleAndRBAC' -count=1
+	cd web/admin-ui && npm run build
+
+test-cloud-controller-pack:
+	go test ./configs -run 'CloudControllerPack|AttributeRegistry|VendorCompatibility|DictionaryRelease' -count=1
+	go test ./internal/radius -run 'CloudControllerPack|GeneratedAttributeRegistry|RenderReplyAttributes' -count=1
+	go test ./internal/db -run '^TestCloudControllerPackEventLifecycle$$' -count=1
+	go test ./internal/adminapi -run 'CloudControllerPackAPIHistoryOpenAPIReadinessSupportBundleAndRBAC' -count=1
 	cd web/admin-ui && npm run build
 
 test-vsa-codec:

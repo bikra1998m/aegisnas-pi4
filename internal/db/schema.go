@@ -195,6 +195,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{68, schemaV68},
 		{69, schemaV69},
 		{70, schemaV70},
+		{71, schemaV71},
 	}
 
 	for _, m := range migrations {
@@ -362,8 +363,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureFortinetPaloAltoPackTables(handle); err != nil {
 		return fmt.Errorf("repair Fortinet/Palo Alto pack schema: %w", err)
 	}
+	if err := ensureCloudControllerPackTables(handle); err != nil {
+		return fmt.Errorf("repair cloud controller pack schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureCloudControllerPackTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(cloudControllerPackSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureFortinetPaloAltoPackTables(handle *sql.DB) error {

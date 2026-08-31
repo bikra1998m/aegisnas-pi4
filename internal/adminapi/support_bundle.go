@@ -288,6 +288,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/ruckus-icx-pack-history.json", requestPath: "/api/v1/system/ruckus-icx-pack/history", label: "NAS-0064 Ruckus/ICX pack certification history", handler: HandleListRuckusICXPackHistory},
 		{archivePath: "api/fortinet-paloalto-pack.json", requestPath: "/api/v1/system/fortinet-paloalto-pack", label: "NAS-0065 Fortinet/Palo Alto pack certification", handler: HandleGetFortinetPaloAltoPack},
 		{archivePath: "api/fortinet-paloalto-pack-history.json", requestPath: "/api/v1/system/fortinet-paloalto-pack/history", label: "NAS-0065 Fortinet/Palo Alto pack certification history", handler: HandleListFortinetPaloAltoPackHistory},
+		{archivePath: "api/cloud-controller-pack.json", requestPath: "/api/v1/system/cloud-controller-pack", label: "NAS-0066 Meraki/UniFi/OpenWiFi cloud pack certification", handler: HandleGetCloudControllerPack},
+		{archivePath: "api/cloud-controller-pack-history.json", requestPath: "/api/v1/system/cloud-controller-pack/history", label: "NAS-0066 Meraki/UniFi/OpenWiFi cloud pack certification history", handler: HandleListCloudControllerPackHistory},
 		{archivePath: "api/session-history.json", requestPath: "/api/v1/system/session-history", label: "Session and accounting history", handler: HandleListSessionHistory},
 		{archivePath: "api/session-analytics.json", requestPath: "/api/v1/system/session-analytics", label: "Session activity analytics", handler: HandleGetSessionAnalytics},
 		{archivePath: "api/voucher-aging-analytics.json", requestPath: "/api/v1/system/voucher-aging-analytics", label: "Voucher stock aging analytics", handler: HandleGetVoucherAgingAnalytics},

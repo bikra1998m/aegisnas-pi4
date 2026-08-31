@@ -170,6 +170,31 @@ FreeRADIUS production Linux, HA, performance, soak, security, and customer
 acceptance proof stays in
 [nas-0065-release-certification-checklist.md](nas-0065-release-certification-checklist.md).
 
+## Meraki/UniFi/OpenWiFi Cloud Pack Operations
+
+Use [cloud-controller-pack.md](cloud-controller-pack.md) for NAS-0066 software
+certification of the 4 Meraki rows and 1 OpenWiFi row from the pinned
+FreeRADIUS 3.2.8 registry plus the 2 AegisNAS-runtime UBNT rate rows used by
+UniFi deployments. Before claiming the software release is ready for external
+validation, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/cloud-controller-pack | jq '.report.summary'
+```
+
+After automated tests pass, record the current fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/cloud-controller-pack/record | jq '.event_id, .status'
+```
+
+External Meraki Dashboard, UniFi Network, OpenWiFi OWGW/uCentral, access point,
+gateway, switch, appliance, FreeRADIUS production Linux, HA, performance, soak,
+security, and customer acceptance proof stays in
+[nas-0066-release-certification-checklist.md](nas-0066-release-certification-checklist.md).
+
 ## PostgreSQL Data-Plane Operations
 
 Use [postgresql-data-plane.md](postgresql-data-plane.md) for NAS-0008

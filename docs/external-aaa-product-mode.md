@@ -144,6 +144,13 @@ The implementation now does these things end to end:
     Vendor Compatibility UI, readiness checks, system status, and support-bundle
     captures while keeping real-device validation in a separate release
     checklist
+34. certifies the Meraki/UniFi/OpenWiFi cloud-controller pack in software
+    through a NAS-0066 report covering 4 Meraki rows, 1 OpenWiFi row, and 2
+    AegisNAS-runtime UBNT rate rows, Meraki telemetry, OpenWiFi AP identity,
+    UniFi bps rate parser/renderer behavior, cloud controller adapter scope,
+    persisted evidence, admin API, Vendor Compatibility UI, readiness checks,
+    system status, and support-bundle captures while keeping real-device and
+    cloud-controller validation in a separate release checklist
 
 ## Current Behavior
 

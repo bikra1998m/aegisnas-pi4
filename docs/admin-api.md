@@ -70,7 +70,7 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/production-readiness | jq '.status, .checks[] | select(.status != "passed")'
 ```
 
-The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, NAS-0060 vendor mapping certification, NAS-0061 Cisco-family pack certification, NAS-0062 Aruba/HPE-family pack certification, NAS-0063 Juniper/ERX/Extreme/Mist pack certification, NAS-0064 Ruckus/ICX pack certification, NAS-0065 Fortinet/Palo Alto pack certification, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
+The report checks config validation, declared hardware scaling, AegisNAS vendor identity and placeholder PEN use, dictionary release profile integrity, product dictionary detection, NAS-0060 vendor mapping certification, NAS-0061 Cisco-family pack certification, NAS-0062 Aruba/HPE-family pack certification, NAS-0063 Juniper/ERX/Extreme/Mist pack certification, NAS-0064 Ruckus/ICX pack certification, NAS-0065 Fortinet/Palo Alto pack certification, NAS-0066 Meraki/UniFi/OpenWiFi cloud pack certification, active vendor compatibility packs, deployed NAS profile coverage, active feature gates, controller readiness, and vendor runtime evidence from live RADIUS/CoA counters. A short summary also appears in `/api/v1/system/status` as `production_readiness`.
 
 ## Outbound Dynamic Authorization
 
@@ -405,6 +405,37 @@ curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
 
 curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/fortinet-paloalto-pack/record | jq '.event_id, .status'
+```
+
+NAS-0066 exposes the Meraki/UniFi/OpenWiFi cloud-controller software
+certification report for all 4 Meraki rows and 1 OpenWiFi row from the pinned
+FreeRADIUS 3.2.8 registry plus the 2 AegisNAS-runtime UBNT rate rows used by
+UniFi deployments:
+
+```text
+GET  /api/v1/system/cloud-controller-pack
+POST /api/v1/system/cloud-controller-pack/record
+GET  /api/v1/system/cloud-controller-pack/history
+```
+
+The report includes Meraki device, network, AP, and AP-tag telemetry, OpenWiFi
+AP MAC accounting identity, UniFi UBNT downstream/upstream rate parser and
+renderer state, controller product-scope rollups, vendor rollups, capability
+rollups, native semantic mappings, bounded software evidence, and release
+scope. `record` persists the current source hash, fingerprint, counts, summary
+JSON, full report JSON, actor, and timestamp in
+`cloud_controller_pack_events`. External Meraki Dashboard, UniFi Network, TIP
+OpenWiFi OWGW/uCentral, access point, gateway, switch, appliance,
+FreeRADIUS-on-Linux, HA, performance, soak, security, production deployment, and
+customer acceptance proof remains in
+[nas-0066-release-certification-checklist.md](nas-0066-release-certification-checklist.md).
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/cloud-controller-pack | jq '.report.summary'
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/cloud-controller-pack/record | jq '.event_id, .status'
 ```
 
 The API also provides a non-mutating reply preview endpoint:

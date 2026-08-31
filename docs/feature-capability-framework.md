@@ -128,6 +128,11 @@ The current codebase now has a working form of this model through:
   FortiDeceptor/FDD, FPC role, Palo Alto PAN-OS, User-ID, GlobalProtect,
   Panorama handling, typed pass-through, API/UI evidence, and external release
   certification split
+- NAS-0066 Meraki/UniFi/OpenWiFi cloud-controller pack certification for all 4
+  pinned Meraki rows, 1 pinned OpenWiFi row, and 2 AegisNAS-runtime UBNT rate
+  rows, with Meraki telemetry, OpenWiFi AP identity, UniFi bps rate
+  parser/renderer behavior, cloud controller adapter scope, API/UI evidence,
+  and external release certification split
 
 That work lives primarily in:
 
@@ -139,10 +144,12 @@ That work lives primarily in:
 - `configs/juniper_extreme_pack.go`
 - `configs/ruckus_icx_pack.go`
 - `configs/fortinet_paloalto_pack.go`
+- `configs/cloud_controller_pack.go`
 - `internal/radius/cisco_avpair.go`
 - `internal/radius/aruba_family.go`
 - `internal/radius/juniper_extreme.go`
 - `internal/radius/fortinet_paloalto.go`
+- `internal/radius/vendor.go`
 - `web/admin-ui/src/pages/AccessSettings.tsx`
 - `web/admin-ui/src/pages/VendorCompatibility.tsx`
 - `web/admin-ui/src/pages/Dashboard.tsx`

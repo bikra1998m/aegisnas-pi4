@@ -638,6 +638,46 @@ type FortinetPaloAltoPackPayload = {
   release_certification_checklist: string;
 };
 
+type CloudControllerPackSummary = RuckusICXPackSummary;
+type CloudControllerVendorSummary = RuckusICXVendorSummary;
+type CloudControllerCapabilitySummary = RuckusICXCapabilitySummary;
+type CloudControllerGrammarRecord = RuckusICXGrammarRecord;
+type CloudControllerAttributeRecord = RuckusICXAttributeRecord;
+type CloudControllerProductScope = RuckusICXProductScope;
+type CloudControllerPackEvent = RuckusICXPackEvent;
+
+type CloudControllerPackPayload = {
+  generated_at: string;
+  report: {
+    schema_version: number;
+    feature_id: string;
+    release_profile_id: string;
+    source_release: string;
+    source_sha256: string;
+    summary: CloudControllerPackSummary;
+    vendor_summaries: CloudControllerVendorSummary[];
+    capability_summaries: CloudControllerCapabilitySummary[];
+    product_scopes: CloudControllerProductScope[];
+    grammar: CloudControllerGrammarRecord[];
+    records: CloudControllerAttributeRecord[];
+    notes?: string[];
+  };
+  evidence: {
+    summary: {
+      total_events: number;
+      recorded_count: number;
+      blocked_count: number;
+      failed_count: number;
+      last_event_at?: string;
+      last_fingerprint?: string;
+      last_product_scope_count?: number;
+    };
+    recent_events?: CloudControllerPackEvent[];
+  };
+  release_scope: string;
+  release_certification_checklist: string;
+};
+
 type VendorDictionaryCoverageRow = {
   pack_key: string;
   pack_label: string;
@@ -1103,6 +1143,9 @@ export default function VendorCompatibility() {
   const [fortinetPaloAltoPack, setFortinetPaloAltoPack] = useState<FortinetPaloAltoPackPayload | null>(null);
   const [fortinetPaloAltoPackBusy, setFortinetPaloAltoPackBusy] = useState(false);
   const [fortinetPaloAltoPackError, setFortinetPaloAltoPackError] = useState('');
+  const [cloudControllerPack, setCloudControllerPack] = useState<CloudControllerPackPayload | null>(null);
+  const [cloudControllerPackBusy, setCloudControllerPackBusy] = useState(false);
+  const [cloudControllerPackError, setCloudControllerPackError] = useState('');
   const [vsaCodec, setVSACodec] = useState<VSACodecPayload | null>(null);
   const [vsaCodecError, setVSACodecError] = useState('');
   const [opaquePassThrough, setOpaquePassThrough] = useState<OpaquePassThroughPayload | null>(null);
@@ -1115,6 +1158,7 @@ export default function VendorCompatibility() {
   const canRecordJuniperExtremePack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
   const canRecordRuckusICXPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
   const canRecordFortinetPaloAltoPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
+  const canRecordCloudControllerPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
 
   const fetchVendorIdentity = async () => {
     try {
@@ -1389,6 +1433,31 @@ export default function VendorCompatibility() {
     }
   };
 
+  const fetchCloudControllerPack = async () => {
+    setCloudControllerPackError('');
+    try {
+      const { data } = await api.get<CloudControllerPackPayload>('/system/cloud-controller-pack?history_limit=5');
+      setCloudControllerPack(data);
+    } catch (err: any) {
+      setCloudControllerPackError(apiErrorMessage(err, 'Could not load NAS-0066 Meraki/UniFi/OpenWiFi cloud pack.'));
+    }
+  };
+
+  const recordCloudControllerPack = async () => {
+    setCloudControllerPackBusy(true);
+    setCloudControllerPackError('');
+    setMessage('');
+    try {
+      await api.post('/system/cloud-controller-pack/record', {});
+      setMessage('NAS-0066 Meraki/UniFi/OpenWiFi cloud pack event recorded.');
+      await fetchCloudControllerPack();
+    } catch (err: any) {
+      setCloudControllerPackError(apiErrorMessage(err, 'Could not record NAS-0066 Meraki/UniFi/OpenWiFi cloud pack.'));
+    } finally {
+      setCloudControllerPackBusy(false);
+    }
+  };
+
   const fetchVSACodec = async () => {
     setVSACodecError('');
     try {
@@ -1499,6 +1568,7 @@ export default function VendorCompatibility() {
     void fetchJuniperExtremePack();
     void fetchRuckusICXPack();
     void fetchFortinetPaloAltoPack();
+    void fetchCloudControllerPack();
     void fetchVSACodec();
     void fetchOpaquePassThrough();
   }, []);
@@ -1550,6 +1620,13 @@ export default function VendorCompatibility() {
   const fortinetPaloAltoPackCapabilities = fortinetPaloAltoPack?.report.capability_summaries || [];
   const fortinetPaloAltoPackGrammar = fortinetPaloAltoPack?.report.grammar || [];
   const fortinetPaloAltoProductScopes = fortinetPaloAltoPack?.report.product_scopes || [];
+  const cloudControllerPackSummary = cloudControllerPack?.report.summary;
+  const cloudControllerPackComplete = Boolean(cloudControllerPackSummary && cloudControllerPackSummary.software_certified_mappings === cloudControllerPackSummary.attribute_count && cloudControllerPackSummary.software_blocked_mappings === 0);
+  const cloudControllerPackRecords = cloudControllerPack?.report.records || [];
+  const cloudControllerPackVendors = cloudControllerPack?.report.vendor_summaries || [];
+  const cloudControllerPackCapabilities = cloudControllerPack?.report.capability_summaries || [];
+  const cloudControllerPackGrammar = cloudControllerPack?.report.grammar || [];
+  const cloudControllerProductScopes = cloudControllerPack?.report.product_scopes || [];
   const plannedSemantics = useMemo(
     () => (payload?.semantics || []).filter((item) => item.compatibility_state !== 'implemented'),
     [payload?.semantics],
@@ -1572,7 +1649,7 @@ export default function VendorCompatibility() {
           <p className="mt-1 text-sm text-gray-600">Confirm deployed NAS profiles, reply packs, and vendor dictionary coverage before changing access policy.</p>
         </div>
         <button
-          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchArubaFamilyPack(); void fetchJuniperExtremePack(); void fetchRuckusICXPack(); void fetchFortinetPaloAltoPack(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
+          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchArubaFamilyPack(); void fetchJuniperExtremePack(); void fetchRuckusICXPack(); void fetchFortinetPaloAltoPack(); void fetchCloudControllerPack(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
           disabled={loading}
           className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
@@ -2001,6 +2078,130 @@ export default function VendorCompatibility() {
                   </table>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">{fortinetPaloAltoPack?.release_certification_checklist} keeps Fortinet appliances, Fortinet controllers, PAN-OS, GlobalProtect, Panorama, FreeRADIUS Linux, HA, performance, and customer proof outside engineering completion.</p>
+              </>
+            ) : null}
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">NAS-0066 Meraki/UniFi/OpenWiFi Cloud Pack</h3>
+                <p className="mt-1 text-sm text-gray-600">Certify Meraki telemetry, UniFi UBNT rate attributes, OpenWiFi AP identity, and cloud-controller lifecycle software while device proof stays in release certification.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {cloudControllerPackSummary ? (
+                  <StatusBadge tone={cloudControllerPackComplete ? 'green' : 'amber'}>
+                    {formatPercent(cloudControllerPackSummary.software_completion_percent)} software
+                  </StatusBadge>
+                ) : null}
+                {canRecordCloudControllerPack ? (
+                  <button
+                    type="button"
+                    onClick={() => void recordCloudControllerPack()}
+                    disabled={cloudControllerPackBusy || !cloudControllerPackComplete}
+                    className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {cloudControllerPackBusy ? 'Recording...' : 'Record Evidence'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {cloudControllerPackError ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{cloudControllerPackError}</div> : null}
+            {cloudControllerPackSummary ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="Cloud Rows" value={cloudControllerPackSummary.attribute_count} hint="Meraki and OpenWiFi audit rows plus AegisNAS runtime UBNT rate rows." />
+                  <StatCard label="Software Certified" value={cloudControllerPackSummary.software_certified_mappings} hint={`${cloudControllerPackSummary.software_blocked_mappings} software blockers.`} />
+                  <StatCard label="Dictionary Vendors" value={cloudControllerPackSummary.vendor_count} hint={`${cloudControllerPackSummary.native_semantic_mappings} native semantic mappings.`} />
+                  <StatCard label="Product Scopes" value={cloudControllerPackSummary.product_scope_count} hint="Meraki, UniFi Network, OpenWiFi, and shared cloud lifecycle." />
+                  <StatCard label="Cloud Grammar" value={cloudControllerPackSummary.grammar_rule_count} hint="Telemetry, rate limits, SSID sync, uCentral, and secret redaction." />
+                  <StatCard label="Storage Events" value={cloudControllerPack?.evidence.summary.total_events || 0} hint={cloudControllerPack?.evidence.summary.last_event_at ? `Last ${new Date(cloudControllerPack.evidence.summary.last_event_at).toLocaleString()}` : 'No persisted event yet.'} />
+                  <StatCard label="Ready For Lab" value={cloudControllerPackSummary.ready_for_external_validation_mappings} hint="Software-ready rows awaiting release proof." />
+                  <StatCard label="External Claims" value={cloudControllerPackSummary.external_required_mappings} hint="Hardware and cloud-controller claims stay release-gated." />
+                </div>
+
+                <div className="mt-4 rounded-md border border-gray-200 p-4">
+                  <div className="text-xs font-semibold uppercase text-gray-500">Cloud Pack Fingerprint</div>
+                  <div className="mt-2 break-all text-sm font-medium text-gray-900">{cloudControllerPackSummary.fingerprint}</div>
+                  <p className="mt-2 text-sm text-gray-600">{cloudControllerPack?.release_scope}</p>
+                </div>
+
+                <div className="mt-4 grid gap-4 xl:grid-cols-4">
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Vendor', 'Rows', 'State'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {cloudControllerPackVendors.map((vendor) => (
+                          <tr key={`${vendor.vendor}-${vendor.pen}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{vendor.vendor}<div className="text-xs text-gray-500">PEN {vendor.pen}{vendor.pack_key ? ` / ${vendor.pack_key}` : ''}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{vendor.software_certified_mappings}/{vendor.attribute_count}<div className="text-xs text-gray-500">{vendor.external_required_mappings} external</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{formatPercent(vendor.software_completion_percent)}</StatusBadge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Product Scope', 'Dictionary', 'State'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {cloudControllerProductScopes.slice(0, 9).map((scope) => (
+                          <tr key={`${scope.key}-${scope.label}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{scope.label}<div className="text-xs text-gray-500">{joinList(scope.products)}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{scope.dictionary}<div className="text-xs text-gray-500">{joinList(scope.vendors)}</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{evidenceLabel(scope.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{evidenceLabel(scope.external_state)}</div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Capability', 'Rows', 'Mapping'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {cloudControllerPackCapabilities.slice(0, 8).map((capability) => (
+                          <tr key={capability.capability}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{evidenceLabel(capability.capability)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{capability.software_certified_mappings}/{capability.attribute_count}<div className="text-xs text-gray-500">{capability.external_required_mappings} external</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{capability.native_semantic_mappings} native<div className="text-xs text-gray-500">{capability.typed_passthrough_mappings} pass-through</div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Grammar', 'State', 'Example'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {cloudControllerPackGrammar.slice(0, 8).map((grammar) => (
+                          <tr key={grammar.key}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{grammar.label}<div className="text-xs text-gray-500">{grammar.kind}</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{grammar.parser_state}</StatusBadge><div className="mt-1 text-xs text-gray-500">{grammar.external_state}</div></td>
+                            <td className="px-4 py-3 text-xs text-gray-700">{grammar.examples?.[0] || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="mt-4 overflow-x-auto rounded-md border border-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50"><tr>{['Attribute', 'Capability', 'Software', 'Handling'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {cloudControllerPackRecords.slice(0, 10).map((record) => (
+                        <tr key={record.id}>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{record.attribute}<div className="text-xs text-gray-500">{record.vendor} / {record.wire_key}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{evidenceLabel(record.capability)}<div className="text-xs text-gray-500">{joinList(record.directions)}</div></td>
+                          <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{evidenceLabel(record.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{record.claim_state}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{evidenceLabel(record.implementation_class)}<div className="text-xs text-gray-500">{evidenceLabel(record.packet_processing)}</div></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">{cloudControllerPack?.release_certification_checklist} keeps Meraki Dashboard, UniFi Network, OpenWiFi OWGW/uCentral, access points, gateways, FreeRADIUS Linux, HA, performance, and customer proof outside engineering completion.</p>
               </>
             ) : null}
           </section>

@@ -373,10 +373,12 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			DefaultEnabled:   false,
 			HardwareProfiles: branchEnterprise,
 			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "UBNT-Data-Rate-DL", Direction: "inbound", ValueType: "rate", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "UBNT-Data-Rate-DL", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticUploadBandwidth, Attribute: "UBNT-Data-Rate-UL", Direction: "inbound", ValueType: "rate", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticUploadBandwidth, Attribute: "UBNT-Data-Rate-UL", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
 			},
-			Notes: []string{"UniFi/UBNT rate attributes are rendered from AegisNAS kbps values as bits per second."},
+			Notes: []string{"UniFi/UBNT rate attributes are parsed and rendered from AegisNAS kbps values as bits per second. FreeRADIUS 3.2.8 does not include a Ubiquiti namespace, so these rows remain AegisNAS runtime compatibility extensions until NAS-0073 external dictionary intake is complete."},
 		},
 		{
 			Key:              VendorPackCambium,
@@ -832,7 +834,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			DefaultEnabled:   false,
 			HardwareProfiles: allProfiles,
 			Attributes: []VendorPackAttributeMapping{
-				{Semantic: VendorSemanticAccountingIdentity, Attribute: "AP-MAC-Address", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "OpenWiFi-AP-MAC-Address", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticControllerPolicySync, Attribute: "controller.policy_sync", Direction: "controller_api", ValueType: "sync", CompatibilityState: "implemented"},
 			},
 			Notes: []string{"OpenWiFi enforcement uses standards-based RADIUS replies; the native Gateway adapter reconciles existing same-name enterprise SSIDs in per-device uCentral configurations selected by AP serial number or venue UUID."},

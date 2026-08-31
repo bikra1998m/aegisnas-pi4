@@ -165,6 +165,10 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
 	case strings.HasPrefix(path, "/api/v1/system/fortinet-paloalto-pack"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/cloud-controller-pack/record"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/cloud-controller-pack"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/vsa-codec"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/opaque-passthrough"):

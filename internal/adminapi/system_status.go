@@ -529,6 +529,46 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		fortinetPaloAltoPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
 	}
+	cloudControllerPackStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0066 Meraki/UniFi/OpenWiFi cloud pack has not been evaluated.",
+	}
+	if cloudControllerPack, err := buildCloudControllerPackForRequest(); err == nil {
+		status := "ready"
+		message := fmt.Sprintf("NAS-0066 software certification covers %d/%d Meraki, UniFi/UBNT, and OpenWiFi rows across %d dictionary/runtime vendors and %d product scopes.",
+			cloudControllerPack.Summary.SoftwareCertifiedMappings,
+			cloudControllerPack.Summary.AttributeCount,
+			cloudControllerPack.Summary.VendorCount,
+			cloudControllerPack.Summary.ProductScopeCount,
+		)
+		if err := productconfigs.ValidateCloudControllerPackReport(cloudControllerPack); err != nil {
+			status = "blocked"
+			message = "NAS-0066 Meraki/UniFi/OpenWiFi cloud pack is incomplete: " + err.Error()
+		}
+		historySummary, historyErr := db.GetCloudControllerPackSummary()
+		cloudControllerPackStatus = map[string]any{
+			"status":                              status,
+			"message":                             message,
+			"schema_version":                      cloudControllerPack.SchemaVersion,
+			"feature_id":                          cloudControllerPack.FeatureID,
+			"source_sha256":                       cloudControllerPack.SourceSHA256,
+			"attribute_count":                     cloudControllerPack.Summary.AttributeCount,
+			"software_certified_mappings":         cloudControllerPack.Summary.SoftwareCertifiedMappings,
+			"software_blocked_mappings":           cloudControllerPack.Summary.SoftwareBlockedMappings,
+			"external_required_mappings":          cloudControllerPack.Summary.ExternalRequiredMappings,
+			"software_completion_percent":         cloudControllerPack.Summary.SoftwareCompletionPercent,
+			"grammar_rule_count":                  cloudControllerPack.Summary.GrammarRuleCount,
+			"sensitive_redacted_mappings":         cloudControllerPack.Summary.SensitiveRedactedMappings,
+			"product_scope_count":                 cloudControllerPack.Summary.ProductScopeCount,
+			"fingerprint":                         cloudControllerPack.Summary.Fingerprint,
+			"release_certification_checklist":     "docs/nas-0066-release-certification-checklist.md",
+			"release_certification_external_only": true,
+			"evidence_summary":                    historySummary,
+			"evidence_error":                      rateCompilerErrorString(historyErr),
+		}
+	} else {
+		cloudControllerPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -592,6 +632,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"juniper_extreme_pack":         juniperExtremePackStatus,
 		"ruckus_icx_pack":              ruckusICXPackStatus,
 		"fortinet_paloalto_pack":       fortinetPaloAltoPackStatus,
+		"cloud_controller_pack":        cloudControllerPackStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),
