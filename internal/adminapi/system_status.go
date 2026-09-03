@@ -609,6 +609,46 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		accessVendorPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
 	}
+	broadbandVendorPackStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0068 Huawei/H3C/ZTE broadband pack has not been evaluated.",
+	}
+	if broadbandVendorPack, err := buildBroadbandVendorPackForRequest(); err == nil {
+		status := "ready"
+		message := fmt.Sprintf("NAS-0068 software certification covers %d/%d Huawei, H3C, and ZTE rows across %d dictionary vendors and %d product scopes.",
+			broadbandVendorPack.Summary.SoftwareCertifiedMappings,
+			broadbandVendorPack.Summary.AttributeCount,
+			broadbandVendorPack.Summary.VendorCount,
+			broadbandVendorPack.Summary.ProductScopeCount,
+		)
+		if err := productconfigs.ValidateBroadbandVendorPackReport(broadbandVendorPack); err != nil {
+			status = "blocked"
+			message = "NAS-0068 Huawei/H3C/ZTE broadband pack is incomplete: " + err.Error()
+		}
+		historySummary, historyErr := db.GetBroadbandVendorPackSummary()
+		broadbandVendorPackStatus = map[string]any{
+			"status":                              status,
+			"message":                             message,
+			"schema_version":                      broadbandVendorPack.SchemaVersion,
+			"feature_id":                          broadbandVendorPack.FeatureID,
+			"source_sha256":                       broadbandVendorPack.SourceSHA256,
+			"attribute_count":                     broadbandVendorPack.Summary.AttributeCount,
+			"software_certified_mappings":         broadbandVendorPack.Summary.SoftwareCertifiedMappings,
+			"software_blocked_mappings":           broadbandVendorPack.Summary.SoftwareBlockedMappings,
+			"external_required_mappings":          broadbandVendorPack.Summary.ExternalRequiredMappings,
+			"software_completion_percent":         broadbandVendorPack.Summary.SoftwareCompletionPercent,
+			"grammar_rule_count":                  broadbandVendorPack.Summary.GrammarRuleCount,
+			"sensitive_redacted_mappings":         broadbandVendorPack.Summary.SensitiveRedactedMappings,
+			"product_scope_count":                 broadbandVendorPack.Summary.ProductScopeCount,
+			"fingerprint":                         broadbandVendorPack.Summary.Fingerprint,
+			"release_certification_checklist":     "docs/nas-0068-release-certification-checklist.md",
+			"release_certification_external_only": true,
+			"evidence_summary":                    historySummary,
+			"evidence_error":                      rateCompilerErrorString(historyErr),
+		}
+	} else {
+		broadbandVendorPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -674,6 +714,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"fortinet_paloalto_pack":       fortinetPaloAltoPackStatus,
 		"cloud_controller_pack":        cloudControllerPackStatus,
 		"access_vendor_pack":           accessVendorPackStatus,
+		"broadband_vendor_pack":        broadbandVendorPackStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),

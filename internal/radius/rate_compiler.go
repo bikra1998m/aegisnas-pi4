@@ -95,10 +95,10 @@ func BuildRateCompilerReport() RateCompilerReport {
 			{PackKey: productconfigs.VendorPackMikroTik, Attributes: []string{"Mikrotik-Rate-Limit"}, Units: []string{"k-suffix-pair", "seconds-pair"}, Notes: "Supports basic and extended RouterOS rate grammar with explicit burst, threshold, time, priority, and min-rate fields."},
 			{PackKey: productconfigs.VendorPackWISPr, Attributes: []string{"WISPr-Bandwidth-Max-Down", "WISPr-Bandwidth-Max-Up"}, Units: []string{"integer-kbps"}, Notes: "Preserves current AegisNAS WISPr integer-kbps behavior for backward compatibility."},
 			{PackKey: productconfigs.VendorPackUBNT, Attributes: []string{"UBNT-Data-Rate-DL", "UBNT-Data-Rate-UL"}, Units: []string{"integer-bps"}, Notes: "Compiles from normalized kbps to bps with 32-bit overflow checks."},
-			{PackKey: productconfigs.VendorPackHuawei, Attributes: []string{"Huawei-Output-Average-Rate", "Huawei-Input-Average-Rate"}, Units: []string{"integer-kbps"}, Notes: "Compiles Huawei average-rate VSAs from normalized kbps."},
-			{PackKey: productconfigs.VendorPackH3C, Attributes: []string{"H3C-Output-Average-Rate", "H3C-Input-Average-Rate"}, Units: []string{"integer-kbps"}, Notes: "Compiles H3C average-rate VSAs from normalized kbps."},
+			{PackKey: productconfigs.VendorPackHuawei, Attributes: []string{"Huawei-Output-Average-Rate", "Huawei-Input-Average-Rate", "Huawei-Output-Peak-Information-Rate", "Huawei-Input-Peak-Information-Rate"}, Units: []string{"integer-kbps"}, Notes: "Compiles Huawei average-rate and peak-information-rate VSAs from normalized kbps."},
+			{PackKey: productconfigs.VendorPackH3C, Attributes: []string{"H3C-Output-Average-Rate", "H3C-Input-Average-Rate", "H3C-Output-Peak-Rate", "H3C-Input-Peak-Rate"}, Units: []string{"integer-kbps"}, Notes: "Compiles H3C average-rate and peak-rate VSAs from normalized kbps."},
 			{PackKey: productconfigs.VendorPackTPLink, Attributes: []string{"TPLink-Xmit-limit", "TPLink-Recv-limit"}, Units: []string{"integer-kbps"}, Notes: "Compiles Omada rate limits from normalized kbps."},
-			{PackKey: productconfigs.VendorPackZTE, Attributes: []string{"Rate-Ctrl-SCR-Down", "Rate-Ctrl-SCR-Up"}, Units: []string{"integer-kbps"}, Notes: "Compiles ZTE SCR values from normalized kbps."},
+			{PackKey: productconfigs.VendorPackZTE, Attributes: []string{"Rate-Ctrl-SCR-Down", "Rate-Ctrl-SCR-Up", "Rate-Ctrl-SCR-Down-v6", "Rate-Ctrl-SCR-Up-v6"}, Units: []string{"integer-kbps"}, Notes: "Compiles ZTE IPv4 and IPv6 SCR values from normalized kbps."},
 			{PackKey: "generic-kbps", Attributes: []string{"Cambium", "Airespace", "HP", "Nomadix", "ChilliSpot", "D-Link"}, Units: []string{"integer-kbps"}, Notes: "Shared integer-kbps compiler and decompiler are used by the named vendor packs."},
 		},
 	}
@@ -181,8 +181,10 @@ func CompileVendorRates(req RateCompilerRequest) RateCompilerResult {
 			addKbpsPair(pack, "Cambium-ePMP-Max-Burst-Downlink-Rate", "Cambium-ePMP-Max-Burst-Uplink-Rate")
 		case productconfigs.VendorPackHuawei:
 			addKbpsPair(pack, "Huawei-Output-Average-Rate", "Huawei-Input-Average-Rate")
+			addKbpsPair(pack, "Huawei-Output-Peak-Information-Rate", "Huawei-Input-Peak-Information-Rate")
 		case productconfigs.VendorPackH3C:
 			addKbpsPair(pack, "H3C-Output-Average-Rate", "H3C-Input-Average-Rate")
+			addKbpsPair(pack, "H3C-Output-Peak-Rate", "H3C-Input-Peak-Rate")
 		case productconfigs.VendorPackTPLink:
 			addKbpsPair(pack, "TPLink-Xmit-limit", "TPLink-Recv-limit")
 		case productconfigs.VendorPackAirespace:
@@ -197,6 +199,7 @@ func CompileVendorRates(req RateCompilerRequest) RateCompilerResult {
 			addKbpsPair(pack, "Egress-Bandwidth-Assignment", "Ingress-Bandwidth-Assignment")
 		case productconfigs.VendorPackZTE:
 			addKbpsPair(pack, "Rate-Ctrl-SCR-Down", "Rate-Ctrl-SCR-Up")
+			addKbpsPair(pack, "Rate-Ctrl-SCR-Down-v6", "Rate-Ctrl-SCR-Up-v6")
 		default:
 			if pack == productconfigs.VendorPackStandard {
 				continue

@@ -139,6 +139,11 @@ The current codebase now has a working form of this model through:
   portal, command, and authentication-key redaction evidence, D-Link user-level,
   bandwidth, priority, VLAN, ACL profile/rule/script handling, API/UI evidence,
   and external release certification split
+- NAS-0068 Huawei/H3C/ZTE broadband pack certification for all 308 pinned
+  Huawei, H3C, and ZTE rows, with BRAS/BNG subscriber state, route, address
+  pool, QoS, NAT/translation, multicast, command authorization, portal,
+  accounting, charging, redacted credential evidence, API/UI evidence, and
+  external release certification split
 
 That work lives primarily in:
 
@@ -152,6 +157,7 @@ That work lives primarily in:
 - `configs/fortinet_paloalto_pack.go`
 - `configs/cloud_controller_pack.go`
 - `configs/access_vendor_pack.go`
+- `configs/broadband_vendor_pack.go`
 - `internal/radius/cisco_avpair.go`
 - `internal/radius/aruba_family.go`
 - `internal/radius/juniper_extreme.go`

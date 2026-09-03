@@ -197,6 +197,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{70, schemaV70},
 		{71, schemaV71},
 		{72, schemaV72},
+		{73, schemaV73},
 	}
 
 	for _, m := range migrations {
@@ -370,8 +371,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureAccessVendorPackTables(handle); err != nil {
 		return fmt.Errorf("repair access vendor pack schema: %w", err)
 	}
+	if err := ensureBroadbandVendorPackTables(handle); err != nil {
+		return fmt.Errorf("repair broadband vendor pack schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureBroadbandVendorPackTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(broadbandVendorPackSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureAccessVendorPackTables(handle *sql.DB) error {

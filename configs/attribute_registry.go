@@ -616,6 +616,7 @@ func (r *AttributeRegistry) applyRuntimeAnnotations(vendors map[string]struct{})
 	r.applyRuckusICXRuntimeProfile()
 	r.applyFortinetPaloAltoRuntimeProfile()
 	r.applyAccessVendorRuntimeProfile()
+	r.applyBroadbandVendorRuntimeProfile()
 }
 
 func (r *AttributeRegistry) applyRuckusICXRuntimeProfile() {

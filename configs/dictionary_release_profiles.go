@@ -91,8 +91,8 @@ var defaultDictionaryReleaseContract = dictionaryReleaseContract{profile: Dictio
 	SourceAttributeCount:    7654,
 	EffectiveAttributeCount: 7661,
 	VendorCount:             196,
-	MappedAttributeCount:    469,
-	RuntimeDecoderCount:     434,
+	MappedAttributeCount:    749,
+	RuntimeDecoderCount:     706,
 	VendorAliases: []DictionaryVendorAlias{
 		vendorAlias("aegis", AegisNASVendorName, VendorPackAegisNAS, AegisNASPlaceholderVendorID, "product dictionary"),
 		vendorAlias("aegisnas-vsa", AegisNASVendorName, VendorPackAegisNAS, AegisNASPlaceholderVendorID, "product dictionary"),

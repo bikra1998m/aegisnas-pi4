@@ -160,6 +160,14 @@ The implementation now does these things end to end:
     admin API, Vendor Compatibility UI, readiness checks, system status, and
     support-bundle captures while keeping real-device and controller
     validation in a separate release checklist
+36. certifies the Huawei/H3C/ZTE broadband pack in software through a NAS-0068
+    report covering all 308 pinned Huawei, H3C, and ZTE rows, BRAS/BNG
+    subscriber state, route, address pool, QoS, NAT/translation, multicast,
+    command authorization, portal, accounting, charging, redacted credential
+    evidence, persisted evidence, admin API, Vendor Compatibility UI,
+    readiness checks, system status, and support-bundle captures while keeping
+    real-device, controller, BRAS/BNG, and firmware validation in a separate
+    release checklist
 
 ## Current Behavior
 
@@ -229,7 +237,7 @@ When `radius.upstream.enabled: true`:
   - session timeout
   - idle timeout
   - AegisNAS vendor-specific attributes when `radius.vendor.enabled: true`
-  - enabled compatibility-pack VSAs such as Aruba role/VLAN, Ruckus groups/VLAN, Fortinet profiles, Cisco/Juniper ACL names, UniFi/UBNT rate hints, Cambium rate/VLAN/quarantine, Meraki context, Extreme Netlogin, Huawei/H3C QoS, Palo Alto context, and TP-Link Omada hints
+  - enabled compatibility-pack VSAs such as Aruba role/VLAN, Ruckus groups/VLAN, Fortinet profiles, Cisco/Juniper ACL names, UniFi/UBNT rate hints, Cambium rate/VLAN/quarantine, Meraki context, Extreme Netlogin, Huawei/H3C QoS/route/NAT/portal/subscriber evidence, ZTE PPPoE/QoS evidence, Palo Alto context, and TP-Link Omada hints
   - Cisco `Cisco-AVPair` grammar for ACL, TrustSec SGT, VPN, voice, shell
     privilege/roles, posture, audit session, route, VRF, pool, translation, and
     charging hints when the Cisco pack is enabled

@@ -900,6 +900,10 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			if isFortinetPaloAltoPackKey(mapping.PackKey) {
 				continue
 			}
+			if isBroadbandVendorAVPairRuntimeMapping(mapping) {
+				applyBroadbandVendorAVPairString(result, value)
+				continue
+			}
 			appendUniqueVendorAVPair(result, value)
 		}
 	case inboundVendorIPAddr:
@@ -1131,6 +1135,26 @@ func applyInboundVendorString(result *BrokerAuthResult, mapping inboundVendorMap
 		setStringIfEmpty(&result.VendorDevicePosture, value)
 	case productconfigs.VendorSemanticAccountingIdentity:
 		setStringIfEmpty(&result.VendorAccountingIdentity, value)
+	case productconfigs.VendorSemanticRoute:
+		setStringIfEmpty(&result.VendorRoutePolicy, value)
+	case productconfigs.VendorSemanticVRF:
+		setStringIfEmpty(&result.VendorVRF, value)
+	case productconfigs.VendorSemanticAddressPool:
+		applyInboundVendorAddressPoolString(result, mapping.Attribute, value)
+	case productconfigs.VendorSemanticIPv4Address:
+		applyInboundVendorIPv4String(result, mapping.Attribute, value)
+	case productconfigs.VendorSemanticIPv6Address:
+		setStringIfEmpty(&result.VendorIPv6Pool, value)
+	case productconfigs.VendorSemanticDelegatedIPv6Prefix:
+		setStringIfEmpty(&result.VendorDelegatedIPv6Pool, value)
+	case productconfigs.VendorSemanticTranslationPolicy:
+		setStringIfEmpty(&result.VendorTranslationPolicy, value)
+	case productconfigs.VendorSemanticTranslationPublicIPv4:
+		setStringIfEmpty(&result.VendorTranslationPublicIPv4Address, value)
+	case productconfigs.VendorSemanticTranslationPortBlock:
+		applyInboundVendorTranslationPortString(result, mapping.Attribute, value)
+	case productconfigs.VendorSemanticNAT64Prefix:
+		setStringIfEmpty(&result.VendorTranslationNAT64Prefix, value)
 	case productconfigs.VendorSemanticACL:
 		applyInboundVendorACL(result, mapping.Attribute, value)
 	case productconfigs.VendorSemanticDynamicACL:
@@ -1139,6 +1163,143 @@ func applyInboundVendorString(result *BrokerAuthResult, mapping inboundVendorMap
 			return
 		}
 		setStringIfEmpty(&result.VendorInboundACL, value)
+	}
+}
+
+func applyInboundVendorAddressPoolString(result *BrokerAuthResult, attribute, value string) {
+	name := strings.ToLower(attribute)
+	switch {
+	case strings.Contains(name, "delegated"):
+		setStringIfEmpty(&result.VendorDelegatedIPv6Pool, value)
+	case strings.Contains(name, "ipv6"):
+		setStringIfEmpty(&result.VendorIPv6Pool, value)
+	default:
+		setStringIfEmpty(&result.VendorIPv4Pool, value)
+	}
+}
+
+func applyInboundVendorIPv4String(result *BrokerAuthResult, attribute, value string) {
+	name := strings.ToLower(attribute)
+	switch {
+	case strings.Contains(name, "nat") || strings.Contains(name, "public"):
+		setStringIfEmpty(&result.VendorTranslationPublicIPv4Address, value)
+	case strings.Contains(name, "dns") || strings.Contains(name, "gateway"):
+		setStringIfEmpty(&result.VendorAccountingIdentity, value)
+	default:
+		setStringIfEmpty(&result.VendorIPv4Pool, value)
+	}
+}
+
+func applyInboundVendorTranslationPortString(result *BrokerAuthResult, attribute, value string) {
+	parsed, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || parsed <= 0 {
+		setStringIfEmpty(&result.VendorTranslationPolicy, strings.TrimSpace(attribute)+"="+strings.TrimSpace(value))
+		return
+	}
+	name := strings.ToLower(attribute)
+	switch {
+	case strings.Contains(name, "start"):
+		if !result.HasVendorTranslationPortBlockStart {
+			result.VendorTranslationPortBlockStart = parsed
+			result.HasVendorTranslationPortBlockStart = true
+		}
+	case strings.Contains(name, "end"):
+		if !result.HasVendorTranslationPortBlockEnd {
+			result.VendorTranslationPortBlockEnd = parsed
+			result.HasVendorTranslationPortBlockEnd = true
+		}
+	default:
+		if !result.HasVendorTranslationPortBlockSize {
+			result.VendorTranslationPortBlockSize = parsed
+			result.HasVendorTranslationPortBlockSize = true
+		}
+	}
+}
+
+func isBroadbandVendorAVPairRuntimeMapping(mapping inboundVendorMapping) bool {
+	switch productconfigs.NormalizeVendorCompatibilityPackKey(mapping.PackKey) {
+	case productconfigs.VendorPackHuawei, productconfigs.VendorPackH3C:
+		return strings.EqualFold(mapping.Attribute, "Huawei-AVpair") || strings.EqualFold(mapping.Attribute, "H3C-Av-Pair")
+	default:
+		return false
+	}
+}
+
+func applyBroadbandVendorAVPairString(result *BrokerAuthResult, value string) {
+	normalized := strings.TrimSpace(strings.Trim(value, `"`))
+	if normalized == "" {
+		return
+	}
+	lower := strings.ToLower(normalized)
+	rawValue := func() string {
+		if idx := strings.Index(normalized, "="); idx >= 0 {
+			return strings.TrimSpace(normalized[idx+1:])
+		}
+		return ""
+	}
+	switch {
+	case strings.HasPrefix(lower, "vrf="), strings.HasPrefix(lower, "routing-instance="), strings.HasPrefix(lower, "ip:vrf-id="):
+		setStringIfEmpty(&result.VendorVRF, rawValue())
+	case strings.HasPrefix(lower, "route-owner="):
+		setStringIfEmpty(&result.VendorRouteOwner, rawValue())
+	case strings.HasPrefix(lower, "route-revision="):
+		setStringIfEmpty(&result.VendorRouteRevision, rawValue())
+	case strings.HasPrefix(lower, "route-policy="):
+		setStringIfEmpty(&result.VendorRoutePolicy, rawValue())
+	case strings.HasPrefix(lower, "framed-route="), strings.HasPrefix(lower, "framed-ipv6-route="), strings.HasPrefix(lower, "ip:route="), strings.HasPrefix(lower, "ipv6:route="):
+		setStringIfEmpty(&result.VendorRoutePolicy, normalized)
+	case strings.HasPrefix(lower, "address-pool="), strings.HasPrefix(lower, "framed-pool="), strings.HasPrefix(lower, "ip:addr-pool="), strings.HasPrefix(lower, "nat-pool="), strings.HasPrefix(lower, "translation-public-pool="):
+		setStringIfEmpty(&result.VendorIPv4Pool, rawValue())
+		if strings.Contains(lower, "nat") || strings.Contains(lower, "translation") {
+			setStringIfEmpty(&result.VendorTranslationPublicIPv4Pool, rawValue())
+		}
+	case strings.HasPrefix(lower, "ipv6-pool="):
+		setStringIfEmpty(&result.VendorIPv6Pool, rawValue())
+	case strings.HasPrefix(lower, "delegated-prefix="), strings.HasPrefix(lower, "ipv6:delegated-prefix="):
+		setStringIfEmpty(&result.VendorDelegatedIPv6Pool, rawValue())
+	case strings.HasPrefix(lower, "translation-policy="):
+		setStringIfEmpty(&result.VendorTranslationPolicy, rawValue())
+	case strings.HasPrefix(lower, "translation-owner="):
+		setStringIfEmpty(&result.VendorTranslationOwner, rawValue())
+	case strings.HasPrefix(lower, "translation-revision="):
+		setStringIfEmpty(&result.VendorTranslationRevision, rawValue())
+	case strings.HasPrefix(lower, "translation-mode="), strings.HasPrefix(lower, "nat-mode="):
+		setStringIfEmpty(&result.VendorTranslationMode, rawValue())
+	case strings.HasPrefix(lower, "translation-public-ipv4="), strings.HasPrefix(lower, "public-ip="), strings.HasPrefix(lower, "nat-ip="):
+		setStringIfEmpty(&result.VendorTranslationPublicIPv4Address, rawValue())
+	case strings.HasPrefix(lower, "translation-private-ipv4-prefix="), strings.HasPrefix(lower, "private-prefix="):
+		setStringIfEmpty(&result.VendorTranslationPrivateIPv4Prefix, rawValue())
+	case strings.HasPrefix(lower, "translation-subscriber-ipv6-prefix="), strings.HasPrefix(lower, "subscriber-ipv6-prefix="):
+		setStringIfEmpty(&result.VendorTranslationSubscriberIPv6Prefix, rawValue())
+	case strings.HasPrefix(lower, "translation-nat64-prefix="), strings.HasPrefix(lower, "nat64-prefix="):
+		setStringIfEmpty(&result.VendorTranslationNAT64Prefix, rawValue())
+	case strings.HasPrefix(lower, "translation-port-block="), strings.HasPrefix(lower, "port-block="):
+		parts := strings.SplitN(rawValue(), "-", 2)
+		if len(parts) == 2 {
+			if start, err := strconv.Atoi(strings.TrimSpace(parts[0])); err == nil && start > 0 && !result.HasVendorTranslationPortBlockStart {
+				result.VendorTranslationPortBlockStart = start
+				result.HasVendorTranslationPortBlockStart = true
+			}
+			if end, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil && end > 0 && !result.HasVendorTranslationPortBlockEnd {
+				result.VendorTranslationPortBlockEnd = end
+				result.HasVendorTranslationPortBlockEnd = true
+			}
+		}
+	case strings.HasPrefix(lower, "translation-port-block-size="), strings.HasPrefix(lower, "port-block-size="):
+		if size, err := strconv.Atoi(rawValue()); err == nil && size > 0 && !result.HasVendorTranslationPortBlockSize {
+			result.VendorTranslationPortBlockSize = size
+			result.HasVendorTranslationPortBlockSize = true
+		}
+	case strings.HasPrefix(lower, "translation-log-profile="):
+		setStringIfEmpty(&result.VendorTranslationLoggingProfile, rawValue())
+	case strings.HasPrefix(lower, "translation-accounting-key="):
+		setStringIfEmpty(&result.VendorTranslationAccountingKey, rawValue())
+	case strings.HasPrefix(lower, "acl="), strings.Contains(lower, "filter="):
+		setStringIfEmpty(&result.VendorInboundACL, rawValue())
+	case strings.HasPrefix(lower, "policy="), strings.HasPrefix(lower, "service="):
+		setStringIfEmpty(&result.VendorPolicyTag, rawValue())
+	default:
+		appendUniqueVendorAVPair(result, normalized)
 	}
 }
 

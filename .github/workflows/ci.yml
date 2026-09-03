@@ -30,6 +30,7 @@ jobs:
       - run: make test-fortinet-paloalto-pack
       - run: make test-cloud-controller-pack
       - run: make test-access-vendor-pack
+      - run: make test-broadband-vendor-pack
       - run: make test-vsa-codec
       - run: make test-opaque-passthrough
       - run: make test-secret-providers

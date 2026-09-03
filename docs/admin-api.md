@@ -469,6 +469,36 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/access-vendor-pack/record | jq '.event_id, .status'
 ```
 
+NAS-0068 exposes the Huawei/H3C/ZTE broadband-vendor software certification
+report for all 308 broadband rows from the pinned FreeRADIUS 3.2.8 registry:
+
+```text
+GET  /api/v1/system/broadband-vendor-pack
+POST /api/v1/system/broadband-vendor-pack/record
+GET  /api/v1/system/broadband-vendor-pack/history
+```
+
+The report includes Huawei BRAS/BNG subscriber state, QoS, address pool,
+route, NAT/translation, portal, command authorization, accounting, charging,
+multicast, WLAN/AP, tenant/domain, and redacted credential evidence; H3C
+Comware/iMC/BRAS role, group, portal, ITA policy, QoS, NAT, subscriber, DNS,
+VRF, multicast, accounting, and device evidence; and ZTE PPPoE portal, QoS,
+IPv4/IPv6 SCR rates, privilege role, multicast, tunnel, DNS, domain, VPN, and
+subscriber evidence. `record` persists the current source hash, fingerprint,
+counts, summary JSON, full report JSON, actor, and timestamp in
+`broadband_vendor_pack_events`. External Huawei, H3C, ZTE, FreeRADIUS-on-Linux,
+HA, performance, soak, security, production deployment, and customer acceptance
+proof remains in
+[nas-0068-release-certification-checklist.md](nas-0068-release-certification-checklist.md).
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/broadband-vendor-pack | jq '.report.summary'
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/broadband-vendor-pack/record | jq '.event_id, .status'
+```
+
 The API also provides a non-mutating reply preview endpoint:
 
 ```text

@@ -16,12 +16,15 @@ func TestCompileVendorRatesBasicUnits(t *testing.T) {
 	})
 
 	require.Equal(t, "ready", result.Status)
-	assert.Equal(t, 13, result.AttributeCount)
+	assert.Equal(t, 19, result.AttributeCount)
 	assertRateCompilerAttribute(t, result, "Mikrotik-Rate-Limit", "50000k/20000k", "mikrotik-rate-grammar")
 	assertRateCompilerAttribute(t, result, "WISPr-Bandwidth-Max-Down", "50000", "integer-kbps")
 	assertRateCompilerAttribute(t, result, "UBNT-Data-Rate-DL", "50000000", "integer-bps")
 	assertRateCompilerAttribute(t, result, "Huawei-Input-Average-Rate", "20000", "integer-kbps")
+	assertRateCompilerAttribute(t, result, "Huawei-Input-Peak-Information-Rate", "20000", "integer-kbps")
+	assertRateCompilerAttribute(t, result, "H3C-Output-Peak-Rate", "50000", "integer-kbps")
 	assertRateCompilerAttribute(t, result, "Rate-Ctrl-SCR-Up", "20000", "integer-kbps")
+	assertRateCompilerAttribute(t, result, "Rate-Ctrl-SCR-Up-v6", "20000", "integer-kbps")
 }
 
 func TestCompileMikroTikExtendedRateGrammar(t *testing.T) {

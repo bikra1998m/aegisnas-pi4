@@ -416,10 +416,19 @@ func BuildTranslationPolicyAttributes(decision TranslationPolicyDecision, packKe
 		case productconfigs.VendorPackJuniper:
 			appendTranslationAVPairAttributes(pack, "Juniper-AV-Pair", decision, appendAttr)
 		case productconfigs.VendorPackHuawei:
+			if !withdraw {
+				appendAttr(pack, "Huawei-NAT-Public-Address", decision.PublicIPv4, "public_ipv4", false)
+				appendAttr(pack, "Huawei-NAT-Policy-Name", decision.TranslationMode, "translation_mode", true)
+				appendIntAttr(pack, "Huawei-NAT-Start-Port", decision.PortBlockStart, "port_block_start")
+				appendIntAttr(pack, "Huawei-NAT-End-Port", decision.PortBlockEnd, "port_block_end")
+				appendIntAttr(pack, "Huawei-NAT-Port-Range-Update", decision.PortBlockSize, "port_block_size")
+			}
 			appendTranslationAVPairAttributes(pack, "Huawei-AVpair", decision, appendAttr)
 		case productconfigs.VendorPackH3C:
 			if !withdraw {
 				appendAttr(pack, "H3C-NAT-IP-Address", decision.PublicIPv4, "public_ipv4", false)
+				appendIntAttr(pack, "H3C-NAT-Start-Port", decision.PortBlockStart, "port_block_start")
+				appendIntAttr(pack, "H3C-NAT-End-Port", decision.PortBlockEnd, "port_block_end")
 			}
 			appendTranslationAVPairAttributes(pack, "H3C-Av-Pair", decision, appendAttr)
 		case productconfigs.VendorPackNokia:

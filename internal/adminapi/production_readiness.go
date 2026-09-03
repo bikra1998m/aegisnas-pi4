@@ -176,6 +176,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionFortinetPaloAltoPackCheck(&report)
 	addProductionCloudControllerPackCheck(&report)
 	addProductionAccessVendorPackCheck(&report)
+	addProductionBroadbandVendorPackCheck(&report)
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
@@ -2884,6 +2885,50 @@ func addProductionAccessVendorPackCheck(report *productionReadinessReport) {
 			"/api/v1/system/access-vendor-pack",
 			"access_vendor_pack_events",
 			"docs/nas-0067-release-certification-checklist.md",
+		},
+	})
+}
+
+func addProductionBroadbandVendorPackCheck(report *productionReadinessReport) {
+	certification, err := buildBroadbandVendorPackForRequest()
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "broadband_vendor_pack", Category: "radius", Label: "NAS-0068 Huawei/H3C/ZTE Broadband Pack", Status: "blocked",
+			Summary:        "Broadband vendor pack report could not be built: " + err.Error(),
+			Recommendation: "Repair the pinned attribute registry and broadband-vendor certification report before closing NAS-0068.",
+			Dependencies:   []string{"configs/broadband_vendor_pack.go", "internal/radius/vendor.go", "configs/attribute_registry/freeradius-3.2.8-vsa-audit.csv"},
+		})
+		return
+	}
+	if err := productconfigs.ValidateBroadbandVendorPackReport(certification); err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "broadband_vendor_pack", Category: "radius", Label: "NAS-0068 Huawei/H3C/ZTE Broadband Pack", Status: "blocked",
+			Summary:        "NAS-0068 software certification is incomplete: " + err.Error(),
+			Recommendation: "Use /api/v1/system/broadband-vendor-pack to inspect blocked broadband-vendor dimensions; external certification must remain in the release checklist.",
+			Dependencies:   []string{"configs/broadband_vendor_pack.go", "internal/radius/vendor.go", "internal/db/broadband_vendor_pack.go"},
+		})
+		return
+	}
+	status := "passed"
+	if db.DB == nil {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "broadband_vendor_pack", Category: "radius", Label: "NAS-0068 Huawei/H3C/ZTE Broadband Pack", Status: status,
+		Summary: fmt.Sprintf("NAS-0068 software-certifies %d/%d Huawei, H3C, and ZTE rows across %d dictionary vendors and %d product scopes, with %d broadband grammar rules, %d redacted secret mappings, and %d external certification claims.",
+			certification.Summary.SoftwareCertifiedMappings,
+			certification.Summary.AttributeCount,
+			certification.Summary.VendorCount,
+			certification.Summary.ProductScopeCount,
+			certification.Summary.GrammarRuleCount,
+			certification.Summary.SensitiveRedactedMappings,
+			certification.Summary.ExternalRequiredMappings,
+		),
+		Recommendation: "Record the current fingerprint with /api/v1/system/broadband-vendor-pack/record, then execute docs/nas-0068-release-certification-checklist.md before publishing hardware-certified broadband-vendor claims.",
+		Dependencies: []string{
+			"/api/v1/system/broadband-vendor-pack",
+			"broadband_vendor_pack_events",
+			"docs/nas-0068-release-certification-checklist.md",
 		},
 	})
 }

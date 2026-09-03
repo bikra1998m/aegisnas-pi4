@@ -8,7 +8,7 @@ Status: engineering implementation complete; ready for external validation.
 
 NAS-0003 pins the generated registry to an explicit FreeRADIUS dictionary release profile. The profile records release identity, source counts, registry hash, vendor aliases, attribute aliases, firmware scopes, and semantic provenance. This prevents configuration, packet processing, API clients, and operators from silently mixing dictionary generations or vendor spellings.
 
-The active software profile is `freeradius-3.2.8`. It covers the pinned FreeRADIUS 3.2.8 audit source, 246 dictionary files, 7,654 source VSA records, 7,661 effective entries, 196 namespaces, 439 mapped attributes, and 411 runtime decoder mappings.
+The active software profile is `freeradius-3.2.8`. It covers the pinned FreeRADIUS 3.2.8 audit source, 246 dictionary files, 7,654 source VSA records, 7,661 effective entries, 196 namespaces, 749 mapped attributes, and 706 runtime decoder mappings.
 
 RFC 2865 defines the Vendor-Specific Attribute envelope. RFC 2866, RFC 5176, RFC 6614, and RFC 9813 are tracked in the profile because accounting, dynamic authorization, RadSec, and RADIUS/1.1 behavior consume the same vendor compatibility surface.
 
