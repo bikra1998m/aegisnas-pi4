@@ -365,8 +365,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 		case productconfigs.VendorPackAegisNAS:
 			appendAegisNASReplyAttributes(attrs, appendItem)
 		case productconfigs.VendorPackMikroTik:
-			appendItem("Mikrotik-Rate-Limit", attrs.MikrotikRateLimit, true)
-			appendItem("Mikrotik-Address-List", attrs.ACLPolicyName, true)
+			appendMikroTikReplyAttributes(attrs, vendor, appendItem)
 		case productconfigs.VendorPackWISPr:
 			if attrs.WISPrBandwidthMaxDown > 0 {
 				appendItem("WISPr-Bandwidth-Max-Down", FormatRateKbps(attrs.WISPrBandwidthMaxDown), false)
@@ -579,6 +578,30 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 		appendTranslationPolicyReplyAttributes(attrs, packKey, appendItem)
 	}
 	return items
+}
+
+func appendMikroTikReplyAttributes(attrs *ReplyAttributes, vendor config.RadiusVendorConfig, appendItem func(string, string, bool)) {
+	if attrs == nil {
+		return
+	}
+	rateLimit := firstReplyValue(attrs.MikrotikRateLimit, FormatMikroTikRateLimit(attrs.WISPrBandwidthMaxDown, attrs.WISPrBandwidthMaxUp))
+	appendItem("Mikrotik-Rate-Limit", rateLimit, true)
+	appendItem("Mikrotik-Group", replyRole(attrs), true)
+	appendItem("Mikrotik-Address-List", firstReplyValue(attrs.InboundACL, attrs.ACLPolicyName, attrs.PolicyTag), true)
+	appendItem("Mikrotik-Switching-Filter", firstReplyValue(attrs.OutboundACL, attrs.InboundACL, attrs.ACLPolicyName), true)
+	appendItem("Mikrotik-Realm", attrs.Tenant, true)
+	appendItem("Mikrotik-Mark-Id", firstReplyValue(attrs.PolicyTag, attrs.FilterID), true)
+	appendURLItem(attrs, appendItem, "Mikrotik-Advertise-URL", attrs.PortalProfile)
+	appendItem("Mikrotik-Host-IP", attrs.FramedIPAddress, false)
+	appendItem("Mikrotik-Delegated-IPv6-Pool", firstReplyValue(attrs.FramedIPv6Pool, attrs.DelegatedIPv6Prefix), true)
+	if vlan := replyVLAN(attrs); vlan > 0 {
+		appendItem("Mikrotik-Wireless-VLANID", strconv.Itoa(vlan), false)
+		if mode := strings.ToLower(strings.TrimSpace(attrs.VLANPolicyMode)); mode == "" || mode == "access" {
+			appendItem("Mikrotik-Wireless-VLANID-Type", "0", false)
+		}
+	}
+	appendItem("Mikrotik-Wireless-Comment", attrs.DeviceGroup, true)
+	appendMikroTikQuotaItems(attrs, vendor.QuotaMappings, appendItem)
 }
 
 func appendCiscoFamilyReplyAttributes(attrs *ReplyAttributes, appendItem func(string, string, bool)) {
@@ -1137,6 +1160,31 @@ func appendQuotaItem(attrs *ReplyAttributes, packKey string, mappings []config.R
 			appendItem(attribute, strconv.FormatInt(mapping.MaxTotalOctets, 10), false)
 			return
 		}
+	}
+}
+
+func appendMikroTikQuotaItems(attrs *ReplyAttributes, mappings []config.RadiusVendorQuotaMapping, appendItem func(string, string, bool)) {
+	if attrs == nil {
+		return
+	}
+	role := replyRole(attrs)
+	if strings.TrimSpace(role) == "" {
+		return
+	}
+	for _, mapping := range mappings {
+		if productconfigs.NormalizeVendorCompatibilityPackKey(mapping.Pack) != productconfigs.VendorPackMikroTik ||
+			!strings.EqualFold(strings.TrimSpace(mapping.Role), role) ||
+			mapping.MaxTotalOctets <= 0 {
+			continue
+		}
+		value := uint64(mapping.MaxTotalOctets)
+		low := value & uint64(^uint32(0))
+		high := value >> 32
+		appendItem("Mikrotik-Total-Limit", strconv.FormatUint(low, 10), false)
+		if high > 0 {
+			appendItem("Mikrotik-Total-Limit-Gigawords", strconv.FormatUint(high, 10), false)
+		}
+		return
 	}
 }
 

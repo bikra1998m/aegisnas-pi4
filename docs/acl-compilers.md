@@ -20,7 +20,7 @@ Implemented software scope:
   - Pica8 `IP-Downloadable-ACL-Name` and `IP-Downloadable-ACL-Rule`
 - Profile-reference compiler and decompiler support for vendors whose RADIUS
   path carries a policy name rather than portable line rules:
-  - MikroTik `Mikrotik-Address-List`
+  - MikroTik `Mikrotik-Address-List` and `Mikrotik-Switching-Filter`
   - Fortinet `Fortinet-Access-Profile`
   - Ruckus `Ruckus-User-Groups`
   - Juniper `Juniper-Firewall-filter-name` and `Juniper-Switching-Filter`

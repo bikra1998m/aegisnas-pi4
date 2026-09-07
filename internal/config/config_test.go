@@ -1261,6 +1261,7 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 	validQuotas.Radius.Vendor.QuotaMappings = []RadiusVendorQuotaMapping{
 		{Pack: "chillispot", Role: "guest-1g", MaxTotalOctets: 1_073_741_824},
 		{Pack: "coovachilli", Role: "guest-4g", MaxTotalOctets: 4_294_967_295},
+		{Pack: "mikrotik", Role: "ppp-8g", MaxTotalOctets: 8_589_934_592},
 	}
 	assert.NoError(t, validQuotas.Validate())
 
@@ -1437,7 +1438,11 @@ func TestConfigValidationRadiusVendor(t *testing.T) {
 
 	invalidQuotaValue := base()
 	invalidQuotaValue.Radius.Vendor.QuotaMappings = []RadiusVendorQuotaMapping{{Pack: "chillispot", Role: "guest", MaxTotalOctets: 0}}
-	assert.ErrorContains(t, invalidQuotaValue.Validate(), "uint32 range")
+	assert.ErrorContains(t, invalidQuotaValue.Validate(), "greater than zero")
+
+	invalidNonMikroTikQuotaValue := base()
+	invalidNonMikroTikQuotaValue.Radius.Vendor.QuotaMappings = []RadiusVendorQuotaMapping{{Pack: "chillispot", Role: "guest", MaxTotalOctets: 4_294_967_296}}
+	assert.ErrorContains(t, invalidNonMikroTikQuotaValue.Validate(), "uint32 range")
 
 	duplicateQuotaRole := base()
 	duplicateQuotaRole.Radius.Vendor.QuotaMappings = []RadiusVendorQuotaMapping{

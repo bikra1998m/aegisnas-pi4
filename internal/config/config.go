@@ -4957,7 +4957,10 @@ func (c *Config) Validate() error {
 		if role == "" || len(role) > 253 || strings.ContainsAny(role, "\r\n\x00") {
 			return fmt.Errorf("radius.vendor.quota_mappings[%d].role is invalid", i)
 		}
-		if mapping.MaxTotalOctets < 1 || uint64(mapping.MaxTotalOctets) > uint64(^uint32(0)) {
+		if mapping.MaxTotalOctets < 1 {
+			return fmt.Errorf("radius.vendor.quota_mappings[%d].max_total_octets %d must be greater than zero", i, mapping.MaxTotalOctets)
+		}
+		if pack != productconfigs.VendorPackMikroTik && uint64(mapping.MaxTotalOctets) > uint64(^uint32(0)) {
 			return fmt.Errorf("radius.vendor.quota_mappings[%d].max_total_octets %d is outside the uint32 range 1-4294967295", i, mapping.MaxTotalOctets)
 		}
 		roleKey := pack + "\x00" + strings.ToLower(role)

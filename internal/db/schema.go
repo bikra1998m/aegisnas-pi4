@@ -199,6 +199,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{72, schemaV72},
 		{73, schemaV73},
 		{74, schemaV74},
+		{75, schemaV75},
 	}
 
 	for _, m := range migrations {
@@ -378,8 +379,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureNokiaALUPackTables(handle); err != nil {
 		return fmt.Errorf("repair Nokia/ALU pack schema: %w", err)
 	}
+	if err := ensureMikroTikPackTables(handle); err != nil {
+		return fmt.Errorf("repair MikroTik pack schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureMikroTikPackTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(mikroTikPackSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureNokiaALUPackTables(handle *sql.DB) error {

@@ -182,10 +182,40 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			DefaultEnabled:   true,
 			HardwareProfiles: allProfiles,
 			Attributes: []VendorPackAttributeMapping{
-				{Semantic: VendorSemanticBandwidthProfile, Attribute: "Mikrotik-Rate-Limit", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDynamicACL, Attribute: "Mikrotik-Address-List", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDelegatedIPv6Prefix, Attribute: "Mikrotik-Delegated-IPv6-Pool", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDataQuota, Attribute: "Mikrotik-Recv-Limit", Direction: "inbound,outbound_reply,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDataQuota, Attribute: "Mikrotik-Xmit-Limit", Direction: "inbound,outbound_reply,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Mikrotik-Group", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Mikrotik-Wireless-Forward", Direction: "inbound,outbound_reply,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Mikrotik-Wireless-Skip-Dot1x", Direction: "inbound,outbound_reply,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Mikrotik-Wireless-Enc-Algo", Direction: "inbound,outbound_reply,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticCertificateOnboarding, Attribute: "Mikrotik-Wireless-Enc-Key", Direction: "inbound,outbound_reply", ValueType: "secret", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticBandwidthProfile, Attribute: "Mikrotik-Rate-Limit", Direction: "inbound,outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTenant, Attribute: "Mikrotik-Realm", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticIPv4Address, Attribute: "Mikrotik-Host-IP", Direction: "inbound,outbound_reply", ValueType: "ipaddr", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Mikrotik-Mark-Id", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Mikrotik-Advertise-URL", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticGuestLifecycle, Attribute: "Mikrotik-Advertise-Interval", Direction: "inbound,outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDataQuota, Attribute: "Mikrotik-Recv-Limit-Gigawords", Direction: "inbound,outbound_reply,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDataQuota, Attribute: "Mikrotik-Xmit-Limit-Gigawords", Direction: "inbound,outbound_reply,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticCertificateOnboarding, Attribute: "Mikrotik-Wireless-PSK", Direction: "inbound,outbound_reply", ValueType: "secret", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDataQuota, Attribute: "Mikrotik-Total-Limit", Direction: "inbound,outbound_reply,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDataQuota, Attribute: "Mikrotik-Total-Limit-Gigawords", Direction: "inbound,outbound_reply,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Mikrotik-Address-List", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticCertificateOnboarding, Attribute: "Mikrotik-Wireless-MPKey", Direction: "inbound,outbound_reply", ValueType: "secret", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Mikrotik-Wireless-Comment", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDelegatedIPv6Prefix, Attribute: "Mikrotik-Delegated-IPv6-Pool", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Mikrotik-DHCP-Option-Set", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Mikrotik-DHCP-Option-Param-STR1", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Mikrotik-DHCP-Option-ParamSTR2", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Mikrotik-DHCP-Option-Param-STR2", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Mikrotik-Wireless-VLANID", Direction: "inbound,outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Mikrotik-Wireless-VLANIDtype", Direction: "inbound,outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Mikrotik-Wireless-VLANID-Type", Direction: "inbound,outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Mikrotik-Wireless-Minsignal", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Mikrotik-Wireless-Maxsignal", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Mikrotik-Switching-Filter", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 			},
+			Notes: []string{"NAS-0070 software-certifies every pinned MikroTik dictionary row as native semantic mapping, ACL profile reference, typed evidence, or redacted wireless secret evidence; RouterOS/CAPsMAN device behavior remains release-certified externally."},
 		},
 		{
 			Key:              VendorPackWISPr,
@@ -1127,7 +1157,7 @@ func VendorPackSupportsSessionActionMapping(key string) bool {
 
 func VendorPackSupportsQuotaMapping(key string) bool {
 	switch NormalizeVendorCompatibilityPackKey(key) {
-	case VendorPackCambium, VendorPackChilliSpot, VendorPackRuckus:
+	case VendorPackCambium, VendorPackChilliSpot, VendorPackRuckus, VendorPackMikroTik:
 		return true
 	default:
 		return false

@@ -91,8 +91,8 @@ var defaultDictionaryReleaseContract = dictionaryReleaseContract{profile: Dictio
 	SourceAttributeCount:    7654,
 	EffectiveAttributeCount: 7661,
 	VendorCount:             196,
-	MappedAttributeCount:    1080,
-	RuntimeDecoderCount:     1004,
+	MappedAttributeCount:    1109,
+	RuntimeDecoderCount:     1033,
 	VendorAliases: []DictionaryVendorAlias{
 		vendorAlias("aegis", AegisNASVendorName, VendorPackAegisNAS, AegisNASPlaceholderVendorID, "product dictionary"),
 		vendorAlias("aegisnas-vsa", AegisNASVendorName, VendorPackAegisNAS, AegisNASPlaceholderVendorID, "product dictionary"),
@@ -175,7 +175,7 @@ var defaultDictionaryReleaseContract = dictionaryReleaseContract{profile: Dictio
 		attributeAlias("Airespace", "Cisco-WLC-ACL-Name", "ACL-Name", 14179, 6, "controller alias"),
 	},
 	FirmwareProfiles: []DictionaryFirmwareProfile{
-		firmwareProfile("mikrotik-routeros", "Mikrotik", VendorPackMikroTik, 14988, "RouterOS", "RouterOS 6.x and 7.x dictionary-compatible RADIUS attributes", []string{"lite", "branch", "enterprise", "custom"}, "software-ready", "external-certification-required", []string{"Mikrotik-Rate-Limit", "Mikrotik-Address-List"}),
+		firmwareProfile("mikrotik-routeros", "Mikrotik", VendorPackMikroTik, 14988, "RouterOS", "RouterOS 6.x and 7.x dictionary-compatible RADIUS attributes", []string{"lite", "branch", "enterprise", "custom"}, "software-ready", "external-certification-required", []string{"Mikrotik-Rate-Limit", "Mikrotik-Group", "Mikrotik-Address-List", "Mikrotik-Switching-Filter", "Mikrotik-Total-Limit", "Mikrotik-Total-Limit-Gigawords", "Mikrotik-Advertise-URL", "Mikrotik-Host-IP", "Mikrotik-Delegated-IPv6-Pool", "Mikrotik-Wireless-VLANID", "Mikrotik-DHCP-Option-Set"}),
 		firmwareProfile("ubiquiti-unifi-network", "Ubiquiti", VendorPackUBNT, 41112, "UniFi Network", "UniFi Network controllers and AP firmware that accept UBNT rate VSAs", []string{"branch", "enterprise", "custom"}, "software-ready", "external-certification-required", []string{"UBNT-Data-Rate-DL", "UBNT-Data-Rate-UL"}),
 		firmwareProfile("aruba-aos-controller", "Aruba", VendorPackAruba, 14823, "ArubaOS / Mobility Controller", "AOS controller and AP firmware accepting role, VLAN, and filter rule VSAs", []string{"branch", "enterprise", "custom"}, "software-ready", "external-certification-required", []string{"Aruba-User-Role", "Aruba-User-Vlan", "Aruba-NAS-Filter-Rule"}),
 		firmwareProfile("cisco-ios-xe", "Cisco", VendorPackCisco, 9, "Cisco IOS/IOS-XE", "Switch and WLC firmware accepting Cisco ACL and AVPair reply attributes", []string{"branch", "enterprise", "custom"}, "software-ready", "external-certification-required", []string{"Cisco-In-ACL", "Cisco-Out-ACL", "Cisco-AVPair"}),

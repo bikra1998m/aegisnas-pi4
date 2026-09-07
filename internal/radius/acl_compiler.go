@@ -703,8 +703,8 @@ func aclCompilerDefinitionForPack(packKey string) aclCompilerDefinition {
 		},
 		productconfigs.VendorPackMikroTik: {
 			PackKey: packKey, OutputMode: "profile_reference", Status: aclCompilerStatusProfile, CertificationState: aclCertificationProfile,
-			Grammar: "profile-ref-v1", ProfileAttributes: []string{"Mikrotik-Address-List"}, SupportsDecompile: true, MaxValueBytes: aclCompilerProfileMaxBytes,
-			Notes: []string{"RouterOS RADIUS carries an address-list/profile reference; line-rule contents live on RouterOS/controller policy."},
+			Grammar: "profile-ref-v1", ProfileAttributes: []string{"Mikrotik-Address-List", "Mikrotik-Switching-Filter"}, SupportsDecompile: true, MaxValueBytes: aclCompilerProfileMaxBytes,
+			Notes: []string{"RouterOS RADIUS carries address-list and switching-filter profile references; line-rule contents live on RouterOS/controller policy."},
 		},
 		productconfigs.VendorPackFortinet: {
 			PackKey: packKey, OutputMode: "profile_reference", Status: aclCompilerStatusProfile, CertificationState: aclCertificationProfile,

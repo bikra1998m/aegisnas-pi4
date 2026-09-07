@@ -178,6 +178,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionAccessVendorPackCheck(&report)
 	addProductionBroadbandVendorPackCheck(&report)
 	addProductionNokiaALUPackCheck(&report)
+	addProductionMikroTikPackCheck(&report)
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
@@ -2974,6 +2975,50 @@ func addProductionNokiaALUPackCheck(report *productionReadinessReport) {
 			"/api/v1/system/nokia-alu-pack",
 			"nokia_alu_pack_events",
 			"docs/nas-0069-release-certification-checklist.md",
+		},
+	})
+}
+
+func addProductionMikroTikPackCheck(report *productionReadinessReport) {
+	certification, err := buildMikroTikPackForRequest()
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "mikrotik_pack", Category: "radius", Label: "NAS-0070 MikroTik RouterOS Pack", Status: "blocked",
+			Summary:        "MikroTik pack report could not be built: " + err.Error(),
+			Recommendation: "Repair the pinned attribute registry and MikroTik certification report before closing NAS-0070.",
+			Dependencies:   []string{"configs/mikrotik_pack.go", "internal/radius/mikrotik.go", "configs/attribute_registry/freeradius-3.2.8-vsa-audit.csv"},
+		})
+		return
+	}
+	if err := productconfigs.ValidateMikroTikPackReport(certification); err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "mikrotik_pack", Category: "radius", Label: "NAS-0070 MikroTik RouterOS Pack", Status: "blocked",
+			Summary:        "NAS-0070 software certification is incomplete: " + err.Error(),
+			Recommendation: "Use /api/v1/system/mikrotik-pack to inspect blocked MikroTik dimensions; external certification must remain in the release checklist.",
+			Dependencies:   []string{"configs/mikrotik_pack.go", "internal/radius/mikrotik.go", "internal/db/mikrotik_pack.go"},
+		})
+		return
+	}
+	status := "passed"
+	if db.DB == nil {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "mikrotik_pack", Category: "radius", Label: "NAS-0070 MikroTik RouterOS Pack", Status: status,
+		Summary: fmt.Sprintf("NAS-0070 software-certifies %d/%d MikroTik RouterOS rows across %d dictionary vendor and %d product scopes, with %d grammar rules, %d redacted wireless secret mappings, and %d external certification claims.",
+			certification.Summary.SoftwareCertifiedMappings,
+			certification.Summary.AttributeCount,
+			certification.Summary.VendorCount,
+			certification.Summary.ProductScopeCount,
+			certification.Summary.GrammarRuleCount,
+			certification.Summary.SensitiveRedactedMappings,
+			certification.Summary.ExternalRequiredMappings,
+		),
+		Recommendation: "Record the current fingerprint with /api/v1/system/mikrotik-pack/record, then execute docs/nas-0070-release-certification-checklist.md before publishing hardware-certified MikroTik RouterOS claims.",
+		Dependencies: []string{
+			"/api/v1/system/mikrotik-pack",
+			"mikrotik_pack_events",
+			"docs/nas-0070-release-certification-checklist.md",
 		},
 	})
 }

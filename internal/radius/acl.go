@@ -155,8 +155,9 @@ func buildACLVendorExport(policyName, inboundACL, outboundACL string, rules []AC
 	case productconfigs.VendorPackMikroTik:
 		export.ExportMode = "profile"
 		appendItem("Mikrotik-Address-List", profileName, true)
+		appendItem("Mikrotik-Switching-Filter", profileName, true)
 		if len(rules) > 0 {
-			export.Warnings = append(export.Warnings, "MikroTik export uses an address-list/profile hint; line rules require RouterOS-side policy.")
+			export.Warnings = append(export.Warnings, "MikroTik export uses address-list and switching-filter profile hints; line rules require RouterOS-side policy.")
 		}
 	case productconfigs.VendorPackFortinet:
 		export.ExportMode = "profile"

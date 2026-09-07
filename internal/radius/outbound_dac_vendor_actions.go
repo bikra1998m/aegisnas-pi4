@@ -113,8 +113,10 @@ var outboundDACVendorAttributeSpecs = map[string]outboundDACVendorAttributeSpec{
 	"fortinet-fpc-user-role":       {Canonical: "Fortinet-Fpc-User-Role", VendorID: 12356, Type: 40, Kind: outboundDACVendorWireString},
 	"fortinet-tenant-id":           {Canonical: "Fortinet-Tenant-Identification", VendorID: 12356, Type: 41, Kind: outboundDACVendorWireString},
 	"fortinet-host-port-avpair":    {Canonical: "Fortinet-Host-Port-AVPair", VendorID: 12356, Type: 42, Kind: outboundDACVendorWireString},
+	"mikrotik-group":               {Canonical: "Mikrotik-Group", VendorID: 14988, Type: 3, Kind: outboundDACVendorWireString},
 	"mikrotik-rate-limit":          {Canonical: "Mikrotik-Rate-Limit", VendorID: 14988, Type: 8, Kind: outboundDACVendorWireString},
 	"mikrotik-address-list":        {Canonical: "Mikrotik-Address-List", VendorID: 14988, Type: 19, Kind: outboundDACVendorWireString},
+	"mikrotik-wireless-vlanid":     {Canonical: "Mikrotik-Wireless-VLANID", VendorID: 14988, Type: 26, Kind: outboundDACVendorWireInteger},
 	"huawei-input-average-rate":    {Canonical: "Huawei-Input-Average-Rate", VendorID: 2011, Type: 2, Kind: outboundDACVendorWireInteger},
 	"huawei-output-average-rate":   {Canonical: "Huawei-Output-Average-Rate", VendorID: 2011, Type: 5, Kind: outboundDACVendorWireInteger},
 	"huawei-qos-profile-name":      {Canonical: "Huawei-Qos-Profile-Name", VendorID: 2011, Type: 31, Kind: outboundDACVendorWireString},
@@ -579,7 +581,10 @@ func fortinetDACAVPairValues(intent outboundDACVendorActionIntent) []string {
 
 func compileMikroTikOutboundDACVendorAction(intent outboundDACVendorActionIntent, appendAttr func(string, string)) {
 	switch intent.Action {
-	case "acl", "quarantine", "unquarantine", "policy-update":
+	case "role", "policy-update", "quarantine", "unquarantine":
+		appendAttr("Mikrotik-Group", firstNonEmptyString(intent.Role, intent.FilterID, intent.PolicyTag))
+		appendAttr("Mikrotik-Address-List", firstNonEmptyString(intent.ACLName, intent.PolicyTag, intent.Role, intent.FilterID))
+	case "acl":
 		appendAttr("Mikrotik-Address-List", firstNonEmptyString(intent.ACLName, intent.PolicyTag, intent.Role, intent.FilterID))
 	case "qos":
 		if intent.DownloadRateKbps > 0 || intent.UploadRateKbps > 0 {
@@ -587,7 +592,11 @@ func compileMikroTikOutboundDACVendorAction(intent outboundDACVendorActionIntent
 		} else {
 			appendAttr("Mikrotik-Rate-Limit", intent.BandwidthProfile)
 		}
-	case "reauth", "role", "vlan":
+	case "vlan":
+		if intent.VLAN > 0 {
+			appendAttr("Mikrotik-Wireless-VLANID", strconv.Itoa(intent.VLAN))
+		}
+	case "reauth":
 	}
 }
 
@@ -652,7 +661,7 @@ func validateOutboundDACVendorDecision(intent outboundDACVendorActionIntent, att
 			if err != nil {
 				return err
 			}
-			if spec.Canonical == "Aruba-User-Vlan" || spec.Canonical == "Ruckus-VLAN-ID" {
+			if spec.Canonical == "Aruba-User-Vlan" || spec.Canonical == "Ruckus-VLAN-ID" || spec.Canonical == "Mikrotik-Wireless-VLANID" {
 				if value < 1 || value > 4094 {
 					return fmt.Errorf("%s VLAN must be between 1 and 4094", spec.Canonical)
 				}

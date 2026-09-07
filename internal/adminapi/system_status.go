@@ -689,6 +689,46 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		nokiaALUPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
 	}
+	mikroTikPackStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0070 MikroTik RouterOS pack has not been evaluated.",
+	}
+	if mikroTikPack, err := buildMikroTikPackForRequest(); err == nil {
+		status := "ready"
+		message := fmt.Sprintf("NAS-0070 software certification covers %d/%d MikroTik RouterOS rows across %d dictionary vendor and %d product scopes.",
+			mikroTikPack.Summary.SoftwareCertifiedMappings,
+			mikroTikPack.Summary.AttributeCount,
+			mikroTikPack.Summary.VendorCount,
+			mikroTikPack.Summary.ProductScopeCount,
+		)
+		if err := productconfigs.ValidateMikroTikPackReport(mikroTikPack); err != nil {
+			status = "blocked"
+			message = "NAS-0070 MikroTik pack is incomplete: " + err.Error()
+		}
+		historySummary, historyErr := db.GetMikroTikPackSummary()
+		mikroTikPackStatus = map[string]any{
+			"status":                              status,
+			"message":                             message,
+			"schema_version":                      mikroTikPack.SchemaVersion,
+			"feature_id":                          mikroTikPack.FeatureID,
+			"source_sha256":                       mikroTikPack.SourceSHA256,
+			"attribute_count":                     mikroTikPack.Summary.AttributeCount,
+			"software_certified_mappings":         mikroTikPack.Summary.SoftwareCertifiedMappings,
+			"software_blocked_mappings":           mikroTikPack.Summary.SoftwareBlockedMappings,
+			"external_required_mappings":          mikroTikPack.Summary.ExternalRequiredMappings,
+			"software_completion_percent":         mikroTikPack.Summary.SoftwareCompletionPercent,
+			"grammar_rule_count":                  mikroTikPack.Summary.GrammarRuleCount,
+			"sensitive_redacted_mappings":         mikroTikPack.Summary.SensitiveRedactedMappings,
+			"product_scope_count":                 mikroTikPack.Summary.ProductScopeCount,
+			"fingerprint":                         mikroTikPack.Summary.Fingerprint,
+			"release_certification_checklist":     "docs/nas-0070-release-certification-checklist.md",
+			"release_certification_external_only": true,
+			"evidence_summary":                    historySummary,
+			"evidence_error":                      rateCompilerErrorString(historyErr),
+		}
+	} else {
+		mikroTikPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -756,6 +796,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"access_vendor_pack":           accessVendorPackStatus,
 		"broadband_vendor_pack":        broadbandVendorPackStatus,
 		"nokia_alu_pack":               nokiaALUPackStatus,
+		"mikrotik_pack":                mikroTikPackStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),

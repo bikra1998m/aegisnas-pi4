@@ -531,6 +531,36 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/nokia-alu-pack/record | jq '.event_id, .status'
 ```
 
+NAS-0070 exposes the MikroTik RouterOS software certification report for all
+32 MikroTik rows from the pinned FreeRADIUS 3.2.8 registry:
+
+```text
+GET  /api/v1/system/mikrotik-pack
+POST /api/v1/system/mikrotik-pack/record
+GET  /api/v1/system/mikrotik-pack/history
+```
+
+The report covers RouterOS PPP/PPPoE quota and gigawords fields, queue
+rate-limit grammar, group/profile role assignment, firewall address-list and
+switching-filter ACL profile references, tenant realm and mark-id selectors,
+hotspot advertise URL/interval hints, IPv4 host and IPv6 delegated-pool hints,
+CAPsMAN wireless forwarding, VLAN, encryption, signal, comment, DHCP option
+evidence, wireless key redaction, and RFC 5176 CoA/Disconnect lifecycle
+semantics. `record` persists the current source hash, fingerprint, counts,
+summary JSON, full report JSON, actor, and timestamp in
+`mikrotik_pack_events`. External RouterOS, CAPsMAN, PPP/PPPoE, hotspot,
+FreeRADIUS-on-Linux, CoA/Disconnect, HA, performance, soak, security,
+production deployment, and customer acceptance proof remains in
+[nas-0070-release-certification-checklist.md](nas-0070-release-certification-checklist.md).
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/mikrotik-pack | jq '.report.summary'
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/mikrotik-pack/record | jq '.event_id, .status'
+```
+
 The API also provides a non-mutating reply preview endpoint:
 
 ```text

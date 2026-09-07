@@ -151,6 +151,13 @@ The current codebase now has a working form of this model through:
   SR OS subscriber/SLA/route/IPv6/NAT/portal/accounting/charging/CoA semantics,
   ALU-AAA access-rule/AVPair/location/event/mobile-auth redaction evidence,
   API/UI evidence, and external release certification split
+- NAS-0070 MikroTik RouterOS pack certification for all 32 pinned MikroTik rows,
+  with PPP/PPPoE quota and gigawords handling, RouterOS rate-limit grammar,
+  group/profile role assignment, firewall address-list and switching-filter
+  ACL profile references, tenant realm and mark-id selectors, hotspot advertise
+  URL/interval handling, IPv4 host and IPv6 delegated-pool hints, CAPsMAN
+  wireless posture/VLAN/signal/comment handling, DHCP option evidence, wireless
+  key redaction, API/UI evidence, and external release certification split
 
 That work lives primarily in:
 
