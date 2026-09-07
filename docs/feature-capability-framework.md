@@ -158,6 +158,13 @@ The current codebase now has a working form of this model through:
   URL/interval handling, IPv4 host and IPv6 delegated-pool hints, CAPsMAN
   wireless posture/VLAN/signal/comment handling, DHCP option evidence, wireless
   key redaction, API/UI evidence, and external release certification split
+- NAS-0071 enterprise switching vendor pack certification for all 69 pinned
+  3Com, Dell EMC, EqualLogic, Brocade, Force10, Foundry, Arista, and Extreme
+  rows, with role/privilege mapping, command authorization context, VLAN and
+  fabric selectors, ACL/profile assignment, AVPair grammar, QoS, captive portal
+  and WebAuth hints, session remediation, VRF, device/posture context,
+  administrative identity, accounting evidence, API/UI evidence, and external
+  release certification split
 
 That work lives primarily in:
 
@@ -173,13 +180,21 @@ That work lives primarily in:
 - `configs/access_vendor_pack.go`
 - `configs/broadband_vendor_pack.go`
 - `configs/nokia_alu_pack.go`
+- `configs/mikrotik_pack.go`
+- `configs/switching_vendor_pack.go`
 - `internal/radius/cisco_avpair.go`
 - `internal/radius/aruba_family.go`
 - `internal/radius/juniper_extreme.go`
 - `internal/radius/fortinet_paloalto.go`
 - `internal/radius/nokia_alu.go`
+- `internal/radius/mikrotik.go`
+- `internal/radius/switching_vendor.go`
 - `internal/db/nokia_alu_pack.go`
+- `internal/db/mikrotik_pack.go`
+- `internal/db/switching_vendor_pack.go`
 - `internal/adminapi/nokia_alu_pack.go`
+- `internal/adminapi/mikrotik_pack.go`
+- `internal/adminapi/switching_vendor_pack.go`
 - `internal/radius/vendor.go`
 - `web/admin-ui/src/pages/AccessSettings.tsx`
 - `web/admin-ui/src/pages/VendorCompatibility.tsx`

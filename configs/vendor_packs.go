@@ -11,6 +11,11 @@ const (
 	VendorPackAruba       = "aruba"
 	VendorPackRuckus      = "ruckus"
 	VendorPackFoundry     = "foundry"
+	VendorPack3Com        = "3com"
+	VendorPackDellEMC     = "dellemc"
+	VendorPackEquallogic  = "equallogic"
+	VendorPackBrocade     = "brocade"
+	VendorPackForce10     = "force10"
 	VendorPackFortinet    = "fortinet"
 	VendorPackUBNT        = "ubnt"
 	VendorPackCambium     = "cambium"
@@ -351,6 +356,92 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticPolicyTag, Attribute: "Foundry-Voice-Phone-Config", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
 			},
 			Notes: []string{"Foundry dictionary rows represent the ICX switch policy surface. Duplicate VSA numbers are treated as multi-semantic wire interpretations and require model/firmware release evidence."},
+		},
+		{
+			Key:              VendorPack3Com,
+			Label:            "3Com Switching",
+			VendorName:       "3com",
+			VendorID:         43,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "3Com-User-Access-Level", Direction: "inbound,outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "3Com-VLAN-Name", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "3Com-Mobility-Profile", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "3Com-Encryption-Type", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticSessionTimeout, Attribute: "3Com-Time-Of-Day", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "3Com-SSID", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticSessionTimeout, Attribute: "3Com-End-Date", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "3Com-URL", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "3Com-Connect_Id", Direction: "inbound,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingCounters, Attribute: "3Com-NAS-Startup-Timestamp", Direction: "inbound,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticIPv4Address, Attribute: "3Com-Ip-Host-Addr", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "3Com-Product-ID", Direction: "inbound,accounting", ValueType: "string", CompatibilityState: "implemented"},
+			},
+			Notes: []string{"NAS-0071 software-certifies all pinned 3Com dictionary rows as role, VLAN, WLAN, portal, posture, IP, and accounting evidence; hardware behavior remains release certification."},
+		},
+		{
+			Key:              VendorPackDellEMC,
+			Label:            "Dell EMC Switching",
+			VendorName:       "DellEMC",
+			VendorID:         674,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticDynamicACL, Attribute: "DellEMC-AVpair", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "DellEMC-Group-Name", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+			},
+			Notes: []string{"NAS-0071 treats Dell EMC AVpair values as bounded key-value policy evidence and group names as neutral role assignments."},
+		},
+		{
+			Key:              VendorPackEquallogic,
+			Label:            "Dell EqualLogic",
+			VendorName:       "Equallogic",
+			VendorID:         12740,
+			DefaultEnabled:   false,
+			HardwareProfiles: enterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "Equallogic-Admin-Full-Name", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "Equallogic-Admin-Email", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "Equallogic-Admin-Phone", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "Equallogic-Admin-Mobile", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingCounters, Attribute: "Equallogic-Poll-Interval", Direction: "inbound,outbound_reply,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Equallogic-EQL-Admin-Privilege", Direction: "inbound,outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticACL, Attribute: "Equallogic-Admin-Pool-Access", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTenant, Attribute: "Equallogic-Admin-Repl-Site-Access", Direction: "inbound,outbound_reply,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Equallogic-Admin-Account-Type", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+			},
+			Notes: []string{"NAS-0071 software-certifies EqualLogic admin identity, privilege, pool access, replication-site, and poll interval VSAs as typed switch/storage-array access evidence."},
+		},
+		{
+			Key:              VendorPackBrocade,
+			Label:            "Brocade Switching",
+			VendorName:       "Brocade",
+			VendorID:         1588,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "Brocade-Auth-Role", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Brocade-AVPairs1", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Brocade-AVPairs2", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Brocade-AVPairs3", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Brocade-AVPairs4", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticSessionTimeout, Attribute: "Brocade-Passwd-ExpiryDate", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticSessionTimeout, Attribute: "Brocade-Passwd-WarnPeriod", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+			},
+			Notes: []string{"NAS-0071 normalizes Brocade role, AVPairs, and password lifecycle hints for switch-administration authorization; hardware enforcement remains release certification."},
+		},
+		{
+			Key:              VendorPackForce10,
+			Label:            "Dell Force10",
+			VendorName:       "Force10",
+			VendorID:         6027,
+			DefaultEnabled:   false,
+			HardwareProfiles: branchEnterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Force10-AVPair", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+			},
+			Notes: []string{"NAS-0071 treats Force10 AVPair payloads as bounded switching policy tokens for role, ACL, VLAN, VRF, QoS, and command authorization intent."},
 		},
 		{
 			Key:              VendorPackFortinet,
@@ -864,13 +955,21 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 			DefaultEnabled:   false,
 			HardwareProfiles: branchEnterprise,
 			Attributes: []VendorPackAttributeMapping{
-				{Semantic: VendorSemanticRole, Attribute: "User-Role", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDynamicACL, Attribute: "Arista-AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticPortalProfile, Attribute: "Captive-Portal", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticVLAN, Attribute: "Segment-Id", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDeviceGroup, Attribute: "Interface-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDevicePosture, Attribute: "Device-Profiling", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Arista-AVPair", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Arista-User-Priv-Level", Direction: "inbound,outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Arista-User-Role", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Arista-CVP-Role", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Arista-Command", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Arista-WebAuth", Direction: "inbound,outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticSessionAction, Attribute: "Arista-BlockMac", Direction: "inbound,outbound_reply,coa", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticSessionAction, Attribute: "Arista-UnblockMac", Direction: "inbound,outbound_reply,coa", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticCoAReauth, Attribute: "Arista-PortFlap", Direction: "inbound,outbound_reply,coa", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Arista-Captive-Portal", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Arista-Segment-Id", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Arista-Interface-Profile", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "Arista-Device-Profiling", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
 			},
+			Notes: []string{"NAS-0071 software-certifies all pinned Arista EOS rows and keeps older runtime Segment-Id, Device-Profiling, Tenant-Id, and Interface-Profile aliases visible for backward compatibility."},
 		},
 		{
 			Key:              VendorPackPica8,
@@ -1113,7 +1212,7 @@ func VendorCompatibilityPackByKey(key string) (VendorCompatibilityPack, bool) {
 
 func VendorPackSupportsNumericRoleMapping(key string) bool {
 	switch NormalizeVendorCompatibilityPackKey(key) {
-	case VendorPackCambium, VendorPackAerohive, VendorPackDLink, VendorPackSonicWall, VendorPackZTE, VendorPackFoundry:
+	case VendorPackCambium, VendorPackAerohive, VendorPackDLink, VendorPackSonicWall, VendorPackZTE, VendorPackFoundry, VendorPack3Com, VendorPackArista, VendorPackEquallogic:
 		return true
 	default:
 		return false
@@ -1138,6 +1237,12 @@ func VendorPackAVPairAttribute(key string) (string, bool) {
 		return "H3C-Av-Pair", true
 	case VendorPackArista:
 		return "Arista-AVPair", true
+	case VendorPackDellEMC:
+		return "DellEMC-AVpair", true
+	case VendorPackBrocade:
+		return "Brocade-AVPairs1", true
+	case VendorPackForce10:
+		return "Force10-AVPair", true
 	case VendorPackFortinet:
 		return "Fortinet-FortiWAN-AVPair", true
 	case VendorPackALUAAA:

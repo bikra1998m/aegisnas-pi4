@@ -729,6 +729,46 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		mikroTikPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
 	}
+	switchingVendorPackStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0071 enterprise switching vendor pack has not been evaluated.",
+	}
+	if switchingVendorPack, err := buildSwitchingVendorPackForRequest(); err == nil {
+		status := "ready"
+		message := fmt.Sprintf("NAS-0071 software certification covers %d/%d enterprise switching rows across %d dictionary vendors and %d product scopes.",
+			switchingVendorPack.Summary.SoftwareCertifiedMappings,
+			switchingVendorPack.Summary.AttributeCount,
+			switchingVendorPack.Summary.VendorCount,
+			switchingVendorPack.Summary.ProductScopeCount,
+		)
+		if err := productconfigs.ValidateSwitchingVendorPackReport(switchingVendorPack); err != nil {
+			status = "blocked"
+			message = "NAS-0071 enterprise switching vendor pack is incomplete: " + err.Error()
+		}
+		historySummary, historyErr := db.GetSwitchingVendorPackSummary()
+		switchingVendorPackStatus = map[string]any{
+			"status":                              status,
+			"message":                             message,
+			"schema_version":                      switchingVendorPack.SchemaVersion,
+			"feature_id":                          switchingVendorPack.FeatureID,
+			"source_sha256":                       switchingVendorPack.SourceSHA256,
+			"attribute_count":                     switchingVendorPack.Summary.AttributeCount,
+			"software_certified_mappings":         switchingVendorPack.Summary.SoftwareCertifiedMappings,
+			"software_blocked_mappings":           switchingVendorPack.Summary.SoftwareBlockedMappings,
+			"external_required_mappings":          switchingVendorPack.Summary.ExternalRequiredMappings,
+			"software_completion_percent":         switchingVendorPack.Summary.SoftwareCompletionPercent,
+			"grammar_rule_count":                  switchingVendorPack.Summary.GrammarRuleCount,
+			"sensitive_redacted_mappings":         switchingVendorPack.Summary.SensitiveRedactedMappings,
+			"product_scope_count":                 switchingVendorPack.Summary.ProductScopeCount,
+			"fingerprint":                         switchingVendorPack.Summary.Fingerprint,
+			"release_certification_checklist":     "docs/nas-0071-release-certification-checklist.md",
+			"release_certification_external_only": true,
+			"evidence_summary":                    historySummary,
+			"evidence_error":                      rateCompilerErrorString(historyErr),
+		}
+	} else {
+		switchingVendorPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -797,6 +837,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broadband_vendor_pack":        broadbandVendorPackStatus,
 		"nokia_alu_pack":               nokiaALUPackStatus,
 		"mikrotik_pack":                mikroTikPackStatus,
+		"switching_vendor_pack":        switchingVendorPackStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),

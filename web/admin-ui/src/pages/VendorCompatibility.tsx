@@ -760,6 +760,7 @@ type BroadbandVendorPackPayload = {
 
 type NokiaALUPackPayload = BroadbandVendorPackPayload;
 type MikroTikPackPayload = BroadbandVendorPackPayload;
+type SwitchingVendorPackPayload = BroadbandVendorPackPayload;
 
 type VendorDictionaryCoverageRow = {
   pack_key: string;
@@ -1241,6 +1242,9 @@ export default function VendorCompatibility() {
   const [mikroTikPack, setMikroTikPack] = useState<MikroTikPackPayload | null>(null);
   const [mikroTikPackBusy, setMikroTikPackBusy] = useState(false);
   const [mikroTikPackError, setMikroTikPackError] = useState('');
+  const [switchingVendorPack, setSwitchingVendorPack] = useState<SwitchingVendorPackPayload | null>(null);
+  const [switchingVendorPackBusy, setSwitchingVendorPackBusy] = useState(false);
+  const [switchingVendorPackError, setSwitchingVendorPackError] = useState('');
   const [vsaCodec, setVSACodec] = useState<VSACodecPayload | null>(null);
   const [vsaCodecError, setVSACodecError] = useState('');
   const [opaquePassThrough, setOpaquePassThrough] = useState<OpaquePassThroughPayload | null>(null);
@@ -1258,6 +1262,7 @@ export default function VendorCompatibility() {
   const canRecordBroadbandVendorPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
   const canRecordNokiaALUPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
   const canRecordMikroTikPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
+  const canRecordSwitchingVendorPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
 
   const fetchVendorIdentity = async () => {
     try {
@@ -1657,6 +1662,31 @@ export default function VendorCompatibility() {
     }
   };
 
+  const fetchSwitchingVendorPack = async () => {
+    setSwitchingVendorPackError('');
+    try {
+      const { data } = await api.get<SwitchingVendorPackPayload>('/system/switching-vendor-pack?history_limit=5');
+      setSwitchingVendorPack(data);
+    } catch (err: any) {
+      setSwitchingVendorPackError(apiErrorMessage(err, 'Could not load NAS-0071 enterprise switching vendor pack.'));
+    }
+  };
+
+  const recordSwitchingVendorPack = async () => {
+    setSwitchingVendorPackBusy(true);
+    setSwitchingVendorPackError('');
+    setMessage('');
+    try {
+      await api.post('/system/switching-vendor-pack/record', {});
+      setMessage('NAS-0071 enterprise switching vendor pack event recorded.');
+      await fetchSwitchingVendorPack();
+    } catch (err: any) {
+      setSwitchingVendorPackError(apiErrorMessage(err, 'Could not record NAS-0071 enterprise switching vendor pack.'));
+    } finally {
+      setSwitchingVendorPackBusy(false);
+    }
+  };
+
   const fetchVSACodec = async () => {
     setVSACodecError('');
     try {
@@ -1772,6 +1802,7 @@ export default function VendorCompatibility() {
     void fetchBroadbandVendorPack();
     void fetchNokiaALUPack();
     void fetchMikroTikPack();
+    void fetchSwitchingVendorPack();
     void fetchVSACodec();
     void fetchOpaquePassThrough();
   }, []);
@@ -1858,6 +1889,13 @@ export default function VendorCompatibility() {
   const mikroTikPackCapabilities = mikroTikPack?.report.capability_summaries || [];
   const mikroTikPackGrammar = mikroTikPack?.report.grammar || [];
   const mikroTikProductScopes = mikroTikPack?.report.product_scopes || [];
+  const switchingVendorPackSummary = switchingVendorPack?.report.summary;
+  const switchingVendorPackComplete = Boolean(switchingVendorPackSummary && switchingVendorPackSummary.software_certified_mappings === switchingVendorPackSummary.attribute_count && switchingVendorPackSummary.software_blocked_mappings === 0);
+  const switchingVendorPackRecords = switchingVendorPack?.report.records || [];
+  const switchingVendorPackVendors = switchingVendorPack?.report.vendor_summaries || [];
+  const switchingVendorPackCapabilities = switchingVendorPack?.report.capability_summaries || [];
+  const switchingVendorPackGrammar = switchingVendorPack?.report.grammar || [];
+  const switchingVendorProductScopes = switchingVendorPack?.report.product_scopes || [];
   const plannedSemantics = useMemo(
     () => (payload?.semantics || []).filter((item) => item.compatibility_state !== 'implemented'),
     [payload?.semantics],
@@ -1880,7 +1918,7 @@ export default function VendorCompatibility() {
           <p className="mt-1 text-sm text-gray-600">Confirm deployed NAS profiles, reply packs, and vendor dictionary coverage before changing access policy.</p>
         </div>
         <button
-          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchArubaFamilyPack(); void fetchJuniperExtremePack(); void fetchRuckusICXPack(); void fetchFortinetPaloAltoPack(); void fetchCloudControllerPack(); void fetchAccessVendorPack(); void fetchBroadbandVendorPack(); void fetchNokiaALUPack(); void fetchMikroTikPack(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
+          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchArubaFamilyPack(); void fetchJuniperExtremePack(); void fetchRuckusICXPack(); void fetchFortinetPaloAltoPack(); void fetchCloudControllerPack(); void fetchAccessVendorPack(); void fetchBroadbandVendorPack(); void fetchNokiaALUPack(); void fetchMikroTikPack(); void fetchSwitchingVendorPack(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
           disabled={loading}
           className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
@@ -2019,6 +2057,130 @@ export default function VendorCompatibility() {
                 </div>
               ) : null}
             </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">NAS-0071 Enterprise Switching Vendor Pack</h3>
+                <p className="mt-1 text-sm text-gray-600">Certify 3Com, Dell EMC, EqualLogic, Brocade, Force10, Foundry, Arista, and Extreme switching software while device proof stays in release certification.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {switchingVendorPackSummary ? (
+                  <StatusBadge tone={switchingVendorPackComplete ? 'green' : 'amber'}>
+                    {formatPercent(switchingVendorPackSummary.software_completion_percent)} software
+                  </StatusBadge>
+                ) : null}
+                {canRecordSwitchingVendorPack ? (
+                  <button
+                    type="button"
+                    onClick={() => void recordSwitchingVendorPack()}
+                    disabled={switchingVendorPackBusy || !switchingVendorPackComplete}
+                    className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {switchingVendorPackBusy ? 'Recording...' : 'Record Evidence'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {switchingVendorPackError ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{switchingVendorPackError}</div> : null}
+            {switchingVendorPackSummary ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="Switch Rows" value={switchingVendorPackSummary.attribute_count} hint="All pinned 3Com, Dell EMC, EqualLogic, Brocade, Force10, Foundry, Arista, and Extreme rows." />
+                  <StatCard label="Software Certified" value={switchingVendorPackSummary.software_certified_mappings} hint={`${switchingVendorPackSummary.software_blocked_mappings} software blockers.`} />
+                  <StatCard label="Dictionary Vendors" value={switchingVendorPackSummary.vendor_count} hint={`${switchingVendorPackSummary.native_semantic_mappings} native semantic mappings.`} />
+                  <StatCard label="Product Scopes" value={switchingVendorPackSummary.product_scope_count} hint="Switching, storage admin, command authorization, CoA, and release boundary." />
+                  <StatCard label="Grammar Rules" value={switchingVendorPackSummary.grammar_rule_count} hint="Role, command, VLAN, ACL, AVPair, portal, QoS, VRF, posture, and accounting handling." />
+                  <StatCard label="Storage Events" value={switchingVendorPack?.evidence.summary.total_events || 0} hint={switchingVendorPack?.evidence.summary.last_event_at ? `Last ${new Date(switchingVendorPack.evidence.summary.last_event_at).toLocaleString()}` : 'No persisted event yet.'} />
+                  <StatCard label="Ready For Lab" value={switchingVendorPackSummary.ready_for_external_validation_mappings} hint="Software-ready rows awaiting release proof." />
+                  <StatCard label="Redacted Secrets" value={switchingVendorPackSummary.sensitive_redacted_mappings} hint="No NAS-0071 dictionary row stores secret material." />
+                </div>
+
+                <div className="mt-4 rounded-md border border-gray-200 p-4">
+                  <div className="text-xs font-semibold uppercase text-gray-500">Switching Pack Fingerprint</div>
+                  <div className="mt-2 break-all text-sm font-medium text-gray-900">{switchingVendorPackSummary.fingerprint}</div>
+                  <p className="mt-2 text-sm text-gray-600">{switchingVendorPack?.release_scope}</p>
+                </div>
+
+                <div className="mt-4 grid gap-4 xl:grid-cols-4">
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Vendor', 'Rows', 'State'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {switchingVendorPackVendors.map((vendor) => (
+                          <tr key={`${vendor.vendor}-${vendor.pen}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{vendor.vendor}<div className="text-xs text-gray-500">PEN {vendor.pen}{vendor.pack_key ? ` / ${vendor.pack_key}` : ''}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{vendor.software_certified_mappings}/{vendor.attribute_count}<div className="text-xs text-gray-500">{vendor.external_required_mappings} external</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{formatPercent(vendor.software_completion_percent)}</StatusBadge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Product Scope', 'Dictionary', 'State'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {switchingVendorProductScopes.slice(0, 12).map((scope) => (
+                          <tr key={`${scope.key}-${scope.label}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{scope.label}<div className="text-xs text-gray-500">{joinList(scope.products)}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{scope.dictionary}<div className="text-xs text-gray-500">{joinList(scope.vendors)}</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{evidenceLabel(scope.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{evidenceLabel(scope.external_state)}</div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Capability', 'Rows', 'Mapping'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {switchingVendorPackCapabilities.slice(0, 8).map((capability) => (
+                          <tr key={capability.capability}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{evidenceLabel(capability.capability)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{capability.software_certified_mappings}/{capability.attribute_count}<div className="text-xs text-gray-500">{capability.external_required_mappings} external</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{capability.native_semantic_mappings} native<div className="text-xs text-gray-500">{capability.typed_passthrough_mappings} pass-through</div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Grammar', 'State', 'Example'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {switchingVendorPackGrammar.slice(0, 8).map((grammar) => (
+                          <tr key={grammar.key}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{grammar.label}<div className="text-xs text-gray-500">{grammar.kind}</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{grammar.parser_state}</StatusBadge><div className="mt-1 text-xs text-gray-500">{grammar.external_state}</div></td>
+                            <td className="px-4 py-3 text-xs text-gray-700">{grammar.examples?.[0] || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="mt-4 overflow-x-auto rounded-md border border-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50"><tr>{['Attribute', 'Capability', 'Software', 'Handling'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {switchingVendorPackRecords.slice(0, 12).map((record) => (
+                        <tr key={record.id}>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{record.attribute}<div className="text-xs text-gray-500">{record.vendor} / {record.wire_key}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{evidenceLabel(record.capability)}<div className="text-xs text-gray-500">{joinList(record.directions)}</div></td>
+                          <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{evidenceLabel(record.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{record.claim_state}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{evidenceLabel(record.implementation_class)}<div className="text-xs text-gray-500">{evidenceLabel(record.packet_processing)}</div></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">{switchingVendorPack?.release_certification_checklist} keeps switch firmware, controller APIs, FreeRADIUS Linux, CoA/Disconnect, HA, performance, and customer proof outside engineering completion.</p>
+              </>
+            ) : null}
           </section>
 
           <section className="mt-6">

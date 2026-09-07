@@ -33,6 +33,7 @@ jobs:
       - run: make test-broadband-vendor-pack
       - run: make test-nokia-alu-pack
       - run: make test-mikrotik-pack
+      - run: make test-switching-vendor-pack
       - run: make test-vsa-codec
       - run: make test-opaque-passthrough
       - run: make test-secret-providers

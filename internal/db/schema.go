@@ -200,6 +200,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{73, schemaV73},
 		{74, schemaV74},
 		{75, schemaV75},
+		{76, schemaV76},
 	}
 
 	for _, m := range migrations {
@@ -382,8 +383,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureMikroTikPackTables(handle); err != nil {
 		return fmt.Errorf("repair MikroTik pack schema: %w", err)
 	}
+	if err := ensureSwitchingVendorPackTables(handle); err != nil {
+		return fmt.Errorf("repair switching vendor pack schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureSwitchingVendorPackTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(switchingVendorPackSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureMikroTikPackTables(handle *sql.DB) error {

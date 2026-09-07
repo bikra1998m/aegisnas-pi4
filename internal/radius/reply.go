@@ -387,6 +387,12 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendQuotaItem(attrs, packKey, vendor.QuotaMappings, appendItem, "Ruckus-Max-DL-UL-Quota")
 		case productconfigs.VendorPackFoundry:
 			appendRuckusICXReplyAttributes(attrs, packKey, appendItem)
+		case productconfigs.VendorPack3Com,
+			productconfigs.VendorPackBrocade,
+			productconfigs.VendorPackDellEMC,
+			productconfigs.VendorPackEquallogic,
+			productconfigs.VendorPackForce10:
+			appendSwitchingVendorReplyAttributes(attrs, packKey, vendor, appendItem)
 		case productconfigs.VendorPackFortinet:
 			appendFortinetPaloAltoReplyAttributes(attrs, packKey, appendItem)
 			appendVendorAVPairItems(attrs, packKey, vendor.AVPairMappings, appendItem)
@@ -507,13 +513,7 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendItem("User-Group", replyRole(attrs), true)
 			appendNumericRoleItem(attrs, packKey, vendor.RoleMappings, appendItem, "User-Privilege")
 		case productconfigs.VendorPackArista:
-			appendItem("User-Role", replyRole(attrs), true)
-			appendURLItem(attrs, appendItem, "Captive-Portal", attrs.PortalProfile)
-			if vlan := replyVLAN(attrs); vlan > 0 {
-				appendItem("Segment-Id", fmt.Sprintf("%d", vlan), true)
-			}
-			appendItem("Interface-Profile", attrs.DeviceGroup, true)
-			appendVendorAVPairItems(attrs, packKey, vendor.AVPairMappings, appendItem)
+			appendSwitchingVendorReplyAttributes(attrs, packKey, vendor, appendItem)
 		case productconfigs.VendorPackPica8:
 			appendURLItem(attrs, appendItem, "Redirect-URL", attrs.PortalProfile)
 			appendItem("AVPair", attrs.PolicyTag, true)

@@ -561,6 +561,35 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/mikrotik-pack/record | jq '.event_id, .status'
 ```
 
+NAS-0071 exposes the enterprise switching vendor software certification report
+for all 69 pinned 3Com, Dell EMC, EqualLogic, Brocade, Force10, Foundry,
+Arista, and Extreme rows from the pinned FreeRADIUS 3.2.8 registry:
+
+```text
+GET  /api/v1/system/switching-vendor-pack
+POST /api/v1/system/switching-vendor-pack/record
+GET  /api/v1/system/switching-vendor-pack/history
+```
+
+The report covers switch role and privilege mapping, command authorization
+context, VLAN and fabric selectors, ACL/profile assignment, vendor AVPair
+grammar, QoS, captive portal and WebAuth hints, session remediation, VRF,
+device/posture context, administrative identity, and accounting evidence.
+`record` persists the current source hash, fingerprint, counts, summary JSON,
+full report JSON, actor, and timestamp in `switching_vendor_pack_events`.
+External switch firmware, controller APIs, FreeRADIUS-on-Linux, CoA/Disconnect,
+HA, performance, soak, security, production deployment, and customer acceptance
+proof remains in
+[nas-0071-release-certification-checklist.md](nas-0071-release-certification-checklist.md).
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/switching-vendor-pack | jq '.report.summary'
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/switching-vendor-pack/record | jq '.event_id, .status'
+```
+
 The API also provides a non-mutating reply preview endpoint:
 
 ```text

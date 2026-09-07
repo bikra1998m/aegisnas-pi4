@@ -189,6 +189,17 @@ The implementation now does these things end to end:
     support-bundle captures while keeping real RouterOS, CAPsMAN, hotspot,
     PPP/PPPoE, CoA, HA, firmware, and customer validation in a separate release
     checklist
+39. certifies the enterprise switching vendor pack in software through a
+    NAS-0071 report covering all 69 pinned 3Com, Dell EMC, EqualLogic,
+    Brocade, Force10, Foundry, Arista, and Extreme rows, switch role and
+    privilege mapping, command authorization context, VLAN and fabric
+    selectors, ACL/profile assignment, AVPair grammar, QoS, captive portal and
+    WebAuth hints, session remediation, VRF, device/posture context,
+    administrative identity, accounting evidence, persisted evidence, admin
+    API, Vendor Compatibility UI, readiness checks, system status, and
+    support-bundle captures while keeping real switch firmware, controllers,
+    CoA, HA, performance, security, and customer validation in a separate
+    release checklist
 
 ## Current Behavior
 

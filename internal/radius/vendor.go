@@ -877,6 +877,9 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			if isMikroTikPackKey(mapping.PackKey) {
 				return
 			}
+			if isSwitchingPackKey(mapping.PackKey) && applySwitchingVendorAttributeString(result, mapping.PackKey, mapping.Attribute, text) {
+				return
+			}
 			applyInboundVendorString(result, mapping, text)
 		}
 	case inboundVendorMappedRole:
@@ -924,6 +927,9 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			}
 			if isNokiaALUAVPairRuntimeMapping(mapping) {
 				_ = applyNokiaALUAttributeString(result, mapping.PackKey, mapping.Attribute, value)
+				continue
+			}
+			if isSwitchingPackKey(mapping.PackKey) && applySwitchingVendorAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
 				continue
 			}
 			appendUniqueVendorAVPair(result, value)
@@ -1144,6 +1150,10 @@ func applyInboundVendorString(result *BrokerAuthResult, mapping inboundVendorMap
 	}
 	if isMikroTikPackKey(mapping.PackKey) {
 		_ = applyMikroTikAttributeString(result, mapping.PackKey, mapping.Attribute, value)
+		return
+	}
+	if isSwitchingPackKey(mapping.PackKey) {
+		_ = applySwitchingVendorAttributeString(result, mapping.PackKey, mapping.Attribute, value)
 		return
 	}
 	switch mapping.Semantic {

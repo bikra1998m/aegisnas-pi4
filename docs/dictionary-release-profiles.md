@@ -8,7 +8,7 @@ Status: engineering implementation complete; ready for external validation.
 
 NAS-0003 pins the generated registry to an explicit FreeRADIUS dictionary release profile. The profile records release identity, source counts, registry hash, vendor aliases, attribute aliases, firmware scopes, and semantic provenance. This prevents configuration, packet processing, API clients, and operators from silently mixing dictionary generations or vendor spellings.
 
-The active software profile is `freeradius-3.2.8`. It covers the pinned FreeRADIUS 3.2.8 audit source, 246 dictionary files, 7,654 source VSA records, 7,661 effective entries, 196 namespaces, 1,109 mapped attributes, and 1,033 runtime decoder mappings.
+The active software profile is `freeradius-3.2.8`. It covers the pinned FreeRADIUS 3.2.8 audit source, 246 dictionary files, 7,654 source VSA records, 7,661 effective entries, 196 namespaces, 1,147 mapped attributes, and 1,071 runtime decoder mappings.
 
 RFC 2865 defines the Vendor-Specific Attribute envelope. RFC 2866, RFC 5176, RFC 6614, and RFC 9813 are tracked in the profile because accounting, dynamic authorization, RadSec, and RADIUS/1.1 behavior consume the same vendor compatibility surface.
 
@@ -17,9 +17,9 @@ RFC 2865 defines the Vendor-Specific Attribute envelope. RFC 2866, RFC 5176, RFC
 `configs.DictionaryReleaseProfile` is an immutable build-time contract. It contains:
 
 - profile ID, FreeRADIUS release, source hash, source/effective counts, and default status;
-- canonical vendor aliases such as `unifi` to `Ubiquiti`, `routeros` to `Mikrotik`, `omada` to `TPLink`, `junos` to `Juniper`, `alu-sr` and `timetra` to `Alcatel-Lucent-Service-Router`, `alu-aaa` to `ALU-AAA`, `esam` to `Alcatel-ESAM`, and `open-wifi` to `OpenWiFi`;
+- canonical vendor aliases such as `unifi` to `Ubiquiti`, `routeros` to `Mikrotik`, `omada` to `TPLink`, `junos` to `Juniper`, `3com`, `arista-eos`, `dell-emc`, `force10`, `ftos`, and `fastiron` to their switching packs, `alu-sr` and `timetra` to `Alcatel-Lucent-Service-Router`, `alu-aaa` to `ALU-AAA`, `esam` to `Alcatel-ESAM`, and `open-wifi` to `OpenWiFi`;
 - attribute aliases for known spelling variants such as `Cisco-AV-Pair`, `Ubiquiti-Data-Rate-DL`, `Huawei-AVPair`, `H3C-AVPair`, `Nokia-AVPair`, `ALU-AAA-AV-Pair`, `AAT-Filter`, `Alc-Nas-Filter-Rule-Shared`, and TP-Link spellings;
-- firmware profiles for RouterOS, UniFi Network, ArubaOS, Cisco IOS/IOS-XE, Junos, Comware, Omada, Alcatel AAT, Alcatel ESAM, Nokia SR OS/ALU SR OS, ALU AAA, and TIP OpenWiFi;
+- firmware profiles for RouterOS, UniFi Network, ArubaOS, Cisco IOS/IOS-XE, Junos, Comware, 3Com switching, Arista EOS, Dell EMC PowerSwitch, EqualLogic, Force10/FTOS, Foundry/FastIron, Extreme NetLogin, Omada, Alcatel AAT, Alcatel ESAM, Nokia SR OS/ALU SR OS, ALU AAA, and TIP OpenWiFi;
 - support state and external evidence state for every firmware scope.
 
 The attribute registry now carries `release_profile_id` and `semantic_provenance` on every entry. Runtime annotations from AegisNAS are marked separately from FreeRADIUS audit metadata. Registry cursors use a `v2` payload bound to the release profile ID, source hash, and normalized filters.

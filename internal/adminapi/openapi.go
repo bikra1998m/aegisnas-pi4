@@ -1308,6 +1308,20 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Persisted MikroTik RouterOS pack certification event summary and recent events."),
 	}))
+	addOperation(paths, "/api/v1/system/switching-vendor-pack", "get", securedOperationWithParameters("Read NAS-0071 enterprise switching vendor pack certification", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("history_limit", "Recent persisted event count from 1 to 500; defaults to 20.", false),
+	}, map[string]any{
+		"200": responseJSON("Software certification report for 3Com, Dell EMC, EqualLogic, Brocade, Force10, Foundry, Arista, and Extreme switching role, command, VLAN, ACL, QoS, portal, posture, VRF, accounting, and CoA semantics."),
+	}))
+	addOperation(paths, "/api/v1/system/switching-vendor-pack/record", "post", securedOperationWithBody("Record NAS-0071 enterprise switching vendor pack certification evidence", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional operator note; the server derives the enterprise switching report from the pinned FreeRADIUS registry and AegisNAS runtime annotations."), map[string]any{
+		"200": responseJSON("Persisted enterprise switching vendor pack certification event and derived report."),
+		"409": responseJSON("Enterprise switching vendor pack report was recorded as blocked because software coverage is incomplete."),
+	}))
+	addOperation(paths, "/api/v1/system/switching-vendor-pack/history", "get", securedOperationWithParameters("Read NAS-0071 enterprise switching vendor pack certification history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Event count from 1 to 500; defaults to 100.", false),
+	}, map[string]any{
+		"200": responseJSON("Persisted enterprise switching vendor pack certification event summary and recent events."),
+	}))
 	addOperation(paths, "/api/v1/system/vsa-codec", "get", securedOperation("Read VSA codec capabilities", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Extended, grouped, tagged, and repeated VSA codec readiness."),
 	}))

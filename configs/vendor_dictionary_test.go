@@ -188,7 +188,7 @@ func TestAegisNASVendorCompatibilityPacks(t *testing.T) {
 		{VendorPackPaloAlto, "PaloAlto-Client-OS"},
 		{VendorPackAirespace, "Wlan-Id"},
 		{VendorPackHP, "Egress-VLANID"},
-		{VendorPackArista, "Device-Profiling"},
+		{VendorPackArista, "Arista-Device-Profiling"},
 		{VendorPackMeru, "Access-Point-Id"},
 		{VendorPackColubris, "Intercept"},
 		{VendorPackMist, "controller.policy_sync"},

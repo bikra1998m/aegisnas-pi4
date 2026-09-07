@@ -298,6 +298,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/nokia-alu-pack-history.json", requestPath: "/api/v1/system/nokia-alu-pack/history", label: "NAS-0069 Nokia/Alcatel-Lucent service-router pack certification history", handler: HandleListNokiaALUPackHistory},
 		{archivePath: "api/mikrotik-pack.json", requestPath: "/api/v1/system/mikrotik-pack", label: "NAS-0070 MikroTik RouterOS pack certification", handler: HandleGetMikroTikPack},
 		{archivePath: "api/mikrotik-pack-history.json", requestPath: "/api/v1/system/mikrotik-pack/history", label: "NAS-0070 MikroTik RouterOS pack certification history", handler: HandleListMikroTikPackHistory},
+		{archivePath: "api/switching-vendor-pack.json", requestPath: "/api/v1/system/switching-vendor-pack", label: "NAS-0071 enterprise switching vendor pack certification", handler: HandleGetSwitchingVendorPack},
+		{archivePath: "api/switching-vendor-pack-history.json", requestPath: "/api/v1/system/switching-vendor-pack/history", label: "NAS-0071 enterprise switching vendor pack certification history", handler: HandleListSwitchingVendorPackHistory},
 		{archivePath: "api/session-history.json", requestPath: "/api/v1/system/session-history", label: "Session and accounting history", handler: HandleListSessionHistory},
 		{archivePath: "api/session-analytics.json", requestPath: "/api/v1/system/session-analytics", label: "Session activity analytics", handler: HandleGetSessionAnalytics},
 		{archivePath: "api/voucher-aging-analytics.json", requestPath: "/api/v1/system/voucher-aging-analytics", label: "Voucher stock aging analytics", handler: HandleGetVoucherAgingAnalytics},
