@@ -21,7 +21,7 @@ func TestHandleGetAttributeRegistryFiltersAndPaginates(t *testing.T) {
 	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &first))
 	assert.Equal(t, productconfigs.DefaultDictionaryReleaseProfileID, first.ReleaseProfileID)
 	assert.Equal(t, 7654, first.SourceAttributeCount)
-	assert.Equal(t, 749, first.MappedCount)
+	assert.Equal(t, 1080, first.MappedCount)
 	assert.Greater(t, first.FilteredCount, 2)
 	require.Len(t, first.Entries, 2)
 	assert.NotEmpty(t, first.NextCursor)

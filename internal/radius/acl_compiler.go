@@ -731,6 +731,26 @@ func aclCompilerDefinitionForPack(packKey string) aclCompilerDefinition {
 			Grammar: "profile-ref-v1", ProfileAttributes: []string{"H3C-Ita-Policy"}, SupportsDecompile: true, MaxValueBytes: aclCompilerProfileMaxBytes,
 			Notes: []string{"H3C/Comware ACL-like enforcement is represented by a named ITA policy."},
 		},
+		productconfigs.VendorPackNokia: {
+			PackKey: packKey, OutputMode: "profile_reference", Status: aclCompilerStatusProfile, CertificationState: aclCertificationProfile,
+			Grammar: "profile-ref-v1", ProfileAttributes: []string{"Nokia-AVPair"}, SupportsDecompile: true, MaxValueBytes: aclCompilerProfileMaxBytes,
+			Notes: []string{"Nokia SR OS ACL enforcement is represented by a bounded Nokia-AVPair profile reference."},
+		},
+		productconfigs.VendorPackAlcatel: {
+			PackKey: packKey, OutputMode: "profile_reference", Status: aclCompilerStatusProfile, CertificationState: aclCertificationProfile,
+			Grammar: "profile-ref-v1", ProfileAttributes: []string{"AAT-Filter", "AAT-Data-Filter"}, SupportsDecompile: true, MaxValueBytes: aclCompilerProfileMaxBytes,
+			Notes: []string{"Legacy Alcatel AAT ACL enforcement is represented by named filter/data-filter profiles."},
+		},
+		productconfigs.VendorPackALUSR: {
+			PackKey: packKey, OutputMode: "line_rules", Status: aclCompilerStatusCompiled, CertificationState: aclCertificationSoftware,
+			Grammar: "nas-filter-rule-v1", LineAttribute: "Alc-Nas-Filter-Rule-Shared", SupportsDecompile: true,
+			Notes: []string{"Compiles Alcatel-Lucent SR OS shared NAS filter rules using the validated NAS filter grammar."},
+		},
+		productconfigs.VendorPackALUAAA: {
+			PackKey: packKey, OutputMode: "line_rules", Status: aclCompilerStatusCompiled, CertificationState: aclCertificationSoftware,
+			Grammar: "nas-filter-rule-v1", LineAttribute: "ALU-AAA-Access-Rule", SupportsDecompile: true,
+			Notes: []string{"Compiles ALU-AAA access rules using the validated NAS filter grammar."},
+		},
 	}
 	if def, ok := defs[packKey]; ok {
 		if def.MaxValueBytes <= 0 {

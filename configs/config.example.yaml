@@ -690,7 +690,7 @@ radius:
     assignment_record_sha256: ""
     legacy_ids: [] # Inbound-only PENs accepted during a migration window; replies always use id.
     legacy_accept_until: "" # Required RFC3339 deadline when legacy_ids is non-empty.
-    compatibility_packs: ["standard", "mikrotik", "wispr"] # Add aegisnas, aruba, ruckus, fortinet, cisco, ubnt, cambium, extreme, juniper, huawei, h3c, paloalto, tplink, dlink, meraki, openwifi, or mist only after the NAS/controller side is prepared.
+    compatibility_packs: ["standard", "mikrotik", "wispr"] # Add aegisnas, aruba, ruckus, fortinet, cisco, ubnt, cambium, extreme, juniper, huawei, h3c, zte, paloalto, tplink, dlink, meraki, openwifi, mist, nokia, alcatel, alcatel-esam, alu-sr, or alu-aaa only after the NAS/controller side is prepared.
     dictionary_paths: [] # Optional FreeRADIUS dictionary files or directories to import for compatibility coverage, such as /etc/freeradius/3.0/dictionary or /usr/share/freeradius.
     opaque_pass_through:
       enabled: true
@@ -708,7 +708,7 @@ radius:
           description: "Example lab controller correlation token"
     role_mappings: [] # Map local roles to certified uint32 values for cambium, aerohive, dlink, sonicwall, or zte; for example [{pack: dlink, role: admin, value: 5}].
     extended_vlan_mappings: [] # Extreme VSA 211 mappings; for example [{pack: extreme, role: voice, untagged_vlan: 20, tagged_vlans: [30, 40]}].
-    avpair_mappings: [] # Certified per-role templates for juniper, huawei, h3c, or arista; for example [{pack: arista, role: admin, values: ["shell:roles=${role}"]}].
+    avpair_mappings: [] # Certified per-role templates for juniper, huawei, h3c, nokia, alu-aaa, or arista; for example [{pack: arista, role: admin, values: ["shell:roles=${role}"]}].
     portal_status_mappings: [] # Reversible TP-Link profile values; for example [{pack: tplink, portal_profile: "https://portal.example.test/guest", value: 1}].
     session_action_mappings: [] # Reversible Nomadix role/action values; for example [{pack: nomadix, role: expired-guest, action: disconnect, value: 1}].
     quota_mappings: [] # ChilliSpot, Ruckus, and Cambium combined data limits by role; for example [{pack: cambium, role: guest-1g, max_total_octets: 1073741824}].

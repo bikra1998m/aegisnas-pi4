@@ -91,8 +91,8 @@ var defaultDictionaryReleaseContract = dictionaryReleaseContract{profile: Dictio
 	SourceAttributeCount:    7654,
 	EffectiveAttributeCount: 7661,
 	VendorCount:             196,
-	MappedAttributeCount:    749,
-	RuntimeDecoderCount:     706,
+	MappedAttributeCount:    1080,
+	RuntimeDecoderCount:     1004,
 	VendorAliases: []DictionaryVendorAlias{
 		vendorAlias("aegis", AegisNASVendorName, VendorPackAegisNAS, AegisNASPlaceholderVendorID, "product dictionary"),
 		vendorAlias("aegisnas-vsa", AegisNASVendorName, VendorPackAegisNAS, AegisNASPlaceholderVendorID, "product dictionary"),
@@ -143,9 +143,17 @@ var defaultDictionaryReleaseContract = dictionaryReleaseContract{profile: Dictio
 		vendorAlias("arista-eos", "Arista", VendorPackArista, 30065, "product firmware"),
 		vendorAlias("eos", "Arista", VendorPackArista, 30065, "product firmware"),
 		vendorAlias("pica", "Pica8", VendorPackPica8, 35098, "vendor shorthand"),
-		vendorAlias("alcatel-lucent", "Nokia", VendorPackNokia, 94, "vendor lineage"),
-		vendorAlias("alu", "Nokia", VendorPackNokia, 94, "vendor lineage"),
+		vendorAlias("alcatel", "Alcatel", VendorPackAlcatel, 3041, "vendor dictionary"),
+		vendorAlias("alcatel-aat", "Alcatel", VendorPackAlcatel, 3041, "product firmware"),
+		vendorAlias("alcatel-esam", "Alcatel-ESAM", VendorPackAlcatelESAM, 637, "product firmware"),
+		vendorAlias("esam", "Alcatel-ESAM", VendorPackAlcatelESAM, 637, "product firmware"),
+		vendorAlias("alcatel-lucent", "Alcatel-Lucent-Service-Router", VendorPackALUSR, 6527, "vendor lineage"),
+		vendorAlias("alu", "Alcatel-Lucent-Service-Router", VendorPackALUSR, 6527, "vendor lineage"),
+		vendorAlias("alu-sr", "Alcatel-Lucent-Service-Router", VendorPackALUSR, 6527, "product firmware"),
+		vendorAlias("timetra", "Alcatel-Lucent-Service-Router", VendorPackALUSR, 6527, "product firmware"),
+		vendorAlias("alu-aaa", "ALU-AAA", VendorPackALUAAA, 831, "vendor dictionary"),
 		vendorAlias("nokia-sr", "Nokia", VendorPackNokia, 94, "product firmware"),
+		vendorAlias("nokia-sros", "Nokia", VendorPackNokia, 94, "product firmware"),
 		vendorAlias("staros", "Starent", VendorPackStarent, 8164, "product firmware"),
 		vendorAlias("cisco-asr", "Starent", VendorPackStarent, 8164, "product firmware"),
 		vendorAlias("cisco-asr5000", "Starent", VendorPackStarent, 8164, "product firmware"),
@@ -177,7 +185,11 @@ var defaultDictionaryReleaseContract = dictionaryReleaseContract{profile: Dictio
 		firmwareProfile("cambium-cnmaestro", "Cambium", VendorPackCambium, 17713, "cnMaestro", "Cambium cnMaestro, enterprise Wi-Fi, ePMP, and PMP firmware using role, VLAN, quota, QoS, walled-garden, and traffic-class attributes", []string{"lite", "branch", "enterprise", "custom"}, "software-ready", "external-certification-required", []string{"Cambium-Auth-Role", "Cambium-ePMP-Data-VLAN-Id", "Cambium-Traffic-Quota-Limit-Total", "Cambium-Walled-Garden-State"}),
 		firmwareProfile("tplink-omada", "TPLink", VendorPackTPLink, 11863, "Omada", "Omada controller, AP, switch, and gateway firmware using TPLink bandwidth, site, Omada group, portal, redirect, and authentication-key attributes", []string{"lite", "branch", "enterprise", "custom"}, "software-ready", "external-certification-required", []string{"TPLink-Recv-limit", "TPLink-Xmit-limit", "TPLink-Site", "TPLink-Omada", "TPLink-Portal-Access-Status"}),
 		firmwareProfile("dlink-nuclias", "DLink", VendorPackDLink, 171, "Nuclias / D-Link switching", "D-Link access switch, AP, and Nuclias firmware using user level, bandwidth, priority, VLAN, ACL profile, ACL rule, and ACL script attributes", []string{"lite", "branch", "enterprise", "custom"}, "software-ready", "external-certification-required", []string{"Dlink-User-Level", "Dlink-VLAN-ID", "Dlink-ACL-Profile", "Dlink-ACL-Rule"}),
-		firmwareProfile("nokia-sros", "Nokia", VendorPackNokia, 94, "SR OS", "Nokia and Alcatel-Lucent SR OS attributes requiring BCD service-name handling", []string{"enterprise", "custom"}, "software-ready", "external-certification-required", []string{"Nokia-AVPair", "Nokia-User-Profile", "Nokia-Service-Name"}),
+		firmwareProfile("nokia-sros", "Nokia", VendorPackNokia, 94, "SR OS", "Nokia SR OS attributes requiring AVPair policy normalization and BCD service-name handling", []string{"enterprise", "custom"}, "software-ready", "external-certification-required", []string{"Nokia-AVPair", "Nokia-User-Profile", "Nokia-Service-Name"}),
+		firmwareProfile("alcatel-aat", "Alcatel", VendorPackAlcatel, 3041, "AAT access", "Legacy Alcatel access and PPP dictionaries using DNS, vrouter, QoS, filter, WINS, and home-agent attributes", []string{"enterprise", "custom"}, "software-ready", "external-certification-required", []string{"AAT-PPP-Address", "AAT-Vrouter-Name", "AAT-Qos", "AAT-Filter"}),
+		firmwareProfile("alcatel-esam", "Alcatel-ESAM", VendorPackAlcatelESAM, 637, "ESAM access node", "Alcatel ESAM DSL/GPON access-node dictionaries carrying VLAN, VRF, TL1, DHCP, PPPoE, QoS, xDSL, and security evidence", []string{"enterprise", "custom"}, "software-ready", "external-certification-required", []string{"A-ESAM-VRF-Name", "A-ESAM-Vlan-Id", "A-AL-DHCP", "A-AL-PPPoE"}),
+		firmwareProfile("alu-service-router", "Alcatel-Lucent-Service-Router", VendorPackALUSR, 6527, "SR OS / Timetra", "Alcatel-Lucent SR OS and Timetra service-router dictionaries using subscriber, SAP/MSAP, SLA, IPv6, NAT, portal, BGP, and accounting attributes", []string{"enterprise", "custom"}, "software-ready", "external-certification-required", []string{"Timetra-Profile", "Alc-Subsc-ID-Str", "Alc-SLA-Prof-Str", "Alc-Nat-Port-Range", "Alc-Nas-Filter-Rule-Shared"}),
+		firmwareProfile("alu-aaa", "ALU-AAA", VendorPackALUAAA, 831, "ALU-AAA", "ALU-AAA dictionaries carrying access rules, AV-Pairs, service profiles, mobile-auth evidence, location, voice, and event state", []string{"enterprise", "custom"}, "software-ready", "external-certification-required", []string{"ALU-AAA-Access-Rule", "ALU-AAA-AV-Pair", "ALU-AAA-Service-Profile", "ALU-AAA-Delta-Session"}),
 		firmwareProfile("starent-staros", "Starent", VendorPackStarent, 8164, "StarOS / Cisco ASR mobile core", "Starent and Cisco ASR mobile-core dictionaries exposing SN-NAT-IP-Address and subscriber pool selectors", []string{"enterprise", "custom"}, "software-ready", "external-certification-required", []string{"SN-NAT-IP-Address", "SN-IP-Pool-Name"}),
 		firmwareProfile("openwifi-tip", "OpenWiFi", VendorPackOpenWiFi, 58888, "TIP OpenWiFi", "TIP OpenWiFi controller integrations and AP identity attributes", []string{"branch", "enterprise", "custom"}, "software-ready", "external-certification-required", []string{"OpenWiFi-AP-MAC-Address", "controller.policy_sync"}),
 	},
@@ -333,7 +345,33 @@ func ValidateDictionaryReleaseProfile(profile DictionaryReleaseProfile, registry
 	return nil
 }
 
+var cachedDefaultDictionaryReleaseBaseProfile = buildDefaultDictionaryReleaseBaseProfile()
+
 func defaultDictionaryReleaseBaseProfile() DictionaryReleaseProfile {
+	return cloneDictionaryReleaseProfile(cachedDefaultDictionaryReleaseBaseProfile)
+}
+
+func cloneDictionaryReleaseProfile(profile DictionaryReleaseProfile) DictionaryReleaseProfile {
+	profile.RFCs = append([]string(nil), profile.RFCs...)
+	profile.VendorAliases = append([]DictionaryVendorAlias(nil), profile.VendorAliases...)
+	for idx := range profile.VendorAliases {
+		profile.VendorAliases[idx].Notes = append([]string(nil), profile.VendorAliases[idx].Notes...)
+	}
+	profile.AttributeAliases = append([]DictionaryAttributeAlias(nil), profile.AttributeAliases...)
+	for idx := range profile.AttributeAliases {
+		profile.AttributeAliases[idx].Notes = append([]string(nil), profile.AttributeAliases[idx].Notes...)
+	}
+	profile.FirmwareProfiles = append([]DictionaryFirmwareProfile(nil), profile.FirmwareProfiles...)
+	for idx := range profile.FirmwareProfiles {
+		profile.FirmwareProfiles[idx].HardwareProfiles = append([]string(nil), profile.FirmwareProfiles[idx].HardwareProfiles...)
+		profile.FirmwareProfiles[idx].AttributeScope = append([]string(nil), profile.FirmwareProfiles[idx].AttributeScope...)
+		profile.FirmwareProfiles[idx].Notes = append([]string(nil), profile.FirmwareProfiles[idx].Notes...)
+	}
+	profile.Notes = append([]string(nil), profile.Notes...)
+	return profile
+}
+
+func buildDefaultDictionaryReleaseBaseProfile() DictionaryReleaseProfile {
 	profile := defaultDictionaryReleaseContract.profile
 	profile.RFCs = append([]string(nil), profile.RFCs...)
 	profile.VendorAliases = append([]DictionaryVendorAlias(nil), profile.VendorAliases...)
@@ -359,9 +397,9 @@ func defaultDictionaryReleaseBaseProfile() DictionaryReleaseProfile {
 
 func dictionaryReleaseBaseProfileByID(id string) DictionaryReleaseProfile {
 	if EffectiveDictionaryReleaseProfileID(id) == DefaultDictionaryReleaseProfileID {
-		return defaultDictionaryReleaseBaseProfile()
+		return cachedDefaultDictionaryReleaseBaseProfile
 	}
-	return defaultDictionaryReleaseBaseProfile()
+	return cachedDefaultDictionaryReleaseBaseProfile
 }
 
 func normalizedDictionaryReleaseKey(value string) string {

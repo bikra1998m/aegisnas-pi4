@@ -168,6 +168,16 @@ The implementation now does these things end to end:
     readiness checks, system status, and support-bundle captures while keeping
     real-device, controller, BRAS/BNG, and firmware validation in a separate
     release checklist
+37. certifies the Nokia/Alcatel-Lucent service-router pack in software through
+    a NAS-0069 report covering all 334 pinned Nokia, Alcatel, Alcatel-ESAM,
+    Alcatel-Lucent-Service-Router, and ALU-AAA rows, Nokia AVPair/profile/BCD
+    service-name handling, Alcatel AAT address/QoS/filter evidence, ESAM
+    VRF/VLAN/QoS/DHCP/PPPoE evidence, ALU SR OS subscriber/SLA/route/IPv6/NAT,
+    portal/accounting/charging/CoA semantics, ALU-AAA access-rule/AVPair,
+    location/event/mobile-auth redaction evidence, persisted evidence, admin
+    API, Vendor Compatibility UI, readiness checks, system status, and
+    support-bundle captures while keeping real-device, service-router,
+    access-node, AAA, and firmware validation in a separate release checklist
 
 ## Current Behavior
 

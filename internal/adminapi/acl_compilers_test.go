@@ -115,7 +115,7 @@ func TestACLCompilerAPICompileDecompileHistoryAndReadiness(t *testing.T) {
 	HandleGetACLCompilers(catalogRec, httptest.NewRequest(http.MethodGet, "/api/v1/system/acl-compilers", nil))
 	require.Equal(t, http.StatusOK, catalogRec.Code, catalogRec.Body.String())
 	assert.Contains(t, catalogRec.Body.String(), `"compiler_version":"nas-0049.1"`)
-	assert.Contains(t, catalogRec.Body.String(), `"software_certified":7`)
+	assert.Contains(t, catalogRec.Body.String(), `"software_certified":9`)
 	assert.Contains(t, catalogRec.Body.String(), `"recent_events"`)
 
 	readiness := buildProductionReadinessReport(config.Get())

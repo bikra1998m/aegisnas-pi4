@@ -294,6 +294,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/access-vendor-pack-history.json", requestPath: "/api/v1/system/access-vendor-pack/history", label: "NAS-0067 Cambium/TP-Link/D-Link access pack certification history", handler: HandleListAccessVendorPackHistory},
 		{archivePath: "api/broadband-vendor-pack.json", requestPath: "/api/v1/system/broadband-vendor-pack", label: "NAS-0068 Huawei/H3C/ZTE broadband pack certification", handler: HandleGetBroadbandVendorPack},
 		{archivePath: "api/broadband-vendor-pack-history.json", requestPath: "/api/v1/system/broadband-vendor-pack/history", label: "NAS-0068 Huawei/H3C/ZTE broadband pack certification history", handler: HandleListBroadbandVendorPackHistory},
+		{archivePath: "api/nokia-alu-pack.json", requestPath: "/api/v1/system/nokia-alu-pack", label: "NAS-0069 Nokia/Alcatel-Lucent service-router pack certification", handler: HandleGetNokiaALUPack},
+		{archivePath: "api/nokia-alu-pack-history.json", requestPath: "/api/v1/system/nokia-alu-pack/history", label: "NAS-0069 Nokia/Alcatel-Lucent service-router pack certification history", handler: HandleListNokiaALUPackHistory},
 		{archivePath: "api/session-history.json", requestPath: "/api/v1/system/session-history", label: "Session and accounting history", handler: HandleListSessionHistory},
 		{archivePath: "api/session-analytics.json", requestPath: "/api/v1/system/session-analytics", label: "Session activity analytics", handler: HandleGetSessionAnalytics},
 		{archivePath: "api/voucher-aging-analytics.json", requestPath: "/api/v1/system/voucher-aging-analytics", label: "Voucher stock aging analytics", handler: HandleGetVoucherAgingAnalytics},

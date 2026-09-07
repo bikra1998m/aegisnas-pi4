@@ -180,6 +180,23 @@ func buildACLVendorExport(policyName, inboundACL, outboundACL string, rules []AC
 	case productconfigs.VendorPackH3C:
 		export.ExportMode = "profile"
 		appendItem("H3C-Ita-Policy", profileName, true)
+	case productconfigs.VendorPackNokia:
+		export.ExportMode = "profile"
+		appendItem("Nokia-AVPair", "acl="+profileName, true)
+		if len(rules) > 0 {
+			export.Warnings = append(export.Warnings, "Nokia export uses an AVPair ACL profile hint; SR OS line-rule behavior requires device-side policy certification.")
+		}
+	case productconfigs.VendorPackAlcatel:
+		export.ExportMode = "profile"
+		appendItem("AAT-Filter", profileName, true)
+		appendItem("AAT-Data-Filter", profileName, true)
+		if len(rules) > 0 {
+			export.Warnings = append(export.Warnings, "Alcatel AAT export uses filter profile names; line rules require device-side policy certification.")
+		}
+	case productconfigs.VendorPackALUSR:
+		appendRuleItems("Alc-Nas-Filter-Rule-Shared", renderNASFilterRules(rules))
+	case productconfigs.VendorPackALUAAA:
+		appendRuleItems("ALU-AAA-Access-Rule", renderNASFilterRules(rules))
 	case productconfigs.VendorPackDLink:
 		export.ExportMode = "mixed"
 		appendItem("ACL-Profile", policyName, true)

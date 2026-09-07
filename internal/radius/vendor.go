@@ -807,6 +807,12 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			}
 			return
 		}
+		if isNokiaALUAVPairRuntimeMapping(mapping) {
+			for _, value := range lookupVendorStrings(packet, mapping.VendorID, mapping.Type) {
+				_ = applyNokiaALUAttributeString(result, mapping.PackKey, mapping.Attribute, value)
+			}
+			return
+		}
 		value, ok := lookupVendorString(packet, mapping.VendorID, mapping.Type)
 		if !ok {
 			return
@@ -859,6 +865,12 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			if isFortinetPaloAltoPackKey(mapping.PackKey) {
 				return
 			}
+			if isNokiaALUPackKey(mapping.PackKey) && applyNokiaALUAttributeString(result, mapping.PackKey, mapping.Attribute, text) {
+				return
+			}
+			if isNokiaALUPackKey(mapping.PackKey) {
+				return
+			}
 			applyInboundVendorString(result, mapping, text)
 		}
 	case inboundVendorMappedRole:
@@ -902,6 +914,10 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			}
 			if isBroadbandVendorAVPairRuntimeMapping(mapping) {
 				applyBroadbandVendorAVPairString(result, value)
+				continue
+			}
+			if isNokiaALUAVPairRuntimeMapping(mapping) {
+				_ = applyNokiaALUAttributeString(result, mapping.PackKey, mapping.Attribute, value)
 				continue
 			}
 			appendUniqueVendorAVPair(result, value)
@@ -1114,6 +1130,10 @@ func applyInboundVendorString(result *BrokerAuthResult, mapping inboundVendorMap
 	}
 	if isFortinetPaloAltoPackKey(mapping.PackKey) {
 		_ = applyFortinetPaloAltoAttributeString(result, mapping.PackKey, mapping.Attribute, value)
+		return
+	}
+	if isNokiaALUPackKey(mapping.PackKey) {
+		_ = applyNokiaALUAttributeString(result, mapping.PackKey, mapping.Attribute, value)
 		return
 	}
 	switch mapping.Semantic {

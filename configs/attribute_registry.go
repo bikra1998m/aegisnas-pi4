@@ -617,6 +617,7 @@ func (r *AttributeRegistry) applyRuntimeAnnotations(vendors map[string]struct{})
 	r.applyFortinetPaloAltoRuntimeProfile()
 	r.applyAccessVendorRuntimeProfile()
 	r.applyBroadbandVendorRuntimeProfile()
+	r.applyNokiaALURuntimeProfile()
 }
 
 func (r *AttributeRegistry) applyRuckusICXRuntimeProfile() {
@@ -1407,8 +1408,14 @@ func (r *AttributeRegistry) ValidateCompatibilityPacks(packs []VendorCompatibili
 			if !registrySemanticContains(entry.Semantic, mapping.Semantic) {
 				return fmt.Errorf("pack %s attribute %s semantic %s conflicts with registry semantic %s", packKey, mapping.Attribute, mapping.Semantic, entry.Semantic)
 			}
-			if !registryDirectionContains(entry.Directions, strings.ToLower(strings.TrimSpace(mapping.Direction))) {
-				return fmt.Errorf("pack %s attribute %s direction %s is absent from the typed registry", packKey, mapping.Attribute, mapping.Direction)
+			for _, direction := range strings.Split(mapping.Direction, ",") {
+				direction = strings.ToLower(strings.TrimSpace(direction))
+				if direction == "" {
+					continue
+				}
+				if !registryDirectionContains(entry.Directions, direction) {
+					return fmt.Errorf("pack %s attribute %s direction %s is absent from the typed registry", packKey, mapping.Attribute, direction)
+				}
 			}
 		}
 	}

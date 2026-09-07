@@ -649,6 +649,46 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		broadbandVendorPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
 	}
+	nokiaALUPackStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0069 Nokia/Alcatel-Lucent service-router pack has not been evaluated.",
+	}
+	if nokiaALUPack, err := buildNokiaALUPackForRequest(); err == nil {
+		status := "ready"
+		message := fmt.Sprintf("NAS-0069 software certification covers %d/%d Nokia, Alcatel, Alcatel-ESAM, Alcatel-Lucent SR OS, and ALU-AAA rows across %d dictionary vendors and %d product scopes.",
+			nokiaALUPack.Summary.SoftwareCertifiedMappings,
+			nokiaALUPack.Summary.AttributeCount,
+			nokiaALUPack.Summary.VendorCount,
+			nokiaALUPack.Summary.ProductScopeCount,
+		)
+		if err := productconfigs.ValidateNokiaALUPackReport(nokiaALUPack); err != nil {
+			status = "blocked"
+			message = "NAS-0069 Nokia/ALU pack is incomplete: " + err.Error()
+		}
+		historySummary, historyErr := db.GetNokiaALUPackSummary()
+		nokiaALUPackStatus = map[string]any{
+			"status":                              status,
+			"message":                             message,
+			"schema_version":                      nokiaALUPack.SchemaVersion,
+			"feature_id":                          nokiaALUPack.FeatureID,
+			"source_sha256":                       nokiaALUPack.SourceSHA256,
+			"attribute_count":                     nokiaALUPack.Summary.AttributeCount,
+			"software_certified_mappings":         nokiaALUPack.Summary.SoftwareCertifiedMappings,
+			"software_blocked_mappings":           nokiaALUPack.Summary.SoftwareBlockedMappings,
+			"external_required_mappings":          nokiaALUPack.Summary.ExternalRequiredMappings,
+			"software_completion_percent":         nokiaALUPack.Summary.SoftwareCompletionPercent,
+			"grammar_rule_count":                  nokiaALUPack.Summary.GrammarRuleCount,
+			"sensitive_redacted_mappings":         nokiaALUPack.Summary.SensitiveRedactedMappings,
+			"product_scope_count":                 nokiaALUPack.Summary.ProductScopeCount,
+			"fingerprint":                         nokiaALUPack.Summary.Fingerprint,
+			"release_certification_checklist":     "docs/nas-0069-release-certification-checklist.md",
+			"release_certification_external_only": true,
+			"evidence_summary":                    historySummary,
+			"evidence_error":                      rateCompilerErrorString(historyErr),
+		}
+	} else {
+		nokiaALUPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -715,6 +755,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"cloud_controller_pack":        cloudControllerPackStatus,
 		"access_vendor_pack":           accessVendorPackStatus,
 		"broadband_vendor_pack":        broadbandVendorPackStatus,
+		"nokia_alu_pack":               nokiaALUPackStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),

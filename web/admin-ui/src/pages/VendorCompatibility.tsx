@@ -758,6 +758,8 @@ type BroadbandVendorPackPayload = {
   release_certification_checklist: string;
 };
 
+type NokiaALUPackPayload = BroadbandVendorPackPayload;
+
 type VendorDictionaryCoverageRow = {
   pack_key: string;
   pack_label: string;
@@ -1232,6 +1234,9 @@ export default function VendorCompatibility() {
   const [broadbandVendorPack, setBroadbandVendorPack] = useState<BroadbandVendorPackPayload | null>(null);
   const [broadbandVendorPackBusy, setBroadbandVendorPackBusy] = useState(false);
   const [broadbandVendorPackError, setBroadbandVendorPackError] = useState('');
+  const [nokiaALUPack, setNokiaALUPack] = useState<NokiaALUPackPayload | null>(null);
+  const [nokiaALUPackBusy, setNokiaALUPackBusy] = useState(false);
+  const [nokiaALUPackError, setNokiaALUPackError] = useState('');
   const [vsaCodec, setVSACodec] = useState<VSACodecPayload | null>(null);
   const [vsaCodecError, setVSACodecError] = useState('');
   const [opaquePassThrough, setOpaquePassThrough] = useState<OpaquePassThroughPayload | null>(null);
@@ -1247,6 +1252,7 @@ export default function VendorCompatibility() {
   const canRecordCloudControllerPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
   const canRecordAccessVendorPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
   const canRecordBroadbandVendorPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
+  const canRecordNokiaALUPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
 
   const fetchVendorIdentity = async () => {
     try {
@@ -1596,6 +1602,31 @@ export default function VendorCompatibility() {
     }
   };
 
+  const fetchNokiaALUPack = async () => {
+    setNokiaALUPackError('');
+    try {
+      const { data } = await api.get<NokiaALUPackPayload>('/system/nokia-alu-pack?history_limit=5');
+      setNokiaALUPack(data);
+    } catch (err: any) {
+      setNokiaALUPackError(apiErrorMessage(err, 'Could not load NAS-0069 Nokia/Alcatel-Lucent service-router pack.'));
+    }
+  };
+
+  const recordNokiaALUPack = async () => {
+    setNokiaALUPackBusy(true);
+    setNokiaALUPackError('');
+    setMessage('');
+    try {
+      await api.post('/system/nokia-alu-pack/record', {});
+      setMessage('NAS-0069 Nokia/Alcatel-Lucent service-router pack event recorded.');
+      await fetchNokiaALUPack();
+    } catch (err: any) {
+      setNokiaALUPackError(apiErrorMessage(err, 'Could not record NAS-0069 Nokia/Alcatel-Lucent service-router pack.'));
+    } finally {
+      setNokiaALUPackBusy(false);
+    }
+  };
+
   const fetchVSACodec = async () => {
     setVSACodecError('');
     try {
@@ -1709,6 +1740,7 @@ export default function VendorCompatibility() {
     void fetchCloudControllerPack();
     void fetchAccessVendorPack();
     void fetchBroadbandVendorPack();
+    void fetchNokiaALUPack();
     void fetchVSACodec();
     void fetchOpaquePassThrough();
   }, []);
@@ -1781,6 +1813,13 @@ export default function VendorCompatibility() {
   const broadbandVendorPackCapabilities = broadbandVendorPack?.report.capability_summaries || [];
   const broadbandVendorPackGrammar = broadbandVendorPack?.report.grammar || [];
   const broadbandVendorProductScopes = broadbandVendorPack?.report.product_scopes || [];
+  const nokiaALUPackSummary = nokiaALUPack?.report.summary;
+  const nokiaALUPackComplete = Boolean(nokiaALUPackSummary && nokiaALUPackSummary.software_certified_mappings === nokiaALUPackSummary.attribute_count && nokiaALUPackSummary.software_blocked_mappings === 0);
+  const nokiaALUPackRecords = nokiaALUPack?.report.records || [];
+  const nokiaALUPackVendors = nokiaALUPack?.report.vendor_summaries || [];
+  const nokiaALUPackCapabilities = nokiaALUPack?.report.capability_summaries || [];
+  const nokiaALUPackGrammar = nokiaALUPack?.report.grammar || [];
+  const nokiaALUProductScopes = nokiaALUPack?.report.product_scopes || [];
   const plannedSemantics = useMemo(
     () => (payload?.semantics || []).filter((item) => item.compatibility_state !== 'implemented'),
     [payload?.semantics],
@@ -1803,7 +1842,7 @@ export default function VendorCompatibility() {
           <p className="mt-1 text-sm text-gray-600">Confirm deployed NAS profiles, reply packs, and vendor dictionary coverage before changing access policy.</p>
         </div>
         <button
-          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchArubaFamilyPack(); void fetchJuniperExtremePack(); void fetchRuckusICXPack(); void fetchFortinetPaloAltoPack(); void fetchCloudControllerPack(); void fetchAccessVendorPack(); void fetchBroadbandVendorPack(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
+          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchArubaFamilyPack(); void fetchJuniperExtremePack(); void fetchRuckusICXPack(); void fetchFortinetPaloAltoPack(); void fetchCloudControllerPack(); void fetchAccessVendorPack(); void fetchBroadbandVendorPack(); void fetchNokiaALUPack(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
           disabled={loading}
           className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
@@ -2188,6 +2227,130 @@ export default function VendorCompatibility() {
                   </table>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">{broadbandVendorPack?.release_certification_checklist} keeps Huawei, H3C, ZTE, FreeRADIUS Linux, HA, performance, and customer proof outside engineering completion.</p>
+              </>
+            ) : null}
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">NAS-0069 Nokia/Alcatel-Lucent Service Router Pack</h3>
+                <p className="mt-1 text-sm text-gray-600">Certify Nokia SR OS, Alcatel AAT, ESAM, ALU service-router, and ALU-AAA subscriber policy software while hardware proof stays in release certification.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {nokiaALUPackSummary ? (
+                  <StatusBadge tone={nokiaALUPackComplete ? 'green' : 'amber'}>
+                    {formatPercent(nokiaALUPackSummary.software_completion_percent)} software
+                  </StatusBadge>
+                ) : null}
+                {canRecordNokiaALUPack ? (
+                  <button
+                    type="button"
+                    onClick={() => void recordNokiaALUPack()}
+                    disabled={nokiaALUPackBusy || !nokiaALUPackComplete}
+                    className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {nokiaALUPackBusy ? 'Recording...' : 'Record Evidence'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {nokiaALUPackError ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{nokiaALUPackError}</div> : null}
+            {nokiaALUPackSummary ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="Nokia/ALU Rows" value={nokiaALUPackSummary.attribute_count} hint="Nokia, Alcatel, ESAM, SR OS, and ALU-AAA rows from the pinned FreeRADIUS audit." />
+                  <StatCard label="Software Certified" value={nokiaALUPackSummary.software_certified_mappings} hint={`${nokiaALUPackSummary.software_blocked_mappings} software blockers.`} />
+                  <StatCard label="Dictionary Vendors" value={nokiaALUPackSummary.vendor_count} hint={`${nokiaALUPackSummary.native_semantic_mappings} native semantic mappings.`} />
+                  <StatCard label="Product Scopes" value={nokiaALUPackSummary.product_scope_count} hint="SR OS, AAT, ESAM, ALU-AAA, and shared CoA lifecycle." />
+                  <StatCard label="SR Grammar" value={nokiaALUPackSummary.grammar_rule_count} hint="AVPair, BCD, SLA, route, NAT, IPv6, portal, access-rule, and redaction rules." />
+                  <StatCard label="Storage Events" value={nokiaALUPack?.evidence.summary.total_events || 0} hint={nokiaALUPack?.evidence.summary.last_event_at ? `Last ${new Date(nokiaALUPack.evidence.summary.last_event_at).toLocaleString()}` : 'No persisted event yet.'} />
+                  <StatCard label="Ready For Lab" value={nokiaALUPackSummary.ready_for_external_validation_mappings} hint="Software-ready rows awaiting release proof." />
+                  <StatCard label="Redacted Secrets" value={nokiaALUPackSummary.sensitive_redacted_mappings} hint="GSM, AKA, nonce, key, and authentication evidence is not stored as cleartext." />
+                </div>
+
+                <div className="mt-4 rounded-md border border-gray-200 p-4">
+                  <div className="text-xs font-semibold uppercase text-gray-500">Nokia/ALU Pack Fingerprint</div>
+                  <div className="mt-2 break-all text-sm font-medium text-gray-900">{nokiaALUPackSummary.fingerprint}</div>
+                  <p className="mt-2 text-sm text-gray-600">{nokiaALUPack?.release_scope}</p>
+                </div>
+
+                <div className="mt-4 grid gap-4 xl:grid-cols-4">
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Vendor', 'Rows', 'State'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {nokiaALUPackVendors.map((vendor) => (
+                          <tr key={`${vendor.vendor}-${vendor.pen}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{vendor.vendor}<div className="text-xs text-gray-500">PEN {vendor.pen}{vendor.pack_key ? ` / ${vendor.pack_key}` : ''}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{vendor.software_certified_mappings}/{vendor.attribute_count}<div className="text-xs text-gray-500">{vendor.external_required_mappings} external</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{formatPercent(vendor.software_completion_percent)}</StatusBadge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Product Scope', 'Dictionary', 'State'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {nokiaALUProductScopes.slice(0, 12).map((scope) => (
+                          <tr key={`${scope.key}-${scope.label}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{scope.label}<div className="text-xs text-gray-500">{joinList(scope.products)}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{scope.dictionary}<div className="text-xs text-gray-500">{joinList(scope.vendors)}</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{evidenceLabel(scope.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{evidenceLabel(scope.external_state)}</div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Capability', 'Rows', 'Mapping'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {nokiaALUPackCapabilities.slice(0, 8).map((capability) => (
+                          <tr key={capability.capability}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{evidenceLabel(capability.capability)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{capability.software_certified_mappings}/{capability.attribute_count}<div className="text-xs text-gray-500">{capability.external_required_mappings} external</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{capability.native_semantic_mappings} native<div className="text-xs text-gray-500">{capability.typed_passthrough_mappings} pass-through</div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Grammar', 'State', 'Example'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {nokiaALUPackGrammar.slice(0, 8).map((grammar) => (
+                          <tr key={grammar.key}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{grammar.label}<div className="text-xs text-gray-500">{grammar.kind}</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{grammar.parser_state}</StatusBadge><div className="mt-1 text-xs text-gray-500">{grammar.external_state}</div></td>
+                            <td className="px-4 py-3 text-xs text-gray-700">{grammar.examples?.[0] || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="mt-4 overflow-x-auto rounded-md border border-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50"><tr>{['Attribute', 'Capability', 'Software', 'Handling'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {nokiaALUPackRecords.slice(0, 10).map((record) => (
+                        <tr key={record.id}>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{record.attribute}<div className="text-xs text-gray-500">{record.vendor} / {record.wire_key}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{evidenceLabel(record.capability)}<div className="text-xs text-gray-500">{joinList(record.directions)}</div></td>
+                          <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{evidenceLabel(record.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{record.claim_state}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{evidenceLabel(record.implementation_class)}<div className="text-xs text-gray-500">{evidenceLabel(record.packet_processing)}</div></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">{nokiaALUPack?.release_certification_checklist} keeps Nokia SR OS, Alcatel AAT, ESAM, ALU-AAA, FreeRADIUS Linux, HA, performance, and customer proof outside engineering completion.</p>
               </>
             ) : null}
           </section>

@@ -533,6 +533,41 @@ func buildReplyAttributeItems(attrs *ReplyAttributes, packKeys []string, vendor 
 			appendItem("Nokia-User-Profile", replyRole(attrs), true)
 			appendItem("Nokia-AVPair", attrs.PolicyTag, true)
 			appendNokiaServiceNameItem(attrs, packKey, vendor.ServiceNameMappings, appendItem)
+		case productconfigs.VendorPackAlcatel:
+			appendItem("AAT-Vrouter-Name", attrs.VRF, true)
+			appendItem("AAT-Qos", attrs.BandwidthProfile, true)
+			appendItem("AAT-ATM-Traffic-Profile", attrs.BandwidthProfile, true)
+			appendItem("AAT-Filter", firstReplyValue(attrs.InboundACL, attrs.ACLPolicyName, attrs.PolicyTag), true)
+			appendItem("AAT-Data-Filter", firstReplyValue(attrs.OutboundACL, attrs.ACLPolicyName), true)
+			appendItem("AAT-PPP-Address", attrs.FramedIPAddress, false)
+		case productconfigs.VendorPackAlcatelESAM:
+			appendItem("A-ESAM-VRF-Name", attrs.VRF, true)
+			if vlan := replyVLAN(attrs); vlan > 0 {
+				appendItem("A-ESAM-Vlan-Id", fmt.Sprintf("%d", vlan), false)
+			}
+			appendItem("A-ESAM-QOS-Profile-Name", attrs.BandwidthProfile, true)
+			appendItem("A-AL-QoS", attrs.BandwidthProfile, true)
+		case productconfigs.VendorPackALUSR:
+			appendItem("Timetra-Profile", replyRole(attrs), true)
+			appendItem("Alc-Subsc-Prof-Str", replyRole(attrs), true)
+			appendItem("Alc-SLA-Prof-Str", attrs.BandwidthProfile, true)
+			appendItem("Alc-MSAP-Policy", attrs.PolicyTag, true)
+			appendItem("Alc-BGP-Policy", attrs.RoutePolicyMode, true)
+			appendItem("Alc-Delegated-IPv6-Pool", firstReplyValue(attrs.DelegatedIPv6Prefix, attrs.FramedIPv6Pool), true)
+			appendItem("Alc-Nat-Port-Range", renderReplyPortBlock(attrs), true)
+			appendItem("Alc-Nat-Outside-Ip-Addr", attrs.TranslationPublicIPv4, false)
+			appendRateKbpsItem(attrs, appendItem, "Alc-Access-Loop-Rate-Down", attrs.WISPrBandwidthMaxDown)
+			appendURLItem(attrs, appendItem, "Alc-Portal-Url", attrs.PortalProfile)
+			if vlan := replyVLAN(attrs); vlan > 0 {
+				appendItem("Alc-Wlan-SSID-VLAN", fmt.Sprintf("%d", vlan), true)
+			}
+			appendItem("Alc-Nas-Filter-Rule-Shared", firstReplyValue(attrs.InboundACL, attrs.ACLPolicyName), true)
+		case productconfigs.VendorPackALUAAA:
+			appendItem("ALU-AAA-Service-Profile", replyRole(attrs), true)
+			appendItem("ALU-AAA-Access-Rule", firstReplyValue(attrs.InboundACL, attrs.ACLPolicyName), true)
+			appendItem("ALU-AAA-AV-Pair", attrs.PolicyTag, true)
+			appendItem("ALU-AAA-NAS-IP-Address", attrs.FramedIPAddress, false)
+			appendItem("ALU-AAA-Called-Station-Id", attrs.DeviceGroup, true)
 		case productconfigs.VendorPackColubris:
 			appendItem("AVPair", firstReplyValue(attrs.PolicyTag, attrs.ACLPolicyName, attrs.FilterID), true)
 			appendBooleanIntegerItem(attrs.HasQuarantine, attrs.Quarantine, appendItem, "Intercept")
@@ -778,6 +813,19 @@ func hasTranslationPolicyReplyAttributes(attrs *ReplyAttributes) bool {
 		strings.TrimSpace(attrs.TranslationAccountingKey) != "" ||
 		attrs.TranslationQuotaCorrelation ||
 		attrs.TranslationAccountingCorrelation
+}
+
+func renderReplyPortBlock(attrs *ReplyAttributes) string {
+	if attrs == nil {
+		return ""
+	}
+	if attrs.TranslationPortBlockStart > 0 && attrs.TranslationPortBlockEnd > 0 {
+		return fmt.Sprintf("%d-%d", attrs.TranslationPortBlockStart, attrs.TranslationPortBlockEnd)
+	}
+	if attrs.TranslationPortBlockSize > 0 {
+		return strconv.Itoa(attrs.TranslationPortBlockSize)
+	}
+	return ""
 }
 
 func translationPolicyDecisionFromReplyAttributes(attrs *ReplyAttributes) TranslationPolicyDecision {

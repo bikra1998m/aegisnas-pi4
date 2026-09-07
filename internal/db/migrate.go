@@ -3829,3 +3829,37 @@ CREATE INDEX IF NOT EXISTS idx_broadband_vendor_pack_events_fingerprint ON broad
 `
 
 const schemaV73 = broadbandVendorPackSQL
+
+const nokiaALUPackSQL = `
+CREATE TABLE IF NOT EXISTS nokia_alu_pack_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	release_profile_id TEXT NOT NULL,
+	source_sha256 TEXT NOT NULL,
+	attribute_count INTEGER NOT NULL,
+	native_semantic_mappings INTEGER NOT NULL DEFAULT 0,
+	typed_passthrough_mappings INTEGER NOT NULL DEFAULT 0,
+	sensitive_redacted_mappings INTEGER NOT NULL DEFAULT 0,
+	grammar_rule_count INTEGER NOT NULL DEFAULT 0,
+	software_certified_mappings INTEGER NOT NULL DEFAULT 0,
+	software_blocked_mappings INTEGER NOT NULL DEFAULT 0,
+	external_required_mappings INTEGER NOT NULL DEFAULT 0,
+	vendor_count INTEGER NOT NULL DEFAULT 0,
+	product_scope_count INTEGER NOT NULL DEFAULT 0,
+	fingerprint TEXT NOT NULL,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('record', 'scan', 'release_gate')),
+	CHECK (status IN ('recorded', 'blocked', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_nokia_alu_pack_events_created ON nokia_alu_pack_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_nokia_alu_pack_events_status ON nokia_alu_pack_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_nokia_alu_pack_events_fingerprint ON nokia_alu_pack_events(fingerprint, created_at);
+`
+
+const schemaV74 = nokiaALUPackSQL

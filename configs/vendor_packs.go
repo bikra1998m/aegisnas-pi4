@@ -3,41 +3,45 @@ package configs
 import "strings"
 
 const (
-	VendorPackStandard   = "standard"
-	VendorPackAegisNAS   = "aegisnas"
-	VendorPackMikroTik   = "mikrotik"
-	VendorPackWISPr      = "wispr"
-	VendorPackCisco      = "cisco"
-	VendorPackAruba      = "aruba"
-	VendorPackRuckus     = "ruckus"
-	VendorPackFoundry    = "foundry"
-	VendorPackFortinet   = "fortinet"
-	VendorPackUBNT       = "ubnt"
-	VendorPackCambium    = "cambium"
-	VendorPackMeraki     = "meraki"
-	VendorPackExtreme    = "extreme"
-	VendorPackJuniper    = "juniper"
-	VendorPackERX        = "erx"
-	VendorPackHuawei     = "huawei"
-	VendorPackH3C        = "h3c"
-	VendorPackPaloAlto   = "paloalto"
-	VendorPackTPLink     = "tplink"
-	VendorPackAerohive   = "aerohive"
-	VendorPackAirespace  = "airespace"
-	VendorPackHP         = "hp"
-	VendorPackNomadix    = "nomadix"
-	VendorPackChilliSpot = "chillispot"
-	VendorPackDLink      = "dlink"
-	VendorPackSonicWall  = "sonicwall"
-	VendorPackArista     = "arista"
-	VendorPackPica8      = "pica8"
-	VendorPackZTE        = "zte"
-	VendorPackNokia      = "nokia"
-	VendorPackStarent    = "starent"
-	VendorPackMeru       = "meru"
-	VendorPackColubris   = "colubris"
-	VendorPackOpenWiFi   = "openwifi"
-	VendorPackMist       = "mist"
+	VendorPackStandard    = "standard"
+	VendorPackAegisNAS    = "aegisnas"
+	VendorPackMikroTik    = "mikrotik"
+	VendorPackWISPr       = "wispr"
+	VendorPackCisco       = "cisco"
+	VendorPackAruba       = "aruba"
+	VendorPackRuckus      = "ruckus"
+	VendorPackFoundry     = "foundry"
+	VendorPackFortinet    = "fortinet"
+	VendorPackUBNT        = "ubnt"
+	VendorPackCambium     = "cambium"
+	VendorPackMeraki      = "meraki"
+	VendorPackExtreme     = "extreme"
+	VendorPackJuniper     = "juniper"
+	VendorPackERX         = "erx"
+	VendorPackHuawei      = "huawei"
+	VendorPackH3C         = "h3c"
+	VendorPackPaloAlto    = "paloalto"
+	VendorPackTPLink      = "tplink"
+	VendorPackAerohive    = "aerohive"
+	VendorPackAirespace   = "airespace"
+	VendorPackHP          = "hp"
+	VendorPackNomadix     = "nomadix"
+	VendorPackChilliSpot  = "chillispot"
+	VendorPackDLink       = "dlink"
+	VendorPackSonicWall   = "sonicwall"
+	VendorPackArista      = "arista"
+	VendorPackPica8       = "pica8"
+	VendorPackZTE         = "zte"
+	VendorPackNokia       = "nokia"
+	VendorPackAlcatel     = "alcatel"
+	VendorPackAlcatelESAM = "alcatel-esam"
+	VendorPackALUSR       = "alu-sr"
+	VendorPackALUAAA      = "alu-aaa"
+	VendorPackStarent     = "starent"
+	VendorPackMeru        = "meru"
+	VendorPackColubris    = "colubris"
+	VendorPackOpenWiFi    = "openwifi"
+	VendorPackMist        = "mist"
 )
 
 type VendorCompatibilityPack struct {
@@ -896,25 +900,109 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 		},
 		{
 			Key:              VendorPackNokia,
-			Label:            "Nokia",
+			Label:            "Nokia SR OS",
 			VendorName:       "Nokia",
 			VendorID:         94,
 			DefaultEnabled:   false,
 			HardwareProfiles: enterprise,
 			Attributes: []VendorPackAttributeMapping{
-				{Semantic: VendorSemanticRole, Attribute: "Nokia-User-Profile", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticPolicyTag, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDeviceGroup, Attribute: "Nokia-Service-Name", Direction: "outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticRoute, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "route", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticVRF, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticAddressPool, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticDelegatedIPv6Prefix, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticTranslationPolicy, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticTranslationPublicIPv4, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticTranslationPortBlock, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
-				{Semantic: VendorSemanticNAT64Prefix, Attribute: "Nokia-AVPair", Direction: "outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Nokia-User-Profile", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "Nokia-AVPair", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "Nokia-Service-Name", Direction: "inbound,outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRoute, Attribute: "Nokia-AVPair", Direction: "inbound,outbound_reply", ValueType: "route", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVRF, Attribute: "Nokia-AVPair", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAddressPool, Attribute: "Nokia-AVPair", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDelegatedIPv6Prefix, Attribute: "Nokia-AVPair", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPolicy, Attribute: "Nokia-AVPair", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPublicIPv4, Attribute: "Nokia-AVPair", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPortBlock, Attribute: "Nokia-AVPair", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticNAT64Prefix, Attribute: "Nokia-AVPair", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
 			},
-			Notes: []string{"Nokia Service-Name decimal digits are encoded as swapped-nibble BCD with an F pad nibble for odd lengths."},
+			Notes: []string{"NAS-0069 software-certifies every pinned Nokia dictionary row as native semantic mapping or typed evidence; Service-Name decimal digits use swapped-nibble BCD with an F pad nibble for odd lengths."},
+		},
+		{
+			Key:              VendorPackAlcatel,
+			Label:            "Alcatel AAT Access",
+			VendorName:       "Alcatel",
+			VendorID:         3041,
+			DefaultEnabled:   false,
+			HardwareProfiles: enterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticIPv4Address, Attribute: "AAT-Client-Primary-DNS", Direction: "inbound,outbound_reply", ValueType: "ipaddr", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticIPv4Address, Attribute: "AAT-PPP-Address", Direction: "inbound,outbound_reply", ValueType: "ipaddr", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVRF, Attribute: "AAT-Vrouter-Name", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticBandwidthProfile, Attribute: "AAT-Qos", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticBandwidthProfile, Attribute: "AAT-ATM-Traffic-Profile", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "AAT-Filter", Direction: "inbound,outbound_reply", ValueType: "policy", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "AAT-Data-Filter", Direction: "inbound,outbound_reply", ValueType: "policy", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "AAT-Require-Auth", Direction: "inbound,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+			},
+			Notes: []string{"NAS-0069 software-certifies legacy Alcatel AAT PPP, DNS, WINS, vrouter, QoS, ATM/FR, filter, and mobile/home-agent rows as bounded vendor evidence."},
+		},
+		{
+			Key:              VendorPackAlcatelESAM,
+			Label:            "Alcatel ESAM",
+			VendorName:       "Alcatel-ESAM",
+			VendorID:         637,
+			DefaultEnabled:   false,
+			HardwareProfiles: enterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticVRF, Attribute: "A-ESAM-VRF-Name", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "A-ESAM-Vlan-Id", Direction: "inbound,outbound_reply", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticBandwidthProfile, Attribute: "A-ESAM-QOS-Profile-Name", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticBandwidthProfile, Attribute: "A-ESAM-QOS-Params", Direction: "inbound,outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "A-AL-DHCP", Direction: "inbound,accounting", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "A-AL-PPPoE", Direction: "inbound,accounting", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticBandwidthProfile, Attribute: "A-AL-QoS", Direction: "inbound,outbound_reply", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDevicePosture, Attribute: "A-AL-Security", Direction: "inbound,accounting", ValueType: "octets", CompatibilityState: "implemented"},
+			},
+			Notes: []string{"NAS-0069 covers ESAM high-number access-node, TL1, VLAN, VRF, DHCP, PPPoE, QoS, xDSL, and security rows as typed dictionary evidence; high-number wire interop remains release-certified."},
+		},
+		{
+			Key:              VendorPackALUSR,
+			Label:            "Alcatel-Lucent SR OS",
+			VendorName:       "Alcatel-Lucent-Service-Router",
+			VendorID:         6527,
+			DefaultEnabled:   false,
+			HardwareProfiles: enterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticRole, Attribute: "Timetra-Profile", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingIdentity, Attribute: "Alc-Subsc-ID-Str", Direction: "inbound,accounting", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Alc-Subsc-Prof-Str", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticBandwidthProfile, Attribute: "Alc-SLA-Prof-Str", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "Alc-MSAP-Policy", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRoute, Attribute: "Alc-BGP-Policy", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticIPv6Address, Attribute: "Alc-Ipv6-Address", Direction: "inbound,outbound_reply", ValueType: "ipv6addr", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDelegatedIPv6Prefix, Attribute: "Alc-Delegated-IPv6-Pool", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPortBlock, Attribute: "Alc-Nat-Port-Range", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTranslationPublicIPv4, Attribute: "Alc-Nat-Outside-Ip-Addr", Direction: "inbound,outbound_reply", ValueType: "ipaddr", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDownloadBandwidth, Attribute: "Alc-Access-Loop-Rate-Down", Direction: "inbound,outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPortalProfile, Attribute: "Alc-Portal-Url", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticVLAN, Attribute: "Alc-Wlan-SSID-VLAN", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDynamicACL, Attribute: "Alc-Nas-Filter-Rule-Shared", Direction: "inbound,outbound_reply", ValueType: "policy", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingCounters, Attribute: "Alc-Trigger-Acct-Interim", Direction: "accounting", ValueType: "string", CompatibilityState: "implemented"},
+			},
+			Notes: []string{"NAS-0069 software-certifies the pinned Timetra/Alc SR OS dictionary for subscriber/SAP/MSAP service, SLA/QoS, route, NAT, IPv6, portal, WLAN, security, and accounting semantics."},
+		},
+		{
+			Key:              VendorPackALUAAA,
+			Label:            "ALU-AAA",
+			VendorName:       "ALU-AAA",
+			VendorID:         831,
+			DefaultEnabled:   false,
+			HardwareProfiles: enterprise,
+			Attributes: []VendorPackAttributeMapping{
+				{Semantic: VendorSemanticDynamicACL, Attribute: "ALU-AAA-Access-Rule", Direction: "inbound,outbound_reply", ValueType: "policy", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "ALU-AAA-AV-Pair", Direction: "inbound,outbound_reply", ValueType: "record", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticRole, Attribute: "ALU-AAA-Service-Profile", Direction: "inbound,outbound_reply", ValueType: "string", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticIPv4Address, Attribute: "ALU-AAA-NAS-IP-Address", Direction: "inbound,accounting", ValueType: "ipaddr", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticDeviceGroup, Attribute: "ALU-AAA-NAS-Port", Direction: "inbound,accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticAccountingCounters, Attribute: "ALU-AAA-Delta-Session", Direction: "accounting", ValueType: "integer", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTenant, Attribute: "ALU-AAA-Civic-Location", Direction: "inbound,accounting", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticTenant, Attribute: "ALU-AAA-Geospatial-Location", Direction: "inbound,accounting", ValueType: "octets", CompatibilityState: "implemented"},
+				{Semantic: VendorSemanticPolicyTag, Attribute: "ALU-AAA-Called-Station-Id", Direction: "inbound,accounting", ValueType: "string", CompatibilityState: "implemented"},
+			},
+			Notes: []string{"NAS-0069 software-certifies ALU-AAA access-rule, AV-Pair, service-profile, mobile-auth, femto, location, voice, event, and counter rows; GSM/AKA/femto key material is redacted."},
 		},
 		{
 			Key:              VendorPackStarent,
@@ -1008,6 +1096,8 @@ func VendorPackSupportsExtendedVLANMapping(key string) bool {
 
 func VendorPackAVPairAttribute(key string) (string, bool) {
 	switch NormalizeVendorCompatibilityPackKey(key) {
+	case VendorPackNokia:
+		return "Nokia-AVPair", true
 	case VendorPackRuckus:
 		return "Ruckus-FlexAuth-AVP", true
 	case VendorPackJuniper:
@@ -1020,6 +1110,8 @@ func VendorPackAVPairAttribute(key string) (string, bool) {
 		return "Arista-AVPair", true
 	case VendorPackFortinet:
 		return "Fortinet-FortiWAN-AVPair", true
+	case VendorPackALUAAA:
+		return "ALU-AAA-AV-Pair", true
 	default:
 		return "", false
 	}

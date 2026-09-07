@@ -144,6 +144,13 @@ The current codebase now has a working form of this model through:
   pool, QoS, NAT/translation, multicast, command authorization, portal,
   accounting, charging, redacted credential evidence, API/UI evidence, and
   external release certification split
+- NAS-0069 Nokia/Alcatel-Lucent service-router pack certification for all 334
+  pinned Nokia, Alcatel, Alcatel-ESAM, Alcatel-Lucent-Service-Router, and
+  ALU-AAA rows, with Nokia AVPair/profile/BCD service-name handling, Alcatel
+  AAT address/QoS/filter evidence, ESAM VRF/VLAN/QoS/DHCP/PPPoE evidence, ALU
+  SR OS subscriber/SLA/route/IPv6/NAT/portal/accounting/charging/CoA semantics,
+  ALU-AAA access-rule/AVPair/location/event/mobile-auth redaction evidence,
+  API/UI evidence, and external release certification split
 
 That work lives primarily in:
 
@@ -158,10 +165,14 @@ That work lives primarily in:
 - `configs/cloud_controller_pack.go`
 - `configs/access_vendor_pack.go`
 - `configs/broadband_vendor_pack.go`
+- `configs/nokia_alu_pack.go`
 - `internal/radius/cisco_avpair.go`
 - `internal/radius/aruba_family.go`
 - `internal/radius/juniper_extreme.go`
 - `internal/radius/fortinet_paloalto.go`
+- `internal/radius/nokia_alu.go`
+- `internal/db/nokia_alu_pack.go`
+- `internal/adminapi/nokia_alu_pack.go`
 - `internal/radius/vendor.go`
 - `web/admin-ui/src/pages/AccessSettings.tsx`
 - `web/admin-ui/src/pages/VendorCompatibility.tsx`

@@ -499,6 +499,38 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/broadband-vendor-pack/record | jq '.event_id, .status'
 ```
 
+NAS-0069 exposes the Nokia/Alcatel-Lucent service-router software
+certification report for all 334 Nokia, Alcatel, Alcatel-ESAM,
+Alcatel-Lucent-Service-Router, and ALU-AAA rows from the pinned FreeRADIUS
+3.2.8 registry:
+
+```text
+GET  /api/v1/system/nokia-alu-pack
+POST /api/v1/system/nokia-alu-pack/record
+GET  /api/v1/system/nokia-alu-pack/history
+```
+
+The report covers Nokia AVPair/profile/service-name BCD handling; Alcatel AAT
+address, QoS, and filter attributes; Alcatel ESAM VRF, VLAN, QoS, DHCP, and
+PPPoE evidence; ALU SR OS subscriber, SLA/QoS, route, IPv4/IPv6, delegated
+prefix, NAT/translation, portal, WLAN, ACL, accounting, charging, and CoA
+lifecycle semantics; and ALU-AAA access-rule, AVPair, service-profile,
+location, event, NAS identity, and redacted mobile-auth evidence. `record`
+persists the current source hash, fingerprint, counts, summary JSON, full
+report JSON, actor, and timestamp in `nokia_alu_pack_events`. External Nokia
+SR OS, Alcatel AAT, Alcatel ESAM, ALU-AAA, FreeRADIUS-on-Linux, HA,
+performance, soak, security, production deployment, and customer acceptance
+proof remains in
+[nas-0069-release-certification-checklist.md](nas-0069-release-certification-checklist.md).
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/nokia-alu-pack | jq '.report.summary'
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/nokia-alu-pack/record | jq '.event_id, .status'
+```
+
 The API also provides a non-mutating reply preview endpoint:
 
 ```text
