@@ -620,6 +620,25 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/long-tail-namespaces/record | jq '.event_id, .status'
 ```
 
+NAS-0073 exposes the governed software intake path for authoritative vendor
+dictionaries that are outside the pinned FreeRADIUS corpus:
+
+```text
+GET  /api/v1/system/external-vendor-intake
+POST /api/v1/system/external-vendor-intake/preview
+POST /api/v1/system/external-vendor-intake/record
+GET  /api/v1/system/external-vendor-intake/history
+```
+
+`GET` returns required provenance fields, accepted licenses, parser limits,
+supported wire types, and recent evidence. `preview` parses a submitted
+FreeRADIUS-style dictionary and classifies every VSA by vendor, PEN, wire type,
+semantic family, packet handling, redaction, policy state, and release scope.
+`record` persists the bounded report in `external_vendor_intake_events`; raw
+dictionary text is fingerprinted but not stored. Read-only roles can inspect
+status and history. `ops_admin` and `super_admin` can preview and record. See
+[external-vendor-intake.md](external-vendor-intake.md).
+
 The API also provides a non-mutating reply preview endpoint:
 
 ```text

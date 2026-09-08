@@ -202,6 +202,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{75, schemaV75},
 		{76, schemaV76},
 		{77, schemaV77},
+		{78, schemaV78},
 	}
 
 	for _, m := range migrations {
@@ -390,8 +391,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureLongTailNamespaceTables(handle); err != nil {
 		return fmt.Errorf("repair long-tail namespace schema: %w", err)
 	}
+	if err := ensureExternalVendorIntakeTables(handle); err != nil {
+		return fmt.Errorf("repair external vendor intake schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureExternalVendorIntakeTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(externalVendorIntakeSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureLongTailNamespaceTables(handle *sql.DB) error {

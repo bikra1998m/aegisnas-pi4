@@ -504,7 +504,7 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticUploadBandwidth, Attribute: "UBNT-Data-Rate-UL", Direction: "inbound", ValueType: "rate", CompatibilityState: "implemented"},
 				{Semantic: VendorSemanticUploadBandwidth, Attribute: "UBNT-Data-Rate-UL", Direction: "outbound_reply", ValueType: "rate", CompatibilityState: "implemented"},
 			},
-			Notes: []string{"UniFi/UBNT rate attributes are parsed and rendered from AegisNAS kbps values as bits per second. FreeRADIUS 3.2.8 does not include a Ubiquiti namespace, so these rows remain AegisNAS runtime compatibility extensions until NAS-0073 external dictionary intake is complete."},
+			Notes: []string{"UniFi/UBNT rate attributes are parsed and rendered from AegisNAS kbps values as bits per second. FreeRADIUS 3.2.8 does not include a Ubiquiti namespace, so these rows remain AegisNAS runtime compatibility extensions; broader authoritative UBNT dictionaries enter through NAS-0073 external vendor intake."},
 		},
 		{
 			Key:              VendorPackCambium,

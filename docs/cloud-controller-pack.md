@@ -15,7 +15,7 @@ The pack covers seven software-certified rows:
 FreeRADIUS 3.2.8 does not include a Ubiquiti namespace in the parsed dictionary
 share tree. AegisNAS therefore treats UBNT rate attributes as governed runtime
 compatibility extensions. Authoritative external dictionary intake for broader
-UniFi VSAs remains NAS-0073.
+UniFi VSAs is handled by the NAS-0073 external vendor intake workflow.
 
 ## Software Behavior
 

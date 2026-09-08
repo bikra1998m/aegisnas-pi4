@@ -364,6 +364,40 @@ CoA/Disconnect, HA, performance, soak, security, compliance, and customer
 acceptance proof stays in
 [nas-0072-release-certification-checklist.md](nas-0072-release-certification-checklist.md).
 
+## External Vendor Intake Operations
+
+Use [external-vendor-intake.md](external-vendor-intake.md) for NAS-0073
+software intake of authoritative vendor dictionaries outside the pinned
+FreeRADIUS corpus. Before recording a new external dictionary, preview it:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data @external-vendor-intake.json \
+  http://127.0.0.1:8083/api/v1/system/external-vendor-intake/preview | jq '.status, .report.summary, .report.blockers'
+```
+
+After automated tests pass and all blockers are resolved, record the current
+fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data @external-vendor-intake.json \
+  http://127.0.0.1:8083/api/v1/system/external-vendor-intake/record | jq '.event_id, .status'
+```
+
+Run the feature gate locally or in CI with:
+
+```bash
+make test-external-vendor-intake
+```
+
+External vendor hardware, controllers, FreeRADIUS production Linux,
+CoA/Disconnect, HA, performance, soak, security, compliance, and customer
+acceptance proof stays in
+[nas-0073-release-certification-checklist.md](nas-0073-release-certification-checklist.md).
+
 ## PostgreSQL Data-Plane Operations
 
 Use [postgresql-data-plane.md](postgresql-data-plane.md) for NAS-0008

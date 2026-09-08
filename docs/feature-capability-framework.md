@@ -171,6 +171,11 @@ The current codebase now has a working form of this model through:
   posture, tenant, controller, certificate, accounting, CoA, typed
   pass-through, redacted secret evidence, API/UI evidence, and external release
   certification split
+- NAS-0073 out-of-corpus vendor intake for authoritative external dictionaries
+  such as UBNT, Netgear, and future vendor sources, with provenance, SHA-256,
+  license, PEN, parser, semantic classification, packet safety, redaction,
+  API/UI evidence, durable intake history, production readiness, support bundle
+  capture, and external release certification split
 
 That work lives primarily in:
 
@@ -189,6 +194,7 @@ That work lives primarily in:
 - `configs/mikrotik_pack.go`
 - `configs/switching_vendor_pack.go`
 - `configs/long_tail_namespace.go`
+- `configs/external_vendor_intake.go`
 - `internal/radius/cisco_avpair.go`
 - `internal/radius/aruba_family.go`
 - `internal/radius/juniper_extreme.go`
@@ -201,10 +207,12 @@ That work lives primarily in:
 - `internal/db/mikrotik_pack.go`
 - `internal/db/switching_vendor_pack.go`
 - `internal/db/long_tail_namespace.go`
+- `internal/db/external_vendor_intake.go`
 - `internal/adminapi/nokia_alu_pack.go`
 - `internal/adminapi/mikrotik_pack.go`
 - `internal/adminapi/switching_vendor_pack.go`
 - `internal/adminapi/long_tail_namespace.go`
+- `internal/adminapi/external_vendor_intake.go`
 - `internal/radius/vendor.go`
 - `web/admin-ui/src/pages/AccessSettings.tsx`
 - `web/admin-ui/src/pages/VendorCompatibility.tsx`

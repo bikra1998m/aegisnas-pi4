@@ -810,6 +810,38 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		longTailNamespaceStatus = map[string]any{"status": "blocked", "message": err.Error()}
 	}
+	externalVendorIntakeStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0073 out-of-corpus vendor intake has not been evaluated.",
+	}
+	externalVendorIntake := productconfigs.BuildExternalVendorIntakeGovernanceReport()
+	status := "ready"
+	message := fmt.Sprintf("NAS-0073 software intake accepts authoritative external dictionaries with %d supported wire types, %d required provenance fields, and %d maximum attributes per intake.",
+		len(externalVendorIntake.SupportedWireTypes),
+		len(externalVendorIntake.RequiredProvenanceFields),
+		externalVendorIntake.MaxAttributes,
+	)
+	if err := productconfigs.ValidateExternalVendorIntakeGovernanceReport(externalVendorIntake); err != nil {
+		status = "blocked"
+		message = "NAS-0073 out-of-corpus vendor intake is incomplete: " + err.Error()
+	}
+	historySummary, historyErr := db.GetExternalVendorIntakeSummary()
+	externalVendorIntakeStatus = map[string]any{
+		"status":                              status,
+		"message":                             message,
+		"schema_version":                      externalVendorIntake.SchemaVersion,
+		"feature_id":                          externalVendorIntake.FeatureID,
+		"source_sha256":                       externalVendorIntake.SourceSHA256,
+		"max_dictionary_bytes":                externalVendorIntake.MaxDictionaryBytes,
+		"max_attributes":                      externalVendorIntake.MaxAttributes,
+		"allowed_license_count":               len(externalVendorIntake.AllowedLicenses),
+		"required_provenance_field_count":     len(externalVendorIntake.RequiredProvenanceFields),
+		"supported_wire_type_count":           len(externalVendorIntake.SupportedWireTypes),
+		"release_certification_checklist":     "docs/nas-0073-release-certification-checklist.md",
+		"release_certification_external_only": true,
+		"evidence_summary":                    historySummary,
+		"evidence_error":                      rateCompilerErrorString(historyErr),
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -880,6 +912,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"mikrotik_pack":                mikroTikPackStatus,
 		"switching_vendor_pack":        switchingVendorPackStatus,
 		"long_tail_namespace_program":  longTailNamespaceStatus,
+		"external_vendor_intake":       externalVendorIntakeStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),

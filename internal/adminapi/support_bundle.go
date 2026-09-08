@@ -302,6 +302,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/switching-vendor-pack-history.json", requestPath: "/api/v1/system/switching-vendor-pack/history", label: "NAS-0071 enterprise switching vendor pack certification history", handler: HandleListSwitchingVendorPackHistory},
 		{archivePath: "api/long-tail-namespaces.json", requestPath: "/api/v1/system/long-tail-namespaces", label: "NAS-0072 long-tail namespace certification", handler: HandleGetLongTailNamespaces},
 		{archivePath: "api/long-tail-namespaces-history.json", requestPath: "/api/v1/system/long-tail-namespaces/history", label: "NAS-0072 long-tail namespace certification history", handler: HandleListLongTailNamespacesHistory},
+		{archivePath: "api/external-vendor-intake.json", requestPath: "/api/v1/system/external-vendor-intake", label: "NAS-0073 out-of-corpus vendor intake", handler: HandleGetExternalVendorIntake},
+		{archivePath: "api/external-vendor-intake-history.json", requestPath: "/api/v1/system/external-vendor-intake/history", label: "NAS-0073 out-of-corpus vendor intake history", handler: HandleListExternalVendorIntakeHistory},
 		{archivePath: "api/session-history.json", requestPath: "/api/v1/system/session-history", label: "Session and accounting history", handler: HandleListSessionHistory},
 		{archivePath: "api/session-analytics.json", requestPath: "/api/v1/system/session-analytics", label: "Session activity analytics", handler: HandleGetSessionAnalytics},
 		{archivePath: "api/voucher-aging-analytics.json", requestPath: "/api/v1/system/voucher-aging-analytics", label: "Voucher stock aging analytics", handler: HandleGetVoucherAgingAnalytics},

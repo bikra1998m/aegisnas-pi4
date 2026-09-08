@@ -1336,6 +1336,24 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Persisted long-tail namespace certification event summary and recent events."),
 	}))
+	addOperation(paths, "/api/v1/system/external-vendor-intake", "get", securedOperationWithParameters("Read NAS-0073 out-of-corpus vendor intake governance", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("history_limit", "Recent persisted event count from 1 to 500; defaults to 20.", false),
+	}, map[string]any{
+		"200": responseJSON("Software-ready governance contract for authoritative external vendor dictionaries, including provenance requirements, parser limits, wire types, semantics, release scope, and recent intake evidence."),
+	}))
+	addOperation(paths, "/api/v1/system/external-vendor-intake/preview", "post", securedOperationWithBody("Preview NAS-0073 out-of-corpus vendor dictionary intake", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("ExternalVendorIntakeRequest with vendor_name, PEN, dictionary_text, source_url, source_sha256, license_id, license_reference, upstream_version, retrieved_at, optional product_families, dictionary_name, submitter, and review_notes."), map[string]any{
+		"200": responseJSON("Derived intake report with per-attribute semantic classification, packet-processing state, redaction, blockers, warnings, and external certification scope."),
+		"400": responseJSON("Request JSON was malformed, too large, or contained unknown fields."),
+	}))
+	addOperation(paths, "/api/v1/system/external-vendor-intake/record", "post", securedOperationWithBody("Record NAS-0073 out-of-corpus vendor dictionary intake evidence", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("ExternalVendorIntakeRequest; raw dictionary text is parsed and fingerprinted but not persisted in the report."), map[string]any{
+		"200": responseJSON("Persisted software-ready external vendor intake event and derived report."),
+		"409": responseJSON("External vendor intake report was recorded as blocked because provenance, license, PEN, parser, or semantic coverage is incomplete."),
+	}))
+	addOperation(paths, "/api/v1/system/external-vendor-intake/history", "get", securedOperationWithParameters("Read NAS-0073 out-of-corpus vendor intake history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Event count from 1 to 500; defaults to 100.", false),
+	}, map[string]any{
+		"200": responseJSON("Persisted external vendor intake event summary and recent events."),
+	}))
 	addOperation(paths, "/api/v1/system/vsa-codec", "get", securedOperation("Read VSA codec capabilities", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Extended, grouped, tagged, and repeated VSA codec readiness."),
 	}))

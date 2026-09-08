@@ -181,6 +181,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionMikroTikPackCheck(&report)
 	addProductionSwitchingVendorPackCheck(&report)
 	addProductionLongTailNamespaceCheck(&report)
+	addProductionExternalVendorIntakeCheck(&report)
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
@@ -3112,6 +3113,54 @@ func addProductionLongTailNamespaceCheck(report *productionReadinessReport) {
 			"/api/v1/system/long-tail-namespaces",
 			"long_tail_namespace_events",
 			"docs/nas-0072-release-certification-checklist.md",
+		},
+	})
+}
+
+func addProductionExternalVendorIntakeCheck(report *productionReadinessReport) {
+	governance := productconfigs.BuildExternalVendorIntakeGovernanceReport()
+	if err := productconfigs.ValidateExternalVendorIntakeGovernanceReport(governance); err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "external_vendor_intake", Category: "radius", Label: "NAS-0073 Out-Of-Corpus Vendor Intake", Status: "blocked",
+			Summary:        "External vendor intake governance is incomplete: " + err.Error(),
+			Recommendation: "Repair the NAS-0073 governance report before accepting authoritative external vendor dictionaries.",
+			Dependencies:   []string{"configs/external_vendor_intake.go", "internal/adminapi/external_vendor_intake.go", "internal/db/external_vendor_intake.go"},
+		})
+		return
+	}
+	status := "passed"
+	summaryText := fmt.Sprintf("NAS-0073 is software-ready for authoritative external dictionaries, with %d supported wire types, %d required provenance fields, a %d-byte dictionary limit, and a %d-attribute intake limit.",
+		len(governance.SupportedWireTypes),
+		len(governance.RequiredProvenanceFields),
+		governance.MaxDictionaryBytes,
+		governance.MaxAttributes,
+	)
+	if db.DB == nil {
+		status = "degraded"
+		summaryText += " Database evidence recording is unavailable in this process."
+	} else if summary, err := db.GetExternalVendorIntakeSummary(); err != nil {
+		status = "degraded"
+		summaryText += " Evidence summary could not be read: " + err.Error()
+	} else if summary.TotalEvents > 0 {
+		summaryText += fmt.Sprintf(" Latest intake evidence covers %s/PEN %d with %d software-ready attributes and fingerprint %s.",
+			firstNonEmptyAdminString(summary.LastVendorName, "external vendor"),
+			summary.LastPEN,
+			summary.LastSoftwareReadyAttributes,
+			summary.LastFingerprint,
+		)
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "external_vendor_intake",
+		Category:       "radius",
+		Label:          "NAS-0073 Out-Of-Corpus Vendor Intake",
+		Status:         status,
+		Summary:        summaryText,
+		Recommendation: "Use /api/v1/system/external-vendor-intake/preview and /record for non-FreeRADIUS vendor dictionaries; execute docs/nas-0073-release-certification-checklist.md before publishing hardware-certified claims.",
+		Dependencies: []string{
+			"/api/v1/system/external-vendor-intake",
+			"/api/v1/system/external-vendor-intake/preview",
+			"external_vendor_intake_events",
+			"docs/nas-0073-release-certification-checklist.md",
 		},
 	})
 }

@@ -3965,3 +3965,49 @@ CREATE INDEX IF NOT EXISTS idx_long_tail_namespace_events_fingerprint ON long_ta
 `
 
 const schemaV77 = longTailNamespaceSQL
+
+const externalVendorIntakeSQL = `
+CREATE TABLE IF NOT EXISTS external_vendor_intake_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	release_profile_id TEXT NOT NULL,
+	release_source_sha256 TEXT NOT NULL,
+	vendor_name TEXT NOT NULL,
+	pen INTEGER NOT NULL,
+	pack_key TEXT NOT NULL,
+	dictionary_name TEXT,
+	source_url TEXT,
+	dictionary_sha256 TEXT NOT NULL,
+	license_id TEXT NOT NULL,
+	license_state TEXT NOT NULL,
+	provenance_state TEXT NOT NULL,
+	pen_state TEXT NOT NULL,
+	semantic_state TEXT NOT NULL,
+	attribute_count INTEGER NOT NULL,
+	runtime_decodable_attributes INTEGER NOT NULL DEFAULT 0,
+	metadata_only_attributes INTEGER NOT NULL DEFAULT 0,
+	native_semantic_mappings INTEGER NOT NULL DEFAULT 0,
+	typed_passthrough_mappings INTEGER NOT NULL DEFAULT 0,
+	sensitive_redacted_mappings INTEGER NOT NULL DEFAULT 0,
+	software_ready_attributes INTEGER NOT NULL DEFAULT 0,
+	software_blocked_attributes INTEGER NOT NULL DEFAULT 0,
+	external_required_attributes INTEGER NOT NULL DEFAULT 0,
+	fingerprint TEXT NOT NULL,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'record', 'release_gate')),
+	CHECK (status IN ('recorded', 'blocked', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_external_vendor_intake_events_created ON external_vendor_intake_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_external_vendor_intake_events_status ON external_vendor_intake_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_external_vendor_intake_events_vendor ON external_vendor_intake_events(vendor_name, pen, created_at);
+CREATE INDEX IF NOT EXISTS idx_external_vendor_intake_events_fingerprint ON external_vendor_intake_events(fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_external_vendor_intake_events_dictionary_sha ON external_vendor_intake_events(dictionary_sha256, created_at);
+`
+
+const schemaV78 = externalVendorIntakeSQL

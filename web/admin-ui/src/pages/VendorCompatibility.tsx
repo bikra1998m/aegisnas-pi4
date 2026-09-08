@@ -763,6 +763,175 @@ type MikroTikPackPayload = BroadbandVendorPackPayload;
 type SwitchingVendorPackPayload = BroadbandVendorPackPayload;
 type LongTailNamespacePayload = BroadbandVendorPackPayload;
 
+type ExternalVendorIntakeSummary = {
+  vendor_count: number;
+  product_scope_count: number;
+  attribute_count: number;
+  runtime_decodable_attributes: number;
+  metadata_only_attributes: number;
+  native_semantic_mappings: number;
+  typed_passthrough_mappings: number;
+  sensitive_redacted_mappings: number;
+  enumerated_value_count: number;
+  software_ready_attributes: number;
+  software_blocked_attributes: number;
+  ready_for_external_validation_attributes: number;
+  external_certification_required_attributes: number;
+  warning_count: number;
+  blocker_count: number;
+  software_completion_percent: number;
+  fingerprint: string;
+};
+
+type ExternalVendorIntakeRecord = {
+  id: string;
+  vendor: string;
+  pen: number;
+  pack_key: string;
+  attribute: string;
+  number?: number;
+  oid?: string;
+  wire_key: string;
+  wire_type: string;
+  capability: string;
+  semantic: string;
+  directions: string[];
+  decode_kind?: string;
+  decode_semantic?: string;
+  decode_scale?: number;
+  implementation_class: string;
+  packet_processing: string;
+  policy_engine: string;
+  storage: string;
+  software_state: string;
+  claim_state: string;
+  external_validation_required: boolean;
+  ready_for_external_validation: boolean;
+  blockers?: string[];
+  warnings?: string[];
+};
+
+type ExternalVendorIntakeScope = BroadbandVendorProductScope;
+
+type ExternalVendorIntakeReport = {
+  schema_version: number;
+  feature_id: string;
+  status: string;
+  vendor: {
+    name: string;
+    canonical_name: string;
+    pen: number;
+    intended_pack_key: string;
+    product_families?: string[];
+    dictionary_name?: string;
+    in_pinned_corpus: boolean;
+    runtime_extension_known: boolean;
+    out_of_corpus: boolean;
+  };
+  provenance: {
+    source_url: string;
+    source_sha256: string;
+    computed_sha256: string;
+    license_id: string;
+    license_reference: string;
+    upstream_version: string;
+    retrieved_at: string;
+    submitter?: string;
+    license_state: string;
+    provenance_state: string;
+    pen_state: string;
+    semantic_state: string;
+  };
+  summary: ExternalVendorIntakeSummary;
+  product_scopes: ExternalVendorIntakeScope[];
+  records: ExternalVendorIntakeRecord[];
+  blockers?: string[];
+  warnings?: string[];
+  notes?: string[];
+};
+
+type ExternalVendorIntakeEvent = {
+  event_id: string;
+  operation: string;
+  status: string;
+  vendor_name: string;
+  pen: number;
+  pack_key: string;
+  dictionary_name?: string;
+  dictionary_sha256: string;
+  license_id: string;
+  software_ready_attributes: number;
+  software_blocked_attributes: number;
+  external_required_attributes: number;
+  fingerprint: string;
+  actor?: string;
+  created_at: string;
+};
+
+type ExternalVendorIntakePayload = {
+  generated_at: string;
+  governance: {
+    schema_version: number;
+    feature_id: string;
+    status: string;
+    dictionary_release_profile_id: string;
+    source_release: string;
+    source_sha256: string;
+    max_dictionary_bytes: number;
+    max_attributes: number;
+    allowed_licenses: string[];
+    required_provenance_fields: string[];
+    supported_dictionary_directives: string[];
+    supported_wire_types: string[];
+    supported_semantics: string[];
+    external_vendor_examples: string[];
+    release_certification_checklist: string;
+    notes?: string[];
+  };
+  evidence: {
+    summary: {
+      total_events: number;
+      recorded_count: number;
+      blocked_count: number;
+      failed_count: number;
+      last_event_at?: string;
+      last_fingerprint?: string;
+      last_vendor_name?: string;
+      last_pen?: number;
+      last_pack_key?: string;
+      last_attribute_count?: number;
+      last_software_ready_attributes?: number;
+    };
+    recent_events?: ExternalVendorIntakeEvent[];
+  };
+  release_scope: string;
+  release_certification_checklist: string;
+};
+
+type ExternalVendorIntakePreviewPayload = {
+  generated_at: string;
+  status: string;
+  report: ExternalVendorIntakeReport;
+  release_scope: string;
+  release_certification_checklist: string;
+};
+
+type ExternalVendorIntakeForm = {
+  vendor_name: string;
+  pen: string;
+  intended_pack_key: string;
+  product_families: string;
+  dictionary_name: string;
+  dictionary_text: string;
+  source_url: string;
+  source_sha256: string;
+  license_id: string;
+  license_reference: string;
+  upstream_version: string;
+  retrieved_at: string;
+  submitter: string;
+};
+
 type VendorDictionaryCoverageRow = {
   pack_key: string;
   pack_label: string;
@@ -1051,6 +1220,22 @@ const defaultPreviewForm: VendorReplyPreviewForm = {
   ],
 };
 
+const defaultExternalVendorIntakeForm: ExternalVendorIntakeForm = {
+  vendor_name: '',
+  pen: '',
+  intended_pack_key: '',
+  product_families: '',
+  dictionary_name: '',
+  dictionary_text: '',
+  source_url: '',
+  source_sha256: '',
+  license_id: 'Proprietary-Allowed-With-Grant',
+  license_reference: '',
+  upstream_version: '',
+  retrieved_at: new Date().toISOString(),
+  submitter: '',
+};
+
 function StatCard({ label, value, hint }: { label: string; value: string | number; hint: string }) {
   return (
     <div className="rounded-md border border-gray-200 px-4 py-3">
@@ -1101,6 +1286,19 @@ function numericValue(value: string) {
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function splitExternalVendorList(value: string) {
+  return value
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+async function sha256Hex(value: string) {
+  const encoded = new TextEncoder().encode(value.trim());
+  const digest = await crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 function coverageTone(state: string): 'green' | 'amber' | 'gray' {
@@ -1249,6 +1447,11 @@ export default function VendorCompatibility() {
   const [longTailNamespace, setLongTailNamespace] = useState<LongTailNamespacePayload | null>(null);
   const [longTailNamespaceBusy, setLongTailNamespaceBusy] = useState(false);
   const [longTailNamespaceError, setLongTailNamespaceError] = useState('');
+  const [externalVendorIntake, setExternalVendorIntake] = useState<ExternalVendorIntakePayload | null>(null);
+  const [externalVendorIntakePreview, setExternalVendorIntakePreview] = useState<ExternalVendorIntakePreviewPayload | null>(null);
+  const [externalVendorIntakeForm, setExternalVendorIntakeForm] = useState<ExternalVendorIntakeForm>(defaultExternalVendorIntakeForm);
+  const [externalVendorIntakeBusy, setExternalVendorIntakeBusy] = useState(false);
+  const [externalVendorIntakeError, setExternalVendorIntakeError] = useState('');
   const [vsaCodec, setVSACodec] = useState<VSACodecPayload | null>(null);
   const [vsaCodecError, setVSACodecError] = useState('');
   const [opaquePassThrough, setOpaquePassThrough] = useState<OpaquePassThroughPayload | null>(null);
@@ -1268,6 +1471,7 @@ export default function VendorCompatibility() {
   const canRecordMikroTikPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
   const canRecordSwitchingVendorPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
   const canRecordLongTailNamespace = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
+  const canManageExternalVendorIntake = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
 
   const fetchVendorIdentity = async () => {
     try {
@@ -1717,6 +1921,64 @@ export default function VendorCompatibility() {
     }
   };
 
+  const fetchExternalVendorIntake = async () => {
+    setExternalVendorIntakeError('');
+    try {
+      const { data } = await api.get<ExternalVendorIntakePayload>('/system/external-vendor-intake?history_limit=5');
+      setExternalVendorIntake(data);
+    } catch (err: any) {
+      setExternalVendorIntakeError(apiErrorMessage(err, 'Could not load NAS-0073 external vendor intake.'));
+    }
+  };
+
+  const buildExternalVendorIntakeRequest = async () => ({
+    vendor_name: externalVendorIntakeForm.vendor_name.trim(),
+    pen: numericValue(externalVendorIntakeForm.pen),
+    intended_pack_key: externalVendorIntakeForm.intended_pack_key.trim(),
+    product_families: splitExternalVendorList(externalVendorIntakeForm.product_families),
+    dictionary_name: externalVendorIntakeForm.dictionary_name.trim(),
+    dictionary_text: externalVendorIntakeForm.dictionary_text.trim(),
+    source_url: externalVendorIntakeForm.source_url.trim(),
+    source_sha256: externalVendorIntakeForm.source_sha256.trim() || await sha256Hex(externalVendorIntakeForm.dictionary_text),
+    license_id: externalVendorIntakeForm.license_id.trim(),
+    license_reference: externalVendorIntakeForm.license_reference.trim(),
+    upstream_version: externalVendorIntakeForm.upstream_version.trim(),
+    retrieved_at: externalVendorIntakeForm.retrieved_at.trim(),
+    submitter: externalVendorIntakeForm.submitter.trim(),
+  });
+
+  const previewExternalVendorIntake = async () => {
+    setExternalVendorIntakeBusy(true);
+    setExternalVendorIntakeError('');
+    setMessage('');
+    try {
+      const { data } = await api.post<ExternalVendorIntakePreviewPayload>('/system/external-vendor-intake/preview', await buildExternalVendorIntakeRequest());
+      setExternalVendorIntakePreview(data);
+      setExternalVendorIntakeForm((current) => ({ ...current, source_sha256: data.report.provenance.computed_sha256 }));
+      setMessage(data.status === 'software_ready' ? 'NAS-0073 external vendor intake preview is software-ready.' : 'NAS-0073 external vendor intake preview has blockers to resolve.');
+    } catch (err: any) {
+      setExternalVendorIntakeError(apiErrorMessage(err, 'Could not preview NAS-0073 external vendor intake.'));
+    } finally {
+      setExternalVendorIntakeBusy(false);
+    }
+  };
+
+  const recordExternalVendorIntake = async () => {
+    setExternalVendorIntakeBusy(true);
+    setExternalVendorIntakeError('');
+    setMessage('');
+    try {
+      const { data } = await api.post<{ event_id: string; status: string }>('/system/external-vendor-intake/record', await buildExternalVendorIntakeRequest());
+      setMessage(`NAS-0073 external vendor intake evidence recorded as ${data.status}.`);
+      await fetchExternalVendorIntake();
+    } catch (err: any) {
+      setExternalVendorIntakeError(apiErrorMessage(err, 'Could not record NAS-0073 external vendor intake evidence.'));
+      await fetchExternalVendorIntake();
+    } finally {
+      setExternalVendorIntakeBusy(false);
+    }
+  };
+
   const fetchVSACodec = async () => {
     setVSACodecError('');
     try {
@@ -1834,6 +2096,7 @@ export default function VendorCompatibility() {
     void fetchMikroTikPack();
     void fetchSwitchingVendorPack();
     void fetchLongTailNamespace();
+    void fetchExternalVendorIntake();
     void fetchVSACodec();
     void fetchOpaquePassThrough();
   }, []);
@@ -1934,6 +2197,12 @@ export default function VendorCompatibility() {
   const longTailNamespaceCapabilities = longTailNamespace?.report.capability_summaries || [];
   const longTailNamespaceGrammar = longTailNamespace?.report.grammar || [];
   const longTailNamespaceProductScopes = longTailNamespace?.report.product_scopes || [];
+  const externalVendorIntakeGovernance = externalVendorIntake?.governance;
+  const externalVendorIntakeComplete = externalVendorIntakeGovernance?.status === 'software_ready';
+  const externalVendorIntakeReport = externalVendorIntakePreview?.report;
+  const externalVendorIntakeSummary = externalVendorIntakeReport?.summary;
+  const externalVendorIntakeRecords = externalVendorIntakeReport?.records || [];
+  const externalVendorIntakeEvents = externalVendorIntake?.evidence.recent_events || [];
   const plannedSemantics = useMemo(
     () => (payload?.semantics || []).filter((item) => item.compatibility_state !== 'implemented'),
     [payload?.semantics],
@@ -1956,7 +2225,7 @@ export default function VendorCompatibility() {
           <p className="mt-1 text-sm text-gray-600">Confirm deployed NAS profiles, reply packs, and vendor dictionary coverage before changing access policy.</p>
         </div>
         <button
-          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchArubaFamilyPack(); void fetchJuniperExtremePack(); void fetchRuckusICXPack(); void fetchFortinetPaloAltoPack(); void fetchCloudControllerPack(); void fetchAccessVendorPack(); void fetchBroadbandVendorPack(); void fetchNokiaALUPack(); void fetchMikroTikPack(); void fetchSwitchingVendorPack(); void fetchLongTailNamespace(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
+          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchArubaFamilyPack(); void fetchJuniperExtremePack(); void fetchRuckusICXPack(); void fetchFortinetPaloAltoPack(); void fetchCloudControllerPack(); void fetchAccessVendorPack(); void fetchBroadbandVendorPack(); void fetchNokiaALUPack(); void fetchMikroTikPack(); void fetchSwitchingVendorPack(); void fetchLongTailNamespace(); void fetchExternalVendorIntake(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
           disabled={loading}
           className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
@@ -2095,6 +2364,176 @@ export default function VendorCompatibility() {
                 </div>
               ) : null}
             </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">NAS-0073 Out-Of-Corpus Vendor Intake</h3>
+                <p className="mt-1 text-sm text-gray-600">Bring authoritative external vendor dictionaries into the governed software path without counting them as pinned FreeRADIUS corpus coverage.</p>
+              </div>
+              {externalVendorIntakeGovernance ? (
+                <StatusBadge tone={externalVendorIntakeComplete ? 'green' : 'amber'}>
+                  {evidenceLabel(externalVendorIntakeGovernance.status)}
+                </StatusBadge>
+              ) : null}
+            </div>
+
+            {externalVendorIntakeError ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{externalVendorIntakeError}</div> : null}
+            {externalVendorIntakeGovernance ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="Wire Types" value={externalVendorIntakeGovernance.supported_wire_types.length} hint="FreeRADIUS dictionary types accepted by the intake parser." />
+                  <StatCard label="Required Evidence" value={externalVendorIntakeGovernance.required_provenance_fields.length} hint="Vendor, PEN, source, hash, license, version, and retrieval proof." />
+                  <StatCard label="Dictionary Limit" value={`${Math.round(externalVendorIntakeGovernance.max_dictionary_bytes / 1024)} KiB`} hint={`${externalVendorIntakeGovernance.max_attributes} attributes per intake.`} />
+                  <StatCard label="History Events" value={externalVendorIntake?.evidence.summary.total_events || 0} hint={externalVendorIntake?.evidence.summary.last_event_at ? `Last ${new Date(externalVendorIntake.evidence.summary.last_event_at).toLocaleString()}` : 'No persisted event yet.'} />
+                </div>
+
+                <div className="mt-4 rounded-md border border-gray-200 p-4">
+                  <div className="text-xs font-semibold uppercase text-gray-500">Release Boundary</div>
+                  <p className="mt-2 text-sm text-gray-700">{externalVendorIntake?.release_scope}</p>
+                  <p className="mt-2 text-xs text-gray-500">Accepted licenses: {joinList(externalVendorIntakeGovernance.allowed_licenses)}</p>
+                </div>
+
+                {canManageExternalVendorIntake ? (
+                  <form onSubmit={(event) => { event.preventDefault(); void previewExternalVendorIntake(); }} className="mt-4 rounded-md border border-gray-200 p-4">
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <label className="text-sm font-medium text-gray-700">
+                        Vendor name
+                        <input required value={externalVendorIntakeForm.vendor_name} onChange={(event) => setExternalVendorIntakeForm((current) => ({ ...current, vendor_name: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                      </label>
+                      <label className="text-sm font-medium text-gray-700">
+                        PEN
+                        <input required type="number" min="1" max="4294967294" value={externalVendorIntakeForm.pen} onChange={(event) => setExternalVendorIntakeForm((current) => ({ ...current, pen: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                      </label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Pack key
+                        <input value={externalVendorIntakeForm.intended_pack_key} onChange={(event) => setExternalVendorIntakeForm((current) => ({ ...current, intended_pack_key: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                      </label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Dictionary name
+                        <input value={externalVendorIntakeForm.dictionary_name} onChange={(event) => setExternalVendorIntakeForm((current) => ({ ...current, dictionary_name: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                      </label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Source URL
+                        <input required value={externalVendorIntakeForm.source_url} onChange={(event) => setExternalVendorIntakeForm((current) => ({ ...current, source_url: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                      </label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Source SHA-256
+                        <input value={externalVendorIntakeForm.source_sha256} onChange={(event) => setExternalVendorIntakeForm((current) => ({ ...current, source_sha256: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                      </label>
+                      <label className="text-sm font-medium text-gray-700">
+                        License
+                        <select value={externalVendorIntakeForm.license_id} onChange={(event) => setExternalVendorIntakeForm((current) => ({ ...current, license_id: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2">
+                          {externalVendorIntakeGovernance.allowed_licenses.map((license) => <option key={license} value={license}>{license}</option>)}
+                        </select>
+                      </label>
+                      <label className="text-sm font-medium text-gray-700">
+                        License reference
+                        <input required value={externalVendorIntakeForm.license_reference} onChange={(event) => setExternalVendorIntakeForm((current) => ({ ...current, license_reference: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                      </label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Upstream version
+                        <input required value={externalVendorIntakeForm.upstream_version} onChange={(event) => setExternalVendorIntakeForm((current) => ({ ...current, upstream_version: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                      </label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Retrieved at
+                        <input required value={externalVendorIntakeForm.retrieved_at} onChange={(event) => setExternalVendorIntakeForm((current) => ({ ...current, retrieved_at: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                      </label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Submitter
+                        <input value={externalVendorIntakeForm.submitter} onChange={(event) => setExternalVendorIntakeForm((current) => ({ ...current, submitter: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                      </label>
+                      <label className="text-sm font-medium text-gray-700 md:col-span-1">
+                        Product families
+                        <input value={externalVendorIntakeForm.product_families} onChange={(event) => setExternalVendorIntakeForm((current) => ({ ...current, product_families: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+                      </label>
+                    </div>
+                    <label className="mt-4 block text-sm font-medium text-gray-700">
+                      Dictionary text
+                      <textarea required value={externalVendorIntakeForm.dictionary_text} onChange={(event) => setExternalVendorIntakeForm((current) => ({ ...current, dictionary_text: event.target.value }))} className="mt-1 h-48 w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-xs" />
+                    </label>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button type="submit" disabled={externalVendorIntakeBusy} className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{externalVendorIntakeBusy ? 'Working...' : 'Preview Intake'}</button>
+                      <button type="button" onClick={() => void recordExternalVendorIntake()} disabled={externalVendorIntakeBusy} className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Record Evidence</button>
+                    </div>
+                  </form>
+                ) : (
+                  <p className="mt-4 rounded-md border border-gray-200 px-4 py-3 text-sm text-gray-600">Read-only users can inspect governance and history. Ops or super-admin access is required to submit dictionary payloads.</p>
+                )}
+
+                {externalVendorIntakeSummary ? (
+                  <div className="mt-4">
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <StatusBadge tone={externalVendorIntakeReport?.status === 'software_ready' ? 'green' : 'amber'}>{evidenceLabel(externalVendorIntakeReport?.status || 'unknown')}</StatusBadge>
+                      <span className="text-sm text-gray-600">{externalVendorIntakeReport?.vendor.canonical_name} / PEN {externalVendorIntakeReport?.vendor.pen}</span>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                      <StatCard label="Attributes" value={externalVendorIntakeSummary.attribute_count} hint={`${externalVendorIntakeSummary.software_blocked_attributes} software blockers.`} />
+                      <StatCard label="Software Ready" value={externalVendorIntakeSummary.software_ready_attributes} hint={formatPercent(externalVendorIntakeSummary.software_completion_percent)} />
+                      <StatCard label="Runtime Decodable" value={externalVendorIntakeSummary.runtime_decodable_attributes} hint={`${externalVendorIntakeSummary.metadata_only_attributes} metadata-only rows.`} />
+                      <StatCard label="Redacted Secrets" value={externalVendorIntakeSummary.sensitive_redacted_mappings} hint={`${externalVendorIntakeSummary.enumerated_value_count} enumerated values.`} />
+                    </div>
+                    <div className="mt-4 rounded-md border border-gray-200 p-4">
+                      <div className="text-xs font-semibold uppercase text-gray-500">Intake Fingerprint</div>
+                      <div className="mt-2 break-all text-sm font-medium text-gray-900">{externalVendorIntakeSummary.fingerprint}</div>
+                      <p className="mt-2 text-sm text-gray-600">Provenance {evidenceLabel(externalVendorIntakeReport?.provenance.provenance_state || '')}, license {evidenceLabel(externalVendorIntakeReport?.provenance.license_state || '')}, PEN {evidenceLabel(externalVendorIntakeReport?.provenance.pen_state || '')}, semantics {evidenceLabel(externalVendorIntakeReport?.provenance.semantic_state || '')}.</p>
+                    </div>
+                    {(externalVendorIntakeReport?.blockers || []).map((blocker) => <p key={blocker} className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{blocker}</p>)}
+                    {(externalVendorIntakeReport?.warnings || []).map((warning) => <p key={warning} className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{warning}</p>)}
+                    <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                      <div className="overflow-x-auto rounded-md border border-gray-200">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50"><tr>{['Scope', 'Products', 'State'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {(externalVendorIntakeReport?.product_scopes || []).map((scope) => (
+                              <tr key={`${scope.key}-${scope.label}`}>
+                                <td className="px-4 py-3 text-sm font-medium text-gray-900">{scope.label}<div className="text-xs text-gray-500">{scope.dictionary}</div></td>
+                                <td className="px-4 py-3 text-sm text-gray-700">{joinList(scope.products)}</td>
+                                <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{evidenceLabel(scope.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{evidenceLabel(scope.external_state)}</div></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="overflow-x-auto rounded-md border border-gray-200">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50"><tr>{['Attribute', 'Capability', 'Handling'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {externalVendorIntakeRecords.slice(0, 12).map((record) => (
+                              <tr key={record.id}>
+                                <td className="px-4 py-3 text-sm font-medium text-gray-900">{record.attribute}<div className="text-xs text-gray-500">{record.wire_key} / {record.wire_type}</div></td>
+                                <td className="px-4 py-3 text-sm text-gray-700">{evidenceLabel(record.capability)}<div className="text-xs text-gray-500">{joinList(record.directions)}</div></td>
+                                <td className="px-4 py-3 text-sm text-gray-700"><StatusBadge tone={evidenceTone(record.software_state)}>{evidenceLabel(record.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{evidenceLabel(record.implementation_class)}</div></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {externalVendorIntakeEvents.length > 0 ? (
+                  <div className="mt-4 overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Created', 'Vendor', 'Status', 'Evidence'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {externalVendorIntakeEvents.map((event) => (
+                          <tr key={event.event_id}>
+                            <td className="px-4 py-3 text-sm text-gray-700">{new Date(event.created_at).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{event.vendor_name}<div className="text-xs text-gray-500">PEN {event.pen} / {event.pack_key}</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone={event.status === 'recorded' ? 'green' : 'amber'}>{event.status}</StatusBadge><div className="mt-1 text-xs text-gray-500">{event.license_id}</div></td>
+                            <td className="px-4 py-3 text-xs text-gray-700 break-all">{event.fingerprint}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+                <p className="mt-2 text-xs text-gray-500">{externalVendorIntake?.release_certification_checklist} keeps hardware, FreeRADIUS Linux, HA, soak, security audit, customer acceptance, and compliance proof outside engineering completion.</p>
+              </>
+            ) : null}
           </section>
 
           <section className="mt-6">

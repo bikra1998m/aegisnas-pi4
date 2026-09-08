@@ -193,6 +193,12 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
 	case strings.HasPrefix(path, "/api/v1/system/long-tail-namespaces"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/external-vendor-intake/preview"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/external-vendor-intake/record"):
+		return method == http.MethodPost && (identity.Role == adminRoleOpsAdmin || identity.Role == adminRoleSuperAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/external-vendor-intake"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/vsa-codec"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/opaque-passthrough"):

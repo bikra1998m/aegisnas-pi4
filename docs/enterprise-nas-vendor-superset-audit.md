@@ -2,7 +2,7 @@
 
 Audit date: 2026-07-07
 
-Software progress updated through NAS-0072 on 2026-09-08.
+Software progress updated through NAS-0073 on 2026-09-08.
 
 ## Verdict
 
@@ -86,7 +86,7 @@ The repository evidence includes:
 - controller integration: Cisco ISE, Aruba Central Classic, Juniper Mist,
   Ruckus SmartZone, FortiGate, MikroTik RouterOS, UniFi Network, Meraki
   Dashboard, and TIP OpenWiFi adapters under `internal/integrations`
-- persistence: schema versions 1-13 in `internal/db/migrate.go`
+- persistence: schema versions 1-78 in `internal/db/migrate.go`
 - REST and UI: `cmd/aegis-admin-api`, `internal/adminapi`, and
   `web/admin-ui/src`
 
@@ -122,8 +122,9 @@ not a complete vendor superset:
   evidence before release certification;
 - mobile, telecom, cable, voice, and grouped AVP semantics remain owned by
   later roadmap phases;
-- out-of-corpus vendors still require provenance, licensing, PEN validation,
-  semantic review, and versioned intake.
+- out-of-corpus vendors now have a governed NAS-0073 intake path, but each
+  vendor still requires authoritative source evidence and release certification
+  before any hardware or customer compatibility claim.
 
 The scanner, packet code, compatibility reports, tests, API, and UI now consume
 the same generated registry. Later roadmap waves must keep that contract intact
@@ -153,7 +154,7 @@ instead of adding ad hoc dictionary interpretations.
 | 18 | HA/clustering | 45% | Signed/encrypted replication packages, shared state, VIP lease, fencing/witness policy, active/standby automation and drills | Package replication is not a consensus database; no synchronous session/accounting state, distributed CoA ownership, automatic conflict resolution, multi-node cluster, rolling schema quorum, or certified network partitions |
 | 19 | RADIUS proxy | 25% | One generated realm and home-server pool with failover probes | No realm routing table, regex realms, per-tenant pools, loop prevention policy, attribute filtering/rewriting, proxy accounting spool, dynamic discovery, TLS transports, or multi-hop observability |
 | 20 | RadSec | 90% | RFC 6614 X.509 mTLS listener and proxy clients, TLS 1.2/1.3, exact peer identity, CA/CRL validation, RADIUS/1.1 ALPN gating, TCP limits, auth/accounting/CoA carriage, active probes, background history, exports, API/UI, readiness checks, and local integration tests | Optional RFC 9813 TLS-PSK is a separate profile; Ubuntu package and physical Cisco/Juniper target certification remain release-lab work |
-| 21 | Vendor extensions | 30% | Declared vendor packs, 2,254 software-mapped rows, generated release registry, typed VSA codec, opaque pass-through policy, major vendor-pack certification reports, long-tail typed namespace report, preview API, readiness checks, evidence histories, and support bundles | 5,400 attributes remain unmapped or owned by later feature waves; exact hardware/controller certification, grouped telecom semantics, external intake, and release publication evidence remain open |
+| 21 | Vendor extensions | 31% | Declared vendor packs, 2,254 software-mapped rows, generated release registry, typed VSA codec, opaque pass-through policy, major vendor-pack certification reports, long-tail typed namespace report, NAS-0073 external dictionary intake, preview API, readiness checks, evidence histories, and support bundles | 5,400 attributes remain unmapped or owned by later feature waves; exact hardware/controller certification, grouped telecom semantics, external vendor source submissions, and release publication evidence remain open |
 | 22 | NAS management | 45% | Client CRUD and NAS type, config preview/apply/rollback, diagnostics, support bundles, controller drift/push | No dynamic clients, RadSec identities, fleet inventory/config templates, firmware lifecycle, zero-touch provisioning, SNMP/NETCONF/gNMI, TACACS+, config compliance, or full RBAC approval workflow |
 | 23 | Security | 35% | TLS 1.2/1.3 bounds, CRL/OCSP options, token auth, OIDC/SAML admin SSO, RBAC, audit, signed/encrypted HA packages, firewall and rollback | Placeholder PEN, secrets in config/SQLite, no HSM/TPM/Vault abstraction, no MFA, no formal key rotation, no FIPS profile, no external security audit/SBOM attestation, and several network services are plain UDP/HTTP by design |
 | 24 | Monitoring/reporting | 50% | Prometheus exporter, status checks, histories, compatibility counters, diagnostics/support bundles and many scheduled exports | No distributed tracing, SLO/error-budget model, per-attribute decode metrics, cardinality controls, long-term analytics store, charge records, topology, capacity forecasting, or vendor-certified dashboards |
@@ -172,7 +173,7 @@ rows explain the highest-priority names and vendor families.
 | Aruba/HPE | Aruba 71; HP 32; Colubris 1; Aerohive 21 | Aruba role/VLAN/ACL/context mappings, HP partial mappings, Aerohive/Extreme mappings, Aruba Central WLAN API | ClearPass role/posture/guest semantics, downloadable roles, full switch/AP attributes, roaming/RF, controller clustering, all remaining attributes and device proof |
 | Huawei/H3C/ZTE | Huawei 197; H3C 62; ZTE 49 | NAS-0068 software-certifies all 308 Huawei, H3C, and ZTE rows with BRAS/BNG subscriber state, IPv4/IPv6 pools, route/QoS/service-chain evidence, command authorization, multicast, accounting/charging, portal, NAT/translation, redacted credential evidence, API/UI/readiness/support-bundle history | Huawei MA/NE/CloudEngine/WLAN/iMaster, H3C Comware/iMC/BRAS/BNG, ZTE ZX/BNG/PPPoE, packet captures, HA, performance, soak, security, and customer proof remain release certification |
 | MikroTik | 32 | NAS-0070 software-certifies all pinned RouterOS rows with PPP/PPPoE quota and gigawords, rate-limit grammar, group roles, address-list and switching-filter ACL profile references, hotspot advertise URL/interval, DHCP option evidence, IPv4 host, IPv6 delegated-pool, CAPsMAN posture/VLAN/signal/comment, wireless secret redaction, API/UI/readiness/support-bundle history, and bounded RouterOS REST reconciliation | RouterOS hardware packet captures, firmware proof, CAPsMAN provisioning, live PPP/PPPoE and hotspot sessions, CoA ACK/NAK behavior, HA, performance, soak, security, and customer evidence remain release certification |
-| Ubiquiti/UniFi | No namespace in 3.2.8 | NAS-0066 software-certifies the AegisNAS-runtime UBNT rate parser/renderer and UniFi Network adapter scope | Not part of this dictionary baseline; authoritative external dictionary intake remains NAS-0073, and controller versions, gateway/switch/hotspot policy, packet captures, HA, performance, and customer proof remain release certification |
+| Ubiquiti/UniFi | No namespace in 3.2.8 | NAS-0066 software-certifies the AegisNAS-runtime UBNT rate parser/renderer and UniFi Network adapter scope; NAS-0073 now provides governed authoritative external dictionary intake for broader UBNT sources | Not part of this dictionary baseline; submitted external dictionaries still require source/license/PEN evidence plus controller versions, gateway/switch/hotspot policy, packet captures, HA, performance, and customer proof in release certification |
 | Meraki | 4 | NAS-0066 software-certifies all four telemetry VSAs, Dashboard SSID reconciliation scope, evidence history, API/UI visibility, readiness, and support-bundle capture | VSAs are context only, not full Meraki parity; group policy, splash, Systems Manager posture, switches, appliances, VPN, RF, licensing, broader Dashboard automation, packet captures, HA, performance, and customer proof remain release certification |
 | Fortinet | 32 | NAS-0065 software-certifies all pinned rows with group, client IPv4/IPv6, VDOM, tenant, interface, SSID/AP, FAC token/challenge redaction, web filter, application control, wireless controller accounting, FortiWAN and host-port AVPair, FortiDeceptor/FDD, FPC role, Fortinet CoA action compiler, and FortiGate FortiAP VAP reconciliation | External FortiGate, FortiAuthenticator, FortiNAC, FortiAP, FortiSwitch, FortiDeceptor/FDD, FortiWAN, CMDB/API, packet-capture, HA, performance, and customer proof |
 | Palo Alto | 10 | NAS-0065 software-certifies all pinned rows with PAN-OS and Panorama admin role/domain, User-ID group/domain/source-IP context, GlobalProtect OS/hostname/client-version posture, typed evidence, and bounded packet handling | External PAN-OS, GlobalProtect, Panorama, User-ID/IP-tag lifecycle, dynamic address groups, packet-capture, HA, performance, and customer proof |
@@ -185,7 +186,7 @@ rows explain the highest-priority names and vendor families.
 | D-Link | 9 | NAS-0067 software-certifies all 9 Dlink rows with user-level, bandwidth, priority, VLAN, ACL profile, ACL rule, and ACL script handling plus API/UI/readiness/support-bundle history | D-Link/Nuclias AP/switch/controller behavior, ACL script firmware effects, packet captures, HA, performance, soak, security, and customer proof remain release certification |
 | Long-tail in-corpus vendors | 92 namespaces / 1,126 rows | NAS-0072 software-certifies all scoped rows with typed decode, neutral semantic classification, bounded evidence, redacted secret handling, API/UI/readiness/support-bundle history, and release-checklist separation | Exact device/controller packet captures, firmware-scoped behavior, FreeRADIUS production Linux import, CoA where applicable, HA, performance, soak, security, compliance, and customer proof remain release certification |
 | Zyxel | 3 | No pack or mapping | Define all three semantics, then add firewall/AP/switch/USG controller and device workflows |
-| Netgear | No namespace in 3.2.8 | No pack | Treat as an out-of-corpus target: obtain authoritative dictionary/API specifications and build Insight/AV switching/AP/VPN support separately |
+| Netgear | No namespace in 3.2.8 | NAS-0073 provides governed authoritative external dictionary intake; no Netgear product pack or hardware claim exists yet | Obtain authoritative dictionary/API specifications, submit them through NAS-0073, then build and certify Insight/AV switching/AP/VPN support separately |
 | Starent/Cisco mobile core | 520 | No Starent pack | Subscriber/mobile session control, charging, APN, QoS, lawful intercept, address pools, roaming and full grouped VSA processing |
 | 3GPP/3GPP2/WiMAX | 28 / 186 / 292 | No functional implementation | Grouped mobile attributes, charging correlation, SIM/AKA identity, policy control, roaming, QoS/service flows and telecom-grade persistence/scale |
 
@@ -194,7 +195,9 @@ rows explain the highest-priority names and vendor families.
 Some names in the requested list are brands or product families rather than an
 exact 3.2.8 namespace:
 
-- Ubiquiti/UBNT and Netgear are not present in the parsed 3.2.8 `share` tree.
+- Ubiquiti/UBNT and Netgear are not present in the parsed 3.2.8 `share` tree;
+  they enter through NAS-0073 external vendor intake and remain outside pinned
+  corpus percentages.
 - HPE functionality appears mainly under `HP`, `Aruba`, and `Colubris`.
 - Alcatel-Lucent is split across `Alcatel`, `Alcatel-ESAM`,
   `Alcatel-Lucent-Service-Router`, and `ALU-AAA`.
