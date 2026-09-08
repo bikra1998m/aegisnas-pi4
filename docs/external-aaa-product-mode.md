@@ -112,7 +112,7 @@ The implementation now does these things end to end:
     Aruba, Juniper, Ruckus, Fortinet, MikroTik, Huawei, and H3C/Comware VSAs
     for role, VLAN, ACL, QoS, quarantine, reauth, and terminate workflows, with
     fail-closed preview evidence and durable history
-29. certifies the current 141 partial FreeRADIUS vendor mappings in software
+29. certifies the NAS-0060 baseline 141 partial FreeRADIUS vendor mappings in software
     through a release-hash-bound NAS-0060 report, persisted certification
     events, admin API, Vendor Compatibility UI, readiness checks, system status,
     and support-bundle captures while keeping hardware and customer-environment
@@ -200,6 +200,16 @@ The implementation now does these things end to end:
     support-bundle captures while keeping real switch firmware, controllers,
     CoA, HA, performance, security, and customer validation in a separate
     release checklist
+40. certifies the long-tail typed namespace program in software through a
+    NAS-0072 report covering all 1,126 pinned rows across 92 remaining
+    in-corpus FreeRADIUS vendor namespaces, with role, VLAN, ACL/filter,
+    bandwidth, quota, portal, address, route, VRF, posture, tenant,
+    controller, certificate, accounting, CoA, typed pass-through, redacted
+    secret evidence, persisted evidence, admin API, Vendor Compatibility UI,
+    readiness checks, system status, and support-bundle captures while keeping
+    real hardware, controllers, FreeRADIUS production Linux, HA, performance,
+    security, compliance, and customer validation in a separate release
+    checklist
 
 ## Current Behavior
 
@@ -1058,6 +1068,7 @@ Available pack keys include:
 - `colubris`
 - `openwifi`
 - `mist`
+- `long-tail`
 
 Only enable a vendor pack after the AP, switch, controller, or upstream policy system is prepared to consume those attributes. A FreeRADIUS dictionary lets AegisNAS name and render an attribute; it does not guarantee that a device will enforce that attribute.
 
@@ -1067,7 +1078,7 @@ The same enabled compatibility packs are also used for inbound parsing of Vendor
 
 Unknown attributes are not trusted or forwarded by default. If a proxy workflow must preserve a long-tail vendor token before AegisNAS has native semantics for it, configure `radius.vendor.opaque_pass_through` with an explicit `standard`, `vendor`, or `vendor_attribute` allow rule and review `/api/v1/system/opaque-passthrough`. Credential, EAP, tunnel-secret, and packet-integrity attributes are always denied as opaque payloads.
 
-The executable compatibility set includes Meraki AP tags, Palo Alto client OS, Airespace WLAN IDs, Arista profiling, Aerohive client-monitor problem codes, Meru AP IDs, Cambium quota/walled-garden state, TP-Link Omada site/group/portal state, D-Link role/VLAN/ACL state, and MikroTik RouterOS PPP, hotspot, CAPsMAN, DHCP option, quota, rate, address-list, switching-filter, IPv4, IPv6, tenant, and mark-id state as inbound accounting or policy context. Aerohive problem codes are retained as decimal strings because the vendor dictionary defines the attribute as an integer without portable value labels. Safe outbound additions include HP `Egress-VLANID`, Cambium `Cambium-Walled-Garden-State` and `Cambium-Traffic-Quota-Limit-Total`, Colubris `Intercept` and `AVPair`, D-Link `Dlink-ACL-Profile` and `Dlink-ACL-Rule`, MikroTik `Mikrotik-Rate-Limit`, `Mikrotik-Group`, `Mikrotik-Address-List`, `Mikrotik-Switching-Filter`, `Mikrotik-Total-Limit`, `Mikrotik-Total-Limit-Gigawords`, and `Mikrotik-Wireless-VLANID`, plus Pica8 and Nokia `AVPair` policy tags. These attributes remain opt-in through their vendor packs. Vendor-specific dynamic-ACL grammars remain profile-bound until an operator template or certified encoding is configured.
+The executable compatibility set includes Meraki AP tags, Palo Alto client OS, Airespace WLAN IDs, Arista profiling, Aerohive client-monitor problem codes, Meru AP IDs, Cambium quota/walled-garden state, TP-Link Omada site/group/portal state, D-Link role/VLAN/ACL state, MikroTik RouterOS PPP, hotspot, CAPsMAN, DHCP option, quota, rate, address-list, switching-filter, IPv4, IPv6, tenant, and mark-id state, plus NAS-0072 long-tail namespace role, VLAN, ACL/filter, bandwidth, quota, portal, address, route, VRF, posture, tenant, controller, certificate, accounting, CoA, typed pass-through, and redacted secret evidence as inbound accounting or policy context. Aerohive problem codes are retained as decimal strings because the vendor dictionary defines the attribute as an integer without portable value labels. Safe outbound additions include HP `Egress-VLANID`, Cambium `Cambium-Walled-Garden-State` and `Cambium-Traffic-Quota-Limit-Total`, Colubris `Intercept` and `AVPair`, D-Link `Dlink-ACL-Profile` and `Dlink-ACL-Rule`, MikroTik `Mikrotik-Rate-Limit`, `Mikrotik-Group`, `Mikrotik-Address-List`, `Mikrotik-Switching-Filter`, `Mikrotik-Total-Limit`, `Mikrotik-Total-Limit-Gigawords`, and `Mikrotik-Wireless-VLANID`, plus Pica8 and Nokia `AVPair` policy tags. These attributes remain opt-in through their vendor packs. Vendor-specific dynamic-ACL grammars remain profile-bound until an operator template or certified encoding is configured.
 
 Example upstream Access-Accept reply:
 

@@ -620,6 +620,7 @@ func (r *AttributeRegistry) applyRuntimeAnnotations(vendors map[string]struct{})
 	r.applyNokiaALURuntimeProfile()
 	r.applyMikroTikRuntimeProfile()
 	r.applySwitchingVendorRuntimeProfile()
+	r.applyLongTailNamespaceRuntimeProfile()
 }
 
 func (r *AttributeRegistry) applyRuckusICXRuntimeProfile() {

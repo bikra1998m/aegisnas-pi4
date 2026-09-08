@@ -590,6 +590,36 @@ curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
   http://127.0.0.1:8083/api/v1/system/switching-vendor-pack/record | jq '.event_id, .status'
 ```
 
+NAS-0072 exposes the long-tail typed namespace software certification report
+for all 1,126 pinned rows across 92 remaining in-corpus FreeRADIUS vendor
+namespaces:
+
+```text
+GET  /api/v1/system/long-tail-namespaces
+POST /api/v1/system/long-tail-namespaces/record
+GET  /api/v1/system/long-tail-namespaces/history
+```
+
+The report covers deterministic dictionary classification, neutral semantics
+for role, VLAN, ACL/filter, bandwidth, quota, portal, address, route, VRF,
+posture, tenant, controller, certificate, accounting, and CoA evidence,
+bounded typed pass-through for vendor-specific rows, and redaction for token,
+password, key, secret, certificate, challenge, and private material. `record`
+persists the current source hash, fingerprint, counts, summary JSON, full
+report JSON, actor, and timestamp in `long_tail_namespace_events`. External
+hardware, controller, firmware, FreeRADIUS-on-Linux, CoA/Disconnect, HA,
+performance, soak, security, production deployment, compliance, and customer
+acceptance proof remains in
+[nas-0072-release-certification-checklist.md](nas-0072-release-certification-checklist.md).
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/long-tail-namespaces | jq '.report.summary'
+
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/long-tail-namespaces/record | jq '.event_id, .status'
+```
+
 The API also provides a non-mutating reply preview endpoint:
 
 ```text

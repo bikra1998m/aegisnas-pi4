@@ -334,6 +334,36 @@ CoA/Disconnect, HA, performance, soak, security, and customer acceptance proof
 stays in
 [nas-0071-release-certification-checklist.md](nas-0071-release-certification-checklist.md).
 
+## Long-Tail Namespace Operations
+
+Use [long-tail-namespace-program.md](long-tail-namespace-program.md) for
+NAS-0072 software certification of all 1,126 pinned rows across 92 remaining
+in-corpus FreeRADIUS vendor namespaces. Before claiming the software release is
+ready for external validation, run:
+
+```bash
+curl -fsS -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/long-tail-namespaces | jq '.report.summary'
+```
+
+After automated tests pass, record the current fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  http://127.0.0.1:8083/api/v1/system/long-tail-namespaces/record | jq '.event_id, .status'
+```
+
+Run the feature gate locally or in CI with:
+
+```bash
+make test-long-tail-namespace
+```
+
+External long-tail hardware, controllers, FreeRADIUS production Linux,
+CoA/Disconnect, HA, performance, soak, security, compliance, and customer
+acceptance proof stays in
+[nas-0072-release-certification-checklist.md](nas-0072-release-certification-checklist.md).
+
 ## PostgreSQL Data-Plane Operations
 
 Use [postgresql-data-plane.md](postgresql-data-plane.md) for NAS-0008

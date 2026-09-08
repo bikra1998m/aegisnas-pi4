@@ -165,6 +165,12 @@ The current codebase now has a working form of this model through:
   and WebAuth hints, session remediation, VRF, device/posture context,
   administrative identity, accounting evidence, API/UI evidence, and external
   release certification split
+- NAS-0072 long-tail typed namespace program certification for all 1,126 pinned
+  rows across 92 remaining in-corpus FreeRADIUS vendor namespaces, with neutral
+  role, VLAN, ACL/filter, bandwidth, quota, portal, address, route, VRF,
+  posture, tenant, controller, certificate, accounting, CoA, typed
+  pass-through, redacted secret evidence, API/UI evidence, and external release
+  certification split
 
 That work lives primarily in:
 
@@ -182,6 +188,7 @@ That work lives primarily in:
 - `configs/nokia_alu_pack.go`
 - `configs/mikrotik_pack.go`
 - `configs/switching_vendor_pack.go`
+- `configs/long_tail_namespace.go`
 - `internal/radius/cisco_avpair.go`
 - `internal/radius/aruba_family.go`
 - `internal/radius/juniper_extreme.go`
@@ -189,12 +196,15 @@ That work lives primarily in:
 - `internal/radius/nokia_alu.go`
 - `internal/radius/mikrotik.go`
 - `internal/radius/switching_vendor.go`
+- `internal/radius/long_tail_namespace.go`
 - `internal/db/nokia_alu_pack.go`
 - `internal/db/mikrotik_pack.go`
 - `internal/db/switching_vendor_pack.go`
+- `internal/db/long_tail_namespace.go`
 - `internal/adminapi/nokia_alu_pack.go`
 - `internal/adminapi/mikrotik_pack.go`
 - `internal/adminapi/switching_vendor_pack.go`
+- `internal/adminapi/long_tail_namespace.go`
 - `internal/radius/vendor.go`
 - `web/admin-ui/src/pages/AccessSettings.tsx`
 - `web/admin-ui/src/pages/VendorCompatibility.tsx`

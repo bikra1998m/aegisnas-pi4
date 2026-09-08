@@ -91,8 +91,8 @@ var defaultDictionaryReleaseContract = dictionaryReleaseContract{profile: Dictio
 	SourceAttributeCount:    7654,
 	EffectiveAttributeCount: 7661,
 	VendorCount:             196,
-	MappedAttributeCount:    1147,
-	RuntimeDecoderCount:     1071,
+	MappedAttributeCount:    2254,
+	RuntimeDecoderCount:     2071,
 	VendorAliases: []DictionaryVendorAlias{
 		vendorAlias("aegis", AegisNASVendorName, VendorPackAegisNAS, AegisNASPlaceholderVendorID, "product dictionary"),
 		vendorAlias("aegisnas-vsa", AegisNASVendorName, VendorPackAegisNAS, AegisNASPlaceholderVendorID, "product dictionary"),
@@ -213,6 +213,7 @@ var defaultDictionaryReleaseContract = dictionaryReleaseContract{profile: Dictio
 		firmwareProfile("alu-aaa", "ALU-AAA", VendorPackALUAAA, 831, "ALU-AAA", "ALU-AAA dictionaries carrying access rules, AV-Pairs, service profiles, mobile-auth evidence, location, voice, and event state", []string{"enterprise", "custom"}, "software-ready", "external-certification-required", []string{"ALU-AAA-Access-Rule", "ALU-AAA-AV-Pair", "ALU-AAA-Service-Profile", "ALU-AAA-Delta-Session"}),
 		firmwareProfile("starent-staros", "Starent", VendorPackStarent, 8164, "StarOS / Cisco ASR mobile core", "Starent and Cisco ASR mobile-core dictionaries exposing SN-NAT-IP-Address and subscriber pool selectors", []string{"enterprise", "custom"}, "software-ready", "external-certification-required", []string{"SN-NAT-IP-Address", "SN-IP-Pool-Name"}),
 		firmwareProfile("openwifi-tip", "OpenWiFi", VendorPackOpenWiFi, 58888, "TIP OpenWiFi", "TIP OpenWiFi controller integrations and AP identity attributes", []string{"branch", "enterprise", "custom"}, "software-ready", "external-certification-required", []string{"OpenWiFi-AP-MAC-Address", "controller.policy_sync"}),
+		firmwareProfile("long-tail-freeradius-namespaces", "Long-Tail FreeRADIUS Corpus", VendorPackLongTail, 0, "Long-tail vendor namespaces", "NAS-0072 typed namespace program covering the remaining in-corpus vendors assigned to the long-tail roadmap wave", []string{"lite", "branch", "enterprise", "custom"}, "software-ready", "external-certification-required", []string{"1,126 NAS-0072 registry-backed VSA rows"}),
 	},
 	Notes: []string{
 		"Profile activation is build-time and immutable for this release; external evidence state is tracked separately from dictionary metadata.",
@@ -316,6 +317,10 @@ func NormalizeDictionaryPackAlias(profileID, key string) string {
 	key = strings.ToLower(strings.TrimSpace(key))
 	if key == "" {
 		return ""
+	}
+	switch normalizedDictionaryReleaseKey(key) {
+	case "long-tail", "longtail", "long-tail-namespace", "long-tail-namespaces", "typed-long-tail", "typed-longtail", "nas-0072":
+		return VendorPackLongTail
 	}
 	profile := dictionaryReleaseBaseProfileByID(profileID)
 	for _, alias := range profile.VendorAliases {

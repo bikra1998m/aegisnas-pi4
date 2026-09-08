@@ -769,6 +769,47 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		switchingVendorPackStatus = map[string]any{"status": "blocked", "message": err.Error()}
 	}
+	longTailNamespaceStatus := map[string]any{
+		"status":  "unknown",
+		"message": "NAS-0072 long-tail namespace program has not been evaluated.",
+	}
+	if longTailNamespace, err := buildLongTailNamespaceForRequest(); err == nil {
+		status := "ready"
+		message := fmt.Sprintf("NAS-0072 software certification covers %d/%d long-tail namespace rows across %d dictionary vendors and %d product scopes.",
+			longTailNamespace.Summary.SoftwareCertifiedMappings,
+			longTailNamespace.Summary.AttributeCount,
+			longTailNamespace.Summary.VendorCount,
+			longTailNamespace.Summary.ProductScopeCount,
+		)
+		if err := productconfigs.ValidateLongTailNamespaceReport(longTailNamespace); err != nil {
+			status = "blocked"
+			message = "NAS-0072 long-tail namespace program is incomplete: " + err.Error()
+		}
+		historySummary, historyErr := db.GetLongTailNamespaceSummary()
+		longTailNamespaceStatus = map[string]any{
+			"status":                              status,
+			"message":                             message,
+			"schema_version":                      longTailNamespace.SchemaVersion,
+			"feature_id":                          longTailNamespace.FeatureID,
+			"source_sha256":                       longTailNamespace.SourceSHA256,
+			"attribute_count":                     longTailNamespace.Summary.AttributeCount,
+			"software_certified_mappings":         longTailNamespace.Summary.SoftwareCertifiedMappings,
+			"software_blocked_mappings":           longTailNamespace.Summary.SoftwareBlockedMappings,
+			"external_required_mappings":          longTailNamespace.Summary.ExternalRequiredMappings,
+			"software_completion_percent":         longTailNamespace.Summary.SoftwareCompletionPercent,
+			"grammar_rule_count":                  longTailNamespace.Summary.GrammarRuleCount,
+			"sensitive_redacted_mappings":         longTailNamespace.Summary.SensitiveRedactedMappings,
+			"product_scope_count":                 longTailNamespace.Summary.ProductScopeCount,
+			"vendor_count":                        longTailNamespace.Summary.VendorCount,
+			"fingerprint":                         longTailNamespace.Summary.Fingerprint,
+			"release_certification_checklist":     "docs/nas-0072-release-certification-checklist.md",
+			"release_certification_external_only": true,
+			"evidence_summary":                    historySummary,
+			"evidence_error":                      rateCompilerErrorString(historyErr),
+		}
+	} else {
+		longTailNamespaceStatus = map[string]any{"status": "blocked", "message": err.Error()}
+	}
 
 	radiusStatus := map[string]any{
 		"upstream_enabled":        cfg.Radius.Upstream.Enabled,
@@ -838,6 +879,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"nokia_alu_pack":               nokiaALUPackStatus,
 		"mikrotik_pack":                mikroTikPackStatus,
 		"switching_vendor_pack":        switchingVendorPackStatus,
+		"long_tail_namespace_program":  longTailNamespaceStatus,
 		"address_policy": map[string]any{
 			"status":                 addressPolicyStatus(addressPolicy),
 			"message":                addressPolicyMessage(addressPolicy, addressPolicySummary),

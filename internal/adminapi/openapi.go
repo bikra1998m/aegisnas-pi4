@@ -1322,6 +1322,20 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("Persisted enterprise switching vendor pack certification event summary and recent events."),
 	}))
+	addOperation(paths, "/api/v1/system/long-tail-namespaces", "get", securedOperationWithParameters("Read NAS-0072 long-tail namespace certification", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("history_limit", "Recent persisted event count from 1 to 500; defaults to 20.", false),
+	}, map[string]any{
+		"200": responseJSON("Software certification report for 92 long-tail FreeRADIUS vendor namespaces and 1,126 VSA rows covering typed evidence, neutral semantics, secret redaction, policy classification, packet safety, and external certification scope."),
+	}))
+	addOperation(paths, "/api/v1/system/long-tail-namespaces/record", "post", securedOperationWithBody("Record NAS-0072 long-tail namespace certification evidence", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional operator note; the server derives the long-tail namespace report from the pinned FreeRADIUS registry and AegisNAS runtime annotations."), map[string]any{
+		"200": responseJSON("Persisted long-tail namespace certification event and derived report."),
+		"409": responseJSON("Long-tail namespace report was recorded as blocked because software coverage is incomplete."),
+	}))
+	addOperation(paths, "/api/v1/system/long-tail-namespaces/history", "get", securedOperationWithParameters("Read NAS-0072 long-tail namespace certification history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Event count from 1 to 500; defaults to 100.", false),
+	}, map[string]any{
+		"200": responseJSON("Persisted long-tail namespace certification event summary and recent events."),
+	}))
 	addOperation(paths, "/api/v1/system/vsa-codec", "get", securedOperation("Read VSA codec capabilities", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Extended, grouped, tagged, and repeated VSA codec readiness."),
 	}))

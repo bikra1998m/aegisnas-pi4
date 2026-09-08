@@ -1,6 +1,6 @@
 # Enterprise NAS/AAA Master Implementation Roadmap
 
-Status: planning baseline derived from the repository audit and operational documentation. This document defines backlog and release governance only; it does not claim that any listed capability is implemented.
+Status: implementation roadmap derived from the repository audit and operational documentation, with engineering progress recorded through NAS-0072. This document defines backlog and release governance; external certification remains tracked in per-feature release checklists.
 
 ## Canonical roadmap artifacts
 
@@ -27,16 +27,16 @@ The roadmap was reconciled against all audit, architecture, deployment, security
 |---|---:|---:|
 | FreeRADIUS release | 3.2.8 at pinned commit | Automated release tracking required |
 | Dictionary files | 246 | Every release delta must be classified |
-| Vendor namespaces | 195 | 167 currently have no mapped attribute |
-| Attributes | 7,654 | 7,513 missing; 141 partial |
-| Raw mapped attributes | 1.842% | 98.158% |
-| Weighted VSA completion | 0.921% | 99.079% |
-| Vendor-superset score | 9.6% | 90.4% |
-| Enterprise readiness | 38% | 62% |
+| Vendor namespaces | 195 | 70 currently have no software-mapped attribute |
+| Attributes | 7,654 | 5,400 missing; 2,254 software-mapped |
+| Raw software-mapped attributes | 29.449% | 70.551% |
+| Weighted VSA software completion | 29.449% | 70.551% |
+| Vendor-superset engineering score | 29.6% | 70.4% |
+| Enterprise release readiness | Release-gated | Per-feature certification checklists required |
 
-The primary completion baseline is therefore **90.4% remaining for vendor-superset scope** and **62% remaining for enterprise production readiness**. Attribute counting alone is not a product-readiness score.
+The current engineering snapshot is therefore **70.4% remaining for vendor-superset engineering scope**. Attribute counting alone is not a product-readiness score, and external certification evidence remains separate from software feature completion.
 
-Dictionary presence is protocol vocabulary, not behavioral implementation. A feature is complete only when authoritative semantics, typed wire processing, policy, persistence, enforcement, API/UI, observability, migration, HA behavior, and applicable real-device evidence all exist.
+Dictionary presence is protocol vocabulary, not behavioral implementation. A software feature is complete only when authoritative semantics, typed wire processing, policy, persistence, enforcement, API/UI, observability, migration, HA behavior, automated tests, and documentation exist. Applicable real-device, third-party, customer, compliance, soak, and certification evidence is tracked separately in release certification checklists.
 
 Storage-NAS functionality is outside this AAA/NAS roadmap unless product governance explicitly adds it. Controller-only vendors or integrations outside the pinned FreeRADIUS corpus enter through `NAS-0073` and cannot silently inflate dictionary compatibility.
 
@@ -78,8 +78,13 @@ Every feature must satisfy all of these gates before its status becomes Complete
 6. Metrics, traces, logs, SLOs, rate limits, retention, and cardinality budgets are defined.
 7. Security review covers secrets, authorization, privacy, abuse, cryptography, and dependency provenance.
 8. Performance and resource-tier limits pass for Lite, Branch, and Enterprise profiles where applicable.
-9. FreeRADIUS interoperability and exact vendor device/controller model and firmware tests pass where applicable.
-10. Documentation, support matrix, migration, rollback, and operator recovery procedures are published.
+9. Automated FreeRADIUS-compatible packet tests and simulator/golden interop tests pass where applicable.
+10. Documentation, support matrix, migration, rollback, operator recovery procedures, and a release certification checklist are published.
+
+External FreeRADIUS production Linux, exact vendor device or controller model,
+firmware, long-duration soak, independent security audit, compliance, customer
+acceptance, and production deployment proof are release certification gates.
+They do not block engineering completion of a roadmap feature.
 
 ## Capability phases
 
@@ -203,6 +208,7 @@ The phases are ownership lanes. The executable order is the dependency-resolved 
 - [x] NAS-0069 engineering implementation complete; external release evidence is tracked in `nas-0069-release-certification-checklist.md`.
 - [x] NAS-0070 engineering implementation complete; external release evidence is tracked in `nas-0070-release-certification-checklist.md`.
 - [x] NAS-0071 engineering implementation complete; external release evidence is tracked in `nas-0071-release-certification-checklist.md`.
+- [x] NAS-0072 engineering implementation complete; external release evidence is tracked in `nas-0072-release-certification-checklist.md`.
 - [ ] Phase 7 exit gate accepted; NAS-0060..NAS-0073 Complete.
 - [ ] Phase 8 exit gate accepted; NAS-0074..NAS-0081 Complete.
 - [ ] Phase 9 exit gate accepted; NAS-0082..NAS-0091 Complete.

@@ -47,6 +47,7 @@ const (
 	VendorPackColubris    = "colubris"
 	VendorPackOpenWiFi    = "openwifi"
 	VendorPackMist        = "mist"
+	VendorPackLongTail    = "long-tail"
 )
 
 type VendorCompatibilityPack struct {
@@ -1196,6 +1197,26 @@ func AegisNASVendorCompatibilityPacks() []VendorCompatibilityPack {
 				{Semantic: VendorSemanticControllerHealth, Attribute: "controller.sync_health", Direction: "controller_api", ValueType: "record", CompatibilityState: "implemented"},
 			},
 			Notes: []string{"Mist compatibility is controller-API oriented; RADIUS reply rendering stays standards-based until site policy templates are configured."},
+		},
+		{
+			Key:              VendorPackLongTail,
+			Label:            "Long-Tail FreeRADIUS Namespaces",
+			VendorName:       "Long-Tail FreeRADIUS Corpus",
+			DefaultEnabled:   false,
+			HardwareProfiles: allProfiles,
+			Attributes:       []VendorPackAttributeMapping{},
+			FeatureTemplates: []VendorPackFeatureTemplate{
+				{Feature: VendorSemanticRole, Direction: "inbound,outbound_reply", ValueType: "typed", CompatibilityState: "implemented", Attributes: []string{"role, group, privilege, profile, command, shell, and CLI context rows"}},
+				{Feature: VendorSemanticVLAN, Direction: "inbound,outbound_reply", ValueType: "typed", CompatibilityState: "implemented", Attributes: []string{"VLAN, SSID, WLAN, bridge, segment, and QinQ context rows"}},
+				{Feature: VendorSemanticDynamicACL, Direction: "inbound,outbound_reply", ValueType: "typed", CompatibilityState: "implemented", Attributes: []string{"ACL, filter, firewall, rule, and AVPair policy rows"}},
+				{Feature: VendorSemanticBandwidthProfile, Direction: "inbound,outbound_reply", ValueType: "typed", CompatibilityState: "implemented", Attributes: []string{"rate, bandwidth, QoS, DSCP, queue, priority, and burst rows"}},
+				{Feature: VendorSemanticAccountingIdentity, Direction: "inbound,accounting", ValueType: "typed", CompatibilityState: "implemented", Attributes: []string{"session, subscriber, NAS, AP, interface, and accounting identity rows"}},
+				{Feature: VendorSemanticCertificateOnboarding, Direction: "inbound", ValueType: "redacted", CompatibilityState: "implemented", Attributes: []string{"password, PSK, token, nonce, challenge, response, and credential rows"}},
+			},
+			Notes: []string{
+				"NAS-0072 classifies 92 long-tail vendor namespaces and 1,126 pinned FreeRADIUS rows as typed software-ready evidence with neutral semantics and explicit external certification boundaries.",
+				"Focused packs keep their own pack keys where they already exist; this pack gates only remaining long-tail runtime decoders and report visibility.",
+			},
 		},
 	})
 }

@@ -761,6 +761,7 @@ type BroadbandVendorPackPayload = {
 type NokiaALUPackPayload = BroadbandVendorPackPayload;
 type MikroTikPackPayload = BroadbandVendorPackPayload;
 type SwitchingVendorPackPayload = BroadbandVendorPackPayload;
+type LongTailNamespacePayload = BroadbandVendorPackPayload;
 
 type VendorDictionaryCoverageRow = {
   pack_key: string;
@@ -1245,6 +1246,9 @@ export default function VendorCompatibility() {
   const [switchingVendorPack, setSwitchingVendorPack] = useState<SwitchingVendorPackPayload | null>(null);
   const [switchingVendorPackBusy, setSwitchingVendorPackBusy] = useState(false);
   const [switchingVendorPackError, setSwitchingVendorPackError] = useState('');
+  const [longTailNamespace, setLongTailNamespace] = useState<LongTailNamespacePayload | null>(null);
+  const [longTailNamespaceBusy, setLongTailNamespaceBusy] = useState(false);
+  const [longTailNamespaceError, setLongTailNamespaceError] = useState('');
   const [vsaCodec, setVSACodec] = useState<VSACodecPayload | null>(null);
   const [vsaCodecError, setVSACodecError] = useState('');
   const [opaquePassThrough, setOpaquePassThrough] = useState<OpaquePassThroughPayload | null>(null);
@@ -1263,6 +1267,7 @@ export default function VendorCompatibility() {
   const canRecordNokiaALUPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
   const canRecordMikroTikPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
   const canRecordSwitchingVendorPack = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
+  const canRecordLongTailNamespace = identity?.role === 'super_admin' || identity?.role === 'ops_admin';
 
   const fetchVendorIdentity = async () => {
     try {
@@ -1687,6 +1692,31 @@ export default function VendorCompatibility() {
     }
   };
 
+  const fetchLongTailNamespace = async () => {
+    setLongTailNamespaceError('');
+    try {
+      const { data } = await api.get<LongTailNamespacePayload>('/system/long-tail-namespaces?history_limit=5');
+      setLongTailNamespace(data);
+    } catch (err: any) {
+      setLongTailNamespaceError(apiErrorMessage(err, 'Could not load NAS-0072 long-tail namespace program.'));
+    }
+  };
+
+  const recordLongTailNamespace = async () => {
+    setLongTailNamespaceBusy(true);
+    setLongTailNamespaceError('');
+    setMessage('');
+    try {
+      await api.post('/system/long-tail-namespaces/record', {});
+      setMessage('NAS-0072 long-tail namespace evidence recorded.');
+      await fetchLongTailNamespace();
+    } catch (err: any) {
+      setLongTailNamespaceError(apiErrorMessage(err, 'Could not record NAS-0072 long-tail namespace evidence.'));
+    } finally {
+      setLongTailNamespaceBusy(false);
+    }
+  };
+
   const fetchVSACodec = async () => {
     setVSACodecError('');
     try {
@@ -1803,6 +1833,7 @@ export default function VendorCompatibility() {
     void fetchNokiaALUPack();
     void fetchMikroTikPack();
     void fetchSwitchingVendorPack();
+    void fetchLongTailNamespace();
     void fetchVSACodec();
     void fetchOpaquePassThrough();
   }, []);
@@ -1896,6 +1927,13 @@ export default function VendorCompatibility() {
   const switchingVendorPackCapabilities = switchingVendorPack?.report.capability_summaries || [];
   const switchingVendorPackGrammar = switchingVendorPack?.report.grammar || [];
   const switchingVendorProductScopes = switchingVendorPack?.report.product_scopes || [];
+  const longTailNamespaceSummary = longTailNamespace?.report.summary;
+  const longTailNamespaceComplete = Boolean(longTailNamespaceSummary && longTailNamespaceSummary.software_certified_mappings === longTailNamespaceSummary.attribute_count && longTailNamespaceSummary.software_blocked_mappings === 0);
+  const longTailNamespaceRecords = longTailNamespace?.report.records || [];
+  const longTailNamespaceVendors = longTailNamespace?.report.vendor_summaries || [];
+  const longTailNamespaceCapabilities = longTailNamespace?.report.capability_summaries || [];
+  const longTailNamespaceGrammar = longTailNamespace?.report.grammar || [];
+  const longTailNamespaceProductScopes = longTailNamespace?.report.product_scopes || [];
   const plannedSemantics = useMemo(
     () => (payload?.semantics || []).filter((item) => item.compatibility_state !== 'implemented'),
     [payload?.semantics],
@@ -1918,7 +1956,7 @@ export default function VendorCompatibility() {
           <p className="mt-1 text-sm text-gray-600">Confirm deployed NAS profiles, reply packs, and vendor dictionary coverage before changing access policy.</p>
         </div>
         <button
-          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchArubaFamilyPack(); void fetchJuniperExtremePack(); void fetchRuckusICXPack(); void fetchFortinetPaloAltoPack(); void fetchCloudControllerPack(); void fetchAccessVendorPack(); void fetchBroadbandVendorPack(); void fetchNokiaALUPack(); void fetchMikroTikPack(); void fetchSwitchingVendorPack(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
+          onClick={() => { void fetchCompatibility(true); void fetchVendorIdentity(); void fetchAttributeRegistry(false); void fetchCompatibilityEvidence(false); void fetchMappingCertification(); void fetchCiscoFamilyPack(); void fetchArubaFamilyPack(); void fetchJuniperExtremePack(); void fetchRuckusICXPack(); void fetchFortinetPaloAltoPack(); void fetchCloudControllerPack(); void fetchAccessVendorPack(); void fetchBroadbandVendorPack(); void fetchNokiaALUPack(); void fetchMikroTikPack(); void fetchSwitchingVendorPack(); void fetchLongTailNamespace(); void fetchVSACodec(); void fetchOpaquePassThrough(); }}
           disabled={loading}
           className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
         >
@@ -2057,6 +2095,130 @@ export default function VendorCompatibility() {
                 </div>
               ) : null}
             </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">NAS-0072 Long-Tail FreeRADIUS Namespaces</h3>
+                <p className="mt-1 text-sm text-gray-600">Certify typed handling for the remaining in-corpus vendor namespaces while device proof stays in release certification.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {longTailNamespaceSummary ? (
+                  <StatusBadge tone={longTailNamespaceComplete ? 'green' : 'amber'}>
+                    {formatPercent(longTailNamespaceSummary.software_completion_percent)} software
+                  </StatusBadge>
+                ) : null}
+                {canRecordLongTailNamespace ? (
+                  <button
+                    type="button"
+                    onClick={() => void recordLongTailNamespace()}
+                    disabled={longTailNamespaceBusy || !longTailNamespaceComplete}
+                    className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {longTailNamespaceBusy ? 'Recording...' : 'Record Evidence'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {longTailNamespaceError ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{longTailNamespaceError}</div> : null}
+            {longTailNamespaceSummary ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="Namespace Rows" value={longTailNamespaceSummary.attribute_count} hint="All pinned long-tail vendor rows from the FreeRADIUS audit." />
+                  <StatCard label="Software Certified" value={longTailNamespaceSummary.software_certified_mappings} hint={`${longTailNamespaceSummary.software_blocked_mappings} software blockers.`} />
+                  <StatCard label="Dictionary Vendors" value={longTailNamespaceSummary.vendor_count} hint={`${longTailNamespaceSummary.native_semantic_mappings} native semantic mappings.`} />
+                  <StatCard label="Product Scopes" value={longTailNamespaceSummary.product_scope_count} hint="Access, security, ISP, controller, time, UPS, and token namespaces." />
+                  <StatCard label="Grammar Rules" value={longTailNamespaceSummary.grammar_rule_count} hint="Typed string, integer, IP, IPv6, MAC, hex, redaction, and AVPair handling." />
+                  <StatCard label="Storage Events" value={longTailNamespace?.evidence.summary.total_events || 0} hint={longTailNamespace?.evidence.summary.last_event_at ? `Last ${new Date(longTailNamespace.evidence.summary.last_event_at).toLocaleString()}` : 'No persisted event yet.'} />
+                  <StatCard label="Ready For Lab" value={longTailNamespaceSummary.ready_for_external_validation_mappings} hint="Software-ready rows awaiting release proof." />
+                  <StatCard label="Redacted Secrets" value={longTailNamespaceSummary.sensitive_redacted_mappings} hint="Token, key, password, and secret evidence is redacted." />
+                </div>
+
+                <div className="mt-4 rounded-md border border-gray-200 p-4">
+                  <div className="text-xs font-semibold uppercase text-gray-500">Namespace Fingerprint</div>
+                  <div className="mt-2 break-all text-sm font-medium text-gray-900">{longTailNamespaceSummary.fingerprint}</div>
+                  <p className="mt-2 text-sm text-gray-600">{longTailNamespace?.release_scope}</p>
+                </div>
+
+                <div className="mt-4 grid gap-4 xl:grid-cols-4">
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Vendor', 'Rows', 'State'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {longTailNamespaceVendors.slice(0, 16).map((vendor) => (
+                          <tr key={`${vendor.vendor}-${vendor.pen}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{vendor.vendor}<div className="text-xs text-gray-500">PEN {vendor.pen}{vendor.pack_key ? ` / ${vendor.pack_key}` : ''}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{vendor.software_certified_mappings}/{vendor.attribute_count}<div className="text-xs text-gray-500">{vendor.external_required_mappings} external</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{formatPercent(vendor.software_completion_percent)}</StatusBadge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Product Scope', 'Dictionary', 'State'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {longTailNamespaceProductScopes.slice(0, 12).map((scope) => (
+                          <tr key={`${scope.key}-${scope.label}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{scope.label}<div className="text-xs text-gray-500">{joinList(scope.products)}</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{scope.dictionary}<div className="text-xs text-gray-500">{joinList(scope.vendors)}</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{evidenceLabel(scope.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{evidenceLabel(scope.external_state)}</div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Capability', 'Rows', 'Mapping'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {longTailNamespaceCapabilities.slice(0, 10).map((capability) => (
+                          <tr key={capability.capability}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{evidenceLabel(capability.capability)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{capability.software_certified_mappings}/{capability.attribute_count}<div className="text-xs text-gray-500">{capability.external_required_mappings} external</div></td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{capability.native_semantic_mappings} native<div className="text-xs text-gray-500">{capability.typed_passthrough_mappings} pass-through</div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50"><tr>{['Grammar', 'State', 'Example'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {longTailNamespaceGrammar.slice(0, 10).map((grammar) => (
+                          <tr key={grammar.key}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{grammar.label}<div className="text-xs text-gray-500">{grammar.kind}</div></td>
+                            <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{grammar.parser_state}</StatusBadge><div className="mt-1 text-xs text-gray-500">{grammar.external_state}</div></td>
+                            <td className="px-4 py-3 text-xs text-gray-700">{grammar.examples?.[0] || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="mt-4 overflow-x-auto rounded-md border border-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50"><tr>{['Attribute', 'Capability', 'Software', 'Handling'].map((label) => <th key={label} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">{label}</th>)}</tr></thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {longTailNamespaceRecords.slice(0, 16).map((record) => (
+                        <tr key={record.id}>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{record.attribute}<div className="text-xs text-gray-500">{record.vendor} / {record.wire_key}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{evidenceLabel(record.capability)}<div className="text-xs text-gray-500">{joinList(record.directions)}</div></td>
+                          <td className="px-4 py-3 text-sm"><StatusBadge tone="green">{evidenceLabel(record.software_state)}</StatusBadge><div className="mt-1 text-xs text-gray-500">{record.claim_state}</div></td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{evidenceLabel(record.implementation_class)}<div className="text-xs text-gray-500">{evidenceLabel(record.packet_processing)}</div></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">{longTailNamespace?.release_certification_checklist} keeps hardware, FreeRADIUS Linux, HA, soak, security audit, customer acceptance, and compliance proof outside engineering completion.</p>
+              </>
+            ) : null}
           </section>
 
           <section className="mt-6">

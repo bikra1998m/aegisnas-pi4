@@ -2,6 +2,8 @@
 
 Audit date: 2026-07-07
 
+Software progress updated through NAS-0072 on 2026-09-08.
+
 ## Verdict
 
 No. AegisNAS is not a complete enterprise-grade NAS/AAA platform and is not a
@@ -24,21 +26,23 @@ The strict result is:
 | Dictionary files scanned | 246 |
 | Parsed upstream vendor namespaces | 195 |
 | Parsed upstream attributes | 7,654 |
-| Third-party attributes with some actual packet mapping | 141 |
-| Third-party attributes with no project packet mapping | 7,513 |
-| Vendor namespaces with any mapped attribute | 28 / 195 (14.36%) |
-| Raw attribute mapping coverage | 1.842% |
-| Weighted functional VSA completion | 0.921% |
+| Third-party attributes with software packet mapping | 2,254 |
+| Third-party attributes with no project packet mapping | 5,400 |
+| Vendor namespaces with any software-mapped attribute | 125 / 195 (64.10%) |
+| Raw software attribute mapping coverage | 29.449% |
+| Weighted functional VSA software completion | 29.449% |
 | Cross-domain feature completion | 29.8% |
-| Overall vendor-superset completion | **9.6%** |
+| Overall vendor-superset engineering completion | **29.6%** |
 | Enterprise production readiness | **38%** |
 
-`Overall vendor-superset completion` weights the dictionary/VSA result at 70%
-and the 26 product capability domains at 30%. `Weighted functional VSA
-completion` gives 0.5 credit to a partially implemented mapping and zero to an
-unmapped attribute. No third-party VSA receives full credit because the
-repository has no complete packet-to-policy-to-persistence-to-enforcement-to-
-UI-to-certified-device proof for any vendor.
+`Overall vendor-superset engineering completion` weights the dictionary/VSA
+software result at 70% and the 26 product capability domains at 30%.
+`Weighted functional VSA software completion` gives credit only to rows with
+implemented packet handling, policy semantics or governed typed evidence,
+persistence/API/UI visibility where applicable, automated tests, and release
+scope. External device, controller, production FreeRADIUS, HA, performance,
+soak, security, compliance, deployment, and customer proof is tracked in
+release certification checklists.
 
 The percentages are engineering audit scores, not marketing measures or a
 claim that every attribute has equal business value.
@@ -103,24 +107,27 @@ mistake this audit is intended to prevent.
 
 ## Scanner Finding
 
-The built-in scanner reports 81 exact third-party mappings from compatibility
-pack declarations. The runtime packet parser contains additional hard-coded
-inbound mappings not registered in those packs. Reconciling by PEN and wire
-attribute number finds 141 partially handled attributes across 28 namespaces.
+The built-in scanner and generated runtime registry now report 2,254
+software-mapped third-party rows across 125 namespaces after NAS-0072. The
+remaining 5,400 rows are still owned by later roadmap waves, not-applicable
+review, external intake, or release certification.
 
-This means the current compatibility API is incomplete in both directions:
+This means the current compatibility surface is materially broader, but still
+not a complete vendor superset:
 
-- it overstates pack mappings as `implemented` even when only rendering or
-  parsing exists;
-- it understates inbound mappings that exist in `vendor.go` but are absent from
-  the compatibility-pack registry;
-- vendor-name normalization misses prefixed names such as several HP, D-Link,
-  Airespace, Pica8, and ZTE attributes;
-- it does not express whether a mapped value reaches policy, storage,
-  enforcement, API/UI, and tested hardware.
+- 5,400 rows still need implementation, not-applicable review, or later
+  feature-wave ownership;
+- software-ready rows still need exact vendor hardware, controller, firmware,
+  FreeRADIUS Linux, HA, performance, soak, security, compliance, and customer
+  evidence before release certification;
+- mobile, telecom, cable, voice, and grouped AVP semantics remain owned by
+  later roadmap phases;
+- out-of-corpus vendors still require provenance, licensing, PEN validation,
+  semantic review, and versioned intake.
 
-The scanner needs a single generated registry consumed by packet code,
-compatibility reports, tests, API, and UI.
+The scanner, packet code, compatibility reports, tests, API, and UI now consume
+the same generated registry. Later roadmap waves must keep that contract intact
+instead of adding ad hoc dictionary interpretations.
 
 ## Capability Assessment
 
@@ -128,7 +135,7 @@ compatibility reports, tests, API, and UI.
 |---:|---|---:|---|---|
 | 1 | Authentication | 45% | PAP, CHAP, MS-CHAP, local bcrypt users, LDAP bind, EAP-TLS/PEAP/TTLS/MSCHAPv2 generation | No MFA/OTP/WebAuthn, MAB workflow, AD winbind/Kerberos, EAP-SIM/AKA/AKA', PWD, FAST, TEAP production path, password-change lifecycle, or identity failover policy |
 | 2 | Authorization | 35% | Roles and priority rules can assign allow/deny/quarantine, VLAN, bandwidth, timeout, portal, and ACL policy | Small condition language; no expression engine, nested policy sets, per-service authorization, command authorization, subscriber service chains, policy simulation history, or conflict analysis |
-| 3 | Accounting | 35% | Start/Stop/Interim, session time, IPv4, octets, basic identity, history and exports | No complete inbound accounting path into the AegisNAS session schema, robust duplicate/reorder handling, gigaword rollover persistence, IPv6/session-route accounting, multi-service correlation, charging records, or 7,513 vendor fields; generated FreeRADIUS SQL points at the product SQLite database, but migrations do not create the standard `radacct`/`radpostauth` tables |
+| 3 | Accounting | 35% | Start/Stop/Interim, session time, IPv4, octets, basic identity, history and exports | No complete inbound accounting path into the AegisNAS session schema, robust duplicate/reorder handling, gigaword rollover persistence, IPv6/session-route accounting, multi-service correlation, charging records, or 5,400 remaining vendor fields; generated FreeRADIUS SQL points at the product SQLite database, but migrations do not create the standard `radacct`/`radpostauth` tables |
 | 4 | CoA/Disconnect | 40% | UDP listener, shared-secret lookup, session lookup, local reclassification and termination, ACK/NAK counters | No general outbound DAC client, RFC error-cause detail, proxy CoA routing, RadSec reverse CoA, vendor command semantics, retry queues, NAS capability discovery, or cluster ownership routing |
 | 5 | 802.1X | 40% | FreeRADIUS EAP config and hostapd WPA2/WPA3 Enterprise generation | No production supplicant onboarding profiles, TEAP/EAP chaining, machine/user auth, MAB fallback, fast roaming keys, dynamic authorization across roaming, or broad switch/AP certification |
 | 6 | Enterprise Wi-Fi | 25% | Multi-BSS hostapd generation and nine controller adapters with bounded reconciliation | Dynamic VLAN hostapd output lacks a complete VLAN file/bridge lifecycle; no 802.11r/k/v, Passpoint/Hotspot 2.0, DPSK/PPSK, RF/RRM, mesh, location, rogue/WIPS, spectrum, multicast, or full controller estate management |
@@ -146,7 +153,7 @@ compatibility reports, tests, API, and UI.
 | 18 | HA/clustering | 45% | Signed/encrypted replication packages, shared state, VIP lease, fencing/witness policy, active/standby automation and drills | Package replication is not a consensus database; no synchronous session/accounting state, distributed CoA ownership, automatic conflict resolution, multi-node cluster, rolling schema quorum, or certified network partitions |
 | 19 | RADIUS proxy | 25% | One generated realm and home-server pool with failover probes | No realm routing table, regex realms, per-tenant pools, loop prevention policy, attribute filtering/rewriting, proxy accounting spool, dynamic discovery, TLS transports, or multi-hop observability |
 | 20 | RadSec | 90% | RFC 6614 X.509 mTLS listener and proxy clients, TLS 1.2/1.3, exact peer identity, CA/CRL validation, RADIUS/1.1 ALPN gating, TCP limits, auth/accounting/CoA carriage, active probes, background history, exports, API/UI, readiness checks, and local integration tests | Optional RFC 9813 TLS-PSK is a separate profile; Ubuntu package and physical Cisco/Juniper target certification remain release-lab work |
-| 21 | Vendor extensions | 10% | 32 declared packs, 141 actual partial wire mappings, preview API and counters | 7,513 attributes unmapped; no grouped/extended VSA framework, per-release dictionary versioning, semantic conflicts, opaque pass-through policy, or complete vendor packs |
+| 21 | Vendor extensions | 30% | Declared vendor packs, 2,254 software-mapped rows, generated release registry, typed VSA codec, opaque pass-through policy, major vendor-pack certification reports, long-tail typed namespace report, preview API, readiness checks, evidence histories, and support bundles | 5,400 attributes remain unmapped or owned by later feature waves; exact hardware/controller certification, grouped telecom semantics, external intake, and release publication evidence remain open |
 | 22 | NAS management | 45% | Client CRUD and NAS type, config preview/apply/rollback, diagnostics, support bundles, controller drift/push | No dynamic clients, RadSec identities, fleet inventory/config templates, firmware lifecycle, zero-touch provisioning, SNMP/NETCONF/gNMI, TACACS+, config compliance, or full RBAC approval workflow |
 | 23 | Security | 35% | TLS 1.2/1.3 bounds, CRL/OCSP options, token auth, OIDC/SAML admin SSO, RBAC, audit, signed/encrypted HA packages, firewall and rollback | Placeholder PEN, secrets in config/SQLite, no HSM/TPM/Vault abstraction, no MFA, no formal key rotation, no FIPS profile, no external security audit/SBOM attestation, and several network services are plain UDP/HTTP by design |
 | 24 | Monitoring/reporting | 50% | Prometheus exporter, status checks, histories, compatibility counters, diagnostics/support bundles and many scheduled exports | No distributed tracing, SLO/error-budget model, per-attribute decode metrics, cardinality controls, long-term analytics store, charge records, topology, capacity forecasting, or vendor-certified dashboards |
@@ -176,6 +183,7 @@ rows explain the highest-priority names and vendor families.
 | Dell/Brocade/Extreme/Arista/3Com | DellEMC 2; Force10 1; EqualLogic 9; Brocade 7; Foundry 13; Arista 10; Extreme 15; 3Com 12 | NAS-0071 software-certifies all 69 pinned rows with role/privilege mapping, command authorization context, VLAN/fabric selectors, ACL/profile assignment, AVPair grammar, QoS, captive portal/WebAuth hints, session remediation, VRF, device/posture context, administrative identity, accounting evidence, API/UI/readiness/support-bundle history | External switch firmware, controller APIs, FreeRADIUS production Linux, CoA/Disconnect ACK/NAK behavior, HA, performance, soak, security, and customer proof remain release certification |
 | TP-Link | 9 | NAS-0067 software-certifies all 9 TPLink rows with rate, site, Omada group, redirect, portal status, user-command evidence, and redacted authentication-key evidence plus API/UI/readiness/support-bundle history | Omada AP/switch/gateway/controller behavior, packet captures, HA, performance, soak, security, and customer proof remain release certification |
 | D-Link | 9 | NAS-0067 software-certifies all 9 Dlink rows with user-level, bandwidth, priority, VLAN, ACL profile, ACL rule, and ACL script handling plus API/UI/readiness/support-bundle history | D-Link/Nuclias AP/switch/controller behavior, ACL script firmware effects, packet captures, HA, performance, soak, security, and customer proof remain release certification |
+| Long-tail in-corpus vendors | 92 namespaces / 1,126 rows | NAS-0072 software-certifies all scoped rows with typed decode, neutral semantic classification, bounded evidence, redacted secret handling, API/UI/readiness/support-bundle history, and release-checklist separation | Exact device/controller packet captures, firmware-scoped behavior, FreeRADIUS production Linux import, CoA where applicable, HA, performance, soak, security, compliance, and customer proof remain release certification |
 | Zyxel | 3 | No pack or mapping | Define all three semantics, then add firewall/AP/switch/USG controller and device workflows |
 | Netgear | No namespace in 3.2.8 | No pack | Treat as an out-of-corpus target: obtain authoritative dictionary/API specifications and build Insight/AV switching/AP/VPN support separately |
 | Starent/Cisco mobile core | 520 | No Starent pack | Subscriber/mobile session control, charging, APN, QoS, lawful intercept, address pools, roaming and full grouped VSA processing |

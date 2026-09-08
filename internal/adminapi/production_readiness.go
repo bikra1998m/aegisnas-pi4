@@ -180,6 +180,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionNokiaALUPackCheck(&report)
 	addProductionMikroTikPackCheck(&report)
 	addProductionSwitchingVendorPackCheck(&report)
+	addProductionLongTailNamespaceCheck(&report)
 	addProductionDictionaryCheck(&report)
 	addProductionVendorPackCheck(&report, cfg)
 	addProductionNASProfileCheck(&report)
@@ -3065,6 +3066,52 @@ func addProductionSwitchingVendorPackCheck(report *productionReadinessReport) {
 			"/api/v1/system/switching-vendor-pack",
 			"switching_vendor_pack_events",
 			"docs/nas-0071-release-certification-checklist.md",
+		},
+	})
+}
+
+func addProductionLongTailNamespaceCheck(report *productionReadinessReport) {
+	certification, err := buildLongTailNamespaceForRequest()
+	if err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "long_tail_namespace_program", Category: "radius", Label: "NAS-0072 Long-Tail Namespace Program", Status: "blocked",
+			Summary:        "Long-tail namespace report could not be built: " + err.Error(),
+			Recommendation: "Repair the pinned attribute registry and NAS-0072 namespace report before closing the long-tail roadmap wave.",
+			Dependencies:   []string{"configs/long_tail_namespace.go", "internal/radius/long_tail_namespace.go", "configs/attribute_registry/freeradius-3.2.8-vsa-audit.csv"},
+		})
+		return
+	}
+	if err := productconfigs.ValidateLongTailNamespaceReport(certification); err != nil {
+		addProductionCheck(report, productionReadinessCheck{
+			Key: "long_tail_namespace_program", Category: "radius", Label: "NAS-0072 Long-Tail Namespace Program", Status: "blocked",
+			Summary:        "NAS-0072 software certification is incomplete: " + err.Error(),
+			Recommendation: "Use /api/v1/system/long-tail-namespaces to inspect blocked namespace dimensions; external certification must remain in the release checklist.",
+			Dependencies:   []string{"configs/long_tail_namespace.go", "internal/radius/long_tail_namespace.go", "internal/db/long_tail_namespace.go"},
+		})
+		return
+	}
+	status := "passed"
+	if db.DB == nil {
+		status = "degraded"
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key: "long_tail_namespace_program", Category: "radius", Label: "NAS-0072 Long-Tail Namespace Program", Status: status,
+		Summary: fmt.Sprintf("NAS-0072 software-certifies %d/%d long-tail rows across %d dictionary vendors and %d product scopes, with %d grammar rules, %d native semantic mappings, %d typed evidence mappings, %d redacted secret mappings, and %d external certification claims.",
+			certification.Summary.SoftwareCertifiedMappings,
+			certification.Summary.AttributeCount,
+			certification.Summary.VendorCount,
+			certification.Summary.ProductScopeCount,
+			certification.Summary.GrammarRuleCount,
+			certification.Summary.NativeSemanticMappings,
+			certification.Summary.TypedPassThroughMappings,
+			certification.Summary.SensitiveRedactedMappings,
+			certification.Summary.ExternalRequiredMappings,
+		),
+		Recommendation: "Record the current fingerprint with /api/v1/system/long-tail-namespaces/record, then execute docs/nas-0072-release-certification-checklist.md before publishing hardware-certified long-tail vendor claims.",
+		Dependencies: []string{
+			"/api/v1/system/long-tail-namespaces",
+			"long_tail_namespace_events",
+			"docs/nas-0072-release-certification-checklist.md",
 		},
 	})
 }

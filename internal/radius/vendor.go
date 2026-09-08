@@ -827,21 +827,33 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			result.VendorVLAN = value
 			result.HasVendorVLAN = true
 		}
+		if isLongTailNamespacePackKey(mapping.PackKey) {
+			_ = applyLongTailNamespaceAttributeString(result, mapping, strconv.Itoa(value))
+		}
 	case inboundVendorRateKbps:
 		value, ok := lookupVendorRate(packet, mapping.VendorID, mapping.Type, 1)
 		if ok {
 			applyInboundVendorRate(result, mapping.Semantic, value)
+			if isLongTailNamespacePackKey(mapping.PackKey) {
+				_ = applyLongTailNamespaceAttributeString(result, mapping, strconv.Itoa(value))
+			}
 		}
 	case inboundVendorRateBps:
 		value, ok := lookupVendorRate(packet, mapping.VendorID, mapping.Type, 1000)
 		if ok {
 			applyInboundVendorRate(result, mapping.Semantic, value)
+			if isLongTailNamespacePackKey(mapping.PackKey) {
+				_ = applyLongTailNamespaceAttributeString(result, mapping, strconv.Itoa(value))
+			}
 		}
 	case inboundVendorBool:
 		value, ok := lookupVendorBool(packet, mapping.VendorID, mapping.Type)
 		if ok && !result.HasVendorQuarantine {
 			result.VendorQuarantine = value
 			result.HasVendorQuarantine = true
+		}
+		if ok && isLongTailNamespacePackKey(mapping.PackKey) {
+			_ = applyLongTailNamespaceAttributeString(result, mapping, strconv.FormatBool(value))
 		}
 	case inboundVendorIntText:
 		value, ok := lookupVendorInteger(packet, mapping.VendorID, mapping.Type)
@@ -932,6 +944,9 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 			if isSwitchingPackKey(mapping.PackKey) && applySwitchingVendorAttributeString(result, mapping.PackKey, mapping.Attribute, value) {
 				continue
 			}
+			if isLongTailNamespacePackKey(mapping.PackKey) && applyLongTailNamespaceAttributeString(result, mapping, value) {
+				continue
+			}
 			appendUniqueVendorAVPair(result, value)
 		}
 	case inboundVendorIPAddr:
@@ -975,6 +990,9 @@ func applyInboundVendorMapping(result *BrokerAuthResult, packet *layehradius.Pac
 		if ok && value > 0 {
 			result.VendorMaxTotalOctets = uint64(value)
 			result.HasVendorMaxTotalOctets = true
+			if isLongTailNamespacePackKey(mapping.PackKey) {
+				_ = applyLongTailNamespaceAttributeString(result, mapping, strconv.FormatUint(uint64(value), 10))
+			}
 		}
 	case inboundVendorNokiaBCD:
 		value, ok := lookupVendorAttribute(packet, mapping.VendorID, mapping.Type)
@@ -1154,6 +1172,10 @@ func applyInboundVendorString(result *BrokerAuthResult, mapping inboundVendorMap
 	}
 	if isSwitchingPackKey(mapping.PackKey) {
 		_ = applySwitchingVendorAttributeString(result, mapping.PackKey, mapping.Attribute, value)
+		return
+	}
+	if isLongTailNamespacePackKey(mapping.PackKey) {
+		_ = applyLongTailNamespaceAttributeString(result, mapping, value)
 		return
 	}
 	switch mapping.Semantic {
