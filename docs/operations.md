@@ -696,6 +696,45 @@ Use `/api/v1/system/vlan-lifecycle/history` and the support bundle files
 `api/vlan-lifecycle.json` and `api/vlan-lifecycle-history.json` during bridge,
 VLAN, hostapd, CoA VLAN-change, or rollback investigations.
 
+For local-radio hostapd dynamic VLAN rollout, use the NAS-0074 lifecycle report
+before writing or restarting hostapd:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/hostapd-vlan-lifecycle/preview \
+  | jq '.report.status, .report.summary, .report.plan.hostapd_bindings'
+```
+
+Apply only after the preview is ready and the fallback/fail-closed bindings are
+expected:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/hostapd-vlan-lifecycle/apply \
+  | jq '.result.status, .result.snapshot_id, .result.previous_snapshot_id'
+```
+
+Rollback the last hostapd dynamic VLAN lifecycle snapshot:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/hostapd-vlan-lifecycle/rollback \
+  | jq '.result.status, .result.restored_snapshot_id'
+```
+
+Use `/api/v1/system/hostapd-vlan-lifecycle/history` and the support bundle
+files `api/hostapd-vlan-lifecycle.json` and
+`api/hostapd-vlan-lifecycle-history.json` for local AP dynamic VLAN incident
+review. Hardware radio tests, FreeRADIUS-on-Linux proof, HA failover,
+performance, soak, security audit, production deployment, and customer
+acceptance stay in `nas-0074-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

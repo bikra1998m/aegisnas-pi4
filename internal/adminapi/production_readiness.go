@@ -149,6 +149,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionRuntimeFirewallCheck(&report)
 	addProductionRuntimeQoSCheck(&report, cfg)
 	addProductionVLANLifecycleCheck(&report, cfg)
+	addProductionHostapdVLANLifecycleCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -1420,6 +1421,66 @@ func addProductionVLANLifecycleCheck(report *productionReadinessReport, cfg *con
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/vlan-lifecycle/preview before apply, keep VLAN catalog, role VLANs, policy VLANs, and hostapd dynamic VLAN entries in one evidence-backed lifecycle, and complete the NAS-0053 release certification checklist for Linux bridge/VLAN, hostapd, FreeRADIUS, HA, and vendor-device proof.",
 		Dependencies:   []string{"vlans", "roles.vlan", "policy_rules.vlan", "wireless.ssids.dynamic_vlan", "vlan_lifecycle_snapshots", "vlan_lifecycle_events", "/api/v1/system/vlan-lifecycle", "/api/v1/system/vlan-lifecycle/preview", "/api/v1/system/vlan-lifecycle/apply", "/api/v1/system/vlan-lifecycle/rollback", "ip link", "hostapd vlan_file", "RFC 2868"},
+	})
+}
+
+func addProductionHostapdVLANLifecycleCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0074 hostapd dynamic VLAN lifecycle software is ready."
+	reportData, err := enforcement.PreviewHostapdVLANLifecycle(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "hostapd dynamic VLAN lifecycle preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0074 schema %d status=%s, dynamic SSIDs=%d, fallback SSIDs=%d, fail-closed SSIDs=%d, VLAN entries=%d, cleanup commands=%d, rollback commands=%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.DynamicSSIDCount,
+			reportData.Summary.FallbackSSIDCount,
+			reportData.Summary.FailClosedSSIDCount,
+			reportData.Summary.HostapdVLANEntryCount,
+			reportData.Summary.CleanupCommandCount,
+			reportData.Summary.RollbackCommandCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "skipped" {
+			summary += " Wireless or dynamic VLAN SSIDs are inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but hostapd lifecycle event history cannot be verified."
+	} else if evidence, err := db.GetVLANLifecycleEventSummary(); err != nil {
+		status = "blocked"
+		summary += " VLAN lifecycle evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Shared VLAN ledger has %d event(s), %d previewed, %d applied, %d rolled back, %d failed, active snapshot=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewedCount,
+			evidence.AppliedCount,
+			evidence.RolledBackCount,
+			evidence.FailedCount,
+			firstNonEmptyAdminString(evidence.ActiveSnapshotID, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "hostapd_dynamic_vlan_lifecycle",
+		Category:       "wireless",
+		Label:          "NAS-0074 Hostapd Dynamic VLAN Lifecycle",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/hostapd-vlan-lifecycle/preview before local-radio rollout, apply only after reviewing fail-closed versus fallback SSIDs, and keep hardware, FreeRADIUS, HA, soak, security, and customer proof in the NAS-0074 release certification checklist.",
+		Dependencies:   []string{"wireless.ssids.dynamic_vlan", "wireless.hostapd_vlan_file_path", "vlan_lifecycle_snapshots", "vlan_lifecycle_events", "/api/v1/system/hostapd-vlan-lifecycle", "/api/v1/system/hostapd-vlan-lifecycle/preview", "/api/v1/system/hostapd-vlan-lifecycle/apply", "/api/v1/system/hostapd-vlan-lifecycle/rollback", "hostapd dynamic_vlan", "hostapd vlan_file", "Tunnel-Type", "Tunnel-Medium-Type", "Tunnel-Private-Group-Id", "RFC 2868", "IEEE 802.1Q"},
 	})
 }
 

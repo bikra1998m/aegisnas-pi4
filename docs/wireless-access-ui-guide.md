@@ -509,6 +509,9 @@ Checklist:
   - `Auth Mode = WPA2 Enterprise` or `WPA3 Enterprise`
   - `Identity Source = radius-upstream` or the intended enterprise identity source
   - `Dynamic VLAN = on` when upstream VLAN assignment is expected
+- [ ] For a physical appliance using a local radio, `hostapd Dynamic VLAN Lifecycle` reports `ready`
+- [ ] Dynamic SSIDs with fallback VLANs show `dynamic_vlan=1`; dynamic SSIDs without fallback VLANs show fail-closed `dynamic_vlan=2`
+- [ ] `Apply hostapd VLANs` has created the managed bridge/subinterface and hostapd VLAN file snapshot before hostapd restart
 - [ ] For a physical appliance using a local radio, `hostapd Preview` reflects the intended enterprise SSID
 - [ ] For a physical appliance using a local radio, `Write hostapd Config` or `Write And Restart Wi-Fi` has been run
 - [ ] For an external AP or controller, the SSID is configured on the AP side as WPA2-Enterprise or WPA3-Enterprise
@@ -531,15 +534,16 @@ sudo bash scripts/capture-login-debug-logs.sh --scenario enterprise-external-aaa
 After configuration, check these paths:
 
 1. `Access Settings` page reloads without errors
-2. `hostapd Preview` matches the saved SSIDs
-3. dashboard service cards stay healthy after apply
-4. dashboard upstream AAA cards reflect the real primary and secondary server state
-5. dashboard runtime shaping card reflects the downstream interface and shaped session count
-6. `RADIUS Clients` list contains the real AP or switch addresses
-7. `Sessions` shows live sessions during testing
-8. `Alerts` stays clear of repeated auth failures
-9. `Config Revisions` captures your changes
-10. `Backups` exports cleanly
+2. `hostapd Dynamic VLAN Lifecycle` shows the expected bindings, VLAN file entries, and rollback preview
+3. `hostapd Preview` matches the saved SSIDs
+4. dashboard service cards stay healthy after apply
+5. dashboard upstream AAA cards reflect the real primary and secondary server state
+6. dashboard runtime shaping card reflects the downstream interface and shaped session count
+7. `RADIUS Clients` list contains the real AP or switch addresses
+8. `Sessions` shows live sessions during testing
+9. `Alerts` stays clear of repeated auth failures
+10. `Config Revisions` captures your changes
+11. `Backups` exports cleanly
 
 CLI checks:
 

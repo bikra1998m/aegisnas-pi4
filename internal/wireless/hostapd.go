@@ -117,7 +117,7 @@ func renderSSID(cfg *config.Config, ssid config.SSIDConfig) []string {
 		)
 		if ssid.DynamicVLAN {
 			lines = append(lines,
-				"dynamic_vlan=1",
+				fmt.Sprintf("dynamic_vlan=%d", HostapdDynamicVLANMode(ssid)),
 				fmt.Sprintf("vlan_file=%s", HostapdVLANFilePath(cfg)),
 			)
 		}
@@ -139,7 +139,7 @@ func renderSSID(cfg *config.Config, ssid config.SSIDConfig) []string {
 		)
 		if ssid.DynamicVLAN {
 			lines = append(lines,
-				"dynamic_vlan=1",
+				fmt.Sprintf("dynamic_vlan=%d", HostapdDynamicVLANMode(ssid)),
 				fmt.Sprintf("vlan_file=%s", HostapdVLANFilePath(cfg)),
 			)
 		}
@@ -167,6 +167,16 @@ func HostapdWirelessVLANInterface(wirelessInterface string, vlan int) string {
 		return ""
 	}
 	return fmt.Sprintf("%s.%d", wirelessInterface, vlan)
+}
+
+func HostapdDynamicVLANMode(ssid config.SSIDConfig) int {
+	if !ssid.DynamicVLAN {
+		return 0
+	}
+	if ssid.VLAN > 0 {
+		return 1
+	}
+	return 2
 }
 
 func boolAsInt(value bool) int {

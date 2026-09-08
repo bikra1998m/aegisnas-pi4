@@ -30,15 +30,20 @@ const (
 var safeInterfaceNameRE = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,15}$`)
 
 type VLANLifecycleSummary struct {
-	VLANCount             int `json:"vlan_count"`
-	BridgeCount           int `json:"bridge_count"`
-	SubinterfaceCount     int `json:"subinterface_count"`
-	StaticVLANCount       int `json:"static_vlan_count"`
-	DynamicVLANCount      int `json:"dynamic_vlan_count"`
-	TaggedVLANCount       int `json:"tagged_vlan_count"`
-	HostapdVLANEntryCount int `json:"hostapd_vlan_entry_count"`
-	CommandCount          int `json:"command_count"`
-	DiagnosticCount       int `json:"diagnostic_count"`
+	VLANCount                  int `json:"vlan_count"`
+	BridgeCount                int `json:"bridge_count"`
+	SubinterfaceCount          int `json:"subinterface_count"`
+	StaticVLANCount            int `json:"static_vlan_count"`
+	DynamicVLANCount           int `json:"dynamic_vlan_count"`
+	TaggedVLANCount            int `json:"tagged_vlan_count"`
+	HostapdVLANEntryCount      int `json:"hostapd_vlan_entry_count"`
+	HostapdDynamicSSIDCount    int `json:"hostapd_dynamic_ssid_count"`
+	HostapdFallbackSSIDCount   int `json:"hostapd_fallback_ssid_count"`
+	HostapdFailClosedSSIDCount int `json:"hostapd_fail_closed_ssid_count"`
+	CommandCount               int `json:"command_count"`
+	CleanupCommandCount        int `json:"cleanup_command_count"`
+	RollbackCommandCount       int `json:"rollback_command_count"`
+	DiagnosticCount            int `json:"diagnostic_count"`
 }
 
 type VLANLifecycleDiagnostic struct {
@@ -85,26 +90,45 @@ type HostapdVLANEntry struct {
 	Interface string `json:"interface,omitempty"`
 }
 
+type HostapdDynamicVLANBinding struct {
+	SSID                string                    `json:"ssid"`
+	AuthMode            string                    `json:"auth_mode"`
+	DynamicVLANMode     int                       `json:"dynamic_vlan_mode"`
+	DynamicVLANModeName string                    `json:"dynamic_vlan_mode_name"`
+	FallbackVLAN        int                       `json:"fallback_vlan,omitempty"`
+	FallbackBridge      string                    `json:"fallback_bridge,omitempty"`
+	VLANFilePath        string                    `json:"vlan_file_path"`
+	VLANEntryCount      int                       `json:"vlan_entry_count"`
+	Status              string                    `json:"status"`
+	RadiusAttributes    []string                  `json:"radius_attributes"`
+	Diagnostics         []VLANLifecycleDiagnostic `json:"diagnostics,omitempty"`
+}
+
 type VLANLifecyclePlan struct {
-	SchemaVersion         int                       `json:"schema_version"`
-	GeneratedAt           string                    `json:"generated_at"`
-	Status                string                    `json:"status"`
-	Message               string                    `json:"message"`
-	ParentInterface       string                    `json:"parent_interface"`
-	HostapdVLANFilePath   string                    `json:"hostapd_vlan_file_path"`
-	HostapdVLANFileText   string                    `json:"hostapd_vlan_file_text"`
-	HostapdVLANFileSHA256 string                    `json:"hostapd_vlan_file_sha256,omitempty"`
-	Summary               VLANLifecycleSummary      `json:"summary"`
-	Diagnostics           []VLANLifecycleDiagnostic `json:"diagnostics"`
-	Intents               []VLANLifecycleIntent     `json:"intents"`
-	Bridges               []VLANBridgePlan          `json:"bridges"`
-	Subinterfaces         []VLANSubinterfacePlan    `json:"subinterfaces"`
-	HostapdVLANEntries    []HostapdVLANEntry        `json:"hostapd_vlan_entries"`
-	Commands              [][]string                `json:"commands"`
-	CommandPreview        []string                  `json:"command_preview"`
-	PlanFingerprint       string                    `json:"plan_fingerprint"`
-	RFCs                  []string                  `json:"rfcs"`
-	FreeRADIUSAttributes  []string                  `json:"freeradius_attributes"`
+	SchemaVersion          int                         `json:"schema_version"`
+	GeneratedAt            string                      `json:"generated_at"`
+	Status                 string                      `json:"status"`
+	Message                string                      `json:"message"`
+	ParentInterface        string                      `json:"parent_interface"`
+	HostapdVLANFilePath    string                      `json:"hostapd_vlan_file_path"`
+	HostapdVLANFileText    string                      `json:"hostapd_vlan_file_text"`
+	HostapdVLANFileSHA256  string                      `json:"hostapd_vlan_file_sha256,omitempty"`
+	Summary                VLANLifecycleSummary        `json:"summary"`
+	Diagnostics            []VLANLifecycleDiagnostic   `json:"diagnostics"`
+	Intents                []VLANLifecycleIntent       `json:"intents"`
+	Bridges                []VLANBridgePlan            `json:"bridges"`
+	Subinterfaces          []VLANSubinterfacePlan      `json:"subinterfaces"`
+	HostapdVLANEntries     []HostapdVLANEntry          `json:"hostapd_vlan_entries"`
+	HostapdBindings        []HostapdDynamicVLANBinding `json:"hostapd_bindings,omitempty"`
+	Commands               [][]string                  `json:"commands"`
+	CommandPreview         []string                    `json:"command_preview"`
+	CleanupCommands        [][]string                  `json:"cleanup_commands,omitempty"`
+	CleanupCommandPreview  []string                    `json:"cleanup_command_preview,omitempty"`
+	RollbackCommands       [][]string                  `json:"rollback_commands,omitempty"`
+	RollbackCommandPreview []string                    `json:"rollback_command_preview,omitempty"`
+	PlanFingerprint        string                      `json:"plan_fingerprint"`
+	RFCs                   []string                    `json:"rfcs"`
+	FreeRADIUSAttributes   []string                    `json:"freeradius_attributes"`
 }
 
 type VLANLifecycleApplyResult struct {
@@ -193,11 +217,13 @@ func ApplyVLANLifecycle(cfg *config.Config, actor, operation string) (VLANLifecy
 	}
 
 	previousID := ""
+	var previous *db.VLANLifecycleSnapshot
 	if active, found, err := db.GetActiveVLANLifecycleSnapshot(); err == nil && found {
 		previousID = active.SnapshotID
+		previous = &active
 	}
-	if err := applyVLANLifecyclePlan(plan); err != nil {
-		eventID, _ := db.RecordVLANLifecycleEvent(vlanLifecycleEventInput(plan, operation, "failed", "", previousID, actor, map[string]any{"error": err.Error()}))
+	if err := applyVLANLifecyclePlan(plan, previous); err != nil {
+		eventID, _ := db.RecordVLANLifecycleEvent(vlanLifecycleEventInput(plan, operation, "failed", "", previousID, actor, vlanLifecycleOperationDetails(plan, map[string]any{"error": err.Error()})))
 		message := "VLAN lifecycle apply failed: " + err.Error()
 		_ = db.UpsertRuntimeStatus(vlanLifecycleComponent, "down", message, vlanLifecycleStatusDetails(plan, nil))
 		return VLANLifecycleApplyResult{Operation: operation, Status: "failed", PreviousSnapshotID: previousID, EventID: eventID, Plan: plan, Message: message}, err
@@ -208,7 +234,7 @@ func ApplyVLANLifecycle(cfg *config.Config, actor, operation string) (VLANLifecy
 	if err != nil {
 		return VLANLifecycleApplyResult{}, err
 	}
-	eventID, err := db.RecordVLANLifecycleEvent(vlanLifecycleEventInput(plan, operation, status, snapshotID, previousID, actor, map[string]any{"applied_at": now.Format(time.RFC3339)}))
+	eventID, err := db.RecordVLANLifecycleEvent(vlanLifecycleEventInput(plan, operation, status, snapshotID, previousID, actor, vlanLifecycleOperationDetails(plan, map[string]any{"applied_at": now.Format(time.RFC3339)})))
 	if err != nil {
 		return VLANLifecycleApplyResult{}, err
 	}
@@ -393,6 +419,11 @@ func buildVLANLifecyclePlan(cfg *config.Config, roleVLANs []vlanPolicySource, po
 	}
 	plan.Commands = buildVLANLifecycleCommands(plan.ParentInterface, intents)
 	plan.HostapdVLANFileText = renderHostapdVLANFile(plan.HostapdVLANEntries)
+	plan.HostapdBindings = buildHostapdDynamicVLANBindings(cfg, plan)
+	for _, binding := range plan.HostapdBindings {
+		plan.Diagnostics = append(plan.Diagnostics, binding.Diagnostics...)
+	}
+	attachVLANLifecycleSnapshotDelta(&plan)
 
 	switch {
 	case len(plan.Intents) == 0 && len(plan.Diagnostics) == 0:
@@ -482,9 +513,9 @@ func collectVLANLifecycleIntents(cfg *config.Config, roleVLANs []vlanPolicySourc
 		}
 		if ssid.DynamicVLAN && ssid.VLAN == 0 {
 			diagnostics = append(diagnostics, VLANLifecycleDiagnostic{
-				Severity: "warning",
+				Severity: "info",
 				Code:     "dynamic_vlan_without_fallback",
-				Message:  "dynamic VLAN SSID has no fallback VLAN, so hostapd VLAN file entries are derived only from policy and catalog VLANs",
+				Message:  "dynamic VLAN SSID has no fallback VLAN; hostapd will use fail-closed dynamic_vlan=2 and accept only VLANs listed in the managed VLAN file",
 				Source:   source,
 				Field:    "wireless.ssids.dynamic_vlan",
 			})
@@ -621,19 +652,261 @@ func renderHostapdVLANFile(entries []HostapdVLANEntry) string {
 	return strings.Join(lines, "\n")
 }
 
-func applyVLANLifecyclePlan(plan VLANLifecyclePlan) error {
-	return applyVLANLifecycleArtifact(plan.Commands, plan.HostapdVLANFilePath, plan.HostapdVLANFileText)
+func buildHostapdDynamicVLANBindings(cfg *config.Config, plan VLANLifecyclePlan) []HostapdDynamicVLANBinding {
+	if cfg == nil || !cfg.Wireless.Enabled {
+		return nil
+	}
+	bindings := make([]HostapdDynamicVLANBinding, 0, len(cfg.Wireless.SSIDs))
+	intentByVLAN := make(map[int]VLANLifecycleIntent, len(plan.Intents))
+	for _, intent := range plan.Intents {
+		intentByVLAN[intent.VLAN] = intent
+	}
+	for _, ssid := range cfg.Wireless.SSIDs {
+		if !ssid.DynamicVLAN {
+			continue
+		}
+		mode := wireless.HostapdDynamicVLANMode(ssid)
+		binding := HostapdDynamicVLANBinding{
+			SSID:                strings.TrimSpace(ssid.Name),
+			AuthMode:            strings.TrimSpace(ssid.AuthMode),
+			DynamicVLANMode:     mode,
+			DynamicVLANModeName: hostapdDynamicVLANModeName(mode),
+			FallbackVLAN:        ssid.VLAN,
+			VLANFilePath:        plan.HostapdVLANFilePath,
+			VLANEntryCount:      len(plan.HostapdVLANEntries),
+			Status:              "ready",
+			RadiusAttributes: []string{
+				"Tunnel-Type",
+				"Tunnel-Medium-Type",
+				"Tunnel-Private-Group-Id",
+				"Egress-VLANID",
+			},
+		}
+		if intent, ok := intentByVLAN[ssid.VLAN]; ok {
+			binding.FallbackBridge = intent.Bridge
+		} else if strings.TrimSpace(ssid.Bridge) != "" {
+			binding.FallbackBridge = strings.TrimSpace(ssid.Bridge)
+		}
+		if ssid.AuthMode != "wpa2-enterprise" && ssid.AuthMode != "wpa3-enterprise" {
+			binding.Status = "blocked"
+			binding.Diagnostics = append(binding.Diagnostics, VLANLifecycleDiagnostic{
+				Severity: "error",
+				Code:     "dynamic_vlan_requires_enterprise_auth",
+				Message:  "hostapd dynamic VLAN requires a WPA2/WPA3 Enterprise SSID",
+				Source:   "wireless.ssid:" + firstNonEmptyString(ssid.Name, "unnamed"),
+				Field:    "wireless.ssids.auth_mode",
+			})
+		}
+		if len(plan.HostapdVLANEntries) == 0 {
+			binding.Status = "blocked"
+			binding.Diagnostics = append(binding.Diagnostics, VLANLifecycleDiagnostic{
+				Severity: "error",
+				Code:     "hostapd_vlan_file_empty",
+				Message:  "dynamic VLAN SSID needs at least one configured VLAN intent before hostapd can accept VLAN assignments",
+				Source:   "wireless.ssid:" + firstNonEmptyString(ssid.Name, "unnamed"),
+				Field:    "hostapd_vlan_file",
+			})
+		}
+		if ssid.VLAN == 0 && binding.Status == "ready" {
+			binding.Status = "fail_closed"
+			binding.Diagnostics = append(binding.Diagnostics, VLANLifecycleDiagnostic{
+				Severity: "info",
+				Code:     "hostapd_dynamic_vlan_fail_closed",
+				Message:  "SSID has no fallback VLAN; hostapd dynamic_vlan=2 rejects sessions without a returned VLAN",
+				Source:   "wireless.ssid:" + firstNonEmptyString(ssid.Name, "unnamed"),
+				Field:    "wireless.ssids.vlan",
+			})
+		}
+		bindings = append(bindings, binding)
+	}
+	sort.Slice(bindings, func(i, j int) bool { return bindings[i].SSID < bindings[j].SSID })
+	return bindings
+}
+
+func hostapdDynamicVLANModeName(mode int) string {
+	switch mode {
+	case 1:
+		return "optional_with_fallback"
+	case 2:
+		return "required_fail_closed"
+	default:
+		return "disabled"
+	}
+}
+
+func attachVLANLifecycleSnapshotDelta(plan *VLANLifecyclePlan) {
+	if plan == nil || db.DB == nil {
+		return
+	}
+	active, found, err := db.GetActiveVLANLifecycleSnapshot()
+	if err != nil || !found {
+		return
+	}
+	previous := vlanLifecyclePlanFromSnapshot(active, parseVLANLifecycleCommandText(active.CommandText))
+	plan.CleanupCommands = buildVLANLifecycleCleanupCommands(previous, *plan)
+	plan.RollbackCommands = buildVLANLifecycleRollbackCommands(*plan, previous)
+}
+
+func buildVLANLifecycleCleanupCommands(previous, desired VLANLifecyclePlan) [][]string {
+	desiredSubinterfaces := vlanSubinterfaceSet(desired.Subinterfaces)
+	desiredBridges := vlanBridgeSet(desired.Bridges)
+	var commands [][]string
+	for _, subif := range sortedVLANSubinterfaces(previous.Subinterfaces, true) {
+		if _, keep := desiredSubinterfaces[subif.Name]; keep {
+			continue
+		}
+		commands = append(commands,
+			[]string{"ip", "link", "set", "dev", subif.Name, "down"},
+			[]string{"ip", "link", "delete", subif.Name},
+		)
+	}
+	for _, bridge := range sortedVLANBridges(previous.Bridges, true) {
+		if _, keep := desiredBridges[bridge.Name]; keep {
+			continue
+		}
+		commands = append(commands,
+			[]string{"ip", "link", "set", "dev", bridge.Name, "down"},
+			[]string{"ip", "link", "delete", bridge.Name, "type", "bridge"},
+		)
+	}
+	return commands
+}
+
+func buildVLANLifecycleRollbackCommands(desired, previous VLANLifecyclePlan) [][]string {
+	previousSubinterfaces := vlanSubinterfaceSet(previous.Subinterfaces)
+	previousBridges := vlanBridgeSet(previous.Bridges)
+	var commands [][]string
+	for _, subif := range sortedVLANSubinterfaces(desired.Subinterfaces, true) {
+		if _, existed := previousSubinterfaces[subif.Name]; existed {
+			continue
+		}
+		commands = append(commands,
+			[]string{"ip", "link", "set", "dev", subif.Name, "down"},
+			[]string{"ip", "link", "delete", subif.Name},
+		)
+	}
+	for _, bridge := range sortedVLANBridges(desired.Bridges, true) {
+		if _, existed := previousBridges[bridge.Name]; existed {
+			continue
+		}
+		commands = append(commands,
+			[]string{"ip", "link", "set", "dev", bridge.Name, "down"},
+			[]string{"ip", "link", "delete", bridge.Name, "type", "bridge"},
+		)
+	}
+	commands = append(commands, previous.Commands...)
+	return commands
+}
+
+func vlanSubinterfaceSet(values []VLANSubinterfacePlan) map[string]struct{} {
+	out := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		name := strings.TrimSpace(value.Name)
+		if name != "" {
+			out[name] = struct{}{}
+		}
+	}
+	return out
+}
+
+func vlanBridgeSet(values []VLANBridgePlan) map[string]struct{} {
+	out := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		name := strings.TrimSpace(value.Name)
+		if name != "" {
+			out[name] = struct{}{}
+		}
+	}
+	return out
+}
+
+func sortedVLANSubinterfaces(values []VLANSubinterfacePlan, descending bool) []VLANSubinterfacePlan {
+	out := append([]VLANSubinterfacePlan(nil), values...)
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].VLAN != out[j].VLAN {
+			if descending {
+				return out[i].VLAN > out[j].VLAN
+			}
+			return out[i].VLAN < out[j].VLAN
+		}
+		if descending {
+			return out[i].Name > out[j].Name
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
+}
+
+func sortedVLANBridges(values []VLANBridgePlan, descending bool) []VLANBridgePlan {
+	out := append([]VLANBridgePlan(nil), values...)
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].VLAN != out[j].VLAN {
+			if descending {
+				return out[i].VLAN > out[j].VLAN
+			}
+			return out[i].VLAN < out[j].VLAN
+		}
+		if descending {
+			return out[i].Name > out[j].Name
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
+}
+
+func applyVLANLifecyclePlan(plan VLANLifecyclePlan, previous *db.VLANLifecycleSnapshot) error {
+	rollbackPath := ""
+	rollbackText := ""
+	if previous != nil {
+		rollbackPath = previous.HostapdVLANFilePath
+		rollbackText = previous.HostapdVLANFileText
+	}
+	return applyVLANLifecycleArtifactWithRollback(
+		appendVLANLifecycleCommands(plan.Commands, plan.CleanupCommands),
+		plan.HostapdVLANFilePath,
+		plan.HostapdVLANFileText,
+		plan.RollbackCommands,
+		rollbackPath,
+		rollbackText,
+		runVLANLifecycleCommand,
+		writeManagedFileAtomic,
+	)
 }
 
 func applyVLANLifecycleArtifact(commands [][]string, vlanFilePath, vlanFileText string) error {
+	return applyVLANLifecycleArtifactWithRollback(commands, vlanFilePath, vlanFileText, nil, "", "", runVLANLifecycleCommand, writeManagedFileAtomic)
+}
+
+type vlanLifecycleCommandRunner func([]string) (string, error)
+type vlanLifecycleFileWriter func(string, string, os.FileMode) error
+
+func runVLANLifecycleCommand(command []string) (string, error) {
+	if len(command) == 0 {
+		return "", nil
+	}
+	cmd := exec.Command(command[0], command[1:]...)
+	output, err := cmd.CombinedOutput()
+	return string(output), err
+}
+
+func applyVLANLifecycleArtifactWithRollback(commands [][]string, vlanFilePath, vlanFileText string, rollbackCommands [][]string, rollbackFilePath, rollbackFileText string, runner vlanLifecycleCommandRunner, writer vlanLifecycleFileWriter) error {
+	if runner == nil {
+		runner = runVLANLifecycleCommand
+	}
+	if writer == nil {
+		writer = writeManagedFileAtomic
+	}
 	for _, command := range commands {
 		if len(command) == 0 {
 			continue
 		}
-		cmd := exec.Command(command[0], command[1:]...)
-		if output, err := cmd.CombinedOutput(); err != nil {
+		if output, err := runner(command); err != nil {
 			if canIgnoreVLANLifecycleCommandError(command, string(output)) {
 				continue
+			}
+			rollbackErr := rollbackVLANLifecycleArtifact(rollbackCommands, rollbackFilePath, rollbackFileText, runner, writer)
+			if rollbackErr != nil {
+				return fmt.Errorf("%s failed: %w\nOutput: %s\nRollback: %v", strings.Join(command, " "), err, strings.TrimSpace(string(output)), rollbackErr)
 			}
 			return fmt.Errorf("%s failed: %w\nOutput: %s", strings.Join(command, " "), err, strings.TrimSpace(string(output)))
 		}
@@ -641,10 +914,53 @@ func applyVLANLifecycleArtifact(commands [][]string, vlanFilePath, vlanFileText 
 	if strings.TrimSpace(vlanFilePath) == "" {
 		return nil
 	}
-	if err := writeManagedFileAtomic(vlanFilePath, vlanFileText, 0o600); err != nil {
-		return err
+	if err := writer(vlanFilePath, vlanFileText, 0o600); err != nil {
+		rollbackErr := rollbackVLANLifecycleArtifact(rollbackCommands, rollbackFilePath, rollbackFileText, runner, writer)
+		if rollbackErr != nil {
+			return fmt.Errorf("write hostapd VLAN file: %w; rollback failed: %v", err, rollbackErr)
+		}
+		return fmt.Errorf("write hostapd VLAN file: %w", err)
 	}
 	return nil
+}
+
+func rollbackVLANLifecycleArtifact(commands [][]string, vlanFilePath, vlanFileText string, runner vlanLifecycleCommandRunner, writer vlanLifecycleFileWriter) error {
+	var failures []string
+	for _, command := range commands {
+		if len(command) == 0 {
+			continue
+		}
+		if output, err := runner(command); err != nil && !canIgnoreVLANLifecycleCommandError(command, output) {
+			failures = append(failures, fmt.Sprintf("%s: %v %s", strings.Join(command, " "), err, strings.TrimSpace(output)))
+		}
+	}
+	if strings.TrimSpace(vlanFilePath) != "" {
+		if err := writer(vlanFilePath, vlanFileText, 0o600); err != nil {
+			failures = append(failures, "restore hostapd VLAN file: "+err.Error())
+		}
+	}
+	if len(failures) > 0 {
+		return fmt.Errorf("%s", strings.Join(failures, "; "))
+	}
+	return nil
+}
+
+func appendVLANLifecycleCommands(groups ...[][]string) [][]string {
+	total := 0
+	for _, group := range groups {
+		total += len(group)
+	}
+	out := make([][]string, 0, total)
+	for _, group := range groups {
+		for _, command := range group {
+			if len(command) == 0 {
+				continue
+			}
+			copied := append([]string(nil), command...)
+			out = append(out, copied)
+		}
+	}
+	return out
 }
 
 func writeManagedFileAtomic(path, text string, perm os.FileMode) error {
@@ -717,15 +1033,27 @@ func loadVLANSources(query string) ([]vlanPolicySource, error) {
 }
 
 func finalizeVLANLifecyclePlan(plan *VLANLifecyclePlan) {
+	plan.Summary = VLANLifecycleSummary{}
 	plan.CommandPreview = make([]string, 0, len(plan.Commands))
 	for _, command := range plan.Commands {
 		plan.CommandPreview = append(plan.CommandPreview, strings.Join(command, " "))
+	}
+	plan.CleanupCommandPreview = make([]string, 0, len(plan.CleanupCommands))
+	for _, command := range plan.CleanupCommands {
+		plan.CleanupCommandPreview = append(plan.CleanupCommandPreview, strings.Join(command, " "))
+	}
+	plan.RollbackCommandPreview = make([]string, 0, len(plan.RollbackCommands))
+	for _, command := range plan.RollbackCommands {
+		plan.RollbackCommandPreview = append(plan.RollbackCommandPreview, strings.Join(command, " "))
 	}
 	plan.Summary.VLANCount = len(plan.Intents)
 	plan.Summary.BridgeCount = len(plan.Bridges)
 	plan.Summary.SubinterfaceCount = len(plan.Subinterfaces)
 	plan.Summary.HostapdVLANEntryCount = len(plan.HostapdVLANEntries)
+	plan.Summary.HostapdDynamicSSIDCount = len(plan.HostapdBindings)
 	plan.Summary.CommandCount = len(plan.Commands)
+	plan.Summary.CleanupCommandCount = len(plan.CleanupCommands)
+	plan.Summary.RollbackCommandCount = len(plan.RollbackCommands)
 	plan.Summary.DiagnosticCount = len(plan.Diagnostics)
 	for _, intent := range plan.Intents {
 		if intent.Dynamic {
@@ -737,24 +1065,38 @@ func finalizeVLANLifecyclePlan(plan *VLANLifecyclePlan) {
 			plan.Summary.TaggedVLANCount++
 		}
 	}
+	for _, binding := range plan.HostapdBindings {
+		if binding.FallbackVLAN > 0 {
+			plan.Summary.HostapdFallbackSSIDCount++
+		}
+		if binding.DynamicVLANMode == 2 {
+			plan.Summary.HostapdFailClosedSSIDCount++
+		}
+	}
 	if strings.TrimSpace(plan.HostapdVLANFileText) != "" {
 		sum := sha256.Sum256([]byte(plan.HostapdVLANFileText))
 		plan.HostapdVLANFileSHA256 = "sha256:" + hex.EncodeToString(sum[:])
 	}
 	payload := struct {
-		SchemaVersion       int                   `json:"schema_version"`
-		ParentInterface     string                `json:"parent_interface"`
-		HostapdVLANFilePath string                `json:"hostapd_vlan_file_path"`
-		Intents             []VLANLifecycleIntent `json:"intents"`
-		Commands            []string              `json:"commands"`
-		HostapdEntries      []HostapdVLANEntry    `json:"hostapd_vlan_entries"`
+		SchemaVersion       int                         `json:"schema_version"`
+		ParentInterface     string                      `json:"parent_interface"`
+		HostapdVLANFilePath string                      `json:"hostapd_vlan_file_path"`
+		Intents             []VLANLifecycleIntent       `json:"intents"`
+		Commands            []string                    `json:"commands"`
+		CleanupCommands     []string                    `json:"cleanup_commands"`
+		RollbackCommands    []string                    `json:"rollback_commands"`
+		HostapdEntries      []HostapdVLANEntry          `json:"hostapd_vlan_entries"`
+		HostapdBindings     []HostapdDynamicVLANBinding `json:"hostapd_bindings"`
 	}{
 		SchemaVersion:       plan.SchemaVersion,
 		ParentInterface:     plan.ParentInterface,
 		HostapdVLANFilePath: plan.HostapdVLANFilePath,
 		Intents:             plan.Intents,
 		Commands:            plan.CommandPreview,
+		CleanupCommands:     plan.CleanupCommandPreview,
+		RollbackCommands:    plan.RollbackCommandPreview,
 		HostapdEntries:      plan.HostapdVLANEntries,
+		HostapdBindings:     plan.HostapdBindings,
 	}
 	plan.PlanFingerprint = sha256JSON(payload)
 }
@@ -852,18 +1194,40 @@ func vlanLifecyclePlanFromSnapshot(snapshot db.VLANLifecycleSnapshot, commands [
 
 func vlanLifecycleStatusDetails(plan VLANLifecyclePlan, extra map[string]any) map[string]any {
 	details := map[string]any{
-		"schema_version":           plan.SchemaVersion,
-		"parent_interface":         plan.ParentInterface,
-		"status":                   plan.Status,
-		"vlan_count":               plan.Summary.VLANCount,
-		"bridge_count":             plan.Summary.BridgeCount,
-		"subinterface_count":       plan.Summary.SubinterfaceCount,
-		"hostapd_vlan_entry_count": plan.Summary.HostapdVLANEntryCount,
-		"command_count":            plan.Summary.CommandCount,
-		"diagnostic_count":         len(plan.Diagnostics),
-		"plan_fingerprint":         plan.PlanFingerprint,
-		"hostapd_vlan_file_path":   plan.HostapdVLANFilePath,
-		"hostapd_vlan_file_sha256": plan.HostapdVLANFileSHA256,
+		"schema_version":                 plan.SchemaVersion,
+		"parent_interface":               plan.ParentInterface,
+		"status":                         plan.Status,
+		"vlan_count":                     plan.Summary.VLANCount,
+		"bridge_count":                   plan.Summary.BridgeCount,
+		"subinterface_count":             plan.Summary.SubinterfaceCount,
+		"hostapd_vlan_entry_count":       plan.Summary.HostapdVLANEntryCount,
+		"hostapd_dynamic_ssid_count":     plan.Summary.HostapdDynamicSSIDCount,
+		"hostapd_fail_closed_ssid_count": plan.Summary.HostapdFailClosedSSIDCount,
+		"command_count":                  plan.Summary.CommandCount,
+		"cleanup_command_count":          plan.Summary.CleanupCommandCount,
+		"rollback_command_count":         plan.Summary.RollbackCommandCount,
+		"diagnostic_count":               len(plan.Diagnostics),
+		"plan_fingerprint":               plan.PlanFingerprint,
+		"hostapd_vlan_file_path":         plan.HostapdVLANFilePath,
+		"hostapd_vlan_file_sha256":       plan.HostapdVLANFileSHA256,
+	}
+	for key, value := range extra {
+		details[key] = value
+	}
+	return details
+}
+
+func vlanLifecycleOperationDetails(plan VLANLifecyclePlan, extra map[string]any) map[string]any {
+	details := map[string]any{
+		"feature_id":                     HostapdVLANLifecycleFeatureID,
+		"hostapd_dynamic_ssid_count":     plan.Summary.HostapdDynamicSSIDCount,
+		"hostapd_fallback_ssid_count":    plan.Summary.HostapdFallbackSSIDCount,
+		"hostapd_fail_closed_ssid_count": plan.Summary.HostapdFailClosedSSIDCount,
+		"hostapd_vlan_entry_count":       plan.Summary.HostapdVLANEntryCount,
+		"cleanup_command_count":          plan.Summary.CleanupCommandCount,
+		"rollback_command_count":         plan.Summary.RollbackCommandCount,
+		"hostapd_vlan_file_path":         plan.HostapdVLANFilePath,
+		"hostapd_vlan_file_sha256":       plan.HostapdVLANFileSHA256,
 	}
 	for key, value := range extra {
 		details[key] = value
@@ -996,7 +1360,13 @@ func canIgnoreVLANLifecycleCommandError(command []string, output string) bool {
 		return strings.Contains(lower, "file exists") || strings.Contains(lower, "already exists")
 	}
 	if len(command) >= 4 && command[0] == "ip" && command[1] == "link" && command[2] == "set" {
-		return strings.Contains(lower, "already")
+		return strings.Contains(lower, "already") || strings.Contains(lower, "not master")
+	}
+	if len(command) >= 4 && command[0] == "ip" && command[1] == "link" && command[2] == "delete" {
+		return strings.Contains(lower, "cannot find") ||
+			strings.Contains(lower, "does not exist") ||
+			strings.Contains(lower, "not found") ||
+			strings.Contains(lower, "no such device")
 	}
 	return false
 }

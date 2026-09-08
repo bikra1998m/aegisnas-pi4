@@ -726,6 +726,13 @@ writes only owned local artifacts and records rollback snapshots; external APs
 and controllers still receive the standard or vendor-specific RADIUS VLAN
 attributes through the reply renderer.
 
+NAS-0074 adds the local hostapd dynamic VLAN workflow on top of that shared
+engine. `/api/v1/system/hostapd-vlan-lifecycle` reports each dynamic SSID
+binding, the selected hostapd mode, managed VLAN file contents,
+cleanup/rollback previews, and release certification scope. SSIDs with a
+fallback VLAN render `dynamic_vlan=1`; SSIDs without a fallback VLAN render
+fail-closed `dynamic_vlan=2`.
+
 NAS-0054 adds the portable tagged VLAN and QinQ policy compiler. Prefer this
 for new role intent because it covers one data VLAN, one tagged voice VLAN,
 extra tagged VLANs, deterministic VLAN pools, fallback VLANs, auth-fail VLANs,

@@ -128,11 +128,19 @@ conflicting bridge mappings, and missing parent interfaces block apply.
 
 ## Hostapd
 
-When an enterprise SSID enables `dynamic_vlan`, generated hostapd config now
-includes:
+When an enterprise SSID enables `dynamic_vlan`, generated hostapd config
+includes `vlan_file` and selects the dynamic mode from SSID intent. A fallback
+VLAN renders optional mode:
 
 ```text
 dynamic_vlan=1
+vlan_file=/etc/hostapd/aegisnas-vlans.conf
+```
+
+An SSID without a fallback VLAN renders fail-closed mode:
+
+```text
+dynamic_vlan=2
 vlan_file=/etc/hostapd/aegisnas-vlans.conf
 ```
 
@@ -163,6 +171,8 @@ Support bundles include:
 
 - `api/vlan-lifecycle.json`
 - `api/vlan-lifecycle-history.json`
+- `api/hostapd-vlan-lifecycle.json`
+- `api/hostapd-vlan-lifecycle-history.json`
 
 Dashboard includes:
 
@@ -173,6 +183,9 @@ Dashboard includes:
 - hostapd VLAN file path
 
 Production readiness includes `dynamic_vlan_lifecycle`.
+NAS-0074 adds hostapd-specific readiness as
+`hostapd_dynamic_vlan_lifecycle`; see
+[hostapd-dynamic-vlan-lifecycle.md](hostapd-dynamic-vlan-lifecycle.md).
 
 ## Validation
 

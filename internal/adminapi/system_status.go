@@ -198,6 +198,37 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		vlanLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["vlan_lifecycle"]}
 	}
+	hostapdVLANLifecycleStatus := map[string]any{
+		"status":  "unknown",
+		"message": "hostapd dynamic VLAN lifecycle status has not been evaluated.",
+	}
+	if hostapdReport, err := enforcement.PreviewHostapdVLANLifecycle(cfg); err == nil {
+		vlanSummary, _ := db.GetVLANLifecycleEventSummary()
+		hostapdVLANLifecycleStatus = map[string]any{
+			"schema_version":                  hostapdReport.SchemaVersion,
+			"feature_id":                      hostapdReport.FeatureID,
+			"status":                          hostapdReport.Status,
+			"message":                         hostapdReport.Message,
+			"ready_for_external_validation":   hostapdReport.ReadyForExternalValidation,
+			"software_completion_percent":     hostapdReport.SoftwareCompletionPercent,
+			"dynamic_ssid_count":              hostapdReport.Summary.DynamicSSIDCount,
+			"fallback_ssid_count":             hostapdReport.Summary.FallbackSSIDCount,
+			"fail_closed_ssid_count":          hostapdReport.Summary.FailClosedSSIDCount,
+			"hostapd_vlan_entry_count":        hostapdReport.Summary.HostapdVLANEntryCount,
+			"cleanup_command_count":           hostapdReport.Summary.CleanupCommandCount,
+			"rollback_command_count":          hostapdReport.Summary.RollbackCommandCount,
+			"hostapd_config_path":             hostapdReport.HostapdConfigPath,
+			"hostapd_config_sha256":           hostapdReport.HostapdConfigSHA256,
+			"hostapd_vlan_file_path":          hostapdReport.Plan.HostapdVLANFilePath,
+			"hostapd_vlan_file_sha256":        hostapdReport.Plan.HostapdVLANFileSHA256,
+			"plan_fingerprint":                hostapdReport.Plan.PlanFingerprint,
+			"release_certification_checklist": hostapdReport.ReleaseCertificationChecklist,
+			"evidence_summary":                vlanSummary,
+			"runtime_status":                  runtimeMap["vlan_lifecycle"],
+		}
+	} else {
+		hostapdVLANLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["vlan_lifecycle"]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -996,6 +1027,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"channel":                cfg.Wireless.Channel,
 		"hostapd_config_path":    cfg.Wireless.HostapdConfigPath,
 		"hostapd_vlan_file_path": cfg.Wireless.HostapdVLANFilePath,
+		"hostapd_vlan_lifecycle": hostapdVLANLifecycleStatus,
 		"ssid_count":             len(cfg.Wireless.SSIDs),
 		"auth_modes":             ssidAuthModes(cfg.Wireless.SSIDs),
 	}

@@ -82,11 +82,17 @@ func TestGenerateHostapdConfigEnterpriseAndPortal(t *testing.T) {
 	assert.Contains(t, text, "ssid=Staff")
 	assert.Contains(t, text, "ssid=Corp")
 	assert.Contains(t, text, "auth_server_addr=127.0.0.1")
-	assert.Contains(t, text, "dynamic_vlan=1")
+	assert.Contains(t, text, "dynamic_vlan=2")
 	assert.Contains(t, text, "vlan_file=/tmp/aegisnas-vlans.conf")
 	assert.Contains(t, text, "# captive portal access is enforced by the AegisNAS gateway and portal services")
 	assert.Contains(t, text, "# aegisnas_identity_source=ldap-main")
 	assert.Contains(t, text, "wpa_key_mgmt=SAE")
 	assert.Contains(t, text, "ieee80211w=2")
 	assert.True(t, strings.HasSuffix(text, "\n"))
+}
+
+func TestHostapdDynamicVLANModeUsesFallbackWhenConfigured(t *testing.T) {
+	assert.Equal(t, 0, HostapdDynamicVLANMode(config.SSIDConfig{}))
+	assert.Equal(t, 2, HostapdDynamicVLANMode(config.SSIDConfig{DynamicVLAN: true}))
+	assert.Equal(t, 1, HostapdDynamicVLANMode(config.SSIDConfig{DynamicVLAN: true, VLAN: 30}))
 }

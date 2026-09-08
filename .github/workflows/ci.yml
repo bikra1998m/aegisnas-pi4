@@ -36,6 +36,7 @@ jobs:
       - run: make test-switching-vendor-pack
       - run: make test-long-tail-namespace
       - run: make test-external-vendor-intake
+      - run: make test-hostapd-vlan-lifecycle
       - run: make test-vsa-codec
       - run: make test-opaque-passthrough
       - run: make test-secret-providers

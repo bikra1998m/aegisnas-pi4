@@ -1114,6 +1114,28 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 		"200":     responseJSON("hostapd publish result."),
 		"default": responseText("hostapd publish error."),
 	}))
+	addOperation(paths, "/api/v1/system/hostapd-vlan-lifecycle", "get", securedOperation("Read hostapd dynamic VLAN lifecycle", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0074 hostapd dynamic VLAN report, generated hostapd preview fingerprint, bridge/subinterface lifecycle plan, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/hostapd-vlan-lifecycle/preview", "post", securedOperationWithBody("Preview hostapd dynamic VLAN lifecycle", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without changing Linux links or hostapd files."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0074 hostapd dynamic VLAN lifecycle report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/hostapd-vlan-lifecycle/apply", "post", securedOperationWithBody("Apply hostapd dynamic VLAN lifecycle", "Wireless", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; creates managed bridges/subinterfaces, writes the hostapd VLAN file, and rolls back on failed apply."), map[string]any{
+		"200":     responseJSON("Applied NAS-0074 hostapd dynamic VLAN lifecycle snapshot and event."),
+		"409":     responseText("Blocked or failed apply."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/hostapd-vlan-lifecycle/rollback", "post", securedOperationWithBody("Rollback hostapd dynamic VLAN lifecycle", "Wireless", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional snapshot_id; if omitted the newest previous dynamic VLAN snapshot is restored."), map[string]any{
+		"200":     responseJSON("Rolled back NAS-0074 hostapd dynamic VLAN lifecycle to a stored snapshot."),
+		"409":     responseText("Rollback target unavailable or failed."),
+		"default": responseText("Rollback error."),
+	}))
+	addOperation(paths, "/api/v1/system/hostapd-vlan-lifecycle/history", "get", securedOperationWithParameters("List hostapd dynamic VLAN lifecycle history", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event and snapshot limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0074 hostapd dynamic VLAN lifecycle snapshot and event history."),
+	}))
 	addOperation(paths, "/api/v1/system/radius-apply", "post", securedOperation("Apply RADIUS runtime configuration", "RADIUS", []string{"super_admin"}, map[string]any{
 		"200":     responseJSON("RADIUS apply result."),
 		"default": responseText("RADIUS apply error."),

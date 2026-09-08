@@ -599,6 +599,16 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/vlan-lifecycle"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/hostapd-vlan-lifecycle/apply"):
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/hostapd-vlan-lifecycle/rollback"):
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/hostapd-vlan-lifecycle/preview"):
+		return identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/hostapd-vlan-lifecycle/history"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/hostapd-vlan-lifecycle"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/subscriber-route-export/apply"):
 		return identity.Role == adminRoleOpsAdmin
 	case strings.HasPrefix(path, "/api/v1/system/subscriber-route-export/rollback"):

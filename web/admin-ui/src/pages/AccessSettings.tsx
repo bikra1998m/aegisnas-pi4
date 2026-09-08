@@ -3151,11 +3151,13 @@ function statusTone(status?: string) {
     case "ok":
     case "ack":
     case "passed":
+    case "fail_closed":
       return "border-emerald-200 bg-emerald-50 text-emerald-800";
     case "blocked":
     case "error":
       return "border-red-200 bg-red-50 text-red-800";
     case "disabled":
+    case "skipped":
       return "border-gray-200 bg-gray-50 text-gray-700";
     default:
       return "border-amber-200 bg-amber-50 text-amber-800";
@@ -3382,6 +3384,11 @@ export default function AccessSettings() {
   const [previewError, setPreviewError] = useState("");
   const [hostapdPreview, setHostapdPreview] = useState("");
   const [hostapdPath, setHostapdPath] = useState("");
+  const [hostapdVLANLifecycle, setHostapdVLANLifecycle] =
+    useState<JsonMap | null>(null);
+  const [hostapdVLANLifecycleAction, setHostapdVLANLifecycleAction] =
+    useState("");
+  const hostapdVLANLifecycleBusy = hostapdVLANLifecycleAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3453,6 +3460,11 @@ export default function AccessSettings() {
     } finally {
       setLeasesLoading(false);
     }
+  };
+
+  const loadHostapdVLANLifecycle = async () => {
+    const { data } = await api.get("/system/hostapd-vlan-lifecycle");
+    setHostapdVLANLifecycle(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3680,14 +3692,16 @@ export default function AccessSettings() {
     setLoading(true);
     setError("");
     try {
-      const [settingsRes, previewRes] = await Promise.all([
+      const [settingsRes, previewRes, hostapdVLANRes] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
+        api.get("/system/hostapd-vlan-lifecycle"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
       setHostapdPreview(previewRes.data.config || "");
       setHostapdPath(previewRes.data.path || "");
+      setHostapdVLANLifecycle(hostapdVLANRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -3775,6 +3789,7 @@ export default function AccessSettings() {
       const previewRes = await api.get("/system/hostapd-preview");
       setHostapdPreview(previewRes.data.config || "");
       setHostapdPath(previewRes.data.path || "");
+      await loadHostapdVLANLifecycle();
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -3999,6 +4014,7 @@ export default function AccessSettings() {
       const previewRes = await api.get("/system/hostapd-preview");
       setHostapdPreview(previewRes.data.config || "");
       setHostapdPath(previewRes.data.path || "");
+      await loadHostapdVLANLifecycle();
     } catch (err: any) {
       setError(
         err.response?.data ||
@@ -4007,6 +4023,75 @@ export default function AccessSettings() {
       );
     } finally {
       setPublishingHostapd(false);
+    }
+  };
+
+  const previewHostapdVLANLifecycle = async () => {
+    setHostapdVLANLifecycleAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/hostapd-vlan-lifecycle/preview", {});
+      setHostapdVLANLifecycle(data.report || null);
+      setMessage(
+        `hostapd dynamic VLAN preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview hostapd dynamic VLAN lifecycle.",
+      );
+    } finally {
+      setHostapdVLANLifecycleAction("");
+    }
+  };
+
+  const applyHostapdVLANLifecycle = async () => {
+    setHostapdVLANLifecycleAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/hostapd-vlan-lifecycle/apply", {});
+      setHostapdVLANLifecycle(data.report || null);
+      setMessage(
+        `hostapd dynamic VLAN lifecycle ${data.result?.status || "applied"}${data.result?.snapshot_id ? ` with snapshot ${data.result.snapshot_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadHostapdVLANLifecycle();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply hostapd dynamic VLAN lifecycle.",
+      );
+    } finally {
+      setHostapdVLANLifecycleAction("");
+    }
+  };
+
+  const rollbackHostapdVLANLifecycle = async () => {
+    setHostapdVLANLifecycleAction("rollback");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/hostapd-vlan-lifecycle/rollback", {});
+      setHostapdVLANLifecycle(data.report || null);
+      setMessage(
+        `hostapd dynamic VLAN lifecycle rolled back${data.result?.restored_snapshot_id ? ` to ${data.result.restored_snapshot_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadHostapdVLANLifecycle();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not rollback hostapd dynamic VLAN lifecycle.",
+      );
+    } finally {
+      setHostapdVLANLifecycleAction("");
     }
   };
 
@@ -4361,6 +4446,28 @@ export default function AccessSettings() {
   const translationRolePolicies =
     settings.radius?.translation_policy?.role_policies || [];
   const ssids = settings.wireless?.ssids || [];
+  const hostapdVLANSummary = hostapdVLANLifecycle?.summary || {};
+  const hostapdVLANPlan = hostapdVLANLifecycle?.plan || {};
+  const hostapdVLANBindings = Array.isArray(hostapdVLANPlan.hostapd_bindings)
+    ? hostapdVLANPlan.hostapd_bindings
+    : [];
+  const hostapdVLANEntries = Array.isArray(hostapdVLANPlan.hostapd_vlan_entries)
+    ? hostapdVLANPlan.hostapd_vlan_entries
+    : [];
+  const hostapdVLANCommands = Array.isArray(hostapdVLANPlan.command_preview)
+    ? hostapdVLANPlan.command_preview
+    : [];
+  const hostapdVLANCleanupCommands = Array.isArray(
+    hostapdVLANPlan.cleanup_command_preview,
+  )
+    ? hostapdVLANPlan.cleanup_command_preview
+    : [];
+  const hostapdVLANRollbackCommands = Array.isArray(
+    hostapdVLANPlan.rollback_command_preview,
+  )
+    ? hostapdVLANPlan.rollback_command_preview
+    : [];
+  const hostapdVLANTone = statusTone(hostapdVLANLifecycle?.status);
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
   const dnsServers = settings.network?.dns?.upstream_servers || [];
@@ -4516,6 +4623,33 @@ export default function AccessSettings() {
             {publishingHostapd
               ? "Publishing Wi-Fi..."
               : "Write And Restart Wi-Fi"}
+          </button>
+          <button
+            onClick={previewHostapdVLANLifecycle}
+            disabled={hostapdVLANLifecycleBusy}
+            className="rounded-md border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-800 disabled:opacity-60"
+          >
+            {hostapdVLANLifecycleAction === "preview"
+              ? "Checking VLANs..."
+              : "Preview hostapd VLANs"}
+          </button>
+          <button
+            onClick={applyHostapdVLANLifecycle}
+            disabled={hostapdVLANLifecycleBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {hostapdVLANLifecycleAction === "apply"
+              ? "Applying VLANs..."
+              : "Apply hostapd VLANs"}
+          </button>
+          <button
+            onClick={rollbackHostapdVLANLifecycle}
+            disabled={hostapdVLANLifecycleBusy}
+            className="rounded-md border border-amber-300 px-4 py-2 text-sm font-medium text-amber-800 disabled:opacity-60"
+          >
+            {hostapdVLANLifecycleAction === "rollback"
+              ? "Rolling Back VLANs..."
+              : "Rollback hostapd VLANs"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -23104,6 +23238,145 @@ export default function AccessSettings() {
             ))
           )}
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              hostapd Dynamic VLAN Lifecycle
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {hostapdVLANLifecycle?.release_certification_checklist ||
+                "Preview the local AP VLAN file before appliance rollout."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${hostapdVLANTone}`}
+          >
+            {hostapdVLANLifecycle?.status || "unknown"}
+          </div>
+        </div>
+        {hostapdVLANLifecycle ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {hostapdVLANLifecycle.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                ["Dynamic SSIDs", hostapdVLANSummary.dynamic_ssid_count || 0],
+                ["Fallback SSIDs", hostapdVLANSummary.fallback_ssid_count || 0],
+                [
+                  "Fail Closed",
+                  hostapdVLANSummary.fail_closed_ssid_count || 0,
+                ],
+                ["VLAN Entries", hostapdVLANSummary.hostapd_vlan_entry_count || 0],
+                ["Cleanup", hostapdVLANSummary.cleanup_command_count || 0],
+                ["Rollback", hostapdVLANSummary.rollback_command_count || 0],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="rounded-md border border-gray-200 p-3">
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  SSID Binding
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {hostapdVLANBindings.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No dynamic VLAN SSID is active.
+                    </div>
+                  ) : (
+                    hostapdVLANBindings.map((binding: JsonMap, index: number) => (
+                      <div
+                        key={`${binding.ssid || "ssid"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {binding.ssid || "Unnamed SSID"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              binding.status,
+                            )}`}
+                          >
+                            {binding.dynamic_vlan_mode_name || binding.status}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          Mode {binding.dynamic_vlan_mode || 0}; fallback VLAN{" "}
+                          {binding.fallback_vlan || "none"}; entries{" "}
+                          {binding.vlan_entry_count || 0}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  VLAN File
+                </h4>
+                <div className="mt-2 rounded-md border border-gray-200 p-3 text-sm text-gray-700">
+                  <div className="break-words">
+                    {hostapdVLANPlan.hostapd_vlan_file_path || "No VLAN file path"}
+                  </div>
+                  <div className="mt-1 break-all text-xs text-gray-500">
+                    {hostapdVLANPlan.hostapd_vlan_file_sha256 ||
+                      "No fingerprint yet"}
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500">
+                    {`${hostapdVLANEntries.length} managed ${
+                      hostapdVLANEntries.length === 1 ? "entry" : "entries"
+                    }, ${hostapdVLANCommands.length} create command${
+                      hostapdVLANCommands.length === 1 ? "" : "s"
+                    }`}
+                  </div>
+                </div>
+                <textarea
+                  value={hostapdVLANPlan.hostapd_vlan_file_text || ""}
+                  readOnly
+                  className="mt-3 min-h-[160px] w-full rounded-md border border-gray-300 bg-gray-950 px-4 py-3 font-mono text-xs text-gray-100"
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Cleanup Preview
+                </h4>
+                <textarea
+                  value={hostapdVLANCleanupCommands.join("\n")}
+                  readOnly
+                  className="mt-2 min-h-[120px] w-full rounded-md border border-gray-300 bg-gray-950 px-4 py-3 font-mono text-xs text-gray-100"
+                />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Rollback Preview
+                </h4>
+                <textarea
+                  value={hostapdVLANRollbackCommands.join("\n")}
+                  readOnly
+                  className="mt-2 min-h-[120px] w-full rounded-md border border-gray-300 bg-gray-950 px-4 py-3 font-mono text-xs text-gray-100"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Lifecycle report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">
