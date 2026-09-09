@@ -1512,6 +1512,52 @@ wireless:
   ctrl_interface: /var/run/hostapd
   hostapd_config_path: /etc/hostapd/hostapd.conf
   hostapd_vlan_file_path: /etc/hostapd/aegisnas-vlans.conf
+  roaming:
+    enabled: false
+    mode: monitor
+    fail_closed: true
+    ieee80211r: true
+    ieee80211k: true
+    ieee80211v: true
+    mobility_domain: a1b2
+    ft_over_ds: false
+    pmf_required: true
+    r0_key_lifetime_seconds: 3600
+    reassociation_deadline: 1000
+    nas_identifier: aegisnas-local-ap
+    r1_key_holder: "001122334455"
+    key_seed_ref: "env:AEGIS_FT_KEY_SEED"
+    next_key_seed_ref: ""
+    next_key_not_before: ""
+    next_key_not_after: ""
+    key_rotation_mode: active
+    rrm_neighbor_report: true
+    rrm_beacon_report: true
+    bss_transition: true
+    wnm_sleep_mode: false
+    event_retention_limit: 6000
+    neighbor_aps:
+      - name: "aegis-ap-2"
+        bssid: "02:11:22:33:44:55"
+        nas_identifier: "aegis-ap-2"
+        r1_key_holder: "021122334455"
+        channel: 6
+        op_class: 81
+        preference: 255
+        ssids: ["Aegis Corp", "Aegis Staff"]
+        key_seed_ref: "env:AEGIS_FT_KEY_SEED"
+        description: "Example neighbor for hostapd FT key derivation"
+    profiles:
+      - name: "corp-fast-roam"
+        enabled: true
+        mode: enforce
+        ieee80211r: true
+        ieee80211k: true
+        ieee80211v: true
+        mobility_domain: a1b2
+        pmf_required: true
+        neighbor_aps: ["aegis-ap-2"]
+        key_seed_ref: "env:AEGIS_FT_KEY_SEED"
   ssids:
     - name: "Aegis Guest"
       auth_mode: "captive-portal"
@@ -1523,10 +1569,12 @@ wireless:
       auth_mode: "wpa2-enterprise"
       bridge: "br-corp"
       dynamic_vlan: true
+      roaming_profile: "corp-fast-roam"
       identity_source: "radius-upstream"
       bandwidth_profile: "corp-standard"
     - name: "Aegis Staff"
       auth_mode: "wpa3-enterprise"
       bridge: "br-staff"
+      roaming_profile: "corp-fast-roam"
       identity_source: "radius-upstream"
       bandwidth_profile: "corp-standard"

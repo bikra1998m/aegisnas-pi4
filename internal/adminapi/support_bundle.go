@@ -345,6 +345,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/vlan-lifecycle-history.json", requestPath: "/api/v1/system/vlan-lifecycle/history", label: "Dynamic VLAN lifecycle apply and rollback history", handler: HandleListVLANLifecycleHistory},
 		{archivePath: "api/hostapd-vlan-lifecycle.json", requestPath: "/api/v1/system/hostapd-vlan-lifecycle", label: "hostapd dynamic VLAN lifecycle", handler: HandleGetHostapdVLANLifecycle},
 		{archivePath: "api/hostapd-vlan-lifecycle-history.json", requestPath: "/api/v1/system/hostapd-vlan-lifecycle/history", label: "hostapd dynamic VLAN lifecycle apply and rollback history", handler: HandleListHostapdVLANLifecycleHistory},
+		{archivePath: "api/wireless-roaming-lifecycle.json", requestPath: "/api/v1/system/wireless-roaming-lifecycle", label: "802.11r/k/v roaming and key lifecycle", handler: HandleGetWirelessRoamingLifecycle},
+		{archivePath: "api/wireless-roaming-lifecycle-history.json", requestPath: "/api/v1/system/wireless-roaming-lifecycle/history", label: "802.11r/k/v roaming lifecycle history", handler: HandleListWirelessRoamingLifecycleHistory},
 		{archivePath: "api/subscriber-route-export.json", requestPath: "/api/v1/system/subscriber-route-export", label: "Dynamic BGP/OSPF subscriber route export", handler: HandleGetSubscriberRouteExport},
 		{archivePath: "api/subscriber-route-export-history.json", requestPath: "/api/v1/system/subscriber-route-export/history", label: "Subscriber route export apply and rollback history", handler: HandleListSubscriberRouteExportHistory},
 		{archivePath: "api/enforcement-transactions.json", requestPath: "/api/v1/system/enforcement-transactions", label: "Atomic enforcement transaction state", handler: HandleGetEnforcementTransactions},

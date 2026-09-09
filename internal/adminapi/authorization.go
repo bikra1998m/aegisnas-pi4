@@ -609,6 +609,14 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/hostapd-vlan-lifecycle"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/wireless-roaming-lifecycle/apply"):
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/wireless-roaming-lifecycle/preview"):
+		return identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/wireless-roaming-lifecycle/history"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/wireless-roaming-lifecycle"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/subscriber-route-export/apply"):
 		return identity.Role == adminRoleOpsAdmin
 	case strings.HasPrefix(path, "/api/v1/system/subscriber-route-export/rollback"):

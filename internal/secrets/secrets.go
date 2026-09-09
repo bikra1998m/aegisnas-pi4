@@ -357,6 +357,22 @@ func DiscoverConfigSources(cfg *config.Config) []Source {
 	if strings.TrimSpace(cfg.Onboarding.SupplicantLifecycle.ProfileSigningKeyRef) != "" {
 		sources = append(sources, Source{Field: "onboarding.supplicant_lifecycle.profile_signing_key_ref", Scope: "config", Ref: strings.TrimSpace(cfg.Onboarding.SupplicantLifecycle.ProfileSigningKeyRef), Required: cfg.Onboarding.SupplicantLifecycle.RequireSignedProfiles})
 	}
+	if strings.TrimSpace(cfg.Wireless.Roaming.KeySeedRef) != "" {
+		sources = append(sources, Source{Field: "wireless.roaming.key_seed_ref", Scope: "config", Ref: strings.TrimSpace(cfg.Wireless.Roaming.KeySeedRef), Required: cfg.Wireless.Roaming.Enabled && cfg.Wireless.Roaming.FailClosed && cfg.Wireless.Roaming.IEEE80211R && len(cfg.Wireless.Roaming.NeighborAPs) > 0})
+	}
+	if strings.TrimSpace(cfg.Wireless.Roaming.NextKeySeedRef) != "" {
+		sources = append(sources, Source{Field: "wireless.roaming.next_key_seed_ref", Scope: "config", Ref: strings.TrimSpace(cfg.Wireless.Roaming.NextKeySeedRef), Required: false})
+	}
+	for i, profile := range cfg.Wireless.Roaming.Profiles {
+		if strings.TrimSpace(profile.KeySeedRef) != "" {
+			sources = append(sources, Source{Field: fmt.Sprintf("wireless.roaming.profiles[%d].key_seed_ref", i), Scope: "config", Ref: strings.TrimSpace(profile.KeySeedRef), Required: cfg.Wireless.Roaming.Enabled && profile.Enabled && profile.IEEE80211R && len(profile.NeighborAPs) > 0})
+		}
+	}
+	for i, neighbor := range cfg.Wireless.Roaming.NeighborAPs {
+		if strings.TrimSpace(neighbor.KeySeedRef) != "" {
+			sources = append(sources, Source{Field: fmt.Sprintf("wireless.roaming.neighbor_aps[%d].key_seed_ref", i), Scope: "config", Ref: strings.TrimSpace(neighbor.KeySeedRef), Required: cfg.Wireless.Roaming.Enabled && cfg.Wireless.Roaming.IEEE80211R})
+		}
+	}
 	appendEnv("profiling.mdm_api_token_env", "config", cfg.Profiling.MDMAPITokenEnv, cfg.Profiling.MDMSyncEnabled)
 	appendEnv("profiling.compliance_token_env", "config", cfg.Profiling.ComplianceTokenEnv, strings.TrimSpace(cfg.Profiling.ComplianceWebhook) != "")
 	appendEnv("integrations.admin_sso.client_secret_env", "config", cfg.Integrations.AdminSSO.ClientSecretEnv, cfg.Integrations.AdminSSO.Enabled)

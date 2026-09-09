@@ -239,6 +239,30 @@ In the `Wireless Radio And SSIDs` section, set the physical radio details:
 - `HT Enabled`
 - `Control Socket`
 
+Then configure `802.11r/k/v Roaming` when the appliance will broadcast secure
+local SSIDs that need fast transition:
+
+- `Roaming Enabled`
+- `Roaming Mode`
+- `Fail Closed`
+- `Mobility Domain`
+- `NAS Identifier`
+- `R1 Key Holder`
+- `Key Seed Ref`
+- optional staged `Next Key Seed Ref`
+- `R0 Key Lifetime`
+- `Reassociation Deadline`
+- `Key Rotation Interval`
+- `PMF Mode`
+- `802.11r`
+- `802.11k`
+- `802.11v`
+- `FT Over DS`
+- `RRM Neighbor Reports`
+- `BSS Transition`
+- `Roaming Profiles`
+- `Neighbor APs`
+
 Typical physical appliance values:
 
 - interface: `wlan0`
@@ -258,6 +282,7 @@ For each SSID, fill:
 - `VLAN`
 - `Portal Profile`
 - `Identity Source`
+- `Roaming Profile` when fast transition policy should be applied
 - `Bandwidth Profile`
 - `Max Clients`
 - `Hidden`
@@ -512,6 +537,11 @@ Checklist:
 - [ ] For a physical appliance using a local radio, `hostapd Dynamic VLAN Lifecycle` reports `ready`
 - [ ] Dynamic SSIDs with fallback VLANs show `dynamic_vlan=1`; dynamic SSIDs without fallback VLANs show fail-closed `dynamic_vlan=2`
 - [ ] `Apply hostapd VLANs` has created the managed bridge/subinterface and hostapd VLAN file snapshot before hostapd restart
+- [ ] For a physical appliance using fast roaming, `802.11r/k/v Roaming Lifecycle` reports `ready`
+- [ ] The SSID's `Roaming Profile` enables only the intended 802.11r/k/v features
+- [ ] Every 802.11r neighbor AP has BSSID, R1 key holder, NAS identifier, and key seed coverage
+- [ ] The redacted hostapd preview contains the expected `mobility_domain`, `r0kh`, `r1kh`, `rrm_neighbor_report`, and `bss_transition` lines without exposing seed values
+- [ ] `Apply 802.11r/k/v` has recorded lifecycle history before hostapd restart
 - [ ] For a physical appliance using a local radio, `hostapd Preview` reflects the intended enterprise SSID
 - [ ] For a physical appliance using a local radio, `Write hostapd Config` or `Write And Restart Wi-Fi` has been run
 - [ ] For an external AP or controller, the SSID is configured on the AP side as WPA2-Enterprise or WPA3-Enterprise
@@ -535,15 +565,16 @@ After configuration, check these paths:
 
 1. `Access Settings` page reloads without errors
 2. `hostapd Dynamic VLAN Lifecycle` shows the expected bindings, VLAN file entries, and rollback preview
-3. `hostapd Preview` matches the saved SSIDs
-4. dashboard service cards stay healthy after apply
-5. dashboard upstream AAA cards reflect the real primary and secondary server state
-6. dashboard runtime shaping card reflects the downstream interface and shaped session count
-7. `RADIUS Clients` list contains the real AP or switch addresses
-8. `Sessions` shows live sessions during testing
-9. `Alerts` stays clear of repeated auth failures
-10. `Config Revisions` captures your changes
-11. `Backups` exports cleanly
+3. `802.11r/k/v Roaming Lifecycle` shows the expected SSID profiles, neighbors, key-reference state, and redacted hostapd preview
+4. `hostapd Preview` matches the saved SSIDs
+5. dashboard service cards stay healthy after apply
+6. dashboard upstream AAA cards reflect the real primary and secondary server state
+7. dashboard runtime shaping card reflects the downstream interface and shaped session count
+8. `RADIUS Clients` list contains the real AP or switch addresses
+9. `Sessions` shows live sessions during testing
+10. `Alerts` stays clear of repeated auth failures
+11. `Config Revisions` captures your changes
+12. `Backups` exports cleanly
 
 CLI checks:
 

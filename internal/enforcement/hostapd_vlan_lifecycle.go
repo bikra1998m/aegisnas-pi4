@@ -169,6 +169,8 @@ func redactHostapdConfigPreview(text string) string {
 		"acct_server_shared_secret": {},
 		"wpa_passphrase":            {},
 		"sae_password":              {},
+		"r0kh":                      {},
+		"r1kh":                      {},
 	}
 	lines := strings.Split(text, "\n")
 	for i, line := range lines {

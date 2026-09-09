@@ -735,6 +735,35 @@ review. Hardware radio tests, FreeRADIUS-on-Linux proof, HA failover,
 performance, soak, security audit, production deployment, and customer
 acceptance stay in `nas-0074-release-certification-checklist.md`.
 
+For local-radio fast roaming rollout, preview NAS-0075 before writing hostapd:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/wireless-roaming-lifecycle/preview \
+  | jq '.report.status, .report.summary, .report.ssids'
+```
+
+Apply only after mobility-domain, PMF, neighbor AP, and FT key-reference
+diagnostics are expected:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/wireless-roaming-lifecycle/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/wireless-roaming-lifecycle/history` and the support bundle
+files `api/wireless-roaming-lifecycle.json` and
+`api/wireless-roaming-lifecycle-history.json` during FT, RRM, BSS transition,
+neighbor, or PMF investigations. Real client roam, packet-capture,
+FreeRADIUS-on-Linux, HA, performance, soak, security audit, production
+deployment, and customer acceptance evidence stay in
+`nas-0075-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

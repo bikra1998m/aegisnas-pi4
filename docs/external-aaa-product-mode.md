@@ -733,6 +733,14 @@ cleanup/rollback previews, and release certification scope. SSIDs with a
 fallback VLAN render `dynamic_vlan=1`; SSIDs without a fallback VLAN render
 fail-closed `dynamic_vlan=2`.
 
+NAS-0075 adds local 802.11r/k/v roaming lifecycle evidence for secure hostapd
+SSIDs. `/api/v1/system/wireless-roaming-lifecycle` reports the effective global
+and per-SSID roaming profiles, FT key-reference coverage, neighbor AP
+inventory, redacted hostapd preview, diagnostics, history, and release
+certification scope. AegisNAS derives `r0kh`/`r1kh` material from configured
+secret references and redacts generated FT keys from API, UI, support bundle,
+and lifecycle history output.
+
 NAS-0054 adds the portable tagged VLAN and QinQ policy compiler. Prefer this
 for new role intent because it covers one data VLAN, one tagged voice VLAN,
 extra tagged VLANs, deterministic VLAN pools, fallback VLANs, auth-fail VLANs,

@@ -229,6 +229,40 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		hostapdVLANLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["vlan_lifecycle"]}
 	}
+	wirelessRoamingLifecycleStatus := map[string]any{
+		"status":  "unknown",
+		"message": "802.11r/k/v roaming lifecycle status has not been evaluated.",
+	}
+	if roamingReport, err := enforcement.PreviewWirelessRoamingLifecycle(cfg); err == nil {
+		roamingSummary, _ := db.GetWirelessRoamingLifecycleSummary()
+		wirelessRoamingLifecycleStatus = map[string]any{
+			"schema_version":                  roamingReport.SchemaVersion,
+			"feature_id":                      roamingReport.FeatureID,
+			"status":                          roamingReport.Status,
+			"message":                         roamingReport.Message,
+			"ready_for_external_validation":   roamingReport.ReadyForExternalValidation,
+			"software_completion_percent":     roamingReport.SoftwareCompletionPercent,
+			"roaming_enabled":                 roamingReport.Summary.RoamingEnabled,
+			"roaming_ssid_count":              roamingReport.Summary.RoamingSSIDCount,
+			"ft_ssid_count":                   roamingReport.Summary.FTSSIDCount,
+			"k_ssid_count":                    roamingReport.Summary.KSSIDCount,
+			"v_ssid_count":                    roamingReport.Summary.VSSIDCount,
+			"profile_count":                   roamingReport.Summary.ProfileCount,
+			"neighbor_count":                  roamingReport.Summary.NeighborCount,
+			"key_ref_count":                   roamingReport.Summary.KeyRefCount,
+			"staged_key_ref_count":            roamingReport.Summary.StagedKeyRefCount,
+			"resolvable_key_ref_count":        roamingReport.Summary.ResolvableKeyRefCount,
+			"diagnostic_count":                roamingReport.Summary.DiagnosticCount,
+			"hostapd_config_path":             roamingReport.HostapdConfigPath,
+			"hostapd_config_sha256":           roamingReport.HostapdConfigSHA256,
+			"plan_fingerprint":                roamingReport.PlanFingerprint,
+			"release_certification_checklist": roamingReport.ReleaseCertificationChecklist,
+			"evidence_summary":                roamingSummary,
+			"runtime_status":                  runtimeMap["wireless_roaming_lifecycle"],
+		}
+	} else {
+		wirelessRoamingLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["wireless_roaming_lifecycle"]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1028,6 +1062,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"hostapd_config_path":    cfg.Wireless.HostapdConfigPath,
 		"hostapd_vlan_file_path": cfg.Wireless.HostapdVLANFilePath,
 		"hostapd_vlan_lifecycle": hostapdVLANLifecycleStatus,
+		"roaming_lifecycle":      wirelessRoamingLifecycleStatus,
 		"ssid_count":             len(cfg.Wireless.SSIDs),
 		"auth_modes":             ssidAuthModes(cfg.Wireless.SSIDs),
 	}

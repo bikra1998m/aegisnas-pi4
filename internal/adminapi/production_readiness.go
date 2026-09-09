@@ -150,6 +150,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionRuntimeQoSCheck(&report, cfg)
 	addProductionVLANLifecycleCheck(&report, cfg)
 	addProductionHostapdVLANLifecycleCheck(&report, cfg)
+	addProductionWirelessRoamingLifecycleCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -1481,6 +1482,67 @@ func addProductionHostapdVLANLifecycleCheck(report *productionReadinessReport, c
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/hostapd-vlan-lifecycle/preview before local-radio rollout, apply only after reviewing fail-closed versus fallback SSIDs, and keep hardware, FreeRADIUS, HA, soak, security, and customer proof in the NAS-0074 release certification checklist.",
 		Dependencies:   []string{"wireless.ssids.dynamic_vlan", "wireless.hostapd_vlan_file_path", "vlan_lifecycle_snapshots", "vlan_lifecycle_events", "/api/v1/system/hostapd-vlan-lifecycle", "/api/v1/system/hostapd-vlan-lifecycle/preview", "/api/v1/system/hostapd-vlan-lifecycle/apply", "/api/v1/system/hostapd-vlan-lifecycle/rollback", "hostapd dynamic_vlan", "hostapd vlan_file", "Tunnel-Type", "Tunnel-Medium-Type", "Tunnel-Private-Group-Id", "RFC 2868", "IEEE 802.1Q"},
+	})
+}
+
+func addProductionWirelessRoamingLifecycleCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0075 802.11r/k/v roaming and key lifecycle software is ready."
+	reportData, err := enforcement.PreviewWirelessRoamingLifecycle(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "802.11r/k/v roaming lifecycle preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0075 schema %d status=%s, roaming SSIDs=%d, FT=%d, 11k=%d, 11v=%d, neighbors=%d, key refs=%d, staged refs=%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.RoamingSSIDCount,
+			reportData.Summary.FTSSIDCount,
+			reportData.Summary.KSSIDCount,
+			reportData.Summary.VSSIDCount,
+			reportData.Summary.NeighborCount,
+			reportData.Summary.KeyRefCount,
+			reportData.Summary.StagedKeyRefCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "skipped" {
+			summary += " Wireless roaming is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but roaming lifecycle event history cannot be verified."
+	} else if evidence, err := db.GetWirelessRoamingLifecycleSummary(); err != nil {
+		status = "blocked"
+		summary += " Wireless roaming lifecycle evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "wireless_roaming_lifecycle",
+		Category:       "wireless",
+		Label:          "NAS-0075 802.11r/k/v Roaming And Key Lifecycle",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/wireless-roaming-lifecycle/preview before local-radio rollout, apply only after reviewing FT neighbor key references and PMF policy, and keep hardware, packet capture, HA, scale, soak, security, and customer proof in the NAS-0075 release certification checklist.",
+		Dependencies:   []string{"wireless.roaming", "wireless.ssids.roaming_profile", "wireless.roaming.neighbor_aps", "wireless.roaming.key_seed_ref", "hostapd", "EAP-Message", "Message-Authenticator", "Calling-Station-Id", "Called-Station-Id", "/api/v1/system/wireless-roaming-lifecycle", "/api/v1/system/wireless-roaming-lifecycle/preview", "/api/v1/system/wireless-roaming-lifecycle/apply", "IEEE 802.11r", "IEEE 802.11k", "IEEE 802.11v", "IEEE 802.11w"},
 	})
 }
 

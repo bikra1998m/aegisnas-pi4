@@ -7,6 +7,7 @@ test.describe('Access Settings edge-network flow', () => {
     await installMockApi(page);
     await page.goto('/access-settings');
 
+    await expect(page.getByRole('heading', { name: 'Access Settings' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'RadSec', exact: true })).toBeVisible();
     await page.getByLabel('Inbound RadSec').check();
     await page.getByLabel('Server Certificate').fill('/etc/aegisnas/radsec/server.crt');
@@ -67,5 +68,32 @@ test.describe('Access Settings edge-network flow', () => {
     await page.getByRole('button', { name: 'Rollback Edge Network' }).click();
     await expect(page.getByText(/Edge network state rolled back to snapshot snap-002\./)).toBeVisible();
     await expect(page.getByText('Management Impact Confirmation Required')).toBeVisible();
+  });
+
+  test('previews and applies 802.11r/k/v roaming lifecycle', async ({ page }) => {
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto('/access-settings');
+    const roamingSection = page.locator('section').filter({
+      has: page.getByRole('heading', { name: '802.11r/k/v Roaming Lifecycle' }),
+    });
+    await expect(roamingSection).toBeVisible();
+    await expect(
+      roamingSection.getByRole('heading', { name: 'Roaming SSIDs' }),
+    ).toBeVisible();
+    await expect(
+      roamingSection.locator('div').filter({ hasText: /^FT SSIDs$/ }).first(),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview 802.11r/k/v' }).click();
+    await expect(
+      page.getByText(/802\.11r\/k\/v roaming preview recorded/),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Apply 802.11r/k/v' }).click();
+    await expect(
+      page.getByText(/802\.11r\/k\/v roaming lifecycle applied/),
+    ).toBeVisible();
   });
 });

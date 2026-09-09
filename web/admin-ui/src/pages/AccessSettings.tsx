@@ -2090,6 +2090,33 @@ const defaultSettings: JsonMap = {
     ctrl_interface: "/var/run/hostapd",
     hostapd_config_path: "/etc/hostapd/hostapd.conf",
     hostapd_vlan_file_path: "/etc/hostapd/aegisnas-vlans.conf",
+    roaming: {
+      enabled: false,
+      mode: "monitor",
+      fail_closed: true,
+      ieee80211r: true,
+      ieee80211k: true,
+      ieee80211v: true,
+      mobility_domain: "a1b2",
+      ft_over_ds: false,
+      pmf_required: true,
+      r0_key_lifetime_seconds: 3600,
+      reassociation_deadline: 1000,
+      nas_identifier: "aegisnas-local-ap",
+      r1_key_holder: "001122334455",
+      key_seed_ref: "env:AEGIS_FT_KEY_SEED",
+      next_key_seed_ref: "",
+      next_key_not_before: "",
+      next_key_not_after: "",
+      key_rotation_mode: "active",
+      rrm_neighbor_report: true,
+      rrm_beacon_report: true,
+      bss_transition: true,
+      wnm_sleep_mode: false,
+      event_retention_limit: 6000,
+      neighbor_aps: [],
+      profiles: [],
+    },
     ssids: [],
   },
 };
@@ -2356,6 +2383,17 @@ const translationPoolModeOptions: Option[] = [
   { value: "nat64", label: "NAT64 Pool" },
   { value: "dual-stack", label: "Dual Stack Pool" },
   { value: "deterministic", label: "Deterministic Pool" },
+];
+
+const wirelessRoamingModeOptions: Option[] = [
+  { value: "monitor", label: "Monitor" },
+  { value: "enforce", label: "Enforce" },
+];
+
+const wirelessRoamingRotationOptions: Option[] = [
+  { value: "active", label: "Active Key" },
+  { value: "staged", label: "Stage Next Key" },
+  { value: "cutover", label: "Cut Over" },
 ];
 
 const dhcpv6ModeOptions: Option[] = [
@@ -3389,6 +3427,11 @@ export default function AccessSettings() {
   const [hostapdVLANLifecycleAction, setHostapdVLANLifecycleAction] =
     useState("");
   const hostapdVLANLifecycleBusy = hostapdVLANLifecycleAction !== "";
+  const [wirelessRoamingLifecycle, setWirelessRoamingLifecycle] =
+    useState<JsonMap | null>(null);
+  const [wirelessRoamingLifecycleAction, setWirelessRoamingLifecycleAction] =
+    useState("");
+  const wirelessRoamingLifecycleBusy = wirelessRoamingLifecycleAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3465,6 +3508,11 @@ export default function AccessSettings() {
   const loadHostapdVLANLifecycle = async () => {
     const { data } = await api.get("/system/hostapd-vlan-lifecycle");
     setHostapdVLANLifecycle(data.report || null);
+  };
+
+  const loadWirelessRoamingLifecycle = async () => {
+    const { data } = await api.get("/system/wireless-roaming-lifecycle");
+    setWirelessRoamingLifecycle(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3692,16 +3740,19 @@ export default function AccessSettings() {
     setLoading(true);
     setError("");
     try {
-      const [settingsRes, previewRes, hostapdVLANRes] = await Promise.all([
-        api.get("/system/settings"),
-        api.get("/system/hostapd-preview"),
-        api.get("/system/hostapd-vlan-lifecycle"),
-      ]);
+      const [settingsRes, previewRes, hostapdVLANRes, roamingRes] =
+        await Promise.all([
+          api.get("/system/settings"),
+          api.get("/system/hostapd-preview"),
+          api.get("/system/hostapd-vlan-lifecycle"),
+          api.get("/system/wireless-roaming-lifecycle"),
+        ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
       setHostapdPreview(previewRes.data.config || "");
       setHostapdPath(previewRes.data.path || "");
       setHostapdVLANLifecycle(hostapdVLANRes.data.report || null);
+      setWirelessRoamingLifecycle(roamingRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -3790,6 +3841,7 @@ export default function AccessSettings() {
       setHostapdPreview(previewRes.data.config || "");
       setHostapdPath(previewRes.data.path || "");
       await loadHostapdVLANLifecycle();
+      await loadWirelessRoamingLifecycle();
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4015,6 +4067,7 @@ export default function AccessSettings() {
       setHostapdPreview(previewRes.data.config || "");
       setHostapdPath(previewRes.data.path || "");
       await loadHostapdVLANLifecycle();
+      await loadWirelessRoamingLifecycle();
     } catch (err: any) {
       setError(
         err.response?.data ||
@@ -4092,6 +4145,57 @@ export default function AccessSettings() {
       );
     } finally {
       setHostapdVLANLifecycleAction("");
+    }
+  };
+
+  const previewWirelessRoamingLifecycle = async () => {
+    setWirelessRoamingLifecycleAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/wireless-roaming-lifecycle/preview",
+        {},
+      );
+      setWirelessRoamingLifecycle(data.report || null);
+      setMessage(
+        `802.11r/k/v roaming preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview 802.11r/k/v roaming lifecycle.",
+      );
+    } finally {
+      setWirelessRoamingLifecycleAction("");
+    }
+  };
+
+  const applyWirelessRoamingLifecycle = async () => {
+    setWirelessRoamingLifecycleAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/wireless-roaming-lifecycle/apply",
+        {},
+      );
+      setWirelessRoamingLifecycle(data.report || null);
+      setMessage(
+        `802.11r/k/v roaming lifecycle ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadWirelessRoamingLifecycle();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply 802.11r/k/v roaming lifecycle.",
+      );
+    } finally {
+      setWirelessRoamingLifecycleAction("");
     }
   };
 
@@ -4468,6 +4572,26 @@ export default function AccessSettings() {
     ? hostapdVLANPlan.rollback_command_preview
     : [];
   const hostapdVLANTone = statusTone(hostapdVLANLifecycle?.status);
+  const wirelessRoamingSummary = wirelessRoamingLifecycle?.summary || {};
+  const wirelessRoamingSSIDs = Array.isArray(wirelessRoamingLifecycle?.ssids)
+    ? wirelessRoamingLifecycle?.ssids
+    : [];
+  const wirelessRoamingNeighbors = Array.isArray(
+    wirelessRoamingLifecycle?.neighbors,
+  )
+    ? wirelessRoamingLifecycle?.neighbors
+    : [];
+  const wirelessRoamingTone = statusTone(wirelessRoamingLifecycle?.status);
+  const wirelessRoamingProfiles = settings.wireless?.roaming?.profiles || [];
+  const wirelessRoamingConfiguredNeighbors =
+    settings.wireless?.roaming?.neighbor_aps || [];
+  const wirelessRoamingProfileOptions: Option[] = [
+    { value: "", label: "Use default roaming policy" },
+    ...wirelessRoamingProfiles.map((profile: JsonMap) => ({
+      value: profile.name || "",
+      label: profile.name || "Unnamed roaming profile",
+    })),
+  ];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
   const dnsServers = settings.network?.dns?.upstream_servers || [];
@@ -4650,6 +4774,24 @@ export default function AccessSettings() {
             {hostapdVLANLifecycleAction === "rollback"
               ? "Rolling Back VLANs..."
               : "Rollback hostapd VLANs"}
+          </button>
+          <button
+            onClick={previewWirelessRoamingLifecycle}
+            disabled={wirelessRoamingLifecycleBusy}
+            className="rounded-md border border-teal-200 px-4 py-2 text-sm font-medium text-teal-800 disabled:opacity-60"
+          >
+            {wirelessRoamingLifecycleAction === "preview"
+              ? "Checking Roaming..."
+              : "Preview 802.11r/k/v"}
+          </button>
+          <button
+            onClick={applyWirelessRoamingLifecycle}
+            disabled={wirelessRoamingLifecycleBusy}
+            className="rounded-md border border-teal-300 px-4 py-2 text-sm font-medium text-teal-900 disabled:opacity-60"
+          >
+            {wirelessRoamingLifecycleAction === "apply"
+              ? "Applying Roaming..."
+              : "Apply 802.11r/k/v"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -5152,6 +5294,146 @@ export default function AccessSettings() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              802.11r/k/v Roaming Lifecycle
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {wirelessRoamingLifecycle?.release_certification_checklist ||
+                "Preview fast roaming before local-radio rollout."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${wirelessRoamingTone}`}
+          >
+            {wirelessRoamingLifecycle?.status || "unknown"}
+          </div>
+        </div>
+        {wirelessRoamingLifecycle ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {wirelessRoamingLifecycle.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                ["Roaming SSIDs", wirelessRoamingSummary.roaming_ssid_count || 0],
+                ["FT SSIDs", wirelessRoamingSummary.ft_ssid_count || 0],
+                ["11k SSIDs", wirelessRoamingSummary.k_ssid_count || 0],
+                ["11v SSIDs", wirelessRoamingSummary.v_ssid_count || 0],
+                ["Neighbors", wirelessRoamingSummary.neighbor_count || 0],
+                ["Key Refs", wirelessRoamingSummary.key_ref_count || 0],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Roaming SSIDs
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {wirelessRoamingSSIDs.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No active roaming SSID is present.
+                    </div>
+                  ) : (
+                    wirelessRoamingSSIDs.map((ssid: JsonMap, index: number) => (
+                      <div
+                        key={`${ssid.ssid || "roaming-ssid"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {ssid.ssid || "Unnamed SSID"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              ssid.status,
+                            )}`}
+                          >
+                            {ssid.profile_name || ssid.status || "ready"}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {[
+                            ssid.ieee80211r ? "802.11r" : "",
+                            ssid.ieee80211k ? "802.11k" : "",
+                            ssid.ieee80211v ? "802.11v" : "",
+                            ssid.pmf_required ? "PMF" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" / ") || "No roaming standard enabled"}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Neighbor APs
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {wirelessRoamingNeighbors.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No neighbor AP is active.
+                    </div>
+                  ) : (
+                    wirelessRoamingNeighbors.map(
+                      (neighbor: JsonMap, index: number) => (
+                        <div
+                          key={`${neighbor.bssid || "neighbor"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="font-medium text-gray-900">
+                            {neighbor.name || neighbor.bssid || "Neighbor AP"}
+                          </div>
+                          <div className="mt-1 break-all text-xs text-gray-600">
+                            {neighbor.bssid || "no BSSID"}; R1{" "}
+                            {neighbor.r1_key_holder || "unset"}; key ref{" "}
+                            {neighbor.key_seed_ref_set ? "set" : "missing"}
+                          </div>
+                        </div>
+                      ),
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+            {((wirelessRoamingLifecycle.blockers?.length || 0) > 0 ||
+              (wirelessRoamingLifecycle.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(wirelessRoamingLifecycle.blockers || []),
+                  ...(wirelessRoamingLifecycle.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <textarea
+              value={wirelessRoamingLifecycle.hostapd_config_preview || ""}
+              readOnly
+              className="min-h-[240px] w-full rounded-md border border-gray-300 bg-gray-950 px-4 py-3 font-mono text-xs text-gray-100"
+            />
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Roaming lifecycle report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">
@@ -22950,6 +23232,7 @@ export default function AccessSettings() {
                     portal_profile: "",
                     identity_source: "",
                     bandwidth_profile: "",
+                    roaming_profile: "",
                   },
                 ],
               )
@@ -23044,6 +23327,605 @@ export default function AccessSettings() {
               updateField(["wireless", "ctrl_interface"], value)
             }
           />
+        </div>
+        <div className="mb-5 space-y-4 rounded-md border border-teal-100 bg-teal-50/40 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="font-semibold text-gray-900">
+                802.11r/k/v Roaming
+              </h4>
+              <p className="mt-1 text-sm text-gray-600">
+                Fast transition, RRM reports, BSS transition hints, and FT key
+                rotation are rendered into hostapd from secret references.
+              </p>
+            </div>
+            <div
+              className={`rounded-md border px-3 py-2 text-sm font-medium ${wirelessRoamingTone}`}
+            >
+              {wirelessRoamingLifecycle?.status || "unknown"}
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+            <ToggleField
+              label="Roaming Enabled"
+              checked={Boolean(settings.wireless?.roaming?.enabled)}
+              onChange={(value) =>
+                updateField(["wireless", "roaming", "enabled"], value)
+              }
+            />
+            <SelectField
+              label="Mode"
+              value={settings.wireless?.roaming?.mode || "monitor"}
+              onChange={(value) =>
+                updateField(["wireless", "roaming", "mode"], value)
+              }
+              options={wirelessRoamingModeOptions}
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={Boolean(settings.wireless?.roaming?.fail_closed)}
+              onChange={(value) =>
+                updateField(["wireless", "roaming", "fail_closed"], value)
+              }
+            />
+            <ToggleField
+              label="802.11r"
+              checked={Boolean(settings.wireless?.roaming?.ieee80211r)}
+              onChange={(value) =>
+                updateField(["wireless", "roaming", "ieee80211r"], value)
+              }
+            />
+            <ToggleField
+              label="802.11k"
+              checked={Boolean(settings.wireless?.roaming?.ieee80211k)}
+              onChange={(value) =>
+                updateField(["wireless", "roaming", "ieee80211k"], value)
+              }
+            />
+            <ToggleField
+              label="802.11v"
+              checked={Boolean(settings.wireless?.roaming?.ieee80211v)}
+              onChange={(value) =>
+                updateField(["wireless", "roaming", "ieee80211v"], value)
+              }
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <TextField
+              label="Mobility Domain"
+              value={settings.wireless?.roaming?.mobility_domain || ""}
+              onChange={(value) =>
+                updateField(["wireless", "roaming", "mobility_domain"], value)
+              }
+              placeholder="a1b2"
+            />
+            <TextField
+              label="NAS Identifier"
+              value={settings.wireless?.roaming?.nas_identifier || ""}
+              onChange={(value) =>
+                updateField(["wireless", "roaming", "nas_identifier"], value)
+              }
+            />
+            <TextField
+              label="R1 Key Holder"
+              value={settings.wireless?.roaming?.r1_key_holder || ""}
+              onChange={(value) =>
+                updateField(["wireless", "roaming", "r1_key_holder"], value)
+              }
+              placeholder="001122334455"
+            />
+            <TextField
+              label="Key Seed Ref"
+              value={settings.wireless?.roaming?.key_seed_ref || ""}
+              onChange={(value) =>
+                updateField(["wireless", "roaming", "key_seed_ref"], value)
+              }
+              placeholder="env:AEGIS_FT_KEY_SEED"
+            />
+            <TextField
+              label="R0 Lifetime Seconds"
+              type="number"
+              value={settings.wireless?.roaming?.r0_key_lifetime_seconds || 3600}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "roaming", "r0_key_lifetime_seconds"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Reassociation Deadline"
+              type="number"
+              value={settings.wireless?.roaming?.reassociation_deadline || 1000}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "roaming", "reassociation_deadline"],
+                  Number(value),
+                )
+              }
+            />
+            <SelectField
+              label="Key Rotation"
+              value={settings.wireless?.roaming?.key_rotation_mode || "active"}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "roaming", "key_rotation_mode"],
+                  value,
+                )
+              }
+              options={wirelessRoamingRotationOptions}
+            />
+            <TextField
+              label="Next Key Ref"
+              value={settings.wireless?.roaming?.next_key_seed_ref || ""}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "roaming", "next_key_seed_ref"],
+                  value,
+                )
+              }
+            />
+          </div>
+          <div className="grid gap-3 md:grid-cols-4">
+            <ToggleField
+              label="PMF Required"
+              checked={Boolean(settings.wireless?.roaming?.pmf_required)}
+              onChange={(value) =>
+                updateField(["wireless", "roaming", "pmf_required"], value)
+              }
+            />
+            <ToggleField
+              label="FT Over DS"
+              checked={Boolean(settings.wireless?.roaming?.ft_over_ds)}
+              onChange={(value) =>
+                updateField(["wireless", "roaming", "ft_over_ds"], value)
+              }
+            />
+            <ToggleField
+              label="RRM Neighbor Report"
+              checked={Boolean(settings.wireless?.roaming?.rrm_neighbor_report)}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "roaming", "rrm_neighbor_report"],
+                  value,
+                )
+              }
+            />
+            <ToggleField
+              label="BSS Transition"
+              checked={Boolean(settings.wireless?.roaming?.bss_transition)}
+              onChange={(value) =>
+                updateField(["wireless", "roaming", "bss_transition"], value)
+              }
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() =>
+                updateField(
+                  ["wireless", "roaming", "profiles"],
+                  [
+                    ...wirelessRoamingProfiles,
+                    {
+                      name: `roam-${wirelessRoamingProfiles.length + 1}`,
+                      enabled: true,
+                      mode: "enforce",
+                      ieee80211r: true,
+                      ieee80211k: true,
+                      ieee80211v: true,
+                      mobility_domain:
+                        settings.wireless?.roaming?.mobility_domain || "a1b2",
+                      pmf_required: true,
+                      neighbor_aps: [],
+                      key_seed_ref:
+                        settings.wireless?.roaming?.key_seed_ref ||
+                        "env:AEGIS_FT_KEY_SEED",
+                    },
+                  ],
+                )
+              }
+              className="rounded-md border border-teal-300 px-3 py-2 text-sm font-medium text-teal-800"
+            >
+              Add Roaming Profile
+            </button>
+            <button
+              onClick={() =>
+                updateField(
+                  ["wireless", "roaming", "neighbor_aps"],
+                  [
+                    ...wirelessRoamingConfiguredNeighbors,
+                    {
+                      name: `ap-${wirelessRoamingConfiguredNeighbors.length + 1}`,
+                      bssid: "",
+                      nas_identifier: "",
+                      r1_key_holder: "",
+                      channel: settings.wireless?.channel || 6,
+                      op_class: 81,
+                      preference: 255,
+                      ssids: [],
+                      key_seed_ref:
+                        settings.wireless?.roaming?.key_seed_ref ||
+                        "env:AEGIS_FT_KEY_SEED",
+                      description: "",
+                    },
+                  ],
+                )
+              }
+              className="rounded-md border border-teal-300 px-3 py-2 text-sm font-medium text-teal-800"
+            >
+              Add Neighbor AP
+            </button>
+          </div>
+          {wirelessRoamingProfiles.length > 0 && (
+            <div className="space-y-3">
+              <h5 className="text-sm font-semibold text-gray-900">
+                Roaming Profiles
+              </h5>
+              {wirelessRoamingProfiles.map((profile: JsonMap, index: number) => (
+                <div
+                  key={`roaming-profile-${index}`}
+                  className="rounded-md border border-teal-200 bg-white p-3"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="text-sm font-semibold text-gray-900">
+                      {profile.name || `Profile ${index + 1}`}
+                    </div>
+                    <button
+                      onClick={() =>
+                        updateField(
+                          ["wireless", "roaming", "profiles"],
+                          wirelessRoamingProfiles.filter(
+                            (_: unknown, itemIndex: number) =>
+                              itemIndex !== index,
+                          ),
+                        )
+                      }
+                      className="text-sm font-medium text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                    <TextField
+                      label="Profile Name"
+                      value={profile.name || ""}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "roaming",
+                            "profiles",
+                            String(index),
+                            "name",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <SelectField
+                      label="Mode"
+                      value={profile.mode || ""}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "roaming",
+                            "profiles",
+                            String(index),
+                            "mode",
+                          ],
+                          value,
+                        )
+                      }
+                      options={[
+                        { value: "", label: "Use global mode" },
+                        ...wirelessRoamingModeOptions,
+                      ]}
+                    />
+                    <TextField
+                      label="Mobility Domain"
+                      value={profile.mobility_domain || ""}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "roaming",
+                            "profiles",
+                            String(index),
+                            "mobility_domain",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Key Seed Ref"
+                      value={profile.key_seed_ref || ""}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "roaming",
+                            "profiles",
+                            String(index),
+                            "key_seed_ref",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Neighbor AP Names"
+                      value={listToCSV(profile.neighbor_aps)}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "roaming",
+                            "profiles",
+                            String(index),
+                            "neighbor_aps",
+                          ],
+                          csvToList(value),
+                        )
+                      }
+                      placeholder="ap-2, ap-3"
+                    />
+                    <ToggleField
+                      label="Profile Enabled"
+                      checked={profile.enabled !== false}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "roaming",
+                            "profiles",
+                            String(index),
+                            "enabled",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <ToggleField
+                      label="Profile 802.11r"
+                      checked={Boolean(profile.ieee80211r)}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "roaming",
+                            "profiles",
+                            String(index),
+                            "ieee80211r",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <ToggleField
+                      label="Profile 802.11k"
+                      checked={Boolean(profile.ieee80211k)}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "roaming",
+                            "profiles",
+                            String(index),
+                            "ieee80211k",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <ToggleField
+                      label="Profile 802.11v"
+                      checked={Boolean(profile.ieee80211v)}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "roaming",
+                            "profiles",
+                            String(index),
+                            "ieee80211v",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {wirelessRoamingConfiguredNeighbors.length > 0 && (
+            <div className="space-y-3">
+              <h5 className="text-sm font-semibold text-gray-900">
+                Neighbor APs
+              </h5>
+              {wirelessRoamingConfiguredNeighbors.map(
+                (neighbor: JsonMap, index: number) => (
+                  <div
+                    key={`roaming-neighbor-${index}`}
+                    className="rounded-md border border-teal-200 bg-white p-3"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {neighbor.name || neighbor.bssid || `AP ${index + 1}`}
+                      </div>
+                      <button
+                        onClick={() =>
+                          updateField(
+                            ["wireless", "roaming", "neighbor_aps"],
+                            wirelessRoamingConfiguredNeighbors.filter(
+                              (_: unknown, itemIndex: number) =>
+                                itemIndex !== index,
+                            ),
+                          )
+                        }
+                        className="text-sm font-medium text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                      <TextField
+                        label="AP Name"
+                        value={neighbor.name || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "neighbor_aps",
+                              String(index),
+                              "name",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <TextField
+                        label="BSSID"
+                        value={neighbor.bssid || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "neighbor_aps",
+                              String(index),
+                              "bssid",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="02:11:22:33:44:55"
+                      />
+                      <TextField
+                        label="NAS Identifier"
+                        value={neighbor.nas_identifier || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "neighbor_aps",
+                              String(index),
+                              "nas_identifier",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <TextField
+                        label="R1 Key Holder"
+                        value={neighbor.r1_key_holder || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "neighbor_aps",
+                              String(index),
+                              "r1_key_holder",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Channel"
+                        type="number"
+                        value={neighbor.channel || 0}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "neighbor_aps",
+                              String(index),
+                              "channel",
+                            ],
+                            Number(value),
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Operating Class"
+                        type="number"
+                        value={neighbor.op_class || 0}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "neighbor_aps",
+                              String(index),
+                              "op_class",
+                            ],
+                            Number(value),
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Preference"
+                        type="number"
+                        value={neighbor.preference || 0}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "neighbor_aps",
+                              String(index),
+                              "preference",
+                            ],
+                            Number(value),
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Key Seed Ref"
+                        value={neighbor.key_seed_ref || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "neighbor_aps",
+                              String(index),
+                              "key_seed_ref",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <TextField
+                        label="SSID Scope"
+                        value={listToCSV(neighbor.ssids)}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "neighbor_aps",
+                              String(index),
+                              "ssids",
+                            ],
+                            csvToList(value),
+                          )
+                        }
+                        placeholder="Aegis Corp, Aegis Staff"
+                      />
+                    </div>
+                  </div>
+                ),
+              )}
+            </div>
+          )}
         </div>
         <div className="space-y-4">
           {ssids.length === 0 ? (
@@ -23184,6 +24066,17 @@ export default function AccessSettings() {
                       { value: "", label: "No bandwidth override" },
                       ...bandwidthProfiles,
                     ]}
+                  />
+                  <SelectField
+                    label="Roaming Profile"
+                    value={ssid.roaming_profile || ""}
+                    onChange={(value) =>
+                      updateField(
+                        ["wireless", "ssids", String(index), "roaming_profile"],
+                        value,
+                      )
+                    }
+                    options={wirelessRoamingProfileOptions}
                   />
                   <TextField
                     label="Max Clients"

@@ -1698,6 +1698,112 @@ radius:
 	return cfg
 }
 
+func TestConfigValidationWirelessRoaming(t *testing.T) {
+	cfg := loadMinimalValidConfig(t)
+	cfg.Radius.Secret = "radius-secret"
+	cfg.Portal.Enabled = true
+	cfg.Wireless = WirelessConfig{
+		Enabled:        true,
+		Interface:      "wlan0",
+		CountryCode:    "US",
+		Driver:         "nl80211",
+		HWMode:         "g",
+		Channel:        6,
+		BeaconInterval: 100,
+		WMMEnabled:     true,
+		HTEnabled:      true,
+		Roaming: WirelessRoamingConfig{
+			Enabled:               true,
+			Mode:                  "enforce",
+			FailClosed:            true,
+			IEEE80211R:            true,
+			IEEE80211K:            true,
+			IEEE80211V:            true,
+			MobilityDomain:        "4f57",
+			PMFRequired:           true,
+			R0KeyLifetimeSeconds:  3600,
+			ReassociationDeadline: 1000,
+			NASIdentifier:         "aegis-ap-1",
+			R1KeyHolder:           "00:11:22:33:44:55",
+			KeySeedRef:            "env:AEGIS_FT_KEY_SEED",
+			KeyRotationMode:       "active",
+			RRMNeighborReport:     true,
+			RRMBeaconReport:       true,
+			BSSTransition:         true,
+			EventRetentionLimit:   6000,
+			NeighborAPs: []WirelessNeighborAPConfig{
+				{
+					Name:          "ap-2",
+					BSSID:         "02:11:22:33:44:55",
+					NASIdentifier: "ap-2",
+					R1KeyHolder:   "02:11:22:33:44:55",
+					SSIDs:         []string{"Corp"},
+					Channel:       6,
+					OpClass:       81,
+					Preference:    255,
+					KeySeedRef:    "env:AEGIS_FT_KEY_SEED",
+				},
+			},
+			Profiles: []WirelessRoamingProfileConfig{
+				{
+					Name:        "corp-fast-roam",
+					Enabled:     true,
+					IEEE80211R:  true,
+					IEEE80211K:  true,
+					IEEE80211V:  true,
+					PMFRequired: true,
+					KeySeedRef:  "env:AEGIS_FT_KEY_SEED",
+					NeighborAPs: []string{"ap-2"},
+					Description: "Corp roaming",
+				},
+			},
+		},
+		SSIDs: []SSIDConfig{
+			{Name: "Corp", AuthMode: "wpa2-enterprise", RoamingProfile: "corp-fast-roam"},
+		},
+	}
+
+	require.NoError(t, cfg.Validate())
+	effective, active := EffectiveSSIDRoamingProfile(cfg.Wireless, cfg.Wireless.SSIDs[0])
+	require.True(t, active)
+	assert.Equal(t, "corp-fast-roam", effective.ProfileName)
+	assert.Equal(t, "001122334455", effective.R1KeyHolder)
+	assert.Len(t, effective.NeighborAPs, 1)
+
+	cloneRoamingConfig := func() *Config {
+		next := *cfg
+		next.Wireless.SSIDs = append([]SSIDConfig(nil), cfg.Wireless.SSIDs...)
+		next.Wireless.Roaming.NeighborAPs = append([]WirelessNeighborAPConfig(nil), cfg.Wireless.Roaming.NeighborAPs...)
+		next.Wireless.Roaming.Profiles = append([]WirelessRoamingProfileConfig(nil), cfg.Wireless.Roaming.Profiles...)
+		for i := range next.Wireless.Roaming.NeighborAPs {
+			next.Wireless.Roaming.NeighborAPs[i].SSIDs = append([]string(nil), next.Wireless.Roaming.NeighborAPs[i].SSIDs...)
+		}
+		for i := range next.Wireless.Roaming.Profiles {
+			next.Wireless.Roaming.Profiles[i].NeighborAPs = append([]string(nil), next.Wireless.Roaming.Profiles[i].NeighborAPs...)
+		}
+		return &next
+	}
+
+	invalidDomain := cloneRoamingConfig()
+	invalidDomain.Wireless.Roaming.MobilityDomain = "zzzz"
+	assert.ErrorContains(t, invalidDomain.Validate(), "mobility_domain")
+
+	missingKey := cloneRoamingConfig()
+	missingKey.Wireless.Roaming.KeySeedRef = ""
+	missingKey.Wireless.Roaming.NeighborAPs[0].KeySeedRef = ""
+	missingKey.Wireless.Roaming.Profiles[0].KeySeedRef = ""
+	assert.ErrorContains(t, missingKey.Validate(), "key_seed_ref is required")
+
+	disabledProfile := cloneRoamingConfig()
+	disabledProfile.Wireless.Roaming.Profiles[0].Enabled = false
+	assert.ErrorContains(t, disabledProfile.Validate(), "is disabled or has no active roaming standards")
+
+	openSSID := cloneRoamingConfig()
+	openSSID.Wireless.Roaming.Profiles[0].Enabled = true
+	openSSID.Wireless.SSIDs = []SSIDConfig{{Name: "Guest", AuthMode: "open", RoamingProfile: "corp-fast-roam"}}
+	assert.ErrorContains(t, openSSID.Validate(), "requires WPA2/WPA3")
+}
+
 func TestDeploymentSummary(t *testing.T) {
 	cfg := &Config{
 		Deployment: DeploymentConfig{

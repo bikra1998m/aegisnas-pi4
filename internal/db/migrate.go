@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 76
+	return 79
 }
 
 func Migrate() error {
@@ -4011,3 +4011,38 @@ CREATE INDEX IF NOT EXISTS idx_external_vendor_intake_events_dictionary_sha ON e
 `
 
 const schemaV78 = externalVendorIntakeSQL
+
+const wirelessRoamingLifecycleSQL = `
+CREATE TABLE IF NOT EXISTS wireless_roaming_lifecycle_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	config_path TEXT,
+	hostapd_config_sha256 TEXT,
+	plan_fingerprint TEXT NOT NULL,
+	ssid_count INTEGER NOT NULL DEFAULT 0,
+	roaming_ssid_count INTEGER NOT NULL DEFAULT 0,
+	ft_ssid_count INTEGER NOT NULL DEFAULT 0,
+	k_ssid_count INTEGER NOT NULL DEFAULT 0,
+	v_ssid_count INTEGER NOT NULL DEFAULT 0,
+	profile_count INTEGER NOT NULL DEFAULT 0,
+	neighbor_count INTEGER NOT NULL DEFAULT 0,
+	key_ref_count INTEGER NOT NULL DEFAULT 0,
+	staged_key_ref_count INTEGER NOT NULL DEFAULT 0,
+	diagnostic_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_wireless_roaming_lifecycle_events_created ON wireless_roaming_lifecycle_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_wireless_roaming_lifecycle_events_status ON wireless_roaming_lifecycle_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_wireless_roaming_lifecycle_events_fingerprint ON wireless_roaming_lifecycle_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_wireless_roaming_lifecycle_events_config ON wireless_roaming_lifecycle_events(config_path, created_at);
+`
+
+const schemaV79 = wirelessRoamingLifecycleSQL

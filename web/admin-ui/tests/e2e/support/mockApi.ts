@@ -934,6 +934,33 @@ function createSettings() {
       ctrl_interface: "/var/run/hostapd",
       hostapd_config_path: "/etc/hostapd/hostapd.conf",
       hostapd_vlan_file_path: "/etc/hostapd/aegisnas-vlans.conf",
+      roaming: {
+        enabled: false,
+        mode: "monitor",
+        fail_closed: true,
+        ieee80211r: true,
+        ieee80211k: true,
+        ieee80211v: true,
+        mobility_domain: "a1b2",
+        ft_over_ds: false,
+        pmf_required: true,
+        r0_key_lifetime_seconds: 3600,
+        reassociation_deadline: 1000,
+        nas_identifier: "aegisnas-local-ap",
+        r1_key_holder: "001122334455",
+        key_seed_ref: "env:AEGIS_FT_KEY_SEED",
+        next_key_seed_ref: "",
+        next_key_not_before: "",
+        next_key_not_after: "",
+        key_rotation_mode: "active",
+        rrm_neighbor_report: true,
+        rrm_beacon_report: true,
+        bss_transition: true,
+        wnm_sleep_mode: false,
+        event_retention_limit: 6000,
+        neighbor_aps: [],
+        profiles: [],
+      },
       ssids: [],
     },
   };
@@ -1050,6 +1077,108 @@ function createDatabaseStatus() {
       Idle: 3,
     },
     warnings: [],
+  };
+}
+
+function createWirelessRoamingLifecycle(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0075",
+      status,
+      message:
+        status === "skipped"
+          ? "NAS-0075 software is ready; wireless roaming is not active in this configuration."
+          : "NAS-0075 plans 2 roaming SSIDs, 2 FT SSIDs, 2 RRM SSIDs, 2 BSS-transition SSIDs, and 1 neighbor AP.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0075-release-certification-checklist.md",
+      release_scope:
+        "Real client roaming, controller/AP firmware validation, packet captures, HA failover, scale, soak, security audit, production deployment, and customer proof are release certification activities.",
+      plan_fingerprint:
+        "sha256:7d71e15c33aa7e2bf2afcd0c4e3b8a9b040112b80821b09c2f9e7f80fa6aa075",
+      hostapd_config_path: "/etc/hostapd/hostapd.conf",
+      hostapd_config_sha256:
+        "sha256:3a0a4dd6cdbb1c7ae3e938ba9f41a83543dd48717622c7a66245fdd4ef94c9d4",
+      hostapd_config_preview:
+        "ssid=Corp\nwpa_key_mgmt=WPA-EAP FT-EAP\nmobility_domain=a1b2\nr0kh=<redacted>\nr1kh=<redacted>\nrrm_neighbor_report=1\nbss_transition=1\n",
+      summary: {
+        wireless_enabled: true,
+        roaming_enabled: true,
+        ssid_count: 2,
+        roaming_ssid_count: 2,
+        ft_ssid_count: 2,
+        k_ssid_count: 2,
+        v_ssid_count: 2,
+        profile_count: 1,
+        neighbor_count: 1,
+        key_ref_count: 1,
+        staged_key_ref_count: 0,
+        resolvable_key_ref_count: 1,
+        diagnostic_count: 0,
+        external_requirement_count: 8,
+      },
+      ssids: [
+        {
+          ssid: "Corp",
+          auth_mode: "wpa2-enterprise",
+          profile_name: "corp-fast-roam",
+          status: "ready",
+          ieee80211r: true,
+          ieee80211k: true,
+          ieee80211v: true,
+          pmf_required: true,
+          key_seed_ref_set: true,
+          neighbor_count: 1,
+        },
+        {
+          ssid: "Staff",
+          auth_mode: "wpa3-enterprise",
+          profile_name: "corp-fast-roam",
+          status: "ready",
+          ieee80211r: true,
+          ieee80211k: true,
+          ieee80211v: true,
+          pmf_required: true,
+          key_seed_ref_set: true,
+          neighbor_count: 1,
+        },
+      ],
+      neighbors: [
+        {
+          name: "ap-2",
+          bssid: "02:11:22:33:44:55",
+          nas_identifier: "ap-2",
+          r1_key_holder: "021122334455",
+          channel: 6,
+          op_class: 81,
+          preference: 255,
+          ssids: ["Corp", "Staff"],
+          key_seed_ref_set: true,
+        },
+      ],
+      rfcs: ["IEEE 802.11r", "IEEE 802.11k", "IEEE 802.11v", "IEEE 802.11w"],
+      attributes: ["EAP-Message", "Message-Authenticator", "Called-Station-Id"],
+      vendors: ["Cisco", "Aruba", "Ruckus", "Extreme", "UniFi", "hostapd"],
+      requirements: ["FT key material is derived from secret references."],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+      },
+      recent_events: [],
+    },
   };
 }
 
@@ -1548,6 +1677,7 @@ function createSystemStatus() {
       channel: 6,
       hostapd_config_path: "/etc/hostapd/hostapd.conf",
       hostapd_vlan_file_path: "/etc/hostapd/aegisnas-vlans.conf",
+      roaming_lifecycle: createWirelessRoamingLifecycle().report,
       ssid_count: 0,
       auth_modes: [],
     },
@@ -4443,6 +4573,32 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
+    if (path === "/system/tenant-isolation" && method === "GET") {
+      await route.fulfill({
+        json: {
+          schema_version: 1,
+          status: "passed",
+          message: "Tenant isolation policy is ready.",
+          summary: {
+            tenant_count: 1,
+            active_tenant_count: 1,
+            resource_binding_count: 1,
+            policy_set_tenant_count: 1,
+            denied_event_count: 0,
+            monitor_event_count: 0,
+          },
+          checks: [
+            {
+              id: "tenant-default",
+              status: "passed",
+              message: "Default tenant scope is isolated.",
+            },
+          ],
+        },
+      });
+      return;
+    }
+
     if (path === "/system/acl-ast" && method === "GET") {
       await route.fulfill({
         json: {
@@ -5542,6 +5698,61 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           feature_id: "NAS-0074",
           summary: { preview_events: 1, applied_count: 1, failed_count: 0 },
           snapshots: [],
+          events: [],
+        },
+      });
+      return;
+    }
+    if (path === "/system/wireless-roaming-lifecycle" && method === "GET") {
+      await route.fulfill({ json: createWirelessRoamingLifecycle() });
+      return;
+    }
+    if (
+      path === "/system/wireless-roaming-lifecycle/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createWirelessRoamingLifecycle(),
+          event_id: "roaming-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/wireless-roaming-lifecycle/apply" &&
+      method === "POST"
+    ) {
+      const payload = createWirelessRoamingLifecycle();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0075 applied hostapd roaming configuration for 2 roaming SSIDs.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "roaming-event-apply",
+          result: { status: "applied", event_id: "roaming-event-apply" },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/wireless-roaming-lifecycle/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0075",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+          },
           events: [],
         },
       });

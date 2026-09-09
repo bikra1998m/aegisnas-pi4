@@ -1,11 +1,16 @@
 package wireless
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"net"
 	"path/filepath"
 	"strings"
 
 	"github.com/yourorg/aegisnas-pi4/internal/config"
+	"github.com/yourorg/aegisnas-pi4/internal/secrets"
 )
 
 // GenerateHostapdConfig renders a hostapd configuration for the configured
@@ -51,6 +56,7 @@ func GenerateHostapdConfig(cfg *config.Config) (string, error) {
 }
 
 func renderSSID(cfg *config.Config, ssid config.SSIDConfig) []string {
+	roaming, roamingActive := config.EffectiveSSIDRoamingProfile(cfg.Wireless, ssid)
 	lines := []string{
 		"",
 		fmt.Sprintf("ssid=%s", ssid.Name),
@@ -87,24 +93,26 @@ func renderSSID(cfg *config.Config, ssid config.SSIDConfig) []string {
 	case "wpa2-personal":
 		lines = append(lines,
 			"wpa=2",
-			"wpa_key_mgmt=WPA-PSK",
+			"wpa_key_mgmt="+hostapdKeyManagement(ssid.AuthMode, roaming, roamingActive),
 			"rsn_pairwise=CCMP",
 			fmt.Sprintf("wpa_passphrase=%s", ssid.Passphrase),
 		)
+		lines = append(lines, renderRoamingLines(cfg, ssid, roaming, roamingActive)...)
 	case "wpa3-personal":
 		lines = append(lines,
 			"wpa=2",
-			"wpa_key_mgmt=SAE",
+			"wpa_key_mgmt="+hostapdKeyManagement(ssid.AuthMode, roaming, roamingActive),
 			"rsn_pairwise=CCMP",
 			"ieee80211w=2",
 			"sae_require_mfp=1",
 			fmt.Sprintf("sae_password=%s", ssid.Passphrase),
 		)
+		lines = append(lines, renderRoamingLines(cfg, ssid, roaming, roamingActive)...)
 	case "wpa2-enterprise":
 		lines = append(lines,
 			"ieee8021x=1",
 			"wpa=2",
-			"wpa_key_mgmt=WPA-EAP",
+			"wpa_key_mgmt="+hostapdKeyManagement(ssid.AuthMode, roaming, roamingActive),
 			"rsn_pairwise=CCMP",
 			"auth_algs=1",
 			"own_ip_addr=127.0.0.1",
@@ -121,11 +129,12 @@ func renderSSID(cfg *config.Config, ssid config.SSIDConfig) []string {
 				fmt.Sprintf("vlan_file=%s", HostapdVLANFilePath(cfg)),
 			)
 		}
+		lines = append(lines, renderRoamingLines(cfg, ssid, roaming, roamingActive)...)
 	case "wpa3-enterprise":
 		lines = append(lines,
 			"ieee8021x=1",
 			"wpa=2",
-			"wpa_key_mgmt=WPA-EAP-SHA256",
+			"wpa_key_mgmt="+hostapdKeyManagement(ssid.AuthMode, roaming, roamingActive),
 			"rsn_pairwise=CCMP",
 			"ieee80211w=2",
 			"auth_algs=1",
@@ -143,9 +152,154 @@ func renderSSID(cfg *config.Config, ssid config.SSIDConfig) []string {
 				fmt.Sprintf("vlan_file=%s", HostapdVLANFilePath(cfg)),
 			)
 		}
+		lines = append(lines, renderRoamingLines(cfg, ssid, roaming, roamingActive)...)
 	}
 
 	return lines
+}
+
+func hostapdKeyManagement(authMode string, roaming config.EffectiveWirelessRoamingProfile, roamingActive bool) string {
+	ft := roamingActive && roaming.IEEE80211R
+	switch strings.ToLower(strings.TrimSpace(authMode)) {
+	case "wpa2-personal":
+		if ft {
+			return "WPA-PSK FT-PSK"
+		}
+		return "WPA-PSK"
+	case "wpa3-personal":
+		if ft {
+			return "SAE FT-SAE"
+		}
+		return "SAE"
+	case "wpa2-enterprise":
+		if ft {
+			return "WPA-EAP FT-EAP"
+		}
+		return "WPA-EAP"
+	case "wpa3-enterprise":
+		if ft {
+			return "WPA-EAP-SHA256 FT-EAP"
+		}
+		return "WPA-EAP-SHA256"
+	default:
+		return ""
+	}
+}
+
+func renderRoamingLines(cfg *config.Config, ssid config.SSIDConfig, roaming config.EffectiveWirelessRoamingProfile, active bool) []string {
+	if cfg == nil || !active {
+		return nil
+	}
+	var lines []string
+	lines = append(lines, fmt.Sprintf("# aegisnas_roaming_profile=%s", roaming.ProfileName))
+	if roaming.PMFRequired && (ssid.AuthMode == "wpa2-personal" || ssid.AuthMode == "wpa2-enterprise") {
+		lines = append(lines, "ieee80211w=2")
+	}
+	if roaming.IEEE80211R {
+		lines = append(lines,
+			fmt.Sprintf("mobility_domain=%s", strings.ToLower(strings.TrimSpace(roaming.MobilityDomain))),
+			fmt.Sprintf("ft_over_ds=%d", boolAsInt(roaming.FTOverDS)),
+			fmt.Sprintf("r0_key_lifetime=%d", roaming.R0KeyLifetimeSeconds),
+			fmt.Sprintf("reassociation_deadline=%d", roaming.ReassociationDeadline),
+			fmt.Sprintf("nas_identifier=%s", roaming.NASIdentifier),
+			fmt.Sprintf("r1_key_holder=%s", strings.ToLower(strings.TrimSpace(roaming.R1KeyHolder))),
+			"pmk_r1_push=1",
+		)
+		if strings.Contains(strings.ToLower(ssid.AuthMode), "personal") {
+			lines = append(lines, "ft_psk_generate_local=1")
+		}
+		lines = append(lines, renderFTNeighborKeys(cfg, ssid, roaming)...)
+	}
+	if roaming.IEEE80211K {
+		if roaming.RRMNeighborReport {
+			lines = append(lines, "rrm_neighbor_report=1")
+		}
+		if roaming.RRMBeaconReport {
+			lines = append(lines, "rrm_beacon_report=1")
+		}
+	}
+	if roaming.IEEE80211V {
+		if roaming.BSSTransition {
+			lines = append(lines, "bss_transition=1")
+		}
+		if roaming.WNMSleepMode {
+			lines = append(lines, "wnm_sleep_mode=1")
+		}
+	}
+	return lines
+}
+
+func renderFTNeighborKeys(cfg *config.Config, ssid config.SSIDConfig, roaming config.EffectiveWirelessRoamingProfile) []string {
+	if len(roaming.NeighborAPs) == 0 {
+		return nil
+	}
+	var lines []string
+	resolver := secrets.NewResolver(secrets.OptionsFromConfig(cfg))
+	for _, neighbor := range roaming.NeighborAPs {
+		ref := strings.TrimSpace(neighbor.KeySeedRef)
+		if ref == "" {
+			ref = strings.TrimSpace(roaming.KeySeedRef)
+		}
+		if ref == "" {
+			lines = append(lines, fmt.Sprintf("# aegisnas_roaming_neighbor=%s missing_key_seed_ref", firstNonEmpty(neighbor.Name, neighbor.BSSID)))
+			continue
+		}
+		seed, err := resolver.Resolve(context.Background(), ref)
+		if err != nil {
+			lines = append(lines, fmt.Sprintf("# aegisnas_roaming_neighbor=%s key_seed_ref_unavailable:%s", firstNonEmpty(neighbor.Name, neighbor.BSSID), sanitizeInlineComment(err.Error())))
+			continue
+		}
+		bssid := normalizeHostapdMAC(neighbor.BSSID)
+		r1KeyHolder := strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(neighbor.R1KeyHolder), ":", ""), "-", ""))
+		if r1KeyHolder == "" {
+			r1KeyHolder = strings.ToLower(strings.TrimSpace(roaming.R1KeyHolder))
+		}
+		nasID := strings.TrimSpace(neighbor.NASIdentifier)
+		if nasID == "" {
+			nasID = firstNonEmpty(neighbor.Name, bssid)
+		}
+		key := deriveFTNeighborKey(seed, roaming.ProfileName, ssid.Name, bssid, r1KeyHolder)
+		lines = append(lines,
+			fmt.Sprintf("r0kh=%s %s %s", bssid, nasID, key),
+			fmt.Sprintf("r1kh=%s %s %s", bssid, r1KeyHolder, key),
+		)
+	}
+	return lines
+}
+
+func deriveFTNeighborKey(seed, profileName, ssidName, bssid, r1KeyHolder string) string {
+	raw := strings.Join([]string{
+		"aegisnas-hostapd-ft",
+		seed,
+		strings.TrimSpace(profileName),
+		strings.TrimSpace(ssidName),
+		strings.ToLower(strings.TrimSpace(bssid)),
+		strings.ToLower(strings.TrimSpace(r1KeyHolder)),
+	}, "\x00")
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])[:32]
+}
+
+func normalizeHostapdMAC(value string) string {
+	mac, err := net.ParseMAC(strings.TrimSpace(value))
+	if err != nil || len(mac) != 6 {
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+	parts := make([]string, 0, 6)
+	for _, octet := range mac {
+		parts = append(parts, fmt.Sprintf("%02x", octet))
+	}
+	return strings.Join(parts, ":")
+}
+
+func sanitizeInlineComment(value string) string {
+	value = strings.ReplaceAll(value, "\r", " ")
+	value = strings.ReplaceAll(value, "\n", " ")
+	value = strings.ReplaceAll(value, "\t", " ")
+	if len(value) > 96 {
+		return value[:96]
+	}
+	return value
 }
 
 func HostapdVLANFilePath(cfg *config.Config) string {
@@ -191,6 +345,15 @@ func nonEmpty(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func max(a, b int) int {

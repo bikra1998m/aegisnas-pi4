@@ -1668,19 +1668,263 @@ type HighAvailabilityConfig struct {
 }
 
 type WirelessConfig struct {
-	Enabled             bool         `mapstructure:"enabled"`
-	CountryCode         string       `mapstructure:"country_code"`
-	Interface           string       `mapstructure:"interface"`
-	Driver              string       `mapstructure:"driver"`
-	HWMode              string       `mapstructure:"hw_mode"`
-	Channel             int          `mapstructure:"channel"`
-	BeaconInterval      int          `mapstructure:"beacon_interval"`
-	WMMEnabled          bool         `mapstructure:"wmm_enabled"`
-	HTEnabled           bool         `mapstructure:"ht_enabled"`
-	CtrlInterface       string       `mapstructure:"ctrl_interface"`
-	HostapdConfigPath   string       `mapstructure:"hostapd_config_path"`
-	HostapdVLANFilePath string       `mapstructure:"hostapd_vlan_file_path"`
-	SSIDs               []SSIDConfig `mapstructure:"ssids"`
+	Enabled             bool                  `mapstructure:"enabled"`
+	CountryCode         string                `mapstructure:"country_code"`
+	Interface           string                `mapstructure:"interface"`
+	Driver              string                `mapstructure:"driver"`
+	HWMode              string                `mapstructure:"hw_mode"`
+	Channel             int                   `mapstructure:"channel"`
+	BeaconInterval      int                   `mapstructure:"beacon_interval"`
+	WMMEnabled          bool                  `mapstructure:"wmm_enabled"`
+	HTEnabled           bool                  `mapstructure:"ht_enabled"`
+	CtrlInterface       string                `mapstructure:"ctrl_interface"`
+	HostapdConfigPath   string                `mapstructure:"hostapd_config_path"`
+	HostapdVLANFilePath string                `mapstructure:"hostapd_vlan_file_path"`
+	Roaming             WirelessRoamingConfig `mapstructure:"roaming"`
+	SSIDs               []SSIDConfig          `mapstructure:"ssids"`
+}
+
+type WirelessRoamingConfig struct {
+	Enabled               bool                           `mapstructure:"enabled"`
+	Mode                  string                         `mapstructure:"mode"`
+	FailClosed            bool                           `mapstructure:"fail_closed"`
+	DefaultProfile        string                         `mapstructure:"default_profile"`
+	IEEE80211R            bool                           `mapstructure:"ieee80211r"`
+	IEEE80211K            bool                           `mapstructure:"ieee80211k"`
+	IEEE80211V            bool                           `mapstructure:"ieee80211v"`
+	MobilityDomain        string                         `mapstructure:"mobility_domain"`
+	FTOverDS              bool                           `mapstructure:"ft_over_ds"`
+	PMFRequired           bool                           `mapstructure:"pmf_required"`
+	R0KeyLifetimeSeconds  int                            `mapstructure:"r0_key_lifetime_seconds"`
+	ReassociationDeadline int                            `mapstructure:"reassociation_deadline"`
+	NASIdentifier         string                         `mapstructure:"nas_identifier"`
+	R1KeyHolder           string                         `mapstructure:"r1_key_holder"`
+	KeySeedRef            string                         `mapstructure:"key_seed_ref"`
+	NextKeySeedRef        string                         `mapstructure:"next_key_seed_ref"`
+	KeyRotationMode       string                         `mapstructure:"key_rotation_mode"`
+	NextKeyNotBefore      string                         `mapstructure:"next_key_not_before"`
+	NextKeyNotAfter       string                         `mapstructure:"next_key_not_after"`
+	RRMNeighborReport     bool                           `mapstructure:"rrm_neighbor_report"`
+	RRMBeaconReport       bool                           `mapstructure:"rrm_beacon_report"`
+	BSSTransition         bool                           `mapstructure:"bss_transition"`
+	WNMSleepMode          bool                           `mapstructure:"wnm_sleep_mode"`
+	NeighborAPs           []WirelessNeighborAPConfig     `mapstructure:"neighbor_aps"`
+	Profiles              []WirelessRoamingProfileConfig `mapstructure:"profiles"`
+	EventRetentionLimit   int                            `mapstructure:"event_retention_limit"`
+}
+
+type WirelessRoamingProfileConfig struct {
+	Name                  string   `mapstructure:"name"`
+	Enabled               bool     `mapstructure:"enabled"`
+	MobilityDomain        string   `mapstructure:"mobility_domain"`
+	IEEE80211R            bool     `mapstructure:"ieee80211r"`
+	IEEE80211K            bool     `mapstructure:"ieee80211k"`
+	IEEE80211V            bool     `mapstructure:"ieee80211v"`
+	FTOverDS              bool     `mapstructure:"ft_over_ds"`
+	PMFRequired           bool     `mapstructure:"pmf_required"`
+	R0KeyLifetimeSeconds  int      `mapstructure:"r0_key_lifetime_seconds"`
+	ReassociationDeadline int      `mapstructure:"reassociation_deadline"`
+	NASIdentifier         string   `mapstructure:"nas_identifier"`
+	R1KeyHolder           string   `mapstructure:"r1_key_holder"`
+	KeySeedRef            string   `mapstructure:"key_seed_ref"`
+	NeighborAPs           []string `mapstructure:"neighbor_aps"`
+	Description           string   `mapstructure:"description"`
+}
+
+type WirelessNeighborAPConfig struct {
+	Name          string   `mapstructure:"name"`
+	BSSID         string   `mapstructure:"bssid"`
+	NASIdentifier string   `mapstructure:"nas_identifier"`
+	R1KeyHolder   string   `mapstructure:"r1_key_holder"`
+	SSIDs         []string `mapstructure:"ssids"`
+	Channel       int      `mapstructure:"channel"`
+	OpClass       int      `mapstructure:"op_class"`
+	Preference    int      `mapstructure:"preference"`
+	KeySeedRef    string   `mapstructure:"key_seed_ref"`
+	Description   string   `mapstructure:"description"`
+}
+
+type EffectiveWirelessRoamingProfile struct {
+	ProfileName           string
+	Enabled               bool
+	Mode                  string
+	FailClosed            bool
+	IEEE80211R            bool
+	IEEE80211K            bool
+	IEEE80211V            bool
+	MobilityDomain        string
+	FTOverDS              bool
+	PMFRequired           bool
+	R0KeyLifetimeSeconds  int
+	ReassociationDeadline int
+	NASIdentifier         string
+	R1KeyHolder           string
+	KeySeedRef            string
+	NextKeySeedRef        string
+	KeyRotationMode       string
+	NextKeyNotBefore      string
+	NextKeyNotAfter       string
+	RRMNeighborReport     bool
+	RRMBeaconReport       bool
+	BSSTransition         bool
+	WNMSleepMode          bool
+	NeighborAPs           []WirelessNeighborAPConfig
+}
+
+func EffectiveSSIDRoamingProfile(wireless WirelessConfig, ssid SSIDConfig) (EffectiveWirelessRoamingProfile, bool) {
+	roaming := wireless.Roaming
+	if !roaming.Enabled {
+		return EffectiveWirelessRoamingProfile{}, false
+	}
+	effective := EffectiveWirelessRoamingProfile{
+		ProfileName:           "default",
+		Enabled:               true,
+		Mode:                  effectiveRoamingMode(roaming.Mode),
+		FailClosed:            roaming.FailClosed,
+		IEEE80211R:            roaming.IEEE80211R,
+		IEEE80211K:            roaming.IEEE80211K,
+		IEEE80211V:            roaming.IEEE80211V,
+		MobilityDomain:        strings.ToLower(strings.TrimSpace(roaming.MobilityDomain)),
+		FTOverDS:              roaming.FTOverDS,
+		PMFRequired:           roaming.PMFRequired,
+		R0KeyLifetimeSeconds:  effectivePositiveInt(roaming.R0KeyLifetimeSeconds, 3600),
+		ReassociationDeadline: effectivePositiveInt(roaming.ReassociationDeadline, 1000),
+		NASIdentifier:         strings.TrimSpace(roaming.NASIdentifier),
+		R1KeyHolder:           normalizeHexNoSeparators(roaming.R1KeyHolder),
+		KeySeedRef:            strings.TrimSpace(roaming.KeySeedRef),
+		NextKeySeedRef:        strings.TrimSpace(roaming.NextKeySeedRef),
+		KeyRotationMode:       effectiveRoamingKeyRotationMode(roaming.KeyRotationMode),
+		NextKeyNotBefore:      strings.TrimSpace(roaming.NextKeyNotBefore),
+		NextKeyNotAfter:       strings.TrimSpace(roaming.NextKeyNotAfter),
+		RRMNeighborReport:     roaming.RRMNeighborReport,
+		RRMBeaconReport:       roaming.RRMBeaconReport,
+		BSSTransition:         roaming.BSSTransition,
+		WNMSleepMode:          roaming.WNMSleepMode,
+		NeighborAPs:           filterWirelessNeighborAPs(roaming.NeighborAPs, nil, ssid.Name),
+	}
+	profileName := strings.TrimSpace(ssid.RoamingProfile)
+	if profileName == "" {
+		profileName = strings.TrimSpace(roaming.DefaultProfile)
+	}
+	if profileName != "" {
+		found := false
+		for _, profile := range roaming.Profiles {
+			if strings.EqualFold(strings.TrimSpace(profile.Name), profileName) {
+				found = true
+				if !profile.Enabled {
+					return EffectiveWirelessRoamingProfile{}, false
+				}
+				effective.ProfileName = strings.TrimSpace(profile.Name)
+				if strings.TrimSpace(profile.MobilityDomain) != "" {
+					effective.MobilityDomain = strings.ToLower(strings.TrimSpace(profile.MobilityDomain))
+				}
+				if profile.IEEE80211R || profile.IEEE80211K || profile.IEEE80211V {
+					effective.IEEE80211R = profile.IEEE80211R
+					effective.IEEE80211K = profile.IEEE80211K
+					effective.IEEE80211V = profile.IEEE80211V
+				}
+				effective.FTOverDS = profile.FTOverDS
+				effective.PMFRequired = effective.PMFRequired || profile.PMFRequired
+				effective.R0KeyLifetimeSeconds = effectivePositiveInt(profile.R0KeyLifetimeSeconds, effective.R0KeyLifetimeSeconds)
+				effective.ReassociationDeadline = effectivePositiveInt(profile.ReassociationDeadline, effective.ReassociationDeadline)
+				if strings.TrimSpace(profile.NASIdentifier) != "" {
+					effective.NASIdentifier = strings.TrimSpace(profile.NASIdentifier)
+				}
+				if strings.TrimSpace(profile.R1KeyHolder) != "" {
+					effective.R1KeyHolder = normalizeHexNoSeparators(profile.R1KeyHolder)
+				}
+				if strings.TrimSpace(profile.KeySeedRef) != "" {
+					effective.KeySeedRef = strings.TrimSpace(profile.KeySeedRef)
+				}
+				effective.NeighborAPs = filterWirelessNeighborAPs(roaming.NeighborAPs, profile.NeighborAPs, ssid.Name)
+				break
+			}
+		}
+		if !found {
+			return EffectiveWirelessRoamingProfile{}, false
+		}
+	}
+	if effective.MobilityDomain == "" {
+		effective.MobilityDomain = "a1b2"
+	}
+	if effective.NASIdentifier == "" {
+		effective.NASIdentifier = "aegisnas-local-ap"
+	}
+	if effective.R1KeyHolder == "" {
+		effective.R1KeyHolder = "001122334455"
+	}
+	return effective, effective.IEEE80211R || effective.IEEE80211K || effective.IEEE80211V
+}
+
+func effectiveRoamingMode(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "monitor":
+		return "monitor"
+	case "enforce":
+		return "enforce"
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+}
+
+func effectiveRoamingKeyRotationMode(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "active":
+		return "active"
+	case "staged", "cutover":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+}
+
+func effectivePositiveInt(value, fallback int) int {
+	if value > 0 {
+		return value
+	}
+	return fallback
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func filterWirelessNeighborAPs(neighbors []WirelessNeighborAPConfig, names []string, ssidName string) []WirelessNeighborAPConfig {
+	nameSet := map[string]struct{}{}
+	for _, name := range names {
+		if trimmed := strings.ToLower(strings.TrimSpace(name)); trimmed != "" {
+			nameSet[trimmed] = struct{}{}
+		}
+	}
+	filterByName := len(nameSet) > 0
+	var filtered []WirelessNeighborAPConfig
+	for _, neighbor := range neighbors {
+		if filterByName {
+			if _, ok := nameSet[strings.ToLower(strings.TrimSpace(neighbor.Name))]; !ok {
+				continue
+			}
+		}
+		if len(neighbor.SSIDs) > 0 && !stringSliceContainsFold(neighbor.SSIDs, ssidName) {
+			continue
+		}
+		filtered = append(filtered, neighbor)
+	}
+	return filtered
+}
+
+func stringSliceContainsFold(values []string, target string) bool {
+	target = strings.TrimSpace(target)
+	for _, value := range values {
+		if strings.EqualFold(strings.TrimSpace(value), target) {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeWitnessURLs(primary string, urls []string) []string {
@@ -1833,6 +2077,7 @@ type SSIDConfig struct {
 	PortalProfile    string `mapstructure:"portal_profile"`
 	IdentitySource   string `mapstructure:"identity_source"`
 	BandwidthProfile string `mapstructure:"bandwidth_profile"`
+	RoamingProfile   string `mapstructure:"roaming_profile"`
 }
 
 var globalConfig *Config
@@ -2643,6 +2888,25 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("wireless.ctrl_interface", "/var/run/hostapd")
 	v.SetDefault("wireless.hostapd_config_path", "/etc/hostapd/hostapd.conf")
 	v.SetDefault("wireless.hostapd_vlan_file_path", "/etc/hostapd/aegisnas-vlans.conf")
+	v.SetDefault("wireless.roaming.enabled", false)
+	v.SetDefault("wireless.roaming.mode", "monitor")
+	v.SetDefault("wireless.roaming.fail_closed", true)
+	v.SetDefault("wireless.roaming.ieee80211r", true)
+	v.SetDefault("wireless.roaming.ieee80211k", true)
+	v.SetDefault("wireless.roaming.ieee80211v", true)
+	v.SetDefault("wireless.roaming.mobility_domain", "a1b2")
+	v.SetDefault("wireless.roaming.ft_over_ds", false)
+	v.SetDefault("wireless.roaming.pmf_required", true)
+	v.SetDefault("wireless.roaming.r0_key_lifetime_seconds", 3600)
+	v.SetDefault("wireless.roaming.reassociation_deadline", 1000)
+	v.SetDefault("wireless.roaming.nas_identifier", "aegisnas-local-ap")
+	v.SetDefault("wireless.roaming.r1_key_holder", "001122334455")
+	v.SetDefault("wireless.roaming.key_rotation_mode", "active")
+	v.SetDefault("wireless.roaming.rrm_neighbor_report", true)
+	v.SetDefault("wireless.roaming.rrm_beacon_report", true)
+	v.SetDefault("wireless.roaming.bss_transition", true)
+	v.SetDefault("wireless.roaming.wnm_sleep_mode", false)
+	v.SetDefault("wireless.roaming.event_retention_limit", 6000)
 
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -5202,6 +5466,9 @@ func (c *Config) Validate() error {
 		if c.Wireless.BeaconInterval < 25 || c.Wireless.BeaconInterval > 1000 {
 			return fmt.Errorf("wireless.beacon_interval %d out of range", c.Wireless.BeaconInterval)
 		}
+		if err := validateWirelessRoamingConfig(c.Wireless); err != nil {
+			return err
+		}
 
 		ssidNames := make(map[string]struct{}, len(c.Wireless.SSIDs))
 		for i, ssid := range c.Wireless.SSIDs {
@@ -5242,10 +5509,282 @@ func (c *Config) Validate() error {
 			if ssid.DynamicVLAN && ssid.AuthMode != "wpa2-enterprise" && ssid.AuthMode != "wpa3-enterprise" {
 				return fmt.Errorf("wireless.ssids[%d].dynamic_vlan requires enterprise auth", i)
 			}
+			if strings.TrimSpace(ssid.RoamingProfile) != "" && !c.Wireless.Roaming.Enabled {
+				return fmt.Errorf("wireless.ssids[%d].roaming_profile requires wireless.roaming.enabled", i)
+			}
+			if strings.TrimSpace(ssid.RoamingProfile) != "" {
+				if _, active := EffectiveSSIDRoamingProfile(c.Wireless, ssid); !active {
+					return fmt.Errorf("wireless.ssids[%d].roaming_profile %q is disabled or has no active roaming standards", i, ssid.RoamingProfile)
+				}
+			}
+			if effective, active := EffectiveSSIDRoamingProfile(c.Wireless, ssid); active {
+				if !wirelessRoamingSupportedAuthMode(ssid.AuthMode) {
+					return fmt.Errorf("wireless.ssids[%d].roaming_profile requires WPA2/WPA3 personal or enterprise auth", i)
+				}
+				if effective.IEEE80211R && !wirelessRoamingFTSupportedAuthMode(ssid.AuthMode) {
+					return fmt.Errorf("wireless.ssids[%d].roaming_profile enables 802.11r for unsupported auth mode %q", i, ssid.AuthMode)
+				}
+			}
 		}
 	}
 
 	return nil
+}
+
+func validateWirelessRoamingConfig(wireless WirelessConfig) error {
+	roaming := wireless.Roaming
+	if !roaming.Enabled {
+		return nil
+	}
+	switch effectiveRoamingMode(roaming.Mode) {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("wireless.roaming.mode %q must be monitor or enforce", roaming.Mode)
+	}
+	switch effectiveRoamingKeyRotationMode(roaming.KeyRotationMode) {
+	case "active", "staged", "cutover":
+	default:
+		return fmt.Errorf("wireless.roaming.key_rotation_mode %q must be active, staged, or cutover", roaming.KeyRotationMode)
+	}
+	if !roaming.IEEE80211R && !roaming.IEEE80211K && !roaming.IEEE80211V {
+		return errors.New("wireless.roaming requires at least one of ieee80211r, ieee80211k, or ieee80211v")
+	}
+	if err := validateWirelessRoamingProfileFields("wireless.roaming", roaming.MobilityDomain, roaming.R1KeyHolder, roaming.NASIdentifier, roaming.R0KeyLifetimeSeconds, roaming.ReassociationDeadline, roaming.KeySeedRef); err != nil {
+		return err
+	}
+	if strings.TrimSpace(roaming.NextKeySeedRef) != "" {
+		if err := validateSecretRefField("wireless.roaming.next_key_seed_ref", roaming.NextKeySeedRef); err != nil {
+			return err
+		}
+		if strings.TrimSpace(roaming.NextKeyNotBefore) == "" || strings.TrimSpace(roaming.NextKeyNotAfter) == "" {
+			return errors.New("wireless.roaming.next_key_not_before and next_key_not_after are required when next_key_seed_ref is set")
+		}
+		if err := validateRoamingTimeWindow("wireless.roaming", roaming.NextKeyNotBefore, roaming.NextKeyNotAfter); err != nil {
+			return err
+		}
+	}
+	if effectiveRoamingMode(roaming.Mode) == "enforce" && roaming.FailClosed && roaming.IEEE80211R && len(roaming.NeighborAPs) > 0 && strings.TrimSpace(roaming.KeySeedRef) == "" && !wirelessNeighborsAllHaveKeyRefs(roaming.NeighborAPs) {
+		return errors.New("wireless.roaming.key_seed_ref is required for enforce fail-closed 802.11r neighbor key lifecycle")
+	}
+	if roaming.EventRetentionLimit < 0 || roaming.EventRetentionLimit > 1000000 {
+		return errors.New("wireless.roaming.event_retention_limit must be between 1 and 1000000 when set")
+	}
+	neighborNames := map[string]struct{}{}
+	for i, neighbor := range roaming.NeighborAPs {
+		if err := validateWirelessRoamingNeighbor(i, neighbor); err != nil {
+			return err
+		}
+		name := strings.ToLower(strings.TrimSpace(neighbor.Name))
+		if name == "" {
+			name = strings.ToLower(strings.TrimSpace(neighbor.BSSID))
+		}
+		if _, exists := neighborNames[name]; exists {
+			return fmt.Errorf("wireless.roaming.neighbor_aps[%d].name %q duplicates an earlier neighbor", i, neighbor.Name)
+		}
+		neighborNames[name] = struct{}{}
+	}
+	profileNames := map[string]struct{}{}
+	for i, profile := range roaming.Profiles {
+		name := strings.TrimSpace(profile.Name)
+		if name == "" {
+			return fmt.Errorf("wireless.roaming.profiles[%d].name cannot be empty", i)
+		}
+		normalized := strings.ToLower(name)
+		if _, exists := profileNames[normalized]; exists {
+			return fmt.Errorf("wireless.roaming.profiles[%d].name %q duplicates an earlier profile", i, profile.Name)
+		}
+		profileNames[normalized] = struct{}{}
+		if !profile.Enabled {
+			continue
+		}
+		if !profile.IEEE80211R && !profile.IEEE80211K && !profile.IEEE80211V &&
+			!roaming.IEEE80211R && !roaming.IEEE80211K && !roaming.IEEE80211V {
+			return fmt.Errorf("wireless.roaming.profiles[%d] requires at least one roaming standard", i)
+		}
+		if err := validateWirelessRoamingProfileFields(fmt.Sprintf("wireless.roaming.profiles[%d]", i), firstNonEmptyString(profile.MobilityDomain, roaming.MobilityDomain), firstNonEmptyString(profile.R1KeyHolder, roaming.R1KeyHolder), firstNonEmptyString(profile.NASIdentifier, roaming.NASIdentifier), profile.R0KeyLifetimeSeconds, profile.ReassociationDeadline, profile.KeySeedRef); err != nil {
+			return err
+		}
+		for j, neighborName := range profile.NeighborAPs {
+			normalizedNeighbor := strings.ToLower(strings.TrimSpace(neighborName))
+			if normalizedNeighbor == "" {
+				return fmt.Errorf("wireless.roaming.profiles[%d].neighbor_aps[%d] cannot be empty", i, j)
+			}
+			if _, exists := neighborNames[normalizedNeighbor]; !exists {
+				return fmt.Errorf("wireless.roaming.profiles[%d].neighbor_aps[%d] %q does not match a configured neighbor AP", i, j, neighborName)
+			}
+		}
+	}
+	if strings.TrimSpace(roaming.DefaultProfile) != "" {
+		if _, exists := profileNames[strings.ToLower(strings.TrimSpace(roaming.DefaultProfile))]; !exists {
+			return fmt.Errorf("wireless.roaming.default_profile %q does not match a configured profile", roaming.DefaultProfile)
+		}
+	}
+	for i, ssid := range wireless.SSIDs {
+		if profile := strings.TrimSpace(ssid.RoamingProfile); profile != "" {
+			if _, exists := profileNames[strings.ToLower(profile)]; !exists {
+				return fmt.Errorf("wireless.ssids[%d].roaming_profile %q does not match a configured profile", i, ssid.RoamingProfile)
+			}
+		}
+	}
+	return nil
+}
+
+func validateWirelessRoamingProfileFields(path, mobilityDomain, r1KeyHolder, nasIdentifier string, r0KeyLifetimeSeconds, reassociationDeadline int, keySeedRef string) error {
+	mobilityDomain = strings.TrimSpace(mobilityDomain)
+	if mobilityDomain != "" && !validFixedHex(mobilityDomain, 4) {
+		return fmt.Errorf("%s.mobility_domain must be exactly four hexadecimal characters", path)
+	}
+	r1KeyHolder = strings.TrimSpace(r1KeyHolder)
+	if r1KeyHolder != "" && !validFixedHex(normalizeHexNoSeparators(r1KeyHolder), 12) {
+		return fmt.Errorf("%s.r1_key_holder must be exactly twelve hexadecimal characters", path)
+	}
+	if strings.TrimSpace(nasIdentifier) != "" && !validHostapdToken(nasIdentifier, 48) {
+		return fmt.Errorf("%s.nas_identifier contains unsupported characters", path)
+	}
+	if r0KeyLifetimeSeconds < 0 || r0KeyLifetimeSeconds > 604800 {
+		return fmt.Errorf("%s.r0_key_lifetime_seconds must be between 60 and 604800 when set", path)
+	}
+	if r0KeyLifetimeSeconds > 0 && r0KeyLifetimeSeconds < 60 {
+		return fmt.Errorf("%s.r0_key_lifetime_seconds must be between 60 and 604800 when set", path)
+	}
+	if reassociationDeadline < 0 || reassociationDeadline > 10000 {
+		return fmt.Errorf("%s.reassociation_deadline must be between 100 and 10000 when set", path)
+	}
+	if reassociationDeadline > 0 && reassociationDeadline < 100 {
+		return fmt.Errorf("%s.reassociation_deadline must be between 100 and 10000 when set", path)
+	}
+	if strings.TrimSpace(keySeedRef) != "" {
+		if err := validateSecretRefField(path+".key_seed_ref", keySeedRef); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateWirelessRoamingNeighbor(index int, neighbor WirelessNeighborAPConfig) error {
+	path := fmt.Sprintf("wireless.roaming.neighbor_aps[%d]", index)
+	if strings.TrimSpace(neighbor.BSSID) == "" {
+		return fmt.Errorf("%s.bssid cannot be empty", path)
+	}
+	mac, err := net.ParseMAC(strings.TrimSpace(neighbor.BSSID))
+	if err != nil || len(mac) != 6 {
+		return fmt.Errorf("%s.bssid must be a valid 48-bit MAC address", path)
+	}
+	if !validHostapdToken(neighbor.NASIdentifier, 48) {
+		return fmt.Errorf("%s.nas_identifier contains unsupported characters", path)
+	}
+	if !validFixedHex(normalizeHexNoSeparators(neighbor.R1KeyHolder), 12) {
+		return fmt.Errorf("%s.r1_key_holder must be exactly twelve hexadecimal characters", path)
+	}
+	if neighbor.Channel < 0 || neighbor.Channel > 196 {
+		return fmt.Errorf("%s.channel must be between 1 and 196 when set", path)
+	}
+	if neighbor.OpClass < 0 || neighbor.OpClass > 255 {
+		return fmt.Errorf("%s.op_class must be between 0 and 255", path)
+	}
+	if neighbor.Preference < 0 || neighbor.Preference > 255 {
+		return fmt.Errorf("%s.preference must be between 0 and 255", path)
+	}
+	if strings.TrimSpace(neighbor.KeySeedRef) != "" {
+		if err := validateSecretRefField(path+".key_seed_ref", neighbor.KeySeedRef); err != nil {
+			return err
+		}
+	}
+	for j, ssid := range neighbor.SSIDs {
+		if strings.TrimSpace(ssid) == "" {
+			return fmt.Errorf("%s.ssids[%d] cannot be empty", path, j)
+		}
+	}
+	return nil
+}
+
+func wirelessNeighborsAllHaveKeyRefs(neighbors []WirelessNeighborAPConfig) bool {
+	if len(neighbors) == 0 {
+		return true
+	}
+	for _, neighbor := range neighbors {
+		if strings.TrimSpace(neighbor.KeySeedRef) == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func validateRoamingTimeWindow(path, notBefore, notAfter string) error {
+	start, err := time.Parse(time.RFC3339, strings.TrimSpace(notBefore))
+	if err != nil {
+		return fmt.Errorf("%s.next_key_not_before must be RFC3339", path)
+	}
+	end, err := time.Parse(time.RFC3339, strings.TrimSpace(notAfter))
+	if err != nil {
+		return fmt.Errorf("%s.next_key_not_after must be RFC3339", path)
+	}
+	if !end.After(start) {
+		return fmt.Errorf("%s.next_key_not_after must be after next_key_not_before", path)
+	}
+	return nil
+}
+
+func wirelessRoamingSupportedAuthMode(authMode string) bool {
+	switch strings.ToLower(strings.TrimSpace(authMode)) {
+	case "wpa2-personal", "wpa3-personal", "wpa2-enterprise", "wpa3-enterprise":
+		return true
+	default:
+		return false
+	}
+}
+
+func wirelessRoamingFTSupportedAuthMode(authMode string) bool {
+	return wirelessRoamingSupportedAuthMode(authMode)
+}
+
+func normalizeHexNoSeparators(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.ReplaceAll(value, ":", "")
+	value = strings.ReplaceAll(value, "-", "")
+	return value
+}
+
+func validFixedHex(value string, size int) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if len(value) != size {
+		return false
+	}
+	for _, r := range value {
+		if r >= '0' && r <= '9' {
+			continue
+		}
+		if r >= 'a' && r <= 'f' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func validHostapdToken(value string, maxLen int) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > maxLen || strings.ContainsAny(value, "\r\n\x00\t ") {
+		return false
+	}
+	for _, r := range value {
+		if r >= 'a' && r <= 'z' {
+			continue
+		}
+		if r >= 'A' && r <= 'Z' {
+			continue
+		}
+		if r >= '0' && r <= '9' {
+			continue
+		}
+		switch r {
+		case '-', '_', '.', ':':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func emailTransportConfigured(c *Config) bool {
@@ -5979,6 +6518,30 @@ func validateConfiguredSecretReferences(c *Config) error {
 		}
 		if ref := strings.TrimSpace(server.RadSec.PSK.NextSecretRef); ref != "" {
 			if err := validateSecretRefField(fmt.Sprintf("radius.upstream.servers[%d].radsec.psk.next_secret_ref", i), ref); err != nil {
+				return err
+			}
+		}
+	}
+	if ref := strings.TrimSpace(c.Wireless.Roaming.KeySeedRef); ref != "" {
+		if err := validateSecretRefField("wireless.roaming.key_seed_ref", ref); err != nil {
+			return err
+		}
+	}
+	if ref := strings.TrimSpace(c.Wireless.Roaming.NextKeySeedRef); ref != "" {
+		if err := validateSecretRefField("wireless.roaming.next_key_seed_ref", ref); err != nil {
+			return err
+		}
+	}
+	for i, profile := range c.Wireless.Roaming.Profiles {
+		if ref := strings.TrimSpace(profile.KeySeedRef); ref != "" {
+			if err := validateSecretRefField(fmt.Sprintf("wireless.roaming.profiles[%d].key_seed_ref", i), ref); err != nil {
+				return err
+			}
+		}
+	}
+	for i, neighbor := range c.Wireless.Roaming.NeighborAPs {
+		if ref := strings.TrimSpace(neighbor.KeySeedRef); ref != "" {
+			if err := validateSecretRefField(fmt.Sprintf("wireless.roaming.neighbor_aps[%d].key_seed_ref", i), ref); err != nil {
 				return err
 			}
 		}

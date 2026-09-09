@@ -203,6 +203,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{76, schemaV76},
 		{77, schemaV77},
 		{78, schemaV78},
+		{79, schemaV79},
 	}
 
 	for _, m := range migrations {
@@ -394,6 +395,9 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureExternalVendorIntakeTables(handle); err != nil {
 		return fmt.Errorf("repair external vendor intake schema: %w", err)
 	}
+	if err := ensureWirelessRoamingLifecycleTables(handle); err != nil {
+		return fmt.Errorf("repair wireless roaming lifecycle schema: %w", err)
+	}
 
 	return nil
 }
@@ -403,6 +407,14 @@ func ensureExternalVendorIntakeTables(handle *sql.DB) error {
 		return fmt.Errorf("database handle is required")
 	}
 	_, err := handle.Exec(SQLForDialect(externalVendorIntakeSQL, DialectForHandle(handle)))
+	return err
+}
+
+func ensureWirelessRoamingLifecycleTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(wirelessRoamingLifecycleSQL, DialectForHandle(handle)))
 	return err
 }
 

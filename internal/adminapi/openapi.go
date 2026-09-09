@@ -1136,6 +1136,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0074 hostapd dynamic VLAN lifecycle snapshot and event history."),
 	}))
+	addOperation(paths, "/api/v1/system/wireless-roaming-lifecycle", "get", securedOperation("Read 802.11r/k/v roaming lifecycle", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0075 802.11r/k/v roaming and key lifecycle report, redacted hostapd preview, SSID profiles, neighbor APs, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/wireless-roaming-lifecycle/preview", "post", securedOperationWithBody("Preview 802.11r/k/v roaming lifecycle", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without changing hostapd files."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0075 roaming lifecycle report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/wireless-roaming-lifecycle/apply", "post", securedOperationWithBody("Apply 802.11r/k/v roaming lifecycle", "Wireless", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; writes the generated hostapd roaming configuration after validation."), map[string]any{
+		"200":     responseJSON("Applied NAS-0075 roaming lifecycle and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/wireless-roaming-lifecycle/history", "get", securedOperationWithParameters("List 802.11r/k/v roaming lifecycle history", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0075 roaming lifecycle event history."),
+	}))
 	addOperation(paths, "/api/v1/system/radius-apply", "post", securedOperation("Apply RADIUS runtime configuration", "RADIUS", []string{"super_admin"}, map[string]any{
 		"200":     responseJSON("RADIUS apply result."),
 		"default": responseText("RADIUS apply error."),
