@@ -5824,6 +5824,21 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
+    if (path === "/auth/token/start" && method === "POST") {
+      const body = parseBody(route);
+      if (body?.token === "token-super") {
+        await route.fulfill({
+          json: {
+            token: "token-super",
+            auth_mode: "token",
+          },
+        });
+      } else {
+        await route.fulfill({ status: 401, json: { error: "invalid token" } });
+      }
+      return;
+    }
+
     if (path === "/auth/validate" && method === "GET") {
       const authHeader = request.headers()["authorization"] || "";
       if (
