@@ -84,6 +84,18 @@ parse_args() {
 }
 
 expected_schema_version() {
+  local version
+  version="$(
+    awk '
+      /func LatestSchemaVersion\(\) int/ { in_func=1; next }
+      in_func && /^[[:space:]]*return[[:space:]]+[0-9]+[[:space:]]*$/ { print $2; exit }
+      in_func && /^[[:space:]]*}/ { in_func=0 }
+    ' "${REPO_ROOT}/internal/db/migrate.go"
+  )"
+  if [[ -n "${version}" ]]; then
+    printf '%s\n' "${version}"
+    return
+  fi
   sed -nE 's/^[[:space:]]*\{([0-9]+), schemaV[0-9]+\},/\1/p' "${REPO_ROOT}/internal/db/migrate.go" | tail -n 1
 }
 
