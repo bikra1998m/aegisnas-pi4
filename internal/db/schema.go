@@ -207,6 +207,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{80, schemaV80},
 		{81, schemaV81},
 		{82, schemaV82},
+		{83, schemaV83},
 	}
 
 	for _, m := range migrations {
@@ -410,6 +411,9 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureControllerEstateLifecycleTables(handle); err != nil {
 		return fmt.Errorf("repair controller estate lifecycle schema: %w", err)
 	}
+	if err := ensureRFPlanningLifecycleTables(handle); err != nil {
+		return fmt.Errorf("repair RF planning lifecycle schema: %w", err)
+	}
 
 	return nil
 }
@@ -419,6 +423,14 @@ func ensureControllerEstateLifecycleTables(handle *sql.DB) error {
 		return fmt.Errorf("database handle is required")
 	}
 	_, err := handle.Exec(SQLForDialect(controllerEstateLifecycleSQL, DialectForHandle(handle)))
+	return err
+}
+
+func ensureRFPlanningLifecycleTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(rfPlanningLifecycleSQL, DialectForHandle(handle)))
 	return err
 }
 

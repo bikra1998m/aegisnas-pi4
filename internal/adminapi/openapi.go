@@ -1221,6 +1221,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0078 controller estate lifecycle event history."),
 	}))
+	addOperation(paths, "/api/v1/system/rf-planning-lifecycle", "get", securedOperation("Read RF/RRM/mesh planning lifecycle", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0079 RF/RRM/mesh/radio planning report, topology, channel plan, power plan, mesh links, client steering policy, compliance checks, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/rf-planning-lifecycle/preview", "post", securedOperationWithBody("Preview RF/RRM/mesh planning lifecycle", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without changing radios or controllers."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0079 RF planning lifecycle report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/rf-planning-lifecycle/apply", "post", securedOperationWithBody("Apply RF/RRM/mesh planning lifecycle", "Wireless", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a lifecycle checkpoint and runtime status. Physical radio/controller mutation remains release certification until enabled per adapter."), map[string]any{
+		"200":     responseJSON("Applied NAS-0079 RF planning lifecycle checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/rf-planning-lifecycle/history", "get", securedOperationWithParameters("List RF/RRM/mesh planning lifecycle history", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0079 RF planning lifecycle event history."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))

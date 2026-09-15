@@ -155,6 +155,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionPasspointLifecycleCheck(&report, cfg)
 	addProductionPPSKLifecycleCheck(&report, cfg)
 	addProductionControllerEstateLifecycleCheck(&report, cfg)
+	addProductionRFPlanningLifecycleCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -1736,6 +1737,75 @@ func addProductionControllerEstateLifecycleCheck(report *productionReadinessRepo
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/controller-estate-lifecycle/preview before controller rollout, apply only after reviewing inventory, WLAN templates, delete guards, compliance, desired-state hashes, and keep real Cisco/Aruba/Mist/Ruckus/Fortinet/MikroTik/UniFi/Meraki/OpenWiFi controller proof in the NAS-0078 release certification checklist.",
 		Dependencies:   []string{"integrations.controller", "controller adapter catalog", "controller-sync preview", "wireless.ssids", "RADIUS server/profile references", "delete guards", "drift desired-state hash", "/api/v1/system/controller-estate-lifecycle", "/api/v1/system/controller-estate-lifecycle/preview", "/api/v1/system/controller-estate-lifecycle/apply", "RFC 2865", "RFC 2866", "RFC 5176", "IEEE 802.11"},
+	})
+}
+
+func addProductionRFPlanningLifecycleCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0079 RF/RRM/mesh/radio planning software is ready."
+	reportData, err := enforcement.PreviewRFPlanningLifecycle(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "RF planning lifecycle preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0079 schema %d status=%s, mode=%s, country=%s, controller=%s, APs=%d, radios=%d, channels=%d, power=%d, mesh links=%d, steering policies=%d, conflicts=%d, capacity warnings=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			firstNonEmptyAdminString(reportData.Summary.CountryCode, "unset"),
+			firstNonEmptyAdminString(reportData.Summary.ControllerPlatform, "local"),
+			reportData.Summary.APCount,
+			reportData.Summary.RadioCount,
+			reportData.Summary.ChannelPlanCount,
+			reportData.Summary.PowerPlanCount,
+			reportData.Summary.MeshLinkCount,
+			reportData.Summary.SteeringPolicyCount,
+			reportData.Summary.ChannelConflictCount,
+			reportData.Summary.CapacityWarningCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "skipped" {
+			summary += " RF planning is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but RF planning lifecycle event history cannot be verified."
+	} else if evidence, err := db.GetRFPlanningLifecycleSummary(); err != nil {
+		status = "blocked"
+		summary += " RF planning lifecycle evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, last radios=%d, last channels=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.LastRadioCount,
+			evidence.LastChannelPlanCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "rf_planning_lifecycle",
+		Category:       "wireless",
+		Label:          "NAS-0079 RF, RRM, Mesh, And Radio Planning",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/rf-planning-lifecycle/preview before RF rollout, apply only after reviewing channel reuse, power bounds, mesh roots, client steering, and controller ownership, and keep real AP/controller telemetry, spectrum captures, roaming proof, HA, scale, soak, security, and customer proof in the NAS-0079 release certification checklist.",
+		Dependencies:   []string{"wireless.rf", "wireless.rf.aps", "wireless.rf.bands", "wireless.rf.mesh", "wireless.rf.client_steering", "integrations.controller", "wireless.roaming", "/api/v1/system/rf-planning-lifecycle", "/api/v1/system/rf-planning-lifecycle/preview", "/api/v1/system/rf-planning-lifecycle/apply", "rf_planning_lifecycle_events", "IEEE 802.11", "IEEE 802.11k", "IEEE 802.11v", "IEEE 802.11s"},
 	})
 }
 

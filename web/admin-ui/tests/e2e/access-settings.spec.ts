@@ -178,4 +178,37 @@ test.describe('Access Settings edge-network flow', () => {
       page.getByText(/Controller estate lifecycle applied/),
     ).toBeVisible();
   });
+
+  test('previews and applies RF, RRM, mesh, and radio planning lifecycle', async ({ page }) => {
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto('/access-settings');
+    const rfSection = page.locator('section').filter({
+      has: page.getByRole('heading', { name: 'RF, RRM, Mesh, And Radio Planning' }),
+    });
+    await expect(rfSection).toBeVisible();
+    await expect(
+      rfSection.getByRole('heading', { name: 'Radio Plan', exact: true }),
+    ).toBeVisible();
+    await expect(
+      rfSection.getByRole('heading', { name: 'Channel Plan', exact: true }),
+    ).toBeVisible();
+    await expect(
+      rfSection.getByRole('heading', { name: 'Compliance Checks', exact: true }),
+    ).toBeVisible();
+    await expect(
+      rfSection.locator('div').filter({ hasText: /^Mesh Links$/ }).first(),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview RF Plan' }).click();
+    await expect(
+      page.getByText(/RF planning preview recorded/),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Apply RF Plan' }).click();
+    await expect(
+      page.getByText(/RF planning lifecycle applied/),
+    ).toBeVisible();
+  });
 });

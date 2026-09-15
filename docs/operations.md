@@ -856,6 +856,37 @@ investigations. Real controller firmware/API, AP inventory, packet captures,
 HA, scale, soak, security audit, production deployment, and customer acceptance
 evidence stay in `nas-0078-release-certification-checklist.md`.
 
+For RF/RRM/mesh/radio planning, preview NAS-0079 before controller or local
+radio rollout:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/rf-planning-lifecycle/preview \
+  | jq '.report.status, .report.summary, .report.channel_plan, .report.mesh_plan'
+```
+
+Apply only after the declared AP/radio topology, channel pool, power bounds,
+mesh roots, steering policy, controller ownership, compliance checks, and plan
+fingerprint match the change request:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/rf-planning-lifecycle/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/rf-planning-lifecycle/history` and the support bundle files
+`api/rf-planning-lifecycle.json` and
+`api/rf-planning-lifecycle-history.json` during channel reuse, power, mesh,
+client-steering, controller ownership, and RRM investigations. Real RF survey
+data, AP telemetry, spectrum captures, firmware behavior, HA, scale, soak,
+security audit, production deployment, and customer acceptance evidence stay in
+`nas-0079-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

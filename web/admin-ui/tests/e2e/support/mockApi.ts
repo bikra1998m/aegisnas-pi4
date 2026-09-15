@@ -1086,6 +1086,111 @@ function createSettings() {
           },
         ],
       },
+      rf: {
+        enabled: true,
+        mode: "monitor",
+        channel_plan_mode: "auto",
+        default_channel_width_mhz: 40,
+        min_power_dbm: 8,
+        max_power_dbm: 23,
+        target_cell_rssi: -67,
+        max_channel_reuse: 2,
+        max_clients_per_radio: 80,
+        event_retention_limit: 6000,
+        bands: [
+          {
+            name: "5ghz",
+            enabled: true,
+            channels: [36, 44, 149],
+            channel_width_mhz: 40,
+            min_power_dbm: 8,
+            max_power_dbm: 23,
+            dfs_allowed: true,
+            max_clients_per_radio: 80,
+          },
+        ],
+        mesh: {
+          enabled: true,
+          mode: "monitor",
+          root_aps: ["ap-lobby"],
+          backhaul_ssid: "AegisMesh",
+          bridge_vlan: 30,
+          max_hops: 2,
+          min_backhaul_rssi: -67,
+          prefer_5ghz: true,
+        },
+        client_steering: {
+          enabled: true,
+          mode: "monitor",
+          min_rssi: -72,
+          sticky_client_rssi: -78,
+          band_preference: "5ghz",
+          load_balance: true,
+          max_clients_per_radio: 80,
+          reject_below_min_rssi: true,
+        },
+        controller_extensions: {
+          enabled: true,
+          allow_controller_apply: false,
+          managed_fields: [
+            "channel",
+            "channel_width",
+            "tx_power",
+            "mesh_role",
+            "client_steering",
+          ],
+        },
+        aps: [
+          {
+            name: "ap-lobby",
+            enabled: true,
+            location: "Lobby",
+            zone: "HQ",
+            floor: "1",
+            radios: [
+              {
+                name: "radio-5g",
+                enabled: true,
+                interface: "wlan0",
+                bssid: "02:11:22:33:44:55",
+                band: "5ghz",
+                channel: 36,
+                channel_width_mhz: 40,
+                tx_power_dbm: 18,
+                max_clients: 80,
+                ssids: ["Corp"],
+                mesh_enabled: true,
+                mesh_role: "root",
+                client_steering: true,
+              },
+            ],
+          },
+          {
+            name: "ap-hallway",
+            enabled: true,
+            location: "Hallway",
+            zone: "HQ",
+            floor: "1",
+            radios: [
+              {
+                name: "radio-5g",
+                enabled: true,
+                interface: "wlan1",
+                bssid: "02:11:22:33:44:66",
+                band: "5ghz",
+                channel: 44,
+                channel_width_mhz: 40,
+                tx_power_dbm: 16,
+                max_clients: 80,
+                ssids: ["Corp"],
+                mesh_enabled: true,
+                mesh_role: "mesh",
+                client_steering: true,
+              },
+            ],
+          },
+        ],
+      },
       ssids: [],
     },
   };
@@ -1725,6 +1830,256 @@ function createControllerEstateLifecycle(status = "ready") {
   };
 }
 
+function createRFPlanningLifecycle(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0079",
+      status,
+      message:
+        status === "skipped"
+          ? "NAS-0079 software is ready; RF planning is not active in this configuration."
+          : "NAS-0079 plans 2 APs, 2 radios, 2 channel assignments, 2 power settings, 1 mesh link, and 1 steering policy item.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0079-release-certification-checklist.md",
+      release_scope:
+        "Real RF survey validation, AP telemetry, spectrum captures, mesh throughput, client steering behavior, HA failover, scale, soak, security audit, production deployment, and customer acceptance are release certification activities.",
+      plan_fingerprint:
+        "sha256:1a41b67e9831e81a28191a40d7b39f1e31d23b4d7f89d5b835c4db70524cc6b1",
+      summary: {
+        rf_enabled: true,
+        wireless_enabled: false,
+        controller_enabled: true,
+        controller_platform: "generic",
+        country_code: "US",
+        mode: "monitor",
+        channel_plan_mode: "auto",
+        ap_count: 2,
+        radio_count: 2,
+        band_count: 1,
+        ssid_count: 1,
+        channel_plan_count: 2,
+        power_plan_count: 2,
+        mesh_enabled: true,
+        mesh_root_count: 1,
+        mesh_link_count: 1,
+        steering_enabled: true,
+        steering_policy_count: 1,
+        channel_conflict_count: 0,
+        capacity_warning_count: 0,
+        compliance_check_count: 7,
+        passed_check_count: 7,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 10,
+      },
+      radios: [
+        {
+          ap_name: "ap-lobby",
+          radio_name: "radio-5g",
+          interface: "wlan0",
+          bssid: "02:11:22:33:44:55",
+          band: "5ghz",
+          zone: "HQ",
+          floor: "1",
+          location: "Lobby",
+          current_channel: 36,
+          planned_channel: 36,
+          channel_width_mhz: 40,
+          current_tx_power_dbm: 18,
+          planned_tx_power_dbm: 18,
+          max_clients: 80,
+          ssid_names: ["Corp"],
+          mesh_enabled: true,
+          mesh_role: "root",
+          client_steering: true,
+          status: "ready",
+        },
+        {
+          ap_name: "ap-hallway",
+          radio_name: "radio-5g",
+          interface: "wlan1",
+          bssid: "02:11:22:33:44:66",
+          band: "5ghz",
+          zone: "HQ",
+          floor: "1",
+          location: "Hallway",
+          current_channel: 44,
+          planned_channel: 44,
+          channel_width_mhz: 40,
+          current_tx_power_dbm: 16,
+          planned_tx_power_dbm: 16,
+          max_clients: 80,
+          ssid_names: ["Corp"],
+          mesh_enabled: true,
+          mesh_role: "mesh",
+          client_steering: true,
+          status: "ready",
+        },
+      ],
+      channel_plan: [
+        {
+          ap_name: "ap-lobby",
+          radio_name: "radio-5g",
+          band: "5ghz",
+          zone: "HQ",
+          current_channel: 36,
+          planned_channel: 36,
+          channel_width_mhz: 40,
+          reuse_group: "HQ/1/5ghz",
+          status: "ready",
+          reason: "auto channel selected from allowed pool",
+          alternates: [44, 149],
+        },
+        {
+          ap_name: "ap-hallway",
+          radio_name: "radio-5g",
+          band: "5ghz",
+          zone: "HQ",
+          current_channel: 44,
+          planned_channel: 44,
+          channel_width_mhz: 40,
+          reuse_group: "HQ/1/5ghz",
+          status: "ready",
+          reason: "auto channel selected from allowed pool",
+          alternates: [36, 149],
+        },
+      ],
+      power_plan: [
+        {
+          ap_name: "ap-lobby",
+          radio_name: "radio-5g",
+          band: "5ghz",
+          current_tx_power_dbm: 18,
+          planned_tx_power_dbm: 18,
+          min_power_dbm: 8,
+          max_power_dbm: 23,
+          target_cell_rssi: -67,
+          status: "ready",
+          reason: "declared radio power retained",
+        },
+        {
+          ap_name: "ap-hallway",
+          radio_name: "radio-5g",
+          band: "5ghz",
+          current_tx_power_dbm: 16,
+          planned_tx_power_dbm: 16,
+          min_power_dbm: 8,
+          max_power_dbm: 23,
+          target_cell_rssi: -67,
+          status: "ready",
+          reason: "declared radio power retained",
+        },
+      ],
+      mesh_plan: [
+        {
+          root_ap: "ap-lobby",
+          mesh_ap: "ap-hallway",
+          root_radio: "radio-5g",
+          mesh_radio: "radio-5g",
+          band: "5ghz",
+          backhaul_ssid: "AegisMesh",
+          bridge_vlan: 30,
+          hop_count: 1,
+          min_rssi: -67,
+          status: "planned",
+          reason: "nearest declared same-band root selected deterministically",
+        },
+      ],
+      steering_policies: [
+        {
+          ssid: "Corp",
+          band_preference: "5ghz",
+          min_rssi: -72,
+          sticky_client_rssi: -78,
+          load_balance: true,
+          max_clients_per_radio: 80,
+          reject_below_min_rssi: true,
+          target_radios: ["ap-lobby/radio-5g/5ghz", "ap-hallway/radio-5g/5ghz"],
+          status: "planned",
+          reason:
+            "band steering and load balancing are planned as controller/local-radio intent",
+        },
+      ],
+      controller_actions: [
+        {
+          id: "rf-controller-intent",
+          platform: "generic",
+          operation: "preview",
+          status: "observe",
+          reason:
+            "controller RF automation is governed as preview-only until release certification evidence is attached",
+          fields: [
+            "channel",
+            "channel_width",
+            "tx_power",
+            "mesh_role",
+            "client_steering",
+          ],
+        },
+      ],
+      compliance: [
+        {
+          id: "regulatory-domain",
+          name: "Regulatory Domain",
+          status: "passed",
+          message: "Country code is present for RF planning.",
+        },
+        {
+          id: "radio-topology",
+          name: "Radio Topology",
+          status: "passed",
+          message: "2 radios across 2 APs are available for planning.",
+        },
+        {
+          id: "channel-reuse",
+          name: "Channel Reuse",
+          status: "passed",
+          message: "No channel reuse threshold violation was detected.",
+        },
+        {
+          id: "external-certification",
+          name: "External Certification",
+          status: "passed",
+          message:
+            "Real AP telemetry, spectrum captures, and client steering proof are tracked outside software completion.",
+        },
+      ],
+      standards: ["IEEE 802.11-2020", "IEEE 802.11k", "IEEE 802.11v"],
+      vendors: ["Cisco", "Aruba", "Ruckus", "Extreme", "Meraki", "UniFi"],
+      requirements: [
+        "RF intent is represented as declared AP/radio topology, channels, channel width, power bounds, mesh roles, and steering policy.",
+      ],
+      blockers: [],
+      warnings: [],
+      notes: [
+        "Live spectrum measurements and vendor RF automation evidence are tracked in release certification.",
+      ],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        last_radio_count: 2,
+        last_channel_plan_count: 2,
+        last_power_plan_count: 2,
+        last_mesh_link_count: 1,
+        last_steering_policy_count: 1,
+      },
+      recent_events: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -2223,6 +2578,7 @@ function createSystemStatus() {
       roaming_lifecycle: createWirelessRoamingLifecycle().report,
       passpoint_lifecycle: createPasspointLifecycle().report,
       ppsk_lifecycle: createPPSKLifecycle().report,
+      rf_planning_lifecycle: createRFPlanningLifecycle().report,
       ssid_count: 0,
       auth_modes: [],
     },
@@ -6450,6 +6806,64 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({
         json: {
           feature_id: "NAS-0078",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+          },
+          events: [],
+        },
+      });
+      return;
+    }
+    if (path === "/system/rf-planning-lifecycle" && method === "GET") {
+      await route.fulfill({ json: createRFPlanningLifecycle() });
+      return;
+    }
+    if (
+      path === "/system/rf-planning-lifecycle/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createRFPlanningLifecycle(),
+          event_id: "rf-planning-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/rf-planning-lifecycle/apply" &&
+      method === "POST"
+    ) {
+      const payload = createRFPlanningLifecycle();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0079 recorded RF plan for 2 APs, 2 radios, 2 channel assignments, and 1 mesh link.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "rf-planning-event-apply",
+          result: {
+            status: "applied",
+            event_id: "rf-planning-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/rf-planning-lifecycle/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0079",
           summary: {
             total_events: 1,
             preview_events: 1,

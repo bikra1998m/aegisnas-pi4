@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 82
+	return 83
 }
 
 func Migrate() error {
@@ -4160,3 +4160,44 @@ CREATE INDEX IF NOT EXISTS idx_controller_estate_lifecycle_events_hash ON contro
 `
 
 const schemaV82 = controllerEstateLifecycleSQL
+
+const rfPlanningLifecycleSQL = `
+CREATE TABLE IF NOT EXISTS rf_planning_lifecycle_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	country_code TEXT,
+	controller_platform TEXT,
+	channel_plan_mode TEXT,
+	ap_count INTEGER NOT NULL DEFAULT 0,
+	radio_count INTEGER NOT NULL DEFAULT 0,
+	band_count INTEGER NOT NULL DEFAULT 0,
+	channel_plan_count INTEGER NOT NULL DEFAULT 0,
+	power_plan_count INTEGER NOT NULL DEFAULT 0,
+	mesh_link_count INTEGER NOT NULL DEFAULT 0,
+	steering_policy_count INTEGER NOT NULL DEFAULT 0,
+	channel_conflict_count INTEGER NOT NULL DEFAULT 0,
+	capacity_warning_count INTEGER NOT NULL DEFAULT 0,
+	compliance_check_count INTEGER NOT NULL DEFAULT 0,
+	passed_check_count INTEGER NOT NULL DEFAULT 0,
+	warning_count INTEGER NOT NULL DEFAULT 0,
+	blocker_count INTEGER NOT NULL DEFAULT 0,
+	external_requirement_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_rf_planning_lifecycle_events_created ON rf_planning_lifecycle_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_rf_planning_lifecycle_events_status ON rf_planning_lifecycle_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_rf_planning_lifecycle_events_fingerprint ON rf_planning_lifecycle_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_rf_planning_lifecycle_events_controller ON rf_planning_lifecycle_events(controller_platform, created_at);
+CREATE INDEX IF NOT EXISTS idx_rf_planning_lifecycle_events_country ON rf_planning_lifecycle_events(country_code, created_at);
+`
+
+const schemaV83 = rfPlanningLifecycleSQL

@@ -61,6 +61,64 @@ radius:
 	assert.NoError(t, err)
 }
 
+func TestConfigValidationWirelessRFPlanning(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	content := `
+mode: two-nic
+deployment:
+  profile: enterprise
+  form: virtual
+wan:
+  name: eth0
+  dhcp: true
+lan:
+  name: eth1
+  address: 192.168.1.1/24
+database:
+  path: ":memory:"
+radius:
+  secret: radius-secret
+wireless:
+  enabled: false
+  country_code: US
+  ssids:
+    - name: Corp
+      auth_mode: wpa2-enterprise
+  rf:
+    enabled: true
+    mode: monitor
+    channel_plan_mode: auto
+    default_channel_width_mhz: 40
+    min_power_dbm: 8
+    max_power_dbm: 23
+    bands:
+      - name: 5ghz
+        enabled: true
+        channels: [36, 44, 149]
+        channel_width_mhz: 40
+    aps:
+      - name: ap-1
+        enabled: true
+        radios:
+          - name: radio-5g
+            enabled: true
+            band: 5ghz
+            channel: 36
+            channel_width_mhz: 40
+            tx_power_dbm: 18
+            ssids: [Corp]
+`
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+	cfg, err := LoadCandidate(path)
+	require.NoError(t, err)
+	require.True(t, cfg.Wireless.RF.Enabled)
+
+	cfg.Wireless.RF.APs[0].Radios[0].Channel = 11
+	err = cfg.Validate()
+	require.ErrorContains(t, err, "outside the 5GHz range")
+}
+
 func TestConfigValidationEAPFramework(t *testing.T) {
 	cfg := &Config{
 		Mode:     "two-nic",

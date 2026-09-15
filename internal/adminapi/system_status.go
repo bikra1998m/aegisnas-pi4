@@ -369,6 +369,44 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		controllerEstateLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[integrations.ControllerComponent()]}
 	}
+	rfPlanningLifecycleStatus := map[string]any{
+		"status":  "unknown",
+		"message": "RF/RRM/mesh planning lifecycle status has not been evaluated.",
+	}
+	if rfReport, err := enforcement.PreviewRFPlanningLifecycle(cfg); err == nil {
+		rfSummary, _ := db.GetRFPlanningLifecycleSummary()
+		rfPlanningLifecycleStatus = map[string]any{
+			"schema_version":                  rfReport.SchemaVersion,
+			"feature_id":                      rfReport.FeatureID,
+			"status":                          rfReport.Status,
+			"message":                         rfReport.Message,
+			"ready_for_external_validation":   rfReport.ReadyForExternalValidation,
+			"software_completion_percent":     rfReport.SoftwareCompletionPercent,
+			"rf_enabled":                      rfReport.Summary.RFEnabled,
+			"mode":                            rfReport.Summary.Mode,
+			"country_code":                    rfReport.Summary.CountryCode,
+			"controller_platform":             rfReport.Summary.ControllerPlatform,
+			"ap_count":                        rfReport.Summary.APCount,
+			"radio_count":                     rfReport.Summary.RadioCount,
+			"band_count":                      rfReport.Summary.BandCount,
+			"channel_plan_count":              rfReport.Summary.ChannelPlanCount,
+			"power_plan_count":                rfReport.Summary.PowerPlanCount,
+			"mesh_link_count":                 rfReport.Summary.MeshLinkCount,
+			"steering_policy_count":           rfReport.Summary.SteeringPolicyCount,
+			"channel_conflict_count":          rfReport.Summary.ChannelConflictCount,
+			"capacity_warning_count":          rfReport.Summary.CapacityWarningCount,
+			"compliance_check_count":          rfReport.Summary.ComplianceCheckCount,
+			"passed_check_count":              rfReport.Summary.PassedCheckCount,
+			"warning_count":                   rfReport.Summary.WarningCount,
+			"blocker_count":                   rfReport.Summary.BlockerCount,
+			"plan_fingerprint":                rfReport.PlanFingerprint,
+			"release_certification_checklist": rfReport.ReleaseCertificationChecklist,
+			"evidence_summary":                rfSummary,
+			"runtime_status":                  runtimeMap[enforcement.RFPlanningLifecycleComponent()],
+		}
+	} else {
+		rfPlanningLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.RFPlanningLifecycleComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1171,6 +1209,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"roaming_lifecycle":      wirelessRoamingLifecycleStatus,
 		"passpoint_lifecycle":    passpointLifecycleStatus,
 		"ppsk_lifecycle":         ppskLifecycleStatus,
+		"rf_planning_lifecycle":  rfPlanningLifecycleStatus,
 		"ssid_count":             len(cfg.Wireless.SSIDs),
 		"auth_modes":             ssidAuthModes(cfg.Wireless.SSIDs),
 	}

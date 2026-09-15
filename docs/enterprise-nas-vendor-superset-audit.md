@@ -2,7 +2,7 @@
 
 Audit date: 2026-07-07
 
-Software progress updated through NAS-0078 on 2026-09-15.
+Software progress updated through NAS-0079 on 2026-09-15.
 
 ## Verdict
 
@@ -86,7 +86,7 @@ The repository evidence includes:
 - controller integration: Cisco ISE, Aruba Central Classic, Juniper Mist,
   Ruckus SmartZone, FortiGate, MikroTik RouterOS, UniFi Network, Meraki
   Dashboard, and TIP OpenWiFi adapters under `internal/integrations`
-- persistence: schema versions 1-80 in `internal/db/migrate.go`
+- persistence: schema versions 1-83 in `internal/db/migrate.go`
 - REST and UI: `cmd/aegis-admin-api`, `internal/adminapi`, and
   `web/admin-ui/src`
 
@@ -139,7 +139,7 @@ instead of adding ad hoc dictionary interpretations.
 | 3 | Accounting | 35% | Start/Stop/Interim, session time, IPv4, octets, basic identity, history and exports | No complete inbound accounting path into the AegisNAS session schema, robust duplicate/reorder handling, gigaword rollover persistence, IPv6/session-route accounting, multi-service correlation, charging records, or 5,400 remaining vendor fields; generated FreeRADIUS SQL points at the product SQLite database, but migrations do not create the standard `radacct`/`radpostauth` tables |
 | 4 | CoA/Disconnect | 40% | UDP listener, shared-secret lookup, session lookup, local reclassification and termination, ACK/NAK counters | No general outbound DAC client, RFC error-cause detail, proxy CoA routing, RadSec reverse CoA, vendor command semantics, retry queues, NAS capability discovery, or cluster ownership routing |
 | 5 | 802.1X | 40% | FreeRADIUS EAP config and hostapd WPA2/WPA3 Enterprise generation | No production supplicant onboarding profiles, TEAP/EAP chaining, machine/user auth, MAB fallback, fast roaming keys, dynamic authorization across roaming, or broad switch/AP certification |
-| 6 | Enterprise Wi-Fi | 57% | Multi-BSS hostapd generation, hostapd dynamic VLAN lifecycle with fail-closed/fallback mode, managed VLAN file, cleanup, rollback, 802.11r/k/v roaming lifecycle with FT key-reference validation, RRM neighbor/beacon reports, BSS transition, PMF policy, Passpoint/Hotspot 2.0 lifecycle with ANQP, venue/operator, domain, roaming consortium, NAI realm, 3GPP, WAN metrics, connection capability, OSU metadata, DPSK/PPSK lifecycle with MAC-bound secret refs, profile/group policy, rotation staging, redacted `wpa_psk_file` evidence, nine controller adapters with bounded reconciliation, and controller estate lifecycle with inventory, WLAN templates, delete guards, compliance checks, desired-state hashes, API/UI evidence, and durable history | RF/RRM, mesh, location, rogue/WIPS, spectrum, multicast, controller firmware/hardware certification evidence, and real radio/client/certification evidence remain open |
+| 6 | Enterprise Wi-Fi | 64% | Multi-BSS hostapd generation, hostapd dynamic VLAN lifecycle with fail-closed/fallback mode, managed VLAN file, cleanup, rollback, 802.11r/k/v roaming lifecycle with FT key-reference validation, RRM neighbor/beacon reports, BSS transition, PMF policy, Passpoint/Hotspot 2.0 lifecycle with ANQP, venue/operator, domain, roaming consortium, NAI realm, 3GPP, WAN metrics, connection capability, OSU metadata, DPSK/PPSK lifecycle with MAC-bound secret refs, profile/group policy, rotation staging, redacted `wpa_psk_file` evidence, nine controller adapters with bounded reconciliation, controller estate lifecycle with inventory, WLAN templates, delete guards, compliance checks, desired-state hashes, API/UI evidence, durable history, and RF/RRM/mesh planning with AP/radio topology, channel plan, power plan, mesh links, client steering, controller action previews, compliance checks, and lifecycle history | Rogue/WIPS, spectrum analytics, location, multicast optimization, controller firmware/hardware certification evidence, real RF survey/AP telemetry/client certification evidence, and production controller mutation remain open |
 | 7 | ISP/BRAS/BNG | 5% | A few rate, quota, PPPoE URL, and service-name mappings | No PPPoE termination, subscriber state machine, IP pools, CGNAT, DHCP relay/snooping, L2TP, wholesale realms, service activation, lawful intercept, hierarchical QoS, or BNG route lifecycle |
 | 8 | Subscriber management | 15% | Users, sessions, vouchers, quotas in selected attributes, timeouts, bandwidth profiles | No plans/products, recurring quota periods, top-up, balance/charging, concurrent-session policy, family/account hierarchy, prepaid/postpaid, address leases, service bundles, or subscriber portal |
 | 9 | Dynamic VLAN | 60% | Standard tunnel attributes, selected vendor VLAN replies/parsers, local bridge/subinterface lifecycle, tagged voice/data VLAN policy, QinQ, VLAN pool, fallback VLAN, hostapd dynamic VLAN file generation, fail-closed SSIDs, cleanup, and rollback | Per-NAS capability negotiation and broad real-device certification remain release certification or later roadmap work |
@@ -245,9 +245,11 @@ Feature-specific additions are mandatory:
   controller ownership, accounting correlation and withdrawal on Stop/CoA.
 - **Broadband/mobile:** subscriber/product/service schemas, PPPoE/BNG or mobile
   session state machines, hierarchical QoS, charging and telecom-scale stores.
-- **Wi-Fi/hotspot:** complete hostapd VLAN lifecycle, roaming, Passpoint, and
-  DPSK/PPSK software evidence; controller version matrices, RF/security
-  workflows, and AP proof remain release certification or later roadmap work.
+- **Wi-Fi/hotspot:** complete hostapd VLAN lifecycle, roaming, Passpoint,
+  DPSK/PPSK, controller estate, and RF/RRM/mesh planning software evidence;
+  controller version matrices, rogue/WIPS, spectrum, location, multicast,
+  security workflows, and AP proof remain release certification or later
+  roadmap work.
 
 ## Production Blockers
 

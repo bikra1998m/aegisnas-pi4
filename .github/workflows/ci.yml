@@ -41,6 +41,7 @@ jobs:
       - run: make test-passpoint-lifecycle
       - run: make test-ppsk-lifecycle
       - run: make test-controller-estate-lifecycle
+      - run: make test-rf-planning-lifecycle
       - run: make test-vsa-codec
       - run: make test-opaque-passthrough
       - run: make test-secret-providers

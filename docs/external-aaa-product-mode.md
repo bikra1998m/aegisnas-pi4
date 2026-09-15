@@ -767,6 +767,15 @@ operator preview/apply checkpoints, while real controller firmware/API, AP
 inventory, HA, scale, security, production, and customer proof remains release
 certification.
 
+NAS-0079 adds RF/RRM/mesh/radio planning evidence for local-radio and
+external-controller estates. `/api/v1/system/rf-planning-lifecycle` reports the
+effective RF policy, AP/radio topology, channel plan, power plan, mesh links,
+client-steering policies, controller action previews, compliance checks,
+history, and release certification scope. The lifecycle is software-ready for
+operator preview/apply checkpoints, while real spectrum surveys, AP telemetry,
+controller firmware behavior, mesh throughput, client steering, HA, scale,
+security, production, and customer proof remain release certification.
+
 NAS-0054 adds the portable tagged VLAN and QinQ policy compiler. Prefer this
 for new role intent because it covers one data VLAN, one tagged voice VLAN,
 extra tagged VLANs, deterministic VLAN pools, fallback VLANs, auth-fail VLANs,

@@ -3504,6 +3504,11 @@ export default function AccessSettings() {
     useState("");
   const controllerEstateLifecycleBusy =
     controllerEstateLifecycleAction !== "";
+  const [rfPlanningLifecycle, setRFPlanningLifecycle] =
+    useState<JsonMap | null>(null);
+  const [rfPlanningLifecycleAction, setRFPlanningLifecycleAction] =
+    useState("");
+  const rfPlanningLifecycleBusy = rfPlanningLifecycleAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3600,6 +3605,11 @@ export default function AccessSettings() {
   const loadControllerEstateLifecycle = async () => {
     const { data } = await api.get("/system/controller-estate-lifecycle");
     setControllerEstateLifecycle(data.report || null);
+  };
+
+  const loadRFPlanningLifecycle = async () => {
+    const { data } = await api.get("/system/rf-planning-lifecycle");
+    setRFPlanningLifecycle(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3835,15 +3845,17 @@ export default function AccessSettings() {
         passpointRes,
         ppskRes,
         controllerEstateRes,
+        rfPlanningRes,
       ] = await Promise.all([
-          api.get("/system/settings"),
-          api.get("/system/hostapd-preview"),
-          api.get("/system/hostapd-vlan-lifecycle"),
-          api.get("/system/wireless-roaming-lifecycle"),
-          api.get("/system/passpoint-lifecycle"),
-          api.get("/system/ppsk-lifecycle"),
-          api.get("/system/controller-estate-lifecycle"),
-        ]);
+        api.get("/system/settings"),
+        api.get("/system/hostapd-preview"),
+        api.get("/system/hostapd-vlan-lifecycle"),
+        api.get("/system/wireless-roaming-lifecycle"),
+        api.get("/system/passpoint-lifecycle"),
+        api.get("/system/ppsk-lifecycle"),
+        api.get("/system/controller-estate-lifecycle"),
+        api.get("/system/rf-planning-lifecycle"),
+      ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
       setHostapdPreview(previewRes.data.config || "");
@@ -3853,6 +3865,7 @@ export default function AccessSettings() {
       setPasspointLifecycle(passpointRes.data.report || null);
       setPPSKLifecycle(ppskRes.data.report || null);
       setControllerEstateLifecycle(controllerEstateRes.data.report || null);
+      setRFPlanningLifecycle(rfPlanningRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -3943,6 +3956,9 @@ export default function AccessSettings() {
       await loadHostapdVLANLifecycle();
       await loadWirelessRoamingLifecycle();
       await loadPasspointLifecycle();
+      await loadPPSKLifecycle();
+      await loadControllerEstateLifecycle();
+      await loadRFPlanningLifecycle();
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4437,6 +4453,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewRFPlanningLifecycle = async () => {
+    setRFPlanningLifecycleAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/rf-planning-lifecycle/preview",
+        {},
+      );
+      setRFPlanningLifecycle(data.report || null);
+      setMessage(
+        `RF planning preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview RF/RRM/mesh planning lifecycle.",
+      );
+    } finally {
+      setRFPlanningLifecycleAction("");
+    }
+  };
+
+  const applyRFPlanningLifecycle = async () => {
+    setRFPlanningLifecycleAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/rf-planning-lifecycle/apply",
+        {},
+      );
+      setRFPlanningLifecycle(data.report || null);
+      setMessage(
+        `RF planning lifecycle ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadRFPlanningLifecycle();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply RF/RRM/mesh planning lifecycle.",
+      );
+    } finally {
+      setRFPlanningLifecycleAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -4877,6 +4944,28 @@ export default function AccessSettings() {
     ? controllerEstateLifecycle?.compliance
     : [];
   const controllerEstateTone = statusTone(controllerEstateLifecycle?.status);
+  const rfPlanningSummary = rfPlanningLifecycle?.summary || {};
+  const rfPlanningRadios = Array.isArray(rfPlanningLifecycle?.radios)
+    ? rfPlanningLifecycle?.radios
+    : [];
+  const rfChannelPlan = Array.isArray(rfPlanningLifecycle?.channel_plan)
+    ? rfPlanningLifecycle?.channel_plan
+    : [];
+  const rfPowerPlan = Array.isArray(rfPlanningLifecycle?.power_plan)
+    ? rfPlanningLifecycle?.power_plan
+    : [];
+  const rfMeshPlan = Array.isArray(rfPlanningLifecycle?.mesh_plan)
+    ? rfPlanningLifecycle?.mesh_plan
+    : [];
+  const rfSteeringPolicies = Array.isArray(
+    rfPlanningLifecycle?.steering_policies,
+  )
+    ? rfPlanningLifecycle?.steering_policies
+    : [];
+  const rfCompliance = Array.isArray(rfPlanningLifecycle?.compliance)
+    ? rfPlanningLifecycle?.compliance
+    : [];
+  const rfPlanningTone = statusTone(rfPlanningLifecycle?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -5138,6 +5227,24 @@ export default function AccessSettings() {
             {controllerEstateLifecycleAction === "apply"
               ? "Applying Controllers..."
               : "Apply Controller Estate"}
+          </button>
+          <button
+            onClick={previewRFPlanningLifecycle}
+            disabled={rfPlanningLifecycleBusy}
+            className="rounded-md border border-lime-300 px-4 py-2 text-sm font-medium text-lime-900 disabled:opacity-60"
+          >
+            {rfPlanningLifecycleAction === "preview"
+              ? "Checking RF Plan..."
+              : "Preview RF Plan"}
+          </button>
+          <button
+            onClick={applyRFPlanningLifecycle}
+            disabled={rfPlanningLifecycleBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {rfPlanningLifecycleAction === "apply"
+              ? "Applying RF Plan..."
+              : "Apply RF Plan"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -5896,6 +6003,370 @@ export default function AccessSettings() {
         ) : (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
             Controller estate lifecycle report has not loaded yet.
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              RF, RRM, Mesh, And Radio Planning
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {rfPlanningLifecycle?.release_certification_checklist ||
+                "Plan channel reuse, power bounds, mesh roots, and client steering before controller or local-radio rollout."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${rfPlanningTone}`}
+          >
+            {rfPlanningLifecycle?.status || "unknown"}
+          </div>
+        </div>
+        {rfPlanningLifecycle ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {rfPlanningLifecycle.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                ["APs", rfPlanningSummary.ap_count || 0],
+                ["Radios", rfPlanningSummary.radio_count || 0],
+                ["Channel Plans", rfPlanningSummary.channel_plan_count || 0],
+                ["Power Plans", rfPlanningSummary.power_plan_count || 0],
+                ["Mesh Links", rfPlanningSummary.mesh_link_count || 0],
+                [
+                  "Compliance",
+                  `${rfPlanningSummary.passed_check_count || 0}/${rfPlanningSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Radio Plan
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {rfPlanningRadios.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No active radio topology is present.
+                    </div>
+                  ) : (
+                    rfPlanningRadios
+                      .slice(0, 8)
+                      .map((radio: JsonMap, index: number) => (
+                        <div
+                          key={`${radio.ap_name || "ap"}/${radio.radio_name || "radio"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {radio.ap_name || "Unnamed AP"} /{" "}
+                              {radio.radio_name || "radio"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                radio.status,
+                              )}`}
+                            >
+                              {radio.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              radio.band,
+                              radio.planned_channel
+                                ? `channel ${radio.planned_channel}`
+                                : "",
+                              radio.planned_tx_power_dbm
+                                ? `${radio.planned_tx_power_dbm} dBm`
+                                : "",
+                              radio.mesh_enabled ? `mesh ${radio.mesh_role}` : "",
+                              radio.client_steering ? "client steering" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Radio metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Channel Plan
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {rfChannelPlan.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No channel assignment is present.
+                    </div>
+                  ) : (
+                    rfChannelPlan
+                      .slice(0, 8)
+                      .map((plan: JsonMap, index: number) => (
+                        <div
+                          key={`${plan.ap_name || "ap"}/${plan.radio_name || "radio"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {plan.ap_name || "Unnamed AP"} /{" "}
+                              {plan.radio_name || "radio"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                plan.status,
+                              )}`}
+                            >
+                              {plan.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              plan.band,
+                              `channel ${plan.planned_channel || "auto"}`,
+                              plan.channel_width_mhz
+                                ? `${plan.channel_width_mhz} MHz`
+                                : "",
+                              plan.reuse_group,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ")}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500">
+                            {plan.reason || "Deterministic RF assignment"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Power Plan
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {rfPowerPlan.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No power assignment is present.
+                    </div>
+                  ) : (
+                    rfPowerPlan
+                      .slice(0, 8)
+                      .map((plan: JsonMap, index: number) => (
+                        <div
+                          key={`${plan.ap_name || "ap"}/${plan.radio_name || "radio"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {plan.ap_name || "Unnamed AP"} /{" "}
+                              {plan.radio_name || "radio"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                plan.status,
+                              )}`}
+                            >
+                              {plan.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              plan.band,
+                              `${plan.planned_tx_power_dbm || 0} dBm`,
+                              `bounds ${plan.min_power_dbm || 0}-${plan.max_power_dbm || 0}`,
+                              plan.target_cell_rssi
+                                ? `target ${plan.target_cell_rssi} RSSI`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ")}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500">
+                            {plan.reason || "Power bounded by RF policy"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Mesh Plan
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {rfMeshPlan.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No mesh link is present.
+                    </div>
+                  ) : (
+                    rfMeshPlan
+                      .slice(0, 8)
+                      .map((link: JsonMap, index: number) => (
+                        <div
+                          key={`${link.root_ap || "root"}-${link.mesh_ap || "mesh"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {link.root_ap || "Root AP"} to{" "}
+                              {link.mesh_ap || "Mesh AP"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                link.status,
+                              )}`}
+                            >
+                              {link.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              link.band,
+                              link.backhaul_ssid,
+                              link.bridge_vlan ? `VLAN ${link.bridge_vlan}` : "",
+                              link.min_rssi ? `min ${link.min_rssi} RSSI` : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Mesh metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Client Steering
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {rfSteeringPolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No steering policy is present.
+                    </div>
+                  ) : (
+                    rfSteeringPolicies
+                      .slice(0, 8)
+                      .map((policy: JsonMap, index: number) => (
+                        <div
+                          key={`${policy.ssid || "ssid"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {policy.ssid || "Unnamed SSID"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                policy.status,
+                              )}`}
+                            >
+                              {policy.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              policy.band_preference
+                                ? `prefer ${policy.band_preference}`
+                                : "",
+                              policy.min_rssi ? `min ${policy.min_rssi}` : "",
+                              policy.load_balance ? "load balance" : "",
+                              Array.isArray(policy.target_radios)
+                                ? `${policy.target_radios.length} target radios`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Steering metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Compliance Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {rfCompliance.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No RF compliance check is present.
+                    </div>
+                  ) : (
+                    rfCompliance
+                      .slice(0, 8)
+                      .map((check: JsonMap, index: number) => (
+                        <div
+                          key={`${check.id || "rf-check"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {check.name || check.id || "Compliance Check"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                check.status,
+                              )}`}
+                            >
+                              {check.status || "unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {check.message || "No compliance message"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            {((rfPlanningLifecycle.blockers?.length || 0) > 0 ||
+              (rfPlanningLifecycle.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(rfPlanningLifecycle.blockers || []),
+                  ...(rfPlanningLifecycle.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Country{" "}
+              <span className="font-mono">
+                {rfPlanningSummary.country_code || "unset"}
+              </span>{" "}
+              / mode{" "}
+              <span className="font-mono">
+                {rfPlanningSummary.mode || "monitor"}
+              </span>{" "}
+              / plan{" "}
+              <span className="font-mono">
+                {rfPlanningLifecycle.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            RF/RRM/mesh planning lifecycle report has not loaded yet.
           </div>
         )}
       </section>

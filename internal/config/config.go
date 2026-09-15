@@ -1683,7 +1683,99 @@ type WirelessConfig struct {
 	Roaming             WirelessRoamingConfig   `mapstructure:"roaming"`
 	Passpoint           WirelessPasspointConfig `mapstructure:"passpoint"`
 	PPSK                WirelessPPSKConfig      `mapstructure:"ppsk"`
+	RF                  WirelessRFConfig        `mapstructure:"rf"`
 	SSIDs               []SSIDConfig            `mapstructure:"ssids"`
+}
+
+type WirelessRFConfig struct {
+	Enabled              bool                       `mapstructure:"enabled"`
+	Mode                 string                     `mapstructure:"mode"`
+	FailClosed           bool                       `mapstructure:"fail_closed"`
+	ChannelPlanMode      string                     `mapstructure:"channel_plan_mode"`
+	DefaultChannelWidth  int                        `mapstructure:"default_channel_width_mhz"`
+	MinPowerDBM          int                        `mapstructure:"min_power_dbm"`
+	MaxPowerDBM          int                        `mapstructure:"max_power_dbm"`
+	TargetCellRSSI       int                        `mapstructure:"target_cell_rssi"`
+	MaxChannelReuse      int                        `mapstructure:"max_channel_reuse"`
+	MaxClientsPerRadio   int                        `mapstructure:"max_clients_per_radio"`
+	EventRetentionLimit  int                        `mapstructure:"event_retention_limit"`
+	Bands                []WirelessRFBandConfig     `mapstructure:"bands"`
+	APs                  []WirelessRFAPConfig       `mapstructure:"aps"`
+	Mesh                 WirelessRFMeshConfig       `mapstructure:"mesh"`
+	ClientSteering       WirelessRFSteeringConfig   `mapstructure:"client_steering"`
+	ControllerExtensions WirelessRFControllerConfig `mapstructure:"controller_extensions"`
+}
+
+type WirelessRFBandConfig struct {
+	Name               string `mapstructure:"name"`
+	Enabled            bool   `mapstructure:"enabled"`
+	Channels           []int  `mapstructure:"channels"`
+	ChannelWidth       int    `mapstructure:"channel_width_mhz"`
+	MinPowerDBM        int    `mapstructure:"min_power_dbm"`
+	MaxPowerDBM        int    `mapstructure:"max_power_dbm"`
+	DFSAllowed         bool   `mapstructure:"dfs_allowed"`
+	MaxClientsPerRadio int    `mapstructure:"max_clients_per_radio"`
+}
+
+type WirelessRFAPConfig struct {
+	Name        string                  `mapstructure:"name"`
+	Enabled     bool                    `mapstructure:"enabled"`
+	Location    string                  `mapstructure:"location"`
+	Zone        string                  `mapstructure:"zone"`
+	Floor       string                  `mapstructure:"floor"`
+	Latitude    float64                 `mapstructure:"latitude"`
+	Longitude   float64                 `mapstructure:"longitude"`
+	Controller  string                  `mapstructure:"controller"`
+	Radios      []WirelessRFRadioConfig `mapstructure:"radios"`
+	Description string                  `mapstructure:"description"`
+}
+
+type WirelessRFRadioConfig struct {
+	Name              string   `mapstructure:"name"`
+	Enabled           bool     `mapstructure:"enabled"`
+	Interface         string   `mapstructure:"interface"`
+	BSSID             string   `mapstructure:"bssid"`
+	Band              string   `mapstructure:"band"`
+	Channel           int      `mapstructure:"channel"`
+	ChannelWidth      int      `mapstructure:"channel_width_mhz"`
+	TxPowerDBM        int      `mapstructure:"tx_power_dbm"`
+	AntennaGainDBI    int      `mapstructure:"antenna_gain_dbi"`
+	MaxClients        int      `mapstructure:"max_clients"`
+	SSIDs             []string `mapstructure:"ssids"`
+	NeighborAPs       []string `mapstructure:"neighbor_aps"`
+	MeshEnabled       bool     `mapstructure:"mesh_enabled"`
+	MeshRole          string   `mapstructure:"mesh_role"`
+	ClientSteering    bool     `mapstructure:"client_steering"`
+	MinRSSI           int      `mapstructure:"min_rssi"`
+	LoadBalanceWeight int      `mapstructure:"load_balance_weight"`
+}
+
+type WirelessRFMeshConfig struct {
+	Enabled         bool     `mapstructure:"enabled"`
+	Mode            string   `mapstructure:"mode"`
+	RootAPs         []string `mapstructure:"root_aps"`
+	BackhaulSSID    string   `mapstructure:"backhaul_ssid"`
+	BridgeVLAN      int      `mapstructure:"bridge_vlan"`
+	MaxHops         int      `mapstructure:"max_hops"`
+	MinBackhaulRSSI int      `mapstructure:"min_backhaul_rssi"`
+	Prefer5GHz      bool     `mapstructure:"prefer_5ghz"`
+}
+
+type WirelessRFSteeringConfig struct {
+	Enabled            bool   `mapstructure:"enabled"`
+	Mode               string `mapstructure:"mode"`
+	MinRSSI            int    `mapstructure:"min_rssi"`
+	StickyClientRSSI   int    `mapstructure:"sticky_client_rssi"`
+	BandPreference     string `mapstructure:"band_preference"`
+	LoadBalance        bool   `mapstructure:"load_balance"`
+	MaxClientsPerRadio int    `mapstructure:"max_clients_per_radio"`
+	RejectBelowMinRSSI bool   `mapstructure:"reject_below_min_rssi"`
+}
+
+type WirelessRFControllerConfig struct {
+	Enabled              bool     `mapstructure:"enabled"`
+	AllowControllerApply bool     `mapstructure:"allow_controller_apply"`
+	ManagedFields        []string `mapstructure:"managed_fields"`
 }
 
 type WirelessRoamingConfig struct {
@@ -5870,6 +5962,9 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	if err := validateWirelessRFConfig(c.Wireless); err != nil {
+		return err
+	}
 	if c.Wireless.Enabled {
 		if EffectiveDeploymentForm(c.Deployment.Form) == "virtual" && !c.Deployment.Hardware.WirelessPassthrough {
 			return errors.New("wireless.enabled requires deployment.hardware.wireless_passthrough on virtual appliances")
@@ -5903,7 +5998,6 @@ func (c *Config) Validate() error {
 		if err := validateWirelessPPSKConfig(c.Wireless); err != nil {
 			return err
 		}
-
 		ssidNames := make(map[string]struct{}, len(c.Wireless.SSIDs))
 		for i, ssid := range c.Wireless.SSIDs {
 			name := strings.TrimSpace(ssid.Name)
@@ -6005,6 +6099,275 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	return nil
+}
+
+func validateWirelessRFConfig(wireless WirelessConfig) error {
+	rf := wireless.RF
+	if !rf.Enabled {
+		return nil
+	}
+	switch effectiveRFMode(rf.Mode) {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("wireless.rf.mode %q must be monitor or enforce", rf.Mode)
+	}
+	switch effectiveRFChannelPlanMode(rf.ChannelPlanMode) {
+	case "auto", "manual", "hybrid":
+	default:
+		return fmt.Errorf("wireless.rf.channel_plan_mode %q must be auto, manual, or hybrid", rf.ChannelPlanMode)
+	}
+	if rf.DefaultChannelWidth != 0 && !validRFChannelWidth(rf.DefaultChannelWidth) {
+		return errors.New("wireless.rf.default_channel_width_mhz must be one of 20, 40, 80, or 160")
+	}
+	if rf.MinPowerDBM != 0 || rf.MaxPowerDBM != 0 {
+		if rf.MinPowerDBM < 0 || rf.MaxPowerDBM < 0 || rf.MinPowerDBM > rf.MaxPowerDBM {
+			return errors.New("wireless.rf power range must be non-negative and min_power_dbm cannot exceed max_power_dbm")
+		}
+		if rf.MaxPowerDBM > 36 {
+			return errors.New("wireless.rf.max_power_dbm cannot exceed 36")
+		}
+	}
+	if rf.MaxChannelReuse < 0 {
+		return errors.New("wireless.rf.max_channel_reuse cannot be negative")
+	}
+	if rf.MaxClientsPerRadio < 0 {
+		return errors.New("wireless.rf.max_clients_per_radio cannot be negative")
+	}
+	if rf.EventRetentionLimit < 0 || rf.EventRetentionLimit > 1000000 {
+		return errors.New("wireless.rf.event_retention_limit must be between 1 and 1000000 when set")
+	}
+	ssidNames := map[string]struct{}{}
+	for _, ssid := range wireless.SSIDs {
+		ssidNames[strings.ToLower(strings.TrimSpace(ssid.Name))] = struct{}{}
+	}
+	bands := map[string]struct{}{}
+	for i, band := range rf.Bands {
+		name := normalizeRFBand(band.Name)
+		if name == "" {
+			return fmt.Errorf("wireless.rf.bands[%d].name cannot be empty", i)
+		}
+		if _, exists := bands[name]; exists {
+			return fmt.Errorf("wireless.rf.bands[%d].name %q duplicates an earlier band", i, band.Name)
+		}
+		bands[name] = struct{}{}
+		if band.ChannelWidth != 0 && !validRFChannelWidth(band.ChannelWidth) {
+			return fmt.Errorf("wireless.rf.bands[%d].channel_width_mhz must be one of 20, 40, 80, or 160", i)
+		}
+		if err := validateRFChannels(fmt.Sprintf("wireless.rf.bands[%d].channels", i), name, band.Channels); err != nil {
+			return err
+		}
+		if band.MinPowerDBM != 0 || band.MaxPowerDBM != 0 {
+			if band.MinPowerDBM < 0 || band.MaxPowerDBM < 0 || band.MinPowerDBM > band.MaxPowerDBM {
+				return fmt.Errorf("wireless.rf.bands[%d] power range must be non-negative and min_power_dbm cannot exceed max_power_dbm", i)
+			}
+			if band.MaxPowerDBM > 36 {
+				return fmt.Errorf("wireless.rf.bands[%d].max_power_dbm cannot exceed 36", i)
+			}
+		}
+		if band.MaxClientsPerRadio < 0 {
+			return fmt.Errorf("wireless.rf.bands[%d].max_clients_per_radio cannot be negative", i)
+		}
+	}
+	apNames := map[string]struct{}{}
+	radioKeys := map[string]struct{}{}
+	for i, ap := range rf.APs {
+		if !ap.Enabled {
+			continue
+		}
+		name := strings.TrimSpace(ap.Name)
+		if name == "" {
+			return fmt.Errorf("wireless.rf.aps[%d].name cannot be empty", i)
+		}
+		apKey := strings.ToLower(name)
+		if _, exists := apNames[apKey]; exists {
+			return fmt.Errorf("wireless.rf.aps[%d].name %q duplicates an earlier AP", i, ap.Name)
+		}
+		apNames[apKey] = struct{}{}
+		if ap.Latitude < -90 || ap.Latitude > 90 {
+			return fmt.Errorf("wireless.rf.aps[%d].latitude out of range", i)
+		}
+		if ap.Longitude < -180 || ap.Longitude > 180 {
+			return fmt.Errorf("wireless.rf.aps[%d].longitude out of range", i)
+		}
+		for j, radio := range ap.Radios {
+			if !radio.Enabled {
+				continue
+			}
+			radioName := strings.TrimSpace(radio.Name)
+			if radioName == "" {
+				return fmt.Errorf("wireless.rf.aps[%d].radios[%d].name cannot be empty", i, j)
+			}
+			key := apKey + "/" + strings.ToLower(radioName)
+			if _, exists := radioKeys[key]; exists {
+				return fmt.Errorf("wireless.rf.aps[%d].radios[%d].name %q duplicates an earlier radio on AP %q", i, j, radio.Name, ap.Name)
+			}
+			radioKeys[key] = struct{}{}
+			band := normalizeRFBand(radio.Band)
+			if band == "" {
+				return fmt.Errorf("wireless.rf.aps[%d].radios[%d].band is required", i, j)
+			}
+			if err := validateRFChannels(fmt.Sprintf("wireless.rf.aps[%d].radios[%d].channel", i, j), band, []int{radio.Channel}); err != nil {
+				return err
+			}
+			if radio.ChannelWidth != 0 && !validRFChannelWidth(radio.ChannelWidth) {
+				return fmt.Errorf("wireless.rf.aps[%d].radios[%d].channel_width_mhz must be one of 20, 40, 80, or 160", i, j)
+			}
+			if radio.TxPowerDBM < 0 || radio.TxPowerDBM > 36 {
+				return fmt.Errorf("wireless.rf.aps[%d].radios[%d].tx_power_dbm must be between 0 and 36", i, j)
+			}
+			if radio.AntennaGainDBI < 0 || radio.AntennaGainDBI > 30 {
+				return fmt.Errorf("wireless.rf.aps[%d].radios[%d].antenna_gain_dbi must be between 0 and 30", i, j)
+			}
+			if radio.MaxClients < 0 {
+				return fmt.Errorf("wireless.rf.aps[%d].radios[%d].max_clients cannot be negative", i, j)
+			}
+			if radio.MinRSSI > 0 || radio.MinRSSI < -100 {
+				return fmt.Errorf("wireless.rf.aps[%d].radios[%d].min_rssi must be between -100 and 0", i, j)
+			}
+			switch normalizeRFMeshRole(radio.MeshRole) {
+			case "", "root", "mesh", "leaf":
+			default:
+				return fmt.Errorf("wireless.rf.aps[%d].radios[%d].mesh_role %q must be root, mesh, or leaf", i, j, radio.MeshRole)
+			}
+			for k, ssid := range radio.SSIDs {
+				if _, exists := ssidNames[strings.ToLower(strings.TrimSpace(ssid))]; !exists {
+					return fmt.Errorf("wireless.rf.aps[%d].radios[%d].ssids[%d] %q does not match a configured SSID", i, j, k, ssid)
+				}
+			}
+		}
+	}
+	if rf.Mesh.Enabled {
+		switch effectiveRFMeshMode(rf.Mesh.Mode) {
+		case "monitor", "enforce":
+		default:
+			return fmt.Errorf("wireless.rf.mesh.mode %q must be monitor or enforce", rf.Mesh.Mode)
+		}
+		if rf.Mesh.MaxHops < 0 || rf.Mesh.MaxHops > 8 {
+			return errors.New("wireless.rf.mesh.max_hops must be between 0 and 8")
+		}
+		if rf.Mesh.MinBackhaulRSSI > 0 || rf.Mesh.MinBackhaulRSSI < -100 {
+			return errors.New("wireless.rf.mesh.min_backhaul_rssi must be between -100 and 0")
+		}
+		if rf.Mesh.BridgeVLAN != 0 && (rf.Mesh.BridgeVLAN < 1 || rf.Mesh.BridgeVLAN > 4094) {
+			return errors.New("wireless.rf.mesh.bridge_vlan out of range")
+		}
+		for i, root := range rf.Mesh.RootAPs {
+			if _, exists := apNames[strings.ToLower(strings.TrimSpace(root))]; !exists {
+				return fmt.Errorf("wireless.rf.mesh.root_aps[%d] %q does not match an enabled RF AP", i, root)
+			}
+		}
+	}
+	if rf.ClientSteering.Enabled {
+		switch effectiveRFSteeringMode(rf.ClientSteering.Mode) {
+		case "monitor", "enforce":
+		default:
+			return fmt.Errorf("wireless.rf.client_steering.mode %q must be monitor or enforce", rf.ClientSteering.Mode)
+		}
+		if rf.ClientSteering.MinRSSI > 0 || rf.ClientSteering.MinRSSI < -100 {
+			return errors.New("wireless.rf.client_steering.min_rssi must be between -100 and 0")
+		}
+		if rf.ClientSteering.StickyClientRSSI > 0 || rf.ClientSteering.StickyClientRSSI < -100 {
+			return errors.New("wireless.rf.client_steering.sticky_client_rssi must be between -100 and 0")
+		}
+		switch strings.ToLower(strings.TrimSpace(rf.ClientSteering.BandPreference)) {
+		case "", "none", "2.4ghz", "5ghz", "6ghz":
+		default:
+			return fmt.Errorf("wireless.rf.client_steering.band_preference %q is invalid", rf.ClientSteering.BandPreference)
+		}
+		if rf.ClientSteering.MaxClientsPerRadio < 0 {
+			return errors.New("wireless.rf.client_steering.max_clients_per_radio cannot be negative")
+		}
+	}
+	return nil
+}
+
+func effectiveRFMode(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "monitor"
+	}
+	return value
+}
+
+func effectiveRFChannelPlanMode(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "auto"
+	}
+	return value
+}
+
+func effectiveRFMeshMode(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "monitor"
+	}
+	return value
+}
+
+func effectiveRFSteeringMode(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "monitor"
+	}
+	return value
+}
+
+func normalizeRFBand(value string) string {
+	switch strings.ToLower(strings.ReplaceAll(strings.TrimSpace(value), " ", "")) {
+	case "2.4", "2.4g", "2.4ghz", "24ghz", "2g", "g", "b":
+		return "2.4ghz"
+	case "5", "5g", "5ghz", "a":
+		return "5ghz"
+	case "6", "6g", "6ghz":
+		return "6ghz"
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+}
+
+func normalizeRFMeshRole(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func validRFChannelWidth(value int) bool {
+	switch value {
+	case 20, 40, 80, 160:
+		return true
+	default:
+		return false
+	}
+}
+
+func validateRFChannels(field, band string, channels []int) error {
+	if len(channels) == 1 && channels[0] == 0 {
+		return nil
+	}
+	for _, channel := range channels {
+		if channel == 0 {
+			return fmt.Errorf("%s cannot contain channel 0", field)
+		}
+		if channel < 1 || channel > 233 {
+			return fmt.Errorf("%s channel %d out of range", field, channel)
+		}
+		switch normalizeRFBand(band) {
+		case "2.4ghz":
+			if channel > 14 {
+				return fmt.Errorf("%s channel %d is outside the 2.4GHz range", field, channel)
+			}
+		case "5ghz":
+			if channel < 32 || channel > 177 {
+				return fmt.Errorf("%s channel %d is outside the 5GHz range", field, channel)
+			}
+		case "6ghz":
+			if channel < 1 || channel > 233 {
+				return fmt.Errorf("%s channel %d is outside the 6GHz range", field, channel)
+			}
+		default:
+			return fmt.Errorf("%s band %q is invalid", field, band)
+		}
+	}
 	return nil
 }
 

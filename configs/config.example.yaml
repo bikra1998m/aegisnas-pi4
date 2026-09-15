@@ -1676,6 +1676,112 @@ wireless:
         vlan: 20
         role: "employee"
         bandwidth_profile: "corp-standard"
+  rf:
+    enabled: false
+    mode: monitor
+    fail_closed: true
+    channel_plan_mode: auto
+    default_channel_width_mhz: 40
+    min_power_dbm: 8
+    max_power_dbm: 23
+    target_cell_rssi: -67
+    max_channel_reuse: 2
+    max_clients_per_radio: 80
+    event_retention_limit: 6000
+    bands:
+      - name: 2.4ghz
+        enabled: true
+        channels: [1, 6, 11]
+        channel_width_mhz: 20
+        min_power_dbm: 5
+        max_power_dbm: 17
+        dfs_allowed: false
+        max_clients_per_radio: 40
+      - name: 5ghz
+        enabled: true
+        channels: [36, 40, 44, 48, 149, 153, 157, 161]
+        channel_width_mhz: 40
+        min_power_dbm: 8
+        max_power_dbm: 23
+        dfs_allowed: true
+        max_clients_per_radio: 80
+    mesh:
+      enabled: false
+      mode: monitor
+      root_aps: ["aegis-ap-1"]
+      backhaul_ssid: "AegisMesh"
+      bridge_vlan: 30
+      max_hops: 2
+      min_backhaul_rssi: -67
+      prefer_5ghz: true
+    client_steering:
+      enabled: false
+      mode: monitor
+      min_rssi: -72
+      sticky_client_rssi: -78
+      band_preference: 5ghz
+      load_balance: true
+      max_clients_per_radio: 80
+      reject_below_min_rssi: true
+    controller_extensions:
+      enabled: false
+      allow_controller_apply: false
+      managed_fields: ["channel", "channel_width", "tx_power", "mesh_role", "client_steering"]
+    aps:
+      - name: "aegis-ap-1"
+        enabled: true
+        location: "Lobby"
+        zone: "HQ"
+        floor: "1"
+        latitude: 0
+        longitude: 0
+        controller: ""
+        description: "Example AP for RF/RRM planning"
+        radios:
+          - name: "radio-5g"
+            enabled: true
+            interface: wlan0
+            bssid: "02:11:22:33:44:55"
+            band: 5ghz
+            channel: 36
+            channel_width_mhz: 40
+            tx_power_dbm: 18
+            antenna_gain_dbi: 0
+            max_clients: 80
+            ssids: ["Aegis Corp", "Aegis Staff"]
+            neighbor_aps: ["aegis-ap-2"]
+            mesh_enabled: true
+            mesh_role: root
+            client_steering: true
+            min_rssi: -72
+            load_balance_weight: 100
+      - name: "aegis-ap-2"
+        enabled: true
+        location: "Hallway"
+        zone: "HQ"
+        floor: "1"
+        latitude: 0
+        longitude: 0
+        controller: ""
+        description: "Example mesh-capable AP for RF/RRM planning"
+        radios:
+          - name: "radio-5g"
+            enabled: true
+            interface: wlan1
+            bssid: "02:11:22:33:44:66"
+            band: 5ghz
+            channel: 44
+            channel_width_mhz: 40
+            tx_power_dbm: 16
+            antenna_gain_dbi: 0
+            max_clients: 80
+            ssids: ["Aegis Corp", "Aegis Staff"]
+            neighbor_aps: ["aegis-ap-1"]
+            mesh_enabled: true
+            mesh_role: mesh
+            client_steering: true
+            min_rssi: -72
+            load_balance_weight: 100
   ssids:
     - name: "Aegis Guest"
       auth_mode: "captive-portal"
