@@ -148,4 +148,34 @@ test.describe('Access Settings edge-network flow', () => {
       page.getByText(/DPSK\/PPSK lifecycle applied/),
     ).toBeVisible();
   });
+
+  test('previews and applies controller estate lifecycle', async ({ page }) => {
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto('/access-settings');
+    const controllerEstateSection = page.locator('section').filter({
+      has: page.getByRole('heading', { name: 'Controller Estate Lifecycle' }),
+    });
+    await expect(controllerEstateSection).toBeVisible();
+    await expect(
+      controllerEstateSection.getByRole('heading', { name: 'WLAN Templates' }),
+    ).toBeVisible();
+    await expect(
+      controllerEstateSection.getByRole('heading', { name: 'Compliance Checks' }),
+    ).toBeVisible();
+    await expect(
+      controllerEstateSection.locator('div').filter({ hasText: /^Delete Guards$/ }).first(),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview Controller Estate' }).click();
+    await expect(
+      page.getByText(/Controller estate preview recorded/),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Apply Controller Estate' }).click();
+    await expect(
+      page.getByText(/Controller estate lifecycle applied/),
+    ).toBeVisible();
+  });
 });

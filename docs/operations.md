@@ -826,6 +826,36 @@ FreeRADIUS-on-Linux, HA, performance, soak, security audit, production
 deployment, and customer acceptance evidence stay in
 `nas-0077-release-certification-checklist.md`.
 
+For external controller estates, preview NAS-0078 before syncing controller
+policy:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/controller-estate-lifecycle/preview \
+  | jq '.report.status, .report.summary, .report.templates, .report.compliance'
+```
+
+Apply only after inventory, WLAN templates, delete guards, compliance checks,
+desired-state hash, and plan fingerprint match the change request:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/controller-estate-lifecycle/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/controller-estate-lifecycle/history` and the support bundle
+files `api/controller-estate-lifecycle.json` and
+`api/controller-estate-lifecycle-history.json` during controller inventory,
+WLAN template, delete-safety, drift, RADIUS profile, and rollback-checkpoint
+investigations. Real controller firmware/API, AP inventory, packet captures,
+HA, scale, soak, security audit, production deployment, and customer acceptance
+evidence stay in `nas-0078-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

@@ -206,6 +206,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{79, schemaV79},
 		{80, schemaV80},
 		{81, schemaV81},
+		{82, schemaV82},
 	}
 
 	for _, m := range migrations {
@@ -406,8 +407,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensurePPSKLifecycleTables(handle); err != nil {
 		return fmt.Errorf("repair PPSK lifecycle schema: %w", err)
 	}
+	if err := ensureControllerEstateLifecycleTables(handle); err != nil {
+		return fmt.Errorf("repair controller estate lifecycle schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureControllerEstateLifecycleTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(controllerEstateLifecycleSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureExternalVendorIntakeTables(handle *sql.DB) error {

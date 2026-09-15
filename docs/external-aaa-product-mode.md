@@ -758,6 +758,15 @@ release certification scope. The lifecycle is software-ready for local radio
 publication, while real Ruckus, Aruba, Cisco, UniFi, Cambium, and other
 controller/AP behavior remains release certification.
 
+NAS-0078 adds controller estate and object lifecycle evidence for external
+controller deployments. `/api/v1/system/controller-estate-lifecycle` reports
+the selected adapter, redacted configured state, inventory objects, WLAN
+templates, object plans, delete guards, compliance checks, desired-state hash,
+history, and release certification scope. The lifecycle is software-ready for
+operator preview/apply checkpoints, while real controller firmware/API, AP
+inventory, HA, scale, security, production, and customer proof remains release
+certification.
+
 NAS-0054 adds the portable tagged VLAN and QinQ policy compiler. Prefer this
 for new role intent because it covers one data VLAN, one tagged voice VLAN,
 extra tagged VLANs, deterministic VLAN pools, fallback VLANs, auth-fail VLANs,

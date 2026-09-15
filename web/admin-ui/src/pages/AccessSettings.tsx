@@ -3498,6 +3498,12 @@ export default function AccessSettings() {
   const [ppskLifecycle, setPPSKLifecycle] = useState<JsonMap | null>(null);
   const [ppskLifecycleAction, setPPSKLifecycleAction] = useState("");
   const ppskLifecycleBusy = ppskLifecycleAction !== "";
+  const [controllerEstateLifecycle, setControllerEstateLifecycle] =
+    useState<JsonMap | null>(null);
+  const [controllerEstateLifecycleAction, setControllerEstateLifecycleAction] =
+    useState("");
+  const controllerEstateLifecycleBusy =
+    controllerEstateLifecycleAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3589,6 +3595,11 @@ export default function AccessSettings() {
   const loadPPSKLifecycle = async () => {
     const { data } = await api.get("/system/ppsk-lifecycle");
     setPPSKLifecycle(data.report || null);
+  };
+
+  const loadControllerEstateLifecycle = async () => {
+    const { data } = await api.get("/system/controller-estate-lifecycle");
+    setControllerEstateLifecycle(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3823,6 +3834,7 @@ export default function AccessSettings() {
         roamingRes,
         passpointRes,
         ppskRes,
+        controllerEstateRes,
       ] = await Promise.all([
           api.get("/system/settings"),
           api.get("/system/hostapd-preview"),
@@ -3830,6 +3842,7 @@ export default function AccessSettings() {
           api.get("/system/wireless-roaming-lifecycle"),
           api.get("/system/passpoint-lifecycle"),
           api.get("/system/ppsk-lifecycle"),
+          api.get("/system/controller-estate-lifecycle"),
         ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -3839,6 +3852,7 @@ export default function AccessSettings() {
       setWirelessRoamingLifecycle(roamingRes.data.report || null);
       setPasspointLifecycle(passpointRes.data.report || null);
       setPPSKLifecycle(ppskRes.data.report || null);
+      setControllerEstateLifecycle(controllerEstateRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4372,6 +4386,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewControllerEstateLifecycle = async () => {
+    setControllerEstateLifecycleAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/controller-estate-lifecycle/preview",
+        {},
+      );
+      setControllerEstateLifecycle(data.report || null);
+      setMessage(
+        `Controller estate preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview controller estate lifecycle.",
+      );
+    } finally {
+      setControllerEstateLifecycleAction("");
+    }
+  };
+
+  const applyControllerEstateLifecycle = async () => {
+    setControllerEstateLifecycleAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/controller-estate-lifecycle/apply",
+        {},
+      );
+      setControllerEstateLifecycle(data.report || null);
+      setMessage(
+        `Controller estate lifecycle ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadControllerEstateLifecycle();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply controller estate lifecycle.",
+      );
+    } finally {
+      setControllerEstateLifecycleAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -4790,6 +4855,28 @@ export default function AccessSettings() {
   const ppskConfiguredCredentials =
     settings.wireless?.ppsk?.credentials || [];
   const ppskTone = statusTone(ppskLifecycle?.status);
+  const controllerEstateSummary = controllerEstateLifecycle?.summary || {};
+  const controllerEstateInventory = Array.isArray(
+    controllerEstateLifecycle?.inventory,
+  )
+    ? controllerEstateLifecycle?.inventory
+    : [];
+  const controllerEstateTemplates = Array.isArray(
+    controllerEstateLifecycle?.templates,
+  )
+    ? controllerEstateLifecycle?.templates
+    : [];
+  const controllerEstatePlans = Array.isArray(
+    controllerEstateLifecycle?.object_plans,
+  )
+    ? controllerEstateLifecycle?.object_plans
+    : [];
+  const controllerEstateCompliance = Array.isArray(
+    controllerEstateLifecycle?.compliance,
+  )
+    ? controllerEstateLifecycle?.compliance
+    : [];
+  const controllerEstateTone = statusTone(controllerEstateLifecycle?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -5033,6 +5120,24 @@ export default function AccessSettings() {
             {ppskLifecycleAction === "apply"
               ? "Applying PPSK..."
               : "Apply PPSK"}
+          </button>
+          <button
+            onClick={previewControllerEstateLifecycle}
+            disabled={controllerEstateLifecycleBusy}
+            className="rounded-md border border-violet-200 px-4 py-2 text-sm font-medium text-violet-800 disabled:opacity-60"
+          >
+            {controllerEstateLifecycleAction === "preview"
+              ? "Checking Controllers..."
+              : "Preview Controller Estate"}
+          </button>
+          <button
+            onClick={applyControllerEstateLifecycle}
+            disabled={controllerEstateLifecycleBusy}
+            className="rounded-md border border-violet-300 px-4 py-2 text-sm font-medium text-violet-900 disabled:opacity-60"
+          >
+            {controllerEstateLifecycleAction === "apply"
+              ? "Applying Controllers..."
+              : "Apply Controller Estate"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -5535,6 +5640,264 @@ export default function AccessSettings() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Controller Estate Lifecycle
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {controllerEstateLifecycle?.release_certification_checklist ||
+                "Preview controller inventory, WLAN templates, delete guards, and compliance evidence."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${controllerEstateTone}`}
+          >
+            {controllerEstateLifecycle?.status || "unknown"}
+          </div>
+        </div>
+        {controllerEstateLifecycle ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {controllerEstateLifecycle.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Adapters",
+                  controllerEstateSummary.adapter_count || 0,
+                ],
+                [
+                  "Inventory",
+                  controllerEstateSummary.inventory_object_count || 0,
+                ],
+                [
+                  "WLAN Templates",
+                  controllerEstateSummary.wlan_template_count || 0,
+                ],
+                [
+                  "Managed Objects",
+                  controllerEstateSummary.managed_object_count || 0,
+                ],
+                [
+                  "Delete Guards",
+                  controllerEstateSummary.delete_guard_count || 0,
+                ],
+                [
+                  "Compliance",
+                  `${controllerEstateSummary.passed_check_count || 0}/${controllerEstateSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  WLAN Templates
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {controllerEstateTemplates.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No controller WLAN template is present.
+                    </div>
+                  ) : (
+                    controllerEstateTemplates
+                      .slice(0, 6)
+                      .map((template: JsonMap, index: number) => (
+                        <div
+                          key={`${template.id || template.name || "controller-template"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {template.name || "Unnamed WLAN"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                template.status,
+                              )}`}
+                            >
+                              {template.status || "managed"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              template.auth_mode,
+                              template.vlan ? `VLAN ${template.vlan}` : "",
+                              template.dynamic_vlan ? "dynamic VLAN" : "",
+                              template.roaming_profile
+                                ? `roaming ${template.roaming_profile}`
+                                : "",
+                              template.passpoint_profile
+                                ? `Passpoint ${template.passpoint_profile}`
+                                : "",
+                              template.ppsk_profile
+                                ? `PPSK ${template.ppsk_profile}`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Template metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Compliance Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {controllerEstateCompliance.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No controller compliance check is present.
+                    </div>
+                  ) : (
+                    controllerEstateCompliance
+                      .slice(0, 8)
+                      .map((check: JsonMap, index: number) => (
+                        <div
+                          key={`${check.id || "controller-check"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {check.name || check.id || "Compliance Check"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                check.status,
+                              )}`}
+                            >
+                              {check.status || "unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {check.message || "No compliance message"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Inventory Objects
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {controllerEstateInventory.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No controller inventory object is present.
+                    </div>
+                  ) : (
+                    controllerEstateInventory
+                      .slice(0, 8)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.id || "controller-inventory"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || item.id || "Inventory Object"}
+                            </div>
+                            <span className="rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-700">
+                              {item.type || "object"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              item.platform,
+                              item.ownership,
+                              item.delete_protected ? "delete protected" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Inventory metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Object Plan
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {controllerEstatePlans.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No controller object plan is present.
+                    </div>
+                  ) : (
+                    controllerEstatePlans
+                      .slice(0, 8)
+                      .map((plan: JsonMap, index: number) => (
+                        <div
+                          key={`${plan.id || "controller-plan"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {plan.object_name || plan.id || "Object Plan"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                plan.status,
+                              )}`}
+                            >
+                              {plan.operation || plan.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {plan.reason || "No plan reason"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            {((controllerEstateLifecycle.blockers?.length || 0) > 0 ||
+              (controllerEstateLifecycle.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(controllerEstateLifecycle.blockers || []),
+                  ...(controllerEstateLifecycle.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Desired state{" "}
+              <span className="font-mono">
+                {controllerEstateLifecycle.desired_state_hash || "not built"}
+              </span>{" "}
+              / plan{" "}
+              <span className="font-mono">
+                {controllerEstateLifecycle.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Controller estate lifecycle report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">

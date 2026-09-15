@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 81
+	return 82
 }
 
 func Migrate() error {
@@ -4120,3 +4120,43 @@ CREATE INDEX IF NOT EXISTS idx_ppsk_lifecycle_events_config ON ppsk_lifecycle_ev
 `
 
 const schemaV81 = ppskLifecycleSQL
+
+const controllerEstateLifecycleSQL = `
+CREATE TABLE IF NOT EXISTS controller_estate_lifecycle_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	adapter TEXT NOT NULL,
+	platform TEXT NOT NULL,
+	endpoint TEXT,
+	site TEXT,
+	sync_mode TEXT,
+	desired_state_hash TEXT,
+	plan_fingerprint TEXT NOT NULL,
+	inventory_object_count INTEGER NOT NULL DEFAULT 0,
+	template_count INTEGER NOT NULL DEFAULT 0,
+	wlan_template_count INTEGER NOT NULL DEFAULT 0,
+	managed_object_count INTEGER NOT NULL DEFAULT 0,
+	delete_guard_count INTEGER NOT NULL DEFAULT 0,
+	compliance_check_count INTEGER NOT NULL DEFAULT 0,
+	passed_check_count INTEGER NOT NULL DEFAULT 0,
+	warning_count INTEGER NOT NULL DEFAULT 0,
+	blocker_count INTEGER NOT NULL DEFAULT 0,
+	external_requirement_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_controller_estate_lifecycle_events_created ON controller_estate_lifecycle_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_controller_estate_lifecycle_events_status ON controller_estate_lifecycle_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_controller_estate_lifecycle_events_fingerprint ON controller_estate_lifecycle_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_controller_estate_lifecycle_events_adapter ON controller_estate_lifecycle_events(platform, adapter, created_at);
+CREATE INDEX IF NOT EXISTS idx_controller_estate_lifecycle_events_hash ON controller_estate_lifecycle_events(desired_state_hash, created_at);
+`
+
+const schemaV82 = controllerEstateLifecycleSQL

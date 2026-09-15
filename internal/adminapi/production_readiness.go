@@ -17,6 +17,7 @@ import (
 	eappkg "github.com/yourorg/aegisnas-pi4/internal/eap"
 	"github.com/yourorg/aegisnas-pi4/internal/enforcement"
 	"github.com/yourorg/aegisnas-pi4/internal/identity"
+	"github.com/yourorg/aegisnas-pi4/internal/integrations"
 	mabpkg "github.com/yourorg/aegisnas-pi4/internal/mab"
 	mfapkg "github.com/yourorg/aegisnas-pi4/internal/mfa"
 	"github.com/yourorg/aegisnas-pi4/internal/policy"
@@ -153,6 +154,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionWirelessRoamingLifecycleCheck(&report, cfg)
 	addProductionPasspointLifecycleCheck(&report, cfg)
 	addProductionPPSKLifecycleCheck(&report, cfg)
+	addProductionControllerEstateLifecycleCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -1669,6 +1671,71 @@ func addProductionPPSKLifecycleCheck(report *productionReadinessReport, cfg *con
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/ppsk-lifecycle/preview before DPSK/PPSK rollout, apply only after reviewing per-device key, group, revocation, rotation, and controller-sync evidence, and keep real Ruckus/Aruba/Cisco/UniFi/Cambium AP/controller, packet capture, HA, scale, soak, security, and customer proof in the NAS-0077 release certification checklist.",
 		Dependencies:   []string{"wireless.ppsk", "wireless.ssids.ppsk_profile", "wireless.ppsk.credentials.secret_ref", "hostapd wpa_psk_file", "Calling-Station-Id", "Called-Station-Id", "Filter-Id", "Tunnel-Private-Group-Id", "/api/v1/system/ppsk-lifecycle", "/api/v1/system/ppsk-lifecycle/preview", "/api/v1/system/ppsk-lifecycle/apply", "IEEE 802.11", "RFC 2865", "RFC 2866"},
+	})
+}
+
+func addProductionControllerEstateLifecycleCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0078 controller estate lifecycle software is ready."
+	reportData, err := integrations.PreviewControllerEstateLifecycle(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Controller estate lifecycle preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0078 schema %d status=%s, platform=%s, adapter=%s, inventory=%d, WLAN templates=%d, managed=%d, delete guards=%d, compliance=%d/%d, warnings=%d, blockers=%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.ConfiguredPlatform,
+			reportData.Summary.ConfiguredAdapter,
+			reportData.Summary.InventoryObjectCount,
+			reportData.Summary.WLANTemplateCount,
+			reportData.Summary.ManagedObjectCount,
+			reportData.Summary.DeleteGuardCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.Summary.WarningCount,
+			reportData.Summary.BlockerCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "skipped" {
+			summary += " Controller automation is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but controller estate lifecycle event history cannot be verified."
+	} else if evidence, err := db.GetControllerEstateLifecycleSummary(); err != nil {
+		status = "blocked"
+		summary += " Controller estate lifecycle evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, last adapter=%s, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			firstNonEmptyAdminString(evidence.LastAdapter, "none"),
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "controller_estate_lifecycle",
+		Category:       "integrations",
+		Label:          "NAS-0078 Controller Estate And Object Lifecycle",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/controller-estate-lifecycle/preview before controller rollout, apply only after reviewing inventory, WLAN templates, delete guards, compliance, desired-state hashes, and keep real Cisco/Aruba/Mist/Ruckus/Fortinet/MikroTik/UniFi/Meraki/OpenWiFi controller proof in the NAS-0078 release certification checklist.",
+		Dependencies:   []string{"integrations.controller", "controller adapter catalog", "controller-sync preview", "wireless.ssids", "RADIUS server/profile references", "delete guards", "drift desired-state hash", "/api/v1/system/controller-estate-lifecycle", "/api/v1/system/controller-estate-lifecycle/preview", "/api/v1/system/controller-estate-lifecycle/apply", "RFC 2865", "RFC 2866", "RFC 5176", "IEEE 802.11"},
 	})
 }
 

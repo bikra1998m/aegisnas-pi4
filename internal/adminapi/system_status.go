@@ -15,6 +15,7 @@ import (
 	eappkg "github.com/yourorg/aegisnas-pi4/internal/eap"
 	"github.com/yourorg/aegisnas-pi4/internal/enforcement"
 	"github.com/yourorg/aegisnas-pi4/internal/identity"
+	"github.com/yourorg/aegisnas-pi4/internal/integrations"
 	mabpkg "github.com/yourorg/aegisnas-pi4/internal/mab"
 	mfapkg "github.com/yourorg/aegisnas-pi4/internal/mfa"
 	"github.com/yourorg/aegisnas-pi4/internal/radius"
@@ -332,6 +333,41 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		ppskLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["ppsk_lifecycle"]}
+	}
+	controllerEstateLifecycleStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Controller estate lifecycle status has not been evaluated.",
+	}
+	if estateReport, err := integrations.PreviewControllerEstateLifecycle(cfg); err == nil {
+		estateSummary, _ := db.GetControllerEstateLifecycleSummary()
+		controllerEstateLifecycleStatus = map[string]any{
+			"schema_version":                  estateReport.SchemaVersion,
+			"feature_id":                      estateReport.FeatureID,
+			"status":                          estateReport.Status,
+			"message":                         estateReport.Message,
+			"ready_for_external_validation":   estateReport.ReadyForExternalValidation,
+			"software_completion_percent":     estateReport.SoftwareCompletionPercent,
+			"configured_platform":             estateReport.Summary.ConfiguredPlatform,
+			"configured_adapter":              estateReport.Summary.ConfiguredAdapter,
+			"sync_mode":                       estateReport.Summary.SyncMode,
+			"inventory_object_count":          estateReport.Summary.InventoryObjectCount,
+			"template_count":                  estateReport.Summary.TemplateCount,
+			"wlan_template_count":             estateReport.Summary.WLANTemplateCount,
+			"managed_object_count":            estateReport.Summary.ManagedObjectCount,
+			"delete_guard_count":              estateReport.Summary.DeleteGuardCount,
+			"compliance_check_count":          estateReport.Summary.ComplianceCheckCount,
+			"passed_check_count":              estateReport.Summary.PassedCheckCount,
+			"warning_count":                   estateReport.Summary.WarningCount,
+			"blocker_count":                   estateReport.Summary.BlockerCount,
+			"drift_check_available":           estateReport.Summary.DriftCheckAvailable,
+			"desired_state_hash":              estateReport.DesiredStateHash,
+			"plan_fingerprint":                estateReport.PlanFingerprint,
+			"release_certification_checklist": estateReport.ReleaseCertificationChecklist,
+			"evidence_summary":                estateSummary,
+			"runtime_status":                  runtimeMap[integrations.ControllerComponent()],
+		}
+	} else {
+		controllerEstateLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[integrations.ControllerComponent()]}
 	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
@@ -1188,6 +1224,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"readiness_warnings": controllerState.ReadinessWarnings,
 			"selected_adapter":   controllerState.Selected,
 			"sync":               runtimeMap["controller_automation"],
+			"estate_lifecycle":   controllerEstateLifecycleStatus,
 		},
 	}
 	if !cfg.Integrations.AdminSSO.Enabled {
@@ -1241,6 +1278,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"readiness_warnings": controllerState.ReadinessWarnings,
 			"selected_adapter":   controllerState.Selected,
 			"sync":               map[string]any{"status": "disabled", "message": "Controller automation is disabled in config"},
+			"estate_lifecycle":   controllerEstateLifecycleStatus,
 		}
 	} else if !cfg.Telemetry.Enabled {
 		integrationsStatus["controller"] = map[string]any{
@@ -1255,6 +1293,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"readiness_warnings": controllerState.ReadinessWarnings,
 			"selected_adapter":   controllerState.Selected,
 			"sync":               map[string]any{"status": "degraded", "message": "Telemetry service is disabled, so controller automation is not running."},
+			"estate_lifecycle":   controllerEstateLifecycleStatus,
 		}
 	}
 
@@ -1916,10 +1955,11 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"profiling":    profilingStatus,
 		"telemetry":    telemetryStatus,
 		"network_observability": map[string]any{
-			"apply_stats":     applyStats,
-			"lease_trends":    leaseTrends,
-			"recovery":        recoveryState,
-			"controller_sync": runtimeMap["controller_automation"],
+			"apply_stats":                 applyStats,
+			"lease_trends":                leaseTrends,
+			"recovery":                    recoveryState,
+			"controller_sync":             runtimeMap["controller_automation"],
+			"controller_estate_lifecycle": controllerEstateLifecycleStatus,
 			"vendor_observability": map[string]any{
 				"summary": vendorObservabilitySummary,
 				"vendors": vendorObservabilityRows,

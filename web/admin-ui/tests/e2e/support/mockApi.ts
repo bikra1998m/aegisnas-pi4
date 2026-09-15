@@ -1541,6 +1541,190 @@ function createPPSKLifecycle(status = "ready") {
   };
 }
 
+function createControllerEstateLifecycle(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0078",
+      status,
+      message:
+        status === "skipped"
+          ? "NAS-0078 software is ready; controller estate lifecycle is not active in this configuration."
+          : "NAS-0078 plans 5 inventory objects, 2 WLAN templates, 12 delete guards, and 8 compliance checks.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0078-release-certification-checklist.md",
+      release_scope:
+        "Real controller firmware/API validation, AP inventory reconciliation, delete simulation, HA failover, performance, soak, security audit, production deployment, and customer acceptance are release certification activities.",
+      plan_fingerprint:
+        "sha256:f9432d8a92e7e72334c4183a0dca7c35c9148cd3203ab2957523f620c7c7a400",
+      desired_state_hash:
+        "sha256:d81f5129cd18e8930f21f0ff115cb9d5f6420a0c77a5e0fc4e3ad6b6f4a6f007",
+      summary: {
+        controller_enabled: true,
+        adapter_count: 10,
+        native_adapter_count: 9,
+        contract_adapter_count: 1,
+        configured_platform: "generic",
+        configured_adapter: "generic-rest",
+        sync_mode: "monitor",
+        inventory_object_count: 5,
+        template_count: 2,
+        wlan_template_count: 2,
+        managed_object_count: 7,
+        delete_guard_count: 12,
+        compliance_check_count: 8,
+        passed_check_count: 8,
+        warning_count: 0,
+        blocker_count: 0,
+        drift_check_available: true,
+        desired_state_hash:
+          "sha256:d81f5129cd18e8930f21f0ff115cb9d5f6420a0c77a5e0fc4e3ad6b6f4a6f007",
+        external_requirement_count: 9,
+      },
+      selected_adapter: {
+        platform: "generic",
+        label: "Generic Controller REST Contract",
+        adapter: "generic-rest",
+        auth_scheme: "bearer",
+        requires_site: false,
+        supported_sync_modes: ["monitor", "pull-config", "push-config"],
+        native_policy_push: false,
+        drift_detection: true,
+        health_report: true,
+        desired_state_hash: true,
+        radius_profiles: true,
+        guest_portal: true,
+        wireless_profiles: true,
+      },
+      configured: {
+        enabled: true,
+        platform: "generic",
+        normalized_platform: "generic",
+        adapter: "generic-rest",
+        sync_mode: "monitor",
+        endpoint: "https://controller.example.test/aegisnas",
+        site: "lab",
+        endpoint_set: true,
+        token_env: "AEGIS_CONTROLLER_API_TOKEN",
+        token_present: true,
+        ready: true,
+        readiness_warnings: [],
+      },
+      inventory: [
+        {
+          id: "controller:generic",
+          type: "controller",
+          name: "Generic Controller REST Contract",
+          platform: "generic",
+          ownership: "external-controller",
+          status: "ready",
+          delete_protected: true,
+          fingerprint: "sha256:controller",
+        },
+        {
+          id: "wlan:Corp",
+          type: "wlan",
+          name: "Corp",
+          platform: "generic",
+          ownership: "aegisnas-policy",
+          status: "ready",
+          delete_protected: true,
+          fingerprint: "sha256:corp",
+        },
+      ],
+      templates: [
+        {
+          id: "wlan:Corp",
+          type: "wlan",
+          name: "Corp",
+          status: "managed",
+          auth_mode: "wpa2-enterprise",
+          vlan: 20,
+          dynamic_vlan: true,
+          roaming_profile: "fast",
+          bandwidth_profile: "business",
+          identity_source: "active-directory",
+          managed_fields: ["auth_mode", "dynamic_vlan", "name", "vlan"],
+          delete_protected: true,
+          fingerprint: "sha256:corp-template",
+        },
+        {
+          id: "wlan:Guest",
+          type: "wlan",
+          name: "Guest",
+          status: "managed",
+          auth_mode: "captive-portal",
+          vlan: 40,
+          portal_profile: "guest",
+          managed_fields: ["auth_mode", "name", "portal_profile", "vlan"],
+          delete_protected: true,
+          fingerprint: "sha256:guest-template",
+        },
+      ],
+      object_plans: [
+        {
+          id: "inventory:read:generic-rest",
+          object_type: "inventory",
+          object_name: "Generic Controller REST Contract",
+          operation: "read",
+          status: "ready",
+          delete_protected: true,
+          reason: "Collect controller inventory before object reconciliation.",
+        },
+        {
+          id: "delete-safety:generic-rest",
+          object_type: "delete-guard",
+          object_name: "Generic Controller REST Contract",
+          operation: "protect",
+          status: "ready",
+          delete_protected: true,
+          reason:
+            "Controller estate lifecycle never deletes unknown or orphaned objects automatically.",
+        },
+      ],
+      compliance: [
+        {
+          id: "controller_enabled",
+          name: "Controller enabled",
+          status: "passed",
+          message: "Controller automation is enabled.",
+        },
+        {
+          id: "delete_safety",
+          name: "Delete safety",
+          status: "passed",
+          message:
+            "Unknown and orphaned controller objects are observed and protected from automatic delete.",
+        },
+      ],
+      rfcs: ["RFC 2865", "RFC 2866", "RFC 5176", "IEEE 802.11"],
+      vendors: ["Cisco", "Aruba", "Juniper Mist", "Ruckus", "Fortinet"],
+      requirements: [
+        "Controller estate inventory is represented as redacted objects with ownership, fingerprints, and delete guards.",
+      ],
+      blockers: [],
+      warnings: [],
+      notes: ["Controller secrets are represented only by environment references."],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+      },
+      recent_events: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -2278,6 +2462,7 @@ function createSystemStatus() {
         endpoint: "https://controller.example.test/api",
         sync_mode: "monitor",
         site: "lab",
+        estate_lifecycle: createControllerEstateLifecycle().report,
         sync: {
           status: "ok",
           message: "Controller sync healthy.",
@@ -2779,6 +2964,7 @@ function createSystemStatus() {
           last_duration_ms: 182,
         },
       },
+      controller_estate_lifecycle: createControllerEstateLifecycle().report,
     },
   };
 }
@@ -6206,6 +6392,64 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({
         json: {
           feature_id: "NAS-0077",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+          },
+          events: [],
+        },
+      });
+      return;
+    }
+    if (path === "/system/controller-estate-lifecycle" && method === "GET") {
+      await route.fulfill({ json: createControllerEstateLifecycle() });
+      return;
+    }
+    if (
+      path === "/system/controller-estate-lifecycle/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createControllerEstateLifecycle(),
+          event_id: "controller-estate-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/controller-estate-lifecycle/apply" &&
+      method === "POST"
+    ) {
+      const payload = createControllerEstateLifecycle();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0078 recorded controller estate lifecycle checkpoint for 5 inventory objects and 2 WLAN templates.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "controller-estate-event-apply",
+          result: {
+            status: "applied",
+            event_id: "controller-estate-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/controller-estate-lifecycle/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0078",
           summary: {
             total_events: 1,
             preview_events: 1,
