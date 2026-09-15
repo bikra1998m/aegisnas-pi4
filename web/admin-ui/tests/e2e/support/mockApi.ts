@@ -1038,6 +1038,54 @@ function createSettings() {
         ],
         event_retention_limit: 6000,
       },
+      ppsk: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        default_profile: "staff-ppsk",
+        psk_file_path: "/etc/hostapd/aegisnas-ppsk.psk",
+        rotation_mode: "active",
+        min_passphrase_length: 12,
+        event_retention_limit: 6000,
+        profiles: [
+          {
+            name: "staff-ppsk",
+            enabled: true,
+            mode: "enforce",
+            fail_closed: true,
+            groups: ["staff"],
+            default_vlan: 20,
+            role: "employee",
+            bandwidth_profile: "business",
+            controller_sync: false,
+          },
+        ],
+        groups: [
+          {
+            name: "staff",
+            enabled: true,
+            vlan: 20,
+            role: "employee",
+            bandwidth_profile: "business",
+            max_devices: 2,
+            session_limit: 1,
+          },
+        ],
+        credentials: [
+          {
+            id: "device-1",
+            mac: "02:11:22:33:44:55",
+            profile: "staff-ppsk",
+            groups: ["staff"],
+            status: "active",
+            enabled: true,
+            secret_ref: "env:AEGIS_TEST_PPSK",
+            next_secret_ref: "env:AEGIS_TEST_PPSK_NEXT",
+            next_not_before: "2026-08-01T00:00:00Z",
+            next_not_after: "2026-08-08T00:00:00Z",
+          },
+        ],
+      },
       ssids: [],
     },
   };
@@ -1333,6 +1381,150 @@ function createPasspointLifecycle(status = "ready") {
       requirements: ["ANQP and HS2.0 metadata is validated before render."],
       blockers: [],
       warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+      },
+      recent_events: [],
+    },
+  };
+}
+
+function createPPSKLifecycle(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0077",
+      status,
+      message:
+        status === "skipped"
+          ? "NAS-0077 software is ready; DPSK and PPSK are not active in this configuration."
+          : "NAS-0077 plans 1 PPSK SSID, 1 profile, 1 group, 1 active credential, and 1 staged next key.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0077-release-certification-checklist.md",
+      release_scope:
+        "Real Ruckus/Aruba/Cisco/UniFi/Cambium DPSK/PPSK controller synchronization, AP firmware behavior, packet captures, HA failover, scale, soak, security audit, production deployment, and customer acceptance are release certification activities.",
+      plan_fingerprint:
+        "sha256:a6b0876cf7ec08df703b1b129976dfe4f433221493b2fd43f80b1582d0138e20",
+      hostapd_config_path: "/etc/hostapd/hostapd.conf",
+      psk_file_path: "/etc/hostapd/aegisnas-ppsk.psk",
+      hostapd_config_sha256:
+        "sha256:c17b4d260d9b591994f3b67eef0133b042cab5076ad61cb9d58bfdb59e23106f",
+      psk_file_sha256:
+        "sha256:cbeb1264846f4c03851cd2ee20f4084b1c784a4f509db90e8ced2fec27f73225",
+      hostapd_config_preview:
+        "ssid=Staff\nwpa=2\nwpa_key_mgmt=WPA-PSK\nwpa_psk_file=/etc/hostapd/aegisnas-ppsk.psk\n#aegisnas_ppsk_profile=staff-ppsk\n",
+      psk_file_preview:
+        "# AegisNAS managed hostapd PPSK file\n02:11:22:33:44:55 <redacted>\n",
+      summary: {
+        wireless_enabled: true,
+        ppsk_enabled: true,
+        ssid_count: 1,
+        ppsk_ssid_count: 1,
+        profile_count: 1,
+        group_count: 1,
+        credential_count: 1,
+        active_credential_count: 1,
+        resolvable_secret_ref_count: 2,
+        staged_credential_count: 1,
+        revoked_credential_count: 0,
+        expired_credential_count: 0,
+        controller_sync_count: 0,
+        diagnostic_count: 0,
+        external_requirement_count: 9,
+      },
+      ssids: [
+        {
+          ssid: "Staff",
+          auth_mode: "wpa2-personal",
+          profile_name: "staff-ppsk",
+          status: "ready",
+          mode: "enforce",
+          fail_closed: true,
+          psk_file_path: "/etc/hostapd/aegisnas-ppsk.psk",
+          credential_count: 1,
+          group_count: 1,
+          default_vlan: 20,
+          role: "employee",
+          bandwidth_profile: "business",
+          controller_sync: false,
+          radius_attributes: ["Tunnel-Private-Group-Id", "Filter-Id"],
+        },
+      ],
+      profiles: [
+        {
+          name: "staff-ppsk",
+          enabled: true,
+          mode: "enforce",
+          fail_closed: true,
+          groups: ["staff"],
+          default_vlan: 20,
+          role: "employee",
+          bandwidth_profile: "business",
+          controller_sync: false,
+        },
+      ],
+      groups: [
+        {
+          name: "staff",
+          enabled: true,
+          vlan: 20,
+          role: "employee",
+          bandwidth_profile: "business",
+          max_devices: 2,
+          session_limit: 1,
+        },
+      ],
+      credentials: [
+        {
+          id: "device-1",
+          mac: "02:11:22:33:44:55",
+          profile: "staff-ppsk",
+          group: "staff",
+          enabled: true,
+          revoked: false,
+          expired: false,
+          status: "active",
+          secret_ref_set: true,
+          secret_ref_fingerprint:
+            "sha256:7cd176d26553adf85e9d1ae1b1c5fa879b48eb8df74ade20ec071b44f5879e84",
+          next_secret_ref_set: true,
+          next_secret_ref_fingerprint:
+            "sha256:a17436dc642fd1a26d1534f8ac55eba27ad6c828a4c8ac3bc6644aff9ec667fe",
+          next_not_before: "2026-08-01T00:00:00Z",
+          next_not_after: "2026-08-08T00:00:00Z",
+          vlan: 20,
+          role: "employee",
+          bandwidth_profile: "business",
+        },
+      ],
+      rfcs: ["IEEE 802.11i", "IEEE 802.11-2020", "RFC 2865", "RFC 2866"],
+      attributes: [
+        "Tunnel-Type",
+        "Tunnel-Medium-Type",
+        "Tunnel-Private-Group-Id",
+        "Filter-Id",
+        "Aruba-User-Role",
+        "Ruckus-User-Group",
+      ],
+      vendors: ["Ruckus", "Aruba", "Cisco", "UniFi", "Cambium", "hostapd"],
+      requirements: [
+        "PPSK credentials are rendered to a hostapd wpa_psk_file with secret refs resolved only at apply time.",
+      ],
+      blockers: [],
+      warnings: [],
+      notes: ["PSK previews are always redacted."],
     },
     evidence: {
       summary: {
@@ -1846,6 +2038,7 @@ function createSystemStatus() {
       hostapd_vlan_file_path: "/etc/hostapd/aegisnas-vlans.conf",
       roaming_lifecycle: createWirelessRoamingLifecycle().report,
       passpoint_lifecycle: createPasspointLifecycle().report,
+      ppsk_lifecycle: createPPSKLifecycle().report,
       ssid_count: 0,
       auth_modes: [],
     },
@@ -5967,6 +6160,52 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({
         json: {
           feature_id: "NAS-0076",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+          },
+          events: [],
+        },
+      });
+      return;
+    }
+    if (path === "/system/ppsk-lifecycle" && method === "GET") {
+      await route.fulfill({ json: createPPSKLifecycle() });
+      return;
+    }
+    if (path === "/system/ppsk-lifecycle/preview" && method === "POST") {
+      await route.fulfill({
+        json: {
+          ...createPPSKLifecycle(),
+          event_id: "ppsk-event-preview",
+        },
+      });
+      return;
+    }
+    if (path === "/system/ppsk-lifecycle/apply" && method === "POST") {
+      const payload = createPPSKLifecycle();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0077 applied hostapd PPSK configuration for 1 SSID and 1 active credential.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "ppsk-event-apply",
+          result: { status: "applied", event_id: "ppsk-event-apply" },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (path === "/system/ppsk-lifecycle/history" && method === "GET") {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0077",
           summary: {
             total_events: 1,
             preview_events: 1,

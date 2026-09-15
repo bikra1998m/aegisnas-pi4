@@ -547,6 +547,11 @@ Checklist:
 - [ ] The redacted hostapd preview contains the expected `interworking`, `hs20`, `domain_name`, `roaming_consortium`, `nai_realm`, `anqp_3gpp_cell_net`, `hs20_oper_friendly_name`, `hs20_wan_metrics`, and `hs20_conn_capab` lines
 - [ ] `Preview Passpoint` has recorded lifecycle evidence before hostapd restart
 - [ ] `Apply Passpoint` has recorded lifecycle history after the Passpoint plan is accepted
+- [ ] For a physical appliance using DPSK or PPSK, `DPSK And PPSK Lifecycle` reports `ready`
+- [ ] The SSID's `PPSK Profile` points only at the intended WPA2 personal SSID
+- [ ] The redacted hostapd preview contains the expected `wpa_psk_file` line, and the redacted PPSK file preview contains only MAC addresses plus `<redacted>` secrets
+- [ ] `Preview PPSK` has recorded lifecycle evidence before hostapd restart
+- [ ] `Apply PPSK` has recorded lifecycle history after the PPSK plan is accepted
 - [ ] For a physical appliance using a local radio, `hostapd Preview` reflects the intended enterprise SSID
 - [ ] For a physical appliance using a local radio, `Write hostapd Config` or `Write And Restart Wi-Fi` has been run
 - [ ] For an external AP or controller, the SSID is configured on the AP side as WPA2-Enterprise or WPA3-Enterprise
@@ -572,15 +577,16 @@ After configuration, check these paths:
 2. `hostapd Dynamic VLAN Lifecycle` shows the expected bindings, VLAN file entries, and rollback preview
 3. `802.11r/k/v Roaming Lifecycle` shows the expected SSID profiles, neighbors, key-reference state, and redacted hostapd preview
 4. `Passpoint And Hotspot 2.0 Lifecycle` shows the expected ANQP, HS2.0, NAI realm, OSU, and redacted hostapd preview
-5. `hostapd Preview` matches the saved SSIDs
-6. dashboard service cards stay healthy after apply
-7. dashboard upstream AAA cards reflect the real primary and secondary server state
-8. dashboard runtime shaping card reflects the downstream interface and shaped session count
-9. `RADIUS Clients` list contains the real AP or switch addresses
-10. `Sessions` shows live sessions during testing
-11. `Alerts` stays clear of repeated auth failures
-12. `Config Revisions` captures your changes
-13. `Backups` exports cleanly
+5. `DPSK And PPSK Lifecycle` shows the expected SSID profile, active credentials, redacted key preview, and secret-ref fingerprints
+6. `hostapd Preview` matches the saved SSIDs
+7. dashboard service cards stay healthy after apply
+8. dashboard upstream AAA cards reflect the real primary and secondary server state
+9. dashboard runtime shaping card reflects the downstream interface and shaped session count
+10. `RADIUS Clients` list contains the real AP or switch addresses
+11. `Sessions` shows live sessions during testing
+12. `Alerts` stays clear of repeated auth failures
+13. `Config Revisions` captures your changes
+14. `Backups` exports cleanly
 
 CLI checks:
 

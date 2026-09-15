@@ -32,6 +32,28 @@ func WriteConfig(cfg *config.Config) (string, error) {
 	return target, nil
 }
 
+// WritePPSKFile generates and writes the managed hostapd per-device PSK file.
+func WritePPSKFile(cfg *config.Config) (string, error) {
+	if cfg == nil {
+		return "", fmt.Errorf("config is required")
+	}
+	target := HostapdPPSKFilePath(cfg)
+	if strings.TrimSpace(target) == "" {
+		return "", fmt.Errorf("wireless.ppsk.psk_file_path is not configured")
+	}
+	text, err := GeneratePPSKFile(cfg)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+		return "", fmt.Errorf("create hostapd PPSK dir: %w", err)
+	}
+	if err := os.WriteFile(target, []byte(text), 0600); err != nil {
+		return "", fmt.Errorf("write hostapd PPSK file: %w", err)
+	}
+	return target, nil
+}
+
 // RestartHostapd restarts the system hostapd service.
 func RestartHostapd() error {
 	cmd := exec.Command("systemctl", "restart", "hostapd")

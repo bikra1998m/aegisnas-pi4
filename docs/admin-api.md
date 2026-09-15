@@ -1529,6 +1529,28 @@ Passpoint lifecycle status is included in `/api/v1/system/status` under
 `api/passpoint-lifecycle-history.json`. See
 [passpoint-hotspot20-lifecycle.md](passpoint-hotspot20-lifecycle.md).
 
+NAS-0077 adds DPSK and PPSK lifecycle endpoints:
+
+```text
+GET  /api/v1/system/ppsk-lifecycle
+POST /api/v1/system/ppsk-lifecycle/preview
+POST /api/v1/system/ppsk-lifecycle/apply
+GET  /api/v1/system/ppsk-lifecycle/history
+```
+
+`GET /api/v1/system/ppsk-lifecycle` returns the effective global PPSK policy,
+profile, group, credential, and per-SSID bindings, hostapd preview, redacted
+`wpa_psk_file` preview, diagnostics, software completion state, and recent
+evidence. Preview records an event without changing host files. Apply writes the
+managed PPSK file and validated local hostapd configuration, then records
+durable evidence.
+
+PPSK lifecycle status is included in `/api/v1/system/status` under
+`wireless.ppsk_lifecycle`, production readiness as `wireless_ppsk_lifecycle`,
+and support bundles as `api/ppsk-lifecycle.json` and
+`api/ppsk-lifecycle-history.json`. See
+[dpsk-ppsk-lifecycle.md](dpsk-ppsk-lifecycle.md).
+
 Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
 
 After committing a role, user, ACL binding, or EAP framework policy through `/api/v1/apply`, run `POST /api/v1/system/radius-apply` (the **Apply RADIUS Config** action in Access Settings). This regenerates the local-user entries in `mods-config/files/authorize`, the legacy `users` path, and `mods-enabled/eap`, validates the complete FreeRADIUS configuration, and restarts FreeRADIUS. Database-backed portal decisions and CoA updates do not require this regeneration. Local bcrypt credentials support PAP and EAP-TTLS/PAP; CHAP and PEAP-MSCHAPv2 require a compatible cleartext or NT password verifier, while EAP-TLS uses certificates. NAS-0022 blocks enforce-mode generation when policy enables cataloged methods that this release cannot generate.

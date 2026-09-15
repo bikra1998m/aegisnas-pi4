@@ -297,6 +297,42 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		passpointLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["passpoint_lifecycle"]}
 	}
+	ppskLifecycleStatus := map[string]any{
+		"status":  "unknown",
+		"message": "DPSK/PPSK lifecycle status has not been evaluated.",
+	}
+	if ppskReport, err := enforcement.PreviewPPSKLifecycle(cfg); err == nil {
+		ppskSummary, _ := db.GetPPSKLifecycleSummary()
+		ppskLifecycleStatus = map[string]any{
+			"schema_version":                  ppskReport.SchemaVersion,
+			"feature_id":                      ppskReport.FeatureID,
+			"status":                          ppskReport.Status,
+			"message":                         ppskReport.Message,
+			"ready_for_external_validation":   ppskReport.ReadyForExternalValidation,
+			"software_completion_percent":     ppskReport.SoftwareCompletionPercent,
+			"ppsk_enabled":                    ppskReport.Summary.PPSKEnabled,
+			"ppsk_ssid_count":                 ppskReport.Summary.PPSKSSIDCount,
+			"profile_count":                   ppskReport.Summary.ProfileCount,
+			"group_count":                     ppskReport.Summary.GroupCount,
+			"credential_count":                ppskReport.Summary.CredentialCount,
+			"active_credential_count":         ppskReport.Summary.ActiveCredentialCount,
+			"staged_credential_count":         ppskReport.Summary.StagedCredentialCount,
+			"revoked_credential_count":        ppskReport.Summary.RevokedCredentialCount,
+			"expired_credential_count":        ppskReport.Summary.ExpiredCredentialCount,
+			"controller_sync_count":           ppskReport.Summary.ControllerSyncCount,
+			"diagnostic_count":                ppskReport.Summary.DiagnosticCount,
+			"hostapd_config_path":             ppskReport.HostapdConfigPath,
+			"hostapd_config_sha256":           ppskReport.HostapdConfigSHA256,
+			"psk_file_path":                   ppskReport.PSKFilePath,
+			"psk_file_sha256":                 ppskReport.PSKFileSHA256,
+			"plan_fingerprint":                ppskReport.PlanFingerprint,
+			"release_certification_checklist": ppskReport.ReleaseCertificationChecklist,
+			"evidence_summary":                ppskSummary,
+			"runtime_status":                  runtimeMap["ppsk_lifecycle"],
+		}
+	} else {
+		ppskLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["ppsk_lifecycle"]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1098,6 +1134,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"hostapd_vlan_lifecycle": hostapdVLANLifecycleStatus,
 		"roaming_lifecycle":      wirelessRoamingLifecycleStatus,
 		"passpoint_lifecycle":    passpointLifecycleStatus,
+		"ppsk_lifecycle":         ppskLifecycleStatus,
 		"ssid_count":             len(cfg.Wireless.SSIDs),
 		"auth_modes":             ssidAuthModes(cfg.Wireless.SSIDs),
 	}

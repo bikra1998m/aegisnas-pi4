@@ -308,6 +308,74 @@ func TestGenerateHostapdConfigRendersPasspointLifecycle(t *testing.T) {
 	assert.Contains(t, text, "osu_service_desc=eng:Corporate onboarding")
 }
 
+func TestGenerateHostapdConfigAndPPSKFile(t *testing.T) {
+	t.Setenv("AEGIS_TEST_PPSK", "camera-secret-123")
+	cfg := &config.Config{
+		Mode: "two-nic",
+		WAN:  config.InterfaceConfig{Name: "eth0"},
+		LAN:  config.InterfaceConfig{Name: "eth1"},
+		Database: config.DatabaseConfig{
+			Path: "/tmp/aegis.db",
+		},
+		Health: config.HealthConfig{
+			Port: 8080,
+		},
+		Telemetry: config.TelemetryConfig{
+			Enabled:        true,
+			PrometheusPort: 9090,
+		},
+		Radius: config.RadiusConfig{
+			Secret:                "testing-secret",
+			AuthPort:              1812,
+			AcctPort:              1813,
+			RequestTimeoutSeconds: 5,
+		},
+		Wireless: config.WirelessConfig{
+			Enabled:        true,
+			Interface:      "wlan0",
+			CountryCode:    "US",
+			Driver:         "nl80211",
+			HWMode:         "g",
+			Channel:        6,
+			BeaconInterval: 100,
+			WMMEnabled:     true,
+			HTEnabled:      true,
+			PPSK: config.WirelessPPSKConfig{
+				Enabled:             true,
+				Mode:                "enforce",
+				FailClosed:          true,
+				PSKFilePath:         "/tmp/aegisnas-ppsk.psk",
+				RotationMode:        "active",
+				MinPassphraseLength: 8,
+				Profiles: []config.WirelessPPSKProfileConfig{
+					{Name: "iot-ppsk", Enabled: true, Mode: "enforce", Groups: []string{"cameras"}},
+				},
+				Groups: []config.WirelessPPSKGroupConfig{
+					{Name: "cameras", Enabled: true, VLAN: 30},
+				},
+				Credentials: []config.WirelessPPSKCredentialConfig{
+					{ID: "camera-1", Enabled: true, MAC: "02:11:22:33:44:55", Profile: "iot-ppsk", Group: "cameras", SecretRef: "env:AEGIS_TEST_PPSK"},
+				},
+			},
+			SSIDs: []config.SSIDConfig{
+				{Name: "IoT", AuthMode: "wpa2-personal", PPSKProfile: "iot-ppsk"},
+			},
+		},
+	}
+
+	text, err := GenerateHostapdConfig(cfg)
+	require.NoError(t, err)
+	assert.Contains(t, text, "# aegisnas_ppsk_profile=iot-ppsk")
+	assert.Contains(t, text, "wpa_psk_file=/tmp/aegisnas-ppsk.psk")
+	assert.NotContains(t, text, "wpa_passphrase=")
+	assert.NotContains(t, text, "camera-secret-123")
+
+	pskFile, err := GeneratePPSKFile(cfg)
+	require.NoError(t, err)
+	assert.Contains(t, pskFile, "02:11:22:33:44:55 camera-secret-123")
+	assert.Contains(t, pskFile, "credential=camera-1")
+}
+
 func TestHostapdDynamicVLANModeUsesFallbackWhenConfigured(t *testing.T) {
 	assert.Equal(t, 0, HostapdDynamicVLANMode(config.SSIDConfig{}))
 	assert.Equal(t, 2, HostapdDynamicVLANMode(config.SSIDConfig{DynamicVLAN: true}))

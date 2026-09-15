@@ -8,6 +8,7 @@ import (
 	"net"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/secrets"
@@ -58,6 +59,7 @@ func GenerateHostapdConfig(cfg *config.Config) (string, error) {
 func renderSSID(cfg *config.Config, ssid config.SSIDConfig) []string {
 	roaming, roamingActive := config.EffectiveSSIDRoamingProfile(cfg.Wireless, ssid)
 	passpoint, passpointActive := config.EffectiveSSIDPasspointProfile(cfg.Wireless, ssid)
+	ppsk, ppskActive := config.EffectiveSSIDPPSKProfile(cfg.Wireless, ssid)
 	lines := []string{
 		"",
 		fmt.Sprintf("ssid=%s", ssid.Name),
@@ -96,8 +98,15 @@ func renderSSID(cfg *config.Config, ssid config.SSIDConfig) []string {
 			"wpa=2",
 			"wpa_key_mgmt="+hostapdKeyManagement(ssid.AuthMode, roaming, roamingActive),
 			"rsn_pairwise=CCMP",
-			fmt.Sprintf("wpa_passphrase=%s", ssid.Passphrase),
 		)
+		if ppskActive {
+			lines = append(lines,
+				fmt.Sprintf("# aegisnas_ppsk_profile=%s", sanitizeHostapdValue(ppsk.ProfileName)),
+				fmt.Sprintf("wpa_psk_file=%s", HostapdPPSKFilePath(cfg)),
+			)
+		} else {
+			lines = append(lines, fmt.Sprintf("wpa_passphrase=%s", ssid.Passphrase))
+		}
 		lines = append(lines, renderRoamingLines(cfg, ssid, roaming, roamingActive)...)
 	case "wpa3-personal":
 		lines = append(lines,
@@ -512,6 +521,114 @@ func HostapdVLANFilePath(cfg *config.Config) string {
 		return filepath.Join(filepath.Dir(configPath), "aegisnas-vlans.conf")
 	}
 	return "/etc/hostapd/aegisnas-vlans.conf"
+}
+
+func HostapdPPSKFilePath(cfg *config.Config) string {
+	if cfg == nil {
+		return "/etc/hostapd/aegisnas-ppsk.psk"
+	}
+	if path := strings.TrimSpace(cfg.Wireless.PPSK.PSKFilePath); path != "" {
+		return path
+	}
+	if configPath := strings.TrimSpace(cfg.Wireless.HostapdConfigPath); configPath != "" {
+		return filepath.Join(filepath.Dir(configPath), "aegisnas-ppsk.psk")
+	}
+	return "/etc/hostapd/aegisnas-ppsk.psk"
+}
+
+func GeneratePPSKFile(cfg *config.Config) (string, error) {
+	if cfg == nil {
+		return "", fmt.Errorf("config is required")
+	}
+	if !cfg.Wireless.Enabled || !cfg.Wireless.PPSK.Enabled {
+		return "# AegisNAS PPSK file - PPSK is disabled\n", nil
+	}
+	if err := cfg.Validate(); err != nil {
+		return "", err
+	}
+	resolver := secrets.NewResolver(secrets.OptionsFromConfig(cfg))
+	minLength := cfg.Wireless.PPSK.MinPassphraseLength
+	if minLength <= 0 {
+		minLength = 8
+	}
+	lines := []string{"# AegisNAS PPSK file - generated; do not edit"}
+	seenMACSecrets := map[string]string{}
+	for _, ssid := range cfg.Wireless.SSIDs {
+		effective, active := config.EffectiveSSIDPPSKProfile(cfg.Wireless, ssid)
+		if !active {
+			continue
+		}
+		if !strings.EqualFold(ssid.AuthMode, "wpa2-personal") {
+			return "", fmt.Errorf("PPSK profile %s on SSID %s requires wpa2-personal auth", effective.ProfileName, ssid.Name)
+		}
+		for _, credential := range effective.Credentials {
+			if strings.TrimSpace(credential.ExpiresAt) != "" {
+				expiresAt, err := time.Parse(time.RFC3339, strings.TrimSpace(credential.ExpiresAt))
+				if err != nil {
+					return "", fmt.Errorf("PPSK credential %s has invalid expires_at", credentialLabel(credential))
+				}
+				if !expiresAt.After(time.Now().UTC()) {
+					return "", fmt.Errorf("PPSK credential %s is expired", credentialLabel(credential))
+				}
+			}
+			mac := normalizeHostapdMAC(credential.MAC)
+			if mac == "" {
+				return "", fmt.Errorf("PPSK credential %s on SSID %s has no MAC address", credentialLabel(credential), ssid.Name)
+			}
+			secret, err := resolver.Resolve(context.Background(), credential.SecretRef)
+			if err != nil {
+				return "", fmt.Errorf("resolve PPSK credential %s: %w", credentialLabel(credential), err)
+			}
+			if !validHostapdPPSKSecret(secret, minLength) {
+				return "", fmt.Errorf("PPSK credential %s secret must be %d-63 printable characters or a 64-hex PSK", credentialLabel(credential), minLength)
+			}
+			if previous, exists := seenMACSecrets[mac]; exists {
+				if previous != secret {
+					return "", fmt.Errorf("PPSK credential MAC %s has conflicting active secrets", mac)
+				}
+				continue
+			}
+			seenMACSecrets[mac] = secret
+			comment := fmt.Sprintf("# ssid=%s profile=%s credential=%s group=%s", sanitizeInlineComment(ssid.Name), sanitizeInlineComment(effective.ProfileName), sanitizeInlineComment(credentialLabel(credential)), sanitizeInlineComment(credential.Group))
+			lines = append(lines, comment, fmt.Sprintf("%s %s", mac, secret))
+		}
+	}
+	if len(seenMACSecrets) == 0 {
+		return "", fmt.Errorf("wireless.ppsk.enabled requires at least one active PPSK credential bound to a WPA2 personal SSID")
+	}
+	lines = append(lines, "")
+	return strings.Join(lines, "\n"), nil
+}
+
+func validHostapdPPSKSecret(value string, minLength int) bool {
+	value = strings.TrimRight(value, "\r\n")
+	if len(value) == 64 && validHostapdHex(value) {
+		return true
+	}
+	if len(value) < minLength || len(value) > 63 {
+		return false
+	}
+	return !strings.ContainsAny(value, "\r\n\x00")
+}
+
+func validHostapdHex(value string) bool {
+	for _, r := range strings.ToLower(strings.TrimSpace(value)) {
+		if r >= '0' && r <= '9' {
+			continue
+		}
+		if r >= 'a' && r <= 'f' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func credentialLabel(credential config.WirelessPPSKCredentialConfig) string {
+	if strings.TrimSpace(credential.ID) != "" {
+		return strings.TrimSpace(credential.ID)
+	}
+	return normalizeHostapdMAC(credential.MAC)
 }
 
 func HostapdWirelessVLANInterface(wirelessInterface string, vlan int) string {

@@ -205,6 +205,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{78, schemaV78},
 		{79, schemaV79},
 		{80, schemaV80},
+		{81, schemaV81},
 	}
 
 	for _, m := range migrations {
@@ -402,6 +403,9 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensurePasspointLifecycleTables(handle); err != nil {
 		return fmt.Errorf("repair Passpoint lifecycle schema: %w", err)
 	}
+	if err := ensurePPSKLifecycleTables(handle); err != nil {
+		return fmt.Errorf("repair PPSK lifecycle schema: %w", err)
+	}
 
 	return nil
 }
@@ -427,6 +431,14 @@ func ensurePasspointLifecycleTables(handle *sql.DB) error {
 		return fmt.Errorf("database handle is required")
 	}
 	_, err := handle.Exec(SQLForDialect(passpointLifecycleSQL, DialectForHandle(handle)))
+	return err
+}
+
+func ensurePPSKLifecycleTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(ppskLifecycleSQL, DialectForHandle(handle)))
 	return err
 }
 

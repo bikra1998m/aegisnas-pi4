@@ -795,6 +795,37 @@ agreement proof, packet captures, FreeRADIUS-on-Linux, HA, performance, soak,
 security audit, production deployment, and customer acceptance evidence stay in
 `nas-0076-release-certification-checklist.md`.
 
+For local-radio DPSK or PPSK rollout, preview NAS-0077 before publishing
+hostapd:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/ppsk-lifecycle/preview \
+  | jq '.report.status, .report.summary, .report.ssids, .report.credentials'
+```
+
+Apply only after the SSID scope, profile/group policy, active/staged/revoked
+counts, secret-ref resolution, and redacted `wpa_psk_file` preview match the
+change request:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/ppsk-lifecycle/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/ppsk-lifecycle/history` and the support bundle files
+`api/ppsk-lifecycle.json` and `api/ppsk-lifecycle-history.json` during
+DPSK/PPSK key rotation, revocation, MAC binding, role/VLAN, and controller-sync
+investigations. Real AP/controller firmware behavior, packet captures,
+FreeRADIUS-on-Linux, HA, performance, soak, security audit, production
+deployment, and customer acceptance evidence stay in
+`nas-0077-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

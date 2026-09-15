@@ -2162,6 +2162,19 @@ const defaultSettings: JsonMap = {
       profiles: [],
       event_retention_limit: 6000,
     },
+    ppsk: {
+      enabled: false,
+      mode: "monitor",
+      fail_closed: true,
+      default_profile: "",
+      psk_file_path: "/etc/hostapd/aegisnas-ppsk.psk",
+      rotation_mode: "active",
+      min_passphrase_length: 8,
+      event_retention_limit: 6000,
+      profiles: [],
+      groups: [],
+      credentials: [],
+    },
     ssids: [],
   },
 };
@@ -3482,6 +3495,9 @@ export default function AccessSettings() {
   );
   const [passpointLifecycleAction, setPasspointLifecycleAction] = useState("");
   const passpointLifecycleBusy = passpointLifecycleAction !== "";
+  const [ppskLifecycle, setPPSKLifecycle] = useState<JsonMap | null>(null);
+  const [ppskLifecycleAction, setPPSKLifecycleAction] = useState("");
+  const ppskLifecycleBusy = ppskLifecycleAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3568,6 +3584,11 @@ export default function AccessSettings() {
   const loadPasspointLifecycle = async () => {
     const { data } = await api.get("/system/passpoint-lifecycle");
     setPasspointLifecycle(data.report || null);
+  };
+
+  const loadPPSKLifecycle = async () => {
+    const { data } = await api.get("/system/ppsk-lifecycle");
+    setPPSKLifecycle(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3795,13 +3816,20 @@ export default function AccessSettings() {
     setLoading(true);
     setError("");
     try {
-      const [settingsRes, previewRes, hostapdVLANRes, roamingRes, passpointRes] =
-        await Promise.all([
+      const [
+        settingsRes,
+        previewRes,
+        hostapdVLANRes,
+        roamingRes,
+        passpointRes,
+        ppskRes,
+      ] = await Promise.all([
           api.get("/system/settings"),
           api.get("/system/hostapd-preview"),
           api.get("/system/hostapd-vlan-lifecycle"),
           api.get("/system/wireless-roaming-lifecycle"),
           api.get("/system/passpoint-lifecycle"),
+          api.get("/system/ppsk-lifecycle"),
         ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -3810,6 +3838,7 @@ export default function AccessSettings() {
       setHostapdVLANLifecycle(hostapdVLANRes.data.report || null);
       setWirelessRoamingLifecycle(roamingRes.data.report || null);
       setPasspointLifecycle(passpointRes.data.report || null);
+      setPPSKLifecycle(ppskRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4302,6 +4331,47 @@ export default function AccessSettings() {
     }
   };
 
+  const previewPPSKLifecycle = async () => {
+    setPPSKLifecycleAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/ppsk-lifecycle/preview", {});
+      setPPSKLifecycle(data.report || null);
+      setMessage(
+        `DPSK/PPSK preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data || err.message || "Could not preview DPSK/PPSK lifecycle.",
+      );
+    } finally {
+      setPPSKLifecycleAction("");
+    }
+  };
+
+  const applyPPSKLifecycle = async () => {
+    setPPSKLifecycleAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/ppsk-lifecycle/apply", {});
+      setPPSKLifecycle(data.report || null);
+      setMessage(
+        `DPSK/PPSK lifecycle ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadPPSKLifecycle();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data || err.message || "Could not apply DPSK/PPSK lifecycle.",
+      );
+    } finally {
+      setPPSKLifecycleAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -4708,6 +4778,25 @@ export default function AccessSettings() {
       label: profile.name || "Unnamed Passpoint profile",
     })),
   ];
+  const ppskSummary = ppskLifecycle?.summary || {};
+  const ppskSSIDs = Array.isArray(ppskLifecycle?.ssids)
+    ? ppskLifecycle?.ssids
+    : [];
+  const ppskCredentials = Array.isArray(ppskLifecycle?.credentials)
+    ? ppskLifecycle?.credentials
+    : [];
+  const ppskProfiles = settings.wireless?.ppsk?.profiles || [];
+  const ppskGroups = settings.wireless?.ppsk?.groups || [];
+  const ppskConfiguredCredentials =
+    settings.wireless?.ppsk?.credentials || [];
+  const ppskTone = statusTone(ppskLifecycle?.status);
+  const ppskProfileOptions: Option[] = [
+    { value: "", label: "Use default PPSK policy" },
+    ...ppskProfiles.map((profile: JsonMap) => ({
+      value: profile.name || "",
+      label: profile.name || "Unnamed PPSK profile",
+    })),
+  ];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
   const dnsServers = settings.network?.dns?.upstream_servers || [];
@@ -4926,6 +5015,24 @@ export default function AccessSettings() {
             {passpointLifecycleAction === "apply"
               ? "Applying Passpoint..."
               : "Apply Passpoint"}
+          </button>
+          <button
+            onClick={previewPPSKLifecycle}
+            disabled={ppskLifecycleBusy}
+            className="rounded-md border border-amber-200 px-4 py-2 text-sm font-medium text-amber-800 disabled:opacity-60"
+          >
+            {ppskLifecycleAction === "preview"
+              ? "Checking PPSK..."
+              : "Preview PPSK"}
+          </button>
+          <button
+            onClick={applyPPSKLifecycle}
+            disabled={ppskLifecycleBusy}
+            className="rounded-md border border-amber-300 px-4 py-2 text-sm font-medium text-amber-900 disabled:opacity-60"
+          >
+            {ppskLifecycleAction === "apply"
+              ? "Applying PPSK..."
+              : "Apply PPSK"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -5428,6 +5535,168 @@ export default function AccessSettings() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              DPSK And PPSK Lifecycle
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {ppskLifecycle?.release_certification_checklist ||
+                "Preview per-device WPA2 personal key plans before local-radio rollout."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${ppskTone}`}
+          >
+            {ppskLifecycle?.status || "unknown"}
+          </div>
+        </div>
+        {ppskLifecycle ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">{ppskLifecycle.message}</p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                ["PPSK SSIDs", ppskSummary.ppsk_ssid_count || 0],
+                ["Profiles", ppskSummary.profile_count || 0],
+                ["Groups", ppskSummary.group_count || 0],
+                ["Active Keys", ppskSummary.active_credential_count || 0],
+                ["Staged Keys", ppskSummary.staged_credential_count || 0],
+                ["Revoked Keys", ppskSummary.revoked_credential_count || 0],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                PPSK SSIDs
+              </h4>
+              <div className="mt-2 space-y-2">
+                {ppskSSIDs.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                    No active PPSK SSID is present.
+                  </div>
+                ) : (
+                  ppskSSIDs.map((ssid: JsonMap, index: number) => (
+                    <div
+                      key={`${ssid.ssid || "ppsk-ssid"}-${index}`}
+                      className="rounded-md border border-gray-200 p-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="font-medium text-gray-900">
+                          {ssid.ssid || "Unnamed SSID"}
+                        </div>
+                        <span
+                          className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                            ssid.status,
+                          )}`}
+                        >
+                          {ssid.profile_name || ssid.status || "ready"}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-600">
+                        {[
+                          ssid.auth_mode,
+                          ssid.mode,
+                          ssid.credential_count
+                            ? `${ssid.credential_count} credential`
+                            : "",
+                          ssid.group_count ? `${ssid.group_count} group` : "",
+                          ssid.controller_sync ? "controller sync" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" / ") || "No PPSK metadata active"}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Credentials
+              </h4>
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                {ppskCredentials.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                    No PPSK credentials are present.
+                  </div>
+                ) : (
+                  ppskCredentials.map((credential: JsonMap, index: number) => (
+                    <div
+                      key={`${credential.id || credential.mac || "ppsk-key"}-${index}`}
+                      className="rounded-md border border-gray-200 p-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="font-medium text-gray-900">
+                          {credential.id ||
+                            credential.mac ||
+                            `Credential ${index + 1}`}
+                        </div>
+                        <span
+                          className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                            credential.status,
+                          )}`}
+                        >
+                          {credential.status || "unknown"}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-600">
+                        {[
+                          credential.mac,
+                          credential.profile,
+                          credential.group,
+                          credential.secret_ref_fingerprint,
+                          credential.next_secret_ref_set
+                            ? "next key staged"
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" / ") || "Credential metadata only"}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            {((ppskLifecycle.blockers?.length || 0) > 0 ||
+              (ppskLifecycle.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[...(ppskLifecycle.blockers || []), ...(ppskLifecycle.warnings || [])].join(
+                  " ",
+                )}
+              </div>
+            )}
+            <div className="grid gap-4 lg:grid-cols-2">
+              <textarea
+                value={ppskLifecycle.hostapd_config_preview || ""}
+                readOnly
+                className="min-h-[240px] w-full rounded-md border border-gray-300 bg-gray-950 px-4 py-3 font-mono text-xs text-gray-100"
+              />
+              <textarea
+                value={ppskLifecycle.psk_file_preview || ""}
+                readOnly
+                className="min-h-[240px] w-full rounded-md border border-gray-300 bg-gray-950 px-4 py-3 font-mono text-xs text-gray-100"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            DPSK and PPSK lifecycle report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">
@@ -23487,6 +23756,7 @@ export default function AccessSettings() {
                     bandwidth_profile: "",
                     roaming_profile: "",
                     passpoint_profile: "",
+                    ppsk_profile: "",
                   },
                 ],
               )
@@ -24692,6 +24962,683 @@ export default function AccessSettings() {
             </div>
           )}
         </div>
+        <div className="mb-5 space-y-4 rounded-md border border-amber-100 bg-amber-50/40 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="font-semibold text-gray-900">DPSK And PPSK</h4>
+              <p className="mt-1 text-sm text-gray-600">
+                Per-device WPA2 personal keys, MAC binding, rotation staging,
+                group policy, and controller-sync evidence for vendor-neutral
+                dynamic PSK operations.
+              </p>
+            </div>
+            <div
+              className={`rounded-md border px-3 py-2 text-sm font-medium ${ppskTone}`}
+            >
+              {ppskLifecycle?.status || "unknown"}
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+            <ToggleField
+              label="PPSK Enabled"
+              checked={Boolean(settings.wireless?.ppsk?.enabled)}
+              onChange={(value) =>
+                updateField(["wireless", "ppsk", "enabled"], value)
+              }
+            />
+            <SelectField
+              label="Mode"
+              value={settings.wireless?.ppsk?.mode || "monitor"}
+              onChange={(value) =>
+                updateField(["wireless", "ppsk", "mode"], value)
+              }
+              options={wirelessRoamingModeOptions}
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={Boolean(settings.wireless?.ppsk?.fail_closed)}
+              onChange={(value) =>
+                updateField(["wireless", "ppsk", "fail_closed"], value)
+              }
+            />
+            <SelectField
+              label="Rotation Mode"
+              value={settings.wireless?.ppsk?.rotation_mode || "active"}
+              onChange={(value) =>
+                updateField(["wireless", "ppsk", "rotation_mode"], value)
+              }
+              options={[
+                { value: "active", label: "Active" },
+                { value: "overlap", label: "Overlap" },
+                { value: "next-only", label: "Next Only" },
+              ]}
+            />
+            <TextField
+              label="Minimum Length"
+              type="number"
+              value={settings.wireless?.ppsk?.min_passphrase_length || 8}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "ppsk", "min_passphrase_length"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Retention Limit"
+              type="number"
+              value={settings.wireless?.ppsk?.event_retention_limit || 6000}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "ppsk", "event_retention_limit"],
+                  Number(value),
+                )
+              }
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <TextField
+              label="Default Profile"
+              value={settings.wireless?.ppsk?.default_profile || ""}
+              onChange={(value) =>
+                updateField(["wireless", "ppsk", "default_profile"], value)
+              }
+            />
+            <TextField
+              label="PSK File Path"
+              value={
+                settings.wireless?.ppsk?.psk_file_path ||
+                "/etc/hostapd/aegisnas-ppsk.psk"
+              }
+              onChange={(value) =>
+                updateField(["wireless", "ppsk", "psk_file_path"], value)
+              }
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() =>
+                updateField(
+                  ["wireless", "ppsk", "profiles"],
+                  [
+                    ...ppskProfiles,
+                    {
+                      name: `ppsk-${ppskProfiles.length + 1}`,
+                      enabled: true,
+                      mode: "monitor",
+                      fail_closed: true,
+                      groups: [],
+                      controller_sync: false,
+                    },
+                  ],
+                )
+              }
+              className="rounded-md border border-amber-300 px-3 py-2 text-sm font-medium text-amber-900"
+            >
+              Add PPSK Profile
+            </button>
+            <button
+              onClick={() =>
+                updateField(
+                  ["wireless", "ppsk", "groups"],
+                  [
+                    ...ppskGroups,
+                    {
+                      name: `group-${ppskGroups.length + 1}`,
+                      enabled: true,
+                      controller_sync: false,
+                    },
+                  ],
+                )
+              }
+              className="rounded-md border border-amber-300 px-3 py-2 text-sm font-medium text-amber-900"
+            >
+              Add PPSK Group
+            </button>
+            <button
+              onClick={() =>
+                updateField(
+                  ["wireless", "ppsk", "credentials"],
+                  [
+                    ...ppskConfiguredCredentials,
+                    {
+                      id: `credential-${ppskConfiguredCredentials.length + 1}`,
+                      enabled: true,
+                      status: "active",
+                      profile: settings.wireless?.ppsk?.default_profile || "",
+                      groups: [],
+                    },
+                  ],
+                )
+              }
+              className="rounded-md border border-amber-300 px-3 py-2 text-sm font-medium text-amber-900"
+            >
+              Add PPSK Credential
+            </button>
+          </div>
+          {ppskProfiles.length > 0 && (
+            <div className="space-y-3">
+              <h5 className="text-sm font-semibold text-gray-900">
+                PPSK Profiles
+              </h5>
+              {ppskProfiles.map((profile: JsonMap, index: number) => (
+                <div
+                  key={`ppsk-profile-${index}`}
+                  className="rounded-md border border-amber-200 bg-white p-3"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="text-sm font-semibold text-gray-900">
+                      {profile.name || `Profile ${index + 1}`}
+                    </div>
+                    <button
+                      onClick={() =>
+                        updateField(
+                          ["wireless", "ppsk", "profiles"],
+                          ppskProfiles.filter(
+                            (_: unknown, itemIndex: number) =>
+                              itemIndex !== index,
+                          ),
+                        )
+                      }
+                      className="text-sm font-medium text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                    <TextField
+                      label="Profile Name"
+                      value={profile.name || ""}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "ppsk",
+                            "profiles",
+                            String(index),
+                            "name",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <ToggleField
+                      label="Profile Enabled"
+                      checked={profile.enabled !== false}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "ppsk",
+                            "profiles",
+                            String(index),
+                            "enabled",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <SelectField
+                      label="Profile Mode"
+                      value={profile.mode || "monitor"}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "ppsk",
+                            "profiles",
+                            String(index),
+                            "mode",
+                          ],
+                          value,
+                        )
+                      }
+                      options={wirelessRoamingModeOptions}
+                    />
+                    <ToggleField
+                      label="Controller Sync"
+                      checked={Boolean(profile.controller_sync)}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "ppsk",
+                            "profiles",
+                            String(index),
+                            "controller_sync",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Profile Groups"
+                      value={listToCSV(profile.groups)}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "ppsk",
+                            "profiles",
+                            String(index),
+                            "groups",
+                          ],
+                          csvToList(value),
+                        )
+                      }
+                      placeholder="staff, contractors"
+                    />
+                    <TextField
+                      label="Default VLAN"
+                      type="number"
+                      value={profile.default_vlan || 0}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "ppsk",
+                            "profiles",
+                            String(index),
+                            "default_vlan",
+                          ],
+                          Number(value),
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Role"
+                      value={profile.role || ""}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "ppsk",
+                            "profiles",
+                            String(index),
+                            "role",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Bandwidth Profile"
+                      value={profile.bandwidth_profile || ""}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "ppsk",
+                            "profiles",
+                            String(index),
+                            "bandwidth_profile",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {ppskGroups.length > 0 && (
+            <div className="space-y-3">
+              <h5 className="text-sm font-semibold text-gray-900">
+                PPSK Groups
+              </h5>
+              {ppskGroups.map((group: JsonMap, index: number) => (
+                <div
+                  key={`ppsk-group-${index}`}
+                  className="rounded-md border border-amber-200 bg-white p-3"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="text-sm font-semibold text-gray-900">
+                      {group.name || `Group ${index + 1}`}
+                    </div>
+                    <button
+                      onClick={() =>
+                        updateField(
+                          ["wireless", "ppsk", "groups"],
+                          ppskGroups.filter(
+                            (_: unknown, itemIndex: number) =>
+                              itemIndex !== index,
+                          ),
+                        )
+                      }
+                      className="text-sm font-medium text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                    <TextField
+                      label="Group Name"
+                      value={group.name || ""}
+                      onChange={(value) =>
+                        updateField(
+                          ["wireless", "ppsk", "groups", String(index), "name"],
+                          value,
+                        )
+                      }
+                    />
+                    <ToggleField
+                      label="Group Enabled"
+                      checked={group.enabled !== false}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "ppsk",
+                            "groups",
+                            String(index),
+                            "enabled",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Tenant"
+                      value={group.tenant || ""}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "ppsk",
+                            "groups",
+                            String(index),
+                            "tenant",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <TextField
+                      label="VLAN"
+                      type="number"
+                      value={group.vlan || 0}
+                      onChange={(value) =>
+                        updateField(
+                          ["wireless", "ppsk", "groups", String(index), "vlan"],
+                          Number(value),
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Role"
+                      value={group.role || ""}
+                      onChange={(value) =>
+                        updateField(
+                          ["wireless", "ppsk", "groups", String(index), "role"],
+                          value,
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Bandwidth Profile"
+                      value={group.bandwidth_profile || ""}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "ppsk",
+                            "groups",
+                            String(index),
+                            "bandwidth_profile",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Max Devices"
+                      type="number"
+                      value={group.max_devices || 0}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "ppsk",
+                            "groups",
+                            String(index),
+                            "max_devices",
+                          ],
+                          Number(value),
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Session Limit"
+                      type="number"
+                      value={group.session_limit || 0}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "ppsk",
+                            "groups",
+                            String(index),
+                            "session_limit",
+                          ],
+                          Number(value),
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {ppskConfiguredCredentials.length > 0 && (
+            <div className="space-y-3">
+              <h5 className="text-sm font-semibold text-gray-900">
+                PPSK Credentials
+              </h5>
+              {ppskConfiguredCredentials.map((credential: JsonMap, index: number) => (
+                  <div
+                    key={`ppsk-credential-${index}`}
+                    className="rounded-md border border-amber-200 bg-white p-3"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {credential.id ||
+                          credential.mac ||
+                          `Credential ${index + 1}`}
+                      </div>
+                      <button
+                        onClick={() =>
+                          updateField(
+                            ["wireless", "ppsk", "credentials"],
+                            (settings.wireless?.ppsk?.credentials || []).filter(
+                              (_: unknown, itemIndex: number) =>
+                                itemIndex !== index,
+                            ),
+                          )
+                        }
+                        className="text-sm font-medium text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                      <TextField
+                        label="Credential ID"
+                        value={credential.id || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "ppsk",
+                              "credentials",
+                              String(index),
+                              "id",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <ToggleField
+                        label="Credential Enabled"
+                        checked={credential.enabled !== false}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "ppsk",
+                              "credentials",
+                              String(index),
+                              "enabled",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <SelectField
+                        label="Status"
+                        value={credential.status || "active"}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "ppsk",
+                              "credentials",
+                              String(index),
+                              "status",
+                            ],
+                            value,
+                          )
+                        }
+                        options={[
+                          { value: "active", label: "Active" },
+                          { value: "staged", label: "Staged" },
+                          { value: "revoked", label: "Revoked" },
+                        ]}
+                      />
+                      <TextField
+                        label="MAC"
+                        value={credential.mac || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "ppsk",
+                              "credentials",
+                              String(index),
+                              "mac",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="02:11:22:33:44:55"
+                      />
+                      <TextField
+                        label="Profile"
+                        value={credential.profile || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "ppsk",
+                              "credentials",
+                              String(index),
+                              "profile",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Groups"
+                        value={listToCSV(credential.groups)}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "ppsk",
+                              "credentials",
+                              String(index),
+                              "groups",
+                            ],
+                            csvToList(value),
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Secret Ref"
+                        value={credential.secret_ref || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "ppsk",
+                              "credentials",
+                              String(index),
+                              "secret_ref",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="env:AEGIS_PPSK_DEVICE_1"
+                      />
+                      <TextField
+                        label="Next Secret Ref"
+                        value={credential.next_secret_ref || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "ppsk",
+                              "credentials",
+                              String(index),
+                              "next_secret_ref",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="env:AEGIS_PPSK_DEVICE_1_NEXT"
+                      />
+                      <TextField
+                        label="Next Not Before"
+                        value={credential.next_not_before || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "ppsk",
+                              "credentials",
+                              String(index),
+                              "next_not_before",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="2026-08-01T00:00:00Z"
+                      />
+                      <TextField
+                        label="Next Not After"
+                        value={credential.next_not_after || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "ppsk",
+                              "credentials",
+                              String(index),
+                              "next_not_after",
+                            ],
+                            value,
+                          )
+                        }
+                        placeholder="2026-08-08T00:00:00Z"
+                      />
+                    </div>
+                  </div>
+                ),
+              )}
+            </div>
+          )}
+        </div>
         <div className="space-y-4">
           {ssids.length === 0 ? (
             <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
@@ -24858,6 +25805,17 @@ export default function AccessSettings() {
                       )
                     }
                     options={passpointProfileOptions}
+                  />
+                  <SelectField
+                    label="PPSK Profile"
+                    value={ssid.ppsk_profile || ""}
+                    onChange={(value) =>
+                      updateField(
+                        ["wireless", "ssids", String(index), "ppsk_profile"],
+                        value,
+                      )
+                    }
+                    options={ppskProfileOptions}
                   />
                   <TextField
                     label="Max Clients"

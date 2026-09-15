@@ -1682,6 +1682,7 @@ type WirelessConfig struct {
 	HostapdVLANFilePath string                  `mapstructure:"hostapd_vlan_file_path"`
 	Roaming             WirelessRoamingConfig   `mapstructure:"roaming"`
 	Passpoint           WirelessPasspointConfig `mapstructure:"passpoint"`
+	PPSK                WirelessPPSKConfig      `mapstructure:"ppsk"`
 	SSIDs               []SSIDConfig            `mapstructure:"ssids"`
 }
 
@@ -1845,6 +1846,163 @@ type WirelessPasspointProfileConfig struct {
 	WANMetrics             WirelessPasspointWANMetricsConfig             `mapstructure:"wan_metrics"`
 	ConnectionCapabilities []WirelessPasspointConnectionCapabilityConfig `mapstructure:"connection_capabilities"`
 	OSU                    WirelessPasspointOSUConfig                    `mapstructure:"osu"`
+}
+
+type WirelessPPSKConfig struct {
+	Enabled             bool                           `mapstructure:"enabled"`
+	Mode                string                         `mapstructure:"mode"`
+	FailClosed          bool                           `mapstructure:"fail_closed"`
+	DefaultProfile      string                         `mapstructure:"default_profile"`
+	PSKFilePath         string                         `mapstructure:"psk_file_path"`
+	RotationMode        string                         `mapstructure:"rotation_mode"`
+	MinPassphraseLength int                            `mapstructure:"min_passphrase_length"`
+	EventRetentionLimit int                            `mapstructure:"event_retention_limit"`
+	Profiles            []WirelessPPSKProfileConfig    `mapstructure:"profiles"`
+	Groups              []WirelessPPSKGroupConfig      `mapstructure:"groups"`
+	Credentials         []WirelessPPSKCredentialConfig `mapstructure:"credentials"`
+}
+
+type WirelessPPSKProfileConfig struct {
+	Name             string   `mapstructure:"name"`
+	Enabled          bool     `mapstructure:"enabled"`
+	Description      string   `mapstructure:"description"`
+	Mode             string   `mapstructure:"mode"`
+	FailClosed       bool     `mapstructure:"fail_closed"`
+	Groups           []string `mapstructure:"groups"`
+	DefaultVLAN      int      `mapstructure:"default_vlan"`
+	Role             string   `mapstructure:"role"`
+	BandwidthProfile string   `mapstructure:"bandwidth_profile"`
+	MaxDevices       int      `mapstructure:"max_devices"`
+	ControllerSync   bool     `mapstructure:"controller_sync"`
+}
+
+type WirelessPPSKGroupConfig struct {
+	Name             string `mapstructure:"name"`
+	Enabled          bool   `mapstructure:"enabled"`
+	Description      string `mapstructure:"description"`
+	VLAN             int    `mapstructure:"vlan"`
+	Role             string `mapstructure:"role"`
+	BandwidthProfile string `mapstructure:"bandwidth_profile"`
+	MaxDevices       int    `mapstructure:"max_devices"`
+	SessionLimit     int    `mapstructure:"session_limit"`
+}
+
+type WirelessPPSKCredentialConfig struct {
+	ID               string `mapstructure:"id"`
+	Enabled          bool   `mapstructure:"enabled"`
+	Revoked          bool   `mapstructure:"revoked"`
+	MAC              string `mapstructure:"mac"`
+	DeviceID         string `mapstructure:"device_id"`
+	Owner            string `mapstructure:"owner"`
+	Profile          string `mapstructure:"profile"`
+	Group            string `mapstructure:"group"`
+	SecretRef        string `mapstructure:"secret_ref"`
+	NextSecretRef    string `mapstructure:"next_secret_ref"`
+	NextNotBefore    string `mapstructure:"next_not_before"`
+	NextNotAfter     string `mapstructure:"next_not_after"`
+	VLAN             int    `mapstructure:"vlan"`
+	Role             string `mapstructure:"role"`
+	BandwidthProfile string `mapstructure:"bandwidth_profile"`
+	ExpiresAt        string `mapstructure:"expires_at"`
+	Description      string `mapstructure:"description"`
+}
+
+type EffectiveWirelessPPSKProfile struct {
+	ProfileName      string
+	Enabled          bool
+	Mode             string
+	FailClosed       bool
+	PSKFilePath      string
+	RotationMode     string
+	Groups           []WirelessPPSKGroupConfig
+	Credentials      []WirelessPPSKCredentialConfig
+	DefaultVLAN      int
+	Role             string
+	BandwidthProfile string
+	MaxDevices       int
+	ControllerSync   bool
+}
+
+func EffectiveSSIDPPSKProfile(wireless WirelessConfig, ssid SSIDConfig) (EffectiveWirelessPPSKProfile, bool) {
+	ppsk := wireless.PPSK
+	if !ppsk.Enabled {
+		return EffectiveWirelessPPSKProfile{}, false
+	}
+	effective := EffectiveWirelessPPSKProfile{
+		ProfileName:  "default",
+		Enabled:      true,
+		Mode:         effectivePPSKMode(ppsk.Mode),
+		FailClosed:   ppsk.FailClosed,
+		PSKFilePath:  strings.TrimSpace(ppsk.PSKFilePath),
+		RotationMode: effectivePPSKRotationMode(ppsk.RotationMode),
+		Groups:       normalizedPPSKGroups(ppsk.Groups),
+		Credentials:  normalizedPPSKCredentials(ppsk.Credentials),
+	}
+	profileName := strings.TrimSpace(ssid.PPSKProfile)
+	if profileName == "" {
+		profileName = strings.TrimSpace(ppsk.DefaultProfile)
+	}
+	if profileName == "" && len(ppsk.Profiles) > 0 {
+		return EffectiveWirelessPPSKProfile{}, false
+	}
+	if profileName != "" {
+		found := false
+		for _, profile := range ppsk.Profiles {
+			if strings.EqualFold(strings.TrimSpace(profile.Name), profileName) {
+				found = true
+				if !profile.Enabled {
+					return EffectiveWirelessPPSKProfile{}, false
+				}
+				effective.ProfileName = strings.TrimSpace(profile.Name)
+				if mode := strings.TrimSpace(profile.Mode); mode != "" {
+					effective.Mode = effectivePPSKMode(mode)
+				}
+				effective.FailClosed = effective.FailClosed || profile.FailClosed
+				effective.DefaultVLAN = profile.DefaultVLAN
+				effective.Role = strings.TrimSpace(profile.Role)
+				effective.BandwidthProfile = strings.TrimSpace(profile.BandwidthProfile)
+				effective.MaxDevices = profile.MaxDevices
+				effective.ControllerSync = profile.ControllerSync
+				allowedGroups := normalizedStringList(profile.Groups)
+				if len(allowedGroups) > 0 {
+					effective.Groups = filterPPSKGroups(effective.Groups, allowedGroups)
+					effective.Credentials = filterPPSKCredentialsByProfileAndGroups(effective.Credentials, effective.ProfileName, allowedGroups)
+				} else {
+					effective.Credentials = filterPPSKCredentialsByProfile(effective.Credentials, effective.ProfileName)
+				}
+				break
+			}
+		}
+		if !found {
+			return EffectiveWirelessPPSKProfile{}, false
+		}
+	}
+	effective.Credentials = filterActivePPSKCredentials(effective.Credentials)
+	return effective, effective.Enabled && len(effective.Credentials) > 0
+}
+
+func effectivePPSKMode(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "monitor":
+		return "monitor"
+	case "enforce":
+		return "enforce"
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+}
+
+func effectivePPSKRotationMode(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "active":
+		return "active"
+	case "overlap", "staged":
+		return "overlap"
+	case "next-only", "cutover":
+		return "next-only"
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
 }
 
 type EffectiveWirelessPasspointProfile struct {
@@ -2325,6 +2483,7 @@ type SSIDConfig struct {
 	BandwidthProfile string `mapstructure:"bandwidth_profile"`
 	RoamingProfile   string `mapstructure:"roaming_profile"`
 	PasspointProfile string `mapstructure:"passpoint_profile"`
+	PPSKProfile      string `mapstructure:"ppsk_profile"`
 }
 
 var globalConfig *Config
@@ -3169,6 +3328,13 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("wireless.passpoint.disable_dgaf", true)
 	v.SetDefault("wireless.passpoint.proxy_arp", true)
 	v.SetDefault("wireless.passpoint.event_retention_limit", 6000)
+	v.SetDefault("wireless.ppsk.enabled", false)
+	v.SetDefault("wireless.ppsk.mode", "monitor")
+	v.SetDefault("wireless.ppsk.fail_closed", true)
+	v.SetDefault("wireless.ppsk.psk_file_path", "/etc/hostapd/aegisnas-ppsk.psk")
+	v.SetDefault("wireless.ppsk.rotation_mode", "active")
+	v.SetDefault("wireless.ppsk.min_passphrase_length", 8)
+	v.SetDefault("wireless.ppsk.event_retention_limit", 6000)
 
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -5734,6 +5900,9 @@ func (c *Config) Validate() error {
 		if err := validateWirelessPasspointConfig(c.Wireless); err != nil {
 			return err
 		}
+		if err := validateWirelessPPSKConfig(c.Wireless); err != nil {
+			return err
+		}
 
 		ssidNames := make(map[string]struct{}, len(c.Wireless.SSIDs))
 		for i, ssid := range c.Wireless.SSIDs {
@@ -5754,9 +5923,12 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("wireless.ssids[%d].auth_mode %q is invalid", i, ssid.AuthMode)
 			}
 			if ssid.AuthMode == "wpa2-personal" || ssid.AuthMode == "wpa3-personal" {
-				passphraseLen := len(ssid.Passphrase)
-				if passphraseLen < 8 || passphraseLen > 63 {
-					return fmt.Errorf("wireless.ssids[%d].passphrase must be 8-63 characters for %s", i, ssid.AuthMode)
+				_, ppskActive := EffectiveSSIDPPSKProfile(c.Wireless, ssid)
+				if !ppskActive {
+					passphraseLen := len(ssid.Passphrase)
+					if passphraseLen < 8 || passphraseLen > 63 {
+						return fmt.Errorf("wireless.ssids[%d].passphrase must be 8-63 characters for %s", i, ssid.AuthMode)
+					}
 				}
 			}
 			if (ssid.AuthMode == "wpa2-enterprise" || ssid.AuthMode == "wpa3-enterprise") && strings.TrimSpace(c.Radius.Secret) == "" && strings.TrimSpace(c.Radius.SecretRef) == "" {
@@ -5812,6 +5984,22 @@ func (c *Config) Validate() error {
 					if effective.HS20 && len(effective.OperatorFriendlyNames) == 0 {
 						return fmt.Errorf("wireless.ssids[%d].passpoint_profile requires operator_friendly_names for HS2.0 enforce fail-closed mode", i)
 					}
+				}
+			}
+			if strings.TrimSpace(ssid.PPSKProfile) != "" && !c.Wireless.PPSK.Enabled {
+				return fmt.Errorf("wireless.ssids[%d].ppsk_profile requires wireless.ppsk.enabled", i)
+			}
+			if strings.TrimSpace(ssid.PPSKProfile) != "" {
+				if _, active := EffectiveSSIDPPSKProfile(c.Wireless, ssid); !active {
+					return fmt.Errorf("wireless.ssids[%d].ppsk_profile %q is disabled or has no active credentials", i, ssid.PPSKProfile)
+				}
+			}
+			if effective, active := EffectiveSSIDPPSKProfile(c.Wireless, ssid); active {
+				if !wirelessPPSKSupportedAuthMode(ssid.AuthMode) {
+					return fmt.Errorf("wireless.ssids[%d].ppsk_profile requires WPA2 personal auth", i)
+				}
+				if effective.Mode == "enforce" && effective.FailClosed && len(effective.Credentials) == 0 {
+					return fmt.Errorf("wireless.ssids[%d].ppsk_profile requires at least one active credential in enforce fail-closed mode", i)
 				}
 			}
 		}
@@ -5916,6 +6104,187 @@ func validateWirelessRoamingConfig(wireless WirelessConfig) error {
 		}
 	}
 	return nil
+}
+
+func validateWirelessPPSKConfig(wireless WirelessConfig) error {
+	ppsk := wireless.PPSK
+	if !ppsk.Enabled {
+		return nil
+	}
+	switch effectivePPSKMode(ppsk.Mode) {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("wireless.ppsk.mode %q must be monitor or enforce", ppsk.Mode)
+	}
+	switch effectivePPSKRotationMode(ppsk.RotationMode) {
+	case "active", "overlap", "next-only":
+	default:
+		return fmt.Errorf("wireless.ppsk.rotation_mode %q must be active, overlap, or next-only", ppsk.RotationMode)
+	}
+	if strings.TrimSpace(ppsk.PSKFilePath) == "" {
+		return errors.New("wireless.ppsk.psk_file_path is required when wireless.ppsk.enabled")
+	}
+	if ppsk.MinPassphraseLength < 8 || ppsk.MinPassphraseLength > 63 {
+		return errors.New("wireless.ppsk.min_passphrase_length must be between 8 and 63")
+	}
+	if ppsk.EventRetentionLimit < 0 || ppsk.EventRetentionLimit > 1000000 {
+		return errors.New("wireless.ppsk.event_retention_limit must be between 1 and 1000000 when set")
+	}
+	profileNames := map[string]struct{}{}
+	for i, profile := range ppsk.Profiles {
+		name := strings.TrimSpace(profile.Name)
+		if name == "" {
+			return fmt.Errorf("wireless.ppsk.profiles[%d].name cannot be empty", i)
+		}
+		key := strings.ToLower(name)
+		if _, exists := profileNames[key]; exists {
+			return fmt.Errorf("wireless.ppsk.profiles[%d].name %q duplicates an earlier profile", i, profile.Name)
+		}
+		profileNames[key] = struct{}{}
+		if err := validateWirelessPPSKProfile(fmt.Sprintf("wireless.ppsk.profiles[%d]", i), profile); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(ppsk.DefaultProfile) != "" {
+		if _, exists := profileNames[strings.ToLower(strings.TrimSpace(ppsk.DefaultProfile))]; !exists {
+			return fmt.Errorf("wireless.ppsk.default_profile %q does not match a configured profile", ppsk.DefaultProfile)
+		}
+	}
+	groupNames := map[string]struct{}{}
+	for i, group := range ppsk.Groups {
+		name := strings.ToLower(strings.TrimSpace(group.Name))
+		if name == "" {
+			return fmt.Errorf("wireless.ppsk.groups[%d].name cannot be empty", i)
+		}
+		if _, exists := groupNames[name]; exists {
+			return fmt.Errorf("wireless.ppsk.groups[%d].name %q duplicates an earlier group", i, group.Name)
+		}
+		groupNames[name] = struct{}{}
+		if group.VLAN < 0 || group.VLAN > 4094 {
+			return fmt.Errorf("wireless.ppsk.groups[%d].vlan %d out of range", i, group.VLAN)
+		}
+		if group.MaxDevices < 0 {
+			return fmt.Errorf("wireless.ppsk.groups[%d].max_devices cannot be negative", i)
+		}
+		if group.SessionLimit < 0 {
+			return fmt.Errorf("wireless.ppsk.groups[%d].session_limit cannot be negative", i)
+		}
+	}
+	for i, profile := range ppsk.Profiles {
+		for j, group := range profile.Groups {
+			if _, exists := groupNames[strings.ToLower(strings.TrimSpace(group))]; !exists {
+				return fmt.Errorf("wireless.ppsk.profiles[%d].groups[%d] %q does not match a configured group", i, j, group)
+			}
+		}
+	}
+	credentialKeys := map[string]struct{}{}
+	activeCredentialCount := 0
+	for i, credential := range ppsk.Credentials {
+		if err := validateWirelessPPSKCredential(fmt.Sprintf("wireless.ppsk.credentials[%d]", i), credential, profileNames, groupNames); err != nil {
+			return err
+		}
+		key := strings.ToLower(strings.TrimSpace(credential.ID))
+		if key == "" {
+			key = normalizePasspointMAC(credential.MAC)
+		}
+		if _, exists := credentialKeys[key]; exists {
+			return fmt.Errorf("wireless.ppsk.credentials[%d] duplicates an earlier credential id or MAC", i)
+		}
+		credentialKeys[key] = struct{}{}
+		if credential.Enabled && !credential.Revoked {
+			activeCredentialCount++
+		}
+	}
+	if ppsk.FailClosed && effectivePPSKMode(ppsk.Mode) == "enforce" && activeCredentialCount == 0 {
+		return errors.New("wireless.ppsk.enabled requires at least one active non-revoked credential in enforce fail-closed mode")
+	}
+	for i, ssid := range wireless.SSIDs {
+		if profile := strings.TrimSpace(ssid.PPSKProfile); profile != "" {
+			if _, exists := profileNames[strings.ToLower(profile)]; !exists {
+				return fmt.Errorf("wireless.ssids[%d].ppsk_profile %q does not match a configured profile", i, ssid.PPSKProfile)
+			}
+			if _, active := EffectiveSSIDPPSKProfile(wireless, ssid); !active {
+				return fmt.Errorf("wireless.ssids[%d].ppsk_profile %q is disabled or has no active credentials", i, ssid.PPSKProfile)
+			}
+		}
+	}
+	return nil
+}
+
+func validateWirelessPPSKProfile(path string, profile WirelessPPSKProfileConfig) error {
+	if strings.TrimSpace(profile.Mode) != "" {
+		switch effectivePPSKMode(profile.Mode) {
+		case "monitor", "enforce":
+		default:
+			return fmt.Errorf("%s.mode %q must be monitor or enforce", path, profile.Mode)
+		}
+	}
+	if profile.DefaultVLAN < 0 || profile.DefaultVLAN > 4094 {
+		return fmt.Errorf("%s.default_vlan %d out of range", path, profile.DefaultVLAN)
+	}
+	if profile.MaxDevices < 0 {
+		return fmt.Errorf("%s.max_devices cannot be negative", path)
+	}
+	return nil
+}
+
+func validateWirelessPPSKCredential(path string, credential WirelessPPSKCredentialConfig, profiles, groups map[string]struct{}) error {
+	if strings.TrimSpace(credential.ID) == "" && strings.TrimSpace(credential.MAC) == "" {
+		return fmt.Errorf("%s requires id or mac", path)
+	}
+	if credential.Enabled && !credential.Revoked && strings.TrimSpace(credential.MAC) == "" {
+		return fmt.Errorf("%s.mac is required for active local PPSK credentials", path)
+	}
+	if strings.TrimSpace(credential.MAC) != "" {
+		if err := validatePasspointMAC(path+".mac", credential.MAC); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(credential.Profile) != "" {
+		if _, exists := profiles[strings.ToLower(strings.TrimSpace(credential.Profile))]; !exists {
+			return fmt.Errorf("%s.profile %q does not match a configured profile", path, credential.Profile)
+		}
+	}
+	if strings.TrimSpace(credential.Group) != "" {
+		if _, exists := groups[strings.ToLower(strings.TrimSpace(credential.Group))]; !exists {
+			return fmt.Errorf("%s.group %q does not match a configured group", path, credential.Group)
+		}
+	}
+	if credential.Enabled && !credential.Revoked && strings.TrimSpace(credential.SecretRef) == "" {
+		return fmt.Errorf("%s.secret_ref is required for active credentials", path)
+	}
+	if strings.TrimSpace(credential.SecretRef) != "" {
+		if err := validateSecretRefField(path+".secret_ref", credential.SecretRef); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(credential.NextSecretRef) != "" {
+		if err := validateSecretRefField(path+".next_secret_ref", credential.NextSecretRef); err != nil {
+			return err
+		}
+		if strings.TrimSpace(credential.NextNotBefore) == "" || strings.TrimSpace(credential.NextNotAfter) == "" {
+			return fmt.Errorf("%s.next_not_before and next_not_after are required when next_secret_ref is set", path)
+		}
+		if _, err := time.Parse(time.RFC3339, strings.TrimSpace(credential.NextNotBefore)); err != nil {
+			return fmt.Errorf("%s.next_not_before must be RFC3339", path)
+		}
+		if _, err := time.Parse(time.RFC3339, strings.TrimSpace(credential.NextNotAfter)); err != nil {
+			return fmt.Errorf("%s.next_not_after must be RFC3339", path)
+		}
+	}
+	if strings.TrimSpace(credential.ExpiresAt) != "" {
+		if _, err := time.Parse(time.RFC3339, strings.TrimSpace(credential.ExpiresAt)); err != nil {
+			return fmt.Errorf("%s.expires_at must be RFC3339", path)
+		}
+	}
+	if credential.VLAN < 0 || credential.VLAN > 4094 {
+		return fmt.Errorf("%s.vlan %d out of range", path, credential.VLAN)
+	}
+	return nil
+}
+
+func wirelessPPSKSupportedAuthMode(authMode string) bool {
+	return strings.EqualFold(strings.TrimSpace(authMode), "wpa2-personal")
 }
 
 func validateWirelessPasspointConfig(wireless WirelessConfig) error {
@@ -6348,6 +6717,105 @@ func normalizedStringList(values []string) []string {
 		normalized = append(normalized, item)
 	}
 	return normalized
+}
+
+func normalizedPPSKGroups(values []WirelessPPSKGroupConfig) []WirelessPPSKGroupConfig {
+	seen := map[string]struct{}{}
+	normalized := make([]WirelessPPSKGroupConfig, 0, len(values))
+	for _, value := range values {
+		name := strings.ToLower(strings.TrimSpace(value.Name))
+		if name == "" {
+			continue
+		}
+		if _, exists := seen[name]; exists {
+			continue
+		}
+		seen[name] = struct{}{}
+		value.Name = name
+		value.Role = strings.TrimSpace(value.Role)
+		value.BandwidthProfile = strings.TrimSpace(value.BandwidthProfile)
+		normalized = append(normalized, value)
+	}
+	return normalized
+}
+
+func normalizedPPSKCredentials(values []WirelessPPSKCredentialConfig) []WirelessPPSKCredentialConfig {
+	seen := map[string]struct{}{}
+	normalized := make([]WirelessPPSKCredentialConfig, 0, len(values))
+	for _, value := range values {
+		key := strings.ToLower(strings.TrimSpace(value.ID))
+		if key == "" {
+			key = normalizePasspointMAC(value.MAC)
+		}
+		if key == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		value.ID = strings.TrimSpace(value.ID)
+		value.MAC = normalizePasspointMAC(value.MAC)
+		value.DeviceID = strings.TrimSpace(value.DeviceID)
+		value.Owner = strings.TrimSpace(value.Owner)
+		value.Profile = strings.TrimSpace(value.Profile)
+		value.Group = strings.ToLower(strings.TrimSpace(value.Group))
+		value.SecretRef = strings.TrimSpace(value.SecretRef)
+		value.NextSecretRef = strings.TrimSpace(value.NextSecretRef)
+		value.Role = strings.TrimSpace(value.Role)
+		value.BandwidthProfile = strings.TrimSpace(value.BandwidthProfile)
+		normalized = append(normalized, value)
+	}
+	return normalized
+}
+
+func filterPPSKGroups(groups []WirelessPPSKGroupConfig, allowed []string) []WirelessPPSKGroupConfig {
+	allowedSet := map[string]struct{}{}
+	for _, group := range allowed {
+		allowedSet[strings.ToLower(strings.TrimSpace(group))] = struct{}{}
+	}
+	filtered := make([]WirelessPPSKGroupConfig, 0, len(groups))
+	for _, group := range groups {
+		if _, ok := allowedSet[strings.ToLower(strings.TrimSpace(group.Name))]; ok {
+			filtered = append(filtered, group)
+		}
+	}
+	return filtered
+}
+
+func filterPPSKCredentialsByProfile(credentials []WirelessPPSKCredentialConfig, profile string) []WirelessPPSKCredentialConfig {
+	profile = strings.TrimSpace(profile)
+	filtered := make([]WirelessPPSKCredentialConfig, 0, len(credentials))
+	for _, credential := range credentials {
+		if strings.TrimSpace(credential.Profile) == "" || strings.EqualFold(strings.TrimSpace(credential.Profile), profile) {
+			filtered = append(filtered, credential)
+		}
+	}
+	return filtered
+}
+
+func filterPPSKCredentialsByProfileAndGroups(credentials []WirelessPPSKCredentialConfig, profile string, groups []string) []WirelessPPSKCredentialConfig {
+	groupSet := map[string]struct{}{}
+	for _, group := range groups {
+		groupSet[strings.ToLower(strings.TrimSpace(group))] = struct{}{}
+	}
+	filtered := make([]WirelessPPSKCredentialConfig, 0, len(credentials))
+	for _, credential := range filterPPSKCredentialsByProfile(credentials, profile) {
+		if _, ok := groupSet[strings.ToLower(strings.TrimSpace(credential.Group))]; ok {
+			filtered = append(filtered, credential)
+		}
+	}
+	return filtered
+}
+
+func filterActivePPSKCredentials(credentials []WirelessPPSKCredentialConfig) []WirelessPPSKCredentialConfig {
+	filtered := make([]WirelessPPSKCredentialConfig, 0, len(credentials))
+	for _, credential := range credentials {
+		if credential.Enabled && !credential.Revoked {
+			filtered = append(filtered, credential)
+		}
+	}
+	return filtered
 }
 
 func normalizedPasspointOIs(values []string) []string {

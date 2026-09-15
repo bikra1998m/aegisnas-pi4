@@ -1170,6 +1170,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0076 Passpoint and Hotspot 2.0 lifecycle event history."),
 	}))
+	addOperation(paths, "/api/v1/system/ppsk-lifecycle", "get", securedOperation("Read DPSK/PPSK lifecycle", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0077 DPSK/PPSK lifecycle report, redacted hostapd PSK-file preview, SSID profiles, credentials, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/ppsk-lifecycle/preview", "post", securedOperationWithBody("Preview DPSK/PPSK lifecycle", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without changing hostapd files."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0077 DPSK/PPSK lifecycle report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/ppsk-lifecycle/apply", "post", securedOperationWithBody("Apply DPSK/PPSK lifecycle", "Wireless", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; writes the generated hostapd PPSK file and configuration after validation."), map[string]any{
+		"200":     responseJSON("Applied NAS-0077 DPSK/PPSK lifecycle and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/ppsk-lifecycle/history", "get", securedOperationWithParameters("List DPSK/PPSK lifecycle history", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0077 DPSK/PPSK lifecycle event history."),
+	}))
 	addOperation(paths, "/api/v1/system/radius-apply", "post", securedOperation("Apply RADIUS runtime configuration", "RADIUS", []string{"super_admin"}, map[string]any{
 		"200":     responseJSON("RADIUS apply result."),
 		"default": responseText("RADIUS apply error."),

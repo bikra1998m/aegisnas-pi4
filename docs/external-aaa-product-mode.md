@@ -750,6 +750,14 @@ history, and release certification scope. The lifecycle is software-ready for
 local radio publication, while real AP/client Passpoint certification and
 carrier offload proof remain release certification items.
 
+NAS-0077 adds local DPSK and PPSK lifecycle evidence for hostapd WPA2 personal
+SSIDs. `/api/v1/system/ppsk-lifecycle` reports effective global PPSK policy,
+profiles, groups, credentials, secret-ref fingerprints, active/staged/revoked
+counts, redacted hostapd and `wpa_psk_file` previews, diagnostics, history, and
+release certification scope. The lifecycle is software-ready for local radio
+publication, while real Ruckus, Aruba, Cisco, UniFi, Cambium, and other
+controller/AP behavior remains release certification.
+
 NAS-0054 adds the portable tagged VLAN and QinQ policy compiler. Prefer this
 for new role intent because it covers one data VLAN, one tagged voice VLAN,
 extra tagged VLANs, deterministic VLAN pools, fallback VLANs, auth-fail VLANs,

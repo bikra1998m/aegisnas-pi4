@@ -1628,6 +1628,54 @@ wireless:
         nai_realms:
           - realm: "corp.example.test"
             eap_methods: ["tls", "ttls"]
+  ppsk:
+    enabled: false
+    mode: monitor
+    fail_closed: true
+    default_profile: ""
+    psk_file_path: /etc/hostapd/aegisnas-ppsk.psk
+    rotation_mode: active
+    min_passphrase_length: 12
+    event_retention_limit: 6000
+    profiles:
+      - name: "staff-ppsk"
+        enabled: true
+        mode: enforce
+        fail_closed: true
+        description: "Example per-device PSK profile for WPA2 personal lab SSIDs"
+        groups: ["staff"]
+        default_vlan: 20
+        role: "employee"
+        bandwidth_profile: "corp-standard"
+        max_devices: 2
+        controller_sync: false
+    groups:
+      - name: "staff"
+        enabled: true
+        description: "Example employee device group"
+        tenant: "default"
+        vlan: 20
+        role: "employee"
+        bandwidth_profile: "corp-standard"
+        max_devices: 2
+        session_limit: 1
+    credentials:
+      - id: "lab-device-1"
+        enabled: true
+        status: active
+        mac: "02:11:22:33:44:55"
+        device_id: "laptop-1"
+        owner: "lab-user"
+        tenant: "default"
+        profile: "staff-ppsk"
+        groups: ["staff"]
+        secret_ref: "env:AEGIS_PPSK_LAB_DEVICE_1"
+        next_secret_ref: ""
+        next_not_before: ""
+        next_not_after: ""
+        vlan: 20
+        role: "employee"
+        bandwidth_profile: "corp-standard"
   ssids:
     - name: "Aegis Guest"
       auth_mode: "captive-portal"

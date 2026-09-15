@@ -625,6 +625,14 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/passpoint-lifecycle"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/ppsk-lifecycle/apply"):
+		return identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/ppsk-lifecycle/preview"):
+		return identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/ppsk-lifecycle/history"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/ppsk-lifecycle"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/subscriber-route-export/apply"):
 		return identity.Role == adminRoleOpsAdmin
 	case strings.HasPrefix(path, "/api/v1/system/subscriber-route-export/rollback"):

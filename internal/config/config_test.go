@@ -1924,6 +1924,99 @@ func TestConfigValidationPasspoint(t *testing.T) {
 	assert.ErrorContains(t, personalSSID.Validate(), "requires open, captive-portal, WPA2 enterprise, or WPA3 enterprise")
 }
 
+func TestConfigValidationPPSK(t *testing.T) {
+	cfg := loadMinimalValidConfig(t)
+	cfg.Wireless = WirelessConfig{
+		Enabled:             true,
+		Interface:           "wlan0",
+		CountryCode:         "US",
+		Driver:              "nl80211",
+		HWMode:              "g",
+		Channel:             6,
+		BeaconInterval:      100,
+		WMMEnabled:          true,
+		HTEnabled:           true,
+		HostapdConfigPath:   "/tmp/hostapd.conf",
+		HostapdVLANFilePath: "/tmp/aegisnas-vlans.conf",
+		PPSK: WirelessPPSKConfig{
+			Enabled:             true,
+			Mode:                "enforce",
+			FailClosed:          true,
+			PSKFilePath:         "/tmp/aegisnas-ppsk.psk",
+			RotationMode:        "staged",
+			MinPassphraseLength: 8,
+			Profiles: []WirelessPPSKProfileConfig{
+				{
+					Name:             "iot-ppsk",
+					Enabled:          true,
+					Mode:             "enforce",
+					FailClosed:       true,
+					Groups:           []string{"cameras"},
+					DefaultVLAN:      30,
+					Role:             "iot",
+					BandwidthProfile: "iot-basic",
+					ControllerSync:   true,
+				},
+			},
+			Groups: []WirelessPPSKGroupConfig{
+				{Name: "cameras", Enabled: true, VLAN: 30, Role: "iot", BandwidthProfile: "iot-basic", MaxDevices: 100},
+			},
+			Credentials: []WirelessPPSKCredentialConfig{
+				{
+					ID:            "camera-1",
+					Enabled:       true,
+					MAC:           "02:11:22:33:44:55",
+					DeviceID:      "cam-1",
+					Owner:         "facilities",
+					Profile:       "iot-ppsk",
+					Group:         "cameras",
+					SecretRef:     "env:AEGIS_TEST_PPSK",
+					NextSecretRef: "env:AEGIS_TEST_PPSK_NEXT",
+					NextNotBefore: "2026-01-01T00:00:00Z",
+					NextNotAfter:  "2026-01-08T00:00:00Z",
+				},
+			},
+			EventRetentionLimit: 6000,
+		},
+		SSIDs: []SSIDConfig{
+			{Name: "IoT", AuthMode: "wpa2-personal", PPSKProfile: "iot-ppsk"},
+		},
+	}
+
+	require.NoError(t, cfg.Validate())
+	effective, active := EffectiveSSIDPPSKProfile(cfg.Wireless, cfg.Wireless.SSIDs[0])
+	require.True(t, active)
+	assert.Equal(t, "iot-ppsk", effective.ProfileName)
+	assert.Equal(t, "/tmp/aegisnas-ppsk.psk", effective.PSKFilePath)
+	assert.Len(t, effective.Credentials, 1)
+
+	clonePPSKConfig := func() *Config {
+		next := *cfg
+		next.Wireless.SSIDs = append([]SSIDConfig(nil), cfg.Wireless.SSIDs...)
+		next.Wireless.PPSK.Profiles = append([]WirelessPPSKProfileConfig(nil), cfg.Wireless.PPSK.Profiles...)
+		next.Wireless.PPSK.Profiles[0].Groups = append([]string(nil), cfg.Wireless.PPSK.Profiles[0].Groups...)
+		next.Wireless.PPSK.Groups = append([]WirelessPPSKGroupConfig(nil), cfg.Wireless.PPSK.Groups...)
+		next.Wireless.PPSK.Credentials = append([]WirelessPPSKCredentialConfig(nil), cfg.Wireless.PPSK.Credentials...)
+		return &next
+	}
+
+	missingSecret := clonePPSKConfig()
+	missingSecret.Wireless.PPSK.Credentials[0].SecretRef = ""
+	assert.ErrorContains(t, missingSecret.Validate(), "secret_ref is required")
+
+	unknownGroup := clonePPSKConfig()
+	unknownGroup.Wireless.PPSK.Credentials[0].Group = "unknown"
+	assert.ErrorContains(t, unknownGroup.Validate(), "does not match a configured group")
+
+	disabledProfile := clonePPSKConfig()
+	disabledProfile.Wireless.PPSK.Profiles[0].Enabled = false
+	assert.ErrorContains(t, disabledProfile.Validate(), "is disabled or has no active credentials")
+
+	wpa3SSID := clonePPSKConfig()
+	wpa3SSID.Wireless.SSIDs[0].AuthMode = "wpa3-personal"
+	assert.ErrorContains(t, wpa3SSID.Validate(), "requires WPA2 personal")
+}
+
 func TestDeploymentSummary(t *testing.T) {
 	cfg := &Config{
 		Deployment: DeploymentConfig{

@@ -152,6 +152,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionHostapdVLANLifecycleCheck(&report, cfg)
 	addProductionWirelessRoamingLifecycleCheck(&report, cfg)
 	addProductionPasspointLifecycleCheck(&report, cfg)
+	addProductionPPSKLifecycleCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -1605,6 +1606,69 @@ func addProductionPasspointLifecycleCheck(report *productionReadinessReport, cfg
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/passpoint-lifecycle/preview before Passpoint rollout, apply only after reviewing ANQP/HS2.0/OSU metadata, and keep real AP/client, Wi-Fi Alliance, carrier roaming, packet capture, HA, scale, soak, security, and customer proof in the NAS-0076 release certification checklist.",
 		Dependencies:   []string{"wireless.passpoint", "wireless.ssids.passpoint_profile", "hostapd interworking", "hostapd hs20", "EAP-Message", "Message-Authenticator", "Operator-Name", "Chargeable-User-Identity", "WISPr-Location-ID", "WISPr-Location-Name", "/api/v1/system/passpoint-lifecycle", "/api/v1/system/passpoint-lifecycle/preview", "/api/v1/system/passpoint-lifecycle/apply", "IEEE 802.11u", "Hotspot 2.0", "RFC 4186", "RFC 4187", "RFC 5448"},
+	})
+}
+
+func addProductionPPSKLifecycleCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0077 DPSK/PPSK lifecycle software is ready."
+	reportData, err := enforcement.PreviewPPSKLifecycle(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "PPSK lifecycle preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0077 schema %d status=%s, PPSK SSIDs=%d, profiles=%d, groups=%d, credentials=%d, active=%d, staged=%d, revoked=%d, expired=%d, controller-sync=%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.PPSKSSIDCount,
+			reportData.Summary.ProfileCount,
+			reportData.Summary.GroupCount,
+			reportData.Summary.CredentialCount,
+			reportData.Summary.ActiveCredentialCount,
+			reportData.Summary.StagedCredentialCount,
+			reportData.Summary.RevokedCredentialCount,
+			reportData.Summary.ExpiredCredentialCount,
+			reportData.Summary.ControllerSyncCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "skipped" {
+			summary += " DPSK/PPSK is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but PPSK lifecycle event history cannot be verified."
+	} else if evidence, err := db.GetPPSKLifecycleSummary(); err != nil {
+		status = "blocked"
+		summary += " PPSK lifecycle evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "ppsk_lifecycle",
+		Category:       "wireless",
+		Label:          "NAS-0077 DPSK/PPSK Lifecycle",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/ppsk-lifecycle/preview before DPSK/PPSK rollout, apply only after reviewing per-device key, group, revocation, rotation, and controller-sync evidence, and keep real Ruckus/Aruba/Cisco/UniFi/Cambium AP/controller, packet capture, HA, scale, soak, security, and customer proof in the NAS-0077 release certification checklist.",
+		Dependencies:   []string{"wireless.ppsk", "wireless.ssids.ppsk_profile", "wireless.ppsk.credentials.secret_ref", "hostapd wpa_psk_file", "Calling-Station-Id", "Called-Station-Id", "Filter-Id", "Tunnel-Private-Group-Id", "/api/v1/system/ppsk-lifecycle", "/api/v1/system/ppsk-lifecycle/preview", "/api/v1/system/ppsk-lifecycle/apply", "IEEE 802.11", "RFC 2865", "RFC 2866"},
 	})
 }
 

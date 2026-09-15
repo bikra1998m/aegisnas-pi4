@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 80
+	return 81
 }
 
 func Migrate() error {
@@ -4082,3 +4082,41 @@ CREATE INDEX IF NOT EXISTS idx_passpoint_lifecycle_events_config ON passpoint_li
 `
 
 const schemaV80 = passpointLifecycleSQL
+
+const ppskLifecycleSQL = `
+CREATE TABLE IF NOT EXISTS ppsk_lifecycle_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	config_path TEXT,
+	psk_file_path TEXT,
+	hostapd_config_sha256 TEXT,
+	psk_file_sha256 TEXT,
+	plan_fingerprint TEXT NOT NULL,
+	ssid_count INTEGER NOT NULL DEFAULT 0,
+	ppsk_ssid_count INTEGER NOT NULL DEFAULT 0,
+	profile_count INTEGER NOT NULL DEFAULT 0,
+	group_count INTEGER NOT NULL DEFAULT 0,
+	credential_count INTEGER NOT NULL DEFAULT 0,
+	active_credential_count INTEGER NOT NULL DEFAULT 0,
+	staged_credential_count INTEGER NOT NULL DEFAULT 0,
+	revoked_credential_count INTEGER NOT NULL DEFAULT 0,
+	expired_credential_count INTEGER NOT NULL DEFAULT 0,
+	controller_sync_count INTEGER NOT NULL DEFAULT 0,
+	diagnostic_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_ppsk_lifecycle_events_created ON ppsk_lifecycle_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_ppsk_lifecycle_events_status ON ppsk_lifecycle_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_ppsk_lifecycle_events_fingerprint ON ppsk_lifecycle_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_ppsk_lifecycle_events_config ON ppsk_lifecycle_events(config_path, psk_file_path, created_at);
+`
+
+const schemaV81 = ppskLifecycleSQL

@@ -123,4 +123,29 @@ test.describe('Access Settings edge-network flow', () => {
       page.getByText(/Passpoint and Hotspot 2\.0 lifecycle applied/),
     ).toBeVisible();
   });
+
+  test('previews and applies DPSK and PPSK lifecycle', async ({ page }) => {
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto('/access-settings');
+    const ppskSection = page.locator('section').filter({
+      has: page.getByRole('heading', { name: 'DPSK And PPSK Lifecycle' }),
+    });
+    await expect(ppskSection).toBeVisible();
+    await expect(
+      ppskSection.getByRole('heading', { name: 'PPSK SSIDs' }),
+    ).toBeVisible();
+    await expect(
+      ppskSection.locator('div').filter({ hasText: /^Active Keys$/ }).first(),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview PPSK' }).click();
+    await expect(page.getByText(/DPSK\/PPSK preview recorded/)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Apply PPSK' }).click();
+    await expect(
+      page.getByText(/DPSK\/PPSK lifecycle applied/),
+    ).toBeVisible();
+  });
 });
