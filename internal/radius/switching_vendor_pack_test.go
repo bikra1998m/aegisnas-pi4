@@ -93,6 +93,17 @@ func TestSwitchingVendorPackParsesSwitchingState(t *testing.T) {
 
 		assert.Equal(t, "block-mac:aa:bb:cc:dd:ee:ff", result.VendorSessionAction)
 	})
+
+	t.Run("Arista native device profiling", func(t *testing.T) {
+		packet := layehradius.New(layehradius.CodeAccessAccept, []byte("secret"))
+		require.NoError(t, addVendorString(packet, 30065, 17, "profiled-iot"))
+
+		result := ParseBrokerPacketWithConfig(packet, &config.Config{
+			Radius: config.RadiusConfig{Vendor: vendorConfigForPacks(productconfigs.VendorPackArista)},
+		})
+
+		assert.Equal(t, "profiled-iot", result.VendorDevicePosture)
+	})
 }
 
 func TestRenderReplyAttributesIncludesSwitchingVendorFields(t *testing.T) {

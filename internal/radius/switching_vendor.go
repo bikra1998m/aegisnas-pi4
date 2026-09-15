@@ -377,7 +377,15 @@ func switchingVendorEvidenceValue(token SwitchingVendorAttribute) string {
 		}
 		return token.Name + token.Operator + token.Value
 	}
+	if isNativeSwitchingProfilingAttribute(token.Attribute) {
+		return strings.TrimSpace(token.Value)
+	}
 	return strings.TrimSpace(token.Attribute) + "=" + strings.TrimSpace(token.Value)
+}
+
+func isNativeSwitchingProfilingAttribute(attribute string) bool {
+	name := strings.ToLower(strings.TrimSpace(attribute))
+	return strings.Contains(name, "device-profiling") || strings.Contains(name, "client-profiling")
 }
 
 func isSwitchingVendorAVPairAttribute(attribute string) bool {
