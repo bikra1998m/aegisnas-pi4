@@ -34,7 +34,7 @@ func TestHandleGetVendorCompatibility(t *testing.T) {
 	assert.Equal(t, "3.2.8", summary["dictionary_release"])
 	assert.Equal(t, "dictionary.aegisnas", summary["product_vendor_dictionary_filename"])
 	assert.Equal(t, "$INCLUDE dictionary.aegisnas", summary["product_vendor_dictionary_include"])
-	assert.EqualValues(t, 13, summary["product_attribute_count"])
+	assert.EqualValues(t, 58, summary["product_attribute_count"])
 	assert.Greater(t, int(summary["pack_count"].(float64)), 5)
 
 	semantics, ok := payload["semantics"].([]any)

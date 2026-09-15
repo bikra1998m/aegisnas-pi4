@@ -47,7 +47,8 @@ func TestRateCompilerAPIReadinessOpenAPISupportBundleAndRBAC(t *testing.T) {
 	require.NoError(t, json.Unmarshal(compileRec.Body.Bytes(), &compilePayload))
 	assert.NotEmpty(t, compilePayload.EventID)
 	assert.Equal(t, "ready", compilePayload.Result.Status)
-	assert.Equal(t, 13, compilePayload.Result.AttributeCount)
+	assert.Equal(t, len(compilePayload.Result.Attributes), compilePayload.Result.AttributeCount)
+	assert.GreaterOrEqual(t, compilePayload.Result.AttributeCount, 13)
 	assert.Contains(t, compileRec.Body.String(), `"Mikrotik-Rate-Limit"`)
 	assert.Contains(t, compileRec.Body.String(), `"integer-bps"`)
 

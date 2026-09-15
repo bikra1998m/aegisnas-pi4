@@ -21,17 +21,17 @@ func TestControllerSyncPreviewAndManualPull(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
-		assert.Equal(t, "/proxy/network/api/s/default/aegisnas/state", r.URL.Path)
+		assert.Equal(t, "/", r.URL.Path)
 		assert.Equal(t, "pull", r.Header.Get("X-AegisNAS-Controller-Operation"))
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"summary":"UniFi state loaded.","observed_state_hash":"stale-controller-state","health":"healthy"}`))
+		_, _ = w.Write([]byte(`{"summary":"Controller accepted sync with drift.","drift_detected":true,"drift_count":1,"drift":{"items":["policy:changed"],"summary":"detected policy drift"},"health":"healthy"}`))
 	}))
 	defer server.Close()
 
 	cfg := config.Get()
 	require.NotNil(t, cfg)
 	cfg.Integrations.Controller.Enabled = true
-	cfg.Integrations.Controller.Platform = "unifi"
+	cfg.Integrations.Controller.Platform = "generic"
 	cfg.Integrations.Controller.Endpoint = server.URL
 	cfg.Integrations.Controller.APITokenEnv = tokenEnv
 	cfg.Integrations.Controller.SyncMode = "monitor"
@@ -52,7 +52,7 @@ func TestControllerSyncPreviewAndManualPull(t *testing.T) {
 	require.NoError(t, json.Unmarshal(previewRec.Body.Bytes(), &preview))
 	assert.Equal(t, "pull", preview.Preview.Operation)
 	assert.Equal(t, http.MethodGet, preview.Preview.Method)
-	assert.Contains(t, preview.Preview.TargetURL, "/aegisnas/state")
+	assert.Equal(t, server.URL, preview.Preview.TargetURL)
 	assert.Equal(t, controllerPushConfirmation, preview.PushConfirmation)
 
 	runReq := httptest.NewRequest(http.MethodPost, "/api/v1/system/controller-sync", bytes.NewBufferString(`{"operation":"pull"}`))

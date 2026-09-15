@@ -46,13 +46,13 @@ func HandleGetVendorCompatibility(w http.ResponseWriter, r *http.Request) {
 		report.ActivePacks = normalizeVendorCompatibilityPackKeys(cfg.Radius.Vendor.CompatibilityPacks)
 	}
 	if cfg != nil {
-		if profile, ok := productconfigs.DictionaryReleaseProfileByID(cfg.Radius.Vendor.DictionaryRelease); ok {
+		vendor := effectiveVendorCompatibilityConfig(cfg.Radius.Vendor)
+		if profile, ok := productconfigs.DictionaryReleaseProfileByID(vendor.DictionaryRelease); ok {
 			report.DictionaryReleaseProfile = profile
 			report.Summary.DictionaryReleaseProfileID = profile.ID
 			report.Summary.DictionaryRelease = profile.Release
 			report.Summary.DictionaryReleaseSourceSHA256 = profile.RegistrySourceSHA256
 		}
-		vendor := cfg.Radius.Vendor
 		report.Catalog = productconfigs.AegisNASVendorDictionaryCatalogFor(vendor.Name, vendor.ID)
 		for index := range report.Packs {
 			if report.Packs[index].Key == productconfigs.VendorPackAegisNAS {
@@ -97,6 +97,27 @@ func HandleGetVendorCompatibility(w http.ResponseWriter, r *http.Request) {
 		ClientProfiles:            clientProfiles,
 		ProfileSummary:            profileSummary,
 	})
+}
+
+func effectiveVendorCompatibilityConfig(vendor config.RadiusVendorConfig) config.RadiusVendorConfig {
+	identity := productconfigs.AegisNASVendorIdentity()
+	if strings.TrimSpace(vendor.Name) == "" {
+		vendor.Name = identity.Name
+	}
+	if vendor.ID == 0 {
+		vendor.ID = identity.ID
+	}
+	if strings.TrimSpace(vendor.IdentityMode) == "" {
+		if vendor.ID == productconfigs.AegisNASPlaceholderVendorID {
+			vendor.IdentityMode = "lab"
+		} else {
+			vendor.IdentityMode = "unverified"
+		}
+	}
+	if strings.TrimSpace(vendor.DictionaryRelease) == "" {
+		vendor.DictionaryRelease = productconfigs.DefaultDictionaryReleaseProfileID
+	}
+	return vendor
 }
 
 func vendorDictionaryImportPaths(cfg *config.Config) []string {
