@@ -407,6 +407,42 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		rfPlanningLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.RFPlanningLifecycleComponent()]}
 	}
+	wirelessSecurityLifecycleStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Wireless security lifecycle status has not been evaluated.",
+	}
+	if securityReport, err := enforcement.PreviewWirelessSecurityLifecycle(cfg); err == nil {
+		securitySummary, _ := db.GetWirelessSecurityLifecycleSummary()
+		wirelessSecurityLifecycleStatus = map[string]any{
+			"schema_version":                  securityReport.SchemaVersion,
+			"feature_id":                      securityReport.FeatureID,
+			"status":                          securityReport.Status,
+			"message":                         securityReport.Message,
+			"ready_for_external_validation":   securityReport.ReadyForExternalValidation,
+			"software_completion_percent":     securityReport.SoftwareCompletionPercent,
+			"security_enabled":                securityReport.Summary.SecurityEnabled,
+			"mode":                            securityReport.Summary.Mode,
+			"controller_platform":             securityReport.Summary.ControllerPlatform,
+			"sensor_count":                    securityReport.Summary.SensorCount,
+			"rogue_policy_count":              securityReport.Summary.RoguePolicyCount,
+			"wips_detection_count":            securityReport.Summary.WIPSDetectionCount,
+			"spectrum_channel_count":          securityReport.Summary.SpectrumChannelCount,
+			"location_zone_count":             securityReport.Summary.LocationZoneCount,
+			"multicast_policy_count":          securityReport.Summary.MulticastPolicyCount,
+			"containment_guard_count":         securityReport.Summary.ContainmentGuardCount,
+			"privacy_check_count":             securityReport.Summary.PrivacyCheckCount,
+			"compliance_check_count":          securityReport.Summary.ComplianceCheckCount,
+			"passed_check_count":              securityReport.Summary.PassedCheckCount,
+			"warning_count":                   securityReport.Summary.WarningCount,
+			"blocker_count":                   securityReport.Summary.BlockerCount,
+			"plan_fingerprint":                securityReport.PlanFingerprint,
+			"release_certification_checklist": securityReport.ReleaseCertificationChecklist,
+			"evidence_summary":                securitySummary,
+			"runtime_status":                  runtimeMap[enforcement.WirelessSecurityLifecycleComponent()],
+		}
+	} else {
+		wirelessSecurityLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.WirelessSecurityLifecycleComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1210,6 +1246,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"passpoint_lifecycle":    passpointLifecycleStatus,
 		"ppsk_lifecycle":         ppskLifecycleStatus,
 		"rf_planning_lifecycle":  rfPlanningLifecycleStatus,
+		"security_lifecycle":     wirelessSecurityLifecycleStatus,
 		"ssid_count":             len(cfg.Wireless.SSIDs),
 		"auth_modes":             ssidAuthModes(cfg.Wireless.SSIDs),
 	}

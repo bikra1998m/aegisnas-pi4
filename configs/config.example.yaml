@@ -1782,6 +1782,88 @@ wireless:
             client_steering: true
             min_rssi: -72
             load_balance_weight: 100
+  security:
+    enabled: false
+    mode: monitor
+    fail_closed: true
+    event_retention_limit: 6000
+    rogue:
+      enabled: true
+      containment_enabled: false
+      auto_containment: false
+      allow_containment: false
+      quarantine_role: quarantine
+      allowed_ouis: ["001122"]
+      trusted_bssids: ["02:11:22:33:44:55", "02:11:22:33:44:66"]
+      trusted_ssids: ["Aegis Corp", "Aegis Staff"]
+      watch_ssids: ["Aegis Corp", "Aegis Staff", "Aegis Guest"]
+      min_rssi: -80
+      classification_policy: balanced
+    wips:
+      enabled: true
+      deauth_detection: true
+      evil_twin_detection: true
+      honeypot_detection: true
+      adhoc_detection: true
+      spoofing_detection: true
+      flood_detection: true
+      eapol_attack_detection: true
+      pmf_required: true
+      alert_threshold: 1
+    spectrum:
+      enabled: true
+      noise_floor_dbm: -95
+      channel_utilization_warn_percent: 70
+      interference_warn_percent: 35
+      duty_cycle_warn_percent: 80
+      sample_interval_seconds: 30
+    location:
+      enabled: true
+      mode: zone
+      privacy_mode: hashed
+      min_aps_for_triangulation: 3
+      retention_hours: 720
+      hash_client_identifiers: true
+      export_client_coordinates: false
+      zones:
+        - name: HQ
+          floor: "1"
+          building: HQ
+          latitude: 0
+          longitude: 0
+          radius_meters: 50
+          retention_hours: 720
+    multicast:
+      enabled: true
+      mode: optimize
+      igmp_snooping: true
+      mld_snooping: true
+      multicast_to_unicast: true
+      broadcast_filter: true
+      mdns_gateway: true
+      ssdp_filter: true
+      ipv6_multicast: true
+      max_groups: 128
+      allowed_groups: ["239.255.255.250", "ff02::fb"]
+    sensors:
+      - name: "sensor-lobby"
+        enabled: true
+        location: "Lobby"
+        zone: "HQ"
+        floor: "1"
+        bssid: "02:11:22:33:44:55"
+        channels: [36]
+        bands: [5ghz]
+        controller: ""
+      - name: "sensor-hallway"
+        enabled: true
+        location: "Hallway"
+        zone: "HQ"
+        floor: "1"
+        bssid: "02:11:22:33:44:66"
+        channels: [44]
+        bands: [5ghz]
+        controller: ""
   ssids:
     - name: "Aegis Guest"
       auth_mode: "captive-portal"

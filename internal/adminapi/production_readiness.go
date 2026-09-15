@@ -156,6 +156,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionPPSKLifecycleCheck(&report, cfg)
 	addProductionControllerEstateLifecycleCheck(&report, cfg)
 	addProductionRFPlanningLifecycleCheck(&report, cfg)
+	addProductionWirelessSecurityLifecycleCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -1806,6 +1807,75 @@ func addProductionRFPlanningLifecycleCheck(report *productionReadinessReport, cf
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/rf-planning-lifecycle/preview before RF rollout, apply only after reviewing channel reuse, power bounds, mesh roots, client steering, and controller ownership, and keep real AP/controller telemetry, spectrum captures, roaming proof, HA, scale, soak, security, and customer proof in the NAS-0079 release certification checklist.",
 		Dependencies:   []string{"wireless.rf", "wireless.rf.aps", "wireless.rf.bands", "wireless.rf.mesh", "wireless.rf.client_steering", "integrations.controller", "wireless.roaming", "/api/v1/system/rf-planning-lifecycle", "/api/v1/system/rf-planning-lifecycle/preview", "/api/v1/system/rf-planning-lifecycle/apply", "rf_planning_lifecycle_events", "IEEE 802.11", "IEEE 802.11k", "IEEE 802.11v", "IEEE 802.11s"},
+	})
+}
+
+func addProductionWirelessSecurityLifecycleCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0080 rogue/WIPS/spectrum/location/multicast software is ready."
+	reportData, err := enforcement.PreviewWirelessSecurityLifecycle(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Wireless security lifecycle preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0080 schema %d status=%s, mode=%s, controller=%s, sensors=%d, rogue policies=%d, WIPS detections=%d, spectrum channels=%d, location zones=%d, multicast policies=%d, containment guards=%d, privacy checks=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			firstNonEmptyAdminString(reportData.Summary.ControllerPlatform, "local"),
+			reportData.Summary.SensorCount,
+			reportData.Summary.RoguePolicyCount,
+			reportData.Summary.WIPSDetectionCount,
+			reportData.Summary.SpectrumChannelCount,
+			reportData.Summary.LocationZoneCount,
+			reportData.Summary.MulticastPolicyCount,
+			reportData.Summary.ContainmentGuardCount,
+			reportData.Summary.PrivacyCheckCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "skipped" {
+			summary += " Wireless security lifecycle is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but wireless security lifecycle event history cannot be verified."
+	} else if evidence, err := db.GetWirelessSecurityLifecycleSummary(); err != nil {
+		status = "blocked"
+		summary += " Wireless security lifecycle evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, last sensors=%d, last WIPS=%d, last multicast=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.LastSensorCount,
+			evidence.LastWIPSDetectionCount,
+			evidence.LastMulticastPolicyCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "wireless_security_lifecycle",
+		Category:       "wireless",
+		Label:          "NAS-0080 Rogue, WIPS, Spectrum, Location, And Multicast",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/wireless-security-lifecycle/preview before WIPS or multicast rollout, apply only after reviewing rogue containment guards, WIPS detections, spectrum coverage, location privacy, multicast controls, and controller ownership, and keep live containment, spectrum capture, location accuracy, multicast airtime, HA, scale, soak, security, and customer proof in the NAS-0080 release certification checklist.",
+		Dependencies:   []string{"wireless.security", "wireless.security.rogue", "wireless.security.wips", "wireless.security.spectrum", "wireless.security.location", "wireless.security.multicast", "wireless.security.sensors", "wireless.rf", "integrations.controller", "radius.dynamic_auth", "/api/v1/system/wireless-security-lifecycle", "/api/v1/system/wireless-security-lifecycle/preview", "/api/v1/system/wireless-security-lifecycle/apply", "wireless_security_lifecycle_events", "IEEE 802.11", "IEEE 802.11w", "RFC 5176", "RFC 4541", "RFC 6762", "RFC 6763"},
 	})
 }
 

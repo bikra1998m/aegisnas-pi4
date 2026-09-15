@@ -1191,6 +1191,92 @@ function createSettings() {
           },
         ],
       },
+      security: {
+        enabled: true,
+        mode: "monitor",
+        fail_closed: true,
+        event_retention_limit: 6000,
+        rogue: {
+          enabled: true,
+          containment_enabled: true,
+          allow_containment: true,
+          auto_containment: false,
+          quarantine_role: "quarantine",
+          allowed_ouis: ["001122"],
+          trusted_bssids: ["02:11:22:33:44:55"],
+          trusted_ssids: ["Corp"],
+          watch_ssids: ["Corp"],
+          min_rssi: -80,
+          classification_policy: "balanced",
+        },
+        wips: {
+          enabled: true,
+          deauth_detection: true,
+          evil_twin_detection: true,
+          honeypot_detection: true,
+          adhoc_detection: true,
+          spoofing_detection: true,
+          flood_detection: true,
+          eapol_attack_detection: true,
+          pmf_required: true,
+          alert_threshold: 1,
+        },
+        spectrum: {
+          enabled: true,
+          noise_floor_dbm: -95,
+          channel_utilization_warn_percent: 70,
+          interference_warn_percent: 35,
+          duty_cycle_warn_percent: 80,
+          sample_interval_seconds: 30,
+        },
+        location: {
+          enabled: true,
+          mode: "coordinate",
+          privacy_mode: "hashed",
+          min_aps_for_triangulation: 2,
+          retention_hours: 720,
+          hash_client_identifiers: true,
+          export_client_coordinates: false,
+          zones: [{ name: "HQ", floor: "1", building: "HQ" }],
+        },
+        multicast: {
+          enabled: true,
+          mode: "optimize",
+          igmp_snooping: true,
+          mld_snooping: true,
+          multicast_to_unicast: true,
+          broadcast_filter: true,
+          mdns_gateway: true,
+          ssdp_filter: true,
+          ipv6_multicast: true,
+          max_groups: 128,
+          allowed_groups: ["239.255.255.250"],
+        },
+        sensors: [
+          {
+            name: "sensor-lobby",
+            enabled: true,
+            location: "Lobby",
+            zone: "HQ",
+            floor: "1",
+            bssid: "02:11:22:33:44:55",
+            channels: [36],
+            bands: ["5ghz"],
+            controller: "generic",
+          },
+          {
+            name: "sensor-hallway",
+            enabled: true,
+            location: "Hallway",
+            zone: "HQ",
+            floor: "1",
+            bssid: "02:11:22:33:44:66",
+            channels: [44],
+            bands: ["5ghz"],
+            controller: "generic",
+          },
+        ],
+      },
       ssids: [],
     },
   };
@@ -2080,6 +2166,299 @@ function createRFPlanningLifecycle(status = "ready") {
   };
 }
 
+function createWirelessSecurityLifecycle(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0080",
+      status,
+      message:
+        status === "skipped"
+          ? "NAS-0080 software is ready; wireless security lifecycle is not active in this configuration."
+          : "NAS-0080 plans 2 sensors, 3 rogue policy items, 8 WIPS detections, 2 spectrum channels, 1 location zone, and 7 multicast policy items.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0080-release-certification-checklist.md",
+      release_scope:
+        "Live rogue containment, spectrum capture, location accuracy, multicast airtime proof, controller firmware mutation, HA failover, scale, soak, security audit, production deployment, and customer acceptance are release certification activities.",
+      plan_fingerprint:
+        "sha256:8fdf51c8ff8a7c63cfd3b4a57e59df42b6c932e46e32979053fd9d447297e080",
+      summary: {
+        security_enabled: true,
+        wireless_enabled: false,
+        rf_enabled: true,
+        controller_enabled: true,
+        controller_platform: "generic",
+        mode: "monitor",
+        rogue_enabled: true,
+        wips_enabled: true,
+        spectrum_enabled: true,
+        location_enabled: true,
+        multicast_enabled: true,
+        sensor_count: 2,
+        rogue_policy_count: 3,
+        wips_detection_count: 8,
+        spectrum_channel_count: 2,
+        location_zone_count: 1,
+        multicast_policy_count: 7,
+        containment_guard_count: 3,
+        privacy_check_count: 1,
+        compliance_check_count: 8,
+        passed_check_count: 8,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 9,
+      },
+      sensors: [
+        {
+          name: "sensor-lobby",
+          source: "configured",
+          bssid: "02:11:22:33:44:55",
+          zone: "HQ",
+          floor: "1",
+          location: "Lobby",
+          controller: "generic",
+          bands: ["5ghz"],
+          channels: [36],
+          capabilities: ["location", "multicast", "rogue", "spectrum", "wips"],
+          status: "ready",
+          reason:
+            "declared wireless security sensor is eligible for rogue/WIPS/spectrum/location monitoring",
+        },
+        {
+          name: "sensor-hallway",
+          source: "configured",
+          bssid: "02:11:22:33:44:66",
+          zone: "HQ",
+          floor: "1",
+          location: "Hallway",
+          controller: "generic",
+          bands: ["5ghz"],
+          channels: [44],
+          capabilities: ["location", "multicast", "rogue", "spectrum", "wips"],
+          status: "ready",
+          reason:
+            "declared wireless security sensor is eligible for rogue/WIPS/spectrum/location monitoring",
+        },
+      ],
+      rogue_policies: [
+        {
+          id: "rogue-classification",
+          name: "Rogue Classification",
+          action: "classify",
+          status: "ready",
+          reason:
+            "balanced rogue classification evaluates trusted SSIDs, BSSIDs, OUIs, watch SSIDs, and RSSI.",
+          trusted_ssids: ["Corp"],
+          watch_ssids: ["Corp"],
+          trusted_bssids: ["02:11:22:33:44:55"],
+          allowed_ouis: ["001122"],
+          min_rssi: -80,
+          quarantine_role: "quarantine",
+        },
+        {
+          id: "rogue-containment-governance",
+          name: "Containment Governance",
+          action: "containment_guard",
+          status: "ready",
+          reason:
+            "containment is explicitly allowed in software policy; live deauth or channel disruption remains release certification",
+          quarantine_role: "quarantine",
+          min_rssi: -80,
+          containment_guard: [
+            "trusted inventory baseline",
+            "operator preview/apply history",
+            "release certification evidence",
+          ],
+        },
+        {
+          id: "rogue-quarantine-role",
+          name: "Rogue Quarantine",
+          action: "quarantine",
+          status: "ready",
+          reason:
+            "rogue devices can map to a vendor-neutral quarantine role for RADIUS and controller policy workflows",
+          quarantine_role: "quarantine",
+        },
+      ],
+      wips_detections: [
+        {
+          id: "deauth-disassoc",
+          name: "Deauthentication And Disassociation Flood",
+          category: "management-frame",
+          severity: "high",
+          status: "ready",
+          threshold: 1,
+          required_inputs: ["802.11 management frames", "sensor channel dwell"],
+          reason:
+            "detection is represented in vendor-neutral WIPS policy and event evidence",
+        },
+        {
+          id: "evil-twin",
+          name: "Evil Twin SSID/BSSID",
+          category: "rogue",
+          severity: "critical",
+          status: "ready",
+          threshold: 1,
+          required_inputs: ["trusted SSID baseline", "BSSID inventory", "RSSI"],
+          reason:
+            "detection is represented in vendor-neutral WIPS policy and event evidence",
+        },
+        {
+          id: "eapol-attack",
+          name: "EAPOL Attack Pattern",
+          category: "802.1X",
+          severity: "critical",
+          status: "ready",
+          threshold: 1,
+          required_inputs: ["EAPOL frames", "RADIUS failures"],
+          reason:
+            "detection is represented in vendor-neutral WIPS policy and event evidence",
+        },
+      ],
+      spectrum_channels: [
+        {
+          band: "5ghz",
+          channel: 36,
+          sensors: ["sensor-lobby"],
+          noise_floor_dbm: -95,
+          channel_utilization_warn_percent: 70,
+          interference_warn_percent: 35,
+          duty_cycle_warn_percent: 80,
+          sample_interval_seconds: 30,
+          status: "ready",
+          reason: "spectrum threshold watch is planned for sensor channel coverage",
+        },
+        {
+          band: "5ghz",
+          channel: 44,
+          sensors: ["sensor-hallway"],
+          noise_floor_dbm: -95,
+          channel_utilization_warn_percent: 70,
+          interference_warn_percent: 35,
+          duty_cycle_warn_percent: 80,
+          sample_interval_seconds: 30,
+          status: "ready",
+          reason: "spectrum threshold watch is planned for sensor channel coverage",
+        },
+      ],
+      location_zones: [
+        {
+          name: "HQ",
+          floor: "1",
+          building: "HQ",
+          mode: "coordinate",
+          privacy_mode: "hashed",
+          hash_client_identifiers: true,
+          export_client_coordinates: false,
+          retention_hours: 720,
+          min_aps_for_triangulation: 2,
+          sensor_count: 2,
+          status: "ready",
+          reason: "location privacy and retention policy are ready",
+        },
+      ],
+      multicast_policies: [
+        {
+          id: "igmp-snooping",
+          name: "IGMP Snooping",
+          mode: "optimize",
+          action: "snoop_ipv4_memberships",
+          status: "ready",
+          reason: "multicast policy is available for controller/local-radio intent",
+        },
+        {
+          id: "multicast-to-unicast",
+          name: "Multicast To Unicast",
+          mode: "optimize",
+          action: "convert_airtime_delivery",
+          status: "ready",
+          reason: "multicast policy is available for controller/local-radio intent",
+        },
+        {
+          id: "mdns-gateway",
+          name: "mDNS Gateway",
+          mode: "optimize",
+          action: "proxy_mdns",
+          status: "ready",
+          groups: ["224.0.0.251", "ff02::fb"],
+          ipv6_enabled: true,
+          reason: "multicast policy is available for controller/local-radio intent",
+        },
+      ],
+      controller_actions: [
+        {
+          id: "wireless-security-controller-intent",
+          platform: "generic",
+          operation: "preview",
+          status: "observe",
+          reason:
+            "wireless security controller automation is governed as preview-only until release certification evidence is attached",
+          fields: [
+            "rogue_policy",
+            "wips_detection",
+            "spectrum_thresholds",
+            "location_privacy",
+            "multicast_policy",
+          ],
+        },
+      ],
+      compliance: [
+        {
+          id: "sensor-coverage",
+          name: "Sensor Coverage",
+          status: "passed",
+          message: "2 wireless security sensors are available.",
+        },
+        {
+          id: "rogue-governance",
+          name: "Rogue Governance",
+          status: "passed",
+          message: "Rogue classification and containment guardrails are explicit.",
+        },
+        {
+          id: "location-privacy",
+          name: "Location Privacy",
+          status: "passed",
+          message:
+            "Location services use hashed or anonymous client privacy by default.",
+        },
+      ],
+      standards: ["IEEE 802.11-2020", "IEEE 802.11w", "RFC 5176"],
+      vendors: ["Cisco", "Aruba", "Ruckus", "Extreme", "Meraki", "UniFi"],
+      requirements: [
+        "rogue and WIPS policy must classify trusted, watched, and suspicious radios before any enforcement",
+      ],
+      blockers: [],
+      warnings: [],
+      notes: [
+        "Radio containment and spectrum capture require device-specific release certification.",
+      ],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        last_sensor_count: 2,
+        last_rogue_policy_count: 3,
+        last_wips_detection_count: 8,
+        last_spectrum_channel_count: 2,
+        last_location_zone_count: 1,
+        last_multicast_policy_count: 7,
+      },
+      recent_events: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -2579,6 +2958,7 @@ function createSystemStatus() {
       passpoint_lifecycle: createPasspointLifecycle().report,
       ppsk_lifecycle: createPPSKLifecycle().report,
       rf_planning_lifecycle: createRFPlanningLifecycle().report,
+      security_lifecycle: createWirelessSecurityLifecycle().report,
       ssid_count: 0,
       auth_modes: [],
     },
@@ -6864,6 +7244,67 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({
         json: {
           feature_id: "NAS-0079",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+          },
+          events: [],
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/wireless-security-lifecycle" &&
+      method === "GET"
+    ) {
+      await route.fulfill({ json: createWirelessSecurityLifecycle() });
+      return;
+    }
+    if (
+      path === "/system/wireless-security-lifecycle/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createWirelessSecurityLifecycle(),
+          event_id: "wireless-security-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/wireless-security-lifecycle/apply" &&
+      method === "POST"
+    ) {
+      const payload = createWirelessSecurityLifecycle();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0080 recorded wireless security lifecycle for 2 sensors, 3 rogue policy items, 8 WIPS detections, 2 spectrum channels, 1 location zone, and 7 multicast policy items.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "wireless-security-event-apply",
+          result: {
+            status: "applied",
+            event_id: "wireless-security-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/wireless-security-lifecycle/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0080",
           summary: {
             total_events: 1,
             preview_events: 1,

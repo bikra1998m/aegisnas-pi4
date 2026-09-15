@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 83
+	return 84
 }
 
 func Migrate() error {
@@ -4201,3 +4201,42 @@ CREATE INDEX IF NOT EXISTS idx_rf_planning_lifecycle_events_country ON rf_planni
 `
 
 const schemaV83 = rfPlanningLifecycleSQL
+
+const wirelessSecurityLifecycleSQL = `
+CREATE TABLE IF NOT EXISTS wireless_security_lifecycle_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	mode TEXT,
+	controller_platform TEXT,
+	sensor_count INTEGER NOT NULL DEFAULT 0,
+	rogue_policy_count INTEGER NOT NULL DEFAULT 0,
+	wips_detection_count INTEGER NOT NULL DEFAULT 0,
+	spectrum_channel_count INTEGER NOT NULL DEFAULT 0,
+	location_zone_count INTEGER NOT NULL DEFAULT 0,
+	multicast_policy_count INTEGER NOT NULL DEFAULT 0,
+	containment_guard_count INTEGER NOT NULL DEFAULT 0,
+	privacy_check_count INTEGER NOT NULL DEFAULT 0,
+	compliance_check_count INTEGER NOT NULL DEFAULT 0,
+	passed_check_count INTEGER NOT NULL DEFAULT 0,
+	warning_count INTEGER NOT NULL DEFAULT 0,
+	blocker_count INTEGER NOT NULL DEFAULT 0,
+	external_requirement_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_wireless_security_lifecycle_events_created ON wireless_security_lifecycle_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_wireless_security_lifecycle_events_status ON wireless_security_lifecycle_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_wireless_security_lifecycle_events_fingerprint ON wireless_security_lifecycle_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_wireless_security_lifecycle_events_controller ON wireless_security_lifecycle_events(controller_platform, created_at);
+CREATE INDEX IF NOT EXISTS idx_wireless_security_lifecycle_events_mode ON wireless_security_lifecycle_events(mode, created_at);
+`
+
+const schemaV84 = wirelessSecurityLifecycleSQL

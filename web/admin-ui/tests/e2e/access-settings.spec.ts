@@ -211,4 +211,39 @@ test.describe('Access Settings edge-network flow', () => {
       page.getByText(/RF planning lifecycle applied/),
     ).toBeVisible();
   });
+
+  test('previews and applies rogue, WIPS, spectrum, location, and multicast lifecycle', async ({ page }) => {
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto('/access-settings');
+    const securitySection = page.locator('section').filter({
+      has: page.getByRole('heading', {
+        name: 'Rogue, WIPS, Spectrum, Location, And Multicast',
+      }),
+    });
+    await expect(securitySection).toBeVisible();
+    await expect(
+      securitySection.getByRole('heading', { name: 'Rogue Governance' }),
+    ).toBeVisible();
+    await expect(
+      securitySection.getByRole('heading', { name: 'WIPS Detections' }),
+    ).toBeVisible();
+    await expect(
+      securitySection.getByRole('heading', { name: 'Multicast Policy' }),
+    ).toBeVisible();
+    await expect(
+      securitySection.locator('div').filter({ hasText: /^WIPS Checks$/ }).first(),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview WIPS Plan' }).click();
+    await expect(
+      page.getByText(/Wireless security preview recorded/),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Apply WIPS Plan' }).click();
+    await expect(
+      page.getByText(/Wireless security lifecycle applied/),
+    ).toBeVisible();
+  });
 });

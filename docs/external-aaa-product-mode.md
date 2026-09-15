@@ -776,6 +776,16 @@ operator preview/apply checkpoints, while real spectrum surveys, AP telemetry,
 controller firmware behavior, mesh throughput, client steering, HA, scale,
 security, production, and customer proof remain release certification.
 
+NAS-0080 adds rogue/WIPS/spectrum/location/multicast lifecycle evidence for
+enterprise wireless estates. `/api/v1/system/wireless-security-lifecycle`
+reports sensors, rogue classification, containment guardrails, WIPS detection
+families, spectrum watch channels, location privacy zones, multicast policy,
+controller action previews, compliance checks, history, and release
+certification scope. The lifecycle is software-ready for operator preview/apply
+checkpoints, while live containment, spectrum capture, location accuracy,
+multicast airtime proof, controller firmware behavior, HA, scale, security,
+production, and customer proof remain release certification.
+
 NAS-0054 adds the portable tagged VLAN and QinQ policy compiler. Prefer this
 for new role intent because it covers one data VLAN, one tagged voice VLAN,
 extra tagged VLANs, deterministic VLAN pools, fallback VLANs, auth-fail VLANs,

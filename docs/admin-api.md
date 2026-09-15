@@ -1600,6 +1600,32 @@ RF planning lifecycle status is included in `/api/v1/system/status` under
 `api/rf-planning-lifecycle-history.json`. See
 [rf-rrm-mesh-radio-planning.md](rf-rrm-mesh-radio-planning.md).
 
+NAS-0080 adds rogue/WIPS/spectrum/location/multicast lifecycle endpoints:
+
+```text
+GET  /api/v1/system/wireless-security-lifecycle
+POST /api/v1/system/wireless-security-lifecycle/preview
+POST /api/v1/system/wireless-security-lifecycle/apply
+GET  /api/v1/system/wireless-security-lifecycle/history
+```
+
+`GET /api/v1/system/wireless-security-lifecycle` returns wireless security
+sensors, rogue classification and containment guardrails, WIPS detection
+families, spectrum watch channels, location privacy zones, multicast policy
+items, controller action previews, compliance checks, plan fingerprint, software
+completion state, release certification scope, and recent evidence. Preview
+records an event without containment or controller mutation. Apply records an
+auditable checkpoint and runtime status; live containment, spectrum capture,
+location accuracy, multicast airtime proof, and controller mutation remain
+release certification until the exact hardware and firmware scope is certified.
+
+Wireless security lifecycle status is included in `/api/v1/system/status` under
+`wireless.security_lifecycle`, production readiness as
+`wireless_security_lifecycle`, and support bundles as
+`api/wireless-security-lifecycle.json` and
+`api/wireless-security-lifecycle-history.json`. See
+[wips-spectrum-location-multicast.md](wips-spectrum-location-multicast.md).
+
 Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
 
 After committing a role, user, ACL binding, or EAP framework policy through `/api/v1/apply`, run `POST /api/v1/system/radius-apply` (the **Apply RADIUS Config** action in Access Settings). This regenerates the local-user entries in `mods-config/files/authorize`, the legacy `users` path, and `mods-enabled/eap`, validates the complete FreeRADIUS configuration, and restarts FreeRADIUS. Database-backed portal decisions and CoA updates do not require this regeneration. Local bcrypt credentials support PAP and EAP-TTLS/PAP; CHAP and PEAP-MSCHAPv2 require a compatible cleartext or NT password verifier, while EAP-TLS uses certificates. NAS-0022 blocks enforce-mode generation when policy enables cataloged methods that this release cannot generate.

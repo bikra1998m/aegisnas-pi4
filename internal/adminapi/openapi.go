@@ -1238,6 +1238,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0079 RF planning lifecycle event history."),
 	}))
+	addOperation(paths, "/api/v1/system/wireless-security-lifecycle", "get", securedOperation("Read rogue/WIPS/spectrum/location/multicast lifecycle", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0080 wireless security lifecycle report with sensors, rogue policy, WIPS detections, spectrum channels, location privacy, multicast policy, compliance checks, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/wireless-security-lifecycle/preview", "post", securedOperationWithBody("Preview rogue/WIPS/spectrum/location/multicast lifecycle", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without performing live containment, location export, or controller mutation."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0080 wireless security lifecycle report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/wireless-security-lifecycle/apply", "post", securedOperationWithBody("Apply rogue/WIPS/spectrum/location/multicast lifecycle", "Wireless", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a lifecycle checkpoint and runtime status. Live radio containment and controller mutation remain release certification until enabled per adapter."), map[string]any{
+		"200":     responseJSON("Applied NAS-0080 wireless security lifecycle checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/wireless-security-lifecycle/history", "get", securedOperationWithParameters("List rogue/WIPS/spectrum/location/multicast lifecycle history", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0080 wireless security lifecycle event history."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))

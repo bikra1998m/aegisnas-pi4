@@ -119,6 +119,99 @@ wireless:
 	require.ErrorContains(t, err, "outside the 5GHz range")
 }
 
+func TestConfigValidationWirelessSecurityLifecycle(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	content := `
+mode: two-nic
+deployment:
+  profile: enterprise
+  form: virtual
+wan:
+  name: eth0
+  dhcp: true
+lan:
+  name: eth1
+  address: 192.168.1.1/24
+database:
+  path: ":memory:"
+radius:
+  secret: radius-secret
+wireless:
+  enabled: false
+  country_code: US
+  ssids:
+    - name: Corp
+      auth_mode: wpa2-enterprise
+  security:
+    enabled: true
+    mode: monitor
+    fail_closed: true
+    rogue:
+      enabled: true
+      containment_enabled: true
+      allow_containment: true
+      auto_containment: false
+      allowed_ouis: ["001122"]
+      trusted_bssids: ["02:11:22:33:44:55"]
+      min_rssi: -80
+      classification_policy: balanced
+    wips:
+      enabled: true
+      deauth_detection: true
+      alert_threshold: 1
+    spectrum:
+      enabled: true
+      noise_floor_dbm: -95
+      channel_utilization_warn_percent: 70
+      interference_warn_percent: 35
+      duty_cycle_warn_percent: 80
+      sample_interval_seconds: 30
+    location:
+      enabled: true
+      mode: coordinate
+      privacy_mode: hashed
+      min_aps_for_triangulation: 2
+      retention_hours: 720
+      hash_client_identifiers: true
+      zones:
+        - name: HQ
+          floor: "1"
+          building: HQ
+    multicast:
+      enabled: true
+      mode: optimize
+      igmp_snooping: true
+      allowed_groups: ["239.255.255.250"]
+    sensors:
+      - name: sensor-lobby
+        enabled: true
+        bssid: "02:11:22:33:44:55"
+        channels: [1, 36]
+        bands: [2.4ghz, 5ghz]
+`
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+	cfg, err := LoadCandidate(path)
+	require.NoError(t, err)
+	require.True(t, cfg.Wireless.Security.Enabled)
+	require.NoError(t, cfg.Validate())
+
+	cfg.Wireless.Security.Rogue.AllowedOUIs = []string{"not-an-oui"}
+	err = cfg.Validate()
+	require.ErrorContains(t, err, "allowed_ouis")
+
+	cfg.Wireless.Security.Rogue.AllowedOUIs = []string{"001122"}
+	cfg.Wireless.Security.Multicast.AllowedGroups = []string{"192.0.2.10"}
+	err = cfg.Validate()
+	require.ErrorContains(t, err, "multicast address")
+
+	cfg.Wireless.Security.Multicast.AllowedGroups = []string{"239.255.255.250"}
+	cfg.Wireless.Security.Rogue.AutoContainment = true
+	cfg.Wireless.Security.Rogue.AllowContainment = false
+	err = cfg.Validate()
+	require.ErrorContains(t, err, "allow_containment")
+}
+
 func TestConfigValidationEAPFramework(t *testing.T) {
 	cfg := &Config{
 		Mode:     "two-nic",

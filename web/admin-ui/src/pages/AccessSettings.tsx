@@ -3509,6 +3509,14 @@ export default function AccessSettings() {
   const [rfPlanningLifecycleAction, setRFPlanningLifecycleAction] =
     useState("");
   const rfPlanningLifecycleBusy = rfPlanningLifecycleAction !== "";
+  const [wirelessSecurityLifecycle, setWirelessSecurityLifecycle] =
+    useState<JsonMap | null>(null);
+  const [
+    wirelessSecurityLifecycleAction,
+    setWirelessSecurityLifecycleAction,
+  ] = useState("");
+  const wirelessSecurityLifecycleBusy =
+    wirelessSecurityLifecycleAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3610,6 +3618,11 @@ export default function AccessSettings() {
   const loadRFPlanningLifecycle = async () => {
     const { data } = await api.get("/system/rf-planning-lifecycle");
     setRFPlanningLifecycle(data.report || null);
+  };
+
+  const loadWirelessSecurityLifecycle = async () => {
+    const { data } = await api.get("/system/wireless-security-lifecycle");
+    setWirelessSecurityLifecycle(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3846,6 +3859,7 @@ export default function AccessSettings() {
         ppskRes,
         controllerEstateRes,
         rfPlanningRes,
+        wirelessSecurityRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -3855,6 +3869,7 @@ export default function AccessSettings() {
         api.get("/system/ppsk-lifecycle"),
         api.get("/system/controller-estate-lifecycle"),
         api.get("/system/rf-planning-lifecycle"),
+        api.get("/system/wireless-security-lifecycle"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -3866,6 +3881,7 @@ export default function AccessSettings() {
       setPPSKLifecycle(ppskRes.data.report || null);
       setControllerEstateLifecycle(controllerEstateRes.data.report || null);
       setRFPlanningLifecycle(rfPlanningRes.data.report || null);
+      setWirelessSecurityLifecycle(wirelessSecurityRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -3959,6 +3975,7 @@ export default function AccessSettings() {
       await loadPPSKLifecycle();
       await loadControllerEstateLifecycle();
       await loadRFPlanningLifecycle();
+      await loadWirelessSecurityLifecycle();
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4504,6 +4521,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewWirelessSecurityLifecycle = async () => {
+    setWirelessSecurityLifecycleAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/wireless-security-lifecycle/preview",
+        {},
+      );
+      setWirelessSecurityLifecycle(data.report || null);
+      setMessage(
+        `Wireless security preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview rogue/WIPS/spectrum/location/multicast lifecycle.",
+      );
+    } finally {
+      setWirelessSecurityLifecycleAction("");
+    }
+  };
+
+  const applyWirelessSecurityLifecycle = async () => {
+    setWirelessSecurityLifecycleAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/wireless-security-lifecycle/apply",
+        {},
+      );
+      setWirelessSecurityLifecycle(data.report || null);
+      setMessage(
+        `Wireless security lifecycle ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadWirelessSecurityLifecycle();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply rogue/WIPS/spectrum/location/multicast lifecycle.",
+      );
+    } finally {
+      setWirelessSecurityLifecycleAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -4966,6 +5034,43 @@ export default function AccessSettings() {
     ? rfPlanningLifecycle?.compliance
     : [];
   const rfPlanningTone = statusTone(rfPlanningLifecycle?.status);
+  const wirelessSecuritySummary = wirelessSecurityLifecycle?.summary || {};
+  const wirelessSecuritySensors = Array.isArray(
+    wirelessSecurityLifecycle?.sensors,
+  )
+    ? wirelessSecurityLifecycle?.sensors
+    : [];
+  const wirelessRoguePolicies = Array.isArray(
+    wirelessSecurityLifecycle?.rogue_policies,
+  )
+    ? wirelessSecurityLifecycle?.rogue_policies
+    : [];
+  const wirelessWIPSDetections = Array.isArray(
+    wirelessSecurityLifecycle?.wips_detections,
+  )
+    ? wirelessSecurityLifecycle?.wips_detections
+    : [];
+  const wirelessSpectrumChannels = Array.isArray(
+    wirelessSecurityLifecycle?.spectrum_channels,
+  )
+    ? wirelessSecurityLifecycle?.spectrum_channels
+    : [];
+  const wirelessLocationZones = Array.isArray(
+    wirelessSecurityLifecycle?.location_zones,
+  )
+    ? wirelessSecurityLifecycle?.location_zones
+    : [];
+  const wirelessMulticastPolicies = Array.isArray(
+    wirelessSecurityLifecycle?.multicast_policies,
+  )
+    ? wirelessSecurityLifecycle?.multicast_policies
+    : [];
+  const wirelessSecurityCompliance = Array.isArray(
+    wirelessSecurityLifecycle?.compliance,
+  )
+    ? wirelessSecurityLifecycle?.compliance
+    : [];
+  const wirelessSecurityTone = statusTone(wirelessSecurityLifecycle?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -5245,6 +5350,24 @@ export default function AccessSettings() {
             {rfPlanningLifecycleAction === "apply"
               ? "Applying RF Plan..."
               : "Apply RF Plan"}
+          </button>
+          <button
+            onClick={previewWirelessSecurityLifecycle}
+            disabled={wirelessSecurityLifecycleBusy}
+            className="rounded-md border border-rose-200 px-4 py-2 text-sm font-medium text-rose-800 disabled:opacity-60"
+          >
+            {wirelessSecurityLifecycleAction === "preview"
+              ? "Checking WIPS..."
+              : "Preview WIPS Plan"}
+          </button>
+          <button
+            onClick={applyWirelessSecurityLifecycle}
+            disabled={wirelessSecurityLifecycleBusy}
+            className="rounded-md border border-rose-300 px-4 py-2 text-sm font-medium text-rose-900 disabled:opacity-60"
+          >
+            {wirelessSecurityLifecycleAction === "apply"
+              ? "Applying WIPS..."
+              : "Apply WIPS Plan"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -6003,6 +6126,421 @@ export default function AccessSettings() {
         ) : (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
             Controller estate lifecycle report has not loaded yet.
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Rogue, WIPS, Spectrum, Location, And Multicast
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {wirelessSecurityLifecycle?.release_certification_checklist ||
+                "Govern rogue containment, WIPS detections, spectrum watch channels, location privacy, and multicast airtime controls before production wireless rollout."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${wirelessSecurityTone}`}
+          >
+            {wirelessSecurityLifecycle?.status || "unknown"}
+          </div>
+        </div>
+        {wirelessSecurityLifecycle ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {wirelessSecurityLifecycle.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                ["Sensors", wirelessSecuritySummary.sensor_count || 0],
+                ["Rogue Rules", wirelessSecuritySummary.rogue_policy_count || 0],
+                ["WIPS Checks", wirelessSecuritySummary.wips_detection_count || 0],
+                ["Spectrum", wirelessSecuritySummary.spectrum_channel_count || 0],
+                ["Multicast", wirelessSecuritySummary.multicast_policy_count || 0],
+                [
+                  "Compliance",
+                  `${wirelessSecuritySummary.passed_check_count || 0}/${wirelessSecuritySummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Security Sensors
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {wirelessSecuritySensors.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No WIPS sensor or AP radio is present.
+                    </div>
+                  ) : (
+                    wirelessSecuritySensors
+                      .slice(0, 8)
+                      .map((sensor: JsonMap, index: number) => (
+                        <div
+                          key={`${sensor.name || "sensor"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {sensor.name || "Unnamed sensor"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                sensor.status,
+                              )}`}
+                            >
+                              {sensor.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              sensor.source,
+                              sensor.zone,
+                              Array.isArray(sensor.bands)
+                                ? sensor.bands.join(", ")
+                                : "",
+                              Array.isArray(sensor.channels)
+                                ? `channels ${sensor.channels.join(", ")}`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Sensor metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Rogue Governance
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {wirelessRoguePolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No rogue policy is present.
+                    </div>
+                  ) : (
+                    wirelessRoguePolicies
+                      .slice(0, 8)
+                      .map((policy: JsonMap, index: number) => (
+                        <div
+                          key={`${policy.id || "rogue"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {policy.name || policy.id || "Rogue Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                policy.status,
+                              )}`}
+                            >
+                              {policy.status || "observe"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              policy.action,
+                              policy.quarantine_role
+                                ? `role ${policy.quarantine_role}`
+                                : "",
+                              policy.min_rssi ? `min ${policy.min_rssi}` : "",
+                              Array.isArray(policy.containment_guard)
+                                ? `${policy.containment_guard.length} guardrails`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Rogue policy metadata only"}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500">
+                            {policy.reason || "Rogue governance is planned."}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  WIPS Detections
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {wirelessWIPSDetections.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No WIPS detection is active.
+                    </div>
+                  ) : (
+                    wirelessWIPSDetections
+                      .slice(0, 8)
+                      .map((detection: JsonMap, index: number) => (
+                        <div
+                          key={`${detection.id || "wips"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {detection.name || detection.id || "WIPS Check"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                detection.status,
+                              )}`}
+                            >
+                              {detection.severity || detection.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              detection.category,
+                              detection.threshold
+                                ? `threshold ${detection.threshold}`
+                                : "",
+                              Array.isArray(detection.required_inputs)
+                                ? detection.required_inputs.join(", ")
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Detection metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Spectrum Channels
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {wirelessSpectrumChannels.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No spectrum channel watch is present.
+                    </div>
+                  ) : (
+                    wirelessSpectrumChannels
+                      .slice(0, 8)
+                      .map((channel: JsonMap, index: number) => (
+                        <div
+                          key={`${channel.band || "band"}-${channel.channel || index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {channel.band || "band"} channel{" "}
+                              {channel.channel || "auto"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                channel.status,
+                              )}`}
+                            >
+                              {channel.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              channel.noise_floor_dbm
+                                ? `${channel.noise_floor_dbm} dBm floor`
+                                : "",
+                              channel.channel_utilization_warn_percent
+                                ? `${channel.channel_utilization_warn_percent}% utilization`
+                                : "",
+                              Array.isArray(channel.sensors)
+                                ? `${channel.sensors.length} sensor(s)`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Spectrum metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Location Privacy
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {wirelessLocationZones.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No location zone is present.
+                    </div>
+                  ) : (
+                    wirelessLocationZones
+                      .slice(0, 8)
+                      .map((zone: JsonMap, index: number) => (
+                        <div
+                          key={`${zone.name || "zone"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {zone.name || "Location Zone"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                zone.status,
+                              )}`}
+                            >
+                              {zone.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              zone.mode,
+                              zone.privacy_mode,
+                              zone.hash_client_identifiers
+                                ? "hashed clients"
+                                : "",
+                              zone.export_client_coordinates
+                                ? "coordinate export"
+                                : "no coordinate export",
+                              zone.retention_hours
+                                ? `${zone.retention_hours}h retention`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Multicast Policy
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {wirelessMulticastPolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No multicast policy is present.
+                    </div>
+                  ) : (
+                    wirelessMulticastPolicies
+                      .slice(0, 8)
+                      .map((policy: JsonMap, index: number) => (
+                        <div
+                          key={`${policy.id || "multicast"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {policy.name || policy.id || "Multicast Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                policy.status,
+                              )}`}
+                            >
+                              {policy.status || "observe"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              policy.mode,
+                              policy.action,
+                              policy.ipv6_enabled ? "IPv6" : "",
+                              Array.isArray(policy.groups)
+                                ? policy.groups.join(", ")
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Multicast metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Compliance Checks
+              </h4>
+              <div className="mt-2 grid gap-2 lg:grid-cols-2">
+                {wirelessSecurityCompliance.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                    No wireless security compliance check is present.
+                  </div>
+                ) : (
+                  wirelessSecurityCompliance
+                    .slice(0, 10)
+                    .map((check: JsonMap, index: number) => (
+                      <div
+                        key={`${check.id || "wireless-security-check"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {check.name || check.id || "Compliance Check"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              check.status,
+                            )}`}
+                          >
+                            {check.status || "unknown"}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {check.message || "No compliance message"}
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+            {((wirelessSecurityLifecycle.blockers?.length || 0) > 0 ||
+              (wirelessSecurityLifecycle.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(wirelessSecurityLifecycle.blockers || []),
+                  ...(wirelessSecurityLifecycle.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Mode{" "}
+              <span className="font-mono">
+                {wirelessSecuritySummary.mode || "monitor"}
+              </span>{" "}
+              / controller{" "}
+              <span className="font-mono">
+                {wirelessSecuritySummary.controller_platform || "local"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {wirelessSecurityLifecycle.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Rogue/WIPS/spectrum/location/multicast lifecycle report has not
+            loaded yet.
           </div>
         )}
       </section>

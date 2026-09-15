@@ -887,6 +887,40 @@ data, AP telemetry, spectrum captures, firmware behavior, HA, scale, soak,
 security audit, production deployment, and customer acceptance evidence stay in
 `nas-0079-release-certification-checklist.md`.
 
+For rogue/WIPS/spectrum/location/multicast governance, preview NAS-0080 before
+enabling containment, privacy-sensitive location exports, or multicast
+optimization:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/wireless-security-lifecycle/preview \
+  | jq '.report.status, .report.summary, .report.rogue_policies, .report.multicast_policies'
+```
+
+Apply only after reviewing the sensor coverage, trusted rogue baseline,
+containment guardrails, WIPS detection families, spectrum watch channels,
+location privacy mode, coordinate export setting, multicast controls,
+controller action previews, compliance checks, and plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/wireless-security-lifecycle/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/wireless-security-lifecycle/history` and the support bundle
+files `api/wireless-security-lifecycle.json` and
+`api/wireless-security-lifecycle-history.json` during rogue/WIPS, spectrum,
+location, multicast, controller ownership, and privacy investigations. Live
+containment, spectrum capture quality, location accuracy, multicast airtime
+proof, controller firmware behavior, HA, scale, soak, security audit,
+production deployment, and customer acceptance evidence stay in
+`nas-0080-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

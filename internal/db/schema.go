@@ -208,6 +208,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{81, schemaV81},
 		{82, schemaV82},
 		{83, schemaV83},
+		{84, schemaV84},
 	}
 
 	for _, m := range migrations {
@@ -414,6 +415,9 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureRFPlanningLifecycleTables(handle); err != nil {
 		return fmt.Errorf("repair RF planning lifecycle schema: %w", err)
 	}
+	if err := ensureWirelessSecurityLifecycleTables(handle); err != nil {
+		return fmt.Errorf("repair wireless security lifecycle schema: %w", err)
+	}
 
 	return nil
 }
@@ -431,6 +435,14 @@ func ensureRFPlanningLifecycleTables(handle *sql.DB) error {
 		return fmt.Errorf("database handle is required")
 	}
 	_, err := handle.Exec(SQLForDialect(rfPlanningLifecycleSQL, DialectForHandle(handle)))
+	return err
+}
+
+func ensureWirelessSecurityLifecycleTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(wirelessSecurityLifecycleSQL, DialectForHandle(handle)))
 	return err
 }
 

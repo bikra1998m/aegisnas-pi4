@@ -1684,6 +1684,7 @@ type WirelessConfig struct {
 	Passpoint           WirelessPasspointConfig `mapstructure:"passpoint"`
 	PPSK                WirelessPPSKConfig      `mapstructure:"ppsk"`
 	RF                  WirelessRFConfig        `mapstructure:"rf"`
+	Security            WirelessSecurityConfig  `mapstructure:"security"`
 	SSIDs               []SSIDConfig            `mapstructure:"ssids"`
 }
 
@@ -1776,6 +1777,102 @@ type WirelessRFControllerConfig struct {
 	Enabled              bool     `mapstructure:"enabled"`
 	AllowControllerApply bool     `mapstructure:"allow_controller_apply"`
 	ManagedFields        []string `mapstructure:"managed_fields"`
+}
+
+type WirelessSecurityConfig struct {
+	Enabled             bool                           `mapstructure:"enabled"`
+	Mode                string                         `mapstructure:"mode"`
+	FailClosed          bool                           `mapstructure:"fail_closed"`
+	EventRetentionLimit int                            `mapstructure:"event_retention_limit"`
+	Rogue               WirelessRogueConfig            `mapstructure:"rogue"`
+	WIPS                WirelessWIPSConfig             `mapstructure:"wips"`
+	Spectrum            WirelessSpectrumConfig         `mapstructure:"spectrum"`
+	Location            WirelessLocationConfig         `mapstructure:"location"`
+	Multicast           WirelessMulticastConfig        `mapstructure:"multicast"`
+	Sensors             []WirelessSecuritySensorConfig `mapstructure:"sensors"`
+}
+
+type WirelessRogueConfig struct {
+	Enabled              bool     `mapstructure:"enabled"`
+	ContainmentEnabled   bool     `mapstructure:"containment_enabled"`
+	AutoContainment      bool     `mapstructure:"auto_containment"`
+	AllowContainment     bool     `mapstructure:"allow_containment"`
+	QuarantineRole       string   `mapstructure:"quarantine_role"`
+	AllowedOUIs          []string `mapstructure:"allowed_ouis"`
+	TrustedBSSIDs        []string `mapstructure:"trusted_bssids"`
+	TrustedSSIDs         []string `mapstructure:"trusted_ssids"`
+	WatchSSIDs           []string `mapstructure:"watch_ssids"`
+	MinRSSI              int      `mapstructure:"min_rssi"`
+	ClassificationPolicy string   `mapstructure:"classification_policy"`
+}
+
+type WirelessWIPSConfig struct {
+	Enabled              bool `mapstructure:"enabled"`
+	DeauthDetection      bool `mapstructure:"deauth_detection"`
+	EvilTwinDetection    bool `mapstructure:"evil_twin_detection"`
+	HoneypotDetection    bool `mapstructure:"honeypot_detection"`
+	AdHocDetection       bool `mapstructure:"adhoc_detection"`
+	SpoofingDetection    bool `mapstructure:"spoofing_detection"`
+	FloodDetection       bool `mapstructure:"flood_detection"`
+	EAPOLAttackDetection bool `mapstructure:"eapol_attack_detection"`
+	PMFRequired          bool `mapstructure:"pmf_required"`
+	AlertThreshold       int  `mapstructure:"alert_threshold"`
+}
+
+type WirelessSpectrumConfig struct {
+	Enabled                       bool `mapstructure:"enabled"`
+	NoiseFloorDBM                 int  `mapstructure:"noise_floor_dbm"`
+	ChannelUtilizationWarnPercent int  `mapstructure:"channel_utilization_warn_percent"`
+	InterferenceWarnPercent       int  `mapstructure:"interference_warn_percent"`
+	DutyCycleWarnPercent          int  `mapstructure:"duty_cycle_warn_percent"`
+	SampleIntervalSeconds         int  `mapstructure:"sample_interval_seconds"`
+}
+
+type WirelessLocationConfig struct {
+	Enabled                 bool                         `mapstructure:"enabled"`
+	Mode                    string                       `mapstructure:"mode"`
+	PrivacyMode             string                       `mapstructure:"privacy_mode"`
+	MinAPsForTriangulation  int                          `mapstructure:"min_aps_for_triangulation"`
+	RetentionHours          int                          `mapstructure:"retention_hours"`
+	HashClientIdentifiers   bool                         `mapstructure:"hash_client_identifiers"`
+	ExportClientCoordinates bool                         `mapstructure:"export_client_coordinates"`
+	Zones                   []WirelessLocationZoneConfig `mapstructure:"zones"`
+}
+
+type WirelessLocationZoneConfig struct {
+	Name           string  `mapstructure:"name"`
+	Floor          string  `mapstructure:"floor"`
+	Building       string  `mapstructure:"building"`
+	Latitude       float64 `mapstructure:"latitude"`
+	Longitude      float64 `mapstructure:"longitude"`
+	RadiusMeters   int     `mapstructure:"radius_meters"`
+	RetentionHours int     `mapstructure:"retention_hours"`
+}
+
+type WirelessMulticastConfig struct {
+	Enabled            bool     `mapstructure:"enabled"`
+	Mode               string   `mapstructure:"mode"`
+	IGMPSnooping       bool     `mapstructure:"igmp_snooping"`
+	MLDSnooping        bool     `mapstructure:"mld_snooping"`
+	MulticastToUnicast bool     `mapstructure:"multicast_to_unicast"`
+	BroadcastFilter    bool     `mapstructure:"broadcast_filter"`
+	MDNSGateway        bool     `mapstructure:"mdns_gateway"`
+	SSDPFilter         bool     `mapstructure:"ssdp_filter"`
+	IPv6Multicast      bool     `mapstructure:"ipv6_multicast"`
+	MaxGroups          int      `mapstructure:"max_groups"`
+	AllowedGroups      []string `mapstructure:"allowed_groups"`
+}
+
+type WirelessSecuritySensorConfig struct {
+	Name       string   `mapstructure:"name"`
+	Enabled    bool     `mapstructure:"enabled"`
+	Location   string   `mapstructure:"location"`
+	Zone       string   `mapstructure:"zone"`
+	Floor      string   `mapstructure:"floor"`
+	BSSID      string   `mapstructure:"bssid"`
+	Channels   []int    `mapstructure:"channels"`
+	Bands      []string `mapstructure:"bands"`
+	Controller string   `mapstructure:"controller"`
 }
 
 type WirelessRoamingConfig struct {
@@ -5965,6 +6062,9 @@ func (c *Config) Validate() error {
 	if err := validateWirelessRFConfig(c.Wireless); err != nil {
 		return err
 	}
+	if err := validateWirelessSecurityConfig(c.Wireless); err != nil {
+		return err
+	}
 	if c.Wireless.Enabled {
 		if EffectiveDeploymentForm(c.Deployment.Form) == "virtual" && !c.Deployment.Hardware.WirelessPassthrough {
 			return errors.New("wireless.enabled requires deployment.hardware.wireless_passthrough on virtual appliances")
@@ -6282,12 +6382,222 @@ func validateWirelessRFConfig(wireless WirelessConfig) error {
 	return nil
 }
 
+func validateWirelessSecurityConfig(wireless WirelessConfig) error {
+	security := wireless.Security
+	if !security.Enabled {
+		return nil
+	}
+	switch effectiveWirelessSecurityMode(security.Mode) {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("wireless.security.mode %q must be monitor or enforce", security.Mode)
+	}
+	if security.EventRetentionLimit < 0 || security.EventRetentionLimit > 1000000 {
+		return errors.New("wireless.security.event_retention_limit must be between 1 and 1000000 when set")
+	}
+	if security.Rogue.Enabled {
+		if security.Rogue.AutoContainment && !security.Rogue.ContainmentEnabled {
+			return errors.New("wireless.security.rogue.auto_containment requires containment_enabled")
+		}
+		if security.Rogue.AutoContainment && !security.Rogue.AllowContainment {
+			return errors.New("wireless.security.rogue.auto_containment requires allow_containment")
+		}
+		if security.Rogue.MinRSSI > 0 || security.Rogue.MinRSSI < -100 {
+			return errors.New("wireless.security.rogue.min_rssi must be between -100 and 0")
+		}
+		switch effectiveWirelessRogueClassificationPolicy(security.Rogue.ClassificationPolicy) {
+		case "strict", "balanced", "permissive":
+		default:
+			return fmt.Errorf("wireless.security.rogue.classification_policy %q must be strict, balanced, or permissive", security.Rogue.ClassificationPolicy)
+		}
+		for i, oui := range security.Rogue.AllowedOUIs {
+			if !validWirelessOUI(oui) {
+				return fmt.Errorf("wireless.security.rogue.allowed_ouis[%d] %q must contain six hexadecimal OUI characters", i, oui)
+			}
+		}
+		for i, bssid := range security.Rogue.TrustedBSSIDs {
+			if strings.TrimSpace(bssid) == "" {
+				continue
+			}
+			if _, err := net.ParseMAC(bssid); err != nil {
+				return fmt.Errorf("wireless.security.rogue.trusted_bssids[%d] %q is not a valid MAC address", i, bssid)
+			}
+		}
+	}
+	if security.WIPS.Enabled {
+		if security.WIPS.AlertThreshold < 0 || security.WIPS.AlertThreshold > 1000000 {
+			return errors.New("wireless.security.wips.alert_threshold must be between 0 and 1000000")
+		}
+	}
+	if security.Spectrum.Enabled {
+		if security.Spectrum.NoiseFloorDBM > 0 || security.Spectrum.NoiseFloorDBM < -130 {
+			return errors.New("wireless.security.spectrum.noise_floor_dbm must be between -130 and 0")
+		}
+		if err := validatePercent("wireless.security.spectrum.channel_utilization_warn_percent", security.Spectrum.ChannelUtilizationWarnPercent); err != nil {
+			return err
+		}
+		if err := validatePercent("wireless.security.spectrum.interference_warn_percent", security.Spectrum.InterferenceWarnPercent); err != nil {
+			return err
+		}
+		if err := validatePercent("wireless.security.spectrum.duty_cycle_warn_percent", security.Spectrum.DutyCycleWarnPercent); err != nil {
+			return err
+		}
+		if security.Spectrum.SampleIntervalSeconds != 0 && security.Spectrum.SampleIntervalSeconds < 5 {
+			return errors.New("wireless.security.spectrum.sample_interval_seconds must be at least 5 when set")
+		}
+	}
+	if security.Location.Enabled {
+		switch effectiveWirelessLocationMode(security.Location.Mode) {
+		case "presence", "zone", "coordinate":
+		default:
+			return fmt.Errorf("wireless.security.location.mode %q must be presence, zone, or coordinate", security.Location.Mode)
+		}
+		switch effectiveWirelessPrivacyMode(security.Location.PrivacyMode) {
+		case "anonymous", "hashed", "raw":
+		default:
+			return fmt.Errorf("wireless.security.location.privacy_mode %q must be anonymous, hashed, or raw", security.Location.PrivacyMode)
+		}
+		if security.Location.MinAPsForTriangulation < 0 || security.Location.MinAPsForTriangulation > 32 {
+			return errors.New("wireless.security.location.min_aps_for_triangulation must be between 0 and 32")
+		}
+		if security.Location.RetentionHours < 0 || security.Location.RetentionHours > 43800 {
+			return errors.New("wireless.security.location.retention_hours must be between 0 and 43800")
+		}
+		for i, zone := range security.Location.Zones {
+			if strings.TrimSpace(zone.Name) == "" {
+				return fmt.Errorf("wireless.security.location.zones[%d].name cannot be empty", i)
+			}
+			if zone.Latitude < -90 || zone.Latitude > 90 {
+				return fmt.Errorf("wireless.security.location.zones[%d].latitude out of range", i)
+			}
+			if zone.Longitude < -180 || zone.Longitude > 180 {
+				return fmt.Errorf("wireless.security.location.zones[%d].longitude out of range", i)
+			}
+			if zone.RadiusMeters < 0 || zone.RadiusMeters > 100000 {
+				return fmt.Errorf("wireless.security.location.zones[%d].radius_meters out of range", i)
+			}
+			if zone.RetentionHours < 0 || zone.RetentionHours > 43800 {
+				return fmt.Errorf("wireless.security.location.zones[%d].retention_hours must be between 0 and 43800", i)
+			}
+		}
+	}
+	if security.Multicast.Enabled {
+		switch effectiveWirelessMulticastMode(security.Multicast.Mode) {
+		case "monitor", "optimize", "block":
+		default:
+			return fmt.Errorf("wireless.security.multicast.mode %q must be monitor, optimize, or block", security.Multicast.Mode)
+		}
+		if security.Multicast.MaxGroups < 0 || security.Multicast.MaxGroups > 1000000 {
+			return errors.New("wireless.security.multicast.max_groups must be between 0 and 1000000")
+		}
+		for i, group := range security.Multicast.AllowedGroups {
+			ip := net.ParseIP(strings.TrimSpace(group))
+			if ip == nil || !ip.IsMulticast() {
+				return fmt.Errorf("wireless.security.multicast.allowed_groups[%d] %q must be an IPv4 or IPv6 multicast address", i, group)
+			}
+		}
+	}
+	sensorNames := map[string]struct{}{}
+	for i, sensor := range security.Sensors {
+		if !sensor.Enabled {
+			continue
+		}
+		name := strings.TrimSpace(sensor.Name)
+		if name == "" {
+			return fmt.Errorf("wireless.security.sensors[%d].name cannot be empty", i)
+		}
+		key := strings.ToLower(name)
+		if _, exists := sensorNames[key]; exists {
+			return fmt.Errorf("wireless.security.sensors[%d].name %q duplicates an earlier sensor", i, sensor.Name)
+		}
+		sensorNames[key] = struct{}{}
+		if strings.TrimSpace(sensor.BSSID) != "" {
+			if _, err := net.ParseMAC(sensor.BSSID); err != nil {
+				return fmt.Errorf("wireless.security.sensors[%d].bssid %q is not a valid MAC address", i, sensor.BSSID)
+			}
+		}
+		for j, band := range sensor.Bands {
+			normalized := normalizeRFBand(band)
+			if normalized == "" {
+				return fmt.Errorf("wireless.security.sensors[%d].bands[%d] cannot be empty", i, j)
+			}
+			switch normalized {
+			case "2.4ghz", "5ghz", "6ghz":
+			default:
+				return fmt.Errorf("wireless.security.sensors[%d].bands[%d] %q is invalid", i, j, band)
+			}
+		}
+		for j, channel := range sensor.Channels {
+			if channel < 1 || channel > 233 {
+				return fmt.Errorf("wireless.security.sensors[%d].channels[%d] channel %d out of range", i, j, channel)
+			}
+		}
+	}
+	return nil
+}
+
 func effectiveRFMode(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
 	if value == "" {
 		return "monitor"
 	}
 	return value
+}
+
+func effectiveWirelessSecurityMode(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "monitor"
+	}
+	return value
+}
+
+func effectiveWirelessRogueClassificationPolicy(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "balanced"
+	}
+	return value
+}
+
+func effectiveWirelessLocationMode(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "zone"
+	}
+	return value
+}
+
+func effectiveWirelessPrivacyMode(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "hashed"
+	}
+	return value
+}
+
+func effectiveWirelessMulticastMode(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "monitor"
+	}
+	return value
+}
+
+func validatePercent(field string, value int) error {
+	if value < 0 || value > 100 {
+		return fmt.Errorf("%s must be between 0 and 100", field)
+	}
+	return nil
+}
+
+func validWirelessOUI(value string) bool {
+	normalized := strings.NewReplacer(":", "", "-", "", ".", "").Replace(strings.TrimSpace(value))
+	if len(normalized) != 6 {
+		return false
+	}
+	_, err := strconv.ParseUint(normalized, 16, 32)
+	return err == nil
 }
 
 func effectiveRFChannelPlanMode(value string) string {
