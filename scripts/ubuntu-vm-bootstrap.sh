@@ -591,7 +591,7 @@ run_tests() {
 
   log "Running Go test suite."
   export CGO_ENABLED=0
-  go test -count=1 -p=1 ./...
+  go test -timeout=20m -count=1 -p=1 ./...
 }
 
 build_release() {

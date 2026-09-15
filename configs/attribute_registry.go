@@ -36,6 +36,7 @@ type AttributeRegistry struct {
 	Entries              []AttributeRegistryEntry `json:"entries"`
 	byName               map[string]int
 	byWire               map[string][]int
+	byPackAttribute      map[string]int
 }
 
 type AttributeRegistryEntry struct {
@@ -115,6 +116,7 @@ func ParseAttributeRegistryCSV(payload []byte) (*AttributeRegistry, error) {
 		SourceSHA256:     hex.EncodeToString(digest[:]),
 		byName:           map[string]int{},
 		byWire:           map[string][]int{},
+		byPackAttribute:  map[string]int{},
 	}
 
 	reader := csv.NewReader(strings.NewReader(string(payload)))
@@ -217,8 +219,31 @@ func (r *AttributeRegistry) addEntry(entry AttributeRegistryEntry) {
 	idx := len(r.Entries) - 1
 	r.byName[attributeRegistryNameKey(entry.Vendor, entry.Attribute)] = idx
 	r.byWire[entry.WireKey] = append(r.byWire[entry.WireKey], idx)
+	r.addPackAttributeIndex(entry, idx)
 	if entry.DictionaryStatus != "missing" {
 		r.MappedCount++
+	}
+}
+
+func (r *AttributeRegistry) addPackAttributeIndex(entry AttributeRegistryEntry, idx int) {
+	if r.byPackAttribute == nil {
+		r.byPackAttribute = map[string]int{}
+	}
+	vendor := strings.ToLower(strings.TrimSpace(NormalizeDictionaryVendorName(DefaultDictionaryReleaseProfileID, entry.Vendor)))
+	attribute := strings.ToLower(strings.TrimSpace(NormalizeDictionaryAttributeName(DefaultDictionaryReleaseProfileID, entry.Vendor, entry.Attribute)))
+	for _, candidate := range attributeRegistryPackAttributeCandidates(attribute) {
+		if entry.PEN > 0 {
+			key := attributeRegistryPackPENKey(entry.PEN, candidate)
+			if _, exists := r.byPackAttribute[key]; !exists {
+				r.byPackAttribute[key] = idx
+			}
+		}
+		if vendor != "" {
+			key := attributeRegistryPackVendorKey(vendor, candidate)
+			if _, exists := r.byPackAttribute[key]; !exists {
+				r.byPackAttribute[key] = idx
+			}
+		}
 	}
 }
 
@@ -1451,19 +1476,50 @@ func (r *AttributeRegistry) lookupPackAttribute(pack VendorCompatibilityPack, at
 	if entry, ok := r.LookupName(pack.VendorName, attribute); ok {
 		return entry, true
 	}
-	for _, entry := range r.Entries {
-		if pack.VendorID > 0 && entry.PEN != uint32(pack.VendorID) {
-			continue
+	if pack.VendorID > 0 {
+		if idx, ok := r.byPackAttribute[attributeRegistryPackPENKey(uint32(pack.VendorID), attribute)]; ok {
+			return r.Entries[idx], true
 		}
-		if pack.VendorID == 0 && !strings.EqualFold(NormalizeDictionaryVendorName(DefaultDictionaryReleaseProfileID, entry.Vendor), NormalizeDictionaryVendorName(DefaultDictionaryReleaseProfileID, pack.VendorName)) {
-			continue
-		}
-		candidate := strings.ToLower(strings.TrimSpace(NormalizeDictionaryAttributeName(DefaultDictionaryReleaseProfileID, entry.Vendor, entry.Attribute)))
-		if candidate == attribute || strings.HasSuffix(candidate, "-"+attribute) {
-			return entry, true
+	}
+	vendor := strings.ToLower(strings.TrimSpace(NormalizeDictionaryVendorName(DefaultDictionaryReleaseProfileID, pack.VendorName)))
+	if vendor != "" {
+		if idx, ok := r.byPackAttribute[attributeRegistryPackVendorKey(vendor, attribute)]; ok {
+			return r.Entries[idx], true
 		}
 	}
 	return AttributeRegistryEntry{}, false
+}
+
+func attributeRegistryPackAttributeCandidates(attribute string) []string {
+	attribute = strings.ToLower(strings.TrimSpace(attribute))
+	if attribute == "" {
+		return nil
+	}
+	seen := map[string]struct{}{attribute: struct{}{}}
+	candidates := []string{attribute}
+	for idx, char := range attribute {
+		if char != '-' || idx+1 >= len(attribute) {
+			continue
+		}
+		suffix := strings.TrimSpace(attribute[idx+1:])
+		if suffix == "" {
+			continue
+		}
+		if _, exists := seen[suffix]; exists {
+			continue
+		}
+		seen[suffix] = struct{}{}
+		candidates = append(candidates, suffix)
+	}
+	return candidates
+}
+
+func attributeRegistryPackPENKey(pen uint32, attribute string) string {
+	return fmt.Sprintf("pen:%d\x00%s", pen, strings.ToLower(strings.TrimSpace(attribute)))
+}
+
+func attributeRegistryPackVendorKey(vendor, attribute string) string {
+	return "vendor:" + strings.ToLower(strings.TrimSpace(vendor)) + "\x00" + strings.ToLower(strings.TrimSpace(attribute))
 }
 
 func (r *AttributeRegistry) RuntimeMappings() []AttributeRuntimeMapping {

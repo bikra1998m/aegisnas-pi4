@@ -57,6 +57,12 @@ func TestAttributeRegistryIndexesAndRuntimeCodecs(t *testing.T) {
 	assert.True(t, wimax.WireCodec.Repeated)
 	assert.Equal(t, 1, wimax.WireCodec.TypeOctets)
 	assert.Equal(t, 1, wimax.WireCodec.LengthOctets)
+
+	ciscoBySuffix, ok := registry.lookupPackAttribute(VendorCompatibilityPack{
+		Key: VendorPackCisco, VendorName: "Cisco", VendorID: 9,
+	}, "AVPair")
+	require.True(t, ok)
+	assert.Equal(t, "Cisco-AVPair", ciscoBySuffix.Attribute)
 }
 
 func TestAttributeRegistryValidatesRendererPackContract(t *testing.T) {
