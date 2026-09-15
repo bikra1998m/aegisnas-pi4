@@ -2117,6 +2117,51 @@ const defaultSettings: JsonMap = {
       neighbor_aps: [],
       profiles: [],
     },
+    passpoint: {
+      enabled: false,
+      mode: "monitor",
+      fail_closed: true,
+      default_profile: "",
+      interworking: true,
+      hs20: true,
+      access_network_type: 2,
+      internet: true,
+      asra: false,
+      esr: false,
+      uesa: false,
+      venue_group: 2,
+      venue_type: 8,
+      hessid: "",
+      disable_dgaf: true,
+      proxy_arp: true,
+      domain_names: [],
+      roaming_consortium_ois: [],
+      operator_friendly_names: [],
+      venue_names: [],
+      nai_realms: [],
+      cellular_networks: [],
+      wan_metrics: {
+        enabled: false,
+        wan_info: "01",
+        downlink_kbps: 0,
+        uplink_kbps: 0,
+        downlink_load: 0,
+        uplink_load: 0,
+        lmd: 0,
+      },
+      connection_capabilities: [],
+      osu: {
+        enabled: false,
+        ssid: "",
+        server_uri: "",
+        friendly_names: [],
+        nai: "",
+        method_list: [],
+        service_descriptions: [],
+      },
+      profiles: [],
+      event_retention_limit: 6000,
+    },
     ssids: [],
   },
 };
@@ -3432,6 +3477,11 @@ export default function AccessSettings() {
   const [wirelessRoamingLifecycleAction, setWirelessRoamingLifecycleAction] =
     useState("");
   const wirelessRoamingLifecycleBusy = wirelessRoamingLifecycleAction !== "";
+  const [passpointLifecycle, setPasspointLifecycle] = useState<JsonMap | null>(
+    null,
+  );
+  const [passpointLifecycleAction, setPasspointLifecycleAction] = useState("");
+  const passpointLifecycleBusy = passpointLifecycleAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3513,6 +3563,11 @@ export default function AccessSettings() {
   const loadWirelessRoamingLifecycle = async () => {
     const { data } = await api.get("/system/wireless-roaming-lifecycle");
     setWirelessRoamingLifecycle(data.report || null);
+  };
+
+  const loadPasspointLifecycle = async () => {
+    const { data } = await api.get("/system/passpoint-lifecycle");
+    setPasspointLifecycle(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3740,12 +3795,13 @@ export default function AccessSettings() {
     setLoading(true);
     setError("");
     try {
-      const [settingsRes, previewRes, hostapdVLANRes, roamingRes] =
+      const [settingsRes, previewRes, hostapdVLANRes, roamingRes, passpointRes] =
         await Promise.all([
           api.get("/system/settings"),
           api.get("/system/hostapd-preview"),
           api.get("/system/hostapd-vlan-lifecycle"),
           api.get("/system/wireless-roaming-lifecycle"),
+          api.get("/system/passpoint-lifecycle"),
         ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -3753,6 +3809,7 @@ export default function AccessSettings() {
       setHostapdPath(previewRes.data.path || "");
       setHostapdVLANLifecycle(hostapdVLANRes.data.report || null);
       setWirelessRoamingLifecycle(roamingRes.data.report || null);
+      setPasspointLifecycle(passpointRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -3842,6 +3899,7 @@ export default function AccessSettings() {
       setHostapdPath(previewRes.data.path || "");
       await loadHostapdVLANLifecycle();
       await loadWirelessRoamingLifecycle();
+      await loadPasspointLifecycle();
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4196,6 +4254,51 @@ export default function AccessSettings() {
       );
     } finally {
       setWirelessRoamingLifecycleAction("");
+    }
+  };
+
+  const previewPasspointLifecycle = async () => {
+    setPasspointLifecycleAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/passpoint-lifecycle/preview", {});
+      setPasspointLifecycle(data.report || null);
+      setMessage(
+        `Passpoint and Hotspot 2.0 preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview Passpoint and Hotspot 2.0 lifecycle.",
+      );
+    } finally {
+      setPasspointLifecycleAction("");
+    }
+  };
+
+  const applyPasspointLifecycle = async () => {
+    setPasspointLifecycleAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/passpoint-lifecycle/apply", {});
+      setPasspointLifecycle(data.report || null);
+      setMessage(
+        `Passpoint and Hotspot 2.0 lifecycle ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadPasspointLifecycle();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply Passpoint and Hotspot 2.0 lifecycle.",
+      );
+    } finally {
+      setPasspointLifecycleAction("");
     }
   };
 
@@ -4592,6 +4695,19 @@ export default function AccessSettings() {
       label: profile.name || "Unnamed roaming profile",
     })),
   ];
+  const passpointSummary = passpointLifecycle?.summary || {};
+  const passpointSSIDs = Array.isArray(passpointLifecycle?.ssids)
+    ? passpointLifecycle?.ssids
+    : [];
+  const passpointProfiles = settings.wireless?.passpoint?.profiles || [];
+  const passpointTone = statusTone(passpointLifecycle?.status);
+  const passpointProfileOptions: Option[] = [
+    { value: "", label: "Use default Passpoint policy" },
+    ...passpointProfiles.map((profile: JsonMap) => ({
+      value: profile.name || "",
+      label: profile.name || "Unnamed Passpoint profile",
+    })),
+  ];
   const managedInterfaces = settings.network?.interfaces || [];
   const managedGateways = settings.network?.gateways || [];
   const dnsServers = settings.network?.dns?.upstream_servers || [];
@@ -4792,6 +4908,24 @@ export default function AccessSettings() {
             {wirelessRoamingLifecycleAction === "apply"
               ? "Applying Roaming..."
               : "Apply 802.11r/k/v"}
+          </button>
+          <button
+            onClick={previewPasspointLifecycle}
+            disabled={passpointLifecycleBusy}
+            className="rounded-md border border-cyan-200 px-4 py-2 text-sm font-medium text-cyan-800 disabled:opacity-60"
+          >
+            {passpointLifecycleAction === "preview"
+              ? "Checking Passpoint..."
+              : "Preview Passpoint"}
+          </button>
+          <button
+            onClick={applyPasspointLifecycle}
+            disabled={passpointLifecycleBusy}
+            className="rounded-md border border-cyan-300 px-4 py-2 text-sm font-medium text-cyan-900 disabled:opacity-60"
+          >
+            {passpointLifecycleAction === "apply"
+              ? "Applying Passpoint..."
+              : "Apply Passpoint"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -5432,6 +5566,125 @@ export default function AccessSettings() {
         ) : (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
             Roaming lifecycle report has not loaded yet.
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Passpoint And Hotspot 2.0 Lifecycle
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {passpointLifecycle?.release_certification_checklist ||
+                "Preview 802.11u and HS2.0 metadata before local-radio rollout."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${passpointTone}`}
+          >
+            {passpointLifecycle?.status || "unknown"}
+          </div>
+        </div>
+        {passpointLifecycle ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {passpointLifecycle.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Passpoint SSIDs",
+                  passpointSummary.passpoint_ssid_count || 0,
+                ],
+                ["HS2.0 SSIDs", passpointSummary.hs20_ssid_count || 0],
+                ["OSU Providers", passpointSummary.osu_provider_count || 0],
+                ["NAI Realms", passpointSummary.nai_realm_count || 0],
+                [
+                  "Roaming OIs",
+                  passpointSummary.roaming_consortium_count || 0,
+                ],
+                ["PLMNs", passpointSummary.cellular_network_count || 0],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Passpoint SSIDs
+              </h4>
+              <div className="mt-2 space-y-2">
+                {passpointSSIDs.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                    No active Passpoint SSID is present.
+                  </div>
+                ) : (
+                  passpointSSIDs.map((ssid: JsonMap, index: number) => (
+                    <div
+                      key={`${ssid.ssid || "passpoint-ssid"}-${index}`}
+                      className="rounded-md border border-gray-200 p-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="font-medium text-gray-900">
+                          {ssid.ssid || "Unnamed SSID"}
+                        </div>
+                        <span
+                          className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                            ssid.status,
+                          )}`}
+                        >
+                          {ssid.profile_name || ssid.status || "ready"}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-600">
+                        {[
+                          ssid.interworking ? "802.11u" : "",
+                          ssid.hs20 ? "HS2.0" : "",
+                          ssid.osu_enabled ? "OSU" : "",
+                          ssid.domain_names?.length
+                            ? `${ssid.domain_names.length} domain`
+                            : "",
+                          ssid.nai_realms?.length
+                            ? `${ssid.nai_realms.length} realm`
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" / ") || "No Passpoint metadata active"}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            {((passpointLifecycle.blockers?.length || 0) > 0 ||
+              (passpointLifecycle.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(passpointLifecycle.blockers || []),
+                  ...(passpointLifecycle.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <textarea
+              value={passpointLifecycle.hostapd_config_preview || ""}
+              readOnly
+              className="min-h-[240px] w-full rounded-md border border-gray-300 bg-gray-950 px-4 py-3 font-mono text-xs text-gray-100"
+            />
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Passpoint lifecycle report has not loaded yet.
           </div>
         )}
       </section>
@@ -23233,6 +23486,7 @@ export default function AccessSettings() {
                     identity_source: "",
                     bandwidth_profile: "",
                     roaming_profile: "",
+                    passpoint_profile: "",
                   },
                 ],
               )
@@ -23927,6 +24181,517 @@ export default function AccessSettings() {
             </div>
           )}
         </div>
+        <div className="mb-5 space-y-4 rounded-md border border-cyan-100 bg-cyan-50/40 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="font-semibold text-gray-900">
+                Passpoint And Hotspot 2.0
+              </h4>
+              <p className="mt-1 text-sm text-gray-600">
+                ANQP, roaming consortium, NAI realm, venue, operator, WAN,
+                connection capability, PLMN, and OSU metadata for 802.11u and
+                HS2.0.
+              </p>
+            </div>
+            <div
+              className={`rounded-md border px-3 py-2 text-sm font-medium ${passpointTone}`}
+            >
+              {passpointLifecycle?.status || "unknown"}
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+            <ToggleField
+              label="Passpoint Enabled"
+              checked={Boolean(settings.wireless?.passpoint?.enabled)}
+              onChange={(value) =>
+                updateField(["wireless", "passpoint", "enabled"], value)
+              }
+            />
+            <SelectField
+              label="Mode"
+              value={settings.wireless?.passpoint?.mode || "monitor"}
+              onChange={(value) =>
+                updateField(["wireless", "passpoint", "mode"], value)
+              }
+              options={wirelessRoamingModeOptions}
+            />
+            <ToggleField
+              label="Fail Closed"
+              checked={Boolean(settings.wireless?.passpoint?.fail_closed)}
+              onChange={(value) =>
+                updateField(["wireless", "passpoint", "fail_closed"], value)
+              }
+            />
+            <ToggleField
+              label="Interworking"
+              checked={Boolean(settings.wireless?.passpoint?.interworking)}
+              onChange={(value) =>
+                updateField(["wireless", "passpoint", "interworking"], value)
+              }
+            />
+            <ToggleField
+              label="Hotspot 2.0"
+              checked={Boolean(settings.wireless?.passpoint?.hs20)}
+              onChange={(value) =>
+                updateField(["wireless", "passpoint", "hs20"], value)
+              }
+            />
+            <ToggleField
+              label="Internet"
+              checked={Boolean(settings.wireless?.passpoint?.internet)}
+              onChange={(value) =>
+                updateField(["wireless", "passpoint", "internet"], value)
+              }
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <TextField
+              label="Default Profile"
+              value={settings.wireless?.passpoint?.default_profile || ""}
+              onChange={(value) =>
+                updateField(["wireless", "passpoint", "default_profile"], value)
+              }
+            />
+            <TextField
+              label="Access Network Type"
+              type="number"
+              value={settings.wireless?.passpoint?.access_network_type || 2}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "passpoint", "access_network_type"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Venue Group"
+              type="number"
+              value={settings.wireless?.passpoint?.venue_group || 0}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "passpoint", "venue_group"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="Venue Type"
+              type="number"
+              value={settings.wireless?.passpoint?.venue_type || 0}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "passpoint", "venue_type"],
+                  Number(value),
+                )
+              }
+            />
+            <TextField
+              label="HESSID"
+              value={settings.wireless?.passpoint?.hessid || ""}
+              onChange={(value) =>
+                updateField(["wireless", "passpoint", "hessid"], value)
+              }
+              placeholder="02:11:22:33:44:55"
+            />
+            <TextField
+              label="Domain Names"
+              value={listToCSV(settings.wireless?.passpoint?.domain_names)}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "passpoint", "domain_names"],
+                  csvToList(value),
+                )
+              }
+              placeholder="corp.example.com"
+            />
+            <TextField
+              label="Roaming OIs"
+              value={listToCSV(
+                settings.wireless?.passpoint?.roaming_consortium_ois,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "passpoint", "roaming_consortium_ois"],
+                  csvToList(value),
+                )
+              }
+              placeholder="112233"
+            />
+            <TextField
+              label="NAI Realms"
+              value={listToCSV(
+                (settings.wireless?.passpoint?.nai_realms || []).map(
+                  (realm: JsonMap) => realm.realm,
+                ),
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "passpoint", "nai_realms"],
+                  csvToList(value).map((realm) => ({
+                    realm,
+                    encoding: 0,
+                    eap_methods: ["tls", "ttls"],
+                    auth_params: [],
+                  })),
+                )
+              }
+              placeholder="corp.example.com"
+            />
+          </div>
+          <div className="grid gap-3 md:grid-cols-4">
+            <ToggleField
+              label="DGAF Disabled"
+              checked={Boolean(settings.wireless?.passpoint?.disable_dgaf)}
+              onChange={(value) =>
+                updateField(["wireless", "passpoint", "disable_dgaf"], value)
+              }
+            />
+            <ToggleField
+              label="Proxy ARP"
+              checked={Boolean(settings.wireless?.passpoint?.proxy_arp)}
+              onChange={(value) =>
+                updateField(["wireless", "passpoint", "proxy_arp"], value)
+              }
+            />
+            <ToggleField
+              label="OSU Enabled"
+              checked={Boolean(settings.wireless?.passpoint?.osu?.enabled)}
+              onChange={(value) =>
+                updateField(["wireless", "passpoint", "osu", "enabled"], value)
+              }
+            />
+            <ToggleField
+              label="WAN Metrics"
+              checked={Boolean(
+                settings.wireless?.passpoint?.wan_metrics?.enabled,
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "passpoint", "wan_metrics", "enabled"],
+                  value,
+                )
+              }
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <TextField
+              label="Operator Names"
+              value={listToCSV(
+                (settings.wireless?.passpoint?.operator_friendly_names || []).map(
+                  (item: JsonMap) => item.text,
+                ),
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "passpoint", "operator_friendly_names"],
+                  csvToList(value).map((text) => ({ language: "eng", text })),
+                )
+              }
+              placeholder="AegisNAS"
+            />
+            <TextField
+              label="Venue Names"
+              value={listToCSV(
+                (settings.wireless?.passpoint?.venue_names || []).map(
+                  (item: JsonMap) => item.text,
+                ),
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "passpoint", "venue_names"],
+                  csvToList(value).map((text) => ({ language: "eng", text })),
+                )
+              }
+              placeholder="AegisNAS Lab"
+            />
+            <TextField
+              label="3GPP Networks"
+              value={listToCSV(
+                (settings.wireless?.passpoint?.cellular_networks || []).map(
+                  (network: JsonMap) => `${network.mcc}-${network.mnc}`,
+                ),
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "passpoint", "cellular_networks"],
+                  csvToList(value).map((item) => {
+                    const [mcc, mnc] = item.split("-");
+                    return { mcc: mcc || "", mnc: mnc || "" };
+                  }),
+                )
+              }
+              placeholder="310-260"
+            />
+            <TextField
+              label="Connection Capabilities"
+              value={listToCSV(
+                (
+                  settings.wireless?.passpoint?.connection_capabilities || []
+                ).map(
+                  (capability: JsonMap) =>
+                    `${capability.protocol}:${capability.port}:${capability.status}`,
+                ),
+              )}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "passpoint", "connection_capabilities"],
+                  csvToList(value).map((item) => {
+                    const [protocol, port, status] = item.split(":");
+                    return {
+                      protocol: Number(protocol || 0),
+                      port: Number(port || 0),
+                      status: Number(status || 0),
+                    };
+                  }),
+                )
+              }
+              placeholder="6:443:1"
+            />
+            <TextField
+              label="OSU SSID"
+              value={settings.wireless?.passpoint?.osu?.ssid || ""}
+              onChange={(value) =>
+                updateField(["wireless", "passpoint", "osu", "ssid"], value)
+              }
+            />
+            <TextField
+              label="OSU Server URI"
+              value={settings.wireless?.passpoint?.osu?.server_uri || ""}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "passpoint", "osu", "server_uri"],
+                  value,
+                )
+              }
+              placeholder="https://osu.example.com/signup"
+            />
+            <TextField
+              label="OSU NAI"
+              value={settings.wireless?.passpoint?.osu?.nai || ""}
+              onChange={(value) =>
+                updateField(["wireless", "passpoint", "osu", "nai"], value)
+              }
+            />
+            <TextField
+              label="OSU Methods"
+              value={listToCSV(settings.wireless?.passpoint?.osu?.method_list)}
+              onChange={(value) =>
+                updateField(
+                  ["wireless", "passpoint", "osu", "method_list"],
+                  csvToList(value).map((item) => Number(item)),
+                )
+              }
+              placeholder="1"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() =>
+                updateField(
+                  ["wireless", "passpoint", "profiles"],
+                  [
+                    ...passpointProfiles,
+                    {
+                      name: `passpoint-${passpointProfiles.length + 1}`,
+                      enabled: true,
+                      interworking: true,
+                      hs20: true,
+                      domain_names: [],
+                      roaming_consortium_ois: [],
+                      operator_friendly_names: [],
+                      venue_names: [],
+                      nai_realms: [],
+                      cellular_networks: [],
+                      connection_capabilities: [],
+                    },
+                  ],
+                )
+              }
+              className="rounded-md border border-cyan-300 px-3 py-2 text-sm font-medium text-cyan-800"
+            >
+              Add Passpoint Profile
+            </button>
+          </div>
+          {passpointProfiles.length > 0 && (
+            <div className="space-y-3">
+              <h5 className="text-sm font-semibold text-gray-900">
+                Passpoint Profiles
+              </h5>
+              {passpointProfiles.map((profile: JsonMap, index: number) => (
+                <div
+                  key={`passpoint-profile-${index}`}
+                  className="rounded-md border border-cyan-200 bg-white p-3"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="text-sm font-semibold text-gray-900">
+                      {profile.name || `Profile ${index + 1}`}
+                    </div>
+                    <button
+                      onClick={() =>
+                        updateField(
+                          ["wireless", "passpoint", "profiles"],
+                          passpointProfiles.filter(
+                            (_: unknown, itemIndex: number) =>
+                              itemIndex !== index,
+                          ),
+                        )
+                      }
+                      className="text-sm font-medium text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                    <TextField
+                      label="Profile Name"
+                      value={profile.name || ""}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "passpoint",
+                            "profiles",
+                            String(index),
+                            "name",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <ToggleField
+                      label="Profile Enabled"
+                      checked={profile.enabled !== false}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "passpoint",
+                            "profiles",
+                            String(index),
+                            "enabled",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <ToggleField
+                      label="Profile Interworking"
+                      checked={Boolean(profile.interworking)}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "passpoint",
+                            "profiles",
+                            String(index),
+                            "interworking",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <ToggleField
+                      label="Profile HS2.0"
+                      checked={Boolean(profile.hs20)}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "passpoint",
+                            "profiles",
+                            String(index),
+                            "hs20",
+                          ],
+                          value,
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Profile Domains"
+                      value={listToCSV(profile.domain_names)}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "passpoint",
+                            "profiles",
+                            String(index),
+                            "domain_names",
+                          ],
+                          csvToList(value),
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Profile OIs"
+                      value={listToCSV(profile.roaming_consortium_ois)}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "passpoint",
+                            "profiles",
+                            String(index),
+                            "roaming_consortium_ois",
+                          ],
+                          csvToList(value),
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Profile NAI Realms"
+                      value={listToCSV(
+                        (profile.nai_realms || []).map(
+                          (realm: JsonMap) => realm.realm,
+                        ),
+                      )}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "passpoint",
+                            "profiles",
+                            String(index),
+                            "nai_realms",
+                          ],
+                          csvToList(value).map((realm) => ({
+                            realm,
+                            encoding: 0,
+                            eap_methods: ["tls", "ttls"],
+                            auth_params: [],
+                          })),
+                        )
+                      }
+                    />
+                    <TextField
+                      label="Profile Operator"
+                      value={listToCSV(
+                        (profile.operator_friendly_names || []).map(
+                          (item: JsonMap) => item.text,
+                        ),
+                      )}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "wireless",
+                            "passpoint",
+                            "profiles",
+                            String(index),
+                            "operator_friendly_names",
+                          ],
+                          csvToList(value).map((text) => ({
+                            language: "eng",
+                            text,
+                          })),
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="space-y-4">
           {ssids.length === 0 ? (
             <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
@@ -24077,6 +24842,22 @@ export default function AccessSettings() {
                       )
                     }
                     options={wirelessRoamingProfileOptions}
+                  />
+                  <SelectField
+                    label="Passpoint Profile"
+                    value={ssid.passpoint_profile || ""}
+                    onChange={(value) =>
+                      updateField(
+                        [
+                          "wireless",
+                          "ssids",
+                          String(index),
+                          "passpoint_profile",
+                        ],
+                        value,
+                      )
+                    }
+                    options={passpointProfileOptions}
                   />
                   <TextField
                     label="Max Clients"

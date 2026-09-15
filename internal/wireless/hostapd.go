@@ -57,6 +57,7 @@ func GenerateHostapdConfig(cfg *config.Config) (string, error) {
 
 func renderSSID(cfg *config.Config, ssid config.SSIDConfig) []string {
 	roaming, roamingActive := config.EffectiveSSIDRoamingProfile(cfg.Wireless, ssid)
+	passpoint, passpointActive := config.EffectiveSSIDPasspointProfile(cfg.Wireless, ssid)
 	lines := []string{
 		"",
 		fmt.Sprintf("ssid=%s", ssid.Name),
@@ -155,6 +156,7 @@ func renderSSID(cfg *config.Config, ssid config.SSIDConfig) []string {
 		lines = append(lines, renderRoamingLines(cfg, ssid, roaming, roamingActive)...)
 	}
 
+	lines = append(lines, renderPasspointLines(ssid, passpoint, passpointActive)...)
 	return lines
 }
 
@@ -265,6 +267,203 @@ func renderFTNeighborKeys(cfg *config.Config, ssid config.SSIDConfig, roaming co
 		)
 	}
 	return lines
+}
+
+func renderPasspointLines(ssid config.SSIDConfig, passpoint config.EffectiveWirelessPasspointProfile, active bool) []string {
+	if !active {
+		return nil
+	}
+	lines := []string{
+		fmt.Sprintf("# aegisnas_passpoint_profile=%s", sanitizeHostapdValue(passpoint.ProfileName)),
+	}
+	if passpoint.Interworking {
+		lines = append(lines,
+			"interworking=1",
+			fmt.Sprintf("access_network_type=%d", passpoint.AccessNetworkType),
+			fmt.Sprintf("internet=%d", boolAsInt(passpoint.Internet)),
+			fmt.Sprintf("asra=%d", boolAsInt(passpoint.ASRA)),
+			fmt.Sprintf("esr=%d", boolAsInt(passpoint.ESR)),
+			fmt.Sprintf("uesa=%d", boolAsInt(passpoint.UESA)),
+		)
+		if passpoint.VenueGroup > 0 {
+			lines = append(lines, fmt.Sprintf("venue_group=%d", passpoint.VenueGroup))
+		}
+		if passpoint.VenueType > 0 {
+			lines = append(lines, fmt.Sprintf("venue_type=%d", passpoint.VenueType))
+		}
+		if strings.TrimSpace(passpoint.HESSID) != "" {
+			lines = append(lines, fmt.Sprintf("hessid=%s", strings.ToLower(strings.TrimSpace(passpoint.HESSID))))
+		}
+		lines = append(lines, renderPasspointLocalizedLines("venue_name", passpoint.VenueNames)...)
+		if len(passpoint.DomainNames) > 0 {
+			lines = append(lines, "domain_name="+strings.Join(sanitizeHostapdList(passpoint.DomainNames), ","))
+		}
+		for _, oi := range sanitizeHostapdList(passpoint.RoamingConsortiumOIs) {
+			lines = append(lines, "roaming_consortium="+strings.ToLower(oi))
+		}
+		for _, realm := range passpoint.NAIRealms {
+			lines = append(lines, renderPasspointNAIRealm(realm))
+		}
+		if len(passpoint.CellularNetworks) > 0 {
+			lines = append(lines, "anqp_3gpp_cell_net="+renderPasspointCellularNetworks(passpoint.CellularNetworks))
+		}
+	}
+	if passpoint.HS20 {
+		lines = append(lines,
+			"hs20=1",
+			fmt.Sprintf("disable_dgaf=%d", boolAsInt(passpoint.DisableDGAF)),
+			fmt.Sprintf("proxy_arp=%d", boolAsInt(passpoint.ProxyARP)),
+		)
+		lines = append(lines, renderPasspointLocalizedLines("hs20_oper_friendly_name", passpoint.OperatorFriendlyNames)...)
+		if passpoint.WANMetrics.Enabled {
+			lines = append(lines, "hs20_wan_metrics="+renderPasspointWANMetrics(passpoint.WANMetrics))
+		}
+		for _, capability := range passpoint.ConnectionCapabilities {
+			lines = append(lines, fmt.Sprintf("hs20_conn_capab=%d:%d:%d", capability.Protocol, capability.Port, capability.Status))
+		}
+		if passpoint.OSU.Enabled {
+			osuSSID := strings.TrimSpace(passpoint.OSU.SSID)
+			if osuSSID == "" {
+				osuSSID = ssid.Name
+			}
+			lines = append(lines,
+				"osu_ssid="+sanitizeHostapdValue(osuSSID),
+				"osu_server_uri="+sanitizeHostapdValue(passpoint.OSU.ServerURI),
+			)
+			lines = append(lines, renderPasspointLocalizedLines("osu_friendly_name", passpoint.OSU.FriendlyNames)...)
+			if strings.TrimSpace(passpoint.OSU.NAI) != "" {
+				lines = append(lines, "osu_nai="+sanitizeHostapdValue(passpoint.OSU.NAI))
+			}
+			lines = append(lines, "osu_method_list="+renderPasspointOSUMethods(passpoint.OSU.MethodList))
+			lines = append(lines, renderPasspointLocalizedLines("osu_service_desc", passpoint.OSU.ServiceDescriptions)...)
+		}
+	}
+	return lines
+}
+
+func renderPasspointLocalizedLines(key string, values []config.WirelessLocalizedTextConfig) []string {
+	lines := make([]string, 0, len(values))
+	for _, value := range values {
+		language := strings.ToLower(strings.TrimSpace(value.Language))
+		text := sanitizeHostapdValue(value.Text)
+		if language == "" || text == "" {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("%s=%s:%s", key, language, text))
+	}
+	return lines
+}
+
+func renderPasspointNAIRealm(realm config.WirelessPasspointNAIRealmConfig) string {
+	parts := []string{
+		fmt.Sprintf("%d", realm.Encoding),
+		sanitizeHostapdValue(realm.Realm),
+	}
+	authParams := sanitizeHostapdList(realm.AuthParams)
+	for _, method := range realm.EAPMethods {
+		eapID, ok := passpointEAPMethodID(method)
+		if !ok {
+			continue
+		}
+		rendered := fmt.Sprintf("%d", eapID)
+		for _, param := range authParams {
+			rendered += "[" + param + "]"
+		}
+		parts = append(parts, rendered)
+	}
+	return "nai_realm=" + strings.Join(parts, ",")
+}
+
+func passpointEAPMethodID(method string) (int, bool) {
+	switch strings.ToLower(strings.TrimSpace(method)) {
+	case "tls":
+		return 13, true
+	case "sim":
+		return 18, true
+	case "ttls":
+		return 21, true
+	case "aka":
+		return 23, true
+	case "peap":
+		return 25, true
+	case "fast":
+		return 43, true
+	case "aka-prime":
+		return 50, true
+	case "pwd":
+		return 52, true
+	case "teap":
+		return 55, true
+	default:
+		return 0, false
+	}
+}
+
+func renderPasspointCellularNetworks(networks []config.WirelessPasspointCellularNetworkConfig) string {
+	parts := make([]string, 0, len(networks))
+	for _, network := range networks {
+		parts = append(parts, fmt.Sprintf("%s,%s", strings.TrimSpace(network.MCC), strings.TrimSpace(network.MNC)))
+	}
+	return strings.Join(parts, ";")
+}
+
+func renderPasspointWANMetrics(metrics config.WirelessPasspointWANMetricsConfig) string {
+	wanInfo := strings.TrimSpace(metrics.WANInfo)
+	if wanInfo == "" {
+		wanInfo = "01"
+	}
+	if parsed, err := parseHostapdByte(wanInfo); err == nil {
+		wanInfo = fmt.Sprintf("%02x", parsed)
+	}
+	return fmt.Sprintf("%s:%d:%d:%d:%d:%d", wanInfo, metrics.DownlinkKbps, metrics.UplinkKbps, metrics.DownlinkLoad, metrics.UplinkLoad, metrics.LMD)
+}
+
+func renderPasspointOSUMethods(values []int) string {
+	if len(values) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		parts = append(parts, fmt.Sprintf("%d", value))
+	}
+	return strings.Join(parts, " ")
+}
+
+func sanitizeHostapdList(values []string) []string {
+	items := make([]string, 0, len(values))
+	for _, value := range values {
+		value = sanitizeHostapdValue(value)
+		if value == "" {
+			continue
+		}
+		items = append(items, value)
+	}
+	return items
+}
+
+func sanitizeHostapdValue(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.ReplaceAll(value, "\r", " ")
+	value = strings.ReplaceAll(value, "\n", " ")
+	value = strings.ReplaceAll(value, "\t", " ")
+	return value
+}
+
+func parseHostapdByte(value string) (int, error) {
+	value = strings.TrimSpace(value)
+	if len(value) == 2 {
+		var parsed int
+		_, err := fmt.Sscanf(value, "%02x", &parsed)
+		if err == nil && parsed >= 0 && parsed <= 255 {
+			return parsed, nil
+		}
+	}
+	var parsed int
+	_, err := fmt.Sscanf(value, "%d", &parsed)
+	if err != nil || parsed < 0 || parsed > 255 {
+		return 0, fmt.Errorf("invalid byte")
+	}
+	return parsed, nil
 }
 
 func deriveFTNeighborKey(seed, profileName, ssidName, bssid, r1KeyHolder string) string {

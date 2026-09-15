@@ -764,6 +764,37 @@ FreeRADIUS-on-Linux, HA, performance, soak, security audit, production
 deployment, and customer acceptance evidence stay in
 `nas-0075-release-certification-checklist.md`.
 
+For local-radio Passpoint or Hotspot 2.0 rollout, preview NAS-0076 before
+publishing hostapd:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/passpoint-lifecycle/preview \
+  | jq '.report.status, .report.summary, .report.ssids'
+```
+
+Apply only after domain names, roaming consortium OIs, NAI realms, venue and
+operator text, 3GPP cellular metadata, WAN metrics, and OSU diagnostics match
+the release scope:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/passpoint-lifecycle/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/passpoint-lifecycle/history` and the support bundle files
+`api/passpoint-lifecycle.json` and `api/passpoint-lifecycle-history.json`
+during ANQP, NAI realm, OSU, WISPr, carrier-offload, or roaming-consortium
+investigations. Real AP/client Passpoint certification, carrier roaming
+agreement proof, packet captures, FreeRADIUS-on-Linux, HA, performance, soak,
+security audit, production deployment, and customer acceptance evidence stay in
+`nas-0076-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

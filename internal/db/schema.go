@@ -204,6 +204,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{77, schemaV77},
 		{78, schemaV78},
 		{79, schemaV79},
+		{80, schemaV80},
 	}
 
 	for _, m := range migrations {
@@ -398,6 +399,9 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureWirelessRoamingLifecycleTables(handle); err != nil {
 		return fmt.Errorf("repair wireless roaming lifecycle schema: %w", err)
 	}
+	if err := ensurePasspointLifecycleTables(handle); err != nil {
+		return fmt.Errorf("repair Passpoint lifecycle schema: %w", err)
+	}
 
 	return nil
 }
@@ -415,6 +419,14 @@ func ensureWirelessRoamingLifecycleTables(handle *sql.DB) error {
 		return fmt.Errorf("database handle is required")
 	}
 	_, err := handle.Exec(SQLForDialect(wirelessRoamingLifecycleSQL, DialectForHandle(handle)))
+	return err
+}
+
+func ensurePasspointLifecycleTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(passpointLifecycleSQL, DialectForHandle(handle)))
 	return err
 }
 

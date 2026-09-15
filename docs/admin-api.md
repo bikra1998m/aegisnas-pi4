@@ -1506,6 +1506,29 @@ Roaming lifecycle status is included in `/api/v1/system/status` under
 `api/wireless-roaming-lifecycle-history.json`. See
 [80211rkv-roaming-key-lifecycle.md](80211rkv-roaming-key-lifecycle.md).
 
+NAS-0076 adds Passpoint and Hotspot 2.0 lifecycle endpoints:
+
+```text
+GET  /api/v1/system/passpoint-lifecycle
+POST /api/v1/system/passpoint-lifecycle/preview
+POST /api/v1/system/passpoint-lifecycle/apply
+GET  /api/v1/system/passpoint-lifecycle/history
+```
+
+`GET /api/v1/system/passpoint-lifecycle` returns the effective global and
+per-SSID Passpoint profiles, ANQP/HS2.0 metadata counts, NAI realms, 3GPP
+cellular networks, OSU provider state, redacted hostapd preview, diagnostics,
+software completion state, and recent evidence. Preview records an event without
+changing host files. Apply writes the validated local hostapd Passpoint and
+Hotspot 2.0 configuration and records durable evidence.
+
+Passpoint lifecycle status is included in `/api/v1/system/status` under
+`wireless.passpoint_lifecycle`, production readiness as
+`wireless_passpoint_lifecycle`, and support bundles as
+`api/passpoint-lifecycle.json` and
+`api/passpoint-lifecycle-history.json`. See
+[passpoint-hotspot20-lifecycle.md](passpoint-hotspot20-lifecycle.md).
+
 Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
 
 After committing a role, user, ACL binding, or EAP framework policy through `/api/v1/apply`, run `POST /api/v1/system/radius-apply` (the **Apply RADIUS Config** action in Access Settings). This regenerates the local-user entries in `mods-config/files/authorize`, the legacy `users` path, and `mods-enabled/eap`, validates the complete FreeRADIUS configuration, and restarts FreeRADIUS. Database-backed portal decisions and CoA updates do not require this regeneration. Local bcrypt credentials support PAP and EAP-TTLS/PAP; CHAP and PEAP-MSCHAPv2 require a compatible cleartext or NT password verifier, while EAP-TLS uses certificates. NAS-0022 blocks enforce-mode generation when policy enables cataloged methods that this release cannot generate.

@@ -1804,6 +1804,126 @@ func TestConfigValidationWirelessRoaming(t *testing.T) {
 	assert.ErrorContains(t, openSSID.Validate(), "requires WPA2/WPA3")
 }
 
+func TestConfigValidationPasspoint(t *testing.T) {
+	cfg := loadMinimalValidConfig(t)
+	cfg.Radius.Secret = "radius-secret"
+	cfg.Wireless = WirelessConfig{
+		Enabled:        true,
+		Interface:      "wlan0",
+		CountryCode:    "US",
+		Driver:         "nl80211",
+		HWMode:         "g",
+		Channel:        6,
+		BeaconInterval: 100,
+		WMMEnabled:     true,
+		HTEnabled:      true,
+		Passpoint: WirelessPasspointConfig{
+			Enabled:           true,
+			Mode:              "enforce",
+			FailClosed:        true,
+			Interworking:      true,
+			HS20:              true,
+			AccessNetworkType: 2,
+			Internet:          true,
+			VenueGroup:        2,
+			VenueType:         8,
+			DisableDGAF:       true,
+			ProxyARP:          true,
+			Profiles: []WirelessPasspointProfileConfig{
+				{
+					Name:                 "corp-passpoint",
+					Enabled:              true,
+					Description:          "Corporate Passpoint",
+					Interworking:         true,
+					HS20:                 true,
+					AccessNetworkType:    2,
+					Internet:             true,
+					HESSID:               "02:11:22:33:44:55",
+					DisableDGAF:          true,
+					ProxyARP:             true,
+					DomainNames:          []string{"corp.example.com"},
+					RoamingConsortiumOIs: []string{"112233"},
+					OperatorFriendlyNames: []WirelessLocalizedTextConfig{
+						{Language: "eng", Text: "AegisNAS"},
+					},
+					VenueNames: []WirelessLocalizedTextConfig{
+						{Language: "eng", Text: "AegisNAS Lab"},
+					},
+					NAIRealms: []WirelessPasspointNAIRealmConfig{
+						{Realm: "corp.example.com", Encoding: 0, EAPMethods: []string{"tls", "ttls"}, AuthParams: []string{"5:6"}},
+					},
+					CellularNetworks: []WirelessPasspointCellularNetworkConfig{
+						{MCC: "310", MNC: "260"},
+					},
+					WANMetrics: WirelessPasspointWANMetricsConfig{
+						Enabled:      true,
+						WANInfo:      "01",
+						DownlinkKbps: 100000,
+						UplinkKbps:   50000,
+						DownlinkLoad: 1,
+						UplinkLoad:   1,
+					},
+					ConnectionCapabilities: []WirelessPasspointConnectionCapabilityConfig{
+						{Protocol: 6, Port: 443, Status: 1},
+					},
+					OSU: WirelessPasspointOSUConfig{
+						Enabled:   true,
+						SSID:      "Aegis OSU",
+						ServerURI: "https://osu.example.com/signup",
+						FriendlyNames: []WirelessLocalizedTextConfig{
+							{Language: "eng", Text: "AegisNAS Signup"},
+						},
+						NAI:        "anonymous@corp.example.com",
+						MethodList: []int{1},
+						ServiceDescriptions: []WirelessLocalizedTextConfig{
+							{Language: "eng", Text: "Corporate onboarding"},
+						},
+					},
+				},
+			},
+			EventRetentionLimit: 6000,
+		},
+		SSIDs: []SSIDConfig{
+			{Name: "Corp", AuthMode: "wpa2-enterprise", PasspointProfile: "corp-passpoint"},
+		},
+	}
+
+	require.NoError(t, cfg.Validate())
+	effective, active := EffectiveSSIDPasspointProfile(cfg.Wireless, cfg.Wireless.SSIDs[0])
+	require.True(t, active)
+	assert.Equal(t, "corp-passpoint", effective.ProfileName)
+	assert.Equal(t, []string{"corp.example.com"}, effective.DomainNames)
+	assert.True(t, effective.OSU.Enabled)
+
+	clonePasspointConfig := func() *Config {
+		next := *cfg
+		next.Wireless.SSIDs = append([]SSIDConfig(nil), cfg.Wireless.SSIDs...)
+		next.Wireless.Passpoint.Profiles = append([]WirelessPasspointProfileConfig(nil), cfg.Wireless.Passpoint.Profiles...)
+		next.Wireless.Passpoint.Profiles[0].DomainNames = append([]string(nil), cfg.Wireless.Passpoint.Profiles[0].DomainNames...)
+		next.Wireless.Passpoint.Profiles[0].RoamingConsortiumOIs = append([]string(nil), cfg.Wireless.Passpoint.Profiles[0].RoamingConsortiumOIs...)
+		next.Wireless.Passpoint.Profiles[0].OperatorFriendlyNames = append([]WirelessLocalizedTextConfig(nil), cfg.Wireless.Passpoint.Profiles[0].OperatorFriendlyNames...)
+		next.Wireless.Passpoint.Profiles[0].NAIRealms = append([]WirelessPasspointNAIRealmConfig(nil), cfg.Wireless.Passpoint.Profiles[0].NAIRealms...)
+		next.Wireless.Passpoint.Profiles[0].CellularNetworks = append([]WirelessPasspointCellularNetworkConfig(nil), cfg.Wireless.Passpoint.Profiles[0].CellularNetworks...)
+		return &next
+	}
+
+	invalidOI := clonePasspointConfig()
+	invalidOI.Wireless.Passpoint.Profiles[0].RoamingConsortiumOIs = []string{"zzzzzz"}
+	assert.ErrorContains(t, invalidOI.Validate(), "roaming_consortium_ois")
+
+	missingDomain := clonePasspointConfig()
+	missingDomain.Wireless.Passpoint.Profiles[0].DomainNames = nil
+	assert.ErrorContains(t, missingDomain.Validate(), "domain_name")
+
+	disabledProfile := clonePasspointConfig()
+	disabledProfile.Wireless.Passpoint.Profiles[0].Enabled = false
+	assert.ErrorContains(t, disabledProfile.Validate(), "is disabled or has no active Passpoint standards")
+
+	personalSSID := clonePasspointConfig()
+	personalSSID.Wireless.SSIDs = []SSIDConfig{{Name: "Corp", AuthMode: "wpa2-personal", Passphrase: "correcthorsebattery", PasspointProfile: "corp-passpoint"}}
+	assert.ErrorContains(t, personalSSID.Validate(), "requires open, captive-portal, WPA2 enterprise, or WPA3 enterprise")
+}
+
 func TestDeploymentSummary(t *testing.T) {
 	cfg := &Config{
 		Deployment: DeploymentConfig{

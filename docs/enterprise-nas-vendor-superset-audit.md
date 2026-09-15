@@ -2,7 +2,7 @@
 
 Audit date: 2026-07-07
 
-Software progress updated through NAS-0073 on 2026-09-08.
+Software progress updated through NAS-0076 on 2026-09-15.
 
 ## Verdict
 
@@ -31,9 +31,9 @@ The strict result is:
 | Vendor namespaces with any software-mapped attribute | 125 / 195 (64.10%) |
 | Raw software attribute mapping coverage | 29.449% |
 | Weighted functional VSA software completion | 29.449% |
-| Cross-domain feature completion | 29.8% |
-| Overall vendor-superset engineering completion | **29.6%** |
-| Enterprise production readiness | **38%** |
+| Cross-domain feature completion | 30.6% |
+| Overall vendor-superset engineering completion | **29.8%** |
+| Enterprise production readiness | **39%** |
 
 `Overall vendor-superset engineering completion` weights the dictionary/VSA
 software result at 70% and the 26 product capability domains at 30%.
@@ -47,8 +47,8 @@ release certification checklists.
 The percentages are engineering audit scores, not marketing measures or a
 claim that every attribute has equal business value.
 
-The 38% enterprise-readiness score uses a separate operational rubric: core
-enterprise functionality 45% (40% weight), security and secret lifecycle 35%
+The 39% enterprise-readiness score uses a separate operational rubric: core
+enterprise functionality 47% (40% weight), security and secret lifecycle 35%
 (20%), reliability/HA/data integrity 40% (20%), and external certification,
 scale evidence, release support, and operational proof 25% (20%). This avoids
 letting thousands of obscure VSAs hide the maturity of useful core functions,
@@ -86,7 +86,7 @@ The repository evidence includes:
 - controller integration: Cisco ISE, Aruba Central Classic, Juniper Mist,
   Ruckus SmartZone, FortiGate, MikroTik RouterOS, UniFi Network, Meraki
   Dashboard, and TIP OpenWiFi adapters under `internal/integrations`
-- persistence: schema versions 1-78 in `internal/db/migrate.go`
+- persistence: schema versions 1-80 in `internal/db/migrate.go`
 - REST and UI: `cmd/aegis-admin-api`, `internal/adminapi`, and
   `web/admin-ui/src`
 
@@ -139,7 +139,7 @@ instead of adding ad hoc dictionary interpretations.
 | 3 | Accounting | 35% | Start/Stop/Interim, session time, IPv4, octets, basic identity, history and exports | No complete inbound accounting path into the AegisNAS session schema, robust duplicate/reorder handling, gigaword rollover persistence, IPv6/session-route accounting, multi-service correlation, charging records, or 5,400 remaining vendor fields; generated FreeRADIUS SQL points at the product SQLite database, but migrations do not create the standard `radacct`/`radpostauth` tables |
 | 4 | CoA/Disconnect | 40% | UDP listener, shared-secret lookup, session lookup, local reclassification and termination, ACK/NAK counters | No general outbound DAC client, RFC error-cause detail, proxy CoA routing, RadSec reverse CoA, vendor command semantics, retry queues, NAS capability discovery, or cluster ownership routing |
 | 5 | 802.1X | 40% | FreeRADIUS EAP config and hostapd WPA2/WPA3 Enterprise generation | No production supplicant onboarding profiles, TEAP/EAP chaining, machine/user auth, MAB fallback, fast roaming keys, dynamic authorization across roaming, or broad switch/AP certification |
-| 6 | Enterprise Wi-Fi | 40% | Multi-BSS hostapd generation, hostapd dynamic VLAN lifecycle with fail-closed/fallback mode, managed VLAN file, cleanup, rollback, 802.11r/k/v roaming lifecycle with FT key-reference validation, RRM neighbor/beacon reports, BSS transition, PMF policy, redacted hostapd preview, and nine controller adapters with bounded reconciliation | Passpoint/Hotspot 2.0, DPSK/PPSK, RF/RRM, mesh, location, rogue/WIPS, spectrum, multicast, full controller estate management, and real roam certification remain open |
+| 6 | Enterprise Wi-Fi | 45% | Multi-BSS hostapd generation, hostapd dynamic VLAN lifecycle with fail-closed/fallback mode, managed VLAN file, cleanup, rollback, 802.11r/k/v roaming lifecycle with FT key-reference validation, RRM neighbor/beacon reports, BSS transition, PMF policy, Passpoint/Hotspot 2.0 lifecycle with ANQP, venue/operator, domain, roaming consortium, NAI realm, 3GPP, WAN metrics, connection capability, OSU metadata, redacted hostapd preview, and nine controller adapters with bounded reconciliation | DPSK/PPSK, RF/RRM, mesh, location, rogue/WIPS, spectrum, multicast, full controller estate management, and real radio/client/certification evidence remain open |
 | 7 | ISP/BRAS/BNG | 5% | A few rate, quota, PPPoE URL, and service-name mappings | No PPPoE termination, subscriber state machine, IP pools, CGNAT, DHCP relay/snooping, L2TP, wholesale realms, service activation, lawful intercept, hierarchical QoS, or BNG route lifecycle |
 | 8 | Subscriber management | 15% | Users, sessions, vouchers, quotas in selected attributes, timeouts, bandwidth profiles | No plans/products, recurring quota periods, top-up, balance/charging, concurrent-session policy, family/account hierarchy, prepaid/postpaid, address leases, service bundles, or subscriber portal |
 | 9 | Dynamic VLAN | 60% | Standard tunnel attributes, selected vendor VLAN replies/parsers, local bridge/subinterface lifecycle, tagged voice/data VLAN policy, QinQ, VLAN pool, fallback VLAN, hostapd dynamic VLAN file generation, fail-closed SSIDs, cleanup, and rollback | Per-NAS capability negotiation and broad real-device certification remain release certification or later roadmap work |
@@ -148,7 +148,7 @@ instead of adding ad hoc dictionary interpretations.
 | 12 | Route injection | 5% | Operator-defined local static routes | No Framed-Route/Framed-IPv6-Route or vendor route parsing, per-session installation, VRF/routing-instance, BGP/OSPF, route ownership, CoA update, or Stop withdrawal |
 | 13 | IPv4/IPv6 | 20% | IPv4 addressing, DHCPv4, NAT, static routes, IPv4 session/firewall/shaping | No DHCPv6/RA/prefix delegation, IPv6 RADIUS assignment, IPv6 ACL/shaping/quarantine, dual-stack subscriber records, NAT64/CGNAT, or IPv6 HA validation |
 | 14 | Captive portal | 35% | Portal login, local/LDAP/RADIUS auth, voucher and guest flows, branding fields | DNS redirection is coarse; no HTTPS interception strategy, RFC 8910 captive-portal API, per-session walled garden, social/IdP guest auth, payment, multilingual policy, controller CWA parity, or roaming federation |
-| 15 | Hotspot | 30% | WISPr rates, ChilliSpot/Nomadix mappings, vouchers, portal and accounting basics | No complete WISPr XML flow, Passpoint/Hotspot 2.0, venue/operator profiles, roaming consortium, SIM auth, online signup, settlement, quota reset, or carrier offload |
+| 15 | Hotspot | 38% | WISPr rates, ChilliSpot/Nomadix mappings, vouchers, portal and accounting basics, plus Passpoint/Hotspot 2.0 hostapd lifecycle for ANQP venue/operator, domain, roaming consortium, NAI realm, 3GPP, WAN metrics, connection capability, and OSU metadata | No complete WISPr XML flow, SIM/AKA carrier credential certification, roaming settlement, quota reset, carrier offload proof, or broad controller/AP certification |
 | 16 | Guest access | 55% | Registration, sponsor approval/reject, email/SMS delivery hooks, vouchers, expiry and extensive analytics | External delivery/provider breadth, sponsor delegation policy, legal consent versioning, self-service extensions, IdP/social identity, bulk events, abuse controls, and hardware E2E coverage remain incomplete |
 | 17 | Multi-tenant | 30% | Tenant fields, tenant claim, admin tenant scoping and selected VSA mappings | SQLite is shared; no hard row-level isolation, tenant-owned secrets/CAs/dictionaries/controllers, per-tenant quotas, delegated policy trees, billing, data residency, or isolation penetration tests |
 | 18 | HA/clustering | 45% | Signed/encrypted replication packages, shared state, VIP lease, fencing/witness policy, active/standby automation and drills | Package replication is not a consensus database; no synchronous session/accounting state, distributed CoA ownership, automatic conflict resolution, multi-node cluster, rolling schema quorum, or certified network partitions |

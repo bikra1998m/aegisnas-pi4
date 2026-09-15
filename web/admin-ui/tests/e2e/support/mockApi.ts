@@ -961,6 +961,83 @@ function createSettings() {
         neighbor_aps: [],
         profiles: [],
       },
+      passpoint: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        default_profile: "",
+        interworking: true,
+        hs20: true,
+        access_network_type: 2,
+        internet: true,
+        asra: false,
+        esr: false,
+        uesa: false,
+        venue_group: 2,
+        venue_type: 8,
+        hessid: "02:11:22:33:44:55",
+        disable_dgaf: true,
+        proxy_arp: true,
+        domain_names: ["corp.example.com"],
+        roaming_consortium_ois: ["112233"],
+        operator_friendly_names: [{ language: "eng", text: "AegisNAS" }],
+        venue_names: [{ language: "eng", text: "AegisNAS Lab" }],
+        nai_realms: [
+          {
+            realm: "corp.example.com",
+            encoding: 0,
+            eap_methods: ["tls", "ttls"],
+            auth_params: ["5:6"],
+          },
+        ],
+        cellular_networks: [{ mcc: "310", mnc: "260" }],
+        wan_metrics: {
+          enabled: true,
+          wan_info: "01",
+          downlink_kbps: 100000,
+          uplink_kbps: 50000,
+          downlink_load: 1,
+          uplink_load: 1,
+          lmd: 0,
+        },
+        connection_capabilities: [{ protocol: 6, port: 443, status: 1 }],
+        osu: {
+          enabled: true,
+          ssid: "Aegis OSU",
+          server_uri: "https://osu.example.com/signup",
+          friendly_names: [{ language: "eng", text: "AegisNAS Signup" }],
+          nai: "anonymous@corp.example.com",
+          method_list: [1],
+          service_descriptions: [
+            { language: "eng", text: "Corporate onboarding" },
+          ],
+        },
+        profiles: [
+          {
+            name: "corp-passpoint",
+            enabled: true,
+            interworking: true,
+            hs20: true,
+            domain_names: ["corp.example.com"],
+            roaming_consortium_ois: ["112233"],
+            operator_friendly_names: [
+              { language: "eng", text: "AegisNAS" },
+            ],
+            venue_names: [{ language: "eng", text: "AegisNAS Lab" }],
+            nai_realms: [
+              {
+                realm: "corp.example.com",
+                encoding: 0,
+                eap_methods: ["tls", "ttls"],
+                auth_params: ["5:6"],
+              },
+            ],
+            cellular_networks: [{ mcc: "310", mnc: "260" }],
+            connection_capabilities: [{ protocol: 6, port: 443, status: 1 }],
+          },
+        ],
+        event_retention_limit: 6000,
+      },
       ssids: [],
     },
   };
@@ -1164,6 +1241,96 @@ function createWirelessRoamingLifecycle(status = "ready") {
       attributes: ["EAP-Message", "Message-Authenticator", "Called-Station-Id"],
       vendors: ["Cisco", "Aruba", "Ruckus", "Extreme", "UniFi", "hostapd"],
       requirements: ["FT key material is derived from secret references."],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+      },
+      recent_events: [],
+    },
+  };
+}
+
+function createPasspointLifecycle(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0076",
+      status,
+      message:
+        status === "skipped"
+          ? "NAS-0076 software is ready; Passpoint and Hotspot 2.0 are not active in this configuration."
+          : "NAS-0076 plans 1 Passpoint SSID, 1 HS2.0 SSID, 1 OSU provider, 1 NAI realm, and 1 roaming consortium OI.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0076-release-certification-checklist.md",
+      release_scope:
+        "Real AP/client Passpoint certification, carrier roaming agreement proof, packet captures, HA failover, scale, soak, security audit, production deployment, and customer acceptance are release certification activities.",
+      plan_fingerprint:
+        "sha256:4f033d7b9949c79ff2ebc7d05984452a8d83c0892a6d8fd71ed138ec6af1f0b2",
+      hostapd_config_path: "/etc/hostapd/hostapd.conf",
+      hostapd_config_sha256:
+        "sha256:e27b3a508612a37fb9f5973dd5eba5aeb0faac7a3dcc2863b149a1df0120c71d",
+      hostapd_config_preview:
+        "ssid=Corp\ninterworking=1\naccess_network_type=2\ndomain_name=corp.example.com\nroaming_consortium=112233\nnai_realm=0,corp.example.com,13[5:6],21[5:6]\nhs20=1\nhs20_oper_friendly_name=eng:AegisNAS\nosu_server_uri=https://osu.example.com/signup\n",
+      summary: {
+        wireless_enabled: true,
+        passpoint_enabled: true,
+        ssid_count: 1,
+        passpoint_ssid_count: 1,
+        interworking_ssid_count: 1,
+        hs20_ssid_count: 1,
+        profile_count: 1,
+        osu_provider_count: 1,
+        domain_name_count: 1,
+        roaming_consortium_count: 1,
+        nai_realm_count: 1,
+        cellular_network_count: 1,
+        connection_capability_count: 1,
+        diagnostic_count: 0,
+        external_requirement_count: 9,
+      },
+      ssids: [
+        {
+          ssid: "Corp",
+          auth_mode: "wpa2-enterprise",
+          profile_name: "corp-passpoint",
+          status: "ready",
+          interworking: true,
+          hs20: true,
+          osu_enabled: true,
+          domain_names: ["corp.example.com"],
+          nai_realms: [{ realm: "corp.example.com", encoding: 0 }],
+        },
+      ],
+      profiles: [
+        {
+          name: "corp-passpoint",
+          enabled: true,
+          interworking: true,
+          hs20: true,
+          domain_name_count: 1,
+          roaming_oi_count: 1,
+          nai_realm_count: 1,
+          cellular_network_count: 1,
+          osu_enabled: true,
+        },
+      ],
+      rfcs: ["IEEE 802.11u", "IEEE 802.1X", "RFC 4186", "RFC 5448"],
+      attributes: ["EAP-Message", "Chargeable-User-Identity", "Operator-Name"],
+      vendors: ["Cisco", "Aruba", "Ruckus", "UniFi", "hostapd"],
+      requirements: ["ANQP and HS2.0 metadata is validated before render."],
       blockers: [],
       warnings: [],
     },
@@ -1678,6 +1845,7 @@ function createSystemStatus() {
       hostapd_config_path: "/etc/hostapd/hostapd.conf",
       hostapd_vlan_file_path: "/etc/hostapd/aegisnas-vlans.conf",
       roaming_lifecycle: createWirelessRoamingLifecycle().report,
+      passpoint_lifecycle: createPasspointLifecycle().report,
       ssid_count: 0,
       auth_modes: [],
     },
@@ -5744,6 +5912,61 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({
         json: {
           feature_id: "NAS-0075",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+          },
+          events: [],
+        },
+      });
+      return;
+    }
+    if (path === "/system/passpoint-lifecycle" && method === "GET") {
+      await route.fulfill({ json: createPasspointLifecycle() });
+      return;
+    }
+    if (
+      path === "/system/passpoint-lifecycle/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createPasspointLifecycle(),
+          event_id: "passpoint-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/passpoint-lifecycle/apply" &&
+      method === "POST"
+    ) {
+      const payload = createPasspointLifecycle();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0076 applied hostapd Passpoint and Hotspot 2.0 configuration for 1 SSID.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "passpoint-event-apply",
+          result: { status: "applied", event_id: "passpoint-event-apply" },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/passpoint-lifecycle/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0076",
           summary: {
             total_events: 1,
             preview_events: 1,

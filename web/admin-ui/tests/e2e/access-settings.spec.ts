@@ -96,4 +96,31 @@ test.describe('Access Settings edge-network flow', () => {
       page.getByText(/802\.11r\/k\/v roaming lifecycle applied/),
     ).toBeVisible();
   });
+
+  test('previews and applies Passpoint and Hotspot 2.0 lifecycle', async ({ page }) => {
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto('/access-settings');
+    const passpointSection = page.locator('section').filter({
+      has: page.getByRole('heading', { name: 'Passpoint And Hotspot 2.0 Lifecycle' }),
+    });
+    await expect(passpointSection).toBeVisible();
+    await expect(
+      passpointSection.getByRole('heading', { name: 'Passpoint SSIDs' }),
+    ).toBeVisible();
+    await expect(
+      passpointSection.locator('div').filter({ hasText: /^HS2\.0 SSIDs$/ }).first(),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview Passpoint' }).click();
+    await expect(
+      page.getByText(/Passpoint and Hotspot 2\.0 preview recorded/),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Apply Passpoint' }).click();
+    await expect(
+      page.getByText(/Passpoint and Hotspot 2\.0 lifecycle applied/),
+    ).toBeVisible();
+  });
 });

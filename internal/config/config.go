@@ -1668,20 +1668,21 @@ type HighAvailabilityConfig struct {
 }
 
 type WirelessConfig struct {
-	Enabled             bool                  `mapstructure:"enabled"`
-	CountryCode         string                `mapstructure:"country_code"`
-	Interface           string                `mapstructure:"interface"`
-	Driver              string                `mapstructure:"driver"`
-	HWMode              string                `mapstructure:"hw_mode"`
-	Channel             int                   `mapstructure:"channel"`
-	BeaconInterval      int                   `mapstructure:"beacon_interval"`
-	WMMEnabled          bool                  `mapstructure:"wmm_enabled"`
-	HTEnabled           bool                  `mapstructure:"ht_enabled"`
-	CtrlInterface       string                `mapstructure:"ctrl_interface"`
-	HostapdConfigPath   string                `mapstructure:"hostapd_config_path"`
-	HostapdVLANFilePath string                `mapstructure:"hostapd_vlan_file_path"`
-	Roaming             WirelessRoamingConfig `mapstructure:"roaming"`
-	SSIDs               []SSIDConfig          `mapstructure:"ssids"`
+	Enabled             bool                    `mapstructure:"enabled"`
+	CountryCode         string                  `mapstructure:"country_code"`
+	Interface           string                  `mapstructure:"interface"`
+	Driver              string                  `mapstructure:"driver"`
+	HWMode              string                  `mapstructure:"hw_mode"`
+	Channel             int                     `mapstructure:"channel"`
+	BeaconInterval      int                     `mapstructure:"beacon_interval"`
+	WMMEnabled          bool                    `mapstructure:"wmm_enabled"`
+	HTEnabled           bool                    `mapstructure:"ht_enabled"`
+	CtrlInterface       string                  `mapstructure:"ctrl_interface"`
+	HostapdConfigPath   string                  `mapstructure:"hostapd_config_path"`
+	HostapdVLANFilePath string                  `mapstructure:"hostapd_vlan_file_path"`
+	Roaming             WirelessRoamingConfig   `mapstructure:"roaming"`
+	Passpoint           WirelessPasspointConfig `mapstructure:"passpoint"`
+	SSIDs               []SSIDConfig            `mapstructure:"ssids"`
 }
 
 type WirelessRoamingConfig struct {
@@ -1742,6 +1743,251 @@ type WirelessNeighborAPConfig struct {
 	Preference    int      `mapstructure:"preference"`
 	KeySeedRef    string   `mapstructure:"key_seed_ref"`
 	Description   string   `mapstructure:"description"`
+}
+
+type WirelessPasspointConfig struct {
+	Enabled                bool                                          `mapstructure:"enabled"`
+	Mode                   string                                        `mapstructure:"mode"`
+	FailClosed             bool                                          `mapstructure:"fail_closed"`
+	DefaultProfile         string                                        `mapstructure:"default_profile"`
+	Interworking           bool                                          `mapstructure:"interworking"`
+	HS20                   bool                                          `mapstructure:"hs20"`
+	AccessNetworkType      int                                           `mapstructure:"access_network_type"`
+	Internet               bool                                          `mapstructure:"internet"`
+	ASRA                   bool                                          `mapstructure:"asra"`
+	ESR                    bool                                          `mapstructure:"esr"`
+	UESA                   bool                                          `mapstructure:"uesa"`
+	VenueGroup             int                                           `mapstructure:"venue_group"`
+	VenueType              int                                           `mapstructure:"venue_type"`
+	HESSID                 string                                        `mapstructure:"hessid"`
+	DisableDGAF            bool                                          `mapstructure:"disable_dgaf"`
+	ProxyARP               bool                                          `mapstructure:"proxy_arp"`
+	DomainNames            []string                                      `mapstructure:"domain_names"`
+	RoamingConsortiumOIs   []string                                      `mapstructure:"roaming_consortium_ois"`
+	OperatorFriendlyNames  []WirelessLocalizedTextConfig                 `mapstructure:"operator_friendly_names"`
+	VenueNames             []WirelessLocalizedTextConfig                 `mapstructure:"venue_names"`
+	NAIRealms              []WirelessPasspointNAIRealmConfig             `mapstructure:"nai_realms"`
+	CellularNetworks       []WirelessPasspointCellularNetworkConfig      `mapstructure:"cellular_networks"`
+	WANMetrics             WirelessPasspointWANMetricsConfig             `mapstructure:"wan_metrics"`
+	ConnectionCapabilities []WirelessPasspointConnectionCapabilityConfig `mapstructure:"connection_capabilities"`
+	OSU                    WirelessPasspointOSUConfig                    `mapstructure:"osu"`
+	Profiles               []WirelessPasspointProfileConfig              `mapstructure:"profiles"`
+	EventRetentionLimit    int                                           `mapstructure:"event_retention_limit"`
+}
+
+type WirelessLocalizedTextConfig struct {
+	Language string `mapstructure:"language"`
+	Text     string `mapstructure:"text"`
+}
+
+type WirelessPasspointNAIRealmConfig struct {
+	Realm      string   `mapstructure:"realm"`
+	Encoding   int      `mapstructure:"encoding"`
+	EAPMethods []string `mapstructure:"eap_methods"`
+	AuthParams []string `mapstructure:"auth_params"`
+}
+
+type WirelessPasspointCellularNetworkConfig struct {
+	MCC string `mapstructure:"mcc"`
+	MNC string `mapstructure:"mnc"`
+}
+
+type WirelessPasspointWANMetricsConfig struct {
+	Enabled      bool   `mapstructure:"enabled"`
+	WANInfo      string `mapstructure:"wan_info"`
+	DownlinkKbps int    `mapstructure:"downlink_kbps"`
+	UplinkKbps   int    `mapstructure:"uplink_kbps"`
+	DownlinkLoad int    `mapstructure:"downlink_load"`
+	UplinkLoad   int    `mapstructure:"uplink_load"`
+	LMD          int    `mapstructure:"lmd"`
+}
+
+type WirelessPasspointConnectionCapabilityConfig struct {
+	Protocol int `mapstructure:"protocol"`
+	Port     int `mapstructure:"port"`
+	Status   int `mapstructure:"status"`
+}
+
+type WirelessPasspointOSUConfig struct {
+	Enabled             bool                          `mapstructure:"enabled"`
+	SSID                string                        `mapstructure:"ssid"`
+	ServerURI           string                        `mapstructure:"server_uri"`
+	FriendlyNames       []WirelessLocalizedTextConfig `mapstructure:"friendly_names"`
+	NAI                 string                        `mapstructure:"nai"`
+	MethodList          []int                         `mapstructure:"method_list"`
+	ServiceDescriptions []WirelessLocalizedTextConfig `mapstructure:"service_descriptions"`
+}
+
+type WirelessPasspointProfileConfig struct {
+	Name                   string                                        `mapstructure:"name"`
+	Enabled                bool                                          `mapstructure:"enabled"`
+	Description            string                                        `mapstructure:"description"`
+	Mode                   string                                        `mapstructure:"mode"`
+	FailClosed             bool                                          `mapstructure:"fail_closed"`
+	Interworking           bool                                          `mapstructure:"interworking"`
+	HS20                   bool                                          `mapstructure:"hs20"`
+	AccessNetworkType      int                                           `mapstructure:"access_network_type"`
+	Internet               bool                                          `mapstructure:"internet"`
+	ASRA                   bool                                          `mapstructure:"asra"`
+	ESR                    bool                                          `mapstructure:"esr"`
+	UESA                   bool                                          `mapstructure:"uesa"`
+	VenueGroup             int                                           `mapstructure:"venue_group"`
+	VenueType              int                                           `mapstructure:"venue_type"`
+	HESSID                 string                                        `mapstructure:"hessid"`
+	DisableDGAF            bool                                          `mapstructure:"disable_dgaf"`
+	ProxyARP               bool                                          `mapstructure:"proxy_arp"`
+	DomainNames            []string                                      `mapstructure:"domain_names"`
+	RoamingConsortiumOIs   []string                                      `mapstructure:"roaming_consortium_ois"`
+	OperatorFriendlyNames  []WirelessLocalizedTextConfig                 `mapstructure:"operator_friendly_names"`
+	VenueNames             []WirelessLocalizedTextConfig                 `mapstructure:"venue_names"`
+	NAIRealms              []WirelessPasspointNAIRealmConfig             `mapstructure:"nai_realms"`
+	CellularNetworks       []WirelessPasspointCellularNetworkConfig      `mapstructure:"cellular_networks"`
+	WANMetrics             WirelessPasspointWANMetricsConfig             `mapstructure:"wan_metrics"`
+	ConnectionCapabilities []WirelessPasspointConnectionCapabilityConfig `mapstructure:"connection_capabilities"`
+	OSU                    WirelessPasspointOSUConfig                    `mapstructure:"osu"`
+}
+
+type EffectiveWirelessPasspointProfile struct {
+	ProfileName            string
+	Enabled                bool
+	Mode                   string
+	FailClosed             bool
+	Interworking           bool
+	HS20                   bool
+	AccessNetworkType      int
+	Internet               bool
+	ASRA                   bool
+	ESR                    bool
+	UESA                   bool
+	VenueGroup             int
+	VenueType              int
+	HESSID                 string
+	DisableDGAF            bool
+	ProxyARP               bool
+	DomainNames            []string
+	RoamingConsortiumOIs   []string
+	OperatorFriendlyNames  []WirelessLocalizedTextConfig
+	VenueNames             []WirelessLocalizedTextConfig
+	NAIRealms              []WirelessPasspointNAIRealmConfig
+	CellularNetworks       []WirelessPasspointCellularNetworkConfig
+	WANMetrics             WirelessPasspointWANMetricsConfig
+	ConnectionCapabilities []WirelessPasspointConnectionCapabilityConfig
+	OSU                    WirelessPasspointOSUConfig
+}
+
+func EffectiveSSIDPasspointProfile(wireless WirelessConfig, ssid SSIDConfig) (EffectiveWirelessPasspointProfile, bool) {
+	passpoint := wireless.Passpoint
+	if !passpoint.Enabled {
+		return EffectiveWirelessPasspointProfile{}, false
+	}
+	effective := EffectiveWirelessPasspointProfile{
+		ProfileName:            "default",
+		Enabled:                true,
+		Mode:                   effectivePasspointMode(passpoint.Mode),
+		FailClosed:             passpoint.FailClosed,
+		Interworking:           passpoint.Interworking,
+		HS20:                   passpoint.HS20,
+		AccessNetworkType:      effectivePasspointAccessNetworkType(passpoint.AccessNetworkType),
+		Internet:               passpoint.Internet,
+		ASRA:                   passpoint.ASRA,
+		ESR:                    passpoint.ESR,
+		UESA:                   passpoint.UESA,
+		VenueGroup:             effectivePasspointByte(passpoint.VenueGroup),
+		VenueType:              effectivePasspointByte(passpoint.VenueType),
+		HESSID:                 normalizePasspointMAC(passpoint.HESSID),
+		DisableDGAF:            passpoint.DisableDGAF,
+		ProxyARP:               passpoint.ProxyARP,
+		DomainNames:            normalizedStringList(passpoint.DomainNames),
+		RoamingConsortiumOIs:   normalizedPasspointOIs(passpoint.RoamingConsortiumOIs),
+		OperatorFriendlyNames:  normalizedLocalizedTexts(passpoint.OperatorFriendlyNames),
+		VenueNames:             normalizedLocalizedTexts(passpoint.VenueNames),
+		NAIRealms:              normalizedPasspointNAIRealms(passpoint.NAIRealms),
+		CellularNetworks:       normalizedPasspointCellularNetworks(passpoint.CellularNetworks),
+		WANMetrics:             effectivePasspointWANMetrics(passpoint.WANMetrics, WirelessPasspointWANMetricsConfig{}),
+		ConnectionCapabilities: normalizedPasspointConnectionCapabilities(passpoint.ConnectionCapabilities),
+		OSU:                    normalizedPasspointOSU(passpoint.OSU, WirelessPasspointOSUConfig{}),
+	}
+	profileName := strings.TrimSpace(ssid.PasspointProfile)
+	if profileName == "" {
+		profileName = strings.TrimSpace(passpoint.DefaultProfile)
+	}
+	if profileName != "" {
+		found := false
+		for _, profile := range passpoint.Profiles {
+			if strings.EqualFold(strings.TrimSpace(profile.Name), profileName) {
+				found = true
+				if !profile.Enabled {
+					return EffectiveWirelessPasspointProfile{}, false
+				}
+				effective.ProfileName = strings.TrimSpace(profile.Name)
+				if mode := strings.TrimSpace(profile.Mode); mode != "" {
+					effective.Mode = effectivePasspointMode(mode)
+				}
+				effective.FailClosed = effective.FailClosed || profile.FailClosed
+				if profile.Interworking || profile.HS20 {
+					effective.Interworking = profile.Interworking
+					effective.HS20 = profile.HS20
+				}
+				if profile.AccessNetworkType > 0 {
+					effective.AccessNetworkType = effectivePasspointAccessNetworkType(profile.AccessNetworkType)
+				}
+				effective.Internet = effective.Internet || profile.Internet
+				effective.ASRA = effective.ASRA || profile.ASRA
+				effective.ESR = effective.ESR || profile.ESR
+				effective.UESA = effective.UESA || profile.UESA
+				if profile.VenueGroup > 0 {
+					effective.VenueGroup = effectivePasspointByte(profile.VenueGroup)
+				}
+				if profile.VenueType > 0 {
+					effective.VenueType = effectivePasspointByte(profile.VenueType)
+				}
+				if strings.TrimSpace(profile.HESSID) != "" {
+					effective.HESSID = normalizePasspointMAC(profile.HESSID)
+				}
+				effective.DisableDGAF = effective.DisableDGAF || profile.DisableDGAF
+				effective.ProxyARP = effective.ProxyARP || profile.ProxyARP
+				effective.DomainNames = mergeStringLists(effective.DomainNames, normalizedStringList(profile.DomainNames))
+				effective.RoamingConsortiumOIs = mergeStringLists(effective.RoamingConsortiumOIs, normalizedPasspointOIs(profile.RoamingConsortiumOIs))
+				effective.OperatorFriendlyNames = mergeLocalizedTexts(effective.OperatorFriendlyNames, normalizedLocalizedTexts(profile.OperatorFriendlyNames))
+				effective.VenueNames = mergeLocalizedTexts(effective.VenueNames, normalizedLocalizedTexts(profile.VenueNames))
+				effective.NAIRealms = mergeNAIRealms(effective.NAIRealms, normalizedPasspointNAIRealms(profile.NAIRealms))
+				effective.CellularNetworks = mergeCellularNetworks(effective.CellularNetworks, normalizedPasspointCellularNetworks(profile.CellularNetworks))
+				effective.WANMetrics = effectivePasspointWANMetrics(profile.WANMetrics, effective.WANMetrics)
+				effective.ConnectionCapabilities = append(effective.ConnectionCapabilities, normalizedPasspointConnectionCapabilities(profile.ConnectionCapabilities)...)
+				effective.OSU = normalizedPasspointOSU(profile.OSU, effective.OSU)
+				break
+			}
+		}
+		if !found {
+			return EffectiveWirelessPasspointProfile{}, false
+		}
+	}
+	return effective, effective.Enabled && (effective.Interworking || effective.HS20)
+}
+
+func effectivePasspointMode(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "monitor":
+		return "monitor"
+	case "enforce":
+		return "enforce"
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+}
+
+func effectivePasspointAccessNetworkType(value int) int {
+	if value < 0 || value > 15 {
+		return 2
+	}
+	return value
+}
+
+func effectivePasspointByte(value int) int {
+	if value < 0 || value > 255 {
+		return 0
+	}
+	return value
 }
 
 type EffectiveWirelessRoamingProfile struct {
@@ -2078,6 +2324,7 @@ type SSIDConfig struct {
 	IdentitySource   string `mapstructure:"identity_source"`
 	BandwidthProfile string `mapstructure:"bandwidth_profile"`
 	RoamingProfile   string `mapstructure:"roaming_profile"`
+	PasspointProfile string `mapstructure:"passpoint_profile"`
 }
 
 var globalConfig *Config
@@ -2907,6 +3154,21 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("wireless.roaming.bss_transition", true)
 	v.SetDefault("wireless.roaming.wnm_sleep_mode", false)
 	v.SetDefault("wireless.roaming.event_retention_limit", 6000)
+	v.SetDefault("wireless.passpoint.enabled", false)
+	v.SetDefault("wireless.passpoint.mode", "monitor")
+	v.SetDefault("wireless.passpoint.fail_closed", true)
+	v.SetDefault("wireless.passpoint.interworking", true)
+	v.SetDefault("wireless.passpoint.hs20", true)
+	v.SetDefault("wireless.passpoint.access_network_type", 2)
+	v.SetDefault("wireless.passpoint.internet", true)
+	v.SetDefault("wireless.passpoint.asra", false)
+	v.SetDefault("wireless.passpoint.esr", false)
+	v.SetDefault("wireless.passpoint.uesa", false)
+	v.SetDefault("wireless.passpoint.venue_group", 2)
+	v.SetDefault("wireless.passpoint.venue_type", 8)
+	v.SetDefault("wireless.passpoint.disable_dgaf", true)
+	v.SetDefault("wireless.passpoint.proxy_arp", true)
+	v.SetDefault("wireless.passpoint.event_retention_limit", 6000)
 
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -5469,6 +5731,9 @@ func (c *Config) Validate() error {
 		if err := validateWirelessRoamingConfig(c.Wireless); err != nil {
 			return err
 		}
+		if err := validateWirelessPasspointConfig(c.Wireless); err != nil {
+			return err
+		}
 
 		ssidNames := make(map[string]struct{}, len(c.Wireless.SSIDs))
 		for i, ssid := range c.Wireless.SSIDs {
@@ -5523,6 +5788,30 @@ func (c *Config) Validate() error {
 				}
 				if effective.IEEE80211R && !wirelessRoamingFTSupportedAuthMode(ssid.AuthMode) {
 					return fmt.Errorf("wireless.ssids[%d].roaming_profile enables 802.11r for unsupported auth mode %q", i, ssid.AuthMode)
+				}
+			}
+			if strings.TrimSpace(ssid.PasspointProfile) != "" && !c.Wireless.Passpoint.Enabled {
+				return fmt.Errorf("wireless.ssids[%d].passpoint_profile requires wireless.passpoint.enabled", i)
+			}
+			if strings.TrimSpace(ssid.PasspointProfile) != "" {
+				if _, active := EffectiveSSIDPasspointProfile(c.Wireless, ssid); !active {
+					return fmt.Errorf("wireless.ssids[%d].passpoint_profile %q is disabled or has no active Passpoint standards", i, ssid.PasspointProfile)
+				}
+			}
+			if effective, active := EffectiveSSIDPasspointProfile(c.Wireless, ssid); active {
+				if !wirelessPasspointSupportedAuthMode(ssid.AuthMode, effective) {
+					return fmt.Errorf("wireless.ssids[%d].passpoint_profile requires open, captive-portal, WPA2 enterprise, or WPA3 enterprise auth", i)
+				}
+				if effective.Mode == "enforce" && effective.FailClosed {
+					if len(effective.DomainNames) == 0 {
+						return fmt.Errorf("wireless.ssids[%d].passpoint_profile requires at least one domain_name in enforce fail-closed mode", i)
+					}
+					if len(effective.NAIRealms) == 0 {
+						return fmt.Errorf("wireless.ssids[%d].passpoint_profile requires at least one nai_realm in enforce fail-closed mode", i)
+					}
+					if effective.HS20 && len(effective.OperatorFriendlyNames) == 0 {
+						return fmt.Errorf("wireless.ssids[%d].passpoint_profile requires operator_friendly_names for HS2.0 enforce fail-closed mode", i)
+					}
 				}
 			}
 		}
@@ -5627,6 +5916,682 @@ func validateWirelessRoamingConfig(wireless WirelessConfig) error {
 		}
 	}
 	return nil
+}
+
+func validateWirelessPasspointConfig(wireless WirelessConfig) error {
+	passpoint := wireless.Passpoint
+	if !passpoint.Enabled {
+		return nil
+	}
+	switch effectivePasspointMode(passpoint.Mode) {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("wireless.passpoint.mode %q must be monitor or enforce", passpoint.Mode)
+	}
+	if !passpoint.Interworking && !passpoint.HS20 {
+		return errors.New("wireless.passpoint requires interworking or hs20")
+	}
+	if passpoint.AccessNetworkType < 0 || passpoint.AccessNetworkType > 15 {
+		return fmt.Errorf("wireless.passpoint.access_network_type %d out of range", passpoint.AccessNetworkType)
+	}
+	if passpoint.VenueGroup < 0 || passpoint.VenueGroup > 255 {
+		return fmt.Errorf("wireless.passpoint.venue_group %d out of range", passpoint.VenueGroup)
+	}
+	if passpoint.VenueType < 0 || passpoint.VenueType > 255 {
+		return fmt.Errorf("wireless.passpoint.venue_type %d out of range", passpoint.VenueType)
+	}
+	if err := validatePasspointMAC("wireless.passpoint.hessid", passpoint.HESSID); err != nil {
+		return err
+	}
+	if err := validatePasspointDomainList("wireless.passpoint.domain_names", passpoint.DomainNames); err != nil {
+		return err
+	}
+	if err := validatePasspointOIs("wireless.passpoint.roaming_consortium_ois", passpoint.RoamingConsortiumOIs); err != nil {
+		return err
+	}
+	if err := validatePasspointLocalizedTexts("wireless.passpoint.operator_friendly_names", passpoint.OperatorFriendlyNames, false); err != nil {
+		return err
+	}
+	if err := validatePasspointLocalizedTexts("wireless.passpoint.venue_names", passpoint.VenueNames, false); err != nil {
+		return err
+	}
+	if err := validatePasspointNAIRealms("wireless.passpoint.nai_realms", passpoint.NAIRealms); err != nil {
+		return err
+	}
+	if err := validatePasspointCellularNetworks("wireless.passpoint.cellular_networks", passpoint.CellularNetworks); err != nil {
+		return err
+	}
+	if err := validatePasspointWANMetrics("wireless.passpoint.wan_metrics", passpoint.WANMetrics); err != nil {
+		return err
+	}
+	if err := validatePasspointConnectionCapabilities("wireless.passpoint.connection_capabilities", passpoint.ConnectionCapabilities); err != nil {
+		return err
+	}
+	if err := validatePasspointOSU("wireless.passpoint.osu", passpoint.OSU, passpoint.HS20); err != nil {
+		return err
+	}
+	if passpoint.EventRetentionLimit < 0 || passpoint.EventRetentionLimit > 1000000 {
+		return errors.New("wireless.passpoint.event_retention_limit must be between 1 and 1000000 when set")
+	}
+
+	profileNames := map[string]struct{}{}
+	for i, profile := range passpoint.Profiles {
+		name := strings.TrimSpace(profile.Name)
+		if name == "" {
+			return fmt.Errorf("wireless.passpoint.profiles[%d].name cannot be empty", i)
+		}
+		normalized := strings.ToLower(name)
+		if _, exists := profileNames[normalized]; exists {
+			return fmt.Errorf("wireless.passpoint.profiles[%d].name %q duplicates an earlier profile", i, profile.Name)
+		}
+		profileNames[normalized] = struct{}{}
+		if err := validateWirelessPasspointProfile(fmt.Sprintf("wireless.passpoint.profiles[%d]", i), profile); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(passpoint.DefaultProfile) != "" {
+		if _, exists := profileNames[strings.ToLower(strings.TrimSpace(passpoint.DefaultProfile))]; !exists {
+			return fmt.Errorf("wireless.passpoint.default_profile %q does not match a configured profile", passpoint.DefaultProfile)
+		}
+	}
+
+	activeSSIDCount := 0
+	for i, ssid := range wireless.SSIDs {
+		if profile := strings.TrimSpace(ssid.PasspointProfile); profile != "" {
+			if _, exists := profileNames[strings.ToLower(profile)]; !exists {
+				return fmt.Errorf("wireless.ssids[%d].passpoint_profile %q does not match a configured profile", i, ssid.PasspointProfile)
+			}
+			if _, active := EffectiveSSIDPasspointProfile(wireless, ssid); !active {
+				return fmt.Errorf("wireless.ssids[%d].passpoint_profile %q is disabled or has no active Passpoint standards", i, ssid.PasspointProfile)
+			}
+		}
+		if effective, active := EffectiveSSIDPasspointProfile(wireless, ssid); active {
+			activeSSIDCount++
+			if err := validateWirelessPasspointEffectiveProfile(fmt.Sprintf("wireless.ssids[%d].passpoint_profile", i), effective); err != nil {
+				return err
+			}
+		}
+	}
+	if activeSSIDCount == 0 {
+		return errors.New("wireless.passpoint.enabled requires at least one SSID with active Passpoint profile")
+	}
+	return nil
+}
+
+func validateWirelessPasspointProfile(path string, profile WirelessPasspointProfileConfig) error {
+	if strings.TrimSpace(profile.Mode) != "" {
+		switch effectivePasspointMode(profile.Mode) {
+		case "monitor", "enforce":
+		default:
+			return fmt.Errorf("%s.mode %q must be monitor or enforce", path, profile.Mode)
+		}
+	}
+	if profile.AccessNetworkType < 0 || profile.AccessNetworkType > 15 {
+		return fmt.Errorf("%s.access_network_type %d out of range", path, profile.AccessNetworkType)
+	}
+	if profile.VenueGroup < 0 || profile.VenueGroup > 255 {
+		return fmt.Errorf("%s.venue_group %d out of range", path, profile.VenueGroup)
+	}
+	if profile.VenueType < 0 || profile.VenueType > 255 {
+		return fmt.Errorf("%s.venue_type %d out of range", path, profile.VenueType)
+	}
+	if err := validatePasspointMAC(path+".hessid", profile.HESSID); err != nil {
+		return err
+	}
+	if err := validatePasspointDomainList(path+".domain_names", profile.DomainNames); err != nil {
+		return err
+	}
+	if err := validatePasspointOIs(path+".roaming_consortium_ois", profile.RoamingConsortiumOIs); err != nil {
+		return err
+	}
+	if err := validatePasspointLocalizedTexts(path+".operator_friendly_names", profile.OperatorFriendlyNames, false); err != nil {
+		return err
+	}
+	if err := validatePasspointLocalizedTexts(path+".venue_names", profile.VenueNames, false); err != nil {
+		return err
+	}
+	if err := validatePasspointNAIRealms(path+".nai_realms", profile.NAIRealms); err != nil {
+		return err
+	}
+	if err := validatePasspointCellularNetworks(path+".cellular_networks", profile.CellularNetworks); err != nil {
+		return err
+	}
+	if err := validatePasspointWANMetrics(path+".wan_metrics", profile.WANMetrics); err != nil {
+		return err
+	}
+	if err := validatePasspointConnectionCapabilities(path+".connection_capabilities", profile.ConnectionCapabilities); err != nil {
+		return err
+	}
+	if err := validatePasspointOSU(path+".osu", profile.OSU, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateWirelessPasspointEffectiveProfile(path string, effective EffectiveWirelessPasspointProfile) error {
+	if err := validatePasspointOSU(path+".osu", effective.OSU, effective.HS20); err != nil {
+		return err
+	}
+	if effective.Mode == "enforce" && effective.FailClosed {
+		if len(effective.DomainNames) == 0 {
+			return fmt.Errorf("%s requires at least one domain_name in enforce fail-closed mode", path)
+		}
+		if len(effective.NAIRealms) == 0 {
+			return fmt.Errorf("%s requires at least one nai_realm in enforce fail-closed mode", path)
+		}
+		if effective.HS20 && len(effective.OperatorFriendlyNames) == 0 {
+			return fmt.Errorf("%s requires operator_friendly_names for HS2.0 enforce fail-closed mode", path)
+		}
+	}
+	return nil
+}
+
+func validatePasspointMAC(field, value string) error {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	mac, err := net.ParseMAC(strings.TrimSpace(value))
+	if err != nil || len(mac) != 6 {
+		return fmt.Errorf("%s must be a valid 48-bit MAC address", field)
+	}
+	return nil
+}
+
+func validatePasspointDomainList(field string, values []string) error {
+	seen := map[string]struct{}{}
+	for i, value := range values {
+		domain := strings.ToLower(strings.TrimSpace(value))
+		if domain == "" {
+			return fmt.Errorf("%s[%d] cannot be empty", field, i)
+		}
+		if !validPasspointDomainName(domain) {
+			return fmt.Errorf("%s[%d] %q is not a valid DNS domain", field, i, value)
+		}
+		if _, exists := seen[domain]; exists {
+			return fmt.Errorf("%s[%d] %q duplicates an earlier domain", field, i, value)
+		}
+		seen[domain] = struct{}{}
+	}
+	return nil
+}
+
+func validPasspointDomainName(value string) bool {
+	value = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(value)), ".")
+	if strings.HasPrefix(value, "*.") {
+		value = strings.TrimPrefix(value, "*.")
+	}
+	if value == "" || len(value) > 253 || strings.ContainsAny(value, "\r\n\x00\t /:@") {
+		return false
+	}
+	labels := strings.Split(value, ".")
+	if len(labels) < 2 {
+		return false
+	}
+	for _, label := range labels {
+		if label == "" || len(label) > 63 || strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
+			return false
+		}
+		for _, r := range label {
+			if r >= 'a' && r <= 'z' {
+				continue
+			}
+			if r >= '0' && r <= '9' {
+				continue
+			}
+			if r == '-' {
+				continue
+			}
+			return false
+		}
+	}
+	return true
+}
+
+func validatePasspointOIs(field string, values []string) error {
+	seen := map[string]struct{}{}
+	for i, value := range values {
+		oi := normalizeHexNoSeparators(value)
+		if oi == "" {
+			return fmt.Errorf("%s[%d] cannot be empty", field, i)
+		}
+		if len(oi) < 6 || len(oi) > 30 || len(oi)%2 != 0 || !validFixedHex(oi, len(oi)) {
+			return fmt.Errorf("%s[%d] must be 3-15 octets of hexadecimal OI data", field, i)
+		}
+		if _, exists := seen[oi]; exists {
+			return fmt.Errorf("%s[%d] %q duplicates an earlier OI", field, i, value)
+		}
+		seen[oi] = struct{}{}
+	}
+	return nil
+}
+
+func validatePasspointLocalizedTexts(field string, values []WirelessLocalizedTextConfig, required bool) error {
+	if required && len(values) == 0 {
+		return fmt.Errorf("%s requires at least one localized value", field)
+	}
+	seen := map[string]struct{}{}
+	for i, item := range values {
+		language := strings.ToLower(strings.TrimSpace(item.Language))
+		text := strings.TrimSpace(item.Text)
+		if language == "" || !validPasspointLanguage(language) {
+			return fmt.Errorf("%s[%d].language must be a 2-3 character ISO language code", field, i)
+		}
+		if text == "" || len(text) > 252 || strings.ContainsAny(text, "\r\n\x00") {
+			return fmt.Errorf("%s[%d].text must be 1-252 characters without control characters", field, i)
+		}
+		if _, exists := seen[language]; exists {
+			return fmt.Errorf("%s[%d].language %q duplicates an earlier language", field, i, item.Language)
+		}
+		seen[language] = struct{}{}
+	}
+	return nil
+}
+
+func validPasspointLanguage(value string) bool {
+	if len(value) < 2 || len(value) > 3 {
+		return false
+	}
+	for _, r := range value {
+		if r < 'a' || r > 'z' {
+			return false
+		}
+	}
+	return true
+}
+
+func validatePasspointNAIRealms(field string, values []WirelessPasspointNAIRealmConfig) error {
+	seen := map[string]struct{}{}
+	for i, realm := range values {
+		name := strings.ToLower(strings.TrimSpace(realm.Realm))
+		if name == "" || !validPasspointDomainName(name) {
+			return fmt.Errorf("%s[%d].realm %q is not a valid NAI realm", field, i, realm.Realm)
+		}
+		if _, exists := seen[name]; exists {
+			return fmt.Errorf("%s[%d].realm %q duplicates an earlier realm", field, i, realm.Realm)
+		}
+		seen[name] = struct{}{}
+		if realm.Encoding < 0 || realm.Encoding > 1 {
+			return fmt.Errorf("%s[%d].encoding must be 0 or 1", field, i)
+		}
+		for j, method := range realm.EAPMethods {
+			if !validPasspointEAPMethod(method) {
+				return fmt.Errorf("%s[%d].eap_methods[%d] %q is not supported", field, i, j, method)
+			}
+		}
+		for j, param := range realm.AuthParams {
+			trimmed := strings.TrimSpace(param)
+			if trimmed == "" || len(trimmed) > 32 || strings.ContainsAny(trimmed, "\r\n\x00\t []") {
+				return fmt.Errorf("%s[%d].auth_params[%d] is invalid", field, i, j)
+			}
+		}
+	}
+	return nil
+}
+
+func validPasspointEAPMethod(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "tls", "ttls", "peap", "sim", "aka", "aka-prime", "pwd", "fast", "teap":
+		return true
+	default:
+		return false
+	}
+}
+
+func validatePasspointCellularNetworks(field string, values []WirelessPasspointCellularNetworkConfig) error {
+	seen := map[string]struct{}{}
+	for i, value := range values {
+		mcc := strings.TrimSpace(value.MCC)
+		mnc := strings.TrimSpace(value.MNC)
+		if !allDigits(mcc) || len(mcc) != 3 {
+			return fmt.Errorf("%s[%d].mcc must be exactly three digits", field, i)
+		}
+		if !allDigits(mnc) || (len(mnc) != 2 && len(mnc) != 3) {
+			return fmt.Errorf("%s[%d].mnc must be two or three digits", field, i)
+		}
+		key := mcc + "-" + mnc
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("%s[%d] duplicates cellular network %s", field, i, key)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+func validatePasspointWANMetrics(field string, metrics WirelessPasspointWANMetricsConfig) error {
+	if !metrics.Enabled && strings.TrimSpace(metrics.WANInfo) == "" && metrics.DownlinkKbps == 0 && metrics.UplinkKbps == 0 && metrics.DownlinkLoad == 0 && metrics.UplinkLoad == 0 && metrics.LMD == 0 {
+		return nil
+	}
+	if strings.TrimSpace(metrics.WANInfo) != "" {
+		if _, err := parsePasspointByte(metrics.WANInfo); err != nil {
+			return fmt.Errorf("%s.wan_info must be a decimal byte or two hexadecimal characters", field)
+		}
+	}
+	if metrics.DownlinkKbps < 0 || metrics.UplinkKbps < 0 {
+		return fmt.Errorf("%s downlink_kbps and uplink_kbps cannot be negative", field)
+	}
+	if metrics.DownlinkLoad < 0 || metrics.DownlinkLoad > 255 || metrics.UplinkLoad < 0 || metrics.UplinkLoad > 255 {
+		return fmt.Errorf("%s load values must be between 0 and 255", field)
+	}
+	if metrics.LMD < 0 || metrics.LMD > 65535 {
+		return fmt.Errorf("%s.lmd must be between 0 and 65535", field)
+	}
+	return nil
+}
+
+func validatePasspointConnectionCapabilities(field string, values []WirelessPasspointConnectionCapabilityConfig) error {
+	seen := map[string]struct{}{}
+	for i, value := range values {
+		if value.Protocol < 0 || value.Protocol > 255 {
+			return fmt.Errorf("%s[%d].protocol must be between 0 and 255", field, i)
+		}
+		if value.Port < 0 || value.Port > 65535 {
+			return fmt.Errorf("%s[%d].port must be between 0 and 65535", field, i)
+		}
+		if value.Status < 0 || value.Status > 3 {
+			return fmt.Errorf("%s[%d].status must be between 0 and 3", field, i)
+		}
+		key := fmt.Sprintf("%d/%d/%d", value.Protocol, value.Port, value.Status)
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("%s[%d] duplicates connection capability %s", field, i, key)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+func validatePasspointOSU(field string, osu WirelessPasspointOSUConfig, hs20 bool) error {
+	if !osu.Enabled {
+		return nil
+	}
+	if !hs20 {
+		return fmt.Errorf("%s.enabled requires hs20", field)
+	}
+	if strings.TrimSpace(osu.SSID) != "" && len(strings.TrimSpace(osu.SSID)) > 32 {
+		return fmt.Errorf("%s.ssid exceeds 32 bytes", field)
+	}
+	parsed, err := url.Parse(strings.TrimSpace(osu.ServerURI))
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
+		return fmt.Errorf("%s.server_uri must be a valid https URL", field)
+	}
+	if err := validatePasspointLocalizedTexts(field+".friendly_names", osu.FriendlyNames, true); err != nil {
+		return err
+	}
+	if err := validatePasspointLocalizedTexts(field+".service_descriptions", osu.ServiceDescriptions, true); err != nil {
+		return err
+	}
+	if strings.TrimSpace(osu.NAI) != "" && strings.ContainsAny(osu.NAI, "\r\n\x00\t ") {
+		return fmt.Errorf("%s.nai contains invalid characters", field)
+	}
+	if len(osu.MethodList) == 0 {
+		return fmt.Errorf("%s.method_list requires at least one method", field)
+	}
+	for i, method := range osu.MethodList {
+		if method < 0 || method > 255 {
+			return fmt.Errorf("%s.method_list[%d] must be between 0 and 255", field, i)
+		}
+	}
+	return nil
+}
+
+func normalizedStringList(values []string) []string {
+	seen := map[string]struct{}{}
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		item := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(value), "."))
+		if item == "" {
+			continue
+		}
+		if _, exists := seen[item]; exists {
+			continue
+		}
+		seen[item] = struct{}{}
+		normalized = append(normalized, item)
+	}
+	return normalized
+}
+
+func normalizedPasspointOIs(values []string) []string {
+	seen := map[string]struct{}{}
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		item := normalizeHexNoSeparators(value)
+		if item == "" {
+			continue
+		}
+		if _, exists := seen[item]; exists {
+			continue
+		}
+		seen[item] = struct{}{}
+		normalized = append(normalized, item)
+	}
+	return normalized
+}
+
+func normalizedLocalizedTexts(values []WirelessLocalizedTextConfig) []WirelessLocalizedTextConfig {
+	seen := map[string]struct{}{}
+	normalized := make([]WirelessLocalizedTextConfig, 0, len(values))
+	for _, value := range values {
+		language := strings.ToLower(strings.TrimSpace(value.Language))
+		text := strings.TrimSpace(value.Text)
+		if language == "" || text == "" {
+			continue
+		}
+		if _, exists := seen[language]; exists {
+			continue
+		}
+		seen[language] = struct{}{}
+		normalized = append(normalized, WirelessLocalizedTextConfig{Language: language, Text: text})
+	}
+	return normalized
+}
+
+func normalizedPasspointNAIRealms(values []WirelessPasspointNAIRealmConfig) []WirelessPasspointNAIRealmConfig {
+	seen := map[string]struct{}{}
+	normalized := make([]WirelessPasspointNAIRealmConfig, 0, len(values))
+	for _, value := range values {
+		realm := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(value.Realm), "."))
+		if realm == "" {
+			continue
+		}
+		if _, exists := seen[realm]; exists {
+			continue
+		}
+		seen[realm] = struct{}{}
+		normalized = append(normalized, WirelessPasspointNAIRealmConfig{
+			Realm:      realm,
+			Encoding:   value.Encoding,
+			EAPMethods: normalizedStringList(value.EAPMethods),
+			AuthParams: normalizedStringList(value.AuthParams),
+		})
+	}
+	return normalized
+}
+
+func normalizedPasspointCellularNetworks(values []WirelessPasspointCellularNetworkConfig) []WirelessPasspointCellularNetworkConfig {
+	seen := map[string]struct{}{}
+	normalized := make([]WirelessPasspointCellularNetworkConfig, 0, len(values))
+	for _, value := range values {
+		mcc := strings.TrimSpace(value.MCC)
+		mnc := strings.TrimSpace(value.MNC)
+		if mcc == "" || mnc == "" {
+			continue
+		}
+		key := mcc + "-" + mnc
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, WirelessPasspointCellularNetworkConfig{MCC: mcc, MNC: mnc})
+	}
+	return normalized
+}
+
+func normalizedPasspointConnectionCapabilities(values []WirelessPasspointConnectionCapabilityConfig) []WirelessPasspointConnectionCapabilityConfig {
+	seen := map[string]struct{}{}
+	normalized := make([]WirelessPasspointConnectionCapabilityConfig, 0, len(values))
+	for _, value := range values {
+		key := fmt.Sprintf("%d/%d/%d", value.Protocol, value.Port, value.Status)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, value)
+	}
+	return normalized
+}
+
+func normalizedPasspointOSU(value, fallback WirelessPasspointOSUConfig) WirelessPasspointOSUConfig {
+	if !value.Enabled {
+		return fallback
+	}
+	return WirelessPasspointOSUConfig{
+		Enabled:             true,
+		SSID:                strings.TrimSpace(value.SSID),
+		ServerURI:           strings.TrimSpace(value.ServerURI),
+		FriendlyNames:       normalizedLocalizedTexts(value.FriendlyNames),
+		NAI:                 strings.TrimSpace(value.NAI),
+		MethodList:          append([]int(nil), value.MethodList...),
+		ServiceDescriptions: normalizedLocalizedTexts(value.ServiceDescriptions),
+	}
+}
+
+func effectivePasspointWANMetrics(value, fallback WirelessPasspointWANMetricsConfig) WirelessPasspointWANMetricsConfig {
+	if !value.Enabled && strings.TrimSpace(value.WANInfo) == "" && value.DownlinkKbps == 0 && value.UplinkKbps == 0 && value.DownlinkLoad == 0 && value.UplinkLoad == 0 && value.LMD == 0 {
+		return fallback
+	}
+	if strings.TrimSpace(value.WANInfo) == "" {
+		value.WANInfo = "01"
+	}
+	return WirelessPasspointWANMetricsConfig{
+		Enabled:      true,
+		WANInfo:      strings.TrimSpace(value.WANInfo),
+		DownlinkKbps: value.DownlinkKbps,
+		UplinkKbps:   value.UplinkKbps,
+		DownlinkLoad: value.DownlinkLoad,
+		UplinkLoad:   value.UplinkLoad,
+		LMD:          value.LMD,
+	}
+}
+
+func mergeStringLists(base, overlay []string) []string {
+	if len(overlay) == 0 {
+		return append([]string(nil), base...)
+	}
+	seen := map[string]struct{}{}
+	merged := make([]string, 0, len(base)+len(overlay))
+	for _, value := range append(append([]string(nil), base...), overlay...) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		merged = append(merged, value)
+	}
+	return merged
+}
+
+func mergeLocalizedTexts(base, overlay []WirelessLocalizedTextConfig) []WirelessLocalizedTextConfig {
+	if len(overlay) == 0 {
+		return append([]WirelessLocalizedTextConfig(nil), base...)
+	}
+	seen := map[string]struct{}{}
+	merged := make([]WirelessLocalizedTextConfig, 0, len(base)+len(overlay))
+	for _, item := range append(append([]WirelessLocalizedTextConfig(nil), base...), overlay...) {
+		language := strings.ToLower(strings.TrimSpace(item.Language))
+		text := strings.TrimSpace(item.Text)
+		if language == "" || text == "" {
+			continue
+		}
+		if _, exists := seen[language]; exists {
+			continue
+		}
+		seen[language] = struct{}{}
+		merged = append(merged, WirelessLocalizedTextConfig{Language: language, Text: text})
+	}
+	return merged
+}
+
+func mergeNAIRealms(base, overlay []WirelessPasspointNAIRealmConfig) []WirelessPasspointNAIRealmConfig {
+	if len(overlay) == 0 {
+		return append([]WirelessPasspointNAIRealmConfig(nil), base...)
+	}
+	seen := map[string]struct{}{}
+	merged := make([]WirelessPasspointNAIRealmConfig, 0, len(base)+len(overlay))
+	for _, item := range append(append([]WirelessPasspointNAIRealmConfig(nil), base...), overlay...) {
+		realm := strings.ToLower(strings.TrimSpace(item.Realm))
+		if realm == "" {
+			continue
+		}
+		if _, exists := seen[realm]; exists {
+			continue
+		}
+		seen[realm] = struct{}{}
+		merged = append(merged, item)
+	}
+	return merged
+}
+
+func mergeCellularNetworks(base, overlay []WirelessPasspointCellularNetworkConfig) []WirelessPasspointCellularNetworkConfig {
+	if len(overlay) == 0 {
+		return append([]WirelessPasspointCellularNetworkConfig(nil), base...)
+	}
+	seen := map[string]struct{}{}
+	merged := make([]WirelessPasspointCellularNetworkConfig, 0, len(base)+len(overlay))
+	for _, item := range append(append([]WirelessPasspointCellularNetworkConfig(nil), base...), overlay...) {
+		key := strings.TrimSpace(item.MCC) + "-" + strings.TrimSpace(item.MNC)
+		if key == "-" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		merged = append(merged, item)
+	}
+	return merged
+}
+
+func normalizePasspointMAC(value string) string {
+	mac, err := net.ParseMAC(strings.TrimSpace(value))
+	if err != nil || len(mac) != 6 {
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+	parts := make([]string, 0, 6)
+	for _, octet := range mac {
+		parts = append(parts, fmt.Sprintf("%02x", octet))
+	}
+	return strings.Join(parts, ":")
+}
+
+func parsePasspointByte(value string) (int, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, fmt.Errorf("empty byte")
+	}
+	if len(value) == 2 && validFixedHex(strings.ToLower(value), 2) {
+		parsed, err := strconv.ParseInt(value, 16, 0)
+		return int(parsed), err
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 0 || parsed > 255 {
+		return 0, fmt.Errorf("invalid byte")
+	}
+	return parsed, nil
+}
+
+func allDigits(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func validateWirelessRoamingProfileFields(path, mobilityDomain, r1KeyHolder, nasIdentifier string, r0KeyLifetimeSeconds, reassociationDeadline int, keySeedRef string) error {
@@ -5736,6 +6701,17 @@ func wirelessRoamingSupportedAuthMode(authMode string) bool {
 
 func wirelessRoamingFTSupportedAuthMode(authMode string) bool {
 	return wirelessRoamingSupportedAuthMode(authMode)
+}
+
+func wirelessPasspointSupportedAuthMode(authMode string, effective EffectiveWirelessPasspointProfile) bool {
+	switch strings.ToLower(strings.TrimSpace(authMode)) {
+	case "wpa2-enterprise", "wpa3-enterprise":
+		return true
+	case "open", "captive-portal":
+		return effective.OSU.Enabled || !effective.FailClosed || effective.Mode == "monitor"
+	default:
+		return false
+	}
 }
 
 func normalizeHexNoSeparators(value string) string {

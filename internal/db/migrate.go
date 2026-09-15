@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 79
+	return 80
 }
 
 func Migrate() error {
@@ -4046,3 +4046,39 @@ CREATE INDEX IF NOT EXISTS idx_wireless_roaming_lifecycle_events_config ON wirel
 `
 
 const schemaV79 = wirelessRoamingLifecycleSQL
+
+const passpointLifecycleSQL = `
+CREATE TABLE IF NOT EXISTS passpoint_lifecycle_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	config_path TEXT,
+	hostapd_config_sha256 TEXT,
+	plan_fingerprint TEXT NOT NULL,
+	ssid_count INTEGER NOT NULL DEFAULT 0,
+	passpoint_ssid_count INTEGER NOT NULL DEFAULT 0,
+	interworking_ssid_count INTEGER NOT NULL DEFAULT 0,
+	hs20_ssid_count INTEGER NOT NULL DEFAULT 0,
+	osu_provider_count INTEGER NOT NULL DEFAULT 0,
+	domain_name_count INTEGER NOT NULL DEFAULT 0,
+	roaming_consortium_count INTEGER NOT NULL DEFAULT 0,
+	nai_realm_count INTEGER NOT NULL DEFAULT 0,
+	cellular_network_count INTEGER NOT NULL DEFAULT 0,
+	connection_capability_count INTEGER NOT NULL DEFAULT 0,
+	diagnostic_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_passpoint_lifecycle_events_created ON passpoint_lifecycle_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_passpoint_lifecycle_events_status ON passpoint_lifecycle_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_passpoint_lifecycle_events_fingerprint ON passpoint_lifecycle_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_passpoint_lifecycle_events_config ON passpoint_lifecycle_events(config_path, created_at);
+`
+
+const schemaV80 = passpointLifecycleSQL

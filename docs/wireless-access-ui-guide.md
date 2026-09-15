@@ -542,6 +542,11 @@ Checklist:
 - [ ] Every 802.11r neighbor AP has BSSID, R1 key holder, NAS identifier, and key seed coverage
 - [ ] The redacted hostapd preview contains the expected `mobility_domain`, `r0kh`, `r1kh`, `rrm_neighbor_report`, and `bss_transition` lines without exposing seed values
 - [ ] `Apply 802.11r/k/v` has recorded lifecycle history before hostapd restart
+- [ ] For a physical appliance using Passpoint or Hotspot 2.0, `Passpoint And Hotspot 2.0 Lifecycle` reports `ready`
+- [ ] The SSID's `Passpoint Profile` enables only the intended `interworking` and `hs20` features
+- [ ] The redacted hostapd preview contains the expected `interworking`, `hs20`, `domain_name`, `roaming_consortium`, `nai_realm`, `anqp_3gpp_cell_net`, `hs20_oper_friendly_name`, `hs20_wan_metrics`, and `hs20_conn_capab` lines
+- [ ] `Preview Passpoint` has recorded lifecycle evidence before hostapd restart
+- [ ] `Apply Passpoint` has recorded lifecycle history after the Passpoint plan is accepted
 - [ ] For a physical appliance using a local radio, `hostapd Preview` reflects the intended enterprise SSID
 - [ ] For a physical appliance using a local radio, `Write hostapd Config` or `Write And Restart Wi-Fi` has been run
 - [ ] For an external AP or controller, the SSID is configured on the AP side as WPA2-Enterprise or WPA3-Enterprise
@@ -566,15 +571,16 @@ After configuration, check these paths:
 1. `Access Settings` page reloads without errors
 2. `hostapd Dynamic VLAN Lifecycle` shows the expected bindings, VLAN file entries, and rollback preview
 3. `802.11r/k/v Roaming Lifecycle` shows the expected SSID profiles, neighbors, key-reference state, and redacted hostapd preview
-4. `hostapd Preview` matches the saved SSIDs
-5. dashboard service cards stay healthy after apply
-6. dashboard upstream AAA cards reflect the real primary and secondary server state
-7. dashboard runtime shaping card reflects the downstream interface and shaped session count
-8. `RADIUS Clients` list contains the real AP or switch addresses
-9. `Sessions` shows live sessions during testing
-10. `Alerts` stays clear of repeated auth failures
-11. `Config Revisions` captures your changes
-12. `Backups` exports cleanly
+4. `Passpoint And Hotspot 2.0 Lifecycle` shows the expected ANQP, HS2.0, NAI realm, OSU, and redacted hostapd preview
+5. `hostapd Preview` matches the saved SSIDs
+6. dashboard service cards stay healthy after apply
+7. dashboard upstream AAA cards reflect the real primary and secondary server state
+8. dashboard runtime shaping card reflects the downstream interface and shaped session count
+9. `RADIUS Clients` list contains the real AP or switch addresses
+10. `Sessions` shows live sessions during testing
+11. `Alerts` stays clear of repeated auth failures
+12. `Config Revisions` captures your changes
+13. `Backups` exports cleanly
 
 CLI checks:
 

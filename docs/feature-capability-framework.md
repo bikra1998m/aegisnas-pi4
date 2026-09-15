@@ -274,6 +274,7 @@ These features depend heavily on physical platform shape.
 | Multi-SSID local appliance mode | warned | enabled | enabled | capacity depends on radio and CPU |
 | Dynamic VLAN SSIDs | available | enabled | enabled | strongest on enterprise gear; hostapd config uses fallback `dynamic_vlan=1` or fail-closed `dynamic_vlan=2` and points to the managed VLAN file |
 | 802.11r/k/v roaming lifecycle | available | enabled | enabled | renders FT, RRM, BSS transition, PMF, neighbor AP, and key-reference-safe hostapd intent; real roam and packet-capture proof remain release certification |
+| Passpoint and Hotspot 2.0 lifecycle | available | enabled | enabled | renders 802.11u/HS2.0 ANQP, venue/operator, domain, roaming consortium, NAI realm, 3GPP, WAN metrics, connection capability, and OSU hostapd intent; real AP/client/carrier proof remains release certification |
 | Tagged VLAN/QinQ policy | available | enabled | enabled | compiler is lightweight; production claims need packet capture and vendor-device certification |
 | Per-session route/VRF policy | available | enabled | enabled | compiler is lightweight; active ownership and Stop withdrawal are software-ready; native vendor route behavior needs certification |
 | Dynamic subscriber route export | available | enabled | enabled | publishes owned routes into FRR BGP/OSPF plans with snapshots, withdrawal, and rollback; live routing proof needs release certification |

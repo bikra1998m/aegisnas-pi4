@@ -263,6 +263,40 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		wirelessRoamingLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["wireless_roaming_lifecycle"]}
 	}
+	passpointLifecycleStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Passpoint and Hotspot 2.0 lifecycle status has not been evaluated.",
+	}
+	if passpointReport, err := enforcement.PreviewPasspointLifecycle(cfg); err == nil {
+		passpointSummary, _ := db.GetPasspointLifecycleSummary()
+		passpointLifecycleStatus = map[string]any{
+			"schema_version":                  passpointReport.SchemaVersion,
+			"feature_id":                      passpointReport.FeatureID,
+			"status":                          passpointReport.Status,
+			"message":                         passpointReport.Message,
+			"ready_for_external_validation":   passpointReport.ReadyForExternalValidation,
+			"software_completion_percent":     passpointReport.SoftwareCompletionPercent,
+			"passpoint_enabled":               passpointReport.Summary.PasspointEnabled,
+			"passpoint_ssid_count":            passpointReport.Summary.PasspointSSIDCount,
+			"interworking_ssid_count":         passpointReport.Summary.InterworkingSSIDCount,
+			"hs20_ssid_count":                 passpointReport.Summary.HS20SSIDCount,
+			"osu_provider_count":              passpointReport.Summary.OSUProviderCount,
+			"domain_name_count":               passpointReport.Summary.DomainNameCount,
+			"roaming_consortium_count":        passpointReport.Summary.RoamingConsortiumCount,
+			"nai_realm_count":                 passpointReport.Summary.NAIRealmCount,
+			"cellular_network_count":          passpointReport.Summary.CellularNetworkCount,
+			"connection_capability_count":     passpointReport.Summary.ConnectionCapabilityCount,
+			"diagnostic_count":                passpointReport.Summary.DiagnosticCount,
+			"hostapd_config_path":             passpointReport.HostapdConfigPath,
+			"hostapd_config_sha256":           passpointReport.HostapdConfigSHA256,
+			"plan_fingerprint":                passpointReport.PlanFingerprint,
+			"release_certification_checklist": passpointReport.ReleaseCertificationChecklist,
+			"evidence_summary":                passpointSummary,
+			"runtime_status":                  runtimeMap["passpoint_lifecycle"],
+		}
+	} else {
+		passpointLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap["passpoint_lifecycle"]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1063,6 +1097,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"hostapd_vlan_file_path": cfg.Wireless.HostapdVLANFilePath,
 		"hostapd_vlan_lifecycle": hostapdVLANLifecycleStatus,
 		"roaming_lifecycle":      wirelessRoamingLifecycleStatus,
+		"passpoint_lifecycle":    passpointLifecycleStatus,
 		"ssid_count":             len(cfg.Wireless.SSIDs),
 		"auth_modes":             ssidAuthModes(cfg.Wireless.SSIDs),
 	}

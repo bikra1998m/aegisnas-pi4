@@ -1153,6 +1153,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0075 roaming lifecycle event history."),
 	}))
+	addOperation(paths, "/api/v1/system/passpoint-lifecycle", "get", securedOperation("Read Passpoint and Hotspot 2.0 lifecycle", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0076 Passpoint and Hotspot 2.0 lifecycle report, redacted hostapd ANQP/HS2.0 preview, SSID profiles, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/passpoint-lifecycle/preview", "post", securedOperationWithBody("Preview Passpoint and Hotspot 2.0 lifecycle", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without changing hostapd files."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0076 Passpoint and Hotspot 2.0 lifecycle report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/passpoint-lifecycle/apply", "post", securedOperationWithBody("Apply Passpoint and Hotspot 2.0 lifecycle", "Wireless", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; writes the generated hostapd Passpoint configuration after validation."), map[string]any{
+		"200":     responseJSON("Applied NAS-0076 Passpoint and Hotspot 2.0 lifecycle and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/passpoint-lifecycle/history", "get", securedOperationWithParameters("List Passpoint and Hotspot 2.0 lifecycle history", "Wireless", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0076 Passpoint and Hotspot 2.0 lifecycle event history."),
+	}))
 	addOperation(paths, "/api/v1/system/radius-apply", "post", securedOperation("Apply RADIUS runtime configuration", "RADIUS", []string{"super_admin"}, map[string]any{
 		"200":     responseJSON("RADIUS apply result."),
 		"default": responseText("RADIUS apply error."),

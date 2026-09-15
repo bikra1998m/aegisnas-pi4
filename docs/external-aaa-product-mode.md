@@ -741,6 +741,15 @@ certification scope. AegisNAS derives `r0kh`/`r1kh` material from configured
 secret references and redacts generated FT keys from API, UI, support bundle,
 and lifecycle history output.
 
+NAS-0076 adds local Passpoint and Hotspot 2.0 lifecycle evidence for hostapd
+SSIDs. `/api/v1/system/passpoint-lifecycle` reports effective global and
+per-SSID Passpoint profiles, ANQP/HS2.0 metadata, domain names, roaming
+consortium OIs, NAI realms, 3GPP cellular networks, WAN metrics, connection
+capabilities, OSU provider state, redacted hostapd preview, diagnostics,
+history, and release certification scope. The lifecycle is software-ready for
+local radio publication, while real AP/client Passpoint certification and
+carrier offload proof remain release certification items.
+
 NAS-0054 adds the portable tagged VLAN and QinQ policy compiler. Prefer this
 for new role intent because it covers one data VLAN, one tagged voice VLAN,
 extra tagged VLANs, deterministic VLAN pools, fallback VLANs, auth-fail VLANs,

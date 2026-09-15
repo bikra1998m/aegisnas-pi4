@@ -1558,6 +1558,76 @@ wireless:
         pmf_required: true
         neighbor_aps: ["aegis-ap-2"]
         key_seed_ref: "env:AEGIS_FT_KEY_SEED"
+  passpoint:
+    enabled: false
+    mode: monitor
+    fail_closed: true
+    interworking: true
+    hs20: true
+    default_profile: ""
+    access_network_type: 2
+    internet: true
+    asra: false
+    esr: false
+    uesa: false
+    venue_group: 2
+    venue_type: 8
+    hessid: ""
+    disable_dgaf: true
+    proxy_arp: true
+    domain_names: ["corp.example.test"]
+    roaming_consortium_ois: ["112233"]
+    operator_friendly_names:
+      - lang: eng
+        text: "AegisNAS"
+    venue_names:
+      - lang: eng
+        text: "AegisNAS Lab"
+    nai_realms:
+      - realm: "example.test"
+        eap_methods: ["tls", "ttls"]
+        encoding: 0
+    cellular_networks:
+      - mcc: "001"
+        mnc: "01"
+    wan_metrics:
+      link_status: 1
+      symmetric_link: true
+      at_capacity: false
+      downlink_speed_kbps: 100000
+      uplink_speed_kbps: 50000
+      downlink_load: 10
+      uplink_load: 5
+      lmd: 0
+    connection_capabilities:
+      - protocol: 6
+        port: 443
+        status: 1
+    osu:
+      enabled: false
+      ssid: "AegisOSU"
+      server_uri: "https://osu.example.test/signup"
+      method_list: ["oma-dm"]
+      icons: []
+      friendly_names:
+        - lang: eng
+          text: "AegisNAS signup"
+      service_descriptions:
+        - lang: eng
+          text: "AegisNAS online signup"
+    event_retention_limit: 6000
+    profiles:
+      - name: "corp-passpoint"
+        enabled: true
+        mode: enforce
+        interworking: true
+        hs20: true
+        description: "Example Passpoint profile for physical appliance labs"
+        domain_names: ["corp.example.test"]
+        roaming_consortium_ois: ["112233"]
+        nai_realms:
+          - realm: "corp.example.test"
+            eap_methods: ["tls", "ttls"]
   ssids:
     - name: "Aegis Guest"
       auth_mode: "captive-portal"

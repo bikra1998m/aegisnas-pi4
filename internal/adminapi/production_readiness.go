@@ -151,6 +151,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionVLANLifecycleCheck(&report, cfg)
 	addProductionHostapdVLANLifecycleCheck(&report, cfg)
 	addProductionWirelessRoamingLifecycleCheck(&report, cfg)
+	addProductionPasspointLifecycleCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -1543,6 +1544,67 @@ func addProductionWirelessRoamingLifecycleCheck(report *productionReadinessRepor
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/wireless-roaming-lifecycle/preview before local-radio rollout, apply only after reviewing FT neighbor key references and PMF policy, and keep hardware, packet capture, HA, scale, soak, security, and customer proof in the NAS-0075 release certification checklist.",
 		Dependencies:   []string{"wireless.roaming", "wireless.ssids.roaming_profile", "wireless.roaming.neighbor_aps", "wireless.roaming.key_seed_ref", "hostapd", "EAP-Message", "Message-Authenticator", "Calling-Station-Id", "Called-Station-Id", "/api/v1/system/wireless-roaming-lifecycle", "/api/v1/system/wireless-roaming-lifecycle/preview", "/api/v1/system/wireless-roaming-lifecycle/apply", "IEEE 802.11r", "IEEE 802.11k", "IEEE 802.11v", "IEEE 802.11w"},
+	})
+}
+
+func addProductionPasspointLifecycleCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0076 Passpoint and Hotspot 2.0 lifecycle software is ready."
+	reportData, err := enforcement.PreviewPasspointLifecycle(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Passpoint lifecycle preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0076 schema %d status=%s, Passpoint SSIDs=%d, HS2.0=%d, OSU=%d, domains=%d, roaming OIs=%d, NAI realms=%d, PLMNs=%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.PasspointSSIDCount,
+			reportData.Summary.HS20SSIDCount,
+			reportData.Summary.OSUProviderCount,
+			reportData.Summary.DomainNameCount,
+			reportData.Summary.RoamingConsortiumCount,
+			reportData.Summary.NAIRealmCount,
+			reportData.Summary.CellularNetworkCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "skipped" {
+			summary += " Passpoint is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but Passpoint lifecycle event history cannot be verified."
+	} else if evidence, err := db.GetPasspointLifecycleSummary(); err != nil {
+		status = "blocked"
+		summary += " Passpoint lifecycle evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "passpoint_lifecycle",
+		Category:       "wireless",
+		Label:          "NAS-0076 Passpoint And Hotspot 2.0 Lifecycle",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/passpoint-lifecycle/preview before Passpoint rollout, apply only after reviewing ANQP/HS2.0/OSU metadata, and keep real AP/client, Wi-Fi Alliance, carrier roaming, packet capture, HA, scale, soak, security, and customer proof in the NAS-0076 release certification checklist.",
+		Dependencies:   []string{"wireless.passpoint", "wireless.ssids.passpoint_profile", "hostapd interworking", "hostapd hs20", "EAP-Message", "Message-Authenticator", "Operator-Name", "Chargeable-User-Identity", "WISPr-Location-ID", "WISPr-Location-Name", "/api/v1/system/passpoint-lifecycle", "/api/v1/system/passpoint-lifecycle/preview", "/api/v1/system/passpoint-lifecycle/apply", "IEEE 802.11u", "Hotspot 2.0", "RFC 4186", "RFC 4187", "RFC 5448"},
 	})
 }
 
