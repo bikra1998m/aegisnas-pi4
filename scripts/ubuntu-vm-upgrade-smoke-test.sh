@@ -118,7 +118,19 @@ backup_file() {
 health_probe() {
   local port="$1"
   local target_file="$2"
-  curl -fsS "http://127.0.0.1:${port}/health" >"${target_file}"
+  local attempt tmp
+  tmp="${target_file}.tmp"
+  for attempt in $(seq 1 30); do
+    if curl -fsS "http://127.0.0.1:${port}/health" >"${tmp}" 2>"${tmp}.err"; then
+      mv "${tmp}" "${target_file}"
+      rm -f "${tmp}.err"
+      return 0
+    fi
+    sleep 2
+  done
+  cat "${tmp}.err" >&2 || true
+  rm -f "${tmp}" "${tmp}.err"
+  return 1
 }
 
 main() {

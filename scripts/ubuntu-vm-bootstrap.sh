@@ -722,7 +722,9 @@ start_services() {
   sudo systemctl enable dnsmasq freeradius nftables >/dev/null
   sudo systemctl enable "${units[@]}" >/dev/null
   sudo systemctl restart dnsmasq nftables
-  sudo systemctl restart "${units[@]}"
+  for unit in "${units[@]}"; do
+    sudo systemctl restart "${unit}"
+  done
 }
 
 show_summary() {
