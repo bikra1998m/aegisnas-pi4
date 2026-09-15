@@ -402,6 +402,21 @@ func arubaFamilyRuntimeAnnotations() []AttributeRegistryEntry {
 		arubaRuntimeAnnotation("Aerohive", 26928, "Extreme-IDM-Redirect-URL", 211, "string", VendorPackAerohive, VendorSemanticPortalProfile, "string", VendorSemanticPortalProfile),
 		arubaRuntimeAnnotation("Aerohive", 26928, "Extreme-Auth-Source", 213, "integer", VendorPackAerohive, VendorSemanticCertificateOnboarding, "integer_text", VendorSemanticCertificateOnboarding),
 		arubaRuntimeAnnotation("Colubris", 8744, "Colubris-Intercept", 1, "integer", VendorPackColubris, VendorSemanticQuarantine, "bool", VendorSemanticQuarantine),
+		{
+			Source:             "aegisnas-runtime",
+			ReleaseProfileID:   DefaultDictionaryReleaseProfileID,
+			Vendor:             "Colubris",
+			PEN:                8744,
+			Attribute:          "Colubris-AVPair",
+			WireType:           "string",
+			CapabilityFamily:   "Authorization/policy",
+			DictionaryStatus:   "missing",
+			PackKey:            VendorPackColubris,
+			Semantic:           VendorSemanticPolicyTag,
+			SemanticProvenance: "aegisnas-runtime:nas-0062",
+			Directions:         []string{"outbound_reply"},
+			Functionality:      "AegisNAS Colubris/MSM profile export template for vendor-scoped AVPair-style policy evidence; not present as a pinned FreeRADIUS dictionary row.",
+		},
 	}
 }
 
@@ -601,7 +616,9 @@ func (r *AttributeRegistry) applyRuntimeAnnotations(vendors map[string]struct{})
 		}
 		annotation.Source = "aegisnas-runtime"
 		annotation.ReleaseProfileID = DefaultDictionaryReleaseProfileID
-		annotation.DictionaryStatus = "partial"
+		if annotation.DictionaryStatus == "" {
+			annotation.DictionaryStatus = "partial"
+		}
 		if annotation.SemanticProvenance == "" {
 			annotation.SemanticProvenance = "aegisnas-runtime"
 		}
@@ -733,7 +750,9 @@ func ruckusICXRegistryDirections(entry AttributeRegistryEntry, semantic string) 
 		return []string{"coa", "inbound", "outbound_reply"}
 	case registrySemanticContains(semantic, VendorSemanticControllerHealth):
 		return []string{"controller_api", "inbound"}
-	case containsAnyRuckusICXRegistryToken(name, "zone", "cluster", "domain", "blade", "aaa-id", "auth-server", "utp"):
+	case containsAnyRuckusICXRegistryToken(name, "zone"):
+		return []string{"accounting", "controller_api", "inbound", "outbound_reply"}
+	case containsAnyRuckusICXRegistryToken(name, "cluster", "domain", "blade", "aaa-id", "auth-server", "utp"):
 		return []string{"accounting", "controller_api", "inbound"}
 	default:
 		return []string{"accounting", "inbound", "outbound_reply"}
@@ -899,7 +918,9 @@ func fortinetPaloAltoRegistrySemantic(entry AttributeRegistryEntry) string {
 func fortinetPaloAltoRegistryDirections(entry AttributeRegistryEntry, semantic string) []string {
 	name := strings.ToLower(entry.Attribute)
 	switch {
-	case containsAnyFortinetPaloAltoRegistryToken(name, "client-os", "client-hostname", "client-source-ip", "wirelesscontroller", "ap-name", "assoc-time", "device-mac"):
+	case containsAnyFortinetPaloAltoRegistryToken(name, "interface-name", "ap-name"):
+		return []string{"accounting", "inbound", "outbound_reply"}
+	case containsAnyFortinetPaloAltoRegistryToken(name, "client-os", "client-hostname", "client-source-ip", "wirelesscontroller", "assoc-time", "device-mac"):
 		return []string{"accounting", "inbound"}
 	case containsAnyFortinetPaloAltoRegistryToken(name, "fac-token", "fac-challenge", "fac-auth"):
 		return []string{"inbound", "outbound_reply"}

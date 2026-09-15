@@ -324,7 +324,7 @@ func classifyFortinetPaloAltoRuntime(attribute, tokenName string) (FortinetPaloA
 		return FortinetPaloAltoKindPosture, productconfigs.VendorSemanticDevicePosture, ""
 	case containsAnyFortinetPaloAltoRuntimeToken(name, "client-hostname", "wirelesscontroller-device-mac", "wirelesscontroller-wtp-id", "assoc-time"):
 		return FortinetPaloAltoKindAccounting, productconfigs.VendorSemanticAccountingIdentity, ""
-	case containsAnyFortinetPaloAltoRuntimeToken(name, "ssid", "ap-name"):
+	case containsAnyFortinetPaloAltoRuntimeToken(name, "user-group", "device-group", "ssid", "ap-name"):
 		return FortinetPaloAltoKindWLAN, productconfigs.VendorSemanticDeviceGroup, ""
 	case containsAnyFortinetPaloAltoRuntimeToken(name, "interface"):
 		return FortinetPaloAltoKindInterface, productconfigs.VendorSemanticDeviceGroup, ""

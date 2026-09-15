@@ -549,6 +549,8 @@ func nokiaALURegistrySemantic(entry AttributeRegistryEntry) string {
 func nokiaALURegistryDirections(entry AttributeRegistryEntry, semantic string) []string {
 	name := strings.ToLower(entry.Attribute)
 	switch {
+	case strings.EqualFold(entry.Attribute, "ALU-AAA-Called-Station-Id"):
+		return []string{"accounting", "inbound", "outbound_reply"}
 	case containsAnyNokiaALUToken(name, "acct", "account", "octets", "pkts", "packets", "statmode", "trigger", "interim", "delta-session", "session-", "subsc-id", "subscriber-id", "nas-ip-address", "nas-port", "called-station", "location", "civic", "geospatial", "hardware", "mac"):
 		return []string{"accounting", "inbound"}
 	case nokiaALUSensitiveAttribute(entry.Attribute):

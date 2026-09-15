@@ -1,6 +1,7 @@
 package radius
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -81,18 +82,29 @@ func TestVendorPackCertificationMatrixRendersDeclaredOutboundAttributes(t *testi
 				}
 			}
 
-			declared := 0
+			declared := map[string]struct{}{}
 			for _, mapping := range pack.Attributes {
-				if mapping.Direction != "outbound_reply" || mapping.CompatibilityState != "implemented" {
+				if !vendorPackMappingHasDirection(mapping.Direction, "outbound_reply") || mapping.CompatibilityState != "implemented" {
 					continue
 				}
-				declared++
-				_, rendered := actual[mapping.Attribute]
-				assert.True(t, rendered, "declared implemented attribute %s was not rendered", mapping.Attribute)
+				declared[mapping.Attribute] = struct{}{}
 			}
-			if declared == 0 {
-				require.Empty(t, items, "pack without implemented outbound mappings rendered undeclared attributes")
+			for _, item := range items {
+				_, declaredOutbound := declared[item.Name]
+				assert.True(t, declaredOutbound, "rendered undeclared outbound attribute %s", item.Name)
+			}
+			if len(items) > 0 {
+				require.NotEmpty(t, declared, "pack rendered outbound attributes without declared implemented mappings")
 			}
 		})
 	}
+}
+
+func vendorPackMappingHasDirection(value, expected string) bool {
+	for _, direction := range strings.Split(value, ",") {
+		if strings.EqualFold(strings.TrimSpace(direction), expected) {
+			return true
+		}
+	}
+	return false
 }

@@ -36,6 +36,10 @@ func TestSendAccountingQueuesAndReplaySendsDurableRecord(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, summary.QueuedCount)
 
+	_, err = db.DB.Exec(`UPDATE radius_accounting_spool SET next_attempt_at = ? WHERE session_id = ?`,
+		time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano), rec.SessionID)
+	require.NoError(t, err)
+
 	accountingPacketSender = func(context.Context, *config.Config, *AccountingRecord) (accountingSendResult, error) {
 		return accountingSendResult{ResponseCode: "Accounting-Response", Latency: 5 * time.Millisecond}, nil
 	}

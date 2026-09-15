@@ -128,6 +128,9 @@ func BuildArubaFamilyPackReport() (ArubaFamilyPackReport, error) {
 		if !isArubaFamilyVendor(entry.Vendor) {
 			continue
 		}
+		if entry.Source == "aegisnas-runtime" && entry.Number == 0 {
+			continue
+		}
 		records = append(records, buildArubaFamilyAttributeRecord(entry))
 	}
 	sort.SliceStable(records, func(i, j int) bool {
