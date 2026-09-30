@@ -157,6 +157,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionControllerEstateLifecycleCheck(&report, cfg)
 	addProductionRFPlanningLifecycleCheck(&report, cfg)
 	addProductionWirelessSecurityLifecycleCheck(&report, cfg)
+	addProductionCWAPortalLifecycleCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -1876,6 +1877,73 @@ func addProductionWirelessSecurityLifecycleCheck(report *productionReadinessRepo
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/wireless-security-lifecycle/preview before WIPS or multicast rollout, apply only after reviewing rogue containment guards, WIPS detections, spectrum coverage, location privacy, multicast controls, and controller ownership, and keep live containment, spectrum capture, location accuracy, multicast airtime, HA, scale, soak, security, and customer proof in the NAS-0080 release certification checklist.",
 		Dependencies:   []string{"wireless.security", "wireless.security.rogue", "wireless.security.wips", "wireless.security.spectrum", "wireless.security.location", "wireless.security.multicast", "wireless.security.sensors", "wireless.rf", "integrations.controller", "radius.dynamic_auth", "/api/v1/system/wireless-security-lifecycle", "/api/v1/system/wireless-security-lifecycle/preview", "/api/v1/system/wireless-security-lifecycle/apply", "wireless_security_lifecycle_events", "IEEE 802.11", "IEEE 802.11w", "RFC 5176", "RFC 4541", "RFC 6762", "RFC 6763"},
+	})
+}
+
+func addProductionCWAPortalLifecycleCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0081 controller CWA and safe per-session portal software is ready."
+	reportData, err := enforcement.PreviewCWAPortalLifecycle(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "CWA portal lifecycle preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0081 schema %d status=%s, mode=%s, portal=%s, controller=%s, guest SSIDs=%d, walled garden=%d, controller policies=%d, redirect rules=%d, CoA actions=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			firstNonEmptyAdminString(reportData.Summary.PortalBaseURL, "unset"),
+			firstNonEmptyAdminString(reportData.Summary.ControllerPlatform, "local"),
+			reportData.Summary.GuestSSIDCount,
+			reportData.Summary.WalledGardenCount,
+			reportData.Summary.ControllerPolicyCount,
+			reportData.Summary.RedirectRuleCount,
+			reportData.Summary.CoAActionCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "skipped" {
+			summary += " CWA portal lifecycle is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but CWA portal lifecycle event history cannot be verified."
+	} else if evidence, err := db.GetCWAPortalLifecycleSummary(); err != nil {
+		status = "blocked"
+		summary += " CWA portal lifecycle evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, last guest SSIDs=%d, last walled garden=%d, last CoA actions=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.LastGuestSSIDCount,
+			evidence.LastWalledGardenCount,
+			evidence.LastCoAActionCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "cwa_portal_lifecycle",
+		Category:       "wireless",
+		Label:          "NAS-0081 Controller CWA And Safe Per-session Portal",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/cwa-portal-lifecycle/preview before CWA rollout, apply only after reviewing RFC 8910 API, per-session redirect rules, walled-garden entries, controller policies, CoA handoff, and keep real controller/AP redirect, DHCP/RA advertisement, packet capture, HA, scale, soak, security, and customer proof in the NAS-0081 release certification checklist.",
+		Dependencies:   []string{"portal.cwa", "portal.enabled", "wireless.ssids.auth_mode=captive-portal", "radius.dynamic_auth", "integrations.controller", "/api/v1/system/cwa-portal-lifecycle", "/api/v1/system/cwa-portal-lifecycle/preview", "/api/v1/system/cwa-portal-lifecycle/apply", "cwa_portal_lifecycle_events", "RFC 8910", "RFC 7710", "RFC 5176", "RFC 2865", "IEEE 802.11"},
 	})
 }
 

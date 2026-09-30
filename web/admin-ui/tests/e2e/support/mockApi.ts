@@ -2459,6 +2459,185 @@ function createWirelessSecurityLifecycle(status = "ready") {
   };
 }
 
+function createCWAPortalLifecycle(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0081",
+      status,
+      message:
+        "NAS-0081 plans 1 guest SSID, 3 walled-garden items, 1 controller policy item, 1 redirect rule, and 1 CoA action.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0081-release-certification-checklist.md",
+      release_scope:
+        "Live controller CWA redirect, DHCP/RA advertisement, AP firmware behavior, packet captures, HA, scale, soak, security audit, production deployment, and customer acceptance are release certification activities.",
+      plan_fingerprint:
+        "sha256:54d90bcf3a24fb1ff7ddca3d19e83fefb22c3325f7f33f9b9616bf22a2a66c81",
+      summary: {
+        cwa_enabled: true,
+        portal_enabled: true,
+        wireless_enabled: true,
+        controller_enabled: true,
+        dynamic_auth_enabled: true,
+        rfc8910_api_enabled: true,
+        https_required: true,
+        session_binding_required: true,
+        per_session_walled_garden: true,
+        coa_after_authentication: true,
+        controller_redirect_enabled: true,
+        mode: "monitor",
+        portal_base_url: "https://portal.example.test",
+        captive_api_path: "/captive-portal/api",
+        controller_platform: "cisco",
+        guest_ssid_count: 1,
+        walled_garden_count: 3,
+        required_garden_count: 2,
+        controller_policy_count: 1,
+        redirect_rule_count: 1,
+        coa_action_count: 1,
+        compliance_check_count: 8,
+        passed_check_count: 8,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 8,
+      },
+      rfc8910_api: {
+        enabled: true,
+        status: "ready",
+        reason:
+          "RFC 8910 captive portal API payload is deterministic and safe for unauthenticated clients.",
+        endpoint_path: "/captive-portal/api",
+        endpoint_url: "https://portal.example.test/captive-portal/api",
+        user_portal_url: "https://portal.example.test/",
+        can_extend_session: false,
+        payload: {
+          captive: true,
+          "user-portal-url": "https://portal.example.test/",
+          "can-extend-session": false,
+        },
+      },
+      guest_ssids: [
+        {
+          name: "Aegis Guest",
+          bridge: "br-guest",
+          portal_profile: "guest",
+          client_isolation: true,
+          dynamic_vlan: false,
+          status: "ready",
+          reason: "Captive-portal SSID is eligible for CWA redirect.",
+        },
+      ],
+      walled_garden: [
+        {
+          name: "portal-origin",
+          type: "host",
+          value: "portal.example.test",
+          ports: [443],
+          required: true,
+          source: "system",
+          status: "ready",
+          reason: "Captive clients must reach the portal origin.",
+        },
+        {
+          name: "rfc8910-api",
+          type: "url",
+          value: "https://portal.example.test/captive-portal/api",
+          ports: [443],
+          required: true,
+          source: "system",
+          status: "ready",
+          reason: "Captive clients must reach the RFC 8910 API.",
+        },
+        {
+          name: "sponsor-idp",
+          type: "domain",
+          value: "idp.example.test",
+          ports: [443],
+          required: false,
+          source: "operator",
+          status: "ready",
+          reason: "Operator-declared pre-auth reachability intent.",
+        },
+      ],
+      controller_policies: [
+        {
+          name: "guest-cwa",
+          platform: "cisco",
+          ssid: "Aegis Guest",
+          profile_name: "guest-cwa",
+          redirect_acl: "CWA_REDIRECT",
+          pre_auth_role: "cwa-preauth",
+          post_auth_role: "guest",
+          coa_action: "reauth",
+          controller_sync: true,
+          status: "ready",
+          reason: "Controller CWA policy is modeled as safe desired state.",
+        },
+      ],
+      redirect_rules: [
+        {
+          id: "cwa-aegis-guest",
+          ssid: "Aegis Guest",
+          portal_profile: "guest",
+          redirect_url:
+            "https://portal.example.test/?ssid=Aegis%20Guest&client_mac={calling_station_id}&session_id={acct_session_id}",
+          pre_auth_role: "guest-preauth",
+          post_auth_role: "guest",
+          status: "ready",
+          reason: "Per-session redirect URL includes session placeholders.",
+        },
+      ],
+      coa_actions: [
+        {
+          id: "post-auth-reauth",
+          action: "reauth",
+          trigger: "portal-authentication-success",
+          standards: ["RFC 5176"],
+          vendors: ["Cisco", "Aruba", "Ruckus"],
+          status: "ready",
+          reason:
+            "RFC 5176 CoA reauth can move a client from pre-auth redirect to post-auth policy.",
+        },
+      ],
+      compliance: [
+        {
+          id: "rfc8910-api",
+          name: "RFC 8910 API",
+          status: "passed",
+          message: "RFC 8910 API payload and endpoint are available.",
+        },
+        {
+          id: "coa-handoff",
+          name: "CoA Handoff",
+          status: "passed",
+          message: "RFC 5176 dynamic authorization is enabled.",
+        },
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        last_guest_ssid_count: 1,
+        last_walled_garden_count: 3,
+        last_coa_action_count: 1,
+      },
+      recent_events: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -7320,6 +7499,64 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({
         json: {
           feature_id: "NAS-0080",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+          },
+          events: [],
+        },
+      });
+      return;
+    }
+    if (path === "/system/cwa-portal-lifecycle" && method === "GET") {
+      await route.fulfill({ json: createCWAPortalLifecycle() });
+      return;
+    }
+    if (
+      path === "/system/cwa-portal-lifecycle/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createCWAPortalLifecycle(),
+          event_id: "cwa-portal-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/cwa-portal-lifecycle/apply" &&
+      method === "POST"
+    ) {
+      const payload = createCWAPortalLifecycle();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0081 recorded CWA portal lifecycle for 1 guest SSID, 3 walled-garden items, 1 controller policy item, 1 redirect rule, and 1 CoA action.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "cwa-portal-event-apply",
+          result: {
+            status: "applied",
+            event_id: "cwa-portal-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/cwa-portal-lifecycle/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0081",
           summary: {
             total_events: 1,
             preview_events: 1,

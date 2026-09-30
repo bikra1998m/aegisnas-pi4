@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 84
+	return 85
 }
 
 func Migrate() error {
@@ -4240,3 +4240,40 @@ CREATE INDEX IF NOT EXISTS idx_wireless_security_lifecycle_events_mode ON wirele
 `
 
 const schemaV84 = wirelessSecurityLifecycleSQL
+
+const cwaPortalLifecycleSQL = `
+CREATE TABLE IF NOT EXISTS cwa_portal_lifecycle_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	mode TEXT,
+	portal_base_url TEXT,
+	controller_platform TEXT,
+	guest_ssid_count INTEGER NOT NULL DEFAULT 0,
+	walled_garden_count INTEGER NOT NULL DEFAULT 0,
+	controller_policy_count INTEGER NOT NULL DEFAULT 0,
+	redirect_rule_count INTEGER NOT NULL DEFAULT 0,
+	coa_action_count INTEGER NOT NULL DEFAULT 0,
+	compliance_check_count INTEGER NOT NULL DEFAULT 0,
+	passed_check_count INTEGER NOT NULL DEFAULT 0,
+	warning_count INTEGER NOT NULL DEFAULT 0,
+	blocker_count INTEGER NOT NULL DEFAULT 0,
+	external_requirement_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_cwa_portal_lifecycle_events_created ON cwa_portal_lifecycle_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_cwa_portal_lifecycle_events_status ON cwa_portal_lifecycle_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_cwa_portal_lifecycle_events_fingerprint ON cwa_portal_lifecycle_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_cwa_portal_lifecycle_events_controller ON cwa_portal_lifecycle_events(controller_platform, created_at);
+CREATE INDEX IF NOT EXISTS idx_cwa_portal_lifecycle_events_mode ON cwa_portal_lifecycle_events(mode, created_at);
+`
+
+const schemaV85 = cwaPortalLifecycleSQL

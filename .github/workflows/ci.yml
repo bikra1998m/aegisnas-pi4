@@ -43,6 +43,7 @@ jobs:
       - run: make test-controller-estate-lifecycle
       - run: make test-rf-planning-lifecycle
       - run: make test-wireless-security-lifecycle
+      - run: make test-cwa-portal-lifecycle
       - run: make test-vsa-codec
       - run: make test-opaque-passthrough
       - run: make test-secret-providers

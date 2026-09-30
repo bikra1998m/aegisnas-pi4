@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -71,6 +72,65 @@ func StaticHandler() (http.Handler, error) {
 		return nil, fmt.Errorf("portal static assets: %w", err)
 	}
 	return http.FileServer(http.FS(staticSubtree)), nil
+}
+
+// HandleCaptivePortalAPI serves the RFC 8910 captive portal API JSON.
+func (s *Server) HandleCaptivePortalAPI(w http.ResponseWriter, r *http.Request) {
+	apiPath := strings.TrimSpace(s.cfg.Portal.CWA.CaptiveAPIPath)
+	if apiPath == "" {
+		apiPath = "/captive-portal/api"
+	}
+	if s.cfg.Portal.CWA.Enabled && !s.cfg.Portal.CWA.RFC8910APIEnabled {
+		http.NotFound(w, r)
+		return
+	}
+	clientIP := clientIPOnly(r.RemoteAddr)
+	mac := strings.TrimSpace(r.URL.Query().Get("client_mac"))
+	if mac != "" {
+		s.observeClient(r, mac, clientIP, "", "")
+	}
+	baseURL := strings.TrimRight(strings.TrimSpace(s.cfg.Portal.CWA.PortalBaseURL), "/")
+	if baseURL == "" {
+		scheme := "http"
+		if s.cfg.Portal.CWA.HTTPSRequired {
+			scheme = "https"
+		}
+		host := strings.TrimSpace(s.cfg.Portal.ListenIP)
+		if host == "" || host == "0.0.0.0" || host == "::" {
+			host = clientIP
+		}
+		baseURL = fmt.Sprintf("%s://%s:%d", scheme, host, s.cfg.Portal.Port)
+	}
+	userPortalURL := strings.TrimRight(baseURL, "/") + "/"
+	if mac != "" {
+		userPortalURL += "?client_mac=" + url.QueryEscape(mac)
+	}
+	payload := map[string]any{
+		"captive":            true,
+		"user-portal-url":    userPortalURL,
+		"can-extend-session": false,
+	}
+	if strings.TrimSpace(s.cfg.Portal.CWA.VenueInfoURL) != "" {
+		payload["venue-info-url"] = strings.TrimSpace(s.cfg.Portal.CWA.VenueInfoURL)
+	}
+	if mac != "" {
+		if client, ok := s.stateMachine.GetClient(mac); ok && client.State == portal.StateAuthenticated {
+			payload["captive"] = false
+			if client.SessionTimeout > 0 && !client.StartTime.IsZero() {
+				remaining := client.SessionTimeout - int(time.Since(client.StartTime).Seconds())
+				if remaining < 0 {
+					remaining = 0
+				}
+				payload["seconds-remaining"] = remaining
+			}
+		}
+	}
+	w.Header().Set("Content-Type", "application/captive+json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-AegisNAS-Captive-API-Path", apiPath)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		s.logger.Error("captive portal API encode error", zap.Error(err))
+	}
 }
 
 // HandleLoginPage serves the login form.

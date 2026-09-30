@@ -1174,6 +1174,7 @@ type PortalConfig struct {
 	RadiusAuth     bool                      `mapstructure:"radius_auth"`
 	LocalFallback  bool                      `mapstructure:"local_fallback"`
 	GuestWorkflows PortalGuestWorkflowConfig `mapstructure:"guest_workflows"`
+	CWA            PortalCWAConfig           `mapstructure:"cwa"`
 }
 
 type PortalGuestWorkflowConfig struct {
@@ -1186,6 +1187,47 @@ type PortalGuestWorkflowConfig struct {
 	SMTPPort                int    `mapstructure:"smtp_port"`
 	SMSProvider             string `mapstructure:"sms_provider"`
 	SMSEndpoint             string `mapstructure:"sms_endpoint"`
+}
+
+type PortalCWAConfig struct {
+	Enabled                   bool                        `mapstructure:"enabled"`
+	Mode                      string                      `mapstructure:"mode"`
+	FailClosed                bool                        `mapstructure:"fail_closed"`
+	RFC8910APIEnabled         bool                        `mapstructure:"rfc8910_api_enabled"`
+	HTTPSRequired             bool                        `mapstructure:"https_required"`
+	PortalBaseURL             string                      `mapstructure:"portal_base_url"`
+	CaptiveAPIPath            string                      `mapstructure:"captive_api_path"`
+	VenueInfoURL              string                      `mapstructure:"venue_info_url"`
+	ControllerRedirectEnabled bool                        `mapstructure:"controller_redirect_enabled"`
+	PerSessionWalledGarden    bool                        `mapstructure:"per_session_walled_garden"`
+	SessionBindingRequired    bool                        `mapstructure:"session_binding_required"`
+	CoAAfterAuthentication    bool                        `mapstructure:"coa_after_authentication"`
+	RedirectSecretEnv         string                      `mapstructure:"redirect_secret_env"`
+	EventRetentionLimit       int                         `mapstructure:"event_retention_limit"`
+	WalledGarden              []PortalCWAWalledGarden     `mapstructure:"walled_garden"`
+	ControllerPolicies        []PortalCWAControllerPolicy `mapstructure:"controller_policies"`
+}
+
+type PortalCWAWalledGarden struct {
+	Name     string `mapstructure:"name"`
+	Type     string `mapstructure:"type"`
+	Value    string `mapstructure:"value"`
+	Ports    []int  `mapstructure:"ports"`
+	Required bool   `mapstructure:"required"`
+}
+
+type PortalCWAControllerPolicy struct {
+	Name           string `mapstructure:"name"`
+	Enabled        bool   `mapstructure:"enabled"`
+	Vendor         string `mapstructure:"vendor"`
+	Platform       string `mapstructure:"platform"`
+	SSID           string `mapstructure:"ssid"`
+	ProfileName    string `mapstructure:"profile_name"`
+	RedirectACL    string `mapstructure:"redirect_acl"`
+	PreAuthRole    string `mapstructure:"pre_auth_role"`
+	PostAuthRole   string `mapstructure:"post_auth_role"`
+	CoAAction      string `mapstructure:"coa_action"`
+	ControllerSync bool   `mapstructure:"controller_sync"`
 }
 
 type IdentityConfig struct {
@@ -3028,6 +3070,17 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("portal.listen_ip", "10.20.0.1")
 	v.SetDefault("portal.guest_workflows.invite_delivery", "none")
 	v.SetDefault("portal.guest_workflows.smtp_port", 587)
+	v.SetDefault("portal.cwa.enabled", false)
+	v.SetDefault("portal.cwa.mode", "monitor")
+	v.SetDefault("portal.cwa.fail_closed", true)
+	v.SetDefault("portal.cwa.rfc8910_api_enabled", true)
+	v.SetDefault("portal.cwa.https_required", true)
+	v.SetDefault("portal.cwa.captive_api_path", "/captive-portal/api")
+	v.SetDefault("portal.cwa.controller_redirect_enabled", false)
+	v.SetDefault("portal.cwa.per_session_walled_garden", true)
+	v.SetDefault("portal.cwa.session_binding_required", true)
+	v.SetDefault("portal.cwa.coa_after_authentication", true)
+	v.SetDefault("portal.cwa.event_retention_limit", 6000)
 	v.SetDefault("radius.max_sessions", 1024)
 	v.SetDefault("radius.cert_dir", "/etc/freeradius/3.0/certs")
 	v.SetDefault("radius.nas_identifier", "aegisnas")
@@ -4431,6 +4484,9 @@ func (c *Config) Validate() error {
 		if !smsTransportConfigured(c) {
 			return errors.New("portal.guest_workflows.invite_delivery=sms requires sms transport configuration")
 		}
+	}
+	if err := validatePortalCWAConfig(c.Portal, c.Wireless, c.Integrations.Controller, c.Radius.DynamicAuth); err != nil {
+		return err
 	}
 	switch strings.ToLower(strings.TrimSpace(c.Onboarding.CAMode)) {
 	case "", "none", "internal", "external":
@@ -6582,6 +6638,127 @@ func effectiveWirelessMulticastMode(value string) string {
 		return "monitor"
 	}
 	return value
+}
+
+func validatePortalCWAConfig(portal PortalConfig, wireless WirelessConfig, controller ControllerConfig, dynamicAuth DynamicAuthConfig) error {
+	cwa := portal.CWA
+	if !cwa.Enabled {
+		return nil
+	}
+	if !portal.Enabled {
+		return errors.New("portal.cwa.enabled requires portal.enabled")
+	}
+	switch effectivePortalCWAMode(cwa.Mode) {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("portal.cwa.mode %q must be monitor or enforce", cwa.Mode)
+	}
+	if cwa.EventRetentionLimit < 0 || cwa.EventRetentionLimit > 1000000 {
+		return errors.New("portal.cwa.event_retention_limit must be between 0 and 1000000")
+	}
+	if strings.TrimSpace(cwa.PortalBaseURL) != "" {
+		if err := requireHTTPURL("portal.cwa.portal_base_url", cwa.PortalBaseURL); err != nil {
+			return err
+		}
+		if cwa.HTTPSRequired && !strings.HasPrefix(strings.ToLower(strings.TrimSpace(cwa.PortalBaseURL)), "https://") {
+			return errors.New("portal.cwa.portal_base_url must use https when portal.cwa.https_required is true")
+		}
+	}
+	if strings.TrimSpace(cwa.VenueInfoURL) != "" {
+		if err := requireHTTPURL("portal.cwa.venue_info_url", cwa.VenueInfoURL); err != nil {
+			return err
+		}
+		if cwa.HTTPSRequired && !strings.HasPrefix(strings.ToLower(strings.TrimSpace(cwa.VenueInfoURL)), "https://") {
+			return errors.New("portal.cwa.venue_info_url must use https when portal.cwa.https_required is true")
+		}
+	}
+	apiPath := strings.TrimSpace(cwa.CaptiveAPIPath)
+	if apiPath != "" && !strings.HasPrefix(apiPath, "/") {
+		return errors.New("portal.cwa.captive_api_path must start with /")
+	}
+	for i, entry := range cwa.WalledGarden {
+		if strings.TrimSpace(entry.Name) == "" {
+			return fmt.Errorf("portal.cwa.walled_garden[%d].name cannot be empty", i)
+		}
+		if strings.TrimSpace(entry.Value) == "" {
+			return fmt.Errorf("portal.cwa.walled_garden[%d].value cannot be empty", i)
+		}
+		switch effectivePortalWalledGardenType(entry.Type) {
+		case "domain", "host", "cidr", "url", "controller-acl":
+		default:
+			return fmt.Errorf("portal.cwa.walled_garden[%d].type %q is invalid", i, entry.Type)
+		}
+		for j, port := range entry.Ports {
+			if port < 1 || port > 65535 {
+				return fmt.Errorf("portal.cwa.walled_garden[%d].ports[%d] %d out of range", i, j, port)
+			}
+		}
+	}
+	for i, policy := range cwa.ControllerPolicies {
+		if !policy.Enabled {
+			continue
+		}
+		if strings.TrimSpace(policy.Name) == "" {
+			return fmt.Errorf("portal.cwa.controller_policies[%d].name cannot be empty", i)
+		}
+		if strings.TrimSpace(policy.SSID) == "" {
+			return fmt.Errorf("portal.cwa.controller_policies[%d].ssid cannot be empty", i)
+		}
+		switch effectivePortalCWACoAAction(policy.CoAAction) {
+		case "none", "reauth", "disconnect":
+		default:
+			return fmt.Errorf("portal.cwa.controller_policies[%d].coa_action %q must be none, reauth, or disconnect", i, policy.CoAAction)
+		}
+	}
+	if cwa.FailClosed && effectivePortalCWAMode(cwa.Mode) == "enforce" {
+		if cwa.RFC8910APIEnabled && strings.TrimSpace(cwa.CaptiveAPIPath) == "" {
+			return errors.New("portal.cwa.rfc8910_api_enabled requires portal.cwa.captive_api_path in enforce mode")
+		}
+		if cwa.ControllerRedirectEnabled && !controller.Enabled {
+			return errors.New("portal.cwa.controller_redirect_enabled requires integrations.controller.enabled in enforce mode")
+		}
+		if cwa.CoAAfterAuthentication && !dynamicAuth.Enabled {
+			return errors.New("portal.cwa.coa_after_authentication requires radius.dynamic_auth.enabled in enforce mode")
+		}
+		if captiveSSIDCount(wireless.SSIDs) == 0 {
+			return errors.New("portal.cwa.enabled requires at least one wireless SSID using captive-portal auth in enforce mode")
+		}
+	}
+	return nil
+}
+
+func effectivePortalCWAMode(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "monitor"
+	}
+	return value
+}
+
+func effectivePortalWalledGardenType(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "domain"
+	}
+	return value
+}
+
+func effectivePortalCWACoAAction(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "reauth"
+	}
+	return value
+}
+
+func captiveSSIDCount(ssids []SSIDConfig) int {
+	count := 0
+	for _, ssid := range ssids {
+		if strings.EqualFold(strings.TrimSpace(ssid.AuthMode), "captive-portal") {
+			count++
+		}
+	}
+	return count
 }
 
 func validatePercent(field string, value int) error {

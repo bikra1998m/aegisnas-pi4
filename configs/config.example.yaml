@@ -965,6 +965,39 @@ portal:
     smtp_port: 587
     sms_provider: ""
     sms_endpoint: ""
+  cwa:
+    enabled: true
+    mode: "monitor" # Use enforce after controller/AP and client OS smoke tests.
+    fail_closed: true
+    rfc8910_api_enabled: true
+    https_required: true
+    portal_base_url: "https://portal.example.com"
+    captive_api_path: "/captive-portal/api"
+    venue_info_url: "https://portal.example.com/venue"
+    controller_redirect_enabled: true
+    per_session_walled_garden: true
+    session_binding_required: true
+    coa_after_authentication: true
+    redirect_secret_env: "AEGIS_CWA_REDIRECT_SECRET"
+    event_retention_limit: 6000
+    walled_garden:
+      - name: "sponsor-idp"
+        type: "domain"
+        value: "idp.example.com"
+        ports: [443]
+        required: false
+    controller_policies:
+      - name: "guest-cwa"
+        enabled: true
+        vendor: "cisco"
+        platform: "cisco"
+        ssid: "Aegis Guest"
+        profile_name: "guest-cwa"
+        redirect_acl: "CWA_REDIRECT"
+        pre_auth_role: "cwa-preauth"
+        post_auth_role: "guest-basic"
+        coa_action: "reauth"
+        controller_sync: true
 
 identity:
   failover:

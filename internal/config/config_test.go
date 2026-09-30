@@ -212,6 +212,56 @@ wireless:
 	require.ErrorContains(t, err, "allow_containment")
 }
 
+func TestConfigValidationCWAPortalLifecycle(t *testing.T) {
+	cfg := loadMinimalValidConfig(t)
+	cfg.Radius.Secret = "radius-secret"
+	cfg.Radius.DynamicAuth.Enabled = true
+	cfg.Portal = PortalConfig{
+		Enabled:       true,
+		Port:          8081,
+		ListenIP:      "192.168.50.1",
+		LocalFallback: true,
+		CWA: PortalCWAConfig{
+			Enabled:                   true,
+			Mode:                      "enforce",
+			FailClosed:                true,
+			RFC8910APIEnabled:         true,
+			HTTPSRequired:             true,
+			PortalBaseURL:             "https://portal.example.test",
+			CaptiveAPIPath:            "/captive-portal/api",
+			ControllerRedirectEnabled: false,
+			SessionBindingRequired:    true,
+			CoAAfterAuthentication:    true,
+			WalledGarden: []PortalCWAWalledGarden{{
+				Name:  "idp",
+				Type:  "domain",
+				Value: "idp.example.test",
+				Ports: []int{443},
+			}},
+			ControllerPolicies: []PortalCWAControllerPolicy{{
+				Name:      "guest-cwa",
+				Enabled:   true,
+				SSID:      "Guest",
+				CoAAction: "reauth",
+			}},
+		},
+	}
+	cfg.Wireless.SSIDs = []SSIDConfig{{Name: "Guest", AuthMode: "captive-portal"}}
+	require.NoError(t, cfg.Validate())
+
+	badURL := *cfg
+	badURL.Portal.CWA.PortalBaseURL = "http://portal.example.test"
+	assert.ErrorContains(t, badURL.Validate(), "must use https")
+
+	badGarden := *cfg
+	badGarden.Portal.CWA.WalledGarden = []PortalCWAWalledGarden{{Name: "bad", Type: "domain", Value: "idp.example.test", Ports: []int{70000}}}
+	assert.ErrorContains(t, badGarden.Validate(), "out of range")
+
+	badCoA := *cfg
+	badCoA.Portal.CWA.ControllerPolicies = []PortalCWAControllerPolicy{{Name: "bad", Enabled: true, SSID: "Guest", CoAAction: "bounce"}}
+	assert.ErrorContains(t, badCoA.Validate(), "must be none, reauth, or disconnect")
+}
+
 func TestConfigValidationEAPFramework(t *testing.T) {
 	cfg := &Config{
 		Mode:     "two-nic",

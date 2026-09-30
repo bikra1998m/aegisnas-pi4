@@ -246,4 +246,32 @@ test.describe('Access Settings edge-network flow', () => {
       page.getByText(/Wireless security lifecycle applied/),
     ).toBeVisible();
   });
+
+  test('previews and applies controller CWA and safe portal lifecycle', async ({
+    page,
+  }) => {
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto('/access-settings');
+    const cwaSection = page.locator('section').filter({
+      has: page.getByRole('heading', {
+        name: 'Controller CWA And Safe Portal',
+      }),
+    });
+    await expect(cwaSection).toBeVisible();
+    await expect(cwaSection.getByText('RFC 8910 API', { exact: true })).toBeVisible();
+    await expect(
+      cwaSection.getByRole('heading', { name: 'Walled Garden' }),
+    ).toBeVisible();
+    await expect(
+      cwaSection.getByRole('heading', { name: 'Redirect And CoA' }),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview CWA Portal' }).click();
+    await expect(page.getByText(/CWA portal preview recorded/)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Apply CWA Portal' }).click();
+    await expect(page.getByText(/CWA portal lifecycle applied/)).toBeVisible();
+  });
 });

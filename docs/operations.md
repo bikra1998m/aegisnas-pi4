@@ -921,6 +921,38 @@ proof, controller firmware behavior, HA, scale, soak, security audit,
 production deployment, and customer acceptance evidence stay in
 `nas-0080-release-certification-checklist.md`.
 
+For controller CWA and safe per-session portal governance, preview NAS-0081
+before enabling controller redirect or post-auth CoA:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/cwa-portal-lifecycle/preview \
+  | jq '.report.status, .report.summary, .report.rfc8910_api, .report.walled_garden'
+```
+
+Apply only after reviewing the RFC 8910 endpoint, HTTPS URL, captive SSIDs,
+walled-garden entries, controller CWA policy previews, redirect URL placeholders,
+CoA handoff, compliance checks, and plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/cwa-portal-lifecycle/apply \
+  | jq '.result.status, .event_id'
+```
+
+The portal service serves RFC 8910 JSON at `/captive-portal/api` unless
+`portal.cwa.captive_api_path` overrides it. Use
+`/api/v1/system/cwa-portal-lifecycle/history` and the support bundle files
+`api/cwa-portal-lifecycle.json` and `api/cwa-portal-lifecycle-history.json`
+during controller redirect, guest portal, walled-garden, and CoA investigations.
+Live controller/AP redirect, DHCP/RA advertisement, packet captures, HA, scale,
+soak, security audit, production deployment, and customer acceptance evidence
+stay in `nas-0081-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

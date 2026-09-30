@@ -209,6 +209,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{82, schemaV82},
 		{83, schemaV83},
 		{84, schemaV84},
+		{85, schemaV85},
 	}
 
 	for _, m := range migrations {
@@ -418,6 +419,9 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureWirelessSecurityLifecycleTables(handle); err != nil {
 		return fmt.Errorf("repair wireless security lifecycle schema: %w", err)
 	}
+	if err := ensureCWAPortalLifecycleTables(handle); err != nil {
+		return fmt.Errorf("repair CWA portal lifecycle schema: %w", err)
+	}
 
 	return nil
 }
@@ -443,6 +447,14 @@ func ensureWirelessSecurityLifecycleTables(handle *sql.DB) error {
 		return fmt.Errorf("database handle is required")
 	}
 	_, err := handle.Exec(SQLForDialect(wirelessSecurityLifecycleSQL, DialectForHandle(handle)))
+	return err
+}
+
+func ensureCWAPortalLifecycleTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(cwaPortalLifecycleSQL, DialectForHandle(handle)))
 	return err
 }
 

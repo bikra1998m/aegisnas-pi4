@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -83,6 +84,16 @@ var runCmd = &cobra.Command{
 		r.Handle("/static/*", http.StripPrefix("/static/", staticHandler))
 
 		// Portal routes
+		apiPath := strings.TrimSpace(cfg.Portal.CWA.CaptiveAPIPath)
+		if apiPath == "" {
+			apiPath = "/captive-portal/api"
+		} else if !strings.HasPrefix(apiPath, "/") {
+			apiPath = "/" + apiPath
+		}
+		r.Get(apiPath, srv.HandleCaptivePortalAPI)
+		if apiPath != "/captive-portal/api" {
+			r.Get("/captive-portal/api", srv.HandleCaptivePortalAPI)
+		}
 		r.Get("/", srv.HandleLoginPage)
 		r.Post("/login", srv.HandleLogin)
 		r.Get("/success", srv.HandleSuccess)

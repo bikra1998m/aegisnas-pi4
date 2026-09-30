@@ -443,6 +443,41 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		wirelessSecurityLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.WirelessSecurityLifecycleComponent()]}
 	}
+	cwaPortalLifecycleStatus := map[string]any{
+		"status":  "unknown",
+		"message": "CWA portal lifecycle status has not been evaluated.",
+	}
+	if cwaReport, err := enforcement.PreviewCWAPortalLifecycle(cfg); err == nil {
+		cwaSummary, _ := db.GetCWAPortalLifecycleSummary()
+		cwaPortalLifecycleStatus = map[string]any{
+			"schema_version":                  cwaReport.SchemaVersion,
+			"feature_id":                      cwaReport.FeatureID,
+			"status":                          cwaReport.Status,
+			"message":                         cwaReport.Message,
+			"ready_for_external_validation":   cwaReport.ReadyForExternalValidation,
+			"software_completion_percent":     cwaReport.SoftwareCompletionPercent,
+			"cwa_enabled":                     cwaReport.Summary.CWAEnabled,
+			"mode":                            cwaReport.Summary.Mode,
+			"portal_base_url":                 cwaReport.Summary.PortalBaseURL,
+			"captive_api_path":                cwaReport.Summary.CaptiveAPIPath,
+			"controller_platform":             cwaReport.Summary.ControllerPlatform,
+			"guest_ssid_count":                cwaReport.Summary.GuestSSIDCount,
+			"walled_garden_count":             cwaReport.Summary.WalledGardenCount,
+			"controller_policy_count":         cwaReport.Summary.ControllerPolicyCount,
+			"redirect_rule_count":             cwaReport.Summary.RedirectRuleCount,
+			"coa_action_count":                cwaReport.Summary.CoAActionCount,
+			"compliance_check_count":          cwaReport.Summary.ComplianceCheckCount,
+			"passed_check_count":              cwaReport.Summary.PassedCheckCount,
+			"warning_count":                   cwaReport.Summary.WarningCount,
+			"blocker_count":                   cwaReport.Summary.BlockerCount,
+			"plan_fingerprint":                cwaReport.PlanFingerprint,
+			"release_certification_checklist": cwaReport.ReleaseCertificationChecklist,
+			"evidence_summary":                cwaSummary,
+			"runtime_status":                  runtimeMap[enforcement.CWAPortalLifecycleComponent()],
+		}
+	} else {
+		cwaPortalLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.CWAPortalLifecycleComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1247,6 +1282,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"ppsk_lifecycle":         ppskLifecycleStatus,
 		"rf_planning_lifecycle":  rfPlanningLifecycleStatus,
 		"security_lifecycle":     wirelessSecurityLifecycleStatus,
+		"cwa_portal_lifecycle":   cwaPortalLifecycleStatus,
 		"ssid_count":             len(cfg.Wireless.SSIDs),
 		"auth_modes":             ssidAuthModes(cfg.Wireless.SSIDs),
 	}

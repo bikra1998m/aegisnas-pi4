@@ -3517,6 +3517,11 @@ export default function AccessSettings() {
   ] = useState("");
   const wirelessSecurityLifecycleBusy =
     wirelessSecurityLifecycleAction !== "";
+  const [cwaPortalLifecycle, setCWAPortalLifecycle] =
+    useState<JsonMap | null>(null);
+  const [cwaPortalLifecycleAction, setCWAPortalLifecycleAction] =
+    useState("");
+  const cwaPortalLifecycleBusy = cwaPortalLifecycleAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3623,6 +3628,11 @@ export default function AccessSettings() {
   const loadWirelessSecurityLifecycle = async () => {
     const { data } = await api.get("/system/wireless-security-lifecycle");
     setWirelessSecurityLifecycle(data.report || null);
+  };
+
+  const loadCWAPortalLifecycle = async () => {
+    const { data } = await api.get("/system/cwa-portal-lifecycle");
+    setCWAPortalLifecycle(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3860,6 +3870,7 @@ export default function AccessSettings() {
         controllerEstateRes,
         rfPlanningRes,
         wirelessSecurityRes,
+        cwaPortalRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -3870,6 +3881,7 @@ export default function AccessSettings() {
         api.get("/system/controller-estate-lifecycle"),
         api.get("/system/rf-planning-lifecycle"),
         api.get("/system/wireless-security-lifecycle"),
+        api.get("/system/cwa-portal-lifecycle"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -3882,6 +3894,7 @@ export default function AccessSettings() {
       setControllerEstateLifecycle(controllerEstateRes.data.report || null);
       setRFPlanningLifecycle(rfPlanningRes.data.report || null);
       setWirelessSecurityLifecycle(wirelessSecurityRes.data.report || null);
+      setCWAPortalLifecycle(cwaPortalRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4572,6 +4585,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewCWAPortalLifecycle = async () => {
+    setCWAPortalLifecycleAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/cwa-portal-lifecycle/preview",
+        {},
+      );
+      setCWAPortalLifecycle(data.report || null);
+      setMessage(
+        `CWA portal preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview controller CWA and safe portal lifecycle.",
+      );
+    } finally {
+      setCWAPortalLifecycleAction("");
+    }
+  };
+
+  const applyCWAPortalLifecycle = async () => {
+    setCWAPortalLifecycleAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/cwa-portal-lifecycle/apply",
+        {},
+      );
+      setCWAPortalLifecycle(data.report || null);
+      setMessage(
+        `CWA portal lifecycle ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadCWAPortalLifecycle();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply controller CWA and safe portal lifecycle.",
+      );
+    } finally {
+      setCWAPortalLifecycleAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -5071,6 +5135,28 @@ export default function AccessSettings() {
     ? wirelessSecurityLifecycle?.compliance
     : [];
   const wirelessSecurityTone = statusTone(wirelessSecurityLifecycle?.status);
+  const cwaPortalSummary = cwaPortalLifecycle?.summary || {};
+  const cwaGuestSSIDs = Array.isArray(cwaPortalLifecycle?.guest_ssids)
+    ? cwaPortalLifecycle?.guest_ssids
+    : [];
+  const cwaWalledGarden = Array.isArray(cwaPortalLifecycle?.walled_garden)
+    ? cwaPortalLifecycle?.walled_garden
+    : [];
+  const cwaControllerPolicies = Array.isArray(
+    cwaPortalLifecycle?.controller_policies,
+  )
+    ? cwaPortalLifecycle?.controller_policies
+    : [];
+  const cwaRedirectRules = Array.isArray(cwaPortalLifecycle?.redirect_rules)
+    ? cwaPortalLifecycle?.redirect_rules
+    : [];
+  const cwaCoAActions = Array.isArray(cwaPortalLifecycle?.coa_actions)
+    ? cwaPortalLifecycle?.coa_actions
+    : [];
+  const cwaCompliance = Array.isArray(cwaPortalLifecycle?.compliance)
+    ? cwaPortalLifecycle?.compliance
+    : [];
+  const cwaPortalTone = statusTone(cwaPortalLifecycle?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -5368,6 +5454,24 @@ export default function AccessSettings() {
             {wirelessSecurityLifecycleAction === "apply"
               ? "Applying WIPS..."
               : "Apply WIPS Plan"}
+          </button>
+          <button
+            onClick={previewCWAPortalLifecycle}
+            disabled={cwaPortalLifecycleBusy}
+            className="rounded-md border border-cyan-300 px-4 py-2 text-sm font-medium text-cyan-900 disabled:opacity-60"
+          >
+            {cwaPortalLifecycleAction === "preview"
+              ? "Checking CWA..."
+              : "Preview CWA Portal"}
+          </button>
+          <button
+            onClick={applyCWAPortalLifecycle}
+            disabled={cwaPortalLifecycleBusy}
+            className="rounded-md border border-teal-300 px-4 py-2 text-sm font-medium text-teal-900 disabled:opacity-60"
+          >
+            {cwaPortalLifecycleAction === "apply"
+              ? "Applying CWA..."
+              : "Apply CWA Portal"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -5795,8 +5899,10 @@ export default function AccessSettings() {
               ) : null}
               {activeScalingActions.length ? (
                 <div className="mt-2 space-y-1 text-xs text-amber-700">
-                  {activeScalingActions.slice(0, 3).map((action) => (
-                    <div key={action.key}>{action.summary}</div>
+                  {activeScalingActions.slice(0, 3).map((action, index) => (
+                    <div key={`${action.key || "scaling-action"}-${index}`}>
+                      {action.summary}
+                    </div>
                   ))}
                 </div>
               ) : null}
@@ -5870,6 +5976,287 @@ export default function AccessSettings() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Controller CWA And Safe Portal
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {cwaPortalLifecycle?.release_certification_checklist ||
+                "Validate RFC 8910 captive portal API, per-session redirects, walled garden, controller CWA, and CoA handoff before guest WLAN rollout."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${cwaPortalTone}`}
+          >
+            {cwaPortalLifecycle?.status || "unknown"}
+          </div>
+        </div>
+        {cwaPortalLifecycle ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {cwaPortalLifecycle.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                ["Guest SSIDs", cwaPortalSummary.guest_ssid_count || 0],
+                ["Walled Garden", cwaPortalSummary.walled_garden_count || 0],
+                [
+                  "Controller Policies",
+                  cwaPortalSummary.controller_policy_count || 0,
+                ],
+                ["Redirect Rules", cwaPortalSummary.redirect_rule_count || 0],
+                ["CoA Actions", cwaPortalSummary.coa_action_count || 0],
+                [
+                  "Compliance",
+                  `${cwaPortalSummary.passed_check_count || 0}/${cwaPortalSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
+              RFC 8910{" "}
+              <span className="font-mono">
+                {cwaPortalLifecycle.rfc8910_api?.endpoint_url || "not built"}
+              </span>{" "}
+              / portal{" "}
+              <span className="font-mono">
+                {cwaPortalLifecycle.rfc8910_api?.user_portal_url || "not built"}
+              </span>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Guest SSIDs
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {cwaGuestSSIDs.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No captive-portal SSID is present.
+                    </div>
+                  ) : (
+                    cwaGuestSSIDs.slice(0, 6).map((ssid: JsonMap, index: number) => (
+                      <div
+                        key={`${ssid.name || "cwa-ssid"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {ssid.name || "Guest SSID"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              ssid.status,
+                            )}`}
+                          >
+                            {ssid.status || "ready"}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {[
+                            ssid.bridge,
+                            ssid.portal_profile,
+                            ssid.client_isolation ? "client isolation" : "",
+                            ssid.dynamic_vlan ? "dynamic VLAN" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" / ") || "SSID metadata only"}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Walled Garden
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {cwaWalledGarden.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No walled-garden item is present.
+                    </div>
+                  ) : (
+                    cwaWalledGarden.slice(0, 8).map((entry: JsonMap, index: number) => (
+                      <div
+                        key={`${entry.source || "cwa"}/${entry.name || entry.value}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {entry.name || entry.value || "Walled Garden"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              entry.status,
+                            )}`}
+                          >
+                            {entry.status || "ready"}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {[entry.type, entry.value, entry.required ? "required" : ""]
+                            .filter(Boolean)
+                            .join(" / ")}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Controller Policies
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {cwaControllerPolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No controller CWA policy is present.
+                    </div>
+                  ) : (
+                    cwaControllerPolicies.slice(0, 6).map((policy: JsonMap, index: number) => (
+                      <div
+                        key={`${policy.name || policy.ssid || "cwa-controller"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {policy.name || policy.ssid || "Controller Policy"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              policy.status,
+                            )}`}
+                          >
+                            {policy.status || "ready"}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {[
+                            policy.platform,
+                            policy.ssid,
+                            policy.profile_name,
+                            policy.coa_action,
+                          ]
+                            .filter(Boolean)
+                            .join(" / ") || "Controller metadata only"}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Redirect And CoA
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {[...cwaRedirectRules.slice(0, 4), ...cwaCoAActions.slice(0, 4)]
+                    .slice(0, 8)
+                    .map((item: JsonMap, index: number) => (
+                      <div
+                        key={`${item.id || item.ssid || item.action || "cwa-action"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {item.ssid || item.action || item.id || "CWA Action"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              item.status,
+                            )}`}
+                          >
+                            {item.status || "ready"}
+                          </span>
+                        </div>
+                        <div className="mt-2 break-all text-xs text-gray-600">
+                          {item.redirect_url || item.reason || "CWA action"}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Compliance Checks
+              </h4>
+              <div className="mt-2 grid gap-2 lg:grid-cols-2">
+                {cwaCompliance.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                    No CWA compliance check is present.
+                  </div>
+                ) : (
+                  cwaCompliance.slice(0, 10).map((check: JsonMap, index: number) => (
+                    <div
+                      key={`${check.id || check.name || "cwa-check"}-${index}`}
+                      className="rounded-md border border-gray-200 p-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="font-medium text-gray-900">
+                          {check.name || check.id || "Compliance Check"}
+                        </div>
+                        <span
+                          className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                            check.status,
+                          )}`}
+                        >
+                          {check.status || "unknown"}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-600">
+                        {check.message || "No compliance message"}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            {((cwaPortalLifecycle.blockers?.length || 0) > 0 ||
+              (cwaPortalLifecycle.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[...(cwaPortalLifecycle.blockers || []), ...(cwaPortalLifecycle.warnings || [])].join(
+                  " ",
+                )}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Mode{" "}
+              <span className="font-mono">
+                {cwaPortalSummary.mode || "monitor"}
+              </span>{" "}
+              / controller{" "}
+              <span className="font-mono">
+                {cwaPortalSummary.controller_platform || "local"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {cwaPortalLifecycle.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Controller CWA and safe portal lifecycle report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">
