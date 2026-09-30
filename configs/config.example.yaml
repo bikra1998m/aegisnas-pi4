@@ -992,6 +992,80 @@ broadband:
         service_chain: "retail-internet"
         rate_limit: "100m"
         vendor_packs: ["mikrotik", "alcatel-lucent-service-router", "huawei"]
+  subscriber_state:
+    enabled: false # Enable after NAS-0082 PPPoE, SQL accounting, service correlation, and CoA are ready.
+    mode: "monitor" # Use enforce after subscriber lifecycle preview, rollback, and external BNG validation.
+    fail_closed: true
+    default_access_method: "pppoe"
+    max_sessions: 4096
+    max_sessions_per_subscriber: 4
+    max_reconnects: 3
+    reconnect_window_seconds: 300
+    accounting_grace_seconds: 90
+    recovery_scan_seconds: 60
+    session_timeout_seconds: 0
+    idle_timeout_seconds: 0
+    require_accounting_start: true
+    require_accounting_stop: true
+    require_session_ownership: true
+    service_legs_enabled: true
+    policy_transitions_enabled: true
+    reconnect_recovery_enabled: true
+    quota_hooks_enabled: true
+    charging_hooks_enabled: true
+    wholesale_enabled: false
+    dual_stack_required: true
+    route_policy_required: true
+    qos_required: true
+    nat_required: false
+    coa_required: true
+    event_retention_limit: 10000
+    products:
+      - name: "residential-fiber"
+        enabled: false
+        role: "residential"
+        service_chain: "retail-internet"
+        address_pool: "pppoe-v4"
+        ipv6_pool: "pppoe-v6"
+        delegated_ipv6_pool: "pppoe-pd"
+        route_policy: "residential"
+        qos_profile: "silver"
+        translation_pool: "cgnat-pool"
+        quota_profile: "unlimited"
+        max_sessions: 4
+        session_timeout_seconds: 86400
+        idle_timeout_seconds: 3600
+        vendor_packs: ["standard", "aegisnas", "mikrotik", "huawei"]
+    service_policies:
+      - name: "base-internet-start"
+        enabled: false
+        product: "residential-fiber"
+        leg: "internet"
+        trigger: "accounting-start"
+        required_state: "service_active"
+        next_state: "accounting_started"
+        accounting_class: "internet"
+        route_policy: "residential"
+        qos_profile: "silver"
+        translation_pool: "cgnat-pool"
+        vendor_packs: ["standard", "aegisnas", "mikrotik"]
+      - name: "quota-policy-update"
+        enabled: false
+        product: "residential-fiber"
+        leg: "quota"
+        trigger: "quota-threshold"
+        required_state: "interim_seen"
+        next_state: "policy_update_pending"
+        coa_action: "rate-limit"
+        qos_profile: "silver"
+        vendor_packs: ["standard", "aegisnas"]
+    failure_policies:
+      - name: "accounting-gap-recovery"
+        enabled: false
+        failure: "accounting-gap"
+        action: "recover"
+        target_state: "recovered"
+        recovery_after_seconds: 120
 
 portal:
   enabled: true

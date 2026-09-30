@@ -211,6 +211,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{84, schemaV84},
 		{85, schemaV85},
 		{86, schemaV86},
+		{87, schemaV87},
 	}
 
 	for _, m := range migrations {
@@ -426,8 +427,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensurePPPoEAccessLifecycleTables(handle); err != nil {
 		return fmt.Errorf("repair PPPoE access lifecycle schema: %w", err)
 	}
+	if err := ensureBroadbandSubscriberStateTables(handle); err != nil {
+		return fmt.Errorf("repair broadband subscriber state schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureBroadbandSubscriberStateTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(broadbandSubscriberStateSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensurePPPoEAccessLifecycleTables(handle *sql.DB) error {

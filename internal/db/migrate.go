@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 86
+	return 87
 }
 
 func Migrate() error {
@@ -4315,3 +4315,106 @@ CREATE INDEX IF NOT EXISTS idx_pppoe_access_lifecycle_events_mode ON pppoe_acces
 `
 
 const schemaV86 = pppoeAccessLifecycleSQL
+
+const broadbandSubscriberStateSQL = `
+CREATE TABLE IF NOT EXISTS broadband_subscribers (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	subscriber_id TEXT UNIQUE NOT NULL,
+	username TEXT,
+	account_id TEXT,
+	tenant TEXT,
+	product TEXT,
+	role TEXT,
+	service_chain TEXT,
+	status TEXT NOT NULL DEFAULT 'active',
+	state TEXT NOT NULL DEFAULT 'new',
+	metadata_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('active', 'suspended', 'disabled', 'closed'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_subscriber_sessions (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	session_id TEXT UNIQUE NOT NULL,
+	subscriber_id TEXT NOT NULL,
+	access_method TEXT NOT NULL,
+	state TEXT NOT NULL,
+	product TEXT,
+	service_chain TEXT,
+	acct_session_id TEXT,
+	nas_identifier TEXT,
+	nas_port_id TEXT,
+	calling_station_id TEXT,
+	called_station_id TEXT,
+	ipv4_address TEXT,
+	ipv6_address TEXT,
+	delegated_ipv6_prefix TEXT,
+	counters_json TEXT NOT NULL DEFAULT '{}',
+	policy_json TEXT NOT NULL DEFAULT '{}',
+	started_at DATETIME,
+	last_transition_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	stopped_at DATETIME,
+	stop_reason TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(subscriber_id) REFERENCES broadband_subscribers(subscriber_id)
+);
+
+CREATE TABLE IF NOT EXISTS broadband_subscriber_service_legs (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	session_id TEXT NOT NULL,
+	leg TEXT NOT NULL,
+	state TEXT NOT NULL,
+	accounting_class TEXT,
+	route_policy TEXT,
+	qos_profile TEXT,
+	translation_pool TEXT,
+	revision INTEGER NOT NULL DEFAULT 1,
+	metadata_json TEXT NOT NULL DEFAULT '{}',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE(session_id, leg),
+	FOREIGN KEY(session_id) REFERENCES broadband_subscriber_sessions(session_id)
+);
+
+CREATE TABLE IF NOT EXISTS broadband_subscriber_state_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	mode TEXT,
+	access_method TEXT,
+	product_count INTEGER NOT NULL DEFAULT 0,
+	service_policy_count INTEGER NOT NULL DEFAULT 0,
+	failure_policy_count INTEGER NOT NULL DEFAULT 0,
+	state_count INTEGER NOT NULL DEFAULT 0,
+	transition_count INTEGER NOT NULL DEFAULT 0,
+	required_transition_count INTEGER NOT NULL DEFAULT 0,
+	accounting_transition_count INTEGER NOT NULL DEFAULT 0,
+	recovery_transition_count INTEGER NOT NULL DEFAULT 0,
+	compliance_check_count INTEGER NOT NULL DEFAULT 0,
+	passed_check_count INTEGER NOT NULL DEFAULT 0,
+	warning_count INTEGER NOT NULL DEFAULT 0,
+	blocker_count INTEGER NOT NULL DEFAULT 0,
+	external_requirement_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_broadband_subscribers_status ON broadband_subscribers(status, product, tenant);
+CREATE INDEX IF NOT EXISTS idx_broadband_subscriber_sessions_subscriber ON broadband_subscriber_sessions(subscriber_id, state, last_transition_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_subscriber_sessions_acct ON broadband_subscriber_sessions(acct_session_id);
+CREATE INDEX IF NOT EXISTS idx_broadband_subscriber_service_legs_session ON broadband_subscriber_service_legs(session_id, state);
+CREATE INDEX IF NOT EXISTS idx_broadband_subscriber_state_events_created ON broadband_subscriber_state_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_subscriber_state_events_status ON broadband_subscriber_state_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_subscriber_state_events_fingerprint ON broadband_subscriber_state_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_subscriber_state_events_mode ON broadband_subscriber_state_events(mode, created_at);
+`
+
+const schemaV87 = broadbandSubscriberStateSQL

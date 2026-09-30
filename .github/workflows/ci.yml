@@ -45,6 +45,7 @@ jobs:
       - run: make test-wireless-security-lifecycle
       - run: make test-cwa-portal-lifecycle
       - run: make test-pppoe-access-lifecycle
+      - run: make test-broadband-subscriber-state
       - run: make test-vsa-codec
       - run: make test-opaque-passthrough
       - run: make test-secret-providers

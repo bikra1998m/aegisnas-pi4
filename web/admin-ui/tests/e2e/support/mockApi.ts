@@ -2810,6 +2810,232 @@ function createPPPoEAccessLifecycle(status = "ready") {
   };
 }
 
+function createBroadbandSubscriberState(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0083",
+      status,
+      message:
+        "NAS-0083 subscriber state machine is ready with 15 states, 23 transitions, 1 product, and 2 service policies.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0083-release-certification-checklist.md",
+      release_scope:
+        "Live BRAS/BNG subscriber recovery, PPP/DHCP packet captures, commercial billing integration, wholesale handoff, HA failover, scale, soak, security audit, production deployment, and customer acceptance are release certification activities.",
+      plan_fingerprint:
+        "sha256:0f2d470403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81edac83",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        default_access_method: "pppoe",
+        max_sessions: 4096,
+        max_sessions_per_subscriber: 4,
+        max_reconnects: 3,
+        reconnect_window_seconds: 300,
+        accounting_grace_seconds: 90,
+        recovery_scan_seconds: 60,
+        require_accounting_start: true,
+        require_accounting_stop: true,
+        require_session_ownership: true,
+        service_legs_enabled: true,
+        policy_transitions_enabled: true,
+        reconnect_recovery_enabled: true,
+        quota_hooks_enabled: true,
+        charging_hooks_enabled: true,
+        dual_stack_required: true,
+        route_policy_required: true,
+        qos_required: true,
+        nat_required: true,
+        coa_required: true,
+        sql_accounting_enabled: true,
+        accounting_services_enabled: true,
+        pppoe_enabled: true,
+        dynamic_auth_enabled: true,
+        address_policy_enabled: true,
+        route_policy_enabled: true,
+        translation_policy_enabled: true,
+        high_availability_enabled: true,
+        product_count: 1,
+        enabled_product_count: 1,
+        service_policy_count: 2,
+        enabled_service_policy_count: 2,
+        failure_policy_count: 1,
+        enabled_failure_policy_count: 1,
+        state_count: 15,
+        transition_count: 23,
+        required_transition_count: 11,
+        accounting_transition_count: 4,
+        recovery_transition_count: 5,
+        compliance_check_count: 11,
+        passed_check_count: 11,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 11,
+      },
+      states: [
+        {
+          name: "new",
+          terminal: false,
+          recoverable: true,
+          purpose: "Subscriber context has not received access evidence.",
+        },
+        {
+          name: "service_active",
+          terminal: false,
+          recoverable: true,
+          purpose: "Service legs, routes, QoS, NAT, and policy are active.",
+        },
+      ],
+      transitions: [
+        {
+          from: "new",
+          event: "discovery",
+          to: "discovered",
+          required: true,
+          accounting: false,
+          recoverable: true,
+          actions: ["bind access circuit"],
+          description: "Initial access evidence creates subscriber context.",
+        },
+        {
+          from: "service_active",
+          event: "accounting-start",
+          to: "accounting_started",
+          required: true,
+          accounting: true,
+          recoverable: true,
+          actions: ["open accounting ledger"],
+          description: "Accounting Start creates durable session ownership.",
+        },
+      ],
+      products: [
+        {
+          name: "residential-fiber",
+          enabled: true,
+          role: "residential",
+          service_chain: "retail-internet",
+          address_pool: "pppoe-v4",
+          ipv6_pool: "pppoe-v6",
+          delegated_ipv6_pool: "pppoe-pd",
+          route_policy: "residential",
+          qos_profile: "silver",
+          translation_pool: "cgnat-pool",
+          quota_profile: "unlimited",
+          max_sessions: 4,
+          vendor_packs: ["standard", "aegisnas", "mikrotik", "huawei"],
+          status: "ready",
+          reason:
+            "Product participates in subscriber authorization and service activation.",
+        },
+      ],
+      service_policies: [
+        {
+          name: "base-internet-start",
+          enabled: true,
+          product: "residential-fiber",
+          leg: "internet",
+          trigger: "accounting-start",
+          required_state: "service_active",
+          next_state: "accounting_started",
+          accounting_class: "internet",
+          route_policy: "residential",
+          qos_profile: "silver",
+          translation_pool: "cgnat-pool",
+          vendor_packs: ["standard", "aegisnas", "mikrotik"],
+          status: "ready",
+          reason: "Service policy contributes a product/service-leg transition.",
+        },
+        {
+          name: "quota-policy-update",
+          enabled: true,
+          product: "residential-fiber",
+          leg: "quota",
+          trigger: "quota-threshold",
+          required_state: "interim_seen",
+          next_state: "policy_update_pending",
+          coa_action: "rate-limit",
+          qos_profile: "silver",
+          vendor_packs: ["standard", "aegisnas"],
+          status: "ready",
+          reason: "Service policy contributes a product/service-leg transition.",
+        },
+      ],
+      failure_policies: [
+        {
+          name: "accounting-gap-recovery",
+          enabled: true,
+          failure: "accounting-gap",
+          action: "recover",
+          target_state: "recovered",
+          recovery_after_seconds: 120,
+          status: "ready",
+          reason:
+            "Failure policy maps an operational failure to a deterministic recovery action.",
+        },
+      ],
+      accounting_correlation: [
+        {
+          stage: "start",
+          attributes: [
+            "Acct-Status-Type=Start",
+            "Acct-Session-Id",
+            "NAS-Identifier",
+            "Class",
+          ],
+          purpose: "Open durable session ownership.",
+          required: true,
+        },
+        {
+          stage: "interim",
+          attributes: [
+            "Acct-Status-Type=Interim-Update",
+            "Acct-Input-Octets",
+            "Acct-Output-Octets",
+          ],
+          purpose: "Refresh counters, quota, and charging evidence.",
+          required: true,
+        },
+      ],
+      compliance: [
+        {
+          id: "state-machine",
+          name: "Canonical state machine",
+          status: "passed",
+          message: "State transition graph is available.",
+        },
+        {
+          id: "accounting-services",
+          name: "Accounting correlation dependency",
+          status: "passed",
+          message: "Accounting service correlation is available.",
+        },
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        last_product_count: 1,
+        last_service_policy_count: 2,
+        last_transition_count: 23,
+      },
+      recent_events: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -7787,6 +8013,64 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({
         json: {
           feature_id: "NAS-0082",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+          },
+          events: [],
+        },
+      });
+      return;
+    }
+    if (path === "/system/broadband-subscriber-state" && method === "GET") {
+      await route.fulfill({ json: createBroadbandSubscriberState() });
+      return;
+    }
+    if (
+      path === "/system/broadband-subscriber-state/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createBroadbandSubscriberState(),
+          event_id: "subscriber-state-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-subscriber-state/apply" &&
+      method === "POST"
+    ) {
+      const payload = createBroadbandSubscriberState();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0083 recorded subscriber state machine with 23 transitions, 1 enabled product, and 2 enabled service policies.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "subscriber-state-event-apply",
+          result: {
+            status: "applied",
+            event_id: "subscriber-state-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-subscriber-state/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0083",
           summary: {
             total_events: 1,
             preview_events: 1,

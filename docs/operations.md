@@ -985,6 +985,39 @@ BNG/access-node interoperability, packet captures, HA, scale, soak, security
 audit, production deployment, and customer acceptance evidence stay in
 `nas-0082-release-certification-checklist.md`.
 
+For broadband subscriber state-machine governance, preview NAS-0083 before
+enabling enforce mode or activating product/service-leg policy:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-subscriber-state/preview \
+  | jq '.report.status, .report.summary, .report.transitions, .report.accounting_correlation'
+```
+
+Apply only after reviewing canonical state transitions, enabled subscriber
+products, service-leg policies, failure recovery, accounting Start/Interim/Stop
+correlation, reconnect windows, address pools, route policy, QoS, NAT, CoA,
+compliance checks, and the plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-subscriber-state/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/broadband-subscriber-state/history` and the support bundle
+files `api/broadband-subscriber-state.json` and
+`api/broadband-subscriber-state-history.json` during subscriber lifecycle,
+accounting, reconnect, route, QoS, NAT, CoA, and billing investigations. Live
+BRAS/BNG recovery, PPP/DHCP packet captures, wholesale handoff, billing
+integration, HA, scale, soak, security audit, production deployment, and
+customer acceptance evidence stay in
+`nas-0083-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

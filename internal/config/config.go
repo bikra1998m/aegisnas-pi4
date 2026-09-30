@@ -74,7 +74,8 @@ type DHCPConfig struct {
 }
 
 type BroadbandConfig struct {
-	PPPoE BroadbandPPPoEConfig `mapstructure:"pppoe"`
+	PPPoE      BroadbandPPPoEConfig           `mapstructure:"pppoe"`
+	Subscriber BroadbandSubscriberStateConfig `mapstructure:"subscriber_state"`
 }
 
 type BroadbandPPPoEConfig struct {
@@ -130,6 +131,84 @@ type BroadbandPPPoEProfileConfig struct {
 	SessionTimeoutSeconds int      `mapstructure:"session_timeout_seconds"`
 	IdleTimeoutSeconds    int      `mapstructure:"idle_timeout_seconds"`
 	VendorPacks           []string `mapstructure:"vendor_packs"`
+}
+
+type BroadbandSubscriberStateConfig struct {
+	Enabled                  bool                                     `mapstructure:"enabled"`
+	Mode                     string                                   `mapstructure:"mode"`
+	FailClosed               bool                                     `mapstructure:"fail_closed"`
+	DefaultAccessMethod      string                                   `mapstructure:"default_access_method"`
+	MaxSessions              int                                      `mapstructure:"max_sessions"`
+	MaxSessionsPerSubscriber int                                      `mapstructure:"max_sessions_per_subscriber"`
+	MaxReconnects            int                                      `mapstructure:"max_reconnects"`
+	ReconnectWindowSeconds   int                                      `mapstructure:"reconnect_window_seconds"`
+	AccountingGraceSeconds   int                                      `mapstructure:"accounting_grace_seconds"`
+	RecoveryScanSeconds      int                                      `mapstructure:"recovery_scan_seconds"`
+	SessionTimeoutSeconds    int                                      `mapstructure:"session_timeout_seconds"`
+	IdleTimeoutSeconds       int                                      `mapstructure:"idle_timeout_seconds"`
+	RequireAccountingStart   bool                                     `mapstructure:"require_accounting_start"`
+	RequireAccountingStop    bool                                     `mapstructure:"require_accounting_stop"`
+	RequireSessionOwnership  bool                                     `mapstructure:"require_session_ownership"`
+	ServiceLegsEnabled       bool                                     `mapstructure:"service_legs_enabled"`
+	PolicyTransitionsEnabled bool                                     `mapstructure:"policy_transitions_enabled"`
+	ReconnectRecoveryEnabled bool                                     `mapstructure:"reconnect_recovery_enabled"`
+	QuotaHooksEnabled        bool                                     `mapstructure:"quota_hooks_enabled"`
+	ChargingHooksEnabled     bool                                     `mapstructure:"charging_hooks_enabled"`
+	WholesaleEnabled         bool                                     `mapstructure:"wholesale_enabled"`
+	DualStackRequired        bool                                     `mapstructure:"dual_stack_required"`
+	RoutePolicyRequired      bool                                     `mapstructure:"route_policy_required"`
+	QoSRequired              bool                                     `mapstructure:"qos_required"`
+	NATRequired              bool                                     `mapstructure:"nat_required"`
+	CoARequired              bool                                     `mapstructure:"coa_required"`
+	EventRetentionLimit      int                                      `mapstructure:"event_retention_limit"`
+	Products                 []BroadbandSubscriberProductConfig       `mapstructure:"products"`
+	ServicePolicies          []BroadbandSubscriberServicePolicyConfig `mapstructure:"service_policies"`
+	FailurePolicies          []BroadbandSubscriberFailurePolicyConfig `mapstructure:"failure_policies"`
+}
+
+type BroadbandSubscriberProductConfig struct {
+	Name                  string   `mapstructure:"name"`
+	Enabled               bool     `mapstructure:"enabled"`
+	Role                  string   `mapstructure:"role"`
+	ServiceChain          string   `mapstructure:"service_chain"`
+	AddressPool           string   `mapstructure:"address_pool"`
+	IPv6Pool              string   `mapstructure:"ipv6_pool"`
+	DelegatedIPv6Pool     string   `mapstructure:"delegated_ipv6_pool"`
+	RoutePolicy           string   `mapstructure:"route_policy"`
+	QoSProfile            string   `mapstructure:"qos_profile"`
+	TranslationPool       string   `mapstructure:"translation_pool"`
+	QuotaProfile          string   `mapstructure:"quota_profile"`
+	MaxSessions           int      `mapstructure:"max_sessions"`
+	SessionTimeoutSeconds int      `mapstructure:"session_timeout_seconds"`
+	IdleTimeoutSeconds    int      `mapstructure:"idle_timeout_seconds"`
+	VendorPacks           []string `mapstructure:"vendor_packs"`
+}
+
+type BroadbandSubscriberServicePolicyConfig struct {
+	Name            string   `mapstructure:"name"`
+	Enabled         bool     `mapstructure:"enabled"`
+	Product         string   `mapstructure:"product"`
+	Leg             string   `mapstructure:"leg"`
+	Trigger         string   `mapstructure:"trigger"`
+	RequiredState   string   `mapstructure:"required_state"`
+	NextState       string   `mapstructure:"next_state"`
+	AccountingClass string   `mapstructure:"accounting_class"`
+	CoAAction       string   `mapstructure:"coa_action"`
+	RoutePolicy     string   `mapstructure:"route_policy"`
+	QoSProfile      string   `mapstructure:"qos_profile"`
+	TranslationPool string   `mapstructure:"translation_pool"`
+	VendorPacks     []string `mapstructure:"vendor_packs"`
+}
+
+type BroadbandSubscriberFailurePolicyConfig struct {
+	Name                 string `mapstructure:"name"`
+	Enabled              bool   `mapstructure:"enabled"`
+	Failure              string `mapstructure:"failure"`
+	Action               string `mapstructure:"action"`
+	TargetState          string `mapstructure:"target_state"`
+	DisconnectRequired   bool   `mapstructure:"disconnect_required"`
+	CoARequired          bool   `mapstructure:"coa_required"`
+	RecoveryAfterSeconds int    `mapstructure:"recovery_after_seconds"`
 }
 
 type InterfaceConfig struct {
@@ -3143,6 +3222,33 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("broadband.pppoe.nat_translation_enabled", false)
 	v.SetDefault("broadband.pppoe.coa_enabled", true)
 	v.SetDefault("broadband.pppoe.event_retention_limit", 6000)
+	v.SetDefault("broadband.subscriber_state.enabled", false)
+	v.SetDefault("broadband.subscriber_state.mode", "monitor")
+	v.SetDefault("broadband.subscriber_state.fail_closed", true)
+	v.SetDefault("broadband.subscriber_state.default_access_method", "pppoe")
+	v.SetDefault("broadband.subscriber_state.max_sessions", 1024)
+	v.SetDefault("broadband.subscriber_state.max_sessions_per_subscriber", 4)
+	v.SetDefault("broadband.subscriber_state.max_reconnects", 3)
+	v.SetDefault("broadband.subscriber_state.reconnect_window_seconds", 300)
+	v.SetDefault("broadband.subscriber_state.accounting_grace_seconds", 90)
+	v.SetDefault("broadband.subscriber_state.recovery_scan_seconds", 60)
+	v.SetDefault("broadband.subscriber_state.session_timeout_seconds", 0)
+	v.SetDefault("broadband.subscriber_state.idle_timeout_seconds", 0)
+	v.SetDefault("broadband.subscriber_state.require_accounting_start", true)
+	v.SetDefault("broadband.subscriber_state.require_accounting_stop", true)
+	v.SetDefault("broadband.subscriber_state.require_session_ownership", true)
+	v.SetDefault("broadband.subscriber_state.service_legs_enabled", true)
+	v.SetDefault("broadband.subscriber_state.policy_transitions_enabled", true)
+	v.SetDefault("broadband.subscriber_state.reconnect_recovery_enabled", true)
+	v.SetDefault("broadband.subscriber_state.quota_hooks_enabled", true)
+	v.SetDefault("broadband.subscriber_state.charging_hooks_enabled", true)
+	v.SetDefault("broadband.subscriber_state.wholesale_enabled", false)
+	v.SetDefault("broadband.subscriber_state.dual_stack_required", true)
+	v.SetDefault("broadband.subscriber_state.route_policy_required", true)
+	v.SetDefault("broadband.subscriber_state.qos_required", true)
+	v.SetDefault("broadband.subscriber_state.nat_required", false)
+	v.SetDefault("broadband.subscriber_state.coa_required", true)
+	v.SetDefault("broadband.subscriber_state.event_retention_limit", 10000)
 	v.SetDefault("network.dns.upstream_servers", []string{"8.8.8.8", "8.8.4.4"})
 	v.SetDefault("network.dns.local_domain", "aegis.local")
 	v.SetDefault("network.firewall.dos_protection.syn_rate", "50/second")
@@ -5748,6 +5854,9 @@ func (c *Config) Validate() error {
 	if err := validateBroadbandPPPoEConfig(c.Broadband.PPPoE, c.Radius, profile); err != nil {
 		return err
 	}
+	if err := validateBroadbandSubscriberStateConfig(c.Broadband.Subscriber, c.Broadband.PPPoE, c.Radius, profile); err != nil {
+		return err
+	}
 	if err := validateRadSecConfig(c); err != nil {
 		return err
 	}
@@ -7106,6 +7215,304 @@ func validateBroadbandPPPoEProfiles(pppoe BroadbandPPPoEConfig, radius RadiusCon
 		}
 	}
 	return enabled, nil
+}
+
+func EffectiveBroadbandSubscriberStateConfig(raw BroadbandSubscriberStateConfig) BroadbandSubscriberStateConfig {
+	state := raw
+	state.Mode = EffectiveBroadbandSubscriberStateMode(state.Mode)
+	if strings.TrimSpace(state.DefaultAccessMethod) == "" {
+		state.DefaultAccessMethod = "pppoe"
+	}
+	if state.MaxSessions == 0 {
+		state.MaxSessions = 1024
+	}
+	if state.MaxSessionsPerSubscriber == 0 {
+		state.MaxSessionsPerSubscriber = 4
+	}
+	if state.MaxReconnects == 0 {
+		state.MaxReconnects = 3
+	}
+	if state.ReconnectWindowSeconds == 0 {
+		state.ReconnectWindowSeconds = 300
+	}
+	if state.AccountingGraceSeconds == 0 {
+		state.AccountingGraceSeconds = 90
+	}
+	if state.RecoveryScanSeconds == 0 {
+		state.RecoveryScanSeconds = 60
+	}
+	if state.EventRetentionLimit == 0 {
+		state.EventRetentionLimit = 10000
+	}
+	if !raw.Enabled && !raw.ServiceLegsEnabled && !raw.PolicyTransitionsEnabled && !raw.ReconnectRecoveryEnabled &&
+		!raw.QuotaHooksEnabled && !raw.ChargingHooksEnabled && !raw.DualStackRequired && !raw.RoutePolicyRequired &&
+		!raw.QoSRequired && !raw.NATRequired && !raw.CoARequired {
+		state.ServiceLegsEnabled = true
+		state.PolicyTransitionsEnabled = true
+		state.ReconnectRecoveryEnabled = true
+		state.QuotaHooksEnabled = true
+		state.ChargingHooksEnabled = true
+		state.DualStackRequired = true
+		state.RoutePolicyRequired = true
+		state.QoSRequired = true
+		state.CoARequired = true
+	}
+	return state
+}
+
+func EffectiveBroadbandSubscriberStateMode(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "monitor", "enforce":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return "monitor"
+	}
+}
+
+func validateBroadbandSubscriberStateConfig(raw BroadbandSubscriberStateConfig, pppoeRaw BroadbandPPPoEConfig, radius RadiusConfig, profile string) error {
+	state := EffectiveBroadbandSubscriberStateConfig(raw)
+	if !state.Enabled && len(state.Products) == 0 && len(state.ServicePolicies) == 0 && len(state.FailurePolicies) == 0 {
+		return nil
+	}
+	switch state.Mode {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("broadband.subscriber_state.mode %q is invalid", raw.Mode)
+	}
+	switch strings.ToLower(strings.TrimSpace(state.DefaultAccessMethod)) {
+	case "pppoe", "ipoe", "dhcp", "l2tp", "static":
+	default:
+		return fmt.Errorf("broadband.subscriber_state.default_access_method %q is invalid", state.DefaultAccessMethod)
+	}
+	if state.MaxSessions < 0 || state.MaxSessions > 1000000 {
+		return fmt.Errorf("broadband.subscriber_state.max_sessions must be between 0 and 1000000")
+	}
+	if state.MaxSessionsPerSubscriber < 0 || state.MaxSessionsPerSubscriber > 1024 {
+		return fmt.Errorf("broadband.subscriber_state.max_sessions_per_subscriber must be between 0 and 1024")
+	}
+	if state.MaxReconnects < 0 || state.MaxReconnects > 100 {
+		return fmt.Errorf("broadband.subscriber_state.max_reconnects must be between 0 and 100")
+	}
+	for name, value := range map[string]int{
+		"reconnect_window_seconds": state.ReconnectWindowSeconds,
+		"accounting_grace_seconds": state.AccountingGraceSeconds,
+		"recovery_scan_seconds":    state.RecoveryScanSeconds,
+		"session_timeout_seconds":  state.SessionTimeoutSeconds,
+		"idle_timeout_seconds":     state.IdleTimeoutSeconds,
+		"event_retention_limit":    state.EventRetentionLimit,
+	} {
+		if value < 0 || value > 31536000 {
+			return fmt.Errorf("broadband.subscriber_state.%s must be between 0 and 31536000", name)
+		}
+	}
+	if profile == "lite" && state.Mode == "enforce" {
+		return errors.New("broadband.subscriber_state cannot use enforce mode on lite deployment profile")
+	}
+	if state.FailClosed && state.Mode == "enforce" {
+		if !radius.SQLAccounting.Enabled || !radius.AccountingServices.Enabled {
+			return errors.New("broadband.subscriber_state enforce mode requires radius.sql_accounting and radius.accounting_services")
+		}
+		if state.RequireSessionOwnership && !pppoeRaw.SessionOwnershipRequired {
+			return errors.New("broadband.subscriber_state session ownership requires broadband.pppoe.session_ownership_required")
+		}
+	}
+	if strings.EqualFold(state.DefaultAccessMethod, "pppoe") && state.Enabled && !EffectiveBroadbandPPPoEConfig(pppoeRaw).Enabled {
+		return errors.New("broadband.subscriber_state default_access_method pppoe requires broadband.pppoe.enabled")
+	}
+	if state.DualStackRequired && !radius.AddressPolicy.Enabled {
+		return errors.New("broadband.subscriber_state dual-stack support requires radius.address_policy.enabled")
+	}
+	if state.RoutePolicyRequired && !radius.RoutePolicy.Enabled {
+		return errors.New("broadband.subscriber_state route lifecycle requires radius.route_policy.enabled")
+	}
+	if state.NATRequired && !radius.TranslationPolicy.Enabled {
+		return errors.New("broadband.subscriber_state NAT lifecycle requires radius.translation_policy.enabled")
+	}
+	if state.CoARequired && !radius.DynamicAuth.Enabled {
+		return errors.New("broadband.subscriber_state CoA lifecycle requires radius.dynamic_auth.enabled")
+	}
+	products, enabledProducts, err := validateBroadbandSubscriberProducts(state, radius)
+	if err != nil {
+		return err
+	}
+	enabledPolicies, err := validateBroadbandSubscriberServicePolicies(state, products)
+	if err != nil {
+		return err
+	}
+	if err := validateBroadbandSubscriberFailurePolicies(state); err != nil {
+		return err
+	}
+	if state.Enabled && state.Mode == "enforce" {
+		if enabledProducts == 0 {
+			return errors.New("broadband.subscriber_state enforce mode requires at least one enabled product")
+		}
+		if state.ServiceLegsEnabled && enabledPolicies == 0 {
+			return errors.New("broadband.subscriber_state service legs require at least one enabled service policy")
+		}
+	}
+	return nil
+}
+
+func validateBroadbandSubscriberProducts(state BroadbandSubscriberStateConfig, radius RadiusConfig) (map[string]struct{}, int, error) {
+	addressPools := broadbandAddressPools(radius.AddressPolicy)
+	routeRoles := broadbandRouteRoles(radius.RoutePolicy)
+	translationPools := broadbandTranslationPools(radius.TranslationPolicy)
+	products := map[string]struct{}{}
+	enabled := 0
+	for i, product := range state.Products {
+		name := strings.TrimSpace(product.Name)
+		if !validBroadbandPPPoEText(name, 128) {
+			return nil, 0, fmt.Errorf("broadband.subscriber_state.products[%d].name is invalid", i)
+		}
+		key := strings.ToLower(name)
+		if _, exists := products[key]; exists {
+			return nil, 0, fmt.Errorf("broadband.subscriber_state.products[%d].name %q duplicates an earlier product", i, name)
+		}
+		products[key] = struct{}{}
+		if product.Enabled {
+			enabled++
+		}
+		for _, binding := range []struct {
+			field string
+			value string
+			known map[string]struct{}
+		}{
+			{"address_pool", product.AddressPool, addressPools},
+			{"ipv6_pool", product.IPv6Pool, addressPools},
+			{"delegated_ipv6_pool", product.DelegatedIPv6Pool, addressPools},
+			{"route_policy", product.RoutePolicy, routeRoles},
+			{"translation_pool", product.TranslationPool, translationPools},
+		} {
+			value := strings.TrimSpace(binding.value)
+			if value != "" {
+				if _, ok := binding.known[strings.ToLower(value)]; !ok {
+					return nil, 0, fmt.Errorf("broadband.subscriber_state.products[%d].%s %q is not configured", i, binding.field, value)
+				}
+			}
+		}
+		for _, binding := range []struct {
+			field string
+			value string
+			limit int
+		}{
+			{"role", product.Role, 253},
+			{"service_chain", product.ServiceChain, 128},
+			{"qos_profile", product.QoSProfile, 128},
+			{"quota_profile", product.QuotaProfile, 128},
+		} {
+			if strings.TrimSpace(binding.value) != "" && !validBroadbandPPPoEText(binding.value, binding.limit) {
+				return nil, 0, fmt.Errorf("broadband.subscriber_state.products[%d].%s is invalid", i, binding.field)
+			}
+		}
+		if product.MaxSessions < 0 || product.MaxSessions > 1000000 {
+			return nil, 0, fmt.Errorf("broadband.subscriber_state.products[%d].max_sessions must be between 0 and 1000000", i)
+		}
+		if product.SessionTimeoutSeconds < 0 || product.SessionTimeoutSeconds > 31536000 {
+			return nil, 0, fmt.Errorf("broadband.subscriber_state.products[%d].session_timeout_seconds must be between 0 and 31536000", i)
+		}
+		if product.IdleTimeoutSeconds < 0 || product.IdleTimeoutSeconds > 31536000 {
+			return nil, 0, fmt.Errorf("broadband.subscriber_state.products[%d].idle_timeout_seconds must be between 0 and 31536000", i)
+		}
+		for packIndex, pack := range product.VendorPacks {
+			key := productconfigs.NormalizeVendorCompatibilityPackKey(pack)
+			if key == "" || !productconfigs.ValidVendorCompatibilityPackKey(key) {
+				return nil, 0, fmt.Errorf("broadband.subscriber_state.products[%d].vendor_packs[%d] %q is unknown", i, packIndex, pack)
+			}
+		}
+	}
+	return products, enabled, nil
+}
+
+func validateBroadbandSubscriberServicePolicies(state BroadbandSubscriberStateConfig, products map[string]struct{}) (int, error) {
+	seen := map[string]struct{}{}
+	enabled := 0
+	for i, policy := range state.ServicePolicies {
+		name := strings.TrimSpace(policy.Name)
+		if !validBroadbandPPPoEText(name, 128) {
+			return 0, fmt.Errorf("broadband.subscriber_state.service_policies[%d].name is invalid", i)
+		}
+		key := strings.ToLower(name)
+		if _, exists := seen[key]; exists {
+			return 0, fmt.Errorf("broadband.subscriber_state.service_policies[%d].name %q duplicates an earlier policy", i, name)
+		}
+		seen[key] = struct{}{}
+		if policy.Enabled {
+			enabled++
+		}
+		product := strings.TrimSpace(policy.Product)
+		if product != "" {
+			if _, ok := products[strings.ToLower(product)]; !ok {
+				return 0, fmt.Errorf("broadband.subscriber_state.service_policies[%d].product %q is not configured", i, product)
+			}
+		}
+		if strings.TrimSpace(policy.Leg) != "" && !validBroadbandPPPoEText(policy.Leg, 128) {
+			return 0, fmt.Errorf("broadband.subscriber_state.service_policies[%d].leg is invalid", i)
+		}
+		switch strings.ToLower(strings.TrimSpace(policy.Trigger)) {
+		case "", "authorization", "accounting-start", "accounting-interim", "quota-threshold", "coa", "reconnect", "accounting-stop", "recovery":
+		default:
+			return 0, fmt.Errorf("broadband.subscriber_state.service_policies[%d].trigger %q is invalid", i, policy.Trigger)
+		}
+		if strings.TrimSpace(policy.RequiredState) != "" && !validBroadbandSubscriberStateName(policy.RequiredState) {
+			return 0, fmt.Errorf("broadband.subscriber_state.service_policies[%d].required_state %q is invalid", i, policy.RequiredState)
+		}
+		if strings.TrimSpace(policy.NextState) != "" && !validBroadbandSubscriberStateName(policy.NextState) {
+			return 0, fmt.Errorf("broadband.subscriber_state.service_policies[%d].next_state %q is invalid", i, policy.NextState)
+		}
+		for _, value := range []string{policy.AccountingClass, policy.CoAAction, policy.RoutePolicy, policy.QoSProfile, policy.TranslationPool} {
+			if strings.TrimSpace(value) != "" && !validBroadbandPPPoEText(value, 128) {
+				return 0, fmt.Errorf("broadband.subscriber_state.service_policies[%d] contains invalid text", i)
+			}
+		}
+		for packIndex, pack := range policy.VendorPacks {
+			key := productconfigs.NormalizeVendorCompatibilityPackKey(pack)
+			if key == "" || !productconfigs.ValidVendorCompatibilityPackKey(key) {
+				return 0, fmt.Errorf("broadband.subscriber_state.service_policies[%d].vendor_packs[%d] %q is unknown", i, packIndex, pack)
+			}
+		}
+	}
+	return enabled, nil
+}
+
+func validateBroadbandSubscriberFailurePolicies(state BroadbandSubscriberStateConfig) error {
+	seen := map[string]struct{}{}
+	for i, policy := range state.FailurePolicies {
+		name := strings.TrimSpace(policy.Name)
+		if !validBroadbandPPPoEText(name, 128) {
+			return fmt.Errorf("broadband.subscriber_state.failure_policies[%d].name is invalid", i)
+		}
+		key := strings.ToLower(name)
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("broadband.subscriber_state.failure_policies[%d].name %q duplicates an earlier policy", i, name)
+		}
+		seen[key] = struct{}{}
+		switch strings.ToLower(strings.TrimSpace(policy.Failure)) {
+		case "", "auth-reject", "accounting-gap", "quota-exhausted", "address-conflict", "policy-conflict", "coa-failed", "nas-restart", "session-stale":
+		default:
+			return fmt.Errorf("broadband.subscriber_state.failure_policies[%d].failure %q is invalid", i, policy.Failure)
+		}
+		switch strings.ToLower(strings.TrimSpace(policy.Action)) {
+		case "", "block", "recover", "suspend", "disconnect", "quarantine", "monitor":
+		default:
+			return fmt.Errorf("broadband.subscriber_state.failure_policies[%d].action %q is invalid", i, policy.Action)
+		}
+		if strings.TrimSpace(policy.TargetState) != "" && !validBroadbandSubscriberStateName(policy.TargetState) {
+			return fmt.Errorf("broadband.subscriber_state.failure_policies[%d].target_state %q is invalid", i, policy.TargetState)
+		}
+		if policy.RecoveryAfterSeconds < 0 || policy.RecoveryAfterSeconds > 31536000 {
+			return fmt.Errorf("broadband.subscriber_state.failure_policies[%d].recovery_after_seconds must be between 0 and 31536000", i)
+		}
+	}
+	return nil
+}
+
+func validBroadbandSubscriberStateName(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "new", "discovered", "authenticating", "authorized", "address_assigned", "service_active", "accounting_started", "interim_seen", "policy_update_pending", "reconnecting", "suspended", "disconnecting", "stopped", "recovered", "failed":
+		return true
+	default:
+		return false
+	}
 }
 
 func validBroadbandPPPoEText(value string, maxLen int) bool {

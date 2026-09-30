@@ -1289,6 +1289,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0082 PPPoE access lifecycle event history."),
 	}))
+	addOperation(paths, "/api/v1/system/broadband-subscriber-state", "get", securedOperation("Read broadband subscriber state machine", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0083 subscriber state machine report with states, transitions, products, service policies, failure policies, accounting correlation, compliance checks, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-subscriber-state/preview", "post", securedOperationWithBody("Preview broadband subscriber state machine", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating live subscriber sessions."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0083 broadband subscriber state machine report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-subscriber-state/apply", "post", securedOperationWithBody("Apply broadband subscriber state machine", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a lifecycle checkpoint and runtime status. Live BNG/device mutation remains release certification until enabled per access adapter."), map[string]any{
+		"200":     responseJSON("Applied NAS-0083 broadband subscriber state machine checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-subscriber-state/history", "get", securedOperationWithParameters("List broadband subscriber state history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0083 broadband subscriber state machine event history."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))

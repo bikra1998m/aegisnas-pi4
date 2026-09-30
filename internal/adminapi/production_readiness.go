@@ -159,6 +159,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionWirelessSecurityLifecycleCheck(&report, cfg)
 	addProductionCWAPortalLifecycleCheck(&report, cfg)
 	addProductionPPPoEAccessLifecycleCheck(&report, cfg)
+	addProductionBroadbandSubscriberStateCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -2014,6 +2015,75 @@ func addProductionPPPoEAccessLifecycleCheck(report *productionReadinessReport, c
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/pppoe-access-lifecycle/preview before PPPoE access rollout, apply only after reviewing interface inventory, subscriber profiles, RFC 2516 stages, RADIUS attributes, accounting, CoA, address/route/NAT/QoS bindings, and keep physical PPPoE data-plane, BNG, packet capture, HA, scale, soak, security, and customer proof in the NAS-0082 release certification checklist.",
 		Dependencies:   []string{"broadband.pppoe", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "radius.address_policy", "radius.route_policy", "radius.translation_policy", "/api/v1/system/pppoe-access-lifecycle", "/api/v1/system/pppoe-access-lifecycle/preview", "/api/v1/system/pppoe-access-lifecycle/apply", "pppoe_access_lifecycle_events", "RFC 2516", "RFC 2865", "RFC 2866", "RFC 5176"},
+	})
+}
+
+func addProductionBroadbandSubscriberStateCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0083 broadband subscriber state machine software is ready."
+	reportData, err := enforcement.PreviewBroadbandSubscriberState(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Broadband subscriber state preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0083 schema %d status=%s, mode=%s, access=%s, products=%d/%d, service policies=%d/%d, states=%d, transitions=%d, accounting transitions=%d, recovery transitions=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.DefaultAccessMethod,
+			reportData.Summary.EnabledProductCount,
+			reportData.Summary.ProductCount,
+			reportData.Summary.EnabledServicePolicyCount,
+			reportData.Summary.ServicePolicyCount,
+			reportData.Summary.StateCount,
+			reportData.Summary.TransitionCount,
+			reportData.Summary.AccountingTransitionCount,
+			reportData.Summary.RecoveryTransitionCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "skipped" {
+			summary += " Broadband subscriber state machine is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but subscriber state event history cannot be verified."
+	} else if evidence, err := db.GetBroadbandSubscriberStateSummary(); err != nil {
+		status = "blocked"
+		summary += " Broadband subscriber state evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, last products=%d, last service policies=%d, last transitions=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.LastProductCount,
+			evidence.LastServicePolicyCount,
+			evidence.LastTransitionCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "broadband_subscriber_state",
+		Category:       "radius",
+		Label:          "NAS-0083 Broadband Subscriber State Machine",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/broadband-subscriber-state/preview before enabling subscriber state enforcement, apply only after reviewing product catalog bindings, service-leg policies, failure/recovery behavior, accounting correlation, reconnect semantics, and keep live BRAS/BNG, packet capture, commercial billing, HA, scale, soak, security, and customer proof in the NAS-0083 release certification checklist.",
+		Dependencies:   []string{"broadband.subscriber_state", "broadband.pppoe", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "radius.address_policy", "radius.route_policy", "radius.translation_policy", "/api/v1/system/broadband-subscriber-state", "/api/v1/system/broadband-subscriber-state/preview", "/api/v1/system/broadband-subscriber-state/apply", "broadband_subscribers", "broadband_subscriber_sessions", "broadband_subscriber_service_legs", "broadband_subscriber_state_events", "RFC 2865", "RFC 2866", "RFC 5176"},
 	})
 }
 

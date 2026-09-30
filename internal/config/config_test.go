@@ -284,6 +284,8 @@ high_availability:
   virtual_ip: "192.0.2.10"
 radius:
   secret: radius-secret
+  sql_accounting:
+    enabled: true
   dynamic_auth:
     enabled: true
     outbound_enabled: true
@@ -386,6 +388,52 @@ broadband:
         service_chain: retail-internet
         rate_limit: 100m
         vendor_packs: [mikrotik, alcatel-lucent-service-router, huawei]
+  subscriber_state:
+    enabled: true
+    mode: enforce
+    fail_closed: true
+    default_access_method: pppoe
+    require_accounting_start: true
+    require_accounting_stop: true
+    require_session_ownership: true
+    service_legs_enabled: true
+    dual_stack_required: true
+    route_policy_required: true
+    nat_required: true
+    coa_required: true
+    products:
+      - name: residential-fiber
+        enabled: true
+        role: residential
+        service_chain: retail-internet
+        address_pool: pppoe-v4
+        ipv6_pool: pppoe-v6
+        delegated_ipv6_pool: pppoe-pd
+        route_policy: residential
+        qos_profile: silver
+        translation_pool: cgnat-pool
+        quota_profile: unlimited
+        vendor_packs: [standard, aegisnas, mikrotik, huawei]
+    service_policies:
+      - name: base-internet-start
+        enabled: true
+        product: residential-fiber
+        leg: internet
+        trigger: accounting-start
+        required_state: service_active
+        next_state: accounting_started
+        accounting_class: internet
+        route_policy: residential
+        qos_profile: silver
+        translation_pool: cgnat-pool
+        vendor_packs: [standard, aegisnas]
+    failure_policies:
+      - name: accounting-gap-recovery
+        enabled: true
+        failure: accounting-gap
+        action: recover
+        target_state: recovered
+        recovery_after_seconds: 120
 policy:
   default_role: residential
 `
@@ -402,6 +450,16 @@ policy:
 	require.NoError(t, err)
 	badInterface.Broadband.PPPoE.Interfaces[0].VLAN = 5000
 	assert.ErrorContains(t, badInterface.Validate(), "VLAN range")
+
+	badSubscriberPool, err := LoadCandidate(path)
+	require.NoError(t, err)
+	badSubscriberPool.Broadband.Subscriber.Products[0].AddressPool = "missing"
+	assert.ErrorContains(t, badSubscriberPool.Validate(), "address_pool")
+
+	badSubscriberState, err := LoadCandidate(path)
+	require.NoError(t, err)
+	badSubscriberState.Broadband.Subscriber.ServicePolicies[0].NextState = "mystery"
+	assert.ErrorContains(t, badSubscriberState.Validate(), "next_state")
 }
 
 func TestConfigValidationEAPFramework(t *testing.T) {

@@ -3527,6 +3527,11 @@ export default function AccessSettings() {
   const [pppoeAccessLifecycleAction, setPPPoEAccessLifecycleAction] =
     useState("");
   const pppoeAccessLifecycleBusy = pppoeAccessLifecycleAction !== "";
+  const [broadbandSubscriberState, setBroadbandSubscriberState] =
+    useState<JsonMap | null>(null);
+  const [broadbandSubscriberStateAction, setBroadbandSubscriberStateAction] =
+    useState("");
+  const broadbandSubscriberStateBusy = broadbandSubscriberStateAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3643,6 +3648,11 @@ export default function AccessSettings() {
   const loadPPPoEAccessLifecycle = async () => {
     const { data } = await api.get("/system/pppoe-access-lifecycle");
     setPPPoEAccessLifecycle(data.report || null);
+  };
+
+  const loadBroadbandSubscriberState = async () => {
+    const { data } = await api.get("/system/broadband-subscriber-state");
+    setBroadbandSubscriberState(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3882,6 +3892,7 @@ export default function AccessSettings() {
         wirelessSecurityRes,
         cwaPortalRes,
         pppoeAccessRes,
+        broadbandSubscriberStateRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -3894,6 +3905,7 @@ export default function AccessSettings() {
         api.get("/system/wireless-security-lifecycle"),
         api.get("/system/cwa-portal-lifecycle"),
         api.get("/system/pppoe-access-lifecycle"),
+        api.get("/system/broadband-subscriber-state"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -3908,6 +3920,9 @@ export default function AccessSettings() {
       setWirelessSecurityLifecycle(wirelessSecurityRes.data.report || null);
       setCWAPortalLifecycle(cwaPortalRes.data.report || null);
       setPPPoEAccessLifecycle(pppoeAccessRes.data.report || null);
+      setBroadbandSubscriberState(
+        broadbandSubscriberStateRes.data.report || null,
+      );
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4002,6 +4017,7 @@ export default function AccessSettings() {
       await loadControllerEstateLifecycle();
       await loadRFPlanningLifecycle();
       await loadWirelessSecurityLifecycle();
+      await loadBroadbandSubscriberState();
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4700,6 +4716,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewBroadbandSubscriberState = async () => {
+    setBroadbandSubscriberStateAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-subscriber-state/preview",
+        {},
+      );
+      setBroadbandSubscriberState(data.report || null);
+      setMessage(
+        `Subscriber state preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview broadband subscriber state machine.",
+      );
+    } finally {
+      setBroadbandSubscriberStateAction("");
+    }
+  };
+
+  const applyBroadbandSubscriberState = async () => {
+    setBroadbandSubscriberStateAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-subscriber-state/apply",
+        {},
+      );
+      setBroadbandSubscriberState(data.report || null);
+      setMessage(
+        `Subscriber state machine ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadBroadbandSubscriberState();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply broadband subscriber state machine.",
+      );
+    } finally {
+      setBroadbandSubscriberStateAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -5245,6 +5312,43 @@ export default function AccessSettings() {
     ? pppoeAccessLifecycle?.compliance
     : [];
   const pppoeAccessTone = statusTone(pppoeAccessLifecycle?.status);
+  const broadbandSubscriberSummary = broadbandSubscriberState?.summary || {};
+  const broadbandSubscriberStates = Array.isArray(
+    broadbandSubscriberState?.states,
+  )
+    ? broadbandSubscriberState?.states
+    : [];
+  const broadbandSubscriberTransitions = Array.isArray(
+    broadbandSubscriberState?.transitions,
+  )
+    ? broadbandSubscriberState?.transitions
+    : [];
+  const broadbandSubscriberProducts = Array.isArray(
+    broadbandSubscriberState?.products,
+  )
+    ? broadbandSubscriberState?.products
+    : [];
+  const broadbandSubscriberServicePolicies = Array.isArray(
+    broadbandSubscriberState?.service_policies,
+  )
+    ? broadbandSubscriberState?.service_policies
+    : [];
+  const broadbandSubscriberFailurePolicies = Array.isArray(
+    broadbandSubscriberState?.failure_policies,
+  )
+    ? broadbandSubscriberState?.failure_policies
+    : [];
+  const broadbandSubscriberAccounting = Array.isArray(
+    broadbandSubscriberState?.accounting_correlation,
+  )
+    ? broadbandSubscriberState?.accounting_correlation
+    : [];
+  const broadbandSubscriberCompliance = Array.isArray(
+    broadbandSubscriberState?.compliance,
+  )
+    ? broadbandSubscriberState?.compliance
+    : [];
+  const broadbandSubscriberTone = statusTone(broadbandSubscriberState?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -5578,6 +5682,24 @@ export default function AccessSettings() {
             {pppoeAccessLifecycleAction === "apply"
               ? "Applying PPPoE..."
               : "Apply PPPoE AC"}
+          </button>
+          <button
+            onClick={previewBroadbandSubscriberState}
+            disabled={broadbandSubscriberStateBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {broadbandSubscriberStateAction === "preview"
+              ? "Checking Subscribers..."
+              : "Preview Subscriber State"}
+          </button>
+          <button
+            onClick={applyBroadbandSubscriberState}
+            disabled={broadbandSubscriberStateBusy}
+            className="rounded-md border border-lime-300 px-4 py-2 text-sm font-medium text-lime-900 disabled:opacity-60"
+          >
+            {broadbandSubscriberStateAction === "apply"
+              ? "Applying Subscribers..."
+              : "Apply Subscriber State"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -6082,6 +6204,378 @@ export default function AccessSettings() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Broadband Subscriber State Machine
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {broadbandSubscriberState?.release_certification_checklist ||
+                "Validate subscriber products, service legs, reconnect recovery, accounting correlation, CoA, routes, QoS, NAT, and HA before broadband service rollout."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${broadbandSubscriberTone}`}
+          >
+            {broadbandSubscriberState?.status || "unknown"}
+          </div>
+        </div>
+        {broadbandSubscriberState ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {broadbandSubscriberState.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Products",
+                  `${broadbandSubscriberSummary.enabled_product_count || 0}/${broadbandSubscriberSummary.product_count || 0}`,
+                ],
+                [
+                  "Service Policies",
+                  `${broadbandSubscriberSummary.enabled_service_policy_count || 0}/${broadbandSubscriberSummary.service_policy_count || 0}`,
+                ],
+                ["States", broadbandSubscriberSummary.state_count || 0],
+                [
+                  "Transitions",
+                  broadbandSubscriberSummary.transition_count || 0,
+                ],
+                [
+                  "Recovery",
+                  broadbandSubscriberSummary.recovery_transition_count || 0,
+                ],
+                [
+                  "Compliance",
+                  `${broadbandSubscriberSummary.passed_check_count || 0}/${broadbandSubscriberSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              Method{" "}
+              <span className="font-mono">
+                {broadbandSubscriberSummary.default_access_method || "pppoe"}
+              </span>{" "}
+              / sessions{" "}
+              <span className="font-mono">
+                {broadbandSubscriberSummary.max_sessions || 0}
+              </span>{" "}
+              / per subscriber{" "}
+              <span className="font-mono">
+                {broadbandSubscriberSummary.max_sessions_per_subscriber || 0}
+              </span>{" "}
+              / reconnect window{" "}
+              <span className="font-mono">
+                {broadbandSubscriberSummary.reconnect_window_seconds || 0}s
+              </span>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Subscriber Products
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandSubscriberProducts.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No subscriber product is configured.
+                    </div>
+                  ) : (
+                    broadbandSubscriberProducts
+                      .slice(0, 8)
+                      .map((product: JsonMap, index: number) => (
+                        <div
+                          key={`${product.name || "subscriber-product"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {product.name || "Subscriber Product"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                product.status,
+                              )}`}
+                            >
+                              {product.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              product.role,
+                              product.service_chain,
+                              product.address_pool,
+                              product.ipv6_pool,
+                              product.delegated_ipv6_pool,
+                              product.qos_profile,
+                              product.translation_pool,
+                              product.quota_profile,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Product metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Service Leg Policies
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandSubscriberServicePolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No service leg policy is configured.
+                    </div>
+                  ) : (
+                    broadbandSubscriberServicePolicies
+                      .slice(0, 8)
+                      .map((policy: JsonMap, index: number) => (
+                        <div
+                          key={`${policy.name || "subscriber-service"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {policy.name || "Service Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                policy.status,
+                              )}`}
+                            >
+                              {policy.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              policy.product,
+                              policy.leg,
+                              policy.trigger,
+                              policy.required_state,
+                              policy.next_state,
+                              policy.coa_action,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Service policy metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Canonical States
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandSubscriberStates
+                    .slice(0, 8)
+                    .map((state: JsonMap, index: number) => (
+                      <div
+                        key={`${state.name || "subscriber-state"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {state.name || "State"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {[
+                            state.terminal ? "terminal" : "active",
+                            state.recoverable ? "recoverable" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" / ")}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  State Transitions
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandSubscriberTransitions
+                    .slice(0, 8)
+                    .map((transition: JsonMap, index: number) => (
+                      <div
+                        key={`${transition.from || "from"}-${transition.event || "event"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="break-all font-medium text-gray-900">
+                          {transition.from || "state"} {"->"}{" "}
+                          {transition.to || "state"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {[
+                            transition.event,
+                            transition.required ? "required" : "",
+                            transition.accounting ? "accounting" : "",
+                            transition.recoverable ? "recovery" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" / ")}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Failure Recovery
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandSubscriberFailurePolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No failure recovery policy is configured.
+                    </div>
+                  ) : (
+                    broadbandSubscriberFailurePolicies
+                      .slice(0, 8)
+                      .map((policy: JsonMap, index: number) => (
+                        <div
+                          key={`${policy.name || "subscriber-failure"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="font-medium text-gray-900">
+                            {policy.name || "Failure Policy"}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-600">
+                            {[
+                              policy.failure,
+                              policy.action,
+                              policy.target_state,
+                              policy.recovery_after_seconds
+                                ? `${policy.recovery_after_seconds}s`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Accounting Correlation
+              </h4>
+              <div className="mt-2 grid gap-2 lg:grid-cols-2">
+                {broadbandSubscriberAccounting.map(
+                  (binding: JsonMap, index: number) => (
+                    <div
+                      key={`${binding.stage || "subscriber-accounting"}-${index}`}
+                      className="rounded-md border border-gray-200 p-3"
+                    >
+                      <div className="font-medium text-gray-900">
+                        {binding.stage || "Accounting Stage"}
+                      </div>
+                      <div className="mt-1 text-xs text-gray-600">
+                        {binding.purpose || "Subscriber accounting evidence"}
+                      </div>
+                      <div className="mt-2 break-all text-xs text-gray-500">
+                        {Array.isArray(binding.attributes)
+                          ? binding.attributes.join(", ")
+                          : ""}
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Compliance Checks
+              </h4>
+              <div className="mt-2 grid gap-2 lg:grid-cols-2">
+                {broadbandSubscriberCompliance.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                    No subscriber state compliance check is present.
+                  </div>
+                ) : (
+                  broadbandSubscriberCompliance
+                    .slice(0, 12)
+                    .map((check: JsonMap, index: number) => (
+                      <div
+                        key={`${check.id || check.name || "subscriber-check"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {check.name || check.id || "Compliance Check"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              check.status,
+                            )}`}
+                          >
+                            {check.status || "unknown"}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {check.message || "No compliance message"}
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+            {((broadbandSubscriberState.blockers?.length || 0) > 0 ||
+              (broadbandSubscriberState.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(broadbandSubscriberState.blockers || []),
+                  ...(broadbandSubscriberState.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Mode{" "}
+              <span className="font-mono">
+                {broadbandSubscriberSummary.mode || "monitor"}
+              </span>{" "}
+              / service legs{" "}
+              <span className="font-mono">
+                {broadbandSubscriberSummary.service_legs_enabled
+                  ? "enabled"
+                  : "disabled"}
+              </span>{" "}
+              / CoA{" "}
+              <span className="font-mono">
+                {broadbandSubscriberSummary.coa_required
+                  ? "required"
+                  : "optional"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {broadbandSubscriberState.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Broadband subscriber state machine report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">

@@ -306,4 +306,41 @@ test.describe('Access Settings edge-network flow', () => {
       page.getByText(/PPPoE access lifecycle applied/),
     ).toBeVisible();
   });
+
+  test('previews and applies broadband subscriber state machine', async ({
+    page,
+  }) => {
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto('/access-settings');
+    const subscriberSection = page.locator('section').filter({
+      has: page.getByRole('heading', {
+        name: 'Broadband Subscriber State Machine',
+      }),
+    });
+    await expect(subscriberSection).toBeVisible();
+    await expect(
+      subscriberSection.getByRole('heading', { name: 'Subscriber Products' }),
+    ).toBeVisible();
+    await expect(
+      subscriberSection.getByRole('heading', { name: 'Service Leg Policies' }),
+    ).toBeVisible();
+    await expect(
+      subscriberSection.getByText('residential-fiber', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      subscriberSection.getByText('Acct-Status-Type=Start'),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview Subscriber State' }).click();
+    await expect(
+      page.getByText(/Subscriber state preview recorded/),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Apply Subscriber State' }).click();
+    await expect(
+      page.getByText(/Subscriber state machine applied/),
+    ).toBeVisible();
+  });
 });

@@ -514,6 +514,42 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		pppoeAccessLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.PPPoEAccessLifecycleComponent()]}
 	}
+	broadbandSubscriberStateStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Broadband subscriber state status has not been evaluated.",
+	}
+	if subscriberReport, err := enforcement.PreviewBroadbandSubscriberState(cfg); err == nil {
+		subscriberSummary, _ := db.GetBroadbandSubscriberStateSummary()
+		broadbandSubscriberStateStatus = map[string]any{
+			"schema_version":                  subscriberReport.SchemaVersion,
+			"feature_id":                      subscriberReport.FeatureID,
+			"status":                          subscriberReport.Status,
+			"message":                         subscriberReport.Message,
+			"ready_for_external_validation":   subscriberReport.ReadyForExternalValidation,
+			"software_completion_percent":     subscriberReport.SoftwareCompletionPercent,
+			"enabled":                         subscriberReport.Summary.Enabled,
+			"mode":                            subscriberReport.Summary.Mode,
+			"default_access_method":           subscriberReport.Summary.DefaultAccessMethod,
+			"enabled_product_count":           subscriberReport.Summary.EnabledProductCount,
+			"product_count":                   subscriberReport.Summary.ProductCount,
+			"enabled_service_policy_count":    subscriberReport.Summary.EnabledServicePolicyCount,
+			"service_policy_count":            subscriberReport.Summary.ServicePolicyCount,
+			"state_count":                     subscriberReport.Summary.StateCount,
+			"transition_count":                subscriberReport.Summary.TransitionCount,
+			"accounting_transition_count":     subscriberReport.Summary.AccountingTransitionCount,
+			"recovery_transition_count":       subscriberReport.Summary.RecoveryTransitionCount,
+			"compliance_check_count":          subscriberReport.Summary.ComplianceCheckCount,
+			"passed_check_count":              subscriberReport.Summary.PassedCheckCount,
+			"warning_count":                   subscriberReport.Summary.WarningCount,
+			"blocker_count":                   subscriberReport.Summary.BlockerCount,
+			"plan_fingerprint":                subscriberReport.PlanFingerprint,
+			"release_certification_checklist": subscriberReport.ReleaseCertificationChecklist,
+			"evidence_summary":                subscriberSummary,
+			"runtime_status":                  runtimeMap[enforcement.BroadbandSubscriberStateComponent()],
+		}
+	} else {
+		broadbandSubscriberStateStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandSubscriberStateComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1216,6 +1252,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		},
 		"subscriber_route_export":      subscriberRouteExportStatus,
 		"pppoe_access_lifecycle":       pppoeAccessLifecycleStatus,
+		"broadband_subscriber_state":   broadbandSubscriberStateStatus,
 		"vendor_mapping_certification": vendorMappingCertificationStatus,
 		"cisco_family_pack":            ciscoFamilyPackStatus,
 		"aruba_family_pack":            arubaFamilyPackStatus,

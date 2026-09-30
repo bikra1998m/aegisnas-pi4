@@ -1676,6 +1676,32 @@ PPPoE lifecycle status is included in `/api/v1/system/status` under
 `api/pppoe-access-lifecycle-history.json`. See
 [pppoe-access-concentrator.md](pppoe-access-concentrator.md).
 
+NAS-0083 adds broadband subscriber state-machine endpoints:
+
+```text
+GET  /api/v1/system/broadband-subscriber-state
+POST /api/v1/system/broadband-subscriber-state/preview
+POST /api/v1/system/broadband-subscriber-state/apply
+GET  /api/v1/system/broadband-subscriber-state/history
+```
+
+`GET /api/v1/system/broadband-subscriber-state` returns canonical subscriber
+states and transitions, product bindings, service-leg policies, failure and
+recovery policy, accounting correlation attributes, compliance checks, plan
+fingerprint, software completion state, release certification scope, and recent
+evidence. Preview records an event without mutating subscriber sessions. Apply
+records an auditable checkpoint and runtime status; live BRAS/BNG subscriber
+recovery, PPP/DHCP packet captures, commercial billing integration, wholesale
+handoff, HA, scale, and soak remain release certification for the exact vendor,
+hardware, firmware, and customer scope.
+
+Subscriber state status is included in `/api/v1/system/status` under
+`radius.broadband_subscriber_state`, production readiness as
+`broadband_subscriber_state`, and support bundles as
+`api/broadband-subscriber-state.json` and
+`api/broadband-subscriber-state-history.json`. See
+[broadband-subscriber-state-machine.md](broadband-subscriber-state-machine.md).
+
 Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
 
 After committing a role, user, ACL binding, or EAP framework policy through `/api/v1/apply`, run `POST /api/v1/system/radius-apply` (the **Apply RADIUS Config** action in Access Settings). This regenerates the local-user entries in `mods-config/files/authorize`, the legacy `users` path, and `mods-enabled/eap`, validates the complete FreeRADIUS configuration, and restarts FreeRADIUS. Database-backed portal decisions and CoA updates do not require this regeneration. Local bcrypt credentials support PAP and EAP-TTLS/PAP; CHAP and PEAP-MSCHAPv2 require a compatible cleartext or NT password verifier, while EAP-TLS uses certificates. NAS-0022 blocks enforce-mode generation when policy enables cataloged methods that this release cannot generate.
