@@ -478,6 +478,42 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		cwaPortalLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.CWAPortalLifecycleComponent()]}
 	}
+	pppoeAccessLifecycleStatus := map[string]any{
+		"status":  "unknown",
+		"message": "PPPoE access lifecycle status has not been evaluated.",
+	}
+	if pppoeReport, err := enforcement.PreviewPPPoEAccessLifecycle(cfg); err == nil {
+		pppoeSummary, _ := db.GetPPPoEAccessLifecycleSummary()
+		pppoeAccessLifecycleStatus = map[string]any{
+			"schema_version":                  pppoeReport.SchemaVersion,
+			"feature_id":                      pppoeReport.FeatureID,
+			"status":                          pppoeReport.Status,
+			"message":                         pppoeReport.Message,
+			"ready_for_external_validation":   pppoeReport.ReadyForExternalValidation,
+			"software_completion_percent":     pppoeReport.SoftwareCompletionPercent,
+			"enabled":                         pppoeReport.Summary.Enabled,
+			"mode":                            pppoeReport.Summary.Mode,
+			"access_concentrator_name":        pppoeReport.Summary.AccessConcentratorName,
+			"service_name":                    pppoeReport.Summary.ServiceName,
+			"enabled_interface_count":         pppoeReport.Summary.EnabledInterfaceCount,
+			"interface_count":                 pppoeReport.Summary.InterfaceCount,
+			"enabled_profile_count":           pppoeReport.Summary.EnabledProfileCount,
+			"profile_count":                   pppoeReport.Summary.ProfileCount,
+			"packet_stage_count":              pppoeReport.Summary.PacketStageCount,
+			"radius_attribute_count":          pppoeReport.Summary.RadiusAttributeCount,
+			"enforcement_action_count":        pppoeReport.Summary.EnforcementActionCount,
+			"compliance_check_count":          pppoeReport.Summary.ComplianceCheckCount,
+			"passed_check_count":              pppoeReport.Summary.PassedCheckCount,
+			"warning_count":                   pppoeReport.Summary.WarningCount,
+			"blocker_count":                   pppoeReport.Summary.BlockerCount,
+			"plan_fingerprint":                pppoeReport.PlanFingerprint,
+			"release_certification_checklist": pppoeReport.ReleaseCertificationChecklist,
+			"evidence_summary":                pppoeSummary,
+			"runtime_status":                  runtimeMap[enforcement.PPPoEAccessLifecycleComponent()],
+		}
+	} else {
+		pppoeAccessLifecycleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.PPPoEAccessLifecycleComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1179,6 +1215,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 			"evidence_error":   rateCompilerErrorString(routePolicyErr),
 		},
 		"subscriber_route_export":      subscriberRouteExportStatus,
+		"pppoe_access_lifecycle":       pppoeAccessLifecycleStatus,
 		"vendor_mapping_certification": vendorMappingCertificationStatus,
 		"cisco_family_pack":            ciscoFamilyPackStatus,
 		"aruba_family_pack":            arubaFamilyPackStatus,

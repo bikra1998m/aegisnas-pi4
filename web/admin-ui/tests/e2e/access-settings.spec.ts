@@ -274,4 +274,36 @@ test.describe('Access Settings edge-network flow', () => {
     await page.getByRole('button', { name: 'Apply CWA Portal' }).click();
     await expect(page.getByText(/CWA portal lifecycle applied/)).toBeVisible();
   });
+
+  test('previews and applies PPPoE access concentrator lifecycle', async ({
+    page,
+  }) => {
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto('/access-settings');
+    const pppoeSection = page.locator('section').filter({
+      has: page.getByRole('heading', {
+        name: 'PPPoE Access Concentrator',
+      }),
+    });
+    await expect(pppoeSection).toBeVisible();
+    await expect(
+      pppoeSection.getByRole('heading', { name: 'Access Interfaces' }),
+    ).toBeVisible();
+    await expect(
+      pppoeSection.getByRole('heading', { name: 'Subscriber Profiles' }),
+    ).toBeVisible();
+    await expect(
+      pppoeSection.getByText('NAS-Port-Type = PPPoE'),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview PPPoE AC' }).click();
+    await expect(page.getByText(/PPPoE access preview recorded/)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Apply PPPoE AC' }).click();
+    await expect(
+      page.getByText(/PPPoE access lifecycle applied/),
+    ).toBeVisible();
+  });
 });

@@ -210,6 +210,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{83, schemaV83},
 		{84, schemaV84},
 		{85, schemaV85},
+		{86, schemaV86},
 	}
 
 	for _, m := range migrations {
@@ -422,8 +423,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureCWAPortalLifecycleTables(handle); err != nil {
 		return fmt.Errorf("repair CWA portal lifecycle schema: %w", err)
 	}
+	if err := ensurePPPoEAccessLifecycleTables(handle); err != nil {
+		return fmt.Errorf("repair PPPoE access lifecycle schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensurePPPoEAccessLifecycleTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(pppoeAccessLifecycleSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureControllerEstateLifecycleTables(handle *sql.DB) error {

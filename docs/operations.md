@@ -953,6 +953,38 @@ Live controller/AP redirect, DHCP/RA advertisement, packet captures, HA, scale,
 soak, security audit, production deployment, and customer acceptance evidence
 stay in `nas-0081-release-certification-checklist.md`.
 
+For PPPoE access concentrator governance, preview NAS-0082 before enabling
+enforce mode or exposing subscriber access interfaces:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/pppoe-access-lifecycle/preview \
+  | jq '.report.status, .report.summary, .report.packet_stages, .report.radius_attributes'
+```
+
+Apply only after reviewing access interfaces, subscriber profiles, RFC 2516
+packet stages, RADIUS authentication/accounting attributes, session ownership,
+address pools, route policy, QoS, NAT, CoA, compliance checks, and plan
+fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/pppoe-access-lifecycle/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/pppoe-access-lifecycle/history` and the support bundle files
+`api/pppoe-access-lifecycle.json` and
+`api/pppoe-access-lifecycle-history.json` during subscriber, access-node, BNG,
+accounting, CoA, route, QoS, and NAT investigations. Live PPPoE data-plane,
+BNG/access-node interoperability, packet captures, HA, scale, soak, security
+audit, production deployment, and customer acceptance evidence stay in
+`nas-0082-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

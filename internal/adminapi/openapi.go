@@ -1272,6 +1272,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0081 CWA portal lifecycle event history."),
 	}))
+	addOperation(paths, "/api/v1/system/pppoe-access-lifecycle", "get", securedOperation("Read PPPoE access concentrator lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0082 PPPoE access lifecycle report with RFC 2516 packet stages, subscriber profiles, RADIUS attributes, enforcement actions, compliance checks, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/pppoe-access-lifecycle/preview", "post", securedOperationWithBody("Preview PPPoE access concentrator lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating access interfaces or live PPPoE sessions."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0082 PPPoE access lifecycle report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/pppoe-access-lifecycle/apply", "post", securedOperationWithBody("Apply PPPoE access concentrator lifecycle", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a lifecycle checkpoint and runtime status. Live PPPoE data-plane activation remains release certification until enabled per network adapter."), map[string]any{
+		"200":     responseJSON("Applied NAS-0082 PPPoE access lifecycle checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/pppoe-access-lifecycle/history", "get", securedOperationWithParameters("List PPPoE access concentrator lifecycle history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0082 PPPoE access lifecycle event history."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))

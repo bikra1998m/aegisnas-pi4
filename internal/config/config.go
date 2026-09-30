@@ -47,6 +47,7 @@ type Config struct {
 	Security         SecurityConfig         `mapstructure:"security"`
 	HighAvailability HighAvailabilityConfig `mapstructure:"high_availability"`
 	DHCP             DHCPConfig             `mapstructure:"dhcp"`
+	Broadband        BroadbandConfig        `mapstructure:"broadband"`
 	Wireless         WirelessConfig         `mapstructure:"wireless"`
 	AdminPort        int                    `mapstructure:"admin_port"`
 }
@@ -70,6 +71,65 @@ type DHCPConfig struct {
 	LeaseTime     string                  `mapstructure:"lease_time"`
 	Authoritative bool                    `mapstructure:"authoritative"`
 	StaticLeases  []DHCPStaticLeaseConfig `mapstructure:"static_leases"`
+}
+
+type BroadbandConfig struct {
+	PPPoE BroadbandPPPoEConfig `mapstructure:"pppoe"`
+}
+
+type BroadbandPPPoEConfig struct {
+	Enabled                  bool                            `mapstructure:"enabled"`
+	Mode                     string                          `mapstructure:"mode"`
+	FailClosed               bool                            `mapstructure:"fail_closed"`
+	AccessConcentratorName   string                          `mapstructure:"access_concentrator_name"`
+	ServiceName              string                          `mapstructure:"service_name"`
+	Interfaces               []BroadbandPPPoEInterfaceConfig `mapstructure:"interfaces"`
+	Profiles                 []BroadbandPPPoEProfileConfig   `mapstructure:"profiles"`
+	MaxSessions              int                             `mapstructure:"max_sessions"`
+	MaxSessionsPerMAC        int                             `mapstructure:"max_sessions_per_mac"`
+	MTU                      int                             `mapstructure:"mtu"`
+	MRU                      int                             `mapstructure:"mru"`
+	LCPKeepaliveSeconds      int                             `mapstructure:"lcp_keepalive_seconds"`
+	SessionTimeoutSeconds    int                             `mapstructure:"session_timeout_seconds"`
+	IdleTimeoutSeconds       int                             `mapstructure:"idle_timeout_seconds"`
+	RequirePAP               bool                            `mapstructure:"require_pap"`
+	RequireCHAP              bool                            `mapstructure:"require_chap"`
+	AccountingRequired       bool                            `mapstructure:"accounting_required"`
+	SessionOwnershipRequired bool                            `mapstructure:"session_ownership_required"`
+	IPv6CPEnabled            bool                            `mapstructure:"ipv6cp_enabled"`
+	PrefixDelegationEnabled  bool                            `mapstructure:"prefix_delegation_enabled"`
+	RouteInjectionEnabled    bool                            `mapstructure:"route_injection_enabled"`
+	QoSEnabled               bool                            `mapstructure:"qos_enabled"`
+	NATTranslationEnabled    bool                            `mapstructure:"nat_translation_enabled"`
+	CoAEnabled               bool                            `mapstructure:"coa_enabled"`
+	EventRetentionLimit      int                             `mapstructure:"event_retention_limit"`
+}
+
+type BroadbandPPPoEInterfaceConfig struct {
+	Name                   string `mapstructure:"name"`
+	Enabled                bool   `mapstructure:"enabled"`
+	VLAN                   int    `mapstructure:"vlan"`
+	ServiceName            string `mapstructure:"service_name"`
+	AccessConcentratorName string `mapstructure:"access_concentrator_name"`
+	MaxSessions            int    `mapstructure:"max_sessions"`
+	PADODelayMS            int    `mapstructure:"pado_delay_ms"`
+}
+
+type BroadbandPPPoEProfileConfig struct {
+	Name                  string   `mapstructure:"name"`
+	Enabled               bool     `mapstructure:"enabled"`
+	Role                  string   `mapstructure:"role"`
+	AddressPool           string   `mapstructure:"address_pool"`
+	IPv6Pool              string   `mapstructure:"ipv6_pool"`
+	DelegatedIPv6Pool     string   `mapstructure:"delegated_ipv6_pool"`
+	RoutePolicy           string   `mapstructure:"route_policy"`
+	QoSProfile            string   `mapstructure:"qos_profile"`
+	TranslationPool       string   `mapstructure:"translation_pool"`
+	ServiceChain          string   `mapstructure:"service_chain"`
+	RateLimit             string   `mapstructure:"rate_limit"`
+	SessionTimeoutSeconds int      `mapstructure:"session_timeout_seconds"`
+	IdleTimeoutSeconds    int      `mapstructure:"idle_timeout_seconds"`
+	VendorPacks           []string `mapstructure:"vendor_packs"`
 }
 
 type InterfaceConfig struct {
@@ -3060,6 +3120,29 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("dhcp.enabled", true)
 	v.SetDefault("dhcp.lease_time", "12h")
 	v.SetDefault("dhcp.authoritative", true)
+	v.SetDefault("broadband.pppoe.enabled", false)
+	v.SetDefault("broadband.pppoe.mode", "monitor")
+	v.SetDefault("broadband.pppoe.fail_closed", true)
+	v.SetDefault("broadband.pppoe.access_concentrator_name", "aegisnas")
+	v.SetDefault("broadband.pppoe.service_name", "internet")
+	v.SetDefault("broadband.pppoe.max_sessions", 1024)
+	v.SetDefault("broadband.pppoe.max_sessions_per_mac", 4)
+	v.SetDefault("broadband.pppoe.mtu", 1492)
+	v.SetDefault("broadband.pppoe.mru", 1492)
+	v.SetDefault("broadband.pppoe.lcp_keepalive_seconds", 30)
+	v.SetDefault("broadband.pppoe.session_timeout_seconds", 0)
+	v.SetDefault("broadband.pppoe.idle_timeout_seconds", 0)
+	v.SetDefault("broadband.pppoe.require_pap", false)
+	v.SetDefault("broadband.pppoe.require_chap", true)
+	v.SetDefault("broadband.pppoe.accounting_required", true)
+	v.SetDefault("broadband.pppoe.session_ownership_required", true)
+	v.SetDefault("broadband.pppoe.ipv6cp_enabled", true)
+	v.SetDefault("broadband.pppoe.prefix_delegation_enabled", true)
+	v.SetDefault("broadband.pppoe.route_injection_enabled", true)
+	v.SetDefault("broadband.pppoe.qos_enabled", true)
+	v.SetDefault("broadband.pppoe.nat_translation_enabled", false)
+	v.SetDefault("broadband.pppoe.coa_enabled", true)
+	v.SetDefault("broadband.pppoe.event_retention_limit", 6000)
 	v.SetDefault("network.dns.upstream_servers", []string{"8.8.8.8", "8.8.4.4"})
 	v.SetDefault("network.dns.local_domain", "aegis.local")
 	v.SetDefault("network.firewall.dos_protection.syn_rate", "50/second")
@@ -5662,6 +5745,9 @@ func (c *Config) Validate() error {
 	if err := validateRadiusTranslationPolicy(c.Radius.TranslationPolicy); err != nil {
 		return err
 	}
+	if err := validateBroadbandPPPoEConfig(c.Broadband.PPPoE, c.Radius, profile); err != nil {
+		return err
+	}
 	if err := validateRadSecConfig(c); err != nil {
 		return err
 	}
@@ -6759,6 +6845,302 @@ func captiveSSIDCount(ssids []SSIDConfig) int {
 		}
 	}
 	return count
+}
+
+func EffectiveBroadbandPPPoEConfig(raw BroadbandPPPoEConfig) BroadbandPPPoEConfig {
+	effective := raw
+	if strings.TrimSpace(effective.Mode) == "" {
+		effective.Mode = "monitor"
+	}
+	if strings.TrimSpace(effective.AccessConcentratorName) == "" {
+		effective.AccessConcentratorName = "aegisnas"
+	}
+	if strings.TrimSpace(effective.ServiceName) == "" {
+		effective.ServiceName = "internet"
+	}
+	if effective.MaxSessions == 0 {
+		effective.MaxSessions = 1024
+	}
+	if effective.MaxSessionsPerMAC == 0 {
+		effective.MaxSessionsPerMAC = 4
+	}
+	if effective.MTU == 0 {
+		effective.MTU = 1492
+	}
+	if effective.MRU == 0 {
+		effective.MRU = 1492
+	}
+	if effective.LCPKeepaliveSeconds == 0 {
+		effective.LCPKeepaliveSeconds = 30
+	}
+	if !raw.RequirePAP && !raw.RequireCHAP {
+		effective.RequireCHAP = true
+	}
+	if !raw.AccountingRequired && !raw.SessionOwnershipRequired && !raw.IPv6CPEnabled &&
+		!raw.PrefixDelegationEnabled && !raw.RouteInjectionEnabled && !raw.QoSEnabled &&
+		!raw.NATTranslationEnabled && !raw.CoAEnabled && !raw.Enabled {
+		effective.AccountingRequired = true
+		effective.SessionOwnershipRequired = true
+		effective.IPv6CPEnabled = true
+		effective.PrefixDelegationEnabled = true
+		effective.RouteInjectionEnabled = true
+		effective.QoSEnabled = true
+		effective.CoAEnabled = true
+	}
+	if effective.EventRetentionLimit == 0 {
+		effective.EventRetentionLimit = 6000
+	}
+	return effective
+}
+
+func EffectiveBroadbandPPPoEMode(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "monitor"
+	}
+	return value
+}
+
+func validateBroadbandPPPoEConfig(raw BroadbandPPPoEConfig, radius RadiusConfig, profile string) error {
+	pppoe := EffectiveBroadbandPPPoEConfig(raw)
+	switch EffectiveBroadbandPPPoEMode(pppoe.Mode) {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("broadband.pppoe.mode %q must be monitor or enforce", raw.Mode)
+	}
+	if pppoe.EventRetentionLimit < 0 || pppoe.EventRetentionLimit > 1000000 {
+		return errors.New("broadband.pppoe.event_retention_limit must be between 0 and 1000000")
+	}
+	if pppoe.MaxSessions < 1 || pppoe.MaxSessions > 10000000 {
+		return errors.New("broadband.pppoe.max_sessions must be between 1 and 10000000")
+	}
+	if pppoe.MaxSessionsPerMAC < 1 || pppoe.MaxSessionsPerMAC > pppoe.MaxSessions {
+		return errors.New("broadband.pppoe.max_sessions_per_mac must be between 1 and max_sessions")
+	}
+	if pppoe.MTU < 576 || pppoe.MTU > 9000 {
+		return errors.New("broadband.pppoe.mtu must be between 576 and 9000")
+	}
+	if pppoe.MRU < 576 || pppoe.MRU > 9000 {
+		return errors.New("broadband.pppoe.mru must be between 576 and 9000")
+	}
+	if pppoe.MRU > pppoe.MTU {
+		return errors.New("broadband.pppoe.mru cannot be greater than broadband.pppoe.mtu")
+	}
+	if pppoe.LCPKeepaliveSeconds < 1 || pppoe.LCPKeepaliveSeconds > 3600 {
+		return errors.New("broadband.pppoe.lcp_keepalive_seconds must be between 1 and 3600")
+	}
+	if pppoe.SessionTimeoutSeconds < 0 {
+		return errors.New("broadband.pppoe.session_timeout_seconds cannot be negative")
+	}
+	if pppoe.IdleTimeoutSeconds < 0 {
+		return errors.New("broadband.pppoe.idle_timeout_seconds cannot be negative")
+	}
+	if !validBroadbandPPPoEText(pppoe.AccessConcentratorName, 128) {
+		return errors.New("broadband.pppoe.access_concentrator_name is invalid")
+	}
+	if !validBroadbandPPPoEText(pppoe.ServiceName, 128) {
+		return errors.New("broadband.pppoe.service_name is invalid")
+	}
+	if !pppoe.RequirePAP && !pppoe.RequireCHAP {
+		return errors.New("broadband.pppoe requires at least one of require_pap or require_chap")
+	}
+
+	enabledInterfaces, err := validateBroadbandPPPoEInterfaces(pppoe)
+	if err != nil {
+		return err
+	}
+	enabledProfiles, err := validateBroadbandPPPoEProfiles(pppoe, radius)
+	if err != nil {
+		return err
+	}
+	if !pppoe.Enabled {
+		return nil
+	}
+	if profile == "lite" && EffectiveBroadbandPPPoEMode(pppoe.Mode) == "enforce" {
+		return errors.New("broadband.pppoe.mode=enforce is not supported on the lite deployment profile")
+	}
+	if pppoe.FailClosed && EffectiveBroadbandPPPoEMode(pppoe.Mode) == "enforce" {
+		if enabledInterfaces == 0 {
+			return errors.New("broadband.pppoe.enabled requires at least one enabled interface in enforce mode")
+		}
+		if enabledProfiles == 0 {
+			return errors.New("broadband.pppoe.enabled requires at least one enabled profile in enforce mode")
+		}
+		if strings.TrimSpace(radius.Secret) == "" && strings.TrimSpace(radius.SecretRef) == "" {
+			return errors.New("broadband.pppoe.enabled requires radius.secret or radius.secret_ref in enforce mode")
+		}
+		if pppoe.AccountingRequired && !radius.SQLAccounting.Enabled {
+			return errors.New("broadband.pppoe.accounting_required requires radius.sql_accounting.enabled in enforce mode")
+		}
+		if pppoe.AccountingRequired && !radius.AccountingServices.Enabled {
+			return errors.New("broadband.pppoe.accounting_required requires radius.accounting_services.enabled in enforce mode")
+		}
+		if pppoe.SessionOwnershipRequired && !radius.DynamicAuth.OutboundRequireKnownClient {
+			return errors.New("broadband.pppoe.session_ownership_required requires radius.dynamic_auth.outbound_require_known_client in enforce mode")
+		}
+		if pppoe.CoAEnabled && !radius.DynamicAuth.Enabled {
+			return errors.New("broadband.pppoe.coa_enabled requires radius.dynamic_auth.enabled in enforce mode")
+		}
+		if pppoe.CoAEnabled && !radius.DynamicAuth.OutboundEnabled {
+			return errors.New("broadband.pppoe.coa_enabled requires radius.dynamic_auth.outbound_enabled in enforce mode")
+		}
+		if pppoe.RouteInjectionEnabled && !radius.RoutePolicy.Enabled {
+			return errors.New("broadband.pppoe.route_injection_enabled requires radius.route_policy.enabled in enforce mode")
+		}
+		if (pppoe.IPv6CPEnabled || pppoe.PrefixDelegationEnabled) && !radius.AddressPolicy.Enabled {
+			return errors.New("broadband.pppoe dual-stack support requires radius.address_policy.enabled in enforce mode")
+		}
+		if pppoe.NATTranslationEnabled && !radius.TranslationPolicy.Enabled {
+			return errors.New("broadband.pppoe.nat_translation_enabled requires radius.translation_policy.enabled in enforce mode")
+		}
+	}
+	return nil
+}
+
+func validateBroadbandPPPoEInterfaces(pppoe BroadbandPPPoEConfig) (int, error) {
+	seen := map[string]struct{}{}
+	enabled := 0
+	for i, iface := range pppoe.Interfaces {
+		name := strings.TrimSpace(iface.Name)
+		if name == "" {
+			return 0, fmt.Errorf("broadband.pppoe.interfaces[%d].name cannot be empty", i)
+		}
+		if len(name) > 64 || strings.ContainsAny(name, "\r\n\x00") {
+			return 0, fmt.Errorf("broadband.pppoe.interfaces[%d].name is invalid", i)
+		}
+		key := strings.ToLower(name)
+		if _, exists := seen[key]; exists {
+			return 0, fmt.Errorf("broadband.pppoe.interfaces[%d].name %q duplicates an earlier interface", i, name)
+		}
+		seen[key] = struct{}{}
+		if iface.VLAN < 0 || iface.VLAN > 4094 {
+			return 0, fmt.Errorf("broadband.pppoe.interfaces[%d].vlan %d is outside the VLAN range 0-4094", i, iface.VLAN)
+		}
+		if iface.MaxSessions < 0 || iface.MaxSessions > pppoe.MaxSessions {
+			return 0, fmt.Errorf("broadband.pppoe.interfaces[%d].max_sessions must be between 0 and broadband.pppoe.max_sessions", i)
+		}
+		if iface.PADODelayMS < 0 || iface.PADODelayMS > 60000 {
+			return 0, fmt.Errorf("broadband.pppoe.interfaces[%d].pado_delay_ms must be between 0 and 60000", i)
+		}
+		if strings.TrimSpace(iface.ServiceName) != "" && !validBroadbandPPPoEText(iface.ServiceName, 128) {
+			return 0, fmt.Errorf("broadband.pppoe.interfaces[%d].service_name is invalid", i)
+		}
+		if strings.TrimSpace(iface.AccessConcentratorName) != "" && !validBroadbandPPPoEText(iface.AccessConcentratorName, 128) {
+			return 0, fmt.Errorf("broadband.pppoe.interfaces[%d].access_concentrator_name is invalid", i)
+		}
+		if iface.Enabled {
+			enabled++
+		}
+	}
+	return enabled, nil
+}
+
+func validateBroadbandPPPoEProfiles(pppoe BroadbandPPPoEConfig, radius RadiusConfig) (int, error) {
+	addressPools := broadbandAddressPools(radius.AddressPolicy)
+	routeRoles := broadbandRouteRoles(radius.RoutePolicy)
+	translationPools := broadbandTranslationPools(radius.TranslationPolicy)
+	seen := map[string]struct{}{}
+	enabled := 0
+	for i, profile := range pppoe.Profiles {
+		name := strings.TrimSpace(profile.Name)
+		if name == "" {
+			return 0, fmt.Errorf("broadband.pppoe.profiles[%d].name cannot be empty", i)
+		}
+		if !validAccountingChargingToken(name) {
+			return 0, fmt.Errorf("broadband.pppoe.profiles[%d].name %q is invalid", i, profile.Name)
+		}
+		key := strings.ToLower(name)
+		if _, exists := seen[key]; exists {
+			return 0, fmt.Errorf("broadband.pppoe.profiles[%d].name %q duplicates an earlier profile", i, name)
+		}
+		seen[key] = struct{}{}
+		if profile.Enabled {
+			enabled++
+			if !validAccountingChargingToken(profile.Role) {
+				return 0, fmt.Errorf("broadband.pppoe.profiles[%d].role is required and must be a policy token", i)
+			}
+		}
+		for _, ref := range []struct {
+			field string
+			value string
+			set   map[string]struct{}
+		}{
+			{"address_pool", profile.AddressPool, addressPools},
+			{"ipv6_pool", profile.IPv6Pool, addressPools},
+			{"delegated_ipv6_pool", profile.DelegatedIPv6Pool, addressPools},
+			{"route_policy", profile.RoutePolicy, routeRoles},
+			{"translation_pool", profile.TranslationPool, translationPools},
+		} {
+			value := strings.TrimSpace(ref.value)
+			if value == "" {
+				continue
+			}
+			if _, exists := ref.set[strings.ToLower(value)]; !exists {
+				return 0, fmt.Errorf("broadband.pppoe.profiles[%d].%s %q does not match configured RADIUS policy", i, ref.field, ref.value)
+			}
+		}
+		for _, token := range []struct {
+			field string
+			value string
+		}{
+			{"qos_profile", profile.QoSProfile},
+			{"service_chain", profile.ServiceChain},
+			{"rate_limit", profile.RateLimit},
+		} {
+			value := strings.TrimSpace(token.value)
+			if value != "" && !validAccountingChargingToken(value) {
+				return 0, fmt.Errorf("broadband.pppoe.profiles[%d].%s %q is invalid", i, token.field, token.value)
+			}
+		}
+		if profile.SessionTimeoutSeconds < 0 {
+			return 0, fmt.Errorf("broadband.pppoe.profiles[%d].session_timeout_seconds cannot be negative", i)
+		}
+		if profile.IdleTimeoutSeconds < 0 {
+			return 0, fmt.Errorf("broadband.pppoe.profiles[%d].idle_timeout_seconds cannot be negative", i)
+		}
+		for packIndex, pack := range profile.VendorPacks {
+			key := productconfigs.NormalizeVendorCompatibilityPackKey(pack)
+			if key == "" || !productconfigs.ValidVendorCompatibilityPackKey(key) {
+				return 0, fmt.Errorf("broadband.pppoe.profiles[%d].vendor_packs[%d] %q is unknown", i, packIndex, pack)
+			}
+		}
+	}
+	return enabled, nil
+}
+
+func validBroadbandPPPoEText(value string, maxLen int) bool {
+	value = strings.TrimSpace(value)
+	return value != "" && len(value) <= maxLen && !strings.ContainsAny(value, "\r\n\x00")
+}
+
+func broadbandAddressPools(policy RadiusAddressPolicyConfig) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, pool := range policy.Pools {
+		if name := strings.TrimSpace(pool.Name); name != "" {
+			out[strings.ToLower(name)] = struct{}{}
+		}
+	}
+	return out
+}
+
+func broadbandRouteRoles(policy RadiusRoutePolicyConfig) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, role := range policy.RolePolicies {
+		if name := strings.TrimSpace(role.Role); name != "" {
+			out[strings.ToLower(name)] = struct{}{}
+		}
+	}
+	return out
+}
+
+func broadbandTranslationPools(policy RadiusTranslationPolicyConfig) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, pool := range policy.Pools {
+		if name := strings.TrimSpace(pool.Name); name != "" {
+			out[strings.ToLower(name)] = struct{}{}
+		}
+	}
+	return out
 }
 
 func validatePercent(field string, value int) error {

@@ -2638,6 +2638,178 @@ function createCWAPortalLifecycle(status = "ready") {
   };
 }
 
+function createPPPoEAccessLifecycle(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0082",
+      status,
+      message:
+        "NAS-0082 plans 1 enabled interface, 1 enabled profile, 11 packet stages, 18 RADIUS attributes, and 8 enforcement actions.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0082-release-certification-checklist.md",
+      release_scope:
+        "Live PPPoE termination, access-node interoperability, BNG hardware, packet captures, HA, scale, soak, security audit, production deployment, and customer acceptance are release certification activities.",
+      plan_fingerprint:
+        "sha256:8a2e470403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81edac99",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        access_concentrator_name: "aegisnas-bng-01",
+        service_name: "internet",
+        max_sessions: 4096,
+        max_sessions_per_mac: 4,
+        mtu: 1492,
+        mru: 1492,
+        lcp_keepalive_seconds: 30,
+        require_chap: true,
+        accounting_required: true,
+        session_ownership_required: true,
+        ipv6cp_enabled: true,
+        prefix_delegation_enabled: true,
+        route_injection_enabled: true,
+        qos_enabled: true,
+        nat_translation_enabled: true,
+        coa_enabled: true,
+        high_availability_enabled: true,
+        sql_accounting_enabled: true,
+        accounting_services_enabled: true,
+        dynamic_auth_enabled: true,
+        route_policy_enabled: true,
+        address_policy_enabled: true,
+        translation_policy_enabled: true,
+        interface_count: 1,
+        enabled_interface_count: 1,
+        profile_count: 1,
+        enabled_profile_count: 1,
+        packet_stage_count: 11,
+        radius_attribute_count: 18,
+        enforcement_action_count: 8,
+        compliance_check_count: 9,
+        passed_check_count: 9,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 10,
+      },
+      interfaces: [
+        {
+          name: "eth1.100",
+          enabled: true,
+          vlan: 100,
+          service_name: "internet",
+          access_concentrator_name: "aegisnas-bng-01",
+          max_sessions: 2048,
+          pado_delay_ms: 10,
+          status: "ready",
+          reason: "interface is available for PPPoE discovery planning",
+        },
+      ],
+      profiles: [
+        {
+          name: "residential",
+          enabled: true,
+          role: "residential",
+          address_pool: "pppoe-v4",
+          ipv6_pool: "pppoe-v6",
+          delegated_ipv6_pool: "pppoe-pd",
+          route_policy: "residential",
+          qos_profile: "silver",
+          translation_pool: "cgnat-pool",
+          service_chain: "retail-internet",
+          rate_limit: "100m",
+          vendor_packs: ["mikrotik", "alcatel-lucent-service-router", "huawei"],
+          status: "ready",
+          reason: "profile maps subscriber role to PPPoE authorization intent",
+        },
+      ],
+      packet_stages: [
+        {
+          id: "padi",
+          protocol: "PPPoE Discovery",
+          direction: "inbound",
+          code: "PADI",
+          purpose: "discover access concentrator and requested service",
+          status: "implemented",
+        },
+        {
+          id: "pado",
+          protocol: "PPPoE Discovery",
+          direction: "outbound",
+          code: "PADO",
+          purpose: "offer service and AC identity",
+          status: "implemented",
+        },
+      ],
+      radius_attributes: [
+        {
+          name: "NAS-Port-Type = PPPoE",
+          direction: "access-request/accounting",
+          required: true,
+          semantics: "access medium classification",
+        },
+        {
+          name: "Acct-Session-Id",
+          direction: "accounting",
+          required: true,
+          semantics: "session ownership and duplicate detection",
+        },
+      ],
+      enforcement_actions: [
+        {
+          id: "session-bind",
+          target: "session-store",
+          action: "bind PPPoE session-id to user and access interface",
+          required: true,
+          status: "implemented",
+        },
+        {
+          id: "coa",
+          target: "radius.dynamic_auth",
+          action: "issue CoA or Disconnect for plan change or termination",
+          required: true,
+          status: "implemented",
+        },
+      ],
+      compliance: [
+        {
+          id: "config-validation",
+          name: "Configuration Validation",
+          status: "passed",
+          message: "configuration validates with PPPoE lifecycle settings",
+        },
+        {
+          id: "accounting",
+          name: "Accounting Ledger",
+          status: "passed",
+          message: "SQL accounting can persist PPPoE records",
+        },
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        last_interface_count: 1,
+        last_profile_count: 1,
+        last_session_limit: 4096,
+      },
+      recent_events: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -7557,6 +7729,64 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({
         json: {
           feature_id: "NAS-0081",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+          },
+          events: [],
+        },
+      });
+      return;
+    }
+    if (path === "/system/pppoe-access-lifecycle" && method === "GET") {
+      await route.fulfill({ json: createPPPoEAccessLifecycle() });
+      return;
+    }
+    if (
+      path === "/system/pppoe-access-lifecycle/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createPPPoEAccessLifecycle(),
+          event_id: "pppoe-access-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/pppoe-access-lifecycle/apply" &&
+      method === "POST"
+    ) {
+      const payload = createPPPoEAccessLifecycle();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0082 recorded PPPoE access lifecycle for 1 enabled interface, 1 enabled profile, 11 packet stages, 18 RADIUS attributes, and 8 enforcement actions.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "pppoe-access-event-apply",
+          result: {
+            status: "applied",
+            event_id: "pppoe-access-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/pppoe-access-lifecycle/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0082",
           summary: {
             total_events: 1,
             preview_events: 1,

@@ -946,6 +946,53 @@ tacacs:
       tenants:
         - "default"
 
+broadband:
+  pppoe:
+    enabled: false # Enable only after access interface, accounting, address pools, CoA, and HA runbooks are ready.
+    mode: "monitor" # Use enforce after PPPoE packet captures and access-node smoke tests.
+    fail_closed: true
+    access_concentrator_name: "aegisnas-bng-01"
+    service_name: "internet"
+    max_sessions: 4096
+    max_sessions_per_mac: 4
+    mtu: 1492
+    mru: 1492
+    lcp_keepalive_seconds: 30
+    session_timeout_seconds: 0
+    idle_timeout_seconds: 0
+    require_pap: false
+    require_chap: true
+    accounting_required: true
+    session_ownership_required: true
+    ipv6cp_enabled: true
+    prefix_delegation_enabled: true
+    route_injection_enabled: true
+    qos_enabled: true
+    nat_translation_enabled: false
+    coa_enabled: true
+    event_retention_limit: 6000
+    interfaces:
+      - name: "eth1.100"
+        enabled: false
+        vlan: 100
+        service_name: "internet"
+        access_concentrator_name: "aegisnas-bng-01"
+        max_sessions: 2048
+        pado_delay_ms: 10
+    profiles:
+      - name: "residential"
+        enabled: false
+        role: "residential"
+        address_pool: "pppoe-v4"
+        ipv6_pool: "pppoe-v6"
+        delegated_ipv6_pool: "pppoe-pd"
+        route_policy: "residential"
+        qos_profile: "silver"
+        translation_pool: "cgnat-pool"
+        service_chain: "retail-internet"
+        rate_limit: "100m"
+        vendor_packs: ["mikrotik", "alcatel-lucent-service-router", "huawei"]
+
 portal:
   enabled: true
   port: 8081

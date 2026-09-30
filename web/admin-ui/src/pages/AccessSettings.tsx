@@ -3522,6 +3522,11 @@ export default function AccessSettings() {
   const [cwaPortalLifecycleAction, setCWAPortalLifecycleAction] =
     useState("");
   const cwaPortalLifecycleBusy = cwaPortalLifecycleAction !== "";
+  const [pppoeAccessLifecycle, setPPPoEAccessLifecycle] =
+    useState<JsonMap | null>(null);
+  const [pppoeAccessLifecycleAction, setPPPoEAccessLifecycleAction] =
+    useState("");
+  const pppoeAccessLifecycleBusy = pppoeAccessLifecycleAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3633,6 +3638,11 @@ export default function AccessSettings() {
   const loadCWAPortalLifecycle = async () => {
     const { data } = await api.get("/system/cwa-portal-lifecycle");
     setCWAPortalLifecycle(data.report || null);
+  };
+
+  const loadPPPoEAccessLifecycle = async () => {
+    const { data } = await api.get("/system/pppoe-access-lifecycle");
+    setPPPoEAccessLifecycle(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3871,6 +3881,7 @@ export default function AccessSettings() {
         rfPlanningRes,
         wirelessSecurityRes,
         cwaPortalRes,
+        pppoeAccessRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -3882,6 +3893,7 @@ export default function AccessSettings() {
         api.get("/system/rf-planning-lifecycle"),
         api.get("/system/wireless-security-lifecycle"),
         api.get("/system/cwa-portal-lifecycle"),
+        api.get("/system/pppoe-access-lifecycle"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -3895,6 +3907,7 @@ export default function AccessSettings() {
       setRFPlanningLifecycle(rfPlanningRes.data.report || null);
       setWirelessSecurityLifecycle(wirelessSecurityRes.data.report || null);
       setCWAPortalLifecycle(cwaPortalRes.data.report || null);
+      setPPPoEAccessLifecycle(pppoeAccessRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4636,6 +4649,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewPPPoEAccessLifecycle = async () => {
+    setPPPoEAccessLifecycleAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/pppoe-access-lifecycle/preview",
+        {},
+      );
+      setPPPoEAccessLifecycle(data.report || null);
+      setMessage(
+        `PPPoE access preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview PPPoE access lifecycle.",
+      );
+    } finally {
+      setPPPoEAccessLifecycleAction("");
+    }
+  };
+
+  const applyPPPoEAccessLifecycle = async () => {
+    setPPPoEAccessLifecycleAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/pppoe-access-lifecycle/apply",
+        {},
+      );
+      setPPPoEAccessLifecycle(data.report || null);
+      setMessage(
+        `PPPoE access lifecycle ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadPPPoEAccessLifecycle();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply PPPoE access lifecycle.",
+      );
+    } finally {
+      setPPPoEAccessLifecycleAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -5157,6 +5221,30 @@ export default function AccessSettings() {
     ? cwaPortalLifecycle?.compliance
     : [];
   const cwaPortalTone = statusTone(cwaPortalLifecycle?.status);
+  const pppoeAccessSummary = pppoeAccessLifecycle?.summary || {};
+  const pppoeInterfaces = Array.isArray(pppoeAccessLifecycle?.interfaces)
+    ? pppoeAccessLifecycle?.interfaces
+    : [];
+  const pppoeProfiles = Array.isArray(pppoeAccessLifecycle?.profiles)
+    ? pppoeAccessLifecycle?.profiles
+    : [];
+  const pppoePacketStages = Array.isArray(pppoeAccessLifecycle?.packet_stages)
+    ? pppoeAccessLifecycle?.packet_stages
+    : [];
+  const pppoeRadiusAttributes = Array.isArray(
+    pppoeAccessLifecycle?.radius_attributes,
+  )
+    ? pppoeAccessLifecycle?.radius_attributes
+    : [];
+  const pppoeEnforcementActions = Array.isArray(
+    pppoeAccessLifecycle?.enforcement_actions,
+  )
+    ? pppoeAccessLifecycle?.enforcement_actions
+    : [];
+  const pppoeCompliance = Array.isArray(pppoeAccessLifecycle?.compliance)
+    ? pppoeAccessLifecycle?.compliance
+    : [];
+  const pppoeAccessTone = statusTone(pppoeAccessLifecycle?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -5472,6 +5560,24 @@ export default function AccessSettings() {
             {cwaPortalLifecycleAction === "apply"
               ? "Applying CWA..."
               : "Apply CWA Portal"}
+          </button>
+          <button
+            onClick={previewPPPoEAccessLifecycle}
+            disabled={pppoeAccessLifecycleBusy}
+            className="rounded-md border border-sky-300 px-4 py-2 text-sm font-medium text-sky-900 disabled:opacity-60"
+          >
+            {pppoeAccessLifecycleAction === "preview"
+              ? "Checking PPPoE..."
+              : "Preview PPPoE AC"}
+          </button>
+          <button
+            onClick={applyPPPoEAccessLifecycle}
+            disabled={pppoeAccessLifecycleBusy}
+            className="rounded-md border border-blue-300 px-4 py-2 text-sm font-medium text-blue-900 disabled:opacity-60"
+          >
+            {pppoeAccessLifecycleAction === "apply"
+              ? "Applying PPPoE..."
+              : "Apply PPPoE AC"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -5976,6 +6082,313 @@ export default function AccessSettings() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              PPPoE Access Concentrator
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {pppoeAccessLifecycle?.release_certification_checklist ||
+                "Validate RFC 2516 discovery, subscriber profiles, accounting, address pools, routes, QoS, NAT, CoA, and HA before broadband rollout."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${pppoeAccessTone}`}
+          >
+            {pppoeAccessLifecycle?.status || "unknown"}
+          </div>
+        </div>
+        {pppoeAccessLifecycle ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {pppoeAccessLifecycle.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Interfaces",
+                  `${pppoeAccessSummary.enabled_interface_count || 0}/${pppoeAccessSummary.interface_count || 0}`,
+                ],
+                [
+                  "Profiles",
+                  `${pppoeAccessSummary.enabled_profile_count || 0}/${pppoeAccessSummary.profile_count || 0}`,
+                ],
+                ["Packet Stages", pppoeAccessSummary.packet_stage_count || 0],
+                [
+                  "RADIUS Attributes",
+                  pppoeAccessSummary.radius_attribute_count || 0,
+                ],
+                [
+                  "Actions",
+                  pppoeAccessSummary.enforcement_action_count || 0,
+                ],
+                [
+                  "Compliance",
+                  `${pppoeAccessSummary.passed_check_count || 0}/${pppoeAccessSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+              AC{" "}
+              <span className="font-mono">
+                {pppoeAccessSummary.access_concentrator_name || "unset"}
+              </span>{" "}
+              / service{" "}
+              <span className="font-mono">
+                {pppoeAccessSummary.service_name || "unset"}
+              </span>{" "}
+              / MTU{" "}
+              <span className="font-mono">
+                {pppoeAccessSummary.mtu || 1492}
+              </span>{" "}
+              / sessions{" "}
+              <span className="font-mono">
+                {pppoeAccessSummary.max_sessions || 0}
+              </span>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Access Interfaces
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {pppoeInterfaces.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No PPPoE access interface is configured.
+                    </div>
+                  ) : (
+                    pppoeInterfaces.slice(0, 8).map((iface: JsonMap, index: number) => (
+                      <div
+                        key={`${iface.name || "pppoe-interface"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {iface.name || "Access Interface"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              iface.status,
+                            )}`}
+                          >
+                            {iface.status || "ready"}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {[
+                            iface.vlan ? `VLAN ${iface.vlan}` : "",
+                            iface.service_name,
+                            iface.max_sessions
+                              ? `${iface.max_sessions} sessions`
+                              : "",
+                            iface.pado_delay_ms
+                              ? `${iface.pado_delay_ms}ms PADO`
+                              : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" / ") || "Interface metadata only"}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Subscriber Profiles
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {pppoeProfiles.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No PPPoE subscriber profile is configured.
+                    </div>
+                  ) : (
+                    pppoeProfiles.slice(0, 8).map((profile: JsonMap, index: number) => (
+                      <div
+                        key={`${profile.name || "pppoe-profile"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {profile.name || "Subscriber Profile"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              profile.status,
+                            )}`}
+                          >
+                            {profile.status || "ready"}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {[
+                            profile.role,
+                            profile.address_pool,
+                            profile.ipv6_pool,
+                            profile.delegated_ipv6_pool,
+                            profile.qos_profile,
+                            profile.translation_pool,
+                          ]
+                            .filter(Boolean)
+                            .join(" / ") || "Profile metadata only"}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Packet Stages
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {pppoePacketStages.slice(0, 8).map((stage: JsonMap, index: number) => (
+                    <div
+                      key={`${stage.id || stage.code || "pppoe-stage"}-${index}`}
+                      className="rounded-md border border-gray-200 p-3"
+                    >
+                      <div className="font-medium text-gray-900">
+                        {stage.code || stage.id || "Stage"}
+                      </div>
+                      <div className="mt-1 text-xs text-gray-600">
+                        {[stage.protocol, stage.direction, stage.status]
+                          .filter(Boolean)
+                          .join(" / ")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  RADIUS Attributes
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {pppoeRadiusAttributes.slice(0, 8).map((attr: JsonMap, index: number) => (
+                    <div
+                      key={`${attr.name || "pppoe-attr"}-${index}`}
+                      className="rounded-md border border-gray-200 p-3"
+                    >
+                      <div className="break-all font-medium text-gray-900">
+                        {attr.name || "Attribute"}
+                      </div>
+                      <div className="mt-1 text-xs text-gray-600">
+                        {[attr.direction, attr.semantics]
+                          .filter(Boolean)
+                          .join(" / ")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Enforcement
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {pppoeEnforcementActions
+                    .slice(0, 8)
+                    .map((action: JsonMap, index: number) => (
+                      <div
+                        key={`${action.id || action.target || "pppoe-action"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {action.target || action.id || "Action"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {[action.action, action.status]
+                            .filter(Boolean)
+                            .join(" / ")}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Compliance Checks
+              </h4>
+              <div className="mt-2 grid gap-2 lg:grid-cols-2">
+                {pppoeCompliance.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                    No PPPoE compliance check is present.
+                  </div>
+                ) : (
+                  pppoeCompliance.slice(0, 10).map((check: JsonMap, index: number) => (
+                    <div
+                      key={`${check.id || check.name || "pppoe-check"}-${index}`}
+                      className="rounded-md border border-gray-200 p-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="font-medium text-gray-900">
+                          {check.name || check.id || "Compliance Check"}
+                        </div>
+                        <span
+                          className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                            check.status,
+                          )}`}
+                        >
+                          {check.status || "unknown"}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-600">
+                        {check.message || "No compliance message"}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            {((pppoeAccessLifecycle.blockers?.length || 0) > 0 ||
+              (pppoeAccessLifecycle.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[...(pppoeAccessLifecycle.blockers || []), ...(pppoeAccessLifecycle.warnings || [])].join(
+                  " ",
+                )}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Mode{" "}
+              <span className="font-mono">
+                {pppoeAccessSummary.mode || "monitor"}
+              </span>{" "}
+              / dual-stack{" "}
+              <span className="font-mono">
+                {pppoeAccessSummary.ipv6cp_enabled ||
+                pppoeAccessSummary.prefix_delegation_enabled
+                  ? "enabled"
+                  : "disabled"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {pppoeAccessLifecycle.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            PPPoE access concentrator lifecycle report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">

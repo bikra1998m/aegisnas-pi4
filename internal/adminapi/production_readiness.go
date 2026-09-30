@@ -158,6 +158,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionRFPlanningLifecycleCheck(&report, cfg)
 	addProductionWirelessSecurityLifecycleCheck(&report, cfg)
 	addProductionCWAPortalLifecycleCheck(&report, cfg)
+	addProductionPPPoEAccessLifecycleCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -1944,6 +1945,75 @@ func addProductionCWAPortalLifecycleCheck(report *productionReadinessReport, cfg
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/cwa-portal-lifecycle/preview before CWA rollout, apply only after reviewing RFC 8910 API, per-session redirect rules, walled-garden entries, controller policies, CoA handoff, and keep real controller/AP redirect, DHCP/RA advertisement, packet capture, HA, scale, soak, security, and customer proof in the NAS-0081 release certification checklist.",
 		Dependencies:   []string{"portal.cwa", "portal.enabled", "wireless.ssids.auth_mode=captive-portal", "radius.dynamic_auth", "integrations.controller", "/api/v1/system/cwa-portal-lifecycle", "/api/v1/system/cwa-portal-lifecycle/preview", "/api/v1/system/cwa-portal-lifecycle/apply", "cwa_portal_lifecycle_events", "RFC 8910", "RFC 7710", "RFC 5176", "RFC 2865", "IEEE 802.11"},
+	})
+}
+
+func addProductionPPPoEAccessLifecycleCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0082 PPPoE access concentrator software is ready."
+	reportData, err := enforcement.PreviewPPPoEAccessLifecycle(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "PPPoE access lifecycle preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0082 schema %d status=%s, mode=%s, AC=%s, service=%s, interfaces=%d/%d, profiles=%d/%d, packet stages=%d, RADIUS attributes=%d, enforcement actions=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			firstNonEmptyAdminString(reportData.Summary.AccessConcentratorName, "unset"),
+			firstNonEmptyAdminString(reportData.Summary.ServiceName, "unset"),
+			reportData.Summary.EnabledInterfaceCount,
+			reportData.Summary.InterfaceCount,
+			reportData.Summary.EnabledProfileCount,
+			reportData.Summary.ProfileCount,
+			reportData.Summary.PacketStageCount,
+			reportData.Summary.RadiusAttributeCount,
+			reportData.Summary.EnforcementActionCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "skipped" {
+			summary += " PPPoE access lifecycle is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but PPPoE access lifecycle event history cannot be verified."
+	} else if evidence, err := db.GetPPPoEAccessLifecycleSummary(); err != nil {
+		status = "blocked"
+		summary += " PPPoE access lifecycle evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, last interfaces=%d, last profiles=%d, last session limit=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.LastInterfaceCount,
+			evidence.LastProfileCount,
+			evidence.LastSessionLimit,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "pppoe_access_lifecycle",
+		Category:       "radius",
+		Label:          "NAS-0082 PPPoE Access Concentrator",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/pppoe-access-lifecycle/preview before PPPoE access rollout, apply only after reviewing interface inventory, subscriber profiles, RFC 2516 stages, RADIUS attributes, accounting, CoA, address/route/NAT/QoS bindings, and keep physical PPPoE data-plane, BNG, packet capture, HA, scale, soak, security, and customer proof in the NAS-0082 release certification checklist.",
+		Dependencies:   []string{"broadband.pppoe", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "radius.address_policy", "radius.route_policy", "radius.translation_policy", "/api/v1/system/pppoe-access-lifecycle", "/api/v1/system/pppoe-access-lifecycle/preview", "/api/v1/system/pppoe-access-lifecycle/apply", "pppoe_access_lifecycle_events", "RFC 2516", "RFC 2865", "RFC 2866", "RFC 5176"},
 	})
 }
 
