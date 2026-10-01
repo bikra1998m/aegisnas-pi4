@@ -47,7 +47,9 @@ test-attribute-registry:
 	go test ./configs ./cmd/aegis-attribute-registry-gen ./internal/radius ./internal/adminapi -run 'AttributeRegistry|GeneratedAttributeRegistry' -count=1
 
 test-dictionary-release-profiles:
-	go test ./configs ./internal/config ./internal/adminapi -run 'DictionaryRelease|VendorCompatibility|Authorize|OpenAPI|ProductionReadiness' -count=1
+	go test ./configs -run 'DictionaryRelease|VendorCompatibility' -count=1
+	go test ./internal/config -run 'DictionaryRelease' -count=1
+	go test ./internal/adminapi -run '^(TestHandleGetDictionaryReleaseProfiles|TestHandleGetDictionaryReleaseProfilesFiltersAndRejectsUnknown|TestDictionaryReleaseProfileProductionReadinessCheck|TestAuthorizeRequestByRole|TestHandleGetOpenAPI)$$' -count=1
 
 test-compatibility-evidence:
 	go test ./configs ./internal/adminapi -run 'CompatibilityEvidence|VendorCompatibility|Authorize|OpenAPI|ProductionReadiness' -count=1

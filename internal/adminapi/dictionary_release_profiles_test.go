@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
+	"github.com/yourorg/aegisnas-pi4/internal/config"
 )
 
 func TestHandleGetDictionaryReleaseProfiles(t *testing.T) {
@@ -34,4 +35,12 @@ func TestHandleGetDictionaryReleaseProfilesFiltersAndRejectsUnknown(t *testing.T
 	response = httptest.NewRecorder()
 	HandleGetDictionaryReleaseProfiles(response, httptest.NewRequest(http.MethodGet, "/api/v1/system/dictionary-release-profiles?id=freeradius-4.0.0", nil))
 	assert.Equal(t, http.StatusNotFound, response.Code)
+}
+
+func TestDictionaryReleaseProfileProductionReadinessCheck(t *testing.T) {
+	report := productionReadinessReport{}
+
+	addProductionDictionaryReleaseProfileCheck(&report, config.Get())
+
+	assert.Equal(t, "passed", productionReadinessCheckStatus(report.Checks, "dictionary_release_profile"))
 }
