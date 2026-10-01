@@ -343,4 +343,37 @@ test.describe('Access Settings edge-network flow', () => {
       page.getByText(/Subscriber state machine applied/),
     ).toBeVisible();
   });
+
+  test('previews and applies broadband address lease lifecycle', async ({
+    page,
+  }) => {
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto('/access-settings');
+    const leasesSection = page.locator('section').filter({
+      has: page.getByRole('heading', {
+        name: 'Broadband Address Leases',
+      }),
+    });
+    await expect(leasesSection).toBeVisible();
+    await expect(
+      leasesSection.getByRole('heading', { name: 'Address Pools' }),
+    ).toBeVisible();
+    await expect(
+      leasesSection.getByRole('heading', { name: 'Lease Intents' }),
+    ).toBeVisible();
+    await expect(leasesSection.getByText('pppoe-v4').first()).toBeVisible();
+    await expect(
+      leasesSection.getByText('Accounting-stop release', { exact: true }),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview Address Leases' }).click();
+    await expect(page.getByText(/Address lease preview recorded/)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Apply Address Leases' }).click();
+    await expect(
+      page.getByText(/Address lease lifecycle applied/),
+    ).toBeVisible();
+  });
 });

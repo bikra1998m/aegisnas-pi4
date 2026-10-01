@@ -3036,6 +3036,186 @@ function createBroadbandSubscriberState(status = "ready") {
   };
 }
 
+function createBroadbandAddressLeases(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0086",
+      status,
+      message:
+        "NAS-0086 address lease lifecycle is ready with dual-stack pools, sticky leases, reservations, conflict recovery, accounting-stop release, and CoA recovery.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0086-release-certification-checklist.md",
+      release_scope:
+        "Live DHCP/PPPoE address allocation, BRAS/BNG hardware, packet captures, HA failover, scale, soak, security audit, production deployment, and customer acceptance are release certification activities.",
+      plan_fingerprint:
+        "sha256:86d2470403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81ed0086",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        sticky_ipv4: true,
+        sticky_ipv6: true,
+        release_on_accounting_stop: true,
+        conflict_detection_enabled: true,
+        stale_after_seconds: 86400,
+        pool_count: 3,
+        lease_intent_count: 3,
+        reservation_count: 2,
+        active_lease_count: 2,
+        conflict_count: 1,
+        compliance_check_count: 8,
+        passed_check_count: 8,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 9,
+      },
+      pools: [
+        {
+          name: "pppoe-v4",
+          family: "ipv4",
+          product: "residential-fiber",
+          role: "residential",
+          cidr: "100.64.0.0/24",
+          sticky: true,
+          dynamic: true,
+          status: "ready",
+        },
+        {
+          name: "pppoe-v6",
+          family: "ipv6",
+          product: "residential-fiber",
+          role: "residential",
+          cidr: "2001:db8:100::/56",
+          sticky: true,
+          dynamic: true,
+          status: "ready",
+        },
+        {
+          name: "pppoe-pd",
+          family: "ipv6-pd",
+          product: "residential-fiber",
+          role: "residential",
+          cidr: "2001:db8:200::/48",
+          delegated_prefix_length: 56,
+          sticky: true,
+          dynamic: true,
+          status: "ready",
+        },
+      ],
+      lease_intents: [
+        {
+          key: "alice-v4",
+          username: "alice",
+          subscriber_id: "sub-1001",
+          product: "residential-fiber",
+          role: "residential",
+          family: "ipv4",
+          pool_name: "pppoe-v4",
+          address: "100.64.0.10",
+          assignment_type: "sticky",
+          sticky: true,
+          coa_recoverable: true,
+          status: "active",
+        },
+        {
+          key: "alice-v6",
+          username: "alice",
+          subscriber_id: "sub-1001",
+          product: "residential-fiber",
+          role: "residential",
+          family: "ipv6",
+          pool_name: "pppoe-v6",
+          prefix: "2001:db8:100::10/128",
+          assignment_type: "sticky",
+          sticky: true,
+          coa_recoverable: true,
+          status: "active",
+        },
+        {
+          key: "alice-pd",
+          username: "alice",
+          subscriber_id: "sub-1001",
+          product: "residential-fiber",
+          role: "residential",
+          family: "ipv6-pd",
+          pool_name: "pppoe-pd",
+          prefix: "2001:db8:200:100::/56",
+          assignment_type: "delegated-prefix",
+          sticky: true,
+          coa_recoverable: true,
+          status: "planned",
+        },
+      ],
+      reservations: [
+        {
+          key: "sub-1001-v4",
+          username: "alice",
+          subscriber_id: "sub-1001",
+          address: "100.64.0.10",
+          pool: "pppoe-v4",
+        },
+        {
+          key: "sub-1001-pd",
+          username: "alice",
+          subscriber_id: "sub-1001",
+          prefix: "2001:db8:200:100::/56",
+          pool: "pppoe-pd",
+        },
+      ],
+      conflict_policies: [
+        {
+          name: "duplicate-address-recover",
+          enabled: true,
+          action: "quarantine-and-coa",
+          coa_required: true,
+        },
+      ],
+      compliance: [
+        {
+          id: "dual-stack-pools",
+          name: "Dual-stack pools",
+          status: "passed",
+          message: "IPv4, IPv6, and delegated-prefix pools are configured.",
+        },
+        {
+          id: "accounting-release",
+          name: "Accounting-stop release",
+          status: "passed",
+          message: "Accounting Stop releases dynamic lease ownership.",
+        },
+        {
+          id: "coa-recovery",
+          name: "CoA recovery",
+          status: "passed",
+          message: "Lease conflict recovery can trigger dynamic authorization.",
+        },
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        last_pool_count: 3,
+        last_lease_intent_count: 3,
+        last_active_lease_count: 2,
+      },
+      events: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -8071,6 +8251,64 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({
         json: {
           feature_id: "NAS-0083",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+          },
+          events: [],
+        },
+      });
+      return;
+    }
+    if (path === "/system/broadband-address-leases" && method === "GET") {
+      await route.fulfill({ json: createBroadbandAddressLeases() });
+      return;
+    }
+    if (
+      path === "/system/broadband-address-leases/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createBroadbandAddressLeases(),
+          event_id: "address-lease-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-address-leases/apply" &&
+      method === "POST"
+    ) {
+      const payload = createBroadbandAddressLeases();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0086 recorded broadband address lease lifecycle with 3 pools, 3 lease intents, 2 reservations, and CoA conflict recovery.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "address-lease-event-apply",
+          result: {
+            status: "applied",
+            event_id: "address-lease-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-address-leases/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0086",
           summary: {
             total_events: 1,
             preview_events: 1,
