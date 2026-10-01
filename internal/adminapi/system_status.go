@@ -550,6 +550,42 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		broadbandSubscriberStateStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandSubscriberStateComponent()]}
 	}
+	broadbandAddressLeaseStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Broadband address lease status has not been evaluated.",
+	}
+	if leaseReport, err := enforcement.PreviewBroadbandAddressLeases(cfg); err == nil {
+		leaseSummary, _ := db.GetBroadbandAddressLeaseSummary()
+		broadbandAddressLeaseStatus = map[string]any{
+			"schema_version":                  leaseReport.SchemaVersion,
+			"feature_id":                      leaseReport.FeatureID,
+			"status":                          leaseReport.Status,
+			"message":                         leaseReport.Message,
+			"ready_for_external_validation":   leaseReport.ReadyForExternalValidation,
+			"software_completion_percent":     leaseReport.SoftwareCompletionPercent,
+			"enabled":                         leaseReport.Summary.Enabled,
+			"mode":                            leaseReport.Summary.Mode,
+			"pool_count":                      leaseReport.Summary.PoolCount,
+			"ipv4_pool_count":                 leaseReport.Summary.IPv4PoolCount,
+			"ipv6_pool_count":                 leaseReport.Summary.IPv6PoolCount,
+			"delegated_pool_count":            leaseReport.Summary.DelegatedPoolCount,
+			"reservation_count":               leaseReport.Summary.ReservationCount,
+			"lease_intent_count":              leaseReport.Summary.LeaseIntentCount,
+			"active_lease_count":              leaseReport.Summary.ActiveLeaseCount,
+			"reserved_lease_count":            leaseReport.Summary.ReservedLeaseCount,
+			"conflict_count":                  leaseReport.Summary.ConflictCount,
+			"compliance_check_count":          leaseReport.Summary.ComplianceCheckCount,
+			"passed_check_count":              leaseReport.Summary.PassedCheckCount,
+			"warning_count":                   leaseReport.Summary.WarningCount,
+			"blocker_count":                   leaseReport.Summary.BlockerCount,
+			"plan_fingerprint":                leaseReport.PlanFingerprint,
+			"release_certification_checklist": leaseReport.ReleaseCertificationChecklist,
+			"evidence_summary":                leaseSummary,
+			"runtime_status":                  runtimeMap[enforcement.BroadbandAddressLeaseComponent()],
+		}
+	} else {
+		broadbandAddressLeaseStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandAddressLeaseComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1253,6 +1289,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"subscriber_route_export":      subscriberRouteExportStatus,
 		"pppoe_access_lifecycle":       pppoeAccessLifecycleStatus,
 		"broadband_subscriber_state":   broadbandSubscriberStateStatus,
+		"broadband_address_leases":     broadbandAddressLeaseStatus,
 		"vendor_mapping_certification": vendorMappingCertificationStatus,
 		"cisco_family_pack":            ciscoFamilyPackStatus,
 		"aruba_family_pack":            arubaFamilyPackStatus,
@@ -1371,6 +1408,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"qos_scheduler":            runtimeQoSStatus,
 		"vlan_lifecycle":           vlanLifecycleStatus,
 		"subscriber_route_export":  subscriberRouteExportStatus,
+		"broadband_address_leases": broadbandAddressLeaseStatus,
 		"local_firewall":           runtimeFirewallStatus,
 		"atomic_transactions":      atomicEnforcementStatus,
 	}

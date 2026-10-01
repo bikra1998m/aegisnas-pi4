@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 87
+	return 88
 }
 
 func Migrate() error {
@@ -4418,3 +4418,79 @@ CREATE INDEX IF NOT EXISTS idx_broadband_subscriber_state_events_mode ON broadba
 `
 
 const schemaV87 = broadbandSubscriberStateSQL
+
+const broadbandAddressLeaseSQL = `
+CREATE TABLE IF NOT EXISTS broadband_subscriber_address_leases (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	lease_key TEXT UNIQUE NOT NULL,
+	subscriber_id TEXT,
+	username TEXT,
+	session_id TEXT,
+	acct_session_id TEXT,
+	product TEXT,
+	role TEXT,
+	tenant TEXT,
+	family TEXT NOT NULL,
+	assignment_type TEXT NOT NULL,
+	pool_name TEXT,
+	address TEXT,
+	prefix TEXT,
+	reservation_key TEXT,
+	status TEXT NOT NULL,
+	sticky INTEGER NOT NULL DEFAULT 0,
+	owner TEXT,
+	revision INTEGER NOT NULL DEFAULT 1,
+	source_event_id TEXT,
+	metadata_json TEXT NOT NULL DEFAULT '{}',
+	installed_at DATETIME,
+	withdrawn_at DATETIME,
+	expires_at DATETIME,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (family IN ('ipv4', 'ipv6')),
+	CHECK (assignment_type IN ('address', 'prefix', 'delegated-prefix')),
+	CHECK (status IN ('planned', 'reserved', 'active', 'withdrawn', 'conflict', 'stale', 'released'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_address_lease_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	mode TEXT,
+	pool_count INTEGER NOT NULL DEFAULT 0,
+	ipv4_pool_count INTEGER NOT NULL DEFAULT 0,
+	ipv6_pool_count INTEGER NOT NULL DEFAULT 0,
+	delegated_pool_count INTEGER NOT NULL DEFAULT 0,
+	reservation_count INTEGER NOT NULL DEFAULT 0,
+	lease_intent_count INTEGER NOT NULL DEFAULT 0,
+	active_lease_count INTEGER NOT NULL DEFAULT 0,
+	withdrawn_lease_count INTEGER NOT NULL DEFAULT 0,
+	conflict_count INTEGER NOT NULL DEFAULT 0,
+	compliance_check_count INTEGER NOT NULL DEFAULT 0,
+	passed_check_count INTEGER NOT NULL DEFAULT 0,
+	warning_count INTEGER NOT NULL DEFAULT 0,
+	blocker_count INTEGER NOT NULL DEFAULT 0,
+	external_requirement_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status', 'release', 'reconcile')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed', 'released', 'reconciled'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_broadband_address_leases_identity ON broadband_subscriber_address_leases(subscriber_id, username, product, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_address_leases_session ON broadband_subscriber_address_leases(session_id, acct_session_id, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_address_leases_pool ON broadband_subscriber_address_leases(pool_name, family, assignment_type, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_address_leases_address ON broadband_subscriber_address_leases(address, prefix, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_address_leases_last_seen ON broadband_subscriber_address_leases(last_seen_at, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_address_lease_events_created ON broadband_address_lease_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_address_lease_events_status ON broadband_address_lease_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_address_lease_events_fingerprint ON broadband_address_lease_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_address_lease_events_mode ON broadband_address_lease_events(mode, created_at);
+`
+
+const schemaV88 = broadbandAddressLeaseSQL

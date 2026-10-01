@@ -74,8 +74,9 @@ type DHCPConfig struct {
 }
 
 type BroadbandConfig struct {
-	PPPoE      BroadbandPPPoEConfig           `mapstructure:"pppoe"`
-	Subscriber BroadbandSubscriberStateConfig `mapstructure:"subscriber_state"`
+	PPPoE         BroadbandPPPoEConfig           `mapstructure:"pppoe"`
+	Subscriber    BroadbandSubscriberStateConfig `mapstructure:"subscriber_state"`
+	AddressLeases BroadbandAddressLeaseConfig    `mapstructure:"address_leases"`
 }
 
 type BroadbandPPPoEConfig struct {
@@ -209,6 +210,58 @@ type BroadbandSubscriberFailurePolicyConfig struct {
 	DisconnectRequired   bool   `mapstructure:"disconnect_required"`
 	CoARequired          bool   `mapstructure:"coa_required"`
 	RecoveryAfterSeconds int    `mapstructure:"recovery_after_seconds"`
+}
+
+type BroadbandAddressLeaseConfig struct {
+	Enabled                       bool                                     `mapstructure:"enabled"`
+	Mode                          string                                   `mapstructure:"mode"`
+	FailClosed                    bool                                     `mapstructure:"fail_closed"`
+	StickyIPv4                    bool                                     `mapstructure:"sticky_ipv4"`
+	StickyIPv6                    bool                                     `mapstructure:"sticky_ipv6"`
+	DualStackRequired             bool                                     `mapstructure:"dual_stack_required"`
+	DelegatedPrefixRequired       bool                                     `mapstructure:"delegated_prefix_required"`
+	ReservationRequired           bool                                     `mapstructure:"reservation_required"`
+	ConflictDetectionEnabled      bool                                     `mapstructure:"conflict_detection_enabled"`
+	AccountingCorrelationRequired bool                                     `mapstructure:"accounting_correlation_required"`
+	CoAOnConflict                 bool                                     `mapstructure:"coa_on_conflict"`
+	ReleaseOnAccountingStop       bool                                     `mapstructure:"release_on_accounting_stop"`
+	RecoveryScanSeconds           int                                      `mapstructure:"recovery_scan_seconds"`
+	StaleAfterSeconds             int                                      `mapstructure:"stale_after_seconds"`
+	EventRetentionLimit           int                                      `mapstructure:"event_retention_limit"`
+	Pools                         []BroadbandAddressLeasePoolConfig        `mapstructure:"pools"`
+	Reservations                  []BroadbandAddressLeaseReservationConfig `mapstructure:"reservations"`
+}
+
+type BroadbandAddressLeasePoolConfig struct {
+	Name                  string   `mapstructure:"name"`
+	Family                string   `mapstructure:"family"`
+	CIDR                  string   `mapstructure:"cidr"`
+	Start                 string   `mapstructure:"start"`
+	End                   string   `mapstructure:"end"`
+	Gateway               string   `mapstructure:"gateway"`
+	DelegatedPrefixLength int      `mapstructure:"delegated_prefix_length"`
+	Product               string   `mapstructure:"product"`
+	Role                  string   `mapstructure:"role"`
+	Tenant                string   `mapstructure:"tenant"`
+	Owner                 string   `mapstructure:"owner"`
+	Dynamic               bool     `mapstructure:"dynamic"`
+	Sticky                bool     `mapstructure:"sticky"`
+	VendorPacks           []string `mapstructure:"vendor_packs"`
+}
+
+type BroadbandAddressLeaseReservationConfig struct {
+	Key            string `mapstructure:"key"`
+	SubscriberID   string `mapstructure:"subscriber_id"`
+	Username       string `mapstructure:"username"`
+	Product        string `mapstructure:"product"`
+	Role           string `mapstructure:"role"`
+	Pool           string `mapstructure:"pool"`
+	Family         string `mapstructure:"family"`
+	AssignmentType string `mapstructure:"assignment_type"`
+	Address        string `mapstructure:"address"`
+	Prefix         string `mapstructure:"prefix"`
+	ExpiresAt      string `mapstructure:"expires_at"`
+	Reason         string `mapstructure:"reason"`
 }
 
 type InterfaceConfig struct {
@@ -3249,6 +3302,21 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("broadband.subscriber_state.nat_required", false)
 	v.SetDefault("broadband.subscriber_state.coa_required", true)
 	v.SetDefault("broadband.subscriber_state.event_retention_limit", 10000)
+	v.SetDefault("broadband.address_leases.enabled", false)
+	v.SetDefault("broadband.address_leases.mode", "monitor")
+	v.SetDefault("broadband.address_leases.fail_closed", true)
+	v.SetDefault("broadband.address_leases.sticky_ipv4", true)
+	v.SetDefault("broadband.address_leases.sticky_ipv6", true)
+	v.SetDefault("broadband.address_leases.dual_stack_required", true)
+	v.SetDefault("broadband.address_leases.delegated_prefix_required", true)
+	v.SetDefault("broadband.address_leases.reservation_required", false)
+	v.SetDefault("broadband.address_leases.conflict_detection_enabled", true)
+	v.SetDefault("broadband.address_leases.accounting_correlation_required", true)
+	v.SetDefault("broadband.address_leases.coa_on_conflict", true)
+	v.SetDefault("broadband.address_leases.release_on_accounting_stop", true)
+	v.SetDefault("broadband.address_leases.recovery_scan_seconds", 60)
+	v.SetDefault("broadband.address_leases.stale_after_seconds", 600)
+	v.SetDefault("broadband.address_leases.event_retention_limit", 10000)
 	v.SetDefault("network.dns.upstream_servers", []string{"8.8.8.8", "8.8.4.4"})
 	v.SetDefault("network.dns.local_domain", "aegis.local")
 	v.SetDefault("network.firewall.dos_protection.syn_rate", "50/second")
@@ -5857,6 +5925,9 @@ func (c *Config) Validate() error {
 	if err := validateBroadbandSubscriberStateConfig(c.Broadband.Subscriber, c.Broadband.PPPoE, c.Radius, profile); err != nil {
 		return err
 	}
+	if err := validateBroadbandAddressLeaseConfig(c.Broadband.AddressLeases, c.Broadband.Subscriber, c.Broadband.PPPoE, c.Radius, profile); err != nil {
+		return err
+	}
 	if err := validateRadSecConfig(c); err != nil {
 		return err
 	}
@@ -7544,6 +7615,268 @@ func broadbandTranslationPools(policy RadiusTranslationPolicyConfig) map[string]
 	out := map[string]struct{}{}
 	for _, pool := range policy.Pools {
 		if name := strings.TrimSpace(pool.Name); name != "" {
+			out[strings.ToLower(name)] = struct{}{}
+		}
+	}
+	return out
+}
+
+func EffectiveBroadbandAddressLeaseConfig(raw BroadbandAddressLeaseConfig) BroadbandAddressLeaseConfig {
+	leases := raw
+	leases.Mode = EffectiveBroadbandAddressLeaseMode(leases.Mode)
+	if leases.RecoveryScanSeconds == 0 {
+		leases.RecoveryScanSeconds = 60
+	}
+	if leases.StaleAfterSeconds == 0 {
+		leases.StaleAfterSeconds = 600
+	}
+	if leases.EventRetentionLimit == 0 {
+		leases.EventRetentionLimit = 10000
+	}
+	if !raw.Enabled && !raw.StickyIPv4 && !raw.StickyIPv6 && !raw.DualStackRequired &&
+		!raw.DelegatedPrefixRequired && !raw.ConflictDetectionEnabled &&
+		!raw.AccountingCorrelationRequired && !raw.CoAOnConflict && !raw.ReleaseOnAccountingStop {
+		leases.StickyIPv4 = true
+		leases.StickyIPv6 = true
+		leases.DualStackRequired = true
+		leases.DelegatedPrefixRequired = true
+		leases.ConflictDetectionEnabled = true
+		leases.AccountingCorrelationRequired = true
+		leases.CoAOnConflict = true
+		leases.ReleaseOnAccountingStop = true
+	}
+	return leases
+}
+
+func EffectiveBroadbandAddressLeaseMode(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "monitor", "enforce":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return "monitor"
+	}
+}
+
+func validateBroadbandAddressLeaseConfig(raw BroadbandAddressLeaseConfig, subscriberRaw BroadbandSubscriberStateConfig, pppoeRaw BroadbandPPPoEConfig, radius RadiusConfig, profile string) error {
+	leases := EffectiveBroadbandAddressLeaseConfig(raw)
+	if !leases.Enabled && len(leases.Pools) == 0 && len(leases.Reservations) == 0 {
+		return nil
+	}
+	switch leases.Mode {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("broadband.address_leases.mode %q is invalid", raw.Mode)
+	}
+	for name, value := range map[string]int{
+		"recovery_scan_seconds": leases.RecoveryScanSeconds,
+		"stale_after_seconds":   leases.StaleAfterSeconds,
+		"event_retention_limit": leases.EventRetentionLimit,
+	} {
+		if value < 0 || value > 31536000 {
+			return fmt.Errorf("broadband.address_leases.%s must be between 0 and 31536000", name)
+		}
+	}
+	if profile == "lite" && leases.Mode == "enforce" {
+		return errors.New("broadband.address_leases cannot use enforce mode on lite deployment profile")
+	}
+	subscriber := EffectiveBroadbandSubscriberStateConfig(subscriberRaw)
+	pppoe := EffectiveBroadbandPPPoEConfig(pppoeRaw)
+	if leases.Enabled && !subscriber.Enabled {
+		return errors.New("broadband.address_leases requires broadband.subscriber_state.enabled")
+	}
+	if leases.Enabled && strings.EqualFold(subscriber.DefaultAccessMethod, "pppoe") && !pppoe.Enabled {
+		return errors.New("broadband.address_leases requires broadband.pppoe.enabled for PPPoE subscribers")
+	}
+	if (leases.DualStackRequired || leases.DelegatedPrefixRequired || len(leases.Pools) > 0 || len(leases.Reservations) > 0) && !radius.AddressPolicy.Enabled {
+		return errors.New("broadband.address_leases requires radius.address_policy.enabled")
+	}
+	if leases.AccountingCorrelationRequired && !radius.SQLAccounting.Enabled {
+		return errors.New("broadband.address_leases accounting correlation requires radius.sql_accounting.enabled")
+	}
+	if leases.AccountingCorrelationRequired && !radius.AccountingServices.Enabled {
+		return errors.New("broadband.address_leases accounting correlation requires radius.accounting_services.enabled")
+	}
+	if leases.CoAOnConflict && !radius.DynamicAuth.Enabled {
+		return errors.New("broadband.address_leases coa_on_conflict requires radius.dynamic_auth.enabled")
+	}
+	if leases.FailClosed && leases.Mode == "enforce" && (!leases.ConflictDetectionEnabled || !leases.ReleaseOnAccountingStop) {
+		return errors.New("broadband.address_leases enforce mode requires conflict detection and accounting-stop release")
+	}
+	pools, err := validateBroadbandAddressLeasePools(leases, subscriber)
+	if err != nil {
+		return err
+	}
+	if err := validateBroadbandAddressLeaseReservations(leases, subscriber, pools); err != nil {
+		return err
+	}
+	if leases.Enabled && leases.Mode == "enforce" && len(pools) == 0 {
+		return errors.New("broadband.address_leases enforce mode requires at least one configured or product-derived address pool")
+	}
+	return nil
+}
+
+func validateBroadbandAddressLeasePools(leases BroadbandAddressLeaseConfig, subscriber BroadbandSubscriberStateConfig) (map[string]struct{}, error) {
+	pools := map[string]struct{}{}
+	explicitPools := map[string]struct{}{}
+	productNames := broadbandSubscriberProductNames(subscriber)
+	for _, product := range subscriber.Products {
+		for _, name := range []string{product.AddressPool, product.IPv6Pool, product.DelegatedIPv6Pool} {
+			if normalized := strings.ToLower(strings.TrimSpace(name)); normalized != "" {
+				pools[normalized] = struct{}{}
+			}
+		}
+	}
+	for i, pool := range leases.Pools {
+		name := strings.TrimSpace(pool.Name)
+		if !validBroadbandPPPoEText(name, 128) {
+			return nil, fmt.Errorf("broadband.address_leases.pools[%d].name is invalid", i)
+		}
+		key := strings.ToLower(name)
+		if _, exists := explicitPools[key]; exists {
+			return nil, fmt.Errorf("broadband.address_leases.pools[%d].name %q duplicates an earlier lease pool", i, name)
+		}
+		explicitPools[key] = struct{}{}
+		pools[key] = struct{}{}
+		switch strings.ToLower(strings.TrimSpace(pool.Family)) {
+		case "ipv4", "ipv6", "dual", "delegated-prefix", "ipv6-prefix", "":
+		default:
+			return nil, fmt.Errorf("broadband.address_leases.pools[%d].family %q is invalid", i, pool.Family)
+		}
+		if strings.TrimSpace(pool.CIDR) != "" {
+			if _, err := netip.ParsePrefix(strings.TrimSpace(pool.CIDR)); err != nil {
+				return nil, fmt.Errorf("broadband.address_leases.pools[%d].cidr %q is invalid: %w", i, pool.CIDR, err)
+			}
+		}
+		for _, binding := range []struct {
+			field string
+			value string
+		}{
+			{"start", pool.Start},
+			{"end", pool.End},
+			{"gateway", pool.Gateway},
+		} {
+			if strings.TrimSpace(binding.value) != "" {
+				if _, err := netip.ParseAddr(strings.TrimSpace(binding.value)); err != nil {
+					return nil, fmt.Errorf("broadband.address_leases.pools[%d].%s %q is invalid: %w", i, binding.field, binding.value, err)
+				}
+			}
+		}
+		if pool.DelegatedPrefixLength < 0 || pool.DelegatedPrefixLength > 128 {
+			return nil, fmt.Errorf("broadband.address_leases.pools[%d].delegated_prefix_length must be between 0 and 128", i)
+		}
+		if value := strings.TrimSpace(pool.Product); value != "" {
+			if _, ok := productNames[strings.ToLower(value)]; !ok {
+				return nil, fmt.Errorf("broadband.address_leases.pools[%d].product %q is not configured", i, value)
+			}
+		}
+		for _, binding := range []struct {
+			field string
+			value string
+			limit int
+		}{
+			{"role", pool.Role, 253},
+			{"tenant", pool.Tenant, 128},
+			{"owner", pool.Owner, 128},
+		} {
+			if strings.TrimSpace(binding.value) != "" && !validBroadbandPPPoEText(binding.value, binding.limit) {
+				return nil, fmt.Errorf("broadband.address_leases.pools[%d].%s is invalid", i, binding.field)
+			}
+		}
+		for packIndex, pack := range pool.VendorPacks {
+			key := productconfigs.NormalizeVendorCompatibilityPackKey(pack)
+			if key == "" || !productconfigs.ValidVendorCompatibilityPackKey(key) {
+				return nil, fmt.Errorf("broadband.address_leases.pools[%d].vendor_packs[%d] %q is unknown", i, packIndex, pack)
+			}
+		}
+	}
+	return pools, nil
+}
+
+func validateBroadbandAddressLeaseReservations(leases BroadbandAddressLeaseConfig, subscriber BroadbandSubscriberStateConfig, pools map[string]struct{}) error {
+	seen := map[string]struct{}{}
+	productNames := broadbandSubscriberProductNames(subscriber)
+	for i, reservation := range leases.Reservations {
+		key := strings.TrimSpace(reservation.Key)
+		if key == "" {
+			key = strings.Join([]string{
+				strings.TrimSpace(reservation.SubscriberID),
+				strings.TrimSpace(reservation.Username),
+				strings.TrimSpace(reservation.Pool),
+				strings.TrimSpace(reservation.Address),
+				strings.TrimSpace(reservation.Prefix),
+			}, "|")
+		}
+		if !validBroadbandPPPoEText(key, 256) {
+			return fmt.Errorf("broadband.address_leases.reservations[%d].key is invalid", i)
+		}
+		normalizedKey := strings.ToLower(key)
+		if _, exists := seen[normalizedKey]; exists {
+			return fmt.Errorf("broadband.address_leases.reservations[%d].key %q duplicates an earlier reservation", i, key)
+		}
+		seen[normalizedKey] = struct{}{}
+		if strings.TrimSpace(reservation.SubscriberID) == "" && strings.TrimSpace(reservation.Username) == "" {
+			return fmt.Errorf("broadband.address_leases.reservations[%d] requires subscriber_id or username", i)
+		}
+		if value := strings.TrimSpace(reservation.Product); value != "" {
+			if _, ok := productNames[strings.ToLower(value)]; !ok {
+				return fmt.Errorf("broadband.address_leases.reservations[%d].product %q is not configured", i, value)
+			}
+		}
+		if value := strings.TrimSpace(reservation.Pool); value != "" {
+			if _, ok := pools[strings.ToLower(value)]; !ok {
+				return fmt.Errorf("broadband.address_leases.reservations[%d].pool %q is not configured", i, value)
+			}
+		}
+		switch strings.ToLower(strings.TrimSpace(reservation.Family)) {
+		case "", "ipv4", "ipv6":
+		default:
+			return fmt.Errorf("broadband.address_leases.reservations[%d].family %q is invalid", i, reservation.Family)
+		}
+		switch strings.ToLower(strings.TrimSpace(reservation.AssignmentType)) {
+		case "", "address", "prefix", "delegated-prefix":
+		default:
+			return fmt.Errorf("broadband.address_leases.reservations[%d].assignment_type %q is invalid", i, reservation.AssignmentType)
+		}
+		if strings.TrimSpace(reservation.Address) != "" {
+			if _, err := netip.ParseAddr(strings.TrimSpace(reservation.Address)); err != nil {
+				return fmt.Errorf("broadband.address_leases.reservations[%d].address %q is invalid: %w", i, reservation.Address, err)
+			}
+		}
+		if strings.TrimSpace(reservation.Prefix) != "" {
+			if _, err := netip.ParsePrefix(strings.TrimSpace(reservation.Prefix)); err != nil {
+				return fmt.Errorf("broadband.address_leases.reservations[%d].prefix %q is invalid: %w", i, reservation.Prefix, err)
+			}
+		}
+		if strings.TrimSpace(reservation.ExpiresAt) != "" {
+			if _, err := time.Parse(time.RFC3339, strings.TrimSpace(reservation.ExpiresAt)); err != nil {
+				return fmt.Errorf("broadband.address_leases.reservations[%d].expires_at must be RFC3339: %w", i, err)
+			}
+		}
+		for _, binding := range []struct {
+			field string
+			value string
+			limit int
+		}{
+			{"subscriber_id", reservation.SubscriberID, 253},
+			{"username", reservation.Username, 253},
+			{"role", reservation.Role, 253},
+			{"reason", reservation.Reason, 512},
+		} {
+			if strings.TrimSpace(binding.value) != "" && !validBroadbandPPPoEText(binding.value, binding.limit) {
+				return fmt.Errorf("broadband.address_leases.reservations[%d].%s is invalid", i, binding.field)
+			}
+		}
+	}
+	if leases.ReservationRequired && len(leases.Reservations) == 0 {
+		return errors.New("broadband.address_leases reservation_required requires at least one reservation")
+	}
+	return nil
+}
+
+func broadbandSubscriberProductNames(subscriber BroadbandSubscriberStateConfig) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, product := range subscriber.Products {
+		if name := strings.TrimSpace(product.Name); name != "" {
 			out[strings.ToLower(name)] = struct{}{}
 		}
 	}

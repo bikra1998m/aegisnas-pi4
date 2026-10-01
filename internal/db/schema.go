@@ -212,6 +212,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{85, schemaV85},
 		{86, schemaV86},
 		{87, schemaV87},
+		{88, schemaV88},
 	}
 
 	for _, m := range migrations {
@@ -430,8 +431,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureBroadbandSubscriberStateTables(handle); err != nil {
 		return fmt.Errorf("repair broadband subscriber state schema: %w", err)
 	}
+	if err := ensureBroadbandAddressLeaseTables(handle); err != nil {
+		return fmt.Errorf("repair broadband address lease schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureBroadbandAddressLeaseTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(broadbandAddressLeaseSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureBroadbandSubscriberStateTables(handle *sql.DB) error {

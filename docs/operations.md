@@ -1018,6 +1018,38 @@ integration, HA, scale, soak, security audit, production deployment, and
 customer acceptance evidence stay in
 `nas-0083-release-certification-checklist.md`.
 
+For broadband address pool and lease lifecycle governance, preview NAS-0086
+before enabling enforce mode or changing sticky lease, reservation, conflict, or
+accounting-stop release behavior:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-address-leases/preview \
+  | jq '.report.status, .report.summary, .report.pools, .report.lease_intents, .report.conflict_policies'
+```
+
+Apply only after reviewing IPv4, IPv6, and delegated-prefix pools, durable
+reservations, sticky ownership, conflict detection, CoA recovery, accounting
+Start/Interim/Stop correlation, compliance checks, and the plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-address-leases/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/broadband-address-leases/history` and the support bundle
+files `api/broadband-address-leases.json` and
+`api/broadband-address-leases-history.json` during duplicate address, stale
+lease, reservation, accounting-stop, reconnect, CoA, and HA investigations. Live
+FreeRADIUS production Linux, BRAS/BNG interoperability, packet captures, HA
+failover, performance, soak, security audit, production deployment, and customer
+acceptance evidence stay in `nas-0086-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

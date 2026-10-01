@@ -183,6 +183,14 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/broadband-subscriber-state"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/broadband-address-leases/apply"):
+		return method == http.MethodPost && identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/broadband-address-leases/preview"):
+		return method == http.MethodPost && (identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/broadband-address-leases/history"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/broadband-address-leases"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/vendor-compatibility"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/dictionary-release-profiles"):

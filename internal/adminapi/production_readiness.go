@@ -160,6 +160,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionCWAPortalLifecycleCheck(&report, cfg)
 	addProductionPPPoEAccessLifecycleCheck(&report, cfg)
 	addProductionBroadbandSubscriberStateCheck(&report, cfg)
+	addProductionBroadbandAddressLeaseCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -2084,6 +2085,75 @@ func addProductionBroadbandSubscriberStateCheck(report *productionReadinessRepor
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/broadband-subscriber-state/preview before enabling subscriber state enforcement, apply only after reviewing product catalog bindings, service-leg policies, failure/recovery behavior, accounting correlation, reconnect semantics, and keep live BRAS/BNG, packet capture, commercial billing, HA, scale, soak, security, and customer proof in the NAS-0083 release certification checklist.",
 		Dependencies:   []string{"broadband.subscriber_state", "broadband.pppoe", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "radius.address_policy", "radius.route_policy", "radius.translation_policy", "/api/v1/system/broadband-subscriber-state", "/api/v1/system/broadband-subscriber-state/preview", "/api/v1/system/broadband-subscriber-state/apply", "broadband_subscribers", "broadband_subscriber_sessions", "broadband_subscriber_service_legs", "broadband_subscriber_state_events", "RFC 2865", "RFC 2866", "RFC 5176"},
+	})
+}
+
+func addProductionBroadbandAddressLeaseCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0086 broadband address lease lifecycle software is ready."
+	reportData, err := enforcement.PreviewBroadbandAddressLeases(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Broadband address lease preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0086 schema %d status=%s, mode=%s, pools=%d, lease intents=%d, reservations=%d, active=%d, reserved=%d, planned=%d, conflicts=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.PoolCount,
+			reportData.Summary.LeaseIntentCount,
+			reportData.Summary.ReservationCount,
+			reportData.Summary.ActiveLeaseCount,
+			reportData.Summary.ReservedLeaseCount,
+			reportData.Summary.PlannedLeaseCount,
+			reportData.Summary.ConflictCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "skipped" {
+			summary += " Broadband address lease lifecycle is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but address lease event history cannot be verified."
+	} else if evidence, err := db.GetBroadbandAddressLeaseSummary(); err != nil {
+		status = "blocked"
+		summary += " Broadband address lease evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 || evidence.ConflictLeases > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, active=%d, reserved=%d, planned=%d, conflicts=%d, last intents=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.ActiveLeases,
+			evidence.ReservedLeases,
+			evidence.PlannedLeases,
+			evidence.ConflictLeases,
+			evidence.LastLeaseIntentCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "broadband_address_leases",
+		Category:       "radius",
+		Label:          "NAS-0086 Broadband Address Pools and Lease Lifecycle",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/broadband-address-leases/preview before enabling lease enforcement, apply only after reviewing pool, reservation, sticky lease, conflict, CoA, and accounting-stop release behavior, and keep live BRAS/BNG, packet capture, HA, scale, soak, security, and customer proof in the NAS-0086 release certification checklist.",
+		Dependencies:   []string{"broadband.address_leases", "broadband.subscriber_state", "broadband.pppoe", "radius.address_policy", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "/api/v1/system/broadband-address-leases", "/api/v1/system/broadband-address-leases/preview", "/api/v1/system/broadband-address-leases/apply", "broadband_subscriber_address_leases", "broadband_address_lease_events", "Framed-IP-Address", "Framed-Pool", "Framed-IPv6-Pool", "Delegated-IPv6-Prefix", "RFC 2865", "RFC 2866", "RFC 3162", "RFC 3633", "RFC 4818", "RFC 5176"},
 	})
 }
 

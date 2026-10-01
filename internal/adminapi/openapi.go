@@ -1306,6 +1306,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0083 broadband subscriber state machine event history."),
 	}))
+	addOperation(paths, "/api/v1/system/broadband-address-leases", "get", securedOperation("Read broadband subscriber address lease lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0086 address pool, reservation, lease intent, conflict policy, accounting correlation, and evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-address-leases/preview", "post", securedOperationWithBody("Preview broadband subscriber address lease lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating live subscriber leases."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0086 broadband address lease lifecycle report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-address-leases/apply", "post", securedOperationWithBody("Apply broadband subscriber address lease lifecycle", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records lease lifecycle evidence and runtime status. Live BNG/device allocation remains release certification until enabled per access adapter."), map[string]any{
+		"200":     responseJSON("Applied NAS-0086 broadband address lease lifecycle checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-address-leases/history", "get", securedOperationWithParameters("List broadband subscriber address lease history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0086 broadband address lease event history and lease ownership rows."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))

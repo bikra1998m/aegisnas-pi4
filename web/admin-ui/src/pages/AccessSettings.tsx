@@ -3532,6 +3532,11 @@ export default function AccessSettings() {
   const [broadbandSubscriberStateAction, setBroadbandSubscriberStateAction] =
     useState("");
   const broadbandSubscriberStateBusy = broadbandSubscriberStateAction !== "";
+  const [broadbandAddressLeases, setBroadbandAddressLeases] =
+    useState<JsonMap | null>(null);
+  const [broadbandAddressLeaseAction, setBroadbandAddressLeaseAction] =
+    useState("");
+  const broadbandAddressLeaseBusy = broadbandAddressLeaseAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3653,6 +3658,11 @@ export default function AccessSettings() {
   const loadBroadbandSubscriberState = async () => {
     const { data } = await api.get("/system/broadband-subscriber-state");
     setBroadbandSubscriberState(data.report || null);
+  };
+
+  const loadBroadbandAddressLeases = async () => {
+    const { data } = await api.get("/system/broadband-address-leases");
+    setBroadbandAddressLeases(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3893,6 +3903,7 @@ export default function AccessSettings() {
         cwaPortalRes,
         pppoeAccessRes,
         broadbandSubscriberStateRes,
+        broadbandAddressLeasesRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -3906,6 +3917,7 @@ export default function AccessSettings() {
         api.get("/system/cwa-portal-lifecycle"),
         api.get("/system/pppoe-access-lifecycle"),
         api.get("/system/broadband-subscriber-state"),
+        api.get("/system/broadband-address-leases"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -3923,6 +3935,7 @@ export default function AccessSettings() {
       setBroadbandSubscriberState(
         broadbandSubscriberStateRes.data.report || null,
       );
+      setBroadbandAddressLeases(broadbandAddressLeasesRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4767,6 +4780,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewBroadbandAddressLeases = async () => {
+    setBroadbandAddressLeaseAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-address-leases/preview",
+        {},
+      );
+      setBroadbandAddressLeases(data.report || null);
+      setMessage(
+        `Address lease preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview broadband address leases.",
+      );
+    } finally {
+      setBroadbandAddressLeaseAction("");
+    }
+  };
+
+  const applyBroadbandAddressLeases = async () => {
+    setBroadbandAddressLeaseAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-address-leases/apply",
+        {},
+      );
+      setBroadbandAddressLeases(data.report || null);
+      setMessage(
+        `Address lease lifecycle ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadBroadbandAddressLeases();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply broadband address leases.",
+      );
+    } finally {
+      setBroadbandAddressLeaseAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -5349,6 +5413,33 @@ export default function AccessSettings() {
     ? broadbandSubscriberState?.compliance
     : [];
   const broadbandSubscriberTone = statusTone(broadbandSubscriberState?.status);
+  const broadbandAddressLeaseSummary = broadbandAddressLeases?.summary || {};
+  const broadbandAddressLeasePools = Array.isArray(
+    broadbandAddressLeases?.pools,
+  )
+    ? broadbandAddressLeases?.pools
+    : [];
+  const broadbandAddressLeaseIntents = Array.isArray(
+    broadbandAddressLeases?.lease_intents,
+  )
+    ? broadbandAddressLeases?.lease_intents
+    : [];
+  const broadbandAddressLeaseReservations = Array.isArray(
+    broadbandAddressLeases?.reservations,
+  )
+    ? broadbandAddressLeases?.reservations
+    : [];
+  const broadbandAddressLeaseConflicts = Array.isArray(
+    broadbandAddressLeases?.conflict_policies,
+  )
+    ? broadbandAddressLeases?.conflict_policies
+    : [];
+  const broadbandAddressLeaseCompliance = Array.isArray(
+    broadbandAddressLeases?.compliance,
+  )
+    ? broadbandAddressLeases?.compliance
+    : [];
+  const broadbandAddressLeaseTone = statusTone(broadbandAddressLeases?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -5700,6 +5791,24 @@ export default function AccessSettings() {
             {broadbandSubscriberStateAction === "apply"
               ? "Applying Subscribers..."
               : "Apply Subscriber State"}
+          </button>
+          <button
+            onClick={previewBroadbandAddressLeases}
+            disabled={broadbandAddressLeaseBusy}
+            className="rounded-md border border-teal-300 px-4 py-2 text-sm font-medium text-teal-900 disabled:opacity-60"
+          >
+            {broadbandAddressLeaseAction === "preview"
+              ? "Checking Leases..."
+              : "Preview Address Leases"}
+          </button>
+          <button
+            onClick={applyBroadbandAddressLeases}
+            disabled={broadbandAddressLeaseBusy}
+            className="rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-900 disabled:opacity-60"
+          >
+            {broadbandAddressLeaseAction === "apply"
+              ? "Applying Leases..."
+              : "Apply Address Leases"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -6204,6 +6313,321 @@ export default function AccessSettings() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Broadband Address Leases
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {broadbandAddressLeases?.release_certification_checklist ||
+                "Validate sticky leases, reservations, conflict recovery, accounting-stop release, CoA, dual-stack pools, and HA before broadband address enforcement."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${broadbandAddressLeaseTone}`}
+          >
+            {broadbandAddressLeases?.status || "unknown"}
+          </div>
+        </div>
+        {broadbandAddressLeases ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {broadbandAddressLeases.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                ["Pools", broadbandAddressLeaseSummary.pool_count || 0],
+                [
+                  "Lease Intents",
+                  broadbandAddressLeaseSummary.lease_intent_count || 0,
+                ],
+                [
+                  "Reservations",
+                  broadbandAddressLeaseSummary.reservation_count || 0,
+                ],
+                [
+                  "Active",
+                  broadbandAddressLeaseSummary.active_lease_count || 0,
+                ],
+                [
+                  "Conflicts",
+                  broadbandAddressLeaseSummary.conflict_count || 0,
+                ],
+                [
+                  "Compliance",
+                  `${broadbandAddressLeaseSummary.passed_check_count || 0}/${broadbandAddressLeaseSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-900">
+              Mode{" "}
+              <span className="font-mono">
+                {broadbandAddressLeaseSummary.mode || "monitor"}
+              </span>{" "}
+              / sticky IPv4{" "}
+              <span className="font-mono">
+                {broadbandAddressLeaseSummary.sticky_ipv4 ? "on" : "off"}
+              </span>{" "}
+              / sticky IPv6{" "}
+              <span className="font-mono">
+                {broadbandAddressLeaseSummary.sticky_ipv6 ? "on" : "off"}
+              </span>{" "}
+              / stale after{" "}
+              <span className="font-mono">
+                {broadbandAddressLeaseSummary.stale_after_seconds || 0}s
+              </span>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Address Pools
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandAddressLeasePools.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No address lease pool is configured.
+                    </div>
+                  ) : (
+                    broadbandAddressLeasePools
+                      .slice(0, 8)
+                      .map((pool: JsonMap, index: number) => (
+                        <div
+                          key={`${pool.name || "address-pool"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {pool.name || "Address Pool"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                pool.status,
+                              )}`}
+                            >
+                              {pool.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              pool.family,
+                              pool.product,
+                              pool.role,
+                              pool.cidr,
+                              pool.delegated_prefix_length
+                                ? `/${pool.delegated_prefix_length}`
+                                : "",
+                              pool.sticky ? "sticky" : "",
+                              pool.dynamic ? "dynamic" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Pool metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Lease Intents
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandAddressLeaseIntents.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No lease intent is available.
+                    </div>
+                  ) : (
+                    broadbandAddressLeaseIntents
+                      .slice(0, 8)
+                      .map((intent: JsonMap, index: number) => (
+                        <div
+                          key={`${intent.key || "lease-intent"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {intent.pool_name ||
+                                intent.address ||
+                                intent.prefix ||
+                                "Lease Intent"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                intent.status,
+                              )}`}
+                            >
+                              {intent.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              intent.product,
+                              intent.role,
+                              intent.family,
+                              intent.assignment_type,
+                              intent.sticky ? "sticky" : "",
+                              intent.coa_recoverable ? "coa" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Lease metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Reservations
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandAddressLeaseReservations.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No durable reservation is configured.
+                    </div>
+                  ) : (
+                    broadbandAddressLeaseReservations
+                      .slice(0, 6)
+                      .map((reservation: JsonMap, index: number) => (
+                        <div
+                          key={`${reservation.key || "reservation"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="font-medium text-gray-900">
+                            {reservation.key || "Reservation"}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-600">
+                            {[
+                              reservation.username,
+                              reservation.subscriber_id,
+                              reservation.address,
+                              reservation.prefix,
+                              reservation.pool,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Reservation metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Conflict Recovery
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandAddressLeaseConflicts
+                    .slice(0, 6)
+                    .map((rule: JsonMap, index: number) => (
+                      <div
+                        key={`${rule.name || "conflict-rule"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {rule.name || "Conflict Rule"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {[
+                            rule.enabled ? "enabled" : "disabled",
+                            rule.action,
+                            rule.coa_required ? "coa" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" / ") || "Conflict policy metadata only"}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Compliance Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandAddressLeaseCompliance.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No address lease compliance check is present.
+                    </div>
+                  ) : (
+                    broadbandAddressLeaseCompliance
+                      .slice(0, 8)
+                      .map((check: JsonMap, index: number) => (
+                        <div
+                          key={`${check.id || check.name || "lease-check"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {check.name || check.id || "Compliance Check"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                check.status,
+                              )}`}
+                            >
+                              {check.status || "unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {check.message || "No compliance message"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            {((broadbandAddressLeases.blockers?.length || 0) > 0 ||
+              (broadbandAddressLeases.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(broadbandAddressLeases.blockers || []),
+                  ...(broadbandAddressLeases.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Release on stop{" "}
+              <span className="font-mono">
+                {broadbandAddressLeaseSummary.release_on_accounting_stop
+                  ? "enabled"
+                  : "disabled"}
+              </span>{" "}
+              / conflict detection{" "}
+              <span className="font-mono">
+                {broadbandAddressLeaseSummary.conflict_detection_enabled
+                  ? "enabled"
+                  : "disabled"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {broadbandAddressLeases.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Broadband address lease report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">
