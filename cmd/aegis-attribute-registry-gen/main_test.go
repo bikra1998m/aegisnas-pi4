@@ -33,3 +33,11 @@ func TestReadBoundedRejectsOversizeInput(t *testing.T) {
 	_, err = readBounded(path)
 	require.ErrorContains(t, err, "exceeds")
 }
+
+func TestNormalizeRegistryNewlines(t *testing.T) {
+	payload := []byte("Vendor,PEN\r\nCisco,9\rAruba,14823\n")
+
+	normalized := normalizeRegistryNewlines(payload)
+
+	assert.Equal(t, []byte("Vendor,PEN\nCisco,9\nAruba,14823\n"), normalized)
+}

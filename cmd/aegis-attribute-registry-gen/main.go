@@ -29,6 +29,7 @@ func main() {
 	if err != nil {
 		fatalf("read source registry: %v", err)
 	}
+	payload = normalizeRegistryNewlines(payload)
 	digest := sha256.Sum256(payload)
 	actualSHA := hex.EncodeToString(digest[:])
 	if *expectedSHA != "" && *expectedSHA != actualSHA {
@@ -47,6 +48,7 @@ func main() {
 		if err != nil {
 			fatalf("read generated registry: %v", err)
 		}
+		current = normalizeRegistryNewlines(current)
 		if !bytes.Equal(current, payload) {
 			fatalf("generated registry is stale; run go generate ./configs")
 		}
@@ -75,6 +77,12 @@ func readBounded(path string) ([]byte, error) {
 		return nil, fmt.Errorf("input exceeds %d bytes", maxRegistryBytes)
 	}
 	return payload, nil
+}
+
+func normalizeRegistryNewlines(payload []byte) []byte {
+	payload = bytes.ReplaceAll(payload, []byte("\r\n"), []byte("\n"))
+	payload = bytes.ReplaceAll(payload, []byte("\r"), []byte("\n"))
+	return payload
 }
 
 func writeAtomic(path string, payload []byte) error {

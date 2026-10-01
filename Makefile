@@ -43,7 +43,7 @@ test-vendor-identity:
 	cd web/admin-ui && npm run build
 
 test-attribute-registry:
-	go run ./cmd/aegis-attribute-registry-gen -input docs/freeradius-3.2.8-vsa-audit.csv -output configs/attribute_registry/freeradius-3.2.8-vsa-audit.csv -check -expected-sha256 60748478d30ea16b609601aacda83ff3e28a584a9bddb6b704991a0412f5bf4d
+	go run ./cmd/aegis-attribute-registry-gen -input docs/freeradius-3.2.8-vsa-audit.csv -output configs/attribute_registry/freeradius-3.2.8-vsa-audit.csv -check -expected-sha256 54453e66c66a19622d94ace7f9b613020bf008d4c6c3aa04a4b2589031c43e75
 	go test ./configs ./cmd/aegis-attribute-registry-gen ./internal/radius ./internal/adminapi -run 'AttributeRegistry|GeneratedAttributeRegistry' -count=1
 
 test-dictionary-release-profiles:
