@@ -215,16 +215,40 @@ func MigrateHandle(handle *sql.DB) error {
 		{88, schemaV88},
 	}
 
+	pending := make([]struct {
+		version int
+		sql     string
+	}, 0, len(migrations))
 	for _, m := range migrations {
 		if m.version <= currentVersion {
 			continue
 		}
-		if _, err := handle.Exec(SQLForDialect(m.sql, dialect)); err != nil {
-			return fmt.Errorf("apply migration v%d: %w", m.version, err)
+		pending = append(pending, m)
+	}
+
+	if len(pending) > 0 {
+		tx, err := handle.Begin()
+		if err != nil {
+			return fmt.Errorf("begin migration transaction: %w", err)
 		}
-		if _, err := handle.Exec("INSERT INTO schema_version (version) VALUES (?)", m.version); err != nil {
-			return fmt.Errorf("record migration v%d: %w", m.version, err)
+		committed := false
+		defer func() {
+			if !committed {
+				_ = tx.Rollback()
+			}
+		}()
+		for _, m := range pending {
+			if _, err := tx.Exec(SQLForDialect(m.sql, dialect)); err != nil {
+				return fmt.Errorf("apply migration v%d: %w", m.version, err)
+			}
+			if _, err := tx.Exec("INSERT INTO schema_version (version) VALUES (?)", m.version); err != nil {
+				return fmt.Errorf("record migration v%d: %w", m.version, err)
+			}
 		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit migration transaction: %w", err)
+		}
+		committed = true
 	}
 
 	if err := ensureRadiusClientCompatibilityColumns(handle); err != nil {

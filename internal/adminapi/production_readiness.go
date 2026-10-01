@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
@@ -46,6 +47,13 @@ type productionReadinessReport struct {
 	VendorRuntime     db.VendorObservabilitySummary     `json:"vendor_runtime"`
 	Checks            []productionReadinessCheck        `json:"checks"`
 }
+
+type cachedCompatibilityEvidence struct {
+	Report          productconfigs.CompatibilityEvidenceReport
+	ValidationError string
+}
+
+var productionCompatibilityEvidenceCache sync.Map
 
 type productionVendorIdentityState struct {
 	Enabled                    bool     `json:"enabled"`
@@ -3251,15 +3259,28 @@ func addProductionCompatibilityEvidenceCheck(report *productionReadinessReport, 
 		}
 	}
 	importPaths := vendorDictionaryImportPaths(cfg)
+	cacheKeyParts := []string{
+		strings.TrimSpace(compatibility.Catalog.Source),
+		"",
+		"",
+		strings.Join(compatibility.ActivePacks, ","),
+		strings.Join(importPaths, "|"),
+	}
+	if cfg != nil {
+		cacheKeyParts[1] = strings.TrimSpace(cfg.Radius.Vendor.Name)
+		cacheKeyParts[2] = fmt.Sprintf("%d", cfg.Radius.Vendor.ID)
+	}
 	if len(importPaths) > 0 {
 		imported := productconfigs.LoadVendorDictionaryCatalog(importPaths)
 		compatibility.Catalog = productconfigs.MergeVendorDictionaryCatalogs("built-in AegisNAS, "+imported.Source, compatibility.Catalog, imported)
+		cacheKeyParts[0] = strings.TrimSpace(compatibility.Catalog.Source)
 	}
-	evidence := productconfigs.BuildCompatibilityEvidenceReport(compatibility.Catalog, compatibility.Packs, compatibility.ActivePacks)
-	if err := productconfigs.ValidateCompatibilityEvidenceReport(evidence); err != nil {
+	cacheKey := strings.Join(cacheKeyParts, "\x1f")
+	evidence, validationErr := productionCompatibilityEvidenceForReadiness(cacheKey, compatibility)
+	if validationErr != "" {
 		addProductionCheck(report, productionReadinessCheck{
 			Key: "compatibility_evidence", Category: "radius", Label: "Compatibility Evidence Model", Status: "blocked",
-			Summary:        "Compatibility evidence could not be validated: " + err.Error(),
+			Summary:        "Compatibility evidence could not be validated: " + validationErr,
 			Recommendation: "Review the evidence model, registry, vendor packs, and dictionary release profile before claiming compatibility.",
 			Dependencies:   []string{"configs/compatibility_evidence.go", "configs/vendor_packs.go", "configs/attribute_registry"},
 		})
@@ -3281,6 +3302,20 @@ func addProductionCompatibilityEvidenceCheck(report *productionReadinessReport, 
 			evidence.SchemaVersion, evidence.Summary.TotalRecords, evidence.Summary.SoftwareReadyCount, evidence.Summary.SoftwarePlannedCount, evidence.Summary.SoftwareBlockedCount, activeBlocked, evidence.Summary.ExternalRequiredCount),
 		Recommendation: "Use /api/v1/system/compatibility-evidence before publishing vendor compatibility claims.",
 	})
+}
+
+func productionCompatibilityEvidenceForReadiness(key string, compatibility productconfigs.VendorCompatibilityReport) (productconfigs.CompatibilityEvidenceReport, string) {
+	if cached, ok := productionCompatibilityEvidenceCache.Load(key); ok {
+		value := cached.(cachedCompatibilityEvidence)
+		return value.Report, value.ValidationError
+	}
+	evidence := productconfigs.BuildCompatibilityEvidenceReport(compatibility.Catalog, compatibility.Packs, compatibility.ActivePacks)
+	validationErr := ""
+	if err := productconfigs.ValidateCompatibilityEvidenceReport(evidence); err != nil {
+		validationErr = err.Error()
+	}
+	productionCompatibilityEvidenceCache.Store(key, cachedCompatibilityEvidence{Report: evidence, ValidationError: validationErr})
+	return evidence, validationErr
 }
 
 func addProductionVendorMappingCertificationCheck(report *productionReadinessReport, cfg *config.Config) {
