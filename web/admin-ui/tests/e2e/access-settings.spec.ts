@@ -344,6 +344,37 @@ test.describe('Access Settings edge-network flow', () => {
     ).toBeVisible();
   });
 
+  test('previews and applies broadband commercial catalog', async ({ page }) => {
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto('/access-settings');
+    const catalogSection = page.locator('section').filter({
+      has: page.getByRole('heading', {
+        name: 'Broadband Commercial Catalog',
+      }),
+    });
+    await expect(catalogSection).toBeVisible();
+    await expect(
+      catalogSection.getByRole('heading', { name: 'Product Plans' }),
+    ).toBeVisible();
+    await expect(
+      catalogSection.getByRole('heading', { name: 'Subscriptions' }),
+    ).toBeVisible();
+    await expect(
+      catalogSection.getByText(/fiber-100m/).first(),
+    ).toBeVisible();
+    await expect(catalogSection.getByText('Cisco-AVPair')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview Commercial Catalog' }).click();
+    await expect(
+      page.getByText(/Commercial catalog preview recorded/),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Apply Commercial Catalog' }).click();
+    await expect(page.getByText(/Commercial catalog applied/)).toBeVisible();
+  });
+
   test('previews and applies broadband address lease lifecycle', async ({
     page,
   }) => {

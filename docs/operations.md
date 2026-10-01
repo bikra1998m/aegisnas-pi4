@@ -1018,6 +1018,39 @@ integration, HA, scale, soak, security audit, production deployment, and
 customer acceptance evidence stay in
 `nas-0083-release-certification-checklist.md`.
 
+For broadband commercial catalog governance, preview NAS-0084 before enabling
+enforce mode or changing product plans, service bundles, subscriptions, or
+concurrent session policy:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-commercial-catalog/preview \
+  | jq '.report.status, .report.summary, .report.plans, .report.concurrency_policies'
+```
+
+Apply only after reviewing account hierarchy, plan and bundle eligibility,
+active subscriptions, RADIUS authorization/accounting bindings, concurrent
+session limits, over-limit action, compliance checks, and the plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-commercial-catalog/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/broadband-commercial-catalog/history` and the support
+bundle files `api/broadband-commercial-catalog.json` and
+`api/broadband-commercial-catalog-history.json` during account, product,
+subscription, concurrency, accounting, CoA, BSS/OSS, and HA investigations.
+Live BSS/OSS sync, BRAS/BNG interoperability, FreeRADIUS production Linux,
+packet captures, HA failover, performance, soak, security audit, production
+deployment, and customer acceptance evidence stay in
+`nas-0084-release-certification-checklist.md`.
+
 For broadband address pool and lease lifecycle governance, preview NAS-0086
 before enabling enforce mode or changing sticky lease, reservation, conflict, or
 accounting-stop release behavior:

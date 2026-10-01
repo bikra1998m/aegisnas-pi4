@@ -550,6 +550,46 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		broadbandSubscriberStateStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandSubscriberStateComponent()]}
 	}
+	broadbandCommercialCatalogStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Broadband commercial catalog status has not been evaluated.",
+	}
+	if commercialReport, err := enforcement.PreviewBroadbandCommercialCatalog(cfg); err == nil {
+		commercialSummary, _ := db.GetBroadbandCommercialCatalogSummary()
+		broadbandCommercialCatalogStatus = map[string]any{
+			"schema_version":                   commercialReport.SchemaVersion,
+			"feature_id":                       commercialReport.FeatureID,
+			"status":                           commercialReport.Status,
+			"message":                          commercialReport.Message,
+			"ready_for_external_validation":    commercialReport.ReadyForExternalValidation,
+			"software_completion_percent":      commercialReport.SoftwareCompletionPercent,
+			"enabled":                          commercialReport.Summary.Enabled,
+			"mode":                             commercialReport.Summary.Mode,
+			"account_count":                    commercialReport.Summary.AccountCount,
+			"active_account_count":             commercialReport.Summary.ActiveAccountCount,
+			"family_account_count":             commercialReport.Summary.FamilyAccountCount,
+			"plan_count":                       commercialReport.Summary.PlanCount,
+			"enabled_plan_count":               commercialReport.Summary.EnabledPlanCount,
+			"bundle_count":                     commercialReport.Summary.BundleCount,
+			"enabled_bundle_count":             commercialReport.Summary.EnabledBundleCount,
+			"subscription_count":               commercialReport.Summary.SubscriptionCount,
+			"active_subscription_count":        commercialReport.Summary.ActiveSubscriptionCount,
+			"concurrency_policy_count":         commercialReport.Summary.ConcurrencyPolicyCount,
+			"enabled_concurrency_policy_count": commercialReport.Summary.EnabledConcurrencyPolicyCount,
+			"active_session_count":             commercialReport.Summary.ActiveSessionCount,
+			"over_limit_count":                 commercialReport.Summary.OverLimitCount,
+			"compliance_check_count":           commercialReport.Summary.ComplianceCheckCount,
+			"passed_check_count":               commercialReport.Summary.PassedCheckCount,
+			"warning_count":                    commercialReport.Summary.WarningCount,
+			"blocker_count":                    commercialReport.Summary.BlockerCount,
+			"plan_fingerprint":                 commercialReport.PlanFingerprint,
+			"release_certification_checklist":  commercialReport.ReleaseCertificationChecklist,
+			"evidence_summary":                 commercialSummary,
+			"runtime_status":                   runtimeMap[enforcement.BroadbandCommercialCatalogComponent()],
+		}
+	} else {
+		broadbandCommercialCatalogStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandCommercialCatalogComponent()]}
+	}
 	broadbandAddressLeaseStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Broadband address lease status has not been evaluated.",
@@ -1289,6 +1329,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"subscriber_route_export":      subscriberRouteExportStatus,
 		"pppoe_access_lifecycle":       pppoeAccessLifecycleStatus,
 		"broadband_subscriber_state":   broadbandSubscriberStateStatus,
+		"broadband_commercial_catalog": broadbandCommercialCatalogStatus,
 		"broadband_address_leases":     broadbandAddressLeaseStatus,
 		"vendor_mapping_certification": vendorMappingCertificationStatus,
 		"cisco_family_pack":            ciscoFamilyPackStatus,
@@ -1399,18 +1440,19 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	enforcementStatus := map[string]any{
-		"shaping_enabled":          enforcement.RuntimeShapingEnabled(cfg) && enforcement.ShapingInterface(cfg) != "",
-		"shaping_interface":        enforcement.ShapingInterface(cfg),
-		"vlan_lifecycle_enabled":   enforcement.RuntimeVLANLifecycleEnabled(cfg) && enforcement.VLANLifecycleInterface(cfg) != "",
-		"vlan_lifecycle_interface": enforcement.VLANLifecycleInterface(cfg),
-		"shaped_sessions":          shapedSessions,
-		"shaper":                   runtimeMap["runtime_shaper"],
-		"qos_scheduler":            runtimeQoSStatus,
-		"vlan_lifecycle":           vlanLifecycleStatus,
-		"subscriber_route_export":  subscriberRouteExportStatus,
-		"broadband_address_leases": broadbandAddressLeaseStatus,
-		"local_firewall":           runtimeFirewallStatus,
-		"atomic_transactions":      atomicEnforcementStatus,
+		"shaping_enabled":              enforcement.RuntimeShapingEnabled(cfg) && enforcement.ShapingInterface(cfg) != "",
+		"shaping_interface":            enforcement.ShapingInterface(cfg),
+		"vlan_lifecycle_enabled":       enforcement.RuntimeVLANLifecycleEnabled(cfg) && enforcement.VLANLifecycleInterface(cfg) != "",
+		"vlan_lifecycle_interface":     enforcement.VLANLifecycleInterface(cfg),
+		"shaped_sessions":              shapedSessions,
+		"shaper":                       runtimeMap["runtime_shaper"],
+		"qos_scheduler":                runtimeQoSStatus,
+		"vlan_lifecycle":               vlanLifecycleStatus,
+		"subscriber_route_export":      subscriberRouteExportStatus,
+		"broadband_commercial_catalog": broadbandCommercialCatalogStatus,
+		"broadband_address_leases":     broadbandAddressLeaseStatus,
+		"local_firewall":               runtimeFirewallStatus,
+		"atomic_transactions":          atomicEnforcementStatus,
 	}
 	if !enforcement.RuntimeShapingEnabled(cfg) {
 		enforcementStatus["shaper"] = map[string]any{"status": "disabled", "message": "Runtime shaping is disabled by deployment or policy config"}

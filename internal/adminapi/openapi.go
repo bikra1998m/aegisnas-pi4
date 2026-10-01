@@ -1306,6 +1306,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0083 broadband subscriber state machine event history."),
 	}))
+	addOperation(paths, "/api/v1/system/broadband-commercial-catalog", "get", securedOperation("Read broadband commercial catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0084 account hierarchy, product plans, bundles, subscriptions, concurrency policies, authorization/accounting bindings, compliance checks, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-commercial-catalog/preview", "post", securedOperationWithBody("Preview broadband commercial catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating commercial catalog records."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0084 broadband commercial catalog report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-commercial-catalog/apply", "post", securedOperationWithBody("Apply broadband commercial catalog", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records commercial catalog records and runtime status. Live BSS/OSS and vendor BRAS/BNG activation remains release certification until enabled per adapter."), map[string]any{
+		"200":     responseJSON("Applied NAS-0084 broadband commercial catalog checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-commercial-catalog/history", "get", securedOperationWithParameters("List broadband commercial catalog history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0084 broadband commercial catalog event history and current catalog records."),
+	}))
 	addOperation(paths, "/api/v1/system/broadband-address-leases", "get", securedOperation("Read broadband subscriber address lease lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("NAS-0086 address pool, reservation, lease intent, conflict policy, accounting correlation, and evidence summary."),
 	}))

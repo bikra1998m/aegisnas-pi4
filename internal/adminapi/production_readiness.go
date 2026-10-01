@@ -168,6 +168,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionCWAPortalLifecycleCheck(&report, cfg)
 	addProductionPPPoEAccessLifecycleCheck(&report, cfg)
 	addProductionBroadbandSubscriberStateCheck(&report, cfg)
+	addProductionBroadbandCommercialCatalogCheck(&report, cfg)
 	addProductionBroadbandAddressLeaseCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
@@ -2093,6 +2094,80 @@ func addProductionBroadbandSubscriberStateCheck(report *productionReadinessRepor
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/broadband-subscriber-state/preview before enabling subscriber state enforcement, apply only after reviewing product catalog bindings, service-leg policies, failure/recovery behavior, accounting correlation, reconnect semantics, and keep live BRAS/BNG, packet capture, commercial billing, HA, scale, soak, security, and customer proof in the NAS-0083 release certification checklist.",
 		Dependencies:   []string{"broadband.subscriber_state", "broadband.pppoe", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "radius.address_policy", "radius.route_policy", "radius.translation_policy", "/api/v1/system/broadband-subscriber-state", "/api/v1/system/broadband-subscriber-state/preview", "/api/v1/system/broadband-subscriber-state/apply", "broadband_subscribers", "broadband_subscriber_sessions", "broadband_subscriber_service_legs", "broadband_subscriber_state_events", "RFC 2865", "RFC 2866", "RFC 5176"},
+	})
+}
+
+func addProductionBroadbandCommercialCatalogCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0084 broadband commercial catalog software is ready."
+	reportData, err := enforcement.PreviewBroadbandCommercialCatalog(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Broadband commercial catalog preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0084 schema %d status=%s, mode=%s, accounts=%d, plans=%d/%d, bundles=%d/%d, subscriptions=%d active=%d, concurrency=%d/%d, active_sessions=%d, over_limit=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.AccountCount,
+			reportData.Summary.EnabledPlanCount,
+			reportData.Summary.PlanCount,
+			reportData.Summary.EnabledBundleCount,
+			reportData.Summary.BundleCount,
+			reportData.Summary.SubscriptionCount,
+			reportData.Summary.ActiveSubscriptionCount,
+			reportData.Summary.EnabledConcurrencyPolicyCount,
+			reportData.Summary.ConcurrencyPolicyCount,
+			reportData.Summary.ActiveSessionCount,
+			reportData.Summary.OverLimitCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "skipped" {
+			summary += " Broadband commercial catalog is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but commercial catalog event history cannot be verified."
+	} else if evidence, err := db.GetBroadbandCommercialCatalogSummary(); err != nil {
+		status = "blocked"
+		summary += " Broadband commercial catalog evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 || evidence.OverLimitRecords > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, active_accounts=%d, active_plans=%d, active_subscriptions=%d, active_policies=%d, active_sessions=%d, over_limit=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.ActiveAccounts,
+			evidence.ActivePlans,
+			evidence.ActiveSubscriptions,
+			evidence.ActiveConcurrencyPolicies,
+			evidence.ActiveSessions,
+			evidence.OverLimitRecords,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "broadband_commercial_catalog",
+		Category:       "radius",
+		Label:          "NAS-0084 Broadband Commercial Plans, Bundles, And Concurrency",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/broadband-commercial-catalog/preview before enabling commercial enforcement, apply only after reviewing account hierarchy, product plans, bundles, active subscriptions, concurrency limits, accounting correlation, and CoA behavior. Keep live BSS/OSS, BRAS/BNG, FreeRADIUS production Linux, HA, scale, soak, security, deployment, and customer proof in the NAS-0084 release certification checklist.",
+		Dependencies:   []string{"broadband.commercial_catalog", "broadband.subscriber_state", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "/api/v1/system/broadband-commercial-catalog", "/api/v1/system/broadband-commercial-catalog/preview", "/api/v1/system/broadband-commercial-catalog/apply", "broadband_commercial_accounts", "broadband_commercial_plans", "broadband_commercial_bundles", "broadband_commercial_subscriptions", "broadband_commercial_concurrency_policies", "broadband_commercial_catalog_events", "RFC 2865", "RFC 2866", "RFC 2869", "RFC 5176"},
 	})
 }
 

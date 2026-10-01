@@ -1702,6 +1702,33 @@ Subscriber state status is included in `/api/v1/system/status` under
 `api/broadband-subscriber-state-history.json`. See
 [broadband-subscriber-state-machine.md](broadband-subscriber-state-machine.md).
 
+NAS-0084 adds broadband commercial catalog endpoints:
+
+```text
+GET  /api/v1/system/broadband-commercial-catalog
+POST /api/v1/system/broadband-commercial-catalog/preview
+POST /api/v1/system/broadband-commercial-catalog/apply
+GET  /api/v1/system/broadband-commercial-catalog/history
+```
+
+`GET /api/v1/system/broadband-commercial-catalog` returns account hierarchy,
+product plans, service bundles, subscriptions, concurrent-session policies,
+RADIUS authorization and accounting bindings, compliance checks, plan
+fingerprint, software completion state, release certification scope, and recent
+evidence. Preview records an evidence event without mutating catalog records.
+Apply records an auditable checkpoint, upserts normalized account, plan, bundle,
+subscription, and concurrency rows, and updates runtime status. A blocked apply
+returns HTTP 409 with the report. Read-only roles may read, preview, and list
+history. `ops_admin` and `super_admin` may apply.
+
+The endpoints depend on `broadband.commercial_catalog`,
+`broadband.subscriber_state`, `radius.sql_accounting`,
+`radius.accounting_services`, and `radius.dynamic_auth`, are checked by
+production readiness as `broadband_commercial_catalog`, and are captured in
+support bundles as `api/broadband-commercial-catalog.json` and
+`api/broadband-commercial-catalog-history.json`. See
+[broadband-commercial-catalog.md](broadband-commercial-catalog.md).
+
 NAS-0086 adds broadband address pool and lease lifecycle endpoints:
 
 ```text

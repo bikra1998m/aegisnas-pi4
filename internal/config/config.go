@@ -74,9 +74,10 @@ type DHCPConfig struct {
 }
 
 type BroadbandConfig struct {
-	PPPoE         BroadbandPPPoEConfig           `mapstructure:"pppoe"`
-	Subscriber    BroadbandSubscriberStateConfig `mapstructure:"subscriber_state"`
-	AddressLeases BroadbandAddressLeaseConfig    `mapstructure:"address_leases"`
+	PPPoE             BroadbandPPPoEConfig           `mapstructure:"pppoe"`
+	Subscriber        BroadbandSubscriberStateConfig `mapstructure:"subscriber_state"`
+	CommercialCatalog BroadbandCommercialCatalog     `mapstructure:"commercial_catalog"`
+	AddressLeases     BroadbandAddressLeaseConfig    `mapstructure:"address_leases"`
 }
 
 type BroadbandPPPoEConfig struct {
@@ -210,6 +211,117 @@ type BroadbandSubscriberFailurePolicyConfig struct {
 	DisconnectRequired   bool   `mapstructure:"disconnect_required"`
 	CoARequired          bool   `mapstructure:"coa_required"`
 	RecoveryAfterSeconds int    `mapstructure:"recovery_after_seconds"`
+}
+
+type BroadbandCommercialCatalog struct {
+	Enabled                       bool                                         `mapstructure:"enabled"`
+	Mode                          string                                       `mapstructure:"mode"`
+	FailClosed                    bool                                         `mapstructure:"fail_closed"`
+	DefaultBillingPeriod          string                                       `mapstructure:"default_billing_period"`
+	DefaultCurrency               string                                       `mapstructure:"default_currency"`
+	AllowFamilyAccounts           bool                                         `mapstructure:"allow_family_accounts"`
+	RequireActiveSubscription     bool                                         `mapstructure:"require_active_subscription"`
+	RequireBundleEligibility      bool                                         `mapstructure:"require_bundle_eligibility"`
+	EnforceConcurrency            bool                                         `mapstructure:"enforce_concurrency"`
+	AccountingCorrelationRequired bool                                         `mapstructure:"accounting_correlation_required"`
+	CoAOnLimit                    bool                                         `mapstructure:"coa_on_limit"`
+	MaxAccounts                   int                                          `mapstructure:"max_accounts"`
+	MaxSubscriptions              int                                          `mapstructure:"max_subscriptions"`
+	MaxSessionsPerAccount         int                                          `mapstructure:"max_sessions_per_account"`
+	MaxSessionsPerSubscription    int                                          `mapstructure:"max_sessions_per_subscription"`
+	PeriodResetHour               int                                          `mapstructure:"period_reset_hour"`
+	EventRetentionLimit           int                                          `mapstructure:"event_retention_limit"`
+	Accounts                      []BroadbandCommercialAccountConfig           `mapstructure:"accounts"`
+	Plans                         []BroadbandCommercialPlanConfig              `mapstructure:"plans"`
+	Bundles                       []BroadbandCommercialBundleConfig            `mapstructure:"bundles"`
+	Subscriptions                 []BroadbandCommercialSubscriptionConfig      `mapstructure:"subscriptions"`
+	ConcurrencyPolicies           []BroadbandCommercialConcurrencyPolicyConfig `mapstructure:"concurrency_policies"`
+}
+
+type BroadbandCommercialAccountConfig struct {
+	AccountID        string   `mapstructure:"account_id"`
+	ParentAccountID  string   `mapstructure:"parent_account_id"`
+	Tenant           string   `mapstructure:"tenant"`
+	Status           string   `mapstructure:"status"`
+	BillingMode      string   `mapstructure:"billing_mode"`
+	OwnerName        string   `mapstructure:"owner_name"`
+	Contact          string   `mapstructure:"contact"`
+	MaxSubscriptions int      `mapstructure:"max_subscriptions"`
+	MaxSessions      int      `mapstructure:"max_sessions"`
+	Tags             []string `mapstructure:"tags"`
+}
+
+type BroadbandCommercialPlanConfig struct {
+	Name                  string   `mapstructure:"name"`
+	Enabled               bool     `mapstructure:"enabled"`
+	Product               string   `mapstructure:"product"`
+	DisplayName           string   `mapstructure:"display_name"`
+	BillingPeriod         string   `mapstructure:"billing_period"`
+	PriceMicros           int64    `mapstructure:"price_micros"`
+	Currency              string   `mapstructure:"currency"`
+	MaxSessions           int      `mapstructure:"max_sessions"`
+	MaxDevices            int      `mapstructure:"max_devices"`
+	DownstreamKbps        int      `mapstructure:"downstream_kbps"`
+	UpstreamKbps          int      `mapstructure:"upstream_kbps"`
+	QuotaProfile          string   `mapstructure:"quota_profile"`
+	ServiceChain          string   `mapstructure:"service_chain"`
+	AddressPool           string   `mapstructure:"address_pool"`
+	IPv6Pool              string   `mapstructure:"ipv6_pool"`
+	DelegatedIPv6Pool     string   `mapstructure:"delegated_ipv6_pool"`
+	RoutePolicy           string   `mapstructure:"route_policy"`
+	QoSProfile            string   `mapstructure:"qos_profile"`
+	TranslationPool       string   `mapstructure:"translation_pool"`
+	PortalProfile         string   `mapstructure:"portal_profile"`
+	GraceSeconds          int      `mapstructure:"grace_seconds"`
+	SuspensionRole        string   `mapstructure:"suspension_role"`
+	SessionTimeoutSeconds int      `mapstructure:"session_timeout_seconds"`
+	IdleTimeoutSeconds    int      `mapstructure:"idle_timeout_seconds"`
+	VendorPacks           []string `mapstructure:"vendor_packs"`
+}
+
+type BroadbandCommercialBundleConfig struct {
+	Name                       string   `mapstructure:"name"`
+	Enabled                    bool     `mapstructure:"enabled"`
+	DisplayName                string   `mapstructure:"display_name"`
+	Plans                      []string `mapstructure:"plans"`
+	RequiredPlans              []string `mapstructure:"required_plans"`
+	MutuallyExclusivePlans     []string `mapstructure:"mutually_exclusive_plans"`
+	MaxConcurrentSubscriptions int      `mapstructure:"max_concurrent_subscriptions"`
+	SharedConcurrency          bool     `mapstructure:"shared_concurrency"`
+	Priority                   int      `mapstructure:"priority"`
+	EligibilityTags            []string `mapstructure:"eligibility_tags"`
+}
+
+type BroadbandCommercialSubscriptionConfig struct {
+	SubscriptionID  string   `mapstructure:"subscription_id"`
+	AccountID       string   `mapstructure:"account_id"`
+	SubscriberID    string   `mapstructure:"subscriber_id"`
+	Username        string   `mapstructure:"username"`
+	Plan            string   `mapstructure:"plan"`
+	Bundle          string   `mapstructure:"bundle"`
+	Status          string   `mapstructure:"status"`
+	StartsAt        string   `mapstructure:"starts_at"`
+	EndsAt          string   `mapstructure:"ends_at"`
+	AutoRenew       bool     `mapstructure:"auto_renew"`
+	MaxSessions     int      `mapstructure:"max_sessions"`
+	DeviceLimit     int      `mapstructure:"device_limit"`
+	EligibilityTags []string `mapstructure:"eligibility_tags"`
+}
+
+type BroadbandCommercialConcurrencyPolicyConfig struct {
+	Name                     string `mapstructure:"name"`
+	Enabled                  bool   `mapstructure:"enabled"`
+	Scope                    string `mapstructure:"scope"`
+	AccountID                string `mapstructure:"account_id"`
+	Tenant                   string `mapstructure:"tenant"`
+	Plan                     string `mapstructure:"plan"`
+	Bundle                   string `mapstructure:"bundle"`
+	MaxSessions              int    `mapstructure:"max_sessions"`
+	MaxSessionsPerSubscriber int    `mapstructure:"max_sessions_per_subscriber"`
+	BurstSessions            int    `mapstructure:"burst_sessions"`
+	GraceSeconds             int    `mapstructure:"grace_seconds"`
+	Action                   string `mapstructure:"action"`
+	CoAAction                string `mapstructure:"coa_action"`
 }
 
 type BroadbandAddressLeaseConfig struct {
@@ -5925,6 +6037,9 @@ func (c *Config) Validate() error {
 	if err := validateBroadbandSubscriberStateConfig(c.Broadband.Subscriber, c.Broadband.PPPoE, c.Radius, profile); err != nil {
 		return err
 	}
+	if err := validateBroadbandCommercialCatalog(c.Broadband.CommercialCatalog, c.Broadband.Subscriber, c.Radius, profile); err != nil {
+		return err
+	}
 	if err := validateBroadbandAddressLeaseConfig(c.Broadband.AddressLeases, c.Broadband.Subscriber, c.Broadband.PPPoE, c.Radius, profile); err != nil {
 		return err
 	}
@@ -7584,6 +7699,488 @@ func validBroadbandSubscriberStateName(value string) bool {
 	default:
 		return false
 	}
+}
+
+func EffectiveBroadbandCommercialCatalog(raw BroadbandCommercialCatalog) BroadbandCommercialCatalog {
+	catalog := raw
+	catalog.Mode = EffectiveBroadbandCommercialCatalogMode(catalog.Mode)
+	if strings.TrimSpace(catalog.DefaultBillingPeriod) == "" {
+		catalog.DefaultBillingPeriod = "monthly"
+	}
+	if strings.TrimSpace(catalog.DefaultCurrency) == "" {
+		catalog.DefaultCurrency = "USD"
+	}
+	if catalog.MaxAccounts == 0 {
+		catalog.MaxAccounts = 100000
+	}
+	if catalog.MaxSubscriptions == 0 {
+		catalog.MaxSubscriptions = 250000
+	}
+	if catalog.MaxSessionsPerAccount == 0 {
+		catalog.MaxSessionsPerAccount = 8
+	}
+	if catalog.MaxSessionsPerSubscription == 0 {
+		catalog.MaxSessionsPerSubscription = 4
+	}
+	if catalog.EventRetentionLimit == 0 {
+		catalog.EventRetentionLimit = 10000
+	}
+	if !raw.Enabled && !raw.AllowFamilyAccounts && !raw.RequireActiveSubscription &&
+		!raw.RequireBundleEligibility && !raw.EnforceConcurrency &&
+		!raw.AccountingCorrelationRequired && !raw.CoAOnLimit {
+		catalog.AllowFamilyAccounts = true
+		catalog.RequireActiveSubscription = true
+		catalog.RequireBundleEligibility = true
+		catalog.EnforceConcurrency = true
+		catalog.AccountingCorrelationRequired = true
+		catalog.CoAOnLimit = true
+	}
+	return catalog
+}
+
+func EffectiveBroadbandCommercialCatalogMode(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "monitor", "enforce":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return "monitor"
+	}
+}
+
+func validateBroadbandCommercialCatalog(raw BroadbandCommercialCatalog, subscriberRaw BroadbandSubscriberStateConfig, radius RadiusConfig, profile string) error {
+	catalog := EffectiveBroadbandCommercialCatalog(raw)
+	if !catalog.Enabled && len(catalog.Accounts) == 0 && len(catalog.Plans) == 0 &&
+		len(catalog.Bundles) == 0 && len(catalog.Subscriptions) == 0 && len(catalog.ConcurrencyPolicies) == 0 {
+		return nil
+	}
+	switch catalog.Mode {
+	case "monitor", "enforce":
+	default:
+		return fmt.Errorf("broadband.commercial_catalog.mode %q is invalid", raw.Mode)
+	}
+	if profile == "lite" && catalog.Mode == "enforce" {
+		return errors.New("broadband.commercial_catalog cannot use enforce mode on lite deployment profile")
+	}
+	if !validBroadbandCommercialBillingPeriod(catalog.DefaultBillingPeriod) {
+		return fmt.Errorf("broadband.commercial_catalog.default_billing_period %q is invalid", catalog.DefaultBillingPeriod)
+	}
+	if !validBroadbandCommercialCurrency(catalog.DefaultCurrency) {
+		return fmt.Errorf("broadband.commercial_catalog.default_currency %q is invalid", catalog.DefaultCurrency)
+	}
+	if catalog.PeriodResetHour < 0 || catalog.PeriodResetHour > 23 {
+		return errors.New("broadband.commercial_catalog.period_reset_hour must be between 0 and 23")
+	}
+	for name, value := range map[string]int{
+		"max_accounts":                  catalog.MaxAccounts,
+		"max_subscriptions":             catalog.MaxSubscriptions,
+		"max_sessions_per_account":      catalog.MaxSessionsPerAccount,
+		"max_sessions_per_subscription": catalog.MaxSessionsPerSubscription,
+		"event_retention_limit":         catalog.EventRetentionLimit,
+	} {
+		if value < 0 || value > 1000000 {
+			return fmt.Errorf("broadband.commercial_catalog.%s must be between 0 and 1000000", name)
+		}
+	}
+	subscriber := EffectiveBroadbandSubscriberStateConfig(subscriberRaw)
+	if catalog.Enabled && !subscriber.Enabled {
+		return errors.New("broadband.commercial_catalog requires broadband.subscriber_state.enabled")
+	}
+	if catalog.AccountingCorrelationRequired && !radius.SQLAccounting.Enabled {
+		return errors.New("broadband.commercial_catalog accounting correlation requires radius.sql_accounting.enabled")
+	}
+	if catalog.AccountingCorrelationRequired && !radius.AccountingServices.Enabled {
+		return errors.New("broadband.commercial_catalog accounting correlation requires radius.accounting_services.enabled")
+	}
+	if catalog.CoAOnLimit && !radius.DynamicAuth.Enabled {
+		return errors.New("broadband.commercial_catalog coa_on_limit requires radius.dynamic_auth.enabled")
+	}
+	accounts, err := validateBroadbandCommercialAccounts(catalog)
+	if err != nil {
+		return err
+	}
+	plans, enabledPlans, err := validateBroadbandCommercialPlans(catalog, subscriber)
+	if err != nil {
+		return err
+	}
+	bundles, err := validateBroadbandCommercialBundles(catalog, plans)
+	if err != nil {
+		return err
+	}
+	activeSubscriptions, err := validateBroadbandCommercialSubscriptions(catalog, accounts, plans, bundles)
+	if err != nil {
+		return err
+	}
+	enabledConcurrency, err := validateBroadbandCommercialConcurrencyPolicies(catalog, accounts, plans, bundles)
+	if err != nil {
+		return err
+	}
+	if catalog.Enabled && catalog.Mode == "enforce" {
+		if enabledPlans == 0 {
+			return errors.New("broadband.commercial_catalog enforce mode requires at least one enabled plan")
+		}
+		if catalog.RequireActiveSubscription && activeSubscriptions == 0 {
+			return errors.New("broadband.commercial_catalog enforce mode requires at least one active subscription")
+		}
+		if catalog.EnforceConcurrency && enabledConcurrency == 0 {
+			return errors.New("broadband.commercial_catalog enforce_concurrency requires at least one enabled concurrency policy")
+		}
+	}
+	return nil
+}
+
+func validateBroadbandCommercialAccounts(catalog BroadbandCommercialCatalog) (map[string]struct{}, error) {
+	accounts := map[string]struct{}{}
+	for i, account := range catalog.Accounts {
+		accountID := strings.TrimSpace(account.AccountID)
+		if !validBroadbandPPPoEText(accountID, 128) {
+			return nil, fmt.Errorf("broadband.commercial_catalog.accounts[%d].account_id is invalid", i)
+		}
+		key := strings.ToLower(accountID)
+		if _, exists := accounts[key]; exists {
+			return nil, fmt.Errorf("broadband.commercial_catalog.accounts[%d].account_id %q duplicates an earlier account", i, accountID)
+		}
+		accounts[key] = struct{}{}
+		switch strings.ToLower(strings.TrimSpace(account.Status)) {
+		case "", "active", "suspended", "closed", "pending":
+		default:
+			return nil, fmt.Errorf("broadband.commercial_catalog.accounts[%d].status %q is invalid", i, account.Status)
+		}
+		switch strings.ToLower(strings.TrimSpace(account.BillingMode)) {
+		case "", "prepaid", "postpaid", "hybrid", "external":
+		default:
+			return nil, fmt.Errorf("broadband.commercial_catalog.accounts[%d].billing_mode %q is invalid", i, account.BillingMode)
+		}
+		for _, binding := range []struct {
+			field string
+			value string
+			limit int
+		}{
+			{"parent_account_id", account.ParentAccountID, 128},
+			{"tenant", account.Tenant, 128},
+			{"owner_name", account.OwnerName, 256},
+			{"contact", account.Contact, 512},
+		} {
+			if strings.TrimSpace(binding.value) != "" && !validBroadbandPPPoEText(binding.value, binding.limit) {
+				return nil, fmt.Errorf("broadband.commercial_catalog.accounts[%d].%s is invalid", i, binding.field)
+			}
+		}
+		if account.MaxSubscriptions < 0 || account.MaxSubscriptions > 1000000 {
+			return nil, fmt.Errorf("broadband.commercial_catalog.accounts[%d].max_subscriptions must be between 0 and 1000000", i)
+		}
+		if account.MaxSessions < 0 || account.MaxSessions > 1000000 {
+			return nil, fmt.Errorf("broadband.commercial_catalog.accounts[%d].max_sessions must be between 0 and 1000000", i)
+		}
+		for tagIndex, tag := range account.Tags {
+			if strings.TrimSpace(tag) != "" && !validBroadbandPPPoEText(tag, 64) {
+				return nil, fmt.Errorf("broadband.commercial_catalog.accounts[%d].tags[%d] is invalid", i, tagIndex)
+			}
+		}
+	}
+	for i, account := range catalog.Accounts {
+		parent := strings.TrimSpace(account.ParentAccountID)
+		if parent == "" {
+			continue
+		}
+		if _, ok := accounts[strings.ToLower(parent)]; !ok {
+			return nil, fmt.Errorf("broadband.commercial_catalog.accounts[%d].parent_account_id %q is not configured", i, parent)
+		}
+		if !catalog.AllowFamilyAccounts {
+			return nil, fmt.Errorf("broadband.commercial_catalog.accounts[%d].parent_account_id requires allow_family_accounts", i)
+		}
+	}
+	return accounts, nil
+}
+
+func validateBroadbandCommercialPlans(catalog BroadbandCommercialCatalog, subscriber BroadbandSubscriberStateConfig) (map[string]struct{}, int, error) {
+	plans := map[string]struct{}{}
+	products := broadbandSubscriberProductNames(subscriber)
+	enabled := 0
+	for i, plan := range catalog.Plans {
+		name := strings.TrimSpace(plan.Name)
+		if !validBroadbandPPPoEText(name, 128) {
+			return nil, 0, fmt.Errorf("broadband.commercial_catalog.plans[%d].name is invalid", i)
+		}
+		key := strings.ToLower(name)
+		if _, exists := plans[key]; exists {
+			return nil, 0, fmt.Errorf("broadband.commercial_catalog.plans[%d].name %q duplicates an earlier plan", i, name)
+		}
+		plans[key] = struct{}{}
+		if plan.Enabled {
+			enabled++
+		}
+		product := strings.TrimSpace(plan.Product)
+		if product != "" {
+			if _, ok := products[strings.ToLower(product)]; !ok {
+				return nil, 0, fmt.Errorf("broadband.commercial_catalog.plans[%d].product %q is not configured", i, product)
+			}
+		}
+		if strings.TrimSpace(plan.BillingPeriod) != "" && !validBroadbandCommercialBillingPeriod(plan.BillingPeriod) {
+			return nil, 0, fmt.Errorf("broadband.commercial_catalog.plans[%d].billing_period %q is invalid", i, plan.BillingPeriod)
+		}
+		if strings.TrimSpace(plan.Currency) != "" && !validBroadbandCommercialCurrency(plan.Currency) {
+			return nil, 0, fmt.Errorf("broadband.commercial_catalog.plans[%d].currency %q is invalid", i, plan.Currency)
+		}
+		if plan.PriceMicros < 0 {
+			return nil, 0, fmt.Errorf("broadband.commercial_catalog.plans[%d].price_micros cannot be negative", i)
+		}
+		for name, value := range map[string]int{
+			"max_sessions":            plan.MaxSessions,
+			"max_devices":             plan.MaxDevices,
+			"downstream_kbps":         plan.DownstreamKbps,
+			"upstream_kbps":           plan.UpstreamKbps,
+			"grace_seconds":           plan.GraceSeconds,
+			"session_timeout_seconds": plan.SessionTimeoutSeconds,
+			"idle_timeout_seconds":    plan.IdleTimeoutSeconds,
+		} {
+			if value < 0 || value > 1000000000 {
+				return nil, 0, fmt.Errorf("broadband.commercial_catalog.plans[%d].%s must be between 0 and 1000000000", i, name)
+			}
+		}
+		for _, binding := range []struct {
+			field string
+			value string
+			limit int
+		}{
+			{"display_name", plan.DisplayName, 256},
+			{"quota_profile", plan.QuotaProfile, 128},
+			{"service_chain", plan.ServiceChain, 128},
+			{"address_pool", plan.AddressPool, 128},
+			{"ipv6_pool", plan.IPv6Pool, 128},
+			{"delegated_ipv6_pool", plan.DelegatedIPv6Pool, 128},
+			{"route_policy", plan.RoutePolicy, 128},
+			{"qos_profile", plan.QoSProfile, 128},
+			{"translation_pool", plan.TranslationPool, 128},
+			{"portal_profile", plan.PortalProfile, 128},
+			{"suspension_role", plan.SuspensionRole, 253},
+		} {
+			if strings.TrimSpace(binding.value) != "" && !validBroadbandPPPoEText(binding.value, binding.limit) {
+				return nil, 0, fmt.Errorf("broadband.commercial_catalog.plans[%d].%s is invalid", i, binding.field)
+			}
+		}
+		for packIndex, pack := range plan.VendorPacks {
+			key := productconfigs.NormalizeVendorCompatibilityPackKey(pack)
+			if key == "" || !productconfigs.ValidVendorCompatibilityPackKey(key) {
+				return nil, 0, fmt.Errorf("broadband.commercial_catalog.plans[%d].vendor_packs[%d] %q is unknown", i, packIndex, pack)
+			}
+		}
+	}
+	return plans, enabled, nil
+}
+
+func validateBroadbandCommercialBundles(catalog BroadbandCommercialCatalog, plans map[string]struct{}) (map[string]struct{}, error) {
+	bundles := map[string]struct{}{}
+	for i, bundle := range catalog.Bundles {
+		name := strings.TrimSpace(bundle.Name)
+		if !validBroadbandPPPoEText(name, 128) {
+			return nil, fmt.Errorf("broadband.commercial_catalog.bundles[%d].name is invalid", i)
+		}
+		key := strings.ToLower(name)
+		if _, exists := bundles[key]; exists {
+			return nil, fmt.Errorf("broadband.commercial_catalog.bundles[%d].name %q duplicates an earlier bundle", i, name)
+		}
+		bundles[key] = struct{}{}
+		if strings.TrimSpace(bundle.DisplayName) != "" && !validBroadbandPPPoEText(bundle.DisplayName, 256) {
+			return nil, fmt.Errorf("broadband.commercial_catalog.bundles[%d].display_name is invalid", i)
+		}
+		for _, group := range []struct {
+			field string
+			list  []string
+		}{
+			{"plans", bundle.Plans},
+			{"required_plans", bundle.RequiredPlans},
+			{"mutually_exclusive_plans", bundle.MutuallyExclusivePlans},
+		} {
+			for planIndex, plan := range group.list {
+				value := strings.TrimSpace(plan)
+				if value == "" {
+					return nil, fmt.Errorf("broadband.commercial_catalog.bundles[%d].%s[%d] is empty", i, group.field, planIndex)
+				}
+				if _, ok := plans[strings.ToLower(value)]; !ok {
+					return nil, fmt.Errorf("broadband.commercial_catalog.bundles[%d].%s[%d] %q is not configured", i, group.field, planIndex, value)
+				}
+			}
+		}
+		if bundle.Enabled && len(bundle.Plans) == 0 {
+			return nil, fmt.Errorf("broadband.commercial_catalog.bundles[%d] enabled bundle requires at least one plan", i)
+		}
+		if bundle.MaxConcurrentSubscriptions < 0 || bundle.MaxConcurrentSubscriptions > 1000000 {
+			return nil, fmt.Errorf("broadband.commercial_catalog.bundles[%d].max_concurrent_subscriptions must be between 0 and 1000000", i)
+		}
+		for tagIndex, tag := range bundle.EligibilityTags {
+			if strings.TrimSpace(tag) != "" && !validBroadbandPPPoEText(tag, 64) {
+				return nil, fmt.Errorf("broadband.commercial_catalog.bundles[%d].eligibility_tags[%d] is invalid", i, tagIndex)
+			}
+		}
+	}
+	return bundles, nil
+}
+
+func validateBroadbandCommercialSubscriptions(catalog BroadbandCommercialCatalog, accounts, plans, bundles map[string]struct{}) (int, error) {
+	seen := map[string]struct{}{}
+	active := 0
+	for i, subscription := range catalog.Subscriptions {
+		id := strings.TrimSpace(subscription.SubscriptionID)
+		if !validBroadbandPPPoEText(id, 128) {
+			return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d].subscription_id is invalid", i)
+		}
+		key := strings.ToLower(id)
+		if _, exists := seen[key]; exists {
+			return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d].subscription_id %q duplicates an earlier subscription", i, id)
+		}
+		seen[key] = struct{}{}
+		accountID := strings.TrimSpace(subscription.AccountID)
+		if accountID == "" {
+			return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d].account_id is required", i)
+		}
+		if _, ok := accounts[strings.ToLower(accountID)]; !ok {
+			return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d].account_id %q is not configured", i, accountID)
+		}
+		plan := strings.TrimSpace(subscription.Plan)
+		if plan == "" {
+			return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d].plan is required", i)
+		}
+		if _, ok := plans[strings.ToLower(plan)]; !ok {
+			return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d].plan %q is not configured", i, plan)
+		}
+		if bundle := strings.TrimSpace(subscription.Bundle); bundle != "" {
+			if _, ok := bundles[strings.ToLower(bundle)]; !ok {
+				return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d].bundle %q is not configured", i, bundle)
+			}
+		}
+		status := strings.ToLower(strings.TrimSpace(subscription.Status))
+		switch status {
+		case "", "active", "pending", "suspended", "expired", "cancelled":
+		default:
+			return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d].status %q is invalid", i, subscription.Status)
+		}
+		if status == "" || status == "active" {
+			active++
+		}
+		if strings.TrimSpace(subscription.SubscriberID) == "" && strings.TrimSpace(subscription.Username) == "" {
+			return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d] requires subscriber_id or username", i)
+		}
+		for _, binding := range []struct {
+			field string
+			value string
+			limit int
+		}{
+			{"subscriber_id", subscription.SubscriberID, 253},
+			{"username", subscription.Username, 253},
+		} {
+			if strings.TrimSpace(binding.value) != "" && !validBroadbandPPPoEText(binding.value, binding.limit) {
+				return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d].%s is invalid", i, binding.field)
+			}
+		}
+		for _, binding := range []struct {
+			field string
+			value string
+		}{
+			{"starts_at", subscription.StartsAt},
+			{"ends_at", subscription.EndsAt},
+		} {
+			if strings.TrimSpace(binding.value) != "" {
+				if _, err := time.Parse(time.RFC3339, strings.TrimSpace(binding.value)); err != nil {
+					return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d].%s must be RFC3339: %w", i, binding.field, err)
+				}
+			}
+		}
+		if subscription.MaxSessions < 0 || subscription.MaxSessions > 1000000 {
+			return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d].max_sessions must be between 0 and 1000000", i)
+		}
+		if subscription.DeviceLimit < 0 || subscription.DeviceLimit > 1000000 {
+			return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d].device_limit must be between 0 and 1000000", i)
+		}
+		for tagIndex, tag := range subscription.EligibilityTags {
+			if strings.TrimSpace(tag) != "" && !validBroadbandPPPoEText(tag, 64) {
+				return 0, fmt.Errorf("broadband.commercial_catalog.subscriptions[%d].eligibility_tags[%d] is invalid", i, tagIndex)
+			}
+		}
+	}
+	return active, nil
+}
+
+func validateBroadbandCommercialConcurrencyPolicies(catalog BroadbandCommercialCatalog, accounts, plans, bundles map[string]struct{}) (int, error) {
+	seen := map[string]struct{}{}
+	enabled := 0
+	for i, policy := range catalog.ConcurrencyPolicies {
+		name := strings.TrimSpace(policy.Name)
+		if !validBroadbandPPPoEText(name, 128) {
+			return 0, fmt.Errorf("broadband.commercial_catalog.concurrency_policies[%d].name is invalid", i)
+		}
+		key := strings.ToLower(name)
+		if _, exists := seen[key]; exists {
+			return 0, fmt.Errorf("broadband.commercial_catalog.concurrency_policies[%d].name %q duplicates an earlier policy", i, name)
+		}
+		seen[key] = struct{}{}
+		if policy.Enabled {
+			enabled++
+		}
+		scope := strings.ToLower(strings.TrimSpace(policy.Scope))
+		switch scope {
+		case "", "subscriber", "subscription", "account", "bundle", "plan", "tenant":
+		default:
+			return 0, fmt.Errorf("broadband.commercial_catalog.concurrency_policies[%d].scope %q is invalid", i, policy.Scope)
+		}
+		if accountID := strings.TrimSpace(policy.AccountID); accountID != "" {
+			if _, ok := accounts[strings.ToLower(accountID)]; !ok {
+				return 0, fmt.Errorf("broadband.commercial_catalog.concurrency_policies[%d].account_id %q is not configured", i, accountID)
+			}
+		}
+		if plan := strings.TrimSpace(policy.Plan); plan != "" {
+			if _, ok := plans[strings.ToLower(plan)]; !ok {
+				return 0, fmt.Errorf("broadband.commercial_catalog.concurrency_policies[%d].plan %q is not configured", i, plan)
+			}
+		}
+		if bundle := strings.TrimSpace(policy.Bundle); bundle != "" {
+			if _, ok := bundles[strings.ToLower(bundle)]; !ok {
+				return 0, fmt.Errorf("broadband.commercial_catalog.concurrency_policies[%d].bundle %q is not configured", i, bundle)
+			}
+		}
+		for name, value := range map[string]int{
+			"max_sessions":                policy.MaxSessions,
+			"max_sessions_per_subscriber": policy.MaxSessionsPerSubscriber,
+			"burst_sessions":              policy.BurstSessions,
+			"grace_seconds":               policy.GraceSeconds,
+		} {
+			if value < 0 || value > 1000000 {
+				return 0, fmt.Errorf("broadband.commercial_catalog.concurrency_policies[%d].%s must be between 0 and 1000000", i, name)
+			}
+		}
+		switch strings.ToLower(strings.TrimSpace(policy.Action)) {
+		case "", "reject", "suspend", "quarantine", "degrade", "monitor":
+		default:
+			return 0, fmt.Errorf("broadband.commercial_catalog.concurrency_policies[%d].action %q is invalid", i, policy.Action)
+		}
+		if strings.TrimSpace(policy.Tenant) != "" && !validBroadbandPPPoEText(policy.Tenant, 128) {
+			return 0, fmt.Errorf("broadband.commercial_catalog.concurrency_policies[%d].tenant is invalid", i)
+		}
+		if strings.TrimSpace(policy.CoAAction) != "" && !validBroadbandPPPoEText(policy.CoAAction, 128) {
+			return 0, fmt.Errorf("broadband.commercial_catalog.concurrency_policies[%d].coa_action is invalid", i)
+		}
+	}
+	return enabled, nil
+}
+
+func validBroadbandCommercialBillingPeriod(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "hourly", "daily", "weekly", "monthly", "quarterly", "yearly", "one-time", "external":
+		return true
+	default:
+		return false
+	}
+}
+
+func validBroadbandCommercialCurrency(value string) bool {
+	value = strings.ToUpper(strings.TrimSpace(value))
+	if len(value) != 3 {
+		return false
+	}
+	for _, ch := range value {
+		if ch < 'A' || ch > 'Z' {
+			return false
+		}
+	}
+	return true
 }
 
 func validBroadbandPPPoEText(value string, maxLen int) bool {

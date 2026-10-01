@@ -3036,6 +3036,243 @@ function createBroadbandSubscriberState(status = "ready") {
   };
 }
 
+function createBroadbandCommercialCatalog(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0084",
+      status,
+      message:
+        "NAS-0084 commercial catalog is ready with 1 account, 1 plan, 1 bundle, 1 subscription, and 1 concurrency policy.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0084-release-certification-checklist.md",
+      release_scope:
+        "Live BSS/OSS billing sync, BRAS/BNG hardware, FreeRADIUS production Linux, HA failover, scale, soak, security audit, production deployment, and customer acceptance are release certification activities.",
+      plan_fingerprint:
+        "sha256:84d2470403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81ed0084",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        default_billing_period: "monthly",
+        default_currency: "USD",
+        allow_family_accounts: true,
+        require_active_subscription: true,
+        require_bundle_eligibility: true,
+        enforce_concurrency: true,
+        accounting_correlation_required: true,
+        coa_on_limit: true,
+        max_accounts: 1000,
+        max_subscriptions: 2000,
+        max_sessions_per_account: 8,
+        max_sessions_per_subscription: 4,
+        period_reset_hour: 3,
+        event_retention_limit: 200,
+        subscriber_state_enabled: true,
+        sql_accounting_enabled: true,
+        accounting_services_enabled: true,
+        dynamic_auth_enabled: true,
+        high_availability_enabled: true,
+        account_count: 1,
+        active_account_count: 1,
+        family_account_count: 1,
+        plan_count: 1,
+        enabled_plan_count: 1,
+        bundle_count: 1,
+        enabled_bundle_count: 1,
+        subscription_count: 1,
+        active_subscription_count: 1,
+        suspended_subscription_count: 0,
+        concurrency_policy_count: 1,
+        enabled_concurrency_policy_count: 1,
+        authorization_binding_count: 4,
+        accounting_binding_count: 4,
+        active_session_count: 1,
+        over_limit_count: 0,
+        compliance_check_count: 8,
+        passed_check_count: 8,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 9,
+      },
+      accounts: [
+        {
+          account_id: "acct-lab-1",
+          parent_account_id: "acct-family-1",
+          tenant: "retail",
+          status: "active",
+          billing_mode: "postpaid",
+          owner_name: "Lab Family",
+          contact: "ops@example.test",
+          max_subscriptions: 4,
+          max_sessions: 8,
+          tags: ["family", "fiber"],
+          family_account: true,
+          reason: "Account participates in product and subscription lifecycle.",
+        },
+      ],
+      plans: [
+        {
+          name: "fiber-100m",
+          enabled: true,
+          product: "residential-fiber",
+          display_name: "Fiber 100M",
+          billing_period: "monthly",
+          price_micros: 49990000,
+          currency: "USD",
+          max_sessions: 4,
+          max_devices: 12,
+          downstream_kbps: 100000,
+          upstream_kbps: 25000,
+          quota_profile: "unlimited",
+          service_chain: "retail-internet",
+          address_pool: "pppoe-v4",
+          ipv6_pool: "pppoe-v6",
+          delegated_ipv6_pool: "pppoe-pd",
+          route_policy: "residential",
+          qos_profile: "silver",
+          translation_pool: "cgnat-pool",
+          portal_profile: "self-service",
+          grace_seconds: 86400,
+          suspension_role: "suspended",
+          session_timeout_seconds: 86400,
+          idle_timeout_seconds: 3600,
+          vendor_packs: ["standard", "aegisnas", "mikrotik", "cisco"],
+          status: "ready",
+          reason: "Plan maps commercial catalog intent to subscriber services.",
+        },
+      ],
+      bundles: [
+        {
+          name: "family-fiber",
+          enabled: true,
+          display_name: "Family Fiber",
+          plans: ["fiber-100m"],
+          required_plans: ["fiber-100m"],
+          mutually_exclusive_plans: ["legacy-dsl"],
+          max_concurrent_subscriptions: 4,
+          shared_concurrency: true,
+          priority: 10,
+          eligibility_tags: ["family"],
+          status: "ready",
+          reason: "Bundle controls plan eligibility and shared concurrency.",
+        },
+      ],
+      subscriptions: [
+        {
+          subscription_id: "sub-lab-1",
+          account_id: "acct-lab-1",
+          subscriber_id: "subscriber-1001",
+          username: "user@example.test",
+          plan: "fiber-100m",
+          bundle: "family-fiber",
+          status: "active",
+          starts_at: "2026-05-01T00:00:00Z",
+          ends_at: "2026-06-01T00:00:00Z",
+          auto_renew: true,
+          max_sessions: 4,
+          device_limit: 12,
+          eligibility_tags: ["family"],
+          active_session_count: 1,
+          over_limit: false,
+          reason: "Active subscription binds account and subscriber identity.",
+        },
+      ],
+      concurrency_policies: [
+        {
+          policy_key: "bccp_family_fiber",
+          name: "family-fiber-limit",
+          enabled: true,
+          scope: "bundle",
+          target: "family-fiber",
+          bundle: "family-fiber",
+          max_sessions: 8,
+          max_sessions_per_subscriber: 4,
+          burst_sessions: 1,
+          grace_seconds: 120,
+          action: "coa",
+          coa_action: "disconnect-oldest",
+          status: "ready",
+          reason: "Concurrency policy controls active session overuse.",
+        },
+      ],
+      authorization_bindings: [
+        {
+          stage: "plan-selection",
+          attributes: ["Class", "Cisco-AVPair", "Mikrotik-Rate-Limit"],
+          purpose:
+            "Bind commercial plan and vendor QoS hints into Access-Accept.",
+          required: true,
+        },
+        {
+          stage: "subscription-state",
+          attributes: ["Filter-Id", "Reply-Message"],
+          purpose: "Expose active or suspended subscription intent.",
+          required: true,
+        },
+      ],
+      accounting_bindings: [
+        {
+          stage: "start",
+          attributes: [
+            "Acct-Status-Type=Start",
+            "Acct-Session-Id",
+            "User-Name",
+            "Class",
+          ],
+          purpose: "Open a durable commercial session ledger.",
+          required: true,
+        },
+        {
+          stage: "interim",
+          attributes: [
+            "Acct-Status-Type=Interim-Update",
+            "Acct-Input-Octets",
+            "Acct-Output-Octets",
+          ],
+          purpose: "Refresh concurrent session and usage evidence.",
+          required: true,
+        },
+      ],
+      compliance: [
+        {
+          id: "plans",
+          name: "Active plan catalog",
+          status: "passed",
+          message: "At least one enabled commercial plan is configured.",
+        },
+        {
+          id: "concurrency",
+          name: "Concurrent session policy",
+          status: "passed",
+          message: "Concurrency policy is configured.",
+        },
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        last_account_count: 1,
+        last_plan_count: 1,
+        last_subscription_count: 1,
+      },
+      recent_events: [],
+    },
+  };
+}
+
 function createBroadbandAddressLeases(status = "ready") {
   return {
     generated_at: "2026-05-05T12:00:00Z",
@@ -8261,6 +8498,74 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             failed_count: 0,
           },
           events: [],
+        },
+      });
+      return;
+    }
+    if (path === "/system/broadband-commercial-catalog" && method === "GET") {
+      await route.fulfill({ json: createBroadbandCommercialCatalog() });
+      return;
+    }
+    if (
+      path === "/system/broadband-commercial-catalog/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createBroadbandCommercialCatalog(),
+          event_id: "commercial-catalog-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-commercial-catalog/apply" &&
+      method === "POST"
+    ) {
+      const payload = createBroadbandCommercialCatalog();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0084 recorded commercial catalog with 1 account, 1 plan, 1 subscription, and 1 concurrency policy.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "commercial-catalog-event-apply",
+          result: {
+            status: "applied",
+            event_id: "commercial-catalog-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-commercial-catalog/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0084",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+            last_account_count: 1,
+            last_plan_count: 1,
+            last_subscription_count: 1,
+          },
+          events: [],
+          accounts: createBroadbandCommercialCatalog().report.accounts,
+          plans: createBroadbandCommercialCatalog().report.plans,
+          bundles: createBroadbandCommercialCatalog().report.bundles,
+          subscriptions:
+            createBroadbandCommercialCatalog().report.subscriptions,
+          concurrency_policies:
+            createBroadbandCommercialCatalog().report.concurrency_policies,
         },
       });
       return;

@@ -1066,6 +1066,90 @@ broadband:
         action: "recover"
         target_state: "recovered"
         recovery_after_seconds: 120
+  commercial_catalog:
+    enabled: false # Enable after subscriber state, SQL accounting, accounting services, and CoA previews pass.
+    mode: "monitor" # Use enforce after BSS/OSS and BRAS/BNG commercial-flow validation.
+    fail_closed: true
+    default_billing_period: "monthly"
+    default_currency: "USD"
+    allow_family_accounts: true
+    require_active_subscription: true
+    require_bundle_eligibility: true
+    enforce_concurrency: true
+    accounting_correlation_required: true
+    coa_on_limit: true
+    max_accounts: 100000
+    max_subscriptions: 250000
+    max_sessions_per_account: 8
+    max_sessions_per_subscription: 4
+    period_reset_hour: 0
+    event_retention_limit: 10000
+    accounts:
+      - account_id: "acct-lab-family-01"
+        tenant: "retail"
+        status: "active"
+        billing_mode: "postpaid"
+        owner_name: "Lab Family Account"
+        contact: "noc@example.net"
+        max_subscriptions: 4
+        max_sessions: 8
+        tags: ["lab", "retail"]
+    plans:
+      - name: "fiber-100m"
+        enabled: false
+        product: "residential-fiber"
+        display_name: "Fiber 100M"
+        billing_period: "monthly"
+        price_micros: 49990000
+        currency: "USD"
+        max_sessions: 4
+        max_devices: 32
+        downstream_kbps: 100000
+        upstream_kbps: 25000
+        quota_profile: "unlimited"
+        service_chain: "retail-internet"
+        address_pool: "pppoe-v4"
+        ipv6_pool: "pppoe-v6"
+        delegated_ipv6_pool: "pppoe-pd"
+        route_policy: "residential"
+        qos_profile: "silver"
+        translation_pool: "cgnat-pool"
+        session_timeout_seconds: 86400
+        idle_timeout_seconds: 3600
+        vendor_packs: ["standard", "aegisnas", "mikrotik", "huawei", "alcatel-lucent-service-router"]
+    bundles:
+      - name: "home-internet"
+        enabled: false
+        display_name: "Home Internet"
+        plans: ["fiber-100m"]
+        required_plans: ["fiber-100m"]
+        max_concurrent_subscriptions: 4
+        shared_concurrency: true
+        priority: 100
+        eligibility_tags: ["retail"]
+    subscriptions:
+      - subscription_id: "sub-lab-family-01-primary"
+        account_id: "acct-lab-family-01"
+        subscriber_id: "sub-lab-cpe-01"
+        username: "lab-cpe-01@example.net"
+        plan: "fiber-100m"
+        bundle: "home-internet"
+        status: "active"
+        auto_renew: true
+        max_sessions: 4
+        device_limit: 32
+        eligibility_tags: ["retail"]
+    concurrency_policies:
+      - name: "retail-plan-session-limit"
+        enabled: false
+        scope: "plan"
+        plan: "fiber-100m"
+        max_sessions: 4
+        max_sessions_per_subscriber: 4
+        burst_sessions: 1
+        grace_seconds: 60
+        action: "reject"
+        coa_action: "disconnect-excess"
   address_leases:
     enabled: false # Enable after address policy, subscriber state, accounting, and CoA previews pass.
     mode: "monitor" # Use enforce after live BRAS/BNG lease and rollback drills.

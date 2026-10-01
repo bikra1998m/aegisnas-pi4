@@ -213,6 +213,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{86, schemaV86},
 		{87, schemaV87},
 		{88, schemaV88},
+		{89, schemaV89},
 	}
 
 	pending := make([]struct {
@@ -455,6 +456,9 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureBroadbandSubscriberStateTables(handle); err != nil {
 		return fmt.Errorf("repair broadband subscriber state schema: %w", err)
 	}
+	if err := ensureBroadbandCommercialCatalogTables(handle); err != nil {
+		return fmt.Errorf("repair broadband commercial catalog schema: %w", err)
+	}
 	if err := ensureBroadbandAddressLeaseTables(handle); err != nil {
 		return fmt.Errorf("repair broadband address lease schema: %w", err)
 	}
@@ -467,6 +471,14 @@ func ensureBroadbandAddressLeaseTables(handle *sql.DB) error {
 		return fmt.Errorf("database handle is required")
 	}
 	_, err := handle.Exec(SQLForDialect(broadbandAddressLeaseSQL, DialectForHandle(handle)))
+	return err
+}
+
+func ensureBroadbandCommercialCatalogTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(broadbandCommercialCatalogSQL, DialectForHandle(handle)))
 	return err
 }
 

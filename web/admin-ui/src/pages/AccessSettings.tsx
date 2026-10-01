@@ -3532,6 +3532,12 @@ export default function AccessSettings() {
   const [broadbandSubscriberStateAction, setBroadbandSubscriberStateAction] =
     useState("");
   const broadbandSubscriberStateBusy = broadbandSubscriberStateAction !== "";
+  const [broadbandCommercialCatalog, setBroadbandCommercialCatalog] =
+    useState<JsonMap | null>(null);
+  const [broadbandCommercialCatalogAction, setBroadbandCommercialCatalogAction] =
+    useState("");
+  const broadbandCommercialCatalogBusy =
+    broadbandCommercialCatalogAction !== "";
   const [broadbandAddressLeases, setBroadbandAddressLeases] =
     useState<JsonMap | null>(null);
   const [broadbandAddressLeaseAction, setBroadbandAddressLeaseAction] =
@@ -3658,6 +3664,11 @@ export default function AccessSettings() {
   const loadBroadbandSubscriberState = async () => {
     const { data } = await api.get("/system/broadband-subscriber-state");
     setBroadbandSubscriberState(data.report || null);
+  };
+
+  const loadBroadbandCommercialCatalog = async () => {
+    const { data } = await api.get("/system/broadband-commercial-catalog");
+    setBroadbandCommercialCatalog(data.report || null);
   };
 
   const loadBroadbandAddressLeases = async () => {
@@ -3903,6 +3914,7 @@ export default function AccessSettings() {
         cwaPortalRes,
         pppoeAccessRes,
         broadbandSubscriberStateRes,
+        broadbandCommercialCatalogRes,
         broadbandAddressLeasesRes,
       ] = await Promise.all([
         api.get("/system/settings"),
@@ -3917,6 +3929,7 @@ export default function AccessSettings() {
         api.get("/system/cwa-portal-lifecycle"),
         api.get("/system/pppoe-access-lifecycle"),
         api.get("/system/broadband-subscriber-state"),
+        api.get("/system/broadband-commercial-catalog"),
         api.get("/system/broadband-address-leases"),
       ]);
       await loadReferenceData();
@@ -3934,6 +3947,9 @@ export default function AccessSettings() {
       setPPPoEAccessLifecycle(pppoeAccessRes.data.report || null);
       setBroadbandSubscriberState(
         broadbandSubscriberStateRes.data.report || null,
+      );
+      setBroadbandCommercialCatalog(
+        broadbandCommercialCatalogRes.data.report || null,
       );
       setBroadbandAddressLeases(broadbandAddressLeasesRes.data.report || null);
       await loadLeaseReport();
@@ -4780,6 +4796,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewBroadbandCommercialCatalog = async () => {
+    setBroadbandCommercialCatalogAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-commercial-catalog/preview",
+        {},
+      );
+      setBroadbandCommercialCatalog(data.report || null);
+      setMessage(
+        `Commercial catalog preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview broadband commercial catalog.",
+      );
+    } finally {
+      setBroadbandCommercialCatalogAction("");
+    }
+  };
+
+  const applyBroadbandCommercialCatalog = async () => {
+    setBroadbandCommercialCatalogAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-commercial-catalog/apply",
+        {},
+      );
+      setBroadbandCommercialCatalog(data.report || null);
+      setMessage(
+        `Commercial catalog ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadBroadbandCommercialCatalog();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply broadband commercial catalog.",
+      );
+    } finally {
+      setBroadbandCommercialCatalogAction("");
+    }
+  };
+
   const previewBroadbandAddressLeases = async () => {
     setBroadbandAddressLeaseAction("preview");
     setError("");
@@ -5413,6 +5480,48 @@ export default function AccessSettings() {
     ? broadbandSubscriberState?.compliance
     : [];
   const broadbandSubscriberTone = statusTone(broadbandSubscriberState?.status);
+  const broadbandCommercialSummary = broadbandCommercialCatalog?.summary || {};
+  const broadbandCommercialAccounts = Array.isArray(
+    broadbandCommercialCatalog?.accounts,
+  )
+    ? broadbandCommercialCatalog?.accounts
+    : [];
+  const broadbandCommercialPlans = Array.isArray(
+    broadbandCommercialCatalog?.plans,
+  )
+    ? broadbandCommercialCatalog?.plans
+    : [];
+  const broadbandCommercialBundles = Array.isArray(
+    broadbandCommercialCatalog?.bundles,
+  )
+    ? broadbandCommercialCatalog?.bundles
+    : [];
+  const broadbandCommercialSubscriptions = Array.isArray(
+    broadbandCommercialCatalog?.subscriptions,
+  )
+    ? broadbandCommercialCatalog?.subscriptions
+    : [];
+  const broadbandCommercialConcurrency = Array.isArray(
+    broadbandCommercialCatalog?.concurrency_policies,
+  )
+    ? broadbandCommercialCatalog?.concurrency_policies
+    : [];
+  const broadbandCommercialAuthorization = Array.isArray(
+    broadbandCommercialCatalog?.authorization_bindings,
+  )
+    ? broadbandCommercialCatalog?.authorization_bindings
+    : [];
+  const broadbandCommercialAccounting = Array.isArray(
+    broadbandCommercialCatalog?.accounting_bindings,
+  )
+    ? broadbandCommercialCatalog?.accounting_bindings
+    : [];
+  const broadbandCommercialCompliance = Array.isArray(
+    broadbandCommercialCatalog?.compliance,
+  )
+    ? broadbandCommercialCatalog?.compliance
+    : [];
+  const broadbandCommercialTone = statusTone(broadbandCommercialCatalog?.status);
   const broadbandAddressLeaseSummary = broadbandAddressLeases?.summary || {};
   const broadbandAddressLeasePools = Array.isArray(
     broadbandAddressLeases?.pools,
@@ -5791,6 +5900,24 @@ export default function AccessSettings() {
             {broadbandSubscriberStateAction === "apply"
               ? "Applying Subscribers..."
               : "Apply Subscriber State"}
+          </button>
+          <button
+            onClick={previewBroadbandCommercialCatalog}
+            disabled={broadbandCommercialCatalogBusy}
+            className="rounded-md border border-cyan-300 px-4 py-2 text-sm font-medium text-cyan-900 disabled:opacity-60"
+          >
+            {broadbandCommercialCatalogAction === "preview"
+              ? "Checking Catalog..."
+              : "Preview Commercial Catalog"}
+          </button>
+          <button
+            onClick={applyBroadbandCommercialCatalog}
+            disabled={broadbandCommercialCatalogBusy}
+            className="rounded-md border border-teal-300 px-4 py-2 text-sm font-medium text-teal-900 disabled:opacity-60"
+          >
+            {broadbandCommercialCatalogAction === "apply"
+              ? "Applying Catalog..."
+              : "Apply Commercial Catalog"}
           </button>
           <button
             onClick={previewBroadbandAddressLeases}
@@ -6626,6 +6753,484 @@ export default function AccessSettings() {
         ) : (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
             Broadband address lease report has not loaded yet.
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Broadband Commercial Catalog
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {broadbandCommercialCatalog?.release_certification_checklist ||
+                "Validate commercial account hierarchy, plans, service bundles, subscriptions, concurrent sessions, accounting, CoA behavior, BSS/OSS sync, and HA before commercial enforcement."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${broadbandCommercialTone}`}
+          >
+            {broadbandCommercialCatalog?.status || "unknown"}
+          </div>
+        </div>
+        {broadbandCommercialCatalog ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {broadbandCommercialCatalog.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Accounts",
+                  `${broadbandCommercialSummary.active_account_count || 0}/${broadbandCommercialSummary.account_count || 0}`,
+                ],
+                [
+                  "Product Plans",
+                  `${broadbandCommercialSummary.enabled_plan_count || 0}/${broadbandCommercialSummary.plan_count || 0}`,
+                ],
+                [
+                  "Bundles",
+                  `${broadbandCommercialSummary.enabled_bundle_count || 0}/${broadbandCommercialSummary.bundle_count || 0}`,
+                ],
+                [
+                  "Subscriptions",
+                  `${broadbandCommercialSummary.active_subscription_count || 0}/${broadbandCommercialSummary.subscription_count || 0}`,
+                ],
+                [
+                  "Concurrency",
+                  `${broadbandCommercialSummary.enabled_concurrency_policy_count || 0}/${broadbandCommercialSummary.concurrency_policy_count || 0}`,
+                ],
+                [
+                  "Compliance",
+                  `${broadbandCommercialSummary.passed_check_count || 0}/${broadbandCommercialSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
+              Mode{" "}
+              <span className="font-mono">
+                {broadbandCommercialSummary.mode || "monitor"}
+              </span>{" "}
+              / billing{" "}
+              <span className="font-mono">
+                {broadbandCommercialSummary.default_billing_period || "monthly"}
+              </span>{" "}
+              / currency{" "}
+              <span className="font-mono">
+                {broadbandCommercialSummary.default_currency || "USD"}
+              </span>{" "}
+              / active sessions{" "}
+              <span className="font-mono">
+                {broadbandCommercialSummary.active_session_count || 0}
+              </span>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Commercial Accounts
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandCommercialAccounts.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No commercial account is configured.
+                    </div>
+                  ) : (
+                    broadbandCommercialAccounts
+                      .slice(0, 8)
+                      .map((account: JsonMap, index: number) => (
+                        <div
+                          key={`${account.account_id || "commercial-account"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {account.owner_name ||
+                                account.account_id ||
+                                "Commercial Account"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                account.status,
+                              )}`}
+                            >
+                              {account.status || "unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              account.account_id,
+                              account.parent_account_id
+                                ? `parent ${account.parent_account_id}`
+                                : "",
+                              account.billing_mode,
+                              account.tenant,
+                              account.max_sessions
+                                ? `${account.max_sessions} sessions`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Account metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Product Plans
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandCommercialPlans.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No commercial product plan is configured.
+                    </div>
+                  ) : (
+                    broadbandCommercialPlans
+                      .slice(0, 8)
+                      .map((plan: JsonMap, index: number) => (
+                        <div
+                          key={`${plan.name || "commercial-plan"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {plan.display_name ||
+                                plan.name ||
+                                "Product Plan"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                plan.status,
+                              )}`}
+                            >
+                              {plan.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              plan.name,
+                              plan.product,
+                              plan.billing_period,
+                              formatMicros(
+                                Number(plan.price_micros) || 0,
+                                plan.currency || "USD",
+                              ),
+                              plan.max_sessions
+                                ? `${plan.max_sessions} sessions`
+                                : "",
+                              plan.downstream_kbps
+                                ? `${plan.downstream_kbps} down`
+                                : "",
+                              plan.upstream_kbps
+                                ? `${plan.upstream_kbps} up`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Plan metadata only"}
+                          </div>
+                          <div className="mt-2 break-all text-xs text-gray-500">
+                            {Array.isArray(plan.vendor_packs)
+                              ? plan.vendor_packs.join(", ")
+                              : ""}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Service Bundles
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandCommercialBundles.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No service bundle is configured.
+                    </div>
+                  ) : (
+                    broadbandCommercialBundles
+                      .slice(0, 6)
+                      .map((bundle: JsonMap, index: number) => (
+                        <div
+                          key={`${bundle.name || "service-bundle"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {bundle.display_name ||
+                                bundle.name ||
+                                "Service Bundle"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                bundle.status,
+                              )}`}
+                            >
+                              {bundle.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              Array.isArray(bundle.plans)
+                                ? bundle.plans.join(", ")
+                                : "",
+                              bundle.priority ? `priority ${bundle.priority}` : "",
+                              bundle.max_concurrent_subscriptions
+                                ? `${bundle.max_concurrent_subscriptions} max`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Bundle metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Subscriptions
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandCommercialSubscriptions.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No commercial subscription is configured.
+                    </div>
+                  ) : (
+                    broadbandCommercialSubscriptions
+                      .slice(0, 8)
+                      .map((subscription: JsonMap, index: number) => (
+                        <div
+                          key={`${subscription.subscription_id || "subscription"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {subscription.subscription_id ||
+                                "Subscription"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                subscription.status,
+                              )}`}
+                            >
+                              {subscription.status || "unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              subscription.account_id,
+                              subscription.plan,
+                              subscription.bundle,
+                              subscription.username,
+                              subscription.subscriber_id,
+                              subscription.active_session_count
+                                ? `${subscription.active_session_count} active`
+                                : "",
+                              subscription.max_sessions
+                                ? `${subscription.max_sessions} max`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Subscription metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Concurrency Policies
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandCommercialConcurrency.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No concurrency policy is configured.
+                    </div>
+                  ) : (
+                    broadbandCommercialConcurrency
+                      .slice(0, 8)
+                      .map((policy: JsonMap, index: number) => (
+                        <div
+                          key={`${policy.policy_key || policy.name || "concurrency"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {policy.name || "Concurrency Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                policy.status,
+                              )}`}
+                            >
+                              {policy.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              policy.scope,
+                              policy.target,
+                              policy.max_sessions
+                                ? `${policy.max_sessions} sessions`
+                                : "",
+                              policy.burst_sessions
+                                ? `${policy.burst_sessions} burst`
+                                : "",
+                              policy.action,
+                              policy.coa_action,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Concurrency metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Authorization Bindings
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandCommercialAuthorization
+                    .slice(0, 8)
+                    .map((binding: JsonMap, index: number) => (
+                      <div
+                        key={`${binding.stage || "auth-binding"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {binding.stage || "Authorization Stage"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {binding.purpose || "Commercial authorization signal"}
+                        </div>
+                        <div className="mt-2 break-all text-xs text-gray-500">
+                          {Array.isArray(binding.attributes)
+                            ? binding.attributes.join(", ")
+                            : ""}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Accounting Bindings
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandCommercialAccounting
+                    .slice(0, 8)
+                    .map((binding: JsonMap, index: number) => (
+                      <div
+                        key={`${binding.stage || "acct-binding"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {binding.stage || "Accounting Stage"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {Array.isArray(binding.attributes)
+                            ? binding.attributes.join(", ")
+                            : binding.attribute || "Accounting evidence"}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Compliance Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandCommercialCompliance.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No commercial catalog compliance check is present.
+                    </div>
+                  ) : (
+                    broadbandCommercialCompliance
+                      .slice(0, 8)
+                      .map((check: JsonMap, index: number) => (
+                        <div
+                          key={`${check.id || check.name || "commercial-check"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {check.name || check.id || "Compliance Check"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                check.status,
+                              )}`}
+                            >
+                              {check.status || "unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {check.message || "No compliance message"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            {((broadbandCommercialCatalog.blockers?.length || 0) > 0 ||
+              (broadbandCommercialCatalog.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(broadbandCommercialCatalog.blockers || []),
+                  ...(broadbandCommercialCatalog.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Family accounts{" "}
+              <span className="font-mono">
+                {broadbandCommercialSummary.allow_family_accounts
+                  ? "enabled"
+                  : "disabled"}
+              </span>{" "}
+              / concurrency{" "}
+              <span className="font-mono">
+                {broadbandCommercialSummary.enforce_concurrency
+                  ? "enforced"
+                  : "monitored"}
+              </span>{" "}
+              / over limit{" "}
+              <span className="font-mono">
+                {broadbandCommercialSummary.over_limit_count || 0}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {broadbandCommercialCatalog.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Broadband commercial catalog report has not loaded yet.
           </div>
         )}
       </section>

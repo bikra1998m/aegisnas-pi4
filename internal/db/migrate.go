@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 88
+	return 89
 }
 
 func Migrate() error {
@@ -4494,3 +4494,176 @@ CREATE INDEX IF NOT EXISTS idx_broadband_address_lease_events_mode ON broadband_
 `
 
 const schemaV88 = broadbandAddressLeaseSQL
+
+const broadbandCommercialCatalogSQL = `
+CREATE TABLE IF NOT EXISTS broadband_commercial_accounts (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	account_id TEXT UNIQUE NOT NULL,
+	parent_account_id TEXT,
+	tenant TEXT,
+	status TEXT NOT NULL DEFAULT 'active',
+	billing_mode TEXT,
+	owner_name TEXT,
+	contact TEXT,
+	max_subscriptions INTEGER NOT NULL DEFAULT 0,
+	max_sessions INTEGER NOT NULL DEFAULT 0,
+	tags_json TEXT NOT NULL DEFAULT '[]',
+	metadata_json TEXT NOT NULL DEFAULT '{}',
+	source_event_id TEXT,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('active', 'suspended', 'closed', 'pending'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_commercial_plans (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	plan_name TEXT UNIQUE NOT NULL,
+	product TEXT,
+	status TEXT NOT NULL DEFAULT 'active',
+	display_name TEXT,
+	billing_period TEXT,
+	price_micros INTEGER NOT NULL DEFAULT 0,
+	currency TEXT,
+	max_sessions INTEGER NOT NULL DEFAULT 0,
+	max_devices INTEGER NOT NULL DEFAULT 0,
+	downstream_kbps INTEGER NOT NULL DEFAULT 0,
+	upstream_kbps INTEGER NOT NULL DEFAULT 0,
+	quota_profile TEXT,
+	service_chain TEXT,
+	address_pool TEXT,
+	ipv6_pool TEXT,
+	delegated_ipv6_pool TEXT,
+	route_policy TEXT,
+	qos_profile TEXT,
+	translation_pool TEXT,
+	portal_profile TEXT,
+	grace_seconds INTEGER NOT NULL DEFAULT 0,
+	suspension_role TEXT,
+	session_timeout_seconds INTEGER NOT NULL DEFAULT 0,
+	idle_timeout_seconds INTEGER NOT NULL DEFAULT 0,
+	vendor_packs_json TEXT NOT NULL DEFAULT '[]',
+	metadata_json TEXT NOT NULL DEFAULT '{}',
+	source_event_id TEXT,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('active', 'disabled'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_commercial_bundles (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	bundle_name TEXT UNIQUE NOT NULL,
+	status TEXT NOT NULL DEFAULT 'active',
+	display_name TEXT,
+	plans_json TEXT NOT NULL DEFAULT '[]',
+	required_plans_json TEXT NOT NULL DEFAULT '[]',
+	mutually_exclusive_plans_json TEXT NOT NULL DEFAULT '[]',
+	max_concurrent_subscriptions INTEGER NOT NULL DEFAULT 0,
+	shared_concurrency INTEGER NOT NULL DEFAULT 0,
+	priority INTEGER NOT NULL DEFAULT 0,
+	eligibility_tags_json TEXT NOT NULL DEFAULT '[]',
+	metadata_json TEXT NOT NULL DEFAULT '{}',
+	source_event_id TEXT,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('active', 'disabled'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_commercial_subscriptions (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	subscription_id TEXT UNIQUE NOT NULL,
+	account_id TEXT NOT NULL,
+	subscriber_id TEXT,
+	username TEXT,
+	plan_name TEXT NOT NULL,
+	bundle_name TEXT,
+	status TEXT NOT NULL DEFAULT 'active',
+	starts_at DATETIME,
+	ends_at DATETIME,
+	auto_renew INTEGER NOT NULL DEFAULT 0,
+	max_sessions INTEGER NOT NULL DEFAULT 0,
+	device_limit INTEGER NOT NULL DEFAULT 0,
+	eligibility_tags_json TEXT NOT NULL DEFAULT '[]',
+	active_session_count INTEGER NOT NULL DEFAULT 0,
+	metadata_json TEXT NOT NULL DEFAULT '{}',
+	source_event_id TEXT,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('active', 'pending', 'suspended', 'expired', 'cancelled'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_commercial_concurrency_policies (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	policy_key TEXT UNIQUE NOT NULL,
+	name TEXT NOT NULL,
+	scope TEXT NOT NULL,
+	target TEXT,
+	account_id TEXT,
+	tenant TEXT,
+	plan_name TEXT,
+	bundle_name TEXT,
+	max_sessions INTEGER NOT NULL DEFAULT 0,
+	max_sessions_per_subscriber INTEGER NOT NULL DEFAULT 0,
+	burst_sessions INTEGER NOT NULL DEFAULT 0,
+	grace_seconds INTEGER NOT NULL DEFAULT 0,
+	action TEXT NOT NULL DEFAULT 'reject',
+	coa_action TEXT,
+	status TEXT NOT NULL DEFAULT 'active',
+	metadata_json TEXT NOT NULL DEFAULT '{}',
+	source_event_id TEXT,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (scope IN ('subscriber', 'subscription', 'account', 'bundle', 'plan', 'tenant')),
+	CHECK (action IN ('reject', 'suspend', 'quarantine', 'degrade', 'monitor')),
+	CHECK (status IN ('active', 'disabled'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_commercial_catalog_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	mode TEXT,
+	account_count INTEGER NOT NULL DEFAULT 0,
+	plan_count INTEGER NOT NULL DEFAULT 0,
+	bundle_count INTEGER NOT NULL DEFAULT 0,
+	subscription_count INTEGER NOT NULL DEFAULT 0,
+	concurrency_policy_count INTEGER NOT NULL DEFAULT 0,
+	active_subscription_count INTEGER NOT NULL DEFAULT 0,
+	active_session_count INTEGER NOT NULL DEFAULT 0,
+	over_limit_count INTEGER NOT NULL DEFAULT 0,
+	compliance_check_count INTEGER NOT NULL DEFAULT 0,
+	passed_check_count INTEGER NOT NULL DEFAULT 0,
+	warning_count INTEGER NOT NULL DEFAULT 0,
+	blocker_count INTEGER NOT NULL DEFAULT 0,
+	external_requirement_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status', 'reconcile')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed', 'reconciled'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_accounts_parent ON broadband_commercial_accounts(parent_account_id);
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_accounts_status ON broadband_commercial_accounts(status, tenant);
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_plans_product ON broadband_commercial_plans(product, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_plans_period ON broadband_commercial_plans(billing_period, currency);
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_bundles_status ON broadband_commercial_bundles(status, priority);
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_subscriptions_account ON broadband_commercial_subscriptions(account_id, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_subscriptions_identity ON broadband_commercial_subscriptions(subscriber_id, username, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_subscriptions_plan ON broadband_commercial_subscriptions(plan_name, bundle_name, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_concurrency_scope ON broadband_commercial_concurrency_policies(scope, target, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_concurrency_plan ON broadband_commercial_concurrency_policies(plan_name, bundle_name, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_catalog_events_created ON broadband_commercial_catalog_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_catalog_events_status ON broadband_commercial_catalog_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_catalog_events_fingerprint ON broadband_commercial_catalog_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_commercial_catalog_events_mode ON broadband_commercial_catalog_events(mode, created_at);
+`
+
+const schemaV89 = broadbandCommercialCatalogSQL
