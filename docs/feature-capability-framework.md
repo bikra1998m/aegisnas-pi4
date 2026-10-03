@@ -736,6 +736,21 @@ Phase 5 validation rules:
 - enterprise-only posture, MDM, HA, and multi-tenant controls are gated on branch hardware
 - heavyweight branch and enterprise workflows are gated on lite hardware
 
+### Phase 9 Broadband QoS Service Flows
+
+NAS-0087 extends the broadband capability model with BNG hierarchical QoS and
+service-flow governance. The software layer now represents normalized QoS
+profiles, parent-child service-flow hierarchy, product/subscriber/service-leg
+bindings, aggregate controls, scheduler and DSCP intent, vendor rate-attribute
+compilation, accounting correlation, CoA behavior, durable evidence, API/UI
+operation, support-bundle capture, and production-readiness checks.
+
+The capability framework treats live BNG scheduler activation, vendor hardware
+packet captures, HA failover, scale, soak, security audit, production
+deployment, and customer acceptance as release certification evidence rather
+than open engineering work. This keeps roadmap progress tied to complete
+software behavior while preserving honest external validation boundaries.
+
 ## Product Positioning Outcome
 
 If this framework is implemented cleanly, AegisNAS can become:

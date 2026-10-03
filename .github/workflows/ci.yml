@@ -31,6 +31,8 @@ jobs:
       - run: make test-vendor-certification
       - run: make test-broadband-commercial-catalog
       - run: make test-broadband-quota-balance
+      - run: make test-broadband-address-leases
+      - run: make test-broadband-qos-service-flows
 
   frontend:
     runs-on: ubuntu-latest

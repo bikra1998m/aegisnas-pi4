@@ -444,4 +444,36 @@ test.describe('Access Settings edge-network flow', () => {
       page.getByText(/Address lease lifecycle applied/),
     ).toBeVisible();
   });
+
+  test('previews and applies BNG QoS service flows', async ({ page }) => {
+    test.setTimeout(60000);
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto('/access-settings');
+    const qosHeading = page.getByRole('heading', {
+      name: 'BNG QoS Service Flows',
+    });
+    await expect(qosHeading).toBeVisible({ timeout: 30000 });
+    const qosSection = qosHeading.locator('xpath=ancestor::section[1]');
+    await expect(qosSection).toBeVisible();
+    await expect(
+      qosSection.getByRole('heading', { name: 'QoS Profiles' }),
+    ).toBeVisible();
+    await expect(
+      qosSection.getByRole('heading', { name: 'Service Flows', exact: true }),
+    ).toBeVisible();
+    await expect(
+      qosSection.getByRole('heading', { name: 'Aggregate Policies' }),
+    ).toBeVisible();
+    await expect(qosSection.getByText('silver', { exact: true }).first()).toBeVisible();
+    await expect(qosSection.getByText('fiber-internet', { exact: true })).toBeVisible();
+    await expect(qosSection.getByText('Mikrotik-Rate-Limit').first()).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview BNG QoS' }).click();
+    await expect(page.getByText(/BNG QoS preview recorded/)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Apply BNG QoS' }).click();
+    await expect(page.getByText(/BNG QoS service flows applied/)).toBeVisible();
+  });
 });

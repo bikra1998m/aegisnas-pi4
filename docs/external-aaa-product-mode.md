@@ -1509,6 +1509,24 @@ For EAP-SIM, EAP-AKA, and EAP-AKA-prime:
    validated
 8. export a support bundle and retain `api/eap-framework-sim-aka.json`
 
+For BNG hierarchical QoS and service flows:
+
+1. keep `broadband.qos_service_flows.mode: monitor` until subscriber state,
+   commercial catalog, accounting services, dynamic authorization, runtime QoS,
+   and vendor rate compiler previews pass
+2. model each product or subscriber service leg as a `service_flows` entry with
+   an explicit QoS profile, aggregate policy, accounting key, and vendor packs
+3. use `POST /api/v1/system/broadband-qos-service-flows/preview` to inspect
+   compiled attributes such as `Mikrotik-Rate-Limit`,
+   `Huawei-Output-Average-Rate`, and WISPr bandwidth attributes
+4. run apply only after operator review of hierarchy, scheduler, DSCP, aggregate
+   limits, CoA action, and plan fingerprint
+5. export a support bundle and retain `api/broadband-qos-service-flows.json`
+   and `api/broadband-qos-service-flows-history.json`
+6. keep live BNG queue activation, packet captures, HA failover, performance,
+   soak, security audit, and customer acceptance in
+   `nas-0087-release-certification-checklist.md`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

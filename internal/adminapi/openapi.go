@@ -1357,6 +1357,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0086 broadband address lease event history and lease ownership rows."),
 	}))
+	addOperation(paths, "/api/v1/system/broadband-qos-service-flows", "get", securedOperation("Read BNG hierarchical QoS and service flows", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0087 QoS profiles, service flows, aggregate policies, compiled vendor attributes, compliance checks, and evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-qos-service-flows/preview", "post", securedOperationWithBody("Preview BNG hierarchical QoS and service flows", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating active service-flow rows."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0087 BNG QoS service-flow report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-qos-service-flows/apply", "post", securedOperationWithBody("Apply BNG hierarchical QoS and service flows", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records compiled QoS service-flow evidence and runtime status. Live BNG queue activation remains release certification until enabled per adapter."), map[string]any{
+		"200":     responseJSON("Applied NAS-0087 BNG QoS service-flow checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-qos-service-flows/history", "get", securedOperationWithParameters("List BNG QoS service-flow history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0087 BNG QoS service-flow event history and effective flow rows."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))

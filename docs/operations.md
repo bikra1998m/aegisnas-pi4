@@ -1117,6 +1117,39 @@ FreeRADIUS production Linux, BRAS/BNG interoperability, packet captures, HA
 failover, performance, soak, security audit, production deployment, and customer
 acceptance evidence stay in `nas-0086-release-certification-checklist.md`.
 
+For BNG hierarchical QoS and service-flow governance, preview NAS-0087 before
+enabling enforce mode or changing subscriber/product rate plans, parent-child
+service flows, scheduler, DSCP, aggregate controls, or CoA behavior:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-qos-service-flows/preview \
+  | jq '.report.status, .report.summary, .report.profiles, .report.service_flows, .report.aggregate_policies'
+```
+
+Apply only after reviewing profile hierarchy, service-flow ownership, compiled
+vendor attributes, aggregate limits, accounting Start/Interim/Stop bindings,
+CoA change handling, compliance checks, and the plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-qos-service-flows/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/broadband-qos-service-flows/history` and the support bundle
+files `api/broadband-qos-service-flows.json` and
+`api/broadband-qos-service-flows-history.json` during rate-plan, scheduler,
+aggregate, quota-trigger, accounting, CoA, and HA investigations. Live BNG
+queue activation, vendor hardware packet captures, FreeRADIUS production Linux,
+HA failover, performance, soak, security audit, production deployment, and
+customer acceptance evidence stay in
+`nas-0087-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

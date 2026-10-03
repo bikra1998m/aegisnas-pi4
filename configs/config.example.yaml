@@ -1284,6 +1284,94 @@ broadband:
         assignment_type: "address"
         address: "100.64.0.20"
         reason: "Lab CPE smoke-test reservation."
+  qos_service_flows:
+    enabled: false # Enable after subscriber state, commercial catalog, accounting services, CoA, and rate compiler previews pass.
+    mode: "monitor" # Use enforce after live BRAS/BNG queue and service-flow packet validation.
+    fail_closed: true
+    require_subscriber_state: true
+    require_commercial_catalog: true
+    require_runtime_qos: true
+    require_rate_compiler: true
+    accounting_correlation_required: true
+    coa_on_change: true
+    aggregate_control_enabled: true
+    scheduler: "htb"
+    default_traffic_class: "data"
+    event_retention_limit: 10000
+    profiles:
+      - name: "silver"
+        enabled: false
+        traffic_class: "data"
+        scheduler: "htb"
+        priority: 3
+        dscp_mark: 0
+        download_min_rate_kbps: 25000
+        download_rate_kbps: 100000
+        download_peak_rate_kbps: 120000
+        upload_min_rate_kbps: 10000
+        upload_rate_kbps: 30000
+        upload_peak_rate_kbps: 40000
+        download_burst_kbps: 120000
+        upload_burst_kbps: 40000
+        burst_time_seconds: 10
+        aggregate_limit_kbps: 800000
+        max_subscribers: 500
+        vendor_packs: ["standard", "aegisnas", "mikrotik", "huawei", "wispr"]
+        external_policy_name: "retail-silver"
+      - name: "silver-video"
+        enabled: false
+        parent_profile: "silver"
+        traffic_class: "video"
+        scheduler: "wfq"
+        priority: 4
+        dscp_mark: 34
+        download_rate_kbps: 25000
+        download_peak_rate_kbps: 30000
+        upload_rate_kbps: 10000
+        upload_peak_rate_kbps: 12000
+        vendor_packs: ["standard", "aegisnas", "mikrotik", "huawei"]
+    aggregate_policies:
+      - name: "retail-aggregate"
+        enabled: false
+        scope: "tenant"
+        tenant: "retail"
+        product: "residential-fiber"
+        profile: "silver"
+        max_subscribers: 2000
+        download_limit_kbps: 2000000
+        upload_limit_kbps: 800000
+        oversubscription_ratio: 20
+        scheduler: "htb"
+        drop_precedence: "low"
+        vendor_packs: ["standard", "aegisnas", "mikrotik", "huawei"]
+    service_flows:
+      - name: "fiber-internet"
+        enabled: false
+        product: "residential-fiber"
+        service_leg: "internet"
+        subscriber_id: "sub-lab-cpe-01"
+        username: "lab-cpe-01@example.net"
+        role: "residential"
+        tenant: "retail"
+        direction: "bidirectional"
+        profile: "silver"
+        aggregate: "retail-aggregate"
+        accounting_key: "acct:lab-cpe-01:internet"
+        precedence: 100
+        coa_action: "reauth"
+        vendor_packs: ["standard", "aegisnas", "mikrotik", "huawei", "wispr"]
+      - name: "fiber-video"
+        enabled: false
+        product: "residential-fiber"
+        service_leg: "video"
+        username: "lab-cpe-01@example.net"
+        direction: "download"
+        profile: "silver-video"
+        aggregate: "retail-aggregate"
+        accounting_key: "acct:lab-cpe-01:video"
+        precedence: 200
+        coa_action: "rate-limit"
+        vendor_packs: ["standard", "aegisnas", "mikrotik", "huawei"]
 
 portal:
   enabled: true

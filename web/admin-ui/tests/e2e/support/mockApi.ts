@@ -3651,6 +3651,269 @@ function createBroadbandAddressLeases(status = "ready") {
   };
 }
 
+function createBroadbandQoSServiceFlows(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0087",
+      status,
+      message:
+        "NAS-0087 BNG QoS service-flow lifecycle is ready with 2 profiles, 2 service flows, 1 aggregate policy, and compiled vendor attributes.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0087-release-certification-checklist.md",
+      release_scope:
+        "Live BNG scheduler activation, vendor hardware service-flow packet proof, aggregate scale, HA failover, long-duration QoS soak, performance benchmarking, security audit, production deployment, and customer acceptance are release certification activities.",
+      plan_fingerprint:
+        "sha256:87d2470403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81ed0087",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        require_subscriber_state: true,
+        require_commercial_catalog: true,
+        require_runtime_qos: true,
+        require_rate_compiler: true,
+        accounting_correlation_required: true,
+        coa_on_change: true,
+        aggregate_control_enabled: true,
+        scheduler: "htb",
+        default_traffic_class: "data",
+        event_retention_limit: 10000,
+        subscriber_state_enabled: true,
+        commercial_catalog_enabled: true,
+        sql_accounting_enabled: true,
+        accounting_services_enabled: true,
+        dynamic_auth_enabled: true,
+        profile_count: 2,
+        enabled_profile_count: 2,
+        service_flow_count: 2,
+        enabled_service_flow_count: 2,
+        aggregate_policy_count: 1,
+        enabled_aggregate_policy_count: 1,
+        compiled_attribute_count: 5,
+        compiler_diagnostic_count: 0,
+        accounting_binding_count: 3,
+        authorization_binding_count: 2,
+        compliance_check_count: 8,
+        passed_check_count: 8,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 1,
+      },
+      profiles: [
+        {
+          name: "silver",
+          enabled: true,
+          traffic_class: "data",
+          scheduler: "htb",
+          priority: 3,
+          dscp_mark: 0,
+          download_min_rate_kbps: 25000,
+          download_rate_kbps: 100000,
+          download_peak_rate_kbps: 120000,
+          upload_min_rate_kbps: 10000,
+          upload_rate_kbps: 30000,
+          upload_peak_rate_kbps: 40000,
+          aggregate_limit_kbps: 800000,
+          vendor_packs: ["mikrotik", "huawei", "wispr"],
+          status: "ready",
+          reason: "QoS profile compiles to normalized rate intent.",
+        },
+        {
+          name: "silver-child",
+          enabled: true,
+          parent_profile: "silver",
+          traffic_class: "video",
+          scheduler: "wfq",
+          priority: 4,
+          dscp_mark: 34,
+          download_rate_kbps: 25000,
+          upload_rate_kbps: 10000,
+          vendor_packs: ["mikrotik", "huawei"],
+          status: "ready",
+          reason: "Child service flow inherits aggregate scheduler policy.",
+        },
+      ],
+      service_flows: [
+        {
+          flow_key: "bng-qos-flow-lab-primary",
+          name: "fiber-internet",
+          enabled: true,
+          product: "residential-fiber",
+          service_leg: "internet",
+          subscriber_id: "sub-1001",
+          username: "alice",
+          role: "residential",
+          tenant: "retail",
+          direction: "bidirectional",
+          profile: "silver",
+          aggregate_policy: "retail-aggregate",
+          traffic_class: "data",
+          scheduler: "htb",
+          priority: 3,
+          dscp_mark: 0,
+          download_rate_kbps: 100000,
+          upload_rate_kbps: 30000,
+          vendor_packs: ["mikrotik", "huawei", "wispr"],
+          compiled_attributes: [
+            {
+              vendor: "MikroTik",
+              name: "Mikrotik-Rate-Limit",
+              value: "30000k/100000k",
+            },
+            {
+              vendor: "Huawei",
+              name: "Huawei-Output-Average-Rate",
+              value: "100000",
+            },
+            {
+              vendor: "WISPr",
+              name: "WISPr-Bandwidth-Max-Down",
+              value: "100000000",
+            },
+          ],
+          accounting_key: "acct:alice:internet",
+          precedence: 100,
+          coa_action: "reauth",
+          status: "ready",
+          reason: "Service flow compiled to vendor RADIUS QoS attributes.",
+        },
+        {
+          flow_key: "bng-qos-flow-lab-video",
+          name: "fiber-video",
+          enabled: true,
+          product: "residential-fiber",
+          service_leg: "video",
+          username: "alice",
+          direction: "download",
+          profile: "silver-child",
+          parent_profile: "silver",
+          aggregate_policy: "retail-aggregate",
+          traffic_class: "video",
+          scheduler: "wfq",
+          priority: 4,
+          dscp_mark: 34,
+          download_rate_kbps: 25000,
+          upload_rate_kbps: 10000,
+          compiled_attributes: [
+            {
+              vendor: "MikroTik",
+              name: "Mikrotik-Rate-Limit",
+              value: "10000k/25000k",
+            },
+            {
+              vendor: "Huawei",
+              name: "Huawei-Input-Average-Rate",
+              value: "10000",
+            },
+          ],
+          precedence: 200,
+          status: "ready",
+          reason: "Service flow compiled to child QoS policy.",
+        },
+      ],
+      aggregate_policies: [
+        {
+          name: "retail-aggregate",
+          enabled: true,
+          scope: "tenant",
+          tenant: "retail",
+          product: "residential-fiber",
+          profile: "silver",
+          max_subscribers: 2000,
+          download_limit_kbps: 2000000,
+          upload_limit_kbps: 800000,
+          oversubscription_ratio: 20,
+          scheduler: "htb",
+          drop_precedence: "low",
+          vendor_packs: ["mikrotik", "huawei"],
+          status: "ready",
+          reason: "Aggregate policy constrains subscriber groups.",
+        },
+      ],
+      authorization_bindings: [
+        {
+          stage: "access-accept",
+          attributes: [
+            "Filter-Id",
+            "Class",
+            "Mikrotik-Rate-Limit",
+            "Huawei-Output-Average-Rate",
+            "WISPr-Bandwidth-Max-Down",
+          ],
+          purpose: "Attach compiled service-flow rate and class attributes.",
+          required: true,
+        },
+        {
+          stage: "coa",
+          attributes: ["CoA-Request", "Mikrotik-Rate-Limit"],
+          purpose: "Update active service flows after quota or product changes.",
+          required: false,
+        },
+      ],
+      accounting_bindings: [
+        {
+          stage: "start",
+          attributes: ["Acct-Status-Type=Start", "Acct-Session-Id", "Class"],
+          purpose: "Open service-flow ownership.",
+          required: true,
+        },
+        {
+          stage: "interim",
+          attributes: [
+            "Acct-Status-Type=Interim-Update",
+            "Acct-Input-Octets",
+            "Acct-Output-Octets",
+          ],
+          purpose: "Refresh usage and aggregate evidence.",
+          required: true,
+        },
+      ],
+      compliance: [
+        {
+          id: "compiler",
+          name: "Vendor rate compiler",
+          status: "passed",
+          message: "Vendor rate attributes compile from normalized intent.",
+        },
+        {
+          id: "external-certification",
+          name: "External BNG certification boundary",
+          status: "passed",
+          message:
+            "Live BNG hardware, packet capture, scale, soak, security, and customer proof are release certification activities.",
+        },
+      ],
+      standards: ["RFC 2865", "RFC 2866", "RFC 5176"],
+      vendors: ["Huawei BRAS/BNG", "MikroTik", "Nokia/Alcatel-Lucent SR OS"],
+      requirements: [
+        "model subscriber, product, and service-leg QoS as explicit service flows",
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        active_flows: 0,
+        planned_flows: 2,
+      },
+      recent_events: [],
+      flows: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -7719,6 +7982,52 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
+    if (path === "/system/accounting-ordering" && method === "GET") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          report: {
+            schema_version: 1,
+            enabled: true,
+            status: "ready",
+            message:
+              "Accounting ordering is applying packets exactly once and reconciling reordered events.",
+            summary: {
+              total_events: 4,
+              applied_events: 4,
+              pending_events: 0,
+              stale_pending_events: 0,
+              duplicate_events: 1,
+              reordered_events: 1,
+              late_stop_events: 1,
+              error_events: 0,
+              replayable_events: 0,
+            },
+            events: [],
+            warnings: [],
+          },
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/accounting-ordering/replay" && method === "POST") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          status: "ready",
+          message: "Accounting ordering replay completed.",
+          result: {
+            claimed: 0,
+            applied: 0,
+            skipped: 0,
+            error_count: 0,
+          },
+        },
+      });
+      return;
+    }
+
 	if (path === "/system/production-readiness" && method === "GET") {
 		await route.fulfill({ json: state.productionReadiness });
 		return;
@@ -8988,6 +9297,67 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             failed_count: 0,
           },
           events: [],
+        },
+      });
+      return;
+    }
+    if (path === "/system/broadband-qos-service-flows" && method === "GET") {
+      await route.fulfill({ json: createBroadbandQoSServiceFlows() });
+      return;
+    }
+    if (
+      path === "/system/broadband-qos-service-flows/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createBroadbandQoSServiceFlows(),
+          event_id: "bng-qos-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-qos-service-flows/apply" &&
+      method === "POST"
+    ) {
+      const payload = createBroadbandQoSServiceFlows();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0087 recorded BNG QoS service-flow lifecycle with 2 profiles, 2 service flows, 1 aggregate policy, and compiled vendor attributes.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "bng-qos-event-apply",
+          result: {
+            status: "applied",
+            event_id: "bng-qos-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-qos-service-flows/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0087",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+            planned_flows: 2,
+            active_flows: 0,
+          },
+          events: [],
+          flows: createBroadbandQoSServiceFlows().report.service_flows,
         },
       });
       return;

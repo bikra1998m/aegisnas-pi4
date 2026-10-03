@@ -3548,6 +3548,11 @@ export default function AccessSettings() {
   const [broadbandAddressLeaseAction, setBroadbandAddressLeaseAction] =
     useState("");
   const broadbandAddressLeaseBusy = broadbandAddressLeaseAction !== "";
+  const [broadbandQoSServiceFlows, setBroadbandQoSServiceFlows] =
+    useState<JsonMap | null>(null);
+  const [broadbandQoSServiceFlowAction, setBroadbandQoSServiceFlowAction] =
+    useState("");
+  const broadbandQoSServiceFlowBusy = broadbandQoSServiceFlowAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3684,6 +3689,11 @@ export default function AccessSettings() {
   const loadBroadbandAddressLeases = async () => {
     const { data } = await api.get("/system/broadband-address-leases");
     setBroadbandAddressLeases(data.report || null);
+  };
+
+  const loadBroadbandQoSServiceFlows = async () => {
+    const { data } = await api.get("/system/broadband-qos-service-flows");
+    setBroadbandQoSServiceFlows(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3927,6 +3937,7 @@ export default function AccessSettings() {
         broadbandCommercialCatalogRes,
         broadbandQuotaBalanceRes,
         broadbandAddressLeasesRes,
+        broadbandQoSServiceFlowsRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -3943,6 +3954,7 @@ export default function AccessSettings() {
         api.get("/system/broadband-commercial-catalog"),
         api.get("/system/broadband-quota-balance"),
         api.get("/system/broadband-address-leases"),
+        api.get("/system/broadband-qos-service-flows"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -3965,6 +3977,9 @@ export default function AccessSettings() {
       );
       setBroadbandQuotaBalance(broadbandQuotaBalanceRes.data.report || null);
       setBroadbandAddressLeases(broadbandAddressLeasesRes.data.report || null);
+      setBroadbandQoSServiceFlows(
+        broadbandQoSServiceFlowsRes.data.report || null,
+      );
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4060,6 +4075,10 @@ export default function AccessSettings() {
       await loadRFPlanningLifecycle();
       await loadWirelessSecurityLifecycle();
       await loadBroadbandSubscriberState();
+      await loadBroadbandCommercialCatalog();
+      await loadBroadbandQuotaBalance();
+      await loadBroadbandAddressLeases();
+      await loadBroadbandQoSServiceFlows();
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4962,6 +4981,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewBroadbandQoSServiceFlows = async () => {
+    setBroadbandQoSServiceFlowAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-qos-service-flows/preview",
+        {},
+      );
+      setBroadbandQoSServiceFlows(data.report || null);
+      setMessage(
+        `BNG QoS preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview BNG QoS service flows.",
+      );
+    } finally {
+      setBroadbandQoSServiceFlowAction("");
+    }
+  };
+
+  const applyBroadbandQoSServiceFlows = async () => {
+    setBroadbandQoSServiceFlowAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-qos-service-flows/apply",
+        {},
+      );
+      setBroadbandQoSServiceFlows(data.report || null);
+      setMessage(
+        `BNG QoS service flows ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadBroadbandQoSServiceFlows();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply BNG QoS service flows.",
+      );
+    } finally {
+      setBroadbandQoSServiceFlowAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -5651,6 +5721,37 @@ export default function AccessSettings() {
     ? broadbandAddressLeases?.compliance
     : [];
   const broadbandAddressLeaseTone = statusTone(broadbandAddressLeases?.status);
+  const broadbandQoSServiceFlowSummary =
+    broadbandQoSServiceFlows?.summary || {};
+  const broadbandQoSProfiles = Array.isArray(broadbandQoSServiceFlows?.profiles)
+    ? broadbandQoSServiceFlows?.profiles
+    : [];
+  const broadbandQoSFlows = Array.isArray(
+    broadbandQoSServiceFlows?.service_flows,
+  )
+    ? broadbandQoSServiceFlows?.service_flows
+    : [];
+  const broadbandQoSAggregates = Array.isArray(
+    broadbandQoSServiceFlows?.aggregate_policies,
+  )
+    ? broadbandQoSServiceFlows?.aggregate_policies
+    : [];
+  const broadbandQoSAuthorization = Array.isArray(
+    broadbandQoSServiceFlows?.authorization_bindings,
+  )
+    ? broadbandQoSServiceFlows?.authorization_bindings
+    : [];
+  const broadbandQoSAccounting = Array.isArray(
+    broadbandQoSServiceFlows?.accounting_bindings,
+  )
+    ? broadbandQoSServiceFlows?.accounting_bindings
+    : [];
+  const broadbandQoSCompliance = Array.isArray(
+    broadbandQoSServiceFlows?.compliance,
+  )
+    ? broadbandQoSServiceFlows?.compliance
+    : [];
+  const broadbandQoSTone = statusTone(broadbandQoSServiceFlows?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -6056,6 +6157,24 @@ export default function AccessSettings() {
             {broadbandAddressLeaseAction === "apply"
               ? "Applying Leases..."
               : "Apply Address Leases"}
+          </button>
+          <button
+            onClick={previewBroadbandQoSServiceFlows}
+            disabled={broadbandQoSServiceFlowBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {broadbandQoSServiceFlowAction === "preview"
+              ? "Checking BNG QoS..."
+              : "Preview BNG QoS"}
+          </button>
+          <button
+            onClick={applyBroadbandQoSServiceFlows}
+            disabled={broadbandQoSServiceFlowBusy}
+            className="rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-900 disabled:opacity-60"
+          >
+            {broadbandQoSServiceFlowAction === "apply"
+              ? "Applying BNG QoS..."
+              : "Apply BNG QoS"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -6873,6 +6992,381 @@ export default function AccessSettings() {
         ) : (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
             Broadband address lease report has not loaded yet.
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              BNG QoS Service Flows
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {broadbandQoSServiceFlows?.release_certification_checklist ||
+                "Validate profile hierarchy, service-flow compilers, aggregate policy, accounting correlation, CoA, and BNG queue behavior before enforcing live QoS."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${broadbandQoSTone}`}
+          >
+            {broadbandQoSServiceFlows?.status || "unknown"}
+          </div>
+        </div>
+        {broadbandQoSServiceFlows ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {broadbandQoSServiceFlows.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Profiles",
+                  `${broadbandQoSServiceFlowSummary.enabled_profile_count || 0}/${broadbandQoSServiceFlowSummary.profile_count || 0}`,
+                ],
+                [
+                  "Service Flows",
+                  `${broadbandQoSServiceFlowSummary.enabled_service_flow_count || 0}/${broadbandQoSServiceFlowSummary.service_flow_count || 0}`,
+                ],
+                [
+                  "Aggregates",
+                  `${broadbandQoSServiceFlowSummary.enabled_aggregate_policy_count || 0}/${broadbandQoSServiceFlowSummary.aggregate_policy_count || 0}`,
+                ],
+                [
+                  "Compiled",
+                  broadbandQoSServiceFlowSummary.compiled_attribute_count || 0,
+                ],
+                [
+                  "Diagnostics",
+                  broadbandQoSServiceFlowSummary.compiler_diagnostic_count || 0,
+                ],
+                [
+                  "Compliance",
+                  `${broadbandQoSServiceFlowSummary.passed_check_count || 0}/${broadbandQoSServiceFlowSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              Mode{" "}
+              <span className="font-mono">
+                {broadbandQoSServiceFlowSummary.mode || "monitor"}
+              </span>{" "}
+              / scheduler{" "}
+              <span className="font-mono">
+                {broadbandQoSServiceFlowSummary.scheduler || "htb"}
+              </span>{" "}
+              / class{" "}
+              <span className="font-mono">
+                {broadbandQoSServiceFlowSummary.default_traffic_class ||
+                  "best_effort"}
+              </span>{" "}
+              / CoA{" "}
+              <span className="font-mono">
+                {broadbandQoSServiceFlowSummary.coa_on_change
+                  ? "enabled"
+                  : "disabled"}
+              </span>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  QoS Profiles
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandQoSProfiles.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No BNG QoS profile is configured.
+                    </div>
+                  ) : (
+                    broadbandQoSProfiles
+                      .slice(0, 8)
+                      .map((profile: JsonMap, index: number) => (
+                        <div
+                          key={`${profile.name || "qos-profile"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {profile.name || "QoS Profile"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                profile.status,
+                              )}`}
+                            >
+                              {profile.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              profile.traffic_class,
+                              profile.scheduler,
+                              profile.parent_profile
+                                ? `parent ${profile.parent_profile}`
+                                : "",
+                              profile.download_rate_kbps
+                                ? `${profile.download_rate_kbps} down`
+                                : "",
+                              profile.upload_rate_kbps
+                                ? `${profile.upload_rate_kbps} up`
+                                : "",
+                              profile.dscp_mark !== undefined
+                                ? `DSCP ${profile.dscp_mark}`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "QoS profile metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Service Flows
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandQoSFlows.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No BNG QoS service flow is configured.
+                    </div>
+                  ) : (
+                    broadbandQoSFlows
+                      .slice(0, 8)
+                      .map((flow: JsonMap, index: number) => (
+                        <div
+                          key={`${flow.flow_key || flow.name || "qos-flow"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {flow.name || flow.product || "Service Flow"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                flow.status,
+                              )}`}
+                            >
+                              {flow.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              flow.product,
+                              flow.service_leg,
+                              flow.direction,
+                              flow.profile,
+                              flow.aggregate_policy,
+                              flow.compiled_attributes?.length
+                                ? `${flow.compiled_attributes.length} attrs`
+                                : "",
+                              flow.coa_action,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Service-flow metadata only"}
+                          </div>
+                          {flow.compiled_attributes?.length > 0 && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              {flow.compiled_attributes
+                                .slice(0, 4)
+                                .map(
+                                  (attr: JsonMap) =>
+                                    attr.name || attr.attribute || attr.vendor,
+                                )
+                                .filter(Boolean)
+                                .join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Aggregate Policies
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandQoSAggregates.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No aggregate QoS policy is configured.
+                    </div>
+                  ) : (
+                    broadbandQoSAggregates
+                      .slice(0, 8)
+                      .map((aggregate: JsonMap, index: number) => (
+                        <div
+                          key={`${aggregate.name || "aggregate"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {aggregate.name || "Aggregate Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                aggregate.status,
+                              )}`}
+                            >
+                              {aggregate.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              aggregate.scope,
+                              aggregate.tenant,
+                              aggregate.product,
+                              aggregate.profile,
+                              aggregate.download_limit_kbps
+                                ? `${aggregate.download_limit_kbps} down`
+                                : "",
+                              aggregate.upload_limit_kbps
+                                ? `${aggregate.upload_limit_kbps} up`
+                                : "",
+                              aggregate.oversubscription_ratio
+                                ? `${aggregate.oversubscription_ratio}:1`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Aggregate metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Authorization Bindings
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandQoSAuthorization.map(
+                    (binding: JsonMap, index: number) => (
+                      <div
+                        key={`${binding.stage || "authz"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {binding.stage || "authorization"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {(binding.attributes || []).join(", ") ||
+                            binding.purpose ||
+                            "Authorization binding metadata only"}
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Accounting Bindings
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandQoSAccounting.map(
+                    (binding: JsonMap, index: number) => (
+                      <div
+                        key={`${binding.stage || "acct"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {binding.stage || "accounting"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {(binding.attributes || []).join(", ") ||
+                            binding.purpose ||
+                            "Accounting binding metadata only"}
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Compliance Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandQoSCompliance.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No QoS service-flow compliance check is present.
+                    </div>
+                  ) : (
+                    broadbandQoSCompliance
+                      .slice(0, 8)
+                      .map((check: JsonMap, index: number) => (
+                        <div
+                          key={`${check.id || check.name || "qos-check"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {check.name || check.id || "Compliance Check"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                check.status,
+                              )}`}
+                            >
+                              {check.status || "unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {check.message || "No compliance message"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            {((broadbandQoSServiceFlows.blockers?.length || 0) > 0 ||
+              (broadbandQoSServiceFlows.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(broadbandQoSServiceFlows.blockers || []),
+                  ...(broadbandQoSServiceFlows.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Aggregate control{" "}
+              <span className="font-mono">
+                {broadbandQoSServiceFlowSummary.aggregate_control_enabled
+                  ? "enabled"
+                  : "disabled"}
+              </span>{" "}
+              / accounting correlation{" "}
+              <span className="font-mono">
+                {broadbandQoSServiceFlowSummary.accounting_correlation_required
+                  ? "required"
+                  : "optional"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {broadbandQoSServiceFlows.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            BNG QoS service-flow report has not loaded yet.
           </div>
         )}
       </section>

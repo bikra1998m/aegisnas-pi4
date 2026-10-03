@@ -171,6 +171,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionBroadbandCommercialCatalogCheck(&report, cfg)
 	addProductionBroadbandQuotaBalanceCheck(&report, cfg)
 	addProductionBroadbandAddressLeaseCheck(&report, cfg)
+	addProductionBroadbandQoSServiceFlowCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -2318,6 +2319,72 @@ func addProductionBroadbandAddressLeaseCheck(report *productionReadinessReport, 
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/broadband-address-leases/preview before enabling lease enforcement, apply only after reviewing pool, reservation, sticky lease, conflict, CoA, and accounting-stop release behavior, and keep live BRAS/BNG, packet capture, HA, scale, soak, security, and customer proof in the NAS-0086 release certification checklist.",
 		Dependencies:   []string{"broadband.address_leases", "broadband.subscriber_state", "broadband.pppoe", "radius.address_policy", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "/api/v1/system/broadband-address-leases", "/api/v1/system/broadband-address-leases/preview", "/api/v1/system/broadband-address-leases/apply", "broadband_subscriber_address_leases", "broadband_address_lease_events", "Framed-IP-Address", "Framed-Pool", "Framed-IPv6-Pool", "Delegated-IPv6-Prefix", "RFC 2865", "RFC 2866", "RFC 3162", "RFC 3633", "RFC 4818", "RFC 5176"},
+	})
+}
+
+func addProductionBroadbandQoSServiceFlowCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0087 BNG hierarchical QoS and service-flow software is ready."
+	reportData, err := enforcement.PreviewBroadbandQoSServiceFlows(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Broadband QoS service-flow preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped", "disabled":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0087 schema %d status=%s, mode=%s, profiles=%d, flows=%d, aggregates=%d, compiled_attrs=%d, diagnostics=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.ProfileCount,
+			reportData.Summary.ServiceFlowCount,
+			reportData.Summary.AggregatePolicyCount,
+			reportData.Summary.CompiledAttributeCount,
+			reportData.Summary.CompilerDiagnosticCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "disabled" || reportData.Status == "skipped" {
+			summary += " BNG QoS service-flow lifecycle is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but QoS service-flow event history cannot be verified."
+	} else if evidence, err := db.GetBroadbandQoSServiceFlowSummary(); err != nil {
+		status = "blocked"
+		summary += " Broadband QoS evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 || evidence.BlockedFlows > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, active_flows=%d, planned_flows=%d, last_flows=%d, last_attrs=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.ActiveFlows,
+			evidence.PlannedFlows,
+			evidence.LastServiceFlowCount,
+			evidence.LastCompiledAttributeCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "broadband_qos_service_flows",
+		Category:       "radius",
+		Label:          "NAS-0087 BNG Hierarchical QoS And Service Flows",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/broadband-qos-service-flows/preview before enabling BNG QoS enforcement, apply only after reviewing profile hierarchy, service flows, aggregate policies, compiled vendor attributes, accounting correlation, CoA behavior, and runtime QoS dependencies. Keep live BNG queue activation, packet captures, HA, scale, soak, security, and customer proof in the NAS-0087 release certification checklist.",
+		Dependencies:   []string{"broadband.qos_service_flows", "broadband.subscriber_state", "broadband.commercial_catalog", "radius.accounting_services", "radius.dynamic_auth", "runtime_qos", "rate_compiler", "/api/v1/system/broadband-qos-service-flows", "/api/v1/system/broadband-qos-service-flows/preview", "/api/v1/system/broadband-qos-service-flows/apply", "broadband_qos_service_flows", "broadband_qos_service_flow_events", "Mikrotik-Rate-Limit", "Huawei-Output-Average-Rate", "Huawei-Input-Average-Rate", "Rate-Ctrl-SCR-Down", "Rate-Ctrl-SCR-Up", "RFC 2865", "RFC 2866", "RFC 5176"},
 	})
 }
 

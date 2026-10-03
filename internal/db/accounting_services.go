@@ -146,7 +146,8 @@ func NormalizeAccountingServiceCorrelationFields(event AccountingEventRecord) Ac
 }
 
 func RecordAccountingServiceCorrelation(ctx context.Context, event AccountingEventRecord) (AccountingServiceCorrelationRecord, error) {
-	if DB == nil {
+	handle := DB
+	if handle == nil {
 		return AccountingServiceCorrelationRecord{}, fmt.Errorf("database not initialized")
 	}
 	if ctx == nil {
@@ -157,7 +158,7 @@ func RecordAccountingServiceCorrelation(ctx context.Context, event AccountingEve
 	if fields.ParentSessionKey == "" || fields.ChildSessionKey == "" || fields.CorrelationID == "" {
 		return AccountingServiceCorrelationRecord{}, nil
 	}
-	link, linked := findAccountingSubscriberServiceLink(fields, event)
+	link, linked := findAccountingSubscriberServiceLinkWithHandle(handle, fields, event)
 	if linked {
 		fields.LinkedChainID = link.ChainID
 		fields.LinkedChainStatus = link.ChainStatus
@@ -169,7 +170,7 @@ func RecordAccountingServiceCorrelation(ctx context.Context, event AccountingEve
 		fields.CorrelationSource = appendAccountingCorrelationSource(fields.CorrelationSource, "subscriber-service-chain")
 	}
 	fields.CorrelationStatus = accountingCorrelationStatusForEvent(event.StatusType, fields.CorrelationStatus)
-	fields = detectAccountingServiceConflict(ctx, fields)
+	fields = detectAccountingServiceConflictWithHandle(ctx, handle, fields)
 	now := formatAccountingTime(time.Now().UTC())
 	eventTime := normalizeAccountingTimeString(event.EventTime)
 	if eventTime == "" {
@@ -180,7 +181,7 @@ func RecordAccountingServiceCorrelation(ctx context.Context, event AccountingEve
 		stoppedAt = eventTime
 	}
 	detailsJSON := accountingServiceDetailsJSON(fields, event)
-	_, err := DB.ExecContext(ctx, `INSERT INTO radius_accounting_service_correlations (
+	_, err := handle.ExecContext(ctx, `INSERT INTO radius_accounting_service_correlations (
 		correlation_id, parent_session_key, child_session_key, acct_unique_id, acct_session_id,
 		acct_multi_session_id, acct_link_count, service_key, service_type, service_category,
 		service_leg_id, bearer_id, call_id, roaming_id, username_hash, calling_station_hash,
@@ -237,11 +238,11 @@ func RecordAccountingServiceCorrelation(ctx context.Context, event AccountingEve
 		return AccountingServiceCorrelationRecord{}, fmt.Errorf("record accounting service correlation: %w", err)
 	}
 	if fields.LinkedChainID != "" && fields.LinkedServiceKey != "" {
-		if err := updateSubscriberServiceAccountingFromCorrelation(ctx, fields, event, eventTime); err != nil {
+		if err := updateSubscriberServiceAccountingFromCorrelationWithHandle(ctx, handle, fields, event, eventTime); err != nil {
 			return AccountingServiceCorrelationRecord{}, err
 		}
 	}
-	return GetAccountingServiceCorrelation(fields.CorrelationID)
+	return getAccountingServiceCorrelationWithHandle(handle, fields.CorrelationID)
 }
 
 func UpdateAccountingEventServiceCorrelationFields(event AccountingEventRecord, fields AccountingServiceCorrelationFields) error {
@@ -264,10 +265,18 @@ func UpdateAccountingEventServiceCorrelationFields(event AccountingEventRecord, 
 }
 
 func GetAccountingServiceCorrelation(correlationID string) (AccountingServiceCorrelationRecord, error) {
-	if DB == nil {
+	handle := DB
+	if handle == nil {
 		return AccountingServiceCorrelationRecord{}, fmt.Errorf("database not initialized")
 	}
-	rows, err := DB.Query(accountingServiceCorrelationSelectSQL()+` WHERE correlation_id = ? LIMIT 1`, strings.TrimSpace(correlationID))
+	return getAccountingServiceCorrelationWithHandle(handle, correlationID)
+}
+
+func getAccountingServiceCorrelationWithHandle(handle *sql.DB, correlationID string) (AccountingServiceCorrelationRecord, error) {
+	if handle == nil {
+		return AccountingServiceCorrelationRecord{}, fmt.Errorf("database not initialized")
+	}
+	rows, err := handle.Query(accountingServiceCorrelationSelectSQL()+` WHERE correlation_id = ? LIMIT 1`, strings.TrimSpace(correlationID))
 	if err != nil {
 		if tableMissing(err) {
 			return AccountingServiceCorrelationRecord{}, sql.ErrNoRows
@@ -431,7 +440,11 @@ func scanAccountingServiceCorrelationRows(rows *sql.Rows) ([]AccountingServiceCo
 }
 
 func findAccountingSubscriberServiceLink(fields AccountingServiceCorrelationFields, event AccountingEventRecord) (accountingServiceChainLink, bool) {
-	if DB == nil {
+	return findAccountingSubscriberServiceLinkWithHandle(DB, fields, event)
+}
+
+func findAccountingSubscriberServiceLinkWithHandle(handle *sql.DB, fields AccountingServiceCorrelationFields, event AccountingEventRecord) (accountingServiceChainLink, bool) {
+	if handle == nil {
 		return accountingServiceChainLink{}, false
 	}
 	sessionKeys := uniqueNonEmptyStrings(fields.ParentSessionKey, fields.ChildSessionKey)
@@ -448,7 +461,7 @@ func findAccountingSubscriberServiceLink(fields AccountingServiceCorrelationFiel
 		args = append(args, sessionKey)
 	}
 	query += ` ORDER BY a.updated_at DESC, a.id DESC LIMIT 50`
-	rows, err := DB.Query(query, args...)
+	rows, err := handle.Query(query, args...)
 	if err != nil {
 		return accountingServiceChainLink{}, false
 	}
@@ -488,7 +501,11 @@ func findAccountingSubscriberServiceLink(fields AccountingServiceCorrelationFiel
 }
 
 func updateSubscriberServiceAccountingFromCorrelation(ctx context.Context, fields AccountingServiceCorrelationFields, event AccountingEventRecord, eventTime string) error {
-	if DB == nil {
+	return updateSubscriberServiceAccountingFromCorrelationWithHandle(ctx, DB, fields, event, eventTime)
+}
+
+func updateSubscriberServiceAccountingFromCorrelationWithHandle(ctx context.Context, handle *sql.DB, fields AccountingServiceCorrelationFields, event AccountingEventRecord, eventTime string) error {
+	if handle == nil {
 		return nil
 	}
 	status := "interim"
@@ -502,7 +519,7 @@ func updateSubscriberServiceAccountingFromCorrelation(ctx context.Context, field
 	if event.StatusType == "Interim-Update" {
 		interimIncrement = 1
 	}
-	_, err := DB.ExecContext(ctx, `UPDATE subscriber_service_accounting
+	_, err := handle.ExecContext(ctx, `UPDATE subscriber_service_accounting
 		SET status = ?, last_interim_at = COALESCE(NULLIF(?, ''), last_interim_at),
 			stopped_at = COALESCE(NULLIF(?, ''), stopped_at),
 			input_octets = ?, output_octets = ?,
@@ -518,11 +535,15 @@ func updateSubscriberServiceAccountingFromCorrelation(ctx context.Context, field
 }
 
 func detectAccountingServiceConflict(ctx context.Context, fields AccountingServiceCorrelationFields) AccountingServiceCorrelationFields {
-	if DB == nil || fields.ChildSessionKey == "" || fields.CorrelationID == "" {
+	return detectAccountingServiceConflictWithHandle(ctx, DB, fields)
+}
+
+func detectAccountingServiceConflictWithHandle(ctx context.Context, handle *sql.DB, fields AccountingServiceCorrelationFields) AccountingServiceCorrelationFields {
+	if handle == nil || fields.ChildSessionKey == "" || fields.CorrelationID == "" {
 		return fields
 	}
 	var existingCorrelationID, existingParent string
-	err := DB.QueryRowContext(ctx, `SELECT correlation_id, parent_session_key
+	err := handle.QueryRowContext(ctx, `SELECT correlation_id, parent_session_key
 		FROM radius_accounting_service_correlations
 		WHERE child_session_key = ? AND correlation_status = 'active' AND correlation_id <> ?
 		ORDER BY last_seen_at DESC, id DESC LIMIT 1`,

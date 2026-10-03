@@ -668,6 +668,40 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		broadbandAddressLeaseStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandAddressLeaseComponent()]}
 	}
+	broadbandQoSServiceFlowStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Broadband QoS service-flow status has not been evaluated.",
+	}
+	if qosReport, err := enforcement.PreviewBroadbandQoSServiceFlows(cfg); err == nil {
+		qosSummary, _ := db.GetBroadbandQoSServiceFlowSummary()
+		broadbandQoSServiceFlowStatus = map[string]any{
+			"schema_version":                  qosReport.SchemaVersion,
+			"feature_id":                      qosReport.FeatureID,
+			"status":                          qosReport.Status,
+			"message":                         qosReport.Message,
+			"ready_for_external_validation":   qosReport.ReadyForExternalValidation,
+			"software_completion_percent":     qosReport.SoftwareCompletionPercent,
+			"enabled":                         qosReport.Summary.Enabled,
+			"mode":                            qosReport.Summary.Mode,
+			"profile_count":                   qosReport.Summary.ProfileCount,
+			"enabled_profile_count":           qosReport.Summary.EnabledProfileCount,
+			"service_flow_count":              qosReport.Summary.ServiceFlowCount,
+			"enabled_service_flow_count":      qosReport.Summary.EnabledServiceFlowCount,
+			"aggregate_policy_count":          qosReport.Summary.AggregatePolicyCount,
+			"compiled_attribute_count":        qosReport.Summary.CompiledAttributeCount,
+			"compiler_diagnostic_count":       qosReport.Summary.CompilerDiagnosticCount,
+			"compliance_check_count":          qosReport.Summary.ComplianceCheckCount,
+			"passed_check_count":              qosReport.Summary.PassedCheckCount,
+			"warning_count":                   qosReport.Summary.WarningCount,
+			"blocker_count":                   qosReport.Summary.BlockerCount,
+			"plan_fingerprint":                qosReport.PlanFingerprint,
+			"release_certification_checklist": qosReport.ReleaseCertificationChecklist,
+			"evidence_summary":                qosSummary,
+			"runtime_status":                  runtimeMap[enforcement.BroadbandQoSServiceFlowComponent()],
+		}
+	} else {
+		broadbandQoSServiceFlowStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandQoSServiceFlowComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1495,6 +1529,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broadband_commercial_catalog": broadbandCommercialCatalogStatus,
 		"broadband_quota_balance":      broadbandQuotaBalanceStatus,
 		"broadband_address_leases":     broadbandAddressLeaseStatus,
+		"broadband_qos_service_flows":  broadbandQoSServiceFlowStatus,
 		"local_firewall":               runtimeFirewallStatus,
 		"atomic_transactions":          atomicEnforcementStatus,
 	}

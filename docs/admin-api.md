@@ -1785,6 +1785,34 @@ The endpoints depend on `broadband.address_leases`,
 `api/broadband-address-leases-history.json`. See
 [broadband-address-lease-lifecycle.md](broadband-address-lease-lifecycle.md).
 
+NAS-0087 adds BNG hierarchical QoS and service-flow lifecycle endpoints:
+
+```text
+GET  /api/v1/system/broadband-qos-service-flows
+POST /api/v1/system/broadband-qos-service-flows/preview
+POST /api/v1/system/broadband-qos-service-flows/apply
+GET  /api/v1/system/broadband-qos-service-flows/history
+```
+
+`GET /api/v1/system/broadband-qos-service-flows` returns QoS profiles,
+subscriber and product service flows, parent and child hierarchy,
+aggregate-policy controls, compiled vendor rate attributes, accounting and
+authorization bindings, compliance checks, plan fingerprint, software
+completion state, release certification scope, and recent evidence. Preview
+records an event without activating service-flow rows. Apply records an
+auditable checkpoint, upserts effective service-flow rows, and updates runtime
+status. A blocked apply returns HTTP 409 with the report. Read-only roles may
+read, preview, and list history. `ops_admin` and `super_admin` may apply.
+
+The endpoints depend on `broadband.qos_service_flows`,
+`broadband.subscriber_state`, `broadband.commercial_catalog`,
+`radius.accounting_services`, `radius.dynamic_auth`, runtime QoS, and the
+vendor rate compiler. Production readiness reports this as
+`broadband_qos_service_flows`; support bundles include
+`api/broadband-qos-service-flows.json` and
+`api/broadband-qos-service-flows-history.json`. See
+[bng-qos-service-flows.md](bng-qos-service-flows.md).
+
 Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
 
 After committing a role, user, ACL binding, or EAP framework policy through `/api/v1/apply`, run `POST /api/v1/system/radius-apply` (the **Apply RADIUS Config** action in Access Settings). This regenerates the local-user entries in `mods-config/files/authorize`, the legacy `users` path, and `mods-enabled/eap`, validates the complete FreeRADIUS configuration, and restarts FreeRADIUS. Database-backed portal decisions and CoA updates do not require this regeneration. Local bcrypt credentials support PAP and EAP-TTLS/PAP; CHAP and PEAP-MSCHAPv2 require a compatible cleartext or NT password verifier, while EAP-TLS uses certificates. NAS-0022 blocks enforce-mode generation when policy enables cataloged methods that this release cannot generate.
