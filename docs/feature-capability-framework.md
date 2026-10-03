@@ -364,6 +364,7 @@ This is where dictionary support becomes product behavior.
 | Dynamic VLAN lifecycle | available | enabled | enabled | creates owned Linux bridges, VLAN subinterfaces, hostapd VLAN file entries, hostapd dynamic SSID bindings, cleanup previews, snapshots, history, and rollback from VLAN intent |
 | Dynamic subscriber route export | available | enabled | enabled | compiles `route_policy_ownership` into BGP/OSPF/OSPF3 FRR artifacts, dampening, withdrawal plans, snapshots, and atomic transaction participation |
 | Broadband commercial catalog | available | enabled | enabled | validates account hierarchy, plans, bundles, subscriptions, concurrent-session policy, RADIUS authorization/accounting bindings, evidence history, and preview/apply governance before commercial enforcement |
+| Broadband quota and balance | available | enabled | enabled | validates wallets, quota profiles, top-up grants, rating rules, reset policies, prepaid/postpaid modes, RADIUS authorization/accounting bindings, evidence history, and preview/apply governance before quota enforcement |
 | Quarantine enforcement | enabled | enabled | enabled | already present |
 | Stateful local firewall policy | available | enabled | enabled | owned nftables table enforces per-session ACL and quarantine policy with IPv4/IPv6 snapshots |
 | ACL-like policy language | available | enabled | enabled | persisted policies feed live decisions, RADIUS replies, local firewall enforcement, and controller reconciliation |

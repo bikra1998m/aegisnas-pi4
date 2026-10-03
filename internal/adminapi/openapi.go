@@ -1323,6 +1323,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0084 broadband commercial catalog event history and current catalog records."),
 	}))
+	addOperation(paths, "/api/v1/system/broadband-quota-balance", "get", securedOperation("Read broadband quota and balance lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0085 wallets, quota profiles, top-up grants, rating rules, reset policies, authorization/accounting bindings, compliance checks, and evidence history."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-quota-balance/preview", "post", securedOperationWithBody("Preview broadband quota and balance lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating quota wallet records."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0085 broadband quota and balance report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-quota-balance/apply", "post", securedOperationWithBody("Apply broadband quota and balance lifecycle", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records quota wallet, profile, top-up, rating, reset, and runtime evidence. Live BSS/OSS, payment, and vendor BRAS/BNG activation remains release certification until enabled per adapter."), map[string]any{
+		"200":     responseJSON("Applied NAS-0085 broadband quota and balance checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-quota-balance/history", "get", securedOperationWithParameters("List broadband quota and balance history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0085 broadband quota and balance event history and current wallet records."),
+	}))
 	addOperation(paths, "/api/v1/system/broadband-address-leases", "get", securedOperation("Read broadband subscriber address lease lifecycle", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("NAS-0086 address pool, reservation, lease intent, conflict policy, accounting correlation, and evidence summary."),
 	}))

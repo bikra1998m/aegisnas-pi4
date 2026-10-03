@@ -3273,6 +3273,204 @@ function createBroadbandCommercialCatalog(status = "ready") {
   };
 }
 
+function createBroadbandQuotaBalance(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0085",
+      status,
+      message:
+        "NAS-0085 quota and balance lifecycle is ready with 1 wallet, 1 quota profile, 1 top-up grant, 1 rating rule, and 1 reset policy.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0085-release-certification-checklist.md",
+      release_scope:
+        "Live BSS/OSS wallet sync, payment gateway settlement, BRAS/BNG quota enforcement proof, FreeRADIUS production Linux, HA failover, scale, soak, security audit, deployment, and customer acceptance are release certification activities.",
+      plan_fingerprint:
+        "sha256:85d2470403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81ed0085",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        default_currency: "USD",
+        default_quota_period: "monthly",
+        require_commercial_catalog: true,
+        require_active_wallet: true,
+        require_quota_profile: true,
+        rating_enabled: true,
+        top_up_enabled: true,
+        prepaid_enabled: true,
+        postpaid_enabled: true,
+        accounting_correlation_required: true,
+        auto_suspend_on_exhaustion: true,
+        coa_on_exhaustion: true,
+        subscriber_state_enabled: true,
+        commercial_catalog_enabled: true,
+        sql_accounting_enabled: true,
+        accounting_services_enabled: true,
+        accounting_charging_enabled: true,
+        accounting_rating_enabled: true,
+        dynamic_auth_enabled: true,
+        high_availability_enabled: true,
+        wallet_count: 1,
+        active_wallet_count: 1,
+        prepaid_wallet_count: 1,
+        postpaid_wallet_count: 0,
+        exhausted_wallet_count: 0,
+        quota_profile_count: 1,
+        enabled_quota_profile_count: 1,
+        top_up_count: 1,
+        applied_top_up_count: 1,
+        rating_rule_count: 1,
+        enabled_rating_rule_count: 1,
+        reset_policy_count: 1,
+        enabled_reset_policy_count: 1,
+        authorization_binding_count: 4,
+        accounting_binding_count: 4,
+        total_balance_micros: 25000000,
+        total_top_up_micros: 11000000,
+        compliance_check_count: 11,
+        passed_check_count: 11,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 9,
+      },
+      wallets: [
+        {
+          wallet_id: "wallet-lab-1",
+          account_id: "acct-lab-1",
+          subscription_id: "sub-lab-1",
+          subscriber_id: "subscriber-1001",
+          username: "user@example.test",
+          billing_mode: "prepaid",
+          status: "active",
+          currency: "USD",
+          balance_micros: 25000000,
+          quota_profile: "monthly-500g",
+          auto_recharge: true,
+          tags: ["family", "fiber"],
+          status_reason: "Wallet is ready for quota and balance enforcement.",
+        },
+      ],
+      quota_profiles: [
+        {
+          name: "monthly-500g",
+          enabled: true,
+          status: "active",
+          period: "monthly",
+          included_total_octets: 536870912000,
+          overage_rate_micros_per_mb: 25000,
+          warning_threshold_percent: 80,
+          hard_limit: true,
+          throttle_profile: "shape-10m",
+          exhausted_role: "quota-exhausted",
+          reset_policy: "monthly-reset",
+          vendor_packs: ["standard", "aegisnas", "mikrotik"],
+          status_reason:
+            "Profile can enforce quota threshold, hard-limit, throttle, and exhausted-role intent.",
+        },
+      ],
+      top_ups: [
+        {
+          top_up_id: "topup-lab-1",
+          wallet_id: "wallet-lab-1",
+          amount_micros: 10000000,
+          bonus_micros: 1000000,
+          currency: "USD",
+          quota_octets: 107374182400,
+          status: "applied",
+          payment_ref: "pay-lab-1",
+          idempotency_key: "topup-lab-1",
+          source: "operator",
+          status_reason: "Top-up is recorded with idempotency evidence.",
+        },
+      ],
+      rating_rules: [
+        {
+          name: "fiber-100m-overage",
+          enabled: true,
+          status: "active",
+          plan: "fiber-100m",
+          quota_profile: "monthly-500g",
+          unit: "total-octets",
+          price_micros: 25000,
+          rounding: "up",
+          minimum_charge_micros: 1000000,
+          tax_percent: 0,
+          status_reason: "Rating rule maps accounting usage to charges.",
+        },
+      ],
+      reset_policies: [
+        {
+          name: "monthly-reset",
+          enabled: true,
+          status: "active",
+          period: "monthly",
+          reset_day: 1,
+          reset_hour: 3,
+          carry_over_octets: 107374182400,
+          carry_over_balance_micros: 5000000,
+          status_reason: "Reset policy defines quota carry-over behavior.",
+        },
+      ],
+      authorization_bindings: [
+        {
+          stage: "quota-limit",
+          attributes: [
+            "ChilliSpot-Max-Input-Octets",
+            "ChilliSpot-Max-Output-Octets",
+            "Mikrotik-Rate-Limit",
+          ],
+          purpose: "Render vendor quota and throttle attributes.",
+          required: true,
+        },
+      ],
+      accounting_bindings: [
+        {
+          stage: "interim-update",
+          attributes: [
+            "Acct-Input-Octets",
+            "Acct-Output-Octets",
+            "Acct-Session-Time",
+          ],
+          purpose: "Rate usage, decrement quota, and detect exhaustion.",
+          required: true,
+        },
+      ],
+      compliance: [
+        {
+          id: "wallets",
+          name: "Active wallet catalog",
+          status: "passed",
+          message: "At least one active wallet exists.",
+        },
+        {
+          id: "rating",
+          name: "Rating rule catalog",
+          status: "passed",
+          message: "Enabled rating rule exists.",
+        },
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        active_wallets: 1,
+        active_quota_profiles: 1,
+      },
+      recent_events: [],
+    },
+  };
+}
+
 function createBroadbandAddressLeases(status = "ready") {
   return {
     generated_at: "2026-05-05T12:00:00Z",
@@ -7323,6 +7521,107 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
+    if (path === "/system/accounting-counters" && method === "GET") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          report: {
+            schema_version: 1,
+            enabled: true,
+            status: "ready",
+            message:
+              "Accounting counters preserve 64-bit octets and gigaword rollover evidence.",
+            summary: {
+              radacct_rows: 3,
+              event_rows: 2,
+              gigaword_rows: 1,
+              rollover_events: 1,
+              reset_events: 0,
+              counter_error_rows: 0,
+              max_input_octets_64: "5368709120",
+              max_output_octets_64: "10737418240",
+              last_counter_event_at: "2026-05-05T11:58:00Z",
+              last_counter_status: "ready",
+            },
+            warnings: [],
+          },
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/accounting-ip" && method === "GET") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          report: {
+            schema_version: 1,
+            enabled: true,
+            status: "ready",
+            message:
+              "Accounting address tracking records IPv4, IPv6, delegated prefix, and framed route ownership.",
+            summary: {
+              assignment_rows: 4,
+              active_assignments: 2,
+              closed_assignments: 2,
+              ipv4_address_rows: 2,
+              ipv6_address_rows: 1,
+              ipv6_prefix_rows: 1,
+              delegated_prefix_rows: 1,
+              ipv4_route_rows: 1,
+              ipv6_route_rows: 1,
+              invalid_rows: 0,
+              session_rows_with_ipv6: 1,
+              session_rows_with_delegated_prefix: 1,
+              session_rows_with_route: 2,
+              last_assignment_at: "2026-05-05T11:59:00Z",
+              last_validation_status: "ready",
+            },
+            warnings: [],
+          },
+        },
+      });
+      return;
+    }
+
+    if (path === "/system/accounting-services" && method === "GET") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          report: {
+            schema_version: 1,
+            enabled: true,
+            status: "ready",
+            message:
+              "Multi-service accounting correlates parent sessions, child services, bearer legs, and subscriber chains.",
+            summary: {
+              correlation_rows: 5,
+              active_correlations: 3,
+              closed_correlations: 2,
+              conflict_correlations: 0,
+              unmatched_correlations: 0,
+              linked_subscriber_services: 3,
+              parent_sessions: 1,
+              child_sessions: 4,
+              data_services: 2,
+              voice_services: 1,
+              bearer_services: 1,
+              reauth_services: 1,
+              vpn_services: 0,
+              primary_services: 1,
+              acct_multi_session_rows: 2,
+              call_leg_rows: 1,
+              bearer_leg_rows: 1,
+              last_correlation_at: "2026-05-05T11:59:30Z",
+              last_correlation_status: "ready",
+            },
+            warnings: [],
+          },
+        },
+      });
+      return;
+    }
+
     if (path === "/system/accounting-ingest-spool" && method === "GET") {
       await route.fulfill({
         json: {
@@ -8566,6 +8865,71 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             createBroadbandCommercialCatalog().report.subscriptions,
           concurrency_policies:
             createBroadbandCommercialCatalog().report.concurrency_policies,
+        },
+      });
+      return;
+    }
+    if (path === "/system/broadband-quota-balance" && method === "GET") {
+      await route.fulfill({ json: createBroadbandQuotaBalance() });
+      return;
+    }
+    if (
+      path === "/system/broadband-quota-balance/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createBroadbandQuotaBalance(),
+          event_id: "quota-balance-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-quota-balance/apply" &&
+      method === "POST"
+    ) {
+      const payload = createBroadbandQuotaBalance();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0085 recorded quota and balance lifecycle with 1 wallet, 1 quota profile, 1 top-up grant, and 1 rating rule.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "quota-balance-event-apply",
+          result: {
+            status: "applied",
+            event_id: "quota-balance-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-quota-balance/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0085",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+            active_wallets: 1,
+            active_quota_profiles: 1,
+          },
+          events: [],
+          wallets: createBroadbandQuotaBalance().report.wallets,
+          quota_profiles: createBroadbandQuotaBalance().report.quota_profiles,
+          top_ups: createBroadbandQuotaBalance().report.top_ups,
+          rating_rules: createBroadbandQuotaBalance().report.rating_rules,
+          reset_policies: createBroadbandQuotaBalance().report.reset_policies,
         },
       });
       return;

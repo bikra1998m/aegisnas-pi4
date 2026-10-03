@@ -590,6 +590,48 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		broadbandCommercialCatalogStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandCommercialCatalogComponent()]}
 	}
+	broadbandQuotaBalanceStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Broadband quota and balance status has not been evaluated.",
+	}
+	if quotaReport, err := enforcement.PreviewBroadbandQuotaBalance(cfg); err == nil {
+		quotaSummary, _ := db.GetBroadbandQuotaBalanceSummary()
+		broadbandQuotaBalanceStatus = map[string]any{
+			"schema_version":                  quotaReport.SchemaVersion,
+			"feature_id":                      quotaReport.FeatureID,
+			"status":                          quotaReport.Status,
+			"message":                         quotaReport.Message,
+			"ready_for_external_validation":   quotaReport.ReadyForExternalValidation,
+			"software_completion_percent":     quotaReport.SoftwareCompletionPercent,
+			"enabled":                         quotaReport.Summary.Enabled,
+			"mode":                            quotaReport.Summary.Mode,
+			"wallet_count":                    quotaReport.Summary.WalletCount,
+			"active_wallet_count":             quotaReport.Summary.ActiveWalletCount,
+			"prepaid_wallet_count":            quotaReport.Summary.PrepaidWalletCount,
+			"postpaid_wallet_count":           quotaReport.Summary.PostpaidWalletCount,
+			"exhausted_wallet_count":          quotaReport.Summary.ExhaustedWalletCount,
+			"quota_profile_count":             quotaReport.Summary.QuotaProfileCount,
+			"enabled_quota_profile_count":     quotaReport.Summary.EnabledQuotaProfileCount,
+			"top_up_count":                    quotaReport.Summary.TopUpCount,
+			"applied_top_up_count":            quotaReport.Summary.AppliedTopUpCount,
+			"rating_rule_count":               quotaReport.Summary.RatingRuleCount,
+			"enabled_rating_rule_count":       quotaReport.Summary.EnabledRatingRuleCount,
+			"reset_policy_count":              quotaReport.Summary.ResetPolicyCount,
+			"enabled_reset_policy_count":      quotaReport.Summary.EnabledResetPolicyCount,
+			"total_balance_micros":            quotaReport.Summary.TotalBalanceMicros,
+			"total_top_up_micros":             quotaReport.Summary.TotalTopUpMicros,
+			"compliance_check_count":          quotaReport.Summary.ComplianceCheckCount,
+			"passed_check_count":              quotaReport.Summary.PassedCheckCount,
+			"warning_count":                   quotaReport.Summary.WarningCount,
+			"blocker_count":                   quotaReport.Summary.BlockerCount,
+			"plan_fingerprint":                quotaReport.PlanFingerprint,
+			"release_certification_checklist": quotaReport.ReleaseCertificationChecklist,
+			"evidence_summary":                quotaSummary,
+			"runtime_status":                  runtimeMap[enforcement.BroadbandQuotaBalanceComponent()],
+		}
+	} else {
+		broadbandQuotaBalanceStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandQuotaBalanceComponent()]}
+	}
 	broadbandAddressLeaseStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Broadband address lease status has not been evaluated.",
@@ -1330,6 +1372,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"pppoe_access_lifecycle":       pppoeAccessLifecycleStatus,
 		"broadband_subscriber_state":   broadbandSubscriberStateStatus,
 		"broadband_commercial_catalog": broadbandCommercialCatalogStatus,
+		"broadband_quota_balance":      broadbandQuotaBalanceStatus,
 		"broadband_address_leases":     broadbandAddressLeaseStatus,
 		"vendor_mapping_certification": vendorMappingCertificationStatus,
 		"cisco_family_pack":            ciscoFamilyPackStatus,
@@ -1450,6 +1493,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"vlan_lifecycle":               vlanLifecycleStatus,
 		"subscriber_route_export":      subscriberRouteExportStatus,
 		"broadband_commercial_catalog": broadbandCommercialCatalogStatus,
+		"broadband_quota_balance":      broadbandQuotaBalanceStatus,
 		"broadband_address_leases":     broadbandAddressLeaseStatus,
 		"local_firewall":               runtimeFirewallStatus,
 		"atomic_transactions":          atomicEnforcementStatus,

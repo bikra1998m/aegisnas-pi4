@@ -169,6 +169,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionPPPoEAccessLifecycleCheck(&report, cfg)
 	addProductionBroadbandSubscriberStateCheck(&report, cfg)
 	addProductionBroadbandCommercialCatalogCheck(&report, cfg)
+	addProductionBroadbandQuotaBalanceCheck(&report, cfg)
 	addProductionBroadbandAddressLeaseCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
@@ -2168,6 +2169,86 @@ func addProductionBroadbandCommercialCatalogCheck(report *productionReadinessRep
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/broadband-commercial-catalog/preview before enabling commercial enforcement, apply only after reviewing account hierarchy, product plans, bundles, active subscriptions, concurrency limits, accounting correlation, and CoA behavior. Keep live BSS/OSS, BRAS/BNG, FreeRADIUS production Linux, HA, scale, soak, security, deployment, and customer proof in the NAS-0084 release certification checklist.",
 		Dependencies:   []string{"broadband.commercial_catalog", "broadband.subscriber_state", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "/api/v1/system/broadband-commercial-catalog", "/api/v1/system/broadband-commercial-catalog/preview", "/api/v1/system/broadband-commercial-catalog/apply", "broadband_commercial_accounts", "broadband_commercial_plans", "broadband_commercial_bundles", "broadband_commercial_subscriptions", "broadband_commercial_concurrency_policies", "broadband_commercial_catalog_events", "RFC 2865", "RFC 2866", "RFC 2869", "RFC 5176"},
+	})
+}
+
+func addProductionBroadbandQuotaBalanceCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0085 broadband quota and balance lifecycle software is ready."
+	reportData, err := enforcement.PreviewBroadbandQuotaBalance(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Broadband quota and balance preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0085 schema %d status=%s, mode=%s, wallets=%d active=%d prepaid=%d postpaid=%d exhausted=%d, quota_profiles=%d/%d, top_ups=%d applied=%d, rating=%d/%d, resets=%d/%d, balance_micros=%d, top_up_micros=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.WalletCount,
+			reportData.Summary.ActiveWalletCount,
+			reportData.Summary.PrepaidWalletCount,
+			reportData.Summary.PostpaidWalletCount,
+			reportData.Summary.ExhaustedWalletCount,
+			reportData.Summary.EnabledQuotaProfileCount,
+			reportData.Summary.QuotaProfileCount,
+			reportData.Summary.TopUpCount,
+			reportData.Summary.AppliedTopUpCount,
+			reportData.Summary.EnabledRatingRuleCount,
+			reportData.Summary.RatingRuleCount,
+			reportData.Summary.EnabledResetPolicyCount,
+			reportData.Summary.ResetPolicyCount,
+			reportData.Summary.TotalBalanceMicros,
+			reportData.Summary.TotalTopUpMicros,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "skipped" {
+			summary += " Broadband quota and balance lifecycle is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but quota balance event history cannot be verified."
+	} else if evidence, err := db.GetBroadbandQuotaBalanceSummary(); err != nil {
+		status = "blocked"
+		summary += " Broadband quota balance evidence failed: " + err.Error()
+	} else {
+		if evidence.BlockedCount > 0 || evidence.ExhaustedWallets > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, active_wallets=%d, exhausted_wallets=%d, active_profiles=%d, applied_top_ups=%d, active_rating_rules=%d, active_reset_policies=%d, balance_micros=%d, credit_limit_micros=%d, top_up_micros=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.ActiveWallets,
+			evidence.ExhaustedWallets,
+			evidence.ActiveQuotaProfiles,
+			evidence.AppliedTopUps,
+			evidence.ActiveRatingRules,
+			evidence.ActiveResetPolicies,
+			evidence.TotalBalanceMicros,
+			evidence.TotalCreditLimitMicros,
+			evidence.TotalTopUpMicros,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "broadband_quota_balance",
+		Category:       "radius",
+		Label:          "NAS-0085 Broadband Quota, Balance, Top-Up, Prepaid, And Postpaid",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/broadband-quota-balance/preview before enabling quota enforcement, apply only after reviewing wallets, quota profiles, top-up idempotency, rating rules, reset policies, accounting correlation, charging integration, and CoA exhaustion behavior. Keep live payment/BSS/OSS, BRAS/BNG, FreeRADIUS production Linux, HA, scale, soak, security, deployment, and customer proof in the NAS-0085 release certification checklist.",
+		Dependencies:   []string{"broadband.quota_balance", "broadband.commercial_catalog", "broadband.subscriber_state", "radius.sql_accounting", "radius.accounting_services", "radius.accounting_charging", "radius.dynamic_auth", "/api/v1/system/broadband-quota-balance", "/api/v1/system/broadband-quota-balance/preview", "/api/v1/system/broadband-quota-balance/apply", "broadband_quota_wallets", "broadband_quota_profiles", "broadband_topup_grants", "broadband_quota_rating_rules", "broadband_quota_reset_policies", "broadband_quota_balance_events", "RFC 2865", "RFC 2866", "RFC 2869", "RFC 5176"},
 	})
 }
 

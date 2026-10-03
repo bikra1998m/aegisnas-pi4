@@ -375,6 +375,43 @@ test.describe('Access Settings edge-network flow', () => {
     await expect(page.getByText(/Commercial catalog applied/)).toBeVisible();
   });
 
+  test('previews and applies broadband quota balance lifecycle', async ({
+    page,
+  }) => {
+    test.setTimeout(60000);
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto('/access-settings');
+    const quotaSection = page.locator('section').filter({
+      has: page.getByRole('heading', {
+        name: 'Broadband Quota And Balance',
+      }),
+    });
+    await expect(quotaSection).toBeVisible();
+    await expect(
+      quotaSection.getByRole('heading', { name: 'Wallets' }),
+    ).toBeVisible();
+    await expect(
+      quotaSection.getByRole('heading', { name: 'Quota Profiles' }),
+    ).toBeVisible();
+    await expect(
+      quotaSection.getByText('wallet-lab-1', { exact: true }).first(),
+    ).toBeVisible();
+    await expect(quotaSection.getByText('monthly-500g').first()).toBeVisible();
+    await expect(
+      quotaSection.getByText('Acct-Input-Octets').first(),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Preview Quota Balance' }).click();
+    await expect(
+      page.getByText(/Quota and balance preview recorded/),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Apply Quota Balance' }).click();
+    await expect(page.getByText(/Quota and balance applied/)).toBeVisible();
+  });
+
   test('previews and applies broadband address lease lifecycle', async ({
     page,
   }) => {

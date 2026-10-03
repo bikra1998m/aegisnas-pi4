@@ -1051,6 +1051,40 @@ packet captures, HA failover, performance, soak, security audit, production
 deployment, and customer acceptance evidence stay in
 `nas-0084-release-certification-checklist.md`.
 
+For broadband quota, balance, top-up, prepaid, and postpaid governance,
+preview NAS-0085 before enabling enforce mode or changing wallet, quota,
+rating, reset, or top-up behavior:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-quota-balance/preview \
+  | jq '.report.status, .report.summary, .report.wallets, .report.rating_rules'
+```
+
+Apply only after reviewing wallet identity, commercial subscription
+references, quota profile hard limits, top-up idempotency, rating rules, reset
+policies, accounting Start/Interim/Stop bindings, CoA exhaustion behavior,
+compliance checks, and the plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-quota-balance/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/broadband-quota-balance/history` and the support bundle
+files `api/broadband-quota-balance.json` and
+`api/broadband-quota-balance-history.json` during wallet, balance, top-up,
+rating, quota-reset, accounting, CoA, BSS/OSS, payment, and HA
+investigations. Live payment gateways, BSS/OSS wallet sync, BRAS/BNG quota
+enforcement, FreeRADIUS production Linux, packet captures, HA failover,
+performance, soak, security audit, production deployment, and customer
+acceptance evidence stay in `nas-0085-release-certification-checklist.md`.
+
 For broadband address pool and lease lifecycle governance, preview NAS-0086
 before enabling enforce mode or changing sticky lease, reservation, conflict, or
 accounting-stop release behavior:

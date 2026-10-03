@@ -77,6 +77,7 @@ type BroadbandConfig struct {
 	PPPoE             BroadbandPPPoEConfig           `mapstructure:"pppoe"`
 	Subscriber        BroadbandSubscriberStateConfig `mapstructure:"subscriber_state"`
 	CommercialCatalog BroadbandCommercialCatalog     `mapstructure:"commercial_catalog"`
+	QuotaBalance      BroadbandQuotaBalanceConfig    `mapstructure:"quota_balance"`
 	AddressLeases     BroadbandAddressLeaseConfig    `mapstructure:"address_leases"`
 }
 
@@ -6038,6 +6039,9 @@ func (c *Config) Validate() error {
 		return err
 	}
 	if err := validateBroadbandCommercialCatalog(c.Broadband.CommercialCatalog, c.Broadband.Subscriber, c.Radius, profile); err != nil {
+		return err
+	}
+	if err := validateBroadbandQuotaBalanceConfig(c.Broadband.QuotaBalance, c.Broadband.CommercialCatalog, c.Broadband.Subscriber, c.Radius, profile); err != nil {
 		return err
 	}
 	if err := validateBroadbandAddressLeaseConfig(c.Broadband.AddressLeases, c.Broadband.Subscriber, c.Broadband.PPPoE, c.Radius, profile); err != nil {

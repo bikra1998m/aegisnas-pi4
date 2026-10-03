@@ -1031,7 +1031,7 @@ broadband:
         route_policy: "residential"
         qos_profile: "silver"
         translation_pool: "cgnat-pool"
-        quota_profile: "unlimited"
+        quota_profile: "monthly-500g"
         max_sessions: 4
         session_timeout_seconds: 86400
         idle_timeout_seconds: 3600
@@ -1150,6 +1150,81 @@ broadband:
         grace_seconds: 60
         action: "reject"
         coa_action: "disconnect-excess"
+  quota_balance:
+    enabled: false # Enable after commercial catalog, charging, SQL accounting, and CoA previews pass.
+    mode: "monitor" # Use enforce after payment/BSS/OSS and BRAS/BNG quota-flow validation.
+    fail_closed: true
+    default_currency: "USD"
+    default_quota_period: "monthly"
+    require_commercial_catalog: true
+    require_active_wallet: true
+    require_quota_profile: true
+    rating_enabled: true
+    top_up_enabled: true
+    prepaid_enabled: true
+    postpaid_enabled: true
+    accounting_correlation_required: true
+    auto_suspend_on_exhaustion: true
+    coa_on_exhaustion: true
+    allow_negative_balance: false
+    balance_floor_micros: 0
+    event_retention_limit: 10000
+    wallets:
+      - wallet_id: "wallet-lab-family-01"
+        account_id: "acct-lab-family-01"
+        subscription_id: "sub-lab-family-01-primary"
+        subscriber_id: "sub-lab-cpe-01"
+        username: "lab-cpe-01@example.net"
+        billing_mode: "prepaid"
+        status: "active"
+        currency: "USD"
+        balance_micros: 25000000
+        credit_limit_micros: 0
+        reserved_micros: 0
+        quota_profile: "monthly-500g"
+        auto_recharge: true
+        tags: ["lab", "retail"]
+    quota_profiles:
+      - name: "monthly-500g"
+        enabled: false
+        period: "monthly"
+        included_total_octets: 536870912000
+        overage_rate_micros_per_mb: 25000
+        warning_threshold_percent: 80
+        hard_limit: true
+        throttle_profile: "shape-10m"
+        exhausted_role: "quota-exhausted"
+        reset_policy: "monthly-reset"
+        vendor_packs: ["standard", "aegisnas", "mikrotik", "huawei", "chillispot"]
+    top_ups:
+      - top_up_id: "topup-lab-family-01"
+        wallet_id: "wallet-lab-family-01"
+        amount_micros: 10000000
+        bonus_micros: 1000000
+        currency: "USD"
+        quota_octets: 107374182400
+        status: "pending"
+        payment_ref: "manual-lab-topup-01"
+        idempotency_key: "manual-lab-topup-01"
+        source: "operator"
+    rating_rules:
+      - name: "fiber-100m-overage"
+        enabled: false
+        plan: "fiber-100m"
+        quota_profile: "monthly-500g"
+        unit: "total-octets"
+        price_micros: 25000
+        rounding: "up"
+        minimum_charge_micros: 1000000
+        tax_percent: 0
+    reset_policies:
+      - name: "monthly-reset"
+        enabled: false
+        period: "monthly"
+        reset_day: 1
+        reset_hour: 3
+        carry_over_octets: 107374182400
+        carry_over_balance_micros: 5000000
   address_leases:
     enabled: false # Enable after address policy, subscriber state, accounting, and CoA previews pass.
     mode: "monitor" # Use enforce after live BRAS/BNG lease and rollback drills.

@@ -30,6 +30,7 @@ jobs:
       - run: make test-dictionary-release-profiles
       - run: make test-vendor-certification
       - run: make test-broadband-commercial-catalog
+      - run: make test-broadband-quota-balance
 
   frontend:
     runs-on: ubuntu-latest

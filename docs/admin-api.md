@@ -1729,6 +1729,34 @@ support bundles as `api/broadband-commercial-catalog.json` and
 `api/broadband-commercial-catalog-history.json`. See
 [broadband-commercial-catalog.md](broadband-commercial-catalog.md).
 
+NAS-0085 adds broadband quota and balance lifecycle endpoints:
+
+```text
+GET  /api/v1/system/broadband-quota-balance
+POST /api/v1/system/broadband-quota-balance/preview
+POST /api/v1/system/broadband-quota-balance/apply
+GET  /api/v1/system/broadband-quota-balance/history
+```
+
+`GET /api/v1/system/broadband-quota-balance` returns wallets, quota profiles,
+top-up grants, rating rules, reset policies, RADIUS authorization/accounting
+bindings, compliance checks, plan fingerprint, software completion state,
+release certification scope, and recent evidence. Preview records an evidence
+event without mutating wallet records. Apply records an auditable checkpoint,
+upserts normalized wallet, profile, top-up, rating-rule, and reset-policy rows,
+and updates runtime status. A blocked apply returns HTTP 409 with the report.
+Read-only roles may read, preview, and list history. `ops_admin` and
+`super_admin` may apply.
+
+The endpoints depend on `broadband.quota_balance`,
+`broadband.commercial_catalog`, `broadband.subscriber_state`,
+`radius.sql_accounting`, `radius.accounting_services`,
+`radius.accounting_charging`, and `radius.dynamic_auth`, are checked by
+production readiness as `broadband_quota_balance`, and are captured in support
+bundles as `api/broadband-quota-balance.json` and
+`api/broadband-quota-balance-history.json`. See
+[broadband-quota-balance.md](broadband-quota-balance.md).
+
 NAS-0086 adds broadband address pool and lease lifecycle endpoints:
 
 ```text

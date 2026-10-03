@@ -3538,6 +3538,11 @@ export default function AccessSettings() {
     useState("");
   const broadbandCommercialCatalogBusy =
     broadbandCommercialCatalogAction !== "";
+  const [broadbandQuotaBalance, setBroadbandQuotaBalance] =
+    useState<JsonMap | null>(null);
+  const [broadbandQuotaBalanceAction, setBroadbandQuotaBalanceAction] =
+    useState("");
+  const broadbandQuotaBalanceBusy = broadbandQuotaBalanceAction !== "";
   const [broadbandAddressLeases, setBroadbandAddressLeases] =
     useState<JsonMap | null>(null);
   const [broadbandAddressLeaseAction, setBroadbandAddressLeaseAction] =
@@ -3669,6 +3674,11 @@ export default function AccessSettings() {
   const loadBroadbandCommercialCatalog = async () => {
     const { data } = await api.get("/system/broadband-commercial-catalog");
     setBroadbandCommercialCatalog(data.report || null);
+  };
+
+  const loadBroadbandQuotaBalance = async () => {
+    const { data } = await api.get("/system/broadband-quota-balance");
+    setBroadbandQuotaBalance(data.report || null);
   };
 
   const loadBroadbandAddressLeases = async () => {
@@ -3915,6 +3925,7 @@ export default function AccessSettings() {
         pppoeAccessRes,
         broadbandSubscriberStateRes,
         broadbandCommercialCatalogRes,
+        broadbandQuotaBalanceRes,
         broadbandAddressLeasesRes,
       ] = await Promise.all([
         api.get("/system/settings"),
@@ -3930,6 +3941,7 @@ export default function AccessSettings() {
         api.get("/system/pppoe-access-lifecycle"),
         api.get("/system/broadband-subscriber-state"),
         api.get("/system/broadband-commercial-catalog"),
+        api.get("/system/broadband-quota-balance"),
         api.get("/system/broadband-address-leases"),
       ]);
       await loadReferenceData();
@@ -3951,6 +3963,7 @@ export default function AccessSettings() {
       setBroadbandCommercialCatalog(
         broadbandCommercialCatalogRes.data.report || null,
       );
+      setBroadbandQuotaBalance(broadbandQuotaBalanceRes.data.report || null);
       setBroadbandAddressLeases(broadbandAddressLeasesRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
@@ -4847,6 +4860,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewBroadbandQuotaBalance = async () => {
+    setBroadbandQuotaBalanceAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-quota-balance/preview",
+        {},
+      );
+      setBroadbandQuotaBalance(data.report || null);
+      setMessage(
+        `Quota and balance preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview broadband quota and balance.",
+      );
+    } finally {
+      setBroadbandQuotaBalanceAction("");
+    }
+  };
+
+  const applyBroadbandQuotaBalance = async () => {
+    setBroadbandQuotaBalanceAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-quota-balance/apply",
+        {},
+      );
+      setBroadbandQuotaBalance(data.report || null);
+      setMessage(
+        `Quota and balance ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadBroadbandQuotaBalance();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply broadband quota and balance.",
+      );
+    } finally {
+      setBroadbandQuotaBalanceAction("");
+    }
+  };
+
   const previewBroadbandAddressLeases = async () => {
     setBroadbandAddressLeaseAction("preview");
     setError("");
@@ -5522,6 +5586,44 @@ export default function AccessSettings() {
     ? broadbandCommercialCatalog?.compliance
     : [];
   const broadbandCommercialTone = statusTone(broadbandCommercialCatalog?.status);
+  const broadbandQuotaBalanceSummary = broadbandQuotaBalance?.summary || {};
+  const broadbandQuotaWallets = Array.isArray(broadbandQuotaBalance?.wallets)
+    ? broadbandQuotaBalance?.wallets
+    : [];
+  const broadbandQuotaProfiles = Array.isArray(
+    broadbandQuotaBalance?.quota_profiles,
+  )
+    ? broadbandQuotaBalance?.quota_profiles
+    : [];
+  const broadbandTopUps = Array.isArray(broadbandQuotaBalance?.top_ups)
+    ? broadbandQuotaBalance?.top_ups
+    : [];
+  const broadbandQuotaRatingRules = Array.isArray(
+    broadbandQuotaBalance?.rating_rules,
+  )
+    ? broadbandQuotaBalance?.rating_rules
+    : [];
+  const broadbandQuotaResetPolicies = Array.isArray(
+    broadbandQuotaBalance?.reset_policies,
+  )
+    ? broadbandQuotaBalance?.reset_policies
+    : [];
+  const broadbandQuotaAuthorization = Array.isArray(
+    broadbandQuotaBalance?.authorization_bindings,
+  )
+    ? broadbandQuotaBalance?.authorization_bindings
+    : [];
+  const broadbandQuotaAccounting = Array.isArray(
+    broadbandQuotaBalance?.accounting_bindings,
+  )
+    ? broadbandQuotaBalance?.accounting_bindings
+    : [];
+  const broadbandQuotaCompliance = Array.isArray(
+    broadbandQuotaBalance?.compliance,
+  )
+    ? broadbandQuotaBalance?.compliance
+    : [];
+  const broadbandQuotaTone = statusTone(broadbandQuotaBalance?.status);
   const broadbandAddressLeaseSummary = broadbandAddressLeases?.summary || {};
   const broadbandAddressLeasePools = Array.isArray(
     broadbandAddressLeases?.pools,
@@ -5918,6 +6020,24 @@ export default function AccessSettings() {
             {broadbandCommercialCatalogAction === "apply"
               ? "Applying Catalog..."
               : "Apply Commercial Catalog"}
+          </button>
+          <button
+            onClick={previewBroadbandQuotaBalance}
+            disabled={broadbandQuotaBalanceBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {broadbandQuotaBalanceAction === "preview"
+              ? "Checking Quota..."
+              : "Preview Quota Balance"}
+          </button>
+          <button
+            onClick={applyBroadbandQuotaBalance}
+            disabled={broadbandQuotaBalanceBusy}
+            className="rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-900 disabled:opacity-60"
+          >
+            {broadbandQuotaBalanceAction === "apply"
+              ? "Applying Quota..."
+              : "Apply Quota Balance"}
           </button>
           <button
             onClick={previewBroadbandAddressLeases}
@@ -6753,6 +6873,469 @@ export default function AccessSettings() {
         ) : (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
             Broadband address lease report has not loaded yet.
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Broadband Quota And Balance
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {broadbandQuotaBalance?.release_certification_checklist ||
+                "Validate wallets, quota profiles, top-ups, rating rules, resets, accounting correlation, charging, and CoA before quota enforcement."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${broadbandQuotaTone}`}
+          >
+            {broadbandQuotaBalance?.status || "unknown"}
+          </div>
+        </div>
+        {broadbandQuotaBalance ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {broadbandQuotaBalance.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Wallets",
+                  `${broadbandQuotaBalanceSummary.active_wallet_count || 0}/${broadbandQuotaBalanceSummary.wallet_count || 0}`,
+                ],
+                [
+                  "Quota Profiles",
+                  `${broadbandQuotaBalanceSummary.enabled_quota_profile_count || 0}/${broadbandQuotaBalanceSummary.quota_profile_count || 0}`,
+                ],
+                ["Top-Ups", broadbandQuotaBalanceSummary.top_up_count || 0],
+                [
+                  "Rating",
+                  `${broadbandQuotaBalanceSummary.enabled_rating_rule_count || 0}/${broadbandQuotaBalanceSummary.rating_rule_count || 0}`,
+                ],
+                [
+                  "Resets",
+                  `${broadbandQuotaBalanceSummary.enabled_reset_policy_count || 0}/${broadbandQuotaBalanceSummary.reset_policy_count || 0}`,
+                ],
+                [
+                  "Checks",
+                  `${broadbandQuotaBalanceSummary.passed_check_count || 0}/${broadbandQuotaBalanceSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="rounded-md border border-gray-200 px-3 py-2"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-3 md:grid-cols-4">
+              <div className="rounded-md border border-gray-200 px-3 py-2 text-sm">
+                <div className="text-xs uppercase text-gray-500">Mode</div>
+                <div className="mt-1 font-mono text-gray-900">
+                  {broadbandQuotaBalanceSummary.mode || "monitor"}
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-3 py-2 text-sm">
+                <div className="text-xs uppercase text-gray-500">Currency</div>
+                <div className="mt-1 font-mono text-gray-900">
+                  {broadbandQuotaBalanceSummary.default_currency || "USD"}
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-3 py-2 text-sm">
+                <div className="text-xs uppercase text-gray-500">Balance</div>
+                <div className="mt-1 font-mono text-gray-900">
+                  {broadbandQuotaBalanceSummary.total_balance_micros || 0}
+                </div>
+              </div>
+              <div className="rounded-md border border-gray-200 px-3 py-2 text-sm">
+                <div className="text-xs uppercase text-gray-500">Top-Up</div>
+                <div className="mt-1 font-mono text-gray-900">
+                  {broadbandQuotaBalanceSummary.total_top_up_micros || 0}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Wallets
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandQuotaWallets.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No quota wallet is configured.
+                    </div>
+                  ) : (
+                    broadbandQuotaWallets
+                      .slice(0, 8)
+                      .map((wallet: JsonMap, index: number) => (
+                        <div
+                          key={`${wallet.wallet_id || "wallet"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {wallet.wallet_id || "Wallet"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                wallet.status,
+                              )}`}
+                            >
+                              {wallet.status || "active"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              wallet.billing_mode,
+                              wallet.account_id,
+                              wallet.subscription_id,
+                              wallet.username,
+                              wallet.quota_profile,
+                              wallet.balance_micros !== undefined
+                                ? `${wallet.balance_micros} micros`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Wallet metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Quota Profiles
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandQuotaProfiles.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No quota profile is configured.
+                    </div>
+                  ) : (
+                    broadbandQuotaProfiles
+                      .slice(0, 8)
+                      .map((profile: JsonMap, index: number) => (
+                        <div
+                          key={`${profile.name || "profile"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {profile.name || "Quota Profile"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                profile.status,
+                              )}`}
+                            >
+                              {profile.status || "active"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              profile.period,
+                              profile.included_total_octets
+                                ? `${profile.included_total_octets} octets`
+                                : "",
+                              profile.warning_threshold_percent
+                                ? `${profile.warning_threshold_percent}% warn`
+                                : "",
+                              profile.hard_limit ? "hard limit" : "",
+                              profile.throttle_profile,
+                              profile.exhausted_role,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Quota metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Top-Up Grants
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandTopUps.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No top-up grant is configured.
+                    </div>
+                  ) : (
+                    broadbandTopUps
+                      .slice(0, 8)
+                      .map((topUp: JsonMap, index: number) => (
+                        <div
+                          key={`${topUp.top_up_id || "topup"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {topUp.top_up_id || "Top-Up"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                topUp.status,
+                              )}`}
+                            >
+                              {topUp.status || "pending"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              topUp.wallet_id,
+                              topUp.amount_micros
+                                ? `${topUp.amount_micros} micros`
+                                : "",
+                              topUp.quota_octets
+                                ? `${topUp.quota_octets} octets`
+                                : "",
+                              topUp.source,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Top-up metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Rating Rules
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandQuotaRatingRules.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No rating rule is configured.
+                    </div>
+                  ) : (
+                    broadbandQuotaRatingRules
+                      .slice(0, 8)
+                      .map((rule: JsonMap, index: number) => (
+                        <div
+                          key={`${rule.name || "rating"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {rule.name || "Rating Rule"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                rule.status,
+                              )}`}
+                            >
+                              {rule.status || "active"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              rule.plan,
+                              rule.quota_profile,
+                              rule.unit,
+                              rule.price_micros
+                                ? `${rule.price_micros} micros`
+                                : "",
+                              rule.rounding,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Rating metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Reset Policies
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandQuotaResetPolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No reset policy is configured.
+                    </div>
+                  ) : (
+                    broadbandQuotaResetPolicies
+                      .slice(0, 8)
+                      .map((policy: JsonMap, index: number) => (
+                        <div
+                          key={`${policy.name || "reset"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {policy.name || "Reset Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                policy.status,
+                              )}`}
+                            >
+                              {policy.status || "active"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              policy.period,
+                              policy.reset_day
+                                ? `day ${policy.reset_day}`
+                                : "",
+                              policy.reset_hour !== undefined
+                                ? `hour ${policy.reset_hour}`
+                                : "",
+                              policy.carry_over_octets
+                                ? `${policy.carry_over_octets} carry octets`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Reset metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Authorization Bindings
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandQuotaAuthorization
+                    .slice(0, 8)
+                    .map((binding: JsonMap, index: number) => (
+                      <div
+                        key={`${binding.stage || "quota-auth"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {binding.stage || "Authorization Stage"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {binding.purpose || "Quota authorization signal"}
+                        </div>
+                        <div className="mt-2 break-all text-xs text-gray-500">
+                          {Array.isArray(binding.attributes)
+                            ? binding.attributes.join(", ")
+                            : ""}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Accounting Bindings
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandQuotaAccounting
+                    .slice(0, 8)
+                    .map((binding: JsonMap, index: number) => (
+                      <div
+                        key={`${binding.stage || "quota-acct"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {binding.stage || "Accounting Stage"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {Array.isArray(binding.attributes)
+                            ? binding.attributes.join(", ")
+                            : "Accounting evidence"}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Compliance Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandQuotaCompliance.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No quota compliance check is present.
+                    </div>
+                  ) : (
+                    broadbandQuotaCompliance
+                      .slice(0, 8)
+                      .map((check: JsonMap, index: number) => (
+                        <div
+                          key={`${check.id || check.name || "quota-check"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {check.name || check.id || "Compliance Check"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                check.status,
+                              )}`}
+                            >
+                              {check.status || "unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {check.message || "No compliance message"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            {((broadbandQuotaBalance.blockers?.length || 0) > 0 ||
+              (broadbandQuotaBalance.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(broadbandQuotaBalance.blockers || []),
+                  ...(broadbandQuotaBalance.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              prepaid{" "}
+              <span className="font-mono">
+                {broadbandQuotaBalanceSummary.prepaid_enabled
+                  ? "enabled"
+                  : "disabled"}
+              </span>{" "}
+              / postpaid{" "}
+              <span className="font-mono">
+                {broadbandQuotaBalanceSummary.postpaid_enabled
+                  ? "enabled"
+                  : "disabled"}
+              </span>{" "}
+              / CoA{" "}
+              <span className="font-mono">
+                {broadbandQuotaBalanceSummary.coa_on_exhaustion
+                  ? "on"
+                  : "off"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {broadbandQuotaBalance.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Broadband quota and balance report has not loaded yet.
           </div>
         )}
       </section>

@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 89
+	return 90
 }
 
 func Migrate() error {
@@ -4667,3 +4667,161 @@ CREATE INDEX IF NOT EXISTS idx_broadband_commercial_catalog_events_mode ON broad
 `
 
 const schemaV89 = broadbandCommercialCatalogSQL
+
+const broadbandQuotaBalanceSQL = `
+CREATE TABLE IF NOT EXISTS broadband_quota_wallets (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	wallet_id TEXT UNIQUE NOT NULL,
+	account_id TEXT,
+	subscription_id TEXT,
+	subscriber_id TEXT,
+	username TEXT,
+	billing_mode TEXT NOT NULL DEFAULT 'prepaid',
+	status TEXT NOT NULL DEFAULT 'active',
+	currency TEXT NOT NULL DEFAULT 'USD',
+	balance_micros INTEGER NOT NULL DEFAULT 0,
+	credit_limit_micros INTEGER NOT NULL DEFAULT 0,
+	reserved_micros INTEGER NOT NULL DEFAULT 0,
+	quota_profile TEXT,
+	period_start DATETIME,
+	period_end DATETIME,
+	auto_recharge INTEGER NOT NULL DEFAULT 0,
+	tags_json TEXT NOT NULL DEFAULT '[]',
+	metadata_json TEXT NOT NULL DEFAULT '{}',
+	source_event_id TEXT,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (billing_mode IN ('prepaid', 'postpaid', 'hybrid', 'external')),
+	CHECK (status IN ('active', 'suspended', 'exhausted', 'closed', 'pending'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_quota_profiles (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	profile_name TEXT UNIQUE NOT NULL,
+	status TEXT NOT NULL DEFAULT 'active',
+	period TEXT NOT NULL DEFAULT 'monthly',
+	included_input_octets INTEGER NOT NULL DEFAULT 0,
+	included_output_octets INTEGER NOT NULL DEFAULT 0,
+	included_total_octets INTEGER NOT NULL DEFAULT 0,
+	overage_rate_micros_per_mb INTEGER NOT NULL DEFAULT 0,
+	warning_threshold_percent INTEGER NOT NULL DEFAULT 0,
+	hard_limit INTEGER NOT NULL DEFAULT 0,
+	throttle_profile TEXT,
+	exhausted_role TEXT,
+	reset_policy TEXT,
+	vendor_packs_json TEXT NOT NULL DEFAULT '[]',
+	metadata_json TEXT NOT NULL DEFAULT '{}',
+	source_event_id TEXT,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('active', 'disabled'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_topup_grants (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	top_up_id TEXT UNIQUE NOT NULL,
+	wallet_id TEXT NOT NULL,
+	status TEXT NOT NULL DEFAULT 'pending',
+	amount_micros INTEGER NOT NULL DEFAULT 0,
+	bonus_micros INTEGER NOT NULL DEFAULT 0,
+	currency TEXT NOT NULL DEFAULT 'USD',
+	quota_octets INTEGER NOT NULL DEFAULT 0,
+	expires_at DATETIME,
+	payment_ref TEXT,
+	idempotency_key TEXT,
+	source TEXT,
+	metadata_json TEXT NOT NULL DEFAULT '{}',
+	source_event_id TEXT,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('pending', 'applied', 'reversed', 'expired'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_quota_rating_rules (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	rule_name TEXT UNIQUE NOT NULL,
+	status TEXT NOT NULL DEFAULT 'active',
+	plan_name TEXT,
+	quota_profile TEXT,
+	unit TEXT NOT NULL DEFAULT 'total-octets',
+	price_micros INTEGER NOT NULL DEFAULT 0,
+	rounding TEXT NOT NULL DEFAULT 'none',
+	minimum_charge_micros INTEGER NOT NULL DEFAULT 0,
+	tax_percent INTEGER NOT NULL DEFAULT 0,
+	metadata_json TEXT NOT NULL DEFAULT '{}',
+	source_event_id TEXT,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('active', 'disabled')),
+	CHECK (unit IN ('input-octets', 'output-octets', 'total-octets', 'session', 'period', 'packet')),
+	CHECK (rounding IN ('none', 'up', 'down', 'nearest'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_quota_reset_policies (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	policy_name TEXT UNIQUE NOT NULL,
+	status TEXT NOT NULL DEFAULT 'active',
+	period TEXT NOT NULL DEFAULT 'monthly',
+	reset_day INTEGER NOT NULL DEFAULT 0,
+	reset_hour INTEGER NOT NULL DEFAULT 0,
+	carry_over_octets INTEGER NOT NULL DEFAULT 0,
+	carry_over_balance_micros INTEGER NOT NULL DEFAULT 0,
+	metadata_json TEXT NOT NULL DEFAULT '{}',
+	source_event_id TEXT,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('active', 'disabled'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_quota_balance_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	mode TEXT,
+	wallet_count INTEGER NOT NULL DEFAULT 0,
+	quota_profile_count INTEGER NOT NULL DEFAULT 0,
+	top_up_count INTEGER NOT NULL DEFAULT 0,
+	rating_rule_count INTEGER NOT NULL DEFAULT 0,
+	reset_policy_count INTEGER NOT NULL DEFAULT 0,
+	active_wallet_count INTEGER NOT NULL DEFAULT 0,
+	prepaid_wallet_count INTEGER NOT NULL DEFAULT 0,
+	postpaid_wallet_count INTEGER NOT NULL DEFAULT 0,
+	exhausted_wallet_count INTEGER NOT NULL DEFAULT 0,
+	total_balance_micros INTEGER NOT NULL DEFAULT 0,
+	total_credit_limit_micros INTEGER NOT NULL DEFAULT 0,
+	total_top_up_micros INTEGER NOT NULL DEFAULT 0,
+	compliance_check_count INTEGER NOT NULL DEFAULT 0,
+	passed_check_count INTEGER NOT NULL DEFAULT 0,
+	warning_count INTEGER NOT NULL DEFAULT 0,
+	blocker_count INTEGER NOT NULL DEFAULT 0,
+	external_requirement_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status', 'reconcile')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed', 'reconciled'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_broadband_quota_wallets_identity ON broadband_quota_wallets(subscriber_id, username, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_quota_wallets_account ON broadband_quota_wallets(account_id, subscription_id, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_quota_wallets_profile ON broadband_quota_wallets(quota_profile, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_quota_profiles_status ON broadband_quota_profiles(status, period);
+CREATE INDEX IF NOT EXISTS idx_broadband_topup_grants_wallet ON broadband_topup_grants(wallet_id, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_topup_grants_idempotency ON broadband_topup_grants(idempotency_key);
+CREATE INDEX IF NOT EXISTS idx_broadband_quota_rating_rules_plan ON broadband_quota_rating_rules(plan_name, quota_profile, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_quota_reset_policies_period ON broadband_quota_reset_policies(period, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_quota_balance_events_created ON broadband_quota_balance_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_quota_balance_events_status ON broadband_quota_balance_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_quota_balance_events_fingerprint ON broadband_quota_balance_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_quota_balance_events_mode ON broadband_quota_balance_events(mode, created_at);
+`
+
+const schemaV90 = broadbandQuotaBalanceSQL
