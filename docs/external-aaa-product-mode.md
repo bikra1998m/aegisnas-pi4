@@ -1527,6 +1527,25 @@ For BNG hierarchical QoS and service flows:
    soak, security audit, and customer acceptance in
    `nas-0087-release-certification-checklist.md`
 
+For L2TP and wholesale realm separation:
+
+1. keep `broadband.l2tp_wholesale.mode: monitor` until PPPoE, subscriber
+   wholesale state, upstream proxy routes, SQL accounting, accounting services,
+   dynamic authorization, and tunnel failover previews pass
+2. model each wholesale partner realm with explicit `proxy_route`,
+   `accounting_route`, `tenant`, `partner`, `tunnel_profile`, and vendor packs
+3. use `POST /api/v1/system/broadband-l2tp-wholesale/preview` to inspect
+   compiled attributes such as `Tunnel-Type`, `Tunnel-Server-Endpoint`,
+   `Proxy-State`, `Cisco-AVPair`, `Juniper-AV-Pair`, and `Nokia-AVPair`
+4. run apply only after operator review of realm isolation, customer realm
+   stripping, route delegation, failover policy, accounting replay, CoA action,
+   and plan fingerprint
+5. export a support bundle and retain `api/broadband-l2tp-wholesale.json` and
+   `api/broadband-l2tp-wholesale-history.json`
+6. keep live LAC/LNS packet captures, partner acceptance, HA failover,
+   performance, soak, security audit, and customer acceptance in
+   `nas-0088-release-certification-checklist.md`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

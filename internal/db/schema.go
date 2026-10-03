@@ -216,6 +216,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{89, schemaV89},
 		{90, schemaV90},
 		{91, schemaV91},
+		{92, schemaV92},
 	}
 
 	pending := make([]struct {
@@ -470,8 +471,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureBroadbandQoSServiceFlowTables(handle); err != nil {
 		return fmt.Errorf("repair broadband QoS service flow schema: %w", err)
 	}
+	if err := ensureBroadbandL2TPWholesaleTables(handle); err != nil {
+		return fmt.Errorf("repair broadband L2TP wholesale schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureBroadbandL2TPWholesaleTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(broadbandL2TPWholesaleSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureBroadbandQoSServiceFlowTables(handle *sql.DB) error {

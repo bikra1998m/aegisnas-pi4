@@ -1935,7 +1935,8 @@ const defaultSettings: JsonMap = {
             ],
             allowed_methods: ["peap", "ttls", "tls"],
             required_methods: [],
-            notes: "Baseline RFC 3748 EAP policy for enterprise APs and switches.",
+            notes:
+              "Baseline RFC 3748 EAP policy for enterprise APs and switches.",
           },
         ],
       },
@@ -2360,9 +2361,7 @@ const quotaPackOptions: Option[] = [
   { value: "chillispot", label: "ChilliSpot / CoovaChilli" },
 ];
 
-const serviceNamePackOptions: Option[] = [
-  { value: "nokia", label: "Nokia" },
-];
+const serviceNamePackOptions: Option[] = [{ value: "nokia", label: "Nokia" }];
 
 const vlanPoolStrategyOptions: Option[] = [
   { value: "hash-calling-station", label: "Hash Calling Station" },
@@ -2612,15 +2611,15 @@ function applyDeploymentPreset(input: JsonMap): JsonMap {
     next.governance.resource_audit_enabled ?? true;
   next.governance.resource_retention_limit =
     next.governance.resource_retention_limit || 10000;
-  next.governance.shared_resource_types =
-    next.governance.shared_resource_types || [
-      "system_status",
-      "production_readiness",
-      "support_bundle",
-      "dictionary_catalog",
-      "vendor_compatibility",
-      "runtime_status",
-    ];
+  next.governance.shared_resource_types = next.governance
+    .shared_resource_types || [
+    "system_status",
+    "production_readiness",
+    "support_bundle",
+    "dictionary_catalog",
+    "vendor_compatibility",
+    "runtime_status",
+  ];
   next.portal = next.portal || {};
   next.portal.guest_workflows = next.portal.guest_workflows || {};
   next.identity = next.identity || {};
@@ -3502,8 +3501,7 @@ export default function AccessSettings() {
     useState<JsonMap | null>(null);
   const [controllerEstateLifecycleAction, setControllerEstateLifecycleAction] =
     useState("");
-  const controllerEstateLifecycleBusy =
-    controllerEstateLifecycleAction !== "";
+  const controllerEstateLifecycleBusy = controllerEstateLifecycleAction !== "";
   const [rfPlanningLifecycle, setRFPlanningLifecycle] =
     useState<JsonMap | null>(null);
   const [rfPlanningLifecycleAction, setRFPlanningLifecycleAction] =
@@ -3511,16 +3509,13 @@ export default function AccessSettings() {
   const rfPlanningLifecycleBusy = rfPlanningLifecycleAction !== "";
   const [wirelessSecurityLifecycle, setWirelessSecurityLifecycle] =
     useState<JsonMap | null>(null);
-  const [
-    wirelessSecurityLifecycleAction,
-    setWirelessSecurityLifecycleAction,
-  ] = useState("");
-  const wirelessSecurityLifecycleBusy =
-    wirelessSecurityLifecycleAction !== "";
-  const [cwaPortalLifecycle, setCWAPortalLifecycle] =
-    useState<JsonMap | null>(null);
-  const [cwaPortalLifecycleAction, setCWAPortalLifecycleAction] =
+  const [wirelessSecurityLifecycleAction, setWirelessSecurityLifecycleAction] =
     useState("");
+  const wirelessSecurityLifecycleBusy = wirelessSecurityLifecycleAction !== "";
+  const [cwaPortalLifecycle, setCWAPortalLifecycle] = useState<JsonMap | null>(
+    null,
+  );
+  const [cwaPortalLifecycleAction, setCWAPortalLifecycleAction] = useState("");
   const cwaPortalLifecycleBusy = cwaPortalLifecycleAction !== "";
   const [pppoeAccessLifecycle, setPPPoEAccessLifecycle] =
     useState<JsonMap | null>(null);
@@ -3534,8 +3529,10 @@ export default function AccessSettings() {
   const broadbandSubscriberStateBusy = broadbandSubscriberStateAction !== "";
   const [broadbandCommercialCatalog, setBroadbandCommercialCatalog] =
     useState<JsonMap | null>(null);
-  const [broadbandCommercialCatalogAction, setBroadbandCommercialCatalogAction] =
-    useState("");
+  const [
+    broadbandCommercialCatalogAction,
+    setBroadbandCommercialCatalogAction,
+  ] = useState("");
   const broadbandCommercialCatalogBusy =
     broadbandCommercialCatalogAction !== "";
   const [broadbandQuotaBalance, setBroadbandQuotaBalance] =
@@ -3553,6 +3550,11 @@ export default function AccessSettings() {
   const [broadbandQoSServiceFlowAction, setBroadbandQoSServiceFlowAction] =
     useState("");
   const broadbandQoSServiceFlowBusy = broadbandQoSServiceFlowAction !== "";
+  const [broadbandL2TPWholesale, setBroadbandL2TPWholesale] =
+    useState<JsonMap | null>(null);
+  const [broadbandL2TPWholesaleAction, setBroadbandL2TPWholesaleAction] =
+    useState("");
+  const broadbandL2TPWholesaleBusy = broadbandL2TPWholesaleAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3694,6 +3696,11 @@ export default function AccessSettings() {
   const loadBroadbandQoSServiceFlows = async () => {
     const { data } = await api.get("/system/broadband-qos-service-flows");
     setBroadbandQoSServiceFlows(data.report || null);
+  };
+
+  const loadBroadbandL2TPWholesale = async () => {
+    const { data } = await api.get("/system/broadband-l2tp-wholesale");
+    setBroadbandL2TPWholesale(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3938,6 +3945,7 @@ export default function AccessSettings() {
         broadbandQuotaBalanceRes,
         broadbandAddressLeasesRes,
         broadbandQoSServiceFlowsRes,
+        broadbandL2TPWholesaleRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -3955,6 +3963,7 @@ export default function AccessSettings() {
         api.get("/system/broadband-quota-balance"),
         api.get("/system/broadband-address-leases"),
         api.get("/system/broadband-qos-service-flows"),
+        api.get("/system/broadband-l2tp-wholesale"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -3980,6 +3989,7 @@ export default function AccessSettings() {
       setBroadbandQoSServiceFlows(
         broadbandQoSServiceFlowsRes.data.report || null,
       );
+      setBroadbandL2TPWholesale(broadbandL2TPWholesaleRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4079,6 +4089,7 @@ export default function AccessSettings() {
       await loadBroadbandQuotaBalance();
       await loadBroadbandAddressLeases();
       await loadBroadbandQoSServiceFlows();
+      await loadBroadbandL2TPWholesale();
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4321,7 +4332,10 @@ export default function AccessSettings() {
     setError("");
     setMessage("");
     try {
-      const { data } = await api.post("/system/hostapd-vlan-lifecycle/preview", {});
+      const { data } = await api.post(
+        "/system/hostapd-vlan-lifecycle/preview",
+        {},
+      );
       setHostapdVLANLifecycle(data.report || null);
       setMessage(
         `hostapd dynamic VLAN preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
@@ -4342,7 +4356,10 @@ export default function AccessSettings() {
     setError("");
     setMessage("");
     try {
-      const { data } = await api.post("/system/hostapd-vlan-lifecycle/apply", {});
+      const { data } = await api.post(
+        "/system/hostapd-vlan-lifecycle/apply",
+        {},
+      );
       setHostapdVLANLifecycle(data.report || null);
       setMessage(
         `hostapd dynamic VLAN lifecycle ${data.result?.status || "applied"}${data.result?.snapshot_id ? ` with snapshot ${data.result.snapshot_id}` : ""}.`,
@@ -4366,7 +4383,10 @@ export default function AccessSettings() {
     setError("");
     setMessage("");
     try {
-      const { data } = await api.post("/system/hostapd-vlan-lifecycle/rollback", {});
+      const { data } = await api.post(
+        "/system/hostapd-vlan-lifecycle/rollback",
+        {},
+      );
       setHostapdVLANLifecycle(data.report || null);
       setMessage(
         `hostapd dynamic VLAN lifecycle rolled back${data.result?.restored_snapshot_id ? ` to ${data.result.restored_snapshot_id}` : ""}.`,
@@ -4441,7 +4461,10 @@ export default function AccessSettings() {
     setError("");
     setMessage("");
     try {
-      const { data } = await api.post("/system/passpoint-lifecycle/preview", {});
+      const { data } = await api.post(
+        "/system/passpoint-lifecycle/preview",
+        {},
+      );
       setPasspointLifecycle(data.report || null);
       setMessage(
         `Passpoint and Hotspot 2.0 preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
@@ -4493,7 +4516,9 @@ export default function AccessSettings() {
       );
     } catch (err: any) {
       setError(
-        err.response?.data || err.message || "Could not preview DPSK/PPSK lifecycle.",
+        err.response?.data ||
+          err.message ||
+          "Could not preview DPSK/PPSK lifecycle.",
       );
     } finally {
       setPPSKLifecycleAction("");
@@ -4515,7 +4540,9 @@ export default function AccessSettings() {
       }
     } catch (err: any) {
       setError(
-        err.response?.data || err.message || "Could not apply DPSK/PPSK lifecycle.",
+        err.response?.data ||
+          err.message ||
+          "Could not apply DPSK/PPSK lifecycle.",
       );
     } finally {
       setPPSKLifecycleAction("");
@@ -4704,10 +4731,7 @@ export default function AccessSettings() {
     setError("");
     setMessage("");
     try {
-      const { data } = await api.post(
-        "/system/cwa-portal-lifecycle/apply",
-        {},
-      );
+      const { data } = await api.post("/system/cwa-portal-lifecycle/apply", {});
       setCWAPortalLifecycle(data.report || null);
       setMessage(
         `CWA portal lifecycle ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
@@ -5032,6 +5056,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewBroadbandL2TPWholesale = async () => {
+    setBroadbandL2TPWholesaleAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-l2tp-wholesale/preview",
+        {},
+      );
+      setBroadbandL2TPWholesale(data.report || null);
+      setMessage(
+        `L2TP wholesale preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview L2TP wholesale realm separation.",
+      );
+    } finally {
+      setBroadbandL2TPWholesaleAction("");
+    }
+  };
+
+  const applyBroadbandL2TPWholesale = async () => {
+    setBroadbandL2TPWholesaleAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-l2tp-wholesale/apply",
+        {},
+      );
+      setBroadbandL2TPWholesale(data.report || null);
+      setMessage(
+        `L2TP wholesale realm separation ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadBroadbandL2TPWholesale();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply L2TP wholesale realm separation.",
+      );
+    } finally {
+      setBroadbandL2TPWholesaleAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -5066,9 +5141,13 @@ export default function AccessSettings() {
     setError("");
     setMessage("");
     try {
-      const { data } = await api.post("/system/accounting-ingest-spool/replay", {
-        batch_size: settings.radius?.accounting_ingest_spool?.batch_size || 500,
-      });
+      const { data } = await api.post(
+        "/system/accounting-ingest-spool/replay",
+        {
+          batch_size:
+            settings.radius?.accounting_ingest_spool?.batch_size || 500,
+        },
+      );
       setMessage(
         `Accounting ingest replay applied ${data.applied || 0} record(s); ${data.failed || 0} failed and ${data.poisoned || 0} require review.`,
       );
@@ -5447,8 +5526,7 @@ export default function AccessSettings() {
     : [];
   const ppskProfiles = settings.wireless?.ppsk?.profiles || [];
   const ppskGroups = settings.wireless?.ppsk?.groups || [];
-  const ppskConfiguredCredentials =
-    settings.wireless?.ppsk?.credentials || [];
+  const ppskConfiguredCredentials = settings.wireless?.ppsk?.credentials || [];
   const ppskTone = statusTone(ppskLifecycle?.status);
   const controllerEstateSummary = controllerEstateLifecycle?.summary || {};
   const controllerEstateInventory = Array.isArray(
@@ -5655,7 +5733,9 @@ export default function AccessSettings() {
   )
     ? broadbandCommercialCatalog?.compliance
     : [];
-  const broadbandCommercialTone = statusTone(broadbandCommercialCatalog?.status);
+  const broadbandCommercialTone = statusTone(
+    broadbandCommercialCatalog?.status,
+  );
   const broadbandQuotaBalanceSummary = broadbandQuotaBalance?.summary || {};
   const broadbandQuotaWallets = Array.isArray(broadbandQuotaBalance?.wallets)
     ? broadbandQuotaBalance?.wallets
@@ -5752,6 +5832,36 @@ export default function AccessSettings() {
     ? broadbandQoSServiceFlows?.compliance
     : [];
   const broadbandQoSTone = statusTone(broadbandQoSServiceFlows?.status);
+  const broadbandL2TPWholesaleSummary = broadbandL2TPWholesale?.summary || {};
+  const broadbandL2TPRealms = Array.isArray(broadbandL2TPWholesale?.realms)
+    ? broadbandL2TPWholesale?.realms
+    : [];
+  const broadbandL2TPTunnels = Array.isArray(
+    broadbandL2TPWholesale?.tunnel_profiles,
+  )
+    ? broadbandL2TPWholesale?.tunnel_profiles
+    : [];
+  const broadbandL2TPFailovers = Array.isArray(
+    broadbandL2TPWholesale?.failover_policies,
+  )
+    ? broadbandL2TPWholesale?.failover_policies
+    : [];
+  const broadbandL2TPAuthorization = Array.isArray(
+    broadbandL2TPWholesale?.authorization_bindings,
+  )
+    ? broadbandL2TPWholesale?.authorization_bindings
+    : [];
+  const broadbandL2TPAccounting = Array.isArray(
+    broadbandL2TPWholesale?.accounting_bindings,
+  )
+    ? broadbandL2TPWholesale?.accounting_bindings
+    : [];
+  const broadbandL2TPCompliance = Array.isArray(
+    broadbandL2TPWholesale?.compliance,
+  )
+    ? broadbandL2TPWholesale?.compliance
+    : [];
+  const broadbandL2TPTone = statusTone(broadbandL2TPWholesale?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -5772,8 +5882,7 @@ export default function AccessSettings() {
   const activeScalingActions =
     deploymentPreview?.scaling?.gating_actions?.filter(
       (action) => action.active && action.state !== "allow",
-    ) ||
-    [];
+    ) || [];
   const rollbackOptions: Option[] =
     networkBackups.length === 0
       ? [{ value: "", label: "No rollback snapshots yet" }]
@@ -6177,6 +6286,24 @@ export default function AccessSettings() {
               : "Apply BNG QoS"}
           </button>
           <button
+            onClick={previewBroadbandL2TPWholesale}
+            disabled={broadbandL2TPWholesaleBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {broadbandL2TPWholesaleAction === "preview"
+              ? "Checking L2TP..."
+              : "Preview L2TP Wholesale"}
+          </button>
+          <button
+            onClick={applyBroadbandL2TPWholesale}
+            disabled={broadbandL2TPWholesaleBusy}
+            className="rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-900 disabled:opacity-60"
+          >
+            {broadbandL2TPWholesaleAction === "apply"
+              ? "Applying L2TP..."
+              : "Apply L2TP Wholesale"}
+          </button>
+          <button
             onClick={applyRadiusConfig}
             disabled={applyingRadius}
             className="rounded-md border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-800 disabled:opacity-60"
@@ -6479,7 +6606,11 @@ export default function AccessSettings() {
               }
               onChange={(value) =>
                 updateField(
-                  ["policy", "enforcement_transactions", "apply_timeout_seconds"],
+                  [
+                    "policy",
+                    "enforcement_transactions",
+                    "apply_timeout_seconds",
+                  ],
                   Number(value),
                 )
               }
@@ -6587,11 +6718,15 @@ export default function AccessSettings() {
               {deploymentPreview.scaling.recommended_limits ? (
                 <div className="mt-1 text-xs text-gray-500">
                   Target limits:{" "}
-                  {deploymentPreview.scaling.recommended_limits
-                    .radius_max_sessions}{" "}
+                  {
+                    deploymentPreview.scaling.recommended_limits
+                      .radius_max_sessions
+                  }{" "}
                   RADIUS sessions,{" "}
-                  {deploymentPreview.scaling.recommended_limits
-                    .recommendation_limit}{" "}
+                  {
+                    deploymentPreview.scaling.recommended_limits
+                      .recommendation_limit
+                  }{" "}
                   AI recommendations, controller sync{" "}
                   {
                     deploymentPreview.scaling.recommended_limits
@@ -6685,6 +6820,368 @@ export default function AccessSettings() {
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
+              L2TP And Wholesale Realm Separation
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {broadbandL2TPWholesale?.release_certification_checklist ||
+                "Validate wholesale realms, L2TP tunnel profiles, proxy/accounting routes, failover, CoA, and partner LNS behavior before live enforcement."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${broadbandL2TPTone}`}
+          >
+            {broadbandL2TPWholesale?.status || "unknown"}
+          </div>
+        </div>
+        {broadbandL2TPWholesale ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {broadbandL2TPWholesale.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Realms",
+                  `${broadbandL2TPWholesaleSummary.enabled_realm_count || 0}/${broadbandL2TPWholesaleSummary.realm_count || 0}`,
+                ],
+                [
+                  "Tunnels",
+                  `${broadbandL2TPWholesaleSummary.enabled_tunnel_profile_count || 0}/${broadbandL2TPWholesaleSummary.tunnel_profile_count || 0}`,
+                ],
+                [
+                  "Failover",
+                  `${broadbandL2TPWholesaleSummary.enabled_failover_policy_count || 0}/${broadbandL2TPWholesaleSummary.failover_policy_count || 0}`,
+                ],
+                [
+                  "Proxy Routes",
+                  broadbandL2TPWholesaleSummary.proxy_route_binding_count || 0,
+                ],
+                [
+                  "Compiled",
+                  broadbandL2TPWholesaleSummary.compiled_attribute_count || 0,
+                ],
+                [
+                  "Compliance",
+                  `${broadbandL2TPWholesaleSummary.passed_check_count || 0}/${broadbandL2TPWholesaleSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
+              Mode{" "}
+              <span className="font-mono">
+                {broadbandL2TPWholesaleSummary.mode || "monitor"}
+              </span>{" "}
+              / selection{" "}
+              <span className="font-mono">
+                {broadbandL2TPWholesaleSummary.selection_policy || "realm"}
+              </span>{" "}
+              / accounting{" "}
+              <span className="font-mono">
+                {broadbandL2TPWholesaleSummary.accounting_delegation_enabled
+                  ? "delegated"
+                  : "local"}
+              </span>{" "}
+              / failover CoA{" "}
+              <span className="font-mono">
+                {broadbandL2TPWholesaleSummary.coa_on_failover
+                  ? "enabled"
+                  : "disabled"}
+              </span>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Wholesale Realms
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandL2TPRealms.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No wholesale realm is configured.
+                    </div>
+                  ) : (
+                    broadbandL2TPRealms
+                      .slice(0, 8)
+                      .map((realm: JsonMap, index: number) => (
+                        <div
+                          key={`${realm.binding_key || realm.name || "l2tp-realm"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {realm.name || realm.realm || "Wholesale Realm"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                realm.status,
+                              )}`}
+                            >
+                              {realm.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              realm.realm,
+                              realm.tenant,
+                              realm.partner,
+                              realm.access_method,
+                              realm.tunnel_profile,
+                              realm.proxy_route,
+                              realm.accounting_route,
+                              realm.failover_policy,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Wholesale realm metadata only"}
+                          </div>
+                          {realm.compiled_attributes?.length > 0 && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              {realm.compiled_attributes
+                                .slice(0, 5)
+                                .map((attr: JsonMap) => attr.name)
+                                .filter(Boolean)
+                                .join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  L2TP Tunnel Profiles
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandL2TPTunnels.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No L2TP tunnel profile is configured.
+                    </div>
+                  ) : (
+                    broadbandL2TPTunnels
+                      .slice(0, 8)
+                      .map((tunnel: JsonMap, index: number) => (
+                        <div
+                          key={`${tunnel.name || "l2tp-tunnel"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {tunnel.name || "L2TP Tunnel"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                tunnel.status,
+                              )}`}
+                            >
+                              {tunnel.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              tunnel.mode,
+                              tunnel.local_name,
+                              tunnel.peer_name,
+                              tunnel.peer_address,
+                              tunnel.tunnel_group,
+                              tunnel.secret_ref_set ? "secret-ref" : "",
+                              tunnel.session_limit
+                                ? `${tunnel.session_limit} sessions`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Tunnel profile metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Failover Policies
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandL2TPFailovers.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No L2TP failover policy is configured.
+                    </div>
+                  ) : (
+                    broadbandL2TPFailovers
+                      .slice(0, 8)
+                      .map((policy: JsonMap, index: number) => (
+                        <div
+                          key={`${policy.name || "l2tp-failover"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {policy.name || "Failover Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                policy.status,
+                              )}`}
+                            >
+                              {policy.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              policy.realm,
+                              policy.primary_tunnel,
+                              (policy.backup_tunnels || []).join(", "),
+                              policy.action,
+                              policy.accounting_replay
+                                ? "accounting replay"
+                                : "",
+                              policy.coa_action,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Failover metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Authorization Bindings
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandL2TPAuthorization.map(
+                    (binding: JsonMap, index: number) => (
+                      <div
+                        key={`${binding.stage || "l2tp-authz"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {binding.stage || "authorization"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {(binding.attributes || []).join(", ") ||
+                            binding.purpose ||
+                            "Authorization binding metadata only"}
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Accounting Bindings
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandL2TPAccounting.map(
+                    (binding: JsonMap, index: number) => (
+                      <div
+                        key={`${binding.stage || "l2tp-acct"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {binding.stage || "accounting"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {(binding.attributes || []).join(", ") ||
+                            binding.purpose ||
+                            "Accounting binding metadata only"}
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Compliance Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandL2TPCompliance.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No L2TP wholesale compliance check is present.
+                    </div>
+                  ) : (
+                    broadbandL2TPCompliance
+                      .slice(0, 8)
+                      .map((check: JsonMap, index: number) => (
+                        <div
+                          key={`${check.id || check.name || "l2tp-check"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {check.name || check.id || "Compliance Check"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                check.status,
+                              )}`}
+                            >
+                              {check.status || "unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {check.message || "No compliance message"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            {((broadbandL2TPWholesale.blockers?.length || 0) > 0 ||
+              (broadbandL2TPWholesale.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(broadbandL2TPWholesale.blockers || []),
+                  ...(broadbandL2TPWholesale.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Realm isolation{" "}
+              <span className="font-mono">
+                {broadbandL2TPWholesaleSummary.realm_isolation_required
+                  ? "required"
+                  : "optional"}
+              </span>{" "}
+              / customer realm strip{" "}
+              <span className="font-mono">
+                {broadbandL2TPWholesaleSummary.strip_customer_realm
+                  ? "enabled"
+                  : "disabled"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {broadbandL2TPWholesale.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            L2TP wholesale realm separation report has not loaded yet.
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
               Broadband Address Leases
             </h3>
             <p className="mt-1 text-sm text-gray-600">
@@ -6718,10 +7215,7 @@ export default function AccessSettings() {
                   "Active",
                   broadbandAddressLeaseSummary.active_lease_count || 0,
                 ],
-                [
-                  "Conflicts",
-                  broadbandAddressLeaseSummary.conflict_count || 0,
-                ],
+                ["Conflicts", broadbandAddressLeaseSummary.conflict_count || 0],
                 [
                   "Compliance",
                   `${broadbandAddressLeaseSummary.passed_check_count || 0}/${broadbandAddressLeaseSummary.compliance_check_count || 0}`,
@@ -7458,9 +7952,7 @@ export default function AccessSettings() {
             </div>
             <div className="grid gap-4 xl:grid-cols-2">
               <div>
-                <h4 className="text-sm font-semibold text-gray-900">
-                  Wallets
-                </h4>
+                <h4 className="text-sm font-semibold text-gray-900">Wallets</h4>
                 <div className="mt-2 space-y-2">
                   {broadbandQuotaWallets.length === 0 ? (
                     <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
@@ -7684,9 +8176,7 @@ export default function AccessSettings() {
                           <div className="mt-2 text-xs text-gray-600">
                             {[
                               policy.period,
-                              policy.reset_day
-                                ? `day ${policy.reset_day}`
-                                : "",
+                              policy.reset_day ? `day ${policy.reset_day}` : "",
                               policy.reset_hour !== undefined
                                 ? `hour ${policy.reset_hour}`
                                 : "",
@@ -7817,9 +8307,7 @@ export default function AccessSettings() {
               </span>{" "}
               / CoA{" "}
               <span className="font-mono">
-                {broadbandQuotaBalanceSummary.coa_on_exhaustion
-                  ? "on"
-                  : "off"}
+                {broadbandQuotaBalanceSummary.coa_on_exhaustion ? "on" : "off"}
               </span>{" "}
               / plan{" "}
               <span className="break-all font-mono">
@@ -7985,9 +8473,7 @@ export default function AccessSettings() {
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="font-medium text-gray-900">
-                              {plan.display_name ||
-                                plan.name ||
-                                "Product Plan"}
+                              {plan.display_name || plan.name || "Product Plan"}
                             </div>
                             <span
                               className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
@@ -8067,7 +8553,9 @@ export default function AccessSettings() {
                               Array.isArray(bundle.plans)
                                 ? bundle.plans.join(", ")
                                 : "",
-                              bundle.priority ? `priority ${bundle.priority}` : "",
+                              bundle.priority
+                                ? `priority ${bundle.priority}`
+                                : "",
                               bundle.max_concurrent_subscriptions
                                 ? `${bundle.max_concurrent_subscriptions} max`
                                 : "",
@@ -8099,8 +8587,7 @@ export default function AccessSettings() {
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="font-medium text-gray-900">
-                              {subscription.subscription_id ||
-                                "Subscription"}
+                              {subscription.subscription_id || "Subscription"}
                             </div>
                             <span
                               className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
@@ -8721,10 +9208,7 @@ export default function AccessSettings() {
                   "RADIUS Attributes",
                   pppoeAccessSummary.radius_attribute_count || 0,
                 ],
-                [
-                  "Actions",
-                  pppoeAccessSummary.enforcement_action_count || 0,
-                ],
+                ["Actions", pppoeAccessSummary.enforcement_action_count || 0],
                 [
                   "Compliance",
                   `${pppoeAccessSummary.passed_check_count || 0}/${pppoeAccessSummary.compliance_check_count || 0}`,
@@ -8772,39 +9256,41 @@ export default function AccessSettings() {
                       No PPPoE access interface is configured.
                     </div>
                   ) : (
-                    pppoeInterfaces.slice(0, 8).map((iface: JsonMap, index: number) => (
-                      <div
-                        key={`${iface.name || "pppoe-interface"}-${index}`}
-                        className="rounded-md border border-gray-200 p-3"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="font-medium text-gray-900">
-                            {iface.name || "Access Interface"}
+                    pppoeInterfaces
+                      .slice(0, 8)
+                      .map((iface: JsonMap, index: number) => (
+                        <div
+                          key={`${iface.name || "pppoe-interface"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {iface.name || "Access Interface"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                iface.status,
+                              )}`}
+                            >
+                              {iface.status || "ready"}
+                            </span>
                           </div>
-                          <span
-                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
-                              iface.status,
-                            )}`}
-                          >
-                            {iface.status || "ready"}
-                          </span>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              iface.vlan ? `VLAN ${iface.vlan}` : "",
+                              iface.service_name,
+                              iface.max_sessions
+                                ? `${iface.max_sessions} sessions`
+                                : "",
+                              iface.pado_delay_ms
+                                ? `${iface.pado_delay_ms}ms PADO`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Interface metadata only"}
+                          </div>
                         </div>
-                        <div className="mt-2 text-xs text-gray-600">
-                          {[
-                            iface.vlan ? `VLAN ${iface.vlan}` : "",
-                            iface.service_name,
-                            iface.max_sessions
-                              ? `${iface.max_sessions} sessions`
-                              : "",
-                            iface.pado_delay_ms
-                              ? `${iface.pado_delay_ms}ms PADO`
-                              : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" / ") || "Interface metadata only"}
-                        </div>
-                      </div>
-                    ))
+                      ))
                   )}
                 </div>
               </div>
@@ -8818,37 +9304,39 @@ export default function AccessSettings() {
                       No PPPoE subscriber profile is configured.
                     </div>
                   ) : (
-                    pppoeProfiles.slice(0, 8).map((profile: JsonMap, index: number) => (
-                      <div
-                        key={`${profile.name || "pppoe-profile"}-${index}`}
-                        className="rounded-md border border-gray-200 p-3"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="font-medium text-gray-900">
-                            {profile.name || "Subscriber Profile"}
+                    pppoeProfiles
+                      .slice(0, 8)
+                      .map((profile: JsonMap, index: number) => (
+                        <div
+                          key={`${profile.name || "pppoe-profile"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {profile.name || "Subscriber Profile"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                profile.status,
+                              )}`}
+                            >
+                              {profile.status || "ready"}
+                            </span>
                           </div>
-                          <span
-                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
-                              profile.status,
-                            )}`}
-                          >
-                            {profile.status || "ready"}
-                          </span>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              profile.role,
+                              profile.address_pool,
+                              profile.ipv6_pool,
+                              profile.delegated_ipv6_pool,
+                              profile.qos_profile,
+                              profile.translation_pool,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Profile metadata only"}
+                          </div>
                         </div>
-                        <div className="mt-2 text-xs text-gray-600">
-                          {[
-                            profile.role,
-                            profile.address_pool,
-                            profile.ipv6_pool,
-                            profile.delegated_ipv6_pool,
-                            profile.qos_profile,
-                            profile.translation_pool,
-                          ]
-                            .filter(Boolean)
-                            .join(" / ") || "Profile metadata only"}
-                        </div>
-                      </div>
-                    ))
+                      ))
                   )}
                 </div>
               </div>
@@ -8859,21 +9347,23 @@ export default function AccessSettings() {
                   Packet Stages
                 </h4>
                 <div className="mt-2 space-y-2">
-                  {pppoePacketStages.slice(0, 8).map((stage: JsonMap, index: number) => (
-                    <div
-                      key={`${stage.id || stage.code || "pppoe-stage"}-${index}`}
-                      className="rounded-md border border-gray-200 p-3"
-                    >
-                      <div className="font-medium text-gray-900">
-                        {stage.code || stage.id || "Stage"}
+                  {pppoePacketStages
+                    .slice(0, 8)
+                    .map((stage: JsonMap, index: number) => (
+                      <div
+                        key={`${stage.id || stage.code || "pppoe-stage"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {stage.code || stage.id || "Stage"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {[stage.protocol, stage.direction, stage.status]
+                            .filter(Boolean)
+                            .join(" / ")}
+                        </div>
                       </div>
-                      <div className="mt-1 text-xs text-gray-600">
-                        {[stage.protocol, stage.direction, stage.status]
-                          .filter(Boolean)
-                          .join(" / ")}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </div>
               <div>
@@ -8881,21 +9371,23 @@ export default function AccessSettings() {
                   RADIUS Attributes
                 </h4>
                 <div className="mt-2 space-y-2">
-                  {pppoeRadiusAttributes.slice(0, 8).map((attr: JsonMap, index: number) => (
-                    <div
-                      key={`${attr.name || "pppoe-attr"}-${index}`}
-                      className="rounded-md border border-gray-200 p-3"
-                    >
-                      <div className="break-all font-medium text-gray-900">
-                        {attr.name || "Attribute"}
+                  {pppoeRadiusAttributes
+                    .slice(0, 8)
+                    .map((attr: JsonMap, index: number) => (
+                      <div
+                        key={`${attr.name || "pppoe-attr"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="break-all font-medium text-gray-900">
+                          {attr.name || "Attribute"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-600">
+                          {[attr.direction, attr.semantics]
+                            .filter(Boolean)
+                            .join(" / ")}
+                        </div>
                       </div>
-                      <div className="mt-1 text-xs text-gray-600">
-                        {[attr.direction, attr.semantics]
-                          .filter(Boolean)
-                          .join(" / ")}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </div>
               <div>
@@ -8933,37 +9425,40 @@ export default function AccessSettings() {
                     No PPPoE compliance check is present.
                   </div>
                 ) : (
-                  pppoeCompliance.slice(0, 10).map((check: JsonMap, index: number) => (
-                    <div
-                      key={`${check.id || check.name || "pppoe-check"}-${index}`}
-                      className="rounded-md border border-gray-200 p-3"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="font-medium text-gray-900">
-                          {check.name || check.id || "Compliance Check"}
+                  pppoeCompliance
+                    .slice(0, 10)
+                    .map((check: JsonMap, index: number) => (
+                      <div
+                        key={`${check.id || check.name || "pppoe-check"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {check.name || check.id || "Compliance Check"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              check.status,
+                            )}`}
+                          >
+                            {check.status || "unknown"}
+                          </span>
                         </div>
-                        <span
-                          className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
-                            check.status,
-                          )}`}
-                        >
-                          {check.status || "unknown"}
-                        </span>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {check.message || "No compliance message"}
+                        </div>
                       </div>
-                      <div className="mt-2 text-xs text-gray-600">
-                        {check.message || "No compliance message"}
-                      </div>
-                    </div>
-                  ))
+                    ))
                 )}
               </div>
             </div>
             {((pppoeAccessLifecycle.blockers?.length || 0) > 0 ||
               (pppoeAccessLifecycle.warnings?.length || 0) > 0) && (
               <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                {[...(pppoeAccessLifecycle.blockers || []), ...(pppoeAccessLifecycle.warnings || [])].join(
-                  " ",
-                )}
+                {[
+                  ...(pppoeAccessLifecycle.blockers || []),
+                  ...(pppoeAccessLifecycle.warnings || []),
+                ].join(" ")}
               </div>
             )}
             <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
@@ -9062,35 +9557,37 @@ export default function AccessSettings() {
                       No captive-portal SSID is present.
                     </div>
                   ) : (
-                    cwaGuestSSIDs.slice(0, 6).map((ssid: JsonMap, index: number) => (
-                      <div
-                        key={`${ssid.name || "cwa-ssid"}-${index}`}
-                        className="rounded-md border border-gray-200 p-3"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="font-medium text-gray-900">
-                            {ssid.name || "Guest SSID"}
+                    cwaGuestSSIDs
+                      .slice(0, 6)
+                      .map((ssid: JsonMap, index: number) => (
+                        <div
+                          key={`${ssid.name || "cwa-ssid"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {ssid.name || "Guest SSID"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                ssid.status,
+                              )}`}
+                            >
+                              {ssid.status || "ready"}
+                            </span>
                           </div>
-                          <span
-                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
-                              ssid.status,
-                            )}`}
-                          >
-                            {ssid.status || "ready"}
-                          </span>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              ssid.bridge,
+                              ssid.portal_profile,
+                              ssid.client_isolation ? "client isolation" : "",
+                              ssid.dynamic_vlan ? "dynamic VLAN" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "SSID metadata only"}
+                          </div>
                         </div>
-                        <div className="mt-2 text-xs text-gray-600">
-                          {[
-                            ssid.bridge,
-                            ssid.portal_profile,
-                            ssid.client_isolation ? "client isolation" : "",
-                            ssid.dynamic_vlan ? "dynamic VLAN" : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" / ") || "SSID metadata only"}
-                        </div>
-                      </div>
-                    ))
+                      ))
                   )}
                 </div>
               </div>
@@ -9104,30 +9601,36 @@ export default function AccessSettings() {
                       No walled-garden item is present.
                     </div>
                   ) : (
-                    cwaWalledGarden.slice(0, 8).map((entry: JsonMap, index: number) => (
-                      <div
-                        key={`${entry.source || "cwa"}/${entry.name || entry.value}-${index}`}
-                        className="rounded-md border border-gray-200 p-3"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="font-medium text-gray-900">
-                            {entry.name || entry.value || "Walled Garden"}
+                    cwaWalledGarden
+                      .slice(0, 8)
+                      .map((entry: JsonMap, index: number) => (
+                        <div
+                          key={`${entry.source || "cwa"}/${entry.name || entry.value}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {entry.name || entry.value || "Walled Garden"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                entry.status,
+                              )}`}
+                            >
+                              {entry.status || "ready"}
+                            </span>
                           </div>
-                          <span
-                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
-                              entry.status,
-                            )}`}
-                          >
-                            {entry.status || "ready"}
-                          </span>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              entry.type,
+                              entry.value,
+                              entry.required ? "required" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ")}
+                          </div>
                         </div>
-                        <div className="mt-2 text-xs text-gray-600">
-                          {[entry.type, entry.value, entry.required ? "required" : ""]
-                            .filter(Boolean)
-                            .join(" / ")}
-                        </div>
-                      </div>
-                    ))
+                      ))
                   )}
                 </div>
               </div>
@@ -9143,35 +9646,39 @@ export default function AccessSettings() {
                       No controller CWA policy is present.
                     </div>
                   ) : (
-                    cwaControllerPolicies.slice(0, 6).map((policy: JsonMap, index: number) => (
-                      <div
-                        key={`${policy.name || policy.ssid || "cwa-controller"}-${index}`}
-                        className="rounded-md border border-gray-200 p-3"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="font-medium text-gray-900">
-                            {policy.name || policy.ssid || "Controller Policy"}
+                    cwaControllerPolicies
+                      .slice(0, 6)
+                      .map((policy: JsonMap, index: number) => (
+                        <div
+                          key={`${policy.name || policy.ssid || "cwa-controller"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {policy.name ||
+                                policy.ssid ||
+                                "Controller Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                policy.status,
+                              )}`}
+                            >
+                              {policy.status || "ready"}
+                            </span>
                           </div>
-                          <span
-                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
-                              policy.status,
-                            )}`}
-                          >
-                            {policy.status || "ready"}
-                          </span>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              policy.platform,
+                              policy.ssid,
+                              policy.profile_name,
+                              policy.coa_action,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Controller metadata only"}
+                          </div>
                         </div>
-                        <div className="mt-2 text-xs text-gray-600">
-                          {[
-                            policy.platform,
-                            policy.ssid,
-                            policy.profile_name,
-                            policy.coa_action,
-                          ]
-                            .filter(Boolean)
-                            .join(" / ") || "Controller metadata only"}
-                        </div>
-                      </div>
-                    ))
+                      ))
                   )}
                 </div>
               </div>
@@ -9180,7 +9687,10 @@ export default function AccessSettings() {
                   Redirect And CoA
                 </h4>
                 <div className="mt-2 space-y-2">
-                  {[...cwaRedirectRules.slice(0, 4), ...cwaCoAActions.slice(0, 4)]
+                  {[
+                    ...cwaRedirectRules.slice(0, 4),
+                    ...cwaCoAActions.slice(0, 4),
+                  ]
                     .slice(0, 8)
                     .map((item: JsonMap, index: number) => (
                       <div
@@ -9189,7 +9699,10 @@ export default function AccessSettings() {
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="font-medium text-gray-900">
-                            {item.ssid || item.action || item.id || "CWA Action"}
+                            {item.ssid ||
+                              item.action ||
+                              item.id ||
+                              "CWA Action"}
                           </div>
                           <span
                             className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
@@ -9217,37 +9730,40 @@ export default function AccessSettings() {
                     No CWA compliance check is present.
                   </div>
                 ) : (
-                  cwaCompliance.slice(0, 10).map((check: JsonMap, index: number) => (
-                    <div
-                      key={`${check.id || check.name || "cwa-check"}-${index}`}
-                      className="rounded-md border border-gray-200 p-3"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="font-medium text-gray-900">
-                          {check.name || check.id || "Compliance Check"}
+                  cwaCompliance
+                    .slice(0, 10)
+                    .map((check: JsonMap, index: number) => (
+                      <div
+                        key={`${check.id || check.name || "cwa-check"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {check.name || check.id || "Compliance Check"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              check.status,
+                            )}`}
+                          >
+                            {check.status || "unknown"}
+                          </span>
                         </div>
-                        <span
-                          className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
-                            check.status,
-                          )}`}
-                        >
-                          {check.status || "unknown"}
-                        </span>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {check.message || "No compliance message"}
+                        </div>
                       </div>
-                      <div className="mt-2 text-xs text-gray-600">
-                        {check.message || "No compliance message"}
-                      </div>
-                    </div>
-                  ))
+                    ))
                 )}
               </div>
             </div>
             {((cwaPortalLifecycle.blockers?.length || 0) > 0 ||
               (cwaPortalLifecycle.warnings?.length || 0) > 0) && (
               <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                {[...(cwaPortalLifecycle.blockers || []), ...(cwaPortalLifecycle.warnings || [])].join(
-                  " ",
-                )}
+                {[
+                  ...(cwaPortalLifecycle.blockers || []),
+                  ...(cwaPortalLifecycle.warnings || []),
+                ].join(" ")}
               </div>
             )}
             <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
@@ -9296,10 +9812,7 @@ export default function AccessSettings() {
             </p>
             <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
               {[
-                [
-                  "Adapters",
-                  controllerEstateSummary.adapter_count || 0,
-                ],
+                ["Adapters", controllerEstateSummary.adapter_count || 0],
                 [
                   "Inventory",
                   controllerEstateSummary.inventory_object_count || 0,
@@ -9555,10 +10068,22 @@ export default function AccessSettings() {
             <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
               {[
                 ["Sensors", wirelessSecuritySummary.sensor_count || 0],
-                ["Rogue Rules", wirelessSecuritySummary.rogue_policy_count || 0],
-                ["WIPS Checks", wirelessSecuritySummary.wips_detection_count || 0],
-                ["Spectrum", wirelessSecuritySummary.spectrum_channel_count || 0],
-                ["Multicast", wirelessSecuritySummary.multicast_policy_count || 0],
+                [
+                  "Rogue Rules",
+                  wirelessSecuritySummary.rogue_policy_count || 0,
+                ],
+                [
+                  "WIPS Checks",
+                  wirelessSecuritySummary.wips_detection_count || 0,
+                ],
+                [
+                  "Spectrum",
+                  wirelessSecuritySummary.spectrum_channel_count || 0,
+                ],
+                [
+                  "Multicast",
+                  wirelessSecuritySummary.multicast_policy_count || 0,
+                ],
                 [
                   "Compliance",
                   `${wirelessSecuritySummary.passed_check_count || 0}/${wirelessSecuritySummary.compliance_check_count || 0}`,
@@ -9705,7 +10230,9 @@ export default function AccessSettings() {
                                 detection.status,
                               )}`}
                             >
-                              {detection.severity || detection.status || "ready"}
+                              {detection.severity ||
+                                detection.status ||
+                                "ready"}
                             </span>
                           </div>
                           <div className="mt-2 text-xs text-gray-600">
@@ -10032,7 +10559,9 @@ export default function AccessSettings() {
                               radio.planned_tx_power_dbm
                                 ? `${radio.planned_tx_power_dbm} dBm`
                                 : "",
-                              radio.mesh_enabled ? `mesh ${radio.mesh_role}` : "",
+                              radio.mesh_enabled
+                                ? `mesh ${radio.mesh_role}`
+                                : "",
                               radio.client_steering ? "client steering" : "",
                             ]
                               .filter(Boolean)
@@ -10179,7 +10708,9 @@ export default function AccessSettings() {
                             {[
                               link.band,
                               link.backhaul_ssid,
-                              link.bridge_vlan ? `VLAN ${link.bridge_vlan}` : "",
+                              link.bridge_vlan
+                                ? `VLAN ${link.bridge_vlan}`
+                                : "",
                               link.min_rssi ? `min ${link.min_rssi} RSSI` : "",
                             ]
                               .filter(Boolean)
@@ -10446,9 +10977,10 @@ export default function AccessSettings() {
             {((ppskLifecycle.blockers?.length || 0) > 0 ||
               (ppskLifecycle.warnings?.length || 0) > 0) && (
               <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                {[...(ppskLifecycle.blockers || []), ...(ppskLifecycle.warnings || [])].join(
-                  " ",
-                )}
+                {[
+                  ...(ppskLifecycle.blockers || []),
+                  ...(ppskLifecycle.warnings || []),
+                ].join(" ")}
               </div>
             )}
             <div className="grid gap-4 lg:grid-cols-2">
@@ -10495,7 +11027,10 @@ export default function AccessSettings() {
             </p>
             <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
               {[
-                ["Roaming SSIDs", wirelessRoamingSummary.roaming_ssid_count || 0],
+                [
+                  "Roaming SSIDs",
+                  wirelessRoamingSummary.roaming_ssid_count || 0,
+                ],
                 ["FT SSIDs", wirelessRoamingSummary.ft_ssid_count || 0],
                 ["11k SSIDs", wirelessRoamingSummary.k_ssid_count || 0],
                 ["11v SSIDs", wirelessRoamingSummary.v_ssid_count || 0],
@@ -10635,17 +11170,11 @@ export default function AccessSettings() {
             </p>
             <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
               {[
-                [
-                  "Passpoint SSIDs",
-                  passpointSummary.passpoint_ssid_count || 0,
-                ],
+                ["Passpoint SSIDs", passpointSummary.passpoint_ssid_count || 0],
                 ["HS2.0 SSIDs", passpointSummary.hs20_ssid_count || 0],
                 ["OSU Providers", passpointSummary.osu_provider_count || 0],
                 ["NAI Realms", passpointSummary.nai_realm_count || 0],
-                [
-                  "Roaming OIs",
-                  passpointSummary.roaming_consortium_count || 0,
-                ],
+                ["Roaming OIs", passpointSummary.roaming_consortium_count || 0],
                 ["PLMNs", passpointSummary.cellular_network_count || 0],
               ].map(([label, value]) => (
                 <div
@@ -10883,9 +11412,7 @@ export default function AccessSettings() {
           <TextField
             label="Secret Ref"
             value={settings.tacacs?.secret_ref || ""}
-            onChange={(value) =>
-              updateField(["tacacs", "secret_ref"], value)
-            }
+            onChange={(value) => updateField(["tacacs", "secret_ref"], value)}
           />
           <TextField
             label="Max Connections"
@@ -10921,9 +11448,7 @@ export default function AccessSettings() {
           <ToggleField
             label="Fail Closed"
             checked={settings.tacacs?.fail_closed !== false}
-            onChange={(value) =>
-              updateField(["tacacs", "fail_closed"], value)
-            }
+            onChange={(value) => updateField(["tacacs", "fail_closed"], value)}
           />
           <ToggleField
             label="Audit Decisions"
@@ -13138,9 +13663,7 @@ export default function AccessSettings() {
             <ToggleField
               label="Audit Decisions"
               checked={settings.mab?.audit_enabled !== false}
-              onChange={(value) =>
-                updateField(["mab", "audit_enabled"], value)
-              }
+              onChange={(value) => updateField(["mab", "audit_enabled"], value)}
             />
             <ToggleField
               label="Link Device Profiles"
@@ -13293,7 +13816,7 @@ export default function AccessSettings() {
               label="Audit Events"
               checked={Boolean(
                 settings.onboarding?.supplicant_lifecycle?.audit_enabled ??
-                  true,
+                true,
               )}
               onChange={(value) =>
                 updateField(
@@ -13390,8 +13913,8 @@ export default function AccessSettings() {
             <TextField
               label="Default EAP Method"
               value={
-                settings.onboarding?.supplicant_lifecycle
-                  ?.default_eap_method || "tls"
+                settings.onboarding?.supplicant_lifecycle?.default_eap_method ||
+                "tls"
               }
               onChange={(value) =>
                 updateField(
@@ -13439,8 +13962,8 @@ export default function AccessSettings() {
             <TextField
               label="Anonymous Identity"
               value={
-                settings.onboarding?.supplicant_lifecycle
-                  ?.anonymous_identity || "anonymous@aegisnas.local"
+                settings.onboarding?.supplicant_lifecycle?.anonymous_identity ||
+                "anonymous@aegisnas.local"
               }
               onChange={(value) =>
                 updateField(
@@ -13478,8 +14001,8 @@ export default function AccessSettings() {
             <TextField
               label="Trust Anchor Pins"
               value={listToCSV(
-                settings.onboarding?.supplicant_lifecycle
-                  ?.trust_anchor_pins || [],
+                settings.onboarding?.supplicant_lifecycle?.trust_anchor_pins ||
+                  [],
               )}
               onChange={(value) =>
                 updateField(
@@ -13586,11 +14109,7 @@ export default function AccessSettings() {
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "onboarding",
-                    "supplicant_lifecycle",
-                    "expiry_warning_days",
-                  ],
+                  ["onboarding", "supplicant_lifecycle", "expiry_warning_days"],
                   Number(value),
                 )
               }
@@ -13599,8 +14118,8 @@ export default function AccessSettings() {
               label="Grace Period Days"
               type="number"
               value={
-                settings.onboarding?.supplicant_lifecycle
-                  ?.grace_period_days ?? 7
+                settings.onboarding?.supplicant_lifecycle?.grace_period_days ??
+                7
               }
               onChange={(value) =>
                 updateField(
@@ -14060,9 +14579,7 @@ export default function AccessSettings() {
             />
             <TextField
               label="kinit Path"
-              value={
-                settings.active_directory?.kerberos?.kinit_path || "kinit"
-              }
+              value={settings.active_directory?.kerberos?.kinit_path || "kinit"}
               onChange={(value) =>
                 updateField(
                   ["active_directory", "kerberos", "kinit_path"],
@@ -14073,8 +14590,7 @@ export default function AccessSettings() {
             <TextField
               label="kdestroy Path"
               value={
-                settings.active_directory?.kerberos?.kdestroy_path ||
-                "kdestroy"
+                settings.active_directory?.kerberos?.kdestroy_path || "kdestroy"
               }
               onChange={(value) =>
                 updateField(
@@ -14131,7 +14647,9 @@ export default function AccessSettings() {
             />
             <TextField
               label="wbinfo Path"
-              value={settings.active_directory?.winbind?.wbinfo_path || "wbinfo"}
+              value={
+                settings.active_directory?.winbind?.wbinfo_path || "wbinfo"
+              }
               onChange={(value) =>
                 updateField(
                   ["active_directory", "winbind", "wbinfo_path"],
@@ -14154,9 +14672,7 @@ export default function AccessSettings() {
             />
             <TextField
               label="Winbind Auth Helper"
-              value={
-                settings.active_directory?.winbind?.auth_helper_path || ""
-              }
+              value={settings.active_directory?.winbind?.auth_helper_path || ""}
               onChange={(value) =>
                 updateField(
                   ["active_directory", "winbind", "auth_helper_path"],
@@ -14178,7 +14694,9 @@ export default function AccessSettings() {
                   )
                 }
                 rows={4}
-                placeholder={"AegisNAS-Employees=employee\nAegisNAS-Admins=admin"}
+                placeholder={
+                  "AegisNAS-Employees=employee\nAegisNAS-Admins=admin"
+                }
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
               />
             </label>
@@ -14238,9 +14756,7 @@ export default function AccessSettings() {
             />
             <SelectField
               label="Split Result Policy"
-              value={
-                settings.identity?.failover?.split_result_policy || "deny"
-              }
+              value={settings.identity?.failover?.split_result_policy || "deny"}
               onChange={(value) =>
                 updateField(
                   ["identity", "failover", "split_result_policy"],
@@ -14307,11 +14823,7 @@ export default function AccessSettings() {
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "identity",
-                    "failover",
-                    "health_check_interval_seconds",
-                  ],
+                  ["identity", "failover", "health_check_interval_seconds"],
                   Number(value),
                 )
               }
@@ -14335,9 +14847,9 @@ export default function AccessSettings() {
               OTP And Challenge MFA
             </h4>
             <p className="mt-1 text-sm text-gray-600">
-              Step-up verification protects privileged roles and selected
-              realms with encrypted TOTP secrets, recovery codes, and bounded
-              challenge state.
+              Step-up verification protects privileged roles and selected realms
+              with encrypted TOTP secrets, recovery codes, and bounded challenge
+              state.
             </p>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
@@ -14550,9 +15062,7 @@ export default function AccessSettings() {
         </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
           <div className="mb-4">
-            <h4 className="font-semibold text-gray-900">
-              Admin Passkeys
-            </h4>
+            <h4 className="font-semibold text-gray-900">Admin Passkeys</h4>
             <p className="mt-1 text-sm text-gray-600">
               Phishing-resistant WebAuthn step-up protects privileged admin
               sessions after token or SSO first factor.
@@ -14718,10 +15228,7 @@ export default function AccessSettings() {
               type="number"
               value={settings.admin_webauthn?.max_pending || 10000}
               onChange={(value) =>
-                updateField(
-                  ["admin_webauthn", "max_pending"],
-                  Number(value),
-                )
+                updateField(["admin_webauthn", "max_pending"], Number(value))
               }
             />
             <TextField
@@ -15359,8 +15866,7 @@ export default function AccessSettings() {
           <ToggleField
             label="Scheduled Voucher Redemption Analytics Exports"
             checked={Boolean(
-              settings.telemetry?.voucher_redemption_analytics_exports
-                ?.enabled,
+              settings.telemetry?.voucher_redemption_analytics_exports?.enabled,
             )}
             onChange={(value) =>
               updateField(
@@ -15399,11 +15905,7 @@ export default function AccessSettings() {
             }
             onChange={(value) =>
               updateField(
-                [
-                  "telemetry",
-                  "voucher_redemption_analytics_exports",
-                  "format",
-                ],
+                ["telemetry", "voucher_redemption_analytics_exports", "format"],
                 value,
               )
             }
@@ -15697,7 +16199,11 @@ export default function AccessSettings() {
             }
             onChange={(value) =>
               updateField(
-                ["telemetry", "guest_conversion_analytics_exports", "directory"],
+                [
+                  "telemetry",
+                  "guest_conversion_analytics_exports",
+                  "directory",
+                ],
                 value,
               )
             }
@@ -15772,7 +16278,8 @@ export default function AccessSettings() {
             label="Guest Rejection Analytics Export Directory"
             value={
               settings.telemetry?.guest_rejection_analytics_exports
-                ?.directory || "/var/lib/aegisnas/guest-rejection-analytics-exports"
+                ?.directory ||
+              "/var/lib/aegisnas/guest-rejection-analytics-exports"
             }
             onChange={(value) =>
               updateField(
@@ -16499,8 +17006,7 @@ export default function AccessSettings() {
             <ToggleField
               label="Fail Closed"
               checked={Boolean(
-                settings.onboarding?.certificate_lifecycle?.fail_closed ??
-                  true,
+                settings.onboarding?.certificate_lifecycle?.fail_closed ?? true,
               )}
               onChange={(value) =>
                 updateField(
@@ -16513,7 +17019,7 @@ export default function AccessSettings() {
               label="Audit Events"
               checked={Boolean(
                 settings.onboarding?.certificate_lifecycle?.audit_enabled ??
-                  true,
+                true,
               )}
               onChange={(value) =>
                 updateField(
@@ -16682,8 +17188,7 @@ export default function AccessSettings() {
             <TextField
               label="Allowed Key Types"
               value={listToCSV(
-                settings.onboarding?.certificate_lifecycle
-                  ?.allowed_key_types ||
+                settings.onboarding?.certificate_lifecycle?.allowed_key_types ||
                   certificateLifecycleDefaults.allowed_key_types,
               )}
               onChange={(value) =>
@@ -16698,8 +17203,7 @@ export default function AccessSettings() {
               label="Minimum RSA Bits"
               type="number"
               value={
-                settings.onboarding?.certificate_lifecycle?.min_rsa_bits ??
-                2048
+                settings.onboarding?.certificate_lifecycle?.min_rsa_bits ?? 2048
               }
               onChange={(value) =>
                 updateField(
@@ -16746,8 +17250,7 @@ export default function AccessSettings() {
             <ToggleField
               label="Require CSR"
               checked={Boolean(
-                settings.onboarding?.certificate_lifecycle?.require_csr ??
-                  true,
+                settings.onboarding?.certificate_lifecycle?.require_csr ?? true,
               )}
               onChange={(value) =>
                 updateField(
@@ -16827,8 +17330,7 @@ export default function AccessSettings() {
             <ToggleField
               label="EST Enabled"
               checked={Boolean(
-                settings.onboarding?.certificate_lifecycle?.est_enabled ??
-                  true,
+                settings.onboarding?.certificate_lifecycle?.est_enabled ?? true,
               )}
               onChange={(value) =>
                 updateField(
@@ -16841,7 +17343,7 @@ export default function AccessSettings() {
               label="SCEP Enabled"
               checked={Boolean(
                 settings.onboarding?.certificate_lifecycle?.scep_enabled ??
-                  true,
+                true,
               )}
               onChange={(value) =>
                 updateField(
@@ -16914,11 +17416,7 @@ export default function AccessSettings() {
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "onboarding",
-                    "certificate_lifecycle",
-                    "ocsp_responder_url",
-                  ],
+                  ["onboarding", "certificate_lifecycle", "ocsp_responder_url"],
                   value,
                 )
               }
@@ -17203,9 +17701,7 @@ export default function AccessSettings() {
         <div className="mt-6 border-t border-gray-200 pt-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h4 className="font-semibold text-gray-900">
-                Tenant Isolation
-              </h4>
+              <h4 className="font-semibold text-gray-900">Tenant Isolation</h4>
               <p className="mt-1 text-sm text-gray-600">
                 Keep tenant policy trees, resource ownership, and delegated
                 administration bounded before enforcement is enabled.
@@ -17282,7 +17778,9 @@ export default function AccessSettings() {
             />
             <ToggleField
               label="Resource Ownership"
-              checked={settings.governance?.enforce_resource_ownership !== false}
+              checked={
+                settings.governance?.enforce_resource_ownership !== false
+              }
               onChange={(value) =>
                 updateField(["governance", "enforce_resource_ownership"], value)
               }
@@ -18886,9 +19384,7 @@ export default function AccessSettings() {
           </div>
         </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
-          <h4 className="font-semibold text-gray-900">
-            EAP Method Framework
-          </h4>
+          <h4 className="font-semibold text-gray-900">EAP Method Framework</h4>
           <p className="mt-1 text-sm text-gray-600">
             Bind 802.1X methods to explicit identity sources and packet
             integrity checks before enforcing production access.
@@ -18961,12 +19457,7 @@ export default function AccessSettings() {
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "eap",
-                    "framework",
-                    "unsupported_method_action",
-                  ],
+                  ["radius", "eap", "framework", "unsupported_method_action"],
                   value,
                 )
               }
@@ -19123,9 +19614,7 @@ export default function AccessSettings() {
           </div>
         </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
-          <h4 className="font-semibold text-gray-900">
-            TEAP Method Chaining
-          </h4>
+          <h4 className="font-semibold text-gray-900">TEAP Method Chaining</h4>
           <p className="mt-1 text-sm text-gray-600">
             Gate RFC 7170 TEAP with machine and user identity chaining,
             cryptobinding, PAC policy, and bounded audit history.
@@ -19234,8 +19723,7 @@ export default function AccessSettings() {
             <SelectField
               label="Chain Mode"
               value={
-                settings.radius?.eap?.teap?.chain_mode ||
-                "machine_then_user"
+                settings.radius?.eap?.teap?.chain_mode || "machine_then_user"
               }
               onChange={(value) =>
                 updateField(["radius", "eap", "teap", "chain_mode"], value)
@@ -19250,8 +19738,7 @@ export default function AccessSettings() {
             <SelectField
               label="PAC Provisioning"
               value={
-                settings.radius?.eap?.teap?.pac_provisioning ||
-                "authenticated"
+                settings.radius?.eap?.teap?.pac_provisioning || "authenticated"
               }
               onChange={(value) =>
                 updateField(
@@ -19268,8 +19755,7 @@ export default function AccessSettings() {
             <TextField
               label="PAC Authority ID"
               value={
-                settings.radius?.eap?.teap?.pac_authority_id ||
-                "aegisnas-teap"
+                settings.radius?.eap?.teap?.pac_authority_id || "aegisnas-teap"
               }
               onChange={(value) =>
                 updateField(
@@ -19316,9 +19802,7 @@ export default function AccessSettings() {
             <TextField
               label="TEAP Retention"
               type="number"
-              value={
-                settings.radius?.eap?.teap?.event_retention_limit ?? 6000
-              }
+              value={settings.radius?.eap?.teap?.event_retention_limit ?? 6000}
               onChange={(value) =>
                 updateField(
                   ["radius", "eap", "teap", "event_retention_limit"],
@@ -19364,15 +19848,14 @@ export default function AccessSettings() {
               label="Correlation Enabled"
               checked={settings.radius?.eap?.machine_user?.enabled !== false}
               onChange={(value) =>
-                updateField(
-                  ["radius", "eap", "machine_user", "enabled"],
-                  value,
-                )
+                updateField(["radius", "eap", "machine_user", "enabled"], value)
               }
             />
             <ToggleField
               label="Fail Closed"
-              checked={settings.radius?.eap?.machine_user?.fail_closed !== false}
+              checked={
+                settings.radius?.eap?.machine_user?.fail_closed !== false
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "eap", "machine_user", "fail_closed"],
@@ -19382,7 +19865,9 @@ export default function AccessSettings() {
             />
             <ToggleField
               label="Require TEAP"
-              checked={settings.radius?.eap?.machine_user?.require_teap !== false}
+              checked={
+                settings.radius?.eap?.machine_user?.require_teap !== false
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "eap", "machine_user", "require_teap"],
@@ -19393,17 +19878,12 @@ export default function AccessSettings() {
             <ToggleField
               label="Machine Identity"
               checked={
-                settings.radius?.eap?.machine_user
-                  ?.require_machine_identity !== false
+                settings.radius?.eap?.machine_user?.require_machine_identity !==
+                false
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "eap",
-                    "machine_user",
-                    "require_machine_identity",
-                  ],
+                  ["radius", "eap", "machine_user", "require_machine_identity"],
                   value,
                 )
               }
@@ -19489,7 +19969,9 @@ export default function AccessSettings() {
             />
             <ToggleField
               label="Audit Decisions"
-              checked={settings.radius?.eap?.machine_user?.audit_enabled !== false}
+              checked={
+                settings.radius?.eap?.machine_user?.audit_enabled !== false
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "eap", "machine_user", "audit_enabled"],
@@ -19603,8 +20085,10 @@ export default function AccessSettings() {
             <TextField
               label="Machine Methods"
               value={listToCSV(
-                settings.radius?.eap?.machine_user
-                  ?.allowed_machine_methods || ["teap", "tls"],
+                settings.radius?.eap?.machine_user?.allowed_machine_methods || [
+                  "teap",
+                  "tls",
+                ],
               )}
               onChange={(value) =>
                 updateField(
@@ -19664,17 +20148,12 @@ export default function AccessSettings() {
               label="Machine TTL (s)"
               type="number"
               value={
-                settings.radius?.eap?.machine_user
-                  ?.machine_auth_ttl_seconds ?? 28800
+                settings.radius?.eap?.machine_user?.machine_auth_ttl_seconds ??
+                28800
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "eap",
-                    "machine_user",
-                    "machine_auth_ttl_seconds",
-                  ],
+                  ["radius", "eap", "machine_user", "machine_auth_ttl_seconds"],
                   Number(value),
                 )
               }
@@ -19697,8 +20176,8 @@ export default function AccessSettings() {
               label="Transition Window (s)"
               type="number"
               value={
-                settings.radius?.eap?.machine_user
-                  ?.transition_window_seconds ?? 900
+                settings.radius?.eap?.machine_user?.transition_window_seconds ??
+                900
               }
               onChange={(value) =>
                 updateField(
@@ -19716,17 +20195,12 @@ export default function AccessSettings() {
               label="Max Correlations"
               type="number"
               value={
-                settings.radius?.eap?.machine_user
-                  ?.max_active_correlations ?? 100000
+                settings.radius?.eap?.machine_user?.max_active_correlations ??
+                100000
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "eap",
-                    "machine_user",
-                    "max_active_correlations",
-                  ],
+                  ["radius", "eap", "machine_user", "max_active_correlations"],
                   Number(value),
                 )
               }
@@ -19748,9 +20222,7 @@ export default function AccessSettings() {
           </div>
         </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
-          <h4 className="font-semibold text-gray-900">
-            EAP-FAST And EAP-PWD
-          </h4>
+          <h4 className="font-semibold text-gray-900">EAP-FAST And EAP-PWD</h4>
           <p className="mt-1 text-sm text-gray-600">
             Govern PAC-backed EAP-FAST and password-authenticated EAP-PWD with
             cryptobinding, replay protection, strong groups, and bounded audit
@@ -19797,12 +20269,7 @@ export default function AccessSettings() {
               )}
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "eap",
-                    "fast",
-                    "allow_anonymous_provisioning",
-                  ],
+                  ["radius", "eap", "fast", "allow_anonymous_provisioning"],
                   value,
                 )
               }
@@ -19820,8 +20287,7 @@ export default function AccessSettings() {
             <SelectField
               label="FAST Inner"
               value={
-                settings.radius?.eap?.fast?.default_inner_method ||
-                "mschapv2"
+                settings.radius?.eap?.fast?.default_inner_method || "mschapv2"
               }
               onChange={(value) =>
                 updateField(
@@ -19840,8 +20306,7 @@ export default function AccessSettings() {
             <SelectField
               label="FAST PAC Mode"
               value={
-                settings.radius?.eap?.fast?.pac_provisioning ||
-                "authenticated"
+                settings.radius?.eap?.fast?.pac_provisioning || "authenticated"
               }
               onChange={(value) =>
                 updateField(
@@ -19859,8 +20324,7 @@ export default function AccessSettings() {
             <TextField
               label="FAST Authority ID"
               value={
-                settings.radius?.eap?.fast?.pac_authority_id ||
-                "aegisnas-fast"
+                settings.radius?.eap?.fast?.pac_authority_id || "aegisnas-fast"
               }
               onChange={(value) =>
                 updateField(
@@ -19895,9 +20359,7 @@ export default function AccessSettings() {
             <TextField
               label="PAC Attempts"
               type="number"
-              value={
-                settings.radius?.eap?.fast?.max_provisioning_attempts ?? 3
-              }
+              value={settings.radius?.eap?.fast?.max_provisioning_attempts ?? 3}
               onChange={(value) =>
                 updateField(
                   ["radius", "eap", "fast", "max_provisioning_attempts"],
@@ -19919,9 +20381,7 @@ export default function AccessSettings() {
             <TextField
               label="FAST Retention"
               type="number"
-              value={
-                settings.radius?.eap?.fast?.event_retention_limit ?? 6000
-              }
+              value={settings.radius?.eap?.fast?.event_retention_limit ?? 6000}
               onChange={(value) =>
                 updateField(
                   ["radius", "eap", "fast", "event_retention_limit"],
@@ -19952,10 +20412,7 @@ export default function AccessSettings() {
               label="PWD Identity"
               checked={settings.radius?.eap?.pwd?.require_identity !== false}
               onChange={(value) =>
-                updateField(
-                  ["radius", "eap", "pwd", "require_identity"],
-                  value,
-                )
+                updateField(["radius", "eap", "pwd", "require_identity"], value)
               }
             />
             <ToggleField
@@ -19972,7 +20429,9 @@ export default function AccessSettings() {
             />
             <ToggleField
               label="PWD Local Verifier"
-              checked={settings.radius?.eap?.pwd?.allow_local_verifier !== false}
+              checked={
+                settings.radius?.eap?.pwd?.allow_local_verifier !== false
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "eap", "pwd", "allow_local_verifier"],
@@ -20002,10 +20461,7 @@ export default function AccessSettings() {
                 "identity-failover"
               }
               onChange={(value) =>
-                updateField(
-                  ["radius", "eap", "pwd", "password_source"],
-                  value,
-                )
+                updateField(["radius", "eap", "pwd", "password_source"], value)
               }
             />
             <TextField
@@ -20044,9 +20500,7 @@ export default function AccessSettings() {
           </div>
         </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
-          <h4 className="font-semibold text-gray-900">
-            EAP-SIM And EAP-AKA
-          </h4>
+          <h4 className="font-semibold text-gray-900">EAP-SIM And EAP-AKA</h4>
           <p className="mt-1 text-sm text-gray-600">
             Gate carrier offload and roaming with vector-provider health,
             pseudonym privacy, resync policy, and AKA-prime network binding.
@@ -20074,17 +20528,12 @@ export default function AccessSettings() {
             <ToggleField
               label="Permanent Identity"
               checked={
-                settings.radius?.eap?.sim_aka
-                  ?.require_permanent_identity !== false
+                settings.radius?.eap?.sim_aka?.require_permanent_identity !==
+                false
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "eap",
-                    "sim_aka",
-                    "require_permanent_identity",
-                  ],
+                  ["radius", "eap", "sim_aka", "require_permanent_identity"],
                   value,
                 )
               }
@@ -20092,17 +20541,12 @@ export default function AccessSettings() {
             <ToggleField
               label="Pseudonym Privacy"
               checked={
-                settings.radius?.eap?.sim_aka
-                  ?.allow_pseudonym_identity !== false
+                settings.radius?.eap?.sim_aka?.allow_pseudonym_identity !==
+                false
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "eap",
-                    "sim_aka",
-                    "allow_pseudonym_identity",
-                  ],
+                  ["radius", "eap", "sim_aka", "allow_pseudonym_identity"],
                   value,
                 )
               }
@@ -20114,12 +20558,7 @@ export default function AccessSettings() {
               )}
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "eap",
-                    "sim_aka",
-                    "require_pseudonym_reauth",
-                  ],
+                  ["radius", "eap", "sim_aka", "require_pseudonym_reauth"],
                   value,
                 )
               }
@@ -20139,8 +20578,7 @@ export default function AccessSettings() {
             <ToggleField
               label="Allow Resync"
               checked={
-                settings.radius?.eap?.sim_aka?.allow_resynchronization !==
-                false
+                settings.radius?.eap?.sim_aka?.allow_resynchronization !== false
               }
               onChange={(value) =>
                 updateField(
@@ -20171,17 +20609,12 @@ export default function AccessSettings() {
             <ToggleField
               label="Fail Provider Down"
               checked={
-                settings.radius?.eap?.sim_aka
-                  ?.fail_on_provider_unavailable !== false
+                settings.radius?.eap?.sim_aka?.fail_on_provider_unavailable !==
+                false
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "eap",
-                    "sim_aka",
-                    "fail_on_provider_unavailable",
-                  ],
+                  ["radius", "eap", "sim_aka", "fail_on_provider_unavailable"],
                   value,
                 )
               }
@@ -20259,7 +20692,9 @@ export default function AccessSettings() {
             <TextField
               label="Max Vector Age (s)"
               type="number"
-              value={settings.radius?.eap?.sim_aka?.max_vector_age_seconds ?? 300}
+              value={
+                settings.radius?.eap?.sim_aka?.max_vector_age_seconds ?? 300
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "eap", "sim_aka", "max_vector_age_seconds"],
@@ -20292,7 +20727,9 @@ export default function AccessSettings() {
             <TextField
               label="Resync Window (s)"
               type="number"
-              value={settings.radius?.eap?.sim_aka?.resync_window_seconds ?? 300}
+              value={
+                settings.radius?.eap?.sim_aka?.resync_window_seconds ?? 300
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "eap", "sim_aka", "resync_window_seconds"],
@@ -20304,10 +20741,7 @@ export default function AccessSettings() {
               label="AKA-prime Network Name"
               value={settings.radius?.eap?.sim_aka?.network_name || ""}
               onChange={(value) =>
-                updateField(
-                  ["radius", "eap", "sim_aka", "network_name"],
-                  value,
-                )
+                updateField(["radius", "eap", "sim_aka", "network_name"], value)
               }
             />
             <TextField
@@ -20354,7 +20788,9 @@ export default function AccessSettings() {
             />
             <ToggleField
               label="Outbound DAC Client"
-              checked={settings.radius?.dynamic_auth?.outbound_enabled !== false}
+              checked={
+                settings.radius?.dynamic_auth?.outbound_enabled !== false
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "dynamic_auth", "outbound_enabled"],
@@ -20370,11 +20806,7 @@ export default function AccessSettings() {
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "dynamic_auth",
-                    "outbound_require_known_client",
-                  ],
+                  ["radius", "dynamic_auth", "outbound_require_known_client"],
                   value,
                 )
               }
@@ -20387,18 +20819,16 @@ export default function AccessSettings() {
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "dynamic_auth",
-                    "outbound_require_confirmation",
-                  ],
+                  ["radius", "dynamic_auth", "outbound_require_confirmation"],
                   value,
                 )
               }
             />
             <ToggleField
               label="Allow CoA"
-              checked={settings.radius?.dynamic_auth?.outbound_allow_coa !== false}
+              checked={
+                settings.radius?.dynamic_auth?.outbound_allow_coa !== false
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "dynamic_auth", "outbound_allow_coa"],
@@ -20618,9 +21048,7 @@ export default function AccessSettings() {
             <TextField
               label="Max Attempts"
               type="number"
-              value={
-                settings.radius?.dynamic_auth?.outbound_max_attempts || 6
-              }
+              value={settings.radius?.dynamic_auth?.outbound_max_attempts || 6}
               onChange={(value) =>
                 updateField(
                   ["radius", "dynamic_auth", "outbound_max_attempts"],
@@ -20632,16 +21060,12 @@ export default function AccessSettings() {
               label="Initial Retry (s)"
               type="number"
               value={
-                settings.radius?.dynamic_auth
-                  ?.outbound_initial_retry_seconds || 5
+                settings.radius?.dynamic_auth?.outbound_initial_retry_seconds ||
+                5
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "dynamic_auth",
-                    "outbound_initial_retry_seconds",
-                  ],
+                  ["radius", "dynamic_auth", "outbound_initial_retry_seconds"],
                   Number(value),
                 )
               }
@@ -20650,8 +21074,7 @@ export default function AccessSettings() {
               label="Max Retry (s)"
               type="number"
               value={
-                settings.radius?.dynamic_auth?.outbound_max_retry_seconds ||
-                300
+                settings.radius?.dynamic_auth?.outbound_max_retry_seconds || 300
               }
               onChange={(value) =>
                 updateField(
@@ -20793,12 +21216,9 @@ export default function AccessSettings() {
                 outboundDACReport?.nas_ownership?.status,
               )}`}
             >
-              <div className="text-xs font-semibold uppercase">
-                NAS Owners
-              </div>
+              <div className="text-xs font-semibold uppercase">NAS Owners</div>
               <div className="mt-1 text-sm font-semibold">
-                {outboundDACReport?.nas_ownership?.summary?.owned_sessions ||
-                  0}
+                {outboundDACReport?.nas_ownership?.summary?.owned_sessions || 0}
                 /
                 {outboundDACReport?.nas_ownership?.summary?.active_sessions ||
                   0}{" "}
@@ -20810,9 +21230,7 @@ export default function AccessSettings() {
                 outboundDACReport?.handoff?.status,
               )}`}
             >
-              <div className="text-xs font-semibold uppercase">
-                HA Handoff
-              </div>
+              <div className="text-xs font-semibold uppercase">HA Handoff</div>
               <div className="mt-1 text-sm font-semibold">
                 {outboundDACReport?.handoff?.decision?.effective_role ||
                   outboundDACReport?.handoff?.decision?.role ||
@@ -20897,10 +21315,9 @@ export default function AccessSettings() {
             <div className="mt-3 rounded-md border border-gray-200 px-3 py-2 text-xs text-gray-600">
               <div>
                 Capability clients:{" "}
-                {outboundDACReport.nas_ownership.summary
-                  ?.capability_clients || 0}
-                /
-                {outboundDACReport.nas_ownership.summary?.enabled_clients || 0}
+                {outboundDACReport.nas_ownership.summary?.capability_clients ||
+                  0}
+                /{outboundDACReport.nas_ownership.summary?.enabled_clients || 0}
               </div>
               <div className="mt-1">
                 Ownership coverage:{" "}
@@ -20910,10 +21327,8 @@ export default function AccessSettings() {
               </div>
               <div className="mt-1">
                 Stale or unknown:{" "}
-                {outboundDACReport.nas_ownership.summary?.stale_sessions || 0}
-                /
-                {outboundDACReport.nas_ownership.summary?.unknown_sessions ||
-                  0}
+                {outboundDACReport.nas_ownership.summary?.stale_sessions || 0}/
+                {outboundDACReport.nas_ownership.summary?.unknown_sessions || 0}
               </div>
               {(outboundDACReport.nas_ownership.warnings || []).map(
                 (warning) => (
@@ -20927,8 +21342,7 @@ export default function AccessSettings() {
           {outboundDACReport?.handoff && (
             <div className="mt-3 rounded-md border border-gray-200 px-3 py-2 text-xs text-gray-600">
               <div>
-                Node:{" "}
-                {outboundDACReport.handoff.decision?.node_id || "local"}
+                Node: {outboundDACReport.handoff.decision?.node_id || "local"}
               </div>
               <div className="mt-1">
                 Role: {outboundDACReport.handoff.decision?.role || "unknown"}
@@ -20945,9 +21359,9 @@ export default function AccessSettings() {
                 {outboundDACReport.handoff.decision?.can_replay ? "yes" : "no"}
               </div>
               <div className="mt-1">
-                Leases:{" "}
-                {outboundDACReport.handoff.summary?.active_leases || 0} active,{" "}
-                {outboundDACReport.handoff.summary?.standby_leases || 0} standby,{" "}
+                Leases: {outboundDACReport.handoff.summary?.active_leases || 0}{" "}
+                active, {outboundDACReport.handoff.summary?.standby_leases || 0}{" "}
+                standby,{" "}
                 {outboundDACReport.handoff.summary?.blocked_leases || 0} blocked
               </div>
               {outboundDACReport.handoff.decision?.lease_id && (
@@ -21068,9 +21482,7 @@ export default function AccessSettings() {
               label="Proxy Route"
               value={String(outboundDACDraft.proxy_route || "")}
               placeholder="corp"
-              onChange={(value) =>
-                updateOutboundDACDraft("proxy_route", value)
-              }
+              onChange={(value) => updateOutboundDACDraft("proxy_route", value)}
             />
             <TextField
               label="Originating Realm"
@@ -21084,9 +21496,7 @@ export default function AccessSettings() {
               label="Proxy Realm"
               value={String(outboundDACDraft.proxy_realm || "")}
               placeholder="corp.example.test"
-              onChange={(value) =>
-                updateOutboundDACDraft("proxy_realm", value)
-              }
+              onChange={(value) => updateOutboundDACDraft("proxy_realm", value)}
             />
             <TextField
               label="Proxy Home Server"
@@ -21100,9 +21510,7 @@ export default function AccessSettings() {
               label="Proxy-State"
               value={String(outboundDACDraft.proxy_state || "")}
               placeholder="existing-hop, partner-hop"
-              onChange={(value) =>
-                updateOutboundDACDraft("proxy_state", value)
-              }
+              onChange={(value) => updateOutboundDACDraft("proxy_state", value)}
             />
             <TextField
               label="Acct Session ID"
@@ -21286,9 +21694,8 @@ export default function AccessSettings() {
                 {outboundDACPreview.expected_nak_code || 0}
               </div>
               <div className="mt-1">
-                Delivery{" "}
-                {outboundDACPreview.target?.delivery_mode || "direct"} via{" "}
-                {outboundDACPreview.target?.transport || "udp"}
+                Delivery {outboundDACPreview.target?.delivery_mode || "direct"}{" "}
+                via {outboundDACPreview.target?.transport || "udp"}
                 {outboundDACPreview.target?.proxy_route
                   ? `, route ${outboundDACPreview.target.proxy_route}`
                   : ""}
@@ -21308,8 +21715,7 @@ export default function AccessSettings() {
               {outboundDACPreview.ownership_decision?.status && (
                 <div className="mt-2 rounded-md border border-current px-2 py-1">
                   <div className="font-semibold">
-                    NAS ownership{" "}
-                    {outboundDACPreview.ownership_decision.status}
+                    NAS ownership {outboundDACPreview.ownership_decision.status}
                     {outboundDACPreview.ownership_decision.session_id
                       ? `: ${outboundDACPreview.ownership_decision.session_id}`
                       : ""}
@@ -21335,9 +21741,8 @@ export default function AccessSettings() {
                         .supported_transports || []
                     ).join(", ") || "none"}
                   </div>
-                  {(
-                    outboundDACPreview.ownership_decision.required || []
-                  ).length > 0 && (
+                  {(outboundDACPreview.ownership_decision.required || [])
+                    .length > 0 && (
                     <div className="mt-1 break-all">
                       Required:{" "}
                       {(
@@ -21345,20 +21750,20 @@ export default function AccessSettings() {
                       ).join(", ")}
                     </div>
                   )}
-                  {(
-                    outboundDACPreview.ownership_decision.warnings || []
-                  ).map((warning) => (
-                    <div key={warning} className="mt-1">
-                      {warning}
-                    </div>
-                  ))}
-                  {(
-                    outboundDACPreview.ownership_decision.blockers || []
-                  ).map((blocker) => (
-                    <div key={blocker} className="mt-1">
-                      {blocker}
-                    </div>
-                  ))}
+                  {(outboundDACPreview.ownership_decision.warnings || []).map(
+                    (warning) => (
+                      <div key={warning} className="mt-1">
+                        {warning}
+                      </div>
+                    ),
+                  )}
+                  {(outboundDACPreview.ownership_decision.blockers || []).map(
+                    (blocker) => (
+                      <div key={blocker} className="mt-1">
+                        {blocker}
+                      </div>
+                    ),
+                  )}
                 </div>
               )}
               {outboundDACPreview.handoff_decision?.status && (
@@ -21395,20 +21800,20 @@ export default function AccessSettings() {
                       Lease: {outboundDACPreview.handoff_decision.lease_id}
                     </div>
                   )}
-                  {(
-                    outboundDACPreview.handoff_decision.warnings || []
-                  ).map((warning) => (
-                    <div key={warning} className="mt-1">
-                      {warning}
-                    </div>
-                  ))}
-                  {(
-                    outboundDACPreview.handoff_decision.blockers || []
-                  ).map((blocker) => (
-                    <div key={blocker} className="mt-1">
-                      {blocker}
-                    </div>
-                  ))}
+                  {(outboundDACPreview.handoff_decision.warnings || []).map(
+                    (warning) => (
+                      <div key={warning} className="mt-1">
+                        {warning}
+                      </div>
+                    ),
+                  )}
+                  {(outboundDACPreview.handoff_decision.blockers || []).map(
+                    (blocker) => (
+                      <div key={blocker} className="mt-1">
+                        {blocker}
+                      </div>
+                    ),
+                  )}
                 </div>
               )}
               {outboundDACPreview.vendor_action_decision?.status && (
@@ -21428,8 +21833,8 @@ export default function AccessSettings() {
                   </div>
                   <div className="mt-1">
                     Vendor attributes:{" "}
-                    {outboundDACPreview.vendor_action_decision.attribute_count ||
-                      0}
+                    {outboundDACPreview.vendor_action_decision
+                      .attribute_count || 0}
                   </div>
                   {(outboundDACPreview.vendor_action_decision.attributes || [])
                     .length > 0 && (
@@ -21497,9 +21902,7 @@ export default function AccessSettings() {
                       <td className="break-all px-3 py-2 font-medium text-gray-900">
                         {item.request_id}
                       </td>
-                      <td className="px-3 py-2 text-gray-700">
-                        {item.action}
-                      </td>
+                      <td className="px-3 py-2 text-gray-700">{item.action}</td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.vendor_action || "standard"}
                         <div className="text-xs text-gray-500">
@@ -21538,9 +21941,7 @@ export default function AccessSettings() {
                           </div>
                         ))}
                       </td>
-                      <td className="px-3 py-2 text-gray-700">
-                        {item.status}
-                      </td>
+                      <td className="px-3 py-2 text-gray-700">{item.status}</td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.target_address}:{item.target_port}
                         <div className="text-xs text-gray-500">
@@ -21588,9 +21989,7 @@ export default function AccessSettings() {
                       <td className="break-all px-3 py-2 font-medium text-gray-900">
                         {item.queue_id}
                       </td>
-                      <td className="px-3 py-2 text-gray-700">
-                        {item.action}
-                      </td>
+                      <td className="px-3 py-2 text-gray-700">{item.action}</td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.vendor_action || "standard"}
                         <div className="text-xs text-gray-500">
@@ -21674,7 +22073,9 @@ export default function AccessSettings() {
                           ].includes(item.status) && (
                             <button
                               type="button"
-                              onClick={() => retryOutboundDACQueue(item.queue_id)}
+                              onClick={() =>
+                                retryOutboundDACQueue(item.queue_id)
+                              }
                               className="rounded-md border border-gray-900 px-2 py-1 text-xs font-medium text-gray-900"
                             >
                               Retry
@@ -21690,9 +22091,7 @@ export default function AccessSettings() {
           )}
         </div>
         <div className="mt-6 border-t border-gray-200 pt-5">
-          <h4 className="font-semibold text-gray-900">
-            Dynamic NAS Clients
-          </h4>
+          <h4 className="font-semibold text-gray-900">Dynamic NAS Clients</h4>
           <p className="mt-1 text-sm text-gray-600">
             New APs, switches, and controllers can request enrollment, stay
             pending until approved, and inherit capability templates.
@@ -21877,9 +22276,7 @@ export default function AccessSettings() {
             />
             <ToggleField
               label="Override Certificate OCSP URL"
-              checked={Boolean(
-                settings.radius?.eap?.ocsp?.override_cert_url,
-              )}
+              checked={Boolean(settings.radius?.eap?.ocsp?.override_cert_url)}
               onChange={(checked) =>
                 updateField(
                   ["radius", "eap", "ocsp", "override_cert_url"],
@@ -21898,10 +22295,7 @@ export default function AccessSettings() {
               label="OCSP Nonce"
               checked={settings.radius?.eap?.ocsp?.use_nonce !== false}
               onChange={(checked) =>
-                updateField(
-                  ["radius", "eap", "ocsp", "use_nonce"],
-                  checked,
-                )
+                updateField(["radius", "eap", "ocsp", "use_nonce"], checked)
               }
             />
             <TextField
@@ -21919,10 +22313,7 @@ export default function AccessSettings() {
               label="OCSP Soft Fail"
               checked={Boolean(settings.radius?.eap?.ocsp?.soft_fail)}
               onChange={(checked) =>
-                updateField(
-                  ["radius", "eap", "ocsp", "soft_fail"],
-                  checked,
-                )
+                updateField(["radius", "eap", "ocsp", "soft_fail"], checked)
               }
             />
           </div>
@@ -21934,9 +22325,8 @@ export default function AccessSettings() {
                 AegisNAS Vendor Dictionary
               </h4>
               <p className="mt-1 text-sm text-gray-600">
-                Built-in attributes come from
-                configs/dictionary.aegisnas. Add rows here only for local
-                overrides or extensions.
+                Built-in attributes come from configs/dictionary.aegisnas. Add
+                rows here only for local overrides or extensions.
               </p>
             </div>
             <button
@@ -22145,9 +22535,7 @@ export default function AccessSettings() {
               <TextField
                 label="Default Fallback VLAN"
                 type="number"
-                value={
-                  settings.radius?.vlan_policy?.default_fallback_vlan ?? 0
-                }
+                value={settings.radius?.vlan_policy?.default_fallback_vlan ?? 0}
                 onChange={(value) =>
                   updateField(
                     ["radius", "vlan_policy", "default_fallback_vlan"],
@@ -22530,9 +22918,9 @@ export default function AccessSettings() {
                   CGNAT / NAT64 Translation Policy
                 </h5>
                 <p className="mt-1 text-sm text-gray-600">
-                  Compile subscriber translation mode, public IPv4 pool,
-                  NAT64 prefix, deterministic port blocks, and logging
-                  correlation into vendor-ready RADIUS replies.
+                  Compile subscriber translation mode, public IPv4 pool, NAT64
+                  prefix, deterministic port blocks, and logging correlation
+                  into vendor-ready RADIUS replies.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -22599,11 +22987,12 @@ export default function AccessSettings() {
             <div className="grid gap-3 md:grid-cols-4">
               <ToggleField
                 label="Compiler Enabled"
-                checked={
-                  settings.radius?.translation_policy?.enabled !== false
-                }
+                checked={settings.radius?.translation_policy?.enabled !== false}
                 onChange={(value) =>
-                  updateField(["radius", "translation_policy", "enabled"], value)
+                  updateField(
+                    ["radius", "translation_policy", "enabled"],
+                    value,
+                  )
                 }
               />
               <ToggleField
@@ -22638,11 +23027,7 @@ export default function AccessSettings() {
                 }
                 onChange={(value) =>
                   updateField(
-                    [
-                      "radius",
-                      "translation_policy",
-                      "accounting_correlation",
-                    ],
+                    ["radius", "translation_policy", "accounting_correlation"],
                     value,
                   )
                 }
@@ -22650,9 +23035,7 @@ export default function AccessSettings() {
               <TextField
                 label="Max Mappings"
                 type="number"
-                value={
-                  settings.radius?.translation_policy?.max_mappings ?? 256
-                }
+                value={settings.radius?.translation_policy?.max_mappings ?? 256}
                 onChange={(value) =>
                   updateField(
                     ["radius", "translation_policy", "max_mappings"],
@@ -22710,11 +23093,7 @@ export default function AccessSettings() {
                 }
                 onChange={(value) =>
                   updateField(
-                    [
-                      "radius",
-                      "translation_policy",
-                      "default_port_block_size",
-                    ],
+                    ["radius", "translation_policy", "default_port_block_size"],
                     Number(value),
                   )
                 }
@@ -23421,7 +23800,10 @@ export default function AccessSettings() {
                 label="Fail Closed"
                 checked={Boolean(settings.radius?.address_policy?.fail_closed)}
                 onChange={(value) =>
-                  updateField(["radius", "address_policy", "fail_closed"], value)
+                  updateField(
+                    ["radius", "address_policy", "fail_closed"],
+                    value,
+                  )
                 }
               />
               <ToggleField
@@ -23462,7 +23844,9 @@ export default function AccessSettings() {
               />
               <SelectField
                 label="Conflict Mode"
-                value={settings.radius?.address_policy?.conflict_mode || "block"}
+                value={
+                  settings.radius?.address_policy?.conflict_mode || "block"
+                }
                 onChange={(value) =>
                   updateField(
                     ["radius", "address_policy", "conflict_mode"],
@@ -23472,7 +23856,10 @@ export default function AccessSettings() {
                 options={addressConflictModeOptions}
               />
               <div className="md:col-span-2 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-600">
-                Packs: {addressVendorPackOptions.map((option) => option.label).join(", ")}
+                Packs:{" "}
+                {addressVendorPackOptions
+                  .map((option) => option.label)
+                  .join(", ")}
               </div>
             </div>
             <div className="mt-4 grid gap-3 lg:grid-cols-2">
@@ -23599,12 +23986,7 @@ export default function AccessSettings() {
                     )}
                     onChange={(value) =>
                       updateField(
-                        [
-                          "radius",
-                          "address_policy",
-                          "dhcpv6",
-                          "domain_search",
-                        ],
+                        ["radius", "address_policy", "dhcpv6", "domain_search"],
                         csvToList(value),
                       )
                     }
@@ -23649,12 +24031,7 @@ export default function AccessSettings() {
                     }
                     onChange={(value) =>
                       updateField(
-                        [
-                          "radius",
-                          "address_policy",
-                          "ra",
-                          "other_config_flag",
-                        ],
+                        ["radius", "address_policy", "ra", "other_config_flag"],
                         value,
                       )
                     }
@@ -23999,294 +24376,288 @@ export default function AccessSettings() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {addressRolePolicies.map(
-                    (policy: JsonMap, index: number) => (
-                      <div
-                        key={`address-role-policy-${index}`}
-                        className="rounded-md border border-gray-200 p-3"
-                      >
-                        <div className="grid gap-3 md:grid-cols-4">
-                          <TextField
-                            label="Role"
-                            value={policy.role || ""}
-                            onChange={(value) =>
+                  {addressRolePolicies.map((policy: JsonMap, index: number) => (
+                    <div
+                      key={`address-role-policy-${index}`}
+                      className="rounded-md border border-gray-200 p-3"
+                    >
+                      <div className="grid gap-3 md:grid-cols-4">
+                        <TextField
+                          label="Role"
+                          value={policy.role || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "role",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="branch-dualstack"
+                        />
+                        <TextField
+                          label="Owner"
+                          value={policy.owner || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "owner",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="network-team"
+                        />
+                        <SelectField
+                          label="DHCPv6 Mode"
+                          value={policy.dhcpv6_mode || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "dhcpv6_mode",
+                              ],
+                              value,
+                            )
+                          }
+                          options={dhcpv6ModeOptions}
+                        />
+                        <SelectField
+                          label="RA Mode"
+                          value={policy.ra_mode || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "ra_mode",
+                              ],
+                              value,
+                            )
+                          }
+                          options={raModeOptions}
+                        />
+                        <TextField
+                          label="IPv4 Pool"
+                          value={policy.ipv4_pool || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "ipv4_pool",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="branch-v4"
+                        />
+                        <TextField
+                          label="IPv4 Address"
+                          value={policy.ipv4_address || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "ipv4_address",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="198.51.100.42"
+                        />
+                        <TextField
+                          label="IPv6 Pool"
+                          value={policy.ipv6_pool || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "ipv6_pool",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="branch-v6"
+                        />
+                        <TextField
+                          label="IPv6 Address"
+                          value={policy.ipv6_address || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "ipv6_address",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="2001:db8:10::42"
+                        />
+                        <TextField
+                          label="IPv6 Prefix"
+                          value={policy.ipv6_prefix || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "ipv6_prefix",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="2001:db8:10:42::/64"
+                        />
+                        <TextField
+                          label="Delegated Pool"
+                          value={policy.delegated_ipv6_pool || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "delegated_ipv6_pool",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="branch-pd"
+                        />
+                        <TextField
+                          label="Delegated Prefix"
+                          value={policy.delegated_ipv6_prefix || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "delegated_ipv6_prefix",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="2001:db8:100:4200::/56"
+                        />
+                        <TextField
+                          label="RA Prefix Pool"
+                          value={policy.ra_prefix_pool || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "ra_prefix_pool",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="branch-ra"
+                        />
+                        <TextField
+                          label="RA Prefix"
+                          value={policy.ra_prefix || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "ra_prefix",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="2001:db8:200:42::/64"
+                        />
+                        <TextField
+                          label="Vendor Packs"
+                          value={listToCSV(policy.vendor_packs)}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "vendor_packs",
+                              ],
+                              csvToList(value),
+                            )
+                          }
+                          placeholder="standard, aegisnas, cisco, juniper"
+                        />
+                        <div className="flex items-end">
+                          <button
+                            onClick={() =>
                               updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "role",
-                                ],
-                                value,
+                                ["radius", "address_policy", "role_policies"],
+                                addressRolePolicies.filter(
+                                  (_: unknown, itemIndex: number) =>
+                                    itemIndex !== index,
+                                ),
                               )
                             }
-                            placeholder="branch-dualstack"
-                          />
-                          <TextField
-                            label="Owner"
-                            value={policy.owner || ""}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "owner",
-                                ],
-                                value,
-                              )
-                            }
-                            placeholder="network-team"
-                          />
-                          <SelectField
-                            label="DHCPv6 Mode"
-                            value={policy.dhcpv6_mode || ""}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "dhcpv6_mode",
-                                ],
-                                value,
-                              )
-                            }
-                            options={dhcpv6ModeOptions}
-                          />
-                          <SelectField
-                            label="RA Mode"
-                            value={policy.ra_mode || ""}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "ra_mode",
-                                ],
-                                value,
-                              )
-                            }
-                            options={raModeOptions}
-                          />
-                          <TextField
-                            label="IPv4 Pool"
-                            value={policy.ipv4_pool || ""}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "ipv4_pool",
-                                ],
-                                value,
-                              )
-                            }
-                            placeholder="branch-v4"
-                          />
-                          <TextField
-                            label="IPv4 Address"
-                            value={policy.ipv4_address || ""}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "ipv4_address",
-                                ],
-                                value,
-                              )
-                            }
-                            placeholder="198.51.100.42"
-                          />
-                          <TextField
-                            label="IPv6 Pool"
-                            value={policy.ipv6_pool || ""}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "ipv6_pool",
-                                ],
-                                value,
-                              )
-                            }
-                            placeholder="branch-v6"
-                          />
-                          <TextField
-                            label="IPv6 Address"
-                            value={policy.ipv6_address || ""}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "ipv6_address",
-                                ],
-                                value,
-                              )
-                            }
-                            placeholder="2001:db8:10::42"
-                          />
-                          <TextField
-                            label="IPv6 Prefix"
-                            value={policy.ipv6_prefix || ""}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "ipv6_prefix",
-                                ],
-                                value,
-                              )
-                            }
-                            placeholder="2001:db8:10:42::/64"
-                          />
-                          <TextField
-                            label="Delegated Pool"
-                            value={policy.delegated_ipv6_pool || ""}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "delegated_ipv6_pool",
-                                ],
-                                value,
-                              )
-                            }
-                            placeholder="branch-pd"
-                          />
-                          <TextField
-                            label="Delegated Prefix"
-                            value={policy.delegated_ipv6_prefix || ""}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "delegated_ipv6_prefix",
-                                ],
-                                value,
-                              )
-                            }
-                            placeholder="2001:db8:100:4200::/56"
-                          />
-                          <TextField
-                            label="RA Prefix Pool"
-                            value={policy.ra_prefix_pool || ""}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "ra_prefix_pool",
-                                ],
-                                value,
-                              )
-                            }
-                            placeholder="branch-ra"
-                          />
-                          <TextField
-                            label="RA Prefix"
-                            value={policy.ra_prefix || ""}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "ra_prefix",
-                                ],
-                                value,
-                              )
-                            }
-                            placeholder="2001:db8:200:42::/64"
-                          />
-                          <TextField
-                            label="Vendor Packs"
-                            value={listToCSV(policy.vendor_packs)}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "vendor_packs",
-                                ],
-                                csvToList(value),
-                              )
-                            }
-                            placeholder="standard, aegisnas, cisco, juniper"
-                          />
-                          <div className="flex items-end">
-                            <button
-                              onClick={() =>
-                                updateField(
-                                  [
-                                    "radius",
-                                    "address_policy",
-                                    "role_policies",
-                                  ],
-                                  addressRolePolicies.filter(
-                                    (_: unknown, itemIndex: number) =>
-                                      itemIndex !== index,
-                                  ),
-                                )
-                              }
-                              className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                        <div className="mt-3">
-                          <TextField
-                            label="Description"
-                            value={policy.description || ""}
-                            onChange={(value) =>
-                              updateField(
-                                [
-                                  "radius",
-                                  "address_policy",
-                                  "role_policies",
-                                  String(index),
-                                  "description",
-                                ],
-                                value,
-                              )
-                            }
-                            placeholder="Dual-stack access with delegated prefix and SLAAC metadata."
-                          />
+                            className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                          >
+                            Remove
+                          </button>
                         </div>
                       </div>
-                    ),
-                  )}
+                      <div className="mt-3">
+                        <TextField
+                          label="Description"
+                          value={policy.description || ""}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "address_policy",
+                                "role_policies",
+                                String(index),
+                                "description",
+                              ],
+                              value,
+                            )
+                          }
+                          placeholder="Dual-stack access with delegated prefix and SLAAC metadata."
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -24358,7 +24729,9 @@ export default function AccessSettings() {
               />
               <ToggleField
                 label="Withdraw On Stop"
-                checked={settings.radius?.route_policy?.stop_withdrawal !== false}
+                checked={
+                  settings.radius?.route_policy?.stop_withdrawal !== false
+                }
                 onChange={(value) =>
                   updateField(
                     ["radius", "route_policy", "stop_withdrawal"],
@@ -24700,9 +25073,7 @@ export default function AccessSettings() {
                           />
                           <TextField
                             label="Route Map"
-                            value={
-                              protocol.route_map || "AEGISNAS-SUBSCRIBER"
-                            }
+                            value={protocol.route_map || "AEGISNAS-SUBSCRIBER"}
                             onChange={(value) =>
                               updateField(
                                 [
@@ -24908,9 +25279,7 @@ export default function AccessSettings() {
               </div>
             </div>
             <div className="mt-4">
-              <div className="mb-2 text-sm font-medium text-gray-900">
-                VRFs
-              </div>
+              <div className="mb-2 text-sm font-medium text-gray-900">VRFs</div>
               {routePolicyVRFs.length === 0 ? (
                 <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
                   No VRFs configured.
@@ -25475,8 +25844,8 @@ export default function AccessSettings() {
                   Extreme Extended VLANs
                 </h5>
                 <p className="mt-1 text-sm text-gray-600">
-                  Assign one optional untagged VLAN and up to ten total VLANs
-                  to a local role.
+                  Assign one optional untagged VLAN and up to ten total VLANs to
+                  a local role.
                 </p>
               </div>
               <button
@@ -25587,11 +25956,7 @@ export default function AccessSettings() {
                         <button
                           onClick={() =>
                             updateField(
-                              [
-                                "radius",
-                                "vendor",
-                                "extended_vlan_mappings",
-                              ],
+                              ["radius", "vendor", "extended_vlan_mappings"],
                               vendorExtendedVLANMappings.filter(
                                 (_: unknown, itemIndex: number) =>
                                   itemIndex !== index,
@@ -25636,8 +26001,8 @@ export default function AccessSettings() {
             </div>
             <p className="mb-3 text-xs text-gray-500">
               Placeholders: ${"{role}"}, ${"{acl_policy}"}, ${"{inbound_acl}"},
-              ${"{outbound_acl}"}, ${"{vlan}"}, ${"{policy_tag}"},
-              ${"{device_group}"}, ${"{tenant}"}
+              ${"{outbound_acl}"}, ${"{vlan}"}, ${"{policy_tag}"}, $
+              {"{device_group}"}, ${"{tenant}"}
             </p>
             {vendorAVPairMappings.length === 0 ? (
               <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
@@ -25645,89 +26010,87 @@ export default function AccessSettings() {
               </div>
             ) : (
               <div className="space-y-3">
-                {vendorAVPairMappings.map(
-                  (mapping: JsonMap, index: number) => (
-                    <div
-                      key={`vendor-avpair-${index}`}
-                      className="grid gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-[1fr_1fr_2fr_auto]"
-                    >
-                      <SelectField
-                        label="Vendor Pack"
-                        value={mapping.pack || "juniper"}
-                        onChange={(value) =>
+                {vendorAVPairMappings.map((mapping: JsonMap, index: number) => (
+                  <div
+                    key={`vendor-avpair-${index}`}
+                    className="grid gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-[1fr_1fr_2fr_auto]"
+                  >
+                    <SelectField
+                      label="Vendor Pack"
+                      value={mapping.pack || "juniper"}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "radius",
+                            "vendor",
+                            "avpair_mappings",
+                            String(index),
+                            "pack",
+                          ],
+                          value,
+                        )
+                      }
+                      options={avPairPackOptions}
+                    />
+                    <TextField
+                      label="Local Role"
+                      value={mapping.role || ""}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "radius",
+                            "vendor",
+                            "avpair_mappings",
+                            String(index),
+                            "role",
+                          ],
+                          value,
+                        )
+                      }
+                      placeholder="network-admin"
+                    />
+                    <label className="text-sm text-gray-700">
+                      <span className="mb-1 block">AVPair Values</span>
+                      <textarea
+                        rows={3}
+                        value={(mapping.values || []).join("\n")}
+                        onChange={(event) =>
                           updateField(
                             [
                               "radius",
                               "vendor",
                               "avpair_mappings",
                               String(index),
-                              "pack",
+                              "values",
                             ],
-                            value,
+                            event.target.value
+                              .split("\n")
+                              .map((item) => item.trim())
+                              .filter(Boolean),
                           )
                         }
-                        options={avPairPackOptions}
+                        placeholder="shell:roles=${role}"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm"
                       />
-                      <TextField
-                        label="Local Role"
-                        value={mapping.role || ""}
-                        onChange={(value) =>
+                    </label>
+                    <div className="flex items-end">
+                      <button
+                        onClick={() =>
                           updateField(
-                            [
-                              "radius",
-                              "vendor",
-                              "avpair_mappings",
-                              String(index),
-                              "role",
-                            ],
-                            value,
+                            ["radius", "vendor", "avpair_mappings"],
+                            vendorAVPairMappings.filter(
+                              (_: unknown, itemIndex: number) =>
+                                itemIndex !== index,
+                            ),
                           )
                         }
-                        placeholder="network-admin"
-                      />
-                      <label className="text-sm text-gray-700">
-                        <span className="mb-1 block">AVPair Values</span>
-                        <textarea
-                          rows={3}
-                          value={(mapping.values || []).join("\n")}
-                          onChange={(event) =>
-                            updateField(
-                              [
-                                "radius",
-                                "vendor",
-                                "avpair_mappings",
-                                String(index),
-                                "values",
-                              ],
-                              event.target.value
-                                .split("\n")
-                                .map((item) => item.trim())
-                                .filter(Boolean),
-                            )
-                          }
-                          placeholder="shell:roles=${role}"
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm"
-                        />
-                      </label>
-                      <div className="flex items-end">
-                        <button
-                          onClick={() =>
-                            updateField(
-                              ["radius", "vendor", "avpair_mappings"],
-                              vendorAVPairMappings.filter(
-                                (_: unknown, itemIndex: number) =>
-                                  itemIndex !== index,
-                              ),
-                            )
-                          }
-                          className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
-                        >
-                          Remove
-                        </button>
-                      </div>
+                        className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                      >
+                        Remove
+                      </button>
                     </div>
-                  ),
-                )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -25827,11 +26190,7 @@ export default function AccessSettings() {
                         <button
                           onClick={() =>
                             updateField(
-                              [
-                                "radius",
-                                "vendor",
-                                "portal_status_mappings",
-                              ],
+                              ["radius", "vendor", "portal_status_mappings"],
                               vendorPortalStatusMappings.filter(
                                 (_: unknown, itemIndex: number) =>
                                   itemIndex !== index,
@@ -25963,11 +26322,7 @@ export default function AccessSettings() {
                         <button
                           onClick={() =>
                             updateField(
-                              [
-                                "radius",
-                                "vendor",
-                                "session_action_mappings",
-                              ],
+                              ["radius", "vendor", "session_action_mappings"],
                               vendorSessionActionMappings.filter(
                                 (_: unknown, itemIndex: number) =>
                                   itemIndex !== index,
@@ -26020,82 +26375,80 @@ export default function AccessSettings() {
               </div>
             ) : (
               <div className="space-y-3">
-                {vendorQuotaMappings.map(
-                  (mapping: JsonMap, index: number) => (
-                    <div
-                      key={`vendor-quota-${index}`}
-                      className="grid gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-4"
-                    >
-                      <SelectField
-                        label="Vendor Pack"
-                        value={mapping.pack || "chillispot"}
-                        onChange={(value) =>
+                {vendorQuotaMappings.map((mapping: JsonMap, index: number) => (
+                  <div
+                    key={`vendor-quota-${index}`}
+                    className="grid gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-4"
+                  >
+                    <SelectField
+                      label="Vendor Pack"
+                      value={mapping.pack || "chillispot"}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "radius",
+                            "vendor",
+                            "quota_mappings",
+                            String(index),
+                            "pack",
+                          ],
+                          value,
+                        )
+                      }
+                      options={quotaPackOptions}
+                    />
+                    <TextField
+                      label="Local Role"
+                      value={mapping.role || ""}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "radius",
+                            "vendor",
+                            "quota_mappings",
+                            String(index),
+                            "role",
+                          ],
+                          value,
+                        )
+                      }
+                      placeholder="guest-1g"
+                    />
+                    <TextField
+                      label="Maximum Total Octets"
+                      type="number"
+                      value={mapping.max_total_octets ?? 1073741824}
+                      onChange={(value) =>
+                        updateField(
+                          [
+                            "radius",
+                            "vendor",
+                            "quota_mappings",
+                            String(index),
+                            "max_total_octets",
+                          ],
+                          Number(value),
+                        )
+                      }
+                    />
+                    <div className="flex items-end">
+                      <button
+                        onClick={() =>
                           updateField(
-                            [
-                              "radius",
-                              "vendor",
-                              "quota_mappings",
-                              String(index),
-                              "pack",
-                            ],
-                            value,
+                            ["radius", "vendor", "quota_mappings"],
+                            vendorQuotaMappings.filter(
+                              (_: unknown, itemIndex: number) =>
+                                itemIndex !== index,
+                            ),
                           )
                         }
-                        options={quotaPackOptions}
-                      />
-                      <TextField
-                        label="Local Role"
-                        value={mapping.role || ""}
-                        onChange={(value) =>
-                          updateField(
-                            [
-                              "radius",
-                              "vendor",
-                              "quota_mappings",
-                              String(index),
-                              "role",
-                            ],
-                            value,
-                          )
-                        }
-                        placeholder="guest-1g"
-                      />
-                      <TextField
-                        label="Maximum Total Octets"
-                        type="number"
-                        value={mapping.max_total_octets ?? 1073741824}
-                        onChange={(value) =>
-                          updateField(
-                            [
-                              "radius",
-                              "vendor",
-                              "quota_mappings",
-                              String(index),
-                              "max_total_octets",
-                            ],
-                            Number(value),
-                          )
-                        }
-                      />
-                      <div className="flex items-end">
-                        <button
-                          onClick={() =>
-                            updateField(
-                              ["radius", "vendor", "quota_mappings"],
-                              vendorQuotaMappings.filter(
-                                (_: unknown, itemIndex: number) =>
-                                  itemIndex !== index,
-                              ),
-                            )
-                          }
-                          className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
-                        >
-                          Remove
-                        </button>
-                      </div>
+                        className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
+                      >
+                        Remove
+                      </button>
                     </div>
-                  ),
-                )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -26195,11 +26548,7 @@ export default function AccessSettings() {
                         <button
                           onClick={() =>
                             updateField(
-                              [
-                                "radius",
-                                "vendor",
-                                "service_name_mappings",
-                              ],
+                              ["radius", "vendor", "service_name_mappings"],
                               vendorServiceNameMappings.filter(
                                 (_: unknown, itemIndex: number) =>
                                   itemIndex !== index,
@@ -26292,25 +26641,178 @@ export default function AccessSettings() {
       <section className="rounded-lg bg-white p-6 shadow">
         <h3 className="mb-4 text-lg font-semibold text-gray-900">RadSec</h3>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <ToggleField label="Inbound RadSec" checked={Boolean(settings.radius?.radsec?.enabled)} onChange={(value) => updateField(["radius", "radsec", "enabled"], value)} />
-          <TextField label="Listen Address" value={settings.radius?.radsec?.listen_address || "0.0.0.0"} onChange={(value) => updateField(["radius", "radsec", "listen_address"], value)} />
-          <TextField label="Port" type="number" value={settings.radius?.radsec?.port || 2083} onChange={(value) => updateField(["radius", "radsec", "port"], Number(value))} />
-          <SelectField label="RADIUS Version" value={settings.radius?.radsec?.radius_v11 || "forbid"} onChange={(value) => updateField(["radius", "radsec", "radius_v11"], value)} options={[{ value: "forbid", label: "RADIUS/1.0" }, { value: "allow", label: "Allow RADIUS/1.1" }, { value: "require", label: "Require RADIUS/1.1" }]} />
-          <TextField label="Server Certificate" value={settings.radius?.radsec?.certificate_file || ""} onChange={(value) => updateField(["radius", "radsec", "certificate_file"], value)} />
-          <TextField label="Server Private Key" value={settings.radius?.radsec?.private_key_file || ""} onChange={(value) => updateField(["radius", "radsec", "private_key_file"], value)} />
-          <TextField label="Key Password Environment" value={settings.radius?.radsec?.private_key_password_env || ""} onChange={(value) => updateField(["radius", "radsec", "private_key_password_env"], value)} />
-          <TextField label="Trusted CA File" value={settings.radius?.radsec?.ca_file || ""} onChange={(value) => updateField(["radius", "radsec", "ca_file"], value)} />
-          <TextField label="Trusted CA Path" value={settings.radius?.radsec?.ca_path || ""} onChange={(value) => updateField(["radius", "radsec", "ca_path"], value)} />
-          <SelectField label="TLS Minimum" value={settings.radius?.radsec?.tls_min_version || "1.2"} onChange={(value) => updateField(["radius", "radsec", "tls_min_version"], value)} options={[{ value: "1.2", label: "TLS 1.2" }, { value: "1.3", label: "TLS 1.3" }]} />
-          <SelectField label="TLS Maximum" value={settings.radius?.radsec?.tls_max_version || "1.3"} onChange={(value) => updateField(["radius", "radsec", "tls_max_version"], value)} options={[{ value: "1.2", label: "TLS 1.2" }, { value: "1.3", label: "TLS 1.3" }]} />
-          <TextField label="OpenSSL Cipher List" value={settings.radius?.radsec?.cipher_list || "DEFAULT@SECLEVEL=2"} onChange={(value) => updateField(["radius", "radsec", "cipher_list"], value)} />
-          <TextField label="Connection Limit" type="number" value={settings.radius?.radsec?.max_connections || 64} onChange={(value) => updateField(["radius", "radsec", "max_connections"], Number(value))} />
-          <TextField label="Connection Lifetime (s)" type="number" value={settings.radius?.radsec?.lifetime_seconds || 86400} onChange={(value) => updateField(["radius", "radsec", "lifetime_seconds"], Number(value))} />
-          <TextField label="Idle Timeout (s)" type="number" value={settings.radius?.radsec?.idle_timeout_seconds || 300} onChange={(value) => updateField(["radius", "radsec", "idle_timeout_seconds"], Number(value))} />
-          <TextField label="Probe Interval (s)" type="number" value={settings.radius?.radsec?.probe_interval_seconds || 30} onChange={(value) => updateField(["radius", "radsec", "probe_interval_seconds"], Number(value))} />
-          <TextField label="Certificate Warning (days)" type="number" value={settings.radius?.radsec?.certificate_expiry_warning_days || 30} onChange={(value) => updateField(["radius", "radsec", "certificate_expiry_warning_days"], Number(value))} />
-          <ToggleField label="CRL Validation" checked={Boolean(settings.radius?.radsec?.check_crl)} onChange={(value) => updateField(["radius", "radsec", "check_crl"], value)} />
-          <ToggleField label="Full Chain CRL Validation" checked={Boolean(settings.radius?.radsec?.check_all_crl)} onChange={(value) => updateField(["radius", "radsec", "check_all_crl"], value)} />
+          <ToggleField
+            label="Inbound RadSec"
+            checked={Boolean(settings.radius?.radsec?.enabled)}
+            onChange={(value) =>
+              updateField(["radius", "radsec", "enabled"], value)
+            }
+          />
+          <TextField
+            label="Listen Address"
+            value={settings.radius?.radsec?.listen_address || "0.0.0.0"}
+            onChange={(value) =>
+              updateField(["radius", "radsec", "listen_address"], value)
+            }
+          />
+          <TextField
+            label="Port"
+            type="number"
+            value={settings.radius?.radsec?.port || 2083}
+            onChange={(value) =>
+              updateField(["radius", "radsec", "port"], Number(value))
+            }
+          />
+          <SelectField
+            label="RADIUS Version"
+            value={settings.radius?.radsec?.radius_v11 || "forbid"}
+            onChange={(value) =>
+              updateField(["radius", "radsec", "radius_v11"], value)
+            }
+            options={[
+              { value: "forbid", label: "RADIUS/1.0" },
+              { value: "allow", label: "Allow RADIUS/1.1" },
+              { value: "require", label: "Require RADIUS/1.1" },
+            ]}
+          />
+          <TextField
+            label="Server Certificate"
+            value={settings.radius?.radsec?.certificate_file || ""}
+            onChange={(value) =>
+              updateField(["radius", "radsec", "certificate_file"], value)
+            }
+          />
+          <TextField
+            label="Server Private Key"
+            value={settings.radius?.radsec?.private_key_file || ""}
+            onChange={(value) =>
+              updateField(["radius", "radsec", "private_key_file"], value)
+            }
+          />
+          <TextField
+            label="Key Password Environment"
+            value={settings.radius?.radsec?.private_key_password_env || ""}
+            onChange={(value) =>
+              updateField(
+                ["radius", "radsec", "private_key_password_env"],
+                value,
+              )
+            }
+          />
+          <TextField
+            label="Trusted CA File"
+            value={settings.radius?.radsec?.ca_file || ""}
+            onChange={(value) =>
+              updateField(["radius", "radsec", "ca_file"], value)
+            }
+          />
+          <TextField
+            label="Trusted CA Path"
+            value={settings.radius?.radsec?.ca_path || ""}
+            onChange={(value) =>
+              updateField(["radius", "radsec", "ca_path"], value)
+            }
+          />
+          <SelectField
+            label="TLS Minimum"
+            value={settings.radius?.radsec?.tls_min_version || "1.2"}
+            onChange={(value) =>
+              updateField(["radius", "radsec", "tls_min_version"], value)
+            }
+            options={[
+              { value: "1.2", label: "TLS 1.2" },
+              { value: "1.3", label: "TLS 1.3" },
+            ]}
+          />
+          <SelectField
+            label="TLS Maximum"
+            value={settings.radius?.radsec?.tls_max_version || "1.3"}
+            onChange={(value) =>
+              updateField(["radius", "radsec", "tls_max_version"], value)
+            }
+            options={[
+              { value: "1.2", label: "TLS 1.2" },
+              { value: "1.3", label: "TLS 1.3" },
+            ]}
+          />
+          <TextField
+            label="OpenSSL Cipher List"
+            value={settings.radius?.radsec?.cipher_list || "DEFAULT@SECLEVEL=2"}
+            onChange={(value) =>
+              updateField(["radius", "radsec", "cipher_list"], value)
+            }
+          />
+          <TextField
+            label="Connection Limit"
+            type="number"
+            value={settings.radius?.radsec?.max_connections || 64}
+            onChange={(value) =>
+              updateField(
+                ["radius", "radsec", "max_connections"],
+                Number(value),
+              )
+            }
+          />
+          <TextField
+            label="Connection Lifetime (s)"
+            type="number"
+            value={settings.radius?.radsec?.lifetime_seconds || 86400}
+            onChange={(value) =>
+              updateField(
+                ["radius", "radsec", "lifetime_seconds"],
+                Number(value),
+              )
+            }
+          />
+          <TextField
+            label="Idle Timeout (s)"
+            type="number"
+            value={settings.radius?.radsec?.idle_timeout_seconds || 300}
+            onChange={(value) =>
+              updateField(
+                ["radius", "radsec", "idle_timeout_seconds"],
+                Number(value),
+              )
+            }
+          />
+          <TextField
+            label="Probe Interval (s)"
+            type="number"
+            value={settings.radius?.radsec?.probe_interval_seconds || 30}
+            onChange={(value) =>
+              updateField(
+                ["radius", "radsec", "probe_interval_seconds"],
+                Number(value),
+              )
+            }
+          />
+          <TextField
+            label="Certificate Warning (days)"
+            type="number"
+            value={
+              settings.radius?.radsec?.certificate_expiry_warning_days || 30
+            }
+            onChange={(value) =>
+              updateField(
+                ["radius", "radsec", "certificate_expiry_warning_days"],
+                Number(value),
+              )
+            }
+          />
+          <ToggleField
+            label="CRL Validation"
+            checked={Boolean(settings.radius?.radsec?.check_crl)}
+            onChange={(value) =>
+              updateField(["radius", "radsec", "check_crl"], value)
+            }
+          />
+          <ToggleField
+            label="Full Chain CRL Validation"
+            checked={Boolean(settings.radius?.radsec?.check_all_crl)}
+            onChange={(value) =>
+              updateField(["radius", "radsec", "check_all_crl"], value)
+            }
+          />
         </div>
       </section>
 
@@ -26615,16 +27117,12 @@ export default function AccessSettings() {
               label="Reconcile Interval (s)"
               type="number"
               value={
-                settings.radius?.sql_accounting
-                  ?.reconcile_interval_seconds || 60
+                settings.radius?.sql_accounting?.reconcile_interval_seconds ||
+                60
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "sql_accounting",
-                    "reconcile_interval_seconds",
-                  ],
+                  ["radius", "sql_accounting", "reconcile_interval_seconds"],
                   Number(value),
                 )
               }
@@ -26632,7 +27130,9 @@ export default function AccessSettings() {
             <TextField
               label="Stale After (s)"
               type="number"
-              value={settings.radius?.sql_accounting?.stale_after_seconds || 300}
+              value={
+                settings.radius?.sql_accounting?.stale_after_seconds || 300
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "sql_accounting", "stale_after_seconds"],
@@ -26644,8 +27144,8 @@ export default function AccessSettings() {
               label="Accounting Retention (d)"
               type="number"
               value={
-                settings.radius?.sql_accounting
-                  ?.accounting_retention_days || 365
+                settings.radius?.sql_accounting?.accounting_retention_days ||
+                365
               }
               onChange={(value) =>
                 updateField(
@@ -26745,7 +27245,9 @@ export default function AccessSettings() {
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             <ToggleField
               label="Ingest Spool"
-              checked={settings.radius?.accounting_ingest_spool?.enabled !== false}
+              checked={
+                settings.radius?.accounting_ingest_spool?.enabled !== false
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "accounting_ingest_spool", "enabled"],
@@ -26775,11 +27277,7 @@ export default function AccessSettings() {
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "accounting_ingest_spool",
-                    "max_queue_records",
-                  ],
+                  ["radius", "accounting_ingest_spool", "max_queue_records"],
                   Number(value),
                 )
               }
@@ -26877,7 +27375,9 @@ export default function AccessSettings() {
             <TextField
               label="Lock Window (s)"
               type="number"
-              value={settings.radius?.accounting_ingest_spool?.lock_seconds || 120}
+              value={
+                settings.radius?.accounting_ingest_spool?.lock_seconds || 120
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "accounting_ingest_spool", "lock_seconds"],
@@ -26950,8 +27450,10 @@ export default function AccessSettings() {
                 Active
               </div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
-                {accountingIngestSpoolReport?.summary?.queued_count || 0} queued,{" "}
-                {accountingIngestSpoolReport?.summary?.retrying_count || 0} retry
+                {accountingIngestSpoolReport?.summary?.queued_count || 0}{" "}
+                queued,{" "}
+                {accountingIngestSpoolReport?.summary?.retrying_count || 0}{" "}
+                retry
               </div>
             </div>
             <div className="rounded-md border border-gray-200 px-3 py-2">
@@ -26969,7 +27471,8 @@ export default function AccessSettings() {
               </div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
                 {accountingIngestSpoolReport?.summary?.applied_count || 0} done,{" "}
-                {accountingIngestSpoolReport?.summary?.expired_count || 0} expired
+                {accountingIngestSpoolReport?.summary?.expired_count || 0}{" "}
+                expired
               </div>
             </div>
             <div className="rounded-md border border-gray-200 px-3 py-2">
@@ -26977,10 +27480,12 @@ export default function AccessSettings() {
                 SLO
               </div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
+                {accountingIngestSpoolReport?.summary?.loss_slo_breach_count ||
+                  0}{" "}
+                breach,{" "}
                 {accountingIngestSpoolReport?.summary
-                  ?.loss_slo_breach_count || 0} breach,{" "}
-                {accountingIngestSpoolReport?.summary
-                  ?.queue_utilization_percent || 0}%
+                  ?.queue_utilization_percent || 0}
+                %
               </div>
             </div>
           </div>
@@ -27070,7 +27575,9 @@ export default function AccessSettings() {
             />
             <SelectField
               label="Export Format"
-              value={settings.radius?.accounting_charging?.export_format || "jsonl"}
+              value={
+                settings.radius?.accounting_charging?.export_format || "jsonl"
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "accounting_charging", "export_format"],
@@ -27177,8 +27684,8 @@ export default function AccessSettings() {
               label="Session Micros / Hour"
               type="number"
               value={
-                settings.radius?.accounting_charging
-                  ?.session_micros_per_hour || 0
+                settings.radius?.accounting_charging?.session_micros_per_hour ||
+                0
               }
               onChange={(value) =>
                 updateField(
@@ -27290,7 +27797,8 @@ export default function AccessSettings() {
               <div className="mt-1 text-sm font-semibold text-gray-900">
                 {accountingChargingReport?.summary?.pending_export_records || 0}{" "}
                 pending,{" "}
-                {accountingChargingReport?.summary?.export_batch_rows || 0} batch
+                {accountingChargingReport?.summary?.export_batch_rows || 0}{" "}
+                batch
               </div>
             </div>
             <div className="rounded-md border border-gray-200 px-3 py-2">
@@ -27363,9 +27871,7 @@ export default function AccessSettings() {
                       <td className="break-all px-3 py-2 font-medium text-gray-900">
                         {item.export_id}
                       </td>
-                      <td className="px-3 py-2 text-gray-700">
-                        {item.format}
-                      </td>
+                      <td className="px-3 py-2 text-gray-700">{item.format}</td>
                       <td className="px-3 py-2 text-gray-700">
                         {item.record_count}
                       </td>
@@ -27435,8 +27941,8 @@ export default function AccessSettings() {
               label="Sequence Window (s)"
               type="number"
               value={
-                settings.radius?.accounting_ordering
-                  ?.sequence_window_seconds || 300
+                settings.radius?.accounting_ordering?.sequence_window_seconds ||
+                300
               }
               onChange={(value) =>
                 updateField(
@@ -27462,7 +27968,9 @@ export default function AccessSettings() {
             <TextField
               label="Replay Batch"
               type="number"
-              value={settings.radius?.accounting_ordering?.max_replay_batch || 1000}
+              value={
+                settings.radius?.accounting_ordering?.max_replay_batch || 1000
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "accounting_ordering", "max_replay_batch"],
@@ -27479,11 +27987,7 @@ export default function AccessSettings() {
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "accounting_ordering",
-                    "duplicate_retention_days",
-                  ],
+                  ["radius", "accounting_ordering", "duplicate_retention_days"],
                   Number(value),
                 )
               }
@@ -27512,8 +28016,10 @@ export default function AccessSettings() {
                 Pending
               </div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
-                {accountingOrderingReport?.summary?.pending_events || 0} pending,{" "}
-                {accountingOrderingReport?.summary?.stale_pending_events || 0} stale
+                {accountingOrderingReport?.summary?.pending_events || 0}{" "}
+                pending,{" "}
+                {accountingOrderingReport?.summary?.stale_pending_events || 0}{" "}
+                stale
               </div>
             </div>
             <div className="rounded-md border border-gray-200 px-3 py-2">
@@ -27522,7 +28028,8 @@ export default function AccessSettings() {
               </div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
                 {accountingOrderingReport?.summary?.duplicate_events || 0} dup,{" "}
-                {accountingOrderingReport?.summary?.reordered_events || 0} reorder,{" "}
+                {accountingOrderingReport?.summary?.reordered_events || 0}{" "}
+                reorder,{" "}
                 {accountingOrderingReport?.summary?.late_stop_events || 0} stop
               </div>
             </div>
@@ -27581,11 +28088,7 @@ export default function AccessSettings() {
               }
               onChange={(value) =>
                 updateField(
-                  [
-                    "radius",
-                    "accounting_counters",
-                    "reset_detection_enabled",
-                  ],
+                  ["radius", "accounting_counters", "reset_detection_enabled"],
                   value,
                 )
               }
@@ -27626,7 +28129,9 @@ export default function AccessSettings() {
             <TextField
               label="Evidence Retention (d)"
               type="number"
-              value={settings.radius?.accounting_counters?.retention_days || 365}
+              value={
+                settings.radius?.accounting_counters?.retention_days || 365
+              }
               onChange={(value) =>
                 updateField(
                   ["radius", "accounting_counters", "retention_days"],
@@ -27667,7 +28172,8 @@ export default function AccessSettings() {
                 Maximums
               </div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
-                in {accountingCountersReport?.summary?.max_input_octets_64 || "0"}{" "}
+                in{" "}
+                {accountingCountersReport?.summary?.max_input_octets_64 || "0"}{" "}
                 / out{" "}
                 {accountingCountersReport?.summary?.max_output_octets_64 || "0"}
               </div>
@@ -27750,7 +28256,10 @@ export default function AccessSettings() {
               label="Reject Invalid"
               checked={Boolean(settings.radius?.accounting_ip?.reject_invalid)}
               onChange={(value) =>
-                updateField(["radius", "accounting_ip", "reject_invalid"], value)
+                updateField(
+                  ["radius", "accounting_ip", "reject_invalid"],
+                  value,
+                )
               }
             />
             <TextField
@@ -27951,8 +28460,10 @@ export default function AccessSettings() {
                 Correlations
               </div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
-                {accountingServicesReport?.summary?.correlation_rows || 0} total,{" "}
-                {accountingServicesReport?.summary?.active_correlations || 0} active
+                {accountingServicesReport?.summary?.correlation_rows || 0}{" "}
+                total,{" "}
+                {accountingServicesReport?.summary?.active_correlations || 0}{" "}
+                active
               </div>
             </div>
             <div className="rounded-md border border-gray-200 px-3 py-2">
@@ -27970,9 +28481,10 @@ export default function AccessSettings() {
               </div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
                 {accountingServicesReport?.summary
-                  ?.linked_subscriber_services || 0} linked,{" "}
-                {accountingServicesReport?.summary
-                  ?.unmatched_correlations || 0} unmatched
+                  ?.linked_subscriber_services || 0}{" "}
+                linked,{" "}
+                {accountingServicesReport?.summary?.unmatched_correlations || 0}{" "}
+                unmatched
               </div>
             </div>
             <div className="rounded-md border border-gray-200 px-3 py-2">
@@ -27980,9 +28492,11 @@ export default function AccessSettings() {
                 Legs
               </div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
-                {accountingServicesReport?.summary?.bearer_leg_rows || 0} bearer,{" "}
-                {accountingServicesReport?.summary?.call_leg_rows || 0} call,{" "}
-                {accountingServicesReport?.summary?.conflict_correlations || 0} conflict
+                {accountingServicesReport?.summary?.bearer_leg_rows || 0}{" "}
+                bearer, {accountingServicesReport?.summary?.call_leg_rows || 0}{" "}
+                call,{" "}
+                {accountingServicesReport?.summary?.conflict_correlations || 0}{" "}
+                conflict
               </div>
             </div>
           </div>
@@ -28408,14 +28922,6 @@ export default function AccessSettings() {
                   <SelectField
                     label="Transport"
                     value={server.transport || "udp"}
-                    onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "transport"], value)}
-                    options={[{ value: "udp", label: "RADIUS / UDP" }, { value: "radsec", label: "RadSec / TLS" }]}
-                  />
-                  {server.transport !== "radsec" ? <>
-                  <TextField
-                    label="Auth Port"
-                    type="number"
-                    value={server.auth_port || 1812}
                     onChange={(value) =>
                       updateField(
                         [
@@ -28423,72 +28929,455 @@ export default function AccessSettings() {
                           "upstream",
                           "servers",
                           String(index),
-                          "auth_port",
-                        ],
-                        Number(value),
-                      )
-                    }
-                  />
-                  <TextField
-                    label="Acct Port"
-                    type="number"
-                    value={server.acct_port || 1813}
-                    onChange={(value) =>
-                      updateField(
-                        [
-                          "radius",
-                          "upstream",
-                          "servers",
-                          String(index),
-                          "acct_port",
-                        ],
-                        Number(value),
-                      )
-                    }
-                  />
-                  <TextField
-                    label="Secret"
-                    type="password"
-                    value={server.secret || ""}
-                    onChange={(value) =>
-                      updateField(
-                        [
-                          "radius",
-                          "upstream",
-                          "servers",
-                          String(index),
-                          "secret",
+                          "transport",
                         ],
                         value,
                       )
                     }
+                    options={[
+                      { value: "udp", label: "RADIUS / UDP" },
+                      { value: "radsec", label: "RadSec / TLS" },
+                    ]}
                   />
-                  </> : <>
-                    <TextField label="RadSec Port" type="number" value={server.radsec?.port || 2083} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "port"], Number(value))} />
-                    <TextField label="Verified Server Name" value={server.radsec?.server_name || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "server_name"], value)} />
-                    <ToggleField label="TLS-PSK" checked={Boolean(server.radsec?.psk?.enabled)} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "enabled"], value)} />
-                    {server.radsec?.psk?.enabled ? <>
-                      <TextField label="PSK Identity" value={server.radsec?.psk?.identity || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "identity"], value)} />
-                      <TextField label="PSK Secret Ref" value={server.radsec?.psk?.secret_ref || ""} placeholder="env:AEGIS_RADSEC_PSK_CURRENT" onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "secret_ref"], value)} />
-                      <TextField label="Next PSK Identity" value={server.radsec?.psk?.next_identity || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "next_identity"], value)} />
-                      <TextField label="Next PSK Secret Ref" value={server.radsec?.psk?.next_secret_ref || ""} placeholder="env:AEGIS_RADSEC_PSK_NEXT" onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "next_secret_ref"], value)} />
-                      <TextField label="Next PSK Not Before" value={server.radsec?.psk?.next_not_before || ""} placeholder="2026-08-01T00:00:00Z" onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "next_not_before"], value)} />
-                      <TextField label="Next PSK Not After" value={server.radsec?.psk?.next_not_after || ""} placeholder="2026-08-08T00:00:00Z" onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "next_not_after"], value)} />
-                      <TextField label="PSK Overlap (s)" type="number" value={server.radsec?.psk?.overlap_seconds || 86400} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "overlap_seconds"], Number(value))} />
-                      <TextField label="PSK Warning (days)" type="number" value={server.radsec?.psk?.warning_days || 30} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "psk", "warning_days"], Number(value))} />
-                    </> : null}
-                    {!server.radsec?.psk?.enabled ? <>
-                      <TextField label="Client Certificate" value={server.radsec?.certificate_file || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "certificate_file"], value)} />
-                      <TextField label="Client Private Key" value={server.radsec?.private_key_file || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "private_key_file"], value)} />
-                      <TextField label="Key Password Environment" value={server.radsec?.private_key_password_env || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "private_key_password_env"], value)} />
-                      <TextField label="Trusted CA File" value={server.radsec?.ca_file || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "ca_file"], value)} />
-                      <TextField label="Trusted CA Path" value={server.radsec?.ca_path || ""} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "ca_path"], value)} />
-                    </> : null}
-                    <SelectField label="RADIUS Version" value={server.radsec?.radius_v11 || "forbid"} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "radius_v11"], value)} options={[{ value: "forbid", label: "RADIUS/1.0" }, { value: "allow", label: "Allow RADIUS/1.1" }, { value: "require", label: "Require RADIUS/1.1" }]} />
-                    <SelectField label="TLS Minimum" value={server.radsec?.tls_min_version || "1.2"} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "tls_min_version"], value)} options={[{ value: "1.2", label: "TLS 1.2" }, { value: "1.3", label: "TLS 1.3" }]} />
-                    <SelectField label="TLS Maximum" value={server.radsec?.tls_max_version || "1.3"} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "tls_max_version"], value)} options={[{ value: "1.2", label: "TLS 1.2" }, { value: "1.3", label: "TLS 1.3" }]} />
-                    {!server.radsec?.psk?.enabled ? <ToggleField label="CRL Validation" checked={Boolean(server.radsec?.check_crl)} onChange={(value) => updateField(["radius", "upstream", "servers", String(index), "radsec", "check_crl"], value)} /> : null}
-                  </>}
+                  {server.transport !== "radsec" ? (
+                    <>
+                      <TextField
+                        label="Auth Port"
+                        type="number"
+                        value={server.auth_port || 1812}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "upstream",
+                              "servers",
+                              String(index),
+                              "auth_port",
+                            ],
+                            Number(value),
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Acct Port"
+                        type="number"
+                        value={server.acct_port || 1813}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "upstream",
+                              "servers",
+                              String(index),
+                              "acct_port",
+                            ],
+                            Number(value),
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Secret"
+                        type="password"
+                        value={server.secret || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "upstream",
+                              "servers",
+                              String(index),
+                              "secret",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <TextField
+                        label="RadSec Port"
+                        type="number"
+                        value={server.radsec?.port || 2083}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "upstream",
+                              "servers",
+                              String(index),
+                              "radsec",
+                              "port",
+                            ],
+                            Number(value),
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Verified Server Name"
+                        value={server.radsec?.server_name || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "upstream",
+                              "servers",
+                              String(index),
+                              "radsec",
+                              "server_name",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <ToggleField
+                        label="TLS-PSK"
+                        checked={Boolean(server.radsec?.psk?.enabled)}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "upstream",
+                              "servers",
+                              String(index),
+                              "radsec",
+                              "psk",
+                              "enabled",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      {server.radsec?.psk?.enabled ? (
+                        <>
+                          <TextField
+                            label="PSK Identity"
+                            value={server.radsec?.psk?.identity || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "upstream",
+                                  "servers",
+                                  String(index),
+                                  "radsec",
+                                  "psk",
+                                  "identity",
+                                ],
+                                value,
+                              )
+                            }
+                          />
+                          <TextField
+                            label="PSK Secret Ref"
+                            value={server.radsec?.psk?.secret_ref || ""}
+                            placeholder="env:AEGIS_RADSEC_PSK_CURRENT"
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "upstream",
+                                  "servers",
+                                  String(index),
+                                  "radsec",
+                                  "psk",
+                                  "secret_ref",
+                                ],
+                                value,
+                              )
+                            }
+                          />
+                          <TextField
+                            label="Next PSK Identity"
+                            value={server.radsec?.psk?.next_identity || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "upstream",
+                                  "servers",
+                                  String(index),
+                                  "radsec",
+                                  "psk",
+                                  "next_identity",
+                                ],
+                                value,
+                              )
+                            }
+                          />
+                          <TextField
+                            label="Next PSK Secret Ref"
+                            value={server.radsec?.psk?.next_secret_ref || ""}
+                            placeholder="env:AEGIS_RADSEC_PSK_NEXT"
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "upstream",
+                                  "servers",
+                                  String(index),
+                                  "radsec",
+                                  "psk",
+                                  "next_secret_ref",
+                                ],
+                                value,
+                              )
+                            }
+                          />
+                          <TextField
+                            label="Next PSK Not Before"
+                            value={server.radsec?.psk?.next_not_before || ""}
+                            placeholder="2026-08-01T00:00:00Z"
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "upstream",
+                                  "servers",
+                                  String(index),
+                                  "radsec",
+                                  "psk",
+                                  "next_not_before",
+                                ],
+                                value,
+                              )
+                            }
+                          />
+                          <TextField
+                            label="Next PSK Not After"
+                            value={server.radsec?.psk?.next_not_after || ""}
+                            placeholder="2026-08-08T00:00:00Z"
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "upstream",
+                                  "servers",
+                                  String(index),
+                                  "radsec",
+                                  "psk",
+                                  "next_not_after",
+                                ],
+                                value,
+                              )
+                            }
+                          />
+                          <TextField
+                            label="PSK Overlap (s)"
+                            type="number"
+                            value={server.radsec?.psk?.overlap_seconds || 86400}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "upstream",
+                                  "servers",
+                                  String(index),
+                                  "radsec",
+                                  "psk",
+                                  "overlap_seconds",
+                                ],
+                                Number(value),
+                              )
+                            }
+                          />
+                          <TextField
+                            label="PSK Warning (days)"
+                            type="number"
+                            value={server.radsec?.psk?.warning_days || 30}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "upstream",
+                                  "servers",
+                                  String(index),
+                                  "radsec",
+                                  "psk",
+                                  "warning_days",
+                                ],
+                                Number(value),
+                              )
+                            }
+                          />
+                        </>
+                      ) : null}
+                      {!server.radsec?.psk?.enabled ? (
+                        <>
+                          <TextField
+                            label="Client Certificate"
+                            value={server.radsec?.certificate_file || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "upstream",
+                                  "servers",
+                                  String(index),
+                                  "radsec",
+                                  "certificate_file",
+                                ],
+                                value,
+                              )
+                            }
+                          />
+                          <TextField
+                            label="Client Private Key"
+                            value={server.radsec?.private_key_file || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "upstream",
+                                  "servers",
+                                  String(index),
+                                  "radsec",
+                                  "private_key_file",
+                                ],
+                                value,
+                              )
+                            }
+                          />
+                          <TextField
+                            label="Key Password Environment"
+                            value={
+                              server.radsec?.private_key_password_env || ""
+                            }
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "upstream",
+                                  "servers",
+                                  String(index),
+                                  "radsec",
+                                  "private_key_password_env",
+                                ],
+                                value,
+                              )
+                            }
+                          />
+                          <TextField
+                            label="Trusted CA File"
+                            value={server.radsec?.ca_file || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "upstream",
+                                  "servers",
+                                  String(index),
+                                  "radsec",
+                                  "ca_file",
+                                ],
+                                value,
+                              )
+                            }
+                          />
+                          <TextField
+                            label="Trusted CA Path"
+                            value={server.radsec?.ca_path || ""}
+                            onChange={(value) =>
+                              updateField(
+                                [
+                                  "radius",
+                                  "upstream",
+                                  "servers",
+                                  String(index),
+                                  "radsec",
+                                  "ca_path",
+                                ],
+                                value,
+                              )
+                            }
+                          />
+                        </>
+                      ) : null}
+                      <SelectField
+                        label="RADIUS Version"
+                        value={server.radsec?.radius_v11 || "forbid"}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "upstream",
+                              "servers",
+                              String(index),
+                              "radsec",
+                              "radius_v11",
+                            ],
+                            value,
+                          )
+                        }
+                        options={[
+                          { value: "forbid", label: "RADIUS/1.0" },
+                          { value: "allow", label: "Allow RADIUS/1.1" },
+                          { value: "require", label: "Require RADIUS/1.1" },
+                        ]}
+                      />
+                      <SelectField
+                        label="TLS Minimum"
+                        value={server.radsec?.tls_min_version || "1.2"}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "upstream",
+                              "servers",
+                              String(index),
+                              "radsec",
+                              "tls_min_version",
+                            ],
+                            value,
+                          )
+                        }
+                        options={[
+                          { value: "1.2", label: "TLS 1.2" },
+                          { value: "1.3", label: "TLS 1.3" },
+                        ]}
+                      />
+                      <SelectField
+                        label="TLS Maximum"
+                        value={server.radsec?.tls_max_version || "1.3"}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "radius",
+                              "upstream",
+                              "servers",
+                              String(index),
+                              "radsec",
+                              "tls_max_version",
+                            ],
+                            value,
+                          )
+                        }
+                        options={[
+                          { value: "1.2", label: "TLS 1.2" },
+                          { value: "1.3", label: "TLS 1.3" },
+                        ]}
+                      />
+                      {!server.radsec?.psk?.enabled ? (
+                        <ToggleField
+                          label="CRL Validation"
+                          checked={Boolean(server.radsec?.check_crl)}
+                          onChange={(value) =>
+                            updateField(
+                              [
+                                "radius",
+                                "upstream",
+                                "servers",
+                                String(index),
+                                "radsec",
+                                "check_crl",
+                              ],
+                              value,
+                            )
+                          }
+                        />
+                      ) : null}
+                    </>
+                  )}
                 </div>
               </div>
             ))
@@ -28721,7 +29610,9 @@ export default function AccessSettings() {
             <TextField
               label="R0 Lifetime Seconds"
               type="number"
-              value={settings.wireless?.roaming?.r0_key_lifetime_seconds || 3600}
+              value={
+                settings.wireless?.roaming?.r0_key_lifetime_seconds || 3600
+              }
               onChange={(value) =>
                 updateField(
                   ["wireless", "roaming", "r0_key_lifetime_seconds"],
@@ -28744,10 +29635,7 @@ export default function AccessSettings() {
               label="Key Rotation"
               value={settings.wireless?.roaming?.key_rotation_mode || "active"}
               onChange={(value) =>
-                updateField(
-                  ["wireless", "roaming", "key_rotation_mode"],
-                  value,
-                )
+                updateField(["wireless", "roaming", "key_rotation_mode"], value)
               }
               options={wirelessRoamingRotationOptions}
             />
@@ -28755,10 +29643,7 @@ export default function AccessSettings() {
               label="Next Key Ref"
               value={settings.wireless?.roaming?.next_key_seed_ref || ""}
               onChange={(value) =>
-                updateField(
-                  ["wireless", "roaming", "next_key_seed_ref"],
-                  value,
-                )
+                updateField(["wireless", "roaming", "next_key_seed_ref"], value)
               }
             />
           </div>
@@ -28857,183 +29742,185 @@ export default function AccessSettings() {
               <h5 className="text-sm font-semibold text-gray-900">
                 Roaming Profiles
               </h5>
-              {wirelessRoamingProfiles.map((profile: JsonMap, index: number) => (
-                <div
-                  key={`roaming-profile-${index}`}
-                  className="rounded-md border border-teal-200 bg-white p-3"
-                >
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="text-sm font-semibold text-gray-900">
-                      {profile.name || `Profile ${index + 1}`}
+              {wirelessRoamingProfiles.map(
+                (profile: JsonMap, index: number) => (
+                  <div
+                    key={`roaming-profile-${index}`}
+                    className="rounded-md border border-teal-200 bg-white p-3"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {profile.name || `Profile ${index + 1}`}
+                      </div>
+                      <button
+                        onClick={() =>
+                          updateField(
+                            ["wireless", "roaming", "profiles"],
+                            wirelessRoamingProfiles.filter(
+                              (_: unknown, itemIndex: number) =>
+                                itemIndex !== index,
+                            ),
+                          )
+                        }
+                        className="text-sm font-medium text-red-700"
+                      >
+                        Remove
+                      </button>
                     </div>
-                    <button
-                      onClick={() =>
-                        updateField(
-                          ["wireless", "roaming", "profiles"],
-                          wirelessRoamingProfiles.filter(
-                            (_: unknown, itemIndex: number) =>
-                              itemIndex !== index,
-                          ),
-                        )
-                      }
-                      className="text-sm font-medium text-red-700"
-                    >
-                      Remove
-                    </button>
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                      <TextField
+                        label="Profile Name"
+                        value={profile.name || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "profiles",
+                              String(index),
+                              "name",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <SelectField
+                        label="Mode"
+                        value={profile.mode || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "profiles",
+                              String(index),
+                              "mode",
+                            ],
+                            value,
+                          )
+                        }
+                        options={[
+                          { value: "", label: "Use global mode" },
+                          ...wirelessRoamingModeOptions,
+                        ]}
+                      />
+                      <TextField
+                        label="Mobility Domain"
+                        value={profile.mobility_domain || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "profiles",
+                              String(index),
+                              "mobility_domain",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Key Seed Ref"
+                        value={profile.key_seed_ref || ""}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "profiles",
+                              String(index),
+                              "key_seed_ref",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Neighbor AP Names"
+                        value={listToCSV(profile.neighbor_aps)}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "profiles",
+                              String(index),
+                              "neighbor_aps",
+                            ],
+                            csvToList(value),
+                          )
+                        }
+                        placeholder="ap-2, ap-3"
+                      />
+                      <ToggleField
+                        label="Profile Enabled"
+                        checked={profile.enabled !== false}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "profiles",
+                              String(index),
+                              "enabled",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <ToggleField
+                        label="Profile 802.11r"
+                        checked={Boolean(profile.ieee80211r)}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "profiles",
+                              String(index),
+                              "ieee80211r",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <ToggleField
+                        label="Profile 802.11k"
+                        checked={Boolean(profile.ieee80211k)}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "profiles",
+                              String(index),
+                              "ieee80211k",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                      <ToggleField
+                        label="Profile 802.11v"
+                        checked={Boolean(profile.ieee80211v)}
+                        onChange={(value) =>
+                          updateField(
+                            [
+                              "wireless",
+                              "roaming",
+                              "profiles",
+                              String(index),
+                              "ieee80211v",
+                            ],
+                            value,
+                          )
+                        }
+                      />
+                    </div>
                   </div>
-                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-                    <TextField
-                      label="Profile Name"
-                      value={profile.name || ""}
-                      onChange={(value) =>
-                        updateField(
-                          [
-                            "wireless",
-                            "roaming",
-                            "profiles",
-                            String(index),
-                            "name",
-                          ],
-                          value,
-                        )
-                      }
-                    />
-                    <SelectField
-                      label="Mode"
-                      value={profile.mode || ""}
-                      onChange={(value) =>
-                        updateField(
-                          [
-                            "wireless",
-                            "roaming",
-                            "profiles",
-                            String(index),
-                            "mode",
-                          ],
-                          value,
-                        )
-                      }
-                      options={[
-                        { value: "", label: "Use global mode" },
-                        ...wirelessRoamingModeOptions,
-                      ]}
-                    />
-                    <TextField
-                      label="Mobility Domain"
-                      value={profile.mobility_domain || ""}
-                      onChange={(value) =>
-                        updateField(
-                          [
-                            "wireless",
-                            "roaming",
-                            "profiles",
-                            String(index),
-                            "mobility_domain",
-                          ],
-                          value,
-                        )
-                      }
-                    />
-                    <TextField
-                      label="Key Seed Ref"
-                      value={profile.key_seed_ref || ""}
-                      onChange={(value) =>
-                        updateField(
-                          [
-                            "wireless",
-                            "roaming",
-                            "profiles",
-                            String(index),
-                            "key_seed_ref",
-                          ],
-                          value,
-                        )
-                      }
-                    />
-                    <TextField
-                      label="Neighbor AP Names"
-                      value={listToCSV(profile.neighbor_aps)}
-                      onChange={(value) =>
-                        updateField(
-                          [
-                            "wireless",
-                            "roaming",
-                            "profiles",
-                            String(index),
-                            "neighbor_aps",
-                          ],
-                          csvToList(value),
-                        )
-                      }
-                      placeholder="ap-2, ap-3"
-                    />
-                    <ToggleField
-                      label="Profile Enabled"
-                      checked={profile.enabled !== false}
-                      onChange={(value) =>
-                        updateField(
-                          [
-                            "wireless",
-                            "roaming",
-                            "profiles",
-                            String(index),
-                            "enabled",
-                          ],
-                          value,
-                        )
-                      }
-                    />
-                    <ToggleField
-                      label="Profile 802.11r"
-                      checked={Boolean(profile.ieee80211r)}
-                      onChange={(value) =>
-                        updateField(
-                          [
-                            "wireless",
-                            "roaming",
-                            "profiles",
-                            String(index),
-                            "ieee80211r",
-                          ],
-                          value,
-                        )
-                      }
-                    />
-                    <ToggleField
-                      label="Profile 802.11k"
-                      checked={Boolean(profile.ieee80211k)}
-                      onChange={(value) =>
-                        updateField(
-                          [
-                            "wireless",
-                            "roaming",
-                            "profiles",
-                            String(index),
-                            "ieee80211k",
-                          ],
-                          value,
-                        )
-                      }
-                    />
-                    <ToggleField
-                      label="Profile 802.11v"
-                      checked={Boolean(profile.ieee80211v)}
-                      onChange={(value) =>
-                        updateField(
-                          [
-                            "wireless",
-                            "roaming",
-                            "profiles",
-                            String(index),
-                            "ieee80211v",
-                          ],
-                          value,
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-              ))}
+                ),
+              )}
             </div>
           )}
           {wirelessRoamingConfiguredNeighbors.length > 0 && (
@@ -29419,9 +30306,9 @@ export default function AccessSettings() {
             <TextField
               label="Operator Names"
               value={listToCSV(
-                (settings.wireless?.passpoint?.operator_friendly_names || []).map(
-                  (item: JsonMap) => item.text,
-                ),
+                (
+                  settings.wireless?.passpoint?.operator_friendly_names || []
+                ).map((item: JsonMap) => item.text),
               )}
               onChange={(value) =>
                 updateField(
@@ -30207,7 +31094,8 @@ export default function AccessSettings() {
               <h5 className="text-sm font-semibold text-gray-900">
                 PPSK Credentials
               </h5>
-              {ppskConfiguredCredentials.map((credential: JsonMap, index: number) => (
+              {ppskConfiguredCredentials.map(
+                (credential: JsonMap, index: number) => (
                   <div
                     key={`ppsk-credential-${index}`}
                     className="rounded-md border border-amber-200 bg-white p-3"
@@ -30670,15 +31558,18 @@ export default function AccessSettings() {
               {[
                 ["Dynamic SSIDs", hostapdVLANSummary.dynamic_ssid_count || 0],
                 ["Fallback SSIDs", hostapdVLANSummary.fallback_ssid_count || 0],
+                ["Fail Closed", hostapdVLANSummary.fail_closed_ssid_count || 0],
                 [
-                  "Fail Closed",
-                  hostapdVLANSummary.fail_closed_ssid_count || 0,
+                  "VLAN Entries",
+                  hostapdVLANSummary.hostapd_vlan_entry_count || 0,
                 ],
-                ["VLAN Entries", hostapdVLANSummary.hostapd_vlan_entry_count || 0],
                 ["Cleanup", hostapdVLANSummary.cleanup_command_count || 0],
                 ["Rollback", hostapdVLANSummary.rollback_command_count || 0],
               ].map(([label, value]) => (
-                <div key={String(label)} className="rounded-md border border-gray-200 p-3">
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
                   <div className="text-xs font-medium uppercase text-gray-500">
                     {label}
                   </div>
@@ -30699,30 +31590,32 @@ export default function AccessSettings() {
                       No dynamic VLAN SSID is active.
                     </div>
                   ) : (
-                    hostapdVLANBindings.map((binding: JsonMap, index: number) => (
-                      <div
-                        key={`${binding.ssid || "ssid"}-${index}`}
-                        className="rounded-md border border-gray-200 p-3"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="font-medium text-gray-900">
-                            {binding.ssid || "Unnamed SSID"}
+                    hostapdVLANBindings.map(
+                      (binding: JsonMap, index: number) => (
+                        <div
+                          key={`${binding.ssid || "ssid"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {binding.ssid || "Unnamed SSID"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                binding.status,
+                              )}`}
+                            >
+                              {binding.dynamic_vlan_mode_name || binding.status}
+                            </span>
                           </div>
-                          <span
-                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
-                              binding.status,
-                            )}`}
-                          >
-                            {binding.dynamic_vlan_mode_name || binding.status}
-                          </span>
+                          <div className="mt-2 text-xs text-gray-600">
+                            Mode {binding.dynamic_vlan_mode || 0}; fallback VLAN{" "}
+                            {binding.fallback_vlan || "none"}; entries{" "}
+                            {binding.vlan_entry_count || 0}
+                          </div>
                         </div>
-                        <div className="mt-2 text-xs text-gray-600">
-                          Mode {binding.dynamic_vlan_mode || 0}; fallback VLAN{" "}
-                          {binding.fallback_vlan || "none"}; entries{" "}
-                          {binding.vlan_entry_count || 0}
-                        </div>
-                      </div>
-                    ))
+                      ),
+                    )
                   )}
                 </div>
               </div>
@@ -30732,7 +31625,8 @@ export default function AccessSettings() {
                 </h4>
                 <div className="mt-2 rounded-md border border-gray-200 p-3 text-sm text-gray-700">
                   <div className="break-words">
-                    {hostapdVLANPlan.hostapd_vlan_file_path || "No VLAN file path"}
+                    {hostapdVLANPlan.hostapd_vlan_file_path ||
+                      "No VLAN file path"}
                   </div>
                   <div className="mt-1 break-all text-xs text-gray-500">
                     {hostapdVLANPlan.hostapd_vlan_file_sha256 ||

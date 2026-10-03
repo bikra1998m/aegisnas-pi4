@@ -702,6 +702,41 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		broadbandQoSServiceFlowStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandQoSServiceFlowComponent()]}
 	}
+	broadbandL2TPWholesaleStatus := map[string]any{
+		"status":  "unknown",
+		"message": "L2TP wholesale realm separation status has not been evaluated.",
+	}
+	if l2tpReport, err := enforcement.PreviewBroadbandL2TPWholesale(cfg); err == nil {
+		l2tpSummary, _ := db.GetBroadbandL2TPWholesaleSummary()
+		broadbandL2TPWholesaleStatus = map[string]any{
+			"schema_version":                  l2tpReport.SchemaVersion,
+			"feature_id":                      l2tpReport.FeatureID,
+			"status":                          l2tpReport.Status,
+			"message":                         l2tpReport.Message,
+			"ready_for_external_validation":   l2tpReport.ReadyForExternalValidation,
+			"software_completion_percent":     l2tpReport.SoftwareCompletionPercent,
+			"enabled":                         l2tpReport.Summary.Enabled,
+			"mode":                            l2tpReport.Summary.Mode,
+			"realm_count":                     l2tpReport.Summary.RealmCount,
+			"enabled_realm_count":             l2tpReport.Summary.EnabledRealmCount,
+			"tunnel_profile_count":            l2tpReport.Summary.TunnelProfileCount,
+			"enabled_tunnel_profile_count":    l2tpReport.Summary.EnabledTunnelProfileCount,
+			"failover_policy_count":           l2tpReport.Summary.FailoverPolicyCount,
+			"proxy_route_binding_count":       l2tpReport.Summary.ProxyRouteBindingCount,
+			"accounting_route_binding_count":  l2tpReport.Summary.AccountingRouteBindingCount,
+			"compiled_attribute_count":        l2tpReport.Summary.CompiledAttributeCount,
+			"compliance_check_count":          l2tpReport.Summary.ComplianceCheckCount,
+			"passed_check_count":              l2tpReport.Summary.PassedCheckCount,
+			"warning_count":                   l2tpReport.Summary.WarningCount,
+			"blocker_count":                   l2tpReport.Summary.BlockerCount,
+			"plan_fingerprint":                l2tpReport.PlanFingerprint,
+			"release_certification_checklist": l2tpReport.ReleaseCertificationChecklist,
+			"evidence_summary":                l2tpSummary,
+			"runtime_status":                  runtimeMap[enforcement.BroadbandL2TPWholesaleComponent()],
+		}
+	} else {
+		broadbandL2TPWholesaleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandL2TPWholesaleComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1530,6 +1565,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broadband_quota_balance":      broadbandQuotaBalanceStatus,
 		"broadband_address_leases":     broadbandAddressLeaseStatus,
 		"broadband_qos_service_flows":  broadbandQoSServiceFlowStatus,
+		"broadband_l2tp_wholesale":     broadbandL2TPWholesaleStatus,
 		"local_firewall":               runtimeFirewallStatus,
 		"atomic_transactions":          atomicEnforcementStatus,
 	}

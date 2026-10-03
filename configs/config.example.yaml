@@ -1372,6 +1372,79 @@ broadband:
         precedence: 200
         coa_action: "rate-limit"
         vendor_packs: ["standard", "aegisnas", "mikrotik", "huawei"]
+  l2tp_wholesale:
+    enabled: false # Enable after PPPoE, subscriber wholesale state, upstream proxy routes, accounting services, and tunnel failover previews pass.
+    mode: "monitor" # Use enforce after live LAC/LNS tunnel and partner accounting validation.
+    fail_closed: true
+    require_pppoe: true
+    require_subscriber_state: true
+    require_proxy_routes: true
+    require_accounting_delegation: true
+    require_tunnel_failover: true
+    realm_isolation_required: true
+    strip_customer_realm: true
+    accounting_delegation_enabled: true
+    coa_on_failover: true
+    selection_policy: "realm"
+    default_tunnel_profile: "lns-primary"
+    event_retention_limit: 10000
+    realms:
+      - name: "wholesale-retail"
+        enabled: false
+        realm: "retail.example.net"
+        tenant: "retail"
+        partner: "partner-a"
+        match_realms: ["retail.example.net"]
+        access_method: "pppoe"
+        tunnel_profile: "lns-primary"
+        proxy_route: "wholesale-retail-auth"
+        accounting_route: "wholesale-retail-acct"
+        address_pool: "wholesale-v4"
+        qos_profile: "silver"
+        product: "residential-fiber"
+        strip_realm: true
+        require_accounting: true
+        vendor_packs: ["standard", "aegisnas", "cisco", "juniper", "nokia"]
+    tunnel_profiles:
+      - name: "lns-primary"
+        enabled: false
+        mode: "lns"
+        local_name: "aegisnas-lac"
+        peer_name: "partner-lns-1"
+        local_address: "198.51.100.1"
+        peer_address: "192.0.2.10"
+        secret_ref: "env:L2TP_SECRET"
+        source_interface: "wan0"
+        tunnel_group: "wholesale-retail"
+        window_size: 4
+        hello_interval_seconds: 60
+        session_limit: 4096
+        require_encryption: true
+        allowed_auth: ["pap", "chap"]
+        vendor_packs: ["cisco", "juniper", "nokia"]
+      - name: "lns-backup"
+        enabled: false
+        mode: "lns"
+        local_name: "aegisnas-lac"
+        peer_name: "partner-lns-2"
+        peer_address: "192.0.2.11"
+        secret_ref: "env:L2TP_SECRET"
+        tunnel_group: "wholesale-retail-backup"
+        session_limit: 4096
+        require_encryption: true
+        allowed_auth: ["pap", "chap"]
+        vendor_packs: ["cisco"]
+    failover_policies:
+      - name: "retail-failover"
+        enabled: false
+        realm: "retail.example.net"
+        primary_tunnel: "lns-primary"
+        backup_tunnels: ["lns-backup"]
+        action: "standby"
+        hold_down_seconds: 30
+        max_failures: 3
+        accounting_replay: true
+        coa_action: "reauth"
 
 portal:
   enabled: true

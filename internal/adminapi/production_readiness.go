@@ -172,6 +172,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionBroadbandQuotaBalanceCheck(&report, cfg)
 	addProductionBroadbandAddressLeaseCheck(&report, cfg)
 	addProductionBroadbandQoSServiceFlowCheck(&report, cfg)
+	addProductionBroadbandL2TPWholesaleCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -2385,6 +2386,73 @@ func addProductionBroadbandQoSServiceFlowCheck(report *productionReadinessReport
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/broadband-qos-service-flows/preview before enabling BNG QoS enforcement, apply only after reviewing profile hierarchy, service flows, aggregate policies, compiled vendor attributes, accounting correlation, CoA behavior, and runtime QoS dependencies. Keep live BNG queue activation, packet captures, HA, scale, soak, security, and customer proof in the NAS-0087 release certification checklist.",
 		Dependencies:   []string{"broadband.qos_service_flows", "broadband.subscriber_state", "broadband.commercial_catalog", "radius.accounting_services", "radius.dynamic_auth", "runtime_qos", "rate_compiler", "/api/v1/system/broadband-qos-service-flows", "/api/v1/system/broadband-qos-service-flows/preview", "/api/v1/system/broadband-qos-service-flows/apply", "broadband_qos_service_flows", "broadband_qos_service_flow_events", "Mikrotik-Rate-Limit", "Huawei-Output-Average-Rate", "Huawei-Input-Average-Rate", "Rate-Ctrl-SCR-Down", "Rate-Ctrl-SCR-Up", "RFC 2865", "RFC 2866", "RFC 5176"},
+	})
+}
+
+func addProductionBroadbandL2TPWholesaleCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0088 L2TP and wholesale realm separation software is ready."
+	reportData, err := enforcement.PreviewBroadbandL2TPWholesale(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Broadband L2TP wholesale preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped", "disabled":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0088 schema %d status=%s, mode=%s, realms=%d, tunnel_profiles=%d, failover_policies=%d, proxy_routes=%d, accounting_routes=%d, compiled_attrs=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.RealmCount,
+			reportData.Summary.TunnelProfileCount,
+			reportData.Summary.FailoverPolicyCount,
+			reportData.Summary.ProxyRouteBindingCount,
+			reportData.Summary.AccountingRouteBindingCount,
+			reportData.Summary.CompiledAttributeCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "disabled" || reportData.Status == "skipped" {
+			summary += " L2TP wholesale realm separation is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but L2TP wholesale event history cannot be verified."
+	} else if evidence, err := db.GetBroadbandL2TPWholesaleSummary(); err != nil {
+		status = "blocked"
+		summary += " Broadband L2TP wholesale evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 || evidence.BlockedBindings > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, active_bindings=%d, planned_bindings=%d, last_realms=%d, last_attrs=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.ActiveBindings,
+			evidence.PlannedBindings,
+			evidence.LastRealmCount,
+			evidence.LastCompiledAttributeCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "broadband_l2tp_wholesale",
+		Category:       "radius",
+		Label:          "NAS-0088 L2TP And Wholesale Realm Separation",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/broadband-l2tp-wholesale/preview before enabling L2TP wholesale enforcement, apply only after reviewing realm isolation, tunnel selection, proxy routes, accounting delegation, failover policy, CoA behavior, and compiled RADIUS attributes. Keep live LAC/LNS hardware, packet captures, HA, scale, soak, security, and customer proof in the NAS-0088 release certification checklist.",
+		Dependencies:   []string{"broadband.l2tp_wholesale", "broadband.pppoe", "broadband.subscriber_state", "radius.upstream", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "/api/v1/system/broadband-l2tp-wholesale", "/api/v1/system/broadband-l2tp-wholesale/preview", "/api/v1/system/broadband-l2tp-wholesale/apply", "broadband_l2tp_wholesale_bindings", "broadband_l2tp_wholesale_events", "Tunnel-Type", "Tunnel-Medium-Type", "Tunnel-Server-Endpoint", "Tunnel-Client-Endpoint", "Proxy-State", "Class", "Cisco-AVPair", "Juniper-AV-Pair", "Nokia-AVPair", "RFC 2661", "RFC 2865", "RFC 2866", "RFC 2868", "RFC 5176"},
 	})
 }
 

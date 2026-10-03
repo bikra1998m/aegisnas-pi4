@@ -1150,6 +1150,38 @@ HA failover, performance, soak, security audit, production deployment, and
 customer acceptance evidence stay in
 `nas-0087-release-certification-checklist.md`.
 
+For L2TP and wholesale realm separation, preview NAS-0088 before enabling
+enforce mode or changing partner realms, LNS endpoints, auth/accounting proxy
+routes, realm stripping, tunnel failover, or CoA recovery:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-l2tp-wholesale/preview \
+  | jq '.report.status, .report.summary, .report.realms, .report.tunnel_profiles'
+```
+
+Apply only after reviewing realm isolation, compiled tunnel attributes,
+`Proxy-State`, auth and accounting route bindings, failover policy, accounting
+replay, CoA behavior, compliance checks, and the plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-l2tp-wholesale/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/broadband-l2tp-wholesale/history` and the support bundle
+files `api/broadband-l2tp-wholesale.json` and
+`api/broadband-l2tp-wholesale-history.json` during wholesale realm, tunnel,
+proxy route, delegated accounting, CoA, failover, and HA investigations. Live
+LAC/LNS packet captures, partner acceptance, FreeRADIUS production Linux, HA
+failover, performance, soak, security audit, production deployment, and customer
+acceptance evidence stay in `nas-0088-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

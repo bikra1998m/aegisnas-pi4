@@ -751,6 +751,22 @@ deployment, and customer acceptance as release certification evidence rather
 than open engineering work. This keeps roadmap progress tied to complete
 software behavior while preserving honest external validation boundaries.
 
+### Phase 9 L2TP Wholesale Realm Separation
+
+NAS-0088 extends the broadband capability model with L2TP and wholesale realm
+separation. The software layer now represents wholesale partner realms, tenant
+isolation, customer realm stripping, LAC/LNS tunnel profiles, auth and
+accounting proxy route delegation, failover policies, accounting replay, CoA
+recovery behavior, standards and vendor RADIUS attribute evidence, durable
+history, API/UI operation, support-bundle capture, and production-readiness
+checks.
+
+The capability framework treats live LAC/LNS establishment, partner acceptance,
+packet captures, HA failover, scale, soak, security audit, production
+deployment, and customer acceptance as release certification evidence rather
+than open engineering work. This keeps the feature closed when software is
+complete while preserving honest external validation boundaries.
+
 ## Product Positioning Outcome
 
 If this framework is implemented cleanly, AegisNAS can become:

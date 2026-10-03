@@ -1374,6 +1374,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0087 BNG QoS service-flow event history and effective flow rows."),
 	}))
+	addOperation(paths, "/api/v1/system/broadband-l2tp-wholesale", "get", securedOperation("Read L2TP and wholesale realm separation", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0088 wholesale realms, L2TP tunnel profiles, failover policies, compiled RADIUS attributes, compliance checks, and evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-l2tp-wholesale/preview", "post", securedOperationWithBody("Preview L2TP and wholesale realm separation", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating active wholesale realm bindings."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0088 L2TP wholesale realm report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-l2tp-wholesale/apply", "post", securedOperationWithBody("Apply L2TP and wholesale realm separation", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records compiled L2TP wholesale evidence and runtime status. Live LAC/LNS tunnel activation remains release certification until enabled per adapter."), map[string]any{
+		"200":     responseJSON("Applied NAS-0088 L2TP wholesale checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-l2tp-wholesale/history", "get", securedOperationWithParameters("List L2TP wholesale realm history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0088 L2TP wholesale event history and effective realm binding rows."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))

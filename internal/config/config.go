@@ -80,6 +80,7 @@ type BroadbandConfig struct {
 	QuotaBalance      BroadbandQuotaBalanceConfig    `mapstructure:"quota_balance"`
 	AddressLeases     BroadbandAddressLeaseConfig    `mapstructure:"address_leases"`
 	QoSServiceFlows   BroadbandQoSServiceFlowConfig  `mapstructure:"qos_service_flows"`
+	L2TPWholesale     BroadbandL2TPWholesaleConfig   `mapstructure:"l2tp_wholesale"`
 }
 
 type BroadbandPPPoEConfig struct {
@@ -3431,6 +3432,20 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("broadband.address_leases.recovery_scan_seconds", 60)
 	v.SetDefault("broadband.address_leases.stale_after_seconds", 600)
 	v.SetDefault("broadband.address_leases.event_retention_limit", 10000)
+	v.SetDefault("broadband.l2tp_wholesale.enabled", false)
+	v.SetDefault("broadband.l2tp_wholesale.mode", "monitor")
+	v.SetDefault("broadband.l2tp_wholesale.fail_closed", true)
+	v.SetDefault("broadband.l2tp_wholesale.require_pppoe", true)
+	v.SetDefault("broadband.l2tp_wholesale.require_subscriber_state", true)
+	v.SetDefault("broadband.l2tp_wholesale.require_proxy_routes", true)
+	v.SetDefault("broadband.l2tp_wholesale.require_accounting_delegation", true)
+	v.SetDefault("broadband.l2tp_wholesale.require_tunnel_failover", true)
+	v.SetDefault("broadband.l2tp_wholesale.realm_isolation_required", true)
+	v.SetDefault("broadband.l2tp_wholesale.strip_customer_realm", true)
+	v.SetDefault("broadband.l2tp_wholesale.accounting_delegation_enabled", true)
+	v.SetDefault("broadband.l2tp_wholesale.coa_on_failover", true)
+	v.SetDefault("broadband.l2tp_wholesale.selection_policy", "realm")
+	v.SetDefault("broadband.l2tp_wholesale.event_retention_limit", 10000)
 	v.SetDefault("network.dns.upstream_servers", []string{"8.8.8.8", "8.8.4.4"})
 	v.SetDefault("network.dns.local_domain", "aegis.local")
 	v.SetDefault("network.firewall.dos_protection.syn_rate", "50/second")
@@ -6049,6 +6064,9 @@ func (c *Config) Validate() error {
 		return err
 	}
 	if err := validateBroadbandQoSServiceFlowConfig(c.Broadband.QoSServiceFlows, c.Broadband.Subscriber, c.Broadband.CommercialCatalog, c.Radius, profile); err != nil {
+		return err
+	}
+	if err := validateBroadbandL2TPWholesaleConfig(c.Broadband.L2TPWholesale, c.Broadband.PPPoE, c.Broadband.Subscriber, c.Radius, profile); err != nil {
 		return err
 	}
 	if err := validateRadSecConfig(c); err != nil {
@@ -10539,6 +10557,13 @@ func validateConfiguredSecretReferences(c *Config) error {
 		}
 		if ref := strings.TrimSpace(server.RadSec.PSK.NextSecretRef); ref != "" {
 			if err := validateSecretRefField(fmt.Sprintf("radius.upstream.servers[%d].radsec.psk.next_secret_ref", i), ref); err != nil {
+				return err
+			}
+		}
+	}
+	for i, tunnel := range c.Broadband.L2TPWholesale.TunnelProfiles {
+		if ref := strings.TrimSpace(tunnel.SecretRef); ref != "" {
+			if err := validateSecretRefField(fmt.Sprintf("broadband.l2tp_wholesale.tunnel_profiles[%d].secret_ref", i), ref); err != nil {
 				return err
 			}
 		}

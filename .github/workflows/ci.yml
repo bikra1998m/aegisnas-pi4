@@ -33,6 +33,7 @@ jobs:
       - run: make test-broadband-quota-balance
       - run: make test-broadband-address-leases
       - run: make test-broadband-qos-service-flows
+      - run: make test-broadband-l2tp-wholesale
 
   frontend:
     runs-on: ubuntu-latest

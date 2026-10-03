@@ -1020,9 +1020,7 @@ function createSettings() {
             hs20: true,
             domain_names: ["corp.example.com"],
             roaming_consortium_ois: ["112233"],
-            operator_friendly_names: [
-              { language: "eng", text: "AegisNAS" },
-            ],
+            operator_friendly_names: [{ language: "eng", text: "AegisNAS" }],
             venue_names: [{ language: "eng", text: "AegisNAS Lab" }],
             nai_realms: [
               {
@@ -1899,7 +1897,9 @@ function createControllerEstateLifecycle(status = "ready") {
       ],
       blockers: [],
       warnings: [],
-      notes: ["Controller secrets are represented only by environment references."],
+      notes: [
+        "Controller secrets are represented only by environment references.",
+      ],
     },
     evidence: {
       summary: {
@@ -2330,7 +2330,8 @@ function createWirelessSecurityLifecycle(status = "ready") {
           duty_cycle_warn_percent: 80,
           sample_interval_seconds: 30,
           status: "ready",
-          reason: "spectrum threshold watch is planned for sensor channel coverage",
+          reason:
+            "spectrum threshold watch is planned for sensor channel coverage",
         },
         {
           band: "5ghz",
@@ -2342,7 +2343,8 @@ function createWirelessSecurityLifecycle(status = "ready") {
           duty_cycle_warn_percent: 80,
           sample_interval_seconds: 30,
           status: "ready",
-          reason: "spectrum threshold watch is planned for sensor channel coverage",
+          reason:
+            "spectrum threshold watch is planned for sensor channel coverage",
         },
       ],
       location_zones: [
@@ -2368,7 +2370,8 @@ function createWirelessSecurityLifecycle(status = "ready") {
           mode: "optimize",
           action: "snoop_ipv4_memberships",
           status: "ready",
-          reason: "multicast policy is available for controller/local-radio intent",
+          reason:
+            "multicast policy is available for controller/local-radio intent",
         },
         {
           id: "multicast-to-unicast",
@@ -2376,7 +2379,8 @@ function createWirelessSecurityLifecycle(status = "ready") {
           mode: "optimize",
           action: "convert_airtime_delivery",
           status: "ready",
-          reason: "multicast policy is available for controller/local-radio intent",
+          reason:
+            "multicast policy is available for controller/local-radio intent",
         },
         {
           id: "mdns-gateway",
@@ -2386,7 +2390,8 @@ function createWirelessSecurityLifecycle(status = "ready") {
           status: "ready",
           groups: ["224.0.0.251", "ff02::fb"],
           ipv6_enabled: true,
-          reason: "multicast policy is available for controller/local-radio intent",
+          reason:
+            "multicast policy is available for controller/local-radio intent",
         },
       ],
       controller_actions: [
@@ -2417,7 +2422,8 @@ function createWirelessSecurityLifecycle(status = "ready") {
           id: "rogue-governance",
           name: "Rogue Governance",
           status: "passed",
-          message: "Rogue classification and containment guardrails are explicit.",
+          message:
+            "Rogue classification and containment guardrails are explicit.",
         },
         {
           id: "location-privacy",
@@ -2948,7 +2954,8 @@ function createBroadbandSubscriberState(status = "ready") {
           translation_pool: "cgnat-pool",
           vendor_packs: ["standard", "aegisnas", "mikrotik"],
           status: "ready",
-          reason: "Service policy contributes a product/service-leg transition.",
+          reason:
+            "Service policy contributes a product/service-leg transition.",
         },
         {
           name: "quota-policy-update",
@@ -2962,7 +2969,8 @@ function createBroadbandSubscriberState(status = "ready") {
           qos_profile: "silver",
           vendor_packs: ["standard", "aegisnas"],
           status: "ready",
-          reason: "Service policy contributes a product/service-leg transition.",
+          reason:
+            "Service policy contributes a product/service-leg transition.",
         },
       ],
       failure_policies: [
@@ -3851,7 +3859,8 @@ function createBroadbandQoSServiceFlows(status = "ready") {
         {
           stage: "coa",
           attributes: ["CoA-Request", "Mikrotik-Rate-Limit"],
-          purpose: "Update active service flows after quota or product changes.",
+          purpose:
+            "Update active service flows after quota or product changes.",
           required: false,
         },
       ],
@@ -3910,6 +3919,236 @@ function createBroadbandQoSServiceFlows(status = "ready") {
       },
       recent_events: [],
       flows: [],
+    },
+  };
+}
+
+function createBroadbandL2TPWholesale(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0088",
+      status,
+      message:
+        "NAS-0088 L2TP wholesale realm separation is ready with 1 realm, 2 tunnel profiles, 1 failover policy, and compiled RADIUS attributes.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0088-release-certification-checklist.md",
+      release_scope:
+        "Live LAC/LNS hardware interop, tunnel packet captures, wholesale partner acceptance, HA failover, accounting replay, soak, security audit, production deployment, and customer acceptance are release certification activities.",
+      plan_fingerprint:
+        "sha256:8802470403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81ed0088",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        require_pppoe: true,
+        require_subscriber_state: true,
+        require_proxy_routes: true,
+        require_accounting_delegation: true,
+        require_tunnel_failover: true,
+        realm_isolation_required: true,
+        strip_customer_realm: true,
+        accounting_delegation_enabled: true,
+        coa_on_failover: true,
+        selection_policy: "realm",
+        default_tunnel_profile: "lns-primary",
+        event_retention_limit: 10000,
+        pppoe_enabled: true,
+        subscriber_state_enabled: true,
+        wholesale_subscriber_enabled: true,
+        sql_accounting_enabled: true,
+        accounting_services_enabled: true,
+        upstream_enabled: true,
+        dynamic_auth_enabled: true,
+        realm_count: 1,
+        enabled_realm_count: 1,
+        tunnel_profile_count: 2,
+        enabled_tunnel_profile_count: 2,
+        failover_policy_count: 1,
+        enabled_failover_policy_count: 1,
+        proxy_route_binding_count: 1,
+        accounting_route_binding_count: 1,
+        compiled_attribute_count: 9,
+        compliance_check_count: 9,
+        passed_check_count: 9,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 1,
+      },
+      realms: [
+        {
+          binding_key: "bng-l2tp-realm-demo",
+          name: "wholesale-retail",
+          enabled: true,
+          realm: "retail.example.net",
+          tenant: "retail",
+          partner: "partner-a",
+          match_realms: ["retail.example.net"],
+          access_method: "pppoe",
+          tunnel_profile: "lns-primary",
+          tunnel_mode: "lns",
+          proxy_route: "wholesale-retail-auth",
+          accounting_route: "wholesale-retail-acct",
+          address_pool: "wholesale-v4",
+          qos_profile: "silver",
+          product: "residential-fiber",
+          strip_realm: true,
+          require_accounting: true,
+          vendor_packs: ["standard", "cisco", "juniper", "nokia"],
+          failover_policy: "retail-failover",
+          status: "ready",
+          reason:
+            "Wholesale realm compiles to L2TP tunnel, proxy, and accounting bindings.",
+          compiled_attributes: [
+            { name: "Tunnel-Type", value: "L2TP" },
+            { name: "Tunnel-Medium-Type", value: "IPv4" },
+            { name: "Tunnel-Server-Endpoint", value: "192.0.2.10" },
+            { name: "Tunnel-Client-Endpoint", value: "198.51.100.1" },
+            { name: "Class", value: "wholesale:retail.example.net" },
+            {
+              name: "Proxy-State",
+              value:
+                "realm=retail.example.net;auth_route=wholesale-retail-auth;acct_route=wholesale-retail-acct;tenant=retail",
+            },
+            {
+              name: "Cisco-AVPair",
+              value: "l2tp:tunnel-group=wholesale-retail",
+            },
+            {
+              name: "Juniper-AV-Pair",
+              value: "l2tp-tunnel-profile=lns-primary",
+            },
+            { name: "Nokia-AVPair", value: "l2tp-service=lns-primary" },
+          ],
+        },
+      ],
+      tunnel_profiles: [
+        {
+          name: "lns-primary",
+          enabled: true,
+          mode: "lns",
+          local_name: "aegisnas-lac",
+          peer_name: "partner-lns-1",
+          local_address: "198.51.100.1",
+          peer_address: "192.0.2.10",
+          secret_ref_set: true,
+          tunnel_group: "wholesale-retail",
+          window_size: 4,
+          hello_interval_seconds: 60,
+          session_limit: 4096,
+          require_encryption: true,
+          allowed_auth: ["pap", "chap"],
+          vendor_packs: ["cisco", "juniper", "nokia"],
+          status: "ready",
+          reason: "Tunnel profile can be selected for L2TP realm delegation.",
+        },
+        {
+          name: "lns-backup",
+          enabled: true,
+          mode: "lns",
+          local_name: "aegisnas-lac",
+          peer_name: "partner-lns-2",
+          peer_address: "192.0.2.11",
+          secret_ref_set: true,
+          tunnel_group: "wholesale-retail-backup",
+          window_size: 4,
+          hello_interval_seconds: 60,
+          session_limit: 4096,
+          require_encryption: true,
+          allowed_auth: ["pap", "chap"],
+          vendor_packs: ["cisco"],
+          status: "ready",
+          reason: "Backup tunnel profile can be selected on failover.",
+        },
+      ],
+      failover_policies: [
+        {
+          name: "retail-failover",
+          enabled: true,
+          realm: "retail.example.net",
+          primary_tunnel: "lns-primary",
+          backup_tunnels: ["lns-backup"],
+          action: "standby",
+          hold_down_seconds: 30,
+          max_failures: 3,
+          accounting_replay: true,
+          coa_action: "reauth",
+          status: "ready",
+          reason:
+            "Failover policy has tunnel references and accounting replay intent.",
+        },
+      ],
+      authorization_bindings: [
+        {
+          stage: "access-accept",
+          attributes: [
+            "Tunnel-Type",
+            "Tunnel-Medium-Type",
+            "Tunnel-Server-Endpoint",
+            "Tunnel-Client-Endpoint",
+            "Class",
+            "Proxy-State",
+          ],
+          purpose:
+            "Select the wholesale L2TP tunnel, realm, tenant, and route evidence.",
+          required: true,
+        },
+      ],
+      accounting_bindings: [
+        {
+          stage: "start",
+          attributes: [
+            "Acct-Status-Type=Start",
+            "Acct-Session-Id",
+            "Class",
+            "Proxy-State",
+          ],
+          purpose:
+            "Open wholesale accounting ownership on the delegated route.",
+          required: true,
+        },
+      ],
+      compliance: [
+        {
+          id: "upstream-routes",
+          name: "Proxy route dependency",
+          status: "passed",
+          message: "RADIUS upstream proxy routes are available.",
+        },
+        {
+          id: "external-certification",
+          name: "External L2TP certification boundary",
+          status: "passed",
+          message:
+            "Live LAC/LNS hardware, packet capture, partner route acceptance, HA, scale, soak, security, and customer proof are release certification activities.",
+        },
+      ],
+      standards: ["RFC 2661", "RFC 2865", "RFC 2866", "RFC 2868", "RFC 5176"],
+      vendors: ["Cisco", "Juniper ERX/E-Series", "Nokia/Alcatel-Lucent SR OS"],
+      requirements: [
+        "model wholesale customer realms separately from retail subscriber identity",
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        active_bindings: 0,
+        planned_bindings: 1,
+      },
+      recent_events: [],
+      realm_bindings: [],
     },
   };
 }
@@ -4267,8 +4506,7 @@ function createSystemStatus() {
             node_id: "aegisnas-radius",
             instance_id: "aegisnas-radius:pid-101",
             lease_id: "dac-handoff-aegisnas-radius",
-            fencing_token:
-              "sha256:15f28b3b8c063f854133f138fa91f8f7",
+            fencing_token: "sha256:15f28b3b8c063f854133f138fa91f8f7",
             lease_expires_at: "2026-05-05T12:00:20Z",
             can_send: true,
             can_queue: true,
@@ -4294,8 +4532,7 @@ function createSystemStatus() {
             replay_capable_leases: 1,
             last_heartbeat_at: "2026-05-05T12:00:00Z",
             last_event_at: "2026-05-05T12:00:00Z",
-            last_fencing_token_hash:
-              "sha256:15f28b3b8c063f854133f138fa91f8f7",
+            last_fencing_token_hash: "sha256:15f28b3b8c063f854133f138fa91f8f7",
           },
           leases: [
             {
@@ -4348,8 +4585,7 @@ function createSystemStatus() {
             handoff_decision: "ready",
             handoff_owner_node: "aegisnas-radius",
             handoff_lease_id: "dac-handoff-aegisnas-radius",
-            handoff_fencing_token:
-              "sha256:15f28b3b8c063f854133f138fa91f8f7",
+            handoff_fencing_token: "sha256:15f28b3b8c063f854133f138fa91f8f7",
             handoff_warnings: [],
             target_address: "192.0.2.10",
             target_port: 3799,
@@ -4384,8 +4620,7 @@ function createSystemStatus() {
             handoff_decision: "ready",
             handoff_owner_node: "aegisnas-radius",
             handoff_lease_id: "dac-handoff-aegisnas-radius",
-            handoff_fencing_token:
-              "sha256:15f28b3b8c063f854133f138fa91f8f7",
+            handoff_fencing_token: "sha256:15f28b3b8c063f854133f138fa91f8f7",
             handoff_warnings: [],
             target_address: "192.0.2.10",
             target_port: 3799,
@@ -4401,7 +4636,8 @@ function createSystemStatus() {
           },
         ],
         warnings: [],
-      },    },
+      },
+    },
     wireless: {
       enabled: false,
       interface: "",
@@ -4836,7 +5072,8 @@ function createSystemStatus() {
         retention_count: 21,
         runtime: {
           status: "ok",
-          message: "Scheduled voucher redemption analytics exports are healthy.",
+          message:
+            "Scheduled voucher redemption analytics exports are healthy.",
           details: {
             format: "json",
             interval_minutes: 60,
@@ -7045,63 +7282,63 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
         ip_address: "192.168.50.10",
       },
     ],
-	vouchers: createVouchers(),
-	aclPolicies: [
-		{
-			id: 1,
-			name: "guest-internet",
-			description: "Permit guest web access.",
-			enabled: true,
-			inbound_acl: "guest-in",
-			outbound_acl: "guest-out",
-			rules: [
-				{
-					action: "permit",
-					direction: "in",
-					protocol: "tcp",
-					source: "any",
-					destination: "any",
-					destination_port: "443",
-				},
-			],
-			acl_ast: {
-				schema_version: 1,
-				name: "guest-internet",
-				default_action: "deny",
-				object_groups: [],
-				service_groups: [],
-				rules: [
-					{
-						id: "rule-0010",
-						sequence: 10,
-						enabled: true,
-						action: "permit",
-						direction: "in",
-						match: {
-							address_family: "any",
-							protocols: ["tcp"],
-							source: { any: true, addresses: ["any"] },
-							destination: {
-								any: true,
-								addresses: ["any"],
-								ports: ["443"],
-							},
-						},
-					},
-				],
-			},
-			ast_fingerprint:
-				"sha256:b30e1f00d5be70561665b23612abcd34b30e1f00d5be70561665b23612abcd34",
-			ast_diagnostics: [],
-			acl_round_trip: {
-				lossless: true,
-				ast_fingerprint:
-					"sha256:b30e1f00d5be70561665b23612abcd34b30e1f00d5be70561665b23612abcd34",
-				ast_rule_count: 1,
-				rule_count: 1,
-			},
-		},
-	],
+    vouchers: createVouchers(),
+    aclPolicies: [
+      {
+        id: 1,
+        name: "guest-internet",
+        description: "Permit guest web access.",
+        enabled: true,
+        inbound_acl: "guest-in",
+        outbound_acl: "guest-out",
+        rules: [
+          {
+            action: "permit",
+            direction: "in",
+            protocol: "tcp",
+            source: "any",
+            destination: "any",
+            destination_port: "443",
+          },
+        ],
+        acl_ast: {
+          schema_version: 1,
+          name: "guest-internet",
+          default_action: "deny",
+          object_groups: [],
+          service_groups: [],
+          rules: [
+            {
+              id: "rule-0010",
+              sequence: 10,
+              enabled: true,
+              action: "permit",
+              direction: "in",
+              match: {
+                address_family: "any",
+                protocols: ["tcp"],
+                source: { any: true, addresses: ["any"] },
+                destination: {
+                  any: true,
+                  addresses: ["any"],
+                  ports: ["443"],
+                },
+              },
+            },
+          ],
+        },
+        ast_fingerprint:
+          "sha256:b30e1f00d5be70561665b23612abcd34b30e1f00d5be70561665b23612abcd34",
+        ast_diagnostics: [],
+        acl_round_trip: {
+          lossless: true,
+          ast_fingerprint:
+            "sha256:b30e1f00d5be70561665b23612abcd34b30e1f00d5be70561665b23612abcd34",
+          ast_rule_count: 1,
+          rule_count: 1,
+        },
+      },
+    ],
     sessionHistory: [
       {
         id: "sess-001",
@@ -7253,8 +7490,16 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       config_evidence_valid: false,
       legacy_window_active: false,
       migrations: [] as Record<string, any>[],
-      metrics: { previewed: 0, applying: 0, applied: 0, failed: 0, rolled_back: 0 },
-      warnings: ["The lab PEN must not be used for production vendor-specific attributes."],
+      metrics: {
+        previewed: 0,
+        applying: 0,
+        applied: 0,
+        failed: 0,
+        rolled_back: 0,
+      },
+      warnings: [
+        "The lab PEN must not be used for production vendor-specific attributes.",
+      ],
     } as any,
     networkRecovery: null as null | Record<string, any>,
   };
@@ -7556,11 +7801,11 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             request_code: 43,
             expected_ack_code: 44,
             expected_nak_code: 45,
-          target: {
-            endpoint: "192.0.2.10:3799",
-            delivery_mode: "direct",
-            transport: "udp",
-            known_client: true,
+            target: {
+              endpoint: "192.0.2.10:3799",
+              delivery_mode: "direct",
+              transport: "udp",
+              known_client: true,
               secret_ready: true,
               resolved_from: "radius_client",
             },
@@ -7655,11 +7900,11 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             request_code: 43,
             expected_ack_code: 44,
             expected_nak_code: 45,
-          target: {
-            endpoint: "192.0.2.10:3799",
-            delivery_mode: "direct",
-            transport: "udp",
-            known_client: true,
+            target: {
+              endpoint: "192.0.2.10:3799",
+              delivery_mode: "direct",
+              transport: "udp",
+              known_client: true,
               secret_ready: true,
               resolved_from: "radius_client",
             },
@@ -7976,8 +8221,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
     ) {
       await route.fulfill({
         contentType: "application/x-ndjson",
-        body:
-          '{"cdr_id":"cdr-mock-1","status":"closed","rated_amount_micros":500000}\n',
+        body: '{"cdr_id":"cdr-mock-1","status":"closed","rated_amount_micros":500000}\n',
       });
       return;
     }
@@ -8028,10 +8272,10 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
-	if (path === "/system/production-readiness" && method === "GET") {
-		await route.fulfill({ json: state.productionReadiness });
-		return;
-	}
+    if (path === "/system/production-readiness" && method === "GET") {
+      await route.fulfill({ json: state.productionReadiness });
+      return;
+    }
 
     if (path === "/system/secret-providers" && method === "GET") {
       await route.fulfill({ json: state.secretProviders });
@@ -8043,50 +8287,53 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
-	if (path === "/system/controller-sync/preview" && method === "GET") {
-		const operation = url.searchParams.get("operation") === "push" ? "push" : "pull";
-		await route.fulfill({
-			json: {
-				preview: {
-					operation,
-					adapter: "generic-rest",
-					method: operation === "push" ? "POST" : "GET",
-					target_url:
-						operation === "push"
-							? "https://controller.example.test/api/sync"
-							: "https://controller.example.test/api/state",
-					desired_state_hash: "desired-controller-state",
-				},
-				push_confirmation: "PUSH CONTROLLER POLICY",
-			},
-		});
-		return;
-	}
+    if (path === "/system/controller-sync/preview" && method === "GET") {
+      const operation =
+        url.searchParams.get("operation") === "push" ? "push" : "pull";
+      await route.fulfill({
+        json: {
+          preview: {
+            operation,
+            adapter: "generic-rest",
+            method: operation === "push" ? "POST" : "GET",
+            target_url:
+              operation === "push"
+                ? "https://controller.example.test/api/sync"
+                : "https://controller.example.test/api/state",
+            desired_state_hash: "desired-controller-state",
+          },
+          push_confirmation: "PUSH CONTROLLER POLICY",
+        },
+      });
+      return;
+    }
 
-	if (path === "/system/controller-sync" && method === "POST") {
-		const body = parseBody(route);
-		const operation = body.operation === "push" ? "push" : "pull";
-		await route.fulfill({
-			json: {
-				status: operation === "pull" ? "degraded" : "ok",
-				message:
-					operation === "pull"
-						? "Controller pull completed with detected policy drift."
-						: "Controller push completed successfully.",
-				result: {
-					operation,
-					drift_detected: operation === "pull",
-					drift_count: operation === "pull" ? 2 : 0,
-					applied_count: operation === "push" ? 3 : 0,
-					failed_count: 0,
-					desired_state_hash: "desired-controller-state",
-					observed_state_hash:
-						operation === "pull" ? "observed-controller-state" : "desired-controller-state",
-				},
-			},
-		});
-		return;
-	}
+    if (path === "/system/controller-sync" && method === "POST") {
+      const body = parseBody(route);
+      const operation = body.operation === "push" ? "push" : "pull";
+      await route.fulfill({
+        json: {
+          status: operation === "pull" ? "degraded" : "ok",
+          message:
+            operation === "pull"
+              ? "Controller pull completed with detected policy drift."
+              : "Controller push completed successfully.",
+          result: {
+            operation,
+            drift_detected: operation === "pull",
+            drift_count: operation === "pull" ? 2 : 0,
+            applied_count: operation === "push" ? 3 : 0,
+            failed_count: 0,
+            desired_state_hash: "desired-controller-state",
+            observed_state_hash:
+              operation === "pull"
+                ? "observed-controller-state"
+                : "desired-controller-state",
+          },
+        },
+      });
+      return;
+    }
 
     if (path === "/system/vendor-compatibility" && method === "GET") {
       await route.fulfill({
@@ -8098,9 +8345,11 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             dictionary_release: "3.2.8",
             dictionary_release_source_sha256: "6".repeat(64),
             product_vendor_id_source: "config:radius.vendor.id",
-            product_vendor_id_placeholder: state.vendorIdentity.current.pen === 55555,
+            product_vendor_id_placeholder:
+              state.vendorIdentity.current.pen === 55555,
             product_vendor_dictionary_filename: "dictionary.aegisnas",
-            product_vendor_dictionary_install_path: "/etc/freeradius/3.0/dictionary.aegisnas",
+            product_vendor_dictionary_install_path:
+              "/etc/freeradius/3.0/dictionary.aegisnas",
             product_vendor_dictionary_include: "$INCLUDE dictionary.aegisnas",
             product_attribute_count: 13,
             semantic_count: 29,
@@ -8108,7 +8357,8 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             implemented_count: 10,
             planned_count: 19,
             hardware_profiles: ["lite", "branch", "enterprise"],
-            product_vendor_assigned_organization: state.vendorIdentity.current.assigned_organization,
+            product_vendor_assigned_organization:
+              state.vendorIdentity.current.assigned_organization,
           },
           active_packs: ["aegisnas"],
           packs: [],
@@ -8128,25 +8378,86 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             attribute_alias_count: 10,
             firmware_profile_count: 9,
             vendor_aliases: [
-              { alias: "unifi", canonical_vendor: "Ubiquiti", canonical_pack_key: "ubnt", pen: 41112, scope: "controller family" },
-              { alias: "routeros", canonical_vendor: "Mikrotik", canonical_pack_key: "mikrotik", pen: 14988, scope: "product firmware" },
+              {
+                alias: "unifi",
+                canonical_vendor: "Ubiquiti",
+                canonical_pack_key: "ubnt",
+                pen: 41112,
+                scope: "controller family",
+              },
+              {
+                alias: "routeros",
+                canonical_vendor: "Mikrotik",
+                canonical_pack_key: "mikrotik",
+                pen: 14988,
+                scope: "product firmware",
+              },
             ],
             firmware_profiles: [
-              { key: "ubiquiti-unifi-network", vendor: "Ubiquiti", pack_key: "ubnt", pen: 41112, product_family: "UniFi Network", firmware_scope: "UniFi Network controllers and AP firmware that accept UBNT rate VSAs", hardware_profiles: ["branch", "enterprise"], support_state: "software-ready", evidence_state: "external-certification-required", attribute_scope: ["UBNT-Data-Rate-DL", "UBNT-Data-Rate-UL"] },
-              { key: "mikrotik-routeros", vendor: "Mikrotik", pack_key: "mikrotik", pen: 14988, product_family: "RouterOS", firmware_scope: "RouterOS 6.x and 7.x dictionary-compatible RADIUS attributes", hardware_profiles: ["lite", "branch", "enterprise"], support_state: "software-ready", evidence_state: "external-certification-required", attribute_scope: ["Mikrotik-Rate-Limit"] },
+              {
+                key: "ubiquiti-unifi-network",
+                vendor: "Ubiquiti",
+                pack_key: "ubnt",
+                pen: 41112,
+                product_family: "UniFi Network",
+                firmware_scope:
+                  "UniFi Network controllers and AP firmware that accept UBNT rate VSAs",
+                hardware_profiles: ["branch", "enterprise"],
+                support_state: "software-ready",
+                evidence_state: "external-certification-required",
+                attribute_scope: ["UBNT-Data-Rate-DL", "UBNT-Data-Rate-UL"],
+              },
+              {
+                key: "mikrotik-routeros",
+                vendor: "Mikrotik",
+                pack_key: "mikrotik",
+                pen: 14988,
+                product_family: "RouterOS",
+                firmware_scope:
+                  "RouterOS 6.x and 7.x dictionary-compatible RADIUS attributes",
+                hardware_profiles: ["lite", "branch", "enterprise"],
+                support_state: "software-ready",
+                evidence_state: "external-certification-required",
+                attribute_scope: ["Mikrotik-Rate-Limit"],
+              },
             ],
           },
           evidence: {
             schema_version: 1,
             release_profile_id: "freeradius-3.2.8",
             source_sha256: "6".repeat(64),
-            summary: { total_records: 156, software_ready_count: 42, software_planned_count: 70, software_blocked_count: 10, metadata_only_count: 34, external_required_count: 28, externally_certified_count: 0 },
+            summary: {
+              total_records: 156,
+              software_ready_count: 42,
+              software_planned_count: 70,
+              software_blocked_count: 10,
+              metadata_only_count: 34,
+              external_required_count: 28,
+              externally_certified_count: 0,
+            },
             filtered_count: 0,
             records: [],
           },
           client_profiles: [],
-          profile_summary: { total_clients: 0, enabled_clients: 0, profile_counts: {}, global_fallback_client_count: 0, known_vendor_profile_clients: 0 },
-          dictionary_coverage: { catalog_vendor_count: 1, catalog_attribute_count: 13, pack_count: 1, active_pack_count: 1, dictionary_backed_pack_count: 1, partial_dictionary_pack_count: 0, missing_dictionary_vendor_count: 0, dictionary_matched_attribute_count: 13, missing_dictionary_attribute_count: 0, rows: [] },
+          profile_summary: {
+            total_clients: 0,
+            enabled_clients: 0,
+            profile_counts: {},
+            global_fallback_client_count: 0,
+            known_vendor_profile_clients: 0,
+          },
+          dictionary_coverage: {
+            catalog_vendor_count: 1,
+            catalog_attribute_count: 13,
+            pack_count: 1,
+            active_pack_count: 1,
+            dictionary_backed_pack_count: 1,
+            partial_dictionary_pack_count: 0,
+            missing_dictionary_vendor_count: 0,
+            dictionary_matched_attribute_count: 13,
+            missing_dictionary_attribute_count: 0,
+            rows: [],
+          },
           semantics: [],
           notes: [],
         },
@@ -8177,9 +8488,24 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           ready_for_external_validation: true,
           external_validation_required: true,
           dimensions: [
-            { key: "dictionary", label: "Dictionary Metadata", state: "passed", required: true },
-            { key: "typed_registry", label: "Typed Registry", state: "passed", required: true },
-            { key: "reply_render", label: "Reply Renderer", state: "passed", required: true },
+            {
+              key: "dictionary",
+              label: "Dictionary Metadata",
+              state: "passed",
+              required: true,
+            },
+            {
+              key: "typed_registry",
+              label: "Typed Registry",
+              state: "passed",
+              required: true,
+            },
+            {
+              key: "reply_render",
+              label: "Reply Renderer",
+              state: "passed",
+              required: true,
+            },
           ],
         },
         {
@@ -8203,8 +8529,18 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           external_validation_required: false,
           blockers: ["Dictionary Metadata: vendor dictionary is not present"],
           dimensions: [
-            { key: "dictionary", label: "Dictionary Metadata", state: "blocked", required: true },
-            { key: "typed_registry", label: "Typed Registry", state: "passed", required: true },
+            {
+              key: "dictionary",
+              label: "Dictionary Metadata",
+              state: "blocked",
+              required: true,
+            },
+            {
+              key: "typed_registry",
+              label: "Typed Registry",
+              state: "passed",
+              required: true,
+            },
           ],
         },
       ].filter((record) => !claim || record.claim_state === claim);
@@ -8213,7 +8549,15 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           schema_version: 1,
           release_profile_id: "freeradius-3.2.8",
           source_sha256: "6".repeat(64),
-          summary: { total_records: 156, software_ready_count: 42, software_planned_count: 70, software_blocked_count: 10, metadata_only_count: 34, external_required_count: 28, externally_certified_count: 0 },
+          summary: {
+            total_records: 156,
+            software_ready_count: 42,
+            software_planned_count: 70,
+            software_blocked_count: 10,
+            metadata_only_count: 34,
+            external_required_count: 28,
+            externally_certified_count: 0,
+          },
           filtered_count: records.length,
           records,
           notes: ["software_ready is not device certification"],
@@ -8262,7 +8606,9 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             { type_octets: 4, length_octets: 1 },
             { type_octets: 4, length_octets: 2 },
           ],
-          notes: ["Software codec readiness is separate from real vendor hardware certification."],
+          notes: [
+            "Software codec readiness is separate from real vendor hardware certification.",
+          ],
         },
       });
       return;
@@ -8323,10 +8669,20 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           sensitive_types: [
             { type: 2, name: "User-Password", reason: "credential material" },
             { type: 3, name: "CHAP-Password", reason: "credential material" },
-            { type: 79, name: "EAP-Message", reason: "protocol-aware handling required" },
-            { type: 80, name: "Message-Authenticator", reason: "integrity attributes are rebuilt" },
+            {
+              type: 79,
+              name: "EAP-Message",
+              reason: "protocol-aware handling required",
+            },
+            {
+              type: 80,
+              name: "Message-Authenticator",
+              reason: "integrity attributes are rebuilt",
+            },
           ],
-          notes: ["Software pass-through readiness is separate from real proxy, FreeRADIUS, and vendor hardware certification."],
+          notes: [
+            "Software pass-through readiness is separate from real proxy, FreeRADIUS, and vendor hardware certification.",
+          ],
         },
       });
       return;
@@ -8335,10 +8691,59 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
     if (path === "/system/attribute-registry" && method === "GET") {
       const vendor = (url.searchParams.get("vendor") || "Aruba").trim();
       const entries = [
-        { key: "freeradius:3.2.8:14823:aruba-user-role", source: "freeradius-3.2.8", release_profile_id: "freeradius-3.2.8", vendor: "Aruba", pen: 14823, attribute: "Aruba-User-Role", number: 1, wire_type: "string", capability_family: "Authorization", dictionary_status: "partial", pack_key: "aruba", semantic: "access.role", semantic_provenance: "freeradius-audit:3.2.8", directions: ["inbound", "outbound_reply"], decode_kind: "string" },
-        { key: "freeradius:3.2.8:14823:aruba-user-vlan", source: "freeradius-3.2.8", release_profile_id: "freeradius-3.2.8", vendor: "Aruba", pen: 14823, attribute: "Aruba-User-Vlan", number: 2, wire_type: "integer", capability_family: "Dynamic VLAN", dictionary_status: "partial", pack_key: "aruba", semantic: "access.vlan", semantic_provenance: "freeradius-audit:3.2.8", directions: ["inbound", "outbound_reply"], decode_kind: "vlan" },
-      ].filter((entry) => !vendor || entry.vendor.toLowerCase() === vendor.toLowerCase());
-      await route.fulfill({ json: { schema_version: 1, release_profile_id: "freeradius-3.2.8", source_release: "3.2.8", source_file_count: 246, source_attribute_count: 7654, source_sha256: "6".repeat(64), vendor_count: 196, attribute_count: 7661, mapped_count: 148, filtered_count: entries.length, entries } });
+        {
+          key: "freeradius:3.2.8:14823:aruba-user-role",
+          source: "freeradius-3.2.8",
+          release_profile_id: "freeradius-3.2.8",
+          vendor: "Aruba",
+          pen: 14823,
+          attribute: "Aruba-User-Role",
+          number: 1,
+          wire_type: "string",
+          capability_family: "Authorization",
+          dictionary_status: "partial",
+          pack_key: "aruba",
+          semantic: "access.role",
+          semantic_provenance: "freeradius-audit:3.2.8",
+          directions: ["inbound", "outbound_reply"],
+          decode_kind: "string",
+        },
+        {
+          key: "freeradius:3.2.8:14823:aruba-user-vlan",
+          source: "freeradius-3.2.8",
+          release_profile_id: "freeradius-3.2.8",
+          vendor: "Aruba",
+          pen: 14823,
+          attribute: "Aruba-User-Vlan",
+          number: 2,
+          wire_type: "integer",
+          capability_family: "Dynamic VLAN",
+          dictionary_status: "partial",
+          pack_key: "aruba",
+          semantic: "access.vlan",
+          semantic_provenance: "freeradius-audit:3.2.8",
+          directions: ["inbound", "outbound_reply"],
+          decode_kind: "vlan",
+        },
+      ].filter(
+        (entry) =>
+          !vendor || entry.vendor.toLowerCase() === vendor.toLowerCase(),
+      );
+      await route.fulfill({
+        json: {
+          schema_version: 1,
+          release_profile_id: "freeradius-3.2.8",
+          source_release: "3.2.8",
+          source_file_count: 246,
+          source_attribute_count: 7654,
+          source_sha256: "6".repeat(64),
+          vendor_count: 196,
+          attribute_count: 7661,
+          mapped_count: 148,
+          filtered_count: entries.length,
+          entries,
+        },
+      });
       return;
     }
 
@@ -8347,19 +8752,48 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
-    if (path === "/system/vendor-identity/migrations/preview" && method === "POST") {
+    if (
+      path === "/system/vendor-identity/migrations/preview" &&
+      method === "POST"
+    ) {
       const body = parseBody(route);
       const migrationID = "identity-migration-1";
       state.vendorIdentity.metrics.previewed = 1;
-      state.vendorIdentity.migrations = [{ id: migrationID, status: "previewed", from_pen: 55555, to_pen: body.pen, organization: body.expected_organization, expires_at: "2026-07-08T10:15:00Z", created_at: "2026-07-08T10:00:00Z" }];
+      state.vendorIdentity.migrations = [
+        {
+          id: migrationID,
+          status: "previewed",
+          from_pen: 55555,
+          to_pen: body.pen,
+          organization: body.expected_organization,
+          expires_at: "2026-07-08T10:15:00Z",
+          created_at: "2026-07-08T10:00:00Z",
+        },
+      ];
       await route.fulfill({
         json: {
           migration_id: migrationID,
           confirmation_token: "one-time-confirmation",
           expires_at: "2026-07-08T10:15:00Z",
           current: state.vendorIdentity.current,
-          target: { name: "AegisNAS", pen: body.pen, identity_mode: "production", assigned_organization: body.expected_organization, legacy_pens: [55555], legacy_accept_until: "2026-07-15T10:00:00Z" },
-          evidence: { pen: body.pen, organization: body.expected_organization, registry_url: "https://www.iana.org/assignments/enterprise-numbers/enterprise-numbers.txt", registry_last_updated: "2026-07-06", fetched_at: "2026-07-08T10:00:00Z", registry_sha256: "a".repeat(64), record_sha256: "b".repeat(64) },
+          target: {
+            name: "AegisNAS",
+            pen: body.pen,
+            identity_mode: "production",
+            assigned_organization: body.expected_organization,
+            legacy_pens: [55555],
+            legacy_accept_until: "2026-07-15T10:00:00Z",
+          },
+          evidence: {
+            pen: body.pen,
+            organization: body.expected_organization,
+            registry_url:
+              "https://www.iana.org/assignments/enterprise-numbers/enterprise-numbers.txt",
+            registry_last_updated: "2026-07-06",
+            fetched_at: "2026-07-08T10:00:00Z",
+            registry_sha256: "a".repeat(64),
+            record_sha256: "b".repeat(64),
+          },
           active_sessions: 3,
           affected_systems: ["configuration", "dictionary", "packet codec"],
           warnings: ["Update every peer and integration to the assigned PEN."],
@@ -8368,16 +8802,36 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
-    if (path === "/system/vendor-identity/migrations/apply" && method === "POST") {
+    if (
+      path === "/system/vendor-identity/migrations/apply" &&
+      method === "POST"
+    ) {
       state.vendorIdentity.status = "production_verified";
       state.vendorIdentity.ready = true;
       state.vendorIdentity.config_evidence_valid = true;
       state.vendorIdentity.legacy_window_active = true;
-      state.vendorIdentity.current = { name: "AegisNAS", pen: 424242, identity_mode: "production", assigned_organization: "AegisNAS Systems Ltd.", legacy_pens: [55555], legacy_accept_until: "2026-07-15T10:00:00Z" };
+      state.vendorIdentity.current = {
+        name: "AegisNAS",
+        pen: 424242,
+        identity_mode: "production",
+        assigned_organization: "AegisNAS Systems Ltd.",
+        legacy_pens: [55555],
+        legacy_accept_until: "2026-07-15T10:00:00Z",
+      };
       state.vendorIdentity.metrics.applied = 1;
       state.vendorIdentity.warnings = [];
-      state.vendorIdentity.migrations[0] = { ...state.vendorIdentity.migrations[0], status: "applied", applied_at: "2026-07-08T10:01:00Z" };
-      await route.fulfill({ json: { status: "applied", migration_id: "identity-migration-1", radius_restarted: true } });
+      state.vendorIdentity.migrations[0] = {
+        ...state.vendorIdentity.migrations[0],
+        status: "applied",
+        applied_at: "2026-07-08T10:01:00Z",
+      };
+      await route.fulfill({
+        json: {
+          status: "applied",
+          migration_id: "identity-migration-1",
+          radius_restarted: true,
+        },
+      });
       return;
     }
 
@@ -8396,18 +8850,18 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       return;
     }
 
-	if (path === "/roles" && method === "GET") {
+    if (path === "/roles" && method === "GET") {
       await route.fulfill({ json: [{ id: 1, name: "guest-basic" }] });
-		return;
-	}
-	if (path === "/acl-policies" && method === "GET") {
-		await route.fulfill({ json: state.aclPolicies });
-		return;
-	}
-	if (path === "/acl-policies" && method === "POST") {
-		await route.fulfill({ status: 202, json: { status: "staged" } });
-		return;
-	}
+      return;
+    }
+    if (path === "/acl-policies" && method === "GET") {
+      await route.fulfill({ json: state.aclPolicies });
+      return;
+    }
+    if (path === "/acl-policies" && method === "POST") {
+      await route.fulfill({ status: 202, json: { status: "staged" } });
+      return;
+    }
     if (path === "/portal-profiles" && method === "GET") {
       await route.fulfill({ json: [{ id: 1, name: "default-guest" }] });
       return;
@@ -8416,12 +8870,31 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({ json: [{ id: 1, name: "local-users" }] });
       return;
     }
-	if (path === "/bandwidth-profiles" && method === "GET") {
+    if (path === "/bandwidth-profiles" && method === "GET") {
       await route.fulfill({ json: [{ id: 1, name: "10m-down-5m-up" }] });
       return;
     }
     if (path === "/radius-clients" && method === "GET") {
-      await route.fulfill({ json: [{ id: 1, shortname: "secure-nas", ip: "192.0.2.10", secret_set: true, inline_secret_set: true, secret_ref: "", secret_ref_set: false, secret_ref_fingerprint: "", nas_type: "cisco", transport: "radsec", radsec_certificate_cn: "secure-nas.example.test", radsec_radius_v11: "forbid", description: "Branch NAS", enabled: true }] });
+      await route.fulfill({
+        json: [
+          {
+            id: 1,
+            shortname: "secure-nas",
+            ip: "192.0.2.10",
+            secret_set: true,
+            inline_secret_set: true,
+            secret_ref: "",
+            secret_ref_set: false,
+            secret_ref_fingerprint: "",
+            nas_type: "cisco",
+            transport: "radsec",
+            radsec_certificate_cn: "secure-nas.example.test",
+            radsec_radius_v11: "forbid",
+            description: "Branch NAS",
+            enabled: true,
+          },
+        ],
+      });
       return;
     }
     if (path === "/radius-clients" && method === "POST") {
@@ -8565,14 +9038,16 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (
-      path === "/system/hostapd-vlan-lifecycle/apply" &&
-      method === "POST"
-    ) {
+    if (path === "/system/hostapd-vlan-lifecycle/apply" && method === "POST") {
       await route.fulfill({
         json: {
           result: { status: "applied", snapshot_id: "vlan-snap-20260505" },
-          report: { feature_id: "NAS-0074", status: "ready", summary: {}, plan: {} },
+          report: {
+            feature_id: "NAS-0074",
+            status: "ready",
+            summary: {},
+            plan: {},
+          },
         },
       });
       return;
@@ -8583,16 +9058,21 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
     ) {
       await route.fulfill({
         json: {
-          result: { status: "rolled_back", restored_snapshot_id: "vlan-snap-previous" },
-          report: { feature_id: "NAS-0074", status: "ready", summary: {}, plan: {} },
+          result: {
+            status: "rolled_back",
+            restored_snapshot_id: "vlan-snap-previous",
+          },
+          report: {
+            feature_id: "NAS-0074",
+            status: "ready",
+            summary: {},
+            plan: {},
+          },
         },
       });
       return;
     }
-    if (
-      path === "/system/hostapd-vlan-lifecycle/history" &&
-      method === "GET"
-    ) {
+    if (path === "/system/hostapd-vlan-lifecycle/history" && method === "GET") {
       await route.fulfill({
         json: {
           feature_id: "NAS-0074",
@@ -8662,10 +9142,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({ json: createPasspointLifecycle() });
       return;
     }
-    if (
-      path === "/system/passpoint-lifecycle/preview" &&
-      method === "POST"
-    ) {
+    if (path === "/system/passpoint-lifecycle/preview" && method === "POST") {
       await route.fulfill({
         json: {
           ...createPasspointLifecycle(),
@@ -8674,10 +9151,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (
-      path === "/system/passpoint-lifecycle/apply" &&
-      method === "POST"
-    ) {
+    if (path === "/system/passpoint-lifecycle/apply" && method === "POST") {
       const payload = createPasspointLifecycle();
       payload.report.status = "applied";
       payload.report.message =
@@ -8692,10 +9166,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (
-      path === "/system/passpoint-lifecycle/history" &&
-      method === "GET"
-    ) {
+    if (path === "/system/passpoint-lifecycle/history" && method === "GET") {
       await route.fulfill({
         json: {
           feature_id: "NAS-0076",
@@ -8821,10 +9292,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({ json: createRFPlanningLifecycle() });
       return;
     }
-    if (
-      path === "/system/rf-planning-lifecycle/preview" &&
-      method === "POST"
-    ) {
+    if (path === "/system/rf-planning-lifecycle/preview" && method === "POST") {
       await route.fulfill({
         json: {
           ...createRFPlanningLifecycle(),
@@ -8833,10 +9301,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (
-      path === "/system/rf-planning-lifecycle/apply" &&
-      method === "POST"
-    ) {
+    if (path === "/system/rf-planning-lifecycle/apply" && method === "POST") {
       const payload = createRFPlanningLifecycle();
       payload.report.status = "applied";
       payload.report.message =
@@ -8854,10 +9319,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (
-      path === "/system/rf-planning-lifecycle/history" &&
-      method === "GET"
-    ) {
+    if (path === "/system/rf-planning-lifecycle/history" && method === "GET") {
       await route.fulfill({
         json: {
           feature_id: "NAS-0079",
@@ -8875,10 +9337,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (
-      path === "/system/wireless-security-lifecycle" &&
-      method === "GET"
-    ) {
+    if (path === "/system/wireless-security-lifecycle" && method === "GET") {
       await route.fulfill({ json: createWirelessSecurityLifecycle() });
       return;
     }
@@ -8940,10 +9399,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       await route.fulfill({ json: createCWAPortalLifecycle() });
       return;
     }
-    if (
-      path === "/system/cwa-portal-lifecycle/preview" &&
-      method === "POST"
-    ) {
+    if (path === "/system/cwa-portal-lifecycle/preview" && method === "POST") {
       await route.fulfill({
         json: {
           ...createCWAPortalLifecycle(),
@@ -8952,10 +9408,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (
-      path === "/system/cwa-portal-lifecycle/apply" &&
-      method === "POST"
-    ) {
+    if (path === "/system/cwa-portal-lifecycle/apply" && method === "POST") {
       const payload = createCWAPortalLifecycle();
       payload.report.status = "applied";
       payload.report.message =
@@ -8973,10 +9426,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (
-      path === "/system/cwa-portal-lifecycle/history" &&
-      method === "GET"
-    ) {
+    if (path === "/system/cwa-portal-lifecycle/history" && method === "GET") {
       await route.fulfill({
         json: {
           feature_id: "NAS-0081",
@@ -9010,10 +9460,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (
-      path === "/system/pppoe-access-lifecycle/apply" &&
-      method === "POST"
-    ) {
+    if (path === "/system/pppoe-access-lifecycle/apply" && method === "POST") {
       const payload = createPPPoEAccessLifecycle();
       payload.report.status = "applied";
       payload.report.message =
@@ -9031,10 +9478,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (
-      path === "/system/pppoe-access-lifecycle/history" &&
-      method === "GET"
-    ) {
+    if (path === "/system/pppoe-access-lifecycle/history" && method === "GET") {
       await route.fulfill({
         json: {
           feature_id: "NAS-0082",
@@ -9194,10 +9638,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (
-      path === "/system/broadband-quota-balance/apply" &&
-      method === "POST"
-    ) {
+    if (path === "/system/broadband-quota-balance/apply" && method === "POST") {
       const payload = createBroadbandQuotaBalance();
       payload.report.status = "applied";
       payload.report.message =
@@ -9358,6 +9799,67 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           },
           events: [],
           flows: createBroadbandQoSServiceFlows().report.service_flows,
+        },
+      });
+      return;
+    }
+    if (path === "/system/broadband-l2tp-wholesale" && method === "GET") {
+      await route.fulfill({ json: createBroadbandL2TPWholesale() });
+      return;
+    }
+    if (
+      path === "/system/broadband-l2tp-wholesale/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createBroadbandL2TPWholesale(),
+          event_id: "bng-l2tp-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-l2tp-wholesale/apply" &&
+      method === "POST"
+    ) {
+      const payload = createBroadbandL2TPWholesale();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0088 recorded L2TP wholesale realm separation with 1 realm, 2 tunnel profiles, 1 failover policy, and compiled RADIUS attributes.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "bng-l2tp-event-apply",
+          result: {
+            status: "applied",
+            event_id: "bng-l2tp-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-l2tp-wholesale/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0088",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+            planned_bindings: 1,
+            active_bindings: 0,
+          },
+          events: [],
+          realm_bindings: createBroadbandL2TPWholesale().report.realms,
         },
       });
       return;
@@ -9790,10 +10292,7 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
       });
       return;
     }
-    if (
-      path === "/system/voucher-aging-analytics/export" &&
-      method === "GET"
-    ) {
+    if (path === "/system/voucher-aging-analytics/export" && method === "GET") {
       const url = new URL(route.request().url());
       const format = url.searchParams.get("format") || "json";
       await route.fulfill({
