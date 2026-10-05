@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 92
+	return 93
 }
 
 func Migrate() error {
@@ -4972,3 +4972,69 @@ CREATE INDEX IF NOT EXISTS idx_broadband_l2tp_events_mode ON broadband_l2tp_whol
 `
 
 const schemaV92 = broadbandL2TPWholesaleSQL
+
+const broadbandDHCPSecuritySQL = `
+CREATE TABLE IF NOT EXISTS broadband_dhcp_security_bindings (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	binding_key TEXT UNIQUE NOT NULL,
+	port_name TEXT NOT NULL,
+	interface TEXT NOT NULL,
+	vlan INTEGER NOT NULL DEFAULT 0,
+	role TEXT NOT NULL DEFAULT 'access',
+	trusted BOOLEAN NOT NULL DEFAULT 0,
+	circuit_id TEXT,
+	remote_id TEXT,
+	subscriber_product TEXT,
+	tenant TEXT,
+	relay_agent TEXT,
+	source_guard_policy TEXT,
+	status TEXT NOT NULL DEFAULT 'planned',
+	compiled_options_json TEXT NOT NULL DEFAULT '[]',
+	source_event_id TEXT,
+	plan_fingerprint TEXT NOT NULL,
+	installed_at DATETIME,
+	withdrawn_at DATETIME,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('planned', 'active', 'degraded', 'blocked', 'withdrawn'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_dhcp_security_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	mode TEXT,
+	relay_agent_count INTEGER NOT NULL DEFAULT 0,
+	port_count INTEGER NOT NULL DEFAULT 0,
+	trusted_port_count INTEGER NOT NULL DEFAULT 0,
+	option82_rule_count INTEGER NOT NULL DEFAULT 0,
+	source_guard_policy_count INTEGER NOT NULL DEFAULT 0,
+	radius_correlation_count INTEGER NOT NULL DEFAULT 0,
+	compiled_option_count INTEGER NOT NULL DEFAULT 0,
+	compliance_check_count INTEGER NOT NULL DEFAULT 0,
+	passed_check_count INTEGER NOT NULL DEFAULT 0,
+	warning_count INTEGER NOT NULL DEFAULT 0,
+	blocker_count INTEGER NOT NULL DEFAULT 0,
+	external_requirement_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status', 'reconcile')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed', 'reconciled'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_broadband_dhcp_bindings_port ON broadband_dhcp_security_bindings(interface, vlan, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_dhcp_bindings_option82 ON broadband_dhcp_security_bindings(circuit_id, remote_id, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_dhcp_bindings_product ON broadband_dhcp_security_bindings(subscriber_product, tenant, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_dhcp_bindings_last_seen ON broadband_dhcp_security_bindings(last_seen_at, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_dhcp_events_created ON broadband_dhcp_security_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_dhcp_events_status ON broadband_dhcp_security_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_dhcp_events_fingerprint ON broadband_dhcp_security_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_dhcp_events_mode ON broadband_dhcp_security_events(mode, created_at);
+`
+
+const schemaV93 = broadbandDHCPSecuritySQL

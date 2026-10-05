@@ -737,6 +737,42 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		broadbandL2TPWholesaleStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandL2TPWholesaleComponent()]}
 	}
+	broadbandDHCPSecurityStatus := map[string]any{
+		"status":  "unknown",
+		"message": "DHCP relay, snooping, Option 82, and source guard status has not been evaluated.",
+	}
+	if dhcpReport, err := enforcement.PreviewBroadbandDHCPSecurity(cfg); err == nil {
+		dhcpSummary, _ := db.GetBroadbandDHCPSecuritySummary()
+		broadbandDHCPSecurityStatus = map[string]any{
+			"schema_version":                  dhcpReport.SchemaVersion,
+			"feature_id":                      dhcpReport.FeatureID,
+			"status":                          dhcpReport.Status,
+			"message":                         dhcpReport.Message,
+			"ready_for_external_validation":   dhcpReport.ReadyForExternalValidation,
+			"software_completion_percent":     dhcpReport.SoftwareCompletionPercent,
+			"enabled":                         dhcpReport.Summary.Enabled,
+			"mode":                            dhcpReport.Summary.Mode,
+			"relay_agent_count":               dhcpReport.Summary.RelayAgentCount,
+			"enabled_relay_agent_count":       dhcpReport.Summary.EnabledRelayAgentCount,
+			"port_count":                      dhcpReport.Summary.PortCount,
+			"enabled_port_count":              dhcpReport.Summary.EnabledPortCount,
+			"trusted_port_count":              dhcpReport.Summary.TrustedPortCount,
+			"option82_rule_count":             dhcpReport.Summary.Option82RuleCount,
+			"source_guard_policy_count":       dhcpReport.Summary.SourceGuardPolicyCount,
+			"radius_correlation_count":        dhcpReport.Summary.RADIUSCorrelationCount,
+			"compiled_option_count":           dhcpReport.Summary.CompiledOptionCount,
+			"compliance_check_count":          dhcpReport.Summary.ComplianceCheckCount,
+			"passed_check_count":              dhcpReport.Summary.PassedCheckCount,
+			"warning_count":                   dhcpReport.Summary.WarningCount,
+			"blocker_count":                   dhcpReport.Summary.BlockerCount,
+			"plan_fingerprint":                dhcpReport.PlanFingerprint,
+			"release_certification_checklist": dhcpReport.ReleaseCertificationChecklist,
+			"evidence_summary":                dhcpSummary,
+			"runtime_status":                  runtimeMap[enforcement.BroadbandDHCPSecurityComponent()],
+		}
+	} else {
+		broadbandDHCPSecurityStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandDHCPSecurityComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1443,6 +1479,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broadband_commercial_catalog": broadbandCommercialCatalogStatus,
 		"broadband_quota_balance":      broadbandQuotaBalanceStatus,
 		"broadband_address_leases":     broadbandAddressLeaseStatus,
+		"broadband_dhcp_security":      broadbandDHCPSecurityStatus,
 		"vendor_mapping_certification": vendorMappingCertificationStatus,
 		"cisco_family_pack":            ciscoFamilyPackStatus,
 		"aruba_family_pack":            arubaFamilyPackStatus,
@@ -1566,6 +1603,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broadband_address_leases":     broadbandAddressLeaseStatus,
 		"broadband_qos_service_flows":  broadbandQoSServiceFlowStatus,
 		"broadband_l2tp_wholesale":     broadbandL2TPWholesaleStatus,
+		"broadband_dhcp_security":      broadbandDHCPSecurityStatus,
 		"local_firewall":               runtimeFirewallStatus,
 		"atomic_transactions":          atomicEnforcementStatus,
 	}

@@ -3555,6 +3555,11 @@ export default function AccessSettings() {
   const [broadbandL2TPWholesaleAction, setBroadbandL2TPWholesaleAction] =
     useState("");
   const broadbandL2TPWholesaleBusy = broadbandL2TPWholesaleAction !== "";
+  const [broadbandDHCPSecurity, setBroadbandDHCPSecurity] =
+    useState<JsonMap | null>(null);
+  const [broadbandDHCPSecurityAction, setBroadbandDHCPSecurityAction] =
+    useState("");
+  const broadbandDHCPSecurityBusy = broadbandDHCPSecurityAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3701,6 +3706,11 @@ export default function AccessSettings() {
   const loadBroadbandL2TPWholesale = async () => {
     const { data } = await api.get("/system/broadband-l2tp-wholesale");
     setBroadbandL2TPWholesale(data.report || null);
+  };
+
+  const loadBroadbandDHCPSecurity = async () => {
+    const { data } = await api.get("/system/broadband-dhcp-security");
+    setBroadbandDHCPSecurity(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3946,6 +3956,7 @@ export default function AccessSettings() {
         broadbandAddressLeasesRes,
         broadbandQoSServiceFlowsRes,
         broadbandL2TPWholesaleRes,
+        broadbandDHCPSecurityRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -3964,6 +3975,7 @@ export default function AccessSettings() {
         api.get("/system/broadband-address-leases"),
         api.get("/system/broadband-qos-service-flows"),
         api.get("/system/broadband-l2tp-wholesale"),
+        api.get("/system/broadband-dhcp-security"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -3990,6 +4002,7 @@ export default function AccessSettings() {
         broadbandQoSServiceFlowsRes.data.report || null,
       );
       setBroadbandL2TPWholesale(broadbandL2TPWholesaleRes.data.report || null);
+      setBroadbandDHCPSecurity(broadbandDHCPSecurityRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4090,6 +4103,7 @@ export default function AccessSettings() {
       await loadBroadbandAddressLeases();
       await loadBroadbandQoSServiceFlows();
       await loadBroadbandL2TPWholesale();
+      await loadBroadbandDHCPSecurity();
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -5107,6 +5121,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewBroadbandDHCPSecurity = async () => {
+    setBroadbandDHCPSecurityAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-dhcp-security/preview",
+        {},
+      );
+      setBroadbandDHCPSecurity(data.report || null);
+      setMessage(
+        `DHCP security preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview DHCP relay, snooping, Option 82, and source guard.",
+      );
+    } finally {
+      setBroadbandDHCPSecurityAction("");
+    }
+  };
+
+  const applyBroadbandDHCPSecurity = async () => {
+    setBroadbandDHCPSecurityAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-dhcp-security/apply",
+        {},
+      );
+      setBroadbandDHCPSecurity(data.report || null);
+      setMessage(
+        `DHCP security ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadBroadbandDHCPSecurity();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply DHCP relay, snooping, Option 82, and source guard.",
+      );
+    } finally {
+      setBroadbandDHCPSecurityAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -5862,6 +5927,36 @@ export default function AccessSettings() {
     ? broadbandL2TPWholesale?.compliance
     : [];
   const broadbandL2TPTone = statusTone(broadbandL2TPWholesale?.status);
+  const broadbandDHCPSecuritySummary = broadbandDHCPSecurity?.summary || {};
+  const broadbandDHCPRelayAgents = Array.isArray(
+    broadbandDHCPSecurity?.relay_agents,
+  )
+    ? broadbandDHCPSecurity?.relay_agents
+    : [];
+  const broadbandDHCPPorts = Array.isArray(broadbandDHCPSecurity?.ports)
+    ? broadbandDHCPSecurity?.ports
+    : [];
+  const broadbandDHCPOption82Rules = Array.isArray(
+    broadbandDHCPSecurity?.option82_rules,
+  )
+    ? broadbandDHCPSecurity?.option82_rules
+    : [];
+  const broadbandDHCPSourceGuardPolicies = Array.isArray(
+    broadbandDHCPSecurity?.source_guard_policies,
+  )
+    ? broadbandDHCPSecurity?.source_guard_policies
+    : [];
+  const broadbandDHCPRADIUSCorrelation = Array.isArray(
+    broadbandDHCPSecurity?.radius_correlation,
+  )
+    ? broadbandDHCPSecurity?.radius_correlation
+    : [];
+  const broadbandDHCPCompliance = Array.isArray(
+    broadbandDHCPSecurity?.compliance,
+  )
+    ? broadbandDHCPSecurity?.compliance
+    : [];
+  const broadbandDHCPTone = statusTone(broadbandDHCPSecurity?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -6302,6 +6397,24 @@ export default function AccessSettings() {
             {broadbandL2TPWholesaleAction === "apply"
               ? "Applying L2TP..."
               : "Apply L2TP Wholesale"}
+          </button>
+          <button
+            onClick={previewBroadbandDHCPSecurity}
+            disabled={broadbandDHCPSecurityBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {broadbandDHCPSecurityAction === "preview"
+              ? "Checking DHCP Security..."
+              : "Preview DHCP Security"}
+          </button>
+          <button
+            onClick={applyBroadbandDHCPSecurity}
+            disabled={broadbandDHCPSecurityBusy}
+            className="rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-900 disabled:opacity-60"
+          >
+            {broadbandDHCPSecurityAction === "apply"
+              ? "Applying DHCP Security..."
+              : "Apply DHCP Security"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -7174,6 +7287,397 @@ export default function AccessSettings() {
         ) : (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
             L2TP wholesale realm separation report has not loaded yet.
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              DHCP Relay, Snooping, Option 82, And Source Guard
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {broadbandDHCPSecurity?.release_certification_checklist ||
+                "Validate relay agents, trusted uplinks, Option 82 identity, source guard, accounting correlation, and access-node behavior before live enforcement."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${broadbandDHCPTone}`}
+          >
+            {broadbandDHCPSecurity?.status || "unknown"}
+          </div>
+        </div>
+        {broadbandDHCPSecurity ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {broadbandDHCPSecurity.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Relays",
+                  `${broadbandDHCPSecuritySummary.enabled_relay_agent_count || 0}/${broadbandDHCPSecuritySummary.relay_agent_count || 0}`,
+                ],
+                [
+                  "Ports",
+                  `${broadbandDHCPSecuritySummary.enabled_port_count || 0}/${broadbandDHCPSecuritySummary.port_count || 0}`,
+                ],
+                [
+                  "Trusted",
+                  broadbandDHCPSecuritySummary.trusted_port_count || 0,
+                ],
+                [
+                  "Option 82",
+                  `${broadbandDHCPSecuritySummary.enabled_option82_rule_count || 0}/${broadbandDHCPSecuritySummary.option82_rule_count || 0}`,
+                ],
+                [
+                  "Source Guard",
+                  `${broadbandDHCPSecuritySummary.enabled_source_guard_policy_count || 0}/${broadbandDHCPSecuritySummary.source_guard_policy_count || 0}`,
+                ],
+                [
+                  "Compliance",
+                  `${broadbandDHCPSecuritySummary.passed_check_count || 0}/${broadbandDHCPSecuritySummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              Mode{" "}
+              <span className="font-mono">
+                {broadbandDHCPSecuritySummary.mode || "monitor"}
+              </span>{" "}
+              / Option 82{" "}
+              <span className="font-mono">
+                {broadbandDHCPSecuritySummary.option82_policy || "append"}
+              </span>{" "}
+              / unknown bindings{" "}
+              <span className="font-mono">
+                {broadbandDHCPSecuritySummary.drop_unknown_bindings
+                  ? "drop"
+                  : "allow"}
+              </span>{" "}
+              / CoA{" "}
+              <span className="font-mono">
+                {broadbandDHCPSecuritySummary.dynamic_auth_enabled
+                  ? "ready"
+                  : "blocked"}
+              </span>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Relay Agents
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandDHCPRelayAgents.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No DHCP relay agent is configured.
+                    </div>
+                  ) : (
+                    broadbandDHCPRelayAgents
+                      .slice(0, 8)
+                      .map((relay: JsonMap, index: number) => (
+                        <div
+                          key={`${relay.name || "dhcp-relay"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {relay.name || "DHCP Relay"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                relay.status,
+                              )}`}
+                            >
+                              {relay.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              relay.interface,
+                              relay.vlan ? `VLAN ${relay.vlan}` : "",
+                              relay.gateway_address,
+                              relay.server_group,
+                              relay.vrf,
+                              relay.trusted ? "trusted" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Relay metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  DHCP Security Ports
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandDHCPPorts.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No DHCP security port is configured.
+                    </div>
+                  ) : (
+                    broadbandDHCPPorts
+                      .slice(0, 8)
+                      .map((port: JsonMap, index: number) => (
+                        <div
+                          key={`${port.binding_key || port.name || "dhcp-port"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {port.name || port.interface || "DHCP Port"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                port.status,
+                              )}`}
+                            >
+                              {port.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              port.interface,
+                              port.vlan ? `VLAN ${port.vlan}` : "",
+                              port.role,
+                              port.trusted ? "trusted" : "untrusted",
+                              port.circuit_id,
+                              port.remote_id,
+                              port.source_guard_policy,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Port binding metadata only"}
+                          </div>
+                          {port.compiled_options?.length > 0 && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              {port.compiled_options
+                                .slice(0, 6)
+                                .map((option: JsonMap) => option.name)
+                                .filter(Boolean)
+                                .join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Option 82 Rules
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandDHCPOption82Rules.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No Option 82 rule is configured.
+                    </div>
+                  ) : (
+                    broadbandDHCPOption82Rules
+                      .slice(0, 8)
+                      .map((rule: JsonMap, index: number) => (
+                        <div
+                          key={`${rule.name || "option82-rule"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {rule.name || "Option 82 Rule"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                rule.status,
+                              )}`}
+                            >
+                              {rule.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              rule.match_interface,
+                              rule.match_vlan ? `VLAN ${rule.match_vlan}` : "",
+                              rule.action,
+                              rule.require_remote_id ? "remote ID required" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Option 82 metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Source Guard Policies
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandDHCPSourceGuardPolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No source guard policy is configured.
+                    </div>
+                  ) : (
+                    broadbandDHCPSourceGuardPolicies
+                      .slice(0, 8)
+                      .map((policy: JsonMap, index: number) => (
+                        <div
+                          key={`${policy.name || "source-guard"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {policy.name || "Source Guard"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                policy.status,
+                              )}`}
+                            >
+                              {policy.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              policy.mode,
+                              policy.action_on_violation,
+                              policy.coa_action,
+                              policy.ipv6_enabled ? "IPv6" : "",
+                              policy.max_bindings
+                                ? `${policy.max_bindings} bindings`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Source guard metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  RADIUS Correlation
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandDHCPRADIUSCorrelation.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No RADIUS correlation rule is present.
+                    </div>
+                  ) : (
+                    broadbandDHCPRADIUSCorrelation
+                      .slice(0, 8)
+                      .map((binding: JsonMap, index: number) => (
+                        <div
+                          key={`${binding.name || "dhcp-radius"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="font-medium text-gray-900">
+                            {binding.name || "RADIUS Correlation"}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-600">
+                            {[
+                              binding.source,
+                              (binding.attributes || []).join(", "),
+                              (binding.accounting_stages || []).join(", "),
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") ||
+                              binding.purpose ||
+                              "Correlation metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Compliance Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandDHCPCompliance.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No DHCP security compliance check is present.
+                    </div>
+                  ) : (
+                    broadbandDHCPCompliance
+                      .slice(0, 8)
+                      .map((check: JsonMap, index: number) => (
+                        <div
+                          key={`${check.id || check.name || "dhcp-check"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {check.name || check.id || "Compliance Check"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                check.status,
+                              )}`}
+                            >
+                              {check.status || "unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {check.message || "No compliance message"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            {((broadbandDHCPSecurity.blockers?.length || 0) > 0 ||
+              (broadbandDHCPSecurity.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(broadbandDHCPSecurity.blockers || []),
+                  ...(broadbandDHCPSecurity.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Relay{" "}
+              <span className="font-mono">
+                {broadbandDHCPSecuritySummary.relay_enabled ? "on" : "off"}
+              </span>{" "}
+              / snooping{" "}
+              <span className="font-mono">
+                {broadbandDHCPSecuritySummary.snooping_enabled ? "on" : "off"}
+              </span>{" "}
+              / source guard{" "}
+              <span className="font-mono">
+                {broadbandDHCPSecuritySummary.source_guard_enabled
+                  ? "on"
+                  : "off"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {broadbandDHCPSecurity.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            DHCP security report has not loaded yet.
           </div>
         )}
       </section>

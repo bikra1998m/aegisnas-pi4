@@ -1546,6 +1546,28 @@ For L2TP and wholesale realm separation:
    performance, soak, security audit, and customer acceptance in
    `nas-0088-release-certification-checklist.md`
 
+For DHCP relay, DHCP snooping, Option 82, and IP source guard:
+
+1. keep `broadband.dhcp_security.mode: monitor` until DHCP, subscriber state,
+   address leases, SQL accounting, accounting services, dynamic authorization,
+   relay agents, trusted uplinks, Option 82 rules, and source guard policies
+   are modeled
+2. model every relay agent and access port with explicit interface, VLAN,
+   trust state, circuit ID, remote ID, tenant, subscriber product, and vendor
+   packs
+3. use `POST /api/v1/system/broadband-dhcp-security/preview` to inspect
+   compiled evidence such as `DHCP-Relay-Agent-Information`,
+   `Agent-Circuit-Id`, `Agent-Remote-Id`, `Class`, `Cisco-AVPair`,
+   `Juniper-AV-Pair`, `Huawei-AVpair`, and `Nokia-AVPair`
+4. run apply only after operator review of trusted uplink coverage, Option 82
+   behavior, source guard violation action, CoA recovery, accounting
+   correlation, compliance checks, and plan fingerprint
+5. export a support bundle and retain `api/broadband-dhcp-security.json` and
+   `api/broadband-dhcp-security-history.json`
+6. keep live access-node packet captures, DHCP snooping/source-guard proof, HA
+   failover, performance, soak, security audit, and customer acceptance in
+   `nas-0089-release-certification-checklist.md`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

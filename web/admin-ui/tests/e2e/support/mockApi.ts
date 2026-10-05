@@ -4153,6 +4153,233 @@ function createBroadbandL2TPWholesale(status = "ready") {
   };
 }
 
+function createBroadbandDHCPSecurity(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0089",
+      status,
+      message:
+        "NAS-0089 DHCP security is ready with 1 relay agent, 2 port bindings, 1 Option 82 rule, and 1 source guard policy.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0089-release-certification-checklist.md",
+      release_scope:
+        "Live switch or OLT DHCP relay, snooping, Option 82, source guard, HA, scale, soak, security, and customer proof are release certification activities.",
+      plan_fingerprint:
+        "sha256:0089a2470403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81ed",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        require_dhcp: true,
+        require_subscriber_state: true,
+        require_address_leases: true,
+        require_accounting: true,
+        require_dynamic_auth: true,
+        relay_enabled: true,
+        snooping_enabled: true,
+        source_guard_enabled: true,
+        option82_required: true,
+        drop_unknown_bindings: true,
+        trusted_uplink_required: true,
+        option82_policy: "append",
+        binding_retention_seconds: 86400,
+        violation_hold_down_seconds: 300,
+        event_retention_limit: 10000,
+        dhcp_enabled: true,
+        subscriber_state_enabled: true,
+        address_leases_enabled: true,
+        sql_accounting_enabled: true,
+        accounting_services_enabled: true,
+        dynamic_auth_enabled: true,
+        relay_agent_count: 1,
+        enabled_relay_agent_count: 1,
+        port_count: 2,
+        enabled_port_count: 2,
+        trusted_port_count: 1,
+        option82_rule_count: 1,
+        enabled_option82_rule_count: 1,
+        source_guard_policy_count: 1,
+        enabled_source_guard_policy_count: 1,
+        radius_correlation_count: 1,
+        compiled_option_count: 12,
+        compliance_check_count: 10,
+        passed_check_count: 10,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 1,
+      },
+      relay_agents: [
+        {
+          name: "relay-vlan100",
+          enabled: true,
+          interface: "eth1.100",
+          vlan: 100,
+          gateway_address: "192.0.2.1",
+          server_group: "dhcp-core",
+          vrf: "retail",
+          circuit_id_template: "{{interface}}:{{vlan}}",
+          remote_id_template: "{{tenant}}",
+          append_option82: true,
+          replace_option82: false,
+          trusted: true,
+          max_clients: 4096,
+          vendor_packs: ["standard", "cisco", "huawei"],
+          status: "ready",
+          reason: "Relay agent can stamp Option 82 and forward DHCP traffic.",
+        },
+      ],
+      ports: [
+        {
+          binding_key: "bdhcp-subscriber-port-1",
+          name: "subscriber-port-1",
+          enabled: true,
+          interface: "eth1.100",
+          vlan: 100,
+          role: "access",
+          trusted: false,
+          circuit_id: "olt1/1/1",
+          remote_id: "retail",
+          subscriber_product: "residential-fiber",
+          tenant: "retail",
+          max_leases: 4,
+          relay_agent: "relay-vlan100",
+          source_guard_policy: "strict-access",
+          vendor_packs: ["standard", "cisco"],
+          status: "ready",
+          reason:
+            "DHCP snooping binding can correlate Option 82, lease, subscriber, and source guard state.",
+          compiled_options: [
+            { name: "DHCP-Relay-Agent-Information", value: "enabled" },
+            { name: "Agent-Circuit-Id", value: "olt1/1/1" },
+            { name: "Agent-Remote-Id", value: "retail" },
+            { name: "Class", value: "dhcp-security:bdhcp-subscriber-port-1" },
+            {
+              name: "AegisNAS-Subscriber-Product",
+              value: "residential-fiber",
+            },
+            { name: "Cisco-AVPair", value: "dhcp-option82=olt1/1/1" },
+            { name: "Source-Guard", value: "strict-access" },
+          ],
+        },
+        {
+          binding_key: "bdhcp-uplink",
+          name: "uplink",
+          enabled: true,
+          interface: "eth1",
+          vlan: 0,
+          role: "uplink",
+          trusted: true,
+          circuit_id: "eth1:0",
+          remote_id: "aegisnas",
+          max_leases: 100000,
+          vendor_packs: ["standard"],
+          status: "ready",
+          reason: "Trusted uplink accepts relay/server-facing DHCP traffic.",
+          compiled_options: [
+            { name: "DHCP-Relay-Agent-Information", value: "enabled" },
+            { name: "Agent-Circuit-Id", value: "eth1:0" },
+            { name: "Agent-Remote-Id", value: "aegisnas" },
+          ],
+        },
+      ],
+      option82_rules: [
+        {
+          name: "access-option82",
+          enabled: true,
+          match_interface: "eth1.100",
+          match_vlan: 100,
+          circuit_id_template: "{{port}}",
+          remote_id_template: "{{tenant}}",
+          action: "append",
+          require_remote_id: true,
+          vendor_packs: ["standard", "cisco"],
+          status: "ready",
+          reason: "Option 82 rule can stamp circuit and remote identifiers.",
+        },
+      ],
+      source_guard_policies: [
+        {
+          name: "strict-access",
+          enabled: true,
+          mode: "enforce",
+          interfaces: ["eth1.100"],
+          vlans: [100],
+          allow_unknown: false,
+          max_bindings: 4096,
+          ipv6_enabled: true,
+          action_on_violation: "drop",
+          coa_action: "disconnect",
+          status: "ready",
+          reason: "Source guard policy binds subscriber ports to lease owners.",
+        },
+      ],
+      radius_correlation: [
+        {
+          name: "option82-accounting",
+          enabled: true,
+          source: "option82",
+          attributes: ["Class", "NAS-Port-Id", "Calling-Station-Id"],
+          accounting_stages: ["start", "interim", "stop"],
+          purpose: "Carry DHCP binding identity into accounting evidence.",
+          status: "ready",
+        },
+      ],
+      compliance: [
+        {
+          id: "dhcp",
+          name: "DHCP service dependency",
+          status: "passed",
+          message: "DHCP service is available for relay and lease correlation.",
+        },
+        {
+          id: "option82",
+          name: "Option 82 policy",
+          status: "passed",
+          message: "Option 82 rule evidence is present.",
+        },
+        {
+          id: "source-guard",
+          name: "IP source guard policy",
+          status: "passed",
+          message: "Source guard policy evidence is present.",
+        },
+        {
+          id: "external-certification",
+          name: "External DHCP security certification boundary",
+          status: "passed",
+          message:
+            "Live switch/OLT DHCP relay, snooping, Option 82, source guard, HA, scale, soak, security, and customer proof are release certification activities.",
+        },
+      ],
+      standards: ["RFC 2131", "RFC 3046", "RFC 2865", "RFC 2866", "RFC 5176"],
+      vendors: ["Cisco", "Juniper", "Nokia/Alcatel-Lucent", "Huawei/H3C"],
+      requirements: ["model trusted and untrusted DHCP security bindings"],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        active_bindings: 0,
+        planned_bindings: 2,
+      },
+      recent_events: [],
+      bindings: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -9860,6 +10087,67 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           },
           events: [],
           realm_bindings: createBroadbandL2TPWholesale().report.realms,
+        },
+      });
+      return;
+    }
+    if (path === "/system/broadband-dhcp-security" && method === "GET") {
+      await route.fulfill({ json: createBroadbandDHCPSecurity() });
+      return;
+    }
+    if (
+      path === "/system/broadband-dhcp-security/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createBroadbandDHCPSecurity(),
+          event_id: "bng-dhcp-security-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-dhcp-security/apply" &&
+      method === "POST"
+    ) {
+      const payload = createBroadbandDHCPSecurity();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0089 recorded DHCP security with 1 relay agent, 2 port bindings, 1 Option 82 rule, and 1 source guard policy.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "bng-dhcp-security-event-apply",
+          result: {
+            status: "applied",
+            event_id: "bng-dhcp-security-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-dhcp-security/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0089",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+            planned_bindings: 2,
+            active_bindings: 0,
+          },
+          events: [],
+          bindings: createBroadbandDHCPSecurity().report.ports,
         },
       });
       return;

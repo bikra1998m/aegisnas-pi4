@@ -1445,6 +1445,89 @@ broadband:
         max_failures: 3
         accounting_replay: true
         coa_action: "reauth"
+  dhcp_security:
+    enabled: false # Enable after DHCP, subscriber state, address leases, SQL accounting, CoA, and access-node packet captures are ready.
+    mode: "monitor" # Use enforce only after trusted uplink, Option 82, and source-guard previews are reviewed.
+    fail_closed: true
+    require_dhcp: true
+    require_subscriber_state: true
+    require_address_leases: true
+    require_accounting: true
+    require_dynamic_auth: true
+    relay_enabled: true
+    snooping_enabled: true
+    source_guard_enabled: true
+    option82_required: true
+    drop_unknown_bindings: true
+    trusted_uplink_required: true
+    option82_policy: "append" # append, replace, verify, strip, or preserve.
+    binding_retention_seconds: 86400
+    violation_hold_down_seconds: 300
+    event_retention_limit: 10000
+    relay_agents:
+      - name: "relay-vlan100"
+        enabled: false
+        interface: "eth1.100"
+        vlan: 100
+        gateway_address: "192.0.2.1"
+        server_group: "dhcp-core"
+        vrf: "retail"
+        circuit_id_template: "{{interface}}:{{vlan}}"
+        remote_id_template: "{{tenant}}"
+        append_option82: true
+        replace_option82: false
+        trusted: true
+        max_clients: 4096
+        vendor_packs: ["standard", "aegisnas", "cisco", "huawei", "alcatel-esam"]
+    ports:
+      - name: "subscriber-port-1"
+        enabled: false
+        interface: "eth1.100"
+        vlan: 100
+        role: "access"
+        trusted: false
+        circuit_id: "olt1/1/1"
+        remote_id: "retail"
+        subscriber_product: "residential-fiber"
+        tenant: "retail"
+        max_leases: 4
+        source_guard_policy: "strict-access"
+        vendor_packs: ["standard", "aegisnas", "cisco", "huawei"]
+      - name: "uplink"
+        enabled: false
+        interface: "eth1"
+        vlan: 0
+        role: "uplink"
+        trusted: true
+        max_leases: 100000
+        vendor_packs: ["standard"]
+    option82_rules:
+      - name: "access-option82"
+        enabled: false
+        match_interface: "eth1.100"
+        match_vlan: 100
+        circuit_id_template: "{{port}}"
+        remote_id_template: "{{tenant}}"
+        action: "append"
+        require_remote_id: true
+        vendor_packs: ["standard", "aegisnas", "cisco", "huawei"]
+    source_guard_policies:
+      - name: "strict-access"
+        enabled: false
+        mode: "monitor"
+        interfaces: ["eth1.100"]
+        vlans: [100]
+        allow_unknown: false
+        max_bindings: 4096
+        ipv6_enabled: true
+        action_on_violation: "drop"
+        coa_action: "disconnect"
+    radius_correlation:
+      - name: "option82-accounting"
+        enabled: true
+        source: "option82"
+        attributes: ["Class", "NAS-Port-Id", "Calling-Station-Id"]
+        accounting_stages: ["start", "interim", "stop"]
 
 portal:
   enabled: true

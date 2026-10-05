@@ -223,6 +223,14 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/broadband-l2tp-wholesale"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/broadband-dhcp-security/apply"):
+		return method == http.MethodPost && identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/broadband-dhcp-security/preview"):
+		return method == http.MethodPost && (identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/broadband-dhcp-security/history"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/broadband-dhcp-security"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/vendor-compatibility"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/dictionary-release-profiles"):

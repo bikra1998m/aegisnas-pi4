@@ -81,6 +81,7 @@ type BroadbandConfig struct {
 	AddressLeases     BroadbandAddressLeaseConfig    `mapstructure:"address_leases"`
 	QoSServiceFlows   BroadbandQoSServiceFlowConfig  `mapstructure:"qos_service_flows"`
 	L2TPWholesale     BroadbandL2TPWholesaleConfig   `mapstructure:"l2tp_wholesale"`
+	DHCPSecurity      BroadbandDHCPSecurityConfig    `mapstructure:"dhcp_security"`
 }
 
 type BroadbandPPPoEConfig struct {
@@ -3446,6 +3447,24 @@ func load(configPath string, persistGlobal bool) (*Config, error) {
 	v.SetDefault("broadband.l2tp_wholesale.coa_on_failover", true)
 	v.SetDefault("broadband.l2tp_wholesale.selection_policy", "realm")
 	v.SetDefault("broadband.l2tp_wholesale.event_retention_limit", 10000)
+	v.SetDefault("broadband.dhcp_security.enabled", false)
+	v.SetDefault("broadband.dhcp_security.mode", "monitor")
+	v.SetDefault("broadband.dhcp_security.fail_closed", true)
+	v.SetDefault("broadband.dhcp_security.require_dhcp", true)
+	v.SetDefault("broadband.dhcp_security.require_subscriber_state", true)
+	v.SetDefault("broadband.dhcp_security.require_address_leases", true)
+	v.SetDefault("broadband.dhcp_security.require_accounting", true)
+	v.SetDefault("broadband.dhcp_security.require_dynamic_auth", true)
+	v.SetDefault("broadband.dhcp_security.relay_enabled", true)
+	v.SetDefault("broadband.dhcp_security.snooping_enabled", true)
+	v.SetDefault("broadband.dhcp_security.source_guard_enabled", true)
+	v.SetDefault("broadband.dhcp_security.option82_required", true)
+	v.SetDefault("broadband.dhcp_security.drop_unknown_bindings", true)
+	v.SetDefault("broadband.dhcp_security.trusted_uplink_required", true)
+	v.SetDefault("broadband.dhcp_security.option82_policy", "append")
+	v.SetDefault("broadband.dhcp_security.binding_retention_seconds", 86400)
+	v.SetDefault("broadband.dhcp_security.violation_hold_down_seconds", 300)
+	v.SetDefault("broadband.dhcp_security.event_retention_limit", 10000)
 	v.SetDefault("network.dns.upstream_servers", []string{"8.8.8.8", "8.8.4.4"})
 	v.SetDefault("network.dns.local_domain", "aegis.local")
 	v.SetDefault("network.firewall.dos_protection.syn_rate", "50/second")
@@ -6067,6 +6086,9 @@ func (c *Config) Validate() error {
 		return err
 	}
 	if err := validateBroadbandL2TPWholesaleConfig(c.Broadband.L2TPWholesale, c.Broadband.PPPoE, c.Broadband.Subscriber, c.Radius, profile); err != nil {
+		return err
+	}
+	if err := validateBroadbandDHCPSecurityConfig(c.Broadband.DHCPSecurity, c.DHCP, c.Broadband.Subscriber, c.Broadband.AddressLeases, c.Radius, profile); err != nil {
 		return err
 	}
 	if err := validateRadSecConfig(c); err != nil {

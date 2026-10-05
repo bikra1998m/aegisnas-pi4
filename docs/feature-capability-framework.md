@@ -767,6 +767,24 @@ deployment, and customer acceptance as release certification evidence rather
 than open engineering work. This keeps the feature closed when software is
 complete while preserving honest external validation boundaries.
 
+### Phase 9 DHCP Relay, Snooping, Option 82, And Source Guard
+
+NAS-0089 extends the broadband capability model with DHCP relay governance,
+DHCP snooping binding evidence, RFC 3046 Option 82 identity, IP source guard
+policy, and RADIUS accounting correlation. The software layer now represents
+relay agents, trusted uplinks, untrusted subscriber ports, circuit IDs, remote
+IDs, subscriber product binding, tenant scope, source-guard violation behavior,
+CoA recovery intent, standards and vendor evidence, durable history, API/UI
+operation, support-bundle capture, and production-readiness checks.
+
+The capability framework treats live switch or OLT relay behavior, DHCP
+snooping table creation, Option 82 packet captures, source-guard enforcement,
+FreeRADIUS production Linux proof, HA failover, scale, soak, security audit,
+production deployment, and customer acceptance as release certification
+evidence rather than open engineering work. This keeps engineering completion
+tied to tested software behavior while preserving honest external validation
+boundaries.
+
 ## Product Positioning Outcome
 
 If this framework is implemented cleanly, AegisNAS can become:

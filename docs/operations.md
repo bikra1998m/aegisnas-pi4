@@ -1182,6 +1182,40 @@ LAC/LNS packet captures, partner acceptance, FreeRADIUS production Linux, HA
 failover, performance, soak, security audit, production deployment, and customer
 acceptance evidence stay in `nas-0088-release-certification-checklist.md`.
 
+For DHCP relay, snooping, Option 82, and source guard, preview NAS-0089 before
+enabling enforce mode or changing relay agents, trusted uplinks, subscriber
+ports, Option 82 rules, source guard policy, accounting correlation, or CoA
+recovery:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-dhcp-security/preview \
+  | jq '.report.status, .report.summary, .report.ports, .report.option82_rules'
+```
+
+Apply only after reviewing trusted uplink coverage, `Agent-Circuit-Id`,
+`Agent-Remote-Id`, `Class` correlation, vendor AVPair evidence, source guard
+violation action, CoA behavior, compliance checks, and the plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-dhcp-security/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/broadband-dhcp-security/history` and the support bundle
+files `api/broadband-dhcp-security.json` and
+`api/broadband-dhcp-security-history.json` during relay, snooping, Option 82,
+source guard, accounting correlation, CoA, failover, and HA investigations.
+Live switch or OLT packet captures, source-guard enforcement proof,
+FreeRADIUS production Linux, HA failover, performance, soak, security audit,
+production deployment, and customer acceptance evidence stay in
+`nas-0089-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

@@ -173,6 +173,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionBroadbandAddressLeaseCheck(&report, cfg)
 	addProductionBroadbandQoSServiceFlowCheck(&report, cfg)
 	addProductionBroadbandL2TPWholesaleCheck(&report, cfg)
+	addProductionBroadbandDHCPSecurityCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -2453,6 +2454,74 @@ func addProductionBroadbandL2TPWholesaleCheck(report *productionReadinessReport,
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/broadband-l2tp-wholesale/preview before enabling L2TP wholesale enforcement, apply only after reviewing realm isolation, tunnel selection, proxy routes, accounting delegation, failover policy, CoA behavior, and compiled RADIUS attributes. Keep live LAC/LNS hardware, packet captures, HA, scale, soak, security, and customer proof in the NAS-0088 release certification checklist.",
 		Dependencies:   []string{"broadband.l2tp_wholesale", "broadband.pppoe", "broadband.subscriber_state", "radius.upstream", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "/api/v1/system/broadband-l2tp-wholesale", "/api/v1/system/broadband-l2tp-wholesale/preview", "/api/v1/system/broadband-l2tp-wholesale/apply", "broadband_l2tp_wholesale_bindings", "broadband_l2tp_wholesale_events", "Tunnel-Type", "Tunnel-Medium-Type", "Tunnel-Server-Endpoint", "Tunnel-Client-Endpoint", "Proxy-State", "Class", "Cisco-AVPair", "Juniper-AV-Pair", "Nokia-AVPair", "RFC 2661", "RFC 2865", "RFC 2866", "RFC 2868", "RFC 5176"},
+	})
+}
+
+func addProductionBroadbandDHCPSecurityCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0089 DHCP relay, snooping, Option 82, and IP source guard software is ready."
+	reportData, err := enforcement.PreviewBroadbandDHCPSecurity(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Broadband DHCP security preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped", "disabled":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0089 schema %d status=%s, mode=%s, relay_agents=%d, ports=%d, trusted_ports=%d, option82_rules=%d, source_guard_policies=%d, compiled_options=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.RelayAgentCount,
+			reportData.Summary.PortCount,
+			reportData.Summary.TrustedPortCount,
+			reportData.Summary.Option82RuleCount,
+			reportData.Summary.SourceGuardPolicyCount,
+			reportData.Summary.CompiledOptionCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "disabled" || reportData.Status == "skipped" {
+			summary += " DHCP security lifecycle is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but DHCP security event history cannot be verified."
+	} else if evidence, err := db.GetBroadbandDHCPSecuritySummary(); err != nil {
+		status = "blocked"
+		summary += " Broadband DHCP security evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 || evidence.BlockedBindings > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, active_bindings=%d, planned_bindings=%d, last_ports=%d, last_option82_rules=%d, last_options=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.ActiveBindings,
+			evidence.PlannedBindings,
+			evidence.LastPortCount,
+			evidence.LastOption82RuleCount,
+			evidence.LastCompiledOptionCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "broadband_dhcp_security",
+		Category:       "radius",
+		Label:          "NAS-0089 DHCP Relay, Snooping, Option 82, And IP Source Guard",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/broadband-dhcp-security/preview before enabling DHCP security enforcement, apply only after reviewing relay agents, trusted ports, Option 82 rules, source guard policies, accounting correlation, CoA recovery, and compiled DHCP/RADIUS evidence. Keep live switch/OLT DHCP relay, snooping, Option 82 packet captures, IP source-guard enforcement, HA, scale, soak, security, and customer proof in the NAS-0089 release certification checklist.",
+		Dependencies:   []string{"broadband.dhcp_security", "dhcp.enabled", "broadband.subscriber_state", "broadband.address_leases", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "/api/v1/system/broadband-dhcp-security", "/api/v1/system/broadband-dhcp-security/preview", "/api/v1/system/broadband-dhcp-security/apply", "broadband_dhcp_security_bindings", "broadband_dhcp_security_events", "DHCP-Relay-Agent-Information", "Agent-Circuit-Id", "Agent-Remote-Id", "Class", "Cisco-AVPair", "Huawei-AVpair", "RFC 2131", "RFC 3046", "RFC 2865", "RFC 2866", "RFC 5176"},
 	})
 }
 

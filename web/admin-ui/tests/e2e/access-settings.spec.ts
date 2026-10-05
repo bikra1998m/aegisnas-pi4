@@ -624,4 +624,55 @@ test.describe("Access Settings edge-network flow", () => {
       page.getByText(/L2TP wholesale realm separation applied/),
     ).toBeVisible();
   });
+
+  test("previews and applies DHCP relay and source guard", async ({
+    page,
+  }) => {
+    test.setTimeout(60000);
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto("/access-settings");
+    const dhcpSecurityHeading = page.getByRole("heading", {
+      name: "DHCP Relay, Snooping, Option 82, And Source Guard",
+    });
+    await expect(dhcpSecurityHeading).toBeVisible({ timeout: 30000 });
+    const dhcpSecuritySection = dhcpSecurityHeading.locator(
+      "xpath=ancestor::section[1]",
+    );
+    await expect(dhcpSecuritySection).toBeVisible();
+    await expect(
+      dhcpSecuritySection.getByRole("heading", { name: "Relay Agents" }),
+    ).toBeVisible();
+    await expect(
+      dhcpSecuritySection.getByRole("heading", {
+        name: "DHCP Security Ports",
+      }),
+    ).toBeVisible();
+    await expect(
+      dhcpSecuritySection.getByRole("heading", { name: "Option 82 Rules" }),
+    ).toBeVisible();
+    await expect(
+      dhcpSecuritySection.getByRole("heading", {
+        name: "Source Guard Policies",
+      }),
+    ).toBeVisible();
+    await expect(
+      dhcpSecuritySection.getByText("relay-vlan100", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(
+      dhcpSecuritySection
+        .getByText("subscriber-port-1", { exact: true })
+        .first(),
+    ).toBeVisible();
+    await expect(
+      dhcpSecuritySection.getByText("Agent-Circuit-Id").first(),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Preview DHCP Security" }).click();
+    await expect(page.getByText(/DHCP security preview recorded/)).toBeVisible();
+
+    await page.getByRole("button", { name: "Apply DHCP Security" }).click();
+    await expect(page.getByText(/DHCP security applied/)).toBeVisible();
+  });
 });

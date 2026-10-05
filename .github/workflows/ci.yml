@@ -34,6 +34,7 @@ jobs:
       - run: make test-broadband-address-leases
       - run: make test-broadband-qos-service-flows
       - run: make test-broadband-l2tp-wholesale
+      - run: make test-broadband-dhcp-security
 
   frontend:
     runs-on: ubuntu-latest
