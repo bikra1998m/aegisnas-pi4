@@ -130,8 +130,11 @@ func (m *Manager) cleanupExpiredSessions() {
 
 func (m *Manager) enforceTimeouts() {
 	// Fetch all active sessions
-	rows, err := m.db.Query(`SELECT id, start_time, last_activity, role, session_timeout, idle_timeout
-		FROM sessions WHERE end_time IS NULL`)
+	rows, err := m.db.Query(`SELECT s.id, s.start_time, s.last_activity, s.session_timeout, s.idle_timeout,
+			r.session_timeout, r.idle_timeout
+		FROM sessions s
+		LEFT JOIN roles r ON r.name = s.role
+		WHERE s.end_time IS NULL`)
 	if err != nil {
 		m.logger.Error("failed to query active sessions", zap.Error(err))
 		return
@@ -142,28 +145,23 @@ func (m *Manager) enforceTimeouts() {
 	expired := make(map[string]string)
 	for rows.Next() {
 		var (
-			idRaw        any
-			startTimeRaw any
-			lastActivity any
-			roleRaw      any
-			sessionTO    sql.NullInt32
-			idleTO       sql.NullInt32
+			idRaw         any
+			startTimeRaw  any
+			lastActivity  any
+			sessionTO     sql.NullInt32
+			idleTO        sql.NullInt32
+			roleSessionTO sql.NullInt32
+			roleIdleTO    sql.NullInt32
 		)
-		if err := rows.Scan(&idRaw, &startTimeRaw, &lastActivity, &roleRaw, &sessionTO, &idleTO); err != nil {
+		if err := rows.Scan(&idRaw, &startTimeRaw, &lastActivity, &sessionTO, &idleTO, &roleSessionTO, &roleIdleTO); err != nil {
 			m.logger.Error("scan session row", zap.Error(err))
 			continue
 		}
 		id := dbTimeString(idRaw)
-		role := dbTimeString(roleRaw)
 		startTime := parseDBTime(dbTimeString(startTimeRaw))
 
 		// Determine absolute timeout
-		absTimeout := sessionTO.Int32
-		if absTimeout == 0 {
-			if err := m.db.QueryRow("SELECT session_timeout FROM roles WHERE name = ?", role).Scan(&absTimeout); err != nil {
-				absTimeout = 28800 // default 8 hours
-			}
-		}
+		absTimeout := timeoutValue(sessionTO, roleSessionTO, 28800)
 		if absTimeout > 0 {
 			expiry := startTime.Add(time.Duration(absTimeout) * time.Second)
 			if startTime.IsZero() || now.After(expiry) {
@@ -173,12 +171,7 @@ func (m *Manager) enforceTimeouts() {
 		}
 
 		// Determine idle timeout
-		idleTimeout := idleTO.Int32
-		if idleTimeout == 0 {
-			if err := m.db.QueryRow("SELECT idle_timeout FROM roles WHERE name = ?", role).Scan(&idleTimeout); err != nil {
-				idleTimeout = 3600 // default 1 hour
-			}
-		}
+		idleTimeout := timeoutValue(idleTO, roleIdleTO, 3600)
 		lastActivityRaw := dbTimeString(lastActivity)
 		if idleTimeout > 0 && lastActivityRaw != "" {
 			lastActivityTime := parseDBTime(lastActivityRaw)
@@ -196,6 +189,16 @@ func (m *Manager) enforceTimeouts() {
 	if err := enforcement.SyncRuntimeEnforcement(m.cfg); err != nil {
 		m.logger.Warn("failed to sync runtime enforcement after timeout sweep", zap.Error(err))
 	}
+}
+
+func timeoutValue(sessionValue, roleValue sql.NullInt32, fallback int32) int32 {
+	if sessionValue.Valid && sessionValue.Int32 > 0 {
+		return sessionValue.Int32
+	}
+	if roleValue.Valid && roleValue.Int32 > 0 {
+		return roleValue.Int32
+	}
+	return fallback
 }
 
 func (m *Manager) terminateSession(sessionID, reason string) {

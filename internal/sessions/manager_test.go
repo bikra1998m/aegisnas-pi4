@@ -105,6 +105,26 @@ func TestManager_EnforceTimeoutsKeepsFreshSessionWithOffsetTimestamp(t *testing.
 	require.False(t, ended.Valid, "fresh offset timestamp session should remain active")
 }
 
+func TestManager_EnforceTimeoutsUsesRoleDefaultsWithoutNestedReads(t *testing.T) {
+	setupTestDB(t)
+	db.DB.SetMaxOpenConns(1)
+
+	cfg := &config.Config{}
+	logger := zap.NewNop()
+	mgr, err := NewManager(cfg, logger)
+	require.NoError(t, err)
+
+	_, err = db.DB.Exec(`INSERT INTO sessions (
+			id, username, role, start_time, last_activity
+		) VALUES ('role-timeout', 'guest1', 'guest-basic', ?, ?)`,
+		time.Now().Add(-1*time.Hour), time.Now().Add(-10*time.Minute))
+	require.NoError(t, err)
+
+	mgr.enforceTimeouts()
+
+	requireSessionStopped(t, "role-timeout", "Session timeout reached")
+}
+
 func TestManager_ReclassifyByCriteriaImmediateSessionTimeout(t *testing.T) {
 	setupTestDB(t)
 
