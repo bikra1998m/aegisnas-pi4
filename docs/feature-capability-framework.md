@@ -802,6 +802,22 @@ certification evidence rather than open engineering work. This keeps the
 feature closed when software is complete while preserving honest external
 validation boundaries.
 
+### Phase 9 Lawful Governance And Subscriber Self-Service
+
+NAS-0091 extends the broadband capability model with lawful-intercept case
+governance, dual approval, subscriber self-service actions, privacy controls,
+and durable evidence. The software layer now represents scoped lawful cases,
+approval policies, subscriber actions, privacy/redaction policies, standards
+and vendor RADIUS evidence, durable history, API/UI operation, support-bundle
+capture, runtime status, and production-readiness checks.
+
+The capability framework treats court-order workflow proof, regulator/customer
+acceptance, physical lawful-intercept adapters, FreeRADIUS production Linux
+proof, HA failover, scale, soak, security audit, production deployment, and
+customer acceptance as release certification evidence rather than open
+engineering work. This keeps the feature closed when software is complete while
+preserving honest legal and external validation boundaries.
+
 ## Product Positioning Outcome
 
 If this framework is implemented cleanly, AegisNAS can become:

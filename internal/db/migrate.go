@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 94
+	return 95
 }
 
 func Migrate() error {
@@ -5108,3 +5108,80 @@ CREATE INDEX IF NOT EXISTS idx_broadband_service_activation_events_mode ON broad
 `
 
 const schemaV94 = broadbandServiceActivationSQL
+
+const broadbandGovernanceSelfServiceSQL = `
+CREATE TABLE IF NOT EXISTS broadband_governance_cases (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	case_key TEXT UNIQUE NOT NULL,
+	name TEXT,
+	case_id TEXT,
+	legal_authority TEXT,
+	request_reference TEXT,
+	subscriber_id TEXT,
+	username TEXT,
+	tenant TEXT,
+	scope TEXT,
+	status TEXT NOT NULL DEFAULT 'planned',
+	attributes_json TEXT NOT NULL DEFAULT '[]',
+	source_event_id TEXT,
+	plan_fingerprint TEXT NOT NULL,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('ready', 'planned', 'blocked', 'degraded', 'withdrawn'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_self_service_requests (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	request_key TEXT UNIQUE NOT NULL,
+	action TEXT,
+	name TEXT,
+	status TEXT NOT NULL DEFAULT 'planned',
+	requires_approval BOOLEAN NOT NULL DEFAULT 0,
+	requires_mfa BOOLEAN NOT NULL DEFAULT 0,
+	attributes_json TEXT NOT NULL DEFAULT '[]',
+	source_event_id TEXT,
+	plan_fingerprint TEXT NOT NULL,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('ready', 'planned', 'blocked', 'degraded', 'withdrawn'))
+);
+
+CREATE TABLE IF NOT EXISTS broadband_governance_self_service_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	mode TEXT,
+	case_count INTEGER NOT NULL DEFAULT 0,
+	self_service_action_count INTEGER NOT NULL DEFAULT 0,
+	privacy_policy_count INTEGER NOT NULL DEFAULT 0,
+	approval_policy_count INTEGER NOT NULL DEFAULT 0,
+	compiled_attribute_count INTEGER NOT NULL DEFAULT 0,
+	compliance_check_count INTEGER NOT NULL DEFAULT 0,
+	passed_check_count INTEGER NOT NULL DEFAULT 0,
+	warning_count INTEGER NOT NULL DEFAULT 0,
+	blocker_count INTEGER NOT NULL DEFAULT 0,
+	external_requirement_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status', 'reconcile')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed', 'reconciled'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_broadband_governance_cases_identity ON broadband_governance_cases(case_id, subscriber_id, username, tenant, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_governance_cases_scope ON broadband_governance_cases(scope, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_governance_cases_last_seen ON broadband_governance_cases(last_seen_at, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_self_service_requests_action ON broadband_self_service_requests(action, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_self_service_requests_last_seen ON broadband_self_service_requests(last_seen_at, status);
+CREATE INDEX IF NOT EXISTS idx_broadband_governance_events_created ON broadband_governance_self_service_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_governance_events_status ON broadband_governance_self_service_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_governance_events_fingerprint ON broadband_governance_self_service_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_broadband_governance_events_mode ON broadband_governance_self_service_events(mode, created_at);
+`
+
+const schemaV95 = broadbandGovernanceSelfServiceSQL

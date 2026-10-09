@@ -1425,6 +1425,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0090 service activation event history and effective transaction rows."),
 	}))
+	addOperation(paths, "/api/v1/system/broadband-governance-self-service", "get", securedOperation("Read lawful-intercept governance and subscriber self-service", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0091 lawful-intercept cases, approval policy, subscriber self-service actions, privacy controls, compiled RADIUS/VSA evidence, compliance checks, and evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-governance-self-service/preview", "post", securedOperationWithBody("Preview lawful-intercept governance and subscriber self-service", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating active lawful-governance or self-service rows."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0091 lawful-governance and subscriber self-service report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-governance-self-service/apply", "post", securedOperationWithBody("Apply lawful-intercept governance and subscriber self-service", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records compiled lawful-governance, self-service, privacy, and runtime status evidence. Court-order proof, regulator acceptance, and physical intercept adapter validation remain release certification activities."), map[string]any{
+		"200":     responseJSON("Applied NAS-0091 lawful-governance and subscriber self-service checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-governance-self-service/history", "get", securedOperationWithParameters("List lawful governance and subscriber self-service history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0091 lawful-governance event history, effective case rows, and effective self-service request rows."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))

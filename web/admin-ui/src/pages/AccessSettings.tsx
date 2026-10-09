@@ -3566,6 +3566,16 @@ export default function AccessSettings() {
     useState("");
   const broadbandServiceActivationBusy =
     broadbandServiceActivationAction !== "";
+  const [
+    broadbandGovernanceSelfService,
+    setBroadbandGovernanceSelfService,
+  ] = useState<JsonMap | null>(null);
+  const [
+    broadbandGovernanceSelfServiceAction,
+    setBroadbandGovernanceSelfServiceAction,
+  ] = useState("");
+  const broadbandGovernanceSelfServiceBusy =
+    broadbandGovernanceSelfServiceAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3722,6 +3732,13 @@ export default function AccessSettings() {
   const loadBroadbandServiceActivation = async () => {
     const { data } = await api.get("/system/broadband-service-activation");
     setBroadbandServiceActivation(data.report || null);
+  };
+
+  const loadBroadbandGovernanceSelfService = async () => {
+    const { data } = await api.get(
+      "/system/broadband-governance-self-service",
+    );
+    setBroadbandGovernanceSelfService(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3969,6 +3986,7 @@ export default function AccessSettings() {
         broadbandL2TPWholesaleRes,
         broadbandDHCPSecurityRes,
         broadbandServiceActivationRes,
+        broadbandGovernanceSelfServiceRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -3989,6 +4007,7 @@ export default function AccessSettings() {
         api.get("/system/broadband-l2tp-wholesale"),
         api.get("/system/broadband-dhcp-security"),
         api.get("/system/broadband-service-activation"),
+        api.get("/system/broadband-governance-self-service"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -4018,6 +4037,9 @@ export default function AccessSettings() {
       setBroadbandDHCPSecurity(broadbandDHCPSecurityRes.data.report || null);
       setBroadbandServiceActivation(
         broadbandServiceActivationRes.data.report || null,
+      );
+      setBroadbandGovernanceSelfService(
+        broadbandGovernanceSelfServiceRes.data.report || null,
       );
       await loadLeaseReport();
       await loadNetworkPreview();
@@ -4121,6 +4143,7 @@ export default function AccessSettings() {
       await loadBroadbandL2TPWholesale();
       await loadBroadbandDHCPSecurity();
       await loadBroadbandServiceActivation();
+      await loadBroadbandGovernanceSelfService();
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -5240,6 +5263,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewBroadbandGovernanceSelfService = async () => {
+    setBroadbandGovernanceSelfServiceAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-governance-self-service/preview",
+        {},
+      );
+      setBroadbandGovernanceSelfService(data.report || null);
+      setMessage(
+        `Lawful governance and self-service preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview lawful governance and subscriber self-service.",
+      );
+    } finally {
+      setBroadbandGovernanceSelfServiceAction("");
+    }
+  };
+
+  const applyBroadbandGovernanceSelfService = async () => {
+    setBroadbandGovernanceSelfServiceAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-governance-self-service/apply",
+        {},
+      );
+      setBroadbandGovernanceSelfService(data.report || null);
+      setMessage(
+        `Lawful governance and self-service ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadBroadbandGovernanceSelfService();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply lawful governance and subscriber self-service.",
+      );
+    } finally {
+      setBroadbandGovernanceSelfServiceAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -6055,6 +6129,36 @@ export default function AccessSettings() {
   const broadbandServiceActivationTone = statusTone(
     broadbandServiceActivation?.status,
   );
+  const broadbandGovernanceSelfServiceSummary =
+    broadbandGovernanceSelfService?.summary || {};
+  const broadbandGovernanceCases = Array.isArray(
+    broadbandGovernanceSelfService?.cases,
+  )
+    ? broadbandGovernanceSelfService?.cases
+    : [];
+  const broadbandGovernanceApprovalPolicies = Array.isArray(
+    broadbandGovernanceSelfService?.approval_policies,
+  )
+    ? broadbandGovernanceSelfService?.approval_policies
+    : [];
+  const broadbandSelfServiceActions = Array.isArray(
+    broadbandGovernanceSelfService?.self_service_actions,
+  )
+    ? broadbandGovernanceSelfService?.self_service_actions
+    : [];
+  const broadbandGovernancePrivacyPolicies = Array.isArray(
+    broadbandGovernanceSelfService?.privacy_policies,
+  )
+    ? broadbandGovernanceSelfService?.privacy_policies
+    : [];
+  const broadbandGovernanceCompliance = Array.isArray(
+    broadbandGovernanceSelfService?.compliance,
+  )
+    ? broadbandGovernanceSelfService?.compliance
+    : [];
+  const broadbandGovernanceSelfServiceTone = statusTone(
+    broadbandGovernanceSelfService?.status,
+  );
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -6531,6 +6635,24 @@ export default function AccessSettings() {
             {broadbandServiceActivationAction === "apply"
               ? "Applying Service Activation..."
               : "Apply Service Activation"}
+          </button>
+          <button
+            onClick={previewBroadbandGovernanceSelfService}
+            disabled={broadbandGovernanceSelfServiceBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {broadbandGovernanceSelfServiceAction === "preview"
+              ? "Checking Governance..."
+              : "Preview Governance Self-Service"}
+          </button>
+          <button
+            onClick={applyBroadbandGovernanceSelfService}
+            disabled={broadbandGovernanceSelfServiceBusy}
+            className="rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-900 disabled:opacity-60"
+          >
+            {broadbandGovernanceSelfServiceAction === "apply"
+              ? "Applying Governance..."
+              : "Apply Governance Self-Service"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -7413,6 +7535,378 @@ export default function AccessSettings() {
         ) : (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
             Service activation report has not loaded yet.
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Lawful Governance And Subscriber Self-Service
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {broadbandGovernanceSelfService?.release_certification_checklist ||
+                "Validate lawful approvals, privacy controls, subscriber actions, accounting correlation, and CoA behavior before live governed operation."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${broadbandGovernanceSelfServiceTone}`}
+          >
+            {broadbandGovernanceSelfService?.status || "unknown"}
+          </div>
+        </div>
+        {broadbandGovernanceSelfService ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {broadbandGovernanceSelfService.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Cases",
+                  `${broadbandGovernanceSelfServiceSummary.enabled_case_count || 0}/${broadbandGovernanceSelfServiceSummary.case_count || 0}`,
+                ],
+                [
+                  "Approvals",
+                  `${broadbandGovernanceSelfServiceSummary.enabled_approval_policy_count || 0}/${broadbandGovernanceSelfServiceSummary.approval_policy_count || 0}`,
+                ],
+                [
+                  "Self-Service",
+                  `${broadbandGovernanceSelfServiceSummary.enabled_self_service_count || 0}/${broadbandGovernanceSelfServiceSummary.self_service_action_count || 0}`,
+                ],
+                [
+                  "Privacy",
+                  `${broadbandGovernanceSelfServiceSummary.enabled_privacy_policy_count || 0}/${broadbandGovernanceSelfServiceSummary.privacy_policy_count || 0}`,
+                ],
+                [
+                  "RADIUS Attrs",
+                  broadbandGovernanceSelfServiceSummary.compiled_attribute_count ||
+                    0,
+                ],
+                [
+                  "Compliance",
+                  `${broadbandGovernanceSelfServiceSummary.passed_check_count || 0}/${broadbandGovernanceSelfServiceSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              Mode{" "}
+              <span className="font-mono">
+                {broadbandGovernanceSelfServiceSummary.mode || "monitor"}
+              </span>{" "}
+              / dual approval{" "}
+              <span className="font-mono">
+                {broadbandGovernanceSelfServiceSummary.dual_approval_required
+                  ? `${broadbandGovernanceSelfServiceSummary.approval_threshold || 2} required`
+                  : "off"}
+              </span>{" "}
+              / MFA{" "}
+              <span className="font-mono">
+                {broadbandGovernanceSelfServiceSummary.mfa_enabled
+                  ? "ready"
+                  : "blocked"}
+              </span>{" "}
+              / WebAuthn{" "}
+              <span className="font-mono">
+                {broadbandGovernanceSelfServiceSummary.admin_webauthn_enabled
+                  ? "ready"
+                  : "blocked"}
+              </span>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-4">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Lawful Cases
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandGovernanceCases.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No lawful case is configured.
+                    </div>
+                  ) : (
+                    broadbandGovernanceCases
+                      .slice(0, 8)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.case_key || item.name || "case"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || item.case_id || "Lawful Case"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              item.case_id,
+                              item.tenant,
+                              item.scope,
+                              item.retention_class,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Case metadata only"}
+                          </div>
+                          {item.attributes?.length > 0 && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              {item.attributes
+                                .slice(0, 5)
+                                .map((attribute: JsonMap) => attribute.name)
+                                .filter(Boolean)
+                                .join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Approval Policies
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandGovernanceApprovalPolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No approval policy is configured.
+                    </div>
+                  ) : (
+                    broadbandGovernanceApprovalPolicies
+                      .slice(0, 8)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || "approval"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || "Approval Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              item.scope,
+                              `${item.min_approvals || 0} approvals`,
+                              item.require_mfa ? "MFA" : "",
+                              item.require_webauthn ? "WebAuthn" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Approval metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Self-Service Actions
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandSelfServiceActions.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No subscriber self-service action is configured.
+                    </div>
+                  ) : (
+                    broadbandSelfServiceActions
+                      .slice(0, 8)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.request_key || item.name || "action"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || item.action || "Self-Service"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              item.action,
+                              item.requires_approval ? "approval" : "",
+                              item.requires_mfa ? "MFA" : "",
+                              item.rate_limit_per_hour
+                                ? `${item.rate_limit_per_hour}/hour`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Self-service metadata only"}
+                          </div>
+                          {item.attributes?.length > 0 && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              {item.attributes
+                                .slice(0, 5)
+                                .map((attribute: JsonMap) => attribute.name)
+                                .filter(Boolean)
+                                .join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Privacy Policies
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandGovernancePrivacyPolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No privacy policy is configured.
+                    </div>
+                  ) : (
+                    broadbandGovernancePrivacyPolicies
+                      .slice(0, 8)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || "privacy"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || "Privacy Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              item.data_class,
+                              item.access_purpose,
+                              item.retention_days
+                                ? `${item.retention_days} days`
+                                : "",
+                              item.subscriber_notice ? "notice" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Privacy metadata only"}
+                          </div>
+                          {item.redact_fields?.length > 0 && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              Redact {item.redact_fields.slice(0, 5).join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Governance Compliance Checks
+              </h4>
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                {broadbandGovernanceCompliance.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                    No governance compliance check is present.
+                  </div>
+                ) : (
+                  broadbandGovernanceCompliance
+                    .slice(0, 8)
+                    .map((check: JsonMap, index: number) => (
+                      <div
+                        key={`${check.id || check.name || "governance-check"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {check.name || check.id || "Compliance Check"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              check.status,
+                            )}`}
+                          >
+                            {check.status || "unknown"}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {check.message || "No compliance message"}
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+            {((broadbandGovernanceSelfService.blockers?.length || 0) > 0 ||
+              (broadbandGovernanceSelfService.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(broadbandGovernanceSelfService.blockers || []),
+                  ...(broadbandGovernanceSelfService.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Accounting{" "}
+              <span className="font-mono">
+                {broadbandGovernanceSelfServiceSummary.accounting_services_enabled
+                  ? "ready"
+                  : "blocked"}
+              </span>{" "}
+              / CoA{" "}
+              <span className="font-mono">
+                {broadbandGovernanceSelfServiceSummary.dynamic_auth_enabled
+                  ? "ready"
+                  : "blocked"}
+              </span>{" "}
+              / privacy{" "}
+              <span className="font-mono">
+                {broadbandGovernanceSelfServiceSummary.privacy_controls_enabled
+                  ? "enabled"
+                  : "off"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {broadbandGovernanceSelfService.plan_fingerprint ||
+                  "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Lawful governance and subscriber self-service report has not loaded
+            yet.
           </div>
         )}
       </section>

@@ -1598,6 +1598,71 @@ broadband:
         require_accounting: true
         change_window: "always"
         failure_action: "rollback"
+  governance_self_service:
+    enabled: false # Enable only after legal/compliance ownership, subscriber catalog, quota, accounting, CoA, MFA, and WebAuthn previews pass.
+    mode: "monitor" # Use enforce after release certification proves court-order flow, privacy controls, HA, and device interoperability.
+    fail_closed: true
+    require_subscriber_state: true
+    require_commercial_catalog: true
+    require_quota_balance: true
+    require_accounting: true
+    require_dynamic_auth: true
+    require_mfa: true
+    require_admin_webauthn: true
+    lawful_intercept_enabled: true
+    self_service_enabled: true
+    privacy_controls_enabled: true
+    immutable_audit_required: true
+    dual_approval_required: true
+    approval_threshold: 2
+    case_retention_days: 365
+    event_retention_limit: 10000
+    cases:
+      - name: "court-order-1"
+        enabled: false
+        case_id: "LI-2026-001"
+        legal_authority: "court-order"
+        request_reference: "sealed-2026-001"
+        subscriber_id: "sub-lab-cpe-01"
+        username: "lab-cpe-01@example.net"
+        tenant: "retail"
+        scope: "accounting-metadata"
+        export_adapter: "governed-export"
+        retention_class: "regulated"
+        approvers: ["ops_admin", "compliance"]
+        audit_tags: ["sealed"]
+    approval_policies:
+      - name: "dual-control"
+        enabled: false
+        scope: "lawful_intercept"
+        min_approvals: 2
+        require_mfa: true
+        require_webauthn: true
+        break_glass_allowed: false
+        allowed_roles: ["ops_admin", "super_admin"]
+        escalation_recipients: ["compliance@example.net"]
+    self_service_actions:
+      - name: "plan-change"
+        enabled: false
+        action: "plan_change"
+        requires_auth: true
+        requires_mfa: true
+        requires_approval: true
+        allowed_products: ["residential-fiber"]
+        allowed_tenants: ["retail"]
+        rate_limit_per_hour: 4
+        max_pending_requests: 2
+        notification_channel: "email"
+        accounting_correlation: true
+    privacy_policies:
+      - name: "subscriber-privacy"
+        enabled: false
+        data_class: "subscriber-metadata"
+        access_purpose: "self-service"
+        retention_days: 90
+        redact_fields: ["legal_authority", "request_reference"]
+        export_allowed: false
+        subscriber_notice: true
 
 portal:
   enabled: true

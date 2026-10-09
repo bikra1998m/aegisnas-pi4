@@ -175,6 +175,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionBroadbandL2TPWholesaleCheck(&report, cfg)
 	addProductionBroadbandDHCPSecurityCheck(&report, cfg)
 	addProductionBroadbandServiceActivationCheck(&report, cfg)
+	addProductionBroadbandGovernanceSelfServiceCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -2594,6 +2595,76 @@ func addProductionBroadbandServiceActivationCheck(report *productionReadinessRep
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/broadband-service-activation/preview before enabling service activation enforcement, apply only after reviewing subscriber, product, address, QoS, DHCP security, route publish/withdraw, multicast, accounting, CoA rollback, and compiled RADIUS evidence. Keep live BNG route convergence, multicast forwarding, packet captures, HA, scale, soak, security, and customer proof in the NAS-0090 release certification checklist.",
 		Dependencies:   []string{"broadband.service_activation", "broadband.subscriber_state", "broadband.commercial_catalog", "broadband.address_leases", "broadband.qos_service_flows", "broadband.dhcp_security", "radius.route_policy.dynamic_routing", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "/api/v1/system/broadband-service-activation", "/api/v1/system/broadband-service-activation/preview", "/api/v1/system/broadband-service-activation/apply", "broadband_service_activation_transactions", "broadband_service_activation_events", "Framed-Route", "Framed-IPv6-Route", "Class", "Filter-Id", "Framed-Pool", "ERX-Service-Activate", "ERX-Update-Service", "Cisco-AVPair", "Huawei-AVpair", "H3C-Av-Pair", "Nokia-Service-Name", "Nokia-AVPair", "ZTE-AVPair", "RFC 2865", "RFC 2866", "RFC 4271", "RFC 4604", "RFC 5176"},
+	})
+}
+
+func addProductionBroadbandGovernanceSelfServiceCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0091 lawful-intercept governance and subscriber self-service software is ready."
+	reportData, err := enforcement.PreviewBroadbandGovernanceSelfService(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Broadband governance/self-service preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped", "disabled":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0091 schema %d status=%s, mode=%s, cases=%d, approval_policies=%d, self_service_actions=%d, privacy_policies=%d, compiled_attrs=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.CaseCount,
+			reportData.Summary.ApprovalPolicyCount,
+			reportData.Summary.SelfServiceActionCount,
+			reportData.Summary.PrivacyPolicyCount,
+			reportData.Summary.CompiledAttributeCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "disabled" || reportData.Status == "skipped" {
+			summary += " Governance and self-service are inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but governance/self-service event history cannot be verified."
+	} else if evidence, err := db.GetBroadbandGovernanceSelfServiceSummary(); err != nil {
+		status = "blocked"
+		summary += " Broadband governance/self-service evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, active_cases=%d, planned_cases=%d, active_self_service_requests=%d, planned_self_service_requests=%d, last_cases=%d, last_actions=%d, last_privacy=%d, last_attrs=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.ActiveCaseCount,
+			evidence.PlannedCaseCount,
+			evidence.ActiveSelfServiceRequests,
+			evidence.PlannedSelfServiceRequests,
+			evidence.LastCaseCount,
+			evidence.LastSelfServiceActionCount,
+			evidence.LastPrivacyPolicyCount,
+			evidence.LastCompiledAttributeCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "broadband_governance_self_service",
+		Category:       "radius",
+		Label:          "NAS-0091 Lawful-Intercept Governance And Subscriber Self-Service",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/broadband-governance-self-service/preview before enabling lawful-governance enforcement, apply only after reviewing dual approval, MFA/WebAuthn, scoped cases, privacy redaction, subscriber self-service actions, accounting correlation, and compiled RADIUS evidence. Keep court-order proof, regulator/customer acceptance, physical intercept adapters, packet captures, HA, scale, soak, security, and customer proof in the NAS-0091 release certification checklist.",
+		Dependencies:   []string{"broadband.governance_self_service", "broadband.subscriber_state", "broadband.commercial_catalog", "broadband.quota_balance", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "mfa.enabled", "admin_webauthn.enabled", "/api/v1/system/broadband-governance-self-service", "/api/v1/system/broadband-governance-self-service/preview", "/api/v1/system/broadband-governance-self-service/apply", "broadband_governance_cases", "broadband_self_service_requests", "broadband_governance_self_service_events", "Class", "Filter-Id", "Chargeable-User-Identity", "Acct-Interim-Interval", "Cisco-AVPair", "Juniper-AV-Pair", "Huawei-AVpair", "Nokia-AVPair", "RFC 2865", "RFC 2866", "RFC 5176"},
 	})
 }
 

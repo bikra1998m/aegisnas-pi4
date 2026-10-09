@@ -1591,6 +1591,32 @@ For BNG service activation, route lifecycle, and multicast:
    failover, performance, soak, security audit, and customer acceptance in
    `nas-0090-release-certification-checklist.md`
 
+For lawful governance and subscriber self-service:
+
+1. keep `broadband.governance_self_service.mode: monitor` until subscriber
+   state, product catalog, quota/balance, SQL accounting, accounting services,
+   dynamic authorization, MFA, and administrator WebAuthn are all ready
+2. model every lawful case with explicit case id, legal authority,
+   subscriber or username scope, tenant, export adapter, retention class,
+   approvers, and audit tags
+3. model every subscriber self-service action with explicit action type,
+   product and tenant scope, approval/MFA requirements, rate limits, pending
+   request limits, notification channel, and accounting correlation
+4. use `POST /api/v1/system/broadband-governance-self-service/preview` to
+   inspect compiled evidence such as `Class`, `Filter-Id`,
+   `Chargeable-User-Identity`, `Acct-Interim-Interval`, `Cisco-AVPair`,
+   `Juniper-AV-Pair`, `Huawei-AVpair`, and `Nokia-AVPair`
+5. run apply only after operator review of legal scope, dual approval, MFA and
+   WebAuthn controls, privacy redaction, accounting correlation, CoA recovery,
+   compliance checks, and plan fingerprint
+6. export a support bundle and retain
+   `api/broadband-governance-self-service.json` and
+   `api/broadband-governance-self-service-history.json`
+7. keep court-order workflow proof, regulator/customer acceptance, lawful
+   intercept adapter proof, packet captures, HA failover, performance, soak,
+   security audit, and customer acceptance in
+   `nas-0091-release-certification-checklist.md`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

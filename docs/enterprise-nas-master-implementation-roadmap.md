@@ -1,6 +1,6 @@
 # Enterprise NAS/AAA Master Implementation Roadmap
 
-Status: implementation roadmap derived from the repository audit and operational documentation, with engineering progress recorded through NAS-0090. This document defines backlog and release governance; external certification remains tracked in per-feature release checklists.
+Status: implementation roadmap derived from the repository audit and operational documentation, with engineering progress recorded through NAS-0091. This document defines backlog and release governance; external certification remains tracked in per-feature release checklists.
 
 ## Canonical roadmap artifacts
 
@@ -229,7 +229,8 @@ The phases are ownership lanes. The executable order is the dependency-resolved 
 - [x] NAS-0088 engineering implementation complete; external release evidence is tracked in `nas-0088-release-certification-checklist.md`.
 - [x] NAS-0089 engineering implementation complete; external release evidence is tracked in `nas-0089-release-certification-checklist.md`.
 - [x] NAS-0090 engineering implementation complete; external release evidence is tracked in `nas-0090-release-certification-checklist.md`.
-- [ ] Phase 9 exit gate accepted; NAS-0082..NAS-0091 Complete.
+- [x] NAS-0091 engineering implementation complete; external release evidence is tracked in `nas-0091-release-certification-checklist.md`.
+- [x] Phase 9 exit gate accepted; NAS-0082..NAS-0091 Complete.
 - [ ] Phase 10 exit gate accepted; NAS-0092..NAS-0098 Complete.
 - [ ] Phase 11 exit gate accepted; NAS-0099..NAS-0105 Complete.
 - [ ] Phase 12 exit gate accepted; NAS-0106..NAS-0111 Complete.

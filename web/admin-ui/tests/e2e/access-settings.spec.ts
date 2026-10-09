@@ -735,4 +735,60 @@ test.describe("Access Settings edge-network flow", () => {
       .click();
     await expect(page.getByText(/Service activation applied/)).toBeVisible();
   });
+
+  test("previews and applies lawful governance self-service", async ({
+    page,
+  }) => {
+    test.setTimeout(60000);
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto("/access-settings");
+    const governanceHeading = page.getByRole("heading", {
+      name: "Lawful Governance And Subscriber Self-Service",
+    });
+    await expect(governanceHeading).toBeVisible({ timeout: 30000 });
+    const governanceSection = governanceHeading.locator(
+      "xpath=ancestor::section[1]",
+    );
+    await expect(governanceSection).toBeVisible();
+    await expect(
+      governanceSection.getByRole("heading", { name: "Lawful Cases" }),
+    ).toBeVisible();
+    await expect(
+      governanceSection.getByRole("heading", { name: "Approval Policies" }),
+    ).toBeVisible();
+    await expect(
+      governanceSection.getByRole("heading", { name: "Self-Service Actions" }),
+    ).toBeVisible();
+    await expect(
+      governanceSection.getByRole("heading", { name: "Privacy Policies" }),
+    ).toBeVisible();
+    await expect(
+      governanceSection.getByText("court-order-1", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(
+      governanceSection.getByText("dual-control", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(
+      governanceSection.getByText("plan-change", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(
+      governanceSection.getByText("Chargeable-User-Identity").first(),
+    ).toBeVisible();
+
+    await page
+      .getByRole("button", { name: "Preview Governance Self-Service" })
+      .click();
+    await expect(
+      page.getByText(/Lawful governance and self-service preview recorded/),
+    ).toBeVisible();
+
+    await page
+      .getByRole("button", { name: "Apply Governance Self-Service" })
+      .click();
+    await expect(
+      page.getByText(/Lawful governance and self-service applied/),
+    ).toBeVisible();
+  });
 });

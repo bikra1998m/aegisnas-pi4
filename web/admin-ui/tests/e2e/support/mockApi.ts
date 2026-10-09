@@ -4598,6 +4598,208 @@ function createBroadbandServiceActivation(status = "ready") {
   };
 }
 
+function createBroadbandGovernanceSelfService(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0091",
+      status,
+      message:
+        "NAS-0091 lawful governance and subscriber self-service is ready with 1 case, 1 approval policy, 1 action, and privacy controls.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0091-release-certification-checklist.md",
+      release_scope:
+        "Court-order proof, regulator acceptance, physical lawful-intercept adapters, HA, scale, soak, security, and customer proof are release certification activities.",
+      plan_fingerprint:
+        "sha256:0091a2470403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81ed",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        require_subscriber_state: true,
+        require_commercial_catalog: true,
+        require_quota_balance: true,
+        require_accounting: true,
+        require_dynamic_auth: true,
+        require_mfa: true,
+        require_admin_webauthn: true,
+        lawful_intercept_enabled: true,
+        self_service_enabled: true,
+        privacy_controls_enabled: true,
+        immutable_audit_required: true,
+        dual_approval_required: true,
+        approval_threshold: 2,
+        case_retention_days: 365,
+        event_retention_limit: 10000,
+        subscriber_state_enabled: true,
+        commercial_catalog_enabled: true,
+        quota_balance_enabled: true,
+        sql_accounting_enabled: true,
+        accounting_services_enabled: true,
+        dynamic_auth_enabled: true,
+        mfa_enabled: true,
+        admin_webauthn_enabled: true,
+        case_count: 1,
+        enabled_case_count: 1,
+        approval_policy_count: 1,
+        enabled_approval_policy_count: 1,
+        self_service_action_count: 1,
+        enabled_self_service_count: 1,
+        privacy_policy_count: 1,
+        enabled_privacy_policy_count: 1,
+        authorization_binding_count: 2,
+        accounting_binding_count: 2,
+        compiled_attribute_count: 9,
+        compliance_check_count: 12,
+        passed_check_count: 12,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 1,
+      },
+      cases: [
+        {
+          case_key: "li-2026-001",
+          name: "court-order-1",
+          enabled: true,
+          case_id: "LI-2026-001",
+          legal_authority: "court-order",
+          request_reference: "sealed-2026-001",
+          subscriber_id: "sub-lab-cpe-01",
+          username: "lab-cpe-01@example.net",
+          tenant: "retail",
+          scope: "accounting-metadata",
+          export_adapter: "governed-export",
+          retention_class: "regulated",
+          approvers: ["ops_admin", "compliance"],
+          audit_tags: ["sealed"],
+          attributes: [
+            { name: "Class", value: "aegisnas:li:li-2026-001" },
+            { name: "Filter-Id", value: "li-scope-accounting-metadata" },
+            { name: "Cisco-AVPair", value: "aegisnas-li-case=li-2026-001" },
+            { name: "Juniper-AV-Pair", value: "aegisnas-li-case=li-2026-001" },
+            { name: "Huawei-AVpair", value: "aegisnas-li-case=li-2026-001" },
+            { name: "Nokia-AVPair", value: "aegisnas-li-case=li-2026-001" },
+          ],
+          status: "ready",
+          reason: "Governed lawful-intercept case evidence is compiled.",
+        },
+      ],
+      approval_policies: [
+        {
+          name: "dual-control",
+          enabled: true,
+          scope: "lawful_intercept",
+          min_approvals: 2,
+          require_mfa: true,
+          require_webauthn: true,
+          break_glass_allowed: false,
+          allowed_roles: ["ops_admin", "super_admin"],
+          escalation_recipients: ["compliance@example.net"],
+          status: "ready",
+          reason: "Approval policy enforces governed access.",
+        },
+      ],
+      self_service_actions: [
+        {
+          request_key: "plan-change",
+          name: "plan-change",
+          enabled: true,
+          action: "plan_change",
+          requires_auth: true,
+          requires_mfa: true,
+          requires_approval: true,
+          allowed_products: ["residential-fiber"],
+          allowed_tenants: ["retail"],
+          rate_limit_per_hour: 4,
+          max_pending_requests: 2,
+          notification_channel: "email",
+          accounting_correlation: true,
+          attributes: [
+            { name: "Class", value: "aegisnas:self-service:plan-change" },
+            { name: "Chargeable-User-Identity", value: "plan-change" },
+            { name: "Acct-Interim-Interval", value: "300" },
+          ],
+          status: "ready",
+          reason: "Self-service action is governed and correlated.",
+        },
+      ],
+      privacy_policies: [
+        {
+          name: "subscriber-privacy",
+          enabled: true,
+          data_class: "subscriber-metadata",
+          access_purpose: "self-service",
+          retention_days: 90,
+          redact_fields: ["legal_authority", "request_reference"],
+          export_allowed: false,
+          subscriber_notice: true,
+          status: "ready",
+          reason:
+            "Privacy policy is available for redaction and retention enforcement.",
+        },
+      ],
+      compliance: [
+        {
+          id: "subscriber-state",
+          name: "Subscriber state dependency",
+          status: "passed",
+          message:
+            "Subscriber state is available for governed subscriber correlation.",
+        },
+        {
+          id: "dual-approval",
+          name: "Dual approval policy",
+          status: "passed",
+          message: "At least one approval policy is ready.",
+        },
+        {
+          id: "external-certification",
+          name: "External lawful-governance certification boundary",
+          status: "passed",
+          message:
+            "Court-order/legal workflow proof, regulator acceptance, physical intercept adapters, HA, scale, soak, security, and customer proof are release certification activities.",
+        },
+      ],
+      authorization_bindings: [],
+      accounting_bindings: [],
+      standards: ["RFC 2865", "RFC 2866", "RFC 5176"],
+      vendors: [
+        "Cisco BNG",
+        "Juniper ERX/E-Series",
+        "Huawei BRAS/BNG",
+        "Nokia SR OS",
+      ],
+      requirements: [
+        "govern lawful-intercept activation and subscriber self-service",
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        active_case_count: 1,
+        planned_case_count: 0,
+        active_self_service_requests: 1,
+        planned_self_service_requests: 0,
+      },
+      recent_events: [],
+      cases: [],
+      self_service_requests: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -10427,6 +10629,62 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           },
           events: [],
           transactions: createBroadbandServiceActivation().report.services,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-governance-self-service" &&
+      method === "GET"
+    ) {
+      await route.fulfill({ json: createBroadbandGovernanceSelfService() });
+      return;
+    }
+    if (
+      path === "/system/broadband-governance-self-service/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createBroadbandGovernanceSelfService(),
+          event_id: "bng-governance-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-governance-self-service/apply" &&
+      method === "POST"
+    ) {
+      const payload = createBroadbandGovernanceSelfService();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0091 recorded lawful governance and subscriber self-service evidence.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "bng-governance-event-apply",
+          result: {
+            status: "applied",
+            event_id: "bng-governance-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-governance-self-service/history" &&
+      method === "GET"
+    ) {
+      const payload = createBroadbandGovernanceSelfService();
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0091",
+          summary: payload.evidence.summary,
+          events: [],
+          cases: payload.report.cases,
+          self_service_requests: payload.report.self_service_actions,
         },
       });
       return;

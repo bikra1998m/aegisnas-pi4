@@ -1251,6 +1251,39 @@ multicast forwarding, FreeRADIUS production Linux, HA failover, performance,
 soak, security audit, production deployment, and customer acceptance evidence
 stay in `nas-0090-release-certification-checklist.md`.
 
+For lawful governance and subscriber self-service, preview NAS-0091 before
+enabling enforce mode or changing lawful cases, approval policy, privacy
+redaction, subscriber-visible actions, accounting correlation, or CoA behavior:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-governance-self-service/preview \
+  | jq '.report.status, .report.summary, .report.cases, .report.self_service_actions'
+```
+
+Apply only after reviewing legal authority scope, dual approval, MFA/WebAuthn,
+privacy policy, `Class`, `Filter-Id`, `Chargeable-User-Identity`, vendor VSAs,
+accounting correlation, compliance checks, and the plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-governance-self-service/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/broadband-governance-self-service/history` and the support
+bundle files `api/broadband-governance-self-service.json` and
+`api/broadband-governance-self-service-history.json` during lawful case,
+subscriber self-service, privacy, accounting correlation, CoA, failover, and
+HA investigations. Court-order workflow proof, regulator/customer acceptance,
+physical lawful-intercept adapters, FreeRADIUS production Linux, HA failover,
+performance, soak, security audit, production deployment, and customer
+acceptance evidence stay in `nas-0091-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 
