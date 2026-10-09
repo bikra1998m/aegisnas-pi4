@@ -1868,6 +1868,36 @@ The endpoints depend on `broadband.dhcp_security`, `dhcp.enabled`,
 `api/broadband-dhcp-security-history.json`. See
 [dhcp-relay-snooping-option82-source-guard.md](dhcp-relay-snooping-option82-source-guard.md).
 
+NAS-0090 adds BNG service activation, route lifecycle, and multicast endpoints:
+
+```text
+GET  /api/v1/system/broadband-service-activation
+POST /api/v1/system/broadband-service-activation/preview
+POST /api/v1/system/broadband-service-activation/apply
+GET  /api/v1/system/broadband-service-activation/history
+```
+
+`GET /api/v1/system/broadband-service-activation` returns service activation
+transactions, route policies, multicast profiles, activation policies,
+authorization and accounting bindings, compiled standards and vendor evidence,
+compliance checks, plan fingerprint, software completion state, release
+certification scope, and recent evidence. Preview records an event without
+activating effective transaction rows. Apply records an auditable checkpoint,
+upserts effective transaction rows, and updates runtime status. A blocked apply
+returns HTTP 409 with the report. Read-only roles may read, preview, and list
+history. `ops_admin` and `super_admin` may apply.
+
+The endpoints depend on `broadband.service_activation`,
+`broadband.subscriber_state`, `broadband.commercial_catalog`,
+`broadband.address_leases`, `broadband.qos_service_flows`,
+`broadband.dhcp_security`, `radius.route_policy.dynamic_routing`,
+`radius.sql_accounting`, `radius.accounting_services`, and
+`radius.dynamic_auth`. Production readiness reports this as
+`broadband_service_activation`; support bundles include
+`api/broadband-service-activation.json` and
+`api/broadband-service-activation-history.json`. See
+[bng-service-activation-route-multicast.md](bng-service-activation-route-multicast.md).
+
 Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
 
 After committing a role, user, ACL binding, or EAP framework policy through `/api/v1/apply`, run `POST /api/v1/system/radius-apply` (the **Apply RADIUS Config** action in Access Settings). This regenerates the local-user entries in `mods-config/files/authorize`, the legacy `users` path, and `mods-enabled/eap`, validates the complete FreeRADIUS configuration, and restarts FreeRADIUS. Database-backed portal decisions and CoA updates do not require this regeneration. Local bcrypt credentials support PAP and EAP-TTLS/PAP; CHAP and PEAP-MSCHAPv2 require a compatible cleartext or NT password verifier, while EAP-TLS uses certificates. NAS-0022 blocks enforce-mode generation when policy enables cataloged methods that this release cannot generate.

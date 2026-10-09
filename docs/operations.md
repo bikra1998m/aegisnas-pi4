@@ -1216,6 +1216,41 @@ FreeRADIUS production Linux, HA failover, performance, soak, security audit,
 production deployment, and customer acceptance evidence stay in
 `nas-0089-release-certification-checklist.md`.
 
+For BNG service activation, route lifecycle, and multicast entitlement,
+preview NAS-0090 before enabling enforce mode or changing subscriber service
+transactions, route policies, multicast profiles, accounting class, route
+publish/withdraw behavior, or CoA rollback behavior:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-service-activation/preview \
+  | jq '.report.status, .report.summary, .report.services, .report.route_policies'
+```
+
+Apply only after reviewing subscriber/product state, address pool, QoS
+profile, `Framed-Route`, `Framed-IPv6-Route`, multicast groups, vendor VSAs,
+accounting correlation, rollback requirement, compliance checks, and the plan
+fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/broadband-service-activation/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/broadband-service-activation/history` and the support
+bundle files `api/broadband-service-activation.json` and
+`api/broadband-service-activation-history.json` during service activation,
+route publish/withdraw, multicast entitlement, accounting correlation, CoA,
+failover, and HA investigations. Live BNG route convergence, route withdrawal,
+multicast forwarding, FreeRADIUS production Linux, HA failover, performance,
+soak, security audit, production deployment, and customer acceptance evidence
+stay in `nas-0090-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

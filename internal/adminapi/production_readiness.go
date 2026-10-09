@@ -174,6 +174,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionBroadbandQoSServiceFlowCheck(&report, cfg)
 	addProductionBroadbandL2TPWholesaleCheck(&report, cfg)
 	addProductionBroadbandDHCPSecurityCheck(&report, cfg)
+	addProductionBroadbandServiceActivationCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -2522,6 +2523,77 @@ func addProductionBroadbandDHCPSecurityCheck(report *productionReadinessReport, 
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/broadband-dhcp-security/preview before enabling DHCP security enforcement, apply only after reviewing relay agents, trusted ports, Option 82 rules, source guard policies, accounting correlation, CoA recovery, and compiled DHCP/RADIUS evidence. Keep live switch/OLT DHCP relay, snooping, Option 82 packet captures, IP source-guard enforcement, HA, scale, soak, security, and customer proof in the NAS-0089 release certification checklist.",
 		Dependencies:   []string{"broadband.dhcp_security", "dhcp.enabled", "broadband.subscriber_state", "broadband.address_leases", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "/api/v1/system/broadband-dhcp-security", "/api/v1/system/broadband-dhcp-security/preview", "/api/v1/system/broadband-dhcp-security/apply", "broadband_dhcp_security_bindings", "broadband_dhcp_security_events", "DHCP-Relay-Agent-Information", "Agent-Circuit-Id", "Agent-Remote-Id", "Class", "Cisco-AVPair", "Huawei-AVpair", "RFC 2131", "RFC 3046", "RFC 2865", "RFC 2866", "RFC 5176"},
+	})
+}
+
+func addProductionBroadbandServiceActivationCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0090 BNG service activation, route lifecycle, and multicast software is ready."
+	reportData, err := enforcement.PreviewBroadbandServiceActivation(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Broadband service activation preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped", "disabled":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0090 schema %d status=%s, mode=%s, services=%d, route_policies=%d, multicast_profiles=%d, activation_policies=%d, route_attrs=%d, multicast_attrs=%d, radius_attrs=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.ServiceCount,
+			reportData.Summary.RoutePolicyCount,
+			reportData.Summary.MulticastProfileCount,
+			reportData.Summary.ActivationPolicyCount,
+			reportData.Summary.RouteAttributeCount,
+			reportData.Summary.MulticastAttributeCount,
+			reportData.Summary.RadiusAttributeCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "disabled" || reportData.Status == "skipped" {
+			summary += " Service activation is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but service activation event history cannot be verified."
+	} else if evidence, err := db.GetBroadbandServiceActivationSummary(); err != nil {
+		status = "blocked"
+		summary += " Broadband service activation evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 || evidence.BlockedTransactions > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, active_transactions=%d, planned_transactions=%d, rollback_required=%d, last_services=%d, last_routes=%d, last_multicast=%d, last_attrs=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.ActiveTransactions,
+			evidence.PlannedTransactions,
+			evidence.RollbackRequiredTransactions,
+			evidence.LastServiceCount,
+			evidence.LastRoutePolicyCount,
+			evidence.LastMulticastProfileCount,
+			evidence.LastRadiusAttributeCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "broadband_service_activation",
+		Category:       "radius",
+		Label:          "NAS-0090 Service Activation, BNG Route Lifecycle, And Multicast",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/broadband-service-activation/preview before enabling service activation enforcement, apply only after reviewing subscriber, product, address, QoS, DHCP security, route publish/withdraw, multicast, accounting, CoA rollback, and compiled RADIUS evidence. Keep live BNG route convergence, multicast forwarding, packet captures, HA, scale, soak, security, and customer proof in the NAS-0090 release certification checklist.",
+		Dependencies:   []string{"broadband.service_activation", "broadband.subscriber_state", "broadband.commercial_catalog", "broadband.address_leases", "broadband.qos_service_flows", "broadband.dhcp_security", "radius.route_policy.dynamic_routing", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "/api/v1/system/broadband-service-activation", "/api/v1/system/broadband-service-activation/preview", "/api/v1/system/broadband-service-activation/apply", "broadband_service_activation_transactions", "broadband_service_activation_events", "Framed-Route", "Framed-IPv6-Route", "Class", "Filter-Id", "Framed-Pool", "ERX-Service-Activate", "ERX-Update-Service", "Cisco-AVPair", "Huawei-AVpair", "H3C-Av-Pair", "Nokia-Service-Name", "Nokia-AVPair", "ZTE-AVPair", "RFC 2865", "RFC 2866", "RFC 4271", "RFC 4604", "RFC 5176"},
 	})
 }
 

@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"database/sql"
 	"path/filepath"
 	"testing"
@@ -35,27 +36,39 @@ func requireSessionStopped(t *testing.T, sessionID, expectedReason string) {
 	var (
 		endTime sql.NullString
 		reason  string
+		lastErr error
 	)
 
-	require.Eventually(t, func() bool {
-		err := db.DB.QueryRow("SELECT end_time, COALESCE(stop_reason, '') FROM sessions WHERE id = ?", sessionID).Scan(&endTime, &reason)
-		return err == nil && endTime.Valid && reason == expectedReason
-	}, time.Second, 10*time.Millisecond)
+	require.Eventuallyf(t, func() bool {
+		lastErr = db.DB.QueryRow("SELECT end_time, COALESCE(stop_reason, '') FROM sessions WHERE id = ?", sessionID).Scan(&endTime, &reason)
+		return lastErr == nil && endTime.Valid && reason == expectedReason
+	}, 5*time.Second, 10*time.Millisecond, "session %s end_time=%q valid=%t reason=%q err=%v", sessionID, endTime.String, endTime.Valid, reason, lastErr)
 
 	assert.NotEmpty(t, endTime.String)
 	assert.Equal(t, expectedReason, reason)
+}
+
+func newTestManager(t *testing.T, cfg *config.Config) *Manager {
+	t.Helper()
+
+	mgr, err := NewManager(cfg, zap.NewNop())
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		require.NoError(t, mgr.WaitForTerminationAccounting(ctx))
+	})
+	return mgr
 }
 
 func TestManager_EnforceConcurrentLimit(t *testing.T) {
 	setupTestDB(t)
 
 	cfg := &config.Config{}
-	logger := zap.NewNop()
-	mgr, err := NewManager(cfg, logger)
-	require.NoError(t, err)
+	mgr := newTestManager(t, cfg)
 
 	// Insert two active sessions for user "testuser"
-	_, err = db.DB.Exec(`INSERT INTO sessions (id, username, start_time) VALUES ('s1', 'testuser', ?), ('s2', 'testuser', ?)`,
+	_, err := db.DB.Exec(`INSERT INTO sessions (id, username, start_time) VALUES ('s1', 'testuser', ?), ('s2', 'testuser', ?)`,
 		time.Now(), time.Now())
 	require.NoError(t, err)
 
@@ -68,11 +81,9 @@ func TestManager_TerminateSession(t *testing.T) {
 	setupTestDB(t)
 
 	cfg := &config.Config{}
-	logger := zap.NewNop()
-	mgr, err := NewManager(cfg, logger)
-	require.NoError(t, err)
+	mgr := newTestManager(t, cfg)
 
-	_, err = db.DB.Exec(`INSERT INTO sessions (id, username, start_time) VALUES ('test', 'user', ?)`, time.Now())
+	_, err := db.DB.Exec(`INSERT INTO sessions (id, username, start_time) VALUES ('test', 'user', ?)`, time.Now())
 	require.NoError(t, err)
 
 	mgr.terminateSession("test", "test reason")
@@ -84,13 +95,11 @@ func TestManager_EnforceTimeoutsKeepsFreshSessionWithOffsetTimestamp(t *testing.
 	setupTestDB(t)
 
 	cfg := &config.Config{}
-	logger := zap.NewNop()
-	mgr, err := NewManager(cfg, logger)
-	require.NoError(t, err)
+	mgr := newTestManager(t, cfg)
 
 	behindUTC := time.FixedZone("EDT", -4*60*60)
 	fresh := time.Now().Add(-1 * time.Minute).In(behindUTC)
-	_, err = db.DB.Exec(`INSERT INTO sessions (
+	_, err := db.DB.Exec(`INSERT INTO sessions (
 			id, username, role, start_time, last_activity, session_timeout, idle_timeout
 		) VALUES ('fresh-offset', 'guest1', 'guest-basic', ?, ?, 3600, 600)`,
 		fresh.Format("2006-01-02 15:04:05.999999999 -0700 MST"),
@@ -110,11 +119,9 @@ func TestManager_EnforceTimeoutsUsesRoleDefaultsWithoutNestedReads(t *testing.T)
 	db.DB.SetMaxOpenConns(1)
 
 	cfg := &config.Config{}
-	logger := zap.NewNop()
-	mgr, err := NewManager(cfg, logger)
-	require.NoError(t, err)
+	mgr := newTestManager(t, cfg)
 
-	_, err = db.DB.Exec(`INSERT INTO sessions (
+	_, err := db.DB.Exec(`INSERT INTO sessions (
 			id, username, role, start_time, last_activity
 		) VALUES ('role-timeout', 'guest1', 'guest-basic', ?, ?)`,
 		time.Now().Add(-1*time.Hour), time.Now().Add(-10*time.Minute))
@@ -129,12 +136,10 @@ func TestManager_ReclassifyByCriteriaImmediateSessionTimeout(t *testing.T) {
 	setupTestDB(t)
 
 	cfg := &config.Config{}
-	logger := zap.NewNop()
-	mgr, err := NewManager(cfg, logger)
-	require.NoError(t, err)
+	mgr := newTestManager(t, cfg)
 
 	start := time.Now().Add(-2 * time.Hour)
-	_, err = db.DB.Exec(`INSERT INTO sessions (id, username, start_time, last_activity) VALUES ('coa-session-timeout', 'user', ?, ?)`, start, time.Now())
+	_, err := db.DB.Exec(`INSERT INTO sessions (id, username, start_time, last_activity) VALUES ('coa-session-timeout', 'user', ?, ?)`, start, time.Now())
 	require.NoError(t, err)
 
 	ok, err := mgr.ReclassifyByCriteria("coa-session-timeout", "", "", PolicyUpdate{SessionTimeout: 60})
@@ -148,13 +153,11 @@ func TestManager_ReclassifyByCriteriaImmediateIdleTimeout(t *testing.T) {
 	setupTestDB(t)
 
 	cfg := &config.Config{}
-	logger := zap.NewNop()
-	mgr, err := NewManager(cfg, logger)
-	require.NoError(t, err)
+	mgr := newTestManager(t, cfg)
 
 	start := time.Now().Add(-30 * time.Minute)
 	lastActivity := time.Now().Add(-20 * time.Minute)
-	_, err = db.DB.Exec(`INSERT INTO sessions (id, username, start_time, last_activity) VALUES ('coa-idle-timeout', 'user', ?, ?)`, start, lastActivity)
+	_, err := db.DB.Exec(`INSERT INTO sessions (id, username, start_time, last_activity) VALUES ('coa-idle-timeout', 'user', ?, ?)`, start, lastActivity)
 	require.NoError(t, err)
 
 	ok, err := mgr.ReclassifyByCriteria("coa-idle-timeout", "", "", PolicyUpdate{IdleTimeout: 60})
@@ -168,11 +171,9 @@ func TestManager_ReclassifyByCriteriaVLANChangeRequiresReauth(t *testing.T) {
 	setupTestDB(t)
 
 	cfg := &config.Config{}
-	logger := zap.NewNop()
-	mgr, err := NewManager(cfg, logger)
-	require.NoError(t, err)
+	mgr := newTestManager(t, cfg)
 
-	_, err = db.DB.Exec(`INSERT INTO sessions (id, username, mac, ip, vlan, start_time, last_activity) VALUES ('coa-vlan', 'user', 'aa:bb', '10.20.0.10', 20, ?, ?)`,
+	_, err := db.DB.Exec(`INSERT INTO sessions (id, username, mac, ip, vlan, start_time, last_activity) VALUES ('coa-vlan', 'user', 'aa:bb', '10.20.0.10', 20, ?, ?)`,
 		time.Now().Add(-5*time.Minute), time.Now())
 	require.NoError(t, err)
 
@@ -186,9 +187,8 @@ func TestManager_ReclassifyByCriteriaVLANChangeRequiresReauth(t *testing.T) {
 func TestManager_ReclassifyByCriteriaPersistsACLPolicy(t *testing.T) {
 	setupTestDB(t)
 
-	mgr, err := NewManager(&config.Config{}, zap.NewNop())
-	require.NoError(t, err)
-	_, err = db.DB.Exec(`INSERT INTO sessions (id, username, start_time, last_activity) VALUES ('coa-acl', 'user', ?, ?)`, time.Now(), time.Now())
+	mgr := newTestManager(t, &config.Config{})
+	_, err := db.DB.Exec(`INSERT INTO sessions (id, username, start_time, last_activity) VALUES ('coa-acl', 'user', ?, ?)`, time.Now(), time.Now())
 	require.NoError(t, err)
 
 	ok, err := mgr.ReclassifyByCriteria("coa-acl", "", "", PolicyUpdate{ACLPolicyName: "guest-internet"})

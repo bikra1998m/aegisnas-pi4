@@ -675,4 +675,64 @@ test.describe("Access Settings edge-network flow", () => {
     await page.getByRole("button", { name: "Apply DHCP Security" }).click();
     await expect(page.getByText(/DHCP security applied/)).toBeVisible();
   });
+
+  test("previews and applies BNG service activation", async ({ page }) => {
+    test.setTimeout(60000);
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto("/access-settings");
+    const serviceActivationHeading = page.getByRole("heading", {
+      name: "Service Activation, Route Lifecycle, And Multicast",
+    });
+    await expect(serviceActivationHeading).toBeVisible({ timeout: 30000 });
+    const serviceActivationSection = serviceActivationHeading.locator(
+      "xpath=ancestor::section[1]",
+    );
+    await expect(serviceActivationSection).toBeVisible();
+    await expect(
+      serviceActivationSection.getByRole("heading", { name: "Services" }),
+    ).toBeVisible();
+    await expect(
+      serviceActivationSection.getByRole("heading", {
+        name: "Route Policies",
+      }),
+    ).toBeVisible();
+    await expect(
+      serviceActivationSection.getByRole("heading", {
+        name: "Multicast Profiles",
+      }),
+    ).toBeVisible();
+    await expect(
+      serviceActivationSection.getByRole("heading", {
+        name: "Activation Policies",
+      }),
+    ).toBeVisible();
+    await expect(
+      serviceActivationSection
+        .getByText("fiber-internet-activation", { exact: true })
+        .first(),
+    ).toBeVisible();
+    await expect(
+      serviceActivationSection.getByText("retail-bgp", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(
+      serviceActivationSection.getByText("iptv-basic", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(
+      serviceActivationSection.getByText("ERX-Service-Activate").first(),
+    ).toBeVisible();
+
+    await page
+      .getByRole("button", { name: "Preview Service Activation" })
+      .click();
+    await expect(
+      page.getByText(/Service activation preview recorded/),
+    ).toBeVisible();
+
+    await page
+      .getByRole("button", { name: "Apply Service Activation" })
+      .click();
+    await expect(page.getByText(/Service activation applied/)).toBeVisible();
+  });
 });

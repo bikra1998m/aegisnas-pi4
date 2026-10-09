@@ -785,6 +785,23 @@ evidence rather than open engineering work. This keeps engineering completion
 tied to tested software behavior while preserving honest external validation
 boundaries.
 
+### Phase 9 BNG Service Activation, Route Lifecycle, And Multicast
+
+NAS-0090 extends the broadband capability model with transactional service
+activation, subscriber route publish and withdraw governance, multicast
+entitlement, and rollback evidence. The software layer now represents product
+and subscriber activation transactions, route policies, multicast profiles,
+activation policies, standards and vendor RADIUS evidence, durable history,
+API/UI operation, support-bundle capture, runtime status, and
+production-readiness checks.
+
+The capability framework treats live BNG route convergence, route withdrawal,
+multicast forwarding, FreeRADIUS production Linux proof, HA failover, scale,
+soak, security audit, production deployment, and customer acceptance as release
+certification evidence rather than open engineering work. This keeps the
+feature closed when software is complete while preserving honest external
+validation boundaries.
+
 ## Product Positioning Outcome
 
 If this framework is implemented cleanly, AegisNAS can become:

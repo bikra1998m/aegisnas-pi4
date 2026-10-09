@@ -773,6 +773,43 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		broadbandDHCPSecurityStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandDHCPSecurityComponent()]}
 	}
+	broadbandServiceActivationStatus := map[string]any{
+		"status":  "unknown",
+		"message": "BNG service activation status has not been evaluated.",
+	}
+	if activationReport, err := enforcement.PreviewBroadbandServiceActivation(cfg); err == nil {
+		activationSummary, _ := db.GetBroadbandServiceActivationSummary()
+		broadbandServiceActivationStatus = map[string]any{
+			"schema_version":                  activationReport.SchemaVersion,
+			"feature_id":                      activationReport.FeatureID,
+			"status":                          activationReport.Status,
+			"message":                         activationReport.Message,
+			"ready_for_external_validation":   activationReport.ReadyForExternalValidation,
+			"software_completion_percent":     activationReport.SoftwareCompletionPercent,
+			"enabled":                         activationReport.Summary.Enabled,
+			"mode":                            activationReport.Summary.Mode,
+			"service_count":                   activationReport.Summary.ServiceCount,
+			"enabled_service_count":           activationReport.Summary.EnabledServiceCount,
+			"route_policy_count":              activationReport.Summary.RoutePolicyCount,
+			"enabled_route_policy_count":      activationReport.Summary.EnabledRoutePolicyCount,
+			"multicast_profile_count":         activationReport.Summary.MulticastProfileCount,
+			"enabled_multicast_profile_count": activationReport.Summary.EnabledMulticastProfileCount,
+			"activation_policy_count":         activationReport.Summary.ActivationPolicyCount,
+			"radius_attribute_count":          activationReport.Summary.RadiusAttributeCount,
+			"route_attribute_count":           activationReport.Summary.RouteAttributeCount,
+			"multicast_attribute_count":       activationReport.Summary.MulticastAttributeCount,
+			"compliance_check_count":          activationReport.Summary.ComplianceCheckCount,
+			"passed_check_count":              activationReport.Summary.PassedCheckCount,
+			"warning_count":                   activationReport.Summary.WarningCount,
+			"blocker_count":                   activationReport.Summary.BlockerCount,
+			"plan_fingerprint":                activationReport.PlanFingerprint,
+			"release_certification_checklist": activationReport.ReleaseCertificationChecklist,
+			"evidence_summary":                activationSummary,
+			"runtime_status":                  runtimeMap[enforcement.BroadbandServiceActivationComponent()],
+		}
+	} else {
+		broadbandServiceActivationStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandServiceActivationComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1480,6 +1517,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broadband_quota_balance":      broadbandQuotaBalanceStatus,
 		"broadband_address_leases":     broadbandAddressLeaseStatus,
 		"broadband_dhcp_security":      broadbandDHCPSecurityStatus,
+		"broadband_service_activation": broadbandServiceActivationStatus,
 		"vendor_mapping_certification": vendorMappingCertificationStatus,
 		"cisco_family_pack":            ciscoFamilyPackStatus,
 		"aruba_family_pack":            arubaFamilyPackStatus,
@@ -1604,6 +1642,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broadband_qos_service_flows":  broadbandQoSServiceFlowStatus,
 		"broadband_l2tp_wholesale":     broadbandL2TPWholesaleStatus,
 		"broadband_dhcp_security":      broadbandDHCPSecurityStatus,
+		"broadband_service_activation": broadbandServiceActivationStatus,
 		"local_firewall":               runtimeFirewallStatus,
 		"atomic_transactions":          atomicEnforcementStatus,
 	}

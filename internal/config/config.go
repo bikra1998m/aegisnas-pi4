@@ -74,14 +74,15 @@ type DHCPConfig struct {
 }
 
 type BroadbandConfig struct {
-	PPPoE             BroadbandPPPoEConfig           `mapstructure:"pppoe"`
-	Subscriber        BroadbandSubscriberStateConfig `mapstructure:"subscriber_state"`
-	CommercialCatalog BroadbandCommercialCatalog     `mapstructure:"commercial_catalog"`
-	QuotaBalance      BroadbandQuotaBalanceConfig    `mapstructure:"quota_balance"`
-	AddressLeases     BroadbandAddressLeaseConfig    `mapstructure:"address_leases"`
-	QoSServiceFlows   BroadbandQoSServiceFlowConfig  `mapstructure:"qos_service_flows"`
-	L2TPWholesale     BroadbandL2TPWholesaleConfig   `mapstructure:"l2tp_wholesale"`
-	DHCPSecurity      BroadbandDHCPSecurityConfig    `mapstructure:"dhcp_security"`
+	PPPoE             BroadbandPPPoEConfig             `mapstructure:"pppoe"`
+	Subscriber        BroadbandSubscriberStateConfig   `mapstructure:"subscriber_state"`
+	CommercialCatalog BroadbandCommercialCatalog       `mapstructure:"commercial_catalog"`
+	QuotaBalance      BroadbandQuotaBalanceConfig      `mapstructure:"quota_balance"`
+	AddressLeases     BroadbandAddressLeaseConfig      `mapstructure:"address_leases"`
+	QoSServiceFlows   BroadbandQoSServiceFlowConfig    `mapstructure:"qos_service_flows"`
+	L2TPWholesale     BroadbandL2TPWholesaleConfig     `mapstructure:"l2tp_wholesale"`
+	DHCPSecurity      BroadbandDHCPSecurityConfig      `mapstructure:"dhcp_security"`
+	ServiceActivation BroadbandServiceActivationConfig `mapstructure:"service_activation"`
 }
 
 type BroadbandPPPoEConfig struct {
@@ -6089,6 +6090,9 @@ func (c *Config) Validate() error {
 		return err
 	}
 	if err := validateBroadbandDHCPSecurityConfig(c.Broadband.DHCPSecurity, c.DHCP, c.Broadband.Subscriber, c.Broadband.AddressLeases, c.Radius, profile); err != nil {
+		return err
+	}
+	if err := validateBroadbandServiceActivationConfig(c.Broadband.ServiceActivation, c.Broadband.Subscriber, c.Broadband.CommercialCatalog, c.Broadband.AddressLeases, c.Broadband.QoSServiceFlows, c.Broadband.DHCPSecurity, c.Radius, profile); err != nil {
 		return err
 	}
 	if err := validateRadSecConfig(c); err != nil {

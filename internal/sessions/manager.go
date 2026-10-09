@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -19,9 +20,10 @@ import (
 
 // Manager handles session lifecycle and enforcement.
 type Manager struct {
-	cfg    *config.Config
-	logger *zap.Logger
-	db     *sql.DB
+	cfg                   *config.Config
+	logger                *zap.Logger
+	db                    *sql.DB
+	terminationAccounting sync.WaitGroup
 }
 
 func NewManager(cfg *config.Config, logger *zap.Logger) (*Manager, error) {
@@ -211,7 +213,9 @@ func (m *Manager) terminateSession(sessionID, reason string) {
 			m.logger.Warn("failed to sync runtime enforcement after terminate", zap.String("session_id", sessionID), zap.Error(syncErr))
 		}
 		m.logger.Info("session terminated", zap.String("session_id", sessionID), zap.String("reason", reason))
+		m.terminationAccounting.Add(1)
 		go func() {
+			defer m.terminationAccounting.Done()
 			var username, mac, ip, calledStationID, role, bandwidthProfile, filterID, radiusClass string
 			var vlan int
 			var sessionTO, idleTO sql.NullInt32
@@ -238,13 +242,51 @@ func (m *Manager) terminateSession(sessionID, reason string) {
 				IdleTimeout:      int(idleTO.Int32),
 				Timestamp:        time.Now(),
 			}
-			if err := radius.SendAccounting(context.Background(), m.cfg, rec); err != nil {
-				m.logger.Warn("failed to send stop accounting", zap.String("session_id", sessionID), zap.Error(err))
+			if terminationAccountingOutboundEnabled(m.cfg) {
+				ctx, cancel := context.WithTimeout(context.Background(), terminationAccountingTimeout(m.cfg))
+				if err := radius.SendAccounting(ctx, m.cfg, rec); err != nil {
+					m.logger.Warn("failed to send stop accounting", zap.String("session_id", sessionID), zap.Error(err))
+				}
+				cancel()
 			}
 			if err := radius.ProcessAccounting(rec); err != nil {
 				m.logger.Warn("failed to update local accounting state", zap.String("session_id", sessionID), zap.Error(err))
 			}
 		}()
+	}
+}
+
+func terminationAccountingOutboundEnabled(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+	return cfg.Radius.AcctPort > 0 && strings.TrimSpace(cfg.Radius.Secret) != ""
+}
+
+func terminationAccountingTimeout(cfg *config.Config) time.Duration {
+	if cfg == nil || cfg.Radius.RequestTimeoutSeconds <= 0 {
+		return 5 * time.Second
+	}
+	return time.Duration(cfg.Radius.RequestTimeoutSeconds) * time.Second
+}
+
+// WaitForTerminationAccounting waits for asynchronous Stop accounting spawned by
+// session termination. Services call this during shutdown before closing the
+// shared database handle so local accounting persistence cannot race db.Close.
+func (m *Manager) WaitForTerminationAccounting(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	done := make(chan struct{})
+	go func() {
+		m.terminationAccounting.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 

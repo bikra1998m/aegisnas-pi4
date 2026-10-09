@@ -3560,6 +3560,12 @@ export default function AccessSettings() {
   const [broadbandDHCPSecurityAction, setBroadbandDHCPSecurityAction] =
     useState("");
   const broadbandDHCPSecurityBusy = broadbandDHCPSecurityAction !== "";
+  const [broadbandServiceActivation, setBroadbandServiceActivation] =
+    useState<JsonMap | null>(null);
+  const [broadbandServiceActivationAction, setBroadbandServiceActivationAction] =
+    useState("");
+  const broadbandServiceActivationBusy =
+    broadbandServiceActivationAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3711,6 +3717,11 @@ export default function AccessSettings() {
   const loadBroadbandDHCPSecurity = async () => {
     const { data } = await api.get("/system/broadband-dhcp-security");
     setBroadbandDHCPSecurity(data.report || null);
+  };
+
+  const loadBroadbandServiceActivation = async () => {
+    const { data } = await api.get("/system/broadband-service-activation");
+    setBroadbandServiceActivation(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3957,6 +3968,7 @@ export default function AccessSettings() {
         broadbandQoSServiceFlowsRes,
         broadbandL2TPWholesaleRes,
         broadbandDHCPSecurityRes,
+        broadbandServiceActivationRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -3976,6 +3988,7 @@ export default function AccessSettings() {
         api.get("/system/broadband-qos-service-flows"),
         api.get("/system/broadband-l2tp-wholesale"),
         api.get("/system/broadband-dhcp-security"),
+        api.get("/system/broadband-service-activation"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -4003,6 +4016,9 @@ export default function AccessSettings() {
       );
       setBroadbandL2TPWholesale(broadbandL2TPWholesaleRes.data.report || null);
       setBroadbandDHCPSecurity(broadbandDHCPSecurityRes.data.report || null);
+      setBroadbandServiceActivation(
+        broadbandServiceActivationRes.data.report || null,
+      );
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -4104,6 +4120,7 @@ export default function AccessSettings() {
       await loadBroadbandQoSServiceFlows();
       await loadBroadbandL2TPWholesale();
       await loadBroadbandDHCPSecurity();
+      await loadBroadbandServiceActivation();
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -5172,6 +5189,57 @@ export default function AccessSettings() {
     }
   };
 
+  const previewBroadbandServiceActivation = async () => {
+    setBroadbandServiceActivationAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-service-activation/preview",
+        {},
+      );
+      setBroadbandServiceActivation(data.report || null);
+      setMessage(
+        `Service activation preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview BNG service activation, route lifecycle, and multicast.",
+      );
+    } finally {
+      setBroadbandServiceActivationAction("");
+    }
+  };
+
+  const applyBroadbandServiceActivation = async () => {
+    setBroadbandServiceActivationAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post(
+        "/system/broadband-service-activation/apply",
+        {},
+      );
+      setBroadbandServiceActivation(data.report || null);
+      setMessage(
+        `Service activation ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadBroadbandServiceActivation();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply BNG service activation, route lifecycle, and multicast.",
+      );
+    } finally {
+      setBroadbandServiceActivationAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -5957,6 +6025,36 @@ export default function AccessSettings() {
     ? broadbandDHCPSecurity?.compliance
     : [];
   const broadbandDHCPTone = statusTone(broadbandDHCPSecurity?.status);
+  const broadbandServiceActivationSummary =
+    broadbandServiceActivation?.summary || {};
+  const broadbandServiceActivationServices = Array.isArray(
+    broadbandServiceActivation?.services,
+  )
+    ? broadbandServiceActivation?.services
+    : [];
+  const broadbandServiceRoutePolicies = Array.isArray(
+    broadbandServiceActivation?.route_policies,
+  )
+    ? broadbandServiceActivation?.route_policies
+    : [];
+  const broadbandServiceMulticastProfiles = Array.isArray(
+    broadbandServiceActivation?.multicast_profiles,
+  )
+    ? broadbandServiceActivation?.multicast_profiles
+    : [];
+  const broadbandServiceActivationPolicies = Array.isArray(
+    broadbandServiceActivation?.activation_policies,
+  )
+    ? broadbandServiceActivation?.activation_policies
+    : [];
+  const broadbandServiceActivationCompliance = Array.isArray(
+    broadbandServiceActivation?.compliance,
+  )
+    ? broadbandServiceActivation?.compliance
+    : [];
+  const broadbandServiceActivationTone = statusTone(
+    broadbandServiceActivation?.status,
+  );
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -6415,6 +6513,24 @@ export default function AccessSettings() {
             {broadbandDHCPSecurityAction === "apply"
               ? "Applying DHCP Security..."
               : "Apply DHCP Security"}
+          </button>
+          <button
+            onClick={previewBroadbandServiceActivation}
+            disabled={broadbandServiceActivationBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {broadbandServiceActivationAction === "preview"
+              ? "Checking Service Activation..."
+              : "Preview Service Activation"}
+          </button>
+          <button
+            onClick={applyBroadbandServiceActivation}
+            disabled={broadbandServiceActivationBusy}
+            className="rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-900 disabled:opacity-60"
+          >
+            {broadbandServiceActivationAction === "apply"
+              ? "Applying Service Activation..."
+              : "Apply Service Activation"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -6927,6 +7043,378 @@ export default function AccessSettings() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Service Activation, Route Lifecycle, And Multicast
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {broadbandServiceActivation?.release_certification_checklist ||
+                "Validate subscriber services, route publish and withdraw, multicast entitlement, accounting correlation, and CoA rollback before live BNG enforcement."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${broadbandServiceActivationTone}`}
+          >
+            {broadbandServiceActivation?.status || "unknown"}
+          </div>
+        </div>
+        {broadbandServiceActivation ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {broadbandServiceActivation.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Services",
+                  `${broadbandServiceActivationSummary.enabled_service_count || 0}/${broadbandServiceActivationSummary.service_count || 0}`,
+                ],
+                [
+                  "Routes",
+                  `${broadbandServiceActivationSummary.enabled_route_policy_count || 0}/${broadbandServiceActivationSummary.route_policy_count || 0}`,
+                ],
+                [
+                  "Multicast",
+                  `${broadbandServiceActivationSummary.enabled_multicast_profile_count || 0}/${broadbandServiceActivationSummary.multicast_profile_count || 0}`,
+                ],
+                [
+                  "Policies",
+                  `${broadbandServiceActivationSummary.enabled_activation_policy_count || 0}/${broadbandServiceActivationSummary.activation_policy_count || 0}`,
+                ],
+                [
+                  "RADIUS Attrs",
+                  broadbandServiceActivationSummary.radius_attribute_count || 0,
+                ],
+                [
+                  "Compliance",
+                  `${broadbandServiceActivationSummary.passed_check_count || 0}/${broadbandServiceActivationSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              Mode{" "}
+              <span className="font-mono">
+                {broadbandServiceActivationSummary.mode || "monitor"}
+              </span>{" "}
+              / route publish{" "}
+              <span className="font-mono">
+                {broadbandServiceActivationSummary.route_publish_enabled
+                  ? "on"
+                  : "off"}
+              </span>{" "}
+              / multicast{" "}
+              <span className="font-mono">
+                {broadbandServiceActivationSummary.multicast_enabled
+                  ? "on"
+                  : "off"}
+              </span>{" "}
+              / rollback{" "}
+              <span className="font-mono">
+                {broadbandServiceActivationSummary.rollback_on_failure
+                  ? "required"
+                  : "monitor"}
+              </span>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-4">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Services
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandServiceActivationServices.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No service activation transaction is configured.
+                    </div>
+                  ) : (
+                    broadbandServiceActivationServices
+                      .slice(0, 8)
+                      .map((service: JsonMap, index: number) => (
+                        <div
+                          key={`${service.transaction_key || service.name || "service"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {service.name || "Service Activation"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                service.status,
+                              )}`}
+                            >
+                              {service.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              service.product,
+                              service.tenant,
+                              service.service_chain,
+                              service.route_policy,
+                              service.multicast_profile,
+                              service.qos_profile,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Service metadata only"}
+                          </div>
+                          {service.radius_attributes?.length > 0 && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              {service.radius_attributes
+                                .slice(0, 6)
+                                .map((attribute: JsonMap) => attribute.name)
+                                .filter(Boolean)
+                                .join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Route Policies
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandServiceRoutePolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No BNG route policy is configured.
+                    </div>
+                  ) : (
+                    broadbandServiceRoutePolicies
+                      .slice(0, 8)
+                      .map((route: JsonMap, index: number) => (
+                        <div
+                          key={`${route.name || "route-policy"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {route.name || "Route Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                route.status,
+                              )}`}
+                            >
+                              {route.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              route.protocol,
+                              route.vrf,
+                              route.next_hop,
+                              route.route_target,
+                              route.withdraw_on_deactivate ? "withdraw" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Route lifecycle metadata only"}
+                          </div>
+                          {route.attributes?.length > 0 && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              {route.attributes
+                                .slice(0, 6)
+                                .map((attribute: JsonMap) => attribute.name)
+                                .filter(Boolean)
+                                .join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Multicast Profiles
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandServiceMulticastProfiles.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No multicast entitlement profile is configured.
+                    </div>
+                  ) : (
+                    broadbandServiceMulticastProfiles
+                      .slice(0, 8)
+                      .map((profile: JsonMap, index: number) => (
+                        <div
+                          key={`${profile.name || "multicast"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {profile.name || "Multicast Profile"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                profile.status,
+                              )}`}
+                            >
+                              {profile.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              profile.mode,
+                              profile.vrf,
+                              profile.vlan ? `VLAN ${profile.vlan}` : "",
+                              profile.max_groups
+                                ? `${profile.max_groups} groups`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Multicast metadata only"}
+                          </div>
+                          {profile.groups?.length > 0 && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              {profile.groups.slice(0, 4).join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Activation Policies
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {broadbandServiceActivationPolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No activation policy is configured.
+                    </div>
+                  ) : (
+                    broadbandServiceActivationPolicies
+                      .slice(0, 8)
+                      .map((policy: JsonMap, index: number) => (
+                        <div
+                          key={`${policy.name || "activation-policy"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {policy.name || "Activation Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                policy.status,
+                              )}`}
+                            >
+                              {policy.status || "ready"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              policy.match_product,
+                              policy.match_tenant,
+                              policy.failure_action,
+                              policy.allow_rollback ? "rollback" : "",
+                              policy.require_routes ? "routes" : "",
+                              policy.require_multicast ? "multicast" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Activation policy metadata only"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">
+                Compliance Checks
+              </h4>
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                {broadbandServiceActivationCompliance.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                    No service activation compliance check is present.
+                  </div>
+                ) : (
+                  broadbandServiceActivationCompliance
+                    .slice(0, 8)
+                    .map((check: JsonMap, index: number) => (
+                      <div
+                        key={`${check.id || check.name || "service-check"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {check.name || check.id || "Compliance Check"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              check.status,
+                            )}`}
+                          >
+                            {check.status || "unknown"}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {check.message || "No compliance message"}
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+            {((broadbandServiceActivation.blockers?.length || 0) > 0 ||
+              (broadbandServiceActivation.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(broadbandServiceActivation.blockers || []),
+                  ...(broadbandServiceActivation.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Transactions{" "}
+              <span className="font-mono">
+                {broadbandServiceActivationSummary.transactional_apply
+                  ? "atomic"
+                  : "preview"}
+              </span>{" "}
+              / CoA{" "}
+              <span className="font-mono">
+                {broadbandServiceActivationSummary.dynamic_auth_enabled
+                  ? "ready"
+                  : "blocked"}
+              </span>{" "}
+              / accounting{" "}
+              <span className="font-mono">
+                {broadbandServiceActivationSummary.accounting_services_enabled
+                  ? "ready"
+                  : "blocked"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {broadbandServiceActivation.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Service activation report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">

@@ -131,6 +131,9 @@ var runCmd = &cobra.Command{
 			logger.Error("server shutdown error", zap.Error(err))
 		}
 		cancel() // stop background tasks
+		if err := mgr.WaitForTerminationAccounting(shutdownCtx); err != nil {
+			logger.Warn("timed out waiting for stop accounting to drain", zap.Error(err))
+		}
 		return nil
 	},
 }

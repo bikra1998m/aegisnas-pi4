@@ -1568,6 +1568,29 @@ For DHCP relay, DHCP snooping, Option 82, and IP source guard:
    failover, performance, soak, security audit, and customer acceptance in
    `nas-0089-release-certification-checklist.md`
 
+For BNG service activation, route lifecycle, and multicast:
+
+1. keep `broadband.service_activation.mode: monitor` until subscriber state,
+   product catalog, address leases, QoS service flows, DHCP security, route
+   export, SQL accounting, accounting services, and dynamic authorization are
+   all ready
+2. model every activation service with explicit product, subscriber, tenant,
+   service chain, route policy, multicast profile, address pool, QoS profile,
+   accounting class, and vendor packs
+3. use `POST /api/v1/system/broadband-service-activation/preview` to inspect
+   compiled evidence such as `Framed-Route`, `Framed-IPv6-Route`, `Class`,
+   `Filter-Id`, `Framed-Pool`, `ERX-Service-Activate`,
+   `ERX-Update-Service`, `Huawei-AVpair`, `H3C-Av-Pair`,
+   `Nokia-Service-Name`, `Nokia-AVPair`, and `ZTE-AVPair`
+4. run apply only after operator review of route publish/withdraw,
+   multicast entitlement, accounting correlation, transactional rollback,
+   CoA recovery, compliance checks, and plan fingerprint
+5. export a support bundle and retain `api/broadband-service-activation.json`
+   and `api/broadband-service-activation-history.json`
+6. keep live BNG route convergence, multicast forwarding, packet captures, HA
+   failover, performance, soak, security audit, and customer acceptance in
+   `nas-0090-release-certification-checklist.md`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

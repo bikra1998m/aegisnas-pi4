@@ -1408,6 +1408,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0089 DHCP security event history and effective binding rows."),
 	}))
+	addOperation(paths, "/api/v1/system/broadband-service-activation", "get", securedOperation("Read BNG service activation, route lifecycle, and multicast", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0090 service activation transactions, route policies, multicast profiles, compiled RADIUS/VSA evidence, compliance checks, and evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-service-activation/preview", "post", securedOperationWithBody("Preview BNG service activation, route lifecycle, and multicast", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating active service-activation transaction rows."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0090 BNG service activation report and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-service-activation/apply", "post", securedOperationWithBody("Apply BNG service activation, route lifecycle, and multicast", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records compiled service activation evidence and runtime status. Live BNG route convergence and multicast forwarding remain release certification until enabled per adapter."), map[string]any{
+		"200":     responseJSON("Applied NAS-0090 BNG service activation checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/broadband-service-activation/history", "get", securedOperationWithParameters("List BNG service activation history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0090 service activation event history and effective transaction rows."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))

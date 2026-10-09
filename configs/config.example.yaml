@@ -1528,6 +1528,76 @@ broadband:
         source: "option82"
         attributes: ["Class", "NAS-Port-Id", "Calling-Station-Id"]
         accounting_stages: ["start", "interim", "stop"]
+  service_activation:
+    enabled: false # Enable after subscriber, product, address, QoS, DHCP security, routing, accounting, and CoA previews pass.
+    mode: "monitor" # Use enforce after live BNG route and multicast packet validation.
+    fail_closed: true
+    require_subscriber_state: true
+    require_commercial_catalog: true
+    require_address_leases: true
+    require_qos_service_flows: true
+    require_dhcp_security: true
+    require_route_export: true
+    require_accounting: true
+    require_dynamic_auth: true
+    transactional_apply: true
+    rollback_on_failure: true
+    route_publish_enabled: true
+    multicast_enabled: true
+    activation_timeout_seconds: 60
+    event_retention_limit: 10000
+    services:
+      - name: "fiber-internet-activation"
+        enabled: false
+        required: true
+        product: "residential-fiber"
+        subscriber_id: "sub-lab-cpe-01"
+        username: "lab-cpe-01@example.net"
+        tenant: "retail"
+        service_chain: "retail-internet"
+        route_policy: "retail-bgp"
+        multicast_profile: "iptv-basic"
+        address_pool: "pppoe-v4"
+        qos_profile: "silver"
+        accounting_class: "internet"
+        vendor_packs: ["standard", "aegisnas", "erx", "huawei", "h3c", "nokia", "zte"]
+    route_policies:
+      - name: "retail-bgp"
+        enabled: false
+        vrf: "retail"
+        protocol: "bgp"
+        ipv4_routes: ["100.64.0.0/24"]
+        ipv6_routes: ["2001:db8:100::/48"]
+        next_hop: "192.0.2.1"
+        route_target: "65000:100"
+        metric: 100
+        preference: 100
+        withdraw_on_deactivate: true
+        aggregate: false
+        vendor_packs: ["standard", "aegisnas", "erx", "huawei", "h3c", "nokia", "zte"]
+    multicast_profiles:
+      - name: "iptv-basic"
+        enabled: false
+        mode: "igmp-mld"
+        groups: ["239.1.1.1", "ff3e::1"]
+        source_addresses: ["198.51.100.10"]
+        max_groups: 64
+        querier_interface: "eth1.100"
+        vlan: 120
+        vrf: "retail"
+        entitlement_required: true
+        vendor_packs: ["standard", "aegisnas", "erx", "huawei", "h3c", "nokia", "zte"]
+    activation_policies:
+      - name: "retail-transactional"
+        enabled: false
+        match_product: "residential-fiber"
+        match_tenant: "retail"
+        allow_rollback: true
+        require_routes: true
+        require_multicast: true
+        require_accounting: true
+        change_window: "always"
+        failure_action: "rollback"
 
 portal:
   enabled: true

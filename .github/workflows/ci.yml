@@ -35,6 +35,7 @@ jobs:
       - run: make test-broadband-qos-service-flows
       - run: make test-broadband-l2tp-wholesale
       - run: make test-broadband-dhcp-security
+      - run: make test-broadband-service-activation
 
   frontend:
     runs-on: ubuntu-latest

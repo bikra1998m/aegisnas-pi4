@@ -4380,6 +4380,224 @@ function createBroadbandDHCPSecurity(status = "ready") {
   };
 }
 
+function createBroadbandServiceActivation(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0090",
+      status,
+      message:
+        "NAS-0090 service activation is ready with 1 service, 1 route policy, 1 multicast profile, and 12 RADIUS attributes.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0090-release-certification-checklist.md",
+      release_scope:
+        "Live BNG route convergence, multicast forwarding, HA, scale, soak, security, and customer proof are release certification activities.",
+      plan_fingerprint:
+        "sha256:0090a2470403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81ed",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        require_subscriber_state: true,
+        require_commercial_catalog: true,
+        require_address_leases: true,
+        require_qos_service_flows: true,
+        require_dhcp_security: true,
+        require_route_export: true,
+        require_accounting: true,
+        require_dynamic_auth: true,
+        transactional_apply: true,
+        rollback_on_failure: true,
+        route_publish_enabled: true,
+        multicast_enabled: true,
+        activation_timeout_seconds: 60,
+        event_retention_limit: 10000,
+        subscriber_state_enabled: true,
+        commercial_catalog_enabled: true,
+        address_leases_enabled: true,
+        qos_service_flows_enabled: true,
+        dhcp_security_enabled: true,
+        route_policy_enabled: true,
+        dynamic_routing_enabled: true,
+        sql_accounting_enabled: true,
+        accounting_services_enabled: true,
+        dynamic_auth_enabled: true,
+        service_count: 1,
+        enabled_service_count: 1,
+        route_policy_count: 1,
+        enabled_route_policy_count: 1,
+        multicast_profile_count: 1,
+        enabled_multicast_profile_count: 1,
+        activation_policy_count: 1,
+        enabled_activation_policy_count: 1,
+        route_attribute_count: 8,
+        multicast_attribute_count: 8,
+        radius_attribute_count: 12,
+        authorization_binding_count: 2,
+        accounting_binding_count: 3,
+        compliance_check_count: 13,
+        passed_check_count: 13,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 1,
+      },
+      services: [
+        {
+          transaction_key: "bng-service-lab",
+          name: "fiber-internet-activation",
+          enabled: true,
+          required: true,
+          product: "residential-fiber",
+          subscriber_id: "sub-lab-cpe-01",
+          username: "lab-cpe-01@example.net",
+          tenant: "retail",
+          service_chain: "retail-internet",
+          route_policy: "retail-bgp",
+          multicast_profile: "iptv-basic",
+          address_pool: "pppoe-v4",
+          qos_profile: "silver",
+          accounting_class: "internet",
+          vendor_packs: ["standard", "erx", "huawei", "h3c", "nokia", "zte"],
+          radius_attributes: [
+            { name: "Service-Type", value: "Framed-User" },
+            { name: "Class", value: "service-activation:bng-service-lab" },
+            { name: "Framed-Pool", value: "pppoe-v4" },
+            { name: "Filter-Id", value: "silver" },
+            { name: "ERX-Service-Activate", value: "retail-internet" },
+            { name: "ERX-Update-Service", value: "retail-internet" },
+            { name: "Nokia-Service-Name", value: "retail-internet" },
+            { name: "ZTE-AVPair", value: "subscriber-service=retail-internet" },
+          ],
+          status: "ready",
+          reason:
+            "Service activation transaction can bind subscriber, route, multicast, QoS, address, and accounting evidence.",
+        },
+      ],
+      route_policies: [
+        {
+          name: "retail-bgp",
+          enabled: true,
+          vrf: "retail",
+          protocol: "bgp",
+          ipv4_routes: ["100.64.0.0/24"],
+          ipv6_routes: ["2001:db8:100::/48"],
+          next_hop: "192.0.2.1",
+          route_target: "65000:100",
+          metric: 100,
+          preference: 100,
+          withdraw_on_deactivate: true,
+          aggregate: false,
+          vendor_packs: ["standard", "erx", "huawei", "h3c", "nokia", "zte"],
+          attributes: [
+            { name: "Class", value: "route-policy:retail-bgp" },
+            { name: "Framed-Route", value: "100.64.0.0/24 192.0.2.1" },
+            {
+              name: "Framed-IPv6-Route",
+              value: "2001:db8:100::/48 192.0.2.1",
+            },
+            { name: "ERX-Virtual-Router-Name", value: "retail" },
+            { name: "Huawei-AVpair", value: "route-policy=retail-bgp" },
+          ],
+          status: "ready",
+          reason:
+            "Route policy can publish and withdraw subscriber route ownership.",
+        },
+      ],
+      multicast_profiles: [
+        {
+          name: "iptv-basic",
+          enabled: true,
+          mode: "igmp_mld",
+          groups: ["239.1.1.1", "ff3e::1"],
+          source_addresses: ["198.51.100.10"],
+          max_groups: 64,
+          querier_interface: "eth1.100",
+          vlan: 120,
+          vrf: "retail",
+          entitlement_required: true,
+          vendor_packs: ["standard", "erx", "huawei", "h3c", "nokia", "zte"],
+          attributes: [
+            { name: "Filter-Id", value: "multicast:iptv-basic" },
+            { name: "Class", value: "multicast-profile:iptv-basic" },
+            { name: "AegisNAS-Multicast-Group", value: "239.1.1.1" },
+            { name: "ERX-Service-Activate", value: "multicast:iptv-basic" },
+            { name: "Nokia-AVPair", value: "multicast-profile=iptv-basic" },
+          ],
+          status: "ready",
+          reason:
+            "Multicast entitlement can be bound to subscriber service activation.",
+        },
+      ],
+      activation_policies: [
+        {
+          name: "retail-transactional",
+          enabled: true,
+          match_product: "residential-fiber",
+          match_tenant: "retail",
+          allow_rollback: true,
+          require_routes: true,
+          require_multicast: true,
+          require_accounting: true,
+          change_window: "always",
+          failure_action: "rollback",
+          status: "ready",
+          reason:
+            "Activation policy governs route, multicast, accounting, and rollback requirements.",
+        },
+      ],
+      compliance: [
+        {
+          id: "subscriber-state",
+          name: "Subscriber state dependency",
+          status: "passed",
+          message: "Subscriber state is available.",
+        },
+        {
+          id: "route-export",
+          name: "Route export dependency",
+          status: "passed",
+          message: "Route policy dynamic routing is available.",
+        },
+        {
+          id: "external-certification",
+          name: "External BNG certification boundary",
+          status: "passed",
+          message:
+            "Live BNG route convergence, multicast forwarding, HA, scale, soak, security, and customer proof are release certification activities.",
+        },
+      ],
+      authorization_bindings: [],
+      accounting_bindings: [],
+      standards: ["RFC 2865", "RFC 2866", "RFC 4271", "RFC 4604", "RFC 5176"],
+      vendors: ["Juniper ERX/E-Series", "Huawei", "H3C", "Nokia", "ZTE"],
+      requirements: [
+        "activate subscriber services transactionally after dependencies are ready",
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        active_transactions: 0,
+        planned_transactions: 1,
+      },
+      recent_events: [],
+      transactions: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -10148,6 +10366,67 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           },
           events: [],
           bindings: createBroadbandDHCPSecurity().report.ports,
+        },
+      });
+      return;
+    }
+    if (path === "/system/broadband-service-activation" && method === "GET") {
+      await route.fulfill({ json: createBroadbandServiceActivation() });
+      return;
+    }
+    if (
+      path === "/system/broadband-service-activation/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createBroadbandServiceActivation(),
+          event_id: "bng-service-activation-event-preview",
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-service-activation/apply" &&
+      method === "POST"
+    ) {
+      const payload = createBroadbandServiceActivation();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0090 recorded service activation with 1 service, 1 route policy, and 1 multicast profile.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "bng-service-activation-event-apply",
+          result: {
+            status: "applied",
+            event_id: "bng-service-activation-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/system/broadband-service-activation/history" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0090",
+          summary: {
+            total_events: 1,
+            preview_events: 1,
+            apply_events: 0,
+            previewed_count: 1,
+            applied_count: 0,
+            blocked_count: 0,
+            failed_count: 0,
+            planned_transactions: 1,
+            active_transactions: 0,
+          },
+          events: [],
+          transactions: createBroadbandServiceActivation().report.services,
         },
       });
       return;

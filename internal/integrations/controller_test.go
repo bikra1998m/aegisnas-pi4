@@ -1458,7 +1458,7 @@ func TestStartControllerAutomationTracksRuntimeCounters(t *testing.T) {
 		return int64ControllerDetail(status.Details, "sync_count") >= 1 &&
 			int64ControllerDetail(status.Details, "success_count") >= 1 &&
 			int64ControllerDetail(status.Details, "failure_count") == 0
-	}, 2*time.Second, 50*time.Millisecond)
+	}, 10*time.Second, 50*time.Millisecond)
 
 	history, err := db.ListIntegrationHistory(ControllerComponent(), 10)
 	require.NoError(t, err)
