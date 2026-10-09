@@ -34,6 +34,22 @@ func TestBuildConnectionPlanPostgreSQLUsesSecretRefAndRedactsDSN(t *testing.T) {
 	assert.Equal(t, 40, plan.Pool.MaxOpenConns)
 }
 
+func TestSQLiteDataSourceNameWithBusyTimeout(t *testing.T) {
+	assert.Equal(t, "data.db?_pragma=busy_timeout(5000)", sqliteDataSourceNameWithBusyTimeout("data.db"))
+	assert.Equal(t, "file:data.db?cache=shared&_pragma=busy_timeout(5000)", sqliteDataSourceNameWithBusyTimeout("file:data.db?cache=shared"))
+	assert.Equal(t, "data.db?_pragma=busy_timeout(2500)", sqliteDataSourceNameWithBusyTimeout("data.db?_pragma=busy_timeout(2500)"))
+}
+
+func TestOpenSQLiteConfiguresBusyTimeoutBeforePing(t *testing.T) {
+	handle, err := OpenSQLite(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = handle.Close() })
+
+	var timeout int
+	require.NoError(t, handle.QueryRow("PRAGMA busy_timeout").Scan(&timeout))
+	assert.Equal(t, sqliteBusyTimeoutMilliseconds, timeout)
+}
+
 func TestPostgreSQLQueryRewrite(t *testing.T) {
 	query := `INSERT OR IGNORE INTO roles (name, description) VALUES (?, '? literal');
 SELECT * FROM sessions WHERE username = ? AND created_at > datetime('now', '-7 days') AND note = '?' -- ?

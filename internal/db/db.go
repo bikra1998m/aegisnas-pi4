@@ -16,6 +16,11 @@ import (
 
 var DB *sql.DB
 
+const (
+	sqliteBusyTimeoutMilliseconds = 5000
+	defaultSQLiteOpenRetryTimeout = 10 * time.Second
+)
+
 func Open(dataSourceName string) (*sql.DB, error) {
 	return OpenSQLite(dataSourceName)
 }
@@ -26,15 +31,17 @@ func OpenSQLite(dataSourceName string) (*sql.DB, error) {
 		return nil, fmt.Errorf("create db dir: %w", err)
 	}
 
-	handle, err := sql.Open("sqlite", dataSourceName)
+	handle, err := sql.Open("sqlite", sqliteDataSourceNameWithBusyTimeout(dataSourceName))
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
-	if err = handle.Ping(); err != nil {
+	pingCtx, cancel := context.WithTimeout(context.Background(), defaultSQLiteOpenRetryTimeout)
+	defer cancel()
+	if err = pingDatabaseWithBusyRetry(pingCtx, handle); err != nil {
 		_ = handle.Close()
 		return nil, fmt.Errorf("ping db: %w", err)
 	}
-	if _, err = handle.Exec("PRAGMA busy_timeout = 5000"); err != nil {
+	if _, err = handle.Exec(fmt.Sprintf("PRAGMA busy_timeout = %d", sqliteBusyTimeoutMilliseconds)); err != nil {
 		_ = handle.Close()
 		return nil, fmt.Errorf("set busy timeout: %w", err)
 	}
@@ -79,7 +86,11 @@ func openConnectionPlan(ctx context.Context, plan ConnectionPlan) (*sql.DB, erro
 			return nil, fmt.Errorf("create db dir: %w", err)
 		}
 	}
-	handle, err := sql.Open(plan.Driver, plan.DataSourceName)
+	dataSourceName := plan.DataSourceName
+	if plan.Dialect == DialectSQLite {
+		dataSourceName = sqliteDataSourceNameWithBusyTimeout(dataSourceName)
+	}
+	handle, err := sql.Open(plan.Driver, dataSourceName)
 	if err != nil {
 		return nil, fmt.Errorf("open %s database: %w", plan.Backend, err)
 	}
@@ -91,13 +102,18 @@ func openConnectionPlan(ctx context.Context, plan ConnectionPlan) (*sql.DB, erro
 		pingCtx, cancel = context.WithTimeout(ctx, plan.ConnectTimeout)
 	}
 	defer cancel()
-	if err = handle.PingContext(pingCtx); err != nil {
+	if plan.Dialect == DialectSQLite {
+		err = pingDatabaseWithBusyRetry(pingCtx, handle)
+	} else {
+		err = handle.PingContext(pingCtx)
+	}
+	if err != nil {
 		_ = handle.Close()
 		return nil, fmt.Errorf("ping %s database: %w", plan.Backend, err)
 	}
 	switch plan.Dialect {
 	case DialectSQLite:
-		if _, err = handle.ExecContext(ctx, "PRAGMA busy_timeout = 5000"); err != nil {
+		if _, err = handle.ExecContext(ctx, fmt.Sprintf("PRAGMA busy_timeout = %d", sqliteBusyTimeoutMilliseconds)); err != nil {
 			_ = handle.Close()
 			return nil, fmt.Errorf("set busy timeout: %w", err)
 		}
@@ -110,6 +126,55 @@ func openConnectionPlan(ctx context.Context, plan ConnectionPlan) (*sql.DB, erro
 		}
 	}
 	return handle, nil
+}
+
+func sqliteDataSourceNameWithBusyTimeout(dataSourceName string) string {
+	trimmed := strings.TrimSpace(dataSourceName)
+	if trimmed == "" || strings.Contains(strings.ToLower(trimmed), "busy_timeout") {
+		return dataSourceName
+	}
+	separator := "?"
+	if strings.Contains(trimmed, "?") {
+		separator = "&"
+	}
+	return dataSourceName + separator + fmt.Sprintf("_pragma=busy_timeout(%d)", sqliteBusyTimeoutMilliseconds)
+}
+
+func pingDatabaseWithBusyRetry(ctx context.Context, handle *sql.DB) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	var lastErr error
+	for {
+		err := handle.PingContext(ctx)
+		if err == nil {
+			return nil
+		}
+		if !isSQLiteBusyError(err) {
+			return err
+		}
+		lastErr = err
+		timer := time.NewTimer(250 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			if lastErr != nil {
+				return lastErr
+			}
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+func isSQLiteBusyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "sqlite_busy") ||
+		strings.Contains(message, "database is locked") ||
+		strings.Contains(message, "database is busy")
 }
 
 func Init(dataSourceName string) error {
