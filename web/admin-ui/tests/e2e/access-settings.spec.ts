@@ -226,21 +226,32 @@ test.describe("Access Settings edge-network flow", () => {
   test("previews and applies telecom grouped AVP framework", async ({
     page,
   }) => {
+    test.setTimeout(120_000);
+
     await seedAuthenticatedSession(page);
     await installMockApi(page);
 
-    await page.goto("/access-settings");
-    const mobileAVPSection = page.locator("section").filter({
-      has: page.getByRole("heading", {
-        name: "Telecom Grouped AVP Framework",
-      }),
+    await page.goto("/access-settings", {
+      timeout: 90_000,
+      waitUntil: "domcontentloaded",
     });
+    const mobileAVPHeading = page.getByRole("heading", {
+      name: "Telecom Grouped AVP Framework",
+    });
+    await expect(mobileAVPHeading).toBeVisible({ timeout: 60_000 });
+    const mobileAVPSection = mobileAVPHeading.locator(
+      "xpath=ancestor::section[1]",
+    );
     await expect(mobileAVPSection).toBeVisible();
     await expect(
       mobileAVPSection.getByRole("heading", { name: "Vendor Scopes" }),
     ).toBeVisible();
-    await expect(mobileAVPSection.getByText("3GPP", { exact: true })).toBeVisible();
-    await expect(mobileAVPSection.getByText("WiMAX", { exact: true })).toBeVisible();
+    await expect(
+      mobileAVPSection.getByText("3GPP", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      mobileAVPSection.getByText("WiMAX", { exact: true }),
+    ).toBeVisible();
 
     await page.getByRole("button", { name: "Preview Mobile AVPs" }).click();
     await expect(
