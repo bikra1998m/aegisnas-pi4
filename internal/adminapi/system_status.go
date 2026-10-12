@@ -847,6 +847,40 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		broadbandGovernanceSelfServiceStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.BroadbandGovernanceSelfServiceComponent()]}
 	}
+	mobileGroupedAVPStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Telecom grouped AVP framework status has not been evaluated.",
+	}
+	if mobileReport, err := enforcement.PreviewMobileGroupedAVPs(cfg); err == nil {
+		mobileSummary, _ := db.GetMobileGroupedAVPSummary()
+		mobileGroupedAVPStatus = map[string]any{
+			"schema_version":                      mobileReport.SchemaVersion,
+			"feature_id":                          mobileReport.FeatureID,
+			"status":                              mobileReport.Status,
+			"message":                             mobileReport.Message,
+			"ready_for_external_validation":       mobileReport.ReadyForExternalValidation,
+			"software_completion_percent":         mobileReport.SoftwareCompletionPercent,
+			"enabled":                             mobileReport.Summary.Enabled,
+			"mode":                                mobileReport.Summary.Mode,
+			"vendor_scope_count":                  mobileReport.Summary.VendorScopeCount,
+			"enabled_vendor_scope_count":          mobileReport.Summary.EnabledVendorScopeCount,
+			"evidence_policy_count":               mobileReport.Summary.EvidencePolicyCount,
+			"enabled_evidence_policy_count":       mobileReport.Summary.EnabledEvidencePolicyCount,
+			"compiled_attribute_count":            mobileReport.Summary.CompiledAttributeCount,
+			"grouped_attribute_count":             mobileReport.Summary.GroupedAttributeCount,
+			"compliance_check_count":              mobileReport.Summary.ComplianceCheckCount,
+			"passed_check_count":                  mobileReport.Summary.PassedCheckCount,
+			"warning_count":                       mobileReport.Summary.WarningCount,
+			"blocker_count":                       mobileReport.Summary.BlockerCount,
+			"plan_fingerprint":                    mobileReport.PlanFingerprint,
+			"release_certification_checklist":     mobileReport.ReleaseCertificationChecklist,
+			"release_certification_external_only": true,
+			"evidence_summary":                    mobileSummary,
+			"runtime_status":                      runtimeMap[enforcement.MobileGroupedAVPComponent()],
+		}
+	} else {
+		mobileGroupedAVPStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.MobileGroupedAVPComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1556,6 +1590,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broadband_dhcp_security":           broadbandDHCPSecurityStatus,
 		"broadband_service_activation":      broadbandServiceActivationStatus,
 		"broadband_governance_self_service": broadbandGovernanceSelfServiceStatus,
+		"mobile_grouped_avps":               mobileGroupedAVPStatus,
 		"vendor_mapping_certification":      vendorMappingCertificationStatus,
 		"cisco_family_pack":                 ciscoFamilyPackStatus,
 		"aruba_family_pack":                 arubaFamilyPackStatus,
@@ -1682,6 +1717,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broadband_dhcp_security":           broadbandDHCPSecurityStatus,
 		"broadband_service_activation":      broadbandServiceActivationStatus,
 		"broadband_governance_self_service": broadbandGovernanceSelfServiceStatus,
+		"mobile_grouped_avps":               mobileGroupedAVPStatus,
 		"local_firewall":                    runtimeFirewallStatus,
 		"atomic_transactions":               atomicEnforcementStatus,
 	}

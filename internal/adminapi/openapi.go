@@ -1442,6 +1442,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0091 lawful-governance event history, effective case rows, and effective self-service request rows."),
 	}))
+	addOperation(paths, "/api/v1/system/mobile-grouped-avps", "get", securedOperation("Read telecom grouped AVP framework", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0092 telecom grouped AVP scopes, evidence policy, semantic bindings, packet model, compliance checks, and evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/mobile-grouped-avps/preview", "post", securedOperationWithBody("Preview telecom grouped AVP framework", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating effective mobile grouped AVP scope rows."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0092 telecom grouped AVP framework and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/mobile-grouped-avps/apply", "post", securedOperationWithBody("Apply telecom grouped AVP framework", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records compiled telecom grouped AVP scope, safe evidence, semantic binding, and runtime status evidence. Carrier packet-core and real hardware validation remain release certification activities."), map[string]any{
+		"200":     responseJSON("Applied NAS-0092 telecom grouped AVP framework and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/mobile-grouped-avps/history", "get", securedOperationWithParameters("List telecom grouped AVP framework history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0092 mobile grouped AVP event history and effective vendor scope rows."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))

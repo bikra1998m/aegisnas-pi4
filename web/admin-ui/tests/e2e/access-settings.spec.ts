@@ -223,6 +223,36 @@ test.describe("Access Settings edge-network flow", () => {
     await expect(page.getByText(/DPSK\/PPSK lifecycle applied/)).toBeVisible();
   });
 
+  test("previews and applies telecom grouped AVP framework", async ({
+    page,
+  }) => {
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto("/access-settings");
+    const mobileAVPSection = page.locator("section").filter({
+      has: page.getByRole("heading", {
+        name: "Telecom Grouped AVP Framework",
+      }),
+    });
+    await expect(mobileAVPSection).toBeVisible();
+    await expect(
+      mobileAVPSection.getByRole("heading", { name: "Vendor Scopes" }),
+    ).toBeVisible();
+    await expect(mobileAVPSection.getByText("3GPP", { exact: true })).toBeVisible();
+    await expect(mobileAVPSection.getByText("WiMAX", { exact: true })).toBeVisible();
+
+    await page.getByRole("button", { name: "Preview Mobile AVPs" }).click();
+    await expect(
+      page.getByText(/Telecom grouped AVP preview recorded/),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Apply Mobile AVPs" }).click();
+    await expect(
+      page.getByText(/Telecom grouped AVP framework applied/),
+    ).toBeVisible();
+  });
+
   test("previews and applies controller estate lifecycle", async ({ page }) => {
     await seedAuthenticatedSession(page);
     await installMockApi(page);

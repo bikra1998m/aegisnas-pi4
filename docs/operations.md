@@ -1284,6 +1284,35 @@ physical lawful-intercept adapters, FreeRADIUS production Linux, HA failover,
 performance, soak, security audit, production deployment, and customer
 acceptance evidence stay in `nas-0091-release-certification-checklist.md`.
 
+For telecom grouped AVPs, preview NAS-0092 before enabling enforce mode or
+changing 3GPP, 3GPP2, Starent/Cisco, Ericsson/Redback, or WiMAX scope policy:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/mobile-grouped-avps/preview \
+  | jq '.report.status, .report.summary, .report.vendor_scopes'
+```
+
+Apply only after reviewing vendor scopes, safe raw-evidence policy, redaction
+attributes, grouped attribute counts, registry SHA-256, compliance checks, and
+the plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/mobile-grouped-avps/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/mobile-grouped-avps/history` and support bundle files
+`api/mobile-grouped-avps.json` and `api/mobile-grouped-avps-history.json`
+during carrier-lab review. Real packet-core, WiMAX, FreeRADIUS production
+Linux, HA, scale, soak, security, production deployment, and customer
+acceptance evidence stay in `nas-0092-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

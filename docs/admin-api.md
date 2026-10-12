@@ -1928,6 +1928,31 @@ The endpoints depend on `broadband.governance_self_service`,
 `api/broadband-governance-self-service-history.json`. See
 [broadband-governance-self-service.md](broadband-governance-self-service.md).
 
+NAS-0092 adds grouped telecom AVP framework endpoints:
+
+```text
+GET  /api/v1/system/mobile-grouped-avps
+POST /api/v1/system/mobile-grouped-avps/preview
+POST /api/v1/system/mobile-grouped-avps/apply
+GET  /api/v1/system/mobile-grouped-avps/history
+```
+
+`GET /api/v1/system/mobile-grouped-avps` returns 3GPP, 3GPP2,
+Starent/Cisco, Ericsson/Redback, and WiMAX vendor scopes, safe raw-evidence
+policy, semantic bindings, packet model, compliance checks, plan fingerprint,
+software completion state, release certification scope, and recent evidence.
+Preview records an event without mutating effective scope rows. Apply records
+an auditable checkpoint, upserts effective scope rows, and updates runtime
+status. A blocked apply returns HTTP 409 with the report. Read-only roles may
+read, preview, and list history. `ops_admin` and `super_admin` may apply.
+
+The endpoints depend on `mobile.grouped_avps`, the generated attribute
+registry, the NAS-0005 VSA codec, and schema v96 tables
+`mobile_grouped_avp_scopes` and `mobile_grouped_avp_events`. Production
+readiness reports this as `mobile_grouped_avps`; support bundles include
+`api/mobile-grouped-avps.json` and `api/mobile-grouped-avps-history.json`. See
+[mobile-grouped-avp-framework.md](mobile-grouped-avp-framework.md).
+
 Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
 
 After committing a role, user, ACL binding, or EAP framework policy through `/api/v1/apply`, run `POST /api/v1/system/radius-apply` (the **Apply RADIUS Config** action in Access Settings). This regenerates the local-user entries in `mods-config/files/authorize`, the legacy `users` path, and `mods-enabled/eap`, validates the complete FreeRADIUS configuration, and restarts FreeRADIUS. Database-backed portal decisions and CoA updates do not require this regeneration. Local bcrypt credentials support PAP and EAP-TTLS/PAP; CHAP and PEAP-MSCHAPv2 require a compatible cleartext or NT password verifier, while EAP-TLS uses certificates. NAS-0022 blocks enforce-mode generation when policy enables cataloged methods that this release cannot generate.

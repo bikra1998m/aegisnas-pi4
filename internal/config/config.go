@@ -49,6 +49,7 @@ type Config struct {
 	DHCP             DHCPConfig             `mapstructure:"dhcp"`
 	Broadband        BroadbandConfig        `mapstructure:"broadband"`
 	Wireless         WirelessConfig         `mapstructure:"wireless"`
+	Mobile           MobileConfig           `mapstructure:"mobile"`
 	AdminPort        int                    `mapstructure:"admin_port"`
 }
 
@@ -6097,6 +6098,9 @@ func (c *Config) Validate() error {
 		return err
 	}
 	if err := validateBroadbandGovernanceSelfServiceConfig(c.Broadband.Governance, c.Broadband.Subscriber, c.Broadband.CommercialCatalog, c.Broadband.QuotaBalance, c.Radius, c.MFA, c.AdminWebAuthn, profile); err != nil {
+		return err
+	}
+	if err := validateMobileGroupedAVPConfig(c.Mobile.GroupedAVPs, profile); err != nil {
 		return err
 	}
 	if err := validateRadSecConfig(c); err != nil {

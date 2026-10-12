@@ -3576,6 +3576,10 @@ export default function AccessSettings() {
   ] = useState("");
   const broadbandGovernanceSelfServiceBusy =
     broadbandGovernanceSelfServiceAction !== "";
+  const [mobileGroupedAVPs, setMobileGroupedAVPs] =
+    useState<JsonMap | null>(null);
+  const [mobileGroupedAVPAction, setMobileGroupedAVPAction] = useState("");
+  const mobileGroupedAVPBusy = mobileGroupedAVPAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3739,6 +3743,11 @@ export default function AccessSettings() {
       "/system/broadband-governance-self-service",
     );
     setBroadbandGovernanceSelfService(data.report || null);
+  };
+
+  const loadMobileGroupedAVPs = async () => {
+    const { data } = await api.get("/system/mobile-grouped-avps");
+    setMobileGroupedAVPs(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3987,6 +3996,7 @@ export default function AccessSettings() {
         broadbandDHCPSecurityRes,
         broadbandServiceActivationRes,
         broadbandGovernanceSelfServiceRes,
+        mobileGroupedAVPRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -4008,6 +4018,7 @@ export default function AccessSettings() {
         api.get("/system/broadband-dhcp-security"),
         api.get("/system/broadband-service-activation"),
         api.get("/system/broadband-governance-self-service"),
+        api.get("/system/mobile-grouped-avps"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -4041,6 +4052,7 @@ export default function AccessSettings() {
       setBroadbandGovernanceSelfService(
         broadbandGovernanceSelfServiceRes.data.report || null,
       );
+      setMobileGroupedAVPs(mobileGroupedAVPRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -5314,6 +5326,51 @@ export default function AccessSettings() {
     }
   };
 
+  const previewMobileGroupedAVPs = async () => {
+    setMobileGroupedAVPAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/mobile-grouped-avps/preview", {});
+      setMobileGroupedAVPs(data.report || null);
+      setMessage(
+        `Telecom grouped AVP preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview telecom grouped AVP framework.",
+      );
+    } finally {
+      setMobileGroupedAVPAction("");
+    }
+  };
+
+  const applyMobileGroupedAVPs = async () => {
+    setMobileGroupedAVPAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/mobile-grouped-avps/apply", {});
+      setMobileGroupedAVPs(data.report || null);
+      setMessage(
+        `Telecom grouped AVP framework ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadMobileGroupedAVPs();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply telecom grouped AVP framework.",
+      );
+    } finally {
+      setMobileGroupedAVPAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -6159,6 +6216,19 @@ export default function AccessSettings() {
   const broadbandGovernanceSelfServiceTone = statusTone(
     broadbandGovernanceSelfService?.status,
   );
+  const mobileGroupedAVPSummary = mobileGroupedAVPs?.summary || {};
+  const mobileGroupedAVPScopes = Array.isArray(mobileGroupedAVPs?.vendor_scopes)
+    ? mobileGroupedAVPs?.vendor_scopes
+    : [];
+  const mobileGroupedAVPEvidencePolicies = Array.isArray(
+    mobileGroupedAVPs?.evidence_policies,
+  )
+    ? mobileGroupedAVPs?.evidence_policies
+    : [];
+  const mobileGroupedAVPCompliance = Array.isArray(mobileGroupedAVPs?.compliance)
+    ? mobileGroupedAVPs?.compliance
+    : [];
+  const mobileGroupedAVPTone = statusTone(mobileGroupedAVPs?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -6653,6 +6723,24 @@ export default function AccessSettings() {
             {broadbandGovernanceSelfServiceAction === "apply"
               ? "Applying Governance..."
               : "Apply Governance Self-Service"}
+          </button>
+          <button
+            onClick={previewMobileGroupedAVPs}
+            disabled={mobileGroupedAVPBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {mobileGroupedAVPAction === "preview"
+              ? "Checking Mobile AVPs..."
+              : "Preview Mobile AVPs"}
+          </button>
+          <button
+            onClick={applyMobileGroupedAVPs}
+            disabled={mobileGroupedAVPBusy}
+            className="rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-900 disabled:opacity-60"
+          >
+            {mobileGroupedAVPAction === "apply"
+              ? "Applying Mobile AVPs..."
+              : "Apply Mobile AVPs"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -7165,6 +7253,240 @@ export default function AccessSettings() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Telecom Grouped AVP Framework
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {mobileGroupedAVPs?.release_certification_checklist ||
+                "Validate 3GPP, 3GPP2, Starent, Ericsson, and WiMAX grouped AVP scopes, safe evidence, and packet captures before carrier release."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${mobileGroupedAVPTone}`}
+          >
+            {mobileGroupedAVPs?.status || "unknown"}
+          </div>
+        </div>
+        {mobileGroupedAVPs ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">{mobileGroupedAVPs.message}</p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Vendor Scopes",
+                  `${mobileGroupedAVPSummary.enabled_vendor_scope_count || 0}/${mobileGroupedAVPSummary.vendor_scope_count || 0}`,
+                ],
+                [
+                  "Evidence Policies",
+                  `${mobileGroupedAVPSummary.enabled_evidence_policy_count || 0}/${mobileGroupedAVPSummary.evidence_policy_count || 0}`,
+                ],
+                [
+                  "Compiled Attrs",
+                  mobileGroupedAVPSummary.compiled_attribute_count || 0,
+                ],
+                [
+                  "Grouped Attrs",
+                  mobileGroupedAVPSummary.grouped_attribute_count || 0,
+                ],
+                [
+                  "Max Depth",
+                  mobileGroupedAVPSummary.max_depth || 0,
+                ],
+                [
+                  "Compliance",
+                  `${mobileGroupedAVPSummary.passed_check_count || 0}/${mobileGroupedAVPSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              Mode{" "}
+              <span className="font-mono">
+                {mobileGroupedAVPSummary.mode || "monitor"}
+              </span>{" "}
+              / raw evidence{" "}
+              <span className="font-mono">
+                {mobileGroupedAVPSummary.safe_raw_evidence
+                  ? "hashed"
+                  : "off"}
+              </span>{" "}
+              / retention{" "}
+              <span className="font-mono">
+                {mobileGroupedAVPSummary.raw_evidence_retention_days || 0} days
+              </span>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Vendor Scopes
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobileGroupedAVPScopes.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No telecom vendor scope is configured.
+                    </div>
+                  ) : (
+                    mobileGroupedAVPScopes
+                      .slice(0, 8)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.scope_key || item.name || "mobile-avp"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.vendor || item.name || "Vendor Scope"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[item.dictionary, item.domain, item.format]
+                              .filter(Boolean)
+                              .join(" / ") || "Scope metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {[
+                              ...(item.identity_attributes || []),
+                              ...(item.charging_attributes || []),
+                              ...(item.qos_attributes || []),
+                            ]
+                              .slice(0, 6)
+                              .join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Safe Evidence
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobileGroupedAVPEvidencePolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No evidence policy is configured.
+                    </div>
+                  ) : (
+                    mobileGroupedAVPEvidencePolicies
+                      .slice(0, 8)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || "evidence"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || "Evidence Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[item.scope, item.capture_raw ? "raw" : "digest", item.hash_raw_values ? "hashes" : ""]
+                              .filter(Boolean)
+                              .join(" / ") || "Evidence metadata only"}
+                          </div>
+                          {item.redact_attributes?.length > 0 && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              Redact {item.redact_attributes.slice(0, 5).join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Compliance Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobileGroupedAVPCompliance.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No mobile AVP compliance check is present.
+                    </div>
+                  ) : (
+                    mobileGroupedAVPCompliance
+                      .slice(0, 8)
+                      .map((check: JsonMap, index: number) => (
+                        <div
+                          key={`${check.id || check.name || "mobile-check"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {check.name || check.id || "Compliance Check"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                check.status,
+                              )}`}
+                            >
+                              {check.status || "unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {check.message || "No compliance message"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            {((mobileGroupedAVPs.blockers?.length || 0) > 0 ||
+              (mobileGroupedAVPs.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(mobileGroupedAVPs.blockers || []),
+                  ...(mobileGroupedAVPs.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Registry{" "}
+              <span className="font-mono">
+                {mobileGroupedAVPSummary.registry_release || "unknown"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {mobileGroupedAVPs.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Telecom grouped AVP report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">

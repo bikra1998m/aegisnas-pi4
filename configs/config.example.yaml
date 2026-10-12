@@ -2250,6 +2250,60 @@ dhcp:
       enabled: false
       description: "Example reservation"
 
+mobile:
+  grouped_avps:
+    enabled: false
+    mode: monitor
+    fail_closed: true
+    require_database: true
+    require_vsa_codec: true
+    require_attribute_registry: true
+    safe_raw_evidence: true
+    hash_raw_values: true
+    max_depth: 4
+    max_payload_bytes: 4096
+    max_attributes_per_packet: 4096
+    raw_evidence_retention_days: 30
+    event_retention_limit: 10000
+    vendor_scopes:
+      - name: 3gpp-core
+        enabled: true
+        vendor: 3GPP
+        vendor_id: 10415
+        dictionary: dictionary.3gpp
+        domain: mobile-core-charging
+        format: radius-vsa
+        grouped_root_attributes: ["3GPP-Packet-Filter"]
+        identity_attributes: ["3GPP-IMSI", "3GPP-IMEISV", "3GPP-IMSI-MCC-MNC"]
+        charging_attributes: ["3GPP-Charging-ID", "3GPP-Charging-Characteristics"]
+        qos_attributes: ["3GPP-GPRS-Negotiated-QoS-profile", "3GPP-Negotiated-DSCP"]
+        policy_attributes: ["3GPP-RAT-Type", "3GPP-Selection-Mode"]
+        safe_raw_evidence: true
+        hash_raw_values: true
+      - name: wimax-service-flow
+        enabled: true
+        vendor: WiMAX
+        vendor_id: 24757
+        dictionary: dictionary.wimax
+        domain: wimax-service-flow
+        format: grouped-tlv
+        grouped_root_attributes: ["WiMAX-QoS-Descriptor", "WiMAX-Packet-Flow-Descriptor"]
+        identity_attributes: ["WiMAX-MN-NAI"]
+        charging_attributes: ["WiMAX-Session-Id"]
+        qos_attributes: ["WiMAX-QoS-Descriptor", "WiMAX-Service-Flow-ID"]
+        policy_attributes: ["WiMAX-Termination-Action", "WiMAX-Packet-Flow-Descriptor"]
+        safe_raw_evidence: true
+        hash_raw_values: true
+    evidence_policies:
+      - name: hashed-raw-evidence
+        enabled: true
+        scope: all
+        capture_raw: false
+        hash_raw_values: true
+        retention_days: 30
+        redact_attributes: ["3GPP-IMSI", "3GPP2-IMSI", "WiMAX-MN-NAI"]
+        allowed_export_role: ops_admin
+
 wireless:
   enabled: false
   country_code: US

@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 95
+	return 96
 }
 
 func Migrate() error {
@@ -5185,3 +5185,61 @@ CREATE INDEX IF NOT EXISTS idx_broadband_governance_events_mode ON broadband_gov
 `
 
 const schemaV95 = broadbandGovernanceSelfServiceSQL
+
+const mobileGroupedAVPSQL = `
+CREATE TABLE IF NOT EXISTS mobile_grouped_avp_scopes (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	scope_key TEXT UNIQUE NOT NULL,
+	name TEXT NOT NULL,
+	vendor TEXT NOT NULL,
+	vendor_id INTEGER NOT NULL,
+	dictionary TEXT,
+	domain TEXT,
+	format TEXT,
+	status TEXT NOT NULL DEFAULT 'planned',
+	registry_attribute_count INTEGER NOT NULL DEFAULT 0,
+	grouped_attribute_count INTEGER NOT NULL DEFAULT 0,
+	compiled_attribute_count INTEGER NOT NULL DEFAULT 0,
+	attributes_json TEXT NOT NULL DEFAULT '{}',
+	source_event_id TEXT,
+	plan_fingerprint TEXT NOT NULL,
+	last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (status IN ('ready', 'planned', 'blocked', 'degraded', 'withdrawn'))
+);
+
+CREATE TABLE IF NOT EXISTS mobile_grouped_avp_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	mode TEXT,
+	vendor_scope_count INTEGER NOT NULL DEFAULT 0,
+	evidence_policy_count INTEGER NOT NULL DEFAULT 0,
+	compiled_attribute_count INTEGER NOT NULL DEFAULT 0,
+	grouped_attribute_count INTEGER NOT NULL DEFAULT 0,
+	compliance_check_count INTEGER NOT NULL DEFAULT 0,
+	passed_check_count INTEGER NOT NULL DEFAULT 0,
+	warning_count INTEGER NOT NULL DEFAULT 0,
+	blocker_count INTEGER NOT NULL DEFAULT 0,
+	external_requirement_count INTEGER NOT NULL DEFAULT 0,
+	summary_json TEXT NOT NULL DEFAULT '{}',
+	report_json TEXT NOT NULL DEFAULT '{}',
+	actor TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CHECK (operation IN ('preview', 'apply', 'status', 'reconcile')),
+	CHECK (status IN ('previewed', 'applied', 'blocked', 'degraded', 'skipped', 'failed', 'reconciled'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_mobile_grouped_avp_scopes_vendor ON mobile_grouped_avp_scopes(vendor, vendor_id, status);
+CREATE INDEX IF NOT EXISTS idx_mobile_grouped_avp_scopes_domain ON mobile_grouped_avp_scopes(domain, status);
+CREATE INDEX IF NOT EXISTS idx_mobile_grouped_avp_scopes_last_seen ON mobile_grouped_avp_scopes(last_seen_at, status);
+CREATE INDEX IF NOT EXISTS idx_mobile_grouped_avp_events_created ON mobile_grouped_avp_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_mobile_grouped_avp_events_status ON mobile_grouped_avp_events(operation, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_mobile_grouped_avp_events_fingerprint ON mobile_grouped_avp_events(plan_fingerprint, created_at);
+CREATE INDEX IF NOT EXISTS idx_mobile_grouped_avp_events_mode ON mobile_grouped_avp_events(mode, created_at);
+`
+
+const schemaV96 = mobileGroupedAVPSQL

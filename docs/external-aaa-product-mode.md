@@ -1617,6 +1617,22 @@ For lawful governance and subscriber self-service:
    security audit, and customer acceptance in
    `nas-0091-release-certification-checklist.md`
 
+### Telecom Grouped AVPs
+
+NAS-0092 provides the external-AAA product boundary for grouped telecom VSAs.
+The software compiles 3GPP, 3GPP2, Starent/Cisco, Ericsson/Redback, and WiMAX
+attribute scopes into identity, charging, QoS, and policy semantics while
+keeping raw subscriber evidence redacted and hash-first.
+
+Operators should keep three states separate:
+
+1. dictionary support means the FreeRADIUS attributes are known
+2. software readiness means the grouped AVP framework can preview, apply, store
+   history, expose API/UI/readiness evidence, and protect raw evidence
+3. certification means exact vendor product, firmware, packet captures,
+   simulator results, HA, scale, soak, security, and customer acceptance are
+   recorded in `nas-0092-release-certification-checklist.md`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

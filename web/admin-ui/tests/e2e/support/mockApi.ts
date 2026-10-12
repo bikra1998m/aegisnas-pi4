@@ -4800,6 +4800,138 @@ function createBroadbandGovernanceSelfService(status = "ready") {
   };
 }
 
+function createMobileGroupedAVPs(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0092",
+      status,
+      message:
+        "NAS-0092 telecom grouped AVP framework is ready for 3GPP, 3GPP2, Starent, Ericsson, and WiMAX scopes.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0092-release-certification-checklist.md",
+      release_scope:
+        "Carrier packet-core simulators, real vendor equipment, production FreeRADIUS captures, HA, scale, soak, security, and customer proof are release certification activities.",
+      plan_fingerprint:
+        "sha256:0092a2470403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81ed",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        require_database: true,
+        require_vsa_codec: true,
+        require_attribute_registry: true,
+        safe_raw_evidence: true,
+        hash_raw_values: true,
+        max_depth: 4,
+        max_payload_bytes: 4096,
+        max_attributes_per_packet: 4096,
+        raw_evidence_retention_days: 30,
+        event_retention_limit: 10000,
+        vendor_scope_count: 5,
+        enabled_vendor_scope_count: 5,
+        evidence_policy_count: 1,
+        enabled_evidence_policy_count: 1,
+        registry_attribute_count: 7654,
+        grouped_attribute_count: 132,
+        compiled_attribute_count: 42,
+        semantic_binding_count: 4,
+        compliance_check_count: 6,
+        passed_check_count: 6,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 1,
+        registry_release: "3.2.8",
+        registry_sha256: "sha256:registry",
+      },
+      vendor_scopes: [
+        {
+          scope_key: "3gpp-core",
+          name: "3gpp-core",
+          enabled: true,
+          vendor: "3GPP",
+          vendor_id: 10415,
+          dictionary: "dictionary.3gpp",
+          domain: "mobile-core-charging",
+          format: "radius-vsa",
+          status: "ready",
+          identity_attributes: ["3GPP-IMSI", "3GPP-IMEISV"],
+          charging_attributes: ["3GPP-Charging-ID"],
+          qos_attributes: ["3GPP-GPRS-Negotiated-QoS-profile"],
+          policy_attributes: ["3GPP-RAT-Type"],
+        },
+        {
+          scope_key: "wimax-service-flow",
+          name: "wimax-service-flow",
+          enabled: true,
+          vendor: "WiMAX",
+          vendor_id: 24757,
+          dictionary: "dictionary.wimax",
+          domain: "wimax-service-flow",
+          format: "grouped-tlv",
+          status: "ready",
+          identity_attributes: ["WiMAX-MN-NAI"],
+          charging_attributes: ["WiMAX-Session-Id"],
+          qos_attributes: ["WiMAX-QoS-Descriptor"],
+          policy_attributes: ["WiMAX-Termination-Action"],
+        },
+      ],
+      evidence_policies: [
+        {
+          name: "hashed-raw-evidence",
+          enabled: true,
+          scope: "all",
+          capture_raw: false,
+          hash_raw_values: true,
+          retention_days: 30,
+          redact_attributes: ["3GPP-IMSI", "WiMAX-MN-NAI"],
+          allowed_export_role: "ops_admin",
+          status: "ready",
+        },
+      ],
+      compliance: [
+        {
+          id: "vsa-codec",
+          name: "NAS-0005 grouped VSA codec dependency",
+          status: "passed",
+          message: "Bounded VSA codec is available.",
+        },
+        {
+          id: "external-certification",
+          name: "Release certification boundary",
+          status: "passed",
+          message:
+            "Carrier packet-core, WiMAX, FreeRADIUS, HA, scale, soak, security, and customer proof are release certification activities.",
+        },
+      ],
+      standards: ["RFC 2865", "RFC 2866", "RFC 5176", "RFC 6929"],
+      vendors: ["3GPP", "3GPP2", "Starent/Cisco", "Ericsson", "WiMAX"],
+      requirements: ["compile telecom grouped AVP semantics"],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        ready_scope_count: 5,
+        planned_scope_count: 0,
+      },
+      recent_events: [],
+      scopes: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -10685,6 +10817,52 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           events: [],
           cases: payload.report.cases,
           self_service_requests: payload.report.self_service_actions,
+        },
+      });
+      return;
+    }
+    if (path === "/system/mobile-grouped-avps" && method === "GET") {
+      await route.fulfill({ json: createMobileGroupedAVPs() });
+      return;
+    }
+    if (
+      path === "/system/mobile-grouped-avps/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          ...createMobileGroupedAVPs(),
+          event_id: "mobile-avp-event-preview",
+        },
+      });
+      return;
+    }
+    if (path === "/system/mobile-grouped-avps/apply" && method === "POST") {
+      const payload = createMobileGroupedAVPs();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0092 recorded telecom grouped AVP framework evidence.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "mobile-avp-event-apply",
+          result: {
+            status: "applied",
+            event_id: "mobile-avp-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (path === "/system/mobile-grouped-avps/history" && method === "GET") {
+      const payload = createMobileGroupedAVPs();
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0092",
+          summary: payload.evidence.summary,
+          events: [],
+          scopes: payload.report.vendor_scopes,
         },
       });
       return;

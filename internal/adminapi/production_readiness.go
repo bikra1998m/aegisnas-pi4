@@ -176,6 +176,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionBroadbandDHCPSecurityCheck(&report, cfg)
 	addProductionBroadbandServiceActivationCheck(&report, cfg)
 	addProductionBroadbandGovernanceSelfServiceCheck(&report, cfg)
+	addProductionMobileGroupedAVPCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -2665,6 +2666,73 @@ func addProductionBroadbandGovernanceSelfServiceCheck(report *productionReadines
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/broadband-governance-self-service/preview before enabling lawful-governance enforcement, apply only after reviewing dual approval, MFA/WebAuthn, scoped cases, privacy redaction, subscriber self-service actions, accounting correlation, and compiled RADIUS evidence. Keep court-order proof, regulator/customer acceptance, physical intercept adapters, packet captures, HA, scale, soak, security, and customer proof in the NAS-0091 release certification checklist.",
 		Dependencies:   []string{"broadband.governance_self_service", "broadband.subscriber_state", "broadband.commercial_catalog", "broadband.quota_balance", "radius.sql_accounting", "radius.accounting_services", "radius.dynamic_auth", "mfa.enabled", "admin_webauthn.enabled", "/api/v1/system/broadband-governance-self-service", "/api/v1/system/broadband-governance-self-service/preview", "/api/v1/system/broadband-governance-self-service/apply", "broadband_governance_cases", "broadband_self_service_requests", "broadband_governance_self_service_events", "Class", "Filter-Id", "Chargeable-User-Identity", "Acct-Interim-Interval", "Cisco-AVPair", "Juniper-AV-Pair", "Huawei-AVpair", "Nokia-AVPair", "RFC 2865", "RFC 2866", "RFC 5176"},
+	})
+}
+
+func addProductionMobileGroupedAVPCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0092 telecom grouped AVP framework software is ready."
+	reportData, err := enforcement.PreviewMobileGroupedAVPs(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Mobile grouped AVP preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "skipped", "disabled":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0092 schema %d status=%s, mode=%s, vendor_scopes=%d, evidence_policies=%d, compiled_attrs=%d, grouped_attrs=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.VendorScopeCount,
+			reportData.Summary.EvidencePolicyCount,
+			reportData.Summary.CompiledAttributeCount,
+			reportData.Summary.GroupedAttributeCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent,
+		)
+		if reportData.Status == "disabled" || reportData.Status == "skipped" {
+			summary += " Telecom grouped AVP framework is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but mobile grouped AVP event history cannot be verified."
+	} else if evidence, err := db.GetMobileGroupedAVPSummary(); err != nil {
+		status = "blocked"
+		summary += " Mobile grouped AVP evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d blocked, %d failed, ready_scopes=%d, planned_scopes=%d, last_scopes=%d, last_policies=%d, last_compiled_attrs=%d, last_grouped_attrs=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.ReadyScopeCount,
+			evidence.PlannedScopeCount,
+			evidence.LastVendorScopeCount,
+			evidence.LastEvidencePolicyCount,
+			evidence.LastCompiledAttributeCount,
+			evidence.LastGroupedAttributeCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "mobile_grouped_avps",
+		Category:       "radius",
+		Label:          "NAS-0092 Grouped Telecom Attribute And AVP Framework",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/mobile-grouped-avps/preview before enabling telecom grouped AVP enforcement, apply only after reviewing vendor scopes, safe raw-evidence policy, semantic bindings, packet model, registry provenance, and grouped VSA codec evidence. Keep carrier packet-core simulator proof, real 3GPP/3GPP2/Starent/Ericsson/WiMAX captures, FreeRADIUS production Linux proof, HA, scale, soak, security, and customer proof in the NAS-0092 release certification checklist.",
+		Dependencies:   []string{"mobile.grouped_avps", "radius.vsa_codec", "attribute_registry", "database_backend", "/api/v1/system/mobile-grouped-avps", "/api/v1/system/mobile-grouped-avps/preview", "/api/v1/system/mobile-grouped-avps/apply", "mobile_grouped_avp_scopes", "mobile_grouped_avp_events", "Vendor-Specific(26)", "3GPP-IMSI", "3GPP-Charging-ID", "3GPP2-Granted-QoS-Params", "WiMAX-QoS-Descriptor", "RFC 2865", "RFC 2866", "RFC 5176", "RFC 6929"},
 	})
 }
 
