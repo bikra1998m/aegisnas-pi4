@@ -5,9 +5,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/logging"
+	"go.uber.org/zap"
+)
+
+var (
+	runSystemCommand    = func(name string, args ...string) ([]byte, error) { return exec.Command(name, args...).CombinedOutput() }
+	systemdPollInterval = 2 * time.Second
 )
 
 // ApplyConfig writes the generated FreeRADIUS configuration, validates it,
@@ -54,9 +62,8 @@ func ApplyConfig(cfg *config.Config) error {
 		return fmt.Errorf("FreeRADIUS config validation failed: %w\nOutput: %s", err, out)
 	}
 
-	restartCmd := exec.Command("systemctl", "restart", "freeradius")
-	if out, err := restartCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("restart freeradius failed: %w\nOutput: %s", err, out)
+	if err := restartSystemdService("freeradius", 3*time.Minute); err != nil {
+		return err
 	}
 
 	logging.L().Info("FreeRADIUS configuration applied and service restarted")
@@ -69,15 +76,53 @@ func ApplyVendorIdentityConfig(cfg *config.Config) error {
 	if err := ApplyConfig(cfg); err != nil {
 		return err
 	}
-	restartCmd := exec.Command("systemctl", "restart", "aegis-radius")
-	if out, err := restartCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("restart aegis-radius after vendor identity change: %w\nOutput: %s", err, out)
-	}
-	activeCmd := exec.Command("systemctl", "is-active", "--quiet", "aegis-radius")
-	if out, err := activeCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("aegis-radius is not active after vendor identity change: %w\nOutput: %s", err, out)
+	if err := restartSystemdService("aegis-radius", 2*time.Minute); err != nil {
+		return fmt.Errorf("restart aegis-radius after vendor identity change: %w", err)
 	}
 	return nil
+}
+
+func restartSystemdService(service string, timeout time.Duration) error {
+	output, restartErr := runSystemCommand("systemctl", "restart", service)
+	activeErr := waitForSystemdServiceActive(service, timeout)
+	if restartErr != nil {
+		if activeErr == nil {
+			logging.L().Warn("systemd restart returned an error but service recovered",
+				zap.String("service", service),
+				zap.Error(restartErr),
+				zap.ByteString("output", output))
+			return nil
+		}
+		return fmt.Errorf("restart %s failed: %w\nOutput: %s\nActivation: %v", service, restartErr, output, activeErr)
+	}
+	if activeErr != nil {
+		return fmt.Errorf("%s did not become active after restart: %w\nOutput: %s", service, activeErr, output)
+	}
+	return nil
+}
+
+func waitForSystemdServiceActive(service string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	var lastState string
+	var lastErr error
+	for {
+		output, err := runSystemCommand("systemctl", "is-active", service)
+		state := strings.TrimSpace(string(output))
+		if err == nil && state == "active" {
+			return nil
+		}
+		lastState = state
+		lastErr = err
+		if !time.Now().Before(deadline) {
+			if lastState == "" {
+				lastState = "unknown"
+			}
+			return fmt.Errorf("%s is not active after %s; last state %q: %w", service, timeout, lastState, lastErr)
+		}
+		if systemdPollInterval > 0 {
+			time.Sleep(systemdPollInterval)
+		}
+	}
 }
 
 // ConfigDir returns the FreeRADIUS configuration directory for the appliance.
