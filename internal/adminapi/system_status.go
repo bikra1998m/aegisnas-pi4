@@ -955,6 +955,49 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		mobileChargingStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.MobileChargingComponent()]}
 	}
+	mobilePolicyControlStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Mobile PCRF/PCF policy control has not been evaluated.",
+	}
+	if mobilePolicyReport, err := enforcement.PreviewMobilePolicyControl(cfg); err == nil {
+		mobilePolicySummary, _ := db.GetMobilePolicyControlSummary()
+		mobilePolicyControlStatus = map[string]any{
+			"schema_version":                      mobilePolicyReport.SchemaVersion,
+			"feature_id":                          mobilePolicyReport.FeatureID,
+			"status":                              mobilePolicyReport.Status,
+			"message":                             mobilePolicyReport.Message,
+			"ready_for_external_validation":       mobilePolicyReport.ReadyForExternalValidation,
+			"software_completion_percent":         mobilePolicyReport.SoftwareCompletionPercent,
+			"enabled":                             mobilePolicyReport.Summary.Enabled,
+			"mode":                                mobilePolicyReport.Summary.Mode,
+			"policy_profile_count":                mobilePolicyReport.Summary.PolicyProfileCount,
+			"enabled_policy_profile_count":        mobilePolicyReport.Summary.EnabledPolicyProfileCount,
+			"qos_class_count":                     mobilePolicyReport.Summary.QoSClassCount,
+			"enabled_qos_class_count":             mobilePolicyReport.Summary.EnabledQoSClassCount,
+			"roaming_policy_count":                mobilePolicyReport.Summary.RoamingPolicyCount,
+			"enabled_roaming_policy_count":        mobilePolicyReport.Summary.EnabledRoamingPolicyCount,
+			"feedback_rule_count":                 mobilePolicyReport.Summary.FeedbackRuleCount,
+			"enabled_feedback_rule_count":         mobilePolicyReport.Summary.EnabledFeedbackRuleCount,
+			"policy_attribute_count":              mobilePolicyReport.Summary.PolicyAttributeCount,
+			"compliance_check_count":              mobilePolicyReport.Summary.ComplianceCheckCount,
+			"passed_check_count":                  mobilePolicyReport.Summary.PassedCheckCount,
+			"warning_count":                       mobilePolicyReport.Summary.WarningCount,
+			"blocker_count":                       mobilePolicyReport.Summary.BlockerCount,
+			"mobile_session_status":               mobilePolicyReport.Summary.MobileSessionStatus,
+			"mobile_charging_status":              mobilePolicyReport.Summary.MobileChargingStatus,
+			"policy_engine_enabled":               mobilePolicyReport.Summary.PolicyEngineEnabled,
+			"qos_enforcement_enabled":             mobilePolicyReport.Summary.QoSEnforcementEnabled,
+			"dynamic_auth_enabled":                mobilePolicyReport.Summary.DynamicAuthEnabled,
+			"dynamic_auth_outbound_enabled":       mobilePolicyReport.Summary.DynamicAuthOutboundEnabled,
+			"plan_fingerprint":                    mobilePolicyReport.PlanFingerprint,
+			"release_certification_checklist":     mobilePolicyReport.ReleaseCertificationChecklist,
+			"release_certification_external_only": true,
+			"evidence_summary":                    mobilePolicySummary,
+			"runtime_status":                      runtimeMap[enforcement.MobilePolicyControlComponent()],
+		}
+	} else {
+		mobilePolicyControlStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.MobilePolicyControlComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1667,6 +1710,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"mobile_grouped_avps":               mobileGroupedAVPStatus,
 		"mobile_session_state":              mobileSessionStatus,
 		"mobile_charging_correlation":       mobileChargingStatus,
+		"mobile_policy_control":             mobilePolicyControlStatus,
 		"vendor_mapping_certification":      vendorMappingCertificationStatus,
 		"cisco_family_pack":                 ciscoFamilyPackStatus,
 		"aruba_family_pack":                 arubaFamilyPackStatus,
@@ -1796,6 +1840,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"mobile_grouped_avps":               mobileGroupedAVPStatus,
 		"mobile_session_state":              mobileSessionStatus,
 		"mobile_charging_correlation":       mobileChargingStatus,
+		"mobile_policy_control":             mobilePolicyControlStatus,
 		"local_firewall":                    runtimeFirewallStatus,
 		"atomic_transactions":               atomicEnforcementStatus,
 	}

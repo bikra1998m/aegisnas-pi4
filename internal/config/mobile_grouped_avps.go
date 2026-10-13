@@ -7,9 +7,10 @@ import (
 )
 
 type MobileConfig struct {
-	GroupedAVPs MobileGroupedAVPConfig `mapstructure:"grouped_avps"`
-	Sessions    MobileSessionConfig    `mapstructure:"sessions"`
-	Charging    MobileChargingConfig   `mapstructure:"charging"`
+	GroupedAVPs   MobileGroupedAVPConfig    `mapstructure:"grouped_avps"`
+	Sessions      MobileSessionConfig       `mapstructure:"sessions"`
+	Charging      MobileChargingConfig      `mapstructure:"charging"`
+	PolicyControl MobilePolicyControlConfig `mapstructure:"policy_control"`
 }
 
 type MobileGroupedAVPConfig struct {

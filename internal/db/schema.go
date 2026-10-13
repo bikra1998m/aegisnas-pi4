@@ -223,6 +223,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{96, schemaV96},
 		{97, schemaV97},
 		{98, schemaV98},
+		{99, schemaV99},
 	}
 
 	pending := make([]struct {

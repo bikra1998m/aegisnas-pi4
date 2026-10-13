@@ -271,6 +271,14 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/mobile-charging"):
 		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/mobile-policy-control/apply"):
+		return method == http.MethodPost && identity.Role == adminRoleOpsAdmin
+	case strings.HasPrefix(path, "/api/v1/system/mobile-policy-control/preview"):
+		return method == http.MethodPost && (identity.Role == adminRoleReadOnly || identity.Role == adminRoleGuestAdmin || identity.Role == adminRoleOpsAdmin)
+	case strings.HasPrefix(path, "/api/v1/system/mobile-policy-control/history"):
+		return readonly
+	case strings.HasPrefix(path, "/api/v1/system/mobile-policy-control"):
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/vendor-compatibility"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/dictionary-release-profiles"):

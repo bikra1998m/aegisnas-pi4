@@ -1674,6 +1674,25 @@ Operators should keep three states separate:
    and customer acceptance are recorded in
    `nas-0094-release-certification-checklist.md`
 
+### Mobile Policy Control
+
+NAS-0095 provides the external-AAA product boundary for PCRF/PCF-style policy,
+QoS, roaming, and feedback control. The software compiles policy profiles,
+QCI/5QI QoS classes, home/visited roaming policies, charging/session feedback
+rules, dynamic authorization requirements, API/UI/readiness evidence, and
+database-backed history.
+
+Operators should keep three states separate:
+
+1. dictionary support means the 3GPP, Starent/Cisco, Ericsson, and WiMAX
+   policy and QoS attributes are known
+2. software readiness means mobile policy control can preview, apply, store
+   policy/QoS/roaming/feedback history, expose API/UI/readiness evidence, and
+   protect subscriber identifiers with redaction and hashes
+3. certification means exact PCRF/PCF/PCEF product, roaming partner, packet-core
+   product, firmware, packet captures, HA, scale, soak, security, and customer
+   acceptance are recorded in `nas-0095-release-certification-checklist.md`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

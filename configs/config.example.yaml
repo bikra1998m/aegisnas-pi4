@@ -2477,6 +2477,132 @@ mobile:
         validity_seconds: 86400
         exhaustion_action: quarantine
         coa_profile: iot-quarantine
+  policy_control:
+    enabled: false
+    mode: monitor
+    fail_closed: true
+    require_database: true
+    require_mobile_sessions: true
+    require_policy_engine: true
+    require_qos: true
+    require_dynamic_auth: true
+    require_charging: true
+    roaming_control: true
+    enforcement_feedback: true
+    redact_subscriber_ids: true
+    hash_subscriber_ids: true
+    decision_retention_days: 90
+    event_retention_limit: 10000
+    max_policy_decisions: 100000
+    default_policy_profile: home-default
+    default_qos_class: default-5qi-9
+    default_roaming_policy: home-plmn
+    policy_attributes:
+      - 3GPP-IMSI
+      - 3GPP-RAT-Type
+      - 3GPP-Selection-Mode
+      - 3GPP-GPRS-Negotiated-QoS-profile
+      - 3GPP-Negotiated-DSCP
+      - Filter-Id
+      - Class
+      - Session-Timeout
+      - Acct-Interim-Interval
+    external_controller_references: ["PCRF", "PCF", "OCS", "roaming-clearinghouse"]
+    policy_profiles:
+      - name: home-default
+        enabled: true
+        apn: internet
+        role: mobile-subscriber
+        policy_profile: internet-access
+        qos_class: default-5qi-9
+        roaming_policy: home-plmn
+        charging_profile: internet-data
+        precedence: 100
+        vendor_packs: ["3gpp", "starent", "ericsson"]
+        radius_attributes: ["Filter-Id", "Class", "Session-Timeout", "Acct-Interim-Interval"]
+        enforcement_actions: ["access-accept", "coa-on-threshold", "disconnect-on-policy-deny"]
+      - name: visited-lbo
+        enabled: true
+        apn: internet
+        role: roaming-subscriber
+        policy_profile: visited-local-breakout
+        qos_class: roaming-5qi-8
+        roaming_policy: visited-lbo
+        charging_profile: internet-data
+        precedence: 200
+        vendor_packs: ["3gpp", "starent", "wimax"]
+        radius_attributes: ["3GPP-RAT-Type", "3GPP-Selection-Mode", "3GPP-Negotiated-DSCP", "Class"]
+        enforcement_actions: ["apply-visited-policy", "coa-on-roaming-change", "accounting-correlation"]
+    qos_classes:
+      - name: default-5qi-9
+        enabled: true
+        qci: 9
+        five_qi: 9
+        arp: 8
+        priority: 100
+        mbr_down_kbps: 50000
+        mbr_up_kbps: 10000
+        dscp: af21
+        traffic_class: best-effort
+        traffic_flow_templates: ["permit out ip from any to assigned"]
+        radius_attributes: ["3GPP-GPRS-Negotiated-QoS-profile", "3GPP-Negotiated-DSCP", "Session-Timeout"]
+      - name: roaming-5qi-8
+        enabled: true
+        qci: 8
+        five_qi: 8
+        arp: 7
+        priority: 80
+        mbr_down_kbps: 20000
+        mbr_up_kbps: 5000
+        preemption_vulnerability: true
+        dscp: af31
+        traffic_class: roaming-data
+        traffic_flow_templates: ["permit out ip from any to assigned", "permit in ip from assigned to any"]
+        radius_attributes: ["3GPP-GPRS-Negotiated-QoS-profile", "3GPP-Negotiated-DSCP", "Filter-Id"]
+    roaming_policies:
+      - name: home-plmn
+        enabled: true
+        home_realm: mnc001.mcc001.3gppnetwork.org
+        visited_realm: mnc001.mcc001.3gppnetwork.org
+        home_mcc_mnc: "00101"
+        visited_mcc_mnc: "00101"
+        home_policy: home-default
+        visited_policy: home-default
+        local_breakout: true
+        steering_action: home-policy
+        allowed_apns: ["internet", "iot.private"]
+        radius_attributes: ["3GPP-IMSI-MCC-MNC", "3GPP-Selection-Mode"]
+      - name: visited-lbo
+        enabled: true
+        home_realm: mnc001.mcc001.3gppnetwork.org
+        visited_realm: roaming.example.net
+        home_mcc_mnc: "00101"
+        visited_mcc_mnc: "99999"
+        home_policy: home-roaming
+        visited_policy: visited-lbo
+        local_breakout: false
+        steering_action: visited-restrict
+        allowed_apns: ["internet"]
+        radius_attributes: ["3GPP-RAT-Type", "3GPP-Selection-Mode", "Class"]
+    feedback_rules:
+      - name: quota-threshold-reauthorize
+        enabled: true
+        source: charging
+        trigger: quota-threshold
+        action: coa-update-qos
+        policy_profile: home-default
+        coa_profile: mobile-quota-throttle
+        cooldown_seconds: 60
+        radius_attributes: ["Session-Timeout", "Acct-Interim-Interval", "Filter-Id"]
+      - name: roaming-policy-update
+        enabled: true
+        source: session
+        trigger: visited-network-change
+        action: coa-apply-visited-policy
+        policy_profile: visited-lbo
+        coa_profile: mobile-roaming-policy
+        cooldown_seconds: 120
+        radius_attributes: ["3GPP-RAT-Type", "3GPP-Selection-Mode", "Class"]
 
 wireless:
   enabled: false

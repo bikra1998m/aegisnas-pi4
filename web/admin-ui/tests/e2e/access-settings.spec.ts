@@ -357,6 +357,49 @@ test.describe("Access Settings edge-network flow", () => {
     ).toBeVisible();
   });
 
+  test("previews and applies mobile policy control", async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto("/access-settings", {
+      timeout: 90_000,
+      waitUntil: "domcontentloaded",
+    });
+    const mobilePolicyHeading = page.getByRole("heading", {
+      name: "Mobile Policy Control",
+    });
+    await expect(mobilePolicyHeading).toBeVisible({ timeout: 60_000 });
+    const mobilePolicySection = mobilePolicyHeading.locator(
+      "xpath=ancestor::section[1]",
+    );
+    await expect(mobilePolicySection).toBeVisible();
+    await expect(
+      mobilePolicySection.getByRole("heading", { name: "Policy Profiles" }),
+    ).toBeVisible();
+    await expect(
+      mobilePolicySection.getByRole("heading", { name: "QoS Classes" }),
+    ).toBeVisible();
+    await expect(
+      mobilePolicySection.getByRole("heading", { name: "Roaming Policies" }),
+    ).toBeVisible();
+    await expect(
+      mobilePolicySection.getByText("home-default", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(
+      mobilePolicySection.getByText("default-5qi-9", { exact: true }).first(),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Preview Mobile Policy" }).click();
+    await expect(
+      page.getByText(/Mobile policy control preview recorded/),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Apply Mobile Policy" }).click();
+    await expect(page.getByText(/Mobile policy control applied/)).toBeVisible();
+  });
+
   test("previews and applies controller estate lifecycle", async ({ page }) => {
     await seedAuthenticatedSession(page);
     await installMockApi(page);

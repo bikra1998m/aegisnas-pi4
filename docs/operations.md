@@ -1377,6 +1377,38 @@ FreeRADIUS production Linux, HA, scale, soak, security, production deployment,
 and customer acceptance evidence stay in
 `nas-0094-release-certification-checklist.md`.
 
+For mobile PCRF/PCF-style policy control, preview NAS-0095 before enabling
+enforce mode or changing policy profiles, QoS classes, roaming policies,
+charging feedback, or dynamic authorization behavior:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/mobile-policy-control/preview \
+  | jq '.report.status, .report.summary, .report.policy_profiles'
+```
+
+Apply only after reviewing mobile-session state, charging-correlation state,
+policy engine state, QoS enforcement availability, dynamic authorization,
+privacy controls, compliance checks, and the plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/mobile-policy-control/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/mobile-policy-control/history` and support bundle files
+`api/mobile-policy-control.json` and
+`api/mobile-policy-control-history.json` during carrier policy, QoS, roaming,
+and CoA investigations. Live PCRF/PCF/PCEF proof, roaming partner evidence,
+Starent/Ericsson/WiMAX device captures, FreeRADIUS production Linux, HA,
+scale, soak, security, production deployment, and customer acceptance evidence
+stay in `nas-0095-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

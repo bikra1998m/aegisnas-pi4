@@ -179,6 +179,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionMobileGroupedAVPCheck(&report, cfg)
 	addProductionMobileSessionCheck(&report, cfg)
 	addProductionMobileChargingCheck(&report, cfg)
+	addProductionMobilePolicyControlCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -2879,6 +2880,81 @@ func addProductionMobileChargingCheck(report *productionReadinessReport, cfg *co
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/mobile-charging/preview before enabling charging enforcement, apply only after reviewing OCS/OFCS stream intent, rating groups, quota policies, CDR export state, mediation references, mobile-session dependency, accounting-charging dependency, privacy controls, and release-certification boundary. Keep real OCS/OFCS endpoints, packet-core simulator proof, Starent/Ericsson/3GPP/3GPP2 captures, FreeRADIUS production Linux proof, HA, scale, soak, security, and customer proof in the NAS-0094 release certification checklist.",
 		Dependencies:   []string{"mobile.charging", "mobile.sessions", "radius.accounting_charging", "mobile_charging_correlation_events", "mobile_charging_correlation_profiles", "/api/v1/system/mobile-charging", "/api/v1/system/mobile-charging/preview", "/api/v1/system/mobile-charging/apply", "3GPP-IMSI", "3GPP-Charging-ID", "3GPP-Charging-Characteristics", "3GPP2-Prepaid-Quota-Identifier", "Acct-Input-Gigawords", "Acct-Output-Gigawords", "RFC 2865", "RFC 2866", "RFC 5176", "3GPP TS 32.240"},
+	})
+}
+
+func addProductionMobilePolicyControlCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0095 PCRF/PCF-style mobile policy control software is ready."
+	reportData, err := enforcement.PreviewMobilePolicyControl(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Mobile policy control preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "disabled":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0095 schema %d status=%s, mode=%s, policy_profiles=%d/%d, qos_classes=%d/%d, roaming_policies=%d/%d, feedback_rules=%d/%d, attrs=%d, compliance=%d/%d, session=%s, charging=%s, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.EnabledPolicyProfileCount,
+			reportData.Summary.PolicyProfileCount,
+			reportData.Summary.EnabledQoSClassCount,
+			reportData.Summary.QoSClassCount,
+			reportData.Summary.EnabledRoamingPolicyCount,
+			reportData.Summary.RoamingPolicyCount,
+			reportData.Summary.EnabledFeedbackRuleCount,
+			reportData.Summary.FeedbackRuleCount,
+			reportData.Summary.PolicyAttributeCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.Summary.MobileSessionStatus,
+			reportData.Summary.MobileChargingStatus,
+			reportData.SoftwareCompletionPercent)
+		if reportData.Status == "disabled" {
+			summary += " Mobile policy control is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but mobile policy control event history cannot be verified."
+	} else if evidence, err := db.GetMobilePolicyControlSummary(); err != nil {
+		status = "blocked"
+		summary += " Mobile policy control evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d skipped, %d blocked, %d failed, ready_profiles=%d, planned_profiles=%d, last_policy_profiles=%d, last_qos_classes=%d, last_roaming_policies=%d, last_feedback_rules=%d, last_attrs=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.SkippedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.ReadyProfileCount,
+			evidence.PlannedProfileCount,
+			evidence.LastPolicyProfileCount,
+			evidence.LastQoSClassCount,
+			evidence.LastRoamingPolicyCount,
+			evidence.LastFeedbackRuleCount,
+			evidence.LastPolicyAttributeCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "mobile_policy_control",
+		Category:       "radius",
+		Label:          "NAS-0095 PCRF/PCF Policy, QoS, and Roaming",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/mobile-policy-control/preview before enabling policy-control enforcement, apply only after reviewing policy profiles, QoS classes, roaming policies, charging feedback, dynamic authorization, privacy controls, and release-certification boundary. Keep live PCRF/PCF/PCEF proof, roaming partner evidence, Starent/Ericsson/WiMAX captures, FreeRADIUS production Linux proof, HA, scale, soak, security, and customer proof in the NAS-0095 release certification checklist.",
+		Dependencies:   []string{"mobile.policy_control", "mobile.sessions", "mobile.charging", "policy.typed_engine_enabled", "policy.runtime_shaping_enabled", "radius.dynamic_auth", "mobile_policy_control_events", "mobile_policy_control_profiles", "/api/v1/system/mobile-policy-control", "/api/v1/system/mobile-policy-control/preview", "/api/v1/system/mobile-policy-control/apply", "3GPP-IMSI", "3GPP-Negotiated-DSCP", "3GPP-GPRS-Negotiated-QoS-profile", "WiMAX-QoS-Descriptor", "RFC 2865", "RFC 2866", "RFC 5176", "3GPP TS 23.203", "3GPP TS 29.212"},
 	})
 }
 

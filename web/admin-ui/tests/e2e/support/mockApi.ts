@@ -5334,6 +5334,202 @@ function createMobileCharging(status = "ready") {
   };
 }
 
+function createMobilePolicyControl(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0095",
+      status,
+      message:
+        "Mobile PCRF/PCF-style policy, QoS, roaming, and enforcement feedback controls are ready.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0095-release-certification-checklist.md",
+      release_scope:
+        "Live PCRF/PCF/PCEF, roaming clearinghouse, carrier packet-core simulators, real vendor equipment, FreeRADIUS production Linux, HA, scale, soak, security, and customer proof are release certification activities.",
+      plan_fingerprint:
+        "sha256:0095fbc70403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81ed",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        require_database: true,
+        require_mobile_sessions: true,
+        require_policy_engine: true,
+        require_qos: true,
+        require_dynamic_auth: true,
+        require_charging: true,
+        roaming_control: true,
+        enforcement_feedback: true,
+        redact_subscriber_ids: true,
+        hash_subscriber_ids: true,
+        decision_retention_days: 90,
+        event_retention_limit: 10000,
+        max_policy_decisions: 100000,
+        default_policy_profile: "home-default",
+        default_qos_class: "default-5qi-9",
+        default_roaming_policy: "home-plmn",
+        policy_profile_count: 3,
+        enabled_policy_profile_count: 3,
+        qos_class_count: 3,
+        enabled_qos_class_count: 3,
+        roaming_policy_count: 2,
+        enabled_roaming_policy_count: 2,
+        feedback_rule_count: 2,
+        enabled_feedback_rule_count: 2,
+        policy_attribute_count: 18,
+        control_step_count: 6,
+        compliance_check_count: 12,
+        passed_check_count: 12,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 1,
+        mobile_session_status: "ready",
+        mobile_charging_status: "ready",
+        policy_engine_enabled: true,
+        qos_enforcement_enabled: true,
+        dynamic_auth_enabled: true,
+        dynamic_auth_outbound_enabled: true,
+      },
+      policy_profiles: [
+        {
+          name: "home-default",
+          enabled: true,
+          apn: "internet",
+          role: "mobile-subscriber",
+          policy_profile: "internet-access",
+          qos_class: "default-5qi-9",
+          roaming_policy: "home-plmn",
+          charging_profile: "internet-data",
+          status: "ready",
+          enforcement_actions: ["access-accept", "coa-on-threshold"],
+        },
+        {
+          name: "visited-lbo",
+          enabled: true,
+          apn: "internet",
+          role: "roaming-subscriber",
+          policy_profile: "visited-local-breakout",
+          qos_class: "roaming-5qi-8",
+          roaming_policy: "visited-lbo",
+          charging_profile: "internet-data",
+          status: "ready",
+          enforcement_actions: ["apply-visited-policy", "coa-on-roaming-change"],
+        },
+      ],
+      qos_classes: [
+        {
+          name: "default-5qi-9",
+          enabled: true,
+          qci: 9,
+          five_qi: 9,
+          arp: 8,
+          mbr_down_kbps: 50000,
+          mbr_up_kbps: 10000,
+          dscp: "af21",
+          status: "ready",
+        },
+        {
+          name: "roaming-5qi-8",
+          enabled: true,
+          qci: 8,
+          five_qi: 8,
+          arp: 7,
+          mbr_down_kbps: 20000,
+          mbr_up_kbps: 5000,
+          dscp: "af31",
+          status: "ready",
+        },
+      ],
+      roaming_policies: [
+        {
+          name: "home-plmn",
+          enabled: true,
+          home_mcc_mnc: "00101",
+          visited_mcc_mnc: "00101",
+          steering_action: "home-policy",
+          allowed_apns: ["internet", "iot.private"],
+          status: "ready",
+        },
+        {
+          name: "visited-lbo",
+          enabled: true,
+          home_mcc_mnc: "00101",
+          visited_mcc_mnc: "99999",
+          steering_action: "visited-restrict",
+          allowed_apns: ["internet"],
+          status: "ready",
+        },
+      ],
+      feedback_rules: [
+        {
+          name: "quota-threshold-reauthorize",
+          enabled: true,
+          source: "charging",
+          trigger: "quota-threshold",
+          action: "coa-update-qos",
+          status: "ready",
+        },
+        {
+          name: "roaming-policy-update",
+          enabled: true,
+          source: "session",
+          trigger: "visited-network-change",
+          action: "coa-apply-visited-policy",
+          status: "ready",
+        },
+      ],
+      compliance: [
+        {
+          id: "mobile-session-dependency",
+          name: "NAS-0093 mobile session dependency",
+          status: "passed",
+          message: "Mobile session state is ready for policy context.",
+        },
+        {
+          id: "charging-dependency",
+          name: "NAS-0094 charging feedback dependency",
+          status: "passed",
+          message: "Charging feedback is ready for quota updates.",
+        },
+        {
+          id: "external-certification",
+          name: "Release certification boundary",
+          status: "passed",
+          message:
+            "Live PCRF/PCF/PCEF, roaming, FreeRADIUS, HA, scale, soak, security, and customer proof are release certification activities.",
+        },
+      ],
+      radius_attributes: [
+        "3GPP-IMSI",
+        "3GPP-Negotiated-DSCP",
+        "WiMAX-QoS-Descriptor",
+        "Filter-Id",
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        ready_profile_count: 10,
+        planned_profile_count: 0,
+      },
+      recent_events: [],
+      effective_state: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -11358,6 +11554,54 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             ...payload.report.streams,
             ...payload.report.rating_groups,
             ...payload.report.quota_policies,
+          ],
+        },
+      });
+      return;
+    }
+    if (path === "/system/mobile-policy-control" && method === "GET") {
+      await route.fulfill({ json: createMobilePolicyControl() });
+      return;
+    }
+    if (path === "/system/mobile-policy-control/preview" && method === "POST") {
+      await route.fulfill({
+        json: {
+          ...createMobilePolicyControl(),
+          event_id: "mobile-policy-event-preview",
+        },
+      });
+      return;
+    }
+    if (path === "/system/mobile-policy-control/apply" && method === "POST") {
+      const payload = createMobilePolicyControl();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0095 recorded mobile policy, QoS, roaming, and feedback evidence.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "mobile-policy-event-apply",
+          result: {
+            status: "applied",
+            event_id: "mobile-policy-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (path === "/system/mobile-policy-control/history" && method === "GET") {
+      const payload = createMobilePolicyControl();
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0095",
+          summary: payload.evidence.summary,
+          events: [],
+          effective_state: [
+            ...payload.report.policy_profiles,
+            ...payload.report.qos_classes,
+            ...payload.report.roaming_policies,
+            ...payload.report.feedback_rules,
           ],
         },
       });

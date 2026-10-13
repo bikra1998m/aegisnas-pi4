@@ -3586,6 +3586,11 @@ export default function AccessSettings() {
   const [mobileCharging, setMobileCharging] = useState<JsonMap | null>(null);
   const [mobileChargingAction, setMobileChargingAction] = useState("");
   const mobileChargingBusy = mobileChargingAction !== "";
+  const [mobilePolicyControl, setMobilePolicyControl] =
+    useState<JsonMap | null>(null);
+  const [mobilePolicyControlAction, setMobilePolicyControlAction] =
+    useState("");
+  const mobilePolicyControlBusy = mobilePolicyControlAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3764,6 +3769,11 @@ export default function AccessSettings() {
   const loadMobileCharging = async () => {
     const { data } = await api.get("/system/mobile-charging");
     setMobileCharging(data.report || null);
+  };
+
+  const loadMobilePolicyControl = async () => {
+    const { data } = await api.get("/system/mobile-policy-control");
+    setMobilePolicyControl(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -4015,6 +4025,7 @@ export default function AccessSettings() {
         mobileGroupedAVPRes,
         mobileSessionRes,
         mobileChargingRes,
+        mobilePolicyControlRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -4039,6 +4050,7 @@ export default function AccessSettings() {
         api.get("/system/mobile-grouped-avps"),
         api.get("/system/mobile-sessions"),
         api.get("/system/mobile-charging"),
+        api.get("/system/mobile-policy-control"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -4075,6 +4087,7 @@ export default function AccessSettings() {
       setMobileGroupedAVPs(mobileGroupedAVPRes.data.report || null);
       setMobileSessions(mobileSessionRes.data.report || null);
       setMobileCharging(mobileChargingRes.data.report || null);
+      setMobilePolicyControl(mobilePolicyControlRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -5483,6 +5496,51 @@ export default function AccessSettings() {
     }
   };
 
+  const previewMobilePolicyControl = async () => {
+    setMobilePolicyControlAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/mobile-policy-control/preview", {});
+      setMobilePolicyControl(data.report || null);
+      setMessage(
+        `Mobile policy control preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview mobile policy control.",
+      );
+    } finally {
+      setMobilePolicyControlAction("");
+    }
+  };
+
+  const applyMobilePolicyControl = async () => {
+    setMobilePolicyControlAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/mobile-policy-control/apply", {});
+      setMobilePolicyControl(data.report || null);
+      setMessage(
+        `Mobile policy control ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadMobilePolicyControl();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply mobile policy control.",
+      );
+    } finally {
+      setMobilePolicyControlAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -6373,6 +6431,27 @@ export default function AccessSettings() {
     ? mobileCharging?.compliance
     : [];
   const mobileChargingTone = statusTone(mobileCharging?.status);
+  const mobilePolicyControlSummary = mobilePolicyControl?.summary || {};
+  const mobilePolicyProfiles = Array.isArray(mobilePolicyControl?.policy_profiles)
+    ? mobilePolicyControl?.policy_profiles
+    : [];
+  const mobilePolicyQoSClasses = Array.isArray(mobilePolicyControl?.qos_classes)
+    ? mobilePolicyControl?.qos_classes
+    : [];
+  const mobilePolicyRoaming = Array.isArray(
+    mobilePolicyControl?.roaming_policies,
+  )
+    ? mobilePolicyControl?.roaming_policies
+    : [];
+  const mobilePolicyFeedback = Array.isArray(
+    mobilePolicyControl?.feedback_rules,
+  )
+    ? mobilePolicyControl?.feedback_rules
+    : [];
+  const mobilePolicyCompliance = Array.isArray(mobilePolicyControl?.compliance)
+    ? mobilePolicyControl?.compliance
+    : [];
+  const mobilePolicyControlTone = statusTone(mobilePolicyControl?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -6923,6 +7002,24 @@ export default function AccessSettings() {
               : "Apply Mobile Charging"}
           </button>
           <button
+            onClick={previewMobilePolicyControl}
+            disabled={mobilePolicyControlBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {mobilePolicyControlAction === "preview"
+              ? "Checking Mobile Policy..."
+              : "Preview Mobile Policy"}
+          </button>
+          <button
+            onClick={applyMobilePolicyControl}
+            disabled={mobilePolicyControlBusy}
+            className="rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-900 disabled:opacity-60"
+          >
+            {mobilePolicyControlAction === "apply"
+              ? "Applying Mobile Policy..."
+              : "Apply Mobile Policy"}
+          </button>
+          <button
             onClick={applyRadiusConfig}
             disabled={applyingRadius}
             className="rounded-md border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-800 disabled:opacity-60"
@@ -7433,6 +7530,295 @@ export default function AccessSettings() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Mobile Policy Control
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {mobilePolicyControl?.release_certification_checklist ||
+                "Validate PCRF, PCF, PCEF, roaming, QoS, CoA, charging feedback, and vendor packet captures before carrier release."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${mobilePolicyControlTone}`}
+          >
+            {mobilePolicyControl?.status || "unknown"}
+          </div>
+        </div>
+        {mobilePolicyControl ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {mobilePolicyControl.message}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Profiles",
+                  `${mobilePolicyControlSummary.enabled_policy_profile_count || 0}/${mobilePolicyControlSummary.policy_profile_count || 0}`,
+                ],
+                [
+                  "QoS Classes",
+                  `${mobilePolicyControlSummary.enabled_qos_class_count || 0}/${mobilePolicyControlSummary.qos_class_count || 0}`,
+                ],
+                [
+                  "Roaming",
+                  `${mobilePolicyControlSummary.enabled_roaming_policy_count || 0}/${mobilePolicyControlSummary.roaming_policy_count || 0}`,
+                ],
+                [
+                  "Feedback",
+                  `${mobilePolicyControlSummary.enabled_feedback_rule_count || 0}/${mobilePolicyControlSummary.feedback_rule_count || 0}`,
+                ],
+                ["Attrs", mobilePolicyControlSummary.policy_attribute_count || 0],
+                [
+                  "Compliance",
+                  `${mobilePolicyControlSummary.passed_check_count || 0}/${mobilePolicyControlSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              Mode{" "}
+              <span className="font-mono">
+                {mobilePolicyControlSummary.mode || "monitor"}
+              </span>{" "}
+              / sessions{" "}
+              <span className="font-mono">
+                {mobilePolicyControlSummary.mobile_session_status || "unknown"}
+              </span>{" "}
+              / charging{" "}
+              <span className="font-mono">
+                {mobilePolicyControlSummary.mobile_charging_status || "unknown"}
+              </span>{" "}
+              / dynamic auth{" "}
+              <span className="font-mono">
+                {mobilePolicyControlSummary.dynamic_auth_enabled ||
+                mobilePolicyControlSummary.dynamic_auth_outbound_enabled
+                  ? "available"
+                  : "inactive"}
+              </span>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-4">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Policy Profiles
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobilePolicyProfiles.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No mobile policy profile is configured.
+                    </div>
+                  ) : (
+                    mobilePolicyProfiles
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || item.policy_profile || "mobile-policy-profile"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || item.policy_profile || "Policy Profile"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[item.apn, item.role, item.qos_class]
+                              .filter(Boolean)
+                              .join(" / ") || "Policy metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {(item.enforcement_actions || [])
+                              .slice(0, 4)
+                              .join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  QoS Classes
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobilePolicyQoSClasses.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No mobile QoS class is configured.
+                    </div>
+                  ) : (
+                    mobilePolicyQoSClasses
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || item.qci || "mobile-qos-class"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || "QoS Class"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              item.qci ? `QCI ${item.qci}` : "",
+                              item.five_qi ? `5QI ${item.five_qi}` : "",
+                              item.arp ? `ARP ${item.arp}` : "",
+                              item.dscp,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "QoS metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {[
+                              item.mbr_down_kbps
+                                ? `${item.mbr_down_kbps}k down`
+                                : "",
+                              item.mbr_up_kbps ? `${item.mbr_up_kbps}k up` : "",
+                            ]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Roaming Policies
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobilePolicyRoaming.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No roaming policy is configured.
+                    </div>
+                  ) : (
+                    mobilePolicyRoaming
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || item.visited_realm || "mobile-roaming-policy"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || "Roaming Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[item.home_mcc_mnc, item.visited_mcc_mnc, item.steering_action]
+                              .filter(Boolean)
+                              .join(" / ") || "Roaming metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {(item.allowed_apns || []).slice(0, 4).join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Feedback Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {[...mobilePolicyFeedback, ...mobilePolicyCompliance]
+                    .slice(0, 9)
+                    .map((item: JsonMap, index: number) => (
+                      <div
+                        key={`${item.id || item.name || "mobile-policy-check"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {item.name || item.id || "Policy Check"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              item.status,
+                            )}`}
+                          >
+                            {item.status || "unknown"}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {item.message ||
+                            [item.source, item.trigger, item.action]
+                              .filter(Boolean)
+                              .join(" / ") ||
+                            "No policy message"}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+            {((mobilePolicyControl.blockers?.length || 0) > 0 ||
+              (mobilePolicyControl.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(mobilePolicyControl.blockers || []),
+                  ...(mobilePolicyControl.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Defaults{" "}
+              <span className="font-mono">
+                {mobilePolicyControlSummary.default_policy_profile ||
+                  "home-default"}
+              </span>{" "}
+              /{" "}
+              <span className="font-mono">
+                {mobilePolicyControlSummary.default_qos_class || "default-5qi-9"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {mobilePolicyControl.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Mobile policy control report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">

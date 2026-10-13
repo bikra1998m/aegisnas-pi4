@@ -1493,6 +1493,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0094 mobile charging correlation event history and effective stream, rating group, and quota-policy rows."),
 	}))
+	addOperation(paths, "/api/v1/system/mobile-policy-control", "get", securedOperation("Read mobile PCRF/PCF policy control", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0095 PCRF/PCF-style policy profiles, QoS classes, roaming policies, enforcement feedback rules, compliance checks, and evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/mobile-policy-control/preview", "post", securedOperationWithBody("Preview mobile PCRF/PCF policy control", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating effective mobile policy rows."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0095 mobile policy control and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/mobile-policy-control/apply", "post", securedOperationWithBody("Apply mobile PCRF/PCF policy control", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records PCRF/PCF policy profile, QoS class, roaming, feedback, and runtime status evidence. Live PCRF/PCF/PCEF and roaming partner validation remain release certification activities."), map[string]any{
+		"200":     responseJSON("Applied NAS-0095 mobile policy control checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/mobile-policy-control/history", "get", securedOperationWithParameters("List mobile PCRF/PCF policy control history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0095 mobile policy control event history and effective policy, QoS, roaming, and feedback rows."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))
