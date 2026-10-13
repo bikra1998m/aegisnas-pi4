@@ -9,6 +9,7 @@ import (
 type MobileConfig struct {
 	GroupedAVPs MobileGroupedAVPConfig `mapstructure:"grouped_avps"`
 	Sessions    MobileSessionConfig    `mapstructure:"sessions"`
+	Charging    MobileChargingConfig   `mapstructure:"charging"`
 }
 
 type MobileGroupedAVPConfig struct {

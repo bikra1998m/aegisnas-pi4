@@ -1653,6 +1653,27 @@ Operators should keep three states separate:
    captures, roaming lab results, HA, scale, soak, security, and customer
    acceptance are recorded in `nas-0093-release-certification-checklist.md`
 
+### Mobile Charging Correlation
+
+NAS-0094 provides the external-AAA product boundary for mobile online and
+offline charging correlation. The software compiles OCS, OFCS, and mediation
+streams; APN rating groups; quota grant policy; CDR/export correlation;
+subscriber privacy controls; NAS-0041 accounting charging dependency;
+NAS-0093 mobile-session dependency; API/UI/readiness evidence; and
+database-backed history.
+
+Operators should keep three states separate:
+
+1. dictionary support means the 3GPP, 3GPP2, Starent/Cisco, Ericsson, and
+   WiMAX charging attributes are known
+2. software readiness means mobile charging can preview, apply, store
+   stream/rating/quota history, expose API/UI/readiness evidence, and protect
+   subscriber identifiers with redaction and hashes
+3. certification means exact OCS/OFCS product, packet-core product, firmware,
+   CDR settlement proof, quota-consumption captures, HA, scale, soak, security,
+   and customer acceptance are recorded in
+   `nas-0094-release-certification-checklist.md`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

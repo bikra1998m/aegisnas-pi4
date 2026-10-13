@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 97
+	return 98
 }
 
 func Migrate() error {
@@ -5296,3 +5296,56 @@ CREATE INDEX IF NOT EXISTS idx_mobile_session_state_profiles_seen ON mobile_sess
 `
 
 const schemaV97 = mobileSessionStateSQL
+
+const mobileChargingCorrelationSQL = `
+CREATE TABLE IF NOT EXISTS mobile_charging_correlation_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	mode TEXT,
+	stream_count INTEGER DEFAULT 0,
+	rating_group_count INTEGER DEFAULT 0,
+	quota_policy_count INTEGER DEFAULT 0,
+	correlation_attribute_count INTEGER DEFAULT 0,
+	mediation_reference_count INTEGER DEFAULT 0,
+	compliance_check_count INTEGER DEFAULT 0,
+	passed_check_count INTEGER DEFAULT 0,
+	warning_count INTEGER DEFAULT 0,
+	blocker_count INTEGER DEFAULT 0,
+	external_requirement_count INTEGER DEFAULT 0,
+	summary_json TEXT NOT NULL,
+	report_json TEXT,
+	actor TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_mobile_charging_events_created ON mobile_charging_correlation_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_mobile_charging_events_status ON mobile_charging_correlation_events(status);
+CREATE INDEX IF NOT EXISTS idx_mobile_charging_events_fingerprint ON mobile_charging_correlation_events(plan_fingerprint);
+
+CREATE TABLE IF NOT EXISTS mobile_charging_correlation_profiles (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	profile_key TEXT NOT NULL,
+	profile_type TEXT NOT NULL,
+	name TEXT NOT NULL,
+	status TEXT NOT NULL,
+	stream_type TEXT,
+	rating_group INTEGER DEFAULT 0,
+	quota_unit TEXT,
+	attributes_json TEXT NOT NULL,
+	source_event_id TEXT,
+	plan_fingerprint TEXT NOT NULL,
+	last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE(profile_type, profile_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_mobile_charging_profiles_type ON mobile_charging_correlation_profiles(profile_type);
+CREATE INDEX IF NOT EXISTS idx_mobile_charging_profiles_status ON mobile_charging_correlation_profiles(status);
+CREATE INDEX IF NOT EXISTS idx_mobile_charging_profiles_seen ON mobile_charging_correlation_profiles(last_seen_at);
+`
+
+const schemaV98 = mobileChargingCorrelationSQL

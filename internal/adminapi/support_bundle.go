@@ -383,6 +383,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/mobile-grouped-avps-history.json", requestPath: "/api/v1/system/mobile-grouped-avps/history", label: "Telecom grouped AVP framework history", handler: HandleListMobileGroupedAVPHistory},
 		{archivePath: "api/mobile-sessions.json", requestPath: "/api/v1/system/mobile-sessions", label: "Mobile APN PDP bearer session state", handler: HandleGetMobileSessions},
 		{archivePath: "api/mobile-sessions-history.json", requestPath: "/api/v1/system/mobile-sessions/history", label: "Mobile APN PDP bearer session history", handler: HandleListMobileSessionHistory},
+		{archivePath: "api/mobile-charging.json", requestPath: "/api/v1/system/mobile-charging", label: "Mobile online offline charging correlation", handler: HandleGetMobileCharging},
+		{archivePath: "api/mobile-charging-history.json", requestPath: "/api/v1/system/mobile-charging/history", label: "Mobile charging correlation history", handler: HandleListMobileChargingHistory},
 		{archivePath: "api/subscriber-route-export.json", requestPath: "/api/v1/system/subscriber-route-export", label: "Dynamic BGP/OSPF subscriber route export", handler: HandleGetSubscriberRouteExport},
 		{archivePath: "api/subscriber-route-export-history.json", requestPath: "/api/v1/system/subscriber-route-export/history", label: "Subscriber route export apply and rollback history", handler: HandleListSubscriberRouteExportHistory},
 		{archivePath: "api/enforcement-transactions.json", requestPath: "/api/v1/system/enforcement-transactions", label: "Atomic enforcement transaction state", handler: HandleGetEnforcementTransactions},

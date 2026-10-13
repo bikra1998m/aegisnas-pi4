@@ -914,6 +914,47 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		mobileSessionStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.MobileSessionComponent()]}
 	}
+	mobileChargingStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Mobile online/offline charging correlation has not been evaluated.",
+	}
+	if mobileChargingReport, err := enforcement.PreviewMobileCharging(cfg); err == nil {
+		mobileChargingSummary, _ := db.GetMobileChargingSummary()
+		mobileChargingStatus = map[string]any{
+			"schema_version":                      mobileChargingReport.SchemaVersion,
+			"feature_id":                          mobileChargingReport.FeatureID,
+			"status":                              mobileChargingReport.Status,
+			"message":                             mobileChargingReport.Message,
+			"ready_for_external_validation":       mobileChargingReport.ReadyForExternalValidation,
+			"software_completion_percent":         mobileChargingReport.SoftwareCompletionPercent,
+			"enabled":                             mobileChargingReport.Summary.Enabled,
+			"mode":                                mobileChargingReport.Summary.Mode,
+			"stream_count":                        mobileChargingReport.Summary.StreamCount,
+			"enabled_stream_count":                mobileChargingReport.Summary.EnabledStreamCount,
+			"online_stream_count":                 mobileChargingReport.Summary.OnlineStreamCount,
+			"offline_stream_count":                mobileChargingReport.Summary.OfflineStreamCount,
+			"mediation_stream_count":              mobileChargingReport.Summary.MediationStreamCount,
+			"rating_group_count":                  mobileChargingReport.Summary.RatingGroupCount,
+			"enabled_rating_group_count":          mobileChargingReport.Summary.EnabledRatingGroupCount,
+			"quota_policy_count":                  mobileChargingReport.Summary.QuotaPolicyCount,
+			"enabled_quota_policy_count":          mobileChargingReport.Summary.EnabledQuotaPolicyCount,
+			"correlation_attribute_count":         mobileChargingReport.Summary.CorrelationAttributeCount,
+			"mediation_reference_count":           mobileChargingReport.Summary.MediationReferenceCount,
+			"compliance_check_count":              mobileChargingReport.Summary.ComplianceCheckCount,
+			"passed_check_count":                  mobileChargingReport.Summary.PassedCheckCount,
+			"warning_count":                       mobileChargingReport.Summary.WarningCount,
+			"blocker_count":                       mobileChargingReport.Summary.BlockerCount,
+			"accounting_charging_status":          mobileChargingReport.Summary.AccountingChargingStatus,
+			"mobile_session_status":               mobileChargingReport.Summary.MobileSessionStatus,
+			"plan_fingerprint":                    mobileChargingReport.PlanFingerprint,
+			"release_certification_checklist":     mobileChargingReport.ReleaseCertificationChecklist,
+			"release_certification_external_only": true,
+			"evidence_summary":                    mobileChargingSummary,
+			"runtime_status":                      runtimeMap[enforcement.MobileChargingComponent()],
+		}
+	} else {
+		mobileChargingStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.MobileChargingComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1625,6 +1666,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broadband_governance_self_service": broadbandGovernanceSelfServiceStatus,
 		"mobile_grouped_avps":               mobileGroupedAVPStatus,
 		"mobile_session_state":              mobileSessionStatus,
+		"mobile_charging_correlation":       mobileChargingStatus,
 		"vendor_mapping_certification":      vendorMappingCertificationStatus,
 		"cisco_family_pack":                 ciscoFamilyPackStatus,
 		"aruba_family_pack":                 arubaFamilyPackStatus,
@@ -1753,6 +1795,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broadband_governance_self_service": broadbandGovernanceSelfServiceStatus,
 		"mobile_grouped_avps":               mobileGroupedAVPStatus,
 		"mobile_session_state":              mobileSessionStatus,
+		"mobile_charging_correlation":       mobileChargingStatus,
 		"local_firewall":                    runtimeFirewallStatus,
 		"atomic_transactions":               atomicEnforcementStatus,
 	}

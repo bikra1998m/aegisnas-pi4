@@ -5108,6 +5108,232 @@ function createMobileSessions(status = "ready") {
   };
 }
 
+function createMobileCharging(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0094",
+      status,
+      message:
+        "Mobile online and offline charging correlation is ready with OCS, OFCS, CDR, rating-group, quota, and mediation evidence.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0094-release-certification-checklist.md",
+      release_scope:
+        "Live OCS/OFCS settlement proof, carrier packet-core simulators, real vendor equipment, FreeRADIUS production Linux, HA, scale, soak, security, and customer proof are release certification activities.",
+      plan_fingerprint:
+        "sha256:0094fbc70403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81ed",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        require_database: true,
+        require_mobile_sessions: true,
+        require_accounting_charging: true,
+        quota_correlation: true,
+        require_mediation: true,
+        redact_subscriber_ids: true,
+        hash_subscriber_ids: true,
+        default_currency: "USD",
+        cdr_retention_days: 180,
+        event_retention_limit: 10000,
+        stream_count: 3,
+        enabled_stream_count: 3,
+        online_stream_count: 1,
+        offline_stream_count: 1,
+        mediation_stream_count: 1,
+        rating_group_count: 2,
+        enabled_rating_group_count: 2,
+        quota_policy_count: 2,
+        enabled_quota_policy_count: 2,
+        correlation_attribute_count: 12,
+        mediation_reference_count: 4,
+        cdr_record_count: 3,
+        pending_export_count: 0,
+        accounting_cdr_rows: 3,
+        accounting_pending_exports: 0,
+        compliance_check_count: 10,
+        passed_check_count: 10,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 1,
+        accounting_charging_status: "ready",
+        mobile_session_status: "ready",
+      },
+      streams: [
+        {
+          name: "ocs-online",
+          enabled: true,
+          stream_type: "online",
+          protocol: "radius-accounting",
+          endpoint_ref: "ocs-primary",
+          export_format: "jsonl",
+          retry_policy: "bounded-exponential",
+          status: "ready",
+          attributes: [
+            "3GPP-IMSI",
+            "3GPP-Charging-ID",
+            "3GPP-Charging-Characteristics",
+            "Acct-Input-Octets",
+            "Acct-Output-Octets",
+          ],
+        },
+        {
+          name: "ofcs-offline",
+          enabled: true,
+          stream_type: "offline",
+          protocol: "radius-accounting",
+          endpoint_ref: "ofcs-primary",
+          export_format: "jsonl",
+          retry_policy: "hash-chain",
+          status: "ready",
+          attributes: [
+            "Acct-Session-Id",
+            "Acct-Status-Type",
+            "Acct-Input-Gigawords",
+            "Acct-Output-Gigawords",
+          ],
+        },
+        {
+          name: "mediation-feed",
+          enabled: true,
+          stream_type: "mediation",
+          protocol: "file-export",
+          endpoint_ref: "mediation-bus",
+          export_format: "jsonl",
+          retry_policy: "at-least-once",
+          status: "ready",
+          attributes: ["Class", "Chargeable-User-Identity", "Event-Timestamp"],
+        },
+      ],
+      rating_groups: [
+        {
+          name: "internet-data",
+          enabled: true,
+          apn: "internet",
+          service_id: 1001,
+          rating_group: 10,
+          unit_type: "octets",
+          currency: "USD",
+          quota_policy: "default-data-quota",
+          status: "ready",
+        },
+        {
+          name: "iot-events",
+          enabled: true,
+          apn: "iot.private",
+          service_id: 2001,
+          rating_group: 20,
+          unit_type: "events",
+          currency: "USD",
+          quota_policy: "iot-event-quota",
+          status: "ready",
+        },
+      ],
+      quota_policies: [
+        {
+          name: "default-data-quota",
+          enabled: true,
+          grant_unit: "octets",
+          initial_grant: 1073741824,
+          threshold_percent: 80,
+          validity_seconds: 3600,
+          exhaustion_action: "restrict",
+          coa_profile: "mobile-quota-throttle",
+          status: "ready",
+        },
+        {
+          name: "iot-event-quota",
+          enabled: true,
+          grant_unit: "events",
+          initial_grant: 10000,
+          threshold_percent: 90,
+          validity_seconds: 86400,
+          exhaustion_action: "quarantine",
+          coa_profile: "iot-quarantine",
+          status: "ready",
+        },
+      ],
+      compliance: [
+        {
+          id: "mobile-session-dependency",
+          name: "NAS-0093 mobile session dependency",
+          status: "passed",
+          message: "Mobile session state is ready for charging correlation.",
+        },
+        {
+          id: "accounting-charging-dependency",
+          name: "NAS-0041 accounting charging dependency",
+          status: "passed",
+          message: "Accounting charging records are ready for CDR correlation.",
+        },
+        {
+          id: "online-offline-streams",
+          name: "Online and offline stream coverage",
+          status: "passed",
+          message: "OCS, OFCS, and mediation streams are configured.",
+        },
+        {
+          id: "rating-groups",
+          name: "Rating group coverage",
+          status: "passed",
+          message: "Rating groups map APNs to quota policies.",
+        },
+        {
+          id: "quota-correlation",
+          name: "Quota correlation",
+          status: "passed",
+          message: "Quota grants, thresholds, and CoA actions are compiled.",
+        },
+        {
+          id: "external-certification",
+          name: "Release certification boundary",
+          status: "passed",
+          message:
+            "Live OCS/OFCS, carrier packet-core, FreeRADIUS, HA, scale, soak, security, and customer proof are release certification activities.",
+        },
+      ],
+      standards: [
+        "RFC 2865",
+        "RFC 2866",
+        "RFC 5176",
+        "RFC 6929",
+        "3GPP TS 32.240",
+        "3GPP TS 29.061",
+      ],
+      vendors: [
+        "3GPP",
+        "3GPP2",
+        "Starent/Cisco ASR",
+        "Ericsson/Redback",
+      ],
+      requirements: [
+        "correlate online quota, offline CDR, rating-group, and mediation evidence",
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        ready_profile_count: 7,
+        planned_profile_count: 0,
+      },
+      recent_events: [],
+      profiles: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -11085,6 +11311,53 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             ...payload.report.apn_profiles,
             ...payload.report.bearer_templates,
             ...payload.report.roaming_partners,
+          ],
+        },
+      });
+      return;
+    }
+    if (path === "/system/mobile-charging" && method === "GET") {
+      await route.fulfill({ json: createMobileCharging() });
+      return;
+    }
+    if (path === "/system/mobile-charging/preview" && method === "POST") {
+      await route.fulfill({
+        json: {
+          ...createMobileCharging(),
+          event_id: "mobile-charging-event-preview",
+        },
+      });
+      return;
+    }
+    if (path === "/system/mobile-charging/apply" && method === "POST") {
+      const payload = createMobileCharging();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0094 recorded mobile online and offline charging correlation evidence.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "mobile-charging-event-apply",
+          result: {
+            status: "applied",
+            event_id: "mobile-charging-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (path === "/system/mobile-charging/history" && method === "GET") {
+      const payload = createMobileCharging();
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0094",
+          summary: payload.evidence.summary,
+          events: [],
+          profiles: [
+            ...payload.report.streams,
+            ...payload.report.rating_groups,
+            ...payload.report.quota_policies,
           ],
         },
       });

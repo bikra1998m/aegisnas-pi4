@@ -1344,6 +1344,39 @@ device captures, FreeRADIUS production Linux, HA, scale, soak, security,
 production deployment, and customer acceptance evidence stay in
 `nas-0093-release-certification-checklist.md`.
 
+For mobile online/offline charging correlation, preview NAS-0094 before
+enabling enforce mode or changing OCS, OFCS, CDR, rating-group, quota, or
+mediation policy:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/mobile-charging/preview \
+  | jq '.report.status, .report.summary, .report.streams'
+```
+
+Apply only after reviewing online/offline stream coverage, APN rating groups,
+quota grants and exhaustion actions, CDR/export state, mediation references,
+subscriber privacy controls, NAS-0041 accounting charging dependency, NAS-0093
+mobile-session dependency, compliance checks, and the plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/mobile-charging/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/mobile-charging/history` and support bundle files
+`api/mobile-charging.json` and `api/mobile-charging-history.json` during
+billing, mediation, OCS, OFCS, and quota investigations. Live OCS/OFCS
+settlement proof, carrier packet-core simulators, real vendor equipment,
+FreeRADIUS production Linux, HA, scale, soak, security, production deployment,
+and customer acceptance evidence stay in
+`nas-0094-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

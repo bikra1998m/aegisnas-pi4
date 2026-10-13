@@ -2392,6 +2392,91 @@ mobile:
         allow_local_breakout: false
         allowed_apns: ["internet"]
         radius_attributes: ["3GPP-RAT-Type", "3GPP-Selection-Mode", "Class"]
+  charging:
+    enabled: false
+    mode: monitor
+    fail_closed: true
+    require_database: true
+    require_mobile_sessions: true
+    require_accounting_charging: true
+    quota_correlation: true
+    require_mediation: true
+    redact_subscriber_ids: true
+    hash_subscriber_ids: true
+    default_currency: USD
+    cdr_retention_days: 180
+    event_retention_limit: 10000
+    streams:
+      - name: ocs-online
+        enabled: true
+        stream_type: online
+        protocol: radius-accounting
+        endpoint_ref: ocs-primary
+        export_format: jsonl
+        attributes:
+          - 3GPP-IMSI
+          - 3GPP-Charging-ID
+          - 3GPP-Charging-Characteristics
+          - 3GPP2-Prepaid-Quota-Identifier
+          - Acct-Input-Octets
+          - Acct-Output-Octets
+      - name: ofcs-offline
+        enabled: true
+        stream_type: offline
+        protocol: radius-accounting
+        endpoint_ref: ofcs-primary
+        export_format: jsonl
+        attributes:
+          - Acct-Session-Id
+          - Acct-Status-Type
+          - Acct-Input-Gigawords
+          - Acct-Output-Gigawords
+          - Event-Timestamp
+      - name: mediation-feed
+        enabled: true
+        stream_type: mediation
+        protocol: file-export
+        endpoint_ref: mediation-bus
+        export_format: jsonl
+        attributes:
+          - Class
+          - Chargeable-User-Identity
+          - 3GPP-IMSI-MCC-MNC
+          - WiMAX-Session-Id
+    rating_groups:
+      - name: internet-data
+        enabled: true
+        apn: internet
+        service_id: 1001
+        rating_group: 10
+        unit_type: octets
+        currency: USD
+        quota_policy: default-data-quota
+      - name: iot-events
+        enabled: true
+        apn: iot.private
+        service_id: 2001
+        rating_group: 20
+        unit_type: events
+        currency: USD
+        quota_policy: iot-event-quota
+    quota_policies:
+      - name: default-data-quota
+        enabled: true
+        grant_unit: octets
+        initial_grant: 1073741824
+        threshold_percent: 80
+        validity_seconds: 3600
+        exhaustion_action: restrict
+        coa_profile: mobile-quota-throttle
+      - name: iot-event-quota
+        enabled: true
+        grant_unit: events
+        initial_grant: 10000
+        threshold_percent: 90
+        validity_seconds: 86400
+        exhaustion_action: quarantine
+        coa_profile: iot-quarantine
 
 wireless:
   enabled: false

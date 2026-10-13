@@ -1980,6 +1980,33 @@ dynamic authorization, and schema v97 tables `mobile_session_state_events` and
 `api/mobile-sessions-history.json`. See
 [mobile-session-state.md](mobile-session-state.md).
 
+NAS-0094 adds mobile online/offline charging correlation endpoints:
+
+```text
+GET  /api/v1/system/mobile-charging
+POST /api/v1/system/mobile-charging/preview
+POST /api/v1/system/mobile-charging/apply
+GET  /api/v1/system/mobile-charging/history
+```
+
+`GET /api/v1/system/mobile-charging` returns OCS, OFCS, and mediation
+streams; APN/rating-group mappings; quota policies; RADIUS charging attribute
+evidence; CDR/export correlation counts; compliance checks; plan fingerprint;
+software completion state; release certification scope; and recent evidence.
+Preview records an event without mutating effective charging rows. Apply
+records an auditable checkpoint, upserts effective stream, rating-group, and
+quota-policy rows, and updates runtime status. A blocked apply returns HTTP
+409 with the report. Read-only roles may read, preview, and list history.
+`ops_admin` and `super_admin` may apply.
+
+The endpoints depend on `mobile.charging`, `mobile.sessions`,
+`mobile.grouped_avps`, `radius.accounting_charging`, accounting, dynamic
+authorization, and schema v98 tables `mobile_charging_correlation_events` and
+`mobile_charging_correlation_profiles`. Production readiness reports this as
+`mobile_charging_correlation`; support bundles include
+`api/mobile-charging.json` and `api/mobile-charging-history.json`. See
+[mobile-charging-correlation.md](mobile-charging-correlation.md).
+
 Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
 
 After committing a role, user, ACL binding, or EAP framework policy through `/api/v1/apply`, run `POST /api/v1/system/radius-apply` (the **Apply RADIUS Config** action in Access Settings). This regenerates the local-user entries in `mods-config/files/authorize`, the legacy `users` path, and `mods-enabled/eap`, validates the complete FreeRADIUS configuration, and restarts FreeRADIUS. Database-backed portal decisions and CoA updates do not require this regeneration. Local bcrypt credentials support PAP and EAP-TTLS/PAP; CHAP and PEAP-MSCHAPv2 require a compatible cleartext or NT password verifier, while EAP-TLS uses certificates. NAS-0022 blocks enforce-mode generation when policy enables cataloged methods that this release cannot generate.

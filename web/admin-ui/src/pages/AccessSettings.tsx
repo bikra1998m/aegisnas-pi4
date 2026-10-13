@@ -3583,6 +3583,9 @@ export default function AccessSettings() {
   const [mobileSessions, setMobileSessions] = useState<JsonMap | null>(null);
   const [mobileSessionAction, setMobileSessionAction] = useState("");
   const mobileSessionBusy = mobileSessionAction !== "";
+  const [mobileCharging, setMobileCharging] = useState<JsonMap | null>(null);
+  const [mobileChargingAction, setMobileChargingAction] = useState("");
+  const mobileChargingBusy = mobileChargingAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3756,6 +3759,11 @@ export default function AccessSettings() {
   const loadMobileSessions = async () => {
     const { data } = await api.get("/system/mobile-sessions");
     setMobileSessions(data.report || null);
+  };
+
+  const loadMobileCharging = async () => {
+    const { data } = await api.get("/system/mobile-charging");
+    setMobileCharging(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -4006,6 +4014,7 @@ export default function AccessSettings() {
         broadbandGovernanceSelfServiceRes,
         mobileGroupedAVPRes,
         mobileSessionRes,
+        mobileChargingRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -4029,6 +4038,7 @@ export default function AccessSettings() {
         api.get("/system/broadband-governance-self-service"),
         api.get("/system/mobile-grouped-avps"),
         api.get("/system/mobile-sessions"),
+        api.get("/system/mobile-charging"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -4064,6 +4074,7 @@ export default function AccessSettings() {
       );
       setMobileGroupedAVPs(mobileGroupedAVPRes.data.report || null);
       setMobileSessions(mobileSessionRes.data.report || null);
+      setMobileCharging(mobileChargingRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -5427,6 +5438,51 @@ export default function AccessSettings() {
     }
   };
 
+  const previewMobileCharging = async () => {
+    setMobileChargingAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/mobile-charging/preview", {});
+      setMobileCharging(data.report || null);
+      setMessage(
+        `Mobile charging preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview mobile charging correlation.",
+      );
+    } finally {
+      setMobileChargingAction("");
+    }
+  };
+
+  const applyMobileCharging = async () => {
+    setMobileChargingAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/mobile-charging/apply", {});
+      setMobileCharging(data.report || null);
+      setMessage(
+        `Mobile charging correlation ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadMobileCharging();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply mobile charging correlation.",
+      );
+    } finally {
+      setMobileChargingAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -6299,6 +6355,24 @@ export default function AccessSettings() {
     ? mobileSessions?.compliance
     : [];
   const mobileSessionTone = statusTone(mobileSessions?.status);
+  const mobileChargingSummary = mobileCharging?.summary || {};
+  const mobileChargingStreams = Array.isArray(mobileCharging?.streams)
+    ? mobileCharging?.streams
+    : [];
+  const mobileChargingRatingGroups = Array.isArray(
+    mobileCharging?.rating_groups,
+  )
+    ? mobileCharging?.rating_groups
+    : [];
+  const mobileChargingQuotaPolicies = Array.isArray(
+    mobileCharging?.quota_policies,
+  )
+    ? mobileCharging?.quota_policies
+    : [];
+  const mobileChargingCompliance = Array.isArray(mobileCharging?.compliance)
+    ? mobileCharging?.compliance
+    : [];
+  const mobileChargingTone = statusTone(mobileCharging?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -6829,6 +6903,24 @@ export default function AccessSettings() {
             {mobileSessionAction === "apply"
               ? "Applying Mobile Sessions..."
               : "Apply Mobile Sessions"}
+          </button>
+          <button
+            onClick={previewMobileCharging}
+            disabled={mobileChargingBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {mobileChargingAction === "preview"
+              ? "Checking Mobile Charging..."
+              : "Preview Mobile Charging"}
+          </button>
+          <button
+            onClick={applyMobileCharging}
+            disabled={mobileChargingBusy}
+            className="rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-900 disabled:opacity-60"
+          >
+            {mobileChargingAction === "apply"
+              ? "Applying Mobile Charging..."
+              : "Apply Mobile Charging"}
           </button>
           <button
             onClick={applyRadiusConfig}
@@ -7604,6 +7696,311 @@ export default function AccessSettings() {
         ) : (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
             Mobile session report has not loaded yet.
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Mobile Charging Correlation
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {mobileCharging?.release_certification_checklist ||
+                "Validate OCS, OFCS, CDR, quota, mediation, accounting, and vendor packet captures before carrier release."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${mobileChargingTone}`}
+          >
+            {mobileCharging?.status || "unknown"}
+          </div>
+        </div>
+        {mobileCharging ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">{mobileCharging.message}</p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Streams",
+                  `${mobileChargingSummary.enabled_stream_count || 0}/${mobileChargingSummary.stream_count || 0}`,
+                ],
+                ["Online", mobileChargingSummary.online_stream_count || 0],
+                ["Offline", mobileChargingSummary.offline_stream_count || 0],
+                [
+                  "Rating Groups",
+                  `${mobileChargingSummary.enabled_rating_group_count || 0}/${mobileChargingSummary.rating_group_count || 0}`,
+                ],
+                [
+                  "Quota Policies",
+                  `${mobileChargingSummary.enabled_quota_policy_count || 0}/${mobileChargingSummary.quota_policy_count || 0}`,
+                ],
+                [
+                  "Compliance",
+                  `${mobileChargingSummary.passed_check_count || 0}/${mobileChargingSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              Mode{" "}
+              <span className="font-mono">
+                {mobileChargingSummary.mode || "monitor"}
+              </span>{" "}
+              / currency{" "}
+              <span className="font-mono">
+                {mobileChargingSummary.default_currency || "USD"}
+              </span>{" "}
+              / accounting{" "}
+              <span className="font-mono">
+                {mobileChargingSummary.accounting_charging_status || "unknown"}
+              </span>{" "}
+              / mobile sessions{" "}
+              <span className="font-mono">
+                {mobileChargingSummary.mobile_session_status || "unknown"}
+              </span>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-4">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Charging Streams
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobileChargingStreams.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No charging stream is configured.
+                    </div>
+                  ) : (
+                    mobileChargingStreams
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || item.stream_type || "charging-stream"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || item.stream_type || "Stream"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[item.stream_type, item.protocol, item.export_format]
+                              .filter(Boolean)
+                              .join(" / ") || "Stream metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {[item.endpoint_ref, item.retry_policy]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {(item.attributes || []).slice(0, 5).join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Rating Groups
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobileChargingRatingGroups.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No rating group is configured.
+                    </div>
+                  ) : (
+                    mobileChargingRatingGroups
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || item.rating_group || "rating-group"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || `Rating ${item.rating_group || ""}`}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              item.apn,
+                              item.service_id || item.service_identifier
+                                ? `service ${item.service_id || item.service_identifier}`
+                                : "",
+                              item.rating_group
+                                ? `group ${item.rating_group}`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Rating metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {[item.unit_type || item.unit, item.currency, item.quota_policy]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Quota Policies
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobileChargingQuotaPolicies.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No quota policy is configured.
+                    </div>
+                  ) : (
+                    mobileChargingQuotaPolicies
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || item.grant_unit || "quota-policy"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || "Quota Policy"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              item.grant_unit,
+                              item.initial_grant,
+                              item.threshold_percent
+                                ? `${item.threshold_percent}% threshold`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Quota metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {[
+                              item.exhaustion_action,
+                              item.coa_profile || item.coa_action,
+                              item.validity_seconds
+                                ? `${item.validity_seconds}s`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Compliance Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobileChargingCompliance.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No mobile charging compliance check is present.
+                    </div>
+                  ) : (
+                    mobileChargingCompliance
+                      .slice(0, 9)
+                      .map((check: JsonMap, index: number) => (
+                        <div
+                          key={`${check.id || check.name || "mobile-charging-check"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {check.name || check.id || "Compliance Check"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                check.status,
+                              )}`}
+                            >
+                              {check.status || "unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {check.message || "No compliance message"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            {((mobileCharging.blockers?.length || 0) > 0 ||
+              (mobileCharging.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(mobileCharging.blockers || []),
+                  ...(mobileCharging.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              CDRs{" "}
+              <span className="font-mono">
+                {mobileChargingSummary.cdr_record_count ||
+                  mobileChargingSummary.accounting_cdr_rows ||
+                  0}
+              </span>{" "}
+              / pending exports{" "}
+              <span className="font-mono">
+                {mobileChargingSummary.pending_export_count ||
+                  mobileChargingSummary.accounting_pending_exports ||
+                  0}
+              </span>{" "}
+              / mediation refs{" "}
+              <span className="font-mono">
+                {mobileChargingSummary.mediation_reference_count || 0}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {mobileCharging.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Mobile charging correlation report has not loaded yet.
           </div>
         )}
       </section>

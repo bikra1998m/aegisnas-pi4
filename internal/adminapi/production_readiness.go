@@ -178,6 +178,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionBroadbandGovernanceSelfServiceCheck(&report, cfg)
 	addProductionMobileGroupedAVPCheck(&report, cfg)
 	addProductionMobileSessionCheck(&report, cfg)
+	addProductionMobileChargingCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -2805,6 +2806,79 @@ func addProductionMobileSessionCheck(report *productionReadinessReport, cfg *con
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/mobile-sessions/preview before enabling mobile session enforcement, apply only after reviewing APN profiles, default/dedicated bearer templates, roaming partners, state-machine transitions, privacy controls, grouped AVP dependency, and release-certification boundary. Keep carrier packet-core simulator proof, real 3GPP/Starent/Ericsson evidence, roaming labs, FreeRADIUS production Linux proof, HA, scale, soak, security, and customer proof in the NAS-0093 release certification checklist.",
 		Dependencies:   []string{"mobile.sessions", "mobile.grouped_avps", "mobile_session_state_events", "mobile_session_state_profiles", "/api/v1/system/mobile-sessions", "/api/v1/system/mobile-sessions/preview", "/api/v1/system/mobile-sessions/apply", "3GPP-IMSI", "3GPP-Charging-ID", "3GPP-RAT-Type", "Framed-IP-Address", "Framed-IPv6-Prefix", "Acct-Interim-Interval", "RFC 2865", "RFC 2866", "RFC 5176", "3GPP TS 23.401"},
+	})
+}
+
+func addProductionMobileChargingCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0094 online/offline charging correlation software is ready."
+	reportData, err := enforcement.PreviewMobileCharging(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Mobile charging preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "disabled":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0094 schema %d status=%s, mode=%s, streams=%d/%d, online=%d, offline=%d, mediation=%d, rating_groups=%d/%d, quota_policies=%d/%d, attrs=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.EnabledStreamCount,
+			reportData.Summary.StreamCount,
+			reportData.Summary.OnlineStreamCount,
+			reportData.Summary.OfflineStreamCount,
+			reportData.Summary.MediationStreamCount,
+			reportData.Summary.EnabledRatingGroupCount,
+			reportData.Summary.RatingGroupCount,
+			reportData.Summary.EnabledQuotaPolicyCount,
+			reportData.Summary.QuotaPolicyCount,
+			reportData.Summary.CorrelationAttributeCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent)
+		if reportData.Status == "disabled" {
+			summary += " Mobile charging correlation is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but mobile charging event history cannot be verified."
+	} else if evidence, err := db.GetMobileChargingSummary(); err != nil {
+		status = "blocked"
+		summary += " Mobile charging evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d skipped, %d blocked, %d failed, ready_profiles=%d, planned_profiles=%d, last_streams=%d, last_rating_groups=%d, last_quota_policies=%d, last_attrs=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.SkippedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.ReadyProfileCount,
+			evidence.PlannedProfileCount,
+			evidence.LastStreamCount,
+			evidence.LastRatingGroupCount,
+			evidence.LastQuotaPolicyCount,
+			evidence.LastCorrelationAttributeCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "mobile_charging_correlation",
+		Category:       "radius",
+		Label:          "NAS-0094 Online/Offline Charging Correlation",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/mobile-charging/preview before enabling charging enforcement, apply only after reviewing OCS/OFCS stream intent, rating groups, quota policies, CDR export state, mediation references, mobile-session dependency, accounting-charging dependency, privacy controls, and release-certification boundary. Keep real OCS/OFCS endpoints, packet-core simulator proof, Starent/Ericsson/3GPP/3GPP2 captures, FreeRADIUS production Linux proof, HA, scale, soak, security, and customer proof in the NAS-0094 release certification checklist.",
+		Dependencies:   []string{"mobile.charging", "mobile.sessions", "radius.accounting_charging", "mobile_charging_correlation_events", "mobile_charging_correlation_profiles", "/api/v1/system/mobile-charging", "/api/v1/system/mobile-charging/preview", "/api/v1/system/mobile-charging/apply", "3GPP-IMSI", "3GPP-Charging-ID", "3GPP-Charging-Characteristics", "3GPP2-Prepaid-Quota-Identifier", "Acct-Input-Gigawords", "Acct-Output-Gigawords", "RFC 2865", "RFC 2866", "RFC 5176", "3GPP TS 32.240"},
 	})
 }
 

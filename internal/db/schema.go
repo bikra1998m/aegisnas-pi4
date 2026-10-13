@@ -222,6 +222,7 @@ func MigrateHandle(handle *sql.DB) error {
 		{95, schemaV95},
 		{96, schemaV96},
 		{97, schemaV97},
+		{98, schemaV98},
 	}
 
 	pending := make([]struct {
@@ -482,8 +483,19 @@ func MigrateHandle(handle *sql.DB) error {
 	if err := ensureBroadbandDHCPSecurityTables(handle); err != nil {
 		return fmt.Errorf("repair broadband DHCP security schema: %w", err)
 	}
+	if err := ensureMobileChargingCorrelationTables(handle); err != nil {
+		return fmt.Errorf("repair mobile charging correlation schema: %w", err)
+	}
 
 	return nil
+}
+
+func ensureMobileChargingCorrelationTables(handle *sql.DB) error {
+	if handle == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	_, err := handle.Exec(SQLForDialect(mobileChargingCorrelationSQL, DialectForHandle(handle)))
+	return err
 }
 
 func ensureBroadbandDHCPSecurityTables(handle *sql.DB) error {

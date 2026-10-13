@@ -308,6 +308,55 @@ test.describe("Access Settings edge-network flow", () => {
     await expect(page.getByText(/Mobile session state applied/)).toBeVisible();
   });
 
+  test("previews and applies mobile charging correlation", async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto("/access-settings", {
+      timeout: 90_000,
+      waitUntil: "domcontentloaded",
+    });
+    const mobileChargingHeading = page.getByRole("heading", {
+      name: "Mobile Charging Correlation",
+    });
+    await expect(mobileChargingHeading).toBeVisible({ timeout: 60_000 });
+    const mobileChargingSection = mobileChargingHeading.locator(
+      "xpath=ancestor::section[1]",
+    );
+    await expect(mobileChargingSection).toBeVisible();
+    await expect(
+      mobileChargingSection.getByRole("heading", {
+        name: "Charging Streams",
+      }),
+    ).toBeVisible();
+    await expect(
+      mobileChargingSection.getByRole("heading", { name: "Rating Groups" }),
+    ).toBeVisible();
+    await expect(
+      mobileChargingSection.getByRole("heading", { name: "Quota Policies" }),
+    ).toBeVisible();
+    await expect(
+      mobileChargingSection.getByText("ocs-online", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      mobileChargingSection.getByText("internet-data", { exact: true }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("button", { name: "Preview Mobile Charging" })
+      .click();
+    await expect(
+      page.getByText(/Mobile charging preview recorded/),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Apply Mobile Charging" }).click();
+    await expect(
+      page.getByText(/Mobile charging correlation applied/),
+    ).toBeVisible();
+  });
+
   test("previews and applies controller estate lifecycle", async ({ page }) => {
     await seedAuthenticatedSession(page);
     await installMockApi(page);

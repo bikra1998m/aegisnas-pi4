@@ -1476,6 +1476,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0093 mobile session event history and effective APN, bearer, and roaming rows."),
 	}))
+	addOperation(paths, "/api/v1/system/mobile-charging", "get", securedOperation("Read mobile online/offline charging correlation", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0094 online/offline charging streams, rating groups, quota policies, CDR correlation path, compliance checks, and evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/mobile-charging/preview", "post", securedOperationWithBody("Preview mobile online/offline charging correlation", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating effective mobile charging rows."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0094 mobile charging correlation and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/mobile-charging/apply", "post", securedOperationWithBody("Apply mobile online/offline charging correlation", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records OCS/OFCS stream, rating-group, quota-policy, CDR, mediation, and runtime status evidence. Real OCS/OFCS and carrier hardware validation remain release certification activities."), map[string]any{
+		"200":     responseJSON("Applied NAS-0094 mobile charging correlation checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/mobile-charging/history", "get", securedOperationWithParameters("List mobile charging correlation history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0094 mobile charging correlation event history and effective stream, rating group, and quota-policy rows."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))
