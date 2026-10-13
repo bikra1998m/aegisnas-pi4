@@ -1633,6 +1633,26 @@ Operators should keep three states separate:
    simulator results, HA, scale, soak, security, and customer acceptance are
    recorded in `nas-0092-release-certification-checklist.md`
 
+### Mobile Session State
+
+NAS-0093 provides the external-AAA product boundary for mobile APN, PDP/PDN,
+bearer, roaming, and handover state. The software compiles default APN,
+IPv4/IPv6 address-family intent, default and dedicated bearer templates,
+traffic-flow evidence, roaming policy, state-machine transitions, accounting
+and dynamic-authorization dependencies, API/UI/readiness evidence, and
+database-backed history.
+
+Operators should keep three states separate:
+
+1. dictionary support means the 3GPP, Starent/Cisco, and Ericsson attributes
+   are known
+2. software readiness means mobile session state can preview, apply, store
+   APN/bearer/roaming history, expose API/UI/readiness evidence, and protect
+   subscriber identifiers with redaction and hashes
+3. certification means exact packet-core product, firmware, APN/PDP packet
+   captures, roaming lab results, HA, scale, soak, security, and customer
+   acceptance are recorded in `nas-0093-release-certification-checklist.md`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

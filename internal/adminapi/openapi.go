@@ -1459,6 +1459,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0092 mobile grouped AVP event history and effective vendor scope rows."),
 	}))
+	addOperation(paths, "/api/v1/system/mobile-sessions", "get", securedOperation("Read mobile APN/PDP/bearer session state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0093 APN profiles, PDP/PDN state, bearer templates, roaming partners, state machine, compliance checks, and evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/mobile-sessions/preview", "post", securedOperationWithBody("Preview mobile APN/PDP/bearer session state", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating effective mobile session rows."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0093 mobile session state and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/mobile-sessions/apply", "post", securedOperationWithBody("Apply mobile APN/PDP/bearer session state", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records APN, PDP, bearer, roaming, handover, and runtime status evidence. Carrier packet-core and real hardware validation remain release certification activities."), map[string]any{
+		"200":     responseJSON("Applied NAS-0093 mobile session state checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/mobile-sessions/history", "get", securedOperationWithParameters("List mobile APN/PDP/bearer session history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0093 mobile session event history and effective APN, bearer, and roaming rows."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))

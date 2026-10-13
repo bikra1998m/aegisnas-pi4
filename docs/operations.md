@@ -1313,6 +1313,37 @@ during carrier-lab review. Real packet-core, WiMAX, FreeRADIUS production
 Linux, HA, scale, soak, security, production deployment, and customer
 acceptance evidence stay in `nas-0092-release-certification-checklist.md`.
 
+For mobile sessions, preview NAS-0093 before enabling enforce mode or changing
+APN, PDP/PDN, bearer, roaming, or handover policy:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/mobile-sessions/preview \
+  | jq '.report.status, .report.summary, .report.apn_profiles'
+```
+
+Apply only after reviewing APN profiles, default and dedicated bearer
+templates, roaming partners, state transitions, RADIUS attribute evidence,
+subscriber privacy controls, NAS-0092 grouped AVP dependency, compliance
+checks, and the plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/mobile-sessions/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/mobile-sessions/history` and support bundle files
+`api/mobile-sessions.json` and `api/mobile-sessions-history.json` during
+packet-core review. Carrier simulator proof, real Starent/Cisco/Ericsson/3GPP
+device captures, FreeRADIUS production Linux, HA, scale, soak, security,
+production deployment, and customer acceptance evidence stay in
+`nas-0093-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

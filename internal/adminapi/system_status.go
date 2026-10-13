@@ -881,6 +881,39 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		mobileGroupedAVPStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.MobileGroupedAVPComponent()]}
 	}
+	mobileSessionStatus := map[string]any{
+		"status":  "unknown",
+		"message": "Mobile APN/PDP/bearer session state has not been evaluated.",
+	}
+	if mobileSessionReport, err := enforcement.PreviewMobileSessions(cfg); err == nil {
+		mobileSessionSummary, _ := db.GetMobileSessionSummary()
+		mobileSessionStatus = map[string]any{
+			"schema_version":                  mobileSessionReport.SchemaVersion,
+			"feature_id":                      mobileSessionReport.FeatureID,
+			"status":                          mobileSessionReport.Status,
+			"message":                         mobileSessionReport.Message,
+			"ready_for_external_validation":   mobileSessionReport.ReadyForExternalValidation,
+			"software_completion_percent":     mobileSessionReport.SoftwareCompletionPercent,
+			"enabled":                         mobileSessionReport.Summary.Enabled,
+			"mode":                            mobileSessionReport.Summary.Mode,
+			"apn_profile_count":               mobileSessionReport.Summary.APNProfileCount,
+			"enabled_apn_profile_count":       mobileSessionReport.Summary.EnabledAPNProfileCount,
+			"bearer_template_count":           mobileSessionReport.Summary.BearerTemplateCount,
+			"enabled_bearer_template_count":   mobileSessionReport.Summary.EnabledBearerTemplateCount,
+			"roaming_partner_count":           mobileSessionReport.Summary.RoamingPartnerCount,
+			"enabled_roaming_partner_count":   mobileSessionReport.Summary.EnabledRoamingPartnerCount,
+			"radius_attribute_count":          mobileSessionReport.Summary.RadiusAttributeCount,
+			"state_step_count":                mobileSessionReport.Summary.StateStepCount,
+			"compliance_check_count":          mobileSessionReport.Summary.ComplianceCheckCount,
+			"passed_check_count":              mobileSessionReport.Summary.PassedCheckCount,
+			"plan_fingerprint":                mobileSessionReport.PlanFingerprint,
+			"release_certification_checklist": mobileSessionReport.ReleaseCertificationChecklist,
+			"evidence_summary":                mobileSessionSummary,
+			"runtime_status":                  runtimeMap[enforcement.MobileSessionComponent()],
+		}
+	} else {
+		mobileSessionStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.MobileSessionComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1591,6 +1624,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broadband_service_activation":      broadbandServiceActivationStatus,
 		"broadband_governance_self_service": broadbandGovernanceSelfServiceStatus,
 		"mobile_grouped_avps":               mobileGroupedAVPStatus,
+		"mobile_session_state":              mobileSessionStatus,
 		"vendor_mapping_certification":      vendorMappingCertificationStatus,
 		"cisco_family_pack":                 ciscoFamilyPackStatus,
 		"aruba_family_pack":                 arubaFamilyPackStatus,
@@ -1718,6 +1752,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"broadband_service_activation":      broadbandServiceActivationStatus,
 		"broadband_governance_self_service": broadbandGovernanceSelfServiceStatus,
 		"mobile_grouped_avps":               mobileGroupedAVPStatus,
+		"mobile_session_state":              mobileSessionStatus,
 		"local_firewall":                    runtimeFirewallStatus,
 		"atomic_transactions":               atomicEnforcementStatus,
 	}

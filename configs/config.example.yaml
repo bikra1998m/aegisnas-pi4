@@ -2303,6 +2303,95 @@ mobile:
         retention_days: 30
         redact_attributes: ["3GPP-IMSI", "3GPP2-IMSI", "WiMAX-MN-NAI"]
         allowed_export_role: ops_admin
+  sessions:
+    enabled: false
+    mode: monitor
+    fail_closed: true
+    require_database: true
+    require_grouped_avps: true
+    require_accounting: true
+    require_dynamic_auth: true
+    max_sessions: 100000
+    session_retention_days: 90
+    event_retention_limit: 10000
+    default_apn: internet
+    default_pdn_type: ipv4v6
+    state_reconciliation: true
+    handover_tracking: true
+    roaming_tracking: true
+    redact_subscriber_ids: true
+    hash_subscriber_ids: true
+    apn_profiles:
+      - name: default-internet
+        enabled: true
+        apn: internet
+        pdn_type: ipv4v6
+        ipv4_pool: mobile-v4
+        ipv6_prefix_pool: mobile-v6
+        qos_profile: default-qos
+        charging_profile: online-offline-default
+        policy_profile: home-default
+        default_bearer: default-bearer
+        roaming_allowed: true
+        lawful_intercept_group: standard-retention
+        radius_attributes: ["3GPP-IMSI", "3GPP-Charging-ID", "3GPP-RAT-Type", "Framed-IP-Address", "Framed-IPv6-Prefix", "Acct-Interim-Interval"]
+      - name: iot-private
+        enabled: true
+        apn: iot.private
+        pdn_type: ipv4v6
+        ipv4_pool: iot-v4
+        ipv6_prefix_pool: iot-v6
+        qos_profile: iot-low-bandwidth
+        charging_profile: iot-usage
+        policy_profile: iot-isolated
+        default_bearer: iot-default-bearer
+        roaming_allowed: false
+        lawful_intercept_group: iot-retention
+        radius_attributes: ["3GPP-IMSI", "3GPP-IMEISV", "3GPP-Selection-Mode", "Class", "Filter-Id"]
+    bearer_templates:
+      - name: default-bearer
+        enabled: true
+        bearer_type: default
+        qci: 9
+        arp: 8
+        priority: 100
+        mbr_down_kbps: 50000
+        mbr_up_kbps: 10000
+        traffic_flow_templates: ["permit out ip from any to assigned"]
+        radius_attributes: ["3GPP-GPRS-Negotiated-QoS-profile", "3GPP-Negotiated-DSCP", "Session-Timeout"]
+      - name: dedicated-qos
+        enabled: true
+        bearer_type: dedicated
+        qci: 5
+        arp: 4
+        priority: 50
+        gbr_down_kbps: 512
+        gbr_up_kbps: 512
+        mbr_down_kbps: 5000
+        mbr_up_kbps: 5000
+        preemption_capability: true
+        preemption_vulnerability: false
+        traffic_flow_templates: ["permit out udp from any to assigned 5060", "permit in udp from assigned 5060 to any"]
+        radius_attributes: ["3GPP-GPRS-Negotiated-QoS-profile", "Filter-Id"]
+    roaming_partners:
+      - name: home-plmn
+        enabled: true
+        realm: mnc001.mcc001.3gppnetwork.org
+        mcc_mnc: "00101"
+        visited_policy: home-default
+        home_policy: home-default
+        allow_local_breakout: true
+        allowed_apns: ["internet", "iot.private"]
+        radius_attributes: ["3GPP-IMSI-MCC-MNC", "3GPP-Selection-Mode"]
+      - name: visited-roaming
+        enabled: true
+        realm: roaming.example.net
+        mcc_mnc: "99999"
+        visited_policy: visited-lbo
+        home_policy: home-roaming
+        allow_local_breakout: false
+        allowed_apns: ["internet"]
+        radius_attributes: ["3GPP-RAT-Type", "3GPP-Selection-Mode", "Class"]
 
 wireless:
   enabled: false

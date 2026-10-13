@@ -4932,6 +4932,182 @@ function createMobileGroupedAVPs(status = "ready") {
   };
 }
 
+function createMobileSessions(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0093",
+      status,
+      message:
+        "Mobile APN, PDP/PDN, bearer, roaming, and handover state controls are ready.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0093-release-certification-checklist.md",
+      release_scope:
+        "Carrier EPC/PGW/GGSN simulators, APN/PDP bearer packet captures, roaming labs, real vendor equipment, FreeRADIUS production Linux, HA, scale, soak, security, and customer proof are release certification activities.",
+      plan_fingerprint:
+        "sha256:0093fbc70403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81ed",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        require_database: true,
+        require_grouped_avps: true,
+        require_accounting: true,
+        require_dynamic_auth: true,
+        state_reconciliation: true,
+        handover_tracking: true,
+        roaming_tracking: true,
+        redact_subscriber_ids: true,
+        hash_subscriber_ids: true,
+        max_sessions: 100000,
+        session_retention_days: 90,
+        event_retention_limit: 10000,
+        default_apn: "internet",
+        default_pdn_type: "ipv4v6",
+        apn_profile_count: 2,
+        enabled_apn_profile_count: 2,
+        bearer_template_count: 2,
+        enabled_bearer_template_count: 2,
+        roaming_partner_count: 2,
+        enabled_roaming_partner_count: 2,
+        radius_attribute_count: 18,
+        state_step_count: 6,
+        compliance_check_count: 7,
+        passed_check_count: 7,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 1,
+        grouped_avp_status: "ready",
+        grouped_avp_fingerprint:
+          "sha256:0092a2470403364fcf4d3efa39d5cc55aaf2d1256bf0c3b955f4f4474b81ed",
+      },
+      apn_profiles: [
+        {
+          name: "default-internet",
+          enabled: true,
+          apn: "internet",
+          pdn_type: "ipv4v6",
+          ipv4_pool: "mobile-v4",
+          ipv6_prefix_pool: "mobile-v6",
+          qos_profile: "default-qos",
+          charging_profile: "online-offline-default",
+          policy_profile: "home-default",
+          default_bearer: "default-bearer",
+          roaming_allowed: true,
+          status: "ready",
+          radius_attributes: ["3GPP-IMSI", "3GPP-Charging-ID"],
+        },
+        {
+          name: "iot-private",
+          enabled: true,
+          apn: "iot.private",
+          pdn_type: "ipv4v6",
+          ipv4_pool: "iot-v4",
+          ipv6_prefix_pool: "iot-v6",
+          qos_profile: "iot-low-bandwidth",
+          charging_profile: "iot-usage",
+          policy_profile: "iot-isolated",
+          default_bearer: "iot-default-bearer",
+          roaming_allowed: false,
+          status: "ready",
+          radius_attributes: ["3GPP-IMSI", "Filter-Id"],
+        },
+      ],
+      bearer_templates: [
+        {
+          name: "default-bearer",
+          enabled: true,
+          bearer_type: "default",
+          qci: 9,
+          arp: 8,
+          priority: 100,
+          mbr_down_kbps: 50000,
+          mbr_up_kbps: 10000,
+          traffic_flow_templates: ["permit out ip from any to assigned"],
+          status: "ready",
+          radius_attributes: ["3GPP-GPRS-Negotiated-QoS-profile"],
+        },
+        {
+          name: "dedicated-qos",
+          enabled: true,
+          bearer_type: "dedicated",
+          qci: 5,
+          arp: 4,
+          priority: 50,
+          gbr_down_kbps: 512,
+          gbr_up_kbps: 512,
+          mbr_down_kbps: 5000,
+          mbr_up_kbps: 5000,
+          status: "ready",
+          radius_attributes: ["Filter-Id"],
+        },
+      ],
+      roaming_partners: [
+        {
+          name: "home-plmn",
+          enabled: true,
+          realm: "mnc001.mcc001.3gppnetwork.org",
+          mcc_mnc: "00101",
+          visited_policy: "home-default",
+          home_policy: "home-default",
+          allow_local_breakout: true,
+          allowed_apns: ["internet", "iot.private"],
+          status: "ready",
+        },
+        {
+          name: "visited-roaming",
+          enabled: true,
+          realm: "roaming.example.net",
+          mcc_mnc: "99999",
+          visited_policy: "visited-lbo",
+          home_policy: "home-roaming",
+          allow_local_breakout: false,
+          allowed_apns: ["internet"],
+          status: "ready",
+        },
+      ],
+      compliance: [
+        {
+          id: "grouped-avp-dependency",
+          name: "NAS-0092 grouped AVP dependency",
+          status: "passed",
+          message: "Grouped telecom AVP software dependency is available.",
+        },
+        {
+          id: "external-certification",
+          name: "Release certification boundary",
+          status: "passed",
+          message:
+            "Carrier packet-core, FreeRADIUS, HA, scale, soak, security, and customer proof are release certification activities.",
+        },
+      ],
+      standards: ["RFC 2865", "RFC 2866", "RFC 5176", "3GPP TS 23.401"],
+      vendors: ["3GPP", "Starent/Cisco ASR", "Ericsson/Redback"],
+      requirements: ["track APN, PDP, bearer, roaming, and handover state"],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        ready_profile_count: 6,
+        planned_profile_count: 0,
+      },
+      recent_events: [],
+      effective_state: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -10863,6 +11039,53 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           summary: payload.evidence.summary,
           events: [],
           scopes: payload.report.vendor_scopes,
+        },
+      });
+      return;
+    }
+    if (path === "/system/mobile-sessions" && method === "GET") {
+      await route.fulfill({ json: createMobileSessions() });
+      return;
+    }
+    if (path === "/system/mobile-sessions/preview" && method === "POST") {
+      await route.fulfill({
+        json: {
+          ...createMobileSessions(),
+          event_id: "mobile-session-event-preview",
+        },
+      });
+      return;
+    }
+    if (path === "/system/mobile-sessions/apply" && method === "POST") {
+      const payload = createMobileSessions();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0093 recorded mobile APN, PDP, bearer, roaming, and handover evidence.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "mobile-session-event-apply",
+          result: {
+            status: "applied",
+            event_id: "mobile-session-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (path === "/system/mobile-sessions/history" && method === "GET") {
+      const payload = createMobileSessions();
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0093",
+          summary: payload.evidence.summary,
+          events: [],
+          effective_state: [
+            ...payload.report.apn_profiles,
+            ...payload.report.bearer_templates,
+            ...payload.report.roaming_partners,
+          ],
         },
       });
       return;

@@ -3580,6 +3580,9 @@ export default function AccessSettings() {
     useState<JsonMap | null>(null);
   const [mobileGroupedAVPAction, setMobileGroupedAVPAction] = useState("");
   const mobileGroupedAVPBusy = mobileGroupedAVPAction !== "";
+  const [mobileSessions, setMobileSessions] = useState<JsonMap | null>(null);
+  const [mobileSessionAction, setMobileSessionAction] = useState("");
+  const mobileSessionBusy = mobileSessionAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3748,6 +3751,11 @@ export default function AccessSettings() {
   const loadMobileGroupedAVPs = async () => {
     const { data } = await api.get("/system/mobile-grouped-avps");
     setMobileGroupedAVPs(data.report || null);
+  };
+
+  const loadMobileSessions = async () => {
+    const { data } = await api.get("/system/mobile-sessions");
+    setMobileSessions(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -3997,6 +4005,7 @@ export default function AccessSettings() {
         broadbandServiceActivationRes,
         broadbandGovernanceSelfServiceRes,
         mobileGroupedAVPRes,
+        mobileSessionRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -4019,6 +4028,7 @@ export default function AccessSettings() {
         api.get("/system/broadband-service-activation"),
         api.get("/system/broadband-governance-self-service"),
         api.get("/system/mobile-grouped-avps"),
+        api.get("/system/mobile-sessions"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -4053,6 +4063,7 @@ export default function AccessSettings() {
         broadbandGovernanceSelfServiceRes.data.report || null,
       );
       setMobileGroupedAVPs(mobileGroupedAVPRes.data.report || null);
+      setMobileSessions(mobileSessionRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -5371,6 +5382,51 @@ export default function AccessSettings() {
     }
   };
 
+  const previewMobileSessions = async () => {
+    setMobileSessionAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/mobile-sessions/preview", {});
+      setMobileSessions(data.report || null);
+      setMessage(
+        `Mobile session preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview mobile session state.",
+      );
+    } finally {
+      setMobileSessionAction("");
+    }
+  };
+
+  const applyMobileSessions = async () => {
+    setMobileSessionAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/mobile-sessions/apply", {});
+      setMobileSessions(data.report || null);
+      setMessage(
+        `Mobile session state ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadMobileSessions();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply mobile session state.",
+      );
+    } finally {
+      setMobileSessionAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -6229,6 +6285,20 @@ export default function AccessSettings() {
     ? mobileGroupedAVPs?.compliance
     : [];
   const mobileGroupedAVPTone = statusTone(mobileGroupedAVPs?.status);
+  const mobileSessionSummary = mobileSessions?.summary || {};
+  const mobileSessionAPNs = Array.isArray(mobileSessions?.apn_profiles)
+    ? mobileSessions?.apn_profiles
+    : [];
+  const mobileSessionBearers = Array.isArray(mobileSessions?.bearer_templates)
+    ? mobileSessions?.bearer_templates
+    : [];
+  const mobileSessionRoaming = Array.isArray(mobileSessions?.roaming_partners)
+    ? mobileSessions?.roaming_partners
+    : [];
+  const mobileSessionCompliance = Array.isArray(mobileSessions?.compliance)
+    ? mobileSessions?.compliance
+    : [];
+  const mobileSessionTone = statusTone(mobileSessions?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -6743,6 +6813,24 @@ export default function AccessSettings() {
               : "Apply Mobile AVPs"}
           </button>
           <button
+            onClick={previewMobileSessions}
+            disabled={mobileSessionBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {mobileSessionAction === "preview"
+              ? "Checking Mobile Sessions..."
+              : "Preview Mobile Sessions"}
+          </button>
+          <button
+            onClick={applyMobileSessions}
+            disabled={mobileSessionBusy}
+            className="rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-900 disabled:opacity-60"
+          >
+            {mobileSessionAction === "apply"
+              ? "Applying Mobile Sessions..."
+              : "Apply Mobile Sessions"}
+          </button>
+          <button
             onClick={applyRadiusConfig}
             disabled={applyingRadius}
             className="rounded-md border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-800 disabled:opacity-60"
@@ -7253,6 +7341,271 @@ export default function AccessSettings() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Mobile Session, APN, And Bearer State
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {mobileSessions?.release_certification_checklist ||
+                "Validate APN, PDP/PDN, default and dedicated bearer, roaming, handover, accounting, and CoA evidence before carrier release."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${mobileSessionTone}`}
+          >
+            {mobileSessions?.status || "unknown"}
+          </div>
+        </div>
+        {mobileSessions ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">{mobileSessions.message}</p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "APNs",
+                  `${mobileSessionSummary.enabled_apn_profile_count || 0}/${mobileSessionSummary.apn_profile_count || 0}`,
+                ],
+                [
+                  "Bearers",
+                  `${mobileSessionSummary.enabled_bearer_template_count || 0}/${mobileSessionSummary.bearer_template_count || 0}`,
+                ],
+                [
+                  "Roaming",
+                  `${mobileSessionSummary.enabled_roaming_partner_count || 0}/${mobileSessionSummary.roaming_partner_count || 0}`,
+                ],
+                [
+                  "RADIUS Attrs",
+                  mobileSessionSummary.radius_attribute_count || 0,
+                ],
+                ["State Steps", mobileSessionSummary.state_step_count || 0],
+                [
+                  "Compliance",
+                  `${mobileSessionSummary.passed_check_count || 0}/${mobileSessionSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              Mode{" "}
+              <span className="font-mono">
+                {mobileSessionSummary.mode || "monitor"}
+              </span>{" "}
+              / default APN{" "}
+              <span className="font-mono">
+                {mobileSessionSummary.default_apn || "internet"}
+              </span>{" "}
+              / PDN{" "}
+              <span className="font-mono">
+                {mobileSessionSummary.default_pdn_type || "ipv4v6"}
+              </span>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-4">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  APN Profiles
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobileSessionAPNs.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No APN profile is configured.
+                    </div>
+                  ) : (
+                    mobileSessionAPNs
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.apn || item.name || "apn"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.apn || item.name || "APN"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[item.pdn_type, item.qos_profile, item.policy_profile]
+                              .filter(Boolean)
+                              .join(" / ") || "APN metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {[item.ipv4_pool, item.ipv6_prefix_pool]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Bearer Templates
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobileSessionBearers.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No bearer template is configured.
+                    </div>
+                  ) : (
+                    mobileSessionBearers
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || "bearer"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || "Bearer"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[item.bearer_type, `QCI ${item.qci || 0}`, `ARP ${item.arp || 0}`]
+                              .filter(Boolean)
+                              .join(" / ")}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {`MBR ${item.mbr_down_kbps || 0}/${item.mbr_up_kbps || 0} Kbps`}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Roaming Partners
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobileSessionRoaming.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No roaming partner is configured.
+                    </div>
+                  ) : (
+                    mobileSessionRoaming
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || item.realm || "roaming"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || item.realm || "Roaming"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[item.realm, item.mcc_mnc]
+                              .filter(Boolean)
+                              .join(" / ") || "Roaming metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {(item.allowed_apns || []).slice(0, 4).join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Compliance Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {mobileSessionCompliance.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No mobile session compliance check is present.
+                    </div>
+                  ) : (
+                    mobileSessionCompliance
+                      .slice(0, 8)
+                      .map((check: JsonMap, index: number) => (
+                        <div
+                          key={`${check.id || check.name || "mobile-session-check"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {check.name || check.id || "Compliance Check"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                check.status,
+                              )}`}
+                            >
+                              {check.status || "unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {check.message || "No compliance message"}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+            {((mobileSessions.blockers?.length || 0) > 0 ||
+              (mobileSessions.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(mobileSessions.blockers || []),
+                  ...(mobileSessions.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Grouped AVP{" "}
+              <span className="font-mono">
+                {mobileSessionSummary.grouped_avp_status || "unknown"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {mobileSessions.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            Mobile session report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">

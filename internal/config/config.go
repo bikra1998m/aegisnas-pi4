@@ -6103,6 +6103,9 @@ func (c *Config) Validate() error {
 	if err := validateMobileGroupedAVPConfig(c.Mobile.GroupedAVPs, profile); err != nil {
 		return err
 	}
+	if err := validateMobileSessionConfig(c.Mobile.Sessions, profile); err != nil {
+		return err
+	}
 	if err := validateRadSecConfig(c); err != nil {
 		return err
 	}

@@ -177,6 +177,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionBroadbandServiceActivationCheck(&report, cfg)
 	addProductionBroadbandGovernanceSelfServiceCheck(&report, cfg)
 	addProductionMobileGroupedAVPCheck(&report, cfg)
+	addProductionMobileSessionCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -2733,6 +2734,77 @@ func addProductionMobileGroupedAVPCheck(report *productionReadinessReport, cfg *
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/mobile-grouped-avps/preview before enabling telecom grouped AVP enforcement, apply only after reviewing vendor scopes, safe raw-evidence policy, semantic bindings, packet model, registry provenance, and grouped VSA codec evidence. Keep carrier packet-core simulator proof, real 3GPP/3GPP2/Starent/Ericsson/WiMAX captures, FreeRADIUS production Linux proof, HA, scale, soak, security, and customer proof in the NAS-0092 release certification checklist.",
 		Dependencies:   []string{"mobile.grouped_avps", "radius.vsa_codec", "attribute_registry", "database_backend", "/api/v1/system/mobile-grouped-avps", "/api/v1/system/mobile-grouped-avps/preview", "/api/v1/system/mobile-grouped-avps/apply", "mobile_grouped_avp_scopes", "mobile_grouped_avp_events", "Vendor-Specific(26)", "3GPP-IMSI", "3GPP-Charging-ID", "3GPP2-Granted-QoS-Params", "WiMAX-QoS-Descriptor", "RFC 2865", "RFC 2866", "RFC 5176", "RFC 6929"},
+	})
+}
+
+func addProductionMobileSessionCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0093 mobile APN/PDP/bearer session state software is ready."
+	reportData, err := enforcement.PreviewMobileSessions(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "Mobile session preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "disabled":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0093 schema %d status=%s, mode=%s, apns=%d/%d, bearers=%d/%d, roaming=%d/%d, radius_attrs=%d, state_steps=%d, compliance=%d/%d, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.EnabledAPNProfileCount,
+			reportData.Summary.APNProfileCount,
+			reportData.Summary.EnabledBearerTemplateCount,
+			reportData.Summary.BearerTemplateCount,
+			reportData.Summary.EnabledRoamingPartnerCount,
+			reportData.Summary.RoamingPartnerCount,
+			reportData.Summary.RadiusAttributeCount,
+			reportData.Summary.StateStepCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.SoftwareCompletionPercent)
+		if reportData.Status == "disabled" {
+			summary += " Mobile session state is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but mobile session event history cannot be verified."
+	} else if evidence, err := db.GetMobileSessionSummary(); err != nil {
+		status = "blocked"
+		summary += " Mobile session evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d skipped, %d blocked, %d failed, ready_profiles=%d, planned_profiles=%d, last_apns=%d, last_bearers=%d, last_roaming=%d, last_attrs=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.SkippedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.ReadyProfileCount,
+			evidence.PlannedProfileCount,
+			evidence.LastAPNProfileCount,
+			evidence.LastBearerTemplateCount,
+			evidence.LastRoamingPartnerCount,
+			evidence.LastRadiusAttributeCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "mobile_session_state",
+		Category:       "radius",
+		Label:          "NAS-0093 Mobile Session, APN/PDP/Bearer State",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/mobile-sessions/preview before enabling mobile session enforcement, apply only after reviewing APN profiles, default/dedicated bearer templates, roaming partners, state-machine transitions, privacy controls, grouped AVP dependency, and release-certification boundary. Keep carrier packet-core simulator proof, real 3GPP/Starent/Ericsson evidence, roaming labs, FreeRADIUS production Linux proof, HA, scale, soak, security, and customer proof in the NAS-0093 release certification checklist.",
+		Dependencies:   []string{"mobile.sessions", "mobile.grouped_avps", "mobile_session_state_events", "mobile_session_state_profiles", "/api/v1/system/mobile-sessions", "/api/v1/system/mobile-sessions/preview", "/api/v1/system/mobile-sessions/apply", "3GPP-IMSI", "3GPP-Charging-ID", "3GPP-RAT-Type", "Framed-IP-Address", "Framed-IPv6-Prefix", "Acct-Interim-Interval", "RFC 2865", "RFC 2866", "RFC 5176", "3GPP TS 23.401"},
 	})
 }
 

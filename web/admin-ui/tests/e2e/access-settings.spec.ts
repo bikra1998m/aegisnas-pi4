@@ -264,6 +264,50 @@ test.describe("Access Settings edge-network flow", () => {
     ).toBeVisible();
   });
 
+  test("previews and applies mobile session state", async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto("/access-settings", {
+      timeout: 90_000,
+      waitUntil: "domcontentloaded",
+    });
+    const mobileSessionHeading = page.getByRole("heading", {
+      name: "Mobile Session, APN, And Bearer State",
+    });
+    await expect(mobileSessionHeading).toBeVisible({ timeout: 60_000 });
+    const mobileSessionSection = mobileSessionHeading.locator(
+      "xpath=ancestor::section[1]",
+    );
+    await expect(mobileSessionSection).toBeVisible();
+    await expect(
+      mobileSessionSection.getByRole("heading", { name: "APN Profiles" }),
+    ).toBeVisible();
+    await expect(
+      mobileSessionSection.getByRole("heading", { name: "Bearer Templates" }),
+    ).toBeVisible();
+    await expect(
+      mobileSessionSection
+        .locator("div")
+        .filter({ hasText: /^internet$/ })
+        .first(),
+    ).toBeVisible();
+    await expect(
+      mobileSessionSection
+        .locator("div")
+        .filter({ hasText: /^default-bearer$/ })
+        .first(),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Preview Mobile Sessions" }).click();
+    await expect(page.getByText(/Mobile session preview recorded/)).toBeVisible();
+
+    await page.getByRole("button", { name: "Apply Mobile Sessions" }).click();
+    await expect(page.getByText(/Mobile session state applied/)).toBeVisible();
+  });
+
   test("previews and applies controller estate lifecycle", async ({ page }) => {
     await seedAuthenticatedSession(page);
     await installMockApi(page);

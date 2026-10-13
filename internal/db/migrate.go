@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 96
+	return 97
 }
 
 func Migrate() error {
@@ -5243,3 +5243,56 @@ CREATE INDEX IF NOT EXISTS idx_mobile_grouped_avp_events_mode ON mobile_grouped_
 `
 
 const schemaV96 = mobileGroupedAVPSQL
+
+const mobileSessionStateSQL = `
+CREATE TABLE IF NOT EXISTS mobile_session_state_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	mode TEXT,
+	apn_profile_count INTEGER DEFAULT 0,
+	bearer_template_count INTEGER DEFAULT 0,
+	roaming_partner_count INTEGER DEFAULT 0,
+	radius_attribute_count INTEGER DEFAULT 0,
+	state_step_count INTEGER DEFAULT 0,
+	compliance_check_count INTEGER DEFAULT 0,
+	passed_check_count INTEGER DEFAULT 0,
+	warning_count INTEGER DEFAULT 0,
+	blocker_count INTEGER DEFAULT 0,
+	external_requirement_count INTEGER DEFAULT 0,
+	summary_json TEXT NOT NULL,
+	report_json TEXT,
+	actor TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_mobile_session_state_events_created ON mobile_session_state_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_mobile_session_state_events_status ON mobile_session_state_events(status);
+CREATE INDEX IF NOT EXISTS idx_mobile_session_state_events_fingerprint ON mobile_session_state_events(plan_fingerprint);
+
+CREATE TABLE IF NOT EXISTS mobile_session_state_profiles (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	profile_key TEXT NOT NULL,
+	profile_type TEXT NOT NULL,
+	name TEXT NOT NULL,
+	status TEXT NOT NULL,
+	apn TEXT,
+	bearer_type TEXT,
+	realm TEXT,
+	attributes_json TEXT NOT NULL,
+	source_event_id TEXT,
+	plan_fingerprint TEXT NOT NULL,
+	last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE(profile_type, profile_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_mobile_session_state_profiles_type ON mobile_session_state_profiles(profile_type);
+CREATE INDEX IF NOT EXISTS idx_mobile_session_state_profiles_status ON mobile_session_state_profiles(status);
+CREATE INDEX IF NOT EXISTS idx_mobile_session_state_profiles_seen ON mobile_session_state_profiles(last_seen_at);
+`
+
+const schemaV97 = mobileSessionStateSQL
