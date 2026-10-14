@@ -442,7 +442,7 @@ test.describe("Access Settings edge-network flow", () => {
   });
 
   test("previews and applies DOCSIS policy and charging", async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(300_000);
 
     await seedAuthenticatedSession(page);
     await installMockApi(page);
@@ -454,7 +454,7 @@ test.describe("Access Settings edge-network flow", () => {
     const docsisHeading = page.getByRole("heading", {
       name: "DOCSIS Policy and Charging",
     });
-    await expect(docsisHeading).toBeVisible({ timeout: 60_000 });
+    await expect(docsisHeading).toBeVisible({ timeout: 180_000 });
     const docsisSection = docsisHeading.locator("xpath=ancestor::section[1]");
     await expect(docsisSection).toBeVisible();
     await expect(

@@ -3835,7 +3835,9 @@ export default function AccessSettings() {
 
   const loadNetworkObservability = async () => {
     try {
-      const { data } = await api.get("/system/network-observability");
+      const { data } = await api.get("/system/network-observability", {
+        timeout: 15_000,
+      });
       setNetworkObservability(data || null);
       if (data?.recovery) {
         setNetworkRecovery(data.recovery);
